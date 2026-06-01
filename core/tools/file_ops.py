@@ -1,0 +1,145 @@
+import os
+from pathlib import Path
+from typing import Optional
+from core.tools.base import BaseTool
+
+
+class ReadFileTool(BaseTool):
+    """Tool for reading file contents."""
+
+    def __init__(self):
+        super().__init__()
+        self.name = "read_file"
+        self.description = "Read the contents of a file from the filesystem"
+        self.parameters = {
+            "type": "object",
+            "properties": {
+                "path": {
+                    "type": "string",
+                    "description": "Path to the file to read (relative or absolute)"
+                }
+            },
+            "required": ["path"]
+        }
+
+    async def execute(self, path: str) -> str:
+        """Read file contents.
+
+        Args:
+            path: File path to read
+
+        Returns:
+            File contents or error message
+        """
+        try:
+            file_path = Path(path).expanduser()
+
+            if not file_path.exists():
+                return f"Error: File '{path}' does not exist"
+
+            if not file_path.is_file():
+                return f"Error: '{path}' is not a file"
+
+            with open(file_path, 'r', encoding='utf-8') as f:
+                content = f.read()
+
+            return f"Content of {path}:\n{content}"
+
+        except Exception as e:
+            return f"Error reading file: {str(e)}"
+
+
+class WriteFileTool(BaseTool):
+    """Tool for writing content to files."""
+
+    def __init__(self):
+        super().__init__()
+        self.name = "write_file"
+        self.description = "Write content to a file, creating it if it doesn't exist"
+        self.parameters = {
+            "type": "object",
+            "properties": {
+                "path": {
+                    "type": "string",
+                    "description": "Path to the file to write"
+                },
+                "content": {
+                    "type": "string",
+                    "description": "Content to write to the file"
+                }
+            },
+            "required": ["path", "content"]
+        }
+
+    async def execute(self, path: str, content: str) -> str:
+        """Write content to a file.
+
+        Args:
+            path: File path to write
+            content: Content to write
+
+        Returns:
+            Success or error message
+        """
+        try:
+            file_path = Path(path).expanduser()
+
+            # Create parent directories if needed
+            file_path.parent.mkdir(parents=True, exist_ok=True)
+
+            with open(file_path, 'w', encoding='utf-8') as f:
+                f.write(content)
+
+            return f"Successfully wrote {len(content)} characters to {path}"
+
+        except Exception as e:
+            return f"Error writing file: {str(e)}"
+
+
+class ListDirectoryTool(BaseTool):
+    """Tool for listing directory contents."""
+
+    def __init__(self):
+        super().__init__()
+        self.name = "list_directory"
+        self.description = "List files and directories in a given path"
+        self.parameters = {
+            "type": "object",
+            "properties": {
+                "path": {
+                    "type": "string",
+                    "description": "Path to directory to list (default: current directory)",
+                    "default": "."
+                }
+            }
+        }
+
+    async def execute(self, path: str = ".") -> str:
+        """List directory contents.
+
+        Args:
+            path: Directory path to list
+
+        Returns:
+            Directory listing or error message
+        """
+        try:
+            dir_path = Path(path).expanduser()
+
+            if not dir_path.exists():
+                return f"Error: Directory '{path}' does not exist"
+
+            if not dir_path.is_dir():
+                return f"Error: '{path}' is not a directory"
+
+            items = sorted(dir_path.iterdir(), key=lambda x: (not x.is_dir(), x.name))
+
+            output_lines = [f"Contents of {path}:"]
+            for item in items:
+                prefix = "[DIR] " if item.is_dir() else "[FILE]"
+                output_lines.append(f"{prefix} {item.name}")
+
+            return "\n".join(output_lines)
+
+        except Exception as e:
+            return f"Error listing directory: {str(e)}"

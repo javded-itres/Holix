@@ -1,0 +1,41 @@
+version: '3.8'
+
+services:
+  helix:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      - MODEL=qwen2.5-coder:32b
+      - BASE_URL=http://ollama:11434/v1
+      - API_KEY=ollama
+      - TEMPERATURE=0.7
+      - MAX_STEPS=15
+    volumes:
+      - ./data:/app/data
+      - ./logs:/app/logs
+    depends_on:
+      - ollama
+    restart: unless-stopped
+    networks:
+      - helix-network
+
+  ollama:
+    image: ollama/ollama:latest
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama-data:/root/.ollama
+    restart: unless-stopped
+    networks:
+      - helix-network
+    # Pull the model on startup
+    command: >
+      sh -c "ollama serve & sleep 10 && ollama pull qwen2.5-coder:32b && wait"
+
+volumes:
+  ollama-data:
+
+networks:
+  helix-network:
+    driver: bridge
