@@ -2,7 +2,7 @@
 
 This guide covers packaging, naming, and releasing **Helix** on [PyPI](https://pypi.org).
 
-> **Published:** [HelixAgentAi 0.1.4](https://pypi.org/project/HelixAgentAi/) — install with `pipx install HelixAgentAi`.
+> **Published:** [HelixAgentAi 0.1.5](https://pypi.org/project/HelixAgentAi/) — install with `pipx install HelixAgentAi`.
 
 ## Package name
 

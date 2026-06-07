@@ -27,7 +27,7 @@ After the `browser` extra: `playwright install chromium`
 
 ### From PyPI (recommended)
 
-Published on [pypi.org/project/HelixAgentAi](https://pypi.org/project/HelixAgentAi/) (current: **0.1.4**).
+Published on [pypi.org/project/HelixAgentAi](https://pypi.org/project/HelixAgentAi/) (current: **0.1.5**).
 
 Package name **`HelixAgentAi`** (not `helix` — that name is used by another project).  
 After install, the CLI command is **`helix`** in the environment’s `bin` directory.

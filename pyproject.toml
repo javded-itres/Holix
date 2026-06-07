@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "HelixAgentAi"
-version = "0.1.4"
+version = "0.1.5"
 description = "Self-improving AI agent with memory, skills, MCP, CLI, and TUI"
 readme = "README.md"
 license = "MIT"

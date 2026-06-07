@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.1.5 — 2026-06-07
+
+### Added
+- **Yandex Metrika** on helix-agent.ru (counter 109712139, SPA page-view tracking)
+
+### Security
+- Path traversal fix for `GET /v1/plans/{plan_id}`
+- Hide exception details in API/streaming unless `HELIX_LOG_DEBUG`
+- XSS hardening in web-docs SPA (slug validation, safe DOM rendering)
+- API key hashing requires `HELIX_API_KEY_PEPPER` (HMAC-SHA256 only)
+- Strict URL hostname matching for provider presets and GitHub sources
+- CI workflow: explicit `permissions: contents: read`
+
 ## 0.1.4 — 2026-06-07
 
 ### Added
