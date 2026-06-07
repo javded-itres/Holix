@@ -6,7 +6,7 @@
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![Docs](https://img.shields.io/badge/docs-en%20%7C%20ru-blue)](docs/README.md)
 
-**Documentation:** [English](docs/en/README.md) · [Русский](docs/ru/README.md)
+**Website:** [helix-agent.ru](https://helix-agent.ru) · **Documentation:** [English](docs/en/README.md) · [Русский](docs/ru/README.md) · **Donate:** [support the project](https://messenger.online.sberbank.ru/sl/uwKJ687QKl7d1a1Ui)
 
 ---
 

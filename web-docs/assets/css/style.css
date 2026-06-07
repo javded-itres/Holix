@@ -432,6 +432,19 @@ a:hover { color: var(--accent-2); }
   border-color: var(--accent-dim);
 }
 
+.btn-donate {
+  color: #ffb4c8;
+  background: rgba(255, 80, 120, 0.1);
+  border: 1px solid rgba(255, 120, 150, 0.35);
+}
+
+.btn-donate:hover {
+  color: #ffd0dc;
+  border-color: rgba(255, 120, 150, 0.55);
+  background: rgba(255, 80, 120, 0.18);
+  transform: translateY(-1px);
+}
+
 .features-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));

@@ -22,6 +22,7 @@ const I18N = {
     hero_lead: "Persistent memory, skills, tool calling, MCP integration, and multiple interfaces — CLI, TUI, API gateway, and Telegram.",
     get_started: "Get Started",
     architecture_link: "Architecture",
+    donate: "Support the project",
     features_title: "Core Capabilities",
     docs_title: "Explore Documentation",
     footer: "Helix Agent · MIT License · Built from docs/en & docs/ru",
@@ -56,6 +57,7 @@ const I18N = {
     hero_lead: "Постоянная память, навыки, вызов инструментов, MCP и несколько интерфейсов — CLI, TUI, API gateway и Telegram.",
     get_started: "Начать",
     architecture_link: "Архитектура",
+    donate: "Поддержать проект",
     features_title: "Возможности",
     docs_title: "Разделы документации",
     footer: "Helix Agent · MIT License · Собрано из docs/en и docs/ru",
@@ -272,6 +274,7 @@ function renderHome() {
       <div class="hero-actions">
         <a href="#/installation" class="btn btn-primary">${t("get_started")}</a>
         <a href="#/architecture" class="btn btn-ghost">${t("architecture_link")}</a>
+        <a href="https://messenger.online.sberbank.ru/sl/uwKJ687QKl7d1a1Ui" class="btn btn-donate" target="_blank" rel="noopener noreferrer">♥ ${t("donate")}</a>
       </div>
     </section>
 
