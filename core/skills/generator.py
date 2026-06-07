@@ -1,14 +1,15 @@
 from typing import List, Dict, Any
 from openai import AsyncOpenAI
 
-from config import settings
-
 
 class SkillGenerator:
     """Generates new skills from successful agent sessions."""
 
-    def __init__(self, llm_client: AsyncOpenAI):
+    def __init__(self, llm_client: AsyncOpenAI, *, model: str):
         self.client = llm_client
+        self.model = (model or "").strip()
+        if not self.model:
+            raise ValueError("SkillGenerator requires an active agent model (profile default), not global settings.")
 
     async def create_skill_from_session(
         self,
@@ -51,7 +52,7 @@ EXAMPLES:
 """
 
         response = await self.client.chat.completions.create(
-            model=settings.model,
+            model=self.model,
             messages=[
                 {
                     "role": "system",

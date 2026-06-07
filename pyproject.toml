@@ -3,10 +3,25 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "helix"
-version = "0.1.0"
-description = "Self-improving AI agent with memory and skills"
+name = "helix-agent"
+version = "0.1.3"
+description = "Self-improving AI agent with memory, skills, MCP, CLI, and TUI"
+readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
 requires-python = ">=3.14"
+authors = [{ name = "Pavel Lukyanov" }]
+keywords = ["ai", "agent", "llm", "cli", "mcp", "tools", "langgraph"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Environment :: Console",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.14",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
 dependencies = [
     "fastapi>=0.136.3",
     "uvicorn>=0.48.0",
@@ -18,21 +33,91 @@ dependencies = [
     "pyyaml>=6.0",
     "python-dotenv>=1.0.0",
     "aiohttp>=3.9.0",
-    "pytest>=7.4.0",
-    "pytest-asyncio>=0.21.0",
     "typer>=0.9.0",
     "rich>=13.0.0",
     "prompt-toolkit>=3.0.0",
+    "textual>=0.80.0",
+    "tiktoken>=0.7.0",
+    "langgraph>=1.2.0",
+    "langgraph-checkpoint>=4.0.0",
+    "langchain-core>=0.3.0",
+    "dishka>=1.10.1",
+    "mcp>=1.2.0",
+    "croniter>=2.0.0",
+    "aiogram>=3.15.0",
+    "faster-whisper>=1.1.0",
+    "playwright>=1.49.0",
+    "textual-serve>=1.1.3",
+    "psutil>=6.0.0",
+    "pypdf>=4.0.0",
+]
+
+[project.optional-dependencies]
+browser = ["playwright>=1.49.0"]
+telegram = ["aiogram>=3.15.0", "pypdf>=4.0.0"]
+voice = ["faster-whisper>=1.1.0"]
+tui-web = ["textual-serve>=1.1.3"]
+windows = ["psutil>=6.0.0"]
+all = [
+    "playwright>=1.49.0",
+    "aiogram>=3.15.0",
+    "textual-serve>=1.1.3",
+    "psutil>=6.0.0",
+    "faster-whisper>=1.1.0",
+    "pypdf>=4.0.0",
 ]
 
 [project.scripts]
-helix = "cli.main:app"
+helix = "cli.main:main"
+
+[project.urls]
+Homepage = "https://github.com/YOUR_ORG/helix"
+Documentation = "https://github.com/YOUR_ORG/helix/tree/main/docs"
+Repository = "https://github.com/YOUR_ORG/helix"
+Issues = "https://github.com/YOUR_ORG/helix/issues"
+Changelog = "https://github.com/YOUR_ORG/helix/blob/main/docs/CHANGELOG.md"
+
+[dependency-groups]
+dev = [
+    "pytest>=8.0",
+    "pytest-asyncio>=0.24.0",
+    "ruff>=0.8.0",
+    "mypy>=1.13.0",
+    "build>=1.2.0",
+    "twine>=6.0.0",
+]
 
 [tool.uv]
 package = true
+default-groups = ["dev"]
+# Editable installs may skip console scripts; force reinstall so `uv run helix` works.
+reinstall-package = ["helix-agent"]
+
+[tool.hatch.build.hooks.custom]
+path = "scripts/hatch_bump_version.py"
 
 [tool.hatch.build.targets.wheel]
-packages = ["cli", "core", "api"]
+packages = ["cli", "core", "api", "integrations"]
+
+[tool.hatch.build.targets.wheel.force-include]
+"config.py" = "config.py"
+".env.example" = ".env.example"
+"web-docs" = "web-docs"
+
+[tool.hatch.build.targets.sdist]
+include = [
+    "/cli",
+    "/core",
+    "/api",
+    "/integrations",
+    "/web-docs",
+    "/scripts",
+    "/config.py",
+    "/README.md",
+    "/LICENSE",
+    "/.env.example",
+    "/pyproject.toml",
+]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
@@ -40,3 +125,27 @@ testpaths = ["tests"]
 python_files = "test_*.py"
 python_classes = "Test*"
 python_functions = "test_*"
+markers = [
+    "unit: fast isolated tests (default)",
+    "integration: multi-component or graph tests with mocks",
+    "llm: requires a live LLM provider (skipped in CI by default)",
+]
+filterwarnings = [
+    "ignore::DeprecationWarning:chromadb.*",
+]
+
+[tool.ruff]
+target-version = "py314"
+line-length = 100
+src = ["core", "cli", "api", "integrations", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP"]
+ignore = ["E501"]
+
+[tool.mypy]
+python_version = "3.14"
+packages = ["core", "cli", "api"]
+ignore_missing_imports = true
+warn_return_any = false
+check_untyped_defs = false

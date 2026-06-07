@@ -1,7 +1,8 @@
-import os
 from pathlib import Path
 from typing import Optional
+
 from core.tools.base import BaseTool
+from core.tools.file_diff import format_write_file_result, read_file_text
 
 
 class ReadFileTool(BaseTool):
@@ -11,6 +12,7 @@ class ReadFileTool(BaseTool):
         super().__init__()
         self.name = "read_file"
         self.description = "Read the contents of a file from the filesystem"
+        self.risk_level = "no"
         self.parameters = {
             "type": "object",
             "properties": {
@@ -56,6 +58,7 @@ class WriteFileTool(BaseTool):
         super().__init__()
         self.name = "write_file"
         self.description = "Write content to a file, creating it if it doesn't exist"
+        self.risk_level = "medium"
         self.parameters = {
             "type": "object",
             "properties": {
@@ -83,14 +86,20 @@ class WriteFileTool(BaseTool):
         """
         try:
             file_path = Path(path).expanduser()
+            old_text = read_file_text(file_path)
 
-            # Create parent directories if needed
             file_path.parent.mkdir(parents=True, exist_ok=True)
 
-            with open(file_path, 'w', encoding='utf-8') as f:
+            with open(file_path, "w", encoding="utf-8") as f:
                 f.write(content)
 
-            return f"Successfully wrote {len(content)} characters to {path}"
+            display_path = str(file_path)
+            try:
+                display_path = str(file_path.resolve().relative_to(Path.cwd()))
+            except ValueError:
+                display_path = str(file_path)
+
+            return format_write_file_result(display_path, old_text, content)
 
         except Exception as e:
             return f"Error writing file: {str(e)}"
@@ -103,6 +112,7 @@ class ListDirectoryTool(BaseTool):
         super().__init__()
         self.name = "list_directory"
         self.description = "List files and directories in a given path"
+        self.risk_level = "no"
         self.parameters = {
             "type": "object",
             "properties": {

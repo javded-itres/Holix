@@ -1,0 +1,122 @@
+[
+  {
+    "slug": "readme",
+    "en": "Overview",
+    "ru": "Обзор",
+    "file_key": "README"
+  },
+  {
+    "slug": "installation",
+    "en": "Installation",
+    "ru": "Установка",
+    "file_key": "INSTALLATION"
+  },
+  {
+    "slug": "start-here",
+    "en": "Start Here",
+    "ru": "Первый запуск",
+    "file_key": "START_HERE"
+  },
+  {
+    "slug": "quickstart",
+    "en": "Quickstart",
+    "ru": "Быстрый старт",
+    "file_key": "QUICKSTART"
+  },
+  {
+    "slug": "configuration",
+    "en": "Configuration",
+    "ru": "Конфигурация",
+    "file_key": "CONFIGURATION"
+  },
+  {
+    "slug": "cli",
+    "en": "CLI Reference",
+    "ru": "Справочник CLI",
+    "file_key": "CLI"
+  },
+  {
+    "slug": "slash-commands",
+    "en": "Slash Commands",
+    "ru": "Слэш-команды",
+    "file_key": "SLASH_COMMANDS"
+  },
+  {
+    "slug": "tui",
+    "en": "TUI",
+    "ru": "TUI",
+    "file_key": "TUI"
+  },
+  {
+    "slug": "hub",
+    "en": "Hub & Skills",
+    "ru": "Hub и навыки",
+    "file_key": "HUB"
+  },
+  {
+    "slug": "gateway",
+    "en": "API Gateway",
+    "ru": "API Gateway",
+    "file_key": "GATEWAY"
+  },
+  {
+    "slug": "telegram",
+    "en": "Telegram",
+    "ru": "Telegram",
+    "file_key": "TELEGRAM"
+  },
+  {
+    "slug": "browser-tools",
+    "en": "Browser Tools",
+    "ru": "Браузер",
+    "file_key": "BROWSER_TOOLS"
+  },
+  {
+    "slug": "architecture",
+    "en": "Architecture",
+    "ru": "Архитектура",
+    "file_key": "ARCHITECTURE"
+  },
+  {
+    "slug": "security",
+    "en": "Security",
+    "ru": "Безопасность",
+    "file_key": "SECURITY"
+  },
+  {
+    "slug": "deployment",
+    "en": "Deployment",
+    "ru": "Деплой",
+    "file_key": "DEPLOYMENT"
+  },
+  {
+    "slug": "doctor",
+    "en": "Doctor",
+    "ru": "Doctor",
+    "file_key": "DOCTOR"
+  },
+  {
+    "slug": "logs",
+    "en": "Logs",
+    "ru": "Логи",
+    "file_key": "LOGS"
+  },
+  {
+    "slug": "pypi",
+    "en": "PyPI",
+    "ru": "PyPI",
+    "file_key": "PYPI"
+  },
+  {
+    "slug": "troubleshooting",
+    "en": "Troubleshooting",
+    "ru": "Решение проблем",
+    "file_key": "TROUBLESHOOTING"
+  },
+  {
+    "slug": "user-guide",
+    "en": "User Guide",
+    "ru": "Руководство",
+    "file_key": "USER_GUIDE"
+  }
+]

@@ -1,70 +1,53 @@
-import logging
 import json
-from datetime import datetime
-from pathlib import Path
-from typing import Any, Dict
+import logging
 import sys
+from collections.abc import Callable
+from datetime import UTC, datetime
+from typing import Any
+
+from core.logging.events import append_agent_event
+from core.logging.setup import configure_helix_logging
 
 
 class StructuredLogger:
-    """Structured JSON logger for production monitoring."""
+    """Structured JSON logger for agent/sub-agent observability."""
 
-    def __init__(self, name: str = "helix", log_dir: str = "logs"):
+    def __init__(self, name: str = "helix.agent"):
+        configure_helix_logging()
         self.logger = logging.getLogger(name)
         self.logger.setLevel(logging.INFO)
 
-        # Create logs directory
-        log_path = Path(log_dir)
-        log_path.mkdir(parents=True, exist_ok=True)
-
-        # File handler (JSON format)
-        file_handler = logging.FileHandler(
-            log_path / f"helix_{datetime.now().strftime('%Y%m%d')}.log"
-        )
-        file_handler.setLevel(logging.INFO)
-        file_handler.setFormatter(JSONFormatter())
-
-        # Console handler (human-readable)
-        console_handler = logging.StreamHandler(sys.stdout)
-        console_handler.setLevel(logging.INFO)
-        console_handler.setFormatter(
-            logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-        )
-
-        self.logger.addHandler(file_handler)
-        self.logger.addHandler(console_handler)
+        if not any(isinstance(h, logging.StreamHandler) for h in self.logger.handlers):
+            console_handler = logging.StreamHandler(sys.stdout)
+            console_handler.setLevel(logging.INFO)
+            console_handler.setFormatter(
+                logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+            )
+            self.logger.addHandler(console_handler)
 
     def info(self, message: str, **kwargs):
-        """Log info message with extra context."""
-        self.logger.info(message, extra=kwargs)
+        self.logger.info(message)
+        append_agent_event("INFO", message, **kwargs)
 
     def error(self, message: str, **kwargs):
-        """Log error message with extra context."""
-        self.logger.error(message, extra=kwargs)
+        self.logger.error(message)
+        append_agent_event("ERROR", message, **kwargs)
 
     def warning(self, message: str, **kwargs):
-        """Log warning message with extra context."""
-        self.logger.warning(message, extra=kwargs)
+        self.logger.warning(message)
+        append_agent_event("WARNING", message, **kwargs)
 
     def debug(self, message: str, **kwargs):
-        """Log debug message with extra context."""
-        self.logger.debug(message, extra=kwargs)
+        self.logger.debug(message)
+        append_agent_event("DEBUG", message, **kwargs)
 
 
 class JSONFormatter(logging.Formatter):
     """Format logs as JSON for structured logging."""
 
     def format(self, record: logging.LogRecord) -> str:
-        """Format log record as JSON.
-
-        Args:
-            record: Log record
-
-        Returns:
-            JSON-formatted log string
-        """
         log_data = {
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
             "level": record.levelname,
             "logger": record.name,
             "message": record.getMessage(),
@@ -73,17 +56,97 @@ class JSONFormatter(logging.Formatter):
             "line": record.lineno,
         }
 
-        # Add extra fields
-        if hasattr(record, '__dict__'):
+        if hasattr(record, "__dict__"):
             for key, value in record.__dict__.items():
-                if key not in ['name', 'msg', 'args', 'created', 'filename', 'funcName',
-                               'levelname', 'levelno', 'lineno', 'module', 'msecs',
-                               'message', 'pathname', 'process', 'processName',
-                               'relativeCreated', 'thread', 'threadName']:
+                if key not in [
+                    "name", "msg", "args", "created", "filename", "funcName",
+                    "levelname", "levelno", "lineno", "module", "msecs",
+                    "message", "pathname", "process", "processName",
+                    "relativeCreated", "thread", "threadName",
+                ]:
                     log_data[key] = value
 
         return json.dumps(log_data)
 
 
-# Global logger instance
 logger = StructuredLogger()
+
+
+def create_logger_subscriber(structured_logger: StructuredLogger | None = None) -> Callable[[Any], None]:
+    """Forward AgentEvents to structured JSONL logs."""
+    log = structured_logger or logger
+
+    def handler(event: Any) -> None:
+        try:
+            from core.agent_events import (
+                ContextCompressedEvent,
+                ContextWarningEvent,
+                ErrorEvent,
+                FinalResponseEvent,
+                SkillCreatedEvent,
+                ThinkingEvent,
+                ToolCallResultEvent,
+                ToolCallStartEvent,
+            )
+            from core.monitoring.event_fields import correlation_fields
+
+            ctx = correlation_fields(event)
+
+            if isinstance(event, ToolCallStartEvent):
+                log.info(
+                    f"Tool call started: {event.tool_name}",
+                    tool=event.tool_name,
+                    tool_id=event.tool_id,
+                    **ctx,
+                )
+            elif isinstance(event, ToolCallResultEvent):
+                log.info(
+                    f"Tool call completed: {event.tool_name}",
+                    tool=event.tool_name,
+                    duration_ms=event.duration_ms,
+                    **ctx,
+                )
+            elif isinstance(event, FinalResponseEvent):
+                log.info(
+                    "Agent produced final response",
+                    steps=event.steps_taken,
+                    **ctx,
+                )
+            elif isinstance(event, ErrorEvent):
+                log.error(
+                    f"Agent error: {event.error}",
+                    error_type=event.error_type,
+                    **ctx,
+                )
+            elif isinstance(event, SkillCreatedEvent):
+                log.info(
+                    f"New skill created: {event.skill_name}",
+                    skill=event.skill_name,
+                    filepath=event.filepath,
+                    **ctx,
+                )
+            elif isinstance(event, ContextCompressedEvent):
+                log.info(
+                    f"Context compressed: {event.original_tokens} → {event.compressed_tokens} tokens",
+                    original_tokens=event.original_tokens,
+                    compressed_tokens=event.compressed_tokens,
+                    messages_before=event.messages_before,
+                    messages_after=event.messages_after,
+                    **ctx,
+                )
+            elif isinstance(event, ContextWarningEvent):
+                log.warning(
+                    f"Context usage at {event.usage_percent:.0f}% ({event.level})",
+                    usage_percent=event.usage_percent,
+                    tokens_used=event.tokens_used,
+                    tokens_total=event.tokens_total,
+                    level=event.level,
+                    **ctx,
+                )
+            elif isinstance(event, ThinkingEvent) and "Initializing" in event.message:
+                log.info(event.message, **ctx)
+
+        except Exception:
+            pass
+
+    return handler

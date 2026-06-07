@@ -17,7 +17,7 @@ async def test_write_and_read_file():
 
         # Write file
         result = await write_tool.execute(test_file, content)
-        assert "Successfully wrote" in result
+        assert "Created" in result or "Updated" in result
 
         # Read file
         result = await read_tool.execute(test_file)

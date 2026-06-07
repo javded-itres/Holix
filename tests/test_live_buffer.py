@@ -1,0 +1,21 @@
+"""Tests for LiveTranscriptBuffer."""
+
+from core.presenters.live_buffer import LiveTranscriptBuffer
+
+
+def test_render_includes_tools_and_answer():
+    buf = LiveTranscriptBuffer(profile="p1", mode="react")
+    buf.add_tool_start("Read", {"path": "/tmp"})
+    buf.add_tool_result("Read", "ok", duration_s=0.5)
+    buf.set_answer("Hello **world**")
+    buf.mark_done()
+    text = buf.render_plain()
+    assert "Helix" in text
+    assert "Read" in text
+    assert "Hello" in text
+
+
+def test_truncate_answer():
+    buf = LiveTranscriptBuffer(max_answer_chars=10)
+    buf.set_answer("x" * 100)
+    assert len(buf.answer) <= 11

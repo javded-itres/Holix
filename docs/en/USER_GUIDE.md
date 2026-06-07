@@ -1,0 +1,854 @@
+# Helix — Complete User Guide
+
+Step-by-step instructions: install from `.whl`, initial setup, LiteLLM connection, MCP, skills, Telegram, and execution modes.
+
+> All commands and paths are taken from the Helix repository (`cli/`, `docs/`, `config.py`, `pyproject.toml`).  
+> The package is named **`helix-agent`**; the terminal command is **`helix`**.
+
+---
+
+## Table of Contents
+
+1. [What Helix Can Do](#1-what-helix-can-do)
+2. [Requirements](#2-requirements)
+3. [Step 1 — Install Python](#3-step-1--install-python)
+4. [Step 2 — Install UV (recommended)](#4-step-2--install-uv-recommended)
+5. [Step 3 — Download and Install `.whl`](#5-step-3--download-and-install-whl)
+6. [Step 4 — First Run and Profile](#6-step-4--first-run-and-profile)
+7. [Step 5 — Configure Models via LiteLLM](#7-step-5--configure-models-via-litellm)
+8. [Step 6 — Web Search (optional)](#8-step-6--web-search-optional)
+9. [Step 7 — Telegram Bot](#9-step-7--telegram-bot)
+10. [Step 8 — Execution Modes](#10-step-8--execution-modes)
+11. [Step 9 — How to Write Prompts](#11-step-9--how-to-write-prompts)
+12. [Step 10 — MCP Step by Step](#12-step-10--mcp-step-by-step)
+13. [Step 11 — Skills and Hub Plugins](#13-step-11--skills-and-hub-plugins)
+14. [CLI Reference](#14-cli-reference)
+15. [Slash Commands `/` in Chat](#15-slash-commands--in-chat)
+16. [Helix Features](#16-helix-features)
+17. [Troubleshooting](#17-troubleshooting)
+
+---
+
+## 1. What Helix Can Do
+
+Helix is an AI agent with:
+
+- **tool calling** — files, terminal, web, code, optional browser (Playwright);
+- **memory** — SQLite + semantic search (ChromaDB);
+- **skills** — markdown instructions, Hub catalogs (ClawHub, Hermes, Claude plugins);
+- **MCP** — connect external Model Context Protocol servers;
+- **multiple interfaces** — TUI (`helix tui`), chat (`helix chat-command`), single request (`helix run`), API (`helix gateway`), Telegram;
+- **security** — confirmation for dangerous actions, command whitelist, API keys;
+- **subagents** — background tasks in separate processes;
+- **planning** — modes with plan review and step approval.
+
+Data is stored in **`~/.helix/`** (Linux/macOS) or **`%LOCALAPPDATA%\Helix\`** (Windows).
+
+---
+
+## 2. Requirements
+
+| Component | Version / note |
+|-----------|--------------|
+| **Python** | **3.14+** (`requires-python` in `pyproject.toml`) |
+| **uv** | recommended for installing dependencies |
+| **LLM** | OpenAI-compatible API (this guide uses **LiteLLM**) |
+| **Node.js / npx** | required for many MCP servers (`helix doctor` will check) |
+| **Docker** | optional (e.g., MCP GitHub) |
+
+---
+
+## 3. Step 1 — Install Python
+
+1. Open [https://www.python.org/downloads/](https://www.python.org/downloads/).
+2. Download **Python 3.14** or newer.
+3. Install. On Windows, check **“Add Python to PATH”**.
+4. Verify in the terminal:
+
+```bash
+python3 --version
+# or on Windows:
+python --version
+```
+
+You should see **3.14.x** or higher.
+
+---
+
+## 4. Step 2 — Install UV (recommended)
+
+UV is a fast Python package manager. Helix documentation recommends it for development and installation.
+
+**macOS / Linux:**
+
+```bash
+curl -LsSf https://astral.sh/uv/install.sh | sh
+```
+
+**Verify:**
+
+```bash
+uv --version
+```
+
+Alternative without UV: plain `pip` (see step 5).
+
+---
+
+## 5. Step 3 — Download and Install `.whl`
+
+### 5.1. Get the file
+
+The wheel is built from the project:
+
+```bash
+uv build
+ls dist/
+# example: helix_agent-0.1.0-py3-none-any.whl
+```
+
+Copy the `.whl` to the target machine (USB, shared folder, CI artifact).
+
+> Package name: **`helix-agent`**.  
+> Do not use `pip install helix` — on PyPI that is a **different** project.
+
+### 5.2. Install via **uv** (recommended)
+
+**Globally (as a standalone utility):**
+
+```bash
+uv tool install /path/to/helix_agent-0.1.0-py3-none-any.whl
+helix version
+```
+
+**In a virtual environment:**
+
+```bash
+mkdir -p ~/helix-env && cd ~/helix-env
+uv venv --python 3.14
+source .venv/bin/activate          # Windows: .venv\Scripts\activate
+uv pip install /path/to/helix_agent-0.1.0-py3-none-any.whl
+helix version
+```
+
+**With optional extras** (Telegram, browser, web TUI, voice):
+
+```bash
+uv pip install "/path/to/helix_agent-0.1.0-py3-none-any.whl[all]"
+# or selectively:
+uv pip install "/path/to/helix_agent-0.1.0-py3-none-any.whl[telegram,browser,tui-web,voice]"
+```
+
+### 5.3. Install via **pip**
+
+**Globally (pipx — recommended for CLI):**
+
+```bash
+pipx install /path/to/helix_agent-0.1.0-py3-none-any.whl
+helix version
+```
+
+**In a venv:**
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+pip install /path/to/helix_agent-0.1.0-py3-none-any.whl
+pip install "/path/to/helix_agent-0.1.0-py3-none-any.whl[telegram]"
+helix version
+```
+
+**In the user directory** (`~/.local/bin`):
+
+```bash
+pip install --user /path/to/helix_agent-0.1.0-py3-none-any.whl
+export PATH="$HOME/.local/bin:$PATH"
+helix version
+```
+
+### 5.4. Post-install verification
+
+```bash
+helix --help
+helix doctor
+```
+
+---
+
+## 6. Step 4 — First Run and Profile
+
+### 6.1. Create the environment file
+
+```bash
+mkdir -p ~/.helix
+cp .env.example ~/.helix/.env
+# if .env.example is not in the wheel — create ~/.helix/.env manually from the repository template
+```
+
+The main secrets file is **`~/.helix/.env`**.
+
+### 6.2. Profile
+
+A profile is a set of settings in a directory:
+
+```
+~/.helix/profiles/<name>/config.yaml
+~/.helix/profiles/<name>/data/
+```
+
+The **`default`** profile is used by default. On first run, Helix creates the required directories.
+
+View settings:
+
+```bash
+helix status
+helix config show
+```
+
+Switch profile:
+
+```bash
+helix -p work tui
+```
+
+In chat: `/profile work` or `/profile` (list).
+
+### 6.3. Diagnostics
+
+```bash
+helix doctor
+helix doctor --fix
+```
+
+Doctor checks: directories, YAML, LLM, gateway, Telegram, MCP env, platform (node/npx/git).
+
+---
+
+## 7. Step 5 — Configure Models via LiteLLM
+
+In your infrastructure, LiteLLM is available at:
+
+**`https://office.it-rs.ru:4000`**
+
+Helix talks to LiteLLM through the **OpenAI-compatible API** (`/v1/chat/completions`, `/v1/models`).
+
+### 7.1. What to get from the LiteLLM administrator
+
+1. **Virtual API key** (client key) — stored as `LITELLM_API_KEY`.
+2. A list of **model names** (`model_name` in the LiteLLM config) that you are allowed to use.  
+   The Helix catalog for the `litellm` preset lists examples: `smart`, `fast`, `heavy` — **actual names on your server may differ**; Helix will show the list on successful connection.
+
+### 7.2. Save the key in `~/.helix/.env`
+
+Open `~/.helix/.env` and add:
+
+```bash
+# LiteLLM proxy
+LITELLM_API_BASE=https://office.it-rs.ru:4000/v1
+LITELLM_API_KEY=sk-your-virtual-key-from-litellm
+```
+
+> Helix substitutes `${LITELLM_API_KEY}` and the host from `LITELLM_API_BASE` into the profile `config.yaml`.
+
+Optional API availability check (from the user's machine):
+
+```bash
+curl -s https://office.it-rs.ru:4000/v1/models \
+  -H "Authorization: Bearer $LITELLM_API_KEY" | head
+```
+
+The response should be JSON with a list of models.
+
+### 7.3. Add the LiteLLM provider to the profile (interactive)
+
+```bash
+helix models add litellm --host https://office.it-rs.ru:4000
+```
+
+What happens:
+
+1. Helix prompts for the API key (if `LITELLM_API_KEY` is already in `.env` — it uses that).
+2. Connects to `https://office.it-rs.ru:4000/v1`.
+3. Loads the model list from `/v1/models`.
+4. Asks you to choose the **default model** for this provider.
+5. Saves settings to `~/.helix/profiles/default/config.yaml`.
+
+### 7.4. Full setup wizard (recommended)
+
+```bash
+helix models setup
+```
+
+In the menu:
+
+| Option | Action |
+|--------|--------|
+| **1** | Add provider (choose **litellm** preset, # from the table) |
+| **2** | List providers |
+| **3** | Test connection |
+| **5** | **Assign models to agents** (`main`, subagents) |
+| **7** | Save and exit |
+
+### 7.5. Assigning models to agents
+
+In `helix models setup` → option **5** (Configure agent models):
+
+- **`main`** — primary agent in chat;
+- you can assign different models to subagents (`researcher`, `coder`, …).
+
+View assignments:
+
+```bash
+helix models agents
+```
+
+### 7.6. Example `config.yaml` fragment after setup
+
+```yaml
+default_provider: litellm
+providers:
+  litellm:
+    base_url: https://office.it-rs.ru:4000/v1
+    api_key: ${LITELLM_API_KEY}
+    default_model: <model-name-from-litellm-list>
+    metadata:
+      auth_type: bearer
+      preset_id: litellm
+agent_models:
+  main:
+    provider: litellm
+    model: <model-name-from-litellm-list>
+    temperature: 0.7
+```
+
+### 7.7. Apply changes
+
+If gateway or Telegram is running:
+
+```bash
+helix gateway reload
+```
+
+In TUI, switch models on the fly: `/models` or `/model`.
+
+---
+
+## 8. Step 6 — Web Search (optional)
+
+Helix supports providers: **DuckDuckGo** (default), **SearXNG**, **Firecrawl**.
+
+```bash
+helix search configure   # interactive provider selection and order
+helix search list
+helix search test "test query"
+```
+
+In chat: `/search`, `/search configure`, `/search test query`.
+
+After configuration: `helix gateway reload`.
+
+Secrets in `.env`: `FIRECRAWL_API_KEY`, `SEARXNG_BASE_URL` (see `.env.example`).
+
+---
+
+## 9. Step 7 — Telegram Bot
+
+### 9.1. Install the Telegram dependency
+
+```bash
+uv sync --extra telegram
+# or when installing the wheel:
+pip install "helix-agent[telegram]"
+```
+
+### 9.2. Create a bot in Telegram
+
+1. Open Telegram and find **[@BotFather](https://t.me/BotFather)**.
+2. Send the **`/newbot`** command.
+3. Enter the bot **display name**.
+4. Enter the bot **username** (must end with `bot`, e.g. `my_company_helix_bot`).
+5. BotFather will send a **token** like `123456789:AAHxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx` — save it.
+
+### 9.3. Find your Telegram user id
+
+Required to restrict access (who can message the bot):
+
+- message [@userinfobot](https://t.me/userinfobot), or
+- the `helix telegram setup` wizard can detect the id automatically.
+
+### 9.4. Interactive Helix setup
+
+```bash
+helix telegram setup
+```
+
+The wizard:
+
+1. Validates the token via the Telegram API (`getMe`).
+2. Asks for the user **allowlist** (`HELIX_TELEGRAM_ALLOWED_USERS`).
+3. Saves settings to **`~/.helix/telegram.env`**.
+
+### 9.5. Start the bot
+
+**Standalone:**
+
+```bash
+helix telegram run
+# or simply:
+helix telegram
+```
+
+**Together with the API gateway** (recommended for always-on use):
+
+```bash
+helix gateway start
+```
+
+The gateway supervisor also starts Telegram if it is configured.
+
+### 9.6. Update the Telegram command menu
+
+```bash
+helix telegram sync-menu
+```
+
+After changing skills, MCP, or slash commands.
+
+### 9.7. Voice messages (optional)
+
+If chat already goes through LiteLLM, configure the transcription model **in the LiteLLM config** and in `~/.helix/.env`:
+
+```bash
+HELIX_WHISPER_BASE_URL=https://office.it-rs.ru:4000/v1
+HELIX_WHISPER_API_KEY=sk-...          # LiteLLM virtual key
+HELIX_WHISPER_MODEL=whisper           # model_name from LiteLLM (not whisper-1)
+HELIX_TELEGRAM_VOICE_LANGUAGE=en
+```
+
+More details: [TELEGRAM.md](TELEGRAM.md).
+
+### 9.8. Production
+
+When `HELIX_ENV=production`, `HELIX_TELEGRAM_ALLOWED_USERS` is required.
+
+---
+
+## 10. Step 8 — Execution Modes
+
+TUI supports these modes (switch with **`/mode`** or **Shift+Tab** in legacy TUI):
+
+| Mode | System name | When to use |
+|------|-------------|-------------|
+| **ReAct** | `react` | Regular questions, tools, quick tasks (default mode) |
+| **Plan** | `plan_and_execute` | Multi-step tasks with clear subtasks |
+| **Hybrid** | `hybrid` | Complex tasks: plan first, then flexible step execution |
+| **Auto** | `auto` | Helix **chooses** one of the three modes above via an LLM classifier |
+
+Set a mode explicitly:
+
+```
+/mode react
+/mode plan_and_execute
+/mode hybrid
+/mode auto
+```
+
+### Planning and approval
+
+In plan modes (`plan_and_execute`, `hybrid`) the agent:
+
+1. Builds a plan.
+2. Shows it for **approval** (if `plan_review_enabled: true` in settings).
+3. Waits for your decision.
+
+Approval commands:
+
+| Command | Action |
+|---------|--------|
+| `/plan-confirm` | Approve **one step** |
+| `/plan-auto` | Run the **entire plan** automatically |
+| `/plan-refine` | Refine the plan (you can reply with text) |
+| `/plan-reject` | Reject the plan |
+
+In Telegram — the same commands and inline buttons.
+
+### Dangerous action confirmation
+
+Before writing files, running terminal commands, etc., Helix asks for permission:
+
+| Command | Meaning |
+|---------|---------|
+| `/yes`, `/1` | Allow once |
+| `/2` | For the whole session |
+| `/3` | Always (persisted) |
+| `/no`, `/4` | Deny |
+
+---
+
+## 11. Step 9 — How to Write Prompts
+
+### ReAct (`react`)
+
+Write **directly and concretely**:
+
+- ✅ “Read `README.md` and briefly describe the project”
+- ✅ “Search the web for the latest news about Python 3.14”
+- ✅ “Run `git status` and explain the output”
+
+Good for: single questions, reading files, search, short code.
+
+### Plan (`plan_and_execute`)
+
+State the **goal and constraints**, broken into stages:
+
+- ✅ “Migrate the project from requirements.txt to pyproject.toml: 1) audit dependencies 2) create pyproject 3) verify installation”
+- ✅ “Add tests for module X and update CI”
+
+Expect **plan → approval → step-by-step execution**.
+
+### Hybrid (`hybrid`)
+
+For **large tasks** with research and implementation:
+
+- ✅ “Design and implement a task-tracking API: architecture plan first, then code and tests”
+
+Plan first (as in the hybrid graph), then ReAct within steps.
+
+### Auto (`auto`)
+
+Write as usual — Helix picks the mode:
+
+- short question → likely `react`;
+- “do a refactor and add tests” → likely `plan_and_execute` or `hybrid`.
+
+On classifier failure, **`react`** is used.
+
+### General tips
+
+1. Specify **file paths** and the **expected outcome**.
+2. For code — language, framework, constraints.
+3. Commands starting with `/` are **slash commands**; they do **not** go to the LLM (`/help`, `/mode`, …).
+4. Plain text without `/` is a message to the agent.
+
+---
+
+## 12. Step 10 — MCP Step by Step
+
+MCP (Model Context Protocol) adds external tools (GitHub, filesystem, documentation, etc.).
+
+### 12.1. Browse popular servers
+
+```bash
+helix mcp list-popular
+```
+
+Examples from the catalog: `filesystem`, `github`, `context7`, `compass`, `postgres`, …
+
+### 12.2. Install MCP (easy way)
+
+```bash
+helix mcp install
+```
+
+Interactive: pick from the list → enter parameters (paths, API keys) → test → save to profile.
+
+Or by name:
+
+```bash
+helix mcp install context7
+helix mcp install filesystem
+```
+
+From git:
+
+```bash
+helix mcp install https://github.com/upstash/context7
+```
+
+### 12.3. Assign MCP to agents
+
+```bash
+helix mcp assign
+```
+
+For example: `main` sees `filesystem` and `context7`, subagent `researcher` — only `context7`.
+
+Verify:
+
+```bash
+helix mcp list
+helix mcp test <server-name>
+helix mcp tools
+```
+
+### 12.4. Full wizard
+
+```bash
+helix mcp setup
+```
+
+Add servers + assign to roles.
+
+### 12.5. In chat (TUI / Telegram)
+
+```
+/mcp
+/mcp list
+/mcp install
+/mcp assign
+/mcp test filesystem
+/mcp tools
+/mcp remove <name>
+```
+
+### 12.6. Apply
+
+```bash
+helix gateway reload
+```
+
+MCP tools in the agent are named **`mcp_<server>_<tool>`**.
+
+### 12.7. Environment variables for MCP
+
+Secrets in MCP config: `${GITHUB_TOKEN}`, `${CONTEXT7_API_KEY}`, etc.  
+Values go in `~/.helix/.env`.  
+`helix doctor` warns about unresolved `${VAR}`.
+
+---
+
+## 13. Step 11 — Skills and Hub Plugins
+
+### 13.1. What are skills
+
+A **skill** is a `SKILL.md` file with instructions for the agent.  
+Stored in: `~/.helix/profiles/<profile>/data/skills/`
+
+### 13.2. Install from Hub (CLI)
+
+```bash
+# search
+helix hub search "docker" -s clawhub
+helix hub search "git" -s clawhub
+
+# interactive browse
+helix hub browse
+
+# install
+helix hub install <spec>
+helix hub install <spec> --agents main,coder
+```
+
+Spec formats (from Hub documentation):
+
+| Prefix | Example |
+|--------|---------|
+| ClawHub | `my-skill` or `clawhub:slug@1.0` |
+| Claude plugin | `claude:github@claude-official` |
+| Hermes | `hermes:api-builder` |
+| skills.sh | `skills-sh/owner/repo/path` |
+| Git | `git:https://github.com/...` |
+
+Claude plugins may add MCP (`--with-mcp` by default).
+
+### 13.3. In TUI
+
+```
+/hub                  — pick catalog
+/hub browse           — search and install
+/hub installed        — what is installed
+/skills               — hint for listing skills
+```
+
+### 13.4. Assign skills to agents
+
+By default **`main`** sees all skills in the profile.  
+Restrict via `skill_assignments` in `config.yaml`:
+
+```bash
+helix skills list --agent main
+helix skills assign docker-manager --agents main,coder
+helix skills unassign docker-manager --agent coder
+helix skills assign-wizard    # interactive
+```
+
+### 13.5. Hub updates
+
+```bash
+helix hub list
+helix hub check-updates
+helix hub update
+helix hub autoupdate --enable
+helix hub slash-sync          # refresh skill-slash.json
+```
+
+### 13.6. Apply
+
+```bash
+helix gateway reload
+```
+
+---
+
+## 14. CLI Reference
+
+Global options: **`--profile` / `-p`**, **`--verbose` / `-v`**.
+
+### Main commands
+
+| Command | Purpose |
+|---------|---------|
+| `helix tui` | Full-screen interface (recommended) |
+| `helix chat-command` | Terminal chat |
+| `helix run "query"` | Single request without entering chat |
+| `helix status` | Profile status |
+| `helix version` | Version |
+| `helix clear` | Clear profile data |
+| `helix doctor` | Diagnostics |
+| `helix install` | Install helix to PATH (from source) |
+| `helix update` | Update |
+
+### `helix models`
+
+| Subcommand | Description |
+|------------|-------------|
+| `setup` | Interactive wizard |
+| `add <preset>` | Add provider (`litellm`, `ollama`, …) |
+| `presets` | List presets |
+| `list` | Providers in profile |
+| `agents` | Model assignments per agent |
+
+### `helix config`
+
+| Subcommand | Description |
+|------------|-------------|
+| `show` | Show YAML |
+| `edit` | Editor |
+| `set key value` | Change a field |
+
+### `helix mcp`
+
+`list`, `add`, `remove`, `test`, `assign`, `setup`, `list-popular`, `install`
+
+### `helix hub`
+
+`search`, `browse`, `install`, `list`, `remove`, `check-updates`, `update`, `autoupdate`, `slash-sync`
+
+### `helix skills`
+
+`list`, `search`, `show`, `assign`, `unassign`, `agents`, `assign-wizard`
+
+### `helix memory`
+
+`search "<query>"`
+
+### `helix search`
+
+`configure`, `list`, `test`
+
+### `helix gateway`
+
+`start`, `stop`, `status`, `reload`  
+Endpoints: `/health`, `/v1/chat/completions`, … — see [GATEWAY.md](GATEWAY.md).
+
+### `helix cron`
+
+Requires a running gateway.  
+`add`, `list`, `enable`, `disable`, `remove`
+
+### `helix logs`
+
+`helix logs`, `helix logs -f`, `helix logs -s agent`, `helix logs list`, `helix logs rotate`, `helix logs debug on`
+
+### `helix telegram`
+
+`setup`, `run`, `status`, `sync-menu`
+
+---
+
+## 15. Slash Commands `/` in Chat
+
+Work in **TUI**, **Telegram**, and partially in **`helix chat-command`**.
+
+Full list: [SLASH_COMMANDS.md](SLASH_COMMANDS.md).
+
+Summary:
+
+| Group | Examples |
+|-------|----------|
+| Help | `/help`, `/status`, `/clear` |
+| Models and mode | `/models`, `/mode`, `/stream`, `/stop` |
+| Sessions | `/new`, `/sessions`, `/switch N`, `/profile` |
+| Memory | `/memory query`, `/memory-clear` |
+| Plan | `/plan-confirm`, `/plan-auto`, `/plan-refine`, `/plan-reject` |
+| Confirmations | `/yes`, `/no`, `/1`…`/4` |
+| MCP | `/mcp`, `/mcp install`, `/mcp assign` |
+| Hub | `/hub`, `/hub browse`, `/hub installed` |
+| Subagents | `/subagents`, `/subagent-spawn`, `/subagent-result` |
+| Search | `/search`, `/search configure`, `/search test` |
+| Cron | `/cron`, `/cron add …` |
+
+On macOS with a non-US keyboard layout, `/` may be **Shift+7**.
+
+---
+
+## 16. Helix Features
+
+1. **Profiles** — multiple isolated configurations (`helix -p name`).
+2. **Memory** — conversations + long-term memory + semantic search (`/memory`).
+3. **Confirmations** — dangerous tool calls require explicit approval.
+4. **Plan review** — multi-step tasks are not run silently without your OK (when enabled).
+5. **Subagents** — background worker processes; main chat is not blocked (`/subagent-spawn`).
+6. **MCP and Hub** — extend without editing agent code.
+7. **Multi-interface** — one profile for TUI, Telegram, and API gateway.
+8. **Logs** — structured logs for agent/gateway/cron/subagent (`helix logs`).
+9. **Doctor** — self-diagnostics for the environment.
+10. **OpenAI-compatible API** — gateway for integration with other clients.
+11. **Voice in Telegram** — Whisper via LiteLLM, OpenAI, or locally (`faster-whisper`).
+12. **Context compression** — `/compress` when the model window overflows.
+
+---
+
+## 17. Troubleshooting
+
+```bash
+helix doctor
+helix doctor --fix
+helix logs -l error -n 50
+```
+
+| Problem | What to check |
+|---------|---------------|
+| `helix: command not found` | PATH, venv, `pipx` / `uv tool` |
+| No response from model | `LITELLM_API_KEY`, URL, `helix models list`, curl `/v1/models` |
+| MCP not showing up | `helix mcp test`, `helix gateway reload`, `helix doctor` |
+| Telegram silent | `helix telegram status`, token, allowlist, `helix gateway status` |
+| Stale slash commands | `helix telegram sync-menu`, `helix gateway reload` |
+
+More: [TROUBLESHOOTING.md](TROUBLESHOOTING.md), [DOCTOR.md](DOCTOR.md).
+
+---
+
+## Quick checklist: from zero to chat
+
+1. Python 3.14+  
+2. `uv` or `pip`  
+3. `uv pip install helix_agent-….whl` (or `pipx install …`)  
+4. `~/.helix/.env` with `LITELLM_API_BASE` and `LITELLM_API_KEY`  
+5. `helix models add litellm --host https://office.it-rs.ru:4000`  
+6. `helix models setup` → assign a model for `main`  
+7. `helix doctor`  
+8. `helix tui` or `helix telegram setup` + `helix gateway start`  
+9. As needed: `helix mcp install`, `helix hub browse`, `helix search configure`  
+
+---
+
+## See also
+
+- [INSTALLATION.md](INSTALLATION.md)
+- [CONFIGURATION.md](CONFIGURATION.md)
+- [CLI.md](CLI.md)
+- [SLASH_COMMANDS.md](SLASH_COMMANDS.md)
+- [TELEGRAM.md](TELEGRAM.md)
+- [HUB.md](HUB.md)
+- [GATEWAY.md](GATEWAY.md)

@@ -1,0 +1,213 @@
+"""Cross-platform helpers for paths, processes, and shell hints."""
+
+from __future__ import annotations
+
+import os
+import signal
+import subprocess
+import sys
+import time
+from pathlib import Path
+
+IS_WINDOWS = sys.platform == "win32"
+IS_MACOS = sys.platform == "darwin"
+IS_POSIX = os.name == "posix"
+
+_CREATE_NEW_PROCESS_GROUP = getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0)
+_CREATE_NO_WINDOW = getattr(subprocess, "CREATE_NO_WINDOW", 0)
+
+
+def resolve_helix_home() -> Path:
+    """Helix data directory (HELIX_HOME, XDG_DATA_HOME, LOCALAPPDATA, or ~/.helix)."""
+    if raw := os.environ.get("HELIX_HOME", "").strip():
+        return Path(raw).expanduser().resolve()
+    if IS_WINDOWS:
+        base = os.environ.get("LOCALAPPDATA") or os.environ.get("APPDATA")
+        if base:
+            return (Path(base) / "Helix").resolve()
+        return (Path.home() / ".helix").resolve()
+    if xdg := os.environ.get("XDG_DATA_HOME", "").strip():
+        return (Path(xdg) / "helix").resolve()
+    return (Path.home() / ".helix").resolve()
+
+
+def helix_home_display() -> str:
+    return str(resolve_helix_home())
+
+
+def process_subagents_supported() -> bool:
+    """OS-process sub-agents are reliable on POSIX; Windows uses async fallback."""
+    return not IS_WINDOWS
+
+
+def is_process_alive(pid: int) -> bool:
+    if pid <= 0:
+        return False
+    try:
+        os.kill(pid, 0)
+    except ProcessLookupError:
+        return False
+    except PermissionError:
+        return True
+    return True
+
+
+def _kill_signal(pid: int, sig: int) -> None:
+    try:
+        os.kill(pid, sig)
+    except ProcessLookupError:
+        pass
+
+
+def _psutil_terminate_tree(pid: int, *, force: bool) -> bool:
+    try:
+        import psutil
+    except ImportError:
+        return False
+
+    try:
+        proc = psutil.Process(pid)
+    except psutil.Error:
+        return False
+
+    children = proc.children(recursive=True)
+    targets = children + [proc]
+    if force:
+        for p in targets:
+            try:
+                p.kill()
+            except psutil.Error:
+                pass
+        psutil.wait_procs(targets, timeout=5)
+        return True
+
+    for p in targets:
+        try:
+            p.terminate()
+        except psutil.Error:
+            pass
+    _gone, alive = psutil.wait_procs(targets, timeout=5)
+    for p in alive:
+        try:
+            p.kill()
+        except psutil.Error:
+            pass
+    return True
+
+
+def _windows_terminate(pid: int, *, force: bool) -> None:
+    args = ["taskkill", "/PID", str(pid), "/T"]
+    if force:
+        args.append("/F")
+    try:
+        subprocess.run(args, capture_output=True, timeout=30, check=False)
+    except (OSError, subprocess.SubprocessError):
+        sig = getattr(signal, "SIGKILL", signal.SIGTERM) if force else signal.SIGTERM
+        _kill_signal(pid, sig)
+
+
+def terminate_process(pid: int, *, grace: float = 10.0) -> None:
+    """Gracefully stop a process (and its group on POSIX)."""
+    if not is_process_alive(pid):
+        return
+
+    if _psutil_terminate_tree(pid, force=False):
+        deadline = time.monotonic() + grace
+        while time.monotonic() < deadline:
+            if not is_process_alive(pid):
+                return
+            time.sleep(0.2)
+        _psutil_terminate_tree(pid, force=True)
+        return
+
+    if IS_POSIX and hasattr(os, "killpg") and hasattr(os, "getpgid"):
+        try:
+            os.killpg(os.getpgid(pid), signal.SIGTERM)
+        except ProcessLookupError:
+            return
+        except OSError:
+            _kill_signal(pid, signal.SIGTERM)
+    elif IS_WINDOWS:
+        _windows_terminate(pid, force=False)
+    else:
+        _kill_signal(pid, signal.SIGTERM)
+
+    deadline = time.monotonic() + grace
+    while time.monotonic() < deadline:
+        if not is_process_alive(pid):
+            return
+        time.sleep(0.2)
+
+    if IS_WINDOWS:
+        _windows_terminate(pid, force=True)
+    elif IS_POSIX and hasattr(os, "killpg") and hasattr(os, "getpgid"):
+        try:
+            os.killpg(os.getpgid(pid), signal.SIGKILL)
+        except (ProcessLookupError, OSError):
+            _kill_signal(pid, signal.SIGKILL)
+    else:
+        _kill_signal(pid, signal.SIGKILL)
+
+
+def popen_background(
+    cmd: list[str],
+    *,
+    env: dict[str, str] | None = None,
+    stdout=None,
+    stderr=None,
+    stdin=None,
+) -> subprocess.Popen:
+    """Spawn a detached background child process."""
+    kwargs: dict = {
+        "env": env,
+        "stdout": stdout,
+        "stderr": stderr,
+        "stdin": stdin if stdin is not None else subprocess.DEVNULL,
+    }
+    if IS_POSIX:
+        kwargs["start_new_session"] = True
+        kwargs["close_fds"] = True
+    elif IS_WINDOWS and _CREATE_NEW_PROCESS_GROUP:
+        kwargs["creationflags"] = _CREATE_NEW_PROCESS_GROUP
+    return subprocess.Popen(cmd, **kwargs)
+
+
+def port_check_hint(port: int) -> str:
+    if IS_WINDOWS:
+        return f"netstat -ano | findstr :{port}"
+    if IS_MACOS:
+        return f"lsof -i :{port}"
+    return f"ss -ltnp | grep :{port}  # or: lsof -i :{port}"
+
+
+def psutil_available() -> bool:
+    try:
+        import psutil  # noqa: F401
+
+        return True
+    except ImportError:
+        return False
+
+
+def subprocess_shell_kwargs() -> dict:
+    """Extra kwargs for asyncio/subprocess shell spawns (hide console on Windows)."""
+    if IS_WINDOWS and _CREATE_NO_WINDOW:
+        return {"creationflags": _CREATE_NO_WINDOW}
+    return {}
+
+
+def clipboard_tools_available() -> bool:
+    import shutil
+
+    if IS_WINDOWS:
+        return shutil.which("clip") is not None or shutil.which("powershell") is not None
+    if IS_MACOS:
+        return True
+    return any(shutil.which(name) for name in ("wl-copy", "xclip", "xsel"))
+
+
+def ensure_multiprocessing_support() -> None:
+    """Required on Windows before spawning multiprocessing children."""
+    import multiprocessing
+
+    multiprocessing.freeze_support()

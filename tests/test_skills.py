@@ -19,8 +19,8 @@ async def test_save_and_load_skill(skills_manager):
     # Load skills
     skills_manager.load_all_skills()
 
-    assert "test_skill" in skills_manager.all_skills
-    skill = skills_manager.all_skills["test_skill"]
+    assert "test-skill" in skills_manager.all_skills
+    skill = skills_manager.all_skills["test-skill"]
 
     assert skill["description"] == "A test skill"
     assert "test" in skill["tags"]

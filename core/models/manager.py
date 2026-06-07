@@ -2,7 +2,9 @@
 
 from typing import Optional, Dict, Any
 from openai import AsyncOpenAI
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
+
+from core.models.client_factory import create_openai_client
 
 
 class ModelConfig(BaseModel):
@@ -14,6 +16,8 @@ class ModelConfig(BaseModel):
     api_key: str
     temperature: float = 0.7
     max_tokens: Optional[int] = None
+    context_window: Optional[int] = None  # Context window in tokens, None = use default
+    metadata: Dict[str, Any] = Field(default_factory=dict)
 
 
 class ModelManager:
@@ -37,27 +41,56 @@ class ModelManager:
         if not self.profile_config:
             return None
 
-        # Try to get from default_provider
-        if self.profile_config.default_provider and self.profile_config.providers:
-            provider_name = self.profile_config.default_provider
-            provider_data = self.profile_config.providers.get(provider_name)
+        providers = self.profile_config.providers or {}
+        default_provider = self.profile_config.default_provider
 
-            if provider_data:
-                return ModelConfig(
-                    provider=provider_name,
-                    model=provider_data.get("default_model", ""),
-                    base_url=provider_data.get("base_url", ""),
-                    api_key=provider_data.get("api_key", "dummy"),
-                    temperature=self.profile_config.temperature,
-                )
+        if providers:
+            if not default_provider or default_provider not in providers:
+                return None
+            provider_data = providers[default_provider]
+            if not provider_data:
+                return None
+            model_id = provider_data.get("default_model", "") or ""
+            model_contexts = provider_data.get("model_contexts", {})
+            context_window = model_contexts.get(model_id) if model_contexts else None
+            if hasattr(self.profile_config, "context_window") and self.profile_config.context_window:
+                context_window = self.profile_config.context_window
+            base_url = (provider_data.get("base_url") or "").strip()
+            if not base_url:
+                return None
+            return ModelConfig(
+                provider=default_provider,
+                model=model_id,
+                base_url=base_url,
+                api_key=provider_data.get("api_key", "dummy"),
+                temperature=self.profile_config.temperature,
+                context_window=context_window,
+                metadata=dict(provider_data.get("metadata") or {}),
+            )
 
-        # Fallback to legacy config
+        # Stale default_provider with empty providers — do not fall back to legacy defaults
+        if default_provider:
+            return None
+
+        if getattr(self.profile_config, "models_via_providers", False):
+            return None
+
+        model = (self.profile_config.model or "").strip()
+        base_url = (self.profile_config.base_url or "").strip()
+        if not model or not base_url:
+            return None
+
+        context_window = None
+        if hasattr(self.profile_config, "context_window") and self.profile_config.context_window:
+            context_window = self.profile_config.context_window
+
         return ModelConfig(
             provider="legacy",
-            model=self.profile_config.model,
-            base_url=self.profile_config.base_url,
-            api_key=self.profile_config.api_key,
+            model=model,
+            base_url=base_url,
+            api_key=self.profile_config.api_key or "dummy",
             temperature=self.profile_config.temperature,
+            context_window=context_window,
         )
 
     def get_agent_model_config(self, agent_name: str) -> Optional[ModelConfig]:
@@ -77,18 +110,30 @@ class ModelManager:
             return self.get_default_model_config()
 
         provider_name = agent_data.get("provider")
-        provider_data = self.profile_config.providers.get(provider_name)
+        providers = self.profile_config.providers or {}
+        provider_data = providers.get(provider_name) if provider_name else None
 
         if not provider_data:
-            return self.get_default_model_config()
+            return None
+
+        model_id = agent_data.get("model", "")
+        # Get context_window: agent override → provider model_contexts → profile → None
+        model_contexts = provider_data.get("model_contexts", {})
+        context_window = agent_data.get("context_window")
+        if not context_window:
+            context_window = model_contexts.get(model_id) if model_contexts else None
+        if not context_window and hasattr(self.profile_config, 'context_window') and self.profile_config.context_window:
+            context_window = self.profile_config.context_window
 
         return ModelConfig(
             provider=provider_name,
-            model=agent_data.get("model", ""),
+            model=model_id,
             base_url=provider_data.get("base_url", ""),
             api_key=provider_data.get("api_key", "dummy"),
             temperature=agent_data.get("temperature", 0.7),
             max_tokens=agent_data.get("max_tokens"),
+            context_window=context_window,
+            metadata=dict(provider_data.get("metadata") or {}),
         )
 
     def get_client(self, model_config: ModelConfig) -> AsyncOpenAI:
@@ -100,13 +145,13 @@ class ModelManager:
         Returns:
             AsyncOpenAI client
         """
-        # Use base_url as cache key
-        cache_key = model_config.base_url
+        cache_key = f"{model_config.base_url}|{model_config.provider}"
 
         if cache_key not in self._clients:
-            self._clients[cache_key] = AsyncOpenAI(
+            self._clients[cache_key] = create_openai_client(
                 base_url=model_config.base_url,
                 api_key=model_config.api_key,
+                metadata=model_config.metadata,
             )
 
         return self._clients[cache_key]

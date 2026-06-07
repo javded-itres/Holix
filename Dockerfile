@@ -2,35 +2,25 @@ FROM python:3.14-slim
 
 WORKDIR /app
 
-# Install system dependencies
-RUN apt-get update && apt-get install -y \
-    git \
-    curl \
-    build-essential \
+RUN apt-get update && apt-get install -y git curl build-essential \
     && rm -rf /var/lib/apt/lists/*
 
-# Install uv (fast Python package manager)
 RUN pip install uv
 
-# Copy project files
-COPY pyproject.toml ./
-COPY uv.lock* ./
-
-# Install Python dependencies
+COPY pyproject.toml uv.lock* ./
 RUN uv sync --frozen
 
-# Copy application code
 COPY . .
-
-# Create data directories
 RUN mkdir -p data/memory data/skills data/security
 
-# Expose port
+ENV HELIX_ENV=production
+ENV HELIX_REQUIRE_AUTH=true
+ENV HELIX_GATEWAY_HOST=0.0.0.0
+ENV HELIX_GATEWAY_PORT=8000
+
 EXPOSE 8000
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD curl -f http://localhost:8000/health || exit 1
+HEALTHCHECK --interval=30s --timeout=10s --start-period=15s --retries=3 \
+    CMD curl -f http://127.0.0.1:8000/health || exit 1
 
-# Run the application
-CMD ["uv", "run", "uvicorn", "api.gateway:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uv", "run", "helix", "gateway", "start", "--host", "0.0.0.0", "--port", "8000"]

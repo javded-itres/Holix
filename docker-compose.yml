@@ -1,19 +1,19 @@
-version: '3.8'
-
 services:
   helix:
     build: .
     ports:
-      - "8000:8000"
+      - "${HELIX_GATEWAY_PORT:-8000}:8000"
     environment:
-      - MODEL=qwen2.5-coder:32b
-      - BASE_URL=http://ollama:11434/v1
-      - API_KEY=ollama
-      - TEMPERATURE=0.7
-      - MAX_STEPS=15
+      HELIX_ENV: production
+      HELIX_REQUIRE_AUTH: "true"
+      HELIX_API_KEY_PEPPER: ${HELIX_API_KEY_PEPPER:-change-me-in-production}
+      MODEL: ${MODEL:-qwen2.5-coder:32b}
+      BASE_URL: http://ollama:11434/v1
+      API_KEY: ollama
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
+      HELIX_TELEGRAM_ALLOWED_USERS: ${HELIX_TELEGRAM_ALLOWED_USERS:-}
     volumes:
-      - ./data:/app/data
-      - ./logs:/app/logs
+      - helix-data:/root/.helix
     depends_on:
       - ollama
     restart: unless-stopped
@@ -29,12 +29,10 @@ services:
     restart: unless-stopped
     networks:
       - helix-network
-    # Pull the model on startup
-    command: >
-      sh -c "ollama serve & sleep 10 && ollama pull qwen2.5-coder:32b && wait"
 
 volumes:
   ollama-data:
+  helix-data:
 
 networks:
   helix-network:

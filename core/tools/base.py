@@ -9,6 +9,7 @@ class BaseTool(ABC):
         self.name: str = ""
         self.description: str = ""
         self.parameters: Dict[str, Any] = {}
+        self.risk_level: str = "medium"  # "no"|"low"|"medium"|"high" — overridden by subclasses
 
     @abstractmethod
     async def execute(self, **kwargs) -> str:

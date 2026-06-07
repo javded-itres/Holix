@@ -11,6 +11,7 @@ class SQLQueryTool(BaseTool):
         super().__init__()
         self.name = "sql_query"
         self.description = "Execute a SQL query on a SQLite database. Supports SELECT, INSERT, UPDATE, DELETE. Use for data analysis and database operations."
+        self.risk_level = "medium"
         self.parameters = {
             "type": "object",
             "properties": {
@@ -98,6 +99,7 @@ class SQLSchemaTool(BaseTool):
         super().__init__()
         self.name = "sql_schema"
         self.description = "Get the schema information of a SQLite database. Shows tables, columns, and their types."
+        self.risk_level = "no"
         self.parameters = {
             "type": "object",
             "properties": {

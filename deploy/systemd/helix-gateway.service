@@ -1,0 +1,16 @@
+[Unit]
+Description=Helix API Gateway
+After=network.target
+
+[Service]
+Type=simple
+User=helix
+WorkingDirectory=/opt/helix
+EnvironmentFile=/etc/helix/helix.env
+ExecStart=/opt/helix/.venv/bin/helix gateway start
+ExecStop=/opt/helix/.venv/bin/helix gateway stop
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

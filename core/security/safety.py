@@ -1,55 +1,68 @@
-from typing import List, Set, Optional
 import re
+
+from core.platform_compat import IS_WINDOWS
+
+_UNIX_SAFE: set[str] = {
+    "ls", "cat", "head", "tail", "less", "more",
+    "find", "grep", "awk", "sed",
+    "pwd", "whoami", "date", "uptime", "hostname",
+    "df", "du", "free",
+    "ps", "top", "htop",
+    "ping", "curl", "wget", "dig", "nslookup",
+    "git status", "git log", "git diff", "git show",
+    "git branch", "git remote",
+    "python", "python3", "node", "npm",
+    "pip list", "pip show",
+    "pytest", "npm test", "make test",
+    "helix", "uv",
+}
+
+_WINDOWS_SAFE: set[str] = {
+    "dir", "type", "more", "findstr", "where", "cd", "echo", "tree",
+    "whoami", "hostname", "date", "systeminfo", "tasklist", "ipconfig",
+    "ping", "curl", "nslookup",
+    "git status", "git log", "git diff", "git show",
+    "git branch", "git remote",
+    "python", "python3", "py", "node", "npm",
+    "pip list", "pip show",
+    "pytest", "npm test",
+    "helix", "uv",
+}
+
+_COMMON_DANGEROUS: list[str] = [
+    r"rm\s+-rf",
+    r">\s*/dev/",
+    r"dd\s+",
+    r"mkfs",
+    r"fdisk",
+    r"shutdown",
+    r"reboot",
+    r"killall",
+    r":\(\)\{ :\|:& \};:",
+    r"curl.*\|.*sh",
+    r"wget.*\|.*sh",
+]
+
+_WINDOWS_DANGEROUS: list[str] = [
+    r">\s*nul\b",
+    r">\s*con\b",
+    r"format\s+",
+    r"diskpart",
+    r"del\s+/[fq]",
+    r"rmdir\s+/s",
+]
 
 
 class CommandWhitelist:
     """Manage allowed commands for terminal execution."""
 
     def __init__(self):
-        # Safe commands that don't modify system
-        self.safe_commands: Set[str] = {
-            # File viewing
-            "ls", "cat", "head", "tail", "less", "more",
-            "find", "grep", "awk", "sed",
+        self.safe_commands: set[str] = set(_WINDOWS_SAFE if IS_WINDOWS else _UNIX_SAFE)
+        self.dangerous_patterns: list[str] = list(_COMMON_DANGEROUS)
+        if IS_WINDOWS:
+            self.dangerous_patterns.extend(_WINDOWS_DANGEROUS)
 
-            # System info
-            "pwd", "whoami", "date", "uptime", "hostname",
-            "df", "du", "free",
-
-            # Process info
-            "ps", "top", "htop",
-
-            # Network (read-only)
-            "ping", "curl", "wget", "dig", "nslookup",
-
-            # Git (read-only)
-            "git status", "git log", "git diff", "git show",
-            "git branch", "git remote",
-
-            # Python/Node
-            "python", "python3", "node", "npm",
-            "pip list", "pip show",
-
-            # Development
-            "pytest", "npm test", "make test",
-        }
-
-        # Dangerous patterns to block
-        self.dangerous_patterns: List[str] = [
-            r"rm\s+-rf",  # Recursive delete
-            r">\s*/dev/",  # Writing to devices
-            r"dd\s+",  # Disk operations
-            r"mkfs",  # Format filesystem
-            r"fdisk",  # Partition management
-            r"shutdown",  # System shutdown
-            r"reboot",  # System reboot
-            r"killall",  # Kill all processes
-            r":(){ :|:& };:",  # Fork bomb
-            r"curl.*\|.*sh",  # Pipe to shell
-            r"wget.*\|.*sh",  # Pipe to shell
-        ]
-
-    def is_command_allowed(self, command: str) -> tuple[bool, Optional[str]]:
+    def is_command_allowed(self, command: str) -> tuple[bool, str | None]:
         """Check if a command is safe to execute.
 
         Args:
@@ -60,19 +73,15 @@ class CommandWhitelist:
         """
         command_lower = command.lower().strip()
 
-        # Check dangerous patterns
         for pattern in self.dangerous_patterns:
             if re.search(pattern, command_lower):
                 return False, f"Blocked dangerous pattern: {pattern}"
 
-        # Extract base command
         base_cmd = command_lower.split()[0] if command_lower else ""
 
-        # Check if base command is in whitelist
         if base_cmd in self.safe_commands:
             return True, None
 
-        # Check if full command prefix is in whitelist
         for safe_cmd in self.safe_commands:
             if command_lower.startswith(safe_cmd):
                 return True, None
@@ -80,20 +89,21 @@ class CommandWhitelist:
         return False, f"Command '{base_cmd}' not in whitelist"
 
     def add_to_whitelist(self, command: str):
-        """Add a command to the whitelist.
-
-        Args:
-            command: Command to add
-        """
+        """Add a command to the whitelist."""
         self.safe_commands.add(command.lower())
 
     def remove_from_whitelist(self, command: str):
-        """Remove a command from the whitelist.
-
-        Args:
-            command: Command to remove
-        """
+        """Remove a command from the whitelist."""
         self.safe_commands.discard(command.lower())
+
+    def apply_extra(self, extra: str | None) -> None:
+        """Add comma-separated commands from HELIX_TERMINAL_WHITELIST_EXTRA."""
+        if not extra:
+            return
+        for part in extra.split(","):
+            cmd = part.strip().lower()
+            if cmd:
+                self.safe_commands.add(cmd)
 
 
 class ConfirmationRequired:
@@ -101,24 +111,24 @@ class ConfirmationRequired:
 
     def __init__(self):
         self.confirmation_patterns = [
-            r"rm\s+",  # File deletion
-            r"mv\s+",  # Moving files
-            r"git\s+push",  # Git push
-            r"git\s+commit",  # Git commit
-            r"npm\s+install",  # Package installation
-            r"pip\s+install",  # Package installation
-            r"docker\s+run",  # Docker operations
+            r"rm\s+",
+            r"mv\s+",
+            r"git\s+push",
+            r"git\s+commit",
+            r"npm\s+install",
+            r"pip\s+install",
+            r"docker\s+run",
         ]
+        if IS_WINDOWS:
+            self.confirmation_patterns.extend([
+                r"del\s+",
+                r"rmdir\s+",
+                r"move\s+",
+                r"ren\s+",
+            ])
 
     def requires_confirmation(self, command: str) -> bool:
-        """Check if command requires user confirmation.
-
-        Args:
-            command: Command to check
-
-        Returns:
-            True if confirmation required
-        """
+        """Check if command requires user confirmation."""
         command_lower = command.lower().strip()
 
         for pattern in self.confirmation_patterns:
@@ -128,6 +138,5 @@ class ConfirmationRequired:
         return False
 
 
-# Global instances
 command_whitelist = CommandWhitelist()
 confirmation_checker = ConfirmationRequired()

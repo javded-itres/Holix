@@ -1,47 +1,109 @@
-import yaml
-from pathlib import Path
-from typing import List, Dict, Any, Optional
 from datetime import datetime
-import chromadb
+from pathlib import Path
+from typing import Any
 
-from config import settings
+import chromadb
+import yaml
+
+from core.di.runtime_config import HelixRuntimeConfig
+from core.memory.chroma_embeddings import get_or_create_collection
+from core.skills.assignments import is_skill_allowed_for_agent
 
 
 class SkillsManager:
     """Manages agent skills - reusable patterns learned from successful tasks."""
 
-    def __init__(self):
-        self.skills_dir = Path(settings.skills_dir)
+    def __init__(self, config: HelixRuntimeConfig | None = None):
+        cfg = config or HelixRuntimeConfig.from_settings()
+        self._config = cfg
+        self.skills_dir = Path(cfg.skills_dir)
         self.skills_dir.mkdir(parents=True, exist_ok=True)
-        self.active_skills: List[Dict[str, Any]] = []
-        self.all_skills: Dict[str, Dict[str, Any]] = {}
+        self.active_skills: list[dict[str, Any]] = []
+        self.all_skills: dict[str, dict[str, Any]] = {}
+
+        # Local project supplement (./.helix/skills) — loaded in addition to profile skills_dir
+        from core.config_utils import get_local_skills_dir
+        self._local_skills_dir: Path | None = get_local_skills_dir()
+        if self._local_skills_dir:
+            self._local_skills_dir.mkdir(parents=True, exist_ok=True)
 
         # Initialize ChromaDB for semantic skill search
         self.chroma_client = chromadb.PersistentClient(
-            path=str(Path(settings.vector_db_path).parent / "skills_db"),
+            path=str(Path(cfg.vector_db_path).parent / "skills_db"),
         )
-        self.skills_collection = self.chroma_client.get_or_create_collection(
+        self.skills_collection = get_or_create_collection(
+            self.chroma_client,
             name="skills",
-            metadata={"hnsw:space": "cosine"}
+            metadata={"hnsw:space": "cosine"},
+        )
+
+    @property
+    def skill_assignments(self) -> dict[str, list[str]]:
+        return dict(getattr(self._config, "skill_assignments", None) or {})
+
+    def is_allowed_for_agent(self, skill: dict[str, Any], agent_slot: str = "main") -> bool:
+        return is_skill_allowed_for_agent(skill, agent_slot, self.skill_assignments)
+
+    def filter_skills_for_agent(
+        self,
+        skills: list[dict[str, Any]],
+        agent_slot: str = "main",
+    ) -> list[dict[str, Any]]:
+        return [s for s in skills if self.is_allowed_for_agent(s, agent_slot)]
+
+    def list_skill_names_for_agent(self, agent_slot: str = "main") -> list[str]:
+        if not self.all_skills:
+            self.load_all_skills()
+        return sorted(
+            name
+            for name, skill in self.all_skills.items()
+            if self.is_allowed_for_agent(skill, agent_slot)
         )
 
     def load_all_skills(self) -> None:
-        """Load all skills from the skills directory."""
+        """Load skills from profile dir, hub bundles (SKILL.md), and local .helix/skills."""
+        from core.hub.normalize import discover_skill_files, parse_skill_file
+
         self.all_skills = {}
 
-        for skill_file in self.skills_dir.glob("*.md"):
-            try:
-                skill = self._load_skill_file(skill_file)
-                if skill:
-                    self.all_skills[skill["name"]] = skill
-                    # Add to vector DB for semantic search
+        def _register(skill: dict[str, Any], source: str) -> None:
+            name = skill.get("name")
+            if not name:
+                return
+            existing = self.all_skills.get(name)
+            if existing:
+                if source == "local":
+                    skill["_source"] = "local"
+                    self.all_skills[name] = skill
                     self._index_skill(skill)
-            except Exception as e:
-                print(f"Error loading skill {skill_file}: {e}")
+                return
+            skill["_source"] = source
+            self.all_skills[name] = skill
+            self._index_skill(skill)
 
-        print(f"Loaded {len(self.all_skills)} skills")
+        def _load_tree(d: Path, source: str) -> None:
+            for skill_file in discover_skill_files(d):
+                try:
+                    parsed = parse_skill_file(skill_file)
+                    skill = parsed if parsed else self._load_skill_file(skill_file)
+                    if skill:
+                        if "name" not in skill:
+                            skill["name"] = (
+                                skill_file.parent.name
+                                if skill_file.name == "SKILL.md"
+                                else skill_file.stem
+                            )
+                        _register(skill, source)
+                except Exception as e:
+                    print(f"Error loading skill {skill_file}: {e}")
 
-    def _index_skill(self, skill: Dict[str, Any]) -> None:
+        _load_tree(self.skills_dir, "profile")
+        if self._local_skills_dir and self._local_skills_dir.exists():
+            _load_tree(self._local_skills_dir, "local")
+
+        print(f"Loaded {len(self.all_skills)} skills (profile + local supplements if any)")
+
+    def _index_skill(self, skill: dict[str, Any]) -> None:
         """Index a skill in the vector database for semantic search.
 
         Args:
@@ -67,7 +129,7 @@ class SkillsManager:
         except Exception as e:
             print(f"Warning: Failed to index skill {skill.get('name')}: {e}")
 
-    def _load_skill_file(self, filepath: Path) -> Optional[Dict[str, Any]]:
+    def _load_skill_file(self, filepath: Path) -> dict[str, Any] | None:
         """Load a single skill file.
 
         Args:
@@ -76,7 +138,7 @@ class SkillsManager:
         Returns:
             Skill dictionary or None
         """
-        with open(filepath, 'r', encoding='utf-8') as f:
+        with open(filepath, encoding='utf-8') as f:
             content = f.read()
 
         # Split YAML frontmatter and markdown content
@@ -101,8 +163,10 @@ class SkillsManager:
     def get_relevant_skills(
         self,
         query: str,
-        top_k: int = 5
-    ) -> List[Dict[str, Any]]:
+        top_k: int = 5,
+        *,
+        agent_slot: str = "main",
+    ) -> list[dict[str, Any]]:
         """Get skills relevant to the current query using semantic search.
 
         Args:
@@ -128,11 +192,15 @@ class SkillsManager:
             relevant = []
             if results["ids"] and results["ids"][0]:
                 for i, skill_name in enumerate(results["ids"][0]):
-                    if skill_name in self.all_skills:
-                        skill = self.all_skills[skill_name].copy()
-                        # Add distance score (lower is better)
-                        skill["relevance_distance"] = results["distances"][0][i] if results.get("distances") else 1.0
-                        relevant.append(skill)
+                    if skill_name not in self.all_skills:
+                        continue
+                    skill = self.all_skills[skill_name].copy()
+                    if not self.is_allowed_for_agent(skill, agent_slot):
+                        continue
+                    skill["relevance_distance"] = (
+                        results["distances"][0][i] if results.get("distances") else 1.0
+                    )
+                    relevant.append(skill)
 
             # Sort by success rate and relevance
             relevant.sort(
@@ -151,7 +219,7 @@ class SkillsManager:
 
     async def should_create_skill(
         self,
-        messages: List[Dict[str, Any]],
+        messages: list[dict[str, Any]],
         final_result: str
     ) -> bool:
         """Determine if a skill should be created from this session.
@@ -184,13 +252,42 @@ class SkillsManager:
 
         return should_create
 
+    def _attach_skill_to_agent(self, name: str, agent_slot: str) -> None:
+        """Add skill to the creating agent's allowlist (runtime + profile when applicable)."""
+        from core.skills.assignments import assign_created_skill
+
+        assigns = assign_created_skill(self.skill_assignments, name, agent_slot)
+        self._config = self._config.with_overrides(skill_assignments=assigns)
+
+        profile = getattr(self._config, "profile_name", None) or "default"
+        try:
+            from cli.core import ProfileManager
+
+            manager = ProfileManager()
+            if not manager.profile_exists(profile):
+                return
+            cfg = manager.load_profile(profile)
+            if Path(cfg.skills_dir).resolve() != self.skills_dir.resolve():
+                return
+            cfg_assigns = assign_created_skill(
+                dict(getattr(cfg, "skill_assignments", {}) or {}),
+                name,
+                agent_slot,
+            )
+            cfg.skill_assignments = cfg_assigns
+            manager.save_profile(profile, cfg)
+        except Exception:
+            return
+
     def save_skill(
         self,
         name: str,
         description: str,
         content: str,
-        tags: Optional[List[str]] = None,
-        examples: Optional[List[str]] = None
+        tags: list[str] | None = None,
+        examples: list[str] | None = None,
+        *,
+        agent_slot: str = "main",
     ) -> Path:
         """Save a new skill to disk.
 
@@ -204,6 +301,10 @@ class SkillsManager:
         Returns:
             Path to saved skill file
         """
+        from core.hub.normalize import slugify_skill_name
+
+        name = slugify_skill_name(name)
+
         # Prepare metadata
         metadata = {
             "name": name,
@@ -233,8 +334,18 @@ class SkillsManager:
         # Index the new skill
         skill_data = self._load_skill_file(filepath)
         if skill_data:
+            skill_data["_source"] = "profile"
             self.all_skills[name] = skill_data
             self._index_skill(skill_data)
+
+        self._attach_skill_to_agent(name, agent_slot)
+
+        try:
+            from core.hub.slash_registry import rebuild_slash_registry
+
+            rebuild_slash_registry(self.skills_dir)
+        except Exception:
+            pass
 
         return filepath
 
@@ -281,7 +392,7 @@ class SkillsManager:
 
     def format_skills_for_prompt(
         self,
-        skills: List[Dict[str, Any]]
+        skills: list[dict[str, Any]]
     ) -> str:
         """Format skills for inclusion in the system prompt.
 

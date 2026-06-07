@@ -1,10 +1,15 @@
 from typing import List, Dict, Any
 
+from core.project.helix_md import HELIX_MD_REL_PATH, task_context_note
+
 
 def build_system_prompt(
     tools_description: str,
     active_skills: List[Dict[str, Any]],
-    skills_formatted: str = ""
+    skills_formatted: str = "",
+    relevant_memories: str = "",
+    *,
+    profile_name: str | None = None,
 ) -> str:
     """Build the system prompt for the agent.
 
@@ -27,6 +32,16 @@ def build_system_prompt(
 You have access to the following tools:
 {tools}
 
+## Sub-agents (background workers)
+
+When `enable_subagents` is on, delegate heavy or specialized work without blocking the user:
+- `delegate_to_subagent(agent_type, task)` — starts a worker in a **separate OS process**; returns `job_id`
+- `wait_subagent_result(job_id)` — collect the answer when needed (user can keep chatting meanwhile)
+- `list_subagents()` — running and completed jobs
+- `terminate_subagent(job_id)` — cancel a job
+
+Types: researcher, coder, analyst, reviewer, writer, web_researcher.
+
 ## Instructions
 
 1. **Think step-by-step** before taking action
@@ -46,6 +61,16 @@ You have access to the following tools:
 
 {skills}
 
+## Relevant Memories
+
+{memories}
+
+## Project handbook ({helix_path})
+
+{project_note}
+
+{env_paths}
+
 ## Response Format
 
 When responding to the user:
@@ -57,13 +82,21 @@ When responding to the user:
 Remember: You are a helpful, capable agent that learns and improves with each task.
 """
 
+    from core.env_loader import format_env_context_block
+
     # Format the prompt
     formatted_prompt = prompt.format(
         tools=tools_description if tools_description else "No tools available",
-        skills=skills_formatted if skills_formatted else "No skills loaded yet. You will learn and create skills as you complete tasks."
+        skills=skills_formatted if skills_formatted else "No skills loaded yet. You will learn and create skills as you complete tasks.",
+        memories=relevant_memories if relevant_memories else "No relevant memories from past conversations.",
+        helix_path=HELIX_MD_REL_PATH,
+        project_note=task_context_note(),
+        env_paths=format_env_context_block(profile_name=profile_name),
     )
 
-    return formatted_prompt
+    from core.project.helix_md import append_helix_project_context
+
+    return append_helix_project_context(formatted_prompt)
 
 
 def format_tools_description(tools_schemas: List[Dict[str, Any]]) -> str:

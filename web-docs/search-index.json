@@ -1,0 +1,402 @@
+[
+  {
+    "id": "en/readme",
+    "lang": "en",
+    "slug": "readme",
+    "file": "content/en/README.md",
+    "title": "Overview",
+    "heading": "Helix Documentation (English)",
+    "body": "Helix Documentation (English) Helix is a self-improving AI agent with memory, skills, tool calling, MCP, CLI, TUI, API gateway, and Telegram. Getting started 1. INSTALLATION.md — install, extras, updates, Docker 2. START HERE.md — first run checklist 3. QUICKSTART.md — minimal command list 4. CONFIGURATION.md — , profiles, secrets Interfaces - CLI.md — complete command reference - SLASH COMMANDS.md — all commands (TUI, Telegram, chat) - TUI.md — , web mode, copy, hub UI - HUB.md — , catalogs, - GATEWAY.md — - TELEGRAM.md — Telegram bot - BROWSER TOOLS.md — Playwright tools Packaging - PYPI.md — build and publish to PyPI ( ) Operations - LOGS.md — , rotation, debug mode - DOCTOR.md — and - SECURITY.md — auth, tools, production checklist - DEPLOYMENT.md — Docker, systemd, CI - TROUBLESHOOTING.md — common failures Architecture - ARCHITECTURE.md — runtime, DI, events, graph Russian ../ru/README.md",
+    "nav_order": 0
+  },
+  {
+    "id": "en/installation",
+    "lang": "en",
+    "slug": "installation",
+    "file": "content/en/INSTALLATION.md",
+    "title": "Installation",
+    "heading": "Installation",
+    "body": "Installation Helix targets Python 3.14+ and is packaged as a Typer CLI ( ). Choose one of the paths below depending on whether you run from source or want a global command. Requirements Requirement Notes ------------- -------- Python 3.14 or newer uv Recommended for deps and LLM endpoint OpenAI-compatible API (Ollama, LiteLLM, OpenAI, Groq, …) Optional extras (install when needed): Extra Command Enables ------- --------- --------- , gateway Telegram companion + Playwright tools — see BROWSER TOOLS.md (browser-hosted TUI) for process-tree cleanup (optional on Windows) telegram + browser + tui-web + windows Quick install (recommended for users) From PyPI PyPI package name is (not — that name is used by another project). After install, the CLI command is in the environment’s directory. Global CLI from any folder (recommended — no manual PATH): Inside a virtualenv (activate the venv, then works in any directory): User install without pipx ( must be on your PATH): See PYPI.md. From git Or after you already have on PATH: The installer: - Detects the repo root and runs (with selected extras) - Installs the package editable ( ) - Adds (or system path) to your shell PATH unless Verify: Developer install (from source) Run without global install: First-time configuration 1. Copy environment defaults: 2. Run diagnostics: 3. Configure models: 4. Start chatting: or Data directory: (Linux/macOS), (Windows), or . Profile data: (not in the project directory). Logs: LOGS.md. See CONFIGURATION.md. Updates Docker See DEPLOYMENT.md for production layout, systemd, and CI. Uninstall 1. Remove the shim from your PATH directory (installer prints the path). 2. Optionally delete (profiles, gateway state, logs). 3. Remove the clone directory if you no longer need source. Troubleshooting install Symptom Action --------- -------- Re-run or add to PATH Python version error Install Python 3.14+; Import errors after pull or Doctor reports missing provider or More: TROUBLESHOOTING.md, DOCTOR.md.",
+    "nav_order": 1
+  },
+  {
+    "id": "en/start-here",
+    "lang": "en",
+    "slug": "start-here",
+    "file": "content/en/START_HERE.md",
+    "title": "Start Here",
+    "heading": "Start Here",
+    "body": "Start Here Follow this checklist for a working Helix install on a new machine. Requirements - Python 3.14+ - uv (recommended) - An OpenAI-compatible LLM (Ollama, LiteLLM, OpenAI, Groq, …) 1. Install Details: INSTALLATION.md 2. Diagnose 3. Configure models 4. Choose an interface Interface Command Best for ----------- --------- ---------- TUI (recommended) Daily use, tools, hub, MCP Terminal chat Lightweight REPL One-shot Scripts, automation HTTP API Apps, OpenAI-compatible clients In TUI or Telegram, type for slash commands: SLASH COMMANDS.md. 5. Optional features Production Read SECURITY.md and DEPLOYMENT.md. Next steps - Full CLI: CLI.md - Config reference: CONFIGURATION.md - Logs: — LOGS.md - Problems: TROUBLESHOOTING.md",
+    "nav_order": 2
+  },
+  {
+    "id": "en/quickstart",
+    "lang": "en",
+    "slug": "quickstart",
+    "file": "content/en/QUICKSTART.md",
+    "title": "Quickstart",
+    "heading": "Quickstart",
+    "body": "Quickstart Repair config: Optional: See CLI.md and SLASH COMMANDS.md.",
+    "nav_order": 3
+  },
+  {
+    "id": "en/configuration",
+    "lang": "en",
+    "slug": "configuration",
+    "file": "content/en/CONFIGURATION.md",
+    "title": "Configuration",
+    "heading": "Configuration",
+    "body": "Configuration Layers 1. — global defaults ( / ), primary file: 2. Profile — 3. CLI flags — overrides per command Optional project is loaded first; overrides it. Shell environment always wins. Data directory ( ) OS Default ---- --------- Linux / macOS Windows Override Linux (XDG) Profiles, logs, gateway state, and MCP clones live under this tree. Key environment variables See .env.example. Logging Variable Default Description ---------- --------- ------------- Root log level ( alias) Enable debug log file ( alias) Rotate when file exceeds size (bytes) Rotating backup files to keep Purge backups older than N days CLI: persists to . Details: LOGS.md. Profile secrets Models Provider catalog Preset ID Service API key env Auth notes ----------- --------- ------------- ------------ OpenAI Bearer OpenRouter (multi-vendor) + , headers Claude via OpenRouter Native Anthropic API is not OpenAI-compatible DeepSeek Bearer Kimi / Moonshot Bearer Grok Bearer Groq Bearer Gemini (OpenAI-compat endpoint) Bearer Local Ollama (any / ) No key; configurable host Local LiteLLM proxy Unified proxy; configurable host vLLM OpenAI server (often ) Local/remote GPU; configurable host Host for Ollama, LiteLLM, vLLM These presets use an OpenAI-compatible built from host + port (default ports: 11434 , 4000 , 8000 ). Preset Env variable Default -------- -------------- --------- Host values accept: - hostname only ( → ) - ( ) - full URL ( or ) CLI: and optional on . Wizard and read env vars when set (see .env.example). Example profile fragment: Legacy top-level fields ( , ) still work; prefer + . MCP and Hub - , — see in CLI.md - Hub lockfile: — HUB.md - — per-agent skill allowlists: Local project supplements In a project directory, Helix may merge (without overwriting profile system keys): - — extra skills - — plan files - — supplemental MCP/skills (not full profile replacement) Related - INSTALLATION.md - CLI.md - SECURITY.md",
+    "nav_order": 4
+  },
+  {
+    "id": "en/cli",
+    "lang": "en",
+    "slug": "cli",
+    "file": "content/en/CLI.md",
+    "title": "CLI Reference",
+    "heading": "CLI reference",
+    "body": "CLI reference Entry point: (Typer). Every subcommand inherits global options unless noted. Global options Option Short Default Description -------- ------- --------- ------------- Active profile ( ) off Print profile and model on startup --- Top-level commands Command Purpose --------- --------- Interactive terminal chat (prompt toolkit) One-shot query, then exit Full-screen Textual UI (recommended) Profile, model, paths Wipe profile (memory, skills, security) Version and license info Skill files and agent assignments Search stored memory View/edit profile YAML Providers and routing Telegram bot setup and run API gateway supervisor Scheduled agent tasks (gateway scheduler) View, filter, rotate logs; debug mode Diagnostics and Model Context Protocol servers External skill catalogs Put on PATH (from repo) Update installation Slash commands for TUI/Telegram: SLASH COMMANDS.md . --- Interactive REPL with history in . Option Description -------- ------------- , Override profile model , Sampling temperature Max agent loop steps Built-in slash commands: , , , , , , , , , , , . Full list: SLASH COMMANDS.md. --- Argument / option Description ------------------- ------------- User message (required) , Model override , Temperature override , Conversation id (default ) --- Code-style terminal UI (default). Legacy dashboard: . Option Description -------- ------------- , Profile (also on global callback; TUI accepts its own) Serve UI in browser via textual-serve Bind address ( ) Port ( , default ) URL behind reverse proxy Shared secret ( ) Bind (requires ) / Ephemeral token on loopback Details: TUI.md, slash: SLASH COMMANDS.md. --- Shows active profile, model, , temperature, max steps, data directory, and table of all profiles. --- Deletes under the profile (memory DB, skills, security). Recreates empty dirs. Use / to skip confirmation. Extra caution on profile. --- Prints package version and project metadata. --- Installs globally from detected repo root. Option Description -------- ------------- Install for all users Do not modify shell PATH , Repeatable: , Source tree path See INSTALLATION.md. --- Option Description -------- ------------- , Check only, do not install , , , or Git repo path override , Reinstall even if up to date Skip (git channel) --- Profile file: Subcommand Description ------------ ------------- Dump current profile as YAML Open in (default ) Set a top-level field Project supplements: , , local merge (system keys ignored). See CONFIGURATION.md. --- Subcommand Description ------------ ------------- Interactive wizard: providers, tests, List configured providers Show per-agent model assignments Example fragment: --- Skills are markdown with YAML frontmatter under , indexed in ChromaDB. Subcommand Description ------------ ------------- List skills ( filters by assignment) Semantic search Full skill body Update in profile Remove from allowlist Which agents may use the skill Interactive assignment UI Hub-installed bundles live under — see HUB.md. --- Subcommand Description ------------ ------------- Semantic search in agent memory In TUI/chat use . --- Background supervisor for FastAPI gateway (+ Telegram when configured). Subcommand Description ------------ ------------- Start in background (default ) Stop gateway and companions Process and health Restart with same host/port/profile State: · Logs: API details: GATEWAY.md. --- Built-in scheduler (runs inside gateway supervisor). Jobs stored per profile. Subcommand Description ------------ ------------- List jobs, next run, last status Add job ( optional) / Toggle job Delete job TUI/Telegram: , , . Run log: · Skill: bundled . --- Unified log viewer for agent, sub-agent, gateway, cron, and system logs. Subcommand Description ------------ ------------- (default) / Recent lines (all sources) Log files and sizes Size-based rotation + purge old backups / / Persisted debug mode Option Description -------- ------------- , Number of lines (default 80) , , , , , , , Minimum level: , , , , Substring filter , Stream new lines Include , Show extra JSON fields Full guide: LOGS.md. --- Option Description -------- ------------- Apply safe fixes + LLM repair of Deterministic checks/fixes only Skip LLM remediation plan in check-only mode Checks: writable, profile YAML, providers, hub lockfile, MCP env placeholders, skill assignments, gateway state, Telegram, platform (OS, PATH tools), production security. Details: DOCTOR.md. --- { mcp} Configure MCP servers in profile / . Subcommand Description ------------ ------------- Configured servers Manual stdio/SSE server wizard Remove server Connect and list tools Interactive assign to agents Add servers + assign wizard Curated install list From popular list or git URL Tools appear as in the agent. In TUI: — SLASH COMMANDS.md. --- Subcommand Description ------------ ------------- Search catalogs ( , , , …) Claude Code marketplaces Plugins in a marketplace Interactive install Install skill or plugin Hub-installed entries Remove bundle + lockfile ClawHub version bumps Reinstall from Enable scheduled updates Rebuild Full guide: HUB.md. --- Requires and . Subcommand Description ------------ ------------- Token, allowlist, save config Start polling Show saved config (token masked) Push slash menu to Telegram Or start with gateway: (when Telegram enabled in profile/env). See TELEGRAM.md. --- Profiles Path Content ------ --------- Models, MCP, hub, security SQLite + ChromaDB Skill files and hub bundles API keys DB (if used) Switch per invocation: In TUI: or . --- Recommended workflows Goal Commands ------ ---------- Daily coding Scripting / CI Remote API Scheduled tasks → Debug failures New machine → → Skills from web MCP tools --- See also - SLASH COMMANDS.md — all commands - INSTALLATION.md — install and update - CONFIGURATION.md — and YAML - LOGS.md — logging and - TUI.md — terminal UI - HUB.md — skill catalogs",
+    "nav_order": 5
+  },
+  {
+    "id": "en/slash-commands",
+    "lang": "en",
+    "slug": "slash-commands",
+    "file": "content/en/SLASH_COMMANDS.md",
+    "title": "Slash Commands",
+    "heading": "Slash commands (`/`)",
+    "body": "Slash commands ( ) Slash commands control the session without sending text to the LLM. They work in TUI ( ), Telegram (when synced), and partially in . Source of truth for TUI/Telegram: and . Where each interface supports what Command group TUI Telegram --------------- ----- ---------- ---------------- Session ( , , ) Yes Yes No Copy / transcript ( , ) Yes Limited No Plan review ( ) Yes Yes No Confirm prompts ( , – ) Yes Yes No Hub / MCP menus Yes Partial No , , Yes Yes Yes (subset) Yes Yes Yes Legacy TUI only No Yes ( only) Keyboard note (macOS RU layout) On Russian macOS layout, and are normalized to . Type with Shift+7 when needed. --- Help and status Command Aliases Description --------- --------- ------------- , Show command help — Profile, execution mode, session id, context (where available) — Agent metrics summary Clear transcript (TUI); new conversation id ( ) --- Models and execution Command Description --------- ------------- , Open model picker (TUI) or show current model ( ) Cycle execution mode, or if valid Toggle streaming; Cancel running agent tasks --- Sessions (TUI / Telegram) Command Description --------- ------------- Start a new session List sessions Switch to session number N Rename current session List profiles Switch profile by name Switch profile by list index --- Memory and tools Command Description --------- ------------- Semantic search in agent memory Clear memory search UI state Same as Full output of last tool Full output of tool N back in history List recent tool results --- Copy and transcript (TUI) Command Aliases Description --------- --------- ------------- Copy last assistant message Copy last tool output , Copy full transcript , Open transcript window (F2) for select & copy --- Safety confirmations When the agent asks to confirm a risky tool: Command Meaning --------- --------- , Allow once Allow for this session Allow always , Deny --- Plan review When a plan step requires approval: Command Action --------- -------- Confirm current step Auto-execute remaining plan Ask to refine plan Reject plan --- MCP (in-session) Command Description --------- ------------- MCP menu / list List configured servers Install popular MCP or from git URL Manual server config Assign servers to agents Test connection List available MCP tools now Remove server config CLI equivalent: — see CLI.md. --- Skill Hub (in-session) Command Description --------- ------------- Pick catalog (ClawHub, Hermes, Claude, …) , Installed hub skills, plugins, MCP Browse and install Open ClawHub catalog Open HermesHub Claude official plugins skills.sh (query in browser) , Alias for hub flow Hint: CLI equivalent: — see HUB.md. --- Dynamic skill slash commands Hub-installed skills can register extra commands in: Rebuild after install: In TUI, type to see tab-completion; skill commands run the skill workflow for the active agent slot. --- only Command Description --------- ------------- , , Exit chat New conversation id Override model and reinit agent Switch or list profiles List active skills Search memory Debug command help Last N agent events (default 20) Toggle streaming Compress conversation context in DB --- Telegram Register the bot menu after adding commands: Setup: TELEGRAM.md.",
+    "nav_order": 6
+  },
+  {
+    "id": "en/tui",
+    "lang": "en",
+    "slug": "tui",
+    "file": "content/en/TUI.md",
+    "title": "TUI",
+    "heading": "TUI",
+    "body": "TUI Default: code-style UI ( ). Legacy dashboard: Copy - Main chat: select text → bottom Copy bar (no ⌃C/⌘C for last message) - Copy window (F2 / ): / / copies selection or full transcript - Slash: , , still work from chat Skill Hub Slash Action ------- -------- Pick catalog → browse & install Open browser for current catalog Installed hub skills, plugins, MCP See HUB.md.",
+    "nav_order": 7
+  },
+  {
+    "id": "en/hub",
+    "lang": "en",
+    "slug": "hub",
+    "file": "content/en/HUB.md",
+    "title": "Hub & Skills",
+    "heading": "Skill Hub",
+    "body": "Skill Hub Install skills and Claude Code plugins from public catalogs into the active profile. Data layout: - Bundles: - Lockfile: - Flat copies (optional): - Slash registry: CLI Install specs Prefix Example -------- --------- ClawHub or Claude plugin Hermes skills.sh Git Local path to or bundle Claude plugins may ship MCP servers; use (default) to merge into . TUI In TUI: Action Command / UI -------- ---------------- Pick catalog Installed list or mode Installed Browse & install → Search → Install Remove hub bundle Installed view → highlight hub row → Remove hub or Delete Browser UI → http://127.0.0.1:8787 Per-agent skills Profile field limits which skills each agent/subagent may use. Skill frontmatter may include / for defaults. MCP env in plugins and in Claude plugin MCP configs are resolved at load time. reports when variables are missing.",
+    "nav_order": 8
+  },
+  {
+    "id": "en/gateway",
+    "lang": "en",
+    "slug": "gateway",
+    "file": "content/en/GATEWAY.md",
+    "title": "API Gateway",
+    "heading": "API Gateway",
+    "body": "API Gateway OpenAI-compatible HTTP API and companion services (Telegram when configured). Commands State: (or ) Logs: — view with (LOGS.md) The supervisor also runs cron and Telegram (when configured) as companion processes. Environment Variable Default Description ---------- --------- ------------- Bind address Port API key for — Forces auth + stricter checks Admin routes ( ) always require an admin API key. Endpoints - — health check - — Prometheus text metrics - — OpenAI-compatible chat - — create API key (admin) Create first admin key (with auth enabled):",
+    "nav_order": 9
+  },
+  {
+    "id": "en/telegram",
+    "lang": "en",
+    "slug": "telegram",
+    "file": "content/en/TELEGRAM.md",
+    "title": "Telegram",
+    "heading": "Telegram",
+    "body": "Telegram Production ( ) requires . One live message per task; slash commands shared with TUI; inline approvals. Voice messages Helix transcribes Telegram voice notes and audio attachments via the OpenAI Whisper API, then processes the text like a normal message. Setup Option A: LiteLLM proxy Add a transcription model to LiteLLM : Helix : Or reuse the profile provider: . Option B: Local on the agent machine (offline) Run Whisper locally with faster-whisper — no cloud API: uses local when is installed and no API keys are set. Ollama does not expose Whisper transcription; use or LiteLLM/OpenAI API. Option C: OpenAI direct Ollama does not host Whisper; LiteLLM does if appears in . Usage Send a voice message to the bot. Helix will: 1. Show Распознано: with a text preview 2. Run the agent on the transcribed text 3. Reply as usual Audio files (mp3/m4a) sent as attachments are supported too. Temporary audio files are deleted immediately after transcription. After changing or voice settings, apply them with:",
+    "nav_order": 10
+  },
+  {
+    "id": "en/browser-tools",
+    "lang": "en",
+    "slug": "browser-tools",
+    "file": "content/en/BROWSER_TOOLS.md",
+    "title": "Browser Tools",
+    "heading": "Browser automation (Playwright)",
+    "body": "Browser automation (Playwright) Helix can control local Chromium via Playwright : open pages, snapshot interactive elements, click and type. Disabled by default ; requires the extra. When to use Task Approach ------ ---------- Static pages, APIs, markdown / JS sites, forms, SPAs, login tools Debug screenshot with Install Enable in : Or: Tools Tool Risk Description ------ ------ ------------- high Open URL ( : load / domcontentloaded / networkidle / commit) low Title, interactive elements with refs , , … high Click by or CSS high Type into field medium Key (Enter, Tab, Escape, …) low Wait for selector, timeout, or low Close browser session for conversation Typical flow: → → / → . Screenshots: when . Sessions One Chromium session per . Re-opening in the same chat reuses the context. Security URL policy ( ): - Only / - Blocks , , , , - Blocks localhost, private IPs, - Optional allowlist: High-risk tools respect the same confirmation flow as terminal commands in TUI ( , , …). Production: set unless required; use allowlists. Profile / gateway Restart the agent session or run after changing . Doctor warns if browser extra is missing but tools are enabled.",
+    "nav_order": 11
+  },
+  {
+    "id": "en/architecture",
+    "lang": "en",
+    "slug": "architecture",
+    "file": "content/en/ARCHITECTURE.md",
+    "title": "Architecture",
+    "heading": "Architecture",
+    "body": "Architecture Helix is a Python agent platform with a single execution path for reasoning, event-driven observability, and pluggable tools/skills/MCP. Execution flow Adapter Role --------- ------ Collects events into final string (CLI chat) SSE for API gateway TUI host Subscribes to events, slash commands, confirmations Component map Component Path Role ----------- ------ ------ Agent Orchestrates memory, skills, tools, loop Execution Unified agent loop Events Pub/sub Tools , registry, browser, terminal Memory SQLite + ChromaDB Skills Markdown skills, generator, hub Models Multi-provider routing MCP MCP client and tool prefixing Hub Catalog install, slash registry Security Auth, permissions, confirmations DI Dishka, API FastAPI, OpenAI-compatible CLI Typer entry Gateway supervisor Background Doctor Diagnostics TUI Textual UI Shared slash TUI + Telegram commands Configuration 1. — global ( ) 2. Profile — 3. CLI flags — per-command overrides Project dir may supplement , , local MCP — merged, not replacing profile system keys. Extension points - Events — subscribe to for UI, logging, metrics without changing the loop - Tools — subclass , register in - Skills — markdown under ; hub bundles under - MCP — naming in profile config Interfaces Interface Entry ----------- -------- TUI Chat REPL One-shot HTTP → FastAPI Telegram or gateway companion See also - CLI.md - GATEWAY.md - SECURITY.md",
+    "nav_order": 12
+  },
+  {
+    "id": "en/security",
+    "lang": "en",
+    "slug": "security",
+    "file": "content/en/SECURITY.md",
+    "title": "Security",
+    "heading": "Security",
+    "body": "Security Production checklist 1. 2. (forced in production) 3. — long random secret 4. — explicit origins (no ) 5. behind reverse proxy with TLS 6. set when using Telegram 7. if not required 8. Web TUI ( ) The browser UI runs a full Helix agent (terminal tool, files, MCP). Treat it like root on your machine. Bind Requirements ------ ---------------- (default) Token via , , or ephemeral (default) / LAN and explicit / env (no auto-generated token) Explicit token always - Do not expose port 8787 to the internet without TLS and a reverse proxy. - Rotate tokens after sharing a LAN URL. API keys - Stored as HMAC-SHA256 with pepper - Admin endpoints always require permission - Create keys via with admin key Profile secrets In : Never commit real keys to git. Tools - Terminal : whitelist enforced when - Python executor : disable in production via Run audit",
+    "nav_order": 13
+  },
+  {
+    "id": "en/deployment",
+    "lang": "en",
+    "slug": "deployment",
+    "file": "content/en/DEPLOYMENT.md",
+    "title": "Deployment",
+    "heading": "Deployment",
+    "body": "Deployment Docker Uses inside the container. systemd Example unit: deploy/systemd/helix-gateway.service CI GitHub Actions: — ruff, pytest, . TLS Bind gateway to and terminate TLS at nginx/Caddy/Traefik.",
+    "nav_order": 14
+  },
+  {
+    "id": "en/doctor",
+    "lang": "en",
+    "slug": "doctor",
+    "file": "content/en/DOCTOR.md",
+    "title": "Doctor",
+    "heading": "Helix Doctor",
+    "body": "Helix Doctor Diagnostics for profiles, LLM, gateway, Telegram, and security settings. Usage Without - Lists errors, warnings, recommendations - Optional LLM action plan (unless ) With Deterministic fixes: - Create profile directories - Fix paths, stale gateway state, default provider/model LLM fixes (default profile LLM): - Invalid / validation errors (backup: ) Checks - (or ) writable - Platform: OS, data path, / / / in PATH; Windows: psutil hint, terminal whitelist note - Profile YAML and providers - LLM endpoint and model availability - Gateway stale state / health - Telegram token and allowlist - Production: pepper, CORS, auth, code executor After fixes, inspect runtime logs: — see LOGS.md.",
+    "nav_order": 15
+  },
+  {
+    "id": "en/logs",
+    "lang": "en",
+    "slug": "logs",
+    "file": "content/en/LOGS.md",
+    "title": "Logs",
+    "heading": "Logs and observability",
+    "body": "Logs and observability Helix writes structured logs under the data directory. Use to view, filter, rotate, and toggle debug mode. Data directory OS Default path ---- ---------------- Linux / macOS Windows Override Linux (XDG) if unset Logs live in unless noted. Log files File Source Content ------ -------- --------- Main agent Tool calls, errors, final responses, skills, context events (JSON lines) Agent (debug) Same events when debug mode is on Sub-agents Spawn, terminate, task preview System Python root logger (rotating) Gateway Uvicorn / API supervisor Cron Scheduled job run lines Hub Optional autoupdate output Chat REPL prompt toolkit input history (not agent output) Agent and sub-agent results appear in ( , tool results) and in conversation memory; cron summaries may also post to the bound TUI/Telegram session. commands Source filter ( / ) Value Files ------- -------- All existing log files (default) , , Debug mode Debug is off by default. When enabled: - Extra detail is written to - Sub-agent debug lines are duplicated there - Root log level becomes - State is stored in (survives restarts) CLI debug toggle and are combined: either can enable debug. Rotation and retention Configured via environment (see CONFIGURATION.md): Variable Default Meaning ---------- --------- --------- (10 MiB) Rotate when file exceeds size Keep N rotated backups ( , , …) Delete backups older than N days ( ) Manual rotation: and use Python automatically. handles other files by size. JSONL event shape (agent) Each line in is JSON, for example: Use or for correlation fields. When logs are written - CLI / TUI / : agent events via on - Gateway: on background start; agent events when API runs agents - Cron: per job line; agent JSONL when scheduler executes jobs - Sub-agents: on spawn and terminate Logging is initialized on every invocation ( in ). Troubleshooting If shows nothing, run an agent once ( ) or start the gateway. Windows: gateway stop uses ; optional installs for cleaner process-tree termination. Related - CLI.md — full command reference - GATEWAY.md — gateway supervisor - CONFIGURATION.md — variables - TROUBLESHOOTING.md — common failures",
+    "nav_order": 16
+  },
+  {
+    "id": "en/pypi",
+    "lang": "en",
+    "slug": "pypi",
+    "file": "content/en/PYPI.md",
+    "title": "PyPI",
+    "heading": "Publishing to PyPI",
+    "body": "Publishing to PyPI This guide covers packaging, naming, and releasing Helix on PyPI. Package name The PyPI distribution name is (not ). Name on PyPI Status -------------- -------- Taken (MIT LL mutation framework) Taken (ML toolkit) Used by this project (verify before first upload) Install: The console command is (registered via → ). It is placed in the environment’s directory ( , , or pipx’s path). Activate the venv or use pipx / uv tool so is on your PATH from any directory. Do not run — that installs an unrelated package on PyPI. Update in if the distribution name changes. Prerequisites 1. PyPI account — register at pypi.org 2. Trusted publishing (recommended) or API token - Token: Account → API tokens → scope (after first upload) or entire account for first release 3. Unique name — confirm is free: 4. Version — bump in and together 5. Python 3.14+ — reflected in ; PyPI users need 3.14 What is already configured Item Location ------ ---------- Build backend in Packages , , , Root settings module (force-included in wheel) Console script Extras , , , License + Local build check Verify install in a clean venv: Run tests before release: First release (TestPyPI, then production) 1. TestPyPI (recommended) Test install: 2. Production PyPI Use environment variables (never commit tokens): Versioning 1. Edit in 2. Edit → 3. Add entry to 4. Git tag: PyPI does not allow re-uploading the same version. GitHub Actions (optional) See (manual ). Secrets: - — PyPI token with upload scope Trusted publishing: connect the GitHub repo to PyPI project settings (no long-lived token). Checklist before every release - [ ] Version bumped in and - [ ] succeeds - [ ] Wheel installs in clean 3.14 venv; works - [ ] works (packaged ) - [ ] README and URLs updated - [ ] Tests pass ( ) - [ ] CHANGELOG updated - [ ] TestPyPI smoke test (first times) - [ ] Git tag matches version User-facing install docs After publish, update: - INSTALLATION.md — - Root README.md - (uses package name) Known limitations - Python 3.14 only — narrow audience until you lower and test on 3.12/3.13 - Heavy dependencies — ChromaDB, LangGraph; first install may be slow - Playwright — extra requires after pip install - No bundled in wheel — document copying from GitHub or Related - INSTALLATION.md - CONTRIBUTING.md",
+    "nav_order": 17
+  },
+  {
+    "id": "en/troubleshooting",
+    "lang": "en",
+    "slug": "troubleshooting",
+    "file": "content/en/TROUBLESHOOTING.md",
+    "title": "Troubleshooting",
+    "heading": "Troubleshooting",
+    "body": "Troubleshooting Gateway won't start On Windows, check port binding: (hint from on failure). No agent output / silent failures Windows-specific - Terminal tool uses cmd builtins ( , , ); Unix commands ( , ) are blocked unless added via - Sub-agents run in async mode (not separate OS processes) - Data dir: unless is set - Optional: for improved process cleanup ( ) Dishka / agent init error Ensure profile loads: LLM connection failed Telegram access denied Set to your numeric user id. Auth 401 on API Set or . Create admin key via (requires admin key when auth enabled). Related - LOGS.md — log files, filters, rotation, debug mode",
+    "nav_order": 18
+  },
+  {
+    "id": "en/user-guide",
+    "lang": "en",
+    "slug": "user-guide",
+    "file": "content/en/USER_GUIDE.md",
+    "title": "User Guide",
+    "heading": "Helix — Complete User Guide",
+    "body": "Helix — Complete User Guide Step-by-step instructions: install from , initial setup, LiteLLM connection, MCP, skills, Telegram, and execution modes. All commands and paths are taken from the Helix repository ( , , , ). The package is named ; the terminal command is . --- Table of Contents 1. What Helix Can Do 2. Requirements 3. Step 1 — Install Python 4. Step 2 — Install UV (recommended) 5. Step 3 — Download and Install 6. Step 4 — First Run and Profile 7. Step 5 — Configure Models via LiteLLM 8. Step 6 — Web Search (optional) 9. Step 7 — Telegram Bot 10. Step 8 — Execution Modes 11. Step 9 — How to Write Prompts 12. Step 10 — MCP Step by Step 13. Step 11 — Skills and Hub Plugins 14. CLI Reference 15. Slash Commands in Chat 16. Helix Features 17. Troubleshooting --- 1. What Helix Can Do Helix is an AI agent with: - tool calling — files, terminal, web, code, optional browser (Playwright); - memory — SQLite + semantic search (ChromaDB); - skills — markdown instructions, Hub catalogs (ClawHub, Hermes, Claude plugins); - MCP — connect external Model Context Protocol servers; - multiple interfaces — TUI ( ), chat ( ), single request ( ), API ( ), Telegram; - security — confirmation for dangerous actions, command whitelist, API keys; - subagents — background tasks in separate processes; - planning — modes with plan review and step approval. Data is stored in (Linux/macOS) or (Windows). --- 2. Requirements Component Version / note ----------- -------------- Python 3.14+ ( in ) uv recommended for installing dependencies LLM OpenAI-compatible API (this guide uses LiteLLM ) Node.js / npx required for many MCP servers ( will check) Docker optional (e.g., MCP GitHub) --- 3. Step 1 — Install Python 1. Open https://www.python.org/downloads/. 2. Download Python 3.14 or newer. 3. Install. On Windows, check “Add Python to PATH” . 4. Verify in the terminal: You should see 3.14.x or higher. --- 4. Step 2 — Install UV (recommended) UV is a fast Python package manager. Helix documentation recommends it for development and installation. macOS / Linux: Verify: Alternative without UV: plain (see step 5). --- 5. Step 3 — Download and Install 5.1. Get the file The wheel is built from the project: Copy the to the target machine (USB, shared folder, CI artifact). Package name: . Do not use — on PyPI that is a different project. 5.2. Install via uv (recommended) Globally (as a standalone utility): In a virtual environment: With optional extras (Telegram, browser, web TUI, voice): 5.3. Install via pip Globally (pipx — recommended for CLI): In a venv: In the user directory ( ): 5.4. Post-install verification --- 6. Step 4 — First Run and Profile 6.1. Create the environment file The main secrets file is . 6.2. Profile A profile is a set of settings in a directory: The profile is used by default. On first run, Helix creates the required directories. View settings: Switch profile: In chat: or (list). 6.3. Diagnostics Doctor checks: directories, YAML, LLM, gateway, Telegram, MCP env, platform (node/npx/git). --- 7. Step 5 — Configure Models via LiteLLM In your infrastructure, LiteLLM is available at: Helix talks to LiteLLM through the OpenAI-compatible API ( , ). 7.1. What to get from the LiteLLM administrator 1. Virtual API key (client key) — stored as . 2. A list of model names ( in the LiteLLM config) that you are allowed to use. The Helix catalog for the preset lists examples: , , — actual names on your server may differ ; Helix will show the list on successful connection. 7.2. Save the key in Open and add: Helix substitutes and the host from into the profile . Optional API availability check (from the user's machine): The response should be JSON with a list of models. 7.3. Add the LiteLLM provider to the profile (interactive) What happens: 1. Helix prompts for the API key (if is already in — it uses that). 2. Connects to . 3. Loads the model list from . 4. Asks you to choose the default model for this provider. 5. Saves settings to . 7.4. Full setup wizard (recommended) In the menu: Option Action -------- -------- 1 Add provider (choose litellm preset, from the table) 2 List providers 3 Test connection 5 Assign models to agents ( , subagents) 7 Save and exit 7.5. Assigning models to agents In → option 5 (Configure agent models): - — primary agent in chat; - you can assign different models to subagents ( , , …). View assignments: 7.6. Example fragment after setup 7.7. Apply changes If gateway or Telegram is running: In TUI, switch models on the fly: or . --- 8. Step 6 — Web Search (optional) Helix supports providers: DuckDuckGo (default), SearXNG , Firecrawl . In chat: , , . After configuration: . Secrets in : , (see ). --- 9. Step 7 — Telegram Bot 9.1. Install the Telegram dependency 9.2. Create a bot in Telegram 1. Open Telegram and find @BotFather . 2. Send the command. 3. Enter the bot display name . 4. Enter the bot username (must end with , e.g. ). 5. BotFather will send a token like — save it. 9.3. Find your Telegram user id Required to restrict access (who can message the bot): - message @userinfobot, or - the wizard can detect the id automatically. 9.4. Interactive Helix setup The wizard: 1. Validates the token via the Telegram API ( ). 2. Asks for the user allowlist ( ). 3. Saves settings to . 9.5. Start the bot Standalone: Together with the API gateway (recommended for always-on use): The gateway supervisor also starts Telegram if it is configured. 9.6. Update the Telegram command menu After changing skills, MCP, or slash commands. 9.7. Voice messages (optional) If chat already goes through LiteLLM, configure the transcription model in the LiteLLM config and in : More details: TELEGRAM.md. 9.8. Production When , is required. --- 10. Step 8 — Execution Modes TUI supports these modes (switch with or Shift+Tab in legacy TUI): Mode System name When to use ------ ------------- ------------- ReAct Regular questions, tools, quick tasks (default mode) Plan Multi-step tasks with clear subtasks Hybrid Complex tasks: plan first, then flexible step execution Auto Helix chooses one of the three modes above via an LLM classifier Set a mode explicitly: Planning and approval In plan modes ( , ) the agent: 1. Builds a plan. 2. Shows it for approval (if in settings). 3. Waits for your decision. Approval commands: Command Action --------- -------- Approve one step Run the entire plan automatically Refine the plan (you can reply with text) Reject the plan In Telegram — the same commands and inline buttons. Dangerous action confirmation Before writing files, running terminal commands, etc., Helix asks for permission: Command Meaning --------- --------- , Allow once For the whole session Always (persisted) , Deny --- 11. Step 9 — How to Write Prompts ReAct ( ) Write directly and concretely : - ✅ “Read and briefly describe the project” - ✅ “Search the web for the latest news about Python 3.14” - ✅ “Run and explain the output” Good for: single questions, reading files, search, short code. Plan ( ) State the goal and constraints , broken into stages: - ✅ “Migrate the project from requirements.txt to pyproject.toml: 1) audit dependencies 2) create pyproject 3) verify installation” - ✅ “Add tests for module X and update CI” Expect plan → approval → step-by-step execution . Hybrid ( ) For large tasks with research and implementation: - ✅ “Design and implement a task-tracking API: architecture plan first, then code and tests” Plan first (as in the hybrid graph), then ReAct within steps. Auto ( ) Write as usual — Helix picks the mode: - short question → likely ; - “do a refactor and add tests” → likely or . On classifier failure, is used. General tips 1. Specify file paths and the expected outcome . 2. For code — language, framework, constraints. 3. Commands starting with are slash commands ; they do not go to the LLM ( , , …). 4. Plain text without is a message to the agent. --- 12. Step 10 — MCP Step by Step MCP (Model Context Protocol) adds external tools (GitHub, filesystem, documentation, etc",
+    "nav_order": 19
+  },
+  {
+    "id": "ru/readme",
+    "lang": "ru",
+    "slug": "readme",
+    "file": "content/ru/README.md",
+    "title": "Обзор",
+    "heading": "Документация Helix (русский)",
+    "body": "Документация Helix (русский) Английская версия — основная: ../en/README.md. С чего начать 1. INSTALLATION.md — установка и обновление 2. START HERE.md — первый запуск 3. QUICKSTART.md — минимум команд 4. CONFIGURATION.md — , профили Интерфейсы - CLI.md — справочник команд - SLASH COMMANDS.md — слэш-команды - TUI.md — - HUB.md — каталоги навыков - GATEWAY.md — API gateway - TELEGRAM.md — Telegram - BROWSER TOOLS.md — Playwright Эксплуатация - LOGS.md — , ротация, debug - DOCTOR.md - SECURITY.md - DEPLOYMENT.md - TROUBLESHOOTING.md - ARCHITECTURE.md",
+    "nav_order": 0
+  },
+  {
+    "id": "ru/installation",
+    "lang": "ru",
+    "slug": "installation",
+    "file": "content/ru/INSTALLATION.md",
+    "title": "Установка",
+    "heading": "Установка",
+    "body": "Установка Helix требует Python 3.14+ и устанавливается как CLI-команда . Требования Компонент Примечание ----------- ------------ Python 3.14+ uv Рекомендуется LLM OpenAI-совместимый API (Ollama, LiteLLM, OpenAI, Groq, …) Опциональные extras: Extra Команда Назначение ------- --------- ------------ Telegram-бот Playwright — BROWSER TOOLS.md для остановки дерева процессов (опционально на Windows) telegram + browser + tui-web + windows Быстрая установка (пользователям) PyPI — из любой папки Пакет на PyPI: (не — это другой проект). Команда: . Глобально (рекомендуется): В venv (после ): В пользовательский каталог ( в PATH): Из git Установка для разработки Первый запуск 1. 2. 3. 4. или Данные: (Linux/macOS), (Windows) или — см. CONFIGURATION.md. Логи: LOGS.md. Обновление Docker Подробнее: DEPLOYMENT.md. Удаление 1. Удалите из PATH. 2. При необходимости удалите . 3. Удалите каталог клона. См. также TROUBLESHOOTING.md, DOCTOR.md.",
+    "nav_order": 1
+  },
+  {
+    "id": "ru/start-here",
+    "lang": "ru",
+    "slug": "start-here",
+    "file": "content/ru/START_HERE.md",
+    "title": "Первый запуск",
+    "heading": "С чего начать",
+    "body": "С чего начать Чеклист для новой машины. Требования - Python 3.14+ - uv - OpenAI-совместимый LLM (Ollama, LiteLLM, OpenAI, Groq, …) 1. Установка INSTALLATION.md 2. Диагностика 3. Модели 4. Интерфейс Интерфейс Команда ----------- --------- TUI (рекомендуется) Чат в терминале Один запрос API Слэш-команды: — SLASH COMMANDS.md. 5. Опции Production SECURITY.md, DEPLOYMENT.md. Дальше - CLI.md - CONFIGURATION.md - Логи: — LOGS.md - TROUBLESHOOTING.md",
+    "nav_order": 2
+  },
+  {
+    "id": "ru/quickstart",
+    "lang": "ru",
+    "slug": "quickstart",
+    "file": "content/ru/QUICKSTART.md",
+    "title": "Быстрый старт",
+    "heading": "Быстрый старт",
+    "body": "Быстрый старт Опционально:",
+    "nav_order": 3
+  },
+  {
+    "id": "ru/configuration",
+    "lang": "ru",
+    "slug": "configuration",
+    "file": "content/ru/CONFIGURATION.md",
+    "title": "Конфигурация",
+    "heading": "Конфигурация",
+    "body": "Конфигурация Уровни 1. — глобальные значения ( / ), основной файл: 2. Профиль — 3. Флаги CLI — переопределение на команду Опционально в каталоге проекта (ниже приоритетом, чем ). Переменные shell не перезаписываются. Каталог данных ( ) ОС По умолчанию ---- -------------- Linux / macOS Windows Переопределение Linux (XDG) без Профили, логи, gateway и MCP-клоны — в этом каталоге. Переменные окружения См. .env.example. Логирование , , , , — см. LOGS.md и ../en/CONFIGURATION.md. Секреты в профиле Модели Пресеты: , , (Claude через OpenRouter), , (Kimi), (Grok), , , , , , . Хост для Ollama / LiteLLM / vLLM: переменные , , в или флаг при (также запрос в ). Порты по умолчанию: 11434, 4000, 8000. Подробнее: ../en/CONFIGURATION.md. Секреты в YAML: , . OpenRouter: также в . Подробнее: ../en/CONFIGURATION.md. Поля / в корне YAML поддерживаются; предпочтительны + .",
+    "nav_order": 4
+  },
+  {
+    "id": "ru/cli",
+    "lang": "ru",
+    "slug": "cli",
+    "file": "content/ru/CLI.md",
+    "title": "Справочник CLI",
+    "heading": "Справочник CLI",
+    "body": "Справочник CLI Точка входа: (Typer). Глобальные опции Опция Кратко По умолчанию Описание ------- -------- -------------- ---------- Профиль в выкл Подробный вывод Команды верхнего уровня Команда Назначение --------- ------------ Интерактивный чат в терминале Один запрос и выход Полноэкранный TUI (рекомендуется) Статус профиля Очистить профиля Версия Навыки Память config.yaml Провайдеры и маршрутизация Telegram-бот API gateway Планировщик задач (в gateway) Просмотр логов, ротация, debug Диагностика MCP-серверы Каталоги навыков Установка в PATH Обновление Слэш-команды: SLASH COMMANDS.md . --- Опции: , , . Слэши: , , , , , , , , , , , — см. SLASH COMMANDS.md. --- --- Legacy: . Подробнее: TUI.md. --- / / - status — модель, URL, каталоги, список профилей - clear — удаление памяти и навыков ( без подтверждения) - version — версия пакета --- / См. INSTALLATION.md. --- Подкоманда Описание ------------ ---------- YAML профиля Редактор Поле --- Подкоманда Описание ------------ ---------- Мастер провайдеров и Список провайдеров Назначения по агентам --- Подкоманда Описание ------------ ---------- Список ( ) Поиск Текст навыка / Какие агенты видят навык Интерактивное назначение --- — в TUI: . --- Подкоманда Описание ------------ ---------- Фоновый запуск Остановка Статус Перезапуск GATEWAY.md --- В TUI/Telegram: , . Лог запусков: . --- Источники : , , , , , . Опции: , , , , , . Полная версия: LOGS.md. --- DOCTOR.md --- Подкоманда Описание ------------ ---------- Серверы / Добавить / удалить Проверка / Назначение агентам / Быстрая установка Tools: . В TUI: . --- Подкоманда Описание ------------ ---------- Поиск в каталогах Интерактивная установка Установка по spec / Список / удаление / / Обновления HUB.md --- TELEGRAM.md --- Профили Путь Содержимое ------ ------------ Настройки SQLite + ChromaDB Навыки --- См. также - SLASH COMMANDS.md - INSTALLATION.md - CONFIGURATION.md - LOGS.md - Полная английская версия: ../en/CLI.md",
+    "nav_order": 5
+  },
+  {
+    "id": "ru/slash-commands",
+    "lang": "ru",
+    "slug": "slash-commands",
+    "file": "content/ru/SLASH_COMMANDS.md",
+    "title": "Слэш-команды",
+    "heading": "Слэш-команды (`/`)",
+    "body": "Слэш-команды ( ) Команды с управляют сессией без отправки текста в LLM. Работают в TUI ( ), Telegram и частично в . Источник: , . Поддержка по интерфейсам Группа TUI Telegram chat-command -------- ----- ---------- -------------- Сессии ( , ) Да Да Нет Копирование ( , ) Да Частично Нет План ( ) Да Да Нет Подтверждения ( , – ) Да Да Нет Hub / MCP Да Частично Нет , , Да Да Да (часть) Да Да Да Только legacy TUI Нет Да ( ) Раскладка macOS (RU) и приводятся к . Символ — Shift+7 . --- Справка и статус Команда Алиасы Описание --------- -------- ---------- , Справка — Профиль, режим, сессия — Метрики агента Очистить транскрипт --- Модели и выполнение Команда Описание --------- ---------- , Выбор модели (TUI) / текущая модель (chat) Цикл режимов или Стриминг; Остановить задачи агента --- Сессии (TUI / Telegram) Команда Описание --------- ---------- Новая сессия Список сессий Переключиться на №N Переименовать сессию Список профилей Сменить профиль Сменить по номеру --- Память и инструменты Команда Описание --------- ---------- Семантический поиск в памяти , Сброс UI поиска , Полный вывод инструмента Недавние результаты tools --- Копирование (TUI) Команда Описание --------- ---------- , Последний ответ ассистента Вывод последнего tool Весь транскрипт , Окно транскрипта (F2) --- Подтверждение рискованных действий Команда Значение --------- ---------- , Разрешить один раз На сессию Всегда , Отклонить --- Согласование плана Команда Действие --------- ---------- Подтвердить шаг Автовыполнение плана Уточнить план Отклонить --- MCP Команда Описание --------- ---------- Меню / список Серверы Установка Ручная настройка Назначение агентам Проверка Доступные tools Удалить CLI: — CLI.md. --- Skill Hub Команда Описание --------- ---------- Выбор каталога , Установленное Обзор и установка , , Каталоги , Алиасы hub Подсказка: CLI: HUB.md. --- Динамические команды навыков Файл: Обновление: --- Только Команда Описание --------- ---------- , , Выход , События агента Сжатие контекста в БД --- Telegram TELEGRAM.md",
+    "nav_order": 6
+  },
+  {
+    "id": "ru/tui",
+    "lang": "ru",
+    "slug": "tui",
+    "file": "content/ru/TUI.md",
+    "title": "TUI",
+    "heading": "TUI",
+    "body": "TUI По умолчанию: code-style UI ( ). Legacy dashboard: Копирование - В чате: выделите текст → кнопка Copy внизу (⌃C/⌘C не копируют последний ответ) - Окно копирования (F2 / ): / / — выделение или весь транскрипт - Slash: , , по-прежнему из чата Skill Hub Slash Действие ------- ---------- Выбор каталога → поиск и установка Браузер текущего каталога Установленные hub-скиллы, плагины, MCP Подробнее: HUB.md.",
+    "nav_order": 7
+  },
+  {
+    "id": "ru/hub",
+    "lang": "ru",
+    "slug": "hub",
+    "file": "content/ru/HUB.md",
+    "title": "Hub и навыки",
+    "heading": "Skill Hub",
+    "body": "Skill Hub Установка скиллов и плагинов Claude Code из публичных каталогов в активный профиль. Расположение данных: - Бандлы: - Lockfile: - Плоские копии (опционально): - Slash-реестр: CLI Форматы установки Префикс Пример -------- --------- ClawHub или Claude plugin Hermes skills.sh Git Локально путь к или бандлу У плагинов Claude могут быть MCP-серверы; (по умолчанию) добавляет их в . TUI В TUI: Действие Команда / UI -------- ---------------- Выбор каталога Установленное или режим Installed Поиск и установка → Search → Install Удалить hub-бандл Installed → строка (hub) → Remove hub или Delete Браузер → http://127.0.0.1:8787 Скиллы по агентам Поле профиля ограничивает, какие скиллы видит каждый агент/субагент. В frontmatter скилла можно указать / . MCP и переменные окружения и в MCP плагинов подставляются при загрузке. предупреждает , если переменных нет.",
+    "nav_order": 8
+  },
+  {
+    "id": "ru/gateway",
+    "lang": "ru",
+    "slug": "gateway",
+    "file": "content/ru/GATEWAY.md",
+    "title": "API Gateway",
+    "heading": "API Gateway",
+    "body": "API Gateway HTTP API (совместим с OpenAI) и companion-сервисы (Telegram при настройке). Команды Состояние: (по умолчанию ) Логи: — просмотр: (LOGS.md) Supervisor также запускает cron и Telegram (при настройке) как companion-процессы. Переменные окружения Переменная По умолчанию Описание ------------ -------------- ---------- Адрес bind Порт API key для — Включает auth и строгие проверки Маршруты всегда требуют admin API key. Эндпоинты - — проверка здоровья - — метрики Prometheus - — чат OpenAI-формата - — создать ключ (admin)",
+    "nav_order": 9
+  },
+  {
+    "id": "ru/telegram",
+    "lang": "ru",
+    "slug": "telegram",
+    "file": "content/ru/TELEGRAM.md",
+    "title": "Telegram",
+    "heading": "Telegram",
+    "body": "Telegram В production ( ) обязателен . Одно live-сообщение на задачу; slash-команды как в TUI; inline-подтверждения. --- 🎙️ Голосовые сообщения Helix умеет распознавать голосовые сообщения из Telegram и обрабатывать их как текст. Как это работает 1. Пользователь отправляет голосовое сообщение в Telegram 2. Бот скачивает аудиофайл 3. Отправляет его в OpenAI Whisper API для транскрибации 4. Показывает распознанный текст 5. Обрабатывает его через агента Helix как обычное текстовое сообщение Настройка Вариант 1: LiteLLM (рекомендуется, если chat уже через LiteLLM) На сервере LiteLLM добавьте модель транскрибации в : В Helix: Или автоматически из профиля (тот же ключ/URL, что для chat): Вариант 2: Локально на машине с агентом (offline) Без OpenAI и без LiteLLM — модель Whisper крутится прямо на хосте, где запущен Helix: Или — локально, если установлен и нет API-ключей. Модель RAM (≈) Качество -------- --------- ---------- ~1 GB базовое ~1.5 GB хорошее для команд ~2.5 GB лучше для русского ~5 GB высокое Ollama не подходит для Whisper-транскрибации (нет OpenAI ). Вариант 3: OpenAI напрямую Важно: Ollama не поддерживает Whisper. LiteLLM — да, но модель должна быть в его конфиге (проверка: — в списке есть ). Использование Отправьте голосовое сообщение или аудиофайл (mp3/m4a) в чат с ботом — Helix автоматически: - 🎙️ Покажет \"Распознано: ...\" - 🤖 Обработает текст через агента - 💬 Ответит на ваш запрос Ограничения - Максимальная длительность: ~25 МБ (лимит Telegram) - Язык: Whisper автоопределяет язык, но можно задать явно (через код) - Требуется интернет-соединение для API Whisper Безопасность Аудиофайлы временно сохраняются во временной директории и удаляются сразу после транскрибации. Никакие голосовые данные не хранятся постоянно. После изменения или настроек голоса:",
+    "nav_order": 10
+  },
+  {
+    "id": "ru/browser-tools",
+    "lang": "ru",
+    "slug": "browser-tools",
+    "file": "content/ru/BROWSER_TOOLS.md",
+    "title": "Браузер",
+    "heading": "Браузерная автоматизация (Playwright)",
+    "body": "Браузерная автоматизация (Playwright) Управление локальным Chromium через Playwright. По умолчанию выключено ; нужен extra . Установка В : Инструменты Инструмент Риск Назначение ------------ ------ ------------ high Открыть URL low Снимок DOM с refs , high Клик high Ввод текста medium Клавиши low Ожидание low Закрыть сессию Сценарий: open → snapshot → fill/click → close. Безопасность - Только / - Запрет localhost и private IP - Allowlist: - High-risk tools требуют подтверждения в TUI ( , , …) Подробнее на английском (полная версия): ../en/BROWSER TOOLS.md.",
+    "nav_order": 11
+  },
+  {
+    "id": "ru/architecture",
+    "lang": "ru",
+    "slug": "architecture",
+    "file": "content/ru/ARCHITECTURE.md",
+    "title": "Архитектура",
+    "heading": "Архитектура",
+    "body": "Архитектура Слой Путь ------ ------ События DI , Dishka Инструменты Память API CLI Supervisor gateway Doctor Конфиг: из профиля + (.env).",
+    "nav_order": 12
+  },
+  {
+    "id": "ru/security",
+    "lang": "ru",
+    "slug": "security",
+    "file": "content/ru/SECURITY.md",
+    "title": "Безопасность",
+    "heading": "Безопасность",
+    "body": "Безопасность Чеклист production 1. 2. (в production принудительно) 3. — длинный случайный секрет 4. — явные origin (не ) 5. за reverse proxy с TLS 6. при использовании Telegram 7. если не нужен 8. Web TUI ( ) Браузерный UI — полноценный агент (терминал, файлы, MCP). Считайте это root на вашей машине. Bind Требования ------ ------------ (по умолчанию) , или эфемерный (по умолчанию) / LAN и явный / env (автотокен не создаётся) Явный token всегда - Не выставляйте порт 8787 в интернет без TLS и reverse proxy. - Меняйте token после передачи LAN-URL. API keys - Хранение: HMAC-SHA256 с pepper - всегда требуют permission - Создание: с admin key Секреты в профиле В : Не коммитьте реальные ключи в git. Инструменты - Terminal : whitelist при - Python executor : в production Аудит",
+    "nav_order": 13
+  },
+  {
+    "id": "ru/deployment",
+    "lang": "ru",
+    "slug": "deployment",
+    "file": "content/ru/DEPLOYMENT.md",
+    "title": "Деплой",
+    "heading": "Развёртывание",
+    "body": "Развёртывание Docker В контейнере: . systemd Пример: deploy/systemd/helix-gateway.service CI GitHub Actions: — ruff, pytest, . TLS Gateway на , TLS на nginx/Caddy/Traefik.",
+    "nav_order": 14
+  },
+  {
+    "id": "ru/doctor",
+    "lang": "ru",
+    "slug": "doctor",
+    "file": "content/ru/DOCTOR.md",
+    "title": "Doctor",
+    "heading": "Helix Doctor",
+    "body": "Helix Doctor Диагностика профилей, LLM, gateway, Telegram и настроек безопасности. Использование Без - Ошибки, предупреждения, рекомендации - Опционально план действий от LLM (если не ) С Детерминированные фиксы: - Каталоги профиля, пути, stale gateway state, provider/model LLM (default LLM профиля): - Битый (бэкап: ) Проверки - Запись в (или ) - Платформа: ОС, путь данных, / / / в PATH; Windows: подсказка psutil, whitelist терминала - YAML профиля и providers - LLM endpoint и модель - Gateway state / health - Telegram token и allowlist - Production: pepper, CORS, auth, code executor После исправлений смотрите runtime-логи: — LOGS.md.",
+    "nav_order": 15
+  },
+  {
+    "id": "ru/logs",
+    "lang": "ru",
+    "slug": "logs",
+    "file": "content/ru/LOGS.md",
+    "title": "Логи",
+    "heading": "Логи и наблюдаемость",
+    "body": "Логи и наблюдаемость Helix пишет структурированные логи в каталог данных. Команда — просмотр, фильтрация, ротация и режим debug. Каталог данных ОС Путь по умолчанию ---- ------------------- Linux / macOS Windows Переопределение Linux (XDG) без Логи: (если не указано иное). Файлы логов Файл Источник Содержимое ------ ---------- ------------ Агент Вызовы tools, ошибки, ответы, навыки (JSONL) Агент (debug) То же при включённом debug Субагенты spawn / terminate Система Python root logger (с ротацией) Gateway Uvicorn / supervisor Cron Строки запусков задач Hub Автообновление каталога chat-command История ввода (не вывод агента) Результаты работы агента — в и в памяти разговора; cron может дублировать краткий итог в привязанную сессию TUI/Telegram. Команды Источники : , , , , , . Режим debug По умолчанию выключен. При включении: - Пишется - Уровень root-логгера — - Состояние в Ротация Переменная По умолчанию Назначение ------------ -------------- ------------ 10 MiB Порог ротации 10 Число backup-файлов 14 Удаление старых backup Диагностика Windows: для надёжной остановки процессов — (psutil). См. также - CLI.md - GATEWAY.md - CONFIGURATION.md - Полная версия: ../en/LOGS.md",
+    "nav_order": 16
+  },
+  {
+    "id": "ru/pypi",
+    "lang": "ru",
+    "slug": "pypi",
+    "file": "content/ru/PYPI.md",
+    "title": "PyPI",
+    "heading": "Публикация на PyPI",
+    "body": "Публикация на PyPI Руководство по выпуску пакета Helix на PyPI. Имя пакета На PyPI проект публикуется как (имя занято другим проектом). Команда в терминале по-прежнему: . Что нужно сделать 1. Аккаунт и имя - Регистрация на pypi.org - Проверить, что свободен - API-токен или Trusted Publishing с GitHub 2. Метаданные (уже в репозитории) - — , зависимости, extras, - включён в wheel (обязательно для ) - → 3. Перед каждым релизом 1. Поднять версию в и 2. — без ошибок 3. Проверить установку wheel в чистом venv Python 3.14 4. 5. Обновить 6. Тег 4. Сборка и загрузка 5. Документация для пользователей После публикации обновить INSTALLATION.md и README: . Ограничения - Только Python 3.14+ - Тяжёлые зависимости (ChromaDB, LangGraph) - Для browser: после pip — Полная английская версия: ../en/PYPI.md.",
+    "nav_order": 17
+  },
+  {
+    "id": "ru/troubleshooting",
+    "lang": "ru",
+    "slug": "troubleshooting",
+    "file": "content/ru/TROUBLESHOOTING.md",
+    "title": "Решение проблем",
+    "heading": "Решение проблем",
+    "body": "Решение проблем Gateway не стартует Нет вывода агента / тихие ошибки Windows - Терминал: , , вместо , - Субагенты — режим async - Данные: или - Опционально: Ошибка Dishka / agent init LLM недоступен Telegram access denied Укажите (числовой user id). API 401 Заголовок или . Admin key — через . См. также - LOGS.md — файлы логов, фильтры, ротация, debug",
+    "nav_order": 18
+  },
+  {
+    "id": "ru/user-guide",
+    "lang": "ru",
+    "slug": "user-guide",
+    "file": "content/ru/USER_GUIDE.md",
+    "title": "Руководство",
+    "heading": "Helix — полное руководство пользователя",
+    "body": "Helix — полное руководство пользователя Пошаговая инструкция: установка из , первичная настройка, подключение к LiteLLM, MCP, навыки, Telegram и режимы работы. Все команды и пути взяты из репозитория Helix ( , , , ). Пакет называется , команда в терминале — . --- Содержание 1. Что умеет Helix 2. Требования 3. Шаг 1 — Установить Python 4. Шаг 2 — Установить UV (рекомендуется) 5. Шаг 3 — Скачать и установить 6. Шаг 4 — Первый запуск и профиль 7. Шаг 5 — Настройка моделей через LiteLLM 8. Шаг 6 — Поиск в интернете (опционально) 9. Шаг 7 — Telegram-бот 10. Шаг 8 — Режимы выполнения 11. Шаг 9 — Как писать запросы 12. Шаг 10 — MCP пошагово 13. Шаг 11 — Навыки и плагины из Hub 14. Справочник CLI 15. Слэш-команды в чате 16. Особенности Helix 17. Что делать, если что-то не работает --- 1. Что умеет Helix Helix — AI-агент с: - вызовом инструментов — файлы, терминал, веб, код, опционально браузер (Playwright); - памятью — SQLite + семантический поиск (ChromaDB); - навыками (skills) — markdown-инструкции, каталоги Hub (ClawHub, Hermes, Claude plugins); - MCP — подключение внешних серверов Model Context Protocol; - несколькими интерфейсами — TUI ( ), чат ( ), один запрос ( ), API ( ), Telegram; - безопасностью — подтверждение опасных действий, whitelist команд, API-ключи; - субагентами — фоновые задачи в отдельных процессах; - планированием — режимы с планом и согласованием шагов. Данные хранятся в (Linux/macOS) или (Windows). --- 2. Требования Компонент Версия / примечание ----------- --------------------- Python 3.14+ ( в ) uv рекомендуется для установки зависимостей LLM OpenAI-совместимый API (в этой инструкции — LiteLLM ) Node.js / npx нужен для многих MCP-серверов ( проверит) Docker опционально (например, MCP GitHub) --- 3. Шаг 1 — Установить Python 1. Откройте https://www.python.org/downloads/. 2. Скачайте Python 3.14 или новее. 3. Установите. На Windows отметьте «Add Python to PATH» . 4. Проверьте в терминале: Должно быть 3.14.x или выше. --- 4. Шаг 2 — Установить UV (рекомендуется) UV — быстрый менеджер пакетов Python. Helix в документации рекомендует его для разработки и установки. macOS / Linux: Проверка: Альтернатива без UV: обычный (см. шаг 5). --- 5. Шаг 3 — Скачать и установить 5.1. Получить файл Файл wheel собирается из проекта: Скопируйте на целевую машину (USB, общая папка, артефакт CI). Имя пакета: . Не используйте — на PyPI это другой проект. 5.2. Установка через uv (рекомендуется) Глобально (как отдельная утилита): В виртуальное окружение: С дополнительными возможностями (Telegram, браузер, веб-TUI, голос): 5.3. Установка через pip Глобально (pipx — рекомендуется для CLI): В venv: В пользовательский каталог ( ): 5.4. Проверка после установки --- 6. Шаг 4 — Первый запуск и профиль 6.1. Создать файл окружения Основной файл секретов: . 6.2. Профиль Профиль — набор настроек в каталоге: По умолчанию используется профиль . При первом запуске Helix создаёт нужные каталоги. Просмотр настроек: Смена профиля: В чате: или (список). 6.3. Диагностика Doctor проверяет: каталоги, YAML, LLM, gateway, Telegram, MCP env, платформу (node/npx/git). --- 7. Шаг 5 — Настройка моделей через LiteLLM В вашей инфраструктуре LiteLLM доступен по адресу: Helix общается с LiteLLM через OpenAI-совместимый API ( , ). 7.1. Что нужно получить у администратора LiteLLM 1. Virtual API key (ключ для клиентов) — сохраняется как . 2. Список имён моделей ( в конфиге LiteLLM), которые вам разрешены. В каталоге Helix для пресета в качестве примеров указаны: , , — фактические имена на вашем сервере могут отличаться ; Helix покажет список при успешном подключении. 7.2. Записать ключ в Откройте и добавьте: Helix подставляет и хост из в профиля. Проверка доступности API (опционально, с машины пользователя): В ответе должен быть JSON со списком моделей. 7.3. Добавить провайдер LiteLLM в профиль (интерактивно) Что произойдёт: 1. Helix предложит ввести API-ключ (если уже в — возьмёт оттуда). 2. Подключится к . 3. Загрузит список моделей с . 4. Попросит выбрать модель по умолчанию для этого провайдера. 5. Сохранит настройки в . 7.4. Полный мастер настройки (рекомендуется) В меню: Пункт Действие ------- ---------- 1 Добавить провайдер (выберите пресет litellm , из таблицы) 2 Список провайдеров 3 Тест подключения 5 Назначить модели агентам ( , субагентам) 7 Сохранить и выйти 7.5. Назначение моделей агентам В → пункт 5 (Configure agent models): - — основной агент в чате; - можно назначить разные модели субагентам ( , , …). Просмотр назначений: 7.6. Пример фрагмента после настройки 7.7. Применить изменения Если запущен gateway или Telegram: В TUI смена модели на лету: или . --- 8. Шаг 6 — Поиск в интернете (опционально) Helix поддерживает провайдеры: DuckDuckGo (по умолчанию), SearXNG , Firecrawl . В чате: , , . После настройки: . Секреты в : , (см. ). --- 9. Шаг 7 — Telegram-бот 9.1. Установить зависимость Telegram 9.2. Создать бота в Telegram 1. Откройте Telegram, найдите @BotFather . 2. Отправьте команду . 3. Введите имя бота (отображаемое). 4. Введите username бота (должен заканчиваться на , например ). 5. BotFather пришлёт токен вида — сохраните его. 9.3. Узнать свой Telegram user id Нужен для ограничения доступа (кто может писать боту): - напишите @userinfobot, или - мастер может определить id автоматически. 9.4. Интерактивная настройка Helix Мастер: 1. Проверит токен через Telegram API ( ). 2. Спросит allowlist пользователей ( ). 3. Сохранит настройки в . 9.5. Запуск бота Отдельно: Вместе с API gateway (рекомендуется для постоянной работы): Supervisor gateway также поднимает Telegram, если он настроен. 9.6. Обновить меню команд в Telegram После изменения навыков, MCP или слэш-команд. 9.7. Голосовые сообщения (опционально) Если чат уже через LiteLLM, для Whisper настройте модель транскрибации в конфиге LiteLLM и в : Подробнее: TELEGRAM.md. 9.8. Production При обязателен . --- 10. Шаг 8 — Режимы выполнения В TUI доступны режимы (переключение: или Shift+Tab в legacy TUI): Режим Имя в системе Когда использовать ------- --------------- ------------------- ReAct Обычные вопросы, инструменты, быстрые задачи (режим по умолчанию) План Многошаговые задачи с чёткими подзадачами Гибрид Сложные задачи: сначала план, затем гибкое выполнение шагов Авто Helix сам выбирает один из трёх режимов выше через LLM-классификатор Установить режим явно: Планирование и согласование В режимах с планом ( , ) агент: 1. Строит план. 2. Показывает его на согласование (если в настройках). 3. Ждёт вашего решения. Команды согласования: Команда Действие --------- ---------- Подтвердить один шаг Выполнить весь план автоматически Уточнить план (можно ответить текстом) Отклонить план В Telegram — те же команды и inline-кнопки. Подтверждение опасных действий Перед записью файлов, командами терминала и т.п. Helix запрашивает разрешение: Команда Значение --------- ---------- , Разрешить один раз На всю сессию Всегда (сохраняется) , Отклонить --- 11. Шаг 9 — Как писать запросы ReAct ( ) Пишите прямо и конкретно : - ✅ «Прочитай файл и кратко опиши проект» - ✅ «Найди в интернете последние новости о Python 3.14» - ✅ «Выполни и объясни вывод» Подходит для: одиночных вопросов, чтения файлов, поиска, короткого кода. Plan ( ) Формулируйте цель и ограничения , разбитую на этапы: - ✅ «Мигрируй проект с requirements.txt на pyproject.toml: 1) аудит зависимостей 2) создай pyproject 3) проверь установку» - ✅ «Добавь тесты для модуля X и обнови CI» Ожидайте план → согласование → пошаговое выполнение . Hybrid ( ) Для крупных задач с исследованием и реализацией: - ✅ «Спроектируй и реализуй API для учёта задач: сначала план архитектуры, потом код и тесты» Сначала план (как в hybrid-графе), затем ReAct внутри шагов. Auto ( ) Пишите как обычно — Helix сам выберет режим: - короткий вопрос → скорее ; - «сделай рефакторинг и тесты» → скорее или . При сбое классификатора используется . Общие советы 1. Указывайте пути к файлам и ожидаемый результат . 2. Для кода — язык, фреймворк, ограничения. 3. Команды с в начале — слэш-команды , они не уходят в LLM ( ,",
+    "nav_order": 19
+  }
+]

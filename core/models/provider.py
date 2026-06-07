@@ -4,6 +4,8 @@ from typing import Optional, Dict, Any, List
 from pydantic import BaseModel, Field
 from openai import AsyncOpenAI
 
+from core.models.client_factory import create_openai_client
+
 
 class ProviderConfig(BaseModel):
     """Configuration for a model provider."""
@@ -13,6 +15,7 @@ class ProviderConfig(BaseModel):
     api_key: str = Field(default="dummy", description="API key for authentication")
     default_model: Optional[str] = Field(default=None, description="Default model to use")
     available_models: List[str] = Field(default_factory=list, description="List of available models")
+    model_contexts: Dict[str, int] = Field(default_factory=dict, description="Mapping model_id → context_window in tokens")
     metadata: Dict[str, Any] = Field(default_factory=dict, description="Additional provider metadata")
 
 
@@ -36,9 +39,10 @@ class ModelProvider:
             AsyncOpenAI client instance
         """
         if self._client is None:
-            self._client = AsyncOpenAI(
+            self._client = create_openai_client(
                 base_url=self.config.base_url,
                 api_key=self.config.api_key,
+                metadata=self.config.metadata,
             )
         return self._client
 

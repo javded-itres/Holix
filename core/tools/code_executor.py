@@ -4,6 +4,7 @@ import os
 from io import StringIO
 from contextlib import redirect_stdout, redirect_stderr
 from typing import Dict, Any
+from config import settings
 from core.tools.base import BaseTool
 
 
@@ -14,6 +15,7 @@ class PythonExecutorTool(BaseTool):
         super().__init__()
         self.name = "execute_python"
         self.description = "Execute Python code safely in a restricted environment. Returns stdout, stderr, and result. Use for calculations, data processing, testing code snippets."
+        self.risk_level = "high"
         self.parameters = {
             "type": "object",
             "properties": {
@@ -47,6 +49,9 @@ class PythonExecutorTool(BaseTool):
         Returns:
             Execution result
         """
+        if not settings.enable_code_executor:
+            return "Error: Code executor is disabled (HELIX_ENABLE_CODE_EXECUTOR=false)"
+
         try:
             # Run in separate process for safety
             result = await asyncio.wait_for(
@@ -156,6 +161,7 @@ class MathCalculatorTool(BaseTool):
         super().__init__()
         self.name = "calculate"
         self.description = "Perform mathematical calculations. Supports basic arithmetic, trigonometry, logarithms, etc. Examples: '2+2', 'sqrt(16)', 'sin(pi/2)'"
+        self.risk_level = "no"
         self.parameters = {
             "type": "object",
             "properties": {

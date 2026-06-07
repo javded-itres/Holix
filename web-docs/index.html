@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#080c10">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="description" content="Helix — self-improving AI agent. Documentation: CLI, TUI, Gateway, Telegram, MCP, skills, memory, security.">
+  <title>Helix — Agent Documentation</title>
+  <link rel="icon" href="assets/logo.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="assets/css/style.css">
+</head>
+<body>
+  <div class="app">
+    <header class="header">
+      <a href="#/" class="brand" id="brand-link">
+        <img src="assets/logo.svg" alt="Helix logo" width="36" height="36">
+        <div class="brand-text">
+          <span class="brand-name">Helix</span>
+          <span class="brand-tag" data-i18n="tagline">Self-Improving Agent</span>
+        </div>
+      </a>
+
+      <div class="search-wrap">
+        <span class="search-icon" aria-hidden="true">⌕</span>
+        <input
+          type="search"
+          class="search-input"
+          id="search-input"
+          placeholder="Search documentation…"
+          autocomplete="off"
+          aria-label="Search documentation"
+          data-i18n-placeholder="search_placeholder"
+        >
+        <div class="search-results" id="search-results" role="listbox"></div>
+      </div>
+
+      <div class="header-actions">
+        <div class="lang-toggle" role="group" aria-label="Language">
+          <button type="button" class="lang-btn active" data-lang="en">EN</button>
+          <button type="button" class="lang-btn" data-lang="ru">RU</button>
+        </div>
+        <button
+          type="button"
+          class="menu-toggle"
+          id="menu-toggle"
+          aria-label="Toggle menu"
+          aria-expanded="false"
+          aria-controls="sidebar"
+        >☰</button>
+      </div>
+    </header>
+
+    <div class="sidebar-backdrop" id="sidebar-backdrop" hidden></div>
+
+    <div class="main">
+      <aside class="sidebar" id="sidebar" aria-label="Documentation navigation">
+        <nav id="sidebar-nav"></nav>
+      </aside>
+
+      <main class="content" id="main-content">
+        <div class="doc-loading" data-i18n="loading">Loading…</div>
+      </main>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <script src="assets/js/app.js" type="module"></script>
+</body>
+</html>

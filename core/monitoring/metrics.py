@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Dict, List
+from typing import Dict, List, Callable, Any, Optional
 from collections import defaultdict
 import time
 
@@ -81,6 +81,11 @@ class MetricsCollector:
             "total_tool_calls": self.counters.get("tool_calls", 0),
             "total_errors": self.counters.get("errors", 0),
             "skills_created": self.counters.get("skills_created", 0),
+            "context_compressions": self.counters.get("context_compressions", 0),
+            "confirmation_denials": self.counters.get("confirmation_deny", 0),
+            "plan_reviews": sum(
+                v for k, v in self.counters.items() if k.startswith("plan_review.")
+            ),
         }
 
         # Average response time
@@ -99,5 +104,100 @@ class MetricsCollector:
         self.timers.clear()
 
 
+def format_metrics_message(summary: dict) -> str:
+    """Human-readable metrics for Telegram, CLI, and shared slash commands."""
+    lines = [
+        "**Helix metrics**",
+        "",
+        f"• Requests: {summary.get('total_requests', 0)}",
+        f"• Tool calls: {summary.get('total_tool_calls', 0)}",
+        f"• Skills created: {summary.get('skills_created', 0)}",
+        f"• Errors: {summary.get('total_errors', 0)}",
+        f"• Context compressions: {summary.get('context_compressions', 0)}",
+        f"• Confirmation denials: {summary.get('confirmation_denials', 0)}",
+        f"• Plan reviews: {summary.get('plan_reviews', 0)}",
+    ]
+    if "avg_response_time" in summary:
+        lines.append(f"• Avg response: {summary['avg_response_time']:.2f}s")
+        lines.append(
+            f"• Min / max: {summary.get('min_response_time', 0):.2f}s / "
+            f"{summary.get('max_response_time', 0):.2f}s"
+        )
+    return "\n".join(lines)
+
+
 # Global metrics instance
 metrics = MetricsCollector()
+
+
+def create_metrics_subscriber(collector: Optional["MetricsCollector"] = None) -> Callable[[Any], None]:
+    """
+    Returns an event handler that updates the given (or global) MetricsCollector
+    based on AgentEvents.
+
+    This turns the previously passive metrics into a real-time observer.
+    """
+    collector = collector or metrics
+    start_times: Dict[str, float] = {}  # per conversation or per step
+
+    def handler(event: Any) -> None:
+        try:
+            from core.agent_events import (
+                ToolCallStartEvent, ToolCallResultEvent, FinalResponseEvent,
+                ErrorEvent, SkillCreatedEvent,
+                ContextCompressedEvent, ContextWarningEvent,
+            )
+            from core.monitoring.event_fields import correlation_fields
+
+            ctx = correlation_fields(event)
+            if ctx.get("event_type"):
+                collector.increment(f"events.{ctx['event_type']}")
+            if ctx.get("run_id"):
+                collector.increment("runs_with_correlation")
+
+            if isinstance(event, ToolCallStartEvent):
+                collector.increment("tool_calls")
+                collector.increment(f"tool.{event.tool_name}")
+                key = f"{event.conversation_id}:{event.tool_id or event.tool_name}"
+                start_times[key] = time.time()
+
+            elif isinstance(event, ToolCallResultEvent):
+                key = f"{event.conversation_id}:{event.tool_id or event.tool_name}"
+                if key in start_times:
+                    duration = (time.time() - start_times.pop(key)) * 1000
+                    collector.record("tool_execution_time", duration)
+
+            elif isinstance(event, FinalResponseEvent):
+                collector.increment("requests")
+
+            elif isinstance(event, ErrorEvent):
+                collector.increment("errors")
+
+            elif isinstance(event, SkillCreatedEvent):
+                collector.increment("skills_created")
+
+            elif isinstance(event, ContextCompressedEvent):
+                collector.increment("context_compressions")
+                if event.original_tokens > 0:
+                    ratio = event.compressed_tokens / event.original_tokens
+                    collector.record("context_compression_ratio", ratio)
+
+            elif isinstance(event, ContextWarningEvent):
+                collector.record("context_usage_percent", event.usage_percent)
+
+            else:
+                from core.security.confirmation_events import ConfirmationResponseEvent
+                from core.plan_review.review_events import PlanReviewResponseEvent
+
+                if isinstance(event, ConfirmationResponseEvent):
+                    collector.increment(f"confirmation.{event.choice}")
+                    if event.choice == "deny":
+                        collector.increment("confirmation_deny")
+                elif isinstance(event, PlanReviewResponseEvent):
+                    collector.increment(f"plan_review.{event.choice}")
+
+        except Exception:
+            # Never let metrics break the agent
+            pass
+
+    return handler

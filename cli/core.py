@@ -2,11 +2,13 @@
 
 import yaml
 from pathlib import Path
-from typing import Optional, Dict, Any
+from typing import Any, Dict, List, Optional
 from pydantic import BaseModel, Field
 
-# Helix home directory
-HELIX_HOME = Path.home() / ".helix"
+from core.platform_compat import resolve_helix_home
+
+# Helix home directory (HELIX_HOME / XDG / %LOCALAPPDATA%\Helix / ~/.helix)
+HELIX_HOME = resolve_helix_home()
 PROFILES_DIR = HELIX_HOME / "profiles"
 LOGS_DIR = HELIX_HOME / "logs"
 
@@ -27,6 +29,7 @@ class ProfileConfig(BaseModel):
     memory_db_path: Optional[str] = None
     vector_db_path: Optional[str] = None
     skills_dir: Optional[str] = None
+    context_window: Optional[int] = None  # None = use default (128k), otherwise token count
 
     # System prompt
     system_prompt: Optional[str] = None
@@ -35,6 +38,58 @@ class ProfileConfig(BaseModel):
     providers: Dict[str, Any] = Field(default_factory=dict)
     agent_models: Dict[str, Any] = Field(default_factory=dict)
     default_provider: Optional[str] = None
+    models_via_providers: bool = False  # True after catalog providers were used
+
+    # MCP (Model Context Protocol) servers — stored under ~/.helix only
+    mcp_servers: Dict[str, Dict[str, Any]] = Field(default_factory=dict)
+    mcp_assignments: Dict[str, List[str]] = Field(default_factory=dict)  # e.g. {"main": ["fs"], "researcher": ["fs", "git"]}
+    mcp_enabled: bool = True
+
+    # Skills: which skill names each agent/subagent may use (empty dict = all skills)
+    skill_assignments: Dict[str, List[str]] = Field(default_factory=dict)  # e.g. {"main": ["git"], "coder": ["git", "docker"]}
+
+    # Sub-agents
+    enable_subagents: Optional[bool] = None
+    subagent_default_process_mode: Optional[str] = None
+    subagent_max_concurrent: Optional[int] = None
+
+    # Hub: optional background ClawHub version updates
+    hub_auto_update: bool = False
+    hub_auto_update_interval_hours: float = 24.0
+
+    # Web search providers (duckduckgo, searxng, firecrawl)
+    search: Dict[str, Any] = Field(default_factory=dict)
+
+
+def resolve_profile_storage_paths(
+    profile: str,
+    config: ProfileConfig,
+    *,
+    profile_dir: Path | None = None,
+) -> ProfileConfig:
+    """Bind profile storage paths to ~/.helix/profiles/<name>/ (not process CWD)."""
+    base = (profile_dir or (PROFILES_DIR / profile)).resolve()
+
+    def _resolve(path: Optional[str], default: Path) -> str:
+        if not path or not str(path).strip():
+            return str(default.resolve())
+        expanded = Path(path).expanduser()
+        if expanded.is_absolute():
+            return str(expanded.resolve())
+        return str((base / expanded).resolve())
+
+    config.profile_name = profile
+    config.data_dir = _resolve(config.data_dir, base / "data")
+    config.memory_db_path = _resolve(
+        config.memory_db_path,
+        base / "data" / "memory" / "memory.db",
+    )
+    config.vector_db_path = _resolve(
+        config.vector_db_path,
+        base / "data" / "memory" / "vector_db",
+    )
+    config.skills_dir = _resolve(config.skills_dir, base / "data" / "skills")
+    return config
 
 
 class ProfileManager:
@@ -46,7 +101,9 @@ class ProfileManager:
 
     def ensure_directories(self):
         """Ensure Helix directories exist."""
-        HELIX_HOME.mkdir(parents=True, exist_ok=True)
+        from core.env_loader import init_helix_home
+
+        init_helix_home()
         PROFILES_DIR.mkdir(parents=True, exist_ok=True)
         LOGS_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -88,8 +145,17 @@ class ProfileManager:
 
         # Create subdirectories
         (profile_dir / "data" / "memory").mkdir(parents=True, exist_ok=True)
-        (profile_dir / "data" / "skills").mkdir(parents=True, exist_ok=True)
+        skills_path = profile_dir / "data" / "skills"
+        skills_path.mkdir(parents=True, exist_ok=True)
+        seeded: list[str] = []
+        try:
+            from core.skills.bundled import seed_bundled_skills
+
+            seeded = seed_bundled_skills(skills_path)
+        except Exception:
+            pass
         (profile_dir / "data" / "security").mkdir(parents=True, exist_ok=True)
+        (profile_dir / "data" / "files").mkdir(parents=True, exist_ok=True)
 
         # Set default config if not provided
         if config is None:
@@ -97,11 +163,19 @@ class ProfileManager:
         else:
             config.profile_name = profile
 
-        # Set profile-specific paths
-        config.data_dir = str(profile_dir / "data")
-        config.memory_db_path = str(profile_dir / "data" / "memory" / "memory.db")
-        config.vector_db_path = str(profile_dir / "data" / "memory" / "vector_db")
-        config.skills_dir = str(profile_dir / "data" / "skills")
+        config = resolve_profile_storage_paths(profile, config, profile_dir=profile_dir)
+
+        if seeded:
+            try:
+                from core.skills.bundled import ensure_bundled_assigned_to_main
+
+                assigns, _ = ensure_bundled_assigned_to_main(
+                    getattr(config, "skill_assignments", None) or {},
+                    seeded,
+                )
+                config.skill_assignments = assigns
+            except Exception:
+                pass
 
         # Save config
         self.save_profile(profile, config)
@@ -123,10 +197,20 @@ class ProfileManager:
 
         config_file = self.get_profile_dir(profile) / "config.yaml"
 
-        with open(config_file, 'r') as f:
-            data = yaml.safe_load(f)
+        with open(config_file, encoding="utf-8") as f:
+            data = yaml.safe_load(f) or {}
 
-        return ProfileConfig(**data)
+        from core.config_utils import load_local_overlay, merge_profile_with_local, resolve_env_refs
+
+        data = resolve_env_refs(data)
+        from core.models.profile_cleanup import sanitize_model_routing_data
+
+        data = sanitize_model_routing_data(data)
+        # Supplement with project-local .helix/config.yaml (additive only: mcp, not models/system)
+        local = load_local_overlay()
+        data = merge_profile_with_local(data, local)
+        config = ProfileConfig(**data)
+        return resolve_profile_storage_paths(profile, config, profile_dir=self.get_profile_dir(profile))
 
     def save_profile(self, profile: str, config: ProfileConfig):
         """Save profile configuration.

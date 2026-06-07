@@ -1,9 +1,10 @@
-import secrets
 import hashlib
+import hmac
+import secrets
 from datetime import datetime, timedelta
-from typing import Optional, Dict, Any
 from pathlib import Path
-import json
+from typing import Any, Dict, Optional
+
 import aiosqlite
 
 from config import settings
@@ -12,14 +13,14 @@ from config import settings
 class APIKeyManager:
     """Manages API keys for authentication."""
 
-    def __init__(self, db_path: str = "data/security/api_keys.db"):
-        self.db_path = Path(db_path)
+    def __init__(self, db_path: str | None = None):
+        self.db_path = Path(db_path or settings.api_keys_db_path)
         self.db_path.parent.mkdir(parents=True, exist_ok=True)
 
-    async def initialize_db(self):
-        """Initialize the API keys database."""
+    async def initialize_db(self) -> None:
         async with aiosqlite.connect(self.db_path) as db:
-            await db.execute("""
+            await db.execute(
+                """
                 CREATE TABLE IF NOT EXISTS api_keys (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     key_hash TEXT UNIQUE NOT NULL,
@@ -30,52 +31,39 @@ class APIKeyManager:
                     rate_limit INTEGER DEFAULT 100,
                     permissions TEXT DEFAULT 'read,write'
                 )
-            """)
-
-            await db.execute("""
-                CREATE INDEX IF NOT EXISTS idx_key_hash
-                ON api_keys(key_hash)
-            """)
-
+                """
+            )
+            await db.execute(
+                "CREATE INDEX IF NOT EXISTS idx_key_hash ON api_keys(key_hash)"
+            )
             await db.commit()
 
     def generate_api_key(self) -> str:
-        """Generate a new API key.
-
-        Returns:
-            New API key string
-        """
         return f"hx_{secrets.token_urlsafe(32)}"
 
     def hash_key(self, api_key: str) -> str:
-        """Hash an API key for storage.
+        """HMAC-SHA256 with pepper (deterministic lookup). Legacy: plain SHA256."""
+        pepper = settings.api_key_pepper
+        if pepper:
+            return hmac.new(
+                pepper.encode(),
+                api_key.encode(),
+                hashlib.sha256,
+            ).hexdigest()
+        return hashlib.sha256(api_key.encode()).hexdigest()
 
-        Args:
-            api_key: Plain API key
-
-        Returns:
-            Hashed key
-        """
+    def _legacy_hash(self, api_key: str) -> str:
         return hashlib.sha256(api_key.encode()).hexdigest()
 
     async def create_api_key(
         self,
         name: str,
         permissions: str = "read,write",
-        rate_limit: int = 100
+        rate_limit: int | None = None,
     ) -> str:
-        """Create a new API key.
-
-        Args:
-            name: Key name/description
-            permissions: Comma-separated permissions
-            rate_limit: Requests per minute
-
-        Returns:
-            Generated API key (save this, it won't be shown again!)
-        """
         api_key = self.generate_api_key()
         key_hash = self.hash_key(api_key)
+        limit = rate_limit if rate_limit is not None else settings.rate_limit_rpm
 
         async with aiosqlite.connect(self.db_path) as db:
             await db.execute(
@@ -83,87 +71,69 @@ class APIKeyManager:
                 INSERT INTO api_keys (key_hash, name, permissions, rate_limit)
                 VALUES (?, ?, ?, ?)
                 """,
-                (key_hash, name, permissions, rate_limit)
+                (key_hash, name, permissions, limit),
             )
             await db.commit()
 
         return api_key
 
     async def validate_api_key(self, api_key: str) -> Optional[Dict[str, Any]]:
-        """Validate an API key and return its info.
-
-        Args:
-            api_key: API key to validate
-
-        Returns:
-            Key info if valid, None otherwise
-        """
         if not api_key:
             return None
 
-        key_hash = self.hash_key(api_key)
+        candidates = [self.hash_key(api_key)]
+        if settings.api_key_pepper:
+            candidates.append(self._legacy_hash(api_key))
 
         async with aiosqlite.connect(self.db_path) as db:
             db.row_factory = aiosqlite.Row
-
-            cursor = await db.execute(
-                """
-                SELECT id, name, permissions, rate_limit, is_active, last_used
-                FROM api_keys
-                WHERE key_hash = ? AND is_active = 1
-                """,
-                (key_hash,)
-            )
-
-            row = await cursor.fetchone()
-
-            if not row:
-                return None
-
-            # Update last_used
-            await db.execute(
-                "UPDATE api_keys SET last_used = CURRENT_TIMESTAMP WHERE key_hash = ?",
-                (key_hash,)
-            )
-            await db.commit()
-
-            return {
-                "id": row["id"],
-                "name": row["name"],
-                "permissions": row["permissions"].split(","),
-                "rate_limit": row["rate_limit"],
-                "last_used": row["last_used"]
-            }
+            for key_hash in candidates:
+                cursor = await db.execute(
+                    """
+                    SELECT id, name, permissions, rate_limit, is_active, last_used
+                    FROM api_keys
+                    WHERE key_hash = ? AND is_active = 1
+                    """,
+                    (key_hash,),
+                )
+                row = await cursor.fetchone()
+                if row:
+                    await db.execute(
+                        "UPDATE api_keys SET last_used = CURRENT_TIMESTAMP WHERE key_hash = ?",
+                        (key_hash,),
+                    )
+                    await db.commit()
+                    return {
+                        "id": row["id"],
+                        "name": row["name"],
+                        "permissions": row["permissions"].split(","),
+                        "rate_limit": row["rate_limit"],
+                        "last_used": row["last_used"],
+                    }
+        return None
 
     async def revoke_api_key(self, api_key: str) -> bool:
-        """Revoke an API key.
-
-        Args:
-            api_key: API key to revoke
-
-        Returns:
-            True if revoked successfully
-        """
         key_hash = self.hash_key(api_key)
-
         async with aiosqlite.connect(self.db_path) as db:
             cursor = await db.execute(
                 "UPDATE api_keys SET is_active = 0 WHERE key_hash = ?",
-                (key_hash,)
+                (key_hash,),
             )
             await db.commit()
-
+            if cursor.rowcount:
+                return True
+        legacy = self._legacy_hash(api_key)
+        async with aiosqlite.connect(self.db_path) as db:
+            cursor = await db.execute(
+                "UPDATE api_keys SET is_active = 0 WHERE key_hash = ?",
+                (legacy,),
+            )
+            await db.commit()
             return cursor.rowcount > 0
 
     async def list_api_keys(self) -> list:
-        """List all API keys (without showing actual keys).
-
-        Returns:
-            List of API key info
-        """
         async with aiosqlite.connect(self.db_path) as db:
             db.row_factory = aiosqlite.Row
-
             cursor = await db.execute(
                 """
                 SELECT id, name, created_at, last_used, is_active, permissions, rate_limit
@@ -171,9 +141,7 @@ class APIKeyManager:
                 ORDER BY created_at DESC
                 """
             )
-
             rows = await cursor.fetchall()
-
             return [
                 {
                     "id": row["id"],
@@ -182,46 +150,29 @@ class APIKeyManager:
                     "last_used": row["last_used"],
                     "is_active": bool(row["is_active"]),
                     "permissions": row["permissions"],
-                    "rate_limit": row["rate_limit"]
+                    "rate_limit": row["rate_limit"],
                 }
                 for row in rows
             ]
 
 
-# Rate limiting
 class RateLimiter:
     """Simple in-memory rate limiter."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.requests: Dict[str, list] = {}
 
     def check_rate_limit(self, key: str, limit: int, window: int = 60) -> bool:
-        """Check if request is within rate limit.
-
-        Args:
-            key: Identifier (API key hash, IP, etc.)
-            limit: Maximum requests
-            window: Time window in seconds
-
-        Returns:
-            True if allowed, False if rate limit exceeded
-        """
         now = datetime.now()
         cutoff = now - timedelta(seconds=window)
 
-        # Clean old requests
         if key in self.requests:
-            self.requests[key] = [
-                req_time for req_time in self.requests[key]
-                if req_time > cutoff
-            ]
+            self.requests[key] = [t for t in self.requests[key] if t > cutoff]
         else:
             self.requests[key] = []
 
-        # Check limit
         if len(self.requests[key]) >= limit:
             return False
 
-        # Add current request
         self.requests[key].append(now)
         return True

@@ -1,0 +1,43 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master, "refactor/**", "feature/**"]
+  pull_request:
+
+jobs:
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: Install dependencies
+        run: uv sync
+
+      - name: Ruff
+        run: uv run ruff check core cli api integrations tests
+
+      - name: Pytest
+        run: uv run pytest -m "not llm" -q
+
+      - name: Doctor (dry run)
+        run: uv run helix doctor --no-llm
+
+  security:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - run: uv sync
+      - name: Scan for committed secrets patterns
+        run: |
+          ! rg -i 'sk-[a-zA-Z0-9]{20,}' --glob '!*.md' --glob '!.github/**' || (echo "Possible API key in repo" && exit 1)
+          ! rg 'TELEGRAM_BOT_TOKEN=[0-9]+:' .env 2>/dev/null || true

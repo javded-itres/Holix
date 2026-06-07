@@ -9,7 +9,16 @@ install(show_locals=True)
 
 from cli.core import init_profile, get_current_profile, get_profile_manager
 from cli.utils.rich_console import console, print_info
-from cli.commands import chat, run, gateway, skills, memory, config, models
+from cli.commands import chat, run, gateway, skills, memory, config, models, doctor
+from cli.commands.mcp import app as mcp_app
+from cli.commands.search import app as search_app
+from cli.commands.cron import app as cron_app
+from cli.commands.logs import app as logs_app
+from cli.commands.hub import app as hub_app
+from cli.commands.install_cmd import app as install_app
+from cli.commands.update_cmd import app as update_app
+from cli.commands.docs import app as docs_app
+from cli.commands.telegram import register_telegram_command
 
 # Create Typer app
 app = typer.Typer(
@@ -24,6 +33,17 @@ app.add_typer(skills.app, name="skills")
 app.add_typer(memory.app, name="memory")
 app.add_typer(config.app, name="config")
 app.add_typer(models.app, name="models")
+register_telegram_command(app)
+app.add_typer(gateway.app, name="gateway")
+app.add_typer(doctor.app, name="doctor")
+app.add_typer(mcp_app, name="mcp")
+app.add_typer(search_app, name="search")
+app.add_typer(cron_app, name="cron")
+app.add_typer(logs_app, name="logs")
+app.add_typer(hub_app, name="hub")
+app.add_typer(install_app, name="install")
+app.add_typer(update_app, name="update")
+app.add_typer(docs_app, name="docs")
 
 
 @app.callback()
@@ -124,23 +144,6 @@ def run_command(
 
 
 @app.command()
-def gateway_command(
-    ctx: typer.Context,
-    host: str = typer.Option("0.0.0.0", "--host", help="Host to bind"),
-    port: int = typer.Option(8000, "--port", "-p", help="Port to bind"),
-    reload: bool = typer.Option(False, "--reload", help="Enable auto-reload"),
-):
-    """Start OpenAI-compatible API gateway.
-
-    Launch the FastAPI server for API access to Helix.
-
-    Example:
-        helix gateway --port 8000 --reload
-    """
-    gateway.start_gateway(host, port, reload)
-
-
-@app.command()
 def status(ctx: typer.Context):
     """Show current profile status and information.
 
@@ -205,36 +208,10 @@ def clear(
         (data_dir / "memory").mkdir(parents=True, exist_ok=True)
         (data_dir / "skills").mkdir(parents=True, exist_ok=True)
         (data_dir / "security").mkdir(parents=True, exist_ok=True)
+        (data_dir / "files").mkdir(parents=True, exist_ok=True)
         print_success(f"Profile '{profile}' cleared successfully")
     else:
         print_error(f"Profile '{profile}' data directory not found")
-
-
-@app.command(name="models-legacy", hidden=True)
-def models_legacy():
-    """List available models (if using Ollama) - legacy command.
-
-    Query the LLM provider for available models.
-    """
-    from cli.utils.rich_console import print_table, print_error
-    import httpx
-
-    try:
-        response = httpx.get("http://localhost:11434/api/tags", timeout=5.0)
-        if response.status_code == 200:
-            data = response.json()
-            models_list = data.get("models", [])
-
-            if models_list:
-                rows = [[m["name"], m.get("size", "N/A")] for m in models_list]
-                print_table("Available Models", ["Model", "Size"], rows)
-            else:
-                print_info("No models found")
-        else:
-            print_error("Failed to fetch models from Ollama")
-    except Exception as e:
-        print_error(f"Could not connect to Ollama: {e}")
-        print_info("Make sure Ollama is running: ollama serve")
 
 
 @app.command()
@@ -251,5 +228,95 @@ License: MIT
     print_panel(info, title="Version Info", border_style="cyan")
 
 
-if __name__ == "__main__":
+@app.command()
+def tui(
+    ctx: typer.Context,
+    profile: str = typer.Option(
+        "default",
+        "--profile", "-p",
+        help="Profile to use",
+        show_default=True
+    ),
+    web: bool = typer.Option(
+        False,
+        "--web",
+        help="Serve TUI in the browser (requires: uv sync --extra tui-web)",
+    ),
+    host: str = typer.Option(
+        "127.0.0.1",
+        "--host",
+        help="Bind address for --web",
+    ),
+    port: int = typer.Option(
+        8787,
+        "--port",
+        help="Port for --web",
+    ),
+    public_url: Optional[str] = typer.Option(
+        None,
+        "--public-url",
+        help="Public URL when behind a reverse proxy (--web)",
+    ),
+    token: Optional[str] = typer.Option(
+        None,
+        "--token",
+        envvar="HELIX_TUI_WEB_TOKEN",
+        help="Shared secret for browser access (--web). Required for LAN/production.",
+    ),
+    allow_lan: bool = typer.Option(
+        False,
+        "--allow-lan",
+        help="Allow binding to 0.0.0.0 (requires --token; exposes full agent on your network)",
+    ),
+    generate_token: bool = typer.Option(
+        True,
+        "--generate-token/--no-generate-token",
+        help="On 127.0.0.1 only: create an ephemeral token if --token is omitted",
+    ),
+):
+    """Launch the full-screen Textual TUI (terminal or browser with --web).
+
+    Starts a modern terminal interface with live event updates,
+    tool visibility, and better multitasking feel.
+    """
+    if web:
+        from cli.tui.web_serve import run_tui_web
+        from cli.tui.web_security import WebTuiSecurityError
+        from cli.utils.rich_console import print_error, print_info
+
+        try:
+            run_tui_web(
+                profile,
+                host=host,
+                port=port,
+                public_url=public_url,
+                token=token,
+                allow_lan=allow_lan,
+                generate_token=generate_token,
+            )
+        except WebTuiSecurityError as e:
+            print_error(str(e))
+            raise typer.Exit(1) from e
+        except RuntimeError as e:
+            print_error(str(e))
+            raise typer.Exit(1) from e
+        except KeyboardInterrupt:
+            print_info("Web TUI stopped")
+        return
+
+    from cli.tui.app import run_tui
+    run_tui(profile=profile)
+
+
+def main() -> None:
+    """Console entry point (``pip install`` → ``helix`` on PATH)."""
+    from core.logging.setup import configure_helix_logging
+    from core.platform_compat import ensure_multiprocessing_support
+
+    ensure_multiprocessing_support()
+    configure_helix_logging()
     app()
+
+
+if __name__ == "__main__":
+    main()

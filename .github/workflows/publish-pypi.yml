@@ -1,0 +1,40 @@
+# Manual PyPI release. Prefer Trusted Publishing on PyPI when the repo URL is final.
+name: Publish to PyPI
+
+on:
+  workflow_dispatch:
+    inputs:
+      testpypi:
+        description: Upload to TestPyPI instead of PyPI
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.testpypi && 'testpypi' || 'pypi' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v5
+        with:
+          python-version: "3.14"
+
+      - name: Build
+        run: uv build
+
+      - name: Publish to TestPyPI
+        if: inputs.testpypi
+        env:
+          UV_PUBLISH_TOKEN: ${{ secrets.TEST_PYPI_API_TOKEN }}
+        run: uv publish --publish-url https://test.pypi.org/legacy/ dist/*
+
+      - name: Publish to PyPI
+        if: ${{ !inputs.testpypi }}
+        env:
+          UV_PUBLISH_TOKEN: ${{ secrets.PYPI_API_TOKEN }}
+        run: uv publish dist/*

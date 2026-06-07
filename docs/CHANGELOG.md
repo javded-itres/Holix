@@ -1,63 +1,53 @@
 # Changelog
 
-Все значимые изменения в проекте Helix будут документироваться здесь.
+## 0.1.3 — 2026-06-07
 
-## [Unreleased]
+### Added
+- **web-docs** — dark documentation site with search, EN/RU, mobile layout (`helix docs`)
+- **Gateway docs companion** — optional `--with-docs` / `HELIX_GATEWAY_WITH_DOCS`
+- Auto-seed `~/.helix/.env` and `.env.example` on first `HELIX_HOME` setup
+- Hatch build hook for patch version bump on `uv build` (`HELIX_NO_VERSION_BUMP=1` to disable)
 
-### Добавлено
-- 🎯 **Система множественных провайдеров моделей**
-  - Поддержка OpenAI-совместимых API (Ollama, LiteLLM, OpenAI, Groq, etc.)
-  - Автообнаружение доступных моделей
-  - Интерактивная настройка через `helix models setup`
-  - Назначение разных моделей для разных агентов/субагентов
-  - Сохранение провайдеров в профилях
+### Security
+- Shared permission manager, gateway auth hardening, SSRF checks, subagent API key via env, chat locking
 
-- 📦 **Новые модули**
-  - `core/models/provider.py` - управление провайдерами
-  - `core/models/discovery.py` - обнаружение моделей
-  - `core/models/selector.py` - маршрутизация моделей
+### Fixed
+- web-docs routing for in-page TOC anchors, home route (`#/`), mobile search and sidebar menu
 
-- 🎨 **CLI команды**
-  - `helix models setup` - интерактивный мастер настройки
-  - `helix models list` - список провайдеров
-  - `helix models agents` - назначения моделей агентам
+## Unreleased
 
-- 📚 **Документация**
-  - `MODELS_SETUP.md` - полное руководство по настройке моделей
-  - Примеры конфигурации для популярных провайдеров
-  - Best practices и troubleshooting
+### Added
+- **Telegram voice messages** — Whisper transcription for voice notes and audio attachments (`OPENAI_API_KEY`)
+- **`helix logs`** — unified log viewer (agent, sub-agent, gateway, cron, system); filters, follow, rotation, `debug on|off|status` — [docs/en/LOGS.md](en/LOGS.md)
+- Centralized logging under `{HELIX_HOME}/logs/` (`agent.jsonl`, `subagent.jsonl`, `helix.log`, debug JSONL)
+- **`helix cron`** — profile cron jobs with gateway scheduler, TUI manager, Telegram, bundled `helix-cron` skill
+- Cross-platform support: `HELIX_HOME` / XDG / `%LOCALAPPDATA%`, Windows terminal whitelist, optional `windows` extra (`psutil`), CI matrix (linux/windows/macos)
+- Per-session model persistence (`/models`, Telegram picker)
+- TUI GitHub-style file diffs; MCP path validation before spawn
+- PyPI packaging: distribution `helix-agent`, build fixes, [docs/en/PYPI.md](en/PYPI.md)
+- GitHub workflow `.github/workflows/publish-pypi.yml` (manual)
+- Full CLI reference: `docs/en/CLI.md`, `docs/ru/CLI.md`
+- Slash command reference: `docs/en/SLASH_COMMANDS.md`, `docs/ru/SLASH_COMMANDS.md`
+- Installation guide: `docs/en/INSTALLATION.md`, `docs/ru/INSTALLATION.md`
+- Browser tools (active): `docs/en/BROWSER_TOOLS.md`
+- `LICENSE`, `CONTRIBUTING.md`, GitHub-ready root `README.md`
+- `docs/archive/README.md` — marks obsolete docs as historical
+- Production settings in `config.py` (gateway, security, tools, Telegram)
+- `helix doctor` with `--fix` and LLM config repair
+- `helix gateway start|stop|status|reload` background supervisor
+- Gateway: admin auth always required; optional auth for `/v1/*`
+- Prometheus `/metrics` endpoint
+- Terminal command whitelist enforcement
+- Profile secret placeholders `${VAR}` / `${ENV:VAR}`
+- CI (GitHub Actions), pre-commit, systemd unit example
+- Bilingual docs: `docs/en/`, `docs/ru/`
 
-### Исправлено
-- 🐛 Ошибка `Progress.update() missing 1 required positional argument: 'task_id'`
-  - Исправлена функция `create_spinner()` в `cli/utils/rich_console.py`
-  - Обновлено использование во всех командах (`models.py`, `run.py`, `chat.py`)
-  - Теперь правильно создается task с `progress.add_task()`
+### Changed
+- Gateway bind default `127.0.0.1`; CORS from `HELIX_CORS_ORIGINS`
+- API keys: HMAC-SHA256 with `HELIX_API_KEY_PEPPER`
+- Docker uses `helix gateway start`
 
-- 📝 Обновлена структура `ProfileConfig`
-  - Добавлены поля `providers`, `agent_models`, `default_provider`
-  - Поддержка хранения множественных провайдеров
-
-### Изменено
-- 🔧 Функция `create_spinner()` теперь не принимает аргумент `text`
-  - Текст задачи передается через `progress.add_task(description, total=None)`
-  - Обновлена документация в docstring
-
-## [0.1.0] - 2025-06-01
-
-### Добавлено
-- 🚀 Начальный релиз Helix AI Agent
-- 🛠️ Система инструментов (10+ tools)
-- 🧠 Система памяти (SQLite + ChromaDB)
-- 📚 Система навыков с автогенерацией
-- 🔄 Self-improvement loop
-- 🌐 API Gateway (FastAPI)
-- 🎨 Professional CLI (Typer + Rich)
-- 🔒 Система безопасности и аутентификации
-- 📊 Мониторинг и логирование
-- 🐳 Docker containerization
-- 📖 Comprehensive documentation
-
----
-
-**Формат:** [Keep a Changelog](https://keepachangelog.com/ru/1.0.0/)
-**Версионирование:** [Semantic Versioning](https://semver.org/lang/ru/)
+### Removed
+- Root `cli.py`, `main.py` (dead entry points)
+- `helix models-legacy` command
+- Obsolete docs (merged into `docs/en/` and `docs/ru/`)

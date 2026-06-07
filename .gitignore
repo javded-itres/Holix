@@ -73,3 +73,14 @@ htmlcov/
 *.temp
 .cache/
 .idea
+
+# Local experiments (not part of Helix product)
+mcp_registry_system.py
+mcp_registry_tool.sh
+mcp_system_config.json
+MCP_REGISTRY_SYSTEM_REPORT.md
+
+# Helix local runtime
+.helix/
+.langgraph_api/
+.pid
