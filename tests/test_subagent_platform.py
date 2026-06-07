@@ -51,7 +51,7 @@ async def test_process_spawn_reads_parent_config_not_runtime_config() -> None:
     parent = MagicMock()
     parent.model = "smart"
     parent.config = MagicMock(
-        base_url="https://office.it-rs.ru:4000/v1",
+        base_url="http://localhost:4000/v1",
         api_key="sk-test",
         auto_allow_threshold="low",
         confirmation_timeout=300,
@@ -89,6 +89,6 @@ async def test_process_spawn_reads_parent_config_not_runtime_config() -> None:
     assert captured_args[4] == "smart"
     assert env_captured == {
         "api_key": "sk-test",
-        "base_url": "https://office.it-rs.ru:4000/v1",
+        "base_url": "http://localhost:4000/v1",
     }
     assert "sk-test" not in " ".join(str(a) for a in captured_args)

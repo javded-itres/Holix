@@ -52,8 +52,8 @@ helix version
 ### Из git
 
 ```bash
-git clone https://github.com/YOUR_ORG/helix.git
-cd helix
+git clone https://github.com/javded-itres/HelixAgent.git
+cd HelixAgent
 ./scripts/install.sh          # macOS / Linux
 # Windows: .\scripts\install.ps1
 helix install

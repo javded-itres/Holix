@@ -226,9 +226,9 @@ Doctor проверяет: каталоги, YAML, LLM, gateway, Telegram, MCP e
 
 ## 7. Шаг 5 — Настройка моделей через LiteLLM
 
-В вашей инфраструктуре LiteLLM доступен по адресу:
+При локальном запуске LiteLLM используйте адрес по умолчанию:
 
-**`https://office.it-rs.ru:4000`**
+**`http://localhost:4000`**
 
 Helix общается с LiteLLM через **OpenAI-совместимый API** (`/v1/chat/completions`, `/v1/models`).
 
@@ -244,7 +244,7 @@ Helix общается с LiteLLM через **OpenAI-совместимый API
 
 ```bash
 # LiteLLM proxy
-LITELLM_API_BASE=https://office.it-rs.ru:4000/v1
+LITELLM_API_BASE=http://localhost:4000/v1
 LITELLM_API_KEY=sk-ваш-virtual-key-от-litellm
 ```
 
@@ -253,7 +253,7 @@ LITELLM_API_KEY=sk-ваш-virtual-key-от-litellm
 Проверка доступности API (опционально, с машины пользователя):
 
 ```bash
-curl -s https://office.it-rs.ru:4000/v1/models \
+curl -s http://localhost:4000/v1/models \
   -H "Authorization: Bearer $LITELLM_API_KEY" | head
 ```
 
@@ -262,13 +262,13 @@ curl -s https://office.it-rs.ru:4000/v1/models \
 ### 7.3. Добавить провайдер LiteLLM в профиль (интерактивно)
 
 ```bash
-helix models add litellm --host https://office.it-rs.ru:4000
+helix models add litellm --host http://localhost:4000
 ```
 
 Что произойдёт:
 
 1. Helix предложит ввести API-ключ (если `LITELLM_API_KEY` уже в `.env` — возьмёт оттуда).
-2. Подключится к `https://office.it-rs.ru:4000/v1`.
+2. Подключится к `http://localhost:4000/v1`.
 3. Загрузит список моделей с `/v1/models`.
 4. Попросит выбрать **модель по умолчанию** для этого провайдера.
 5. Сохранит настройки в `~/.helix/profiles/default/config.yaml`.
@@ -308,7 +308,7 @@ helix models agents
 default_provider: litellm
 providers:
   litellm:
-    base_url: https://office.it-rs.ru:4000/v1
+    base_url: http://localhost:4000/v1
     api_key: ${LITELLM_API_KEY}
     default_model: <имя-модели-из-списка-litellm>
     metadata:
@@ -419,7 +419,7 @@ helix telegram sync-menu
 Если чат уже через LiteLLM, для Whisper настройте модель транскрибации **в конфиге LiteLLM** и в `~/.helix/.env`:
 
 ```bash
-HELIX_WHISPER_BASE_URL=https://office.it-rs.ru:4000/v1
+HELIX_WHISPER_BASE_URL=http://localhost:4000/v1
 HELIX_WHISPER_API_KEY=sk-...          # virtual key LiteLLM
 HELIX_WHISPER_MODEL=whisper           # model_name из LiteLLM (не whisper-1)
 HELIX_TELEGRAM_VOICE_LANGUAGE=ru
@@ -835,7 +835,7 @@ helix logs -l error -n 50
 2. `uv` или `pip`  
 3. `uv pip install helix_agent-….whl` (или `pipx install …`)  
 4. `~/.helix/.env` с `LITELLM_API_BASE` и `LITELLM_API_KEY`  
-5. `helix models add litellm --host https://office.it-rs.ru:4000`  
+5. `helix models add litellm --host http://localhost:4000`  
 6. `helix models setup` → назначить модель для `main`  
 7. `helix doctor`  
 8. `helix tui` или `helix telegram setup` + `helix gateway start`  

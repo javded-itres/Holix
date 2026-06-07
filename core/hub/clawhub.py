@@ -11,7 +11,7 @@ from dataclasses import dataclass
 from typing import Any
 
 DEFAULT_REGISTRY = "https://clawhub.ai"
-USER_AGENT = "Helix/1.0 (+https://github.com/yourusername/helix)"
+USER_AGENT = "Helix/1.0 (+https://github.com/javded-itres/HelixAgent)"
 
 
 @dataclass

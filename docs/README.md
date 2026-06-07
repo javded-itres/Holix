@@ -44,7 +44,3 @@ Bilingual documentation. **English is the primary language** for accuracy and Gi
 ## Changelog
 
 [CHANGELOG.md](CHANGELOG.md)
-
-## Archive
-
-Obsolete or historical notes: [archive/README.md](archive/README.md) (not maintained for end users).

@@ -11,8 +11,8 @@
 ## 1. Установка
 
 ```bash
-git clone https://github.com/YOUR_ORG/helix.git
-cd helix
+git clone https://github.com/javded-itres/HelixAgent.git
+cd HelixAgent
 ./scripts/install.sh
 cp .env.example .env
 ```

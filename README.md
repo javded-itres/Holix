@@ -6,7 +6,7 @@
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![Docs](https://img.shields.io/badge/docs-en%20%7C%20ru-blue)](docs/README.md)
 
-**Website:** [helix-agent.ru](https://helix-agent.ru) · **Documentation:** [English](docs/en/README.md) · [Русский](docs/ru/README.md) · **Donate:** [support the project](https://messenger.online.sberbank.ru/sl/uwKJ687QKl7d1a1Ui)
+**Website:** [helix-agent.ru](https://helix-agent.ru) · **GitHub:** [javded-itres/HelixAgent](https://github.com/javded-itres/HelixAgent) · **Documentation:** [English](docs/en/README.md) · [Русский](docs/ru/README.md) · **Donate:** [support the project](https://messenger.online.sberbank.ru/sl/uwKJ687QKl7d1a1Ui)
 
 ---
 
@@ -41,8 +41,8 @@ Do not use `pip install helix` — that is a different package on PyPI.
 **From source:**
 
 ```bash
-git clone https://github.com/YOUR_ORG/helix.git
-cd helix
+git clone https://github.com/javded-itres/HelixAgent.git
+cd HelixAgent
 ./scripts/install.sh          # macOS / Linux
 # Windows: .\scripts\install.ps1
 

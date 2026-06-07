@@ -5,8 +5,8 @@ Thank you for contributing. This document covers local setup, conventions, and h
 ## Development setup
 
 ```bash
-git clone https://github.com/YOUR_ORG/helix.git
-cd helix
+git clone https://github.com/javded-itres/HelixAgent.git
+cd HelixAgent
 uv sync
 uv pip install -e .
 cp .env.example .env

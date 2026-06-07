@@ -31,7 +31,6 @@
 - Installation guide: `docs/en/INSTALLATION.md`, `docs/ru/INSTALLATION.md`
 - Browser tools (active): `docs/en/BROWSER_TOOLS.md`
 - `LICENSE`, `CONTRIBUTING.md`, GitHub-ready root `README.md`
-- `docs/archive/README.md` — marks obsolete docs as historical
 - Production settings in `config.py` (gateway, security, tools, Telegram)
 - `helix doctor` with `--fix` and LLM config repair
 - `helix gateway start|stop|status|reload` background supervisor

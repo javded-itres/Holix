@@ -62,8 +62,8 @@ See [PYPI.md](PYPI.md).
 ### From git
 
 ```bash
-git clone https://github.com/YOUR_ORG/helix.git
-cd helix
+git clone https://github.com/javded-itres/HelixAgent.git
+cd HelixAgent
 ./scripts/install.sh
 # Windows: .\scripts\install.ps1
 ```
@@ -93,8 +93,8 @@ helix doctor
 ## Developer install (from source)
 
 ```bash
-git clone https://github.com/YOUR_ORG/helix.git
-cd helix
+git clone https://github.com/javded-itres/HelixAgent.git
+cd HelixAgent
 uv sync
 uv pip install -e .
 cp .env.example .env

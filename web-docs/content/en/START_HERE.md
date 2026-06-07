@@ -11,8 +11,8 @@ Follow this checklist for a working Helix install on a new machine.
 ## 1. Install
 
 ```bash
-git clone https://github.com/YOUR_ORG/helix.git
-cd helix
+git clone https://github.com/javded-itres/HelixAgent.git
+cd HelixAgent
 ./scripts/install.sh
 # or: uv sync && uv pip install -e .
 cp .env.example .env

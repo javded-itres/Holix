@@ -26,7 +26,7 @@ def test_resolve_vision_config_uses_env_when_model_explicit(
     from config import settings
 
     monkeypatch.setenv("LITELLM_API_KEY", "sk-test-key")
-    monkeypatch.setenv("LITELLM_API_BASE", "https://office.it-rs.ru:4000/v1")
+    monkeypatch.setenv("LITELLM_API_BASE", "http://localhost:4000/v1")
     monkeypatch.setattr(settings, "telegram_vision_model", "vision-smart")
 
     class _Mgr:

@@ -132,7 +132,7 @@ Trusted publishing: connect the GitHub repo to PyPI project settings (no long-li
 - [ ] `uv build` succeeds
 - [ ] Wheel installs in clean 3.14 venv; `helix --help` works
 - [ ] `from config import settings` works (packaged `config.py`)
-- [ ] README and `YOUR_ORG` URLs updated
+- [x] README and repository URLs updated
 - [ ] Tests pass (`pytest -m "not llm"`)
 - [ ] CHANGELOG updated
 - [ ] TestPyPI smoke test (first times)

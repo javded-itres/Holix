@@ -71,11 +71,11 @@ all = [
 helix = "cli.main:main"
 
 [project.urls]
-Homepage = "https://github.com/YOUR_ORG/helix"
-Documentation = "https://github.com/YOUR_ORG/helix/tree/main/docs"
-Repository = "https://github.com/YOUR_ORG/helix"
-Issues = "https://github.com/YOUR_ORG/helix/issues"
-Changelog = "https://github.com/YOUR_ORG/helix/blob/main/docs/CHANGELOG.md"
+Homepage = "https://helix-agent.ru"
+Documentation = "https://helix-agent.ru"
+Repository = "https://github.com/javded-itres/HelixAgent"
+Issues = "https://github.com/javded-itres/HelixAgent/issues"
+Changelog = "https://github.com/javded-itres/HelixAgent/blob/master/docs/CHANGELOG.md"
 
 [dependency-groups]
 dev = [

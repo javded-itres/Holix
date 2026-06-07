@@ -226,9 +226,9 @@ Doctor checks: directories, YAML, LLM, gateway, Telegram, MCP env, platform (nod
 
 ## 7. Step 5 — Configure Models via LiteLLM
 
-In your infrastructure, LiteLLM is available at:
+When running LiteLLM locally, the default endpoint is:
 
-**`https://office.it-rs.ru:4000`**
+**`http://localhost:4000`**
 
 Helix talks to LiteLLM through the **OpenAI-compatible API** (`/v1/chat/completions`, `/v1/models`).
 
@@ -244,7 +244,7 @@ Open `~/.helix/.env` and add:
 
 ```bash
 # LiteLLM proxy
-LITELLM_API_BASE=https://office.it-rs.ru:4000/v1
+LITELLM_API_BASE=http://localhost:4000/v1
 LITELLM_API_KEY=sk-your-virtual-key-from-litellm
 ```
 
@@ -253,7 +253,7 @@ LITELLM_API_KEY=sk-your-virtual-key-from-litellm
 Optional API availability check (from the user's machine):
 
 ```bash
-curl -s https://office.it-rs.ru:4000/v1/models \
+curl -s http://localhost:4000/v1/models \
   -H "Authorization: Bearer $LITELLM_API_KEY" | head
 ```
 
@@ -262,13 +262,13 @@ The response should be JSON with a list of models.
 ### 7.3. Add the LiteLLM provider to the profile (interactive)
 
 ```bash
-helix models add litellm --host https://office.it-rs.ru:4000
+helix models add litellm --host http://localhost:4000
 ```
 
 What happens:
 
 1. Helix prompts for the API key (if `LITELLM_API_KEY` is already in `.env` — it uses that).
-2. Connects to `https://office.it-rs.ru:4000/v1`.
+2. Connects to `http://localhost:4000/v1`.
 3. Loads the model list from `/v1/models`.
 4. Asks you to choose the **default model** for this provider.
 5. Saves settings to `~/.helix/profiles/default/config.yaml`.
@@ -308,7 +308,7 @@ helix models agents
 default_provider: litellm
 providers:
   litellm:
-    base_url: https://office.it-rs.ru:4000/v1
+    base_url: http://localhost:4000/v1
     api_key: ${LITELLM_API_KEY}
     default_model: <model-name-from-litellm-list>
     metadata:
@@ -419,7 +419,7 @@ After changing skills, MCP, or slash commands.
 If chat already goes through LiteLLM, configure the transcription model **in the LiteLLM config** and in `~/.helix/.env`:
 
 ```bash
-HELIX_WHISPER_BASE_URL=https://office.it-rs.ru:4000/v1
+HELIX_WHISPER_BASE_URL=http://localhost:4000/v1
 HELIX_WHISPER_API_KEY=sk-...          # LiteLLM virtual key
 HELIX_WHISPER_MODEL=whisper           # model_name from LiteLLM (not whisper-1)
 HELIX_TELEGRAM_VOICE_LANGUAGE=en
@@ -835,7 +835,7 @@ More: [TROUBLESHOOTING.md](TROUBLESHOOTING.md), [DOCTOR.md](DOCTOR.md).
 2. `uv` or `pip`  
 3. `uv pip install helix_agent-….whl` (or `pipx install …`)  
 4. `~/.helix/.env` with `LITELLM_API_BASE` and `LITELLM_API_KEY`  
-5. `helix models add litellm --host https://office.it-rs.ru:4000`  
+5. `helix models add litellm --host http://localhost:4000`  
 6. `helix models setup` → assign a model for `main`  
 7. `helix doctor`  
 8. `helix tui` or `helix telegram setup` + `helix gateway start`  

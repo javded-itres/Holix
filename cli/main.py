@@ -222,7 +222,7 @@ def version():
 
     info = f"""[bold cyan]Helix AI Agent[/bold cyan]
 Version: {__version__}
-Homepage: https://github.com/yourusername/helix
+Homepage: https://github.com/javded-itres/HelixAgent
 License: MIT
 """
     print_panel(info, title="Version Info", border_style="cyan")

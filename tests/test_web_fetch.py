@@ -53,7 +53,7 @@ async def test_process_spawn_passes_search_config() -> None:
     parent = MagicMock()
     parent.model = "smart"
     parent.config = MagicMock(
-        base_url="https://office.it-rs.ru:4000/v1",
+        base_url="http://localhost:4000/v1",
         api_key="sk-test",
         auto_allow_threshold="low",
         confirmation_timeout=300,
