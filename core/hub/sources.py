@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
-from urllib.parse import urlparse
+from core.url_utils import spec_looks_like_github
 
 
 @dataclass
@@ -59,7 +59,7 @@ def parse_install_source(spec: str, *, as_name: str | None = None) -> ParsedSour
             return ParsedSource("url", spec, as_name=as_name)
         return ParsedSource("git", spec, as_name=as_name)
 
-    if "github.com" in spec or spec.endswith(".git"):
+    if spec_looks_like_github(spec):
         return ParsedSource("git", spec, as_name=as_name)
 
     if spec.startswith(("./", "../", "/", "~")) or "/" in spec:

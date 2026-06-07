@@ -5,6 +5,9 @@ on:
     branches: [main, master, "release/**", "refactor/**", "feature/**"]
   pull_request:
 
+permissions:
+  contents: read
+
 jobs:
   test:
     strategy:

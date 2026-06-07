@@ -10,6 +10,7 @@ Tests:
 
 import asyncio
 import json
+import os
 import tempfile
 from pathlib import Path
 
@@ -153,12 +154,14 @@ class TestPermissionManager:
     """Test permission grant storage and retrieval."""
 
     def setup_method(self):
+        fd, path = tempfile.mkstemp(suffix=".json")
+        os.close(fd)
+        self._perm_path = path
         self.pm = PermissionManager()
-        self.pm.PERMISSIONS_FILE = Path(tempfile.mktemp(suffix=".json"))
+        self.pm.PERMISSIONS_FILE = Path(path)
 
     def teardown_method(self):
-        if self.pm.PERMISSIONS_FILE.exists():
-            self.pm.PERMISSIONS_FILE.unlink()
+        Path(self._perm_path).unlink(missing_ok=True)
 
     def test_session_grant(self):
         self.pm.grant("run_terminal_command", PermissionScope.SESSION, RiskLevel.HIGH)
@@ -265,13 +268,15 @@ class TestActionGuard:
     """Test the ActionGuard orchestration."""
 
     def setup_method(self):
+        fd, path = tempfile.mkstemp(suffix=".json")
+        os.close(fd)
+        self._perm_path = path
         self.pm = PermissionManager()
-        self.pm.PERMISSIONS_FILE = Path(tempfile.mktemp(suffix=".json"))
+        self.pm.PERMISSIONS_FILE = Path(path)
         self.classifier = RiskClassifier()
 
     def teardown_method(self):
-        if self.pm.PERMISSIONS_FILE.exists():
-            self.pm.PERMISSIONS_FILE.unlink()
+        Path(self._perm_path).unlink(missing_ok=True)
 
     @pytest.mark.asyncio
     async def test_auto_allow_below_threshold(self):

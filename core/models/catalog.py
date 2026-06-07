@@ -5,6 +5,8 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
 
+from core.url_utils import host_is, url_hostname, url_port
+
 
 @dataclass(frozen=True, slots=True)
 class ProviderPreset:
@@ -401,36 +403,40 @@ def list_provider_presets() -> list[ProviderPreset]:
 
 def detect_preset_from_url(base_url: str) -> str | None:
     """Match configured base_url to a known preset id."""
-    u = base_url.lower().rstrip("/")
+    host = url_hostname(base_url)
+    port = url_port(base_url)
+
     for preset in PROVIDER_PRESETS:
-        if preset.base_url.lower().rstrip("/") in u or u in preset.base_url.lower():
+        preset_host = url_hostname(preset.base_url)
+        if preset_host and host_is(host, preset_host):
             return preset.id
-    if "openrouter.ai" in u:
+
+    if host_is(host, "openrouter.ai"):
         return "openrouter"
-    if "api.openai.com" in u:
+    if host_is(host, "api.openai.com"):
         return "openai"
-    if "deepseek.com" in u:
+    if host_is(host, "deepseek.com"):
         return "deepseek"
-    if "moonshot" in u:
+    if host_is(host, "api.moonshot.cn") or host_is(host, "moonshot.cn"):
         return "moonshot"
-    if "api.x.ai" in u:
+    if host_is(host, "api.x.ai"):
         return "xai"
-    if "groq.com" in u:
+    if host_is(host, "groq.com"):
         return "groq"
-    if "generativelanguage.googleapis.com" in u:
+    if host_is(host, "generativelanguage.googleapis.com"):
         return "google"
-    if "mistral.ai" in u:
+    if host_is(host, "mistral.ai"):
         return "mistral"
-    if "together.xyz" in u:
+    if host_is(host, "together.xyz"):
         return "together"
-    if "fireworks.ai" in u:
+    if host_is(host, "fireworks.ai"):
         return "fireworks"
-    if "cerebras.ai" in u:
+    if host_is(host, "cerebras.ai"):
         return "cerebras"
-    if "11434" in u or "ollama" in u:
+    if port == 11434:
         return "ollama"
-    if ":4000" in u or "litellm" in u:
+    if port == 4000:
         return "litellm"
-    if ":8000" in u or "vllm" in u:
+    if port == 8000:
         return "vllm"
     return None

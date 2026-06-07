@@ -41,19 +41,21 @@ class APIKeyManager:
     def generate_api_key(self) -> str:
         return f"hx_{secrets.token_urlsafe(32)}"
 
-    def hash_key(self, api_key: str) -> str:
-        """HMAC-SHA256 with pepper (deterministic lookup). Legacy: plain SHA256."""
-        pepper = settings.api_key_pepper
-        if pepper:
-            return hmac.new(
-                pepper.encode(),
-                api_key.encode(),
-                hashlib.sha256,
-            ).hexdigest()
-        return hashlib.sha256(api_key.encode()).hexdigest()
+    def _pepper(self) -> str:
+        pepper = settings.api_key_pepper.strip()
+        if not pepper:
+            raise RuntimeError(
+                "HELIX_API_KEY_PEPPER must be set for API key hashing"
+            )
+        return pepper
 
-    def _legacy_hash(self, api_key: str) -> str:
-        return hashlib.sha256(api_key.encode()).hexdigest()
+    def hash_key(self, api_key: str) -> str:
+        """HMAC-SHA256 with server pepper (deterministic API key lookup)."""
+        return hmac.new(
+            self._pepper().encode(),
+            api_key.encode(),
+            hashlib.sha256,
+        ).hexdigest()
 
     async def create_api_key(
         self,
@@ -81,35 +83,32 @@ class APIKeyManager:
         if not api_key:
             return None
 
-        candidates = [self.hash_key(api_key)]
-        if settings.api_key_pepper:
-            candidates.append(self._legacy_hash(api_key))
+        key_hash = self.hash_key(api_key)
 
         async with aiosqlite.connect(self.db_path) as db:
             db.row_factory = aiosqlite.Row
-            for key_hash in candidates:
-                cursor = await db.execute(
-                    """
-                    SELECT id, name, permissions, rate_limit, is_active, last_used
-                    FROM api_keys
-                    WHERE key_hash = ? AND is_active = 1
-                    """,
+            cursor = await db.execute(
+                """
+                SELECT id, name, permissions, rate_limit, is_active, last_used
+                FROM api_keys
+                WHERE key_hash = ? AND is_active = 1
+                """,
+                (key_hash,),
+            )
+            row = await cursor.fetchone()
+            if row:
+                await db.execute(
+                    "UPDATE api_keys SET last_used = CURRENT_TIMESTAMP WHERE key_hash = ?",
                     (key_hash,),
                 )
-                row = await cursor.fetchone()
-                if row:
-                    await db.execute(
-                        "UPDATE api_keys SET last_used = CURRENT_TIMESTAMP WHERE key_hash = ?",
-                        (key_hash,),
-                    )
-                    await db.commit()
-                    return {
-                        "id": row["id"],
-                        "name": row["name"],
-                        "permissions": row["permissions"].split(","),
-                        "rate_limit": row["rate_limit"],
-                        "last_used": row["last_used"],
-                    }
+                await db.commit()
+                return {
+                    "id": row["id"],
+                    "name": row["name"],
+                    "permissions": row["permissions"].split(","),
+                    "rate_limit": row["rate_limit"],
+                    "last_used": row["last_used"],
+                }
         return None
 
     async def revoke_api_key(self, api_key: str) -> bool:
@@ -118,15 +117,6 @@ class APIKeyManager:
             cursor = await db.execute(
                 "UPDATE api_keys SET is_active = 0 WHERE key_hash = ?",
                 (key_hash,),
-            )
-            await db.commit()
-            if cursor.rowcount:
-                return True
-        legacy = self._legacy_hash(api_key)
-        async with aiosqlite.connect(self.db_path) as db:
-            cursor = await db.execute(
-                "UPDATE api_keys SET is_active = 0 WHERE key_hash = ?",
-                (legacy,),
             )
             await db.commit()
             return cursor.rowcount > 0
