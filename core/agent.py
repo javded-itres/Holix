@@ -62,7 +62,7 @@ class HelixAgent:
             metadata=self.config.provider_metadata or None,
         )
 
-        self.events = event_bus or AgentEventBus(name="helix-agent")
+        self.events = event_bus or AgentEventBus(name="helix-agent-ai")
         if event_listeners:
             for listener in event_listeners:
                 self.events.subscribe(listener)

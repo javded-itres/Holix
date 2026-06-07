@@ -4,12 +4,12 @@
 
 ## Имя пакета
 
-На PyPI проект публикуется как **`helix-agent`** (имя `helix` занято другим проектом).
+На PyPI проект публикуется как **`helix-agent-ai`** (HelixAgentAi; имена `helix` и `helix-agent` заняты другими проектами).
 
 ```bash
-pip install helix-agent
-pip install "helix-agent[telegram,browser]"
-pip install "helix-agent[all]"
+pip install helix-agent-ai
+pip install "helix-agent-ai[telegram,browser]"
+pip install "helix-agent-ai[all]"
 ```
 
 Команда в терминале по-прежнему: **`helix`**.
@@ -19,12 +19,12 @@ pip install "helix-agent[all]"
 ### 1. Аккаунт и имя
 
 - Регистрация на [pypi.org](https://pypi.org/account/register/)
-- Проверить, что `helix-agent` свободен
+- Проверить, что `helix-agent-ai` свободен
 - API-токен или Trusted Publishing с GitHub
 
 ### 2. Метаданные (уже в репозитории)
 
-- `pyproject.toml` — `name = "helix-agent"`, зависимости, extras, `license-files`
+- `pyproject.toml` — `name = "helix-agent-ai"`, зависимости, extras, `license-files`
 - `config.py` включён в wheel (обязательно для `from config import settings`)
 - `[project.scripts]` → `helix`
 
@@ -39,18 +39,23 @@ pip install "helix-agent[all]"
 
 ### 4. Сборка и загрузка
 
+PyPI **не принимает пароль аккаунта** — нужен **API token** (`pypi-...`).
+
 ```bash
+export UV_PUBLISH_TOKEN='pypi-AgENdXNlcm5hbWU6...'   # pypi.org → API tokens
 uv sync --group dev
 uv build
-# тест:
+# тест TestPyPI:
 uv publish --publish-url https://test.pypi.org/legacy/ dist/*
 # прод:
 uv publish dist/*
 ```
 
+Не вводите пароль от аккаунта при запросе `uv` — будет `403 Username/Password authentication is no longer supported`.
+
 ### 5. Документация для пользователей
 
-После публикации обновить [INSTALLATION.md](INSTALLATION.md) и README: `pip install helix-agent`.
+После публикации обновить [INSTALLATION.md](INSTALLATION.md) и README: `pip install helix-agent-ai`.
 
 ## Ограничения
 

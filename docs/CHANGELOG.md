@@ -24,7 +24,7 @@
 - Cross-platform support: `HELIX_HOME` / XDG / `%LOCALAPPDATA%`, Windows terminal whitelist, optional `windows` extra (`psutil`), CI matrix (linux/windows/macos)
 - Per-session model persistence (`/models`, Telegram picker)
 - TUI GitHub-style file diffs; MCP path validation before spawn
-- PyPI packaging: distribution `helix-agent`, build fixes, [docs/en/PYPI.md](en/PYPI.md)
+- PyPI packaging: distribution `helix-agent-ai`, build fixes, [docs/en/PYPI.md](en/PYPI.md)
 - GitHub workflow `.github/workflows/publish-pypi.yml` (manual)
 - Full CLI reference: `docs/en/CLI.md`, `docs/ru/CLI.md`
 - Slash command reference: `docs/en/SLASH_COMMANDS.md`, `docs/ru/SLASH_COMMANDS.md`

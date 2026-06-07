@@ -44,7 +44,7 @@ def detect_repo_root(start: Path | None = None) -> Path:
         pyproject = parent / "pyproject.toml"
         if pyproject.is_file():
             text = pyproject.read_text(encoding="utf-8")
-            if 'name = "helix-agent"' in text or 'name = "helix"' in text:
+            if 'name = "helix-agent-ai"' in text or 'name = "helix-agent"' in text or 'name = "helix"' in text:
                 return parent
     raise FileNotFoundError("Helix repository root not found (pyproject.toml)")
 

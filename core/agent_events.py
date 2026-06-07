@@ -378,7 +378,7 @@ class AgentEventBus:
     - Wildcard / filtered subscriptions.
     """
 
-    def __init__(self, name: str = "helix-agent"):
+    def __init__(self, name: str = "helix-agent-ai"):
         self.name = name
         self._handlers: List[EventHandler] = []
         self._async_handlers: List[EventHandler] = []  # tracked separately for clarity

@@ -752,7 +752,7 @@ wheels = [
 ]
 
 [[package]]
-name = "helix-agent"
+name = "helix-agent-ai"
 version = "0.1.3"
 source = { editable = "." }
 dependencies = [

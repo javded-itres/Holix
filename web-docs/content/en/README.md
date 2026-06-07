@@ -21,7 +21,7 @@ Helix is a self-improving AI agent with memory, skills, tool calling, MCP, CLI, 
 
 ## Packaging
 
-- [PYPI.md](PYPI.md) — build and publish to PyPI (`helix-agent`)
+- [PYPI.md](PYPI.md) — build and publish to PyPI (`helix-agent-ai`)
 
 ## Operations
 

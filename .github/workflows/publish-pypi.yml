@@ -1,4 +1,6 @@
-# Manual PyPI release. Prefer Trusted Publishing on PyPI when the repo URL is final.
+# Manual PyPI release.
+# Preferred: Trusted Publishing on PyPI (OIDC, no long-lived token).
+# Fallback: repository secrets PYPI_API_TOKEN / TEST_PYPI_API_TOKEN.
 name: Publish to PyPI
 
 on:
@@ -12,6 +14,7 @@ on:
 
 permissions:
   contents: read
+  id-token: write  # required for PyPI Trusted Publishing (OIDC)
 
 jobs:
   publish:

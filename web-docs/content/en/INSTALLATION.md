@@ -24,15 +24,15 @@ Optional extras (install when needed):
 
 ### From PyPI
 
-PyPI package name is **`helix-agent`** (not `helix` — that name is used by another project).  
+PyPI package name is **`helix-agent-ai`** (not `helix` — that name is used by another project).  
 After install, the CLI command is **`helix`** in the environment’s `bin` directory.
 
 **Global CLI from any folder** (recommended — no manual PATH):
 
 ```bash
-pipx install helix-agent
+pipx install helix-agent-ai
 # or:
-uv tool install helix-agent
+uv tool install helix-agent-ai
 
 helix version
 ```
@@ -42,8 +42,8 @@ helix version
 ```bash
 python -m venv .venv
 source .venv/bin/activate   # Windows: .venv\Scripts\activate
-pip install helix-agent
-pip install "helix-agent[telegram,browser,tui-web]"
+pip install helix-agent-ai
+pip install "helix-agent-ai[telegram,browser,tui-web]"
 helix version
 helix doctor
 ```
@@ -51,7 +51,7 @@ helix doctor
 **User install without pipx** (`~/.local/bin` must be on your PATH):
 
 ```bash
-pip install --user helix-agent
+pip install --user helix-agent-ai
 # macOS/Linux: ensure ~/.local/bin is in PATH, e.g. in ~/.zshrc:
 #   export PATH="$HOME/.local/bin:$PATH"
 helix version

@@ -4,21 +4,21 @@ This guide covers packaging, naming, and releasing **Helix** on [PyPI](https://p
 
 ## Package name
 
-The PyPI distribution name is **`helix-agent`** (not `helix`).
+The PyPI distribution name is **`helix-agent-ai`** (HelixAgentAi; not `helix` or the taken name `helix-agent`).
 
 | Name on PyPI | Status |
 |--------------|--------|
 | `helix` | Taken (MIT LL mutation framework) |
 | `helix-ai` | Taken (ML toolkit) |
-| **`helix-agent`** | Used by this project (verify before first upload) |
+| **`helix-agent-ai`** | Used by this project (verify before first upload) |
 
 Install:
 
 ```bash
-pipx install helix-agent
+pipx install helix-agent-ai
 # or inside a venv:
-pip install helix-agent
-pip install "helix-agent[telegram,browser,tui-web]"
+pip install helix-agent-ai
+pip install "helix-agent-ai[telegram,browser,tui-web]"
 ```
 
 The console command is **`helix`** (registered via `[project.scripts]` → `cli.main:main`).  
@@ -32,8 +32,8 @@ Update `PYPI_PACKAGE` in `cli/installer/update.py` if the distribution name chan
 
 1. **PyPI account** — register at [pypi.org](https://pypi.org/account/register/)
 2. **Trusted publishing** (recommended) or **API token**
-   - Token: Account → API tokens → scope `helix-agent` (after first upload) or entire account for first release
-3. **Unique name** — confirm `helix-agent` is free: `curl -s https://pypi.org/pypi/helix-agent/json | head`
+   - Token: Account → API tokens → scope `helix-agent-ai` (after first upload) or entire account for first release
+3. **Unique name** — confirm `helix-agent-ai` is free: `curl -s https://pypi.org/pypi/helix-agent-ai/json | head`
 4. **Version** — bump in `pyproject.toml` and `cli/__init__.py` together
 5. **Python 3.14+** — reflected in `requires-python`; PyPI users need 3.14
 
@@ -55,15 +55,15 @@ uv sync --group dev
 rm -rf dist
 uv build
 ls -la dist/
-# helix_agent-0.1.0-py3-none-any.whl
-# helix_agent-0.1.0.tar.gz
+# helix_agent_ai-0.1.0-py3-none-any.whl
+# helix_agent_ai-0.1.0.tar.gz
 ```
 
 Verify install in a clean venv:
 
 ```bash
 uv venv /tmp/helix-test --python 3.14
-uv pip install --python /tmp/helix-test/bin/python dist/helix_agent-*.whl
+uv pip install --python /tmp/helix-test/bin/python dist/helix_agent_ai-*.whl
 /tmp/helix-test/bin/helix version
 /tmp/helix-test/bin/python -c "from config import settings; print('ok')"
 ```
@@ -88,7 +88,7 @@ python -m twine upload --repository testpypi dist/*
 Test install:
 
 ```bash
-pip install -i https://test.pypi.org/simple/ helix-agent
+pip install -i https://test.pypi.org/simple/ helix-agent-ai
 ```
 
 ### 2. Production PyPI
@@ -100,12 +100,23 @@ uv publish dist/*
 python -m twine upload dist/*
 ```
 
-Use environment variables (never commit tokens):
+PyPI **no longer accepts account passwords**. Use an **API token** (or Trusted Publishing in CI).
+
+1. [pypi.org](https://pypi.org) → Account settings → **API tokens** → Add token (scope: project `helix-agent-ai` or entire account for first upload).
+2. Publish locally:
 
 ```bash
+# option A (recommended for uv)
+export UV_PUBLISH_TOKEN='pypi-AgENdXNlcm5hbWU6...'
+uv publish dist/*
+
+# option B (twine-compatible)
 export UV_PUBLISH_USERNAME=__token__
-export UV_PUBLISH_PASSWORD=pypi-AgEIcHlwaS5vcmcC...
+export UV_PUBLISH_PASSWORD='pypi-AgENdXNlcm5hbWU6...'
+uv publish dist/*
 ```
+
+Never commit tokens. Do **not** enter your PyPI account password when `uv` prompts — that causes `403 Username/Password authentication is no longer supported`.
 
 ## Versioning
 
@@ -120,11 +131,21 @@ PyPI does not allow re-uploading the same version.
 
 See `.github/workflows/publish-pypi.yml` (manual `workflow_dispatch`).
 
-Secrets:
+**Option A — Trusted Publishing (recommended):**
 
-- `PYPI_API_TOKEN` — PyPI token with upload scope
+1. Create project `helix-agent-ai` on PyPI (first upload may require token once).
+2. PyPI → project → **Publishing** → **Add a new publisher**:
+   - Owner: `javded-itres`
+   - Repository: `HelixAgent`
+   - Workflow: `publish-pypi.yml`
+   - Environment: `pypi`
+3. GitHub → repo → Settings → Environments → create **`pypi`** (optional protection rules).
+4. Run workflow **Publish to PyPI** — no `PYPI_API_TOKEN` secret needed when OIDC is configured.
 
-Trusted publishing: connect the GitHub repo to PyPI project settings (no long-lived token).
+**Option B — API token secret:**
+
+- GitHub secret `PYPI_API_TOKEN` = full token string (`pypi-...`)
+- Workflow sets `UV_PUBLISH_TOKEN` automatically
 
 ## Checklist before every release
 
@@ -142,9 +163,9 @@ Trusted publishing: connect the GitHub repo to PyPI project settings (no long-li
 
 After publish, update:
 
-- [INSTALLATION.md](INSTALLATION.md) — `pip install helix-agent`
+- [INSTALLATION.md](INSTALLATION.md) — `pip install helix-agent-ai`
 - Root [README.md](../../README.md)
-- `helix update --channel pypi` (uses `helix-agent` package name)
+- `helix update --channel pypi` (uses `helix-agent-ai` package name)
 
 ## Known limitations
 

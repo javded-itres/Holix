@@ -27,13 +27,13 @@
 
 ### Install
 
-**PyPI** (Python 3.14+). Package: `helix-agent`, command: `helix`:
+**PyPI** (Python 3.14+). Package: `helix-agent-ai` (HelixAgentAi), command: `helix`:
 
 ```bash
-pipx install helix-agent          # global CLI (recommended)
+pipx install helix-agent-ai          # global CLI (recommended)
 # or in a venv:
-pip install helix-agent
-pip install "helix-agent[all]"    # telegram + browser + tui-web
+pip install helix-agent-ai
+pip install "helix-agent-ai[all]"    # telegram + browser + tui-web
 ```
 
 Do not use `pip install helix` — that is a different package on PyPI.
