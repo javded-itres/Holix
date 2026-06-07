@@ -223,6 +223,31 @@ a:hover { color: var(--accent-2); }
   flex-shrink: 0;
 }
 
+.github-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  color: var(--text-muted);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  transition: all var(--transition);
+  text-decoration: none;
+}
+
+.github-link:hover {
+  color: var(--text);
+  border-color: var(--accent-dim);
+}
+
+.github-link svg {
+  width: 1.1rem;
+  height: 1.1rem;
+  fill: currentColor;
+}
+
 .lang-toggle {
   display: flex;
   background: var(--surface);
@@ -673,6 +698,15 @@ a:hover { color: var(--accent-2); }
   border-top: 1px solid var(--border-subtle);
   font-size: 0.8rem;
   color: var(--text-dim);
+}
+
+.footer a {
+  color: var(--text-muted);
+  text-decoration: none;
+}
+
+.footer a:hover {
+  color: var(--accent);
 }
 
 .kbd {

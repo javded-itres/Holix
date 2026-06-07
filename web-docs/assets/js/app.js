@@ -5,6 +5,8 @@
 const $ = (sel, root = document) => root.querySelector(sel);
 const $$ = (sel, root = document) => [...root.querySelectorAll(sel)];
 
+const GITHUB_URL = "https://github.com/javded-itres/HelixAgent";
+
 const I18N = {
   en: {
     tagline: "Self-Improving Agent",
@@ -23,6 +25,7 @@ const I18N = {
     get_started: "Get Started",
     architecture_link: "Architecture",
     donate: "Support the project",
+    github: "GitHub",
     features_title: "Core Capabilities",
     docs_title: "Explore Documentation",
     footer: "Helix Agent · MIT License · Built from docs/en & docs/ru",
@@ -58,6 +61,7 @@ const I18N = {
     get_started: "Начать",
     architecture_link: "Архитектура",
     donate: "Поддержать проект",
+    github: "GitHub",
     features_title: "Возможности",
     docs_title: "Разделы документации",
     footer: "Helix Agent · MIT License · Собрано из docs/en и docs/ru",
@@ -200,6 +204,10 @@ function t(key) {
   return I18N[state.lang]?.[key] ?? I18N.en[key] ?? key;
 }
 
+function footerHtml() {
+  return `${t("footer")} · <a href="${GITHUB_URL}" target="_blank" rel="noopener noreferrer">${t("github")}</a>`;
+}
+
 function applyI18n() {
   $$("[data-i18n]").forEach((el) => {
     const key = el.dataset.i18n;
@@ -326,7 +334,7 @@ function renderHome() {
       `).join("")}
     </div>
 
-    <footer class="footer">${t("footer")}</footer>
+    <footer class="footer">${footerHtml()}</footer>
   `;
 }
 
@@ -378,7 +386,7 @@ async function renderDoc(slug, scrollAnchor = null) {
     breadcrumb.innerHTML = `<a href="#/">${t("home")}</a> / ${entry.title}`;
     const footer = document.createElement("footer");
     footer.className = "footer";
-    footer.textContent = t("footer");
+    footer.innerHTML = footerHtml();
     main.append(breadcrumb, container, footer);
 
     document.title = `${entry.heading} — Helix Docs`;
