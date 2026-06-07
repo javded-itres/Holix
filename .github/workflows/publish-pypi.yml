@@ -1,11 +1,11 @@
-# Publish helix-agent to PyPI via GitHub Actions.
+# Publish HelixAgentAi to PyPI via GitHub Actions.
 #
 # Auth: PyPI Trusted Publishing (OIDC) — recommended, no token in secrets.
 # Fallback: set PYPI_API_TOKEN / TEST_PYPI_API_TOKEN and choose "api-token" when running manually.
 #
 # One-time setup:
 #   1. GitHub → Settings → Environments → create "pypi" (and "testpypi" for dry runs)
-#   2. PyPI → project helix-agent → Publishing → Add trusted publisher:
+#   2. PyPI → project HelixAgentAi → Publishing → Add trusted publisher:
 #        Owner: javded-itres | Repository: HelixAgent
 #        Workflow filename: publish-pypi.yml | Environment name: pypi
 #   3. (Optional) Repeat on https://test.pypi.org for environment "testpypi"
@@ -80,7 +80,7 @@ jobs:
       - name: Smoke install wheel
         run: |
           uv venv /tmp/helix-publish-smoke --python 3.12
-          uv pip install --python /tmp/helix-publish-smoke/bin/python dist/helix_agent-*.whl
+          uv pip install --python /tmp/helix-publish-smoke/bin/python dist/helixagentai-*.whl
           /tmp/helix-publish-smoke/bin/helix version
           /tmp/helix-publish-smoke/bin/helix --help
           /tmp/helix-publish-smoke/bin/python -c "from config import settings; print('config ok')"

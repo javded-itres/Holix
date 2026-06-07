@@ -3,7 +3,7 @@
 Step-by-step instructions: install from `.whl`, initial setup, LiteLLM connection, MCP, skills, Telegram, and execution modes.
 
 > All commands and paths are taken from the Helix repository (`cli/`, `docs/`, `config.py`, `pyproject.toml`).  
-> The package is named **`helix-agent`**; the terminal command is **`helix`**.
+> The package is named **`HelixAgentAi`**; the terminal command is **`helix`**.
 
 ---
 
@@ -104,12 +104,12 @@ The wheel is built from the project:
 ```bash
 uv build
 ls dist/
-# example: helix_agent-0.1.0-py3-none-any.whl
+# example: helixagentai-0.1.0-py3-none-any.whl
 ```
 
 Copy the `.whl` to the target machine (USB, shared folder, CI artifact).
 
-> Package name: **`helix-agent`**.  
+> Package name: **`HelixAgentAi`**.  
 > Do not use `pip install helix` — on PyPI that is a **different** project.
 
 ### 5.2. Install via **uv** (recommended)
@@ -117,7 +117,7 @@ Copy the `.whl` to the target machine (USB, shared folder, CI artifact).
 **Globally (as a standalone utility):**
 
 ```bash
-uv tool install /path/to/helix_agent-0.1.0-py3-none-any.whl
+uv tool install /path/to/helixagentai-0.1.0-py3-none-any.whl
 helix version
 ```
 
@@ -127,16 +127,16 @@ helix version
 mkdir -p ~/helix-env && cd ~/helix-env
 uv venv --python 3.12
 source .venv/bin/activate          # Windows: .venv\Scripts\activate
-uv pip install /path/to/helix_agent-0.1.0-py3-none-any.whl
+uv pip install /path/to/helixagentai-0.1.0-py3-none-any.whl
 helix version
 ```
 
 **With optional extras** (Telegram, browser, web TUI, voice):
 
 ```bash
-uv pip install "/path/to/helix_agent-0.1.0-py3-none-any.whl[all]"
+uv pip install "/path/to/helixagentai-0.1.0-py3-none-any.whl[all]"
 # or selectively:
-uv pip install "/path/to/helix_agent-0.1.0-py3-none-any.whl[telegram,browser,tui-web,voice]"
+uv pip install "/path/to/helixagentai-0.1.0-py3-none-any.whl[telegram,browser,tui-web,voice]"
 ```
 
 ### 5.3. Install via **pip**
@@ -144,7 +144,7 @@ uv pip install "/path/to/helix_agent-0.1.0-py3-none-any.whl[telegram,browser,tui
 **Globally (pipx — recommended for CLI):**
 
 ```bash
-pipx install /path/to/helix_agent-0.1.0-py3-none-any.whl
+pipx install /path/to/helixagentai-0.1.0-py3-none-any.whl
 helix version
 ```
 
@@ -153,15 +153,15 @@ helix version
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
-pip install /path/to/helix_agent-0.1.0-py3-none-any.whl
-pip install "/path/to/helix_agent-0.1.0-py3-none-any.whl[telegram]"
+pip install /path/to/helixagentai-0.1.0-py3-none-any.whl
+pip install "/path/to/helixagentai-0.1.0-py3-none-any.whl[telegram]"
 helix version
 ```
 
 **In the user directory** (`~/.local/bin`):
 
 ```bash
-pip install --user /path/to/helix_agent-0.1.0-py3-none-any.whl
+pip install --user /path/to/helixagentai-0.1.0-py3-none-any.whl
 export PATH="$HOME/.local/bin:$PATH"
 helix version
 ```
@@ -358,7 +358,7 @@ Secrets in `.env`: `FIRECRAWL_API_KEY`, `SEARXNG_BASE_URL` (see `.env.example`).
 ```bash
 uv sync --extra telegram
 # or when installing the wheel:
-pip install "helix-agent[telegram]"
+pip install "HelixAgentAi[telegram]"
 ```
 
 ### 9.2. Create a bot in Telegram
@@ -833,7 +833,7 @@ More: [TROUBLESHOOTING.md](TROUBLESHOOTING.md), [DOCTOR.md](DOCTOR.md).
 
 1. Python 3.12+  
 2. `uv` or `pip`  
-3. `uv pip install helix_agent-….whl` (or `pipx install …`)  
+3. `uv pip install helixagentai-….whl` (or `pipx install …`)  
 4. `~/.helix/.env` with `LITELLM_API_BASE` and `LITELLM_API_KEY`  
 5. `helix models add litellm --host http://localhost:4000`  
 6. `helix models setup` → assign a model for `main`  

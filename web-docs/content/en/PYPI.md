@@ -4,21 +4,22 @@ This guide covers packaging, naming, and releasing **Helix** on [PyPI](https://p
 
 ## Package name
 
-The PyPI distribution name is **`helix-agent`** (not `helix` — that name is used by another project).
+The PyPI distribution name is **`HelixAgentAi`** (not `helix` — that name is used by another project).
 
 | Name on PyPI | Status |
 |--------------|--------|
 | `helix` | Taken (MIT LL mutation framework) |
 | `helix-ai` | Taken (ML toolkit) |
-| **`helix-agent`** | Used by this project (verify before first upload) |
+| `helix-agent` | Available (not used) |
+| **`HelixAgentAi`** | Used by this project |
 
 Install:
 
 ```bash
-pipx install helix-agent
+pipx install HelixAgentAi
 # or inside a venv:
-pip install helix-agent
-pip install "helix-agent[telegram,browser,tui-web]"
+pip install HelixAgentAi
+pip install "HelixAgentAi[telegram,browser,tui-web]"
 ```
 
 The console command is **`helix`** (registered via `[project.scripts]` → `cli.main:main`).  
@@ -32,8 +33,8 @@ Update `PYPI_PACKAGE` in `cli/installer/update.py` if the distribution name chan
 
 1. **PyPI account** — register at [pypi.org](https://pypi.org/account/register/)
 2. **Trusted publishing** (recommended) or **API token**
-   - Token: Account → API tokens → scope `helix-agent` (after first upload) or entire account for first release
-3. **Unique name** — confirm `helix-agent` is free: `curl -s https://pypi.org/pypi/helix-agent/json | head`
+   - Token: Account → API tokens → scope `HelixAgentAi` (after first upload) or entire account for first release
+3. **Unique name** — confirm `HelixAgentAi` is free: `curl -s https://pypi.org/pypi/HelixAgentAi/json | head`
 4. **Version** — bump in `pyproject.toml` and `cli/__init__.py` together
 5. **Python 3.12+** — reflected in `requires-python`
 
@@ -55,15 +56,15 @@ uv sync --group dev
 rm -rf dist
 HELIX_NO_VERSION_BUMP=1 uv build --no-sources
 ls -la dist/
-# helix_agent-0.1.0-py3-none-any.whl
-# helix_agent-0.1.0.tar.gz
+# helixagentai-0.1.0-py3-none-any.whl
+# helixagentai-0.1.0.tar.gz
 ```
 
 Verify install in a clean venv:
 
 ```bash
 uv venv /tmp/helix-test --python 3.12
-uv pip install --python /tmp/helix-test/bin/python dist/helix_agent-*.whl
+uv pip install --python /tmp/helix-test/bin/python dist/helixagentai-*.whl
 /tmp/helix-test/bin/helix version
 /tmp/helix-test/bin/python -c "from config import settings; print('ok')"
 ```
@@ -88,7 +89,7 @@ python -m twine upload --repository testpypi dist/*
 Test install:
 
 ```bash
-pip install -i https://test.pypi.org/simple/ helix-agent
+pip install -i https://test.pypi.org/simple/ HelixAgentAi
 ```
 
 ### 2. Production PyPI
@@ -102,7 +103,7 @@ python -m twine upload dist/*
 
 PyPI **no longer accepts account passwords**. Use an **API token** (or Trusted Publishing in CI).
 
-1. [pypi.org](https://pypi.org) → Account settings → **API tokens** → Add token (scope: project `helix-agent` or entire account for first upload).
+1. [pypi.org](https://pypi.org) → Account settings → **API tokens** → Add token (scope: project `HelixAgentAi` or entire account for first upload).
 2. Publish locally:
 
 ```bash
@@ -155,11 +156,11 @@ Add protection rules (required reviewers) if you want approval before publish.
 
 **2. PyPI Trusted Publishing**
 
-On [pypi.org](https://pypi.org) → account → **Publishing** (or project **helix-agent** after first upload) → **Add a new publisher**:
+On [pypi.org](https://pypi.org) → account → **Publishing** (or project **HelixAgentAi** after first upload) → **Add a new publisher**:
 
 | Field | Value |
 |-------|-------|
-| PyPI project name | `helix-agent` |
+| PyPI project name | `HelixAgentAi` |
 | Owner | `javded-itres` |
 | Repository name | `HelixAgent` |
 | Workflow filename | `publish-pypi.yml` |
@@ -193,7 +194,7 @@ The workflow checks that tag `v0.1.3` matches `version = "0.1.3"` in `pyproject.
 After publish:
 
 ```bash
-pipx install helix-agent
+pipx install HelixAgentAi
 helix version
 ```
 
@@ -213,14 +214,14 @@ helix version
 
 After publish, update:
 
-- [INSTALLATION.md](INSTALLATION.md) — `pip install helix-agent`
+- [INSTALLATION.md](INSTALLATION.md) — `pip install HelixAgentAi`
 - Root [README.md](../../README.md)
-- `helix update --channel pypi` (uses `helix-agent` package name)
+- `helix update --channel pypi` (uses `HelixAgentAi` package name)
 
 ## Known limitations
 
 - **Heavy core dependencies** — ChromaDB, LangGraph; first install may be slow
-- **Optional extras** — Telegram, browser, voice, and web TUI require `pip install "helix-agent[all]"` (or specific extras)
+- **Optional extras** — Telegram, browser, voice, and web TUI require `pip install "HelixAgentAi[all]"` (or specific extras)
 - **Playwright** — `browser` extra requires `playwright install chromium` after pip install
 - **No bundled `.env.example` in wheel** — document copying from GitHub or `helix doctor`
 

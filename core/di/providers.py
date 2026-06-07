@@ -36,7 +36,7 @@ class AgentDepsProvider(Provider):
 
     @provide(scope=Scope.APP)
     def event_bus(self) -> AgentEventBus:
-        return AgentEventBus(name="helix-agent")
+        return AgentEventBus(name="HelixAgentAi")
 
 
 # Standalone provider for agent factory (avoid binding `self` on class methods)

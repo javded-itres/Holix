@@ -13,7 +13,7 @@ set -euo pipefail
 
 OWNER="javded-itres"
 REPO="HelixAgent"
-PACKAGE="helix-agent"
+PACKAGE="HelixAgentAi"
 WORKFLOW="publish-pypi.yml"
 CHECK_ONLY=false
 
@@ -104,7 +104,7 @@ echo "  https://github.com/${OWNER}/${REPO}/settings/environments"
 header "PyPI — manual step (browser)"
 cat <<EOF
 
-Because helix-agent is not on PyPI yet, add a PENDING trusted publisher:
+Because HelixAgentAi is not on PyPI yet, add a PENDING trusted publisher:
 
   1. Log in: https://pypi.org
   2. Account menu → Publishing:

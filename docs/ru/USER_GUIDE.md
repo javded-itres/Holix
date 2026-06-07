@@ -3,7 +3,7 @@
 Пошаговая инструкция: установка из `.whl`, первичная настройка, подключение к LiteLLM, MCP, навыки, Telegram и режимы работы.
 
 > Все команды и пути взяты из репозитория Helix (`cli/`, `docs/`, `config.py`, `pyproject.toml`).  
-> Пакет называется **`helix-agent`**, команда в терминале — **`helix`**.
+> Пакет называется **`HelixAgentAi`**, команда в терминале — **`helix`**.
 
 ---
 
@@ -104,12 +104,12 @@ uv --version
 ```bash
 uv build
 ls dist/
-# пример: helix_agent-0.1.0-py3-none-any.whl
+# пример: helixagentai-0.1.0-py3-none-any.whl
 ```
 
 Скопируйте `.whl` на целевую машину (USB, общая папка, артефакт CI).
 
-> Имя пакета: **`helix-agent`**.  
+> Имя пакета: **`HelixAgentAi`**.  
 > Не используйте `pip install helix` — на PyPI это **другой** проект.
 
 ### 5.2. Установка через **uv** (рекомендуется)
@@ -117,7 +117,7 @@ ls dist/
 **Глобально (как отдельная утилита):**
 
 ```bash
-uv tool install /путь/к/helix_agent-0.1.0-py3-none-any.whl
+uv tool install /путь/к/helixagentai-0.1.0-py3-none-any.whl
 helix version
 ```
 
@@ -127,16 +127,16 @@ helix version
 mkdir -p ~/helix-env && cd ~/helix-env
 uv venv --python 3.12
 source .venv/bin/activate          # Windows: .venv\Scripts\activate
-uv pip install /путь/к/helix_agent-0.1.0-py3-none-any.whl
+uv pip install /путь/к/helixagentai-0.1.0-py3-none-any.whl
 helix version
 ```
 
 **С дополнительными возможностями** (Telegram, браузер, веб-TUI, голос):
 
 ```bash
-uv pip install "/путь/к/helix_agent-0.1.0-py3-none-any.whl[all]"
+uv pip install "/путь/к/helixagentai-0.1.0-py3-none-any.whl[all]"
 # или выборочно:
-uv pip install "/путь/к/helix_agent-0.1.0-py3-none-any.whl[telegram,browser,tui-web,voice]"
+uv pip install "/путь/к/helixagentai-0.1.0-py3-none-any.whl[telegram,browser,tui-web,voice]"
 ```
 
 ### 5.3. Установка через **pip**
@@ -144,7 +144,7 @@ uv pip install "/путь/к/helix_agent-0.1.0-py3-none-any.whl[telegram,browser
 **Глобально (pipx — рекомендуется для CLI):**
 
 ```bash
-pipx install /путь/к/helix_agent-0.1.0-py3-none-any.whl
+pipx install /путь/к/helixagentai-0.1.0-py3-none-any.whl
 helix version
 ```
 
@@ -153,15 +153,15 @@ helix version
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
-pip install /путь/к/helix_agent-0.1.0-py3-none-any.whl
-pip install "/путь/к/helix_agent-0.1.0-py3-none-any.whl[telegram]"
+pip install /путь/к/helixagentai-0.1.0-py3-none-any.whl
+pip install "/путь/к/helixagentai-0.1.0-py3-none-any.whl[telegram]"
 helix version
 ```
 
 **В пользовательский каталог** (`~/.local/bin`):
 
 ```bash
-pip install --user /путь/к/helix_agent-0.1.0-py3-none-any.whl
+pip install --user /путь/к/helixagentai-0.1.0-py3-none-any.whl
 export PATH="$HOME/.local/bin:$PATH"
 helix version
 ```
@@ -358,7 +358,7 @@ helix search test "тестовый запрос"
 ```bash
 uv sync --extra telegram
 # или при установке wheel:
-pip install "helix-agent[telegram]"
+pip install "HelixAgentAi[telegram]"
 ```
 
 ### 9.2. Создать бота в Telegram
@@ -833,7 +833,7 @@ helix logs -l error -n 50
 
 1. Python 3.12+  
 2. `uv` или `pip`  
-3. `uv pip install helix_agent-….whl` (или `pipx install …`)  
+3. `uv pip install helixagentai-….whl` (или `pipx install …`)  
 4. `~/.helix/.env` с `LITELLM_API_BASE` и `LITELLM_API_KEY`  
 5. `helix models add litellm --host http://localhost:4000`  
 6. `helix models setup` → назначить модель для `main`  

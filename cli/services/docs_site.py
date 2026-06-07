@@ -42,7 +42,7 @@ def resolve_web_docs_dir() -> Path:
             return resolved
 
     raise FileNotFoundError(
-        "web-docs/ not found. Run from the Helix repository or reinstall helix-agent."
+        "web-docs/ not found. Run from the Helix repository or reinstall HelixAgentAi."
     )
 
 

@@ -15,7 +15,7 @@ def _textual_serve() -> tuple[type, Any]:
         from textual_serve.server import Server, to_int
     except ImportError as e:
         raise RuntimeError(
-            "Web TUI requires textual-serve. Install with: pip install 'helix-agent[tui-web]'"
+            "Web TUI requires textual-serve. Install with: pip install 'HelixAgentAi[tui-web]'"
         ) from e
     return Server, to_int
 

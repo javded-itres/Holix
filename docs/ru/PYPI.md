@@ -4,12 +4,12 @@
 
 ## Имя пакета
 
-На PyPI проект публикуется как **`helix-agent`** (не `helix` — это другой пакет на PyPI).
+На PyPI проект публикуется как **`HelixAgentAi`** (не `helix` — это другой пакет на PyPI).
 
 ```bash
-pip install helix-agent
-pip install "helix-agent[telegram,browser]"
-pip install "helix-agent[all]"
+pip install HelixAgentAi
+pip install "HelixAgentAi[telegram,browser]"
+pip install "HelixAgentAi[all]"
 ```
 
 Команда в терминале по-прежнему: **`helix`**.
@@ -19,12 +19,12 @@ pip install "helix-agent[all]"
 ### 1. Аккаунт и имя
 
 - Регистрация на [pypi.org](https://pypi.org/account/register/)
-- Проверить, что `helix-agent` свободен
+- Проверить, что `HelixAgentAi` свободен
 - API-токен или Trusted Publishing с GitHub
 
 ### 2. Метаданные (уже в репозитории)
 
-- `pyproject.toml` — `name = "helix-agent"`, зависимости, extras, `license-files`
+- `pyproject.toml` — `name = "HelixAgentAi"`, зависимости, extras, `license-files`
 - `config.py` включён в wheel (обязательно для `from config import settings`)
 - `[project.scripts]` → `helix`
 
@@ -48,7 +48,7 @@ Workflow: `.github/workflows/publish-pypi.yml`
 
 | Поле | Значение |
 |------|----------|
-| Project | `helix-agent` |
+| Project | `HelixAgentAi` |
 | Owner | `javded-itres` |
 | Repository | `HelixAgent` |
 | Workflow | `publish-pypi.yml` |
@@ -79,7 +79,7 @@ uv publish dist/*
 
 ### 6. Документация для пользователей
 
-После публикации обновить [INSTALLATION.md](INSTALLATION.md) и README: `pip install helix-agent`.
+После публикации обновить [INSTALLATION.md](INSTALLATION.md) и README: `pip install HelixAgentAi`.
 
 ## Ограничения
 

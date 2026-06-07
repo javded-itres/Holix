@@ -32,4 +32,4 @@ class BumpVersionBuildHook(BuildHookInterface):
         project_version = self.metadata.version
         new_version = resolve_build_version(project_version)
         apply_metadata_version(self.metadata, new_version)
-        self.app.display_info(f"helix-agent build version: {new_version}")
+        self.app.display_info(f"HelixAgentAi build version: {new_version}")

@@ -3,7 +3,7 @@
 ## 0.1.3 — 2026-06-07
 
 ### Changed
-- PyPI distribution renamed to **`helix-agent`**; Python **`>=3.12`**; heavy deps moved to extras (`browser`, `telegram`, `voice`, `tui-web`, `windows`, `all`)
+- PyPI distribution renamed to **`HelixAgentAi`**; Python **`>=3.12`**; heavy deps moved to extras (`browser`, `telegram`, `voice`, `tui-web`, `windows`, `all`)
 - CI: Python 3.12/3.13/3.14 matrix, `build` job with `twine check` and wheel smoke install
 - Publish workflow: build + publish jobs, tag `v*` trigger, Trusted Publishing (OIDC), smoke install before upload
 
@@ -29,7 +29,7 @@
 - Cross-platform support: `HELIX_HOME` / XDG / `%LOCALAPPDATA%`, Windows terminal whitelist, optional `windows` extra (`psutil`), CI matrix (linux/windows/macos)
 - Per-session model persistence (`/models`, Telegram picker)
 - TUI GitHub-style file diffs; MCP path validation before spawn
-- PyPI packaging: distribution `helix-agent`, build fixes, [docs/en/PYPI.md](en/PYPI.md)
+- PyPI packaging: distribution `HelixAgentAi`, build fixes, [docs/en/PYPI.md](en/PYPI.md)
 - GitHub workflow `.github/workflows/publish-pypi.yml` (manual)
 - Full CLI reference: `docs/en/CLI.md`, `docs/ru/CLI.md`
 - Slash command reference: `docs/en/SLASH_COMMANDS.md`, `docs/ru/SLASH_COMMANDS.md`
