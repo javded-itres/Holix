@@ -5,6 +5,42 @@
 const $ = (sel, root = document) => root.querySelector(sel);
 const $$ = (sel, root = document) => [...root.querySelectorAll(sel)];
 
+const SLUG_RE = /^[a-z0-9-]+$/;
+
+function escapeHtml(value) {
+  return String(value)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+function isValidSlug(slug) {
+  return typeof slug === "string" && SLUG_RE.test(slug);
+}
+
+function setTextError(main, prefix, detail) {
+  main.replaceChildren();
+  const p = document.createElement("p");
+  p.className = "doc-error";
+  p.textContent = `${prefix}${detail}`;
+  main.appendChild(p);
+}
+
+function makeBreadcrumb(homeLabel, docsLabel, title) {
+  const el = document.createElement("div");
+  el.className = "breadcrumb";
+  const home = document.createElement("a");
+  home.href = "#/";
+  home.textContent = homeLabel;
+  const docs = document.createElement("a");
+  docs.href = "#/docs";
+  docs.textContent = docsLabel;
+  el.append(home, document.createTextNode(" / "), docs, document.createTextNode(` / ${title}`));
+  return el;
+}
+
 const GITHUB_URL = "https://github.com/javded-itres/HelixAgent";
 const PYPI_URL = "https://pypi.org/project/HelixAgentAi/";
 const DONATE_URL = "https://messenger.online.sberbank.ru/sl/uwKJ687QKl7d1a1Ui";
@@ -254,6 +290,7 @@ function parseHash() {
   const slug = slash >= 0 ? path.slice(0, slash) : path;
   const anchor = slash >= 0 ? path.slice(slash + 1) : null;
   if (!slug) return { type: "docs-hub" };
+  if (!isValidSlug(slug)) return { type: "docs-hub" };
   return { type: "doc", slug, anchor };
 }
 
@@ -488,18 +525,14 @@ async function renderDoc(slug, scrollAnchor = null) {
   const entry = state.searchIndex.find((e) => e.lang === state.lang && e.slug === slug);
 
   if (!entry) {
-    main.innerHTML = `<p class="doc-error">Page not found: ${slug}</p>`;
+    setTextError(main, "Page not found: ", slug);
     return;
   }
 
-  main.innerHTML = `
-    <div class="breadcrumb">
-      <a href="#/">${t("nav_home")}</a> /
-      <a href="#/docs">${t("nav_docs")}</a> /
-      ${entry.title}
-    </div>
-    <div class="doc-loading">${t("loading")}</div>
-  `;
+  main.replaceChildren(
+    makeBreadcrumb(t("nav_home"), t("nav_docs"), entry.title),
+    Object.assign(document.createElement("div"), { className: "doc-loading", textContent: t("loading") }),
+  );
 
   try {
     const res = await fetch(entry.file);
@@ -527,14 +560,10 @@ async function renderDoc(slug, scrollAnchor = null) {
       }
     });
 
-    main.replaceChildren();
-    const breadcrumb = document.createElement("div");
-    breadcrumb.className = "breadcrumb";
-    breadcrumb.innerHTML = `<a href="#/">${t("nav_home")}</a> / <a href="#/docs">${t("nav_docs")}</a> / ${entry.title}`;
     const footer = document.createElement("footer");
     footer.className = "footer";
     footer.innerHTML = footerHtml();
-    main.append(breadcrumb, container, footer);
+    main.replaceChildren(makeBreadcrumb(t("nav_home"), t("nav_docs"), entry.title), container, footer);
 
     document.title = `${entry.heading} — Helix`;
     if (scrollAnchor && scrollToAnchor(scrollAnchor)) {
@@ -543,7 +572,7 @@ async function renderDoc(slug, scrollAnchor = null) {
       window.scrollTo({ top: 0, behavior: "smooth" });
     }
   } catch (err) {
-    main.innerHTML = `<p class="doc-error">Failed to load: ${err.message}</p>`;
+    setTextError(main, "Failed to load: ", err?.message || "unknown error");
   }
 }
 
@@ -649,9 +678,9 @@ function setupSearch() {
     results.innerHTML = items
       .map(
         (e, i) => `
-        <div class="search-result${i === activeIdx ? " active" : ""}" role="option" data-slug="${e.slug}" data-idx="${i}">
-          <div class="search-result-title">${e.title}</div>
-          <div class="search-result-snippet">${highlightSnippet(e.body, input.value)}</div>
+        <div class="search-result${i === activeIdx ? " active" : ""}" role="option" data-slug="${escapeHtml(e.slug)}" data-idx="${i}">
+          <div class="search-result-title">${escapeHtml(e.title)}</div>
+          <div class="search-result-snippet">${escapeHtml(highlightSnippet(e.body, input.value))}</div>
         </div>`,
       )
       .join("");
@@ -766,5 +795,6 @@ async function init() {
 }
 
 init().catch((err) => {
-  $("#main-content").innerHTML = `<p class="doc-error">Failed to initialize: ${err.message}</p>`;
+  const main = $("#main-content");
+  if (main) setTextError(main, "Failed to initialize: ", err?.message || "unknown error");
 });

@@ -8,6 +8,7 @@ and analytics.
 
 import json
 import logging
+import re
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional
@@ -16,6 +17,8 @@ from core.config_utils import get_local_plan_dir
 from core.di.runtime_config import HelixRuntimeConfig
 
 logger = logging.getLogger(__name__)
+
+_PLAN_ID_RE = re.compile(r"^[a-zA-Z0-9][a-zA-Z0-9_.-]*\.json$")
 
 # Default (CWD/.helix/plan) — can be overridden by get_plan_dir(config)
 PLAN_DIR = Path(".helix/plan")
@@ -44,6 +47,23 @@ def get_plan_dir(config: Optional[HelixRuntimeConfig] = None) -> Path:
     d = get_local_plan_dir()
     d.mkdir(parents=True, exist_ok=True)
     return d
+
+
+class InvalidPlanIdError(ValueError):
+    """Raised when a plan id is malformed or escapes the plan directory."""
+
+
+def resolve_plan_path(plan_dir: Path, plan_id: str) -> Path:
+    """Resolve a plan filename within plan_dir; reject path traversal."""
+    name = plan_id.strip()
+    if not name or not _PLAN_ID_RE.fullmatch(name):
+        raise InvalidPlanIdError(f"Invalid plan id: {plan_id!r}")
+
+    root = plan_dir.resolve()
+    candidate = (root / name).resolve()
+    if not candidate.is_relative_to(root):
+        raise InvalidPlanIdError(f"Invalid plan id: {plan_id!r}")
+    return candidate
 
 
 def save_plan(

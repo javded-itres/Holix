@@ -1,8 +1,12 @@
-from typing import AsyncGenerator, List, Dict, Any
-from openai import AsyncOpenAI
 import json
+import logging
+from typing import Any, AsyncGenerator, Dict, List
+
+from openai import AsyncOpenAI
 
 from config import settings
+
+logger = logging.getLogger(__name__)
 from core.prompt_builder import build_system_prompt, format_tools_description
 
 # Import the unified execution engine (Variant B)
@@ -76,4 +80,6 @@ class StreamingAgentLoop:
                     return
 
         except Exception as e:
-            yield f"data: {json.dumps({'type': 'error', 'message': str(e)})}\n\n"
+            logger.exception("Streaming agent loop failed")
+            message = str(e) if settings.log_debug_enabled else "Internal server error"
+            yield f"data: {json.dumps({'type': 'error', 'message': message})}\n\n"

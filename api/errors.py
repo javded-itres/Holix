@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from fastapi import HTTPException
 
+from config import settings
+
 
 def openai_error_body(
     message: str,
@@ -25,8 +27,9 @@ def agent_error_to_http(exc: Exception, *, default_status: int = 500) -> HTTPExc
     if isinstance(exc, HTTPException):
         return exc
 
-    message = str(exc) or "Unknown error"
-    lower = message.lower()
+    raw_message = str(exc) or "Unknown error"
+    message = raw_message if settings.log_debug_enabled else "Internal server error"
+    lower = raw_message.lower()
     status = default_status
     error_type = "server_error"
     code = "internal_error"

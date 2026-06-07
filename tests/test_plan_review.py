@@ -37,10 +37,12 @@ from core.plan_review.review_events import (
     PlanReviewResponseEvent,
 )
 from core.plan_review.plan_storage import (
+    InvalidPlanIdError,
     save_plan,
     load_plan,
     list_plans,
     PLAN_DIR,
+    resolve_plan_path,
     _format_plan_markdown,
 )
 
@@ -229,6 +231,21 @@ class TestPlanStorage:
         assert "Step 1: Setup" in md
         assert "terminal" in md
         assert "Done" in md
+
+    def test_resolve_plan_path_accepts_valid_filename(self):
+        plan_dir = Path(self._tmpdir)
+        resolved = resolve_plan_path(plan_dir, "20260607_120000_default.json")
+        assert resolved == (plan_dir / "20260607_120000_default.json").resolve()
+
+    def test_resolve_plan_path_rejects_traversal(self):
+        plan_dir = Path(self._tmpdir)
+        with pytest.raises(InvalidPlanIdError):
+            resolve_plan_path(plan_dir, "../secret.json")
+
+    def test_resolve_plan_path_rejects_absolute_path(self):
+        plan_dir = Path(self._tmpdir)
+        with pytest.raises(InvalidPlanIdError):
+            resolve_plan_path(plan_dir, "/etc/passwd.json")
 
 
 # ─── Plan Review Events ─────────────────────────────────────────────────────

@@ -613,12 +613,18 @@ async def get_plan(plan_id: str, key_info: Optional[dict] = Depends(verify_api_k
         plan_id: The plan file name (e.g., "20260603_143000_default.json").
         key_info: API key info (if auth is enabled).
     """
-    from core.plan_review.plan_storage import get_plan_dir, load_plan
+    from core.plan_review.plan_storage import (
+        InvalidPlanIdError,
+        get_plan_dir,
+        load_plan,
+        resolve_plan_path,
+    )
 
     plan_dir = get_plan_dir()
-    plan_path = str(plan_dir / plan_id)
     try:
-        plan_data = load_plan(plan_path)
-        return plan_data
+        plan_path = resolve_plan_path(plan_dir, plan_id)
+        return load_plan(str(plan_path))
+    except InvalidPlanIdError:
+        raise HTTPException(status_code=400, detail="Invalid plan id")
     except FileNotFoundError:
-        raise HTTPException(status_code=404, detail=f"Plan not found: {plan_id}")
+        raise HTTPException(status_code=404, detail="Plan not found")
