@@ -127,25 +127,75 @@ Never commit tokens. Do **not** enter your PyPI account password when `uv` promp
 
 PyPI does not allow re-uploading the same version.
 
-## GitHub Actions (optional)
+## GitHub Actions (recommended)
 
-See `.github/workflows/publish-pypi.yml` (manual `workflow_dispatch`).
+Workflow: [`.github/workflows/publish-pypi.yml`](../../.github/workflows/publish-pypi.yml)
 
-**Option A — Trusted Publishing (recommended):**
+Two jobs: **build** (wheel + `twine check` + smoke install) → **publish** (OIDC to PyPI).
 
-1. Create project `helix-agent` on PyPI (first upload may require token once).
-2. PyPI → project → **Publishing** → **Add a new publisher**:
-   - Owner: `javded-itres`
-   - Repository: `HelixAgent`
-   - Workflow: `publish-pypi.yml`
-   - Environment: `pypi`
-3. GitHub → repo → Settings → Environments → create **`pypi`** (optional protection rules).
-4. Run workflow **Publish to PyPI** — no `PYPI_API_TOKEN` secret needed when OIDC is configured.
+Triggers:
 
-**Option B — API token secret:**
+| Trigger | When |
+|---------|------|
+| `push` tag `v*` | Production release (uses environment `pypi`, Trusted Publishing) |
+| `workflow_dispatch` | Manual run; optional TestPyPI dry run |
 
-- GitHub secret `PYPI_API_TOKEN` = full token string (`pypi-...`)
-- Workflow sets `UV_PUBLISH_TOKEN` automatically
+### One-time setup
+
+**1. GitHub environments**
+
+Repository → **Settings** → **Environments**:
+
+| Name | Purpose |
+|------|---------|
+| `pypi` | Production uploads |
+| `testpypi` | Optional TestPyPI dry runs |
+
+Add protection rules (required reviewers) if you want approval before publish.
+
+**2. PyPI Trusted Publishing**
+
+On [pypi.org](https://pypi.org) → account → **Publishing** (or project **helix-agent** after first upload) → **Add a new publisher**:
+
+| Field | Value |
+|-------|-------|
+| PyPI project name | `helix-agent` |
+| Owner | `javded-itres` |
+| Repository name | `HelixAgent` |
+| Workflow filename | `publish-pypi.yml` |
+| Environment name | `pypi` |
+
+Repeat on [test.pypi.org](https://test.pypi.org) with environment `testpypi` if you use TestPyPI.
+
+**3. (Optional) API token fallback**
+
+Only if Trusted Publishing is not configured:
+
+- GitHub secret `PYPI_API_TOKEN` or `TEST_PYPI_API_TOKEN` = full token (`pypi-...`)
+- Manual run → choose **auth: api-token**
+
+### Release via GitHub
+
+```bash
+# version already bumped in pyproject.toml + cli/__init__.py
+git tag v0.1.3
+git push origin v0.1.3
+```
+
+The workflow checks that tag `v0.1.3` matches `version = "0.1.3"` in `pyproject.toml`, builds, validates, and publishes.
+
+**Manual run:** Actions → **Publish to PyPI** → Run workflow
+
+- `testpypi: true` — upload to TestPyPI (environment `testpypi`)
+- `auth: trusted-publishing` — default, no secrets
+- `auth: api-token` — use `PYPI_API_TOKEN` / `TEST_PYPI_API_TOKEN` secrets
+
+After publish:
+
+```bash
+pipx install helix-agent
+helix version
+```
 
 ## Checklist before every release
 

@@ -5,7 +5,7 @@
 ### Changed
 - PyPI distribution renamed to **`helix-agent`**; Python **`>=3.12`**; heavy deps moved to extras (`browser`, `telegram`, `voice`, `tui-web`, `windows`, `all`)
 - CI: Python 3.12/3.13/3.14 matrix, `build` job with `twine check` and wheel smoke install
-- Publish workflow: `HELIX_NO_VERSION_BUMP=1`, `uv build --no-sources`
+- Publish workflow: build + publish jobs, tag `v*` trigger, Trusted Publishing (OIDC), smoke install before upload
 
 ### Added
 - **web-docs** — dark documentation site with search, EN/RU, mobile layout (`helix docs`)

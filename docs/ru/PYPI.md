@@ -37,23 +37,47 @@ pip install "helix-agent[all]"
 5. Обновить `docs/CHANGELOG.md`
 6. Тег `v0.1.0`
 
-### 4. Сборка и загрузка
+### 4. Публикация через GitHub Actions (рекомендуется)
+
+Workflow: `.github/workflows/publish-pypi.yml`
+
+**Один раз настроить:**
+
+1. **GitHub** → Settings → Environments → создать `pypi` (и `testpypi` для пробных загрузок).
+2. **PyPI** → Publishing → Add trusted publisher:
+
+| Поле | Значение |
+|------|----------|
+| Project | `helix-agent` |
+| Owner | `javded-itres` |
+| Repository | `HelixAgent` |
+| Workflow | `publish-pypi.yml` |
+| Environment | `pypi` |
+
+Токен в secrets **не нужен** при Trusted Publishing.
+
+**Релиз по тегу:**
+
+```bash
+git tag v0.1.3
+git push origin v0.1.3
+```
+
+Workflow проверит совпадение тега и версии в `pyproject.toml`, соберёт wheel, прогонит smoke install и опубликует на PyPI.
+
+**Вручную:** Actions → Publish to PyPI → Run workflow (можно включить TestPyPI).
+
+### 5. Локальная публикация (альтернатива)
 
 PyPI **не принимает пароль аккаунта** — нужен **API token** (`pypi-...`).
 
 ```bash
-export UV_PUBLISH_TOKEN='pypi-AgENdXNlcm5hbWU6...'   # pypi.org → API tokens
-uv sync --group dev
-uv build
-# тест TestPyPI:
-uv publish --publish-url https://test.pypi.org/legacy/ dist/*
-# прод:
+export UV_PUBLISH_TOKEN='pypi-AgENdXNlcm5hbWU6...'
+HELIX_NO_VERSION_BUMP=1 uv build --no-sources
 uv publish dist/*
 ```
 
-Не вводите пароль от аккаунта при запросе `uv` — будет `403 Username/Password authentication is no longer supported`.
-
-### 5. Документация для пользователей
+### 6. Документация для пользователей
 
 После публикации обновить [INSTALLATION.md](INSTALLATION.md) и README: `pip install helix-agent`.
 

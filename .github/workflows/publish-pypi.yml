@@ -1,6 +1,19 @@
-# Manual PyPI release.
-# Preferred: Trusted Publishing on PyPI (OIDC, no long-lived token).
-# Fallback: repository secrets PYPI_API_TOKEN / TEST_PYPI_API_TOKEN.
+# Publish helix-agent to PyPI via GitHub Actions.
+#
+# Auth: PyPI Trusted Publishing (OIDC) — recommended, no token in secrets.
+# Fallback: set PYPI_API_TOKEN / TEST_PYPI_API_TOKEN and choose "api-token" when running manually.
+#
+# One-time setup:
+#   1. GitHub → Settings → Environments → create "pypi" (and "testpypi" for dry runs)
+#   2. PyPI → project helix-agent → Publishing → Add trusted publisher:
+#        Owner: javded-itres | Repository: HelixAgent
+#        Workflow filename: publish-pypi.yml | Environment name: pypi
+#   3. (Optional) Repeat on https://test.pypi.org for environment "testpypi"
+#
+# Release by tag (recommended):
+#   git tag v0.1.3 && git push origin v0.1.3
+#
+# Manual run: Actions → Publish to PyPI → Run workflow
 name: Publish to PyPI
 
 on:
@@ -11,23 +24,52 @@ on:
         required: false
         default: false
         type: boolean
+      auth:
+        description: Authentication (use api-token only if Trusted Publishing is not configured)
+        required: false
+        default: trusted-publishing
+        type: choice
+        options:
+          - trusted-publishing
+          - api-token
+  push:
+    tags:
+      - v*
+
+concurrency:
+  group: publish-pypi-${{ github.ref }}
+  cancel-in-progress: false
 
 permissions:
   contents: read
-  id-token: write  # required for PyPI Trusted Publishing (OIDC)
 
 jobs:
-  publish:
+  build:
+    name: Build and validate
     runs-on: ubuntu-latest
-    environment: ${{ inputs.testpypi && 'testpypi' || 'pypi' }}
     steps:
       - uses: actions/checkout@v4
 
       - uses: astral-sh/setup-uv@v5
         with:
+          enable-cache: true
           python-version: "3.12"
 
-      - name: Build
+      - name: Install build tools
+        run: uv sync --group dev --no-install-project
+
+      - name: Verify tag matches package version
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          TAG="${GITHUB_REF#refs/tags/v}"
+          VERSION=$(python -c "import tomllib; print(tomllib.load(open('pyproject.toml','rb'))['project']['version'])")
+          if [ "$TAG" != "$VERSION" ]; then
+            echo "::error::Git tag v$TAG does not match pyproject.toml version $VERSION"
+            exit 1
+          fi
+          echo "Version OK: $VERSION"
+
+      - name: Build package
         env:
           HELIX_NO_VERSION_BUMP: "1"
         run: uv build --no-sources
@@ -35,14 +77,60 @@ jobs:
       - name: Validate artifacts
         run: uv run twine check dist/*
 
-      - name: Publish to TestPyPI
-        if: inputs.testpypi
+      - name: Smoke install wheel
+        run: |
+          uv venv /tmp/helix-publish-smoke --python 3.12
+          uv pip install --python /tmp/helix-publish-smoke/bin/python dist/helix_agent-*.whl
+          /tmp/helix-publish-smoke/bin/helix version
+          /tmp/helix-publish-smoke/bin/helix --help
+          /tmp/helix-publish-smoke/bin/python -c "from config import settings; print('config ok')"
+
+      - name: Upload dist artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/*
+          if-no-files-found: error
+          retention-days: 14
+
+  publish:
+    name: Publish
+    needs: build
+    runs-on: ubuntu-latest
+    environment: ${{ github.event_name == 'workflow_dispatch' && inputs.testpypi && 'testpypi' || 'pypi' }}
+    permissions:
+      id-token: write
+      contents: read
+    env:
+      TO_TESTPYPI: ${{ github.event_name == 'workflow_dispatch' && inputs.testpypi && 'true' || 'false' }}
+      USE_API_TOKEN: ${{ github.event_name == 'workflow_dispatch' && inputs.auth == 'api-token' && 'true' || 'false' }}
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist
+
+      - uses: astral-sh/setup-uv@v5
+
+      - name: List artifacts
+        run: ls -la dist/
+
+      - name: Publish to TestPyPI (Trusted Publishing)
+        if: env.TO_TESTPYPI == 'true' && env.USE_API_TOKEN != 'true'
+        run: uv publish --publish-url https://test.pypi.org/legacy/ dist/*
+
+      - name: Publish to TestPyPI (API token)
+        if: env.TO_TESTPYPI == 'true' && env.USE_API_TOKEN == 'true'
         env:
           UV_PUBLISH_TOKEN: ${{ secrets.TEST_PYPI_API_TOKEN }}
         run: uv publish --publish-url https://test.pypi.org/legacy/ dist/*
 
-      - name: Publish to PyPI
-        if: ${{ !inputs.testpypi }}
+      - name: Publish to PyPI (Trusted Publishing)
+        if: env.TO_TESTPYPI != 'true' && env.USE_API_TOKEN != 'true'
+        run: uv publish dist/*
+
+      - name: Publish to PyPI (API token)
+        if: env.TO_TESTPYPI != 'true' && env.USE_API_TOKEN == 'true'
         env:
           UV_PUBLISH_TOKEN: ${{ secrets.PYPI_API_TOKEN }}
         run: uv publish dist/*
