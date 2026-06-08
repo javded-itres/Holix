@@ -1184,9 +1184,14 @@ class HelixCodeApp(App):
             if not results:
                 self.transcript_write("[dim]no hits[/dim]")
                 return
-            for i, mem in enumerate(results, 1):
-                content = (mem.get("content") or "")[:300]
-                self.transcript_write(f"  {i}. {content}")
+            text = self.agent.format_memory_results(
+                results,
+                conversation_id=self.conversation_id,
+                include_current=True,
+            )
+            for line in text.split("\n"):
+                if line.strip():
+                    self.transcript_write(f"  {line}")
         except Exception as e:
             self.transcript_write(f"[red]{e}[/red]")
 

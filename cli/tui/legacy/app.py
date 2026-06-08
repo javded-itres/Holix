@@ -3924,17 +3924,15 @@ class HelixTUI(App):
 
             self._append_to_log(f"[bold green]Found {len(results)} relevant memories:[/bold green]")
 
-            for i, mem in enumerate(results, 1):
-                content = mem.get("content", "")[:400]
-                meta = mem.get("metadata", {})
-                role = meta.get("role", "unknown")
-                panel = Panel(
-                    content,
-                    title=f"[bold]{i}. Memory ({role})[/bold]",
-                    border_style="cyan",
-                    padding=(0, 1),
-                )
-                self._append_to_log(panel)
+            formatted = self.agent.format_memory_results(
+                results,
+                conversation_id=self.conversation_id,
+                include_current=True,
+                content_limit=400,
+            )
+            for line in formatted.split("\n"):
+                if line.strip():
+                    self._append_to_log(f"  {line}")
 
             # Phase 2: also load actionable results into Memory sidebar list (click to insert)
             self._populate_memory_search_results(results, query)

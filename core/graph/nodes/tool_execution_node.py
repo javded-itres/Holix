@@ -55,7 +55,11 @@ async def tool_execution_node(state: HelixGraphState, config: RunnableConfig) ->
 
         start = time.time()
         try:
-            result = await agent.tools.execute(tool_call_obj)
+            result = await agent.tools.execute(
+                tool_call_obj,
+                conversation_id=conversation_id,
+                memory=getattr(agent, "memory", None),
+            )
             duration = (time.time() - start) * 1000
 
             if agent and hasattr(agent, "emit"):

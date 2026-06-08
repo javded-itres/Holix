@@ -288,9 +288,14 @@ class TelegramHost:
         if not results:
             self.transcript_write("no memory hits")
             return
-        for i, mem in enumerate(results, 1):
-            content = (mem.get("content") or "")[:300]
-            self.transcript_write(f"{i}. {content}")
+        text = self.agent.format_memory_results(
+            results,
+            conversation_id=self.conversation_id,
+            include_current=True,
+        )
+        for line in text.split("\n"):
+            if line.strip():
+                self.transcript_write(line)
 
     def _show_full_tool_result(self, index_from_end: int = 0) -> None:
         if not self._recent_tool_results:

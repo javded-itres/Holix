@@ -397,8 +397,31 @@ class HelixAgent:
     ) -> list:
         return await self.memory.get_conversation(conversation_id, limit)
 
-    async def search_memory(self, query: str, top_k: int = 5) -> list:
-        return await self.memory.search(query, top_k)
+    async def search_memory(
+        self,
+        query: str,
+        top_k: int = 5,
+        *,
+        conversation_id: str | None = None,
+    ) -> list:
+        return await self.memory.search(query, top_k, conversation_id=conversation_id)
+
+    def format_memory_results(
+        self,
+        results: list,
+        *,
+        conversation_id: str | None = None,
+        include_current: bool = True,
+        content_limit: int = 300,
+    ) -> str:
+        from core.memory.session_search import format_memory_search_results
+
+        return format_memory_search_results(
+            results,
+            current_conversation_id=conversation_id,
+            include_current=include_current,
+            content_limit=content_limit,
+        )
 
     def get_skills(self) -> dict:
         return self.skills.all_skills

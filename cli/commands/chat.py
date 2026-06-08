@@ -217,10 +217,11 @@ class ChatSession:
                     progress.remove_task(task)
 
                 if results:
+                    from core.memory.session_search import format_memory_hit_line
+
                     console.print("\n[cyan]Memory Search Results:[/cyan]\n")
                     for i, result in enumerate(results, 1):
-                        content = result.get("content", "")[:100]
-                        console.print(f"{i}. {content}...")
+                        console.print(format_memory_hit_line(result, index=i, content_limit=200))
                     console.print()
                 else:
                     print_info("No results found")
