@@ -117,6 +117,20 @@ class TestRouteAfterReactPlan:
         )
         assert route_after_react_plan(state) == "tool_execution"
 
+    def test_global_max_steps_blocks_tool_calls(self):
+        from core.graph.nodes.step_orchestrate_node import route_after_react_plan
+
+        state = HelixGraphState(
+            tool_calls=[{"id": "tc1", "function": {"name": "terminal", "arguments": "{}"}}],
+            is_step_complete=False,
+            is_final=False,
+            step_count=15,
+            max_steps=15,
+            plan_steps=[{"step": 1, "description": "Step 1"}],
+            current_plan_step=0,
+        )
+        assert route_after_react_plan(state) == "finalize"
+
     def test_is_final_routes_to_finalize(self):
         from core.graph.nodes.step_orchestrate_node import route_after_react_plan
 
