@@ -266,6 +266,7 @@ class HelixAgent:
             auto_allow_threshold=auto_allow_threshold,
             interactive=interactive,
             confirmation_timeout=self.config.confirmation_timeout,
+            data_dir=self.config.data_dir,
         )
         self.tools.set_action_guard(guard)
 

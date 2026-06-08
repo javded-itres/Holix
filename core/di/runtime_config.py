@@ -184,6 +184,8 @@ class HelixRuntimeConfig:
         overrides["data_dir"] = profile.data_dir
         overrides["memory_db_path"] = profile.memory_db_path
         overrides["vector_db_path"] = profile.vector_db_path
+        overrides["ltm_db_path"] = profile.ltm_db_path
+        overrides["langgraph_checkpoint_db_path"] = profile.langgraph_checkpoint_db_path
         if profile.context_window is not None:
             overrides["context_window"] = profile.context_window
 

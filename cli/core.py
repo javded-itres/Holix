@@ -28,6 +28,8 @@ class ProfileConfig(BaseModel):
     data_dir: Optional[str] = None
     memory_db_path: Optional[str] = None
     vector_db_path: Optional[str] = None
+    ltm_db_path: Optional[str] = None
+    langgraph_checkpoint_db_path: Optional[str] = None
     skills_dir: Optional[str] = None
     context_window: Optional[int] = None  # None = use default (128k), otherwise token count
 
@@ -87,6 +89,14 @@ def resolve_profile_storage_paths(
     config.vector_db_path = _resolve(
         config.vector_db_path,
         base / "data" / "memory" / "vector_db",
+    )
+    config.ltm_db_path = _resolve(
+        config.ltm_db_path,
+        base / "data" / "memory" / "ltm.db",
+    )
+    config.langgraph_checkpoint_db_path = _resolve(
+        config.langgraph_checkpoint_db_path,
+        base / "data" / "memory" / "checkpoints.db",
     )
     config.skills_dir = _resolve(config.skills_dir, base / "data" / "skills")
     return config

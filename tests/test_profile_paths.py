@@ -20,6 +20,10 @@ def test_resolve_profile_storage_paths_defaults(tmp_path, monkeypatch) -> None:
     assert resolved.memory_db_path == str(
         (profile_dir / "data" / "memory" / "memory.db").resolve()
     )
+    assert resolved.ltm_db_path == str((profile_dir / "data" / "memory" / "ltm.db").resolve())
+    assert resolved.langgraph_checkpoint_db_path == str(
+        (profile_dir / "data" / "memory" / "checkpoints.db").resolve()
+    )
 
 
 def test_resolve_profile_storage_paths_relative_to_profile(tmp_path, monkeypatch) -> None:

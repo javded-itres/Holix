@@ -98,6 +98,7 @@ def run_sub_agent_in_process(
     parent_model: str,
     ltm_db_path: str = "",
     vector_db_path: str = "",
+    data_dir: str = "",
     mcp_servers: dict[str, Any] | None = None,
     skills_dir: str = "",
     skill_assignments: dict[str, list[str]] | None = None,
@@ -176,7 +177,8 @@ def run_sub_agent_in_process(
             from config import settings
             from core.memory.manager import LongTermMemoryManager
             settings.ltm_db_path = ltm_db_path
-            settings.vector_db_path = vector_db_path or "data/memory/vector_db"
+            if vector_db_path:
+                settings.vector_db_path = vector_db_path
             memory = LongTermMemoryManager()
             loop.run_until_complete(memory.initialize_db())
         except Exception:
@@ -453,7 +455,7 @@ def _execute_tool_guarded(
     if risk_order.get(assessment.risk_level, 0) <= risk_order.get(threshold, 1):
         return run_loop.run_until_complete(tool.execute(**args))
 
-    permissions = PermissionManager()
+    permissions = PermissionManager(data_dir=data_dir or None)
     if permissions.is_allowed(
         resolved, assessment.risk_level, assessment.pattern_matched
     ):
@@ -715,13 +717,13 @@ class SubAgentProcessManager:
         interactive = not bool(getattr(parent_cfg, "non_interactive", False))
         search_config = dict(getattr(parent_cfg, "search", None) or {})
 
-        # LTM paths for shared memory access
+        # Profile storage paths for shared memory / security in subprocess
         ltm_db_path = ""
         vector_db_path = ""
-        if config.memory_access != MemoryAccess.ISOLATED and hasattr(self._parent, "memory"):
-            from config import settings
-            ltm_db_path = str(settings.ltm_db_path)
-            vector_db_path = str(settings.vector_db_path)
+        data_dir = str(getattr(parent_cfg, "data_dir", "") or "") if parent_cfg else ""
+        if config.memory_access != MemoryAccess.ISOLATED and hasattr(self._parent, "memory") and parent_cfg:
+            ltm_db_path = str(getattr(parent_cfg, "ltm_db_path", "") or "")
+            vector_db_path = str(getattr(parent_cfg, "vector_db_path", "") or "")
 
         # Create handle
         handle = SubAgentHandle(
@@ -742,6 +744,7 @@ class SubAgentProcessManager:
                 self._parent.model,
                 ltm_db_path,
                 vector_db_path,
+                data_dir,
                 getattr(self._parent.config, "mcp_servers", None) if hasattr(self._parent, "config") else None,
                 str(getattr(self._parent.config, "skills_dir", "") or ""),
                 dict(getattr(self._parent.config, "skill_assignments", None) or {}),

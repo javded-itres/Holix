@@ -38,6 +38,7 @@ async def run_all_checks(profile: str) -> list[DoctorFinding]:
     findings.extend(_check_telegram(profile))
     findings.extend(_check_env_file())
     findings.extend(_check_security_settings())
+    findings.extend(_check_stray_project_data(profile, manager))
 
     return findings
 
@@ -404,6 +405,8 @@ def _check_profile_paths(
         "data_dir": profile_dir / "data",
         "memory_db_path": profile_dir / "data" / "memory" / "memory.db",
         "vector_db_path": profile_dir / "data" / "memory" / "vector_db",
+        "ltm_db_path": profile_dir / "data" / "memory" / "ltm.db",
+        "langgraph_checkpoint_db_path": profile_dir / "data" / "memory" / "checkpoints.db",
         "skills_dir": profile_dir / "data" / "skills",
     }
 
@@ -443,6 +446,38 @@ def _check_profile_paths(
                 context={"profile": profile, "dirs": missing_dirs},
             )
         )
+    return out
+
+
+def _check_stray_project_data(
+    profile: str, manager: ProfileManager
+) -> list[DoctorFinding]:
+    """Detect Helix runtime ``data/`` leaked into the current working directory."""
+    from core.paths import is_stray_helix_data_dir
+
+    out: list[DoctorFinding] = []
+    cwd = Path.cwd().resolve()
+    stray = cwd / "data"
+    profile_data = manager.get_profile_dir(profile) / "data"
+    if profile_data.resolve() == stray.resolve():
+        return out
+    if not is_stray_helix_data_dir(stray):
+        return out
+
+    out.append(
+        DoctorFinding(
+            code="project.stray_data_dir",
+            severity=Severity.WARNING.value,
+            title="Helix data directory in project root",
+            detail=str(stray),
+            recommendation=(
+                "Run: helix doctor --fix  to move files into the active profile "
+                f"and remove {stray}."
+            ),
+            fix_id="migrate_stray_data",
+            context={"profile": profile, "stray_dir": str(stray)},
+        )
+    )
     return out
 
 

@@ -23,6 +23,7 @@ def apply_deterministic_fixes(profile: str, findings: list[DoctorFinding]) -> li
         "create_profile": _fix_create_profile,
         "ensure_dirs": _fix_ensure_dirs,
         "init_paths": _fix_init_paths,
+        "migrate_stray_data": _fix_migrate_stray_data,
         "clear_gateway_state": _fix_clear_gateway_state,
         "fix_default_provider": _fix_default_provider,
         "fix_model_from_list": _fix_model_from_list,
@@ -71,10 +72,45 @@ def _fix_init_paths(profile: str, manager: ProfileManager, _f: DoctorFinding) ->
     cfg.data_dir = str(profile_dir / "data")
     cfg.memory_db_path = str(profile_dir / "data" / "memory" / "memory.db")
     cfg.vector_db_path = str(profile_dir / "data" / "memory" / "vector_db")
+    cfg.ltm_db_path = str(profile_dir / "data" / "memory" / "ltm.db")
+    cfg.langgraph_checkpoint_db_path = str(profile_dir / "data" / "memory" / "checkpoints.db")
     cfg.skills_dir = str(profile_dir / "data" / "skills")
     manager.save_profile(profile, cfg)
     _fix_ensure_dirs(profile, manager, _f)
     return "Set standard profile paths in config.yaml"
+
+
+def _fix_migrate_stray_data(
+    profile: str, manager: ProfileManager, finding: DoctorFinding
+) -> str | None:
+    stray = Path(finding.context.get("stray_dir") or Path.cwd() / "data")
+    if not stray.is_dir():
+        return None
+
+    profile_data = manager.get_profile_dir(profile) / "data"
+    profile_data.mkdir(parents=True, exist_ok=True)
+
+    for item in stray.iterdir():
+        dest = profile_data / item.name
+        if item.is_dir():
+            if dest.exists():
+                for child in item.rglob("*"):
+                    if child.is_file():
+                        rel = child.relative_to(item)
+                        target = dest / rel
+                        target.parent.mkdir(parents=True, exist_ok=True)
+                        if not target.exists():
+                            shutil.copy2(child, target)
+            else:
+                shutil.copytree(item, dest, dirs_exist_ok=True)
+        elif item.is_file():
+            dest.parent.mkdir(parents=True, exist_ok=True)
+            if not dest.exists():
+                shutil.copy2(item, dest)
+
+    shutil.rmtree(stray)
+    _fix_init_paths(profile, manager, finding)
+    return f"Migrated {stray} into profile data and removed stray directory"
 
 
 def _fix_clear_gateway_state(_profile: str, _manager: ProfileManager, _f: DoctorFinding) -> str:
