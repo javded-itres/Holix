@@ -268,8 +268,21 @@ class TelegramHost:
         except Exception:
             return ["default"]
 
-    async def _switch_profile(self, new_profile: str) -> None:
+    async def _switch_profile(self, new_profile: str, *, profile_key: str | None = None) -> None:
+        from cli.core import init_profile
+        from core.profile_keys import ProfileKeyError, profile_has_access_key
         from integrations.telegram.agent_setup import create_agent
+
+        try:
+            init_profile(new_profile, profile_key=profile_key, prompt_key=False)
+        except ProfileKeyError as exc:
+            await self._send_html(
+                f"{exc}<br><br>"
+                "Отправьте: <code>/profile имя ключ</code>"
+                if profile_has_access_key(new_profile) and not profile_key
+                else str(exc)
+            )
+            return
 
         self._session.profile = new_profile
         self._session.agent = await create_agent(new_profile)

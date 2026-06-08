@@ -105,5 +105,5 @@ def test_init_profile_loads_profile_env(helix_home: Path, monkeypatch: pytest.Mo
     manager.create_profile("gw")
     profile_env_path("gw").write_text("HELIX_TEST_PROFILE_ONLY=from_profile\n", encoding="utf-8")
 
-    init_profile("gw")
+    init_profile("gw", prompt_key=False)
     assert os.environ.get("HELIX_TEST_PROFILE_ONLY") == "from_profile"

@@ -15,6 +15,7 @@ Other profiles: `helix -p alice gateway start`.
 
 | Resource | Path |
 |----------|------|
+| Profile access key (hash) | `~/.helix/profiles/<name>/profile.key` |
 | Environment (API keys, ports) | `~/.helix/profiles/<name>/.env` |
 | Telegram bot | `~/.helix/profiles/<name>/telegram.env` |
 | API gateway state & log | `~/.helix/profiles/<name>/gateway/` |
@@ -78,16 +79,72 @@ When enabled, these tools are scoped to `workspace_root`:
 
 Helix internal data (memory, skills under `~/.helix/profiles/`) is **not** affected — jail applies to agent file/terminal tools only.
 
+## Profile access keys (optional)
+
+By default, all profiles are **open** — you can switch by name only (`helix -p alice`, `/profile alice`).
+
+Optionally, enable an **access key** (format `hp_…`) so only someone who knows the key can switch into that profile from the CLI, TUI, chat, or Telegram. The key is shown **once**; Helix stores only a hash in `~/.helix/profiles/<name>/profile.key`.
+
+```bash
+# Create a profile (open by default)
+helix profile create alice
+helix -p alice gateway start
+
+# Create with key protection from the start
+helix profile create bob --protect
+
+# Protect an existing open profile
+helix -p alice profile key init
+
+# Switch into a protected profile
+helix -p bob --profile-key hp_xxxxxxxx
+HELIX_PROFILE_KEY=hp_xxxxxxxx helix -p bob
+
+# Manage keys for the active profile
+helix profile key status
+helix profile key rotate    # replace key (requires current key)
+helix profile key disable   # remove key — free switching by name again
+```
+
+To **turn off** key protection and switch freely (by profile name only):
+
+```bash
+helix -p alice --profile-key <current-key> profile key disable
+# or when already inside the profile:
+helix -p alice profile key disable
+```
+
+After `key disable`, the `profile.key` file is removed and `/profile alice` works without a key.
+
+In interactive chat, TUI, or Telegram:
+
+```text
+/profile alice hp_xxxxxxxx
+```
+
+`helix status` lists profiles with access mode: `locked` (key required) or `open`.
+
+For **systemd** and background workers, put the key in the profile `.env` so the service can start without a prompt:
+
+```bash
+# ~/.helix/profiles/alice/.env
+HELIX_PROFILE_KEY=hp_xxxxxxxx
+```
+
+The access key protects **switching into** a profile from Helix interfaces. It does not replace filesystem permissions on `~/.helix` or gateway API keys — see [SECURITY.md](SECURITY.md).
+
 ## Typical multi-user setup
 
 ```bash
 # Alice — developer, full filesystem
+helix profile create alice
 helix -p alice profile env --edit
 helix -p alice telegram setup
 helix -p alice gateway start
 
-# Bob — restricted to project folder
-helix -p bob profile env --edit
+# Bob — restricted to project folder (optional key protection)
+helix profile create bob --protect
+helix -p bob --profile-key <key> profile env --edit
 helix -p bob profile jail enable /home/bob/projects
 helix -p bob telegram setup
 helix -p bob gateway start
@@ -98,14 +155,21 @@ helix -p bob gateway start
 | Command | Description |
 |---------|-------------|
 | `helix -p <name> …` | Select profile (omit for `default`) |
+| `helix --profile-key <key>` | Access key for a protected profile |
+| `helix profile create <name>` | Create profile (open by default) |
+| `helix profile create <name> --protect` | Create profile with access key |
+| `helix profile key status` | Show whether active profile is protected |
+| `helix profile key init` | Generate key for an existing open profile |
+| `helix profile key rotate` | Replace access key |
+| `helix profile key disable` | Remove key and allow free switching |
 | `helix profile env` | Show profile `.env` |
 | `helix profile env --edit` | Edit secrets and gateway bind |
 | `helix profile jail enable <path>` | Enable directory isolation |
 | `helix profile jail disable` | Disable jail |
 | `helix profile jail status` | Show jail settings |
-| `helix status` | List profiles and active one |
+| `helix status` | List profiles (`locked` / `open`) and active one |
 
-In TUI/chat: `/profile <name>` to switch.
+In TUI/chat/Telegram: `/profile <name> <access-key>` to switch into a protected profile.
 
 ## systemd
 

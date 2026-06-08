@@ -45,6 +45,12 @@ def apply_deterministic_fixes(profile: str, findings: list[DoctorFinding]) -> li
 
 def _fix_create_profile(profile: str, manager: ProfileManager, _f: DoctorFinding) -> str:
     manager.create_profile(profile)
+    access_key = manager.pop_last_created_access_key()
+    if access_key:
+        return (
+            f"Created profile '{profile}' with default layout. "
+            f"Access key (save it, shown once): {access_key}"
+        )
     return f"Created profile '{profile}' with default layout"
 
 

@@ -3170,8 +3170,10 @@ class HelixTUI(App):
         except Exception:
             return ["default"]
 
-    async def _switch_profile(self, new_profile: str) -> None:
+    async def _switch_profile(self, new_profile: str, *, profile_key: str | None = None) -> None:
         """Switch to a different profile (Phase 2 feature)."""
+        from core.profile_keys import ProfileKeyError, profile_has_access_key
+
         chat_log = self._chat_log()
 
         if new_profile == self.profile:
@@ -3181,8 +3183,7 @@ class HelixTUI(App):
         self._append_to_log(f"\n[yellow]Switching to profile '{new_profile}'...[/yellow]")
 
         try:
-            # Load new configuration
-            new_config = self.profile_manager.load_profile(new_profile)
+            new_config = init_profile(new_profile, profile_key=profile_key, prompt_key=False)
 
             # Unsubscribe old agent from events
             if self.agent and hasattr(self.agent, 'events'):
@@ -3251,6 +3252,10 @@ class HelixTUI(App):
             # Start fresh session for the new profile (clean experience)
             await self._create_new_session()
 
+        except ProfileKeyError as exc:
+            self._append_to_log(f"[red]{exc}[/red]")
+            if profile_has_access_key(new_profile) and not profile_key:
+                self._append_to_log("[dim]Use: /profile <name> <access-key>[/dim]\n")
         except Exception as e:
             self._append_to_log(f"[red]Failed to switch to profile '{new_profile}': {e}[/red]\n")
 

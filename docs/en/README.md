@@ -10,7 +10,7 @@ Helix is a self-improving AI agent with memory, skills, tool calling, MCP, CLI, 
 2. [START_HERE.md](START_HERE.md) — first run checklist
 3. [QUICKSTART.md](QUICKSTART.md) — minimal command list
 4. [CONFIGURATION.md](CONFIGURATION.md) — `.env`, profiles, secrets
-5. [PROFILES.md](PROFILES.md) — **isolated profiles, multi-user setup, workspace jail**
+5. [PROFILES.md](PROFILES.md) — **isolated profiles, access keys, multi-user setup, workspace jail**
 
 ## Interfaces
 

@@ -9,8 +9,6 @@ const CHAT_SIZE_KEY = "helix-chat-size";
 const CHAT_SIZE_DEFAULT = { width: 420, height: 580 };
 const CHAT_SIZE_MIN = { width: 320, height: 400 };
 const CHAT_SIZE_MAX = { width: 560, height: 780 };
-const DOC_SLUG_RE = /#\/docs\/([a-z0-9-]+)/g;
-
 const CHAT_I18N = {
   en: {
     title: "Helix Docs Assistant",
@@ -140,6 +138,68 @@ function escapeHtml(value) {
     .replace(/"/g, "&quot;");
 }
 
+const markdownDebounceTimers = new WeakMap();
+
+function preprocessDocLinks(text) {
+  return String(text || "").replace(/#\/docs\/([a-z0-9-]+)/g, (match, slug) => {
+    return `[${match}](#/docs/${slug})`;
+  });
+}
+
+function sanitizeMarkdownHtml(html) {
+  const doc = new DOMParser().parseFromString(html, "text/html");
+  doc.querySelectorAll("script, style, iframe, object, embed, form").forEach((el) => el.remove());
+  doc.querySelectorAll("*").forEach((el) => {
+    for (const attr of [...el.attributes]) {
+      if (attr.name.startsWith("on") || attr.name === "srcdoc") {
+        el.removeAttribute(attr.name);
+      }
+    }
+  });
+  return doc.body.innerHTML;
+}
+
+function renderMarkdownInner(text) {
+  const prepared = preprocessDocLinks(text);
+  if (typeof marked !== "undefined" && marked?.parse) {
+    return sanitizeMarkdownHtml(marked.parse(prepared, { breaks: true, gfm: true }));
+  }
+  return escapeHtml(prepared).replace(/\n/g, "<br>");
+}
+
+function ensureMarkdownRoot(bubble) {
+  let mdRoot = bubble.querySelector(":scope > .helix-chat-md");
+  if (mdRoot) return mdRoot;
+
+  const chips = bubble.querySelector(":scope > .helix-chat-doc-chips");
+  bubble.textContent = "";
+  mdRoot = document.createElement("div");
+  mdRoot.className = "helix-chat-md";
+  bubble.appendChild(mdRoot);
+  if (chips) bubble.appendChild(chips);
+  return mdRoot;
+}
+
+function wrapMarkdownTables(root) {
+  root.querySelectorAll(".helix-chat-md table").forEach((table) => {
+    if (table.parentElement?.classList.contains("helix-chat-table-scroll")) return;
+    const wrap = document.createElement("div");
+    wrap.className = "helix-chat-table-scroll";
+    table.replaceWith(wrap);
+    wrap.appendChild(table);
+  });
+}
+
+function enhanceMarkdownLinks(root) {
+  root.querySelectorAll(".helix-chat-md a[href]").forEach((link) => {
+    const href = link.getAttribute("href") || "";
+    if (href.startsWith("http://") || href.startsWith("https://")) {
+      link.target = "_blank";
+      link.rel = "noopener noreferrer";
+    }
+  });
+}
+
 function getPageSlug() {
   const hash = location.hash || "";
   const match = hash.match(/^#\/docs\/([a-z0-9-]+)/);
@@ -171,11 +231,30 @@ function navigateFromLatestReply(text) {
   if (slug) navigateToDoc(slug);
 }
 
-function formatAssistantHtml(text) {
-  const escaped = escapeHtml(text);
-  return escaped.replace(DOC_SLUG_RE, (match, slug) => {
-    return `<a href="#" class="helix-chat-doc-link" data-slug="${slug}">${match}</a>`;
-  });
+function applyMarkdownContent(bubble, text, { streaming = false } = {}) {
+  const mdRoot = ensureMarkdownRoot(bubble);
+  const render = () => {
+    mdRoot.innerHTML = renderMarkdownInner(text);
+    bindDocLinks(bubble);
+    enhanceMarkdownLinks(bubble);
+    wrapMarkdownTables(bubble);
+  };
+
+  if (streaming) {
+    clearTimeout(markdownDebounceTimers.get(bubble));
+    markdownDebounceTimers.set(
+      bubble,
+      window.setTimeout(() => {
+        render();
+        markdownDebounceTimers.delete(bubble);
+      }, 80),
+    );
+    return;
+  }
+
+  clearTimeout(markdownDebounceTimers.get(bubble));
+  markdownDebounceTimers.delete(bubble);
+  render();
 }
 
 function parseSseBlock(block) {
@@ -248,21 +327,24 @@ function renderDocChips(container, pages, lang) {
 }
 
 function bindDocLinks(bubble) {
-  bubble.querySelectorAll(".helix-chat-doc-link").forEach((link) => {
+  bubble.querySelectorAll('a[href^="#/docs/"], .helix-chat-doc-link').forEach((link) => {
+    const href = link.getAttribute("href") || "";
+    const slug = link.dataset.slug || href.match(/#\/docs\/([a-z0-9-]+)/)?.[1];
+    if (!slug) return;
+    link.classList.add("helix-chat-doc-link");
+    link.dataset.slug = slug;
+    link.setAttribute("href", "#");
+    if (link.dataset.bound === "1") return;
+    link.dataset.bound = "1";
     link.addEventListener("click", (ev) => {
       ev.preventDefault();
-      navigateToDoc(link.dataset.slug);
+      navigateToDoc(slug);
     });
   });
 }
 
-function setAssistantContent(bubble, text) {
-  bubble.innerHTML = formatAssistantHtml(text);
-  bindDocLinks(bubble);
-}
-
-function renderAssistantBubble(bubble, text, pages, lang) {
-  setAssistantContent(bubble, text);
+function renderAssistantBubble(bubble, text, pages, lang, { streaming = false } = {}) {
+  applyMarkdownContent(bubble, text, { streaming });
   if (pages?.length) renderDocChips(bubble, pages, lang);
 }
 
@@ -342,9 +424,13 @@ export async function initChatWidget({ getLang }) {
     const el = document.createElement("div");
     el.className = `helix-chat-bubble ${msg.role}`;
     if (msg.role === "assistant") {
-      renderAssistantBubble(el, msg.content || "", msg.pages, lang());
+      if (msg.typing) {
+        el.textContent = msg.content || "";
+      } else {
+        renderAssistantBubble(el, msg.content || "", msg.pages, lang());
+      }
     } else {
-      el.textContent = msg.content || "";
+      applyMarkdownContent(el, msg.content || "");
     }
     messages.appendChild(el);
     return el;
@@ -423,7 +509,7 @@ export async function initChatWidget({ getLang }) {
     busy = true;
     sendBtn.disabled = true;
     renderMessage({ role: "user", content: text });
-    const typing = renderMessage({ role: "assistant", content: chatT(lang(), "thinking") });
+    const typing = renderMessage({ role: "assistant", content: chatT(lang(), "thinking"), typing: true });
     typing.classList.add("typing");
     messages.scrollTop = messages.scrollHeight;
 
@@ -483,14 +569,14 @@ export async function initChatWidget({ getLang }) {
           if (!evt) continue;
           if (evt.type === "docs" && evt.pages?.length) {
             foundPages = evt.pages;
-            renderAssistantBubble(typing, streamedText, foundPages, lang());
+            renderAssistantBubble(typing, streamedText, foundPages, lang(), { streaming: true });
           } else if (evt.type === "content") {
             streamedText += evt.content || "";
-            renderAssistantBubble(typing, streamedText, foundPages, lang());
+            renderAssistantBubble(typing, streamedText, foundPages, lang(), { streaming: true });
             messages.scrollTop = messages.scrollHeight;
           } else if (evt.type === "replace") {
             streamedText = evt.content || "";
-            renderAssistantBubble(typing, streamedText, foundPages, lang());
+            renderAssistantBubble(typing, streamedText, foundPages, lang(), { streaming: true });
           } else if (evt.type === "error") {
             typing.className = "helix-chat-bubble error";
             typing.textContent = evt.message || chatT(lang(), "error");

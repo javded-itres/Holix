@@ -10,7 +10,7 @@
 2. [START_HERE.md](START_HERE.md) — первый запуск
 3. [QUICKSTART.md](QUICKSTART.md) — минимум команд
 4. [CONFIGURATION.md](CONFIGURATION.md) — `.env`, профили
-5. [PROFILES.md](PROFILES.md) — **изолированные профили, несколько пользователей, workspace jail**
+5. [PROFILES.md](PROFILES.md) — **изолированные профили, ключи доступа, несколько пользователей, workspace jail**
 
 ## Интерфейсы
 

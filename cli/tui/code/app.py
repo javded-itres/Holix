@@ -1286,13 +1286,15 @@ class HelixCodeApp(App):
         except Exception:
             return ["default"]
 
-    async def _switch_profile(self, new_profile: str) -> None:
+    async def _switch_profile(self, new_profile: str, *, profile_key: str | None = None) -> None:
+        from core.profile_keys import ProfileKeyError, profile_has_access_key
+
         if new_profile == self.profile:
             self.transcript_write(f"[dim]already on {new_profile}[/dim]")
             return
         self.transcript_write(f"[dim]profile → {new_profile}[/dim]")
         try:
-            new_config = self.profile_manager.load_profile(new_profile)
+            new_config = init_profile(new_profile, profile_key=profile_key, prompt_key=False)
             from core.di import resolve_runtime_config
 
             runtime_config = resolve_runtime_config(new_config)
@@ -1319,6 +1321,10 @@ class HelixCodeApp(App):
             self.agent.events.subscribe(self._on_agent_event)
             await self._create_new_session()
             self.transcript_write(f"[dim]profile {new_profile} active[/dim]")
+        except ProfileKeyError as exc:
+            self.transcript_write(f"[red]{exc}[/red]")
+            if profile_has_access_key(new_profile) and not profile_key:
+                self.transcript_write("[dim]/profile <name> <access-key>[/dim]")
         except Exception as e:
             self.transcript_write(f"[red]{e}[/red]")
 
