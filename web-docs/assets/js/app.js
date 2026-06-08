@@ -43,7 +43,7 @@ function makeBreadcrumb(homeLabel, docsLabel, title) {
 
 const GITHUB_URL = "https://github.com/javded-itres/HelixAgent";
 const PYPI_URL = "https://pypi.org/project/HelixAgentAi/";
-const DONATE_URL = "https://messenger.online.sberbank.ru/sl/uwKJ687QKl7d1a1Ui";
+const DONATE_URL = "https://boosty.to/javded/single-payment/donation/805721/target?share=target_link";
 const SITE_URL = "https://helix-agent.ru";
 const YANDEX_METRIKA_ID = 109712139;
 
