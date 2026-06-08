@@ -33,8 +33,8 @@ class ContextManager:
         token_counter: Optional[TokenCounter] = None,
         compressor: Optional[ContextCompressor] = None,
         event_bus: Optional[Any] = None,
-        compression_threshold: float = 0.9,
-        warning_threshold: float = 0.7,
+        compression_threshold: float = 0.95,
+        warning_threshold: float = 0.8,
     ):
         """Initialize the context manager.
 
@@ -43,8 +43,8 @@ class ContextManager:
             token_counter: TokenCounter instance for counting tokens.
             compressor: ContextCompressor instance for compressing history.
             event_bus: Optional AgentEventBus for emitting events.
-            compression_threshold: Fraction (0-1) at which auto-compress triggers.
-            warning_threshold: Fraction (0-1) at which warnings are emitted.
+            compression_threshold: Fraction (0-1) at which auto-compress triggers (default 95%).
+            warning_threshold: Fraction (0-1) at which warnings are emitted (default 80%).
         """
         self.context_window = context_window
         self.token_counter = token_counter or TokenCounter()
@@ -111,7 +111,7 @@ class ContextManager:
             messages: Current conversation messages.
 
         Returns:
-            "green" if < 70%, "yellow" if 70-89%, "red" if >= 90%.
+            "green" if below warning threshold, "yellow" if warning–compress band, "red" if >= compress threshold.
         """
         usage = self.get_usage(messages)
         percent = usage["percent"]

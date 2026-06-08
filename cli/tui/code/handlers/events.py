@@ -208,4 +208,5 @@ class CodeEventHandler:
                 self.app._transcript_store.append("tool", body, title=name)
             self.app._store_tool_result(name, body, duration_s)
 
+        self.app._maybe_refresh_context_display()
         self.app.transcript_scroll_bottom()

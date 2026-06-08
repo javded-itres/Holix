@@ -100,6 +100,7 @@ class HelixCodeApp(App):
         self._execution_modes = ["react", "plan_and_execute", "hybrid", "auto"]
         self._execution_mode_index = 0
         self._cached_context_display: str | None = None
+        self._last_context_refresh: float = 0.0
 
         self._pending_confirmation: Any | None = None
         self._action_guard_reference: Any | None = None
@@ -304,6 +305,7 @@ class HelixCodeApp(App):
         self.agent.events.subscribe(self._on_agent_event)
         await self.agent.initialize()
         await self._load_conversation_history()
+        await self._ensure_session_context()
         await self._load_known_sessions()
         self.transcript_write("[dim]ready — type a message or /help[/dim]\n")
         self.set_status_line("ready")
@@ -341,6 +343,25 @@ class HelixCodeApp(App):
                 )
         except Exception:
             pass
+
+    async def _ensure_session_context(self) -> None:
+        """Compress persisted history when usage exceeds threshold (e.g. after restart)."""
+        if not self.agent:
+            return
+        try:
+            from core.runtime.context_session import ensure_conversation_context
+
+            if await ensure_conversation_context(self.agent, self.conversation_id):
+                self.transcript_write("[dim]· context compressed on load[/dim]")
+        except Exception:
+            pass
+
+    def _maybe_refresh_context_display(self, *, min_interval_s: float = 2.0) -> None:
+        now = time.monotonic()
+        if now - self._last_context_refresh < min_interval_s:
+            return
+        self._last_context_refresh = now
+        self.run_worker(self._update_context_display_async())
 
     async def _load_conversation_history(self) -> None:
         if not self.agent:
@@ -1229,6 +1250,7 @@ class HelixCodeApp(App):
         self._recent_tool_results.clear()
         self.transcript_write(f"[dim]switched → {new_id}[/dim]\n")
         await self._load_conversation_history()
+        await self._ensure_session_context()
         self._save_ui_state()
         from core.session_models import restore_session_model
 
