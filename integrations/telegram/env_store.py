@@ -1,4 +1,4 @@
-"""Persist Telegram credentials for Helix CLI."""
+"""Persist Telegram credentials per Helix profile."""
 
 from __future__ import annotations
 
@@ -6,10 +6,23 @@ import os
 import re
 from pathlib import Path
 
-from cli.core import HELIX_HOME
+from core.env_loader import active_profile_name, profile_dir_path
 
-TELEGRAM_ENV_PATH = HELIX_HOME / "telegram.env"
 _TOKEN_RE = re.compile(r"^\d+:[A-Za-z0-9_-]{20,}$")
+
+def telegram_env_path(profile: str | None = None) -> Path:
+    name = (profile or active_profile_name()).strip() or "default"
+    return profile_dir_path(name) / "telegram.env"
+
+
+def legacy_telegram_env_path() -> Path:
+    from cli.core import HELIX_HOME
+
+    return HELIX_HOME / "telegram.env"
+
+
+# Backward-compatible alias for default profile.
+TELEGRAM_ENV_PATH = telegram_env_path("default")
 
 
 def ensure_helix_home() -> Path:
@@ -18,19 +31,26 @@ def ensure_helix_home() -> Path:
     return init_helix_home()
 
 
-def load_telegram_env_files() -> None:
-    """Load ~/.helix/.env (and project .env), then ~/.helix/telegram.env."""
-    from core.env_loader import bootstrap_env
+def load_telegram_env_files(profile: str | None = None) -> None:
+    """Load profile env, then profile ``telegram.env`` (legacy global as fallback)."""
+    from core.env_loader import bootstrap_profile_env
 
-    bootstrap_env()
+    name = (profile or active_profile_name()).strip() or "default"
+    bootstrap_profile_env(name)
 
     try:
         from dotenv import load_dotenv
     except ImportError:
         return
 
-    if TELEGRAM_ENV_PATH.is_file():
-        load_dotenv(TELEGRAM_ENV_PATH, override=False)
+    path = telegram_env_path(name)
+    if path.is_file():
+        load_dotenv(path, override=False)
+        return
+
+    legacy = legacy_telegram_env_path()
+    if legacy.is_file():
+        load_dotenv(legacy, override=False)
 
 
 def token_looks_valid(token: str) -> bool:
@@ -53,7 +73,6 @@ def format_env_lines(values: dict[str, str]) -> str:
         "TELEGRAM_BOT_TOKEN",
         "HELIX_TELEGRAM_ALLOWED_USERS",
         "HELIX_TELEGRAM_ALLOW_ALL",
-        "HELIX_TELEGRAM_PROFILE",
         "HELIX_TELEGRAM_EDIT_MS",
     )
     written: set[str] = set()
@@ -67,11 +86,15 @@ def format_env_lines(values: dict[str, str]) -> str:
     return "\n".join(lines) + "\n"
 
 
-def save_telegram_env(values: dict[str, str]) -> Path:
+def save_telegram_env(values: dict[str, str], profile: str | None = None) -> Path:
+    name = (profile or values.get("HELIX_TELEGRAM_PROFILE") or active_profile_name()).strip()
+    name = name or "default"
     ensure_helix_home()
-    TELEGRAM_ENV_PATH.write_text(format_env_lines(values), encoding="utf-8")
+    path = telegram_env_path(name)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(format_env_lines(values), encoding="utf-8")
     apply_to_environ(values)
-    return TELEGRAM_ENV_PATH
+    return path
 
 
 def apply_to_environ(values: dict[str, str]) -> None:
@@ -80,11 +103,14 @@ def apply_to_environ(values: dict[str, str]) -> None:
             os.environ[key] = value
 
 
-def read_telegram_env_values() -> dict[str, str]:
-    if not TELEGRAM_ENV_PATH.is_file():
+def read_telegram_env_values(profile: str | None = None) -> dict[str, str]:
+    path = telegram_env_path(profile)
+    if not path.is_file():
+        path = legacy_telegram_env_path()
+    if not path.is_file():
         return {}
     out: dict[str, str] = {}
-    for line in TELEGRAM_ENV_PATH.read_text(encoding="utf-8").splitlines():
+    for line in path.read_text(encoding="utf-8").splitlines():
         line = line.strip()
         if not line or line.startswith("#") or "=" not in line:
             continue

@@ -62,6 +62,10 @@ class ProfileConfig(BaseModel):
     # Web search providers (duckduckgo, searxng, firecrawl)
     search: Dict[str, Any] = Field(default_factory=dict)
 
+    # Workspace jail: restrict file/terminal tools to a single directory tree
+    workspace_jail_enabled: bool = False
+    workspace_root: Optional[str] = None
+
 
 def resolve_profile_storage_paths(
     profile: str,
@@ -99,6 +103,10 @@ def resolve_profile_storage_paths(
         base / "data" / "memory" / "checkpoints.db",
     )
     config.skills_dir = _resolve(config.skills_dir, base / "data" / "skills")
+    if config.workspace_root and str(config.workspace_root).strip():
+        config.workspace_root = _resolve(config.workspace_root, base / "workspace")
+    else:
+        config.workspace_root = None
     return config
 
 
@@ -166,6 +174,11 @@ class ProfileManager:
             pass
         (profile_dir / "data" / "security").mkdir(parents=True, exist_ok=True)
         (profile_dir / "data" / "files").mkdir(parents=True, exist_ok=True)
+        (profile_dir / "gateway").mkdir(parents=True, exist_ok=True)
+
+        from core.env_loader import ensure_profile_env_template
+
+        ensure_profile_env_template(profile)
 
         # Set default config if not provided
         if config is None:
@@ -288,6 +301,10 @@ def init_profile(profile: str = "default") -> ProfileConfig:
     """
     global _current_profile, _current_config
 
+    from core.env_loader import bootstrap_profile_env
+
+    switching = _current_profile is not None and _current_profile != profile
+    bootstrap_profile_env(profile, force=switching or _current_profile is None)
     _current_profile = profile
     _current_config = _profile_manager.load_profile(profile)
 

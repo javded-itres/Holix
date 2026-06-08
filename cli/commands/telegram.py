@@ -35,7 +35,7 @@ def telegram_run(
         from integrations.telegram.env_store import load_telegram_env_files
         from integrations.telegram.main import run_bot
 
-        load_telegram_env_files()
+        load_telegram_env_files(profile)
     except ImportError as e:
         print_error(str(e))
         print_info("Install: uv sync --extra telegram")
@@ -72,9 +72,11 @@ def telegram_setup(
 
 
 @telegram_app.command("status")
-def telegram_status() -> None:
+def telegram_status(
+    profile: str = typer.Option("default", "--profile", "-p", help="Helix profile"),
+) -> None:
     """Show saved Telegram configuration (token masked)."""
-    show_telegram_status()
+    show_telegram_status(profile)
 
 
 @telegram_app.command("sync-menu")
@@ -86,7 +88,7 @@ def telegram_sync_menu(
         from integrations.telegram.env_store import load_telegram_env_files
         from integrations.telegram.commands import sync_bot_menu
 
-        load_telegram_env_files()
+        load_telegram_env_files(profile)
         names = asyncio.run(sync_bot_menu(profile))
     except ImportError as e:
         print_error(str(e))

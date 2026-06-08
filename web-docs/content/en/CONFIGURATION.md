@@ -2,14 +2,18 @@
 
 ## Layers
 
-1. **`.env`** — global defaults (`config.py` / `Settings`), primary file: **`~/.helix/.env`**
-2. **Profile** — `~/.helix/profiles/<name>/config.yaml`
-3. **CLI flags** — overrides per command
+1. **Shell environment** — highest priority (never overwritten by files)
+2. **Profile `.env`** — `~/.helix/profiles/<name>/.env` (API keys, gateway bind, feature flags)
+3. **Legacy global `.env`** — `~/.helix/.env` (fallback for older installs)
+4. **Project `.env`** — `./.env` in CWD (dev convenience)
+5. **Profile YAML** — `~/.helix/profiles/<name>/config.yaml` (models, MCP, skills)
+6. **CLI flags** — overrides per command
 
-Optional project `./.env` is loaded first; `~/.helix/.env` overrides it. Shell environment always wins.
+Each profile is isolated: own env file, Telegram secrets, gateway process state, memory, and skills.
 
 ```bash
-cp .env.example ~/.helix/.env
+helix -p alice profile env --edit    # edit profiles/alice/.env
+cp .env.example ~/.helix/profiles/default/.env   # first-time seed
 ```
 
 ## Data directory (`HELIX_HOME`)
@@ -21,7 +25,36 @@ cp .env.example ~/.helix/.env
 | Override | `HELIX_HOME` |
 | Linux (XDG) | `$XDG_DATA_HOME/helix` |
 
-Profiles, logs, gateway state, and MCP clones live under this tree.
+Shared under `HELIX_HOME`: logs, MCP server clones. **Per profile** under `profiles/<name>/`: `.env`, `config.yaml`, `telegram.env`, `gateway/`, `data/`.
+
+### Profile layout
+
+| Path | Content |
+|------|---------|
+| `profiles/<name>/.env` | API keys, `HELIX_GATEWAY_PORT`, tool flags |
+| `profiles/<name>/telegram.env` | Bot token and allowlist |
+| `profiles/<name>/gateway/state.json` | Running gateway PID and bind |
+| `profiles/<name>/config.yaml` | Models, MCP, hub, workspace jail |
+| `profiles/<name>/data/` | Memory, skills, security, cron |
+
+## Workspace jail (optional)
+
+Restrict file and terminal tools to one directory tree — useful when several people share one machine with separate profiles.
+
+```bash
+helix -p data-agent profile jail enable ~/data-agent
+helix -p data-agent profile jail status
+helix -p data-agent profile jail disable
+```
+
+Or in `config.yaml`:
+
+```yaml
+workspace_jail_enabled: true
+workspace_root: /home/user/data-agent
+```
+
+When enabled, `read_file`, `write_file`, `list_directory`, `run_terminal_command`, and Telegram file delivery cannot access paths outside `workspace_root`.
 
 ## Key environment variables
 

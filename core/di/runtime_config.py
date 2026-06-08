@@ -97,6 +97,10 @@ class HelixRuntimeConfig:
     local_project_dir: str = ".helix"
     local_skills_dir: Optional[str] = None  # resolved at use site if None
 
+    # Workspace jail (optional per-profile directory isolation)
+    workspace_jail_enabled: bool = False
+    workspace_root: Optional[str] = None
+
     @classmethod
     def from_settings(cls, source: Optional[Settings] = None) -> Self:
         """Build config from pydantic Settings (env / .env)."""
@@ -150,6 +154,8 @@ class HelixRuntimeConfig:
             search={},
             local_project_dir=".helix",
             local_skills_dir=None,
+            workspace_jail_enabled=False,
+            workspace_root=None,
         )
 
     @classmethod
@@ -205,6 +211,10 @@ class HelixRuntimeConfig:
             overrides["subagent_max_concurrent"] = profile.subagent_max_concurrent
         if getattr(profile, "search", None):
             overrides["search"] = profile.search
+        if getattr(profile, "workspace_jail_enabled", False):
+            overrides["workspace_jail_enabled"] = profile.workspace_jail_enabled
+        if getattr(profile, "workspace_root", None):
+            overrides["workspace_root"] = profile.workspace_root
 
         if profile.default_provider and profile.providers:
             pdata = profile.providers.get(profile.default_provider) or {}

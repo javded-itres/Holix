@@ -13,13 +13,13 @@ from rich.prompt import Confirm, Prompt
 from cli.core import ProfileManager
 from cli.utils.rich_console import console, print_error, print_info, print_success, print_warning
 from integrations.telegram.env_store import (
-    TELEGRAM_ENV_PATH,
     apply_to_environ,
     load_telegram_env_files,
     mask_token,
     merge_project_env,
     read_telegram_env_values,
     save_telegram_env,
+    telegram_env_path,
     token_looks_valid,
 )
 from integrations.telegram.setup_api import TelegramApiError, verify_bot_token, wait_for_telegram_user
@@ -62,7 +62,7 @@ async def run_telegram_setup(
             "[bold cyan]Telegram — подключение бота[/bold cyan]\n\n"
             "1. Откройте [@BotFather](https://t.me/BotFather) → /newbot → скопируйте токен\n"
             "2. Узнайте свой numeric user id (@userinfobot или авто-определение ниже)\n"
-            "3. Настройки сохраняются в [dim]~/.helix/telegram.env[/dim]",
+            "3. Настройки сохраняются в [dim]profiles/<имя>/.env и telegram.env[/dim]",
             border_style="cyan",
         )
     )
@@ -76,7 +76,18 @@ async def run_telegram_setup(
             print_info("Выполните: uv sync --extra telegram")
             raise SystemExit(1)
 
-    existing = read_telegram_env_values()
+    manager = ProfileManager()
+    profiles = manager.list_profiles() or ["default"]
+    if profile is None:
+        if len(profiles) == 1:
+            profile = profiles[0]
+        else:
+            console.print("[dim]Профили Helix:[/dim] " + ", ".join(profiles))
+            profile = Prompt.ask("Профиль Helix для бота", default="default")
+    if profile not in profiles:
+        print_warning(f"Профиль '{profile}' не найден — будет создан при первом запуске.")
+
+    existing = read_telegram_env_values(profile)
     default_token = existing.get("TELEGRAM_BOT_TOKEN", "")
     if default_token and Confirm.ask("Использовать сохранённый токен?", default=True):
         token = default_token
@@ -124,27 +135,15 @@ async def run_telegram_setup(
         print_error("User id должен содержать только цифры и запятые.")
         raise SystemExit(1)
 
-    manager = ProfileManager()
-    profiles = manager.list_profiles() or ["default"]
-    if profile is None:
-        if len(profiles) == 1:
-            profile = profiles[0]
-        else:
-            console.print("[dim]Профили Helix:[/dim] " + ", ".join(profiles))
-            profile = Prompt.ask("Профиль Helix для бота", default=existing.get("HELIX_TELEGRAM_PROFILE", "default"))
-    if profile not in profiles:
-        print_warning(f"Профиль '{profile}' не найден — будет создан при первом запуске.")
-
     values = {
         "TELEGRAM_BOT_TOKEN": token,
         "HELIX_TELEGRAM_ALLOWED_USERS": allowed.replace(" ", ""),
-        "HELIX_TELEGRAM_PROFILE": profile,
     }
     edit_ms = existing.get("HELIX_TELEGRAM_EDIT_MS", "")
     if edit_ms:
         values["HELIX_TELEGRAM_EDIT_MS"] = edit_ms
 
-    path = save_telegram_env(values)
+    path = save_telegram_env(values, profile=profile)
     print_success(f"Сохранено: {path}")
 
     if also_project_env or Confirm.ask("Также записать в .env текущего проекта?", default=False):
@@ -153,7 +152,7 @@ async def run_telegram_setup(
         print_success(f"Обновлено: {proj_env.resolve()}")
 
     apply_to_environ(values)
-    load_telegram_env_files()
+    load_telegram_env_files(profile)
 
     console.print()
     console.print(
@@ -161,7 +160,7 @@ async def run_telegram_setup(
             f"[cyan]Токен:[/cyan] {mask_token(token)}\n"
             f"[cyan]Allowlist:[/cyan] {allowed}\n"
             f"[cyan]Профиль:[/cyan] {profile}\n"
-            f"[cyan]Файл:[/cyan] {TELEGRAM_ENV_PATH}",
+            f"[cyan]Файл:[/cyan] {telegram_env_path(profile)}",
             title="Готово",
             border_style="green",
         )
@@ -178,12 +177,13 @@ async def run_telegram_setup(
         await run_bot(profile)
 
 
-def show_telegram_status() -> None:
-    load_telegram_env_files()
+def show_telegram_status(profile: str = "default") -> None:
+    load_telegram_env_files(profile)
     from integrations.telegram.config import load_telegram_settings
 
-    settings = load_telegram_settings()
-    path = TELEGRAM_ENV_PATH if TELEGRAM_ENV_PATH.is_file() else None
+    settings = load_telegram_settings(profile)
+    tg_path = telegram_env_path(profile)
+    path = tg_path if tg_path.is_file() else None
     console.print()
     if not settings.bot_token.strip():
         print_warning("Telegram не настроен. Запустите: helix telegram setup")

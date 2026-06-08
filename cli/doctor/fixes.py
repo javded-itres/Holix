@@ -113,9 +113,9 @@ def _fix_migrate_stray_data(
     return f"Migrated {stray} into profile data and removed stray directory"
 
 
-def _fix_clear_gateway_state(_profile: str, _manager: ProfileManager, _f: DoctorFinding) -> str:
-    clear_state()
-    return "Removed stale gateway state file"
+def _fix_clear_gateway_state(profile: str, _manager: ProfileManager, _f: DoctorFinding) -> str:
+    clear_state(profile)
+    return f"Removed stale gateway state file for profile '{profile}'"
 
 
 def _fix_default_provider(profile: str, manager: ProfileManager, finding: DoctorFinding) -> str:

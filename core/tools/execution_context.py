@@ -10,6 +10,8 @@ _subagent_name: ContextVar[str] = ContextVar("helix_subagent_name", default="")
 _interaction_bridge: ContextVar[Any] = ContextVar("helix_interaction_bridge", default=None)
 _chat_delivery_bridge: ContextVar[Any] = ContextVar("helix_chat_delivery_bridge", default=None)
 _memory_facade: ContextVar[Any] = ContextVar("helix_memory_facade", default=None)
+_workspace_root: ContextVar[Optional[str]] = ContextVar("helix_workspace_root", default=None)
+_workspace_jail_enabled: ContextVar[bool] = ContextVar("helix_workspace_jail_enabled", default=False)
 
 
 def get_conversation_id() -> str:
@@ -30,6 +32,14 @@ def get_chat_delivery_bridge() -> Optional[Any]:
 
 def get_memory_facade() -> Optional[Any]:
     return _memory_facade.get()
+
+
+def get_workspace_root() -> Optional[str]:
+    return _workspace_root.get()
+
+
+def is_workspace_jail_enabled() -> bool:
+    return _workspace_jail_enabled.get()
 
 
 def conversation_scope(conversation_id: str):
@@ -57,6 +67,26 @@ def memory_facade_scope(facade: Any):
 
 def reset_memory_facade_scope(token) -> None:
     _memory_facade.reset(token)
+
+
+def workspace_scope(
+    *,
+    workspace_root: Optional[str] = None,
+    workspace_jail_enabled: bool = False,
+):
+    """Return tokens for workspace jail context."""
+    return [
+        ("root", _workspace_root.set(workspace_root)),
+        ("jail", _workspace_jail_enabled.set(workspace_jail_enabled)),
+    ]
+
+
+def reset_workspace_scope(tokens) -> None:
+    for key, token in reversed(tokens):
+        if key == "root":
+            _workspace_root.reset(token)
+        elif key == "jail":
+            _workspace_jail_enabled.reset(token)
 
 
 def subagent_scope(

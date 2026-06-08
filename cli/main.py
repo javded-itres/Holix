@@ -9,7 +9,7 @@ install(show_locals=True)
 
 from cli.core import init_profile, get_current_profile, get_profile_manager
 from cli.utils.rich_console import console, print_info
-from cli.commands import chat, run, gateway, skills, memory, config, models, doctor
+from cli.commands import chat, run, gateway, skills, memory, config, models, doctor, profile
 from cli.commands.mcp import app as mcp_app
 from cli.commands.search import app as search_app
 from cli.commands.cron import app as cron_app
@@ -32,6 +32,7 @@ app = typer.Typer(
 app.add_typer(skills.app, name="skills")
 app.add_typer(memory.app, name="memory")
 app.add_typer(config.app, name="config")
+app.add_typer(profile.app, name="profile")
 app.add_typer(models.app, name="models")
 register_telegram_command(app)
 app.add_typer(gateway.app, name="gateway")

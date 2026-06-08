@@ -8,9 +8,16 @@ from core.tools.base import BaseTool
 class ToolRegistry:
     """Registry for managing and executing agent tools."""
 
-    def __init__(self):
+    def __init__(
+        self,
+        *,
+        workspace_root: Optional[str] = None,
+        workspace_jail_enabled: bool = False,
+    ):
         self.tools: Dict[str, BaseTool] = {}
         self._action_guard = None  # Set by set_action_guard()
+        self._workspace_root = workspace_root
+        self._workspace_jail_enabled = workspace_jail_enabled
 
     def set_action_guard(self, guard) -> None:
         """Set the ActionGuard instance for pre-execution confirmation.
@@ -170,10 +177,16 @@ class ToolRegistry:
             memory_facade_scope,
             reset_conversation_scope,
             reset_memory_facade_scope,
+            reset_workspace_scope,
+            workspace_scope,
         )
 
         token = conversation_scope(conversation_id)
         mem_token = memory_facade_scope(memory) if memory is not None else None
+        ws_tokens = workspace_scope(
+            workspace_root=self._workspace_root,
+            workspace_jail_enabled=self._workspace_jail_enabled,
+        )
         try:
             # Gate with ActionGuard if installed
             if self._action_guard:
@@ -195,6 +208,7 @@ class ToolRegistry:
             reset_conversation_scope(token)
             if mem_token is not None:
                 reset_memory_facade_scope(mem_token)
+            reset_workspace_scope(ws_tokens)
 
     def get_tool_names(self) -> List[str]:
         """Get names of all registered tools.

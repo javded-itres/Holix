@@ -50,10 +50,18 @@ class TerminalTool(BaseTool):
                 return f"Error: Command blocked by safety policy. {reason}"
 
         try:
+            from core.workspace import get_effective_workspace_root
+
+            cwd: str | None = None
+            root = get_effective_workspace_root()
+            if root is not None:
+                cwd = str(root)
+
             process = await asyncio.create_subprocess_shell(
                 command,
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
+                cwd=cwd,
                 **subprocess_shell_kwargs(),
             )
 

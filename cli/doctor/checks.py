@@ -34,7 +34,7 @@ async def run_all_checks(profile: str) -> list[DoctorFinding]:
     findings.extend(_check_platform())
     findings.extend(_check_profile_config(profile, manager))
     findings.extend(await _check_llm(profile, manager))
-    findings.extend(_check_gateway())
+    findings.extend(_check_gateway(profile))
     findings.extend(_check_telegram(profile))
     findings.extend(_check_env_file())
     findings.extend(_check_security_settings())
@@ -624,21 +624,23 @@ async def _check_llm(profile: str, manager: ProfileManager) -> list[DoctorFindin
     return out
 
 
-def _check_gateway() -> list[DoctorFinding]:
+def _check_gateway(profile: str) -> list[DoctorFinding]:
     out: list[DoctorFinding] = []
-    state = load_state()
+    from cli.services.gateway_state import log_path
+
+    state = load_state(profile)
     if state and not is_process_alive(state.pid):
         out.append(
             DoctorFinding(
                 code="gateway.stale_state",
                 severity=Severity.WARNING.value,
                 title="Stale gateway state file",
-                detail=f"PID {state.pid} is not running",
-                recommendation="Run: helix doctor --fix  or  helix gateway stop",
+                detail=f"PID {state.pid} is not running (profile={profile})",
+                recommendation=f"Run: helix doctor --fix  or  helix -p {profile} gateway stop",
                 fix_id="clear_gateway_state",
             )
         )
-    running = _running_state()
+    running = _running_state(profile)
     if running:
         try:
             from cli.services.gateway_state import health_url
@@ -651,7 +653,7 @@ def _check_gateway() -> list[DoctorFinding]:
                         severity=Severity.WARNING.value,
                         title="Gateway not healthy",
                         detail=f"HTTP {resp.status_code} on port {running.port}",
-                        recommendation=f"Run: helix gateway reload  or check {HELIX_HOME / 'gateway' / 'gateway.log'}",
+                        recommendation=f"Run: helix -p {profile} gateway reload  or check {log_path(profile)}",
                     )
                 )
         except Exception as e:
@@ -672,9 +674,11 @@ def _check_telegram(profile: str) -> list[DoctorFinding]:
     try:
         from integrations.telegram.env_store import load_telegram_env_files
 
-        load_telegram_env_files()
+        load_telegram_env_files(profile)
     except Exception:
         pass
+
+    from integrations.telegram.env_store import telegram_env_path
 
     token = os.getenv("TELEGRAM_BOT_TOKEN", os.getenv("HELIX_TELEGRAM_BOT_TOKEN", ""))
     if not token:
@@ -683,7 +687,7 @@ def _check_telegram(profile: str) -> list[DoctorFinding]:
                 code="telegram.not_configured",
                 severity=Severity.INFO.value,
                 title="Telegram not configured",
-                detail=f"No bot token in environment or {HELIX_HOME / 'telegram.env'}",
+                detail=f"No bot token in environment or {telegram_env_path(profile)}",
                 recommendation="Run: helix telegram setup",
             )
         )

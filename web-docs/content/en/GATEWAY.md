@@ -4,21 +4,40 @@ OpenAI-compatible HTTP API and companion services (Telegram when configured).
 
 ## Commands
 
+Gateway commands apply to the **active profile** (`-p` / `--profile`).
+
 ```bash
-helix gateway start              # background (default host 127.0.0.1)
-helix gateway start -f           # foreground
-helix gateway start --reload     # dev auto-reload
-helix gateway status
-helix gateway stop
-helix gateway reload
+helix -p alice gateway start              # background (default host 127.0.0.1)
+helix -p alice gateway start -f           # foreground
+helix -p alice gateway start --reload     # dev auto-reload
+helix -p alice gateway status
+helix -p alice gateway stop
+helix -p alice gateway reload
 ```
 
-State: `~/.helix/gateway/state.json` (or `{HELIX_HOME}/gateway/`)  
-Logs: `gateway/gateway.log` — view with `helix logs -s gateway -f` ([LOGS.md](LOGS.md))
+Each profile has its own gateway state and logs:
 
-The supervisor also runs **cron** and **Telegram** (when configured) as companion processes.
+- State: `~/.helix/profiles/<name>/gateway/state.json`
+- Logs: `~/.helix/profiles/<name>/gateway/gateway.log` — `helix logs -s gateway -f` ([LOGS.md](LOGS.md))
+
+**Multiple gateways** can run at once (different profiles, different ports):
+
+```bash
+# profiles/alice/.env
+HELIX_GATEWAY_PORT=8001
+
+# profiles/bob/.env
+HELIX_GATEWAY_PORT=8002
+
+helix -p alice gateway start
+helix -p bob gateway start
+```
+
+The supervisor also runs **cron** and **Telegram** (when configured for that profile) as companion processes.
 
 ## Environment
+
+Set bind address and port in the **profile** `.env` (`helix profile env --edit`):
 
 | Variable | Default | Description |
 |----------|---------|-------------|

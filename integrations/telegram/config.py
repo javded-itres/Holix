@@ -49,11 +49,11 @@ def telegram_aiogram_available() -> bool:
 def load_telegram_settings(profile: str = "default") -> TelegramSettings:
     from integrations.telegram.env_store import load_telegram_env_files
 
-    load_telegram_env_files()
+    load_telegram_env_files(profile)
     return TelegramSettings(
         bot_token=os.getenv("TELEGRAM_BOT_TOKEN", os.getenv("HELIX_TELEGRAM_BOT_TOKEN", "")),
         allowed_user_ids=os.getenv("HELIX_TELEGRAM_ALLOWED_USERS", ""),
-        profile=os.getenv("HELIX_TELEGRAM_PROFILE", profile),
+        profile=profile,
         edit_interval_ms=int(os.getenv("HELIX_TELEGRAM_EDIT_MS", "500")),
         allow_all=_env_bool("HELIX_TELEGRAM_ALLOW_ALL"),
     )

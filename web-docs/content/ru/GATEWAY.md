@@ -4,21 +4,40 @@ HTTP API (совместим с OpenAI) и companion-сервисы (Telegram п
 
 ## Команды
 
+Команды gateway относятся к **активному профилю** (`-p` / `--profile`).
+
 ```bash
-helix gateway start              # фон (host по умолчанию 127.0.0.1)
-helix gateway start -f           # передний план
-helix gateway start --reload     # dev auto-reload
-helix gateway status
-helix gateway stop
-helix gateway reload
+helix -p alice gateway start              # фон (host по умолчанию 127.0.0.1)
+helix -p alice gateway start -f           # передний план
+helix -p alice gateway start --reload     # dev auto-reload
+helix -p alice gateway status
+helix -p alice gateway stop
+helix -p alice gateway reload
 ```
 
-Состояние: `{HELIX_HOME}/gateway/state.json` (по умолчанию `~/.helix/gateway/`)  
-Логи: `gateway/gateway.log` — просмотр: `helix logs -s gateway -f` ([LOGS.md](LOGS.md))
+У каждого профиля своё состояние и логи:
 
-Supervisor также запускает **cron** и **Telegram** (при настройке) как companion-процессы.
+- Состояние: `~/.helix/profiles/<имя>/gateway/state.json`
+- Логи: `~/.helix/profiles/<имя>/gateway/gateway.log` — `helix logs -s gateway -f` ([LOGS.md](LOGS.md))
+
+**Несколько gateway** одновременно (разные профили, разные порты):
+
+```bash
+# profiles/alice/.env
+HELIX_GATEWAY_PORT=8001
+
+# profiles/bob/.env
+HELIX_GATEWAY_PORT=8002
+
+helix -p alice gateway start
+helix -p bob gateway start
+```
+
+Supervisor также запускает **cron** и **Telegram** (если настроены для этого профиля) как companion-процессы.
 
 ## Переменные окружения
+
+Задаются в **`.env` профиля** (`helix profile env --edit`):
 
 | Переменная | По умолчанию | Описание |
 |------------|--------------|----------|

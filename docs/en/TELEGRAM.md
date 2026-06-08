@@ -1,15 +1,25 @@
 # Telegram
 
+Each profile can use its **own bot** and allowlist. Secrets are stored in:
+
+`~/.helix/profiles/<name>/telegram.env`
+
 ```bash
 uv sync --extra telegram
-export TELEGRAM_BOT_TOKEN=...
-export HELIX_TELEGRAM_ALLOWED_USERS=123456789
-helix telegram
-# or with gateway:
-helix gateway start
+helix -p alice telegram setup    # wizard: token, allowlist, save to profile
+helix -p alice telegram run
+# or with gateway for the same profile:
+helix -p alice gateway start
 ```
 
 Production (`HELIX_ENV=production`) requires `HELIX_TELEGRAM_ALLOWED_USERS`.
+
+Different people → different profiles → different bots:
+
+```bash
+helix -p alice telegram setup
+helix -p bob telegram setup
+```
 
 One live message per task; slash commands shared with TUI; inline approvals.
 

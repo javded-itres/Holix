@@ -28,15 +28,14 @@ def test_mask_token() -> None:
 
 
 def test_save_telegram_env(tmp_path, monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr("integrations.telegram.env_store.HELIX_HOME", tmp_path)
-    monkeypatch.setattr("integrations.telegram.env_store.TELEGRAM_ENV_PATH", tmp_path / "telegram.env")
+    monkeypatch.setenv("HELIX_HOME", str(tmp_path))
 
     path = save_telegram_env(
         {
             "TELEGRAM_BOT_TOKEN": "1:abc",
             "HELIX_TELEGRAM_ALLOWED_USERS": "42",
-            "HELIX_TELEGRAM_PROFILE": "default",
-        }
+        },
+        profile="default",
     )
     text = path.read_text(encoding="utf-8")
     assert "TELEGRAM_BOT_TOKEN=1:abc" in text

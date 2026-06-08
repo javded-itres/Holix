@@ -72,7 +72,10 @@ class HelixAgent:
 
         self.memory = MemoryFacade(self.config)
         self.skills = SkillsManager(self.config)
-        self.tools = ToolRegistry()
+        self.tools = ToolRegistry(
+            workspace_root=self.config.workspace_root,
+            workspace_jail_enabled=self.config.workspace_jail_enabled,
+        )
         self.loop = AgentLoop(self)
 
         context_window = self._resolve_context_window(self.config.context_window)

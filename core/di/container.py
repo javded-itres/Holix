@@ -35,8 +35,10 @@ def resolve_gateway_runtime_config() -> HelixRuntimeConfig:
     import os
 
     from cli.core import init_profile
+    from core.env_loader import bootstrap_profile_env
 
     profile = os.getenv("HELIX_PROFILE", "default")
+    bootstrap_profile_env(profile)
     return resolve_runtime_config(init_profile(profile))
 
 

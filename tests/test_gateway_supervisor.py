@@ -11,7 +11,7 @@ def _block_telegram_env_files(monkeypatch: pytest.MonkeyPatch) -> None:
     """Avoid loading the developer's real ~/.helix/telegram.env during tests."""
     monkeypatch.setattr(
         "integrations.telegram.env_store.load_telegram_env_files",
-        lambda: None,
+        lambda profile=None: None,
     )
 
 
@@ -43,6 +43,5 @@ def test_docs_should_start_in_repo() -> None:
 
 def test_load_telegram_settings_profile(monkeypatch: pytest.MonkeyPatch) -> None:
     _block_telegram_env_files(monkeypatch)
-    monkeypatch.setenv("HELIX_TELEGRAM_PROFILE", "work")
-    settings = load_telegram_settings("default")
+    settings = load_telegram_settings("work")
     assert settings.profile == "work"

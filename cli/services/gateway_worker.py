@@ -29,7 +29,9 @@ def main(argv: list[str] | None = None) -> int:
 
     configure_helix_logging()
     args = _parse_args(argv)
-    os.environ["HELIX_PROFILE"] = args.profile
+    from core.env_loader import bootstrap_profile_env
+
+    bootstrap_profile_env(args.profile)
 
     save_state(
         new_state(
@@ -52,7 +54,7 @@ def main(argv: list[str] | None = None) -> int:
             docs_port=args.docs_port,
         )
     finally:
-        clear_state()
+        clear_state(args.profile)
     return 0
 
 

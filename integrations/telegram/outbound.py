@@ -53,12 +53,19 @@ def classify_outbound_file(path: Path) -> MediaKind:
 
 
 def resolve_outbound_path(raw: str | Path) -> Path:
-    path = Path(raw).expanduser()
-    if not path.is_absolute():
-        path = (Path.cwd() / path).resolve()
-    else:
-        path = path.resolve()
-    return path
+    from core.workspace import WorkspaceJailError, resolve_tool_path
+
+    try:
+        return resolve_tool_path(str(raw))
+    except WorkspaceJailError:
+        raise
+    except Exception:
+        path = Path(raw).expanduser()
+        if not path.is_absolute():
+            path = (Path.cwd() / path).resolve()
+        else:
+            path = path.resolve()
+        return path
 
 
 def prepare_outbound_files(paths: list[str | Path]) -> tuple[list[OutboundFile], list[str]]:

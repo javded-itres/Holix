@@ -70,18 +70,18 @@ def gateway_start(
 
 
 @app.command("stop")
-def gateway_stop() -> None:
-    """Stop background gateway and companion services."""
-    stop_gateway_daemon()
+def gateway_stop(ctx: typer.Context) -> None:
+    """Stop background gateway and companion services for the active profile."""
+    stop_gateway_daemon(_profile(ctx))
 
 
 @app.command("status")
-def gateway_status_cmd() -> None:
-    """Show gateway process and health status."""
-    gateway_status()
+def gateway_status_cmd(ctx: typer.Context) -> None:
+    """Show gateway process and health status for the active profile."""
+    gateway_status(_profile(ctx))
 
 
 @app.command("reload")
-def gateway_reload() -> None:
+def gateway_reload(ctx: typer.Context) -> None:
     """Restart gateway with the same host, port, and profile."""
-    reload_gateway_daemon()
+    reload_gateway_daemon(_profile(ctx))
