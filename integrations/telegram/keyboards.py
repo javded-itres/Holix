@@ -139,6 +139,53 @@ def sessions_picker_keyboard(
     return InlineKeyboardMarkup(inline_keyboard=rows)
 
 
+SKILLS_PAGE_SIZE = 8
+
+
+def skills_picker_keyboard(
+    skills: list[str],
+    *,
+    page: int = 0,
+    page_size: int = SKILLS_PAGE_SIZE,
+) -> Any:
+    from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
+
+    start = page * page_size
+    chunk = skills[start : start + page_size]
+    rows: list[list[Any]] = []
+    row: list[Any] = []
+    for i, name in enumerate(chunk):
+        global_idx = start + i
+        label = name if len(name) <= 22 else name[:20] + "…"
+        row.append(
+            InlineKeyboardButton(
+                text=label,
+                callback_data=_cb("sk", str(global_idx)),
+            )
+        )
+        if len(row) == 2:
+            rows.append(row)
+            row = []
+    if row:
+        rows.append(row)
+
+    nav: list[Any] = []
+    if page > 0:
+        nav.append(
+            InlineKeyboardButton(text="◀", callback_data=_cb("skp", str(page - 1)))
+        )
+    if start + page_size < len(skills):
+        nav.append(
+            InlineKeyboardButton(text="▶", callback_data=_cb("skp", str(page + 1)))
+        )
+    if nav:
+        rows.append(nav)
+    rows.append(
+        [InlineKeyboardButton(text="↻ Обновить", callback_data=_cb("skp", str(page)))]
+    )
+    return InlineKeyboardMarkup(inline_keyboard=rows)
+
+
 def tools_picker_keyboard(tools: list[dict]) -> Any:
     from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 

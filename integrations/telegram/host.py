@@ -158,6 +158,19 @@ class TelegramHost:
     async def _send_html(self, html: str) -> None:
         await self._bot.send_message(self._session.chat_id, html, parse_mode="HTML")
 
+    async def _send_html_split(self, html: str) -> None:
+        """Send long HTML across multiple messages (Telegram 4096 char limit)."""
+        chunks = split_telegram_html(html)
+        for chunk in chunks:
+            if not (chunk or "").strip():
+                continue
+            await self._bot.send_message(
+                self._session.chat_id,
+                chunk,
+                parse_mode="HTML",
+            )
+            await asyncio.sleep(0.06)
+
     async def _send_html_with_keyboard(self, html: str, reply_markup: Any) -> None:
         await self._bot.send_message(
             self._session.chat_id,

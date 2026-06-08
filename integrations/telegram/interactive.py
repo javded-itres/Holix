@@ -14,6 +14,8 @@ from integrations.telegram.keyboards import (
     parse_callback,
     profile_picker_keyboard,
     sessions_picker_keyboard,
+    skills_picker_keyboard,
+    SKILLS_PAGE_SIZE,
     status_menu_keyboard,
     stream_picker_keyboard,
     tools_picker_keyboard,
@@ -78,11 +80,13 @@ class TelegramInteractive:
             is_mode_slash,
             is_models_slash,
             normalize_slash_input,
+            slash_command_token,
         )
 
         cmd = normalize_slash_input(command.strip())
         lower = cmd.lower()
         parts = lower.split()
+        cmd_token = slash_command_token(cmd)
 
         if is_models_slash(cmd):
             await self.show_models()
@@ -130,7 +134,7 @@ class TelegramInteractive:
             await self.show_tools_picker()
             return True
 
-        if lower == "/skills" or lower.startswith("/skills "):
+        if cmd_token == "/skills":
             from cli.shared.commands.skills_commands import run_skills_command
 
             await run_skills_command(self._host, cmd)
@@ -408,6 +412,35 @@ class TelegramInteractive:
             self._host._show_full_tool_result(int(value))
             return t("tg.tool_result", host_locale(self._host))
 
+        if action == "sk":
+            names = self._session.ui_skills
+            idx = int(value)
+            if 0 <= idx < len(names):
+                from cli.shared.commands.skills_commands import _load_skills
+
+                mgr, slot, _ = _load_skills(self._host)
+                name = names[idx]
+                skill = mgr.all_skills.get(name, {})
+                desc = escape_html((skill.get("description") or "—")[:500])
+                src = skill.get("_source", "")
+                body = (skill.get("content") or skill.get("body") or "").strip()
+                text = f"<b>{escape_html(name)}</b>"
+                if src:
+                    text += f" · <i>{escape_html(src)}</i>"
+                text += f"\n<i>agent: {escape_html(slot)}</i>\n\n{desc}"
+                if body:
+                    preview = escape_html(body[:900])
+                    if len(body) > 900:
+                        preview += "…"
+                    text += f"\n\n<code>{preview}</code>"
+                await self._host._send_html(text)
+                return name[:40]
+            return "invalid skill"
+
+        if action == "skp":
+            await self.show_skills_picker(page=int(value))
+            return ""
+
         if action == "mp":
             label = await apply_preset_index(self._host, int(value))
             idx = self._session.ui_models_provider_idx
@@ -472,6 +505,7 @@ class TelegramInteractive:
             "stream": self.show_stream_picker,
             "models": self.show_models,
             "tools": self.show_tools_picker,
+            "skills": self.show_skills_picker,
             "status": self.show_status,
             "mcp": self.show_mcp_menu,
             "cron": self.show_cron_menu,
@@ -662,6 +696,50 @@ class TelegramInteractive:
         await self._host._send_html_with_keyboard(
             "\n".join(lines),
             tools_picker_keyboard(tools),
+        )
+
+    async def show_skills_picker(self, *, page: int = 0) -> None:
+        from cli.shared.commands.skills_commands import _load_skills
+
+        mgr, slot, config = _load_skills(self._host)
+        names = mgr.list_skill_names_for_agent(slot)
+        self._session.ui_skills = names
+        self._session.ui_skills_page = page
+
+        skills_dir = getattr(config, "skills_dir", "") or mgr.skills_dir
+        if not names:
+            await self._host._send_html(
+                "<b>Skills</b>\n\n"
+                "<i>Нет skills в профиле. Установите через "
+                "<code>/hub</code> или <code>helix hub install</code>.</i>"
+            )
+            return
+
+        start = page * SKILLS_PAGE_SIZE
+        chunk = names[start : start + SKILLS_PAGE_SIZE]
+        total_pages = max(1, (len(names) + SKILLS_PAGE_SIZE - 1) // SKILLS_PAGE_SIZE)
+
+        lines = [
+            "<b>Skills</b>",
+            f"Профиль: <code>{escape_html(self._host.profile)}</code>",
+            f"Агент: <code>{escape_html(slot)}</code> · всего {len(names)}",
+            f"dir: <code>{escape_html(str(skills_dir))}</code>",
+            "",
+            f"<i>Стр. {page + 1}/{total_pages} — нажмите skill для описания</i>",
+            "",
+        ]
+        for name in chunk:
+            skill = mgr.all_skills.get(name, {})
+            desc = escape_html((skill.get("description") or "")[:56])
+            src = skill.get("_source", "")
+            tag = f" <i>[{escape_html(src)}]</i>" if src else ""
+            lines.append(f"• <code>{escape_html(name)}</code>{tag}")
+            if desc:
+                lines.append(f"  {desc}")
+
+        await self._host._send_html_with_keyboard(
+            "\n".join(lines),
+            skills_picker_keyboard(names, page=page),
         )
 
     def _load_models_menu(self) -> None:
