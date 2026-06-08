@@ -107,6 +107,19 @@ helix -p bob gateway start
 
 In TUI/chat: `/profile <name>` to switch.
 
+## systemd
+
+One gateway instance per profile. Use the template unit `helix-gateway@<name>`:
+
+```bash
+sudo systemctl enable --now helix-gateway@alice
+sudo systemctl enable --now helix-gateway@bob
+```
+
+Profile `default`: `helix-gateway.service`. Secrets in `profiles/<name>/.env`, not `/etc/helix/`.
+
+Full setup: [DEPLOYMENT.md](DEPLOYMENT.md#systemd).
+
 ## Related
 
 - [CONFIGURATION.md](CONFIGURATION.md) — env layers and YAML

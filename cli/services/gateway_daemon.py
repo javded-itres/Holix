@@ -299,24 +299,40 @@ def gateway_status(profile: str = "default") -> None:
 
 
 def reload_gateway_daemon(profile: str = "default") -> None:
+    import os
+
     from core.env_loader import bootstrap_profile_env
+
+    def _env_bool(name: str) -> bool:
+        return os.getenv(name, "").strip().lower() in {"1", "true", "yes", "on"}
 
     bootstrap_profile_env(profile)
     state = _running_state(profile)
     if state is None:
         print_warning(f"Gateway is not running for profile '{profile}'. Starting…")
-        import os
         from config import settings
 
         host = os.environ.get("HELIX_GATEWAY_HOST", settings.gateway_host)
         port = int(os.environ.get("HELIX_GATEWAY_PORT", str(settings.gateway_port)))
-        start_gateway_daemon(host, port, profile=profile)
+        with_docs = _env_bool("HELIX_GATEWAY_WITH_DOCS") or _env_bool("HELIX_GATEWAY_DOCS")
+        docs_host = os.environ.get("HELIX_DOCS_HOST", settings.docs_host)
+        docs_port = int(os.environ.get("HELIX_DOCS_PORT", str(settings.docs_port)))
+        start_gateway_daemon(
+            host,
+            port,
+            profile=profile,
+            with_docs=with_docs,
+            docs_host=docs_host,
+            docs_port=docs_port,
+        )
         return
 
     host, port, profile, reload = state.host, state.port, state.profile, state.reload
-    with_docs = state.docs_pid is not None
-    docs_host = state.docs_host or "127.0.0.1"
-    docs_port = state.docs_port or 8080
+    with_docs = state.docs_pid is not None or _env_bool("HELIX_GATEWAY_WITH_DOCS") or _env_bool(
+        "HELIX_GATEWAY_DOCS"
+    )
+    docs_host = state.docs_host or os.environ.get("HELIX_DOCS_HOST", "127.0.0.1")
+    docs_port = state.docs_port or int(os.environ.get("HELIX_DOCS_PORT", "8080"))
     print_info(f"Reloading gateway for profile '{profile}' (stop → start)…")
     stop_gateway_daemon(profile)
     time.sleep(0.5)

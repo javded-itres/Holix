@@ -107,6 +107,19 @@ helix -p bob gateway start
 
 В TUI/чате: `/profile <имя>` для переключения.
 
+## systemd
+
+Один instance gateway на профиль. Шаблонный unit `helix-gateway@<имя>`:
+
+```bash
+sudo systemctl enable --now helix-gateway@alice
+sudo systemctl enable --now helix-gateway@bob
+```
+
+Профиль `default`: `helix-gateway.service`. Секреты в `profiles/<имя>/.env`, не в `/etc/helix/`.
+
+Полная инструкция: [DEPLOYMENT.md](DEPLOYMENT.md#systemd).
+
 ## См. также
 
 - [CONFIGURATION.md](CONFIGURATION.md) — слои env и YAML

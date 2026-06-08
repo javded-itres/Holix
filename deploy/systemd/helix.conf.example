@@ -1,0 +1,13 @@
+# Copy to /etc/helix/helix.conf and adjust paths for your install.
+# API keys, gateway port, Telegram — in ~/.helix/profiles/<name>/.env, not here.
+
+# Python from pipx venv (pipx install HelixAgentAi):
+HELIX_PYTHON=/home/helix/.local/share/pipx/venvs/helixagentai/bin/python
+HELIX_BIN=/home/helix/.local/bin/helix
+
+# Or from a source checkout with uv:
+# HELIX_PYTHON=/opt/helix/.venv/bin/python
+# HELIX_BIN=/opt/helix/.venv/bin/helix
+
+# Optional: override data directory (default: ~/.helix)
+# HELIX_HOME=/home/helix/.helix

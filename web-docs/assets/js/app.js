@@ -324,6 +324,16 @@ function docHref(slug) {
   return `#/docs/${slug}`;
 }
 
+function openDocPage(slug) {
+  if (!isValidSlug(slug)) return;
+  const target = docHref(slug).slice(1);
+  if (location.hash.slice(1) === target) {
+    route();
+    return;
+  }
+  location.hash = target;
+}
+
 function scrollToAnchor(anchor) {
   const el = document.getElementById(anchor);
   if (el) {
@@ -786,6 +796,7 @@ function setupLangToggle() {
       state.lang = btn.dataset.lang;
       localStorage.setItem("helix-docs-lang", state.lang);
       applyI18n();
+      notifyLangChange();
       route();
     });
   });
@@ -824,6 +835,10 @@ function setupMobileMenu() {
   });
 }
 
+function notifyLangChange() {
+  document.dispatchEvent(new CustomEvent("helix-lang-change"));
+}
+
 async function init() {
   applyI18n();
   setupHeaderHeightSync();
@@ -832,7 +847,16 @@ async function init() {
   setupLangToggle();
   setupMobileMenu();
   window.addEventListener("hashchange", route);
+  document.addEventListener("helix-open-doc", (ev) => {
+    openDocPage(ev.detail?.slug);
+  });
   route();
+  try {
+    const { initChatWidget } = await import("./chat-widget.js");
+    await initChatWidget({ getLang: () => state.lang });
+  } catch {
+    /* chat widget optional when static hosting without API */
+  }
 }
 
 init().catch((err) => {
