@@ -6,10 +6,10 @@
 
 ```bash
 uv sync --extra telegram
-helix -p alice telegram setup    # мастер: токен, allowlist, сохранение в профиль
-helix -p alice telegram run
+helix telegram setup    # мастер: токен, allowlist, сохранение в профиль
+helix telegram run
 # или вместе с gateway того же профиля:
-helix -p alice gateway start
+helix gateway start
 ```
 
 В production (`HELIX_ENV=production`) обязателен `HELIX_TELEGRAM_ALLOWED_USERS`.

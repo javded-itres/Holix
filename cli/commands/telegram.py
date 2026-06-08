@@ -7,6 +7,7 @@ import asyncio
 import typer
 
 from cli.commands.telegram_setup import run_telegram_setup, show_telegram_status
+from cli.utils.profile import resolve_profile
 from cli.utils.rich_console import print_error, print_info, print_success
 
 telegram_app = typer.Typer(
@@ -16,21 +17,17 @@ telegram_app = typer.Typer(
 
 
 @telegram_app.callback()
-def telegram_default(
-    ctx: typer.Context,
-    profile: str = typer.Option("default", "--profile", "-p", help="Helix profile"),
-) -> None:
+def telegram_default(ctx: typer.Context) -> None:
     """Start Telegram bot (same as ``helix telegram run``)."""
     if ctx.invoked_subcommand is not None:
         return
-    telegram_run(profile=profile)
+    telegram_run(ctx)
 
 
 @telegram_app.command("run")
-def telegram_run(
-    profile: str = typer.Option("default", "--profile", "-p", help="Helix profile"),
-) -> None:
+def telegram_run(ctx: typer.Context) -> None:
     """Start Telegram bot polling."""
+    profile = resolve_profile(ctx)
     try:
         from integrations.telegram.env_store import load_telegram_env_files
         from integrations.telegram.main import run_bot
@@ -53,7 +50,7 @@ def telegram_run(
 
 @telegram_app.command("setup")
 def telegram_setup(
-    profile: str | None = typer.Option(None, "--profile", "-p", help="Helix profile"),
+    ctx: typer.Context,
     project_env: bool = typer.Option(
         False,
         "--project-env",
@@ -62,6 +59,7 @@ def telegram_setup(
     no_start: bool = typer.Option(False, "--no-start", help="Do not offer to start the bot"),
 ) -> None:
     """Interactive wizard: token, allowlist, save config, optional test run."""
+    profile = resolve_profile(ctx)
     asyncio.run(
         run_telegram_setup(
             profile=profile,
@@ -72,18 +70,15 @@ def telegram_setup(
 
 
 @telegram_app.command("status")
-def telegram_status(
-    profile: str = typer.Option("default", "--profile", "-p", help="Helix profile"),
-) -> None:
+def telegram_status(ctx: typer.Context) -> None:
     """Show saved Telegram configuration (token masked)."""
-    show_telegram_status(profile)
+    show_telegram_status(resolve_profile(ctx))
 
 
 @telegram_app.command("sync-menu")
-def telegram_sync_menu(
-    profile: str = typer.Option("default", "--profile", "-p", help="Helix profile"),
-) -> None:
+def telegram_sync_menu(ctx: typer.Context) -> None:
     """Push slash-command menu to Telegram (incl. /models) without restarting the bot."""
+    profile = resolve_profile(ctx)
     try:
         from integrations.telegram.env_store import load_telegram_env_files
         from integrations.telegram.commands import sync_bot_menu

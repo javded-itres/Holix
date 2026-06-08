@@ -4,16 +4,18 @@ HTTP API (совместим с OpenAI) и companion-сервисы (Telegram п
 
 ## Команды
 
-Команды gateway относятся к **активному профилю** (`-p` / `--profile`).
+Команды gateway относятся к **активному профилю**. Для `default` флаг `-p` не нужен:
 
 ```bash
-helix -p alice gateway start              # фон (host по умолчанию 127.0.0.1)
-helix -p alice gateway start -f           # передний план
-helix -p alice gateway start --reload     # dev auto-reload
-helix -p alice gateway status
-helix -p alice gateway stop
-helix -p alice gateway reload
+helix gateway start              # фон (host по умолчанию 127.0.0.1)
+helix gateway start -f           # передний план
+helix gateway start --reload     # dev auto-reload
+helix gateway status
+helix gateway stop
+helix gateway reload
 ```
+
+Другие профили: `helix -p alice gateway start` и т.д.
 
 У каждого профиля своё состояние и логи:
 

@@ -4,16 +4,18 @@ OpenAI-compatible HTTP API and companion services (Telegram when configured).
 
 ## Commands
 
-Gateway commands apply to the **active profile** (`-p` / `--profile`).
+Gateway commands apply to the **active profile**. For `default`, omit `-p`:
 
 ```bash
-helix -p alice gateway start              # background (default host 127.0.0.1)
-helix -p alice gateway start -f           # foreground
-helix -p alice gateway start --reload     # dev auto-reload
-helix -p alice gateway status
-helix -p alice gateway stop
-helix -p alice gateway reload
+helix gateway start              # background (default host 127.0.0.1)
+helix gateway start -f           # foreground
+helix gateway start --reload     # dev auto-reload
+helix gateway status
+helix gateway stop
+helix gateway reload
 ```
+
+Other profiles: `helix -p alice gateway start`, etc.
 
 Each profile has its own gateway state and logs:
 

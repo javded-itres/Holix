@@ -163,7 +163,7 @@ helix doctor
 On first profile creation, Helix seeds **`~/.helix/profiles/<name>/.env`** from `.env.example` (or copies legacy `~/.helix/.env` if present).
 
 ```bash
-helix -p default profile env --edit
+helix profile env --edit
 # or manually:
 cp .env.example ~/.helix/profiles/default/.env
 ```
@@ -367,7 +367,7 @@ Required to restrict access (who can message the bot):
 ### 9.4. Interactive Helix setup
 
 ```bash
-helix -p default telegram setup
+helix telegram setup
 ```
 
 The wizard:
@@ -381,15 +381,15 @@ The wizard:
 **Standalone:**
 
 ```bash
-helix -p default telegram run
+helix telegram run
 # or simply:
-helix -p default telegram
+helix telegram
 ```
 
 **Together with the API gateway** (recommended for always-on use):
 
 ```bash
-helix -p default gateway start
+helix gateway start
 ```
 
 The gateway supervisor also starts Telegram if it is configured.

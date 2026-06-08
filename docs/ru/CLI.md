@@ -9,8 +9,11 @@
 | `--profile` | `-p` | `default` | Профиль в `~/.helix/profiles/<имя>/` |
 | `--verbose` | `-v` | выкл | Подробный вывод |
 
+Для профиля **default** флаг `-p` не нужен:
+
 ```bash
-helix -p work status
+helix gateway start          # то же, что helix -p default gateway start
+helix -p work status         # -p только для других профилей
 ```
 
 ## Команды верхнего уровня

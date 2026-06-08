@@ -159,7 +159,7 @@ helix doctor
 При создании профиля Helix создаёт **`~/.helix/profiles/<имя>/.env`** из `.env.example` (или копирует legacy `~/.helix/.env`, если он есть).
 
 ```bash
-helix -p default profile env --edit
+helix profile env --edit
 # или вручную:
 cp .env.example ~/.helix/profiles/default/.env
 ```
@@ -363,7 +363,7 @@ pip install "HelixAgentAi[telegram]"
 ### 9.4. Интерактивная настройка Helix
 
 ```bash
-helix -p default telegram setup
+helix telegram setup
 ```
 
 Мастер:
@@ -377,15 +377,15 @@ helix -p default telegram setup
 **Отдельно:**
 
 ```bash
-helix -p default telegram run
+helix telegram run
 # или просто:
-helix -p default telegram
+helix telegram
 ```
 
 **Вместе с API gateway** (рекомендуется для постоянной работы):
 
 ```bash
-helix -p default gateway start
+helix gateway start
 ```
 
 Supervisor gateway также поднимает Telegram, если он настроен.

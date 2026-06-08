@@ -9,8 +9,11 @@ Entry point: **`helix`** (Typer). Every subcommand inherits global options unles
 | `--profile` | `-p` | `default` | Active profile (`~/.helix/profiles/<name>/`) |
 | `--verbose` | `-v` | off | Print profile and model on startup |
 
+For **default** profile, omit `-p`:
+
 ```bash
-helix -p work status
+helix gateway stop           # profile default
+helix -p work status         # non-default profiles
 helix --help
 ```
 
@@ -305,12 +308,13 @@ Background supervisor for FastAPI gateway (+ Telegram when configured). **Scoped
 | `reload` | Restart with same host/port/profile |
 
 ```bash
-helix -p alice gateway start
-helix -p alice gateway start -f          # foreground
-helix -p alice gateway start --reload    # dev auto-reload
-helix -p alice gateway status
-helix -p alice gateway stop
-helix -p alice gateway reload
+helix gateway start
+helix gateway start -f          # foreground
+helix gateway start --reload    # dev auto-reload
+helix gateway status
+helix gateway stop
+helix gateway reload
+# other profile: helix -p alice gateway start
 ```
 
 State: `~/.helix/profiles/<profile>/gateway/state.json` · Logs: `profiles/<profile>/gateway/gateway.log`  

@@ -22,6 +22,7 @@ from core.platform_compat import (
 
 from cli.core import HELIX_HOME, LOGS_DIR, PROFILES_DIR, ProfileConfig, ProfileManager
 from cli.doctor.findings import DoctorFinding, Severity
+from cli.utils.profile import profile_cli_prefix
 from cli.services.gateway_daemon import _running_state
 from cli.services.gateway_state import is_process_alive, load_state
 
@@ -636,7 +637,7 @@ def _check_gateway(profile: str) -> list[DoctorFinding]:
                 severity=Severity.WARNING.value,
                 title="Stale gateway state file",
                 detail=f"PID {state.pid} is not running (profile={profile})",
-                recommendation=f"Run: helix doctor --fix  or  helix -p {profile} gateway stop",
+                recommendation=f"Run: helix doctor --fix  or  {profile_cli_prefix(profile)} gateway stop",
                 fix_id="clear_gateway_state",
             )
         )
@@ -653,7 +654,7 @@ def _check_gateway(profile: str) -> list[DoctorFinding]:
                         severity=Severity.WARNING.value,
                         title="Gateway not healthy",
                         detail=f"HTTP {resp.status_code} on port {running.port}",
-                        recommendation=f"Run: helix -p {profile} gateway reload  or check {log_path(profile)}",
+                        recommendation=f"Run: {profile_cli_prefix(profile)} gateway reload  or check {log_path(profile)}",
                     )
                 )
         except Exception as e:

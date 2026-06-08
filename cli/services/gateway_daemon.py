@@ -20,6 +20,7 @@ from cli.services.gateway_state import (
     log_path,
 )
 from cli.utils.ports import resolve_listen_port
+from cli.utils.profile import profile_cli_prefix
 from cli.utils.rich_console import print_error, print_info, print_success, print_warning
 
 
@@ -130,7 +131,7 @@ def start_gateway_daemon(
             f"Gateway already running for profile '{profile}' "
             f"(pid={existing.pid}, http://{existing.host}:{existing.port})"
         )
-        print_info(f"Stop it first: helix -p {profile} gateway stop")
+        print_info(f"Stop it first: {profile_cli_prefix(profile)} gateway stop")
         raise SystemExit(1)
 
     listen_port = resolve_listen_port(host, port)
@@ -244,7 +245,7 @@ def gateway_status(profile: str = "default") -> None:
     if state is None and not running:
         print_panel(
             f"[yellow]Gateway is not running for profile '{profile}'[/yellow]\n\n"
-            f"Start: [cyan]helix -p {profile} gateway start[/cyan]",
+            f"Start: [cyan]{profile_cli_prefix(profile)} gateway start[/cyan]",
             title="Gateway Status",
             border_style="yellow",
         )
