@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 import subprocess
 import sys
 import time
@@ -20,6 +21,34 @@ from cli.services.gateway_state import (
 )
 from cli.utils.ports import resolve_listen_port
 from cli.utils.rich_console import print_error, print_info, print_success, print_warning
+
+
+def find_gateway_worker_pids(profile: str) -> list[int]:
+    """Find gateway_worker processes for a profile (fallback when state.json is missing)."""
+    try:
+        proc = subprocess.run(
+            ["ps", "-ax", "-o", "pid=,command="],
+            capture_output=True,
+            text=True,
+            timeout=5,
+            check=False,
+        )
+    except OSError:
+        return []
+
+    if proc.returncode != 0:
+        return []
+
+    pids: list[int] = []
+    marker = f"--profile {profile}"
+    for line in proc.stdout.splitlines():
+        stripped = line.strip()
+        if "gateway_worker" not in stripped or marker not in stripped:
+            continue
+        match = re.match(r"^(\d+)\s+", stripped)
+        if match:
+            pids.append(int(match.group(1)))
+    return pids
 
 
 def _running_state(profile: str) -> GatewayState | None:
@@ -176,7 +205,19 @@ def start_gateway_daemon(
 def stop_gateway_daemon(profile: str = "default") -> None:
     state = load_state(profile)
     if state is None:
-        print_warning(f"Gateway is not running for profile '{profile}' (no state file)")
+        orphans = find_gateway_worker_pids(profile)
+        if not orphans:
+            print_warning(f"Gateway is not running for profile '{profile}' (no state file)")
+            return
+        print_warning(
+            f"No state file for profile '{profile}', but gateway worker process(es) found"
+        )
+        for pid in orphans:
+            if is_process_alive(pid):
+                print_info(f"Stopping orphan gateway (pid={pid})…")
+                terminate_process(pid, grace=5.0)
+        clear_state(profile)
+        print_success("Gateway stopped")
         return
 
     if state.telegram_pid and is_process_alive(state.telegram_pid):

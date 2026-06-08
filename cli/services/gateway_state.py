@@ -8,12 +8,11 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Optional, Self
 
-from cli.core import PROFILES_DIR
-from core.platform_compat import is_process_alive
+from core.platform_compat import is_process_alive, resolve_helix_home
 
 
 def gateway_dir(profile: str = "default") -> Path:
-    return (PROFILES_DIR / profile / "gateway").resolve()
+    return (resolve_helix_home() / "profiles" / profile / "gateway").resolve()
 
 
 def state_path(profile: str = "default") -> Path:
@@ -72,10 +71,13 @@ def ensure_gateway_dir(profile: str = "default") -> Path:
     return path
 
 
-def load_state(profile: str = "default") -> Optional[GatewayState]:
-    path = state_path(profile)
-    if not path.exists():
-        return _load_legacy_state(profile)
+def _legacy_state_path() -> Path:
+    return resolve_helix_home() / "gateway" / "state.json"
+
+
+def _read_state_file(path: Path) -> Optional[GatewayState]:
+    if not path.is_file():
+        return None
     try:
         data = json.loads(path.read_text(encoding="utf-8"))
         return GatewayState.from_dict(data)
@@ -83,34 +85,71 @@ def load_state(profile: str = "default") -> Optional[GatewayState]:
         return None
 
 
-def _load_legacy_state(profile: str) -> Optional[GatewayState]:
-    """Read pre-migration global gateway state when it matches the profile."""
-    from cli.core import HELIX_HOME
+def _collect_states(profile: str) -> list[GatewayState]:
+    """Gather profile and legacy state files for the same profile name."""
+    states: list[GatewayState] = []
+    seen_pids: set[int] = set()
 
-    legacy = HELIX_HOME / "gateway" / "state.json"
-    if not legacy.is_file():
-        return None
-    try:
-        data = json.loads(legacy.read_text(encoding="utf-8"))
-        if str(data.get("profile", "default")) != profile:
-            return None
-        return GatewayState.from_dict(data)
-    except (json.JSONDecodeError, KeyError, TypeError, ValueError):
-        return None
+    for candidate in (_read_state_file(state_path(profile)), _read_state_file(_legacy_state_path())):
+        if candidate is None or candidate.profile != profile or candidate.pid in seen_pids:
+            continue
+        states.append(candidate)
+        seen_pids.add(candidate.pid)
+
+    return states
 
 
-def save_state(state: GatewayState) -> None:
+def _migrate_state_to_profile(state: GatewayState) -> None:
+    """Persist canonical per-profile state and remove matching legacy file."""
     ensure_gateway_dir(state.profile)
     state_path(state.profile).write_text(
         json.dumps(state.to_dict(), indent=2),
         encoding="utf-8",
     )
+    legacy = _legacy_state_path()
+    if not legacy.is_file():
+        return
+    legacy_state = _read_state_file(legacy)
+    if legacy_state is not None and legacy_state.profile == state.profile:
+        legacy.unlink()
+
+
+def load_state(profile: str = "default") -> Optional[GatewayState]:
+    states = _collect_states(profile)
+    if not states:
+        return None
+
+    alive = [s for s in states if is_process_alive(s.pid)]
+    if alive:
+        best = max(alive, key=lambda s: s.started_at)
+        _migrate_state_to_profile(best)
+        return best
+
+    profile_state = _read_state_file(state_path(profile))
+    if profile_state is not None and profile_state.profile == profile:
+        return profile_state
+
+    legacy_state = _read_state_file(_legacy_state_path())
+    if legacy_state is not None and legacy_state.profile == profile:
+        return legacy_state
+
+    return states[0]
+
+
+def save_state(state: GatewayState) -> None:
+    _migrate_state_to_profile(state)
 
 
 def clear_state(profile: str = "default") -> None:
     path = state_path(profile)
     if path.exists():
         path.unlink()
+
+    legacy = _legacy_state_path()
+    if legacy.is_file():
+        legacy_state = _read_state_file(legacy)
+        if legacy_state is not None and legacy_state.profile == profile:
+            legacy.unlink()
 
 
 def _with_state(profile: str, **updates: Any) -> None:

@@ -79,6 +79,55 @@ def test_gateway_state_docs_fields(tmp_path: Path, monkeypatch: pytest.MonkeyPat
     assert gs.docs_url(loaded) == "http://127.0.0.1:8080/"
 
 
+def test_load_state_prefers_alive_legacy_over_stale_profile(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("HELIX_HOME", str(tmp_path))
+    profile = "default"
+
+    stale = gs.new_state(
+        pid=999_999_998,
+        host="127.0.0.1",
+        port=8000,
+        profile=profile,
+        reload=False,
+    )
+    gs.save_state(stale)
+
+    legacy_dir = tmp_path / "gateway"
+    legacy_dir.mkdir(parents=True)
+    alive = gs.GatewayState(
+        pid=os.getpid(),
+        host="127.0.0.1",
+        port=8000,
+        profile=profile,
+        reload=False,
+        started_at="2026-06-09T00:00:00+00:00",
+        log_file=str(legacy_dir / "gateway.log"),
+    )
+    (legacy_dir / "state.json").write_text(json.dumps(alive.to_dict()), encoding="utf-8")
+
+    loaded = gs.load_state(profile)
+    assert loaded is not None
+    assert loaded.pid == os.getpid()
+    assert gs.state_path(profile).is_file()
+    assert not (legacy_dir / "state.json").exists()
+
+
+def test_clear_state_removes_legacy(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("HELIX_HOME", str(tmp_path))
+    profile = "default"
+
+    state = gs.new_state(pid=42, host="127.0.0.1", port=8000, profile=profile, reload=False)
+    (tmp_path / "gateway").mkdir(parents=True)
+    (tmp_path / "gateway" / "state.json").write_text(json.dumps(state.to_dict()), encoding="utf-8")
+    gs.save_state(state)
+
+    gs.clear_state(profile)
+    assert not gs.state_path(profile).exists()
+    assert not (tmp_path / "gateway" / "state.json").exists()
+
+
 def test_health_url_normalizes_wildcard() -> None:
     state = gs.GatewayState(
         pid=1,
