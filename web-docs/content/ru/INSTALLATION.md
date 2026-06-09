@@ -27,7 +27,7 @@ Helix требует **Python 3.12+** и устанавливается как C
 
 ### PyPI — `helix` из любой папки (рекомендуется)
 
-Опубликовано: [pypi.org/project/HelixAgentAi](https://pypi.org/project/HelixAgentAi/) (версия **0.1.5**).
+Опубликовано: [pypi.org/project/HelixAgentAi](https://pypi.org/project/HelixAgentAi/) (версия **0.1.6**).
 
 Пакет **`HelixAgentAi`** (не `pip install helix` — это другой проект). Команда: **`helix`**.
 

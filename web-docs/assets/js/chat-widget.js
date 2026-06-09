@@ -141,8 +141,8 @@ function escapeHtml(value) {
 const markdownDebounceTimers = new WeakMap();
 
 function preprocessDocLinks(text) {
-  return String(text || "").replace(/#\/docs\/([a-z0-9-]+)/g, (match, slug) => {
-    return `[${match}](#/docs/${slug})`;
+  return String(text || "").replace(/(?:#\/docs\/|\/docs\/)([a-z0-9-]+)/g, (match, slug) => {
+    return `[${match}](/docs/${slug})`;
   });
 }
 
@@ -201,9 +201,10 @@ function enhanceMarkdownLinks(root) {
 }
 
 function getPageSlug() {
-  const hash = location.hash || "";
-  const match = hash.match(/^#\/docs\/([a-z0-9-]+)/);
-  return match ? match[1] : null;
+  const path = location.pathname.replace(/\/+$/, "") || "/";
+  if (!path.startsWith("/docs/")) return null;
+  const slug = path.slice(6);
+  return /^[a-z0-9-]+$/.test(slug) ? slug : null;
 }
 
 function navigateToDoc(slug) {
@@ -213,7 +214,7 @@ function navigateToDoc(slug) {
 
 function extractDocSlugsFromText(text) {
   const slugs = [];
-  const re = /#\/docs\/([a-z0-9-]+)/g;
+  const re = /(?:#\/docs\/|\/docs\/)([a-z0-9-]+)/g;
   let match;
   while ((match = re.exec(text || "")) !== null) {
     slugs.push(match[1]);
@@ -226,8 +227,16 @@ function firstDocSlugInText(text) {
   return slugs.length ? slugs[0] : null;
 }
 
-function navigateFromLatestReply(text) {
-  const slug = firstDocSlugInText(text);
+function resolveNavigateSlug({ text, openSlug, currentSlug = getPageSlug() }) {
+  const candidates = [openSlug, firstDocSlugInText(text)].filter(Boolean);
+  for (const slug of candidates) {
+    if (slug !== currentSlug) return slug;
+  }
+  return null;
+}
+
+function navigateFromLatestReply({ text, openSlug } = {}) {
+  const slug = resolveNavigateSlug({ text, openSlug });
   if (slug) navigateToDoc(slug);
 }
 
@@ -327,9 +336,9 @@ function renderDocChips(container, pages, lang) {
 }
 
 function bindDocLinks(bubble) {
-  bubble.querySelectorAll('a[href^="#/docs/"], .helix-chat-doc-link').forEach((link) => {
+  bubble.querySelectorAll('a[href*="/docs/"], .helix-chat-doc-link').forEach((link) => {
     const href = link.getAttribute("href") || "";
-    const slug = link.dataset.slug || href.match(/#\/docs\/([a-z0-9-]+)/)?.[1];
+    const slug = link.dataset.slug || href.match(/(?:#\/docs\/|\/docs\/)([a-z0-9-]+)/)?.[1];
     if (!slug) return;
     link.classList.add("helix-chat-doc-link");
     link.dataset.slug = slug;
@@ -346,6 +355,25 @@ function bindDocLinks(bubble) {
 function renderAssistantBubble(bubble, text, pages, lang, { streaming = false } = {}) {
   applyMarkdownContent(bubble, text, { streaming });
   if (pages?.length) renderDocChips(bubble, pages, lang);
+}
+
+function renderThinkingBubble(bubble, langKey, langCode = "ru") {
+  bubble.className = "helix-chat-bubble assistant typing";
+  bubble.replaceChildren();
+  const label = document.createElement("span");
+  label.className = "helix-chat-thinking-label";
+  label.textContent = chatT(langCode, langKey);
+  const dots = document.createElement("span");
+  dots.className = "helix-chat-thinking-dots";
+  dots.setAttribute("aria-hidden", "true");
+  dots.innerHTML = "<span></span><span></span><span></span>";
+  bubble.append(label, dots);
+}
+
+function beginAssistantReply(bubble) {
+  if (!bubble.classList.contains("typing")) return;
+  bubble.classList.remove("typing");
+  bubble.replaceChildren();
 }
 
 export async function initChatWidget({ getLang }) {
@@ -425,7 +453,7 @@ export async function initChatWidget({ getLang }) {
     el.className = `helix-chat-bubble ${msg.role}`;
     if (msg.role === "assistant") {
       if (msg.typing) {
-        el.textContent = msg.content || "";
+        renderThinkingBubble(el, "thinking", lang());
       } else {
         renderAssistantBubble(el, msg.content || "", msg.pages, lang());
       }
@@ -509,12 +537,12 @@ export async function initChatWidget({ getLang }) {
     busy = true;
     sendBtn.disabled = true;
     renderMessage({ role: "user", content: text });
-    const typing = renderMessage({ role: "assistant", content: chatT(lang(), "thinking"), typing: true });
-    typing.classList.add("typing");
+    const typing = renderMessage({ role: "assistant", typing: true });
     messages.scrollTop = messages.scrollHeight;
 
     let streamedText = "";
     let foundPages = [];
+    let pendingOpenSlug = null;
     const replyEl = typing;
 
     try {
@@ -547,13 +575,10 @@ export async function initChatWidget({ getLang }) {
         const content = data.content || chatT(lang(), "error");
         renderAssistantBubble(typing, content, data.pages, lang());
         recordExchange(text, content, data.pages);
-        if (replyEl.isConnected) navigateFromLatestReply(content);
+        if (replyEl.isConnected) navigateFromLatestReply({ text: content, openSlug: data.open_slug });
         return;
       }
 
-      typing.classList.remove("typing");
-      typing.className = "helix-chat-bubble assistant";
-      typing.textContent = "";
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
       let buffer = "";
@@ -569,14 +594,26 @@ export async function initChatWidget({ getLang }) {
           if (!evt) continue;
           if (evt.type === "docs" && evt.pages?.length) {
             foundPages = evt.pages;
-            renderAssistantBubble(typing, streamedText, foundPages, lang(), { streaming: true });
+            if (streamedText.trim()) {
+              beginAssistantReply(typing);
+              renderAssistantBubble(typing, streamedText, foundPages, lang(), { streaming: true });
+            } else {
+              renderDocChips(typing, foundPages, lang());
+            }
           } else if (evt.type === "content") {
-            streamedText += evt.content || "";
+            const piece = evt.content || "";
+            if (!piece) continue;
+            streamedText += piece;
+            beginAssistantReply(typing);
             renderAssistantBubble(typing, streamedText, foundPages, lang(), { streaming: true });
             messages.scrollTop = messages.scrollHeight;
           } else if (evt.type === "replace") {
             streamedText = evt.content || "";
+            if (!streamedText.trim()) continue;
+            beginAssistantReply(typing);
             renderAssistantBubble(typing, streamedText, foundPages, lang(), { streaming: true });
+          } else if (evt.type === "done") {
+            pendingOpenSlug = evt.open_slug || null;
           } else if (evt.type === "error") {
             typing.className = "helix-chat-bubble error";
             typing.textContent = evt.message || chatT(lang(), "error");
@@ -585,12 +622,14 @@ export async function initChatWidget({ getLang }) {
       }
 
       if (!streamedText.trim()) {
+        typing.className = "helix-chat-bubble error";
         typing.textContent = chatT(lang(), "error");
         recordExchange(text, chatT(lang(), "error"), []);
       } else {
+        beginAssistantReply(typing);
         renderAssistantBubble(typing, streamedText, foundPages, lang());
         recordExchange(text, streamedText, foundPages);
-        if (replyEl.isConnected) navigateFromLatestReply(streamedText);
+        if (replyEl.isConnected) navigateFromLatestReply({ text: streamedText, openSlug: pendingOpenSlug });
       }
     } catch {
       typing.className = "helix-chat-bubble error";

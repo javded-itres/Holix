@@ -2,7 +2,7 @@
 
 Руководство по выпуску пакета **Helix** на [PyPI](https://pypi.org).
 
-> **Опубликовано:** [HelixAgentAi 0.1.5](https://pypi.org/project/HelixAgentAi/) — `pipx install HelixAgentAi`.
+> **Опубликовано:** [HelixAgentAi 0.1.6](https://pypi.org/project/HelixAgentAi/) — `pipx install HelixAgentAi`.
 
 ## Имя пакета
 

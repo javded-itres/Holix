@@ -1,26 +1,120 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
+  <base href="/">
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <meta name="theme-color" content="#080c10">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="description" content="Helix — российский самообучающийся AI-агент. Память, навыки, MCP, CLI, TUI, API gateway, Telegram. Отечественное ПО.">
-  <title>Helix — AI-агент · Российская разработка</title>
-  <link rel="icon" href="assets/logo.svg" type="image/svg+xml">
+  <meta name="description" content="Helix — российский самообучающийся AI-агент: долговременная память, навыки, MCP, CLI, TUI, API gateway и Telegram. Open source, деплой на своей инфраструктуре с Ollama и LiteLLM.">
+  <meta name="keywords" content="Helix AI агент, самообучающийся агент, российское ПО, LLM агент, Ollama, LiteLLM, MCP, Telegram бот, API gateway, open source AI">
+  <meta name="author" content="IT-RES">
+  <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1">
+  <meta name="googlebot" content="index, follow">
+  <meta name="yandex" content="index, follow">
+  <title>Helix — AI-агент с памятью, MCP и Telegram · Российская разработка</title>
+  <link rel="canonical" href="https://helix-agent.ru/">
+  <link rel="alternate" hreflang="ru" href="https://helix-agent.ru/">
+  <link rel="alternate" hreflang="en" href="https://helix-agent.ru/">
+  <link rel="alternate" hreflang="x-default" href="https://helix-agent.ru/">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="Helix">
+  <meta property="og:locale" content="ru_RU">
+  <meta property="og:locale:alternate" content="en_US">
+  <meta property="og:title" content="Helix — AI-агент с памятью, MCP и Telegram · Российская разработка">
+  <meta property="og:description" content="Helix — российский самообучающийся AI-агент: долговременная память, навыки, MCP, CLI, TUI, API gateway и Telegram. Open source, деплой с Ollama и LiteLLM.">
+  <meta property="og:url" content="https://helix-agent.ru/">
+  <meta property="og:image" content="https://helix-agent.ru/assets/logo.svg">
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="Helix — AI-агент с памятью, MCP и Telegram · Российская разработка">
+  <meta name="twitter:description" content="Helix — российский самообучающийся AI-агент: долговременная память, навыки, MCP, CLI, TUI, API gateway и Telegram. Open source, деплой с Ollama и LiteLLM.">
+  <link rel="icon" href="/assets/logo.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="/assets/logo.svg">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="assets/css/style.css">
-  <link rel="stylesheet" href="assets/css/chat-widget.css">
+  <link rel="stylesheet" href="/assets/css/style.css">
+  <link rel="stylesheet" href="/assets/css/chat-widget.css">
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "Organization",
+        "name": "Helix",
+        "url": "https://helix-agent.ru/",
+        "logo": "https://helix-agent.ru/assets/logo.svg",
+        "sameAs": [
+          "https://github.com/javded-itres/HelixAgent",
+          "https://pypi.org/project/HelixAgentAi/",
+          "https://t.me/helix_agent"
+        ]
+      },
+      {
+        "@type": "WebSite",
+        "name": "Helix",
+        "url": "https://helix-agent.ru/",
+        "inLanguage": ["ru", "en"],
+        "potentialAction": {
+          "@type": "SearchAction",
+          "target": "https://helix-agent.ru/docs?q={search_term_string}",
+          "query-input": "required name=search_term_string"
+        }
+      },
+      {
+        "@type": "SoftwareApplication",
+        "name": "Helix",
+        "applicationCategory": "DeveloperApplication",
+        "operatingSystem": "Linux, macOS, Windows",
+        "offers": {
+          "@type": "Offer",
+          "price": "0",
+          "priceCurrency": "USD"
+        },
+        "downloadUrl": "https://pypi.org/project/HelixAgentAi/",
+        "softwareVersion": "0.1.6",
+        "description": "Self-improving AI agent with memory, skills, MCP, CLI, TUI, API gateway, and Telegram."
+      }
+    ]
+  }
+  </script>
 </head>
 <body>
+  <noscript>
+    <nav class="seo-crawl" aria-label="Site map">
+      <!-- SEO_CRAWL_LINKS -->
+      <a href="https://helix-agent.ru/">Helix</a>
+      <a href="https://helix-agent.ru/docs">Documentation</a>
+      <a href="https://helix-agent.ru/docs/architecture">Архитектура Helix — runtime, DI, LangGraph, память</a>
+      <a href="https://helix-agent.ru/docs/browser-tools">Браузерные инструменты Helix — Playwright автоматизация</a>
+      <a href="https://helix-agent.ru/docs/cli">Справочник CLI Helix — все команды helix</a>
+      <a href="https://helix-agent.ru/docs/configuration">Конфигурация Helix — профили, .env, модели и MCP</a>
+      <a href="https://helix-agent.ru/docs/deployment">Деплой Helix — Docker, systemd, multi-profile production</a>
+      <a href="https://helix-agent.ru/docs/doctor">Helix Doctor — диагностика и автоисправление конфигурации</a>
+      <a href="https://helix-agent.ru/docs/gateway">API Gateway Helix — OpenAI-совместимый HTTP API</a>
+      <a href="https://helix-agent.ru/docs/hub">Hub и навыки Helix — каталоги skills, MCP и ClawHub</a>
+      <a href="https://helix-agent.ru/docs/installation">Установка Helix — PyPI, pipx, Python 3.12, Docker</a>
+      <a href="https://helix-agent.ru/docs/logs">Логи Helix — helix logs, ротация и debug-режим</a>
+      <a href="https://helix-agent.ru/docs/profiles">Профили Helix — изоляция пользователей, ключи доступа, workspace jail</a>
+      <a href="https://helix-agent.ru/docs/pypi">PyPI HelixAgentAi — публикация и версионирование пакета</a>
+      <a href="https://helix-agent.ru/docs/quickstart">Быстрый старт Helix — минимальные команды для запуска</a>
+      <a href="https://helix-agent.ru/docs/readme">Обзор Helix — возможности AI-агента и структура документации</a>
+      <a href="https://helix-agent.ru/docs/security">Безопасность Helix — auth, whitelist, production checklist</a>
+      <a href="https://helix-agent.ru/docs/slash-commands">Слэш-команды Helix — /models, /skills, /mcp в TUI и Telegram</a>
+      <a href="https://helix-agent.ru/docs/start-here">Первый запуск Helix — чеклист настройки за 5 шагов</a>
+      <a href="https://helix-agent.ru/docs/telegram">Telegram-бот Helix — настройка, голос, slash-команды</a>
+      <a href="https://helix-agent.ru/docs/troubleshooting">Решение проблем Helix — типичные ошибки и исправления</a>
+      <a href="https://helix-agent.ru/docs/tui">TUI Helix — терминальный интерфейс агента и веб-режим</a>
+      <a href="https://helix-agent.ru/docs/user-guide">Руководство пользователя Helix — полный гайд от установки до production</a>
+      <!-- /SEO_CRAWL_LINKS -->
+    </nav>
+  </noscript>
   <div class="app marketing-layout">
     <div class="site-chrome" id="site-chrome">
     <header class="header">
-      <a href="#/" class="brand" id="brand-link">
-        <img src="assets/logo.svg" alt="Helix logo" width="36" height="36">
+      <a href="/" class="brand" id="brand-link">
+        <img src="/assets/logo.svg" alt="Helix logo" width="36" height="36">
         <div class="brand-text">
           <span class="brand-name">Helix</span>
           <span class="brand-tag" data-i18n="tagline">Self-Improving Agent</span>
@@ -28,8 +122,8 @@
       </a>
 
       <nav class="site-nav" id="site-nav" aria-label="Site sections">
-        <a href="#/" class="site-nav-link" data-view="marketing" data-i18n="nav_home">Главная</a>
-        <a href="#/docs" class="site-nav-link" data-view="docs" data-i18n="nav_docs">Документация</a>
+        <a href="/" class="site-nav-link" data-view="marketing" data-i18n="nav_home">Главная</a>
+        <a href="/docs" class="site-nav-link" data-view="docs" data-i18n="nav_docs">Документация</a>
       </nav>
 
       <div class="search-wrap" id="search-wrap">
@@ -113,7 +207,7 @@
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-  <script src="assets/js/app.js" type="module"></script>
+  <script src="/assets/js/app.js" type="module"></script>
 
   <!-- Yandex.Metrika counter -->
   <script>
