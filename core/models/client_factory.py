@@ -5,6 +5,7 @@ from __future__ import annotations
 import os
 from typing import Any
 
+import httpx
 from openai import AsyncOpenAI
 
 from core.config_utils import resolve_env_refs
@@ -46,6 +47,20 @@ def build_default_headers(metadata: dict[str, Any] | None) -> dict[str, str]:
     return headers
 
 
+def resolve_verify_ssl(metadata: dict[str, Any] | None) -> bool:
+    """Whether to verify TLS certificates (default True)."""
+    if not metadata:
+        return True
+    val = metadata.get("verify_ssl")
+    if val is None:
+        val = metadata.get("ssl_verify")
+    if val is None:
+        return True
+    if isinstance(val, str):
+        return val.strip().lower() not in {"0", "false", "no", "off"}
+    return bool(val)
+
+
 def create_openai_client(
     *,
     base_url: str,
@@ -63,5 +78,8 @@ def create_openai_client(
     }
     if headers:
         kwargs["default_headers"] = headers
+
+    if not resolve_verify_ssl(metadata):
+        kwargs["http_client"] = httpx.AsyncClient(verify=False)
 
     return AsyncOpenAI(**kwargs)

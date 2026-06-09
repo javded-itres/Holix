@@ -4,7 +4,7 @@ from typing import List, Dict, Any, Optional
 import aiohttp
 
 from core.models.catalog import detect_preset_from_url
-from core.models.client_factory import create_openai_client
+from core.models.client_factory import create_openai_client, resolve_verify_ssl
 
 
 class ModelDiscovery:
@@ -51,7 +51,10 @@ class ModelDiscovery:
             provider_type = ModelDiscovery.detect_provider_type(base_url, metadata=metadata)
             if provider_type == "ollama":
                 try:
-                    context_map = await ModelDiscovery._get_ollama_context_lengths(base_url)
+                    context_map = await ModelDiscovery._get_ollama_context_lengths(
+                        base_url,
+                        metadata=metadata,
+                    )
                     for model_info in model_list:
                         model_id = model_info["id"]
                         if model_id in context_map:
@@ -64,7 +67,10 @@ class ModelDiscovery:
             raise Exception(f"Failed to discover models: {str(e)}")
 
     @staticmethod
-    async def _get_ollama_context_lengths(base_url: str) -> Dict[str, int]:
+    async def _get_ollama_context_lengths(
+        base_url: str,
+        metadata: Optional[Dict[str, Any]] = None,
+    ) -> Dict[str, int]:
         """Get context lengths for Ollama models via /api/show endpoint.
 
         Args:
@@ -77,9 +83,12 @@ class ModelDiscovery:
         # Convert /v1 base URL to Ollama native API URL
         ollama_base = base_url.replace("/v1", "").rstrip("/")
 
+        verify_ssl = resolve_verify_ssl(metadata)
+        connector = aiohttp.TCPConnector(ssl=verify_ssl)
+
         try:
             # First get list of running/local models
-            async with aiohttp.ClientSession() as session:
+            async with aiohttp.ClientSession(connector=connector) as session:
                 # Get list of local models
                 async with session.get(f"{ollama_base}/api/tags", timeout=aiohttp.ClientTimeout(total=10)) as resp:
                     if resp.status == 200:

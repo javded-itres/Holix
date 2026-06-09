@@ -28,10 +28,13 @@ from core.models.selector import AgentModelConfig
 from core.models.profile_cleanup import profile_has_llm_config, remove_provider_from_profile
 from core.models.setup_helpers import (
     add_preset_to_config,
+    apply_ssl_override,
     discover_and_select_default_model,
+    probe_provider,
     prompt_host_for_preset,
     resolve_preset_api_key_interactive,
     resolve_api_key_for_preset,
+    resolve_ssl_metadata_extra,
 )
 
 app = typer.Typer(help="Manage model providers and configurations")
@@ -40,12 +43,21 @@ app = typer.Typer(help="Manage model providers and configurations")
 @app.command("setup")
 def setup_models(
     profile: Optional[str] = typer.Option(None, "--profile", "-p", help="Profile to configure"),
+    no_verify_ssl: bool = typer.Option(
+        False,
+        "--no-verify-ssl",
+        help="Disable TLS certificate verification for all setup actions",
+    ),
 ):
     """Interactive setup for model providers and routing."""
-    asyncio.run(_setup_models_interactive(profile))
+    asyncio.run(_setup_models_interactive(profile, no_verify_ssl=no_verify_ssl))
 
 
-async def _setup_models_interactive(profile: Optional[str] = None):
+async def _setup_models_interactive(
+    profile: Optional[str] = None,
+    *,
+    no_verify_ssl: bool = False,
+):
     """Interactive model setup wizard."""
     if profile is None:
         profile = get_current_profile()
@@ -61,6 +73,9 @@ async def _setup_models_interactive(profile: Optional[str] = None):
         border_style="cyan"
     ))
     console.print("\n")
+
+    if no_verify_ssl:
+        print_info("TLS certificate verification disabled for this setup session")
 
     # Initialize providers dict if not exists
     if not config.providers:
@@ -80,11 +95,11 @@ async def _setup_models_interactive(profile: Optional[str] = None):
         choice = Prompt.ask("\nChoose an action", choices=["1", "2", "3", "4", "5", "6", "7", "8"])
 
         if choice == "1":
-            await _add_provider(config)
+            await _add_provider(config, no_verify_ssl=no_verify_ssl)
         elif choice == "2":
             _list_providers(config)
         elif choice == "3":
-            await _test_provider(config)
+            await _test_provider(config, no_verify_ssl=no_verify_ssl)
         elif choice == "4":
             _remove_provider(config, profile=profile, save=False)
         elif choice == "5":
@@ -125,7 +140,7 @@ def _print_preset_catalog() -> None:
     )
 
 
-async def _add_provider(config):
+async def _add_provider(config, *, no_verify_ssl: bool = False):
     """Add a new model provider from catalog or custom URL."""
     console.print("\n[bold cyan]➕ Add Provider[/bold cyan]\n")
     _print_preset_catalog()
@@ -160,6 +175,11 @@ async def _add_provider(config):
                 host_arg = prompt_host_for_preset(preset, console=console)
                 print_info(f"Using base URL: {host_arg}")
         base_url = resolve_preset_base_url(preset, host=host_arg)
+        metadata_extra = resolve_ssl_metadata_extra(
+            base_url,
+            no_verify_ssl=no_verify_ssl,
+            console=console,
+        )
         store_key = (
             resolve_api_key_for_preset(preset, use_env_value=True)
             if preset.api_key_env in os.environ and os.environ.get(preset.api_key_env, "").strip()
@@ -176,6 +196,7 @@ async def _add_provider(config):
             api_key,
             console=console,
             interactive=True,
+            metadata_extra=metadata_extra or None,
         )
         if not probe_ok and default_model is None:
             print_error(err or "Could not reach API")
@@ -191,6 +212,7 @@ async def _add_provider(config):
                 default_model=default_model,
                 discovered_models=models if probe_ok else None,
                 skip_probe=True,
+                metadata_extra=metadata_extra or None,
             )
         if ok:
             print_success(f"✓ {msg}")
@@ -200,10 +222,10 @@ async def _add_provider(config):
             print_error(msg)
         return
 
-    await _add_provider_custom(config)
+    await _add_provider_custom(config, no_verify_ssl=no_verify_ssl)
 
 
-async def _add_provider_custom(config):
+async def _add_provider_custom(config, *, no_verify_ssl: bool = False):
     """Add provider with manual URL and API key."""
     name = Prompt.ask("Provider name (e.g., 'my-proxy')")
     if name in config.providers:
@@ -221,6 +243,9 @@ async def _add_provider_custom(config):
     if auth_type == "openrouter":
         metadata["http_referer"] = "${OPENROUTER_HTTP_REFERER}"
         metadata["x_title"] = "Helix"
+    metadata.update(
+        resolve_ssl_metadata_extra(base_url, no_verify_ssl=no_verify_ssl, console=console)
+    )
 
     console.print("\n[yellow]Testing connection...[/yellow]")
 
@@ -342,7 +367,7 @@ def _list_providers(config):
     console.print(table)
 
 
-async def _test_provider(config):
+async def _test_provider(config, *, no_verify_ssl: bool = False):
     """Test provider connection."""
     if not config.providers:
         print_info("No providers configured")
@@ -354,7 +379,10 @@ async def _test_provider(config):
     provider_data = config.providers[name]
     base_url = provider_data["base_url"]
     api_key = provider_data.get("api_key", "dummy")
-    metadata = provider_data.get("metadata") or {}
+    metadata = apply_ssl_override(
+        provider_data.get("metadata") or {},
+        no_verify_ssl=no_verify_ssl,
+    )
 
     console.print(f"\n[yellow]Testing {name}...[/yellow]")
 
@@ -511,9 +539,14 @@ def add_preset(
     ),
     port: Optional[int] = typer.Option(None, "--port", help="Port if --host is hostname only"),
     skip_test: bool = typer.Option(False, "--skip-test", help="Skip connection test"),
+    no_verify_ssl: bool = typer.Option(
+        False,
+        "--no-verify-ssl",
+        help="Disable TLS certificate verification (self-signed / internal CA)",
+    ),
 ):
     """Add a provider from the built-in catalog."""
-    asyncio.run(_add_preset_cli(preset_id, profile, name, host, port, skip_test))
+    asyncio.run(_add_preset_cli(preset_id, profile, name, host, port, skip_test, no_verify_ssl))
 
 
 async def _add_preset_cli(
@@ -523,6 +556,7 @@ async def _add_preset_cli(
     host: Optional[str],
     port: Optional[int],
     skip_test: bool,
+    no_verify_ssl: bool,
 ) -> None:
     if profile:
         from cli.core import init_profile
@@ -550,6 +584,11 @@ async def _add_preset_cli(
         host_arg = prompt_host_for_preset(preset, console=console)
 
     base_url = resolve_preset_base_url(preset, host=host_arg, port=port)
+    metadata_extra = resolve_ssl_metadata_extra(
+        base_url,
+        no_verify_ssl=no_verify_ssl,
+        console=console,
+    )
     store_key = (
         resolve_api_key_for_preset(preset, use_env_value=True)
         if preset.api_key_env in os.environ and os.environ.get(preset.api_key_env, "").strip()
@@ -570,6 +609,7 @@ async def _add_preset_cli(
             api_key,
             console=console,
             interactive=sys.stdin.isatty(),
+            metadata_extra=metadata_extra or None,
         )
         if not probe_ok and default_model is None:
             print_error(err or "Could not reach API")
@@ -588,6 +628,7 @@ async def _add_preset_cli(
             skip_probe=True,
             default_model=default_model,
             discovered_models=discovered,
+            metadata_extra=metadata_extra or None,
         )
     if not ok:
         print_error(msg)
