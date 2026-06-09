@@ -9,8 +9,11 @@
 | `--profile` | `-p` | `default` | Профиль в `~/.helix/profiles/<имя>/` |
 | `--verbose` | `-v` | выкл | Подробный вывод |
 
+Для профиля **default** флаг `-p` не нужен:
+
 ```bash
-helix -p work status
+helix gateway start          # то же, что helix -p default gateway start
+helix -p work status         # -p только для других профилей
 ```
 
 ## Команды верхнего уровня
@@ -26,6 +29,7 @@ helix -p work status
 | `skills` | Навыки |
 | `memory` | Память |
 | `config` | config.yaml |
+| `profile` | `.env` профиля и workspace jail |
 | `models` | Провайдеры и маршрутизация |
 | `telegram` | Telegram-бот |
 | `gateway` | API gateway |
@@ -139,20 +143,43 @@ helix models setup
 
 ---
 
+## `helix profile`
+
+Изоляция профиля: env-файл и опциональный workspace jail.
+
+| Подкоманда | Описание |
+|------------|----------|
+| `env` | Показать `.env` профиля |
+| `env --edit` | Открыть `profiles/<имя>/.env` в `$EDITOR` |
+| `jail enable <path>` | Ограничить файловые/терминальные инструменты одной директорией |
+| `jail disable` | Выключить jail |
+| `jail status` | Статус jail |
+
+```bash
+helix -p alice profile env --edit
+helix -p data-agent profile jail enable ~/data-agent
+```
+
+[CONFIGURATION.md](CONFIGURATION.md)
+
+---
+
 ## `helix gateway`
+
+Привязан к **активному профилю** (`-p`). Несколько gateway на разных портах.
 
 | Подкоманда | Описание |
 |------------|----------|
 | `start` | Фоновый запуск |
-| `stop` | Остановка |
-| `status` | Статус |
+| `stop` | Остановка gateway этого профиля |
+| `status` | Статус этого профиля |
 | `reload` | Перезапуск |
 
 ```bash
-helix gateway start -f
+helix -p alice gateway start -f
 ```
 
-[GATEWAY.md](GATEWAY.md)
+Состояние: `profiles/<имя>/gateway/state.json` · [GATEWAY.md](GATEWAY.md)
 
 ---
 
@@ -227,10 +254,12 @@ Tools: `mcp_<сервер>_<имя>`. В TUI: `/mcp`.
 
 ## `helix telegram`
 
+Токен бота хранится в `profiles/<имя>/telegram.env`.
+
 ```bash
-helix telegram setup
-helix telegram run
-helix telegram sync-menu
+helix -p alice telegram setup
+helix -p alice telegram run
+helix -p alice telegram sync-menu
 ```
 
 [TELEGRAM.md](TELEGRAM.md)
@@ -241,12 +270,16 @@ helix telegram sync-menu
 
 | Путь | Содержимое |
 |------|------------|
-| `~/.helix/profiles/<имя>/config.yaml` | Настройки |
+| `~/.helix/profiles/<имя>/.env` | Ключи API, порт gateway, флаги |
+| `~/.helix/profiles/<имя>/telegram.env` | Токен бота и allowlist |
+| `~/.helix/profiles/<имя>/gateway/` | Состояние и лог gateway |
+| `~/.helix/profiles/<имя>/config.yaml` | Модели, MCP, workspace jail |
 | `.../data/memory/` | SQLite + ChromaDB |
 | `.../data/skills/` | Навыки |
 
 ```bash
 helix -p staging tui
+helix -p staging profile jail enable ~/staging-workspace
 ```
 
 ---

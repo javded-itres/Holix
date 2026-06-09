@@ -9,8 +9,11 @@ Entry point: **`helix`** (Typer). Every subcommand inherits global options unles
 | `--profile` | `-p` | `default` | Active profile (`~/.helix/profiles/<name>/`) |
 | `--verbose` | `-v` | off | Print profile and model on startup |
 
+For **default** profile, omit `-p`:
+
 ```bash
-helix -p work status
+helix gateway stop           # profile default
+helix -p work status         # non-default profiles
 helix --help
 ```
 
@@ -29,6 +32,7 @@ helix --help
 | `skills` | Skill files and agent assignments |
 | `memory` | Search stored memory |
 | `config` | View/edit profile YAML |
+| `profile` | Profile `.env` and workspace jail |
 | `models` | Providers and `agent_models` routing |
 | `telegram` | Telegram bot setup and run |
 | `gateway` | API gateway supervisor |
@@ -270,15 +274,37 @@ In TUI/chat use `/memory <query>`.
 
 ---
 
+## `helix profile`
+
+Per-profile isolation: env file and optional workspace jail.
+
+| Subcommand | Description |
+|------------|-------------|
+| `env` | Show profile `.env` path and contents |
+| `env --edit` | Open `profiles/<name>/.env` in `$EDITOR` |
+| `jail enable <path>` | Restrict file/terminal tools to one directory |
+| `jail disable` | Turn off workspace jail |
+| `jail status` | Show jail settings |
+
+```bash
+helix -p alice profile env --edit
+helix -p data-agent profile jail enable ~/data-agent
+helix -p data-agent profile jail status
+```
+
+See [CONFIGURATION.md](CONFIGURATION.md#workspace-jail-optional).
+
+---
+
 ## `helix gateway`
 
-Background supervisor for FastAPI gateway (+ Telegram when configured).
+Background supervisor for FastAPI gateway (+ Telegram when configured). **Scoped to active profile** — multiple gateways can run on different ports.
 
 | Subcommand | Description |
 |------------|-------------|
 | `start` | Start in background (default `127.0.0.1:8000`) |
-| `stop` | Stop gateway and companions |
-| `status` | Process and health |
+| `stop` | Stop gateway and companions for this profile |
+| `status` | Process and health for this profile |
 | `reload` | Restart with same host/port/profile |
 
 ```bash
@@ -288,9 +314,10 @@ helix gateway start --reload    # dev auto-reload
 helix gateway status
 helix gateway stop
 helix gateway reload
+# other profile: helix -p alice gateway start
 ```
 
-State: `~/.helix/gateway/state.json` · Logs: `~/.helix/gateway/gateway.log`  
+State: `~/.helix/profiles/<profile>/gateway/state.json` · Logs: `profiles/<profile>/gateway/gateway.log`  
 API details: [GATEWAY.md](GATEWAY.md).
 
 ---
@@ -429,22 +456,22 @@ Full guide: [HUB.md](HUB.md).
 
 ## `helix telegram`
 
-Requires `uv sync --extra telegram` and `TELEGRAM_BOT_TOKEN`.
+Requires `uv sync --extra telegram`. Bot token is stored per profile in `profiles/<name>/telegram.env`.
 
 | Subcommand | Description |
 |------------|-------------|
-| `setup` | Token, allowlist, save config |
-| `run` | Start polling |
+| `setup` | Token, allowlist, save to profile |
+| `run` | Start polling (`-p` selects profile) |
 | `status` | Show saved config (token masked) |
 | `sync-menu` | Push slash menu to Telegram |
 
 ```bash
-helix telegram setup
-helix telegram run
-helix telegram sync-menu
+helix -p alice telegram setup
+helix -p alice telegram run
+helix -p alice telegram sync-menu
 ```
 
-Or start with gateway: `helix gateway start` (when Telegram enabled in profile/env).  
+Or start with gateway: `helix -p alice gateway start`.  
 See [TELEGRAM.md](TELEGRAM.md).
 
 ---
@@ -453,7 +480,10 @@ See [TELEGRAM.md](TELEGRAM.md).
 
 | Path | Content |
 |------|---------|
-| `~/.helix/profiles/<name>/config.yaml` | Models, MCP, hub, security |
+| `~/.helix/profiles/<name>/.env` | API keys, gateway port, feature flags |
+| `~/.helix/profiles/<name>/telegram.env` | Telegram bot token and allowlist |
+| `~/.helix/profiles/<name>/gateway/` | Gateway PID state and log |
+| `~/.helix/profiles/<name>/config.yaml` | Models, MCP, hub, workspace jail |
 | `.../data/memory/` | SQLite + ChromaDB |
 | `.../data/skills/` | Skill files and hub bundles |
 | `.../data/security/` | API keys DB (if used) |
@@ -462,6 +492,7 @@ Switch per invocation:
 
 ```bash
 helix -p staging run "deploy checklist"
+helix -p staging profile jail enable ~/staging-workspace
 ```
 
 In TUI: `/profile <name>` or `/profile N`.

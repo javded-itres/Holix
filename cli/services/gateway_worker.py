@@ -29,7 +29,22 @@ def main(argv: list[str] | None = None) -> int:
 
     configure_helix_logging()
     args = _parse_args(argv)
-    os.environ["HELIX_PROFILE"] = args.profile
+    from core.env_loader import bootstrap_profile_env
+
+    bootstrap_profile_env(args.profile)
+
+    def _env_bool(name: str) -> bool:
+        return os.getenv(name, "").strip().lower() in {"1", "true", "yes", "on"}
+
+    with_docs = args.with_docs or _env_bool("HELIX_GATEWAY_WITH_DOCS") or _env_bool(
+        "HELIX_GATEWAY_DOCS"
+    )
+    docs_host = args.docs_host or os.getenv("HELIX_DOCS_HOST", "127.0.0.1")
+    docs_port = args.docs_port
+    if not args.with_docs:
+        raw_port = os.getenv("HELIX_DOCS_PORT", "").strip()
+        if raw_port.isdigit():
+            docs_port = int(raw_port)
 
     save_state(
         new_state(
@@ -47,12 +62,12 @@ def main(argv: list[str] | None = None) -> int:
             args.port,
             reload=args.reload,
             profile=args.profile,
-            with_docs=args.with_docs,
-            docs_host=args.docs_host,
-            docs_port=args.docs_port,
+            with_docs=with_docs,
+            docs_host=docs_host,
+            docs_port=docs_port,
         )
     finally:
-        clear_state()
+        clear_state(args.profile)
     return 0
 
 

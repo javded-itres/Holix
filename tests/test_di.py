@@ -36,6 +36,8 @@ def test_runtime_config_from_profile():
     cfg = HelixRuntimeConfig.from_profile(profile)
     assert cfg.model == "profile-model"
     assert Path(cfg.memory_db_path).resolve() == Path("/tmp/test_memory.db").resolve()
+    assert cfg.ltm_db_path.endswith("ltm.db")
+    assert Path(cfg.ltm_db_path).is_absolute()
     assert cfg.profile_name == "test"
 
 

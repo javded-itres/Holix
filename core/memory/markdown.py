@@ -6,7 +6,11 @@ from typing import List, Dict, Any, Optional
 class MarkdownMemory:
     """Manages human-readable markdown-based memory."""
 
-    def __init__(self, base_dir: str = "data/memory/markdown"):
+    def __init__(self, base_dir: str | None = None):
+        if base_dir is None:
+            from core.paths import resolve_profile_data_dir
+
+            base_dir = str(resolve_profile_data_dir() / "memory" / "markdown")
         self.base_dir = Path(base_dir)
         self.base_dir.mkdir(parents=True, exist_ok=True)
 

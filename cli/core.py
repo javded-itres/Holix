@@ -1,16 +1,42 @@
 """Core profile management and initialization for Helix CLI."""
 
+import os
+
 import yaml
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 from pydantic import BaseModel, Field
 
 from core.platform_compat import resolve_helix_home
+from core.profile_keys import (
+    ProfileExistsError,
+    ProfileKeyError,
+    ProfileNotFoundError,
+    profile_has_access_key,
+    require_profile_access_key,
+    store_profile_access_key,
+    verify_profile_access_key,
+)
 
 # Helix home directory (HELIX_HOME / XDG / %LOCALAPPDATA%\Helix / ~/.helix)
 HELIX_HOME = resolve_helix_home()
 PROFILES_DIR = HELIX_HOME / "profiles"
 LOGS_DIR = HELIX_HOME / "logs"
+
+
+def profiles_dir() -> Path:
+    """Resolve profiles root (honours HELIX_HOME at call time for tests/runtime)."""
+    home = os.environ.get("HELIX_HOME", "").strip()
+    if home:
+        return Path(home).expanduser().resolve() / "profiles"
+    return PROFILES_DIR
+
+
+def logs_dir() -> Path:
+    home = os.environ.get("HELIX_HOME", "").strip()
+    if home:
+        return Path(home).expanduser().resolve() / "logs"
+    return LOGS_DIR
 
 
 class ProfileConfig(BaseModel):
@@ -28,6 +54,8 @@ class ProfileConfig(BaseModel):
     data_dir: Optional[str] = None
     memory_db_path: Optional[str] = None
     vector_db_path: Optional[str] = None
+    ltm_db_path: Optional[str] = None
+    langgraph_checkpoint_db_path: Optional[str] = None
     skills_dir: Optional[str] = None
     context_window: Optional[int] = None  # None = use default (128k), otherwise token count
 
@@ -60,6 +88,10 @@ class ProfileConfig(BaseModel):
     # Web search providers (duckduckgo, searxng, firecrawl)
     search: Dict[str, Any] = Field(default_factory=dict)
 
+    # Workspace jail: restrict file/terminal tools to a single directory tree
+    workspace_jail_enabled: bool = False
+    workspace_root: Optional[str] = None
+
 
 def resolve_profile_storage_paths(
     profile: str,
@@ -68,7 +100,7 @@ def resolve_profile_storage_paths(
     profile_dir: Path | None = None,
 ) -> ProfileConfig:
     """Bind profile storage paths to ~/.helix/profiles/<name>/ (not process CWD)."""
-    base = (profile_dir or (PROFILES_DIR / profile)).resolve()
+    base = (profile_dir or (profiles_dir() / profile)).resolve()
 
     def _resolve(path: Optional[str], default: Path) -> str:
         if not path or not str(path).strip():
@@ -88,7 +120,19 @@ def resolve_profile_storage_paths(
         config.vector_db_path,
         base / "data" / "memory" / "vector_db",
     )
+    config.ltm_db_path = _resolve(
+        config.ltm_db_path,
+        base / "data" / "memory" / "ltm.db",
+    )
+    config.langgraph_checkpoint_db_path = _resolve(
+        config.langgraph_checkpoint_db_path,
+        base / "data" / "memory" / "checkpoints.db",
+    )
     config.skills_dir = _resolve(config.skills_dir, base / "data" / "skills")
+    if config.workspace_root and str(config.workspace_root).strip():
+        config.workspace_root = _resolve(config.workspace_root, base / "workspace")
+    else:
+        config.workspace_root = None
     return config
 
 
@@ -97,6 +141,7 @@ class ProfileManager:
 
     def __init__(self):
         """Initialize profile manager."""
+        self._last_created_access_key: str | None = None
         self.ensure_directories()
 
     def ensure_directories(self):
@@ -104,8 +149,8 @@ class ProfileManager:
         from core.env_loader import init_helix_home
 
         init_helix_home()
-        PROFILES_DIR.mkdir(parents=True, exist_ok=True)
-        LOGS_DIR.mkdir(parents=True, exist_ok=True)
+        profiles_dir().mkdir(parents=True, exist_ok=True)
+        logs_dir().mkdir(parents=True, exist_ok=True)
 
     def get_profile_dir(self, profile: str) -> Path:
         """Get profile directory path.
@@ -116,7 +161,7 @@ class ProfileManager:
         Returns:
             Path to profile directory
         """
-        return PROFILES_DIR / profile
+        return profiles_dir() / profile
 
     def profile_exists(self, profile: str) -> bool:
         """Check if profile exists.
@@ -130,16 +175,25 @@ class ProfileManager:
         config_file = self.get_profile_dir(profile) / "config.yaml"
         return config_file.exists()
 
-    def create_profile(self, profile: str, config: Optional[ProfileConfig] = None) -> ProfileConfig:
+    def create_profile(
+        self,
+        profile: str,
+        config: Optional[ProfileConfig] = None,
+        *,
+        with_access_key: bool = False,
+    ) -> ProfileConfig:
         """Create a new profile.
 
         Args:
             profile: Profile name
             config: Optional profile configuration
+            with_access_key: Generate a profile access key on creation (opt-in)
 
         Returns:
             Profile configuration
         """
+        if self.profile_exists(profile):
+            raise ProfileExistsError(f"Profile '{profile}' already exists")
         profile_dir = self.get_profile_dir(profile)
         profile_dir.mkdir(parents=True, exist_ok=True)
 
@@ -156,6 +210,11 @@ class ProfileManager:
             pass
         (profile_dir / "data" / "security").mkdir(parents=True, exist_ok=True)
         (profile_dir / "data" / "files").mkdir(parents=True, exist_ok=True)
+        (profile_dir / "gateway").mkdir(parents=True, exist_ok=True)
+
+        from core.env_loader import ensure_profile_env_template
+
+        ensure_profile_env_template(profile)
 
         # Set default config if not provided
         if config is None:
@@ -180,7 +239,17 @@ class ProfileManager:
         # Save config
         self.save_profile(profile, config)
 
+        self._last_created_access_key = None
+        if with_access_key and not profile_has_access_key(profile):
+            self._last_created_access_key = store_profile_access_key(profile)
+
         return config
+
+    def pop_last_created_access_key(self) -> str | None:
+        """Return access key from the most recent create_profile() call."""
+        key = self._last_created_access_key
+        self._last_created_access_key = None
+        return key
 
     def load_profile(self, profile: str) -> ProfileConfig:
         """Load profile configuration.
@@ -192,8 +261,9 @@ class ProfileManager:
             Profile configuration
         """
         if not self.profile_exists(profile):
-            # Create default profile
-            return self.create_profile(profile)
+            if profile == "default":
+                return self.create_profile(profile)
+            raise ProfileNotFoundError(f"Profile '{profile}' does not exist")
 
         config_file = self.get_profile_dir(profile) / "config.yaml"
 
@@ -230,11 +300,12 @@ class ProfileManager:
         Returns:
             List of profile names
         """
-        if not PROFILES_DIR.exists():
+        root = profiles_dir()
+        if not root.exists():
             return []
 
         profiles = []
-        for item in PROFILES_DIR.iterdir():
+        for item in root.iterdir():
             if item.is_dir() and (item / "config.yaml").exists():
                 profiles.append(item.name)
 
@@ -265,21 +336,90 @@ class ProfileManager:
 _profile_manager = ProfileManager()
 _current_profile: Optional[str] = None
 _current_config: Optional[ProfileConfig] = None
+_unlocked_profiles: set[str] = set()
 
 
-def init_profile(profile: str = "default") -> ProfileConfig:
+def _resolve_profile_key(profile_key: str | None) -> str | None:
+    if profile_key and str(profile_key).strip():
+        return str(profile_key).strip()
+    env_key = os.getenv("HELIX_PROFILE_KEY", "").strip()
+    return env_key or None
+
+
+def _ensure_profile_unlocked(
+    profile: str,
+    *,
+    profile_key: str | None = None,
+    prompt_key: bool = True,
+) -> None:
+    if profile in _unlocked_profiles:
+        return
+    key = _resolve_profile_key(profile_key)
+    if not key and prompt_key:
+        try:
+            import sys
+
+            import typer
+
+            if sys.stdin.isatty() and profile_has_access_key(profile):
+                key = typer.prompt(
+                    f"Access key for profile '{profile}'",
+                    hide_input=True,
+                )
+        except Exception:
+            pass
+    require_profile_access_key(profile, key)
+    _unlocked_profiles.add(profile)
+
+
+def unlock_profile(profile: str, profile_key: str) -> bool:
+    """Verify and remember a profile access key for this process."""
+    if not verify_profile_access_key(profile, profile_key):
+        return False
+    _unlocked_profiles.add(profile)
+    return True
+
+
+def init_profile(
+    profile: str = "default",
+    *,
+    profile_key: str | None = None,
+    prompt_key: bool = True,
+) -> ProfileConfig:
     """Initialize a profile for CLI session.
 
     Args:
         profile: Profile name
+        profile_key: Optional access key for protected profiles
+        prompt_key: Prompt interactively when key is required
 
     Returns:
         Profile configuration
     """
     global _current_profile, _current_config
 
+    from core.env_loader import bootstrap_profile_env
+
+    _ensure_profile_unlocked(profile, profile_key=profile_key, prompt_key=prompt_key)
+
+    switching = _current_profile is not None and _current_profile != profile
+    bootstrap_profile_env(profile, force=switching or _current_profile is None)
     _current_profile = profile
     _current_config = _profile_manager.load_profile(profile)
+    created_key = _profile_manager.pop_last_created_access_key()
+    if created_key:
+        try:
+            from cli.utils.rich_console import print_panel
+
+            print_panel(
+                f"[cyan]{created_key}[/cyan]\n\n"
+                f"Save this access key for profile '{profile}' — it is shown only once.\n"
+                f"Use: [bold]helix -p {profile} --profile-key <key>[/bold]",
+                title="Profile access key",
+                border_style="yellow",
+            )
+        except Exception:
+            pass
 
     return _current_config
 
@@ -308,16 +448,17 @@ def get_current_config() -> ProfileConfig:
     return _current_config
 
 
-def switch_profile(profile: str) -> ProfileConfig:
+def switch_profile(profile: str, *, profile_key: str | None = None) -> ProfileConfig:
     """Switch to a different profile.
 
     Args:
         profile: Profile name
+        profile_key: Optional access key for protected profiles
 
     Returns:
         New profile configuration
     """
-    return init_profile(profile)
+    return init_profile(profile, profile_key=profile_key)
 
 
 def get_profile_manager() -> ProfileManager:

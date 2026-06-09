@@ -30,6 +30,12 @@
     "file_key": "CONFIGURATION"
   },
   {
+    "slug": "profiles",
+    "en": "Profiles & Isolation",
+    "ru": "Профили и изоляция",
+    "file_key": "PROFILES"
+  },
+  {
     "slug": "cli",
     "en": "CLI Reference",
     "ru": "Справочник CLI",
@@ -92,7 +98,7 @@
   {
     "slug": "doctor",
     "en": "Doctor",
-    "ru": "Doctor",
+    "ru": "Доктор",
     "file_key": "DOCTOR"
   },
   {

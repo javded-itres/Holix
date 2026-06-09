@@ -1,0 +1,259 @@
+"""Profile isolation commands: env, workspace jail, access keys."""
+
+from __future__ import annotations
+
+import os
+import subprocess
+from pathlib import Path
+
+import typer
+
+from cli.core import get_current_config, get_profile_manager, unlock_profile
+from cli.utils.rich_console import print_error, print_info, print_success, print_warning
+from core.profile_keys import (
+    profile_has_access_key,
+    remove_profile_access_key,
+    store_profile_access_key,
+    verify_profile_access_key,
+)
+
+app = typer.Typer(help="Manage profile isolation (env, workspace jail, access keys)")
+jail_app = typer.Typer(help="Restrict agent file/terminal access to one directory")
+key_app = typer.Typer(help="Profile access keys (required to switch into protected profiles)")
+app.add_typer(jail_app, name="jail")
+app.add_typer(key_app, name="key")
+
+
+def _profile(ctx: typer.Context) -> str:
+    return ctx.obj["profile"]
+
+
+@app.command("create")
+def profile_create(
+    name: str = typer.Argument(..., help="New profile name"),
+    protect: bool = typer.Option(
+        False,
+        "--protect",
+        help="Generate an access key (profile is open by default)",
+    ),
+) -> None:
+    """Create a profile (open by default; use --protect to require an access key)."""
+    from cli.utils.rich_console import print_panel
+
+    manager = get_profile_manager()
+    if manager.profile_exists(name):
+        print_error(f"Profile '{name}' already exists")
+        raise typer.Exit(1)
+
+    manager.create_profile(name, with_access_key=protect)
+    access_key = manager.pop_last_created_access_key()
+    print_success(f"Created profile '{name}'")
+    if access_key:
+        print_panel(
+            f"[cyan]{access_key}[/cyan]\n\n"
+            "Save this key — it is shown only once.\n"
+            f"Switch with: [bold]helix -p {name} --profile-key <key>[/bold]",
+            title="Profile access key",
+            border_style="yellow",
+        )
+    else:
+        print_info(f"Switch freely: [bold]helix -p {name}[/bold]")
+        print_info("Protect later: [cyan]helix -p {name} profile key init[/cyan]")
+
+
+@key_app.command("status")
+def key_status(ctx: typer.Context) -> None:
+    """Show whether the active profile requires an access key."""
+    from cli.utils.rich_console import print_panel
+
+    profile = _profile(ctx)
+    if profile_has_access_key(profile):
+        body = (
+            "[green]Protected[/green]\n\n"
+            "Switching into this profile requires its access key.\n"
+            "Disable with: [cyan]helix profile key disable[/cyan]"
+        )
+        border = "green"
+    else:
+        body = (
+            "[yellow]Open[/yellow]\n\n"
+            "Free switching — no access key required.\n"
+            "Protect with: [cyan]helix profile key init[/cyan]"
+        )
+        border = "yellow"
+    print_panel(body, title=f"Profile access — {profile}", border_style=border)
+
+
+@key_app.command("init")
+def key_init(ctx: typer.Context) -> None:
+    """Generate an access key for the active profile (shown once)."""
+    from cli.utils.rich_console import print_panel
+
+    profile = _profile(ctx)
+    manager = get_profile_manager()
+    if not manager.profile_exists(profile):
+        print_error(f"Profile '{profile}' does not exist")
+        raise typer.Exit(1)
+    if profile_has_access_key(profile):
+        print_warning(f"Profile '{profile}' already has an access key")
+        raise typer.Exit(1)
+
+    access_key = store_profile_access_key(profile)
+    print_success(f"Access key created for profile '{profile}'")
+    print_panel(
+        f"[cyan]{access_key}[/cyan]\n\n"
+        "Save this key — it is shown only once.",
+        title="Profile access key",
+        border_style="yellow",
+    )
+
+
+@key_app.command("rotate")
+def key_rotate(
+    ctx: typer.Context,
+    current_key: str = typer.Option(
+        ...,
+        "--current-key",
+        prompt=True,
+        hide_input=True,
+        help="Current profile access key",
+    ),
+) -> None:
+    """Replace the active profile access key."""
+    from cli.utils.rich_console import print_panel
+
+    profile = _profile(ctx)
+    if not profile_has_access_key(profile):
+        print_error("This profile has no access key yet. Use: helix profile key init")
+        raise typer.Exit(1)
+    if not verify_profile_access_key(profile, current_key):
+        print_error("Current access key is invalid")
+        raise typer.Exit(1)
+
+    access_key = store_profile_access_key(profile)
+    unlock_profile(profile, access_key)
+    print_success(f"Access key rotated for profile '{profile}'")
+    print_panel(
+        f"[cyan]{access_key}[/cyan]\n\n"
+        "Save this key — it is shown only once.",
+        title="New profile access key",
+        border_style="yellow",
+    )
+
+
+@key_app.command("disable")
+def key_disable(
+    ctx: typer.Context,
+    current_key: str = typer.Option(
+        ...,
+        "--current-key",
+        prompt=True,
+        hide_input=True,
+        help="Current profile access key",
+    ),
+) -> None:
+    """Remove access key protection and allow free profile switching."""
+    from cli import core as cli_core
+
+    profile = _profile(ctx)
+    if not profile_has_access_key(profile):
+        print_warning(f"Profile '{profile}' is already open (no access key)")
+        raise typer.Exit(0)
+    if not verify_profile_access_key(profile, current_key):
+        print_error("Current access key is invalid")
+        raise typer.Exit(1)
+
+    remove_profile_access_key(profile)
+    cli_core._unlocked_profiles.discard(profile)
+    print_success(f"Access key disabled for profile '{profile}'")
+    print_info("Anyone can switch into this profile by name.")
+
+
+@app.command("env")
+def profile_env(
+    ctx: typer.Context,
+    edit: bool = typer.Option(False, "--edit", "-e", help="Open profile .env in editor"),
+) -> None:
+    """Show or edit the active profile's ``.env`` file."""
+    from core.env_loader import ensure_profile_env_template, profile_env_path
+
+    profile = _profile(ctx)
+    path = ensure_profile_env_template(profile)
+
+    if edit:
+        editor = os.environ.get("EDITOR", "nano")
+        print_info(f"Opening {path} in {editor}…")
+        try:
+            subprocess.run([editor, str(path)], check=False)
+            print_success("Profile env updated")
+            print_info("Restart gateway/Telegram or re-run CLI for changes to apply")
+        except OSError as e:
+            print_error(f"Failed to open editor: {e}")
+            raise typer.Exit(1) from e
+        return
+
+    print_info(f"Profile: {profile}")
+    print_info(f"Env file: {path}")
+    if path.is_file():
+        print_info(path.read_text(encoding="utf-8"))
+    else:
+        print_warning("Env file is empty or missing")
+
+
+@jail_app.command("enable")
+def jail_enable(
+    ctx: typer.Context,
+    path: str = typer.Argument(..., help="Directory the agent must stay inside"),
+) -> None:
+    """Enable workspace jail for the active profile."""
+    profile = _profile(ctx)
+    manager = get_profile_manager()
+    config = manager.load_profile(profile)
+
+    root = Path(path).expanduser().resolve()
+    if not root.is_dir():
+        print_error(f"Directory does not exist: {root}")
+        raise typer.Exit(1)
+
+    config.workspace_jail_enabled = True
+    config.workspace_root = str(root)
+    manager.save_profile(profile, config)
+    print_success(f"Workspace jail enabled for profile '{profile}'")
+    print_info(f"Root: {root}")
+    print_info("File and terminal tools are restricted to this directory tree.")
+
+
+@jail_app.command("disable")
+def jail_disable(ctx: typer.Context) -> None:
+    """Disable workspace jail for the active profile."""
+    profile = _profile(ctx)
+    manager = get_profile_manager()
+    config = manager.load_profile(profile)
+
+    config.workspace_jail_enabled = False
+    config.workspace_root = None
+    manager.save_profile(profile, config)
+    print_success(f"Workspace jail disabled for profile '{profile}'")
+
+
+@jail_app.command("status")
+def jail_status(ctx: typer.Context) -> None:
+    """Show workspace jail settings for the active profile."""
+    from cli.utils.rich_console import print_panel
+
+    config = get_current_config()
+    if config.workspace_jail_enabled and config.workspace_root:
+        body = (
+            f"[green]Enabled[/green]\n"
+            f"[cyan]Root:[/cyan] {config.workspace_root}\n\n"
+            "The agent cannot read/write/run commands outside this directory."
+        )
+        border = "green"
+    else:
+        body = (
+            "[yellow]Disabled[/yellow]\n\n"
+            "Enable with: [cyan]helix profile jail enable /path/to/dir[/cyan]"
+        )
+        border = "yellow"
+
+    print_panel(body, title=f"Workspace jail — {config.profile_name}", border_style=border)

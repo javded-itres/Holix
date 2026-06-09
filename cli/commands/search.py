@@ -40,14 +40,14 @@ def _save_search(profile: str, search_dict: dict[str, Any]) -> None:
     manager.save_profile(profile, cfg)
 
 
-def _maybe_store_secret(env_var: str, value: str) -> str:
-    """If user entered a raw secret, optionally persist to ~/.helix/.env."""
+def _maybe_store_secret(env_var: str, value: str, *, profile: str = "default") -> str:
+    """If user entered a raw secret, optionally persist to the profile .env."""
     if not value or value.startswith("${"):
         return value or f"${{{env_var}}}"
-    if Confirm.ask(f"Save API key to ~/.helix/.env as {env_var}?", default=True):
-        from core.env_loader import helix_env_path
+    from core.env_loader import ensure_profile_env_template
 
-        path = helix_env_path()
+    path = ensure_profile_env_template(profile)
+    if Confirm.ask(f"Save API key to {path} as {env_var}?", default=True):
         path.parent.mkdir(parents=True, exist_ok=True)
         lines: list[str] = []
         if path.is_file():
@@ -182,7 +182,7 @@ def search_configure(ctx: typer.Context) -> None:
                     if val:
                         env_name = spec.env_hints.get(field, "")
                         if env_name:
-                            block[field] = _maybe_store_secret(env_name, val)
+                            block[field] = _maybe_store_secret(env_name, val, profile=profile)
                         else:
                             block[field] = val
                     else:

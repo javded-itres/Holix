@@ -7,15 +7,27 @@ import sys
 
 
 def main(argv: list[str] | None = None) -> int:
+    import os
+
     parser = argparse.ArgumentParser(description="Helix documentation HTTP server")
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--port", type=int, default=8080)
+    parser.add_argument(
+        "--profile",
+        default=os.environ.get("HELIX_PROFILE", "default"),
+        help="Helix profile whose .env supplies docs-chat settings",
+    )
     args = parser.parse_args(argv)
 
     from cli.services.docs_site import run_docs_server_forever
 
     try:
-        run_docs_server_forever(host=args.host, port=args.port, quiet=True)
+        run_docs_server_forever(
+            host=args.host,
+            port=args.port,
+            quiet=True,
+            profile=args.profile,
+        )
     except KeyboardInterrupt:
         pass
     except OSError:

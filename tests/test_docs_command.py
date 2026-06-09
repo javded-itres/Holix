@@ -36,3 +36,5 @@ def test_docs_build_cli() -> None:
     assert result.exit_code == 0
     root = resolve_web_docs_dir()
     assert Path(root / "search-index.json").stat().st_size > 1000
+    assert (root / "search-chunks.json").is_file()
+    assert (root / "search-vectors.npz").is_file()

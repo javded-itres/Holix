@@ -15,10 +15,10 @@ def route_after_react(state: HelixGraphState) -> str:
     step_count = state.get("step_count", 0)
     max_steps = state.get("max_steps", 15)
 
-    if tool_calls:
-        return "tool_execution"
     if is_final or step_count >= max_steps:
         return "finalize"
+    if tool_calls:
+        return "tool_execution"
     return "finalize"
 
 
@@ -59,10 +59,10 @@ def route_after_react_plan(state: HelixGraphState) -> str:
     current_step_idx = state.get("current_plan_step", 0)
     current_step_start_count = state.get("current_step_start_count", 0)
 
+    if is_final or step_count >= max_steps:
+        return "finalize"
     if tool_calls:
         return "tool_execution"
-    if is_final:
-        return "finalize"
     if is_step_complete:
         return "step_orchestrate"
 
@@ -79,8 +79,6 @@ def route_after_react_plan(state: HelixGraphState) -> str:
             )
             return "step_orchestrate"
 
-    if step_count >= max_steps:
-        return "finalize"
     return "react"
 
 

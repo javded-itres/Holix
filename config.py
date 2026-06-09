@@ -97,6 +97,35 @@ class Settings(BaseSettings):
     public_rate_limit_rpm: int = 60
     enable_prometheus_metrics: bool = True
 
+    # Documentation-site chat widget (isolated profile, no agent tools)
+    docs_chat_enabled: bool = Field(
+        default=False,
+        validation_alias="HELIX_DOCS_CHAT_ENABLED",
+    )
+    docs_chat_profile: str = Field(
+        default="docs",
+        validation_alias="HELIX_DOCS_CHAT_PROFILE",
+        description="Profile with LLM credentials for the public docs assistant only",
+    )
+    docs_chat_token: str = Field(
+        default="",
+        validation_alias="HELIX_DOCS_CHAT_TOKEN",
+        description="Shared token for docs server proxy → gateway (not exposed to browsers)",
+    )
+    docs_chat_rate_limit_rpm: int = Field(
+        default=30,
+        validation_alias="HELIX_DOCS_CHAT_RATE_LIMIT_RPM",
+    )
+    docs_chat_model: str = Field(
+        default="",
+        validation_alias="HELIX_DOCS_CHAT_MODEL",
+        description="Optional model override for docs chat (use a non-reasoning model like smart)",
+    )
+    docs_chat_max_tokens: int = Field(
+        default=4096,
+        validation_alias="HELIX_DOCS_CHAT_MAX_TOKENS",
+    )
+
     # Tools (production hardening)
     enable_code_executor: bool = True
     enable_terminal_tool: bool = True

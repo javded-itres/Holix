@@ -328,7 +328,10 @@ class AsyncSubAgentRunner:
 
         tokens = subagent_scope(subagent_name, interaction_bridge=bridge)
         try:
-            return await self._parent.tools.execute(tool_call)
+            return await self._parent.tools.execute(
+                tool_call,
+                memory=getattr(self._parent, "memory", None),
+            )
         except Exception as e:
             return f"Error: {e}"
         finally:

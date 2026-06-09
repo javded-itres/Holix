@@ -160,24 +160,31 @@ helix doctor
 
 ### 6.1. Create the environment file
 
+On first profile creation, Helix seeds **`~/.helix/profiles/<name>/.env`** from `.env.example` (or copies legacy `~/.helix/.env` if present).
+
 ```bash
-mkdir -p ~/.helix
-cp .env.example ~/.helix/.env
-# if .env.example is not in the wheel — create ~/.helix/.env manually from the repository template
+helix profile env --edit
+# or manually:
+cp .env.example ~/.helix/profiles/default/.env
 ```
 
-The main secrets file is **`~/.helix/.env`**.
+API keys, gateway port, and feature flags belong in the **profile** `.env`, not the global `~/.helix/.env` (legacy fallback only).
 
 ### 6.2. Profile
 
-A profile is a set of settings in a directory:
+Each profile is an isolated environment:
 
 ```
+~/.helix/profiles/<name>/.env           # secrets and gateway bind
+~/.helix/profiles/<name>/telegram.env  # Telegram bot (optional)
+~/.helix/profiles/<name>/gateway/        # gateway state and log
 ~/.helix/profiles/<name>/config.yaml
 ~/.helix/profiles/<name>/data/
 ```
 
 The **`default`** profile is used by default. On first run, Helix creates the required directories.
+
+**Workspace jail** (optional): restrict file/terminal tools to one folder — `helix profile jail enable /path/to/dir`. See [CONFIGURATION.md](CONFIGURATION.md).
 
 View settings:
 
@@ -219,9 +226,9 @@ Helix talks to LiteLLM through the **OpenAI-compatible API** (`/v1/chat/completi
 2. A list of **model names** (`model_name` in the LiteLLM config) that you are allowed to use.  
    The Helix catalog for the `litellm` preset lists examples: `smart`, `fast`, `heavy` — **actual names on your server may differ**; Helix will show the list on successful connection.
 
-### 7.2. Save the key in `~/.helix/.env`
+### 7.2. Save the key in the profile `.env`
 
-Open `~/.helix/.env` and add:
+Open `~/.helix/profiles/default/.env` (`helix profile env --edit`) and add:
 
 ```bash
 # LiteLLM proxy
@@ -367,7 +374,7 @@ The wizard:
 
 1. Validates the token via the Telegram API (`getMe`).
 2. Asks for the user **allowlist** (`HELIX_TELEGRAM_ALLOWED_USERS`).
-3. Saves settings to **`~/.helix/telegram.env`**.
+3. Saves settings to **`~/.helix/profiles/<name>/telegram.env`**.
 
 ### 9.5. Start the bot
 
@@ -397,7 +404,7 @@ After changing skills, MCP, or slash commands.
 
 ### 9.7. Voice messages (optional)
 
-If chat already goes through LiteLLM, configure the transcription model **in the LiteLLM config** and in `~/.helix/.env`:
+If chat already goes through LiteLLM, configure the transcription model **in the LiteLLM config** and in the profile `.env`:
 
 ```bash
 HELIX_WHISPER_BASE_URL=http://localhost:4000/v1

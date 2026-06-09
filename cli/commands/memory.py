@@ -41,13 +41,10 @@ async def _search_memory_async(query: str, top_k: int, config):
 
     if results:
         console.print(f"\n[cyan]Found {len(results)} results:[/cyan]\n")
-        for i, result in enumerate(results, 1):
-            content = result.get("content", "")
-            metadata = result.get("metadata", {})
+        from core.memory.session_search import format_memory_hit_line
 
-            console.print(f"[bold]{i}.[/bold] {content[:200]}...")
-            if metadata:
-                console.print(f"   [dim]Conversation: {metadata.get('conversation_id', 'N/A')}[/dim]")
+        for i, result in enumerate(results, 1):
+            console.print(format_memory_hit_line(result, index=i, content_limit=200))
             console.print()
     else:
         print_info("No results found")

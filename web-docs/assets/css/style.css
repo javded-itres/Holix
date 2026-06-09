@@ -79,10 +79,15 @@ a:hover { color: var(--accent-2); }
   min-height: 100dvh;
 }
 
-.header {
+.site-chrome {
   position: sticky;
   top: 0;
   z-index: 100;
+}
+
+.header {
+  position: relative;
+  z-index: 1;
   display: flex;
   align-items: center;
   gap: 1.5rem;
@@ -255,6 +260,7 @@ a:hover { color: var(--accent-2); }
 }
 
 .pypi-link,
+.telegram-link,
 .github-link {
   display: inline-flex;
   align-items: center;
@@ -270,12 +276,14 @@ a:hover { color: var(--accent-2); }
 }
 
 .pypi-link:hover,
-.github-link:hover {
+.github-link:hover,
+.telegram-link:hover {
   color: var(--text);
   border-color: var(--accent-dim);
 }
 
 .pypi-link svg,
+.telegram-link svg,
 .github-link svg {
   width: 1.1rem;
   height: 1.1rem;
@@ -469,6 +477,81 @@ a:hover { color: var(--accent-2); }
   color: var(--text-muted);
   font-size: 0.95rem;
   line-height: 1.6;
+}
+
+.telegram-callout {
+  display: flex;
+  gap: 1.25rem;
+  align-items: flex-start;
+  padding: 1.65rem 1.85rem;
+  margin-bottom: 3rem;
+  background: linear-gradient(135deg, rgba(42, 171, 238, 0.14), rgba(34, 158, 217, 0.06));
+  border: 1px solid rgba(42, 171, 238, 0.38);
+  border-radius: var(--radius);
+  box-shadow: 0 10px 40px rgba(42, 171, 238, 0.08);
+}
+
+.telegram-callout-icon {
+  display: grid;
+  place-items: center;
+  width: 3.25rem;
+  height: 3.25rem;
+  flex-shrink: 0;
+  border-radius: 50%;
+  color: #fff;
+  background: linear-gradient(145deg, #2aabee, #1d8ec8);
+  box-shadow: 0 4px 18px rgba(42, 171, 238, 0.35);
+}
+
+.telegram-callout-body h2 {
+  margin: 0 0 0.45rem;
+  font-size: 1.35rem;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.telegram-callout-body p {
+  margin: 0 0 1rem;
+  color: var(--text-muted);
+  font-size: 0.98rem;
+  line-height: 1.6;
+  max-width: 52rem;
+}
+
+.profiles-callout {
+  display: flex;
+  gap: 1.25rem;
+  align-items: flex-start;
+  padding: 1.5rem 1.75rem;
+  margin-bottom: 3rem;
+  background: linear-gradient(135deg, rgba(0, 229, 192, 0.06), rgba(99, 179, 237, 0.05));
+  border: 1px solid rgba(0, 229, 192, 0.22);
+  border-radius: var(--radius);
+}
+
+.profiles-callout-icon {
+  font-size: 2.25rem;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.profiles-callout h2 {
+  margin: 0 0 0.5rem;
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.profiles-callout p {
+  margin: 0 0 1rem;
+  color: var(--text-muted);
+  font-size: 0.95rem;
+  line-height: 1.6;
+}
+
+.profiles-callout-link {
+  display: inline-flex;
+  margin-top: 0.25rem;
 }
 
 .advantages-grid {
@@ -733,6 +816,30 @@ a:hover { color: var(--accent-2); }
 .btn-ghost:hover {
   color: var(--text);
   border-color: var(--accent-dim);
+}
+
+.btn-telegram {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  padding: 0.65rem 1.15rem;
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: #fff;
+  background: linear-gradient(135deg, #2aabee, #1d8ec8);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: var(--radius-sm);
+  text-decoration: none;
+  box-shadow: 0 4px 20px rgba(42, 171, 238, 0.28);
+  transition: transform var(--transition), filter var(--transition), box-shadow var(--transition);
+}
+
+.btn-telegram:hover {
+  color: #fff;
+  filter: brightness(1.07);
+  transform: translateY(-1px);
+  box-shadow: 0 8px 28px rgba(42, 171, 238, 0.38);
 }
 
 .btn-donate {
@@ -1044,6 +1151,8 @@ a:hover { color: var(--accent-2); }
   .use-cases-grid { grid-template-columns: 1fr; }
   .how-grid { grid-template-columns: 1fr; }
   .ru-callout { flex-direction: column; gap: 0.75rem; }
+  .telegram-callout { flex-direction: column; gap: 0.85rem; padding: 1.25rem 1.15rem; }
+  .profiles-callout { flex-direction: column; gap: 0.75rem; }
   .cta-band { flex-direction: column; align-items: stretch; text-align: center; }
   .aspects-grid { grid-template-columns: 1fr; }
   .doc-content h1 { font-size: 1.65rem; }

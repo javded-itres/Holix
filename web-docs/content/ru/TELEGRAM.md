@@ -1,15 +1,27 @@
 # Telegram
 
+**Telegram-канал:** [t.me/helix_agent](https://t.me/helix_agent) — новости и обновления проекта (это не бот, который вы настраиваете ниже).
+
+У каждого профиля свой бот и allowlist. Секреты хранятся в:
+
+`~/.helix/profiles/<имя>/telegram.env`
+
 ```bash
 uv sync --extra telegram
-export TELEGRAM_BOT_TOKEN=...
-export HELIX_TELEGRAM_ALLOWED_USERS=123456789
-helix telegram
-# или вместе с gateway:
+helix telegram setup    # мастер: токен, allowlist, сохранение в профиль
+helix telegram run
+# или вместе с gateway того же профиля:
 helix gateway start
 ```
 
 В production (`HELIX_ENV=production`) обязателен `HELIX_TELEGRAM_ALLOWED_USERS`.
+
+Разные люди → разные профили → разные боты:
+
+```bash
+helix -p alice telegram setup
+helix -p bob telegram setup
+```
 
 Одно live-сообщение на задачу; slash-команды как в TUI; inline-подтверждения.
 

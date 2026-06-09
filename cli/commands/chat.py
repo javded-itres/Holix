@@ -175,24 +175,40 @@ class ChatSession:
 
         # /profile
         elif cmd_lower.startswith("/profile"):
-            parts = command.split(maxsplit=1)
-            if len(parts) == 2:
+            from core.profile_keys import ProfileKeyError, profile_has_access_key
+
+            parts = command.split(maxsplit=2)
+            if len(parts) >= 2:
                 new_profile = parts[1]
+                profile_key = parts[2] if len(parts) == 3 else None
                 manager = get_profile_manager()
                 if manager.profile_exists(new_profile):
-                    self.config = switch_profile(new_profile)
-                    self.profile = new_profile
-                    self.conversation_id = f"cli_chat_{new_profile}"
-                    print_success(f"Switched to profile: {new_profile}")
-                    print_info("Reinitializing agent...")
-                    await self.initialize_agent()
+                    try:
+                        self.config = switch_profile(new_profile, profile_key=profile_key)
+                        self.profile = new_profile
+                        self.conversation_id = f"cli_chat_{new_profile}"
+                        print_success(f"Switched to profile: {new_profile}")
+                        print_info("Reinitializing agent...")
+                        await self.initialize_agent()
+                    except ProfileKeyError as exc:
+                        print_error(str(exc))
+                        if profile_has_access_key(new_profile) and not profile_key:
+                            print_info("Usage: /profile <name> <access-key>")
                 else:
                     print_error(f"Profile '{new_profile}' does not exist")
             else:
                 manager = get_profile_manager()
                 profiles = manager.list_profiles()
-                rows = [[p, "✓" if p == self.profile else ""] for p in profiles]
-                print_table("Available Profiles", ["Profile", "Active"], rows)
+                rows = [
+                    [
+                        p,
+                        "locked" if profile_has_access_key(p) else "open",
+                        "✓" if p == self.profile else "",
+                    ]
+                    for p in profiles
+                ]
+                print_table("Available Profiles", ["Profile", "Access", "Active"], rows)
+                print_info("Switch: /profile <name> <access-key>")
             return True
 
         # /skills
@@ -217,10 +233,11 @@ class ChatSession:
                     progress.remove_task(task)
 
                 if results:
+                    from core.memory.session_search import format_memory_hit_line
+
                     console.print("\n[cyan]Memory Search Results:[/cyan]\n")
                     for i, result in enumerate(results, 1):
-                        content = result.get("content", "")[:100]
-                        console.print(f"{i}. {content}...")
+                        console.print(format_memory_hit_line(result, index=i, content_limit=200))
                     console.print()
                 else:
                     print_info("No results found")

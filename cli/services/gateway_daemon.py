@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 import subprocess
 import sys
 import time
@@ -10,32 +11,61 @@ import httpx
 from core.platform_compat import popen_background, port_check_hint, terminate_process
 
 from cli.services.gateway_state import (
-    LOG_PATH,
     GatewayState,
     clear_state,
-    ensure_gateway_dir,
     health_url,
     is_process_alive,
+    list_running_states,
     load_state,
+    log_path,
 )
 from cli.utils.ports import resolve_listen_port
+from cli.utils.profile import profile_cli_prefix
 from cli.utils.rich_console import print_error, print_info, print_success, print_warning
 
 
-def _running_state() -> GatewayState | None:
-    state = load_state()
+def find_gateway_worker_pids(profile: str) -> list[int]:
+    """Find gateway_worker processes for a profile (fallback when state.json is missing)."""
+    try:
+        proc = subprocess.run(
+            ["ps", "-ax", "-o", "pid=,command="],
+            capture_output=True,
+            text=True,
+            timeout=5,
+            check=False,
+        )
+    except OSError:
+        return []
+
+    if proc.returncode != 0:
+        return []
+
+    pids: list[int] = []
+    marker = f"--profile {profile}"
+    for line in proc.stdout.splitlines():
+        stripped = line.strip()
+        if "gateway_worker" not in stripped or marker not in stripped:
+            continue
+        match = re.match(r"^(\d+)\s+", stripped)
+        if match:
+            pids.append(int(match.group(1)))
+    return pids
+
+
+def _running_state(profile: str) -> GatewayState | None:
+    state = load_state(profile)
     if state is None:
         return None
     if is_process_alive(state.pid):
         return state
-    clear_state()
+    clear_state(profile)
     return None
 
 
-def _wait_for_state(timeout: float = 15.0) -> GatewayState | None:
+def _wait_for_state(profile: str, timeout: float = 15.0) -> GatewayState | None:
     deadline = time.monotonic() + timeout
     while time.monotonic() < deadline:
-        state = load_state()
+        state = load_state(profile)
         if state is not None and is_process_alive(state.pid):
             return state
         time.sleep(0.2)
@@ -65,11 +95,12 @@ def _wait_for_healthy(state: GatewayState, timeout: float = 30.0) -> bool:
     return False
 
 
-def _print_log_tail(lines: int = 25) -> None:
-    if not LOG_PATH.exists():
+def _print_log_tail(profile: str, lines: int = 25) -> None:
+    path = log_path(profile)
+    if not path.exists():
         return
     try:
-        content = LOG_PATH.read_text(encoding="utf-8", errors="replace").splitlines()
+        content = path.read_text(encoding="utf-8", errors="replace").splitlines()
         tail = content[-lines:]
         if tail:
             print_warning("Recent gateway log:")
@@ -91,13 +122,16 @@ def start_gateway_daemon(
     docs_port: int = 8080,
 ) -> None:
     """Start gateway (+ companions) in background or foreground."""
-    existing = _running_state()
+    from core.env_loader import bootstrap_profile_env
+
+    bootstrap_profile_env(profile)
+    existing = _running_state(profile)
     if existing is not None:
         print_error(
-            f"Gateway already running (pid={existing.pid}, "
-            f"http://{existing.host}:{existing.port})"
+            f"Gateway already running for profile '{profile}' "
+            f"(pid={existing.pid}, http://{existing.host}:{existing.port})"
         )
-        print_info("Stop it first: helix gateway stop")
+        print_info(f"Stop it first: {profile_cli_prefix(profile)} gateway stop")
         raise SystemExit(1)
 
     listen_port = resolve_listen_port(host, port)
@@ -120,8 +154,9 @@ def start_gateway_daemon(
         )
         return
 
-    ensure_gateway_dir()
-    log_handle = open(LOG_PATH, "a", encoding="utf-8")
+    log_file = log_path(profile)
+    log_file.parent.mkdir(parents=True, exist_ok=True)
+    log_handle = open(log_file, "a", encoding="utf-8")
     cmd = [
         sys.executable,
         "-m",
@@ -147,12 +182,12 @@ def start_gateway_daemon(
 
     log_handle.close()
 
-    state = _wait_for_state()
+    state = _wait_for_state(profile)
     if state is None or not _wait_for_healthy(state):
         print_error("Gateway did not start or is not healthy.")
         print_info(f"Check logs and binding on port {port}: {port_check_hint(port)}")
-        print_info(str(LOG_PATH))
-        _print_log_tail()
+        print_info(str(log_file))
+        _print_log_tail(profile)
         raise SystemExit(1)
 
     print_success(f"Gateway started in background (pid={state.pid})")
@@ -168,10 +203,22 @@ def start_gateway_daemon(
     print_info("Stop: helix gateway stop")
 
 
-def stop_gateway_daemon() -> None:
-    state = load_state()
+def stop_gateway_daemon(profile: str = "default") -> None:
+    state = load_state(profile)
     if state is None:
-        print_warning("Gateway is not running (no state file)")
+        orphans = find_gateway_worker_pids(profile)
+        if not orphans:
+            print_warning(f"Gateway is not running for profile '{profile}' (no state file)")
+            return
+        print_warning(
+            f"No state file for profile '{profile}', but gateway worker process(es) found"
+        )
+        for pid in orphans:
+            if is_process_alive(pid):
+                print_info(f"Stopping orphan gateway (pid={pid})…")
+                terminate_process(pid, grace=5.0)
+        clear_state(profile)
+        print_success("Gateway stopped")
         return
 
     if state.telegram_pid and is_process_alive(state.telegram_pid):
@@ -187,20 +234,31 @@ def stop_gateway_daemon() -> None:
     else:
         print_warning(f"Gateway process {state.pid} is not running")
 
-    clear_state()
+    clear_state(profile)
 
 
-def gateway_status() -> None:
+def gateway_status(profile: str = "default") -> None:
     from cli.utils.rich_console import print_panel
 
-    state = _running_state()
-    if state is None:
+    running = list_running_states()
+    state = _running_state(profile)
+    if state is None and not running:
         print_panel(
-            "[yellow]Gateway is not running[/yellow]\n\n"
-            "Start: [cyan]helix gateway start[/cyan]",
+            f"[yellow]Gateway is not running for profile '{profile}'[/yellow]\n\n"
+            f"Start: [cyan]{profile_cli_prefix(profile)} gateway start[/cyan]",
             title="Gateway Status",
             border_style="yellow",
         )
+        return
+
+    if state is None and running:
+        lines = [f"[yellow]Profile '{profile}' has no running gateway.[/yellow]", ""]
+        lines.append("[cyan]Other running gateways:[/cyan]")
+        for other in running:
+            lines.append(
+                f"  • {other.profile}: http://{other.host}:{other.port} (pid={other.pid})"
+            )
+        print_panel("\n".join(lines), title="Gateway Status", border_style="yellow")
         return
 
     lines = [
@@ -240,25 +298,43 @@ def gateway_status() -> None:
     print_panel("\n".join(lines), title="Gateway Status", border_style="green")
 
 
-def reload_gateway_daemon() -> None:
-    state = _running_state()
+def reload_gateway_daemon(profile: str = "default") -> None:
+    import os
+
+    from core.env_loader import bootstrap_profile_env
+
+    def _env_bool(name: str) -> bool:
+        return os.getenv(name, "").strip().lower() in {"1", "true", "yes", "on"}
+
+    bootstrap_profile_env(profile)
+    state = _running_state(profile)
     if state is None:
-        print_warning("Gateway is not running. Starting with defaults…")
+        print_warning(f"Gateway is not running for profile '{profile}'. Starting…")
         from config import settings
 
+        host = os.environ.get("HELIX_GATEWAY_HOST", settings.gateway_host)
+        port = int(os.environ.get("HELIX_GATEWAY_PORT", str(settings.gateway_port)))
+        with_docs = _env_bool("HELIX_GATEWAY_WITH_DOCS") or _env_bool("HELIX_GATEWAY_DOCS")
+        docs_host = os.environ.get("HELIX_DOCS_HOST", settings.docs_host)
+        docs_port = int(os.environ.get("HELIX_DOCS_PORT", str(settings.docs_port)))
         start_gateway_daemon(
-            settings.gateway_host,
-            settings.gateway_port,
-            profile="default",
+            host,
+            port,
+            profile=profile,
+            with_docs=with_docs,
+            docs_host=docs_host,
+            docs_port=docs_port,
         )
         return
 
     host, port, profile, reload = state.host, state.port, state.profile, state.reload
-    with_docs = state.docs_pid is not None
-    docs_host = state.docs_host or "127.0.0.1"
-    docs_port = state.docs_port or 8080
-    print_info("Reloading gateway (stop → start)…")
-    stop_gateway_daemon()
+    with_docs = state.docs_pid is not None or _env_bool("HELIX_GATEWAY_WITH_DOCS") or _env_bool(
+        "HELIX_GATEWAY_DOCS"
+    )
+    docs_host = state.docs_host or os.environ.get("HELIX_DOCS_HOST", "127.0.0.1")
+    docs_port = state.docs_port or int(os.environ.get("HELIX_DOCS_PORT", "8080"))
+    print_info(f"Reloading gateway for profile '{profile}' (stop → start)…")
+    stop_gateway_daemon(profile)
     time.sleep(0.5)
     start_gateway_daemon(
         host,

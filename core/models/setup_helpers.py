@@ -8,7 +8,7 @@ from typing import Any
 
 from rich import box
 from rich.console import Console
-from rich.prompt import Prompt
+from rich.prompt import Confirm, Prompt
 from rich.table import Table
 
 from core.models.catalog import (
@@ -18,6 +18,60 @@ from core.models.catalog import (
 )
 from core.models.discovery import ModelDiscovery
 from core.models.provider import ProviderConfig
+
+
+def prompt_verify_ssl(
+    base_url: str,
+    *,
+    console: Console | None = None,
+    default: bool = True,
+) -> dict[str, Any]:
+    """Ask whether to verify TLS when base URL uses HTTPS."""
+    if not base_url.lower().startswith("https://"):
+        return {}
+    if not sys.stdin.isatty():
+        return {}
+    out = console or Console()
+    if Confirm.ask("Verify SSL certificate?", default=default, console=out):
+        return {}
+    out.print("[yellow]TLS certificate verification disabled for this provider.[/yellow]")
+    return {"verify_ssl": False}
+
+
+def resolve_ssl_metadata_extra(
+    base_url: str = "",
+    *,
+    no_verify_ssl: bool = False,
+    console: Console | None = None,
+) -> dict[str, Any]:
+    """SSL metadata for provider setup (global --no-verify-ssl or per-URL prompt)."""
+    if no_verify_ssl:
+        return {"verify_ssl": False}
+    if not base_url:
+        return {}
+    return prompt_verify_ssl(base_url, console=console)
+
+
+def apply_ssl_override(
+    metadata: dict[str, Any] | None,
+    *,
+    no_verify_ssl: bool = False,
+) -> dict[str, Any]:
+    """Merge session-level --no-verify-ssl into provider metadata for probes."""
+    merged = dict(metadata or {})
+    if no_verify_ssl:
+        merged["verify_ssl"] = False
+    return merged
+
+
+def merge_provider_metadata(
+    base: dict[str, Any] | None,
+    extra: dict[str, Any] | None,
+) -> dict[str, Any]:
+    merged = dict(base or {})
+    if extra:
+        merged.update(extra)
+    return merged
 
 
 async def probe_provider(
@@ -213,13 +267,14 @@ async def discover_and_select_default_model(
     *,
     console: Console | None = None,
     interactive: bool | None = None,
+    metadata_extra: dict[str, Any] | None = None,
 ) -> tuple[bool, list[dict[str, Any]], str | None, str | None]:
     """Probe API, show models, return (ok, models, error, default_model_id)."""
     out = console or Console()
     if interactive is None:
         interactive = sys.stdin.isatty()
 
-    metadata = preset.default_metadata()
+    metadata = merge_provider_metadata(preset.default_metadata(), metadata_extra)
     ok, models, err = await probe_provider(base_url, api_key, metadata)
 
     if ok and models:
@@ -263,6 +318,7 @@ def build_provider_entry(
     base_url: str | None = None,
     discovered_models: list[dict[str, Any]] | None = None,
     default_model: str | None = None,
+    metadata_extra: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Merge discovery results with catalog defaults into a provider dict."""
     provider_name = name or preset.id
@@ -287,7 +343,7 @@ def build_provider_entry(
 
     resolved_default = default_model or preset.default_model or (available[0] if available else None)
     resolved_url = base_url or preset.base_url
-    meta = preset.default_metadata()
+    meta = merge_provider_metadata(preset.default_metadata(), metadata_extra)
     if preset.configurable_host and preset.host_env:
         meta["host"] = resolved_url
 
@@ -314,6 +370,7 @@ async def add_preset_to_config(
     skip_probe: bool = False,
     default_model: str | None = None,
     discovered_models: list[dict[str, Any]] | None = None,
+    metadata_extra: dict[str, Any] | None = None,
 ) -> tuple[bool, str]:
     """Add a catalog preset to profile config. Returns (success, message)."""
     preset = get_provider_preset(preset_id)
@@ -326,7 +383,7 @@ async def add_preset_to_config(
 
     key = resolve_api_key_for_preset(preset, custom_key=api_key)
     base_url = resolve_preset_base_url(preset, host=host, port=port)
-    metadata = preset.default_metadata()
+    metadata = merge_provider_metadata(preset.default_metadata(), metadata_extra)
 
     models: list[dict[str, Any]] = list(discovered_models or [])
     if not skip_probe and not models:
@@ -343,6 +400,7 @@ async def add_preset_to_config(
         base_url=base_url,
         discovered_models=models or None,
         default_model=default_model,
+        metadata_extra=metadata_extra,
     )
     if not config.providers:
         config.providers = {}

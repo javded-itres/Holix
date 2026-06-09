@@ -10,6 +10,7 @@ from fastapi.responses import StreamingResponse
 from datetime import datetime
 import time
 
+from api.docs_chat import router as docs_chat_router
 from api.models import ChatCompletionRequest, ChatCompletionResponse
 from core.agent import HelixAgent
 from core.agent_events import create_compatibility_print_handler
@@ -73,6 +74,7 @@ _agent_request_lock = asyncio.Lock()
 
 _dishka_container = create_async_container(resolve_gateway_runtime_config())
 setup_dishka(container=_dishka_container, app=app)
+app.include_router(docs_chat_router)
 
 
 @app.get("/")

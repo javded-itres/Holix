@@ -250,28 +250,33 @@ class AgentCommands:
             await h._sync_telegram_menu()
 
     async def _profile(self, command: str) -> None:
+        from core.profile_keys import profile_has_access_key
+
         h = self.host
         lang = host_locale(h)
         parts = command.split()
         profiles = h._get_available_profiles()
         if len(parts) >= 2:
             target = parts[1]
-            if target.isdigit():
+            profile_key = parts[2] if len(parts) >= 3 else None
+            if target.isdigit() and profile_key is None:
                 idx = int(target) - 1
                 if 0 <= idx < len(profiles):
                     h.run_worker(h._switch_profile(profiles[idx]))
                 else:
                     h.transcript_write(f"[red]{t('invalid_profile_num', lang)}[/red]")
             elif target in profiles:
-                h.run_worker(h._switch_profile(target))
+                h.run_worker(h._switch_profile(target, profile_key=profile_key))
             else:
                 h.transcript_write(f"[red]{t('unknown_profile', lang, name=target)}[/red]")
         else:
             lines = [f"[bold]{t('profiles_title', lang)}[/bold]"]
             for i, p in enumerate(profiles, 1):
                 mark = " *" if p == h.profile else ""
-                lines.append(f"  {i}. {p}{mark}")
+                lock = " [dim](locked)[/dim]" if profile_has_access_key(p) else ""
+                lines.append(f"  {i}. {p}{mark}{lock}")
             lines.append(f"[dim]{t('usage_profile', lang)}[/dim]")
+            lines.append("[dim]/profile <name> <access-key>[/dim]")
             h.transcript_write("\n".join(lines))
 
     async def _try_skill_slash(self, h: Any, command: str) -> bool:

@@ -100,6 +100,7 @@ class HelixCodeApp(App):
         self._execution_modes = ["react", "plan_and_execute", "hybrid", "auto"]
         self._execution_mode_index = 0
         self._cached_context_display: str | None = None
+        self._last_context_refresh: float = 0.0
 
         self._pending_confirmation: Any | None = None
         self._action_guard_reference: Any | None = None
@@ -304,6 +305,7 @@ class HelixCodeApp(App):
         self.agent.events.subscribe(self._on_agent_event)
         await self.agent.initialize()
         await self._load_conversation_history()
+        await self._ensure_session_context()
         await self._load_known_sessions()
         self.transcript_write("[dim]ready — type a message or /help[/dim]\n")
         self.set_status_line("ready")
@@ -341,6 +343,25 @@ class HelixCodeApp(App):
                 )
         except Exception:
             pass
+
+    async def _ensure_session_context(self) -> None:
+        """Compress persisted history when usage exceeds threshold (e.g. after restart)."""
+        if not self.agent:
+            return
+        try:
+            from core.runtime.context_session import ensure_conversation_context
+
+            if await ensure_conversation_context(self.agent, self.conversation_id):
+                self.transcript_write("[dim]· context compressed on load[/dim]")
+        except Exception:
+            pass
+
+    def _maybe_refresh_context_display(self, *, min_interval_s: float = 2.0) -> None:
+        now = time.monotonic()
+        if now - self._last_context_refresh < min_interval_s:
+            return
+        self._last_context_refresh = now
+        self.run_worker(self._update_context_display_async())
 
     async def _load_conversation_history(self) -> None:
         if not self.agent:
@@ -1163,9 +1184,14 @@ class HelixCodeApp(App):
             if not results:
                 self.transcript_write("[dim]no hits[/dim]")
                 return
-            for i, mem in enumerate(results, 1):
-                content = (mem.get("content") or "")[:300]
-                self.transcript_write(f"  {i}. {content}")
+            text = self.agent.format_memory_results(
+                results,
+                conversation_id=self.conversation_id,
+                include_current=True,
+            )
+            for line in text.split("\n"):
+                if line.strip():
+                    self.transcript_write(f"  {line}")
         except Exception as e:
             self.transcript_write(f"[red]{e}[/red]")
 
@@ -1229,6 +1255,7 @@ class HelixCodeApp(App):
         self._recent_tool_results.clear()
         self.transcript_write(f"[dim]switched → {new_id}[/dim]\n")
         await self._load_conversation_history()
+        await self._ensure_session_context()
         self._save_ui_state()
         from core.session_models import restore_session_model
 
@@ -1259,13 +1286,15 @@ class HelixCodeApp(App):
         except Exception:
             return ["default"]
 
-    async def _switch_profile(self, new_profile: str) -> None:
+    async def _switch_profile(self, new_profile: str, *, profile_key: str | None = None) -> None:
+        from core.profile_keys import ProfileKeyError, profile_has_access_key
+
         if new_profile == self.profile:
             self.transcript_write(f"[dim]already on {new_profile}[/dim]")
             return
         self.transcript_write(f"[dim]profile → {new_profile}[/dim]")
         try:
-            new_config = self.profile_manager.load_profile(new_profile)
+            new_config = init_profile(new_profile, profile_key=profile_key, prompt_key=False)
             from core.di import resolve_runtime_config
 
             runtime_config = resolve_runtime_config(new_config)
@@ -1292,6 +1321,10 @@ class HelixCodeApp(App):
             self.agent.events.subscribe(self._on_agent_event)
             await self._create_new_session()
             self.transcript_write(f"[dim]profile {new_profile} active[/dim]")
+        except ProfileKeyError as exc:
+            self.transcript_write(f"[red]{exc}[/red]")
+            if profile_has_access_key(new_profile) and not profile_key:
+                self.transcript_write("[dim]/profile <name> <access-key>[/dim]")
         except Exception as e:
             self.transcript_write(f"[red]{e}[/red]")
 

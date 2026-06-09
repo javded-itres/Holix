@@ -17,6 +17,9 @@ from core.memory.chroma_embeddings import get_or_create_collection
 
 logger = logging.getLogger(__name__)
 
+_INDEXABLE_ROLES = frozenset({"user", "assistant", "system", "tool"})
+_MIN_INDEX_CHARS = 10
+
 
 class ConversationStore:
     """SQLite + ChromaDB storage for chat messages.
@@ -83,7 +86,7 @@ class ConversationStore:
             message_id = cursor.lastrowid
             await db.commit()
 
-        if content and len(content) > 10 and role in ("user", "assistant", "system"):
+        if content and len(content) > _MIN_INDEX_CHARS and role in _INDEXABLE_ROLES:
             try:
                 meta = {
                     "conversation_id": conversation_id,
@@ -93,6 +96,8 @@ class ConversationStore:
                 }
                 if metadata and isinstance(metadata, dict):
                     meta["type"] = metadata.get("type", "")
+                    if metadata.get("tool_name"):
+                        meta["tool_name"] = str(metadata["tool_name"])
 
                 self.collection.add(
                     documents=[content],
@@ -200,7 +205,7 @@ class ConversationStore:
                 role = msg.get("role", "")
                 content = msg.get("content", "")
                 meta = msg.get("metadata", {})
-                if content and len(content) > 10 and role in ("user", "assistant", "system"):
+                if content and len(content) > _MIN_INDEX_CHARS and role in _INDEXABLE_ROLES:
                     try:
                         m = {
                             "conversation_id": conversation_id,
@@ -210,6 +215,8 @@ class ConversationStore:
                         }
                         if isinstance(meta, dict):
                             m["type"] = meta.get("type", "")
+                            if meta.get("tool_name"):
+                                m["tool_name"] = str(meta["tool_name"])
                         self.collection.add(
                             documents=[content],
                             metadatas=[m],

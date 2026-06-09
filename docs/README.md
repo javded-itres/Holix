@@ -2,6 +2,8 @@
 
 Bilingual documentation. **English is the primary language** for accuracy and GitHub discovery.
 
+**Telegram channel:** [t.me/helix_agent](https://t.me/helix_agent)
+
 | Language | Index |
 |----------|--------|
 | **English** | [docs/en/README.md](en/README.md) |

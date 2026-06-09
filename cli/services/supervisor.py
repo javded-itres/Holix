@@ -97,7 +97,14 @@ def _terminate_proc(proc: subprocess.Popen[bytes] | None) -> None:
         proc.kill()
 
 
-def _docs_subprocess(host: str, port: int) -> subprocess.Popen[bytes] | None:
+def _docs_subprocess(
+    host: str,
+    port: int,
+    profile: str,
+    *,
+    gateway_host: str,
+    gateway_port: int,
+) -> subprocess.Popen[bytes] | None:
     if not docs_should_start():
         print_warning("Documentation site skipped (web-docs/ not found)")
         return None
@@ -108,11 +115,25 @@ def _docs_subprocess(host: str, port: int) -> subprocess.Popen[bytes] | None:
         port = listen_port
 
     print_success(f"Documentation site starting on {docs_url(host, port)}")
+    docs_env = os.environ.copy()
+    docs_env["HELIX_GATEWAY_HOST"] = gateway_host
+    docs_env["HELIX_GATEWAY_PORT"] = str(gateway_port)
     proc = popen_background(
-        [sys.executable, "-m", "cli.services.docs_worker", "--host", host, "--port", str(port)],
+        [
+            sys.executable,
+            "-m",
+            "cli.services.docs_worker",
+            "--host",
+            host,
+            "--port",
+            str(port),
+            "--profile",
+            profile,
+        ],
+        env=docs_env,
     )
     if proc.pid:
-        update_docs_info(pid=proc.pid, host=host, port=port)
+        update_docs_info(pid=proc.pid, host=host, port=port, profile=profile)
     return proc
 
 
@@ -137,7 +158,17 @@ async def _run_supervisor_async(
         companions.append("telegram (disabled)")
     print_info(f"Companion services: {', '.join(companions)}")
 
-    docs_proc = _docs_subprocess(docs_host, docs_port) if with_docs else None
+    docs_proc = (
+        _docs_subprocess(
+            docs_host,
+            docs_port,
+            profile,
+            gateway_host=host,
+            gateway_port=port,
+        )
+        if with_docs
+        else None
+    )
     gateway_task = asyncio.create_task(_run_gateway_uvicorn(host, port), name="gateway")
     telegram_task = asyncio.create_task(_run_telegram(profile), name="telegram")
     cron_task = asyncio.create_task(_run_cron_scheduler(profile), name="cron")
@@ -182,14 +213,13 @@ def _telegram_subprocess(profile: str) -> subprocess.Popen[bytes] | None:
         return None
 
     env = os.environ.copy()
-    env["HELIX_TELEGRAM_PROFILE"] = profile
     print_success(f"Telegram bot starting in subprocess (profile={profile})")
     proc = popen_background(
         [sys.executable, "-m", "integrations.telegram.main"],
         env=env,
     )
     if proc.pid:
-        update_telegram_pid(proc.pid)
+        update_telegram_pid(proc.pid, profile=profile)
     return proc
 
 
@@ -210,7 +240,17 @@ def _start_with_reload(
 
     tg_proc = _telegram_subprocess(profile)
     cron_proc = _cron_subprocess(profile)
-    docs_proc = _docs_subprocess(docs_host, docs_port) if with_docs else None
+    docs_proc = (
+        _docs_subprocess(
+            docs_host,
+            docs_port,
+            profile,
+            gateway_host=host,
+            gateway_port=port,
+        )
+        if with_docs
+        else None
+    )
 
     try:
         uvicorn.run(
@@ -238,7 +278,9 @@ def run_gateway_supervisor(
     docs_port: int = 8080,
 ) -> None:
     """Start gateway and all companion services (Telegram, docs, …)."""
-    os.environ["HELIX_PROFILE"] = profile
+    from core.env_loader import bootstrap_profile_env
+
+    bootstrap_profile_env(profile)
     if reload:
         _start_with_reload(
             host,

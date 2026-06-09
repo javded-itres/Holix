@@ -1,5 +1,19 @@
 # Changelog
 
+## Unreleased
+
+### Added
+- **Per-profile `.env`** — API keys and feature flags live in `~/.helix/profiles/<name>/.env` (not global `~/.helix/.env`)
+- **Per-profile Telegram** — `profiles/<name>/telegram.env`; each profile can use a different bot
+- **Per-profile gateway** — separate state/log under `profiles/<name>/gateway/`; multiple gateways on different ports
+- **`helix profile`** — `profile env`, `profile jail enable|disable|status` for workspace isolation
+- **Workspace jail** — optional restriction of file/terminal tools to a single directory tree
+
+### Changed
+- `helix gateway stop|status|reload` — scoped to active `-p` profile
+- `helix telegram setup` — saves secrets to the selected profile directory
+- Documentation and web-docs updated for profile isolation
+
 ## 0.1.5 — 2026-06-07
 
 ### Added

@@ -222,13 +222,42 @@ class PermissionManager:
     a JSON file. Thread-safe via a lock.
     """
 
-    PERMISSIONS_FILE = Path("data/security/permissions.json")
-
-    def __init__(self):
+    def __init__(self, data_dir: str | Path | None = None):
+        self._data_dir: Path | None = (
+            Path(data_dir).expanduser().resolve() if data_dir is not None else None
+        )
+        self._permissions_file_override: Path | None = None
         self._session_grants: Dict[str, PermissionGrant] = {}
         self._always_grants: Dict[str, PermissionGrant] = {}
         self._lock = threading.Lock()
         self._loaded = False
+
+    def set_data_dir(self, data_dir: str | Path) -> None:
+        """Point storage at the active profile data directory."""
+        self._data_dir = Path(data_dir).expanduser().resolve()
+        self._permissions_file_override = None
+
+    @property
+    def data_dir(self) -> Path:
+        if self._data_dir is not None:
+            return self._data_dir
+        from core.paths import resolve_profile_data_dir
+
+        return resolve_profile_data_dir()
+
+    @property
+    def PERMISSIONS_FILE(self) -> Path:
+        if self._permissions_file_override is not None:
+            return self._permissions_file_override
+        return self.data_dir / "security" / "permissions.json"
+
+    @PERMISSIONS_FILE.setter
+    def PERMISSIONS_FILE(self, value: Path) -> None:
+        self._permissions_file_override = Path(value)
+
+    @property
+    def audit_log_path(self) -> Path:
+        return self.data_dir / "security" / "confirmation_audit.jsonl"
 
     @staticmethod
     def _grant_key(tool_name: str, risk_level: RiskLevel, argument_pattern: Optional[str] = None) -> str:
@@ -390,10 +419,17 @@ class ActionGuard:
         auto_allow_threshold: RiskLevel = RiskLevel.LOW,
         interactive: bool = True,
         confirmation_timeout: int = 300,
+        data_dir: str | Path | None = None,
     ):
         self._event_bus = event_bus
-        self._permission_manager = permission_manager or PermissionManager()
+        self._permission_manager = permission_manager or PermissionManager(
+            data_dir=data_dir
+        )
         self._risk_classifier = risk_classifier or RiskClassifier()
+        if data_dir is not None:
+            self._audit_log_path = Path(data_dir).expanduser().resolve() / "security" / "confirmation_audit.jsonl"
+        else:
+            self._audit_log_path = self._permission_manager.audit_log_path
         self._auto_allow_threshold = auto_allow_threshold
         self._interactive = interactive
         self._confirmation_timeout = confirmation_timeout
@@ -593,7 +629,7 @@ class ActionGuard:
 
         # Write to audit log file
         try:
-            audit_log = Path("data/security/confirmation_audit.jsonl")
+            audit_log = self._audit_log_path
             audit_log.parent.mkdir(parents=True, exist_ok=True)
             with open(audit_log, "a") as f:
                 f.write(json.dumps(record) + "\n")
@@ -609,23 +645,32 @@ class ActionGuard:
 _action_guard: Optional[ActionGuard] = None
 
 
+def configure_security_storage(data_dir: str | Path) -> None:
+    """Bind global permission storage to the active profile data directory."""
+    permission_manager.set_data_dir(data_dir)
+
+
 def init_action_guard(
     event_bus: Any,
     auto_allow_threshold: RiskLevel = RiskLevel.LOW,
     interactive: bool = True,
     confirmation_timeout: int = 300,
+    data_dir: str | Path | None = None,
 ) -> ActionGuard:
     """Initialize the global ActionGuard instance.
 
     Called by HelixAgent after the event bus is ready.
     """
     global _action_guard
+    if data_dir is not None:
+        configure_security_storage(data_dir)
     _action_guard = ActionGuard(
         event_bus=event_bus,
         permission_manager=permission_manager,
         auto_allow_threshold=auto_allow_threshold,
         interactive=interactive,
         confirmation_timeout=confirmation_timeout,
+        data_dir=data_dir,
     )
     return _action_guard
 

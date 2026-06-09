@@ -1,16 +1,23 @@
 [Unit]
-Description=Helix API Gateway
-After=network.target
+Description=Helix API Gateway (profile default)
+Documentation=https://github.com/javded-itres/HelixAgent/blob/master/docs/en/DEPLOYMENT.md
+After=network-online.target
+Wants=network-online.target
 
 [Service]
 Type=simple
 User=helix
-WorkingDirectory=/opt/helix
-EnvironmentFile=/etc/helix/helix.env
-ExecStart=/opt/helix/.venv/bin/helix gateway start
-ExecStop=/opt/helix/.venv/bin/helix gateway stop
+Group=helix
+WorkingDirectory=/home/helix
+Environment=HOME=/home/helix
+Environment=HELIX_HOME=/home/helix/.helix
+EnvironmentFile=-/etc/helix/helix.conf
+# Secrets and gateway bind: ~/.helix/profiles/default/.env (loaded by gateway_worker)
+ExecStart=${HELIX_PYTHON} -m cli.services.gateway_worker --profile default
+ExecStop=${HELIX_BIN} gateway stop
 Restart=on-failure
 RestartSec=5
+TimeoutStopSec=30
 
 [Install]
 WantedBy=multi-user.target

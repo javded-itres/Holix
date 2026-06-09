@@ -8,9 +8,16 @@ from core.tools.base import BaseTool
 class ToolRegistry:
     """Registry for managing and executing agent tools."""
 
-    def __init__(self):
+    def __init__(
+        self,
+        *,
+        workspace_root: Optional[str] = None,
+        workspace_jail_enabled: bool = False,
+    ):
         self.tools: Dict[str, BaseTool] = {}
         self._action_guard = None  # Set by set_action_guard()
+        self._workspace_root = workspace_root
+        self._workspace_jail_enabled = workspace_jail_enabled
 
     def set_action_guard(self, guard) -> None:
         """Set the ActionGuard instance for pre-execution confirmation.
@@ -46,6 +53,8 @@ class ToolRegistry:
         from core.tools.database import SQLQueryTool, SQLSchemaTool
         from core.tools.code_executor import PythonExecutorTool, MathCalculatorTool
         from core.tools.ask_user import AskUserTool
+        from core.tools.send_chat_files import SendChatFilesTool
+        from core.tools.session_memory import ReadSessionTool, SearchSessionsTool
 
         # File operations
         self.register(ReadFileTool())
@@ -70,6 +79,13 @@ class ToolRegistry:
 
         # Sub-agent ↔ user bridge
         self.register(AskUserTool())
+
+        # Chat file delivery (Telegram; no-op without delivery bridge)
+        self.register(SendChatFilesTool())
+
+        # Cross-session memory
+        self.register(SearchSessionsTool())
+        self.register(ReadSessionTool())
 
         from config import settings
 
@@ -120,7 +136,13 @@ class ToolRegistry:
         """
         return [tool.to_openai_schema() for tool in self.tools.values()]
 
-    async def execute(self, tool_call, conversation_id: str = "default") -> str:
+    async def execute(
+        self,
+        tool_call,
+        conversation_id: str = "default",
+        *,
+        memory: Any = None,
+    ) -> str:
         """Execute a tool call from the LLM.
 
         If an ActionGuard is installed, all tool executions go through
@@ -150,9 +172,21 @@ class ToolRegistry:
         except json.JSONDecodeError as e:
             return f"Error: Invalid JSON arguments - {e}"
 
-        from core.tools.execution_context import conversation_scope, reset_conversation_scope
+        from core.tools.execution_context import (
+            conversation_scope,
+            memory_facade_scope,
+            reset_conversation_scope,
+            reset_memory_facade_scope,
+            reset_workspace_scope,
+            workspace_scope,
+        )
 
         token = conversation_scope(conversation_id)
+        mem_token = memory_facade_scope(memory) if memory is not None else None
+        ws_tokens = workspace_scope(
+            workspace_root=self._workspace_root,
+            workspace_jail_enabled=self._workspace_jail_enabled,
+        )
         try:
             # Gate with ActionGuard if installed
             if self._action_guard:
@@ -172,6 +206,9 @@ class ToolRegistry:
                 return f"Error executing {tool_name}: {str(e)}"
         finally:
             reset_conversation_scope(token)
+            if mem_token is not None:
+                reset_memory_facade_scope(mem_token)
+            reset_workspace_scope(ws_tokens)
 
     def get_tool_names(self) -> List[str]:
         """Get names of all registered tools.

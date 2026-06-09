@@ -62,6 +62,8 @@ class TelegramEventHandler:
                 body = getattr(event, "result", "") or ""
                 buf.add_tool_result(event.tool_name, body, duration_s=duration_s)
                 self._store_tool(self._presenter.session, event.tool_name, body, duration_s)
+                if (event.tool_name or "") == "send_chat_files" and body.startswith("Sent "):
+                    buf.add_note(f"📎 {body[:240]}")
                 self._presenter.schedule_edit()
 
             elif isinstance(event, ToolCallErrorEvent):

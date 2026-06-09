@@ -473,6 +473,8 @@ def build_agent_prompt(user_text: str, files: list[SavedTelegramFile]) -> str:
     lines.append("")
     lines.append(
         "Используй пути к файлам для read_file, write_file и других инструментов. "
+        "Чтобы отправить сформированные файлы пользователю в Telegram, вызови "
+        "send_chat_files с путями (2–10 файлов отправятся альбомом). "
         "Не удаляй оригиналы без явного запроса пользователя."
     )
     return "\n".join(lines)

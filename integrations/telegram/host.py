@@ -158,6 +158,19 @@ class TelegramHost:
     async def _send_html(self, html: str) -> None:
         await self._bot.send_message(self._session.chat_id, html, parse_mode="HTML")
 
+    async def _send_html_split(self, html: str) -> None:
+        """Send long HTML across multiple messages (Telegram 4096 char limit)."""
+        chunks = split_telegram_html(html)
+        for chunk in chunks:
+            if not (chunk or "").strip():
+                continue
+            await self._bot.send_message(
+                self._session.chat_id,
+                chunk,
+                parse_mode="HTML",
+            )
+            await asyncio.sleep(0.06)
+
     async def _send_html_with_keyboard(self, html: str, reply_markup: Any) -> None:
         await self._bot.send_message(
             self._session.chat_id,
@@ -255,8 +268,21 @@ class TelegramHost:
         except Exception:
             return ["default"]
 
-    async def _switch_profile(self, new_profile: str) -> None:
+    async def _switch_profile(self, new_profile: str, *, profile_key: str | None = None) -> None:
+        from cli.core import init_profile
+        from core.profile_keys import ProfileKeyError, profile_has_access_key
         from integrations.telegram.agent_setup import create_agent
+
+        try:
+            init_profile(new_profile, profile_key=profile_key, prompt_key=False)
+        except ProfileKeyError as exc:
+            await self._send_html(
+                f"{exc}<br><br>"
+                "Отправьте: <code>/profile имя ключ</code>"
+                if profile_has_access_key(new_profile) and not profile_key
+                else str(exc)
+            )
+            return
 
         self._session.profile = new_profile
         self._session.agent = await create_agent(new_profile)
@@ -275,9 +301,14 @@ class TelegramHost:
         if not results:
             self.transcript_write("no memory hits")
             return
-        for i, mem in enumerate(results, 1):
-            content = (mem.get("content") or "")[:300]
-            self.transcript_write(f"{i}. {content}")
+        text = self.agent.format_memory_results(
+            results,
+            conversation_id=self.conversation_id,
+            include_current=True,
+        )
+        for line in text.split("\n"):
+            if line.strip():
+                self.transcript_write(line)
 
     def _show_full_tool_result(self, index_from_end: int = 0) -> None:
         if not self._recent_tool_results:
@@ -612,6 +643,15 @@ class TelegramHost:
 
         self.agent.events.subscribe(on_event)
 
+        from core.tools.execution_context import (
+            chat_delivery_scope,
+            reset_chat_delivery_scope,
+        )
+        from integrations.telegram.delivery_bridge import TelegramDeliveryBridge
+
+        delivery_bridge = TelegramDeliveryBridge(self._bot, self._session.chat_id)
+        delivery_token = chat_delivery_scope(delivery_bridge)
+
         async with TypingIndicator(self._bot, self._session.chat_id):
             await presenter.start()
 
@@ -647,3 +687,4 @@ class TelegramHost:
             finally:
                 self.agent.events.unsubscribe(on_event)
                 await presenter._do_edit()
+                reset_chat_delivery_scope(delivery_token)

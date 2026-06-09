@@ -9,7 +9,7 @@ install(show_locals=True)
 
 from cli.core import init_profile, get_current_profile, get_profile_manager
 from cli.utils.rich_console import console, print_info
-from cli.commands import chat, run, gateway, skills, memory, config, models, doctor
+from cli.commands import chat, run, gateway, skills, memory, config, models, doctor, profile
 from cli.commands.mcp import app as mcp_app
 from cli.commands.search import app as search_app
 from cli.commands.cron import app as cron_app
@@ -32,6 +32,7 @@ app = typer.Typer(
 app.add_typer(skills.app, name="skills")
 app.add_typer(memory.app, name="memory")
 app.add_typer(config.app, name="config")
+app.add_typer(profile.app, name="profile")
 app.add_typer(models.app, name="models")
 register_telegram_command(app)
 app.add_typer(gateway.app, name="gateway")
@@ -55,6 +56,12 @@ def main(
         help="Profile name to use",
         show_default=True
     ),
+    profile_key: Optional[str] = typer.Option(
+        None,
+        "--profile-key",
+        envvar="HELIX_PROFILE_KEY",
+        help="Access key for a protected profile",
+    ),
     verbose: bool = typer.Option(
         False,
         "--verbose", "-v",
@@ -66,13 +73,22 @@ def main(
     A powerful, self-improving AI agent with memory, skills, and tool-calling capabilities.
     """
     # Initialize profile
-    config = init_profile(profile)
+    from core.profile_keys import ProfileKeyError
+
+    try:
+        config = init_profile(profile, profile_key=profile_key)
+    except ProfileKeyError as exc:
+        from cli.utils.rich_console import print_error
+
+        print_error(str(exc))
+        raise typer.Exit(1) from exc
 
     # Store context
     ctx.obj = {
         "profile": profile,
         "config": config,
-        "verbose": verbose
+        "verbose": verbose,
+        "profile_key": profile_key,
     }
 
     if verbose:
@@ -170,9 +186,18 @@ def status(ctx: typer.Context):
     manager = get_profile_manager()
     profiles = manager.list_profiles()
 
+    from core.profile_keys import profile_has_access_key
+
     if profiles:
-        rows = [[p, "✓" if p == profile else ""] for p in profiles]
-        print_table("Available Profiles", ["Profile", "Active"], rows)
+        rows = [
+            [
+                p,
+                "locked" if profile_has_access_key(p) else "open",
+                "✓" if p == profile else "",
+            ]
+            for p in profiles
+        ]
+        print_table("Available Profiles", ["Profile", "Access", "Active"], rows)
 
 
 @app.command()

@@ -3,6 +3,7 @@ from typing import Optional
 
 from core.tools.base import BaseTool
 from core.tools.file_diff import format_write_file_result, read_file_text
+from core.workspace import WorkspaceJailError, resolve_tool_path
 
 
 class ReadFileTool(BaseTool):
@@ -34,7 +35,7 @@ class ReadFileTool(BaseTool):
             File contents or error message
         """
         try:
-            file_path = Path(path).expanduser()
+            file_path = resolve_tool_path(path)
 
             if not file_path.exists():
                 return f"Error: File '{path}' does not exist"
@@ -47,6 +48,8 @@ class ReadFileTool(BaseTool):
 
             return f"Content of {path}:\n{content}"
 
+        except WorkspaceJailError as e:
+            return f"Error: {e}"
         except Exception as e:
             return f"Error reading file: {str(e)}"
 
@@ -85,7 +88,7 @@ class WriteFileTool(BaseTool):
             Success or error message
         """
         try:
-            file_path = Path(path).expanduser()
+            file_path = resolve_tool_path(path)
             old_text = read_file_text(file_path)
 
             file_path.parent.mkdir(parents=True, exist_ok=True)
@@ -101,6 +104,8 @@ class WriteFileTool(BaseTool):
 
             return format_write_file_result(display_path, old_text, content)
 
+        except WorkspaceJailError as e:
+            return f"Error: {e}"
         except Exception as e:
             return f"Error writing file: {str(e)}"
 
@@ -134,7 +139,7 @@ class ListDirectoryTool(BaseTool):
             Directory listing or error message
         """
         try:
-            dir_path = Path(path).expanduser()
+            dir_path = resolve_tool_path(path)
 
             if not dir_path.exists():
                 return f"Error: Directory '{path}' does not exist"
@@ -151,5 +156,7 @@ class ListDirectoryTool(BaseTool):
 
             return "\n".join(output_lines)
 
+        except WorkspaceJailError as e:
+            return f"Error: {e}"
         except Exception as e:
             return f"Error listing directory: {str(e)}"

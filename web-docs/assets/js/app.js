@@ -43,8 +43,9 @@ function makeBreadcrumb(homeLabel, docsLabel, title) {
 
 const GITHUB_URL = "https://github.com/javded-itres/HelixAgent";
 const PYPI_URL = "https://pypi.org/project/HelixAgentAi/";
-const DONATE_URL = "https://messenger.online.sberbank.ru/sl/uwKJ687QKl7d1a1Ui";
+const DONATE_URL = "https://boosty.to/javded/single-payment/donation/805721/target?share=target_link";
 const SITE_URL = "https://helix-agent.ru";
+const TELEGRAM_CHANNEL_URL = "https://t.me/helix_agent";
 const YANDEX_METRIKA_ID = 109712139;
 
 function trackMetrikaPageView() {
@@ -82,6 +83,12 @@ const I18N = {
     mkt_adv_3_d: "API keys, rate limits, command whitelist, gateway auth, Docker and systemd deployment.",
     mkt_adv_4_t: "Your models",
     mkt_adv_4_d: "Ollama, LiteLLM, OpenAI-compatible APIs — no vendor lock-in for inference.",
+    mkt_adv_5_t: "Isolated profiles",
+    mkt_adv_5_d: "Separate .env, memory, Telegram bot, and gateway per profile — several users on one host without overlap.",
+    mkt_profiles_title: "Profiles & workspace jail",
+    mkt_profiles_text:
+      "Each profile is a sandbox: own API keys, bot, gateway port, and conversation memory. Optional workspace jail locks file and terminal tools to one directory — the agent cannot leave the folder but works freely inside.",
+    mkt_profiles_cta: "Profiles guide",
     mkt_feat_title: "Capabilities",
     mkt_use_title: "How teams use Helix",
     mkt_use_1_t: "Developer copilot",
@@ -92,6 +99,8 @@ const I18N = {
     mkt_use_3_d: "Mobile access with voice notes, file handling, and the same agent brain.",
     mkt_use_4_t: "API gateway",
     mkt_use_4_d: "OpenAI-compatible HTTP API for apps, bots, and internal services.",
+    mkt_use_5_t: "Multi-user host",
+    mkt_use_5_d: "One server — many profiles: separate bots, gateways, and optional folder jail per person.",
     mkt_how_title: "Interfaces",
     mkt_how_tui: "Full-screen TUI — daily work, tools, hub, MCP",
     mkt_how_chat: "Terminal REPL — lightweight chat",
@@ -103,6 +112,11 @@ const I18N = {
     cta_docs: "Read documentation",
     cta_install: "Installation guide",
     donate: "Support the project",
+    telegram_channel: "Telegram",
+    tg_callout_title: "Stay in the loop",
+    tg_callout_lead:
+      "Subscribe to our Telegram channel for release notes, roadmap updates, tips, and early news about Helix.",
+    tg_callout_cta: "Subscribe to @helix_agent",
     github: "GitHub",
     docs_hub_lead: "Guides, CLI reference, deployment, and troubleshooting.",
     docs_hub_title: "Documentation",
@@ -121,6 +135,8 @@ const I18N = {
     feat_security_desc: "Auth, rate limits, whitelist, confirmations.",
     feat_interfaces: "Interfaces",
     feat_interfaces_desc: "TUI, chat, run, gateway, Telegram.",
+    feat_profiles: "Profile isolation",
+    feat_profiles_desc: "Per-profile secrets, gateway, Telegram; optional directory jail for tools.",
   },
   ru: {
     tagline: "Самообучающийся агент",
@@ -151,6 +167,12 @@ const I18N = {
     mkt_adv_3_d: "API-ключи, rate limit, whitelist команд, auth gateway, Docker и systemd.",
     mkt_adv_4_t: "Ваши модели",
     mkt_adv_4_d: "Ollama, LiteLLM, OpenAI-совместимые API — без привязки к одному вендору.",
+    mkt_adv_5_t: "Изолированные профили",
+    mkt_adv_5_d: "Свой .env, память, Telegram и gateway на профиль — несколько пользователей на одном хосте без пересечений.",
+    mkt_profiles_title: "Профили и workspace jail",
+    mkt_profiles_text:
+      "Каждый профиль — отдельная песочница: свои ключи API, бот, порт gateway и память диалогов. Опциональный workspace jail ограничивает файловые и терминальные инструменты одной директорией — агент не выходит из папки, но внутри работает свободно.",
+    mkt_profiles_cta: "Руководство по профилям",
     mkt_feat_title: "Возможности",
     mkt_use_title: "Сценарии использования",
     mkt_use_1_t: "Помощник разработчика",
@@ -161,6 +183,8 @@ const I18N = {
     mkt_use_3_d: "Мобильный доступ, голосовые сообщения, файлы — тот же агент.",
     mkt_use_4_t: "API gateway",
     mkt_use_4_d: "HTTP API в формате OpenAI для приложений и внутренних сервисов.",
+    mkt_use_5_t: "Несколько пользователей",
+    mkt_use_5_d: "Один сервер — много профилей: отдельные боты, gateway и опциональный jail по папке на человека.",
     mkt_how_title: "Как работать с Helix",
     mkt_how_tui: "Полноэкранный TUI — основной интерфейс",
     mkt_how_chat: "Чат в терминале — лёгкий REPL",
@@ -172,6 +196,11 @@ const I18N = {
     cta_docs: "Открыть документацию",
     cta_install: "Руководство по установке",
     donate: "Поддержать проект",
+    telegram_channel: "Telegram",
+    tg_callout_title: "Следите за развитием",
+    tg_callout_lead:
+      "Telegram-канал Helix: анонсы релизов, планы развития, советы по использованию и свежие новости проекта.",
+    tg_callout_cta: "Подписаться на @helix_agent",
     github: "GitHub",
     docs_hub_lead: "Установка, справочник CLI, развёртывание и решение проблем.",
     docs_hub_title: "Документация",
@@ -190,11 +219,13 @@ const I18N = {
     feat_security_desc: "Auth, лимиты, whitelist, подтверждения.",
     feat_interfaces: "Интерфейсы",
     feat_interfaces_desc: "TUI, chat, run, gateway, Telegram.",
+    feat_profiles: "Изоляция профилей",
+    feat_profiles_desc: "Секреты, gateway и Telegram на профиль; опциональный jail по директории.",
   },
 };
 
 const NAV_SECTIONS = {
-  getting_started: ["installation", "start-here", "quickstart", "configuration"],
+  getting_started: ["installation", "start-here", "quickstart", "configuration", "profiles"],
   interfaces: ["cli", "slash-commands", "tui", "hub", "gateway", "telegram", "browser-tools"],
   operations: ["security", "deployment", "doctor", "logs", "pypi", "troubleshooting", "user-guide"],
   architecture: ["architecture", "readme"],
@@ -241,9 +272,11 @@ function isMobileLayout() {
 }
 
 function syncHeaderHeight() {
+  const chrome = $("#site-chrome");
   const header = $(".header");
-  if (!header) return;
-  document.documentElement.style.setProperty("--header-h", `${Math.ceil(header.getBoundingClientRect().height)}px`);
+  const target = chrome || header;
+  if (!target) return;
+  document.documentElement.style.setProperty("--header-h", `${Math.ceil(target.getBoundingClientRect().height)}px`);
 }
 
 function setupHeaderHeightSync() {
@@ -304,6 +337,16 @@ function docHref(slug) {
   return `#/docs/${slug}`;
 }
 
+function openDocPage(slug) {
+  if (!isValidSlug(slug)) return;
+  const target = docHref(slug).slice(1);
+  if (location.hash.slice(1) === target) {
+    route();
+    return;
+  }
+  location.hash = target;
+}
+
 function scrollToAnchor(anchor) {
   const el = document.getElementById(anchor);
   if (el) {
@@ -318,7 +361,21 @@ function t(key) {
 }
 
 function footerHtml() {
-  return `${t("footer")} · <a href="${SITE_URL}">helix-agent.ru</a> · <a href="${GITHUB_URL}" target="_blank" rel="noopener noreferrer">${t("github")}</a>`;
+  return `${t("footer")} · <a href="${SITE_URL}">helix-agent.ru</a> · <a href="${TELEGRAM_CHANNEL_URL}" target="_blank" rel="noopener noreferrer">${t("telegram_channel")}</a> · <a href="${GITHUB_URL}" target="_blank" rel="noopener noreferrer">${t("github")}</a>`;
+}
+
+function telegramCalloutHtml() {
+  return `
+    <section class="telegram-callout">
+      <div class="telegram-callout-icon" aria-hidden="true">
+        <svg viewBox="0 0 24 24" width="32" height="32"><path fill="currentColor" d="M9.78 15.28 9.5 19.8c.55 0 .79-.24 1.08-.52l2.59-2.48 5.37 3.94c.99.55 1.7.26 1.97-.9l3.53-16.57h.01c.32-1.48-.53-2.06-1.5-1.7L2.2 9.74c-1.45.57-1.43 1.39-.25 1.76l5.26 1.64L19.5 6.3c.66-.44 1.26-.2.77.26"/></svg>
+      </div>
+      <div class="telegram-callout-body">
+        <h2>${t("tg_callout_title")}</h2>
+        <p>${t("tg_callout_lead")}</p>
+        <a href="${TELEGRAM_CHANNEL_URL}" class="btn btn-telegram" target="_blank" rel="noopener noreferrer">${t("tg_callout_cta")} ↗</a>
+      </div>
+    </section>`;
 }
 
 function setViewMode(mode) {
@@ -405,6 +462,7 @@ function featureCardsHtml() {
     ["feat_models", "feat_models_desc", "🌐"],
     ["feat_security", "feat_security_desc", "🛡️"],
     ["feat_interfaces", "feat_interfaces_desc", "🖥️"],
+    ["feat_profiles", "feat_profiles_desc", "🗂️"],
   ];
   return feats
     .map(
@@ -438,9 +496,12 @@ function renderMarketing() {
       <div class="hero-actions">
         <a href="#/docs" class="btn btn-primary">${t("cta_docs")}</a>
         <a href="${docHref("installation")}" class="btn btn-ghost">${t("cta_install")}</a>
+        <a href="${TELEGRAM_CHANNEL_URL}" class="btn btn-telegram" target="_blank" rel="noopener noreferrer">${t("tg_callout_cta")} ↗</a>
         <a href="${DONATE_URL}" class="btn btn-donate" target="_blank" rel="noopener noreferrer">♥ ${t("donate")}</a>
       </div>
     </section>
+
+    ${telegramCalloutHtml()}
 
     <section class="ru-callout">
       <div class="ru-callout-flag" aria-hidden="true">🇷🇺</div>
@@ -456,7 +517,17 @@ function renderMarketing() {
       <article class="advantage-card"><h3>${t("mkt_adv_2_t")}</h3><p>${t("mkt_adv_2_d")}</p></article>
       <article class="advantage-card"><h3>${t("mkt_adv_3_t")}</h3><p>${t("mkt_adv_3_d")}</p></article>
       <article class="advantage-card"><h3>${t("mkt_adv_4_t")}</h3><p>${t("mkt_adv_4_d")}</p></article>
+      <article class="advantage-card"><h3>${t("mkt_adv_5_t")}</h3><p>${t("mkt_adv_5_d")}</p></article>
     </div>
+
+    <section class="profiles-callout">
+      <div class="profiles-callout-icon" aria-hidden="true">🗂️</div>
+      <div>
+        <h2>${t("mkt_profiles_title")}</h2>
+        <p>${t("mkt_profiles_text")}</p>
+        <a href="${docHref("profiles")}" class="btn btn-ghost profiles-callout-link">${t("mkt_profiles_cta")} →</a>
+      </div>
+    </section>
 
     <h2 class="section-title">${t("mkt_feat_title")}</h2>
     <section class="features-grid">${featureCardsHtml()}</section>
@@ -467,6 +538,7 @@ function renderMarketing() {
       <article class="use-case-card"><span class="use-case-num">02</span><h3>${t("mkt_use_2_t")}</h3><p>${t("mkt_use_2_d")}</p></article>
       <article class="use-case-card"><span class="use-case-num">03</span><h3>${t("mkt_use_3_t")}</h3><p>${t("mkt_use_3_d")}</p></article>
       <article class="use-case-card"><span class="use-case-num">04</span><h3>${t("mkt_use_4_t")}</h3><p>${t("mkt_use_4_d")}</p></article>
+      <article class="use-case-card"><span class="use-case-num">05</span><h3>${t("mkt_use_5_t")}</h3><p>${t("mkt_use_5_d")}</p></article>
     </div>
 
     <h2 class="section-title">${t("mkt_how_title")}</h2>
@@ -508,6 +580,7 @@ function renderDocsHub() {
         <a href="${PYPI_URL}" class="hero-install-link" target="_blank" rel="noopener noreferrer">${t("install_pypi_link")} ↗</a>
       </div>
     </section>
+    ${telegramCalloutHtml()}
     <div class="aspects-grid">
       ${aspects.map((a) => `
         <a href="${docHref(a.slug)}" class="aspect-link">
@@ -754,6 +827,7 @@ function setupLangToggle() {
       state.lang = btn.dataset.lang;
       localStorage.setItem("helix-docs-lang", state.lang);
       applyI18n();
+      notifyLangChange();
       route();
     });
   });
@@ -792,6 +866,10 @@ function setupMobileMenu() {
   });
 }
 
+function notifyLangChange() {
+  document.dispatchEvent(new CustomEvent("helix-lang-change"));
+}
+
 async function init() {
   applyI18n();
   setupHeaderHeightSync();
@@ -800,7 +878,16 @@ async function init() {
   setupLangToggle();
   setupMobileMenu();
   window.addEventListener("hashchange", route);
+  document.addEventListener("helix-open-doc", (ev) => {
+    openDocPage(ev.detail?.slug);
+  });
   route();
+  try {
+    const { initChatWidget } = await import("./chat-widget.js");
+    await initChatWidget({ getLang: () => state.lang });
+  } catch {
+    /* chat widget optional when static hosting without API */
+  }
 }
 
 init().catch((err) => {

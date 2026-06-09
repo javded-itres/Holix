@@ -55,7 +55,11 @@ async def tool_execution_node(state: HelixGraphState, config: RunnableConfig) ->
 
         start = time.time()
         try:
-            result = await agent.tools.execute(tool_call_obj)
+            result = await agent.tools.execute(
+                tool_call_obj,
+                conversation_id=conversation_id,
+                memory=getattr(agent, "memory", None),
+            )
             duration = (time.time() - start) * 1000
 
             if agent and hasattr(agent, "emit"):
@@ -94,12 +98,23 @@ async def tool_execution_node(state: HelixGraphState, config: RunnableConfig) ->
             "duration_ms": duration,
         })
 
-        # Save to memory
+        # Save to memory (truncate huge outputs — full result stays in graph state)
         if agent and hasattr(agent, "memory"):
+            from core.memory.tool_content import truncate_tool_content_for_memory
+
             await agent.memory.save_message(
-                conversation_id, "tool", result,
+                conversation_id,
+                "tool",
+                truncate_tool_content_for_memory(result),
                 metadata={"tool_name": tool_name},
             )
+
+    if agent and hasattr(agent, "context_manager") and agent.context_manager:
+        from core.runtime.context_session import compress_session_if_needed
+
+        messages, _ = await compress_session_if_needed(
+            agent, conversation_id, messages
+        )
 
     return {
         "messages": messages,

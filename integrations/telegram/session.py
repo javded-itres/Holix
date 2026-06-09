@@ -46,6 +46,8 @@ class ChatSession:
     ui_providers_page: int = 0
     ui_models_provider_idx: int | None = None
     ui_models_page: int = 0
+    ui_skills: list[str] = field(default_factory=list)
+    ui_skills_page: int = 0
     active_model_slot: str = "main"
     active_model_label: str = ""
     _model_synced_for: str | None = None
