@@ -276,7 +276,7 @@ In TUI/chat use `/memory <query>`.
 
 ## `helix profile`
 
-Per-profile isolation: env file and optional workspace jail.
+Per-profile isolation: env file, optional workspace jail, and terminal whitelist.
 
 | Subcommand | Description |
 |------------|-------------|
@@ -285,14 +285,18 @@ Per-profile isolation: env file and optional workspace jail.
 | `jail enable <path>` | Restrict file/terminal tools to one directory |
 | `jail disable` | Turn off workspace jail |
 | `jail status` | Show jail settings |
+| `whitelist add "<cmds>"` | Add comma-separated terminal commands |
+| `whitelist list` | Show whitelist status and effective commands |
+| `whitelist enable` | Enable terminal whitelist enforcement |
 
 ```bash
 helix -p alice profile env --edit
 helix -p data-agent profile jail enable ~/data-agent
-helix -p data-agent profile jail status
+helix -p dev profile whitelist add "docker, make"
+helix -p dev profile whitelist list
 ```
 
-See [CONFIGURATION.md](CONFIGURATION.md#workspace-jail-optional).
+See [CONFIGURATION.md](CONFIGURATION.md#workspace-jail-optional) and [PROFILES.md](PROFILES.md).
 
 ---
 
@@ -319,6 +323,26 @@ helix gateway reload
 
 State: `~/.helix/profiles/<profile>/gateway/state.json` · Logs: `profiles/<profile>/gateway/gateway.log`  
 API details: [GATEWAY.md](GATEWAY.md).
+
+---
+
+## `helix docs`
+
+Documentation website (marketing landing + docs SPA, search, EN/RU).
+
+| Subcommand | Description |
+|------------|-------------|
+| *(default)* | Serve site on `127.0.0.1:8080` |
+| `serve` | Same as default |
+| `build` | Sync `docs/en` + `docs/ru` → `web-docs/`, rebuild search index and SEO artifacts |
+
+```bash
+helix docs build
+helix docs --port 8080 --open
+helix gateway start --with-docs
+```
+
+See [DEPLOYMENT.md](DEPLOYMENT.md#documentation-site-build-and-seo).
 
 ---
 

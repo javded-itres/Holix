@@ -18,7 +18,7 @@ helix logs debug on
 
 ## Windows
 
-- Терминал: `dir`, `type`, `where` вместо `ls`, `cat`
+- Терминал: `dir`, `type`, `where` вместо `ls`, `cat`; Unix-команды можно добавить через `helix profile whitelist add` или `HELIX_TERMINAL_WHITELIST_EXTRA` в `.env` профиля
 - Субагенты — режим async
 - Данные: `%LOCALAPPDATA%\Helix` или `HELIX_HOME`
 - Опционально: `uv sync --extra windows`

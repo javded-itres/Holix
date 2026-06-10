@@ -300,17 +300,24 @@ async def plan_node(state: HelixGraphState, config: RunnableConfig) -> dict:
     # Call LLM with timeout + retry
     client = agent.client
     model = agent.model
+    profile_name = getattr(getattr(agent, "config", None), "profile_name", None)
+    from core.prompt_builder import language_instruction_block
+
+    plan_system = (
+        "You are a senior software architect and task planner. "
+        "Create comprehensive, detailed execution plans. "
+        "Respond with ONLY valid JSON. "
+        "Write all human-readable text fields in the plan (descriptions, analysis, questions) "
+        "in the language required below; keep JSON keys in English.\n\n"
+        f"{language_instruction_block(profile_name=profile_name)}"
+    )
 
     api_kwargs = {
         "model": model,
         "messages": [
             {
                 "role": "system",
-                "content": (
-                    "You are a senior software architect and task planner. "
-                    "Create comprehensive, detailed execution plans. "
-                    "Respond with ONLY valid JSON."
-                ),
+                "content": plan_system,
             },
             {"role": "user", "content": prompt},
         ],

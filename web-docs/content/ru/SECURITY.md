@@ -42,7 +42,12 @@ api_key: ${OPENAI_API_KEY}
 
 ## Инструменты
 
-- **Terminal**: whitelist при `HELIX_TERMINAL_COMMAND_WHITELIST=true`
+- **Terminal**: whitelist, блокировка опасных паттернов, подтверждения — подробно: [TERMINAL_SECURITY.md](TERMINAL_SECURITY.md). Быстрая настройка:
+  ```bash
+  helix -p dev profile whitelist enable
+  helix -p dev profile whitelist add "docker, make"
+  helix -p dev profile whitelist list
+  ```
 - **Python executor**: `HELIX_ENABLE_CODE_EXECUTOR=false` в production
 
 ## Аудит

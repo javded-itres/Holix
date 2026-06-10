@@ -20,8 +20,10 @@ from core.profile_keys import (
 app = typer.Typer(help="Manage profile isolation (env, workspace jail, access keys)")
 jail_app = typer.Typer(help="Restrict agent file/terminal access to one directory")
 key_app = typer.Typer(help="Profile access keys (required to switch into protected profiles)")
+whitelist_app = typer.Typer(help="Terminal command whitelist for the active profile")
 app.add_typer(jail_app, name="jail")
 app.add_typer(key_app, name="key")
+app.add_typer(whitelist_app, name="whitelist")
 
 
 def _profile(ctx: typer.Context) -> str:
@@ -257,3 +259,80 @@ def jail_status(ctx: typer.Context) -> None:
         border = "yellow"
 
     print_panel(body, title=f"Workspace jail — {config.profile_name}", border_style=border)
+
+
+@whitelist_app.command("add")
+def whitelist_add(
+    ctx: typer.Context,
+    commands: str = typer.Argument(
+        ...,
+        help='Comma-separated commands or prefixes, e.g. "docker, make, git push"',
+    ),
+) -> None:
+    """Add commands to the profile terminal whitelist."""
+    from core.env_loader import profile_env_path
+    from core.terminal_whitelist_config import add_whitelist_commands, parse_command_list
+
+    profile = _profile(ctx)
+    parsed = parse_command_list(commands)
+    if not parsed:
+        print_error("No commands provided")
+        raise typer.Exit(1)
+
+    added = add_whitelist_commands(profile, commands)
+    path = profile_env_path(profile)
+    if added:
+        print_success(f"Added to whitelist for profile '{profile}': {', '.join(added)}")
+    else:
+        print_info(f"All commands were already in the whitelist for profile '{profile}'")
+    print_info(f"Saved in: {path}")
+    print_info("Restart gateway/Telegram or re-run CLI for changes to apply")
+
+
+@whitelist_app.command("list")
+def whitelist_list(ctx: typer.Context) -> None:
+    """List terminal whitelist settings for the active profile."""
+    from cli.utils.rich_console import print_panel
+    from core.env_loader import profile_env_path
+    from core.platform_compat import IS_WINDOWS
+    from core.terminal_whitelist_config import (
+        builtin_whitelist_commands,
+        effective_whitelist_commands,
+        read_whitelist_enabled,
+        read_whitelist_extra,
+    )
+
+    profile = _profile(ctx)
+    enabled = read_whitelist_enabled(profile)
+    extra = read_whitelist_extra(profile)
+    builtin = builtin_whitelist_commands()
+    effective = effective_whitelist_commands(profile)
+    platform = "Windows" if IS_WINDOWS else "Unix"
+
+    status = "[green]Enabled[/green]" if enabled else "[yellow]Disabled[/yellow]"
+    extra_line = ", ".join(extra) if extra else "[dim]none[/dim]"
+    body = (
+        f"{status}\n"
+        f"[cyan]Platform defaults ({platform}):[/cyan] {len(builtin)} commands\n"
+        f"[cyan]Profile extras:[/cyan] {extra_line}\n"
+        f"[cyan]Effective total:[/cyan] {len(effective)} commands\n\n"
+        f"Env file: {profile_env_path(profile)}"
+    )
+    print_panel(body, title=f"Terminal whitelist — {profile}", border_style="green" if enabled else "yellow")
+
+
+@whitelist_app.command("enable")
+def whitelist_enable(ctx: typer.Context) -> None:
+    """Enable terminal command whitelist enforcement for the active profile."""
+    from core.env_loader import profile_env_path
+    from core.terminal_whitelist_config import read_whitelist_enabled, set_whitelist_enabled
+
+    profile = _profile(ctx)
+    if read_whitelist_enabled(profile):
+        print_info(f"Terminal whitelist is already enabled for profile '{profile}'")
+        raise typer.Exit(0)
+
+    set_whitelist_enabled(profile, True)
+    print_success(f"Terminal whitelist enabled for profile '{profile}'")
+    print_info(f"Saved in: {profile_env_path(profile)}")
+    print_info("Restart gateway/Telegram or re-run CLI for changes to apply")

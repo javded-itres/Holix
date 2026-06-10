@@ -48,6 +48,12 @@
     "file_key": "SLASH_COMMANDS"
   },
   {
+    "slug": "execution-modes",
+    "en": "Execution Modes",
+    "ru": "Режимы работы",
+    "file_key": "EXECUTION_MODES"
+  },
+  {
     "slug": "tui",
     "en": "TUI",
     "ru": "TUI",
@@ -88,6 +94,12 @@
     "en": "Security",
     "ru": "Безопасность",
     "file_key": "SECURITY"
+  },
+  {
+    "slug": "terminal-security",
+    "en": "Terminal Security",
+    "ru": "Безопасность команд",
+    "file_key": "TERMINAL_SECURITY"
   },
   {
     "slug": "deployment",

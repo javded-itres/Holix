@@ -129,9 +129,21 @@ class Settings(BaseSettings):
     # Tools (production hardening)
     enable_code_executor: bool = True
     enable_terminal_tool: bool = True
-    terminal_command_whitelist: bool = True
+    terminal_command_whitelist: bool = Field(
+        default=True,
+        validation_alias=AliasChoices(
+            "HELIX_TERMINAL_COMMAND_WHITELIST",
+            "TERMINAL_COMMAND_WHITELIST",
+        ),
+    )
     # Comma-separated extra base commands or prefixes (e.g. helix,uv run,docker)
-    terminal_whitelist_extra: str = ""
+    terminal_whitelist_extra: str = Field(
+        default="",
+        validation_alias=AliasChoices(
+            "HELIX_TERMINAL_WHITELIST_EXTRA",
+            "TERMINAL_WHITELIST_EXTRA",
+        ),
+    )
 
     # Telegram
     telegram_require_allowlist_in_production: bool = True

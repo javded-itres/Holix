@@ -3,6 +3,17 @@ from typing import List, Dict, Any
 from core.project.helix_md import HELIX_MD_REL_PATH, task_context_note
 
 
+def language_instruction_block(*, locale: str | None = None, profile_name: str | None = None) -> str:
+    """Locale-aware language rule for system prompts (/lang en | /lang ru)."""
+    from core.i18n.locale import LocaleStore, normalize_locale
+    from core.i18n.messages import t
+
+    ui_locale = normalize_locale(locale)
+    if profile_name and locale is None:
+        ui_locale = LocaleStore(profile_name).get()
+    return t("prompt.lang_block", ui_locale)
+
+
 def build_system_prompt(
     tools_description: str,
     active_skills: List[Dict[str, Any]],
@@ -84,14 +95,8 @@ Remember: You are a helpful, capable agent that learns and improves with each ta
 """
 
     from core.env_loader import format_env_context_block
-    from core.i18n.locale import LocaleStore, normalize_locale
-    from core.i18n.messages import t
 
-    ui_locale = normalize_locale(locale)
-    if profile_name and locale is None:
-        ui_locale = LocaleStore(profile_name).get()
-
-    lang_block = t("prompt.lang_block", ui_locale)
+    lang_block = language_instruction_block(locale=locale, profile_name=profile_name)
 
     # Format the prompt
     formatted_prompt = prompt.format(

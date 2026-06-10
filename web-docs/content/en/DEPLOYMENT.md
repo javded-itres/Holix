@@ -139,11 +139,37 @@ helix -p default gateway start --with-docs
 
 Widget behaviour:
 - **first visit** — chat opens automatically;
-- if the user closed it — stays collapsed on later visits (`localStorage`).
+- if the user closed it — stays collapsed on later visits (`localStorage`);
+- shows a thinking indicator until the first streamed token;
+- opens the first `/docs/<slug>` link from the assistant reply in the site navigation.
 
 `HELIX_DOCS_CHAT_TOKEN` is used by the docs-server proxy (`/api/docs-chat`) and is **not** exposed to the browser.
 
-### 6. Reverse proxy (TLS)
+### 6. Documentation site build and SEO
+
+Source markdown lives in `docs/en/` and `docs/ru/`. Rebuild the static site before deploy:
+
+```bash
+helix docs build
+helix docs              # local preview on :8080
+helix gateway start --with-docs
+```
+
+`helix docs build` copies content into `web-docs/content/`, rebuilds search index/chunks, `sitemap.xml`, `seo-meta.json`, and crawlable links in `index.html`.
+
+Public URLs (SPA):
+
+| Path | Page |
+|------|------|
+| `/` | Marketing landing |
+| `/docs` | Documentation hub |
+| `/docs/<slug>` | Doc page (e.g. `/docs/profiles`) |
+
+Static files at site root: `robots.txt`, `sitemap.xml`, Yandex Webmaster verification (`yandex_*.html`).
+
+After deploy, hard-refresh the browser if assets look stale. Reload gateway after env changes: `helix gateway reload`.
+
+### 7. Reverse proxy (TLS)
 
 Bind gateway to `127.0.0.1` in the profile `.env` and terminate TLS at nginx/Caddy/Traefik. One upstream per profile/port.
 

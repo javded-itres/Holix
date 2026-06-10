@@ -22,7 +22,7 @@ helix run "test"
 
 ## Windows-specific
 
-- Terminal tool uses **cmd** builtins (`dir`, `type`, `where`); Unix commands (`ls`, `grep`) are blocked unless added via `HELIX_TERMINAL_WHITELIST_EXTRA`
+- Terminal tool uses **cmd** builtins (`dir`, `type`, `where`); Unix commands (`ls`, `grep`) are blocked unless added via `helix profile whitelist add` or `HELIX_TERMINAL_WHITELIST_EXTRA` in the profile `.env`
 - Sub-agents run in **async** mode (not separate OS processes)
 - Data dir: `%LOCALAPPDATA%\Helix` unless `HELIX_HOME` is set
 - Optional: `uv sync --extra windows` for improved process cleanup (`psutil`)

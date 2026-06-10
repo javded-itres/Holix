@@ -145,7 +145,7 @@ helix models setup
 
 ## `helix profile`
 
-Изоляция профиля: env-файл и опциональный workspace jail.
+Изоляция профиля: env-файл, опциональный workspace jail и whitelist терминала.
 
 | Подкоманда | Описание |
 |------------|----------|
@@ -154,13 +154,18 @@ helix models setup
 | `jail enable <path>` | Ограничить файловые/терминальные инструменты одной директорией |
 | `jail disable` | Выключить jail |
 | `jail status` | Статус jail |
+| `whitelist add "<команды>"` | Добавить команды через запятую |
+| `whitelist list` | Статус whitelist и итоговый список |
+| `whitelist enable` | Включить проверку whitelist |
 
 ```bash
 helix -p alice profile env --edit
 helix -p data-agent profile jail enable ~/data-agent
+helix -p dev profile whitelist add "docker, make"
+helix -p dev profile whitelist list
 ```
 
-[CONFIGURATION.md](CONFIGURATION.md)
+[CONFIGURATION.md](CONFIGURATION.md), [PROFILES.md](PROFILES.md)
 
 ---
 
@@ -180,6 +185,26 @@ helix -p alice gateway start -f
 ```
 
 Состояние: `profiles/<имя>/gateway/state.json` · [GATEWAY.md](GATEWAY.md)
+
+---
+
+## `helix docs`
+
+Сайт документации (лендинг + SPA, поиск, EN/RU).
+
+| Подкоманда | Описание |
+|------------|----------|
+| *(по умолчанию)* | Запуск на `127.0.0.1:8080` |
+| `serve` | То же, что по умолчанию |
+| `build` | Синхронизация `docs/en` + `docs/ru` → `web-docs/`, пересборка поиска и SEO |
+
+```bash
+helix docs build
+helix docs --port 8080 --open
+helix gateway start --with-docs
+```
+
+См. [DEPLOYMENT.md](DEPLOYMENT.md).
 
 ---
 

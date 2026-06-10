@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+### Added
+- **`helix profile whitelist`** — `add`, `list`, `enable` for per-profile terminal command whitelist
+- **web-docs SEO** — per-page meta, `sitemap.xml`, `robots.txt`, clean `/docs/<slug>` URLs
+- **Docs chat widget** — stable thinking indicator, auto-navigation to first doc link in reply
+- **Yandex Webmaster** verification file at site root
+
+### Documentation
+- **TERMINAL_SECURITY** (EN/RU) — whitelist, dangerous patterns, confirmations, allowed/forbidden commands
+- **EXECUTION_MODES** (EN/RU) — ReAct, Plan, Hybrid, Auto with prompt examples and plan approval flow
+- **PROFILES**, **CLI**, **CONFIGURATION**, **SECURITY**, **DEPLOYMENT** (EN/RU) — whitelist CLI and site build/SEO
+
 ## 0.1.6 — 2026-06-09
 
 ### Documentation

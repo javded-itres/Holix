@@ -39,7 +39,7 @@ On Russian macOS layout, `,help` and `.help` are normalized to `/help`. Type `/`
 | Command | Description |
 |---------|-------------|
 | `/models`, `/model` | Open model picker (TUI) or show current model (`chat-command`) |
-| `/mode` | Cycle execution mode, or `/mode <name>` if valid |
+| `/mode` | Cycle execution mode, or `/mode <name>` if valid — see [EXECUTION_MODES.md](EXECUTION_MODES.md) |
 | `/stream` | Toggle streaming; `/stream on\|off` |
 | `/stop` | Cancel running agent tasks |
 

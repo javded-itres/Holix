@@ -186,6 +186,8 @@ The **`default`** profile is used by default. On first run, Helix creates the re
 
 **Workspace jail** (optional): restrict file/terminal tools to one folder — `helix profile jail enable /path/to/dir`. See [CONFIGURATION.md](CONFIGURATION.md).
 
+**Terminal whitelist** (optional): `helix profile whitelist enable`, `whitelist add "docker, make"`, `whitelist list` — see [PROFILES.md](PROFILES.md).
+
 View settings:
 
 ```bash
@@ -423,100 +425,27 @@ When `HELIX_ENV=production`, `HELIX_TELEGRAM_ALLOWED_USERS` is required.
 
 ## 10. Step 8 — Execution Modes
 
-TUI supports these modes (switch with **`/mode`** or **Shift+Tab** in legacy TUI):
+Helix supports four execution modes in TUI and Telegram:
 
-| Mode | System name | When to use |
-|------|-------------|-------------|
-| **ReAct** | `react` | Regular questions, tools, quick tasks (default mode) |
-| **Plan** | `plan_and_execute` | Multi-step tasks with clear subtasks |
-| **Hybrid** | `hybrid` | Complex tasks: plan first, then flexible step execution |
-| **Auto** | `auto` | Helix **chooses** one of the three modes above via an LLM classifier |
+| Mode | Name | When to use |
+|------|------|-------------|
+| **ReAct** | `react` | Quick questions, tools, exploration (default) |
+| **Plan** | `plan_and_execute` | Multi-step tasks with clear subgoals |
+| **Hybrid** | `hybrid` | Large tasks: plan first, flexible work per step |
+| **Auto** | `auto` | Helix picks the best mode via a classifier |
 
-Set a mode explicitly:
+Switch with **`/mode`**, **`/mode <name>`**, or **Shift+Tab** (legacy TUI). Plan modes use `/plan-confirm`, `/plan-auto`, `/plan-refine`, `/plan-reject`. Risky tools use `/yes`, `/1`–`/4`.
 
-```
-/mode react
-/mode plan_and_execute
-/mode hybrid
-/mode auto
-```
-
-### Planning and approval
-
-In plan modes (`plan_and_execute`, `hybrid`) the agent:
-
-1. Builds a plan.
-2. Shows it for **approval** (if `plan_review_enabled: true` in settings).
-3. Waits for your decision.
-
-Approval commands:
-
-| Command | Action |
-|---------|--------|
-| `/plan-confirm` | Approve **one step** |
-| `/plan-auto` | Run the **entire plan** automatically |
-| `/plan-refine` | Refine the plan (you can reply with text) |
-| `/plan-reject` | Reject the plan |
-
-In Telegram — the same commands and inline buttons.
-
-### Dangerous action confirmation
-
-Before writing files, running terminal commands, etc., Helix asks for permission:
-
-| Command | Meaning |
-|---------|---------|
-| `/yes`, `/1` | Allow once |
-| `/2` | For the whole session |
-| `/3` | Always (persisted) |
-| `/no`, `/4` | Deny |
+**Full guide with diagrams, behaviour, settings, and prompt examples:** [EXECUTION_MODES.md](EXECUTION_MODES.md).
 
 ---
 
 ## 11. Step 9 — How to Write Prompts
 
-### ReAct (`react`)
-
-Write **directly and concretely**:
-
-- ✅ “Read `README.md` and briefly describe the project”
-- ✅ “Search the web for the latest news about Python 3.14”
-- ✅ “Run `git status` and explain the output”
-
-Good for: single questions, reading files, search, short code.
-
-### Plan (`plan_and_execute`)
-
-State the **goal and constraints**, broken into stages:
-
-- ✅ “Migrate the project from requirements.txt to pyproject.toml: 1) audit dependencies 2) create pyproject 3) verify installation”
-- ✅ “Add tests for module X and update CI”
-
-Expect **plan → approval → step-by-step execution**.
-
-### Hybrid (`hybrid`)
-
-For **large tasks** with research and implementation:
-
-- ✅ “Design and implement a task-tracking API: architecture plan first, then code and tests”
-
-Plan first (as in the hybrid graph), then ReAct within steps.
-
-### Auto (`auto`)
-
-Write as usual — Helix picks the mode:
-
-- short question → likely `react`;
-- “do a refactor and add tests” → likely `plan_and_execute` or `hybrid`.
-
-On classifier failure, **`react`** is used.
-
-### General tips
-
 1. Specify **file paths** and the **expected outcome**.
 2. For code — language, framework, constraints.
 3. Commands starting with `/` are **slash commands**; they do **not** go to the LLM (`/help`, `/mode`, …).
-4. Plain text without `/` is a message to the agent.
+4. Match task size to mode — see prompt examples per mode in [EXECUTION_MODES.md](EXECUTION_MODES.md).
 
 ---
 

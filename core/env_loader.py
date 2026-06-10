@@ -267,3 +267,48 @@ def ensure_helix_env_template(example_path: Path | None = None) -> Path:
 def ensure_profile_env_template(profile: str) -> Path:
     """Create ``profiles/<profile>/.env`` from template or legacy global env."""
     return _seed_profile_env(profile)
+
+
+def read_profile_env_map(profile: str) -> dict[str, str]:
+    """Return key/value pairs from a profile ``.env`` file."""
+    path = ensure_profile_env_template(profile)
+    if not path.is_file():
+        return {}
+    try:
+        from dotenv import dotenv_values
+    except ImportError:
+        return {}
+    return {
+        key: str(value)
+        for key, value in dotenv_values(path).items()
+        if value is not None and str(value).strip()
+    }
+
+
+def upsert_profile_env_var(profile: str, key: str, value: str) -> Path:
+    """Set or replace a single variable in the profile ``.env`` file."""
+    path = ensure_profile_env_template(profile)
+    prefix = f"{key}="
+    lines = path.read_text(encoding="utf-8").splitlines() if path.is_file() else []
+    lines = [line for line in lines if not line.startswith(prefix)]
+    lines.append(f"{prefix}{value}")
+    path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    os.environ[key] = value
+    return path
+
+
+def remove_profile_env_vars(profile: str, *keys: str) -> Path:
+    """Remove variables from the profile ``.env`` file when present."""
+    path = ensure_profile_env_template(profile)
+    if not path.is_file():
+        return path
+    prefixes = {f"{key}=" for key in keys}
+    lines = [
+        line
+        for line in path.read_text(encoding="utf-8").splitlines()
+        if not any(line.startswith(prefix) for prefix in prefixes)
+    ]
+    path.write_text("\n".join(lines) + ("\n" if lines else ""), encoding="utf-8")
+    for key in keys:
+        os.environ.pop(key, None)
+    return path

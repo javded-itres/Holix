@@ -79,6 +79,27 @@ workspace_root: /home/user/data-agent
 
 Внутренние данные Helix (память, навыки в `~/.helix/profiles/`) **не затрагиваются** — jail только для файловых и терминальных инструментов агента.
 
+## Whitelist терминала (опционально)
+
+Ограничение списка shell-команд, которые агент может выполнять. Настройки хранятся в `.env` профиля.
+
+```bash
+helix -p dev profile whitelist enable
+helix -p dev profile whitelist add "docker, make"
+helix -p dev profile whitelist list
+```
+
+Переменные в `.env`:
+
+```bash
+HELIX_TERMINAL_COMMAND_WHITELIST=true
+HELIX_TERMINAL_WHITELIST_EXTRA=docker,make
+```
+
+Helix всегда применяет встроенный набор для платформы (`ls`, `git status`, `python`, `helix` на Unix; `dir`, `type`, `where` в Windows). Extras профиля расширяют этот список. Дубликаты игнорируются.
+
+После изменений перезапустите gateway/Telegram или заново запустите CLI. См. [TERMINAL_SECURITY.md](TERMINAL_SECURITY.md) и [SECURITY.md](SECURITY.md).
+
 ## Ключи доступа к профилю (опционально)
 
 По умолчанию все профили **открыты** — переключение только по имени (`helix -p alice`, `/profile alice`).
@@ -167,6 +188,9 @@ helix -p bob gateway start
 | `helix profile jail enable <path>` | Включить изоляцию в директории |
 | `helix profile jail disable` | Выключить jail |
 | `helix profile jail status` | Статус jail |
+| `helix profile whitelist add "<команды>"` | Добавить команды через запятую |
+| `helix profile whitelist list` | Статус whitelist и итоговый список |
+| `helix profile whitelist enable` | Включить проверку whitelist |
 | `helix status` | Список профилей (`locked` / `open`) и активный |
 
 В TUI/чате/Telegram: `/profile <имя> <ключ>` для переключения в защищённый профиль.

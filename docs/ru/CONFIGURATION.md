@@ -56,6 +56,25 @@ workspace_root: /home/user/data-agent
 
 При включении `read_file`, `write_file`, `list_directory`, `run_terminal_command` и отправка файлов в Telegram не выходят за пределы `workspace_root`.
 
+## Whitelist терминала (опционально)
+
+Ограничение shell-команд агента. Настраивается для каждого профиля:
+
+```bash
+helix -p dev profile whitelist enable
+helix -p dev profile whitelist add "ls, cat, python, git"
+helix -p dev profile whitelist list
+```
+
+Эквивалент в `.env`:
+
+| Переменная | По умолчанию | Описание |
+|------------|--------------|----------|
+| `HELIX_TERMINAL_COMMAND_WHITELIST` | `true` | Проверять whitelist для `run_terminal_command` |
+| `HELIX_TERMINAL_WHITELIST_EXTRA` | пусто | Доп. команды или префиксы через запятую |
+
+Встроенные команды платформы всегда разрешены. См. [SECURITY.md](SECURITY.md).
+
 ## Переменные окружения
 
 См. [.env.example](../../.env.example).

@@ -42,7 +42,7 @@
     "section": "interfaces",
     "title": "Overview",
     "heading": "Interfaces",
-    "body": "- CLI.md — complete command reference - SLASH COMMANDS.md — all commands (TUI, Telegram, chat) - TUI.md — , web mode, copy, hub UI - HUB.md — , catalogs, - GATEWAY.md — - TELEGRAM.md — Telegram bot - BROWSER TOOLS.md — Playwright tools",
+    "body": "- CLI.md — complete command reference - SLASH COMMANDS.md — all commands (TUI, Telegram, chat) - EXECUTION MODES.md — ReAct, Plan, Hybrid, Auto — how modes work and prompt examples - TUI.md — , web mode, copy, hub UI - HUB.md — , catalogs, - GATEWAY.md — - TELEGRAM.md — Telegram bot - BROWSER TOOLS.md — Playwright tools",
     "keywords": [
       "overview",
       "обзор",
@@ -59,7 +59,7 @@
     "section": "operations",
     "title": "Overview",
     "heading": "Operations",
-    "body": "- LOGS.md — , rotation, debug mode - DOCTOR.md — and - SECURITY.md — auth, tools, production checklist - DEPLOYMENT.md — Docker, systemd, CI - TROUBLESHOOTING.md — common failures",
+    "body": "- LOGS.md — , rotation, debug mode - DOCTOR.md — and - SECURITY.md — auth, tools, production checklist - TERMINAL SECURITY.md — terminal whitelist, blocked commands, confirmations - DEPLOYMENT.md — Docker, systemd, CI - TROUBLESHOOTING.md — common failures",
     "keywords": [
       "overview",
       "обзор",
@@ -487,6 +487,25 @@
     "nav_order": 4
   },
   {
+    "id": "en/configuration#terminal-whitelist-optional",
+    "lang": "en",
+    "slug": "configuration",
+    "section": "terminal-whitelist-optional",
+    "title": "Configuration",
+    "heading": "Terminal whitelist (optional)",
+    "body": "Restrict which shell commands the agent may run. Managed per profile: Equivalent variables: Variable Default Description ---------- --------- ------------- Enforce whitelist for empty Comma-separated extra commands or prefixes Platform defaults are always included. See SECURITY.md.",
+    "keywords": [
+      "config",
+      "конфигурация",
+      "env",
+      "переменные",
+      "terminal",
+      "whitelist",
+      "optional"
+    ],
+    "nav_order": 4
+  },
+  {
     "id": "en/configuration#workspace-jail-optional",
     "lang": "en",
     "slug": "configuration",
@@ -559,7 +578,7 @@
     "section": "cli-reference",
     "title": "Profiles & Isolation",
     "heading": "CLI reference",
-    "body": "Command Description --------- ------------- Select profile (omit for ) Access key for a protected profile Create profile (open by default) Create profile with access key Show whether active profile is protected Generate key for an existing open profile Replace access key Remove key and allow free switching Show profile Edit secrets and gateway bind Enable directory isolation Disable jail Show jail settings List profiles ( / ) and active one In TUI/chat/Telegram: to switch into a protected profile.",
+    "body": "Command Description --------- ------------- Select profile (omit for ) Access key for a protected profile Create profile (open by default) Create profile with access key Show whether active profile is protected Generate key for an existing open profile Replace access key Remove key and allow free switching Show profile Edit secrets and gateway bind Enable directory isolation Disable jail Show jail settings Add comma-separated terminal commands Show whitelist status and effective commands Enable terminal whitelist enforcement List profiles ( / ) and active one In TUI/chat/Telegram: to switch into a protected profile.",
     "keywords": [
       "profile",
       "профиль",
@@ -741,6 +760,27 @@
     "nav_order": 5
   },
   {
+    "id": "en/profiles#terminal-whitelist-optional",
+    "lang": "en",
+    "slug": "profiles",
+    "section": "terminal-whitelist-optional",
+    "title": "Profiles & Isolation",
+    "heading": "Terminal whitelist (optional)",
+    "body": "Control which shell commands the agent may run. Settings are stored per profile in . Persisted variables: Helix always applies a platform default set ( , , , , etc. on Unix; , , on Windows). Profile extras extend that list. Duplicate commands are ignored. After changes, restart gateway/Telegram or re-run the CLI. See TERMINAL SECURITY.md and SECURITY.md.",
+    "keywords": [
+      "profile",
+      "профиль",
+      "профили",
+      "изоляция",
+      "jail",
+      "workspace",
+      "terminal",
+      "whitelist",
+      "optional"
+    ],
+    "nav_order": 5
+  },
+  {
     "id": "en/profiles#what-is-isolated-per-profile",
     "lang": "en",
     "slug": "profiles",
@@ -868,6 +908,24 @@
       "terminal",
       "helix",
       "cron"
+    ],
+    "nav_order": 6
+  },
+  {
+    "id": "en/cli#helix-docs",
+    "lang": "en",
+    "slug": "cli",
+    "section": "helix-docs",
+    "title": "CLI Reference",
+    "heading": "`helix docs`",
+    "body": "Documentation website (marketing landing + docs SPA, search, EN/RU). Subcommand Description ------------ ------------- (default) Serve site on Same as default Sync + → , rebuild search index and SEO artifacts See DEPLOYMENT.md. ---",
+    "keywords": [
+      "command",
+      "команды",
+      "typer",
+      "terminal",
+      "helix",
+      "docs"
     ],
     "nav_order": 6
   },
@@ -1022,7 +1080,7 @@
     "section": "helix-profile",
     "title": "CLI Reference",
     "heading": "`helix profile`",
-    "body": "Per-profile isolation: env file and optional workspace jail. Subcommand Description ------------ ------------- Show profile path and contents Open in Restrict file/terminal tools to one directory Turn off workspace jail Show jail settings See CONFIGURATION.md. ---",
+    "body": "Per-profile isolation: env file, optional workspace jail, and terminal whitelist. Subcommand Description ------------ ------------- Show profile path and contents Open in Restrict file/terminal tools to one directory Turn off workspace jail Show jail settings Add comma-separated terminal commands Show whitelist status and effective commands Enable terminal whitelist enforcement See CONFIGURATION.md and PROFILES.md. ---",
     "keywords": [
       "command",
       "команды",
@@ -1376,7 +1434,7 @@
     "section": "models-and-execution",
     "title": "Slash Commands",
     "heading": "Models and execution",
-    "body": "Command Description --------- ------------- , Open model picker (TUI) or show current model ( ) Cycle execution mode, or if valid Toggle streaming; Cancel running agent tasks ---",
+    "body": "Command Description --------- ------------- , Open model picker (TUI) or show current model ( ) Cycle execution mode, or if valid — see EXECUTION MODES.md Toggle streaming; Cancel running agent tasks ---",
     "keywords": [
       "slash",
       "слэш",
@@ -1500,6 +1558,319 @@
     "nav_order": 7
   },
   {
+    "id": "en/execution-modes#auto-auto",
+    "lang": "en",
+    "slug": "execution-modes",
+    "section": "auto-auto",
+    "title": "Execution Modes",
+    "heading": "Auto (`auto`)",
+    "body": "Helix sends your message to a lightweight classifier (small LLM call) that picks , , or .",
+    "keywords": [
+      "auto"
+    ],
+    "nav_order": 8
+  },
+  {
+    "id": "en/execution-modes#choosing-a-mode-cheat-sheet",
+    "lang": "en",
+    "slug": "execution-modes",
+    "section": "choosing-a-mode-cheat-sheet",
+    "title": "Execution Modes",
+    "heading": "Choosing a mode (cheat sheet)",
+    "body": "Your task Suggested mode ----------- ---------------- Quick lookup, one file, one command Checklist with 3–8 concrete steps “Figure out approach, then build” Unsure Production script / API (no UI) Set graph mode in API or use carefully ---",
+    "keywords": [
+      "choosing",
+      "mode",
+      "cheat",
+      "sheet"
+    ],
+    "nav_order": 8
+  },
+  {
+    "id": "en/execution-modes#configuration",
+    "lang": "en",
+    "slug": "execution-modes",
+    "section": "configuration",
+    "title": "Execution Modes",
+    "heading": "Configuration",
+    "body": "Profile / settings (see .env.example): Variable Default Effect ---------- --------- -------- Show plan for approval Seconds to wait for plan decision Tool iterations per step in Plan mode Global graph step limit Execution mode itself is a session setting in TUI/Telegram (not usually stored in ). Use or Shift+Tab. ---",
+    "keywords": [
+      "configuration"
+    ],
+    "nav_order": 8
+  },
+  {
+    "id": "en/execution-modes#execution-modes",
+    "lang": "en",
+    "slug": "execution-modes",
+    "section": "execution-modes",
+    "title": "Execution Modes",
+    "heading": "Execution Modes",
+    "body": "Helix runs the agent through a LangGraph workflow. The execution mode decides how the graph plans, calls tools, and asks for your approval. Modes are available in TUI ( ), Telegram , and web TUI ( ). Switch with , , or Shift+Tab (legacy TUI). Mode System name Best for ------ ------------- ---------- ReAct Single questions, quick tool use, exploration (default) Plan & Execute Multi-step work with clear subgoals Hybrid Large tasks: structured plan, flexible work inside each step Auto Let Helix pick , , or Check the active mode: . ---",
+    "keywords": [
+      "execution",
+      "modes"
+    ],
+    "nav_order": 8
+  },
+  {
+    "id": "en/execution-modes#how-it-behaves",
+    "lang": "en",
+    "slug": "execution-modes",
+    "section": "how-it-behaves",
+    "title": "Execution Modes",
+    "heading": "How it behaves",
+    "body": "1. You send a message. 2. The model may call tools ( , , …). 3. Results go back to the model; the loop continues. 4. You get a final answer (or hit the step limit). Risky tools still ask for or – confirmation.",
+    "keywords": [
+      "how",
+      "behaves"
+    ],
+    "nav_order": 8
+  },
+  {
+    "id": "en/execution-modes#how-it-behaves",
+    "lang": "en",
+    "slug": "execution-modes",
+    "section": "how-it-behaves",
+    "title": "Execution Modes",
+    "heading": "How it behaves",
+    "body": "1. Plan — LLM produces numbered steps. 2. Review — if (default), you approve, refine, or reject: - — run the current step - — run the rest without asking per step - — ask to change the plan (you can add text) - — cancel 3. Execute — each step runs with tools; after a step completes, orchestration moves to the next. 4. Finalize — summary when all steps are done. Inside a step, the agent uses a ReAct-style loop (limited by , default 5 ).",
+    "keywords": [
+      "how",
+      "behaves"
+    ],
+    "nav_order": 8
+  },
+  {
+    "id": "en/execution-modes#how-it-behaves",
+    "lang": "en",
+    "slug": "execution-modes",
+    "section": "how-it-behaves",
+    "title": "Execution Modes",
+    "heading": "How it behaves",
+    "body": "1. Plan and review (same slash commands as Plan mode). 2. After approval, the graph enters ReAct for the current step instead of a short fixed loop. 3. When the step is marked complete, orchestration advances to the next step. Use when steps are goals , not micro-commands.",
+    "keywords": [
+      "how",
+      "behaves"
+    ],
+    "nav_order": 8
+  },
+  {
+    "id": "en/execution-modes#how-it-behaves",
+    "lang": "en",
+    "slug": "execution-modes",
+    "section": "how-it-behaves",
+    "title": "Execution Modes",
+    "heading": "How it behaves",
+    "body": "1. Classifier reads the task (first ~500 characters). 2. Returns one of: , , . 3. That graph runs for this message only (mode stays for the next message). On timeout, invalid output, or missing LLM client → falls back to . Strategic memory can bias the choice if it contains mode hints.",
+    "keywords": [
+      "how",
+      "behaves"
+    ],
+    "nav_order": 8
+  },
+  {
+    "id": "en/execution-modes#how-modes-differ-at-a-glance",
+    "lang": "en",
+    "slug": "execution-modes",
+    "section": "how-modes-differ-at-a-glance",
+    "title": "Execution Modes",
+    "heading": "How modes differ (at a glance)",
+    "body": "ReAct Plan & Execute Hybrid --- ------- ---------------- -------- Plan before tools No Yes Yes Tool loop style One continuous loop Per plan step ReAct within each step Good task size Small–medium Medium, structured Large, open-ended User approvals Tool risk only Plan + optional per-step Plan + optional per-step ---",
+    "keywords": [
+      "how",
+      "modes",
+      "differ",
+      "glance"
+    ],
+    "nav_order": 8
+  },
+  {
+    "id": "en/execution-modes#hybrid-hybrid",
+    "lang": "en",
+    "slug": "execution-modes",
+    "section": "hybrid-hybrid",
+    "title": "Execution Modes",
+    "heading": "Hybrid (`hybrid`)",
+    "body": "Like Plan & Execute for the planning phase , but each approved step runs as a full ReAct loop (more flexibility, more tool iterations per step).",
+    "keywords": [
+      "hybrid"
+    ],
+    "nav_order": 8
+  },
+  {
+    "id": "en/execution-modes#plan-approval-plan-hybrid",
+    "lang": "en",
+    "slug": "execution-modes",
+    "section": "plan-approval-plan-hybrid",
+    "title": "Execution Modes",
+    "heading": "Plan approval (Plan & Hybrid)",
+    "body": "Command Action --------- -------- Approve and run the current step Run remaining steps automatically Request plan changes (add details in the next message) Cancel the plan In Telegram — same commands and inline buttons. If in settings, plans auto-execute without review (use only in trusted automation).",
+    "keywords": [
+      "plan",
+      "approval",
+      "hybrid"
+    ],
+    "nav_order": 8
+  },
+  {
+    "id": "en/execution-modes#plan-execute-plan_and_execute",
+    "lang": "en",
+    "slug": "execution-modes",
+    "section": "plan-execute-plan_and_execute",
+    "title": "Execution Modes",
+    "heading": "Plan & Execute (`plan_and_execute`)",
+    "body": "The agent writes a step-by-step plan first , shows it for approval, then executes steps in order.",
+    "keywords": [
+      "plan",
+      "execute",
+      "plan_and_execute"
+    ],
+    "nav_order": 8
+  },
+  {
+    "id": "en/execution-modes#prompt-examples",
+    "lang": "en",
+    "slug": "execution-modes",
+    "section": "prompt-examples",
+    "title": "Execution Modes",
+    "heading": "Prompt examples",
+    "body": "Good Weak for ReAct (consider Plan or Hybrid) Too many independent phases — split the goal or switch mode. ---",
+    "keywords": [
+      "prompt",
+      "examples"
+    ],
+    "nav_order": 8
+  },
+  {
+    "id": "en/execution-modes#prompt-examples",
+    "lang": "en",
+    "slug": "execution-modes",
+    "section": "prompt-examples",
+    "title": "Execution Modes",
+    "heading": "Prompt examples",
+    "body": "Good Good (shorter — Helix will expand the plan) Weak for Plan Use ReAct or Auto for trivial questions. ---",
+    "keywords": [
+      "prompt",
+      "examples"
+    ],
+    "nav_order": 8
+  },
+  {
+    "id": "en/execution-modes#prompt-examples",
+    "lang": "en",
+    "slug": "execution-modes",
+    "section": "prompt-examples",
+    "title": "Execution Modes",
+    "heading": "Prompt examples",
+    "body": "Likely → ReAct Likely → Plan & Execute Likely → Hybrid Tip: In Auto , write the goal and constraints clearly; the classifier uses wording like “steps”, “migrate”, “design and implement”, “refactor and test”. ---",
+    "keywords": [
+      "prompt",
+      "examples"
+    ],
+    "nav_order": 8
+  },
+  {
+    "id": "en/execution-modes#react-react",
+    "lang": "en",
+    "slug": "execution-modes",
+    "section": "react-react",
+    "title": "Execution Modes",
+    "heading": "ReAct (`react`)",
+    "body": "Default mode. The agent alternates between reasoning and tool calls until it can answer or hits .",
+    "keywords": [
+      "react"
+    ],
+    "nav_order": 8
+  },
+  {
+    "id": "en/execution-modes#related-docs",
+    "lang": "en",
+    "slug": "execution-modes",
+    "section": "related-docs",
+    "title": "Execution Modes",
+    "heading": "Related docs",
+    "body": "- SLASH COMMANDS.md — , , - TUI.md — Shift+Tab, web UI - USER GUIDE.md — full walkthrough - ARCHITECTURE.md — LangGraph and runtime",
+    "keywords": [
+      "related",
+      "docs"
+    ],
+    "nav_order": 8
+  },
+  {
+    "id": "en/execution-modes#risky-tool-confirmation-all-modes",
+    "lang": "en",
+    "slug": "execution-modes",
+    "section": "risky-tool-confirmation-all-modes",
+    "title": "Execution Modes",
+    "heading": "Risky tool confirmation (all modes)",
+    "body": "Command Meaning --------- --------- , Allow once Allow for this session Allow always (persisted) , Deny During , plan-step tools may auto-approve per security policy. ---",
+    "keywords": [
+      "risky",
+      "tool",
+      "confirmation",
+      "all",
+      "modes"
+    ],
+    "nav_order": 8
+  },
+  {
+    "id": "en/execution-modes#when-to-use",
+    "lang": "en",
+    "slug": "execution-modes",
+    "section": "when-to-use",
+    "title": "Execution Modes",
+    "heading": "When to use",
+    "body": "- One clear question or action - Reading a file, running a command, web search - Debugging a single error - “Try this and tell me what happened”",
+    "keywords": [
+      "when",
+      "use"
+    ],
+    "nav_order": 8
+  },
+  {
+    "id": "en/execution-modes#when-to-use",
+    "lang": "en",
+    "slug": "execution-modes",
+    "section": "when-to-use",
+    "title": "Execution Modes",
+    "heading": "When to use",
+    "body": "- Refactors with several checkpoints - Setup flows (“install → configure → verify”) - Tasks where you want to see the roadmap before tools run",
+    "keywords": [
+      "when",
+      "use"
+    ],
+    "nav_order": 8
+  },
+  {
+    "id": "en/execution-modes#when-to-use",
+    "lang": "en",
+    "slug": "execution-modes",
+    "section": "when-to-use",
+    "title": "Execution Modes",
+    "heading": "When to use",
+    "body": "- Design + implementation (“architecture first, then code”) - Research then build - Tasks where steps are broad (“implement auth”, “add API tests”) and need exploration inside each step",
+    "keywords": [
+      "when",
+      "use"
+    ],
+    "nav_order": 8
+  },
+  {
+    "id": "en/execution-modes#when-to-use",
+    "lang": "en",
+    "slug": "execution-modes",
+    "section": "when-to-use",
+    "title": "Execution Modes",
+    "heading": "When to use",
+    "body": "- You do not want to think about modes - Mixed session: quick questions and larger tasks - Onboarding new users",
+    "keywords": [
+      "when",
+      "use"
+    ],
+    "nav_order": 8
+  },
+  {
     "id": "en/tui#copy",
     "lang": "en",
     "slug": "tui",
@@ -1514,7 +1885,7 @@
       "web mode",
       "copy"
     ],
-    "nav_order": 8
+    "nav_order": 9
   },
   {
     "id": "en/tui#lan-full-agent-access-use-a-strong-token",
@@ -1537,7 +1908,7 @@
       "strong",
       "token"
     ],
-    "nav_order": 8
+    "nav_order": 9
   },
   {
     "id": "en/tui#skill-hub",
@@ -1555,7 +1926,7 @@
       "skill",
       "hub"
     ],
-    "nav_order": 8
+    "nav_order": 9
   },
   {
     "id": "en/hub#install-specs",
@@ -1574,7 +1945,7 @@
       "install",
       "specs"
     ],
-    "nav_order": 9
+    "nav_order": 10
   },
   {
     "id": "en/hub#mcp-env-in-plugins",
@@ -1593,7 +1964,7 @@
       "env",
       "plugins"
     ],
-    "nav_order": 9
+    "nav_order": 10
   },
   {
     "id": "en/hub#per-agent-skills",
@@ -1612,7 +1983,7 @@
       "per",
       "agent"
     ],
-    "nav_order": 9
+    "nav_order": 10
   },
   {
     "id": "en/hub#skill-hub",
@@ -1631,7 +2002,7 @@
       "skill",
       "hub"
     ],
-    "nav_order": 9
+    "nav_order": 10
   },
   {
     "id": "en/hub#tui",
@@ -1649,7 +2020,7 @@
       "mcp",
       "tui"
     ],
-    "nav_order": 9
+    "nav_order": 10
   },
   {
     "id": "en/gateway#commands",
@@ -1667,7 +2038,7 @@
       "openai",
       "commands"
     ],
-    "nav_order": 10
+    "nav_order": 11
   },
   {
     "id": "en/gateway#endpoints",
@@ -1685,7 +2056,7 @@
       "openai",
       "endpoints"
     ],
-    "nav_order": 10
+    "nav_order": 11
   },
   {
     "id": "en/gateway#environment",
@@ -1703,7 +2074,7 @@
       "openai",
       "environment"
     ],
-    "nav_order": 10
+    "nav_order": 11
   },
   {
     "id": "en/gateway#profilesbobenv",
@@ -1724,7 +2095,7 @@
       "bob",
       "env"
     ],
-    "nav_order": 10
+    "nav_order": 11
   },
   {
     "id": "en/telegram#ffmpeg-required-on-path",
@@ -1746,7 +2117,7 @@
       "required",
       "path"
     ],
-    "nav_order": 11
+    "nav_order": 12
   },
   {
     "id": "en/telegram#option-b-local-on-the-agent-machine-offline",
@@ -1771,7 +2142,7 @@
       "machine",
       "offline"
     ],
-    "nav_order": 11
+    "nav_order": 12
   },
   {
     "id": "en/telegram#or-with-gateway-for-the-same-profile",
@@ -1796,7 +2167,7 @@
       "same",
       "profile"
     ],
-    "nav_order": 11
+    "nav_order": 12
   },
   {
     "id": "en/telegram#telegram",
@@ -1815,7 +2186,7 @@
       "whisper",
       "голосовые"
     ],
-    "nav_order": 11
+    "nav_order": 12
   },
   {
     "id": "en/telegram#usage",
@@ -1835,7 +2206,7 @@
       "голосовые",
       "usage"
     ],
-    "nav_order": 11
+    "nav_order": 12
   },
   {
     "id": "en/telegram#voice-messages",
@@ -1856,7 +2227,7 @@
       "voice",
       "messages"
     ],
-    "nav_order": 11
+    "nav_order": 12
   },
   {
     "id": "en/browser-tools#browser-automation-playwright",
@@ -1872,7 +2243,7 @@
       "браузер",
       "automation"
     ],
-    "nav_order": 12
+    "nav_order": 13
   },
   {
     "id": "en/browser-tools#profile-gateway",
@@ -1889,7 +2260,7 @@
       "profile",
       "gateway"
     ],
-    "nav_order": 12
+    "nav_order": 13
   },
   {
     "id": "en/browser-tools#security",
@@ -1905,7 +2276,7 @@
       "браузер",
       "security"
     ],
-    "nav_order": 12
+    "nav_order": 13
   },
   {
     "id": "en/browser-tools#tools",
@@ -1921,7 +2292,7 @@
       "браузер",
       "tools"
     ],
-    "nav_order": 12
+    "nav_order": 13
   },
   {
     "id": "en/browser-tools#when-to-use",
@@ -1938,7 +2309,7 @@
       "when",
       "use"
     ],
-    "nav_order": 12
+    "nav_order": 13
   },
   {
     "id": "en/architecture#architecture",
@@ -1954,7 +2325,7 @@
       "runtime",
       "events"
     ],
-    "nav_order": 13
+    "nav_order": 14
   },
   {
     "id": "en/architecture#component-map",
@@ -1972,7 +2343,7 @@
       "component",
       "map"
     ],
-    "nav_order": 13
+    "nav_order": 14
   },
   {
     "id": "en/architecture#configuration",
@@ -1989,7 +2360,7 @@
       "events",
       "configuration"
     ],
-    "nav_order": 13
+    "nav_order": 14
   },
   {
     "id": "en/architecture#execution-flow",
@@ -2007,7 +2378,7 @@
       "execution",
       "flow"
     ],
-    "nav_order": 13
+    "nav_order": 14
   },
   {
     "id": "en/architecture#extension-points",
@@ -2025,7 +2396,7 @@
       "extension",
       "points"
     ],
-    "nav_order": 13
+    "nav_order": 14
   },
   {
     "id": "en/architecture#interfaces",
@@ -2042,7 +2413,7 @@
       "events",
       "interfaces"
     ],
-    "nav_order": 13
+    "nav_order": 14
   },
   {
     "id": "en/security#api-keys",
@@ -2061,7 +2432,7 @@
       "api",
       "keys"
     ],
-    "nav_order": 14
+    "nav_order": 15
   },
   {
     "id": "en/security#production-checklist",
@@ -2080,7 +2451,7 @@
       "production",
       "checklist"
     ],
-    "nav_order": 14
+    "nav_order": 15
   },
   {
     "id": "en/security#tools",
@@ -2089,7 +2460,7 @@
     "section": "tools",
     "title": "Security",
     "heading": "Tools",
-    "body": "- Terminal : whitelist enforced when - Python executor : disable in production via",
+    "body": "- Terminal : whitelist, dangerous-pattern blocks, and confirmations — full guide: TERMINAL SECURITY.md. Quick setup: - Python executor : disable in production via",
     "keywords": [
       "security",
       "безопасность",
@@ -2098,7 +2469,7 @@
       "token",
       "tools"
     ],
-    "nav_order": 14
+    "nav_order": 15
   },
   {
     "id": "en/security#web-tui-helix-tui---web",
@@ -2118,7 +2489,250 @@
       "tui",
       "helix"
     ],
-    "nav_order": 14
+    "nav_order": 15
+  },
+  {
+    "id": "en/terminal-security#1-enable-disable-terminal-tool",
+    "lang": "en",
+    "slug": "terminal-security",
+    "section": "1-enable-disable-terminal-tool",
+    "title": "Terminal Security",
+    "heading": "1. Enable / disable terminal tool",
+    "body": "Variable Default Effect ---------- --------- -------- Master switch for When disabled, the agent receives: Recommended in production if the agent does not need a shell. ---",
+    "keywords": [
+      "enable",
+      "disable",
+      "terminal",
+      "tool"
+    ],
+    "nav_order": 16
+  },
+  {
+    "id": "en/terminal-security#2-always-forbidden-patterns-dangerous-commands",
+    "lang": "en",
+    "slug": "terminal-security",
+    "section": "2-always-forbidden-patterns-dangerous-commands",
+    "title": "Terminal Security",
+    "heading": "2. Always forbidden patterns (dangerous commands)",
+    "body": "Even if a command is whitelisted, regex patterns block destructive shell idioms first.",
+    "keywords": [
+      "always",
+      "forbidden",
+      "patterns",
+      "dangerous",
+      "commands"
+    ],
+    "nav_order": 16
+  },
+  {
+    "id": "en/terminal-security#3-command-whitelist-allowlist",
+    "lang": "en",
+    "slug": "terminal-security",
+    "section": "3-command-whitelist-allowlist",
+    "title": "Terminal Security",
+    "heading": "3. Command whitelist (allowlist)",
+    "body": "Controlled by: Variable Default Effect ---------- --------- -------- Enforce allowlist empty Extra commands/prefixes (comma-separated) Per profile: See PROFILES.md.",
+    "keywords": [
+      "command",
+      "whitelist",
+      "allowlist"
+    ],
+    "nav_order": 16
+  },
+  {
+    "id": "en/terminal-security#4-user-confirmation-actionguard",
+    "lang": "en",
+    "slug": "terminal-security",
+    "section": "4-user-confirmation-actionguard",
+    "title": "Terminal Security",
+    "heading": "4. User confirmation (ActionGuard)",
+    "body": "After policy checks approve a tool call, interactive sessions may still ask: Command Meaning --------- --------- , Allow once Allow for session Allow always (stored) , Deny Terminal commands are HIGH risk by default. Patterns like , , , , escalate confirmation (even if you later add them to the whitelist). During , plan-step tools may auto-approve per security policy. Non-interactive API runs without confirmation deny high-risk tools unless pre-authorized. ---",
+    "keywords": [
+      "user",
+      "confirmation",
+      "actionguard"
+    ],
+    "nav_order": 16
+  },
+  {
+    "id": "en/terminal-security#5-workspace-jail-working-directory",
+    "lang": "en",
+    "slug": "terminal-security",
+    "section": "5-workspace-jail-working-directory",
+    "title": "Terminal Security",
+    "heading": "5. Workspace jail (working directory)",
+    "body": "If workspace jail is enabled, runs with set to the jail root. The whitelist does not replace jail — both apply. ---",
+    "keywords": [
+      "workspace",
+      "jail",
+      "working",
+      "directory"
+    ],
+    "nav_order": 16
+  },
+  {
+    "id": "en/terminal-security#allowed-vs-forbidden-practical-guide",
+    "lang": "en",
+    "slug": "terminal-security",
+    "section": "allowed-vs-forbidden-practical-guide",
+    "title": "Terminal Security",
+    "heading": "Allowed vs forbidden — practical guide",
+    "body": "Goal Typical approach ------ ------------------ Read project files tool or / (whitelisted) Run tests , , Check git state , , Push / commit Add to extras and confirm, or run yourself outside Helix Docker / make / custom CLI Install packages Not in default whitelist — manual install recommended Delete files not whitelisted; dangerous patterns block ---",
+    "keywords": [
+      "allowed",
+      "forbidden",
+      "practical",
+      "guide"
+    ],
+    "nav_order": 16
+  },
+  {
+    "id": "en/terminal-security#built-in-allowlist-unix",
+    "lang": "en",
+    "slug": "terminal-security",
+    "section": "built-in-allowlist-unix",
+    "title": "Terminal Security",
+    "heading": "Built-in allowlist (Unix)",
+    "body": "Read-only / diagnostic tools: , , , , , , , , , , , , , , , , , , , , , , , , , Git (read-only subcommands only): , , , , , Runtimes / tests: , , , , , , , , ,",
+    "keywords": [
+      "built",
+      "allowlist",
+      "unix"
+    ],
+    "nav_order": 16
+  },
+  {
+    "id": "en/terminal-security#built-in-allowlist-windows",
+    "lang": "en",
+    "slug": "terminal-security",
+    "section": "built-in-allowlist-windows",
+    "title": "Terminal Security",
+    "heading": "Built-in allowlist (Windows)",
+    "body": ", , , , , , , , , , , , , , , , , plus the same git/python/npm/pytest/helix/uv entries adapted for Windows ( instead of only). Unix commands like or are not on the Windows list — use / , or add extras.",
+    "keywords": [
+      "built",
+      "allowlist",
+      "windows"
+    ],
+    "nav_order": 16
+  },
+  {
+    "id": "en/terminal-security#how-matching-works",
+    "lang": "en",
+    "slug": "terminal-security",
+    "section": "how-matching-works",
+    "title": "Terminal Security",
+    "heading": "How matching works",
+    "body": "For each command string: 1. Lowercase + trim. 2. Check dangerous patterns (section 2). 3. Take the first token as (e.g. for ). 4. Allow if is in the allowlist or the full command starts with any allowlist entry. Examples on Unix: Command Result Reason --------- -------- -------- Allowed in defaults Allowed prefix Blocked alone not allowed; no matching prefix Allowed prefix Blocked not / Blocked until added via Allowed prefix Prefix design means is allowed because is listed, but is not allowed until you add or to extras — only is a default prefix.",
+    "keywords": [
+      "how",
+      "matching",
+      "works"
+    ],
+    "nav_order": 16
+  },
+  {
+    "id": "en/terminal-security#production-recommendations",
+    "lang": "en",
+    "slug": "terminal-security",
+    "section": "production-recommendations",
+    "title": "Terminal Security",
+    "heading": "Production recommendations",
+    "body": "1. Keep (default). 2. Add only the minimum extras per profile ( ). 3. Use workspace jail for shared/multi-user hosts. 4. Disable terminal entirely if not needed: . 5. Disable Python executor if not needed: . 6. Run and review SECURITY.md. ---",
+    "keywords": [
+      "production",
+      "recommendations"
+    ],
+    "nav_order": 16
+  },
+  {
+    "id": "en/terminal-security#protection-layers-order-of-checks",
+    "lang": "en",
+    "slug": "terminal-security",
+    "section": "protection-layers-order-of-checks",
+    "title": "Terminal Security",
+    "heading": "Protection layers (order of checks)",
+    "body": "Important: In interactive TUI/Telegram, confirmation usually runs before the terminal tool body. Even an allowed whitelist command may still prompt because terminal tools are classified as HIGH risk. The whitelist is enforced inside — if confirmation passes but the command is not whitelisted, execution still fails with . ---",
+    "keywords": [
+      "protection",
+      "layers",
+      "order",
+      "checks"
+    ],
+    "nav_order": 16
+  },
+  {
+    "id": "en/terminal-security#related-docs",
+    "lang": "en",
+    "slug": "terminal-security",
+    "section": "related-docs",
+    "title": "Terminal Security",
+    "heading": "Related docs",
+    "body": "- SECURITY.md — auth, API keys, production checklist - PROFILES.md — per-profile whitelist CLI - CONFIGURATION.md — environment variables - SLASH COMMANDS.md — , – confirmations",
+    "keywords": [
+      "related",
+      "docs"
+    ],
+    "nav_order": 16
+  },
+  {
+    "id": "en/terminal-security#terminal-command-security",
+    "lang": "en",
+    "slug": "terminal-security",
+    "section": "terminal-command-security",
+    "title": "Terminal Security",
+    "heading": "Terminal Command Security",
+    "body": "Helix runs shell commands through the tool. Before any command reaches the OS, it passes through several independent checks . This page explains what is allowed, what is blocked, how the whitelist works, and how it relates to user confirmation . ---",
+    "keywords": [
+      "terminal",
+      "command",
+      "security"
+    ],
+    "nav_order": 16
+  },
+  {
+    "id": "en/terminal-security#unix-macos-linux",
+    "lang": "en",
+    "slug": "terminal-security",
+    "section": "unix-macos-linux",
+    "title": "Terminal Security",
+    "heading": "Unix / macOS / Linux",
+    "body": "Pattern (examples) Why blocked -------------------- ------------- Recursive forced delete Writing to device nodes , , Disk destruction , , System control Fork bomb DoS , Remote code execution",
+    "keywords": [
+      "unix",
+      "macos",
+      "linux"
+    ],
+    "nav_order": 16
+  },
+  {
+    "id": "en/terminal-security#when-whitelist-is-disabled",
+    "lang": "en",
+    "slug": "terminal-security",
+    "section": "when-whitelist-is-disabled",
+    "title": "Terminal Security",
+    "heading": "When whitelist is disabled",
+    "body": "Setting skips allowlist checks (dangerous patterns still apply). Use only in fully trusted dev environments. ---",
+    "keywords": [
+      "when",
+      "whitelist",
+      "disabled"
+    ],
+    "nav_order": 16
+  },
+  {
+    "id": "en/terminal-security#windows-additional",
+    "lang": "en",
+    "slug": "terminal-security",
+    "section": "windows-additional",
+    "title": "Terminal Security",
+    "heading": "Windows (additional)",
+    "body": "Pattern (examples) Why blocked -------------------- ------------- , Disk operations , , Forced delete , Suspicious redirection Example: These checks run before whitelist matching. ---",
+    "keywords": [
+      "windows",
+      "additional"
+    ],
+    "nav_order": 16
   },
   {
     "id": "en/deployment#2-configure-the-profile",
@@ -2138,7 +2752,7 @@
       "the",
       "profile"
     ],
-    "nav_order": 15
+    "nav_order": 17
   },
   {
     "id": "en/deployment#3-install-unit-files",
@@ -2158,7 +2772,7 @@
       "unit",
       "files"
     ],
-    "nav_order": 15
+    "nav_order": 17
   },
   {
     "id": "en/deployment#4-start-and-manage",
@@ -2178,7 +2792,7 @@
       "and",
       "manage"
     ],
-    "nav_order": 15
+    "nav_order": 17
   },
   {
     "id": "en/deployment#5-documentation-site-chat-widget",
@@ -2187,7 +2801,7 @@
     "section": "5-documentation-site-chat-widget",
     "title": "Deployment",
     "heading": "5. Documentation-site chat widget",
-    "body": "The assistant answers only documentation and website questions — no tools, commands, or file access. In the profile used when starting gateway + docs: Create a profile with LLM credentials only: Start: Widget behaviour: - first visit — chat opens automatically; - if the user closed it — stays collapsed on later visits ( ). is used by the docs-server proxy ( ) and is not exposed to the browser.",
+    "body": "The assistant answers only documentation and website questions — no tools, commands, or file access. In the profile used when starting gateway + docs: Create a profile with LLM credentials only: Start: Widget behaviour: - first visit — chat opens automatically; - if the user closed it — stays collapsed on later visits ( ); - shows a thinking indicator until the first streamed token; - opens the first link from the assistant reply in the site navigation. is used by the docs-server proxy ( ) and is not exposed to the browser.",
     "keywords": [
       "deploy",
       "деплой",
@@ -2199,15 +2813,37 @@
       "chat",
       "widget"
     ],
-    "nav_order": 15
+    "nav_order": 17
   },
   {
-    "id": "en/deployment#6-reverse-proxy-tls",
+    "id": "en/deployment#6-documentation-site-build-and-seo",
     "lang": "en",
     "slug": "deployment",
-    "section": "6-reverse-proxy-tls",
+    "section": "6-documentation-site-build-and-seo",
     "title": "Deployment",
-    "heading": "6. Reverse proxy (TLS)",
+    "heading": "6. Documentation site build and SEO",
+    "body": "Source markdown lives in and . Rebuild the static site before deploy: copies content into , rebuilds search index/chunks, , , and crawlable links in . Public URLs (SPA): Path Page ------ ------ Marketing landing Documentation hub Doc page (e.g. ) Static files at site root: , , Yandex Webmaster verification ( ). After deploy, hard-refresh the browser if assets look stale. Reload gateway after env changes: .",
+    "keywords": [
+      "deploy",
+      "деплой",
+      "systemd",
+      "docker",
+      "ci",
+      "documentation",
+      "site",
+      "build",
+      "and",
+      "seo"
+    ],
+    "nav_order": 17
+  },
+  {
+    "id": "en/deployment#7-reverse-proxy-tls",
+    "lang": "en",
+    "slug": "deployment",
+    "section": "7-reverse-proxy-tls",
+    "title": "Deployment",
+    "heading": "7. Reverse proxy (TLS)",
     "body": "Bind gateway to in the profile and terminate TLS at nginx/Caddy/Traefik. One upstream per profile/port. See also: PROFILES.md, GATEWAY.md, SECURITY.md.",
     "keywords": [
       "deploy",
@@ -2219,7 +2855,7 @@
       "proxy",
       "tls"
     ],
-    "nav_order": 15
+    "nav_order": 17
   },
   {
     "id": "en/deployment#edit-helix_python-and-helix_bin-to-match-pipx-paths-on-your-host",
@@ -2245,7 +2881,7 @@
       "your",
       "host"
     ],
-    "nav_order": 15
+    "nav_order": 17
   },
   {
     "id": "en/deployment#helixprofilesbobenv",
@@ -2267,7 +2903,7 @@
       "bob",
       "env"
     ],
-    "nav_order": 15
+    "nav_order": 17
   },
   {
     "id": "en/deployment#or-for-a-named-profile",
@@ -2287,7 +2923,7 @@
       "named",
       "profile"
     ],
-    "nav_order": 15
+    "nav_order": 17
   },
   {
     "id": "en/deployment#systemd",
@@ -2304,7 +2940,7 @@
       "docker",
       "ci"
     ],
-    "nav_order": 15
+    "nav_order": 17
   },
   {
     "id": "en/doctor#checks",
@@ -2321,7 +2957,7 @@
       "repair",
       "checks"
     ],
-    "nav_order": 16
+    "nav_order": 18
   },
   {
     "id": "en/doctor#with---fix",
@@ -2338,7 +2974,7 @@
       "repair",
       "with"
     ],
-    "nav_order": 16
+    "nav_order": 18
   },
   {
     "id": "en/logs#data-directory",
@@ -2356,7 +2992,7 @@
       "data",
       "directory"
     ],
-    "nav_order": 17
+    "nav_order": 19
   },
   {
     "id": "en/logs#debug-mode",
@@ -2373,7 +3009,7 @@
       "rotation",
       "mode"
     ],
-    "nav_order": 17
+    "nav_order": 19
   },
   {
     "id": "en/logs#log-files",
@@ -2391,7 +3027,7 @@
       "log",
       "files"
     ],
-    "nav_order": 17
+    "nav_order": 19
   },
   {
     "id": "en/logs#logs-and-observability",
@@ -2409,7 +3045,7 @@
       "and",
       "observability"
     ],
-    "nav_order": 17
+    "nav_order": 19
   },
   {
     "id": "en/logs#related",
@@ -2426,7 +3062,7 @@
       "rotation",
       "related"
     ],
-    "nav_order": 17
+    "nav_order": 19
   },
   {
     "id": "en/logs#rotation-and-retention",
@@ -2444,7 +3080,7 @@
       "and",
       "retention"
     ],
-    "nav_order": 17
+    "nav_order": 19
   },
   {
     "id": "en/logs#troubleshooting",
@@ -2461,7 +3097,7 @@
       "rotation",
       "troubleshooting"
     ],
-    "nav_order": 17
+    "nav_order": 19
   },
   {
     "id": "en/logs#when-logs-are-written",
@@ -2480,7 +3116,7 @@
       "are",
       "written"
     ],
-    "nav_order": 17
+    "nav_order": 19
   },
   {
     "id": "en/pypi#checklist-before-every-release",
@@ -2500,7 +3136,7 @@
       "every",
       "release"
     ],
-    "nav_order": 18
+    "nav_order": 20
   },
   {
     "id": "en/pypi#github-actions-recommended",
@@ -2519,7 +3155,7 @@
       "actions",
       "recommended"
     ],
-    "nav_order": 18
+    "nav_order": 20
   },
   {
     "id": "en/pypi#helixagentai-010targz",
@@ -2538,7 +3174,7 @@
       "010targz",
       "tar"
     ],
-    "nav_order": 18
+    "nav_order": 20
   },
   {
     "id": "en/pypi#known-limitations",
@@ -2556,7 +3192,7 @@
       "known",
       "limitations"
     ],
-    "nav_order": 18
+    "nav_order": 20
   },
   {
     "id": "en/pypi#local-build-check",
@@ -2575,7 +3211,7 @@
       "build",
       "check"
     ],
-    "nav_order": 18
+    "nav_order": 20
   },
   {
     "id": "en/pypi#one-time-setup",
@@ -2594,7 +3230,7 @@
       "time",
       "setup"
     ],
-    "nav_order": 18
+    "nav_order": 20
   },
   {
     "id": "en/pypi#option-b-twine-compatible",
@@ -2613,7 +3249,7 @@
       "twine",
       "compatible"
     ],
-    "nav_order": 18
+    "nav_order": 20
   },
   {
     "id": "en/pypi#or",
@@ -2629,7 +3265,7 @@
       "публикация",
       "package"
     ],
-    "nav_order": 18
+    "nav_order": 20
   },
   {
     "id": "en/pypi#or-inside-a-venv",
@@ -2647,7 +3283,7 @@
       "inside",
       "venv"
     ],
-    "nav_order": 18
+    "nav_order": 20
   },
   {
     "id": "en/pypi#package-name",
@@ -2664,7 +3300,7 @@
       "package",
       "name"
     ],
-    "nav_order": 18
+    "nav_order": 20
   },
   {
     "id": "en/pypi#prerequisites",
@@ -2681,7 +3317,7 @@
       "package",
       "prerequisites"
     ],
-    "nav_order": 18
+    "nav_order": 20
   },
   {
     "id": "en/pypi#publishing-to-pypi",
@@ -2698,7 +3334,7 @@
       "package",
       "publishing"
     ],
-    "nav_order": 18
+    "nav_order": 20
   },
   {
     "id": "en/pypi#user-facing-install-docs",
@@ -2718,7 +3354,7 @@
       "install",
       "docs"
     ],
-    "nav_order": 18
+    "nav_order": 20
   },
   {
     "id": "en/pypi#version-already-bumped-in-pyprojecttoml-cli__init__py",
@@ -2743,7 +3379,7 @@
       "cli",
       "__init__"
     ],
-    "nav_order": 18
+    "nav_order": 20
   },
   {
     "id": "en/pypi#versioning",
@@ -2760,7 +3396,7 @@
       "package",
       "versioning"
     ],
-    "nav_order": 18
+    "nav_order": 20
   },
   {
     "id": "en/pypi#what-is-already-configured",
@@ -2779,7 +3415,7 @@
       "already",
       "configured"
     ],
-    "nav_order": 18
+    "nav_order": 20
   },
   {
     "id": "en/troubleshooting#windows-specific",
@@ -2788,7 +3424,7 @@
     "section": "windows-specific",
     "title": "Troubleshooting",
     "heading": "Windows-specific",
-    "body": "- Terminal tool uses cmd builtins ( , , ); Unix commands ( , ) are blocked unless added via - Sub-agents run in async mode (not separate OS processes) - Data dir: unless is set - Optional: for improved process cleanup ( )",
+    "body": "- Terminal tool uses cmd builtins ( , , ); Unix commands ( , ) are blocked unless added via or in the profile - Sub-agents run in async mode (not separate OS processes) - Data dir: unless is set - Optional: for improved process cleanup ( )",
     "keywords": [
       "troubleshoot",
       "проблемы",
@@ -2797,7 +3433,7 @@
       "windows",
       "specific"
     ],
-    "nav_order": 19
+    "nav_order": 21
   },
   {
     "id": "en/user-guide#1-what-helix-can-do",
@@ -2815,7 +3451,7 @@
       "helix",
       "can"
     ],
-    "nav_order": 20
+    "nav_order": 22
   },
   {
     "id": "en/user-guide#10-step-8-execution-modes",
@@ -2824,7 +3460,7 @@
     "section": "10-step-8-execution-modes",
     "title": "User Guide",
     "heading": "10. Step 8 — Execution Modes",
-    "body": "TUI supports these modes (switch with or Shift+Tab in legacy TUI): Mode System name When to use ------ ------------- ------------- ReAct Regular questions, tools, quick tasks (default mode) Plan Multi-step tasks with clear subtasks Hybrid Complex tasks: plan first, then flexible step execution Auto Helix chooses one of the three modes above via an LLM classifier Set a mode explicitly:",
+    "body": "Helix supports four execution modes in TUI and Telegram: Mode Name When to use ------ ------ ------------- ReAct Quick questions, tools, exploration (default) Plan Multi-step tasks with clear subgoals Hybrid Large tasks: plan first, flexible work per step Auto Helix picks the best mode via a classifier Switch with , , or Shift+Tab (legacy TUI). Plan modes use , , , . Risky tools use , – . Full guide with diagrams, behaviour, settings, and prompt examples: EXECUTION MODES.md. ---",
     "keywords": [
       "guide",
       "руководство",
@@ -2833,7 +3469,26 @@
       "execution",
       "modes"
     ],
-    "nav_order": 20
+    "nav_order": 22
+  },
+  {
+    "id": "en/user-guide#11-step-9-how-to-write-prompts",
+    "lang": "en",
+    "slug": "user-guide",
+    "section": "11-step-9-how-to-write-prompts",
+    "title": "User Guide",
+    "heading": "11. Step 9 — How to Write Prompts",
+    "body": "1. Specify file paths and the expected outcome . 2. For code — language, framework, constraints. 3. Commands starting with are slash commands ; they do not go to the LLM ( , , …). 4. Match task size to mode — see prompt examples per mode in EXECUTION MODES.md. ---",
+    "keywords": [
+      "guide",
+      "руководство",
+      "usage",
+      "step",
+      "how",
+      "write",
+      "prompts"
+    ],
+    "nav_order": 22
   },
   {
     "id": "en/user-guide#12-step-10-mcp-step-by-step",
@@ -2850,7 +3505,7 @@
       "step",
       "mcp"
     ],
-    "nav_order": 20
+    "nav_order": 22
   },
   {
     "id": "en/user-guide#122-install-mcp-easy-way",
@@ -2870,7 +3525,7 @@
       "easy",
       "way"
     ],
-    "nav_order": 20
+    "nav_order": 22
   },
   {
     "id": "en/user-guide#15-slash-commands-in-chat",
@@ -2888,7 +3543,7 @@
       "commands",
       "chat"
     ],
-    "nav_order": 20
+    "nav_order": 22
   },
   {
     "id": "en/user-guide#16-helix-features",
@@ -2905,7 +3560,7 @@
       "helix",
       "features"
     ],
-    "nav_order": 20
+    "nav_order": 22
   },
   {
     "id": "en/user-guide#17-troubleshooting",
@@ -2921,7 +3576,7 @@
       "usage",
       "troubleshooting"
     ],
-    "nav_order": 20
+    "nav_order": 22
   },
   {
     "id": "en/user-guide#2-requirements",
@@ -2937,7 +3592,7 @@
       "usage",
       "requirements"
     ],
-    "nav_order": 20
+    "nav_order": 22
   },
   {
     "id": "en/user-guide#3-step-1-install-python",
@@ -2955,7 +3610,7 @@
       "install",
       "python"
     ],
-    "nav_order": 20
+    "nav_order": 22
   },
   {
     "id": "en/user-guide#4-step-2-install-uv-recommended",
@@ -2973,7 +3628,7 @@
       "install",
       "recommended"
     ],
-    "nav_order": 20
+    "nav_order": 22
   },
   {
     "id": "en/user-guide#5-step-3-install-from-pypi",
@@ -2992,7 +3647,7 @@
       "from",
       "pypi"
     ],
-    "nav_order": 20
+    "nav_order": 22
   },
   {
     "id": "en/user-guide#51-global-install-recommended",
@@ -3010,7 +3665,7 @@
       "install",
       "recommended"
     ],
-    "nav_order": 20
+    "nav_order": 22
   },
   {
     "id": "en/user-guide#61-create-the-environment-file",
@@ -3029,7 +3684,7 @@
       "environment",
       "file"
     ],
-    "nav_order": 20
+    "nav_order": 22
   },
   {
     "id": "en/user-guide#62-profile",
@@ -3038,14 +3693,14 @@
     "section": "62-profile",
     "title": "User Guide",
     "heading": "6.2. Profile",
-    "body": "Each profile is an isolated environment: The profile is used by default. On first run, Helix creates the required directories. Workspace jail (optional): restrict file/terminal tools to one folder — . See CONFIGURATION.md. View settings: Switch profile: In chat: or (list).",
+    "body": "Each profile is an isolated environment: The profile is used by default. On first run, Helix creates the required directories. Workspace jail (optional): restrict file/terminal tools to one folder — . See CONFIGURATION.md. Terminal whitelist (optional): , , — see PROFILES.md. View settings: Switch profile: In chat: or (list).",
     "keywords": [
       "guide",
       "руководство",
       "usage",
       "profile"
     ],
-    "nav_order": 20
+    "nav_order": 22
   },
   {
     "id": "en/user-guide#63-diagnostics",
@@ -3061,7 +3716,7 @@
       "usage",
       "diagnostics"
     ],
-    "nav_order": 20
+    "nav_order": 22
   },
   {
     "id": "en/user-guide#7-step-5-configure-models-via-litellm",
@@ -3081,7 +3736,7 @@
       "via",
       "litellm"
     ],
-    "nav_order": 20
+    "nav_order": 22
   },
   {
     "id": "en/user-guide#71-what-to-get-from-the-litellm-administrator",
@@ -3102,7 +3757,7 @@
       "litellm",
       "administrator"
     ],
-    "nav_order": 20
+    "nav_order": 22
   },
   {
     "id": "en/user-guide#73-add-the-litellm-provider-to-the-profile-interactive",
@@ -3123,7 +3778,7 @@
       "profile",
       "interactive"
     ],
-    "nav_order": 20
+    "nav_order": 22
   },
   {
     "id": "en/user-guide#74-full-setup-wizard-recommended",
@@ -3142,7 +3797,7 @@
       "wizard",
       "recommended"
     ],
-    "nav_order": 20
+    "nav_order": 22
   },
   {
     "id": "en/user-guide#75-assigning-models-to-agents",
@@ -3160,7 +3815,7 @@
       "models",
       "agents"
     ],
-    "nav_order": 20
+    "nav_order": 22
   },
   {
     "id": "en/user-guide#8-step-6-web-search-optional",
@@ -3179,7 +3834,7 @@
       "search",
       "optional"
     ],
-    "nav_order": 20
+    "nav_order": 22
   },
   {
     "id": "en/user-guide#92-create-a-bot-in-telegram",
@@ -3197,7 +3852,7 @@
       "bot",
       "telegram"
     ],
-    "nav_order": 20
+    "nav_order": 22
   },
   {
     "id": "en/user-guide#93-find-your-telegram-user-id",
@@ -3216,7 +3871,7 @@
       "telegram",
       "user"
     ],
-    "nav_order": 20
+    "nav_order": 22
   },
   {
     "id": "en/user-guide#94-interactive-helix-setup",
@@ -3234,7 +3889,7 @@
       "helix",
       "setup"
     ],
-    "nav_order": 20
+    "nav_order": 22
   },
   {
     "id": "en/user-guide#97-voice-messages-optional",
@@ -3252,23 +3907,7 @@
       "messages",
       "optional"
     ],
-    "nav_order": 20
-  },
-  {
-    "id": "en/user-guide#auto-auto",
-    "lang": "en",
-    "slug": "user-guide",
-    "section": "auto-auto",
-    "title": "User Guide",
-    "heading": "Auto (`auto`)",
-    "body": "Write as usual — Helix picks the mode: - short question → likely ; - “do a refactor and add tests” → likely or . On classifier failure, is used.",
-    "keywords": [
-      "guide",
-      "руководство",
-      "usage",
-      "auto"
-    ],
-    "nav_order": 20
+    "nav_order": 22
   },
   {
     "id": "en/user-guide#build-from-source",
@@ -3286,42 +3925,7 @@
       "from",
       "source"
     ],
-    "nav_order": 20
-  },
-  {
-    "id": "en/user-guide#dangerous-action-confirmation",
-    "lang": "en",
-    "slug": "user-guide",
-    "section": "dangerous-action-confirmation",
-    "title": "User Guide",
-    "heading": "Dangerous action confirmation",
-    "body": "Before writing files, running terminal commands, etc., Helix asks for permission: Command Meaning --------- --------- , Allow once For the whole session Always (persisted) , Deny ---",
-    "keywords": [
-      "guide",
-      "руководство",
-      "usage",
-      "dangerous",
-      "action",
-      "confirmation"
-    ],
-    "nav_order": 20
-  },
-  {
-    "id": "en/user-guide#general-tips",
-    "lang": "en",
-    "slug": "user-guide",
-    "section": "general-tips",
-    "title": "User Guide",
-    "heading": "General tips",
-    "body": "1. Specify file paths and the expected outcome . 2. For code — language, framework, constraints. 3. Commands starting with are slash commands ; they do not go to the LLM ( , , …). 4. Plain text without is a message to the agent. ---",
-    "keywords": [
-      "guide",
-      "руководство",
-      "usage",
-      "general",
-      "tips"
-    ],
-    "nav_order": 20
+    "nav_order": 22
   },
   {
     "id": "en/user-guide#helix-complete-user-guide",
@@ -3339,7 +3943,7 @@
       "complete",
       "user"
     ],
-    "nav_order": 20
+    "nav_order": 22
   },
   {
     "id": "en/user-guide#helix-config",
@@ -3356,7 +3960,7 @@
       "helix",
       "config"
     ],
-    "nav_order": 20
+    "nav_order": 22
   },
   {
     "id": "en/user-guide#helix-models",
@@ -3373,23 +3977,7 @@
       "helix",
       "models"
     ],
-    "nav_order": 20
-  },
-  {
-    "id": "en/user-guide#hybrid-hybrid",
-    "lang": "en",
-    "slug": "user-guide",
-    "section": "hybrid-hybrid",
-    "title": "User Guide",
-    "heading": "Hybrid (`hybrid`)",
-    "body": "For large tasks with research and implementation: - ✅ “Design and implement a task-tracking API: architecture plan first, then code and tests” Plan first (as in the hybrid graph), then ReAct within steps.",
-    "keywords": [
-      "guide",
-      "руководство",
-      "usage",
-      "hybrid"
-    ],
-    "nav_order": 20
+    "nav_order": 22
   },
   {
     "id": "en/user-guide#install",
@@ -3405,7 +3993,7 @@
       "usage",
       "install"
     ],
-    "nav_order": 20
+    "nav_order": 22
   },
   {
     "id": "en/user-guide#litellm-proxy",
@@ -3422,7 +4010,7 @@
       "litellm",
       "proxy"
     ],
-    "nav_order": 20
+    "nav_order": 22
   },
   {
     "id": "en/user-guide#main-commands",
@@ -3439,7 +4027,7 @@
       "main",
       "commands"
     ],
-    "nav_order": 20
+    "nav_order": 22
   },
   {
     "id": "en/user-guide#or-manually",
@@ -3455,7 +4043,7 @@
       "usage",
       "manually"
     ],
-    "nav_order": 20
+    "nav_order": 22
   },
   {
     "id": "en/user-guide#or-simply",
@@ -3471,42 +4059,7 @@
       "usage",
       "simply"
     ],
-    "nav_order": 20
-  },
-  {
-    "id": "en/user-guide#plan-plan_and_execute",
-    "lang": "en",
-    "slug": "user-guide",
-    "section": "plan-plan_and_execute",
-    "title": "User Guide",
-    "heading": "Plan (`plan_and_execute`)",
-    "body": "State the goal and constraints , broken into stages: - ✅ “Migrate the project from requirements.txt to pyproject.toml: 1) audit dependencies 2) create pyproject 3) verify installation” - ✅ “Add tests for module X and update CI” Expect plan → approval → step-by-step execution .",
-    "keywords": [
-      "guide",
-      "руководство",
-      "usage",
-      "plan",
-      "plan_and_execute"
-    ],
-    "nav_order": 20
-  },
-  {
-    "id": "en/user-guide#planning-and-approval",
-    "lang": "en",
-    "slug": "user-guide",
-    "section": "planning-and-approval",
-    "title": "User Guide",
-    "heading": "Planning and approval",
-    "body": "In plan modes ( , ) the agent: 1. Builds a plan. 2. Shows it for approval (if in settings). 3. Waits for your decision. Approval commands: Command Action --------- -------- Approve one step Run the entire plan automatically Refine the plan (you can reply with text) Reject the plan In Telegram — the same commands and inline buttons.",
-    "keywords": [
-      "guide",
-      "руководство",
-      "usage",
-      "planning",
-      "and",
-      "approval"
-    ],
-    "nav_order": 20
+    "nav_order": 22
   },
   {
     "id": "en/user-guide#quick-checklist-from-zero-to-chat",
@@ -3526,23 +4079,7 @@
       "zero",
       "chat"
     ],
-    "nav_order": 20
-  },
-  {
-    "id": "en/user-guide#react-react",
-    "lang": "en",
-    "slug": "user-guide",
-    "section": "react-react",
-    "title": "User Guide",
-    "heading": "ReAct (`react`)",
-    "body": "Write directly and concretely : - ✅ “Read and briefly describe the project” - ✅ “Search the web for the latest news about Python 3.14” - ✅ “Run and explain the output” Good for: single questions, reading files, search, short code.",
-    "keywords": [
-      "guide",
-      "руководство",
-      "usage",
-      "react"
-    ],
-    "nav_order": 20
+    "nav_order": 22
   },
   {
     "id": "en/user-guide#see-also",
@@ -3559,7 +4096,7 @@
       "see",
       "also"
     ],
-    "nav_order": 20
+    "nav_order": 22
   },
   {
     "id": "en/user-guide#table-of-contents",
@@ -3576,7 +4113,7 @@
       "table",
       "contents"
     ],
-    "nav_order": 20
+    "nav_order": 22
   },
   {
     "id": "ru/readme#документация-helix-русский",
@@ -3602,7 +4139,7 @@
     "section": "интерфейсы",
     "title": "Обзор",
     "heading": "Интерфейсы",
-    "body": "- CLI.md — справочник команд - SLASH COMMANDS.md — слэш-команды - TUI.md — - HUB.md — каталоги навыков - GATEWAY.md — API gateway - TELEGRAM.md — Telegram - BROWSER TOOLS.md — Playwright",
+    "body": "- CLI.md — справочник команд - SLASH COMMANDS.md — слэш-команды - EXECUTION MODES.md — ReAct, Plan, Hybrid, Auto — как работают режимы и примеры промптов - TUI.md — - HUB.md — каталоги навыков - GATEWAY.md — API gateway - TELEGRAM.md — Telegram - BROWSER TOOLS.md — Playwright",
     "keywords": [
       "overview",
       "обзор",
@@ -3637,7 +4174,7 @@
     "section": "эксплуатация",
     "title": "Обзор",
     "heading": "Эксплуатация",
-    "body": "- LOGS.md — , ротация, debug - DOCTOR.md - SECURITY.md - DEPLOYMENT.md - TROUBLESHOOTING.md - ARCHITECTURE.md",
+    "body": "- LOGS.md — , ротация, debug - DOCTOR.md - SECURITY.md - TERMINAL SECURITY.md — whitelist терминала, запрещённые команды, подтверждения - DEPLOYMENT.md - TROUBLESHOOTING.md - ARCHITECTURE.md",
     "keywords": [
       "overview",
       "обзор",
@@ -3858,6 +4395,25 @@
     "nav_order": 3
   },
   {
+    "id": "ru/configuration#whitelist-терминала-опционально",
+    "lang": "ru",
+    "slug": "configuration",
+    "section": "whitelist-терминала-опционально",
+    "title": "Конфигурация",
+    "heading": "Whitelist терминала (опционально)",
+    "body": "Ограничение shell-команд агента. Настраивается для каждого профиля: Эквивалент в : Переменная По умолчанию Описание ------------ -------------- ---------- Проверять whitelist для пусто Доп. команды или префиксы через запятую Встроенные команды платформы всегда разрешены. См. SECURITY.md.",
+    "keywords": [
+      "config",
+      "конфигурация",
+      "env",
+      "переменные",
+      "whitelist",
+      "терминала",
+      "опционально"
+    ],
+    "nav_order": 4
+  },
+  {
     "id": "ru/configuration#workspace-jail-опционально",
     "lang": "ru",
     "slug": "configuration",
@@ -4059,6 +4615,27 @@
     "nav_order": 5
   },
   {
+    "id": "ru/profiles#whitelist-терминала-опционально",
+    "lang": "ru",
+    "slug": "profiles",
+    "section": "whitelist-терминала-опционально",
+    "title": "Профили и изоляция",
+    "heading": "Whitelist терминала (опционально)",
+    "body": "Ограничение списка shell-команд, которые агент может выполнять. Настройки хранятся в профиля. Переменные в : Helix всегда применяет встроенный набор для платформы ( , , , на Unix; , , в Windows). Extras профиля расширяют этот список. Дубликаты игнорируются. После изменений перезапустите gateway/Telegram или заново запустите CLI. См. TERMINAL SECURITY.md и SECURITY.md.",
+    "keywords": [
+      "profile",
+      "профиль",
+      "профили",
+      "изоляция",
+      "jail",
+      "workspace",
+      "whitelist",
+      "терминала",
+      "опционально"
+    ],
+    "nav_order": 5
+  },
+  {
     "id": "ru/profiles#workspace-jail-изоляция-в-директории",
     "lang": "ru",
     "slug": "profiles",
@@ -4163,7 +4740,7 @@
     "section": "справочник-cli",
     "title": "Профили и изоляция",
     "heading": "Справочник CLI",
-    "body": "Команда Описание --------- ---------- Выбор профиля (для не нужен) Ключ доступа к защищённому профилю Создать профиль (по умолчанию открытый) Создать профиль с ключом доступа Защищён ли активный профиль Сгенерировать ключ для открытого профиля Сменить ключ доступа Убрать ключ и разрешить свободное переключение Показать профиля Редактировать секреты и bind gateway Включить изоляцию в директории Выключить jail Статус jail Список профилей ( / ) и активный В TUI/чате/Telegram: для переключения в защищённый профиль.",
+    "body": "Команда Описание --------- ---------- Выбор профиля (для не нужен) Ключ доступа к защищённому профилю Создать профиль (по умолчанию открытый) Создать профиль с ключом доступа Защищён ли активный профиль Сгенерировать ключ для открытого профиля Сменить ключ доступа Убрать ключ и разрешить свободное переключение Показать профиля Редактировать секреты и bind gateway Включить изоляцию в директории Выключить jail Статус jail Добавить команды через запятую Статус whitelist и итоговый список Включить проверку whitelist Список профилей ( / ) и активный В TUI/чате/Telegram: для переключения в защищённый профиль.",
     "keywords": [
       "profile",
       "профиль",
@@ -4218,6 +4795,24 @@
       "профиле"
     ],
     "nav_order": 5
+  },
+  {
+    "id": "ru/cli#helix-docs",
+    "lang": "ru",
+    "slug": "cli",
+    "section": "helix-docs",
+    "title": "Справочник CLI",
+    "heading": "`helix docs`",
+    "body": "Сайт документации (лендинг + SPA, поиск, EN/RU). Подкоманда Описание ------------ ---------- (по умолчанию) Запуск на То же, что по умолчанию Синхронизация + → , пересборка поиска и SEO См. DEPLOYMENT.md. ---",
+    "keywords": [
+      "command",
+      "команды",
+      "typer",
+      "terminal",
+      "helix",
+      "docs"
+    ],
+    "nav_order": 6
   },
   {
     "id": "ru/cli#helix-gateway",
@@ -4298,7 +4893,7 @@
     "section": "helix-profile",
     "title": "Справочник CLI",
     "heading": "`helix profile`",
-    "body": "Изоляция профиля: env-файл и опциональный workspace jail. Подкоманда Описание ------------ ---------- Показать профиля Открыть в Ограничить файловые/терминальные инструменты одной директорией Выключить jail Статус jail CONFIGURATION.md ---",
+    "body": "Изоляция профиля: env-файл, опциональный workspace jail и whitelist терминала. Подкоманда Описание ------------ ---------- Показать профиля Открыть в Ограничить файловые/терминальные инструменты одной директорией Выключить jail Статус jail Добавить команды через запятую Статус whitelist и итоговый список Включить проверку whitelist CONFIGURATION.md, PROFILES.md ---",
     "keywords": [
       "command",
       "команды",
@@ -4477,7 +5072,7 @@
     "section": "модели-и-выполнение",
     "title": "Слэш-команды",
     "heading": "Модели и выполнение",
-    "body": "Команда Описание --------- ---------- , Выбор модели (TUI) / текущая модель (chat) Цикл режимов или Стриминг; Остановить задачи агента ---",
+    "body": "Команда Описание --------- ---------- , Выбор модели (TUI) / текущая модель (chat) Цикл режимов или — см. EXECUTION MODES.md Стриминг; Остановить задачи агента ---",
     "keywords": [
       "slash",
       "слэш",
@@ -4634,6 +5229,317 @@
     "nav_order": 7
   },
   {
+    "id": "ru/execution-modes#auto-auto",
+    "lang": "ru",
+    "slug": "execution-modes",
+    "section": "auto-auto",
+    "title": "Режимы работы",
+    "heading": "Auto (`auto`)",
+    "body": "Сообщение отправляется в лёгкий классификатор (короткий вызов LLM), который выбирает , или .",
+    "keywords": [
+      "auto"
+    ],
+    "nav_order": 8
+  },
+  {
+    "id": "ru/execution-modes#hybrid-hybrid",
+    "lang": "ru",
+    "slug": "execution-modes",
+    "section": "hybrid-hybrid",
+    "title": "Режимы работы",
+    "heading": "Hybrid (`hybrid`)",
+    "body": "Как Plan & Execute на этапе планирования , но каждый согласованный шаг выполняется как полноценный ReAct (больше гибкости и итераций инструментов).",
+    "keywords": [
+      "hybrid"
+    ],
+    "nav_order": 8
+  },
+  {
+    "id": "ru/execution-modes#plan-execute-plan_and_execute",
+    "lang": "ru",
+    "slug": "execution-modes",
+    "section": "plan-execute-plan_and_execute",
+    "title": "Режимы работы",
+    "heading": "Plan & Execute (`plan_and_execute`)",
+    "body": "Агент сначала составляет пошаговый план , показывает на согласование, затем выполняет шаги по порядку.",
+    "keywords": [
+      "plan",
+      "execute",
+      "plan_and_execute"
+    ],
+    "nav_order": 8
+  },
+  {
+    "id": "ru/execution-modes#react-react",
+    "lang": "ru",
+    "slug": "execution-modes",
+    "section": "react-react",
+    "title": "Режимы работы",
+    "heading": "ReAct (`react`)",
+    "body": "Режим по умолчанию. Агент чередует рассуждение и вызовы инструментов, пока не ответит или не достигнет .",
+    "keywords": [
+      "react"
+    ],
+    "nav_order": 8
+  },
+  {
+    "id": "ru/execution-modes#как-работает",
+    "lang": "ru",
+    "slug": "execution-modes",
+    "section": "как-работает",
+    "title": "Режимы работы",
+    "heading": "Как работает",
+    "body": "1. Вы отправляете сообщение. 2. Модель может вызвать инструменты ( , , …). 3. Результаты возвращаются в модель; цикл продолжается. 4. Финальный ответ (или лимит шагов). Опасные инструменты по-прежнему требуют или – .",
+    "keywords": [
+      "как",
+      "работает"
+    ],
+    "nav_order": 8
+  },
+  {
+    "id": "ru/execution-modes#как-работает",
+    "lang": "ru",
+    "slug": "execution-modes",
+    "section": "как-работает",
+    "title": "Режимы работы",
+    "heading": "Как работает",
+    "body": "1. План — нумерованные шаги от LLM. 2. Согласование — при (по умолчанию): - — выполнить текущий шаг - — выполнить остальное без вопросов по шагам - — изменить план (можно дописать текст) - — отменить 3. Выполнение — каждый шаг с инструментами; после завершения — следующий шаг. 4. Финал — итог, когда все шаги готовы. Внутри шага — цикл в стиле ReAct (лимит , по умолчанию 5 ).",
+    "keywords": [
+      "как",
+      "работает"
+    ],
+    "nav_order": 8
+  },
+  {
+    "id": "ru/execution-modes#как-работает",
+    "lang": "ru",
+    "slug": "execution-modes",
+    "section": "как-работает",
+    "title": "Режимы работы",
+    "heading": "Как работает",
+    "body": "1. План и согласование (те же слэш-команды, что в Plan). 2. После одобрения — ReAct для текущего шага. 3. По завершении шага — переход к следующему. Шаги формулируйте как цели , а не микрокоманды.",
+    "keywords": [
+      "как",
+      "работает"
+    ],
+    "nav_order": 8
+  },
+  {
+    "id": "ru/execution-modes#как-работает",
+    "lang": "ru",
+    "slug": "execution-modes",
+    "section": "как-работает",
+    "title": "Режимы работы",
+    "heading": "Как работает",
+    "body": "1. Классификатор читает задачу (первые ~500 символов). 2. Возвращает: , или . 3. Этот граф выполняется для текущего сообщения (режим сохраняется для следующего). При таймауте, неверном ответе или без LLM → . Стратегическая память может подсказать режим.",
+    "keywords": [
+      "как",
+      "работает"
+    ],
+    "nav_order": 8
+  },
+  {
+    "id": "ru/execution-modes#когда-использовать",
+    "lang": "ru",
+    "slug": "execution-modes",
+    "section": "когда-использовать",
+    "title": "Режимы работы",
+    "heading": "Когда использовать",
+    "body": "- Один понятный вопрос или действие - Чтение файла, команда в терминале, поиск в вебе - Разбор одной ошибки - «Попробуй и скажи, что получилось»",
+    "keywords": [
+      "когда",
+      "использовать"
+    ],
+    "nav_order": 8
+  },
+  {
+    "id": "ru/execution-modes#когда-использовать",
+    "lang": "ru",
+    "slug": "execution-modes",
+    "section": "когда-использовать",
+    "title": "Режимы работы",
+    "heading": "Когда использовать",
+    "body": "- Рефакторинг с контрольными точками - Сценарии «установить → настроить → проверить» - Когда нужно увидеть дорожную карту до запуска инструментов",
+    "keywords": [
+      "когда",
+      "использовать"
+    ],
+    "nav_order": 8
+  },
+  {
+    "id": "ru/execution-modes#когда-использовать",
+    "lang": "ru",
+    "slug": "execution-modes",
+    "section": "когда-использовать",
+    "title": "Режимы работы",
+    "heading": "Когда использовать",
+    "body": "- Проектирование + реализация - Исследование, затем код - Широкие шаги («сделать auth», «добавить API-тесты») с разведкой внутри шага",
+    "keywords": [
+      "когда",
+      "использовать"
+    ],
+    "nav_order": 8
+  },
+  {
+    "id": "ru/execution-modes#когда-использовать",
+    "lang": "ru",
+    "slug": "execution-modes",
+    "section": "когда-использовать",
+    "title": "Режимы работы",
+    "heading": "Когда использовать",
+    "body": "- Не хотите думать о режимах - Смешанная сессия: и быстрые вопросы, и крупные задачи - Онбординг новых пользователей",
+    "keywords": [
+      "когда",
+      "использовать"
+    ],
+    "nav_order": 8
+  },
+  {
+    "id": "ru/execution-modes#настройки",
+    "lang": "ru",
+    "slug": "execution-modes",
+    "section": "настройки",
+    "title": "Режимы работы",
+    "heading": "Настройки",
+    "body": "профиля / settings (см. .env.example): Переменная По умолчанию Эффект ------------ -------------- -------- Показывать план на согласование Секунд ожидания решения по плану Итераций инструментов на шаг в Plan Общий лимит шагов графа Сам режим — настройка сессии в TUI/Telegram (обычно не в ). Используйте или Shift+Tab. ---",
+    "keywords": [
+      "настройки"
+    ],
+    "nav_order": 8
+  },
+  {
+    "id": "ru/execution-modes#план-plan-и-hybrid",
+    "lang": "ru",
+    "slug": "execution-modes",
+    "section": "план-plan-и-hybrid",
+    "title": "Режимы работы",
+    "heading": "План (Plan и Hybrid)",
+    "body": "Команда Действие --------- ---------- Одобрить и выполнить текущий шаг Выполнить оставшиеся шаги автоматически Уточнить план (детали в следующем сообщении) Отменить план В Telegram — те же команды и кнопки. При план выполняется без согласования (только в доверенной автоматизации).",
+    "keywords": [
+      "план",
+      "plan",
+      "hybrid"
+    ],
+    "nav_order": 8
+  },
+  {
+    "id": "ru/execution-modes#примеры-промптов",
+    "lang": "ru",
+    "slug": "execution-modes",
+    "section": "примеры-промптов",
+    "title": "Режимы работы",
+    "heading": "Примеры промптов",
+    "body": "Хорошие Слабые для ReAct (лучше Plan или Hybrid) Слишком много фаз — разбейте задачу или смените режим. ---",
+    "keywords": [
+      "примеры",
+      "промптов"
+    ],
+    "nav_order": 8
+  },
+  {
+    "id": "ru/execution-modes#примеры-промптов",
+    "lang": "ru",
+    "slug": "execution-modes",
+    "section": "примеры-промптов",
+    "title": "Режимы работы",
+    "heading": "Примеры промптов",
+    "body": "Хорошие Хороший (короткий — Helix развернёт план сам) Слабый для Plan Используйте ReAct или Auto . ---",
+    "keywords": [
+      "примеры",
+      "промптов"
+    ],
+    "nav_order": 8
+  },
+  {
+    "id": "ru/execution-modes#примеры-промптов",
+    "lang": "ru",
+    "slug": "execution-modes",
+    "section": "примеры-промптов",
+    "title": "Режимы работы",
+    "heading": "Примеры промптов",
+    "body": "Скорее → ReAct Скорее → Plan & Execute Скорее → Hybrid Совет: в Auto формулируйте цель и ограничения ; классификатор реагирует на «шаги», «миграция», «спроектируй и реализуй», «рефакторинг и тесты». ---",
+    "keywords": [
+      "примеры",
+      "промптов"
+    ],
+    "nav_order": 8
+  },
+  {
+    "id": "ru/execution-modes#режимы-работы-execution-modes",
+    "lang": "ru",
+    "slug": "execution-modes",
+    "section": "режимы-работы-execution-modes",
+    "title": "Режимы работы",
+    "heading": "Режимы работы (execution modes)",
+    "body": "Helix запускает агента через LangGraph . Режим работы определяет, как граф строит план, вызывает инструменты и запрашивает ваше согласие. Режимы доступны в TUI ( ), Telegram и веб-TUI ( ). Переключение: , или Shift+Tab (legacy TUI). Режим Системное имя Когда использовать ------- --------------- ------------------- ReAct Одиночные вопросы, быстрые инструменты, разведка (по умолчанию) Plan & Execute Многошаговые задачи с понятными подцелями Hybrid Крупные задачи: план + гибкая работа внутри каждого шага Auto Helix сам выбирает один из трёх режимов выше Текущий режим: . ---",
+    "keywords": [
+      "режимы",
+      "работы",
+      "execution",
+      "modes"
+    ],
+    "nav_order": 8
+  },
+  {
+    "id": "ru/execution-modes#рискованные-инструменты-все-режимы",
+    "lang": "ru",
+    "slug": "execution-modes",
+    "section": "рискованные-инструменты-все-режимы",
+    "title": "Режимы работы",
+    "heading": "Рискованные инструменты (все режимы)",
+    "body": "Команда Значение --------- ---------- , Разрешить один раз На всю сессию Всегда (сохраняется) , Запретить При инструменты шагов плана могут одобряться автоматически по политике безопасности. ---",
+    "keywords": [
+      "рискованные",
+      "инструменты",
+      "все",
+      "режимы"
+    ],
+    "nav_order": 8
+  },
+  {
+    "id": "ru/execution-modes#см-также",
+    "lang": "ru",
+    "slug": "execution-modes",
+    "section": "см-также",
+    "title": "Режимы работы",
+    "heading": "См. также",
+    "body": "- SLASH COMMANDS.md — , , - TUI.md — Shift+Tab, веб-интерфейс - USER GUIDE.md — полное руководство - ARCHITECTURE.md — LangGraph и runtime",
+    "keywords": [
+      "также"
+    ],
+    "nav_order": 8
+  },
+  {
+    "id": "ru/execution-modes#чем-режимы-отличаются",
+    "lang": "ru",
+    "slug": "execution-modes",
+    "section": "чем-режимы-отличаются",
+    "title": "Режимы работы",
+    "heading": "Чем режимы отличаются",
+    "body": "ReAct Plan & Execute Hybrid --- ------- ---------------- -------- План до инструментов Нет Да Да Цикл инструментов Один общий По шагам плана ReAct внутри шага Размер задачи Небольшая–средняя Средняя, структурированная Крупная, открытая Согласования Риск инструментов План + опционально шаги План + опционально шаги ---",
+    "keywords": [
+      "чем",
+      "режимы",
+      "отличаются"
+    ],
+    "nav_order": 8
+  },
+  {
+    "id": "ru/execution-modes#шпаргалка-по-выбору-режима",
+    "lang": "ru",
+    "slug": "execution-modes",
+    "section": "шпаргалка-по-выбору-режима",
+    "title": "Режимы работы",
+    "heading": "Шпаргалка по выбору режима",
+    "body": "Задача Режим -------- ------- Быстрый вопрос, один файл, одна команда Чеклист из 3–8 конкретных шагов «Сначала подход, потом реализация» Не уверены Скрипт / API без UI Явно задайте режим в API; — осторожно ---",
+    "keywords": [
+      "шпаргалка",
+      "выбору",
+      "режима"
+    ],
+    "nav_order": 8
+  },
+  {
     "id": "ru/tui#lan-полный-доступ-к-агенту-задайте-надёжный-token",
     "lang": "ru",
     "slug": "tui",
@@ -4654,7 +5560,7 @@
       "надёжный",
       "token"
     ],
-    "nav_order": 8
+    "nav_order": 9
   },
   {
     "id": "ru/tui#skill-hub",
@@ -4672,7 +5578,7 @@
       "skill",
       "hub"
     ],
-    "nav_order": 8
+    "nav_order": 9
   },
   {
     "id": "ru/tui#копирование",
@@ -4689,7 +5595,7 @@
       "web mode",
       "копирование"
     ],
-    "nav_order": 8
+    "nav_order": 9
   },
   {
     "id": "ru/hub#mcp-и-переменные-окружения",
@@ -4708,7 +5614,7 @@
       "переменные",
       "окружения"
     ],
-    "nav_order": 9
+    "nav_order": 10
   },
   {
     "id": "ru/hub#skill-hub",
@@ -4727,7 +5633,7 @@
       "skill",
       "hub"
     ],
-    "nav_order": 9
+    "nav_order": 10
   },
   {
     "id": "ru/hub#tui",
@@ -4745,7 +5651,7 @@
       "mcp",
       "tui"
     ],
-    "nav_order": 9
+    "nav_order": 10
   },
   {
     "id": "ru/hub#скиллы-по-агентам",
@@ -4764,7 +5670,7 @@
       "скиллы",
       "агентам"
     ],
-    "nav_order": 9
+    "nav_order": 10
   },
   {
     "id": "ru/hub#форматы-установки",
@@ -4783,7 +5689,7 @@
       "форматы",
       "установки"
     ],
-    "nav_order": 9
+    "nav_order": 10
   },
   {
     "id": "ru/gateway#profilesbobenv",
@@ -4804,7 +5710,7 @@
       "bob",
       "env"
     ],
-    "nav_order": 10
+    "nav_order": 11
   },
   {
     "id": "ru/gateway#команды",
@@ -4822,7 +5728,7 @@
       "openai",
       "команды"
     ],
-    "nav_order": 10
+    "nav_order": 11
   },
   {
     "id": "ru/gateway#переменные-окружения",
@@ -4841,7 +5747,7 @@
       "переменные",
       "окружения"
     ],
-    "nav_order": 10
+    "nav_order": 11
   },
   {
     "id": "ru/gateway#эндпоинты",
@@ -4859,7 +5765,7 @@
       "openai",
       "эндпоинты"
     ],
-    "nav_order": 10
+    "nav_order": 11
   },
   {
     "id": "ru/telegram#env",
@@ -4879,7 +5785,7 @@
       "голосовые",
       "env"
     ],
-    "nav_order": 11
+    "nav_order": 12
   },
   {
     "id": "ru/telegram#telegram",
@@ -4898,7 +5804,7 @@
       "whisper",
       "голосовые"
     ],
-    "nav_order": 11
+    "nav_order": 12
   },
   {
     "id": "ru/telegram#безопасность",
@@ -4918,7 +5824,7 @@
       "голосовые",
       "безопасность"
     ],
-    "nav_order": 11
+    "nav_order": 12
   },
   {
     "id": "ru/telegram#голосовые-сообщения",
@@ -4938,7 +5844,7 @@
       "голосовые",
       "сообщения"
     ],
-    "nav_order": 11
+    "nav_order": 12
   },
   {
     "id": "ru/telegram#или-вместе-с-gateway-того-же-профиля",
@@ -4962,7 +5868,7 @@
       "того",
       "профиля"
     ],
-    "nav_order": 11
+    "nav_order": 12
   },
   {
     "id": "ru/telegram#использование",
@@ -4982,7 +5888,7 @@
       "голосовые",
       "использование"
     ],
-    "nav_order": 11
+    "nav_order": 12
   },
   {
     "id": "ru/telegram#как-это-работает",
@@ -5004,7 +5910,7 @@
       "это",
       "работает"
     ],
-    "nav_order": 11
+    "nav_order": 12
   },
   {
     "id": "ru/telegram#настройка",
@@ -5024,7 +5930,7 @@
       "голосовые",
       "настройка"
     ],
-    "nav_order": 11
+    "nav_order": 12
   },
   {
     "id": "ru/telegram#ограничения",
@@ -5044,7 +5950,7 @@
       "голосовые",
       "ограничения"
     ],
-    "nav_order": 11
+    "nav_order": 12
   },
   {
     "id": "ru/browser-tools#безопасность",
@@ -5060,7 +5966,7 @@
       "браузер",
       "безопасность"
     ],
-    "nav_order": 12
+    "nav_order": 13
   },
   {
     "id": "ru/browser-tools#браузерная-автоматизация-playwright",
@@ -5077,7 +5983,7 @@
       "браузерная",
       "автоматизация"
     ],
-    "nav_order": 12
+    "nav_order": 13
   },
   {
     "id": "ru/browser-tools#инструменты",
@@ -5093,7 +5999,7 @@
       "браузер",
       "инструменты"
     ],
-    "nav_order": 12
+    "nav_order": 13
   },
   {
     "id": "ru/architecture#архитектура",
@@ -5109,7 +6015,7 @@
       "runtime",
       "events"
     ],
-    "nav_order": 13
+    "nav_order": 14
   },
   {
     "id": "ru/security#api-keys",
@@ -5128,7 +6034,7 @@
       "api",
       "keys"
     ],
-    "nav_order": 14
+    "nav_order": 15
   },
   {
     "id": "ru/security#web-tui-helix-tui---web",
@@ -5148,7 +6054,25 @@
       "tui",
       "helix"
     ],
-    "nav_order": 14
+    "nav_order": 15
+  },
+  {
+    "id": "ru/security#инструменты",
+    "lang": "ru",
+    "slug": "security",
+    "section": "инструменты",
+    "title": "Безопасность",
+    "heading": "Инструменты",
+    "body": "- Terminal : whitelist, блокировка опасных паттернов, подтверждения — подробно: TERMINAL SECURITY.md. Быстрая настройка: - Python executor : в production",
+    "keywords": [
+      "security",
+      "безопасность",
+      "auth",
+      "cors",
+      "token",
+      "инструменты"
+    ],
+    "nav_order": 15
   },
   {
     "id": "ru/security#чеклист-production",
@@ -5167,7 +6091,231 @@
       "чеклист",
       "production"
     ],
-    "nav_order": 14
+    "nav_order": 15
+  },
+  {
+    "id": "ru/terminal-security#1-включение-отключение-терминала",
+    "lang": "ru",
+    "slug": "terminal-security",
+    "section": "1-включение-отключение-терминала",
+    "title": "Безопасность команд",
+    "heading": "1. Включение / отключение терминала",
+    "body": "Переменная По умолчанию Эффект ------------ -------------- -------- Главный переключатель При отключении агент получает: В production рекомендуется отключать, если shell не нужен. ---",
+    "keywords": [
+      "включение",
+      "отключение",
+      "терминала"
+    ],
+    "nav_order": 16
+  },
+  {
+    "id": "ru/terminal-security#3-whitelist-команд-allowlist",
+    "lang": "ru",
+    "slug": "terminal-security",
+    "section": "3-whitelist-команд-allowlist",
+    "title": "Безопасность команд",
+    "heading": "3. Whitelist команд (allowlist)",
+    "body": "Управление: Переменная По умолчанию Эффект ------------ -------------- -------- Включить allowlist пусто Доп. команды/префиксы через запятую По профилю: См. PROFILES.md.",
+    "keywords": [
+      "whitelist",
+      "команд",
+      "allowlist"
+    ],
+    "nav_order": 16
+  },
+  {
+    "id": "ru/terminal-security#4-подтверждение-пользователем-actionguard",
+    "lang": "ru",
+    "slug": "terminal-security",
+    "section": "4-подтверждение-пользователем-actionguard",
+    "title": "Безопасность команд",
+    "heading": "4. Подтверждение пользователем (ActionGuard)",
+    "body": "После прохождения политик в интерактивной сессии может запрашиваться подтверждение: Команда Значение --------- ---------- , Один раз На сессию Всегда (сохраняется) , Отказ Терминал по умолчанию — риск HIGH . Паттерны , , , , усиливают запрос подтверждения (даже после добавления в whitelist). При инструменты шагов плана могут одобряться автоматически. В неинтерактивном API без предварительных прав высокий риск отклоняется. ---",
+    "keywords": [
+      "подтверждение",
+      "пользователем",
+      "actionguard"
+    ],
+    "nav_order": 16
+  },
+  {
+    "id": "ru/terminal-security#5-workspace-jail-рабочая-директория",
+    "lang": "ru",
+    "slug": "terminal-security",
+    "section": "5-workspace-jail-рабочая-директория",
+    "title": "Безопасность команд",
+    "heading": "5. Workspace jail (рабочая директория)",
+    "body": "При workspace jail запускается с в корне jail. Whitelist не заменяет jail — действуют оба ограничения. ---",
+    "keywords": [
+      "workspace",
+      "jail",
+      "рабочая",
+      "директория"
+    ],
+    "nav_order": 16
+  },
+  {
+    "id": "ru/terminal-security#unix-macos-linux",
+    "lang": "ru",
+    "slug": "terminal-security",
+    "section": "unix-macos-linux",
+    "title": "Безопасность команд",
+    "heading": "Unix / macOS / Linux",
+    "body": "Паттерн (примеры) Зачем блокируется ------------------- ------------------- Рекурсивное удаление Запись в устройства , , Разрушение диска , , Управление системой Fork bomb DoS , Выполнение кода с сети",
+    "keywords": [
+      "unix",
+      "macos",
+      "linux"
+    ],
+    "nav_order": 16
+  },
+  {
+    "id": "ru/terminal-security#windows-дополнительно",
+    "lang": "ru",
+    "slug": "terminal-security",
+    "section": "windows-дополнительно",
+    "title": "Безопасность команд",
+    "heading": "Windows (дополнительно)",
+    "body": "Паттерн (примеры) Зачем блокируется ------------------- ------------------- , Дисковые операции , , Принудительное удаление , Подозрительные перенаправления Пример: Проверка выполняется до whitelist. ---",
+    "keywords": [
+      "windows",
+      "дополнительно"
+    ],
+    "nav_order": 16
+  },
+  {
+    "id": "ru/terminal-security#безопасность-команд-терминала",
+    "lang": "ru",
+    "slug": "terminal-security",
+    "section": "безопасность-команд-терминала",
+    "title": "Безопасность команд",
+    "heading": "Безопасность команд терминала",
+    "body": "Helix выполняет shell-команды через инструмент . До запуска в ОС команда проходит несколько независимых проверок . На этой странице: что разрешено, что запрещено, как работает whitelist и как это связано с подтверждением действий . ---",
+    "keywords": [
+      "безопасность",
+      "команд",
+      "терминала"
+    ],
+    "nav_order": 16
+  },
+  {
+    "id": "ru/terminal-security#встроенный-whitelist-unix",
+    "lang": "ru",
+    "slug": "terminal-security",
+    "section": "встроенный-whitelist-unix",
+    "title": "Безопасность команд",
+    "heading": "Встроенный whitelist (Unix)",
+    "body": "Чтение и диагностика: , , , , , , , , , , , , , , , , , , , , , , , , , Git (только «читающие» подкоманды): , , , , , Среды и тесты: , , , , , , , , ,",
+    "keywords": [
+      "встроенный",
+      "whitelist",
+      "unix"
+    ],
+    "nav_order": 16
+  },
+  {
+    "id": "ru/terminal-security#встроенный-whitelist-windows",
+    "lang": "ru",
+    "slug": "terminal-security",
+    "section": "встроенный-whitelist-windows",
+    "title": "Безопасность команд",
+    "heading": "Встроенный whitelist (Windows)",
+    "body": ", , , , , , , , , , , , , , , , , а также git/python/npm/pytest/helix/uv ( на Windows). Команды Unix ( , ) в списке Windows отсутствуют — используйте / или добавьте в extras.",
+    "keywords": [
+      "встроенный",
+      "whitelist",
+      "windows"
+    ],
+    "nav_order": 16
+  },
+  {
+    "id": "ru/terminal-security#если-whitelist-отключён",
+    "lang": "ru",
+    "slug": "terminal-security",
+    "section": "если-whitelist-отключён",
+    "title": "Безопасность команд",
+    "heading": "Если whitelist отключён",
+    "body": "отключает allowlist (опасные паттерны остаются). Только для полностью доверенной dev-среды. ---",
+    "keywords": [
+      "если",
+      "whitelist",
+      "отключён"
+    ],
+    "nav_order": 16
+  },
+  {
+    "id": "ru/terminal-security#как-работает-сопоставление",
+    "lang": "ru",
+    "slug": "terminal-security",
+    "section": "как-работает-сопоставление",
+    "title": "Безопасность команд",
+    "heading": "Как работает сопоставление",
+    "body": "Для каждой строки команды: 1. Приведение к нижнему регистру и trim. 2. Проверка опасных паттернов (раздел 2). 3. Первый токен — (для это ). 4. Разрешено, если в списке или вся строка начинается с любой записи whitelist. Примеры на Unix: Команда Результат Причина --------- ----------- --------- Разрешено в defaults Разрешено префикс Запрещено нет подходящего префикса Разрешено префикс Запрещено не / Запрещено пока не добавите через Разрешено префикс Префиксы означают: разрешён (есть ), а — нет , пока не добавите или (по умолчанию только префикс ).",
+    "keywords": [
+      "как",
+      "работает",
+      "сопоставление"
+    ],
+    "nav_order": 16
+  },
+  {
+    "id": "ru/terminal-security#разрешено-и-запрещено-практика",
+    "lang": "ru",
+    "slug": "terminal-security",
+    "section": "разрешено-и-запрещено-практика",
+    "title": "Безопасность команд",
+    "heading": "Разрешено и запрещено — практика",
+    "body": "Задача Обычный путь -------- ---------------- Прочитать файлы или / Запустить тесты , , Состояние git , , Push / commit Добавить в extras и подтвердить, или выполнить вручную Docker / make / свой CLI Установка пакетов Не в defaults — лучше вручную Удаление файлов не в whitelist; блокируется паттерном ---",
+    "keywords": [
+      "разрешено",
+      "запрещено",
+      "практика"
+    ],
+    "nav_order": 16
+  },
+  {
+    "id": "ru/terminal-security#рекомендации-для-production",
+    "lang": "ru",
+    "slug": "terminal-security",
+    "section": "рекомендации-для-production",
+    "title": "Безопасность команд",
+    "heading": "Рекомендации для production",
+    "body": "1. Оставляйте . 2. Добавляйте в extras только минимум ( ). 3. Используйте workspace jail на общих хостах. 4. Отключите терминал, если не нужен: . 5. Отключите Python executor: . 6. Запускайте , см. SECURITY.md. ---",
+    "keywords": [
+      "рекомендации",
+      "для",
+      "production"
+    ],
+    "nav_order": 16
+  },
+  {
+    "id": "ru/terminal-security#слои-защиты-порядок-проверок",
+    "lang": "ru",
+    "slug": "terminal-security",
+    "section": "слои-защиты-порядок-проверок",
+    "title": "Безопасность команд",
+    "heading": "Слои защиты (порядок проверок)",
+    "body": "Важно: в интерактивном TUI/Telegram подтверждение обычно запрашивается до тела . Даже разрешённая whitelist-команда может потребовать , потому что терминал классифицируется как риск HIGH . Whitelist проверяется внутри — если подтверждение есть, но команды нет в списке, выполнение всё равно завершится ошибкой . ---",
+    "keywords": [
+      "слои",
+      "защиты",
+      "порядок",
+      "проверок"
+    ],
+    "nav_order": 16
+  },
+  {
+    "id": "ru/terminal-security#см-также",
+    "lang": "ru",
+    "slug": "terminal-security",
+    "section": "см-также",
+    "title": "Безопасность команд",
+    "heading": "См. также",
+    "body": "- SECURITY.md — auth, API keys, production - PROFILES.md — whitelist по профилю - CONFIGURATION.md — переменные окружения - SLASH COMMANDS.md — , –",
+    "keywords": [
+      "также"
+    ],
+    "nav_order": 16
   },
   {
     "id": "ru/deployment#2-настройка-профиля",
@@ -5186,7 +6334,7 @@
       "настройка",
       "профиля"
     ],
-    "nav_order": 15
+    "nav_order": 17
   },
   {
     "id": "ru/deployment#3-установка-unit-файлов",
@@ -5206,7 +6354,7 @@
       "unit",
       "файлов"
     ],
-    "nav_order": 15
+    "nav_order": 17
   },
   {
     "id": "ru/deployment#4-запуск-и-управление",
@@ -5225,7 +6373,7 @@
       "запуск",
       "управление"
     ],
-    "nav_order": 15
+    "nav_order": 17
   },
   {
     "id": "ru/deployment#5-виджет-чата-на-сайте-документации",
@@ -5234,7 +6382,7 @@
     "section": "5-виджет-чата-на-сайте-документации",
     "title": "Деплой",
     "heading": "5. Виджет чата на сайте документации",
-    "body": "Ассистент отвечает только на вопросы по документации и сайту — без инструментов, команд и доступа к файлам. В профиля, с которым запускается gateway + docs: Создайте профиль только с ключами LLM: Запуск: Поведение виджета: - при первом визите чат открывается автоматически; - если пользователь закрыл чат — при следующих визитах остаётся свёрнутым ( ). Токен используется прокси на docs-сервере ( ) и не попадает в браузер.",
+    "body": "Ассистент отвечает только на вопросы по документации и сайту — без инструментов, команд и доступа к файлам. В профиля, с которым запускается gateway + docs: Создайте профиль только с ключами LLM: Запуск: Поведение виджета: - при первом визите чат открывается автоматически; - если пользователь закрыл чат — при следующих визитах остаётся свёрнутым ( ); - показывает индикатор «Думаю…» до первого токена ответа; - открывает первую ссылку из ответа ассистента в навигации сайта. Токен используется прокси на docs-сервере ( ) и не попадает в браузер.",
     "keywords": [
       "deploy",
       "деплой",
@@ -5246,15 +6394,36 @@
       "сайте",
       "документации"
     ],
-    "nav_order": 15
+    "nav_order": 17
   },
   {
-    "id": "ru/deployment#6-reverse-proxy-tls",
+    "id": "ru/deployment#6-сборка-сайта-документации-и-seo",
     "lang": "ru",
     "slug": "deployment",
-    "section": "6-reverse-proxy-tls",
+    "section": "6-сборка-сайта-документации-и-seo",
     "title": "Деплой",
-    "heading": "6. Reverse proxy (TLS)",
+    "heading": "6. Сборка сайта документации и SEO",
+    "body": "Исходники markdown: и . Перед деплоем пересоберите сайт: копирует контент в , пересобирает поиск, , и crawlable-ссылки в . Публичные URL (SPA): Путь Страница ------ ---------- Маркетинговый лендинг Хаб документации Раздел (например ) Статические файлы в корне сайта: , , файл верификации Яндекс.Вебмастера ( ). После деплоя сделайте жёсткое обновление страницы, если ассеты закэшировались. После смены : .",
+    "keywords": [
+      "deploy",
+      "деплой",
+      "systemd",
+      "docker",
+      "ci",
+      "сборка",
+      "сайта",
+      "документации",
+      "seo"
+    ],
+    "nav_order": 17
+  },
+  {
+    "id": "ru/deployment#7-reverse-proxy-tls",
+    "lang": "ru",
+    "slug": "deployment",
+    "section": "7-reverse-proxy-tls",
+    "title": "Деплой",
+    "heading": "7. Reverse proxy (TLS)",
     "body": "Gateway слушает в профиля, TLS — на nginx/Caddy/Traefik. Отдельный upstream на каждый профиль/порт. См. также: PROFILES.md, GATEWAY.md, SECURITY.md.",
     "keywords": [
       "deploy",
@@ -5266,7 +6435,7 @@
       "proxy",
       "tls"
     ],
-    "nav_order": 15
+    "nav_order": 17
   },
   {
     "id": "ru/deployment#helixprofilesbobenv",
@@ -5288,7 +6457,7 @@
       "bob",
       "env"
     ],
-    "nav_order": 15
+    "nav_order": 17
   },
   {
     "id": "ru/deployment#systemd",
@@ -5305,7 +6474,7 @@
       "docker",
       "ci"
     ],
-    "nav_order": 15
+    "nav_order": 17
   },
   {
     "id": "ru/deployment#или-для-именованного-профиля",
@@ -5326,7 +6495,7 @@
       "именованного",
       "профиля"
     ],
-    "nav_order": 15
+    "nav_order": 17
   },
   {
     "id": "ru/deployment#отредактируйте-helix_python-и-helix_bin-под-пути-pipx-на-вашем-х",
@@ -5351,7 +6520,7 @@
       "вашем",
       "хосте"
     ],
-    "nav_order": 15
+    "nav_order": 17
   },
   {
     "id": "ru/doctor#без---fix",
@@ -5368,7 +6537,7 @@
       "repair",
       "без"
     ],
-    "nav_order": 16
+    "nav_order": 18
   },
   {
     "id": "ru/doctor#проверки",
@@ -5385,7 +6554,7 @@
       "repair",
       "проверки"
     ],
-    "nav_order": 16
+    "nav_order": 18
   },
   {
     "id": "ru/doctor#с---fix",
@@ -5401,7 +6570,7 @@
       "fix",
       "repair"
     ],
-    "nav_order": 16
+    "nav_order": 18
   },
   {
     "id": "ru/logs#каталог-данных",
@@ -5419,7 +6588,7 @@
       "каталог",
       "данных"
     ],
-    "nav_order": 17
+    "nav_order": 19
   },
   {
     "id": "ru/logs#логи-и-наблюдаемость",
@@ -5436,7 +6605,7 @@
       "rotation",
       "наблюдаемость"
     ],
-    "nav_order": 17
+    "nav_order": 19
   },
   {
     "id": "ru/logs#режим-debug",
@@ -5453,7 +6622,7 @@
       "rotation",
       "режим"
     ],
-    "nav_order": 17
+    "nav_order": 19
   },
   {
     "id": "ru/logs#ротация",
@@ -5470,7 +6639,7 @@
       "rotation",
       "ротация"
     ],
-    "nav_order": 17
+    "nav_order": 19
   },
   {
     "id": "ru/logs#файлы-логов",
@@ -5488,7 +6657,7 @@
       "файлы",
       "логов"
     ],
-    "nav_order": 17
+    "nav_order": 19
   },
   {
     "id": "ru/pypi#1-аккаунт-и-имя",
@@ -5506,7 +6675,7 @@
       "аккаунт",
       "имя"
     ],
-    "nav_order": 18
+    "nav_order": 20
   },
   {
     "id": "ru/pypi#3-перед-каждым-релизом",
@@ -5525,7 +6694,7 @@
       "каждым",
       "релизом"
     ],
-    "nav_order": 18
+    "nav_order": 20
   },
   {
     "id": "ru/pypi#4-публикация-через-github-actions-рекомендуется",
@@ -5545,7 +6714,7 @@
       "actions",
       "рекомендуется"
     ],
-    "nav_order": 18
+    "nav_order": 20
   },
   {
     "id": "ru/pypi#имя-пакета",
@@ -5563,7 +6732,7 @@
       "имя",
       "пакета"
     ],
-    "nav_order": 18
+    "nav_order": 20
   },
   {
     "id": "ru/pypi#ограничения",
@@ -5580,7 +6749,7 @@
       "package",
       "ограничения"
     ],
-    "nav_order": 18
+    "nav_order": 20
   },
   {
     "id": "ru/pypi#публикация-на-pypi",
@@ -5596,26 +6765,24 @@
       "публикация",
       "package"
     ],
-    "nav_order": 18
+    "nav_order": 20
   },
   {
-    "id": "ru/troubleshooting#overview",
+    "id": "ru/troubleshooting#windows",
     "lang": "ru",
     "slug": "troubleshooting",
-    "section": "overview",
+    "section": "windows",
     "title": "Решение проблем",
-    "heading": "Решение проблем",
-    "body": "Решение проблем Gateway не стартует Нет вывода агента / тихие ошибки Windows - Терминал: , , вместо , - Субагенты — режим async - Данные: или - Опционально: Ошибка Dishka / agent init LLM недоступен Telegram access denied Укажите (числовой user id). API 401 Заголовок или . Admin key — через . См. также - LOGS.md — файлы логов, фильтры, ротация, debug",
+    "heading": "Windows",
+    "body": "- Терминал: , , вместо , ; Unix-команды можно добавить через или в профиля - Субагенты — режим async - Данные: или - Опционально:",
     "keywords": [
       "troubleshoot",
       "проблемы",
       "ошибки",
       "fix",
-      "overview",
-      "решение",
-      "проблем"
+      "windows"
     ],
-    "nav_order": 19
+    "nav_order": 21
   },
   {
     "id": "ru/user-guide#1-что-умеет-helix",
@@ -5633,7 +6800,7 @@
       "умеет",
       "helix"
     ],
-    "nav_order": 20
+    "nav_order": 22
   },
   {
     "id": "ru/user-guide#10-шаг-8-режимы-выполнения",
@@ -5642,7 +6809,7 @@
     "section": "10-шаг-8-режимы-выполнения",
     "title": "Руководство",
     "heading": "10. Шаг 8 — Режимы выполнения",
-    "body": "В TUI доступны режимы (переключение: или Shift+Tab в legacy TUI): Режим Имя в системе Когда использовать ------- --------------- ------------------- ReAct Обычные вопросы, инструменты, быстрые задачи (режим по умолчанию) План Многошаговые задачи с чёткими подзадачами Гибрид Сложные задачи: сначала план, затем гибкое выполнение шагов Авто Helix сам выбирает один из трёх режимов выше через LLM-классификатор Установить режим явно:",
+    "body": "В TUI и Telegram доступны четыре режима: Режим Имя Когда использовать ------- ----- ------------------- ReAct Быстрые вопросы, инструменты, разведка (по умолчанию) План Многошаговые задачи с понятными подцелями Гибрид Крупные задачи: план, затем гибкая работа по шагам Авто Helix сам выбирает режим через классификатор Переключение: , или Shift+Tab . Для планов — , , , . Для рискованных инструментов — , – . Подробно: схемы, поведение, настройки и примеры промптов — EXECUTION MODES.md. ---",
     "keywords": [
       "guide",
       "руководство",
@@ -5651,7 +6818,26 @@
       "режимы",
       "выполнения"
     ],
-    "nav_order": 20
+    "nav_order": 22
+  },
+  {
+    "id": "ru/user-guide#11-шаг-9-как-писать-запросы",
+    "lang": "ru",
+    "slug": "user-guide",
+    "section": "11-шаг-9-как-писать-запросы",
+    "title": "Руководство",
+    "heading": "11. Шаг 9 — Как писать запросы",
+    "body": "1. Указывайте пути к файлам и ожидаемый результат . 2. Для кода — язык, фреймворк, ограничения. 3. Команды с в начале — слэш-команды , они не уходят в LLM ( , , …). 4. Подбирайте режим под размер задачи — примеры промптов в EXECUTION MODES.md. ---",
+    "keywords": [
+      "guide",
+      "руководство",
+      "usage",
+      "шаг",
+      "как",
+      "писать",
+      "запросы"
+    ],
+    "nav_order": 22
   },
   {
     "id": "ru/user-guide#12-шаг-10-mcp-пошагово",
@@ -5669,7 +6855,7 @@
       "mcp",
       "пошагово"
     ],
-    "nav_order": 20
+    "nav_order": 22
   },
   {
     "id": "ru/user-guide#122-установить-mcp-простой-способ",
@@ -5689,7 +6875,7 @@
       "простой",
       "способ"
     ],
-    "nav_order": 20
+    "nav_order": 22
   },
   {
     "id": "ru/user-guide#127-переменные-окружения-для-mcp",
@@ -5709,7 +6895,7 @@
       "для",
       "mcp"
     ],
-    "nav_order": 20
+    "nav_order": 22
   },
   {
     "id": "ru/user-guide#15-слэш-команды-в-чате",
@@ -5727,7 +6913,7 @@
       "команды",
       "чате"
     ],
-    "nav_order": 20
+    "nav_order": 22
   },
   {
     "id": "ru/user-guide#16-особенности-helix",
@@ -5744,7 +6930,7 @@
       "особенности",
       "helix"
     ],
-    "nav_order": 20
+    "nav_order": 22
   },
   {
     "id": "ru/user-guide#17-что-делать-если-что-то-не-работает",
@@ -5763,7 +6949,7 @@
       "если",
       "работает"
     ],
-    "nav_order": 20
+    "nav_order": 22
   },
   {
     "id": "ru/user-guide#2-требования",
@@ -5779,7 +6965,7 @@
       "usage",
       "требования"
     ],
-    "nav_order": 20
+    "nav_order": 22
   },
   {
     "id": "ru/user-guide#3-шаг-1-установить-python",
@@ -5797,7 +6983,7 @@
       "установить",
       "python"
     ],
-    "nav_order": 20
+    "nav_order": 22
   },
   {
     "id": "ru/user-guide#4-шаг-2-установить-uv-рекомендуется",
@@ -5815,7 +7001,7 @@
       "установить",
       "рекомендуется"
     ],
-    "nav_order": 20
+    "nav_order": 22
   },
   {
     "id": "ru/user-guide#5-шаг-3-установка-с-pypi",
@@ -5833,7 +7019,7 @@
       "установка",
       "pypi"
     ],
-    "nav_order": 20
+    "nav_order": 22
   },
   {
     "id": "ru/user-guide#61-создать-файл-окружения",
@@ -5851,7 +7037,7 @@
       "файл",
       "окружения"
     ],
-    "nav_order": 20
+    "nav_order": 22
   },
   {
     "id": "ru/user-guide#62-профиль",
@@ -5860,14 +7046,14 @@
     "section": "62-профиль",
     "title": "Руководство",
     "heading": "6.2. Профиль",
-    "body": "Каждый профиль — изолированное окружение: По умолчанию используется профиль . При первом запуске Helix создаёт нужные каталоги. Workspace jail (опционально): ограничить файловые/терминальные инструменты одной папкой — . См. CONFIGURATION.md. Просмотр настроек: Смена профиля: В чате: или (список).",
+    "body": "Каждый профиль — изолированное окружение: По умолчанию используется профиль . При первом запуске Helix создаёт нужные каталоги. Workspace jail (опционально): ограничить файловые/терминальные инструменты одной папкой — . См. CONFIGURATION.md. Whitelist терминала (опционально): , , — см. PROFILES.md. Просмотр настроек: Смена профиля: В чате: или (список).",
     "keywords": [
       "guide",
       "руководство",
       "usage",
       "профиль"
     ],
-    "nav_order": 20
+    "nav_order": 22
   },
   {
     "id": "ru/user-guide#63-диагностика",
@@ -5883,7 +7069,7 @@
       "usage",
       "диагностика"
     ],
-    "nav_order": 20
+    "nav_order": 22
   },
   {
     "id": "ru/user-guide#7-шаг-5-настройка-моделей-через-litellm",
@@ -5903,7 +7089,7 @@
       "через",
       "litellm"
     ],
-    "nav_order": 20
+    "nav_order": 22
   },
   {
     "id": "ru/user-guide#71-что-нужно-получить-у-администратора-litellm",
@@ -5923,7 +7109,7 @@
       "администратора",
       "litellm"
     ],
-    "nav_order": 20
+    "nav_order": 22
   },
   {
     "id": "ru/user-guide#73-добавить-провайдер-litellm-в-профиль-интерактивно",
@@ -5943,7 +7129,7 @@
       "профиль",
       "интерактивно"
     ],
-    "nav_order": 20
+    "nav_order": 22
   },
   {
     "id": "ru/user-guide#74-полный-мастер-настройки-рекомендуется",
@@ -5962,7 +7148,7 @@
       "настройки",
       "рекомендуется"
     ],
-    "nav_order": 20
+    "nav_order": 22
   },
   {
     "id": "ru/user-guide#75-назначение-моделей-агентам",
@@ -5980,7 +7166,7 @@
       "моделей",
       "агентам"
     ],
-    "nav_order": 20
+    "nav_order": 22
   },
   {
     "id": "ru/user-guide#8-шаг-6-поиск-в-интернете-опционально",
@@ -5999,7 +7185,7 @@
       "интернете",
       "опционально"
     ],
-    "nav_order": 20
+    "nav_order": 22
   },
   {
     "id": "ru/user-guide#92-создать-бота-в-telegram",
@@ -6017,7 +7203,7 @@
       "бота",
       "telegram"
     ],
-    "nav_order": 20
+    "nav_order": 22
   },
   {
     "id": "ru/user-guide#93-узнать-свой-telegram-user-id",
@@ -6036,7 +7222,7 @@
       "telegram",
       "user"
     ],
-    "nav_order": 20
+    "nav_order": 22
   },
   {
     "id": "ru/user-guide#94-интерактивная-настройка-helix",
@@ -6054,7 +7240,7 @@
       "настройка",
       "helix"
     ],
-    "nav_order": 20
+    "nav_order": 22
   },
   {
     "id": "ru/user-guide#97-голосовые-сообщения-опционально",
@@ -6072,23 +7258,7 @@
       "сообщения",
       "опционально"
     ],
-    "nav_order": 20
-  },
-  {
-    "id": "ru/user-guide#auto-auto",
-    "lang": "ru",
-    "slug": "user-guide",
-    "section": "auto-auto",
-    "title": "Руководство",
-    "heading": "Auto (`auto`)",
-    "body": "Пишите как обычно — Helix сам выберет режим: - короткий вопрос → скорее ; - «сделай рефакторинг и тесты» → скорее или . При сбое классификатора используется .",
-    "keywords": [
-      "guide",
-      "руководство",
-      "usage",
-      "auto"
-    ],
-    "nav_order": 20
+    "nav_order": 22
   },
   {
     "id": "ru/user-guide#helix-config",
@@ -6105,7 +7275,7 @@
       "helix",
       "config"
     ],
-    "nav_order": 20
+    "nav_order": 22
   },
   {
     "id": "ru/user-guide#helix-models",
@@ -6122,7 +7292,7 @@
       "helix",
       "models"
     ],
-    "nav_order": 20
+    "nav_order": 22
   },
   {
     "id": "ru/user-guide#helix-полное-руководство-пользователя",
@@ -6140,23 +7310,7 @@
       "полное",
       "пользователя"
     ],
-    "nav_order": 20
-  },
-  {
-    "id": "ru/user-guide#hybrid-hybrid",
-    "lang": "ru",
-    "slug": "user-guide",
-    "section": "hybrid-hybrid",
-    "title": "Руководство",
-    "heading": "Hybrid (`hybrid`)",
-    "body": "Для крупных задач с исследованием и реализацией: - ✅ «Спроектируй и реализуй API для учёта задач: сначала план архитектуры, потом код и тесты» Сначала план (как в hybrid-графе), затем ReAct внутри шагов.",
-    "keywords": [
-      "guide",
-      "руководство",
-      "usage",
-      "hybrid"
-    ],
-    "nav_order": 20
+    "nav_order": 22
   },
   {
     "id": "ru/user-guide#litellm-proxy",
@@ -6173,40 +7327,7 @@
       "litellm",
       "proxy"
     ],
-    "nav_order": 20
-  },
-  {
-    "id": "ru/user-guide#plan-plan_and_execute",
-    "lang": "ru",
-    "slug": "user-guide",
-    "section": "plan-plan_and_execute",
-    "title": "Руководство",
-    "heading": "Plan (`plan_and_execute`)",
-    "body": "Формулируйте цель и ограничения , разбитую на этапы: - ✅ «Мигрируй проект с requirements.txt на pyproject.toml: 1) аудит зависимостей 2) создай pyproject 3) проверь установку» - ✅ «Добавь тесты для модуля X и обнови CI» Ожидайте план → согласование → пошаговое выполнение .",
-    "keywords": [
-      "guide",
-      "руководство",
-      "usage",
-      "plan",
-      "plan_and_execute"
-    ],
-    "nav_order": 20
-  },
-  {
-    "id": "ru/user-guide#react-react",
-    "lang": "ru",
-    "slug": "user-guide",
-    "section": "react-react",
-    "title": "Руководство",
-    "heading": "ReAct (`react`)",
-    "body": "Пишите прямо и конкретно : - ✅ «Прочитай файл и кратко опиши проект» - ✅ «Найди в интернете последние новости о Python 3.14» - ✅ «Выполни и объясни вывод» Подходит для: одиночных вопросов, чтения файлов, поиска, короткого кода.",
-    "keywords": [
-      "guide",
-      "руководство",
-      "usage",
-      "react"
-    ],
-    "nav_order": 20
+    "nav_order": 22
   },
   {
     "id": "ru/user-guide#быстрый-чеклист-с-нуля-до-чата",
@@ -6225,7 +7346,7 @@
       "нуля",
       "чата"
     ],
-    "nav_order": 20
+    "nav_order": 22
   },
   {
     "id": "ru/user-guide#или-вручную",
@@ -6242,7 +7363,7 @@
       "или",
       "вручную"
     ],
-    "nav_order": 20
+    "nav_order": 22
   },
   {
     "id": "ru/user-guide#или-просто",
@@ -6259,24 +7380,7 @@
       "или",
       "просто"
     ],
-    "nav_order": 20
-  },
-  {
-    "id": "ru/user-guide#общие-советы",
-    "lang": "ru",
-    "slug": "user-guide",
-    "section": "общие-советы",
-    "title": "Руководство",
-    "heading": "Общие советы",
-    "body": "1. Указывайте пути к файлам и ожидаемый результат . 2. Для кода — язык, фреймворк, ограничения. 3. Команды с в начале — слэш-команды , они не уходят в LLM ( , , …). 4. Обычный текст без — сообщение агенту. ---",
-    "keywords": [
-      "guide",
-      "руководство",
-      "usage",
-      "общие",
-      "советы"
-    ],
-    "nav_order": 20
+    "nav_order": 22
   },
   {
     "id": "ru/user-guide#основные-команды",
@@ -6293,42 +7397,7 @@
       "основные",
       "команды"
     ],
-    "nav_order": 20
-  },
-  {
-    "id": "ru/user-guide#планирование-и-согласование",
-    "lang": "ru",
-    "slug": "user-guide",
-    "section": "планирование-и-согласование",
-    "title": "Руководство",
-    "heading": "Планирование и согласование",
-    "body": "В режимах с планом ( , ) агент: 1. Строит план. 2. Показывает его на согласование (если в настройках). 3. Ждёт вашего решения. Команды согласования: Команда Действие --------- ---------- Подтвердить один шаг Выполнить весь план автоматически Уточнить план (можно ответить текстом) Отклонить план В Telegram — те же команды и inline-кнопки.",
-    "keywords": [
-      "guide",
-      "руководство",
-      "usage",
-      "планирование",
-      "согласование"
-    ],
-    "nav_order": 20
-  },
-  {
-    "id": "ru/user-guide#подтверждение-опасных-действий",
-    "lang": "ru",
-    "slug": "user-guide",
-    "section": "подтверждение-опасных-действий",
-    "title": "Руководство",
-    "heading": "Подтверждение опасных действий",
-    "body": "Перед записью файлов, командами терминала и т.п. Helix запрашивает разрешение: Команда Значение --------- ---------- , Разрешить один раз На всю сессию Всегда (сохраняется) , Отклонить ---",
-    "keywords": [
-      "guide",
-      "руководство",
-      "usage",
-      "подтверждение",
-      "опасных",
-      "действий"
-    ],
-    "nav_order": 20
+    "nav_order": 22
   },
   {
     "id": "ru/user-guide#см-также",
@@ -6344,7 +7413,7 @@
       "usage",
       "также"
     ],
-    "nav_order": 20
+    "nav_order": 22
   },
   {
     "id": "ru/user-guide#содержание",
@@ -6360,7 +7429,7 @@
       "usage",
       "содержание"
     ],
-    "nav_order": 20
+    "nav_order": 22
   },
   {
     "id": "ru/user-guide#установка",
@@ -6376,6 +7445,6 @@
       "usage",
       "установка"
     ],
-    "nav_order": 20
+    "nav_order": 22
   }
 ]

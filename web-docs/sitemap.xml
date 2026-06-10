@@ -41,6 +41,11 @@
     <priority>0.8</priority>
   </url>
   <url>
+    <loc>https://helix-agent.ru/docs/execution-modes</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
     <loc>https://helix-agent.ru/docs/gateway</loc>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
@@ -97,6 +102,11 @@
   </url>
   <url>
     <loc>https://helix-agent.ru/docs/telegram</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://helix-agent.ru/docs/terminal-security</loc>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
   </url>

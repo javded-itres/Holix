@@ -18,6 +18,7 @@
 
 - [CLI.md](CLI.md) — **справочник команд `helix`**
 - [SLASH_COMMANDS.md](SLASH_COMMANDS.md) — **слэш-команды `/`**
+- [EXECUTION_MODES.md](EXECUTION_MODES.md) — **ReAct, Plan, Hybrid, Auto** — как работают режимы и примеры промптов
 - [TUI.md](TUI.md) — `helix tui`
 - [HUB.md](HUB.md) — каталоги навыков
 - [GATEWAY.md](GATEWAY.md) — API gateway
@@ -29,6 +30,7 @@
 - [LOGS.md](LOGS.md) — `helix logs`, ротация, debug
 - [DOCTOR.md](DOCTOR.md)
 - [SECURITY.md](SECURITY.md)
+- [TERMINAL_SECURITY.md](TERMINAL_SECURITY.md) — whitelist терминала, запрещённые команды, подтверждения
 - [DEPLOYMENT.md](DEPLOYMENT.md)
 - [TROUBLESHOOTING.md](TROUBLESHOOTING.md)
 - [ARCHITECTURE.md](ARCHITECTURE.md)

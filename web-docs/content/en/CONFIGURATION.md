@@ -56,6 +56,25 @@ workspace_root: /home/user/data-agent
 
 When enabled, `read_file`, `write_file`, `list_directory`, `run_terminal_command`, and Telegram file delivery cannot access paths outside `workspace_root`.
 
+## Terminal whitelist (optional)
+
+Restrict which shell commands the agent may run. Managed per profile:
+
+```bash
+helix -p dev profile whitelist enable
+helix -p dev profile whitelist add "ls, cat, python, git"
+helix -p dev profile whitelist list
+```
+
+Equivalent `.env` variables:
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `HELIX_TERMINAL_COMMAND_WHITELIST` | `true` | Enforce whitelist for `run_terminal_command` |
+| `HELIX_TERMINAL_WHITELIST_EXTRA` | empty | Comma-separated extra commands or prefixes |
+
+Platform defaults are always included. See [SECURITY.md](SECURITY.md).
+
 ## Key environment variables
 
 See [.env.example](../../.env.example).
