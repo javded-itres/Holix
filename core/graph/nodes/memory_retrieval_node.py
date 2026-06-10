@@ -6,12 +6,11 @@ relevant_memories, relevant_skills, and relevant_strategies in state.
 Replaces the scattered memory retrieval currently at the top of run_agent_loop().
 """
 
-import asyncio
 import logging
-from typing import Any, Dict
+
+from langchain_core.runnables import RunnableConfig
 
 from core.graph.state import HelixGraphState, get_agent_from_config
-from langchain_core.runnables import RunnableConfig
 
 logger = logging.getLogger(__name__)
 
@@ -54,7 +53,7 @@ async def memory_retrieval_node(state: HelixGraphState, config: RunnableConfig) 
 
                 # Episodic memories
                 for ep in context.get("episodic", []):
-                    source = f"past experience"
+                    source = "past experience"
                     distance = ep.get("distance")
                     relevance = f" (relevance: {1 - distance:.2f})" if distance is not None else ""
                     relevant_memories.append({

@@ -2,10 +2,10 @@
 Helix Graph State — defines the state schema for the LangGraph execution graph.
 """
 
-from typing import Any, Dict, List, Optional
-from typing_extensions import TypedDict
+from typing import Any
 
 from langchain_core.runnables import RunnableConfig
+from typing_extensions import TypedDict
 
 
 class HelixGraphState(TypedDict, total=False):
@@ -21,19 +21,19 @@ class HelixGraphState(TypedDict, total=False):
     """
 
     # Core conversation state
-    messages: List[Dict[str, Any]]       # Full conversation history
+    messages: list[dict[str, Any]]       # Full conversation history
     user_input: str                      # Latest user message
     conversation_id: str                 # Thread identifier
     system_prompt: str                   # Assembled system prompt
 
     # Tool execution state
-    tool_calls: List[Dict[str, Any]]     # Pending tool calls from LLM
-    tool_results: List[Dict[str, Any]]   # Completed tool call results
+    tool_calls: list[dict[str, Any]]     # Pending tool calls from LLM
+    tool_results: list[dict[str, Any]]   # Completed tool call results
 
     # Memory state (populated by memory_retrieval_node)
-    relevant_memories: List[Dict[str, Any]]   # From LTM episodic + semantic
-    relevant_skills: List[Dict[str, Any]]     # From procedural memory
-    relevant_strategies: List[Dict[str, Any]]  # From strategic memory
+    relevant_memories: list[dict[str, Any]]   # From LTM episodic + semantic
+    relevant_skills: list[dict[str, Any]]     # From procedural memory
+    relevant_strategies: list[dict[str, Any]]  # From strategic memory
 
     # Execution control
     step_count: int
@@ -47,7 +47,7 @@ class HelixGraphState(TypedDict, total=False):
     stream: bool                         # Whether to use LLM streaming
 
     # Meta-agent state (Phase 4)
-    meta_decision: Optional[Dict[str, Any]]  # Strategy adjustments from meta-agent
+    meta_decision: dict[str, Any] | None  # Strategy adjustments from meta-agent
     needs_refinement: bool               # Set by meta-agent for self-refinement
 
     # Self-refinement state (Phase 5)
@@ -55,12 +55,12 @@ class HelixGraphState(TypedDict, total=False):
     max_refinement_iterations: int
 
     # Sub-agent state (Phase 4b)
-    sub_agent_tasks: List[Dict[str, Any]]    # Sub-tasks for sub-agents
-    sub_agent_results: Dict[str, Any]        # {agent_name: result}
-    pending_subagent: Optional[str]          # Job id awaiting collect_subagent_node
+    sub_agent_tasks: list[dict[str, Any]]    # Sub-tasks for sub-agents
+    sub_agent_results: dict[str, Any]        # {agent_name: result}
+    pending_subagent: str | None          # Job id awaiting collect_subagent_node
 
     # Plan state (for plan_and_execute and hybrid modes)
-    plan_steps: List[Dict[str, Any]]         # Ordered list of plan steps
+    plan_steps: list[dict[str, Any]]         # Ordered list of plan steps
     current_plan_step: int                    # Index of current step
 
     # Plan review state (for plan_and_execute and hybrid modes)
@@ -73,8 +73,8 @@ class HelixGraphState(TypedDict, total=False):
     current_step_start_count: int            # step_count at the start of current plan step (for per-step limit)
 
     # Enriched plan data (from detailed plan_node)
-    plan_analysis: Optional[Dict[str, Any]]  # Analysis: task_summary, complexity, clarifying_questions
-    plan_architecture: Optional[Dict[str, Any]]  # Architecture: approach, tech_stack, structure, risks
+    plan_analysis: dict[str, Any] | None  # Analysis: task_summary, complexity, clarifying_questions
+    plan_architecture: dict[str, Any] | None  # Architecture: approach, tech_stack, structure, risks
 
 
 def get_agent_from_config(config: RunnableConfig) -> Any:

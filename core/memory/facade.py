@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from openai import AsyncOpenAI
 
@@ -60,7 +60,7 @@ class MemoryFacade:
         conversation_id: str,
         role: str,
         content: str,
-        metadata: Optional[Dict[str, Any]] = None,
+        metadata: dict[str, Any] | None = None,
     ) -> int:
         return await self.conversations.save_message(
             conversation_id, role, content, metadata
@@ -70,21 +70,21 @@ class MemoryFacade:
         self,
         conversation_id: str,
         limit: int = 30,
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         return await self.conversations.get_conversation(conversation_id, limit)
 
     async def search(
         self,
         query: str,
         top_k: int = 8,
-        conversation_id: Optional[str] = None,
-    ) -> List[Dict[str, Any]]:
+        conversation_id: str | None = None,
+    ) -> list[dict[str, Any]]:
         return await self.conversations.search(query, top_k, conversation_id)
 
     async def replace_conversation_messages(
         self,
         conversation_id: str,
-        new_messages: List[Dict[str, Any]],
+        new_messages: list[dict[str, Any]],
     ) -> int:
         return await self.conversations.replace_conversation_messages(
             conversation_id, new_messages
@@ -112,14 +112,14 @@ class MemoryFacade:
         key: str,
         content: str,
         source: str = "",
-        metadata: Optional[Dict[str, Any]] = None,
+        metadata: dict[str, Any] | None = None,
     ) -> int:
         return await self._require_ltm().store_fact(key, content, source, metadata)
 
-    async def get_fact(self, key: str) -> Optional[Dict[str, Any]]:
+    async def get_fact(self, key: str) -> dict[str, Any] | None:
         return await self._require_ltm().get_fact(key)
 
-    async def search_episodes(self, query: str, top_k: int = 5) -> List[Dict[str, Any]]:
+    async def search_episodes(self, query: str, top_k: int = 5) -> list[dict[str, Any]]:
         return await self._require_ltm().search_episodes(query, top_k)
 
     async def store_strategy(
@@ -128,20 +128,20 @@ class MemoryFacade:
         content: str,
         category: str = "general",
         source: str = "",
-        metadata: Optional[Dict[str, Any]] = None,
+        metadata: dict[str, Any] | None = None,
     ) -> int:
         return await self._require_ltm().store_strategy(
             key, content, category, source, metadata
         )
 
-    async def search_strategies(self, query: str, top_k: int = 5) -> List[Dict[str, Any]]:
+    async def search_strategies(self, query: str, top_k: int = 5) -> list[dict[str, Any]]:
         return await self._require_ltm().search_strategies(query, top_k)
 
     async def get_relevant_context(
         self,
         query: str,
         top_k: int = 5,
-    ) -> Dict[str, List[Dict[str, Any]]]:
+    ) -> dict[str, list[dict[str, Any]]]:
         if not self._ltm:
             return {"episodic": [], "semantic": [], "strategic": []}
         return await self._ltm.get_relevant_context(query, top_k)
@@ -149,10 +149,10 @@ class MemoryFacade:
     async def auto_summarize_conversation(
         self,
         conversation_id: str,
-        messages: List[Dict[str, Any]],
-        llm_client: Optional[AsyncOpenAI] = None,
+        messages: list[dict[str, Any]],
+        llm_client: AsyncOpenAI | None = None,
         model: str = "",
-    ) -> Optional[str]:
+    ) -> str | None:
         if not self._ltm:
             return None
         return await self._summarizer.auto_summarize(
@@ -167,7 +167,7 @@ class MemoryFacade:
         if self._ltm:
             self._ltm.set_skills_manager(skills_manager)
 
-    def get_memory_stats(self) -> Dict[str, Any]:
+    def get_memory_stats(self) -> dict[str, Any]:
         if not self._ltm:
             return {}
         return self._ltm.get_memory_stats()

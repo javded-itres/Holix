@@ -9,7 +9,7 @@ Automatically generated when conversations end or are compressed.
 import json
 import logging
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 import aiosqlite
 from openai import AsyncOpenAI
@@ -36,7 +36,7 @@ class EpisodicMemoryStore:
         conversation_id: str,
         summary: str,
         outcome: str,
-        metadata: Optional[Dict[str, Any]] = None,
+        metadata: dict[str, Any] | None = None,
     ) -> int:
         """Store an episodic memory entry.
 
@@ -77,7 +77,7 @@ class EpisodicMemoryStore:
         self,
         query: str,
         top_k: int = 5,
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """Semantic search across episodic memories.
 
         Args:
@@ -109,7 +109,7 @@ class EpisodicMemoryStore:
     async def get_episodes_for_conversation(
         self,
         conversation_id: str,
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """Get all episodic entries for a specific conversation.
 
         Args:
@@ -148,10 +148,10 @@ class EpisodicMemoryStore:
     async def auto_summarize_conversation(
         self,
         conversation_id: str,
-        messages: List[Dict[str, Any]],
+        messages: list[dict[str, Any]],
         llm_client: AsyncOpenAI,
         model: str = "",
-    ) -> Optional[str]:
+    ) -> str | None:
         """Automatically generate and store an episodic summary of a conversation.
 
         Uses the LLM to create a compact narrative from the conversation messages.

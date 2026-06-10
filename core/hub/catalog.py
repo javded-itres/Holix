@@ -4,13 +4,13 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from core.hub.clawhub import ClawHubClient
 from core.hub.claude_marketplace import (
     MARKETPLACES,
     MarketplacePlugin,
     plugin_install_spec,
     search_plugins,
 )
+from core.hub.clawhub import ClawHubClient
 from core.hub.hermes_hub import list_hermes_skills, search_hermes_skills
 from core.hub.skills_sh import search_skills_sh
 

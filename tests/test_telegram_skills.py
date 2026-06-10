@@ -2,11 +2,9 @@
 
 from __future__ import annotations
 
-from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
-
 from integrations.telegram.host import TelegramHost
 from integrations.telegram.keyboards import SKILLS_PAGE_SIZE, skills_picker_keyboard
 

@@ -4,9 +4,9 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
-from core.security.confirmation import ConfirmationChoice
-from core.subagents.interaction import resolve_any_confirmation
+from core.security.confirmation import ConfirmationChoice, get_action_guard
 from core.security.confirmation_events import ConfirmationRequestEvent
+from core.subagents.interaction import resolve_any_confirmation
 
 from cli.tui.modals.confirmation import ConfirmationModal
 

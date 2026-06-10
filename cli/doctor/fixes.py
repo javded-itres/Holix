@@ -3,12 +3,10 @@
 from __future__ import annotations
 
 import shutil
+from collections.abc import Callable
 from pathlib import Path
-from typing import Callable
 
-import yaml
-
-from cli.core import ProfileConfig, ProfileManager
+from cli.core import ProfileManager
 from cli.doctor.findings import DoctorFinding
 from cli.services.gateway_state import clear_state
 

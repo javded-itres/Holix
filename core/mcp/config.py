@@ -3,8 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Literal, Optional
-
+from typing import Any, Literal
 
 Transport = Literal["stdio", "sse"]
 
@@ -17,19 +16,19 @@ class MCPServerConfig:
     transport: Transport = "stdio"
 
     # stdio
-    command: Optional[str] = None
-    args: List[str] = field(default_factory=list)
-    env: Dict[str, str] = field(default_factory=dict)
-    cwd: Optional[str] = None
+    command: str | None = None
+    args: list[str] = field(default_factory=list)
+    env: dict[str, str] = field(default_factory=dict)
+    cwd: str | None = None
 
     # sse / http
-    url: Optional[str] = None
+    url: str | None = None
 
     # common
     timeout: float = 30.0
     default_risk_level: str = "medium"  # no|low|medium|high ; used as baseline for guard
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         d = {
             "name": self.name,
             "transport": self.transport,
@@ -51,7 +50,7 @@ class MCPServerConfig:
         return d
 
     @classmethod
-    def from_dict(cls, name: str, data: Dict[str, Any]) -> "MCPServerConfig":
+    def from_dict(cls, name: str, data: dict[str, Any]) -> MCPServerConfig:
         from core.config_utils import resolve_env_refs
 
         resolved = resolve_env_refs(dict(data))
@@ -74,9 +73,9 @@ class MCPServerConfig:
         )
 
 
-def validate_server_config(cfg: MCPServerConfig) -> List[str]:
+def validate_server_config(cfg: MCPServerConfig) -> list[str]:
     """Return list of validation error strings (empty = ok)."""
-    errs: List[str] = []
+    errs: list[str] = []
     if cfg.transport == "stdio":
         if not cfg.command:
             errs.append("stdio requires 'command'")

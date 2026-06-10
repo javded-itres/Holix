@@ -1,5 +1,4 @@
 import pytest
-
 from core.platform_compat import IS_WINDOWS
 from core.security.safety import command_whitelist
 
@@ -35,8 +34,9 @@ def test_whitelist_extra_from_settings(monkeypatch):
 
 @pytest.mark.asyncio
 async def test_terminal_tool_blocks_dangerous(monkeypatch: pytest.MonkeyPatch) -> None:
-    from config import settings
     from core.tools.terminal import TerminalTool
+
+    from config import settings
 
     monkeypatch.setattr(settings, "enable_terminal_tool", True)
     monkeypatch.setattr(settings, "terminal_command_whitelist", True)

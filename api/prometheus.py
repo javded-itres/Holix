@@ -8,7 +8,7 @@ if TYPE_CHECKING:
     from core.monitoring.metrics import MetricsCollector
 
 
-def format_prometheus(metrics: "MetricsCollector") -> str:
+def format_prometheus(metrics: MetricsCollector) -> str:
     lines: list[str] = []
     summary = metrics.get_summary()
     for name, value in summary.items():

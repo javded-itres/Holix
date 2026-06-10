@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Optional
 
 from core.config_utils import get_local_helix_dir
 
@@ -24,22 +23,22 @@ PLANNING_CONTEXT_NOTE = (
 )
 
 
-def get_helix_md_path(cwd: Optional[str | Path] = None) -> Path:
+def get_helix_md_path(cwd: str | Path | None = None) -> Path:
     return get_local_helix_dir(cwd) / HELIX_MD_FILENAME
 
 
-def ensure_helix_dir(cwd: Optional[str | Path] = None) -> Path:
+def ensure_helix_dir(cwd: str | Path | None = None) -> Path:
     d = get_local_helix_dir(cwd)
     d.mkdir(parents=True, exist_ok=True)
     return d
 
 
-def helix_md_exists(cwd: Optional[str | Path] = None) -> bool:
+def helix_md_exists(cwd: str | Path | None = None) -> bool:
     return get_helix_md_path(cwd).is_file()
 
 
 def load_helix_md(
-    cwd: Optional[str | Path] = None,
+    cwd: str | Path | None = None,
     *,
     max_chars: int = DEFAULT_MAX_CHARS,
 ) -> str | None:
@@ -69,7 +68,7 @@ def planning_context_note() -> str:
     return PLANNING_CONTEXT_NOTE
 
 
-def format_helix_md_block(cwd: Optional[str | Path] = None) -> str:
+def format_helix_md_block(cwd: str | Path | None = None) -> str:
     """Markdown block with file contents for system prompts, or empty string."""
     body = load_helix_md(cwd)
     if not body:
@@ -81,7 +80,7 @@ def format_helix_md_block(cwd: Optional[str | Path] = None) -> str:
     )
 
 
-def append_helix_project_context(prompt: str, cwd: Optional[str | Path] = None) -> str:
+def append_helix_project_context(prompt: str, cwd: str | Path | None = None) -> str:
     """Append HELIX.md block to a system prompt when the file exists."""
     block = format_helix_md_block(cwd)
     if not block:

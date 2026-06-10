@@ -1,4 +1,5 @@
-from typing import List, Optional, Dict, Any
+from typing import Any
+
 from pydantic import BaseModel
 
 
@@ -6,17 +7,17 @@ class Message(BaseModel):
     """Chat message model."""
     role: str
     content: str
-    name: Optional[str] = None
+    name: str | None = None
 
 
 class ChatCompletionRequest(BaseModel):
     """OpenAI-compatible chat completion request."""
     model: str = "helix"
-    messages: List[Message]
-    temperature: Optional[float] = 0.7
-    max_tokens: Optional[int] = None
+    messages: list[Message]
+    temperature: float | None = 0.7
+    max_tokens: int | None = None
     stream: bool = False
-    conversation_id: Optional[str] = "default"
+    conversation_id: str | None = "default"
 
 
 class ChatCompletionResponse(BaseModel):
@@ -25,5 +26,5 @@ class ChatCompletionResponse(BaseModel):
     object: str = "chat.completion"
     created: int
     model: str
-    choices: List[Dict[str, Any]]
-    usage: Optional[Dict[str, int]] = None
+    choices: list[dict[str, Any]]
+    usage: dict[str, int] | None = None

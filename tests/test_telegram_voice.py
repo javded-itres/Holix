@@ -6,7 +6,6 @@ import json
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
-
 from integrations.telegram.voice_handler import (
     VoiceTranscriber,
     WhisperConfig,

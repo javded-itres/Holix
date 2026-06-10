@@ -5,7 +5,6 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
-
 from integrations.telegram.env_store import (
     format_env_lines,
     mask_token,

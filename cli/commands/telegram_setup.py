@@ -2,16 +2,10 @@
 
 from __future__ import annotations
 
-import asyncio
 import subprocess
 import sys
 from pathlib import Path
 
-from rich.panel import Panel
-from rich.prompt import Confirm, Prompt
-
-from cli.core import ProfileManager
-from cli.utils.rich_console import console, print_error, print_info, print_success, print_warning
 from integrations.telegram.env_store import (
     apply_to_environ,
     load_telegram_env_files,
@@ -22,7 +16,16 @@ from integrations.telegram.env_store import (
     telegram_env_path,
     token_looks_valid,
 )
-from integrations.telegram.setup_api import TelegramApiError, verify_bot_token, wait_for_telegram_user
+from integrations.telegram.setup_api import (
+    TelegramApiError,
+    verify_bot_token,
+    wait_for_telegram_user,
+)
+from rich.panel import Panel
+from rich.prompt import Confirm, Prompt
+
+from cli.core import ProfileManager
+from cli.utils.rich_console import console, print_error, print_info, print_success, print_warning
 
 
 def _telegram_extra_installed() -> bool:

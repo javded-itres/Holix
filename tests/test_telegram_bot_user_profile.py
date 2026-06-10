@@ -5,7 +5,6 @@ from __future__ import annotations
 from unittest.mock import AsyncMock, patch
 
 import pytest
-
 from integrations.telegram.bot import HelixTelegramBot
 from integrations.telegram.config import TelegramSettings
 

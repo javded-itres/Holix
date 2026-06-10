@@ -9,13 +9,13 @@ Follows the same pattern as ActionGuard in core/security/confirmation.py:
 
 import asyncio
 import logging
-from enum import Enum
-from typing import Any, Dict, List, Optional, Tuple
+from enum import StrEnum
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
 
-class PlanReviewChoice(str, Enum):
+class PlanReviewChoice(StrEnum):
     """User choices for plan review."""
     CONFIRM_STEP = "confirm_step"      # Step-by-step: confirm before each step (future enhancement)
     AUTO_EXECUTE = "auto_execute"       # Execute all steps without further confirmation
@@ -39,7 +39,7 @@ class PlanReviewGuard:
 
     def __init__(
         self,
-        event_bus: Optional[Any] = None,
+        event_bus: Any | None = None,
         interactive: bool = True,
         review_timeout: int = 600,
     ):
@@ -48,19 +48,19 @@ class PlanReviewGuard:
         self._review_timeout = review_timeout
 
         # Map from review_id -> asyncio.Future[Tuple[PlanReviewChoice, str]]
-        self._pending_reviews: Dict[str, asyncio.Future] = {}
+        self._pending_reviews: dict[str, asyncio.Future] = {}
         self._review_counter = 0
 
     async def request_review(
         self,
-        plan_steps: List[Dict[str, Any]],
+        plan_steps: list[dict[str, Any]],
         conversation_id: str = "default",
         reasoning: str = "",
         user_input: str = "",
-        analysis: Optional[Dict[str, Any]] = None,
-        architecture: Optional[Dict[str, Any]] = None,
+        analysis: dict[str, Any] | None = None,
+        architecture: dict[str, Any] | None = None,
         rendered_markdown: str = "",
-    ) -> Tuple[PlanReviewChoice, str]:
+    ) -> tuple[PlanReviewChoice, str]:
         """Emit a PlanReviewRequestEvent and await user decision.
 
         Creates a Future, emits the event, and blocks until the user
@@ -123,7 +123,7 @@ class PlanReviewGuard:
             # Backward compatibility: if just a PlanReviewChoice
             return result, ""
 
-        except asyncio.TimeoutError:
+        except TimeoutError:
             logger.warning(f"PlanReviewGuard: review {review_id} timed out, rejecting plan")
             return PlanReviewChoice.REJECT, ""
 
@@ -174,7 +174,7 @@ class PlanReviewGuard:
 
 # ─── Global instance and init ──────────────────────────────────────────────
 
-_plan_review_guard: Optional[PlanReviewGuard] = None
+_plan_review_guard: PlanReviewGuard | None = None
 
 
 def init_plan_review_guard(
@@ -195,6 +195,6 @@ def init_plan_review_guard(
     return _plan_review_guard
 
 
-def get_plan_review_guard() -> Optional[PlanReviewGuard]:
+def get_plan_review_guard() -> PlanReviewGuard | None:
     """Get the global PlanReviewGuard instance (or None if not initialized)."""
     return _plan_review_guard

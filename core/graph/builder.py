@@ -5,12 +5,11 @@ Graph Builder — composes Helix LangGraph execution graphs by mode.
 from __future__ import annotations
 
 import logging
-from typing import Any, Optional
+from typing import Any
 
 from core.graph.modes.hybrid import build_hybrid_graph
 from core.graph.modes.plan_execute import build_plan_and_execute_graph
 from core.graph.modes.react import build_react_graph
-from core.graph.state import HelixGraphState
 from core.persistence import create_checkpointer
 
 logger = logging.getLogger(__name__)
@@ -92,7 +91,7 @@ async def run_graph_loop(
     execution_mode: str = "react",
 ):
     """Run the Helix graph and translate state transitions to AgentEvents."""
-    from core.agent_events import ThinkingEvent, MaxStepsReachedEvent, ErrorEvent
+    from core.agent_events import ErrorEvent, MaxStepsReachedEvent, ThinkingEvent
     from core.graph.modes.router import ModeRouter
     from core.runtime.session import prepare_session
 
@@ -175,10 +174,10 @@ def build_plan_execute_graph_for_studio():
 
 # Re-export routers for backward compatibility
 from core.graph.routers import (  # noqa: E402
-    route_after_react,
     route_after_plan_execute,
     route_after_plan_review,
     route_after_plan_review_hybrid,
+    route_after_react,
     route_after_react_plan,
     route_after_step_orchestrate,
 )

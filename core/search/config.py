@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any, Dict, List
+from typing import Any
 
 from core.config_utils import resolve_env_refs
 
@@ -31,10 +31,10 @@ class SearchConfig:
     """Resolved search settings for the active profile."""
 
     strategy: str = DEFAULT_STRATEGY
-    provider_order: List[str] = field(default_factory=lambda: ["duckduckgo"])
-    duckduckgo: Dict[str, Any] = field(default_factory=lambda: {"enabled": True})
-    searxng: Dict[str, Any] = field(default_factory=dict)
-    firecrawl: Dict[str, Any] = field(default_factory=dict)
+    provider_order: list[str] = field(default_factory=lambda: ["duckduckgo"])
+    duckduckgo: dict[str, Any] = field(default_factory=lambda: {"enabled": True})
+    searxng: dict[str, Any] = field(default_factory=dict)
+    firecrawl: dict[str, Any] = field(default_factory=dict)
 
     @classmethod
     def from_dict(cls, raw: dict[str, Any] | None) -> SearchConfig:
@@ -62,7 +62,7 @@ class SearchConfig:
             firecrawl=dict(merged.get("firecrawl") or {}),
         )
 
-    def enabled_providers(self) -> List[str]:
+    def enabled_providers(self) -> list[str]:
         out: list[str] = []
         for name in self.provider_order:
             block = getattr(self, name, None)

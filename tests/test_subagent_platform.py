@@ -5,7 +5,6 @@ from __future__ import annotations
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-
 from core.subagents.base import ProcessMode, SubAgentConfig
 from core.subagents.manager import SubAgentManager
 from core.subagents.process import SubAgentProcessManager, _ensure_event_loop

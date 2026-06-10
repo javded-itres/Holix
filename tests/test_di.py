@@ -3,11 +3,10 @@
 from pathlib import Path
 
 import pytest
-
-from core.di.runtime_config import HelixRuntimeConfig
-from core.di.container import create_async_container, create_agent, resolve_runtime_config
-from core.agent import HelixAgent
 from cli.core import ProfileConfig
+from core.agent import HelixAgent
+from core.di.container import create_agent, create_async_container, resolve_runtime_config
+from core.di.runtime_config import HelixRuntimeConfig
 
 
 def test_runtime_config_from_settings():
@@ -61,7 +60,6 @@ async def test_dishka_container_provides_agent(temp_dir):
         ltm_db_path=f"{temp_dir}/ltm.db",
         skills_dir=f"{temp_dir}/skills",
     )
-    from core.agent import HelixAgent
 
     container = create_async_container(cfg)
     try:

@@ -3,9 +3,7 @@
 from __future__ import annotations
 
 import pytest
-
 from scripts.changelog_release_notes import extract_release_notes
-
 
 SAMPLE_CHANGELOG = """# Changelog
 

@@ -4,16 +4,15 @@ from __future__ import annotations
 
 import json
 import re
-from pathlib import Path
 from typing import Any
 
 import yaml
+from core.models.manager import ModelManager
 from openai import AsyncOpenAI
 
 from cli.core import ProfileConfig, ProfileManager
 from cli.doctor.findings import DoctorFinding
 from cli.doctor.fixes import backup_config
-from core.models.manager import ModelManager
 
 DOCTOR_SYSTEM = """You are Helix Doctor, a configuration repair assistant.
 

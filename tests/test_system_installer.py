@@ -5,7 +5,6 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
-
 from cli.installer.system import (
     MIN_PYTHON,
     detect_repo_root,

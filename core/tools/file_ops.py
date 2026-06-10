@@ -1,5 +1,4 @@
 from pathlib import Path
-from typing import Optional
 
 from core.tools.base import BaseTool
 from core.tools.file_diff import format_write_file_result, read_file_text
@@ -43,7 +42,7 @@ class ReadFileTool(BaseTool):
             if not file_path.is_file():
                 return f"Error: '{path}' is not a file"
 
-            with open(file_path, 'r', encoding='utf-8') as f:
+            with open(file_path, encoding='utf-8') as f:
                 content = f.read()
 
             return f"Content of {path}:\n{content}"

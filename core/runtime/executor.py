@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from typing import Any, AsyncGenerator, Optional
+from collections.abc import AsyncGenerator
+from typing import Any
 
 from core.agent_events import AgentEvent
 
@@ -13,7 +14,7 @@ async def run_helix(
     conversation_id: str = "default",
     *,
     stream: bool = False,
-    execution_mode: Optional[str] = None,
+    execution_mode: str | None = None,
 ) -> AsyncGenerator[AgentEvent, None]:
     """Run the agent and yield AgentEvent objects.
 

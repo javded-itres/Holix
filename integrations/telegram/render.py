@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from core.presenters.live_buffer import LiveTranscriptBuffer
+
 from integrations.telegram.markdown import (
     escape_html,
     markdown_to_telegram_html,

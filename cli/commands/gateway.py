@@ -6,7 +6,6 @@ import os
 
 import typer
 
-from config import settings
 from cli.services.gateway_daemon import (
     gateway_status,
     reload_gateway_daemon,
@@ -14,6 +13,7 @@ from cli.services.gateway_daemon import (
     stop_gateway_daemon,
 )
 from cli.utils.rich_console import print_error
+from config import settings
 
 app = typer.Typer(
     help="Manage Helix API gateway and companion services (Telegram, …)",

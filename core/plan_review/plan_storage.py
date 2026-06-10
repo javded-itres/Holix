@@ -11,7 +11,7 @@ import logging
 import re
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from core.config_utils import get_local_plan_dir
 from core.di.runtime_config import HelixRuntimeConfig
@@ -24,10 +24,10 @@ _PLAN_ID_RE = re.compile(r"^[a-zA-Z0-9][a-zA-Z0-9_.-]*\.json$")
 PLAN_DIR = Path(".helix/plan")
 
 # Test hook: tests can set _TEST_PLAN_DIR to a temp Path
-_TEST_PLAN_DIR: Optional[Path] = None
+_TEST_PLAN_DIR: Path | None = None
 
 
-def get_plan_dir(config: Optional[HelixRuntimeConfig] = None) -> Path:
+def get_plan_dir(config: HelixRuntimeConfig | None = None) -> Path:
     """Resolve the plan storage dir.
 
     Prefers local project .helix/plan (already the convention). If runtime config
@@ -67,12 +67,12 @@ def resolve_plan_path(plan_dir: Path, plan_id: str) -> Path:
 
 
 def save_plan(
-    plan_steps: List[Dict[str, Any]],
+    plan_steps: list[dict[str, Any]],
     conversation_id: str = "default",
-    metadata: Optional[Dict[str, Any]] = None,
+    metadata: dict[str, Any] | None = None,
     plan_status: str = "confirmed",
-    analysis: Optional[Dict[str, Any]] = None,
-    architecture: Optional[Dict[str, Any]] = None,
+    analysis: dict[str, Any] | None = None,
+    architecture: dict[str, Any] | None = None,
 ) -> Path:
     """Save a plan to .helix/plan/ as both .md and .json.
 
@@ -123,7 +123,7 @@ def save_plan(
     return md_path
 
 
-def load_plan(path: str) -> Dict[str, Any]:
+def load_plan(path: str) -> dict[str, Any]:
     """Load a plan from a JSON file.
 
     Args:
@@ -144,7 +144,7 @@ def load_plan(path: str) -> Dict[str, Any]:
     return json.loads(plan_path.read_text(encoding="utf-8"))
 
 
-def list_plans(limit: int = 20) -> List[Dict[str, Any]]:
+def list_plans(limit: int = 20) -> list[dict[str, Any]]:
     """List all saved plans, newest first.
 
     Args:
@@ -174,7 +174,7 @@ def list_plans(limit: int = 20) -> List[Dict[str, Any]]:
     return plans
 
 
-def update_plan_progress(path: str, completed_steps: List[int]) -> None:
+def update_plan_progress(path: str, completed_steps: list[int]) -> None:
     """Update the progress of a plan.
 
     Args:
@@ -197,9 +197,9 @@ def update_plan_progress(path: str, completed_steps: List[int]) -> None:
 
 
 def _format_plan_markdown(
-    plan_steps: List[Dict[str, Any]],
+    plan_steps: list[dict[str, Any]],
     conversation_id: str,
-    metadata: Optional[Dict[str, Any]],
+    metadata: dict[str, Any] | None,
     plan_status: str,
 ) -> str:
     """Format plan steps as a human-readable Markdown document."""

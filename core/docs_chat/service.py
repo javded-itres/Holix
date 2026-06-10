@@ -5,8 +5,9 @@ from __future__ import annotations
 import json
 import logging
 import re
+from collections.abc import AsyncGenerator
 from pathlib import Path
-from typing import Any, AsyncGenerator
+from typing import Any
 
 from openai import AsyncOpenAI
 
@@ -178,6 +179,7 @@ def sanitize_assistant_text(text: str) -> str:
 
 def _resolve_llm(profile_name: str) -> tuple[str, str, str, float, int]:
     from cli.core import init_profile
+
     from core.env_loader import bootstrap_profile_env
     from core.models.manager import ModelManager
 

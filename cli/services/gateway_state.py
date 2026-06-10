@@ -4,9 +4,9 @@ from __future__ import annotations
 
 import json
 from dataclasses import asdict, dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, Optional, Self
+from typing import Any, Self
 
 from core.platform_compat import is_process_alive, resolve_helix_home
 
@@ -38,10 +38,10 @@ class GatewayState:
     reload: bool
     started_at: str
     log_file: str
-    telegram_pid: Optional[int] = None
-    docs_pid: Optional[int] = None
-    docs_host: Optional[str] = None
-    docs_port: Optional[int] = None
+    telegram_pid: int | None = None
+    docs_pid: int | None = None
+    docs_host: str | None = None
+    docs_port: int | None = None
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> Self:
@@ -75,7 +75,7 @@ def _legacy_state_path() -> Path:
     return resolve_helix_home() / "gateway" / "state.json"
 
 
-def _read_state_file(path: Path) -> Optional[GatewayState]:
+def _read_state_file(path: Path) -> GatewayState | None:
     if not path.is_file():
         return None
     try:
@@ -114,7 +114,7 @@ def _migrate_state_to_profile(state: GatewayState) -> None:
         legacy.unlink()
 
 
-def load_state(profile: str = "default") -> Optional[GatewayState]:
+def load_state(profile: str = "default") -> GatewayState | None:
     states = _collect_states(profile)
     if not states:
         return None
@@ -176,10 +176,10 @@ def new_state(
     port: int,
     profile: str,
     reload: bool,
-    telegram_pid: Optional[int] = None,
-    docs_pid: Optional[int] = None,
-    docs_host: Optional[str] = None,
-    docs_port: Optional[int] = None,
+    telegram_pid: int | None = None,
+    docs_pid: int | None = None,
+    docs_host: str | None = None,
+    docs_port: int | None = None,
 ) -> GatewayState:
     ensure_gateway_dir(profile)
     return GatewayState(
@@ -188,7 +188,7 @@ def new_state(
         port=port,
         profile=profile,
         reload=reload,
-        started_at=datetime.now(timezone.utc).isoformat(),
+        started_at=datetime.now(UTC).isoformat(),
         log_file=str(log_path(profile)),
         telegram_pid=telegram_pid,
         docs_pid=docs_pid,

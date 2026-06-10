@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import pytest
-
 from cli.tui.shared.formatters import (
     format_tool_args,
     format_tool_header,

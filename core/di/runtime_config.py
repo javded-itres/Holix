@@ -3,14 +3,15 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field, replace
-from typing import TYPE_CHECKING, Any, Dict, List, Optional
+from typing import TYPE_CHECKING, Any
 
-from config import Settings, settings as default_settings
+from config import Settings
+from config import settings as default_settings
 
 try:
     from typing import Self
 except ImportError:  # py < 3.11
-    from typing_extensions import Self  # type: ignore[assignment]
+    from typing import Self  # type: ignore[assignment]
 
 if TYPE_CHECKING:
     from cli.core import ProfileConfig
@@ -81,28 +82,28 @@ class HelixRuntimeConfig:
 
     # Profile metadata (optional)
     profile_name: str = "default"
-    provider_metadata: Dict[str, Any] = field(default_factory=dict)
+    provider_metadata: dict[str, Any] = field(default_factory=dict)
 
     # MCP servers (defs + assignments). Only additive from profile; local .helix may supplement at load time.
-    mcp_servers: Dict[str, Any] = field(default_factory=dict)
-    mcp_assignments: Dict[str, List[str]] = field(default_factory=dict)
+    mcp_servers: dict[str, Any] = field(default_factory=dict)
+    mcp_assignments: dict[str, list[str]] = field(default_factory=dict)
     mcp_enabled: bool = True
 
-    skill_assignments: Dict[str, List[str]] = field(default_factory=dict)
+    skill_assignments: dict[str, list[str]] = field(default_factory=dict)
 
     # Web search (DuckDuckGo / SearXNG / Firecrawl)
-    search: Dict[str, Any] = field(default_factory=dict)
+    search: dict[str, Any] = field(default_factory=dict)
 
     # Local project supplement dir (CWD/.helix) — used for skills, plans, extra mcp; NEVER for model/system keys.
     local_project_dir: str = ".helix"
-    local_skills_dir: Optional[str] = None  # resolved at use site if None
+    local_skills_dir: str | None = None  # resolved at use site if None
 
     # Workspace jail (optional per-profile directory isolation)
     workspace_jail_enabled: bool = False
-    workspace_root: Optional[str] = None
+    workspace_root: str | None = None
 
     @classmethod
-    def from_settings(cls, source: Optional[Settings] = None) -> Self:
+    def from_settings(cls, source: Settings | None = None) -> Self:
         """Build config from pydantic Settings (env / .env)."""
         s = source or default_settings
         return cls(
@@ -163,7 +164,7 @@ class HelixRuntimeConfig:
         cls,
         profile: ProfileConfig,
         *,
-        base: Optional[Self] = None,
+        base: Self | None = None,
     ) -> Self:
         """Merge CLI profile overrides onto a base config."""
         cfg = base or cls.from_settings()

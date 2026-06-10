@@ -14,9 +14,8 @@ import logging
 import shutil
 import subprocess
 from pathlib import Path
-from typing import Any, Dict, Optional, Tuple
+from typing import Any
 
-from core.mcp.config import MCPServerConfig
 from core.mcp.popular import PopularMCPServer
 from core.platform_compat import resolve_helix_home
 
@@ -30,9 +29,9 @@ def ensure_mcp_servers_root() -> Path:
     return MCP_SERVERS_ROOT
 
 
-def _run(cmd: list[str], cwd: Optional[Path] = None, check: bool = True, capture: bool = False) -> subprocess.CompletedProcess:
+def _run(cmd: list[str], cwd: Path | None = None, check: bool = True, capture: bool = False) -> subprocess.CompletedProcess:
     """Run a command, optionally capturing output."""
-    kwargs: Dict[str, Any] = {"cwd": str(cwd) if cwd else None}
+    kwargs: dict[str, Any] = {"cwd": str(cwd) if cwd else None}
     if capture:
         kwargs.update({"stdout": subprocess.PIPE, "stderr": subprocess.PIPE, "text": True})
     return subprocess.run(cmd, check=check, **kwargs)
@@ -57,7 +56,7 @@ def clone_or_update_git(url: str, target_name: str, depth: int = 1) -> Path:
     return dest
 
 
-def _detect_js_entry(cloned: Path) -> Optional[Tuple[str, list[str]]]:
+def _detect_js_entry(cloned: Path) -> tuple[str, list[str]] | None:
     pkg_file = cloned / "package.json"
     if not pkg_file.exists():
         return None
@@ -91,7 +90,7 @@ def _detect_js_entry(cloned: Path) -> Optional[Tuple[str, list[str]]]:
     return None
 
 
-def _detect_python_entry(cloned: Path) -> Optional[Tuple[str, list[str]]]:
+def _detect_python_entry(cloned: Path) -> tuple[str, list[str]] | None:
     if (cloned / "pyproject.toml").exists() or (cloned / "setup.py").exists() or (cloned / "setup.cfg").exists():
         # Try common patterns
         # Many python MCP use "mcp" or "server" module
@@ -103,7 +102,7 @@ def _detect_python_entry(cloned: Path) -> Optional[Tuple[str, list[str]]]:
     return None
 
 
-def _try_readme_hints(cloned: Path) -> Optional[Tuple[str, list[str]]]:
+def _try_readme_hints(cloned: Path) -> tuple[str, list[str]] | None:
     for readme_name in ("README.md", "README", "readme.md"):
         p = cloned / readme_name
         if not p.exists():
@@ -131,7 +130,7 @@ def _try_readme_hints(cloned: Path) -> Optional[Tuple[str, list[str]]]:
     return None
 
 
-def detect_command(cloned: Path) -> Tuple[str, list[str], str]:
+def detect_command(cloned: Path) -> tuple[str, list[str], str]:
     """Return (command, args, notes). Best effort detection."""
     notes = ""
 
@@ -187,7 +186,7 @@ def auto_prepare(cloned: Path, cmd: str) -> None:
         logger.warning("Auto-prepare step failed (non-fatal): %s", e)
 
 
-def build_config_from_popular(pop: PopularMCPServer, provided_params: Dict[str, str]) -> Dict[str, Any]:
+def build_config_from_popular(pop: PopularMCPServer, provided_params: dict[str, str]) -> dict[str, Any]:
     """Turn a popular entry + user params into a raw dict suitable for MCPServerConfig."""
     from core.mcp.validate import normalize_allowed_paths
 
@@ -223,7 +222,7 @@ def build_config_from_popular(pop: PopularMCPServer, provided_params: Dict[str, 
         else:
             args.append(a)
 
-    data: Dict[str, Any] = {
+    data: dict[str, Any] = {
         "transport": pop.transport,
         "command": pop.command,
         "args": args,
@@ -235,7 +234,7 @@ def build_config_from_popular(pop: PopularMCPServer, provided_params: Dict[str, 
     return data
 
 
-def install_from_git(git_url: str, suggested_name: Optional[str] = None, auto_prepare_steps: bool = True) -> Dict[str, Any]:
+def install_from_git(git_url: str, suggested_name: str | None = None, auto_prepare_steps: bool = True) -> dict[str, Any]:
     """Clone a git-based MCP server and return a suggested config dict.
 
     The caller (CLI) is responsible for letting user review/edit the returned command/args/env
@@ -251,7 +250,7 @@ def install_from_git(git_url: str, suggested_name: Optional[str] = None, auto_pr
 
     cmd, args, notes = detect_command(cloned)
 
-    data: Dict[str, Any] = {
+    data: dict[str, Any] = {
         "transport": "stdio",
         "command": cmd,
         "args": args,

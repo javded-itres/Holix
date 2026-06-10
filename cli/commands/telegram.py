@@ -90,8 +90,8 @@ def telegram_sync_menu(ctx: typer.Context) -> None:
     """Push slash-command menu to Telegram (incl. /models) without restarting the bot."""
     profile = resolve_profile(ctx)
     try:
-        from integrations.telegram.env_store import load_telegram_env_files
         from integrations.telegram.commands import sync_bot_menu
+        from integrations.telegram.env_store import load_telegram_env_files
 
         load_telegram_env_files(profile)
         names = asyncio.run(sync_bot_menu(profile))

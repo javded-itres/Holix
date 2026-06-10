@@ -9,7 +9,7 @@ with historical success/failure data to improve recommendations.
 import json
 import logging
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 import aiosqlite
 
@@ -33,7 +33,7 @@ class ProceduralMemoryStore:
         self,
         db_path: str,
         vector_store: VectorMemoryStore,
-        skills_manager: Optional[Any] = None,
+        skills_manager: Any | None = None,
     ):
         self._db_path = db_path
         self._vector_store = vector_store
@@ -53,7 +53,7 @@ class ProceduralMemoryStore:
         top_k: int = 5,
         *,
         agent_slot: str = "main",
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """Search for relevant skills, enriched with outcome data.
 
         Delegates to SkillsManager.get_relevant_skills() for relevance,
@@ -94,7 +94,7 @@ class ProceduralMemoryStore:
         skill_name: str,
         task_description: str,
         success: bool,
-        context: Optional[Dict[str, Any]] = None,
+        context: dict[str, Any] | None = None,
     ) -> int:
         """Record the outcome of using a skill for a task.
 
@@ -131,7 +131,7 @@ class ProceduralMemoryStore:
     async def _get_skill_outcomes(
         self,
         skill_name: str,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Get aggregated outcome statistics for a skill.
 
         Args:
@@ -185,7 +185,7 @@ class ProceduralMemoryStore:
         self,
         task_description: str,
         top_k: int = 3,
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """Get skill recommendations ranked by relevance AND success rate.
 
         Args:

@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Optional
 
 
 def resolve_helix_default_data_dir(profile: str = "default") -> Path:
@@ -13,7 +12,7 @@ def resolve_helix_default_data_dir(profile: str = "default") -> Path:
     return (resolve_helix_home() / "profiles" / profile / "data").resolve()
 
 
-def resolve_profile_data_dir(profile: Optional[str] = None) -> Path:
+def resolve_profile_data_dir(profile: str | None = None) -> Path:
     """Best-effort profile ``data_dir`` for the active or named profile."""
     try:
         from cli.core import get_current_config, get_current_profile, init_profile

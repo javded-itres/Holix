@@ -5,7 +5,6 @@ from __future__ import annotations
 import ipaddress
 from urllib.parse import urlparse
 
-
 _BLOCKED_SCHEMES = frozenset({"file", "javascript", "data", "blob", "about"})
 
 

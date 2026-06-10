@@ -4,19 +4,18 @@ from __future__ import annotations
 
 from typing import Any, Literal
 
-from textual import on, work
-from textual.app import ComposeResult
-from textual.binding import Binding
-from textual.containers import Vertical
-from textual.screen import ModalScreen
-from textual.widgets import Button, Footer, Header, ListItem, ListView, Static
-
 from integrations.telegram.model_switch import (
     ModelChoice,
     apply_model_choice_sync,
     build_models_menu,
     choice_for_provider_model,
 )
+from textual import on
+from textual.app import ComposeResult
+from textual.binding import Binding
+from textual.containers import Vertical
+from textual.screen import ModalScreen
+from textual.widgets import Button, Footer, Header, ListItem, ListView, Static
 
 
 def _short_model(name: str, max_len: int = 36) -> str:

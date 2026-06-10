@@ -2,15 +2,13 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
-import pytest
-
 from core.cron.expressions import compute_next_run, validate_cron_expression
+from core.cron.models import CronJob
 from core.cron.schedule_parse import parse_schedule_to_cron
 from core.cron.scheduler import _job_is_due
-from core.cron.models import CronJob
 from core.cron.store import CronStore
 
 
@@ -27,16 +25,16 @@ def test_parse_every_minutes():
 
 
 def test_job_is_due_when_next_in_past():
-    past = datetime(2020, 1, 1, tzinfo=timezone.utc).isoformat()
+    past = datetime(2020, 1, 1, tzinfo=UTC).isoformat()
     job = CronJob(task="t", cron_expression="0 9 * * *", enabled=True, next_run_at=past)
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     assert _job_is_due(job, now=now) is True
 
 
 def test_job_not_due_when_next_in_future():
     future = compute_next_run("0 9 * * *").isoformat()
     job = CronJob(task="t", cron_expression="0 9 * * *", enabled=True, next_run_at=future)
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     assert _job_is_due(job, now=now) is False
 
 

@@ -9,10 +9,10 @@ from .catalog import (
     resolve_preset_base_url,
 )
 from .client_factory import create_openai_client, resolve_provider_api_key
-from .provider import ModelProvider, ProviderConfig
 from .discovery import ModelDiscovery
+from .manager import ModelConfig, ModelManager
+from .provider import ModelProvider, ProviderConfig
 from .selector import ModelSelector
-from .manager import ModelManager, ModelConfig
 
 __all__ = [
     "ModelProvider",

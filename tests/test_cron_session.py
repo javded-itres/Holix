@@ -5,7 +5,6 @@ from __future__ import annotations
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
-
 from core.cron.models import CronJob
 from core.cron.session_sync import cron_session_label, format_cron_summary, persist_cron_result
 

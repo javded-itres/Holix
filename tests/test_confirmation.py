@@ -9,29 +9,25 @@ Tests:
 """
 
 import asyncio
-import json
 import os
 import tempfile
 from pathlib import Path
 
 import pytest
-
 from core.security.confirmation import (
     ActionGuard,
     ConfirmationChoice,
     PermissionManager,
     PermissionScope,
-    RiskAssessment,
     RiskClassifier,
     RiskLevel,
     permission_manager,
 )
 from core.security.confirmation_events import (
+    ConfirmationEventType,
     ConfirmationRequestEvent,
     ConfirmationResponseEvent,
-    ConfirmationEventType,
 )
-
 
 # ─── RiskClassifier Tests ─────────────────────────────────────────────────
 
@@ -494,8 +490,9 @@ class TestPlanExecutionAutoApprove:
 
     def test_auto_approve_flag_set_on(self):
         """Setting auto_approve_plan_execution to True auto-approves tool calls."""
-        from core.security.confirmation import ActionGuard, RiskLevel, RiskClassifier
         from unittest.mock import AsyncMock
+
+        from core.security.confirmation import ActionGuard, RiskClassifier, RiskLevel
 
         guard = ActionGuard(interactive=True, auto_allow_threshold=RiskLevel.LOW)
         guard._auto_approve_plan_execution = True
@@ -531,7 +528,8 @@ class TestSharedPermissionManager:
 
     def test_init_action_guard_uses_shared_instance(self):
         from unittest.mock import MagicMock
-        from core.security.confirmation import init_action_guard, get_action_guard
+
+        from core.security.confirmation import get_action_guard, init_action_guard
 
         bus = MagicMock()
         guard = init_action_guard(event_bus=bus, interactive=True)

@@ -1,4 +1,3 @@
-from typing import List, Dict, Any
 
 from core.search.content import fetch_page_content
 from core.search.engine import SearchEngine

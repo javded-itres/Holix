@@ -5,7 +5,6 @@ from __future__ import annotations
 from unittest.mock import MagicMock
 
 import pytest
-
 from core.subagents.base import ProcessMode, SubAgentConfig, SubAgentHandle, SubAgentStatus
 from core.subagents.manager import SubAgentManager
 

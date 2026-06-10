@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional
 
 
 @dataclass
@@ -13,14 +12,14 @@ class PopularMCPServer:
     description: str
     transport: str = "stdio"
     command: str = "npx"
-    args_template: List[str] = field(default_factory=list)
-    env: Dict[str, str] = field(default_factory=dict)
+    args_template: list[str] = field(default_factory=list)
+    env: dict[str, str] = field(default_factory=dict)
     # Interactive params the user must/ can provide (key -> prompt text)
-    param_prompts: Dict[str, str] = field(default_factory=dict)
-    default_params: Dict[str, str] = field(default_factory=dict)
+    param_prompts: dict[str, str] = field(default_factory=dict)
+    default_params: dict[str, str] = field(default_factory=dict)
     # Category for grouping in UI
     category: str = "general"
-    repo_url: Optional[str] = None
+    repo_url: str | None = None
     # Notes shown to user (e.g. "Requires GITHUB_TOKEN env var")
     notes: str = ""
 
@@ -28,7 +27,7 @@ class PopularMCPServer:
 # Popular servers (extend as more become standard)
 # Verified against official sources (modelcontextprotocol/servers README, subproject READMEs, npm, pypi, vendor repos) as of 2026.
 # Many former reference servers were archived to servers-archived; we point to maintained/official successors.
-POPULAR_SERVERS: Dict[str, PopularMCPServer] = {
+POPULAR_SERVERS: dict[str, PopularMCPServer] = {
     "filesystem": PopularMCPServer(
         key="filesystem",
         display_name="Filesystem (read/write/list)",
@@ -136,9 +135,9 @@ POPULAR_SERVERS: Dict[str, PopularMCPServer] = {
 CATEGORIES = sorted({s.category for s in POPULAR_SERVERS.values()})
 
 
-def get_popular_list() -> List[PopularMCPServer]:
+def get_popular_list() -> list[PopularMCPServer]:
     return list(POPULAR_SERVERS.values())
 
 
-def get_popular_by_key(key: str) -> Optional[PopularMCPServer]:
+def get_popular_by_key(key: str) -> PopularMCPServer | None:
     return POPULAR_SERVERS.get(key)

@@ -1,22 +1,27 @@
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from core.models.manager import ModelConfig
+
 from openai import AsyncOpenAI
 
-from core.models.client_factory import create_openai_client
-from typing import Any, Callable, Dict, List, Optional
-
-from core.di.runtime_config import HelixRuntimeConfig
-from core.memory.facade import MemoryFacade
-from core.skills.manager import SkillsManager
-from core.tools.registry import ToolRegistry
-from core.loop import AgentLoop
 from core.agent_events import (
-    AgentEventBus,
     AgentEvent,
+    AgentEventBus,
     EventContext,
     EventHandler,
     ThinkingEvent,
     wire_default_monitoring,
 )
-from core.context import ContextManager, TokenCounter, ContextCompressor, DEFAULT_CONTEXT_WINDOW
+from core.context import DEFAULT_CONTEXT_WINDOW, ContextCompressor, ContextManager, TokenCounter
+from core.di.runtime_config import HelixRuntimeConfig
+from core.loop import AgentLoop
+from core.memory.facade import MemoryFacade
+from core.models.client_factory import create_openai_client
+from core.skills.manager import SkillsManager
+from core.tools.registry import ToolRegistry
 
 
 class HelixAgent:
@@ -33,16 +38,16 @@ class HelixAgent:
     def __init__(
         self,
         config: HelixRuntimeConfig | None = None,
-        event_bus: Optional[AgentEventBus] = None,
-        event_listeners: Optional[List[EventHandler]] = None,
+        event_bus: AgentEventBus | None = None,
+        event_listeners: list[EventHandler] | None = None,
         *,
-        client: Optional[AsyncOpenAI] = None,
+        client: AsyncOpenAI | None = None,
         # Legacy overrides (merged into config when config is omitted)
-        model: Optional[str] = None,
-        base_url: Optional[str] = None,
-        api_key: Optional[str] = None,
-        temperature: Optional[float] = None,
-        max_steps: Optional[int] = None,
+        model: str | None = None,
+        base_url: str | None = None,
+        api_key: str | None = None,
+        temperature: float | None = None,
+        max_steps: int | None = None,
         enable_monitoring: bool = True,
     ):
         """Initialize the Helix agent."""
@@ -130,7 +135,7 @@ class HelixAgent:
 
     def set_active_model_config(
         self,
-        model_config: "ModelConfig",
+        model_config: ModelConfig,
         *,
         model_slot_id: str | None = None,
     ) -> None:
@@ -260,7 +265,7 @@ class HelixAgent:
         if enabled:
             self.emit(ThinkingEvent(message=f"Search providers: {', '.join(enabled)}"))
 
-        from core.security.confirmation import init_action_guard, RiskLevel
+        from core.security.confirmation import RiskLevel, init_action_guard
 
         auto_allow_threshold = RiskLevel(self.config.auto_allow_threshold)
         interactive = not self.config.non_interactive
@@ -294,8 +299,8 @@ class HelixAgent:
 
     async def reload_mcp(
         self,
-        mcp_servers: Optional[Dict[str, Any]] = None,
-        mcp_assignments: Optional[Dict[str, List[str]]] = None,
+        mcp_servers: dict[str, Any] | None = None,
+        mcp_assignments: dict[str, list[str]] | None = None,
     ) -> int:
         """Hot-reload MCP servers and their tools without full agent restart.
 
@@ -374,8 +379,8 @@ class HelixAgent:
         execution_mode: str = "react",
     ) -> str:
         """Run the agent using the LangGraph execution graph."""
+        from core.agent_events import ErrorEvent, FinalResponseEvent
         from core.runtime.executor import run_helix
-        from core.agent_events import FinalResponseEvent, ErrorEvent
 
         final_response = ""
         async for event in run_helix(

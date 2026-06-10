@@ -3,11 +3,9 @@
 from __future__ import annotations
 
 import asyncio
-import json
 import logging
 import os
-from contextlib import asynccontextmanager
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from core.mcp.config import MCPServerConfig, validate_server_config
 from core.mcp.tool import MCPTool
@@ -15,9 +13,10 @@ from core.mcp.tool import MCPTool
 logger = logging.getLogger(__name__)
 
 try:
-    from mcp import ClientSession, StdioServerParameters
-    from mcp.client.stdio import stdio_client
     from mcp.client.sse import sse_client
+    from mcp.client.stdio import stdio_client
+
+    from mcp import ClientSession, StdioServerParameters
     MCP_AVAILABLE = True
 except Exception:  # pragma: no cover
     MCP_AVAILABLE = False
@@ -39,9 +38,9 @@ class MCPManager:
         await mgr.disconnect_all()
     """
 
-    def __init__(self, servers: Dict[str, Dict[str, Any]]):
+    def __init__(self, servers: dict[str, dict[str, Any]]):
         self._raw = servers or {}
-        self._configs: Dict[str, MCPServerConfig] = {}
+        self._configs: dict[str, MCPServerConfig] = {}
         for name, data in self._raw.items():
             try:
                 cfg = MCPServerConfig.from_dict(name, data)
@@ -53,16 +52,16 @@ class MCPManager:
             except Exception as e:
                 logger.warning("Skipping bad MCP server %s: %s", name, e)
 
-        self._sessions: Dict[str, ClientSession] = {}
-        self._discovered_tools: Dict[str, List[Dict[str, Any]]] = {}
-        self._keeper_tasks: Dict[str, asyncio.Task] = {}
-        self._ready_events: Dict[str, asyncio.Event] = {}
-        self._last_errors: Dict[str, str] = {}
+        self._sessions: dict[str, ClientSession] = {}
+        self._discovered_tools: dict[str, list[dict[str, Any]]] = {}
+        self._keeper_tasks: dict[str, asyncio.Task] = {}
+        self._ready_events: dict[str, asyncio.Event] = {}
+        self._last_errors: dict[str, str] = {}
         self._connected = False
         self._lock = asyncio.Lock()
 
     @property
-    def available_servers(self) -> List[str]:
+    def available_servers(self) -> list[str]:
         return list(self._configs.keys())
 
     async def connect_all(self) -> None:
@@ -84,14 +83,14 @@ class MCPManager:
             self._connected = True
             logger.info("MCPManager keeper tasks started for %d servers", len(self._keeper_tasks))
 
-    async def wait_ready(self, server_names: Optional[List[str]] = None, timeout: float = 10.0) -> Dict[str, bool]:
+    async def wait_ready(self, server_names: list[str] | None = None, timeout: float = 10.0) -> dict[str, bool]:
         """Wait (up to timeout) for the given servers (or all) to finish initialize + list_tools.
 
         Returns dict of name -> succeeded (reached ready state).
         This helps with slow first-time npx/uvx downloads and auth for servers like context7.
         """
         names = list(server_names) if server_names is not None else list(self._configs.keys())
-        results: Dict[str, bool] = {}
+        results: dict[str, bool] = {}
         for name in names:
             ev = self._ready_events.get(name)
             if ev is None:
@@ -103,13 +102,13 @@ class MCPManager:
             try:
                 await asyncio.wait_for(ev.wait(), timeout=timeout)
                 results[name] = name not in self._last_errors
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 results[name] = False
         return results
 
     async def _keep_server(self, name: str, cfg: MCPServerConfig) -> None:
         """Dedicated task that owns the lifetime of one MCP connection."""
-        session: Optional[ClientSession] = None
+        session: ClientSession | None = None
         try:
             if cfg.transport == "stdio":
                 if not cfg.command:
@@ -208,10 +207,10 @@ class MCPManager:
             self._connected = False
             logger.info("MCPManager disconnected")
 
-    def get_tool_adapters(self, enabled_server_names: Optional[List[str]] = None) -> List[MCPTool]:
+    def get_tool_adapters(self, enabled_server_names: list[str] | None = None) -> list[MCPTool]:
         """Return MCPTool adapters for the enabled servers (or all if None/empty)."""
         enabled = set(enabled_server_names) if enabled_server_names else set(self._configs.keys())
-        adapters: List[MCPTool] = []
+        adapters: list[MCPTool] = []
         for srv_name in enabled:
             if srv_name not in self._sessions:
                 continue
@@ -231,7 +230,7 @@ class MCPManager:
                 )
         return adapters
 
-    async def call_tool(self, server_name: str, tool_name: str, arguments: Dict[str, Any]) -> Any:
+    async def call_tool(self, server_name: str, tool_name: str, arguments: dict[str, Any]) -> Any:
         session = self._sessions.get(server_name)
         if not session:
             raise RuntimeError(f"MCP server not connected: {server_name}")

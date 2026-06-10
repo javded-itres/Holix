@@ -8,8 +8,6 @@ compatible with OpenAI tokenizer formats.
 from __future__ import annotations
 
 import tiktoken
-from typing import Optional
-
 
 DEFAULT_CONTEXT_WINDOW = 131072  # 128k tokens — sensible default for modern models
 
@@ -23,7 +21,7 @@ class TokenCounter:
 
     def __init__(self, model: str = ""):
         self._model = model
-        self._encoder: Optional[tiktoken.Encoding] = None
+        self._encoder: tiktoken.Encoding | None = None
 
     @property
     def encoder(self) -> tiktoken.Encoding:

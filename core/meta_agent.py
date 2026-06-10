@@ -17,7 +17,7 @@ Uses the same AsyncOpenAI client with low temperature and compact prompts
 
 import logging
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from openai import AsyncOpenAI
 
@@ -38,7 +38,7 @@ class MetaDecision:
     suggested_mode: str = ""  # "react" | "plan_and_execute" | "hybrid" | "" (no change)
 
     # Should strategic memories be injected?
-    inject_strategies: List[Dict[str, Any]] = field(default_factory=list)
+    inject_strategies: list[dict[str, Any]] = field(default_factory=list)
 
     # Additional context to add to the system prompt
     context_hint: str = ""
@@ -64,7 +64,7 @@ class QualityAssessment:
     needs_refinement: bool = False
 
     # What specifically could be improved?
-    improvement_areas: List[str] = field(default_factory=list)
+    improvement_areas: list[str] = field(default_factory=list)
 
     # Suggested refinement prompt (for self-refinement loop)
     refinement_prompt: str = ""
@@ -106,7 +106,7 @@ class MetaAgent:
 
     def __init__(
         self,
-        client: Optional[AsyncOpenAI] = None,
+        client: AsyncOpenAI | None = None,
         model: str = "",
     ):
         """Initialize the meta-agent.
@@ -125,8 +125,8 @@ class MetaAgent:
     async def analyze_task(
         self,
         user_input: str,
-        context: Optional[Dict[str, Any]] = None,
-        memories: Optional[Dict[str, Any]] = None,
+        context: dict[str, Any] | None = None,
+        memories: dict[str, Any] | None = None,
     ) -> MetaDecision:
         """Analyze a task before execution and suggest adjustments.
 
@@ -178,7 +178,7 @@ Context: {context_str}
         self,
         response: str,
         original_task: str,
-        context: Optional[Dict[str, Any]] = None,
+        context: dict[str, Any] | None = None,
     ) -> QualityAssessment:
         """Evaluate a completed response for quality.
 
@@ -225,8 +225,8 @@ Agent response: {response[:1000]}
 
     def _build_context_str(
         self,
-        context: Optional[Dict[str, Any]],
-        memories: Optional[Dict[str, Any]],
+        context: dict[str, Any] | None,
+        memories: dict[str, Any] | None,
     ) -> str:
         """Build a compact context string for the meta-agent prompt."""
         parts = []

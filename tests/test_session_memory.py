@@ -2,11 +2,8 @@
 
 from __future__ import annotations
 
-from unittest.mock import AsyncMock, MagicMock
-
 import pytest
-
-from core.memory.conversation import _INDEXABLE_ROLES, _MIN_INDEX_CHARS
+from core.memory.conversation import _INDEXABLE_ROLES
 from core.memory.session_search import (
     format_memory_hit_line,
     format_memory_search_results,

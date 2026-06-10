@@ -5,7 +5,6 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
-
 from core.env_loader import format_env_context_block, profile_env_path
 from core.prompt_builder import build_system_prompt
 

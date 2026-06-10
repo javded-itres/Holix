@@ -4,11 +4,12 @@ from __future__ import annotations
 
 import json
 
-from cli.tui.shared.text_escape import escape_for_markup, format_confirmation_body
 from textual.app import ComposeResult
 from textual.containers import Container, Horizontal
 from textual.screen import ModalScreen
 from textual.widgets import Button, Label, Static
+
+from cli.tui.shared.text_escape import format_confirmation_body
 
 
 class ConfirmationModal(ModalScreen):

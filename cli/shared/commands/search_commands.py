@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from typing import Any
 
-from core.search.config import SearchConfig
 from core.search.engine import SearchEngine, get_search_config, set_search_config
 
 

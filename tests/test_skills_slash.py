@@ -2,11 +2,8 @@
 
 from __future__ import annotations
 
-from pathlib import Path
-
 import pytest
-
-from cli.core import ProfileConfig, ProfileManager
+from cli.core import ProfileManager
 from core.di import resolve_runtime_config
 from core.skills.assignments import is_skill_allowed_for_agent
 from core.skills.manager import SkillsManager

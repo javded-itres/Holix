@@ -6,7 +6,6 @@ import asyncio
 from unittest.mock import MagicMock
 
 import pytest
-
 from core.security.confirmation import ConfirmationChoice
 from core.subagents.interaction import (
     SubAgentInteractionBridge,

@@ -4,16 +4,6 @@ from __future__ import annotations
 
 import json
 
-from rich.markdown import Markdown
-
-from cli.tui.shared.formatters import (
-    format_tool_args,
-    format_tool_header,
-    format_tool_result_preview,
-    format_write_file_diff_display,
-    format_write_file_result_preview,
-    split_write_file_result,
-)
 from core.agent_events import (
     AgentEvent,
     AssistantDeltaEvent,
@@ -31,6 +21,16 @@ from core.agent_events import (
 from core.plan_review.review_events import PlanReviewRequestEvent
 from core.security.confirmation_events import ConfirmationRequestEvent
 from core.subagents.interaction_events import SubAgentQuestionEvent
+from rich.markdown import Markdown
+
+from cli.tui.shared.formatters import (
+    format_tool_args,
+    format_tool_header,
+    format_tool_result_preview,
+    format_write_file_diff_display,
+    format_write_file_result_preview,
+    split_write_file_result,
+)
 
 
 class CodeEventHandler:

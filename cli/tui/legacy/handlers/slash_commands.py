@@ -2,10 +2,9 @@
 
 from __future__ import annotations
 
+from core.security.confirmation import ConfirmationChoice
 from rich.panel import Panel
 from textual.widgets import RichLog
-
-from core.security.confirmation import ConfirmationChoice
 
 
 class SlashCommandHandler:
@@ -17,7 +16,7 @@ class SlashCommandHandler:
     async def handle(self, command: str) -> None:
         """Handle local TUI slash commands."""
         try:
-            chat_log = self.app.query_one("#chat-log", RichLog)
+            self.app.query_one("#chat-log", RichLog)
             cmd = command.lower().strip()
 
             if cmd in ("/clear", "/cls"):
@@ -300,7 +299,7 @@ class SlashCommandHandler:
         except Exception:
             # Slash command failed — never kill the TUI because of a bad command
             try:
-                chat_log = self.app.query_one("#chat-log", RichLog)
+                self.app.query_one("#chat-log", RichLog)
                 self.app._append_to_log(f"[red]Command failed:[/red] {command}")
             except Exception:
                 pass

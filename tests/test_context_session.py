@@ -3,10 +3,9 @@
 from __future__ import annotations
 
 import pytest
-
 from core.context.manager import ContextManager
 from core.context.token_counter import TokenCounter
-from core.graph.routers import route_after_react, route_after_react_plan
+from core.graph.routers import route_after_react
 from core.graph.state import HelixGraphState
 from core.memory.tool_content import truncate_tool_content_for_memory
 from core.runtime.context_session import compress_session_if_needed

@@ -327,7 +327,6 @@ def models_provider_keyboard(
 
 def status_menu_keyboard(locale: str | None = None) -> Any:
     from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
-
     from core.i18n.messages import t
 
     loc = locale or "en"

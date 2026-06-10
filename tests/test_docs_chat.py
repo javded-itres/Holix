@@ -6,7 +6,6 @@ import json
 from pathlib import Path
 
 import pytest
-
 from core.docs_chat.retrieval import DocsSearchHit, search_docs
 from core.docs_chat.service import (
     DocsChatService,
@@ -128,9 +127,8 @@ def test_sanitize_blocks_directory_listing() -> None:
 
 
 def test_docs_chat_config_endpoint_disabled(monkeypatch: pytest.MonkeyPatch) -> None:
-    from fastapi.testclient import TestClient
-
     import api.gateway as gw
+    from fastapi.testclient import TestClient
 
     monkeypatch.setattr(gw.settings, "docs_chat_enabled", False)
     client = TestClient(gw.app)
@@ -140,9 +138,8 @@ def test_docs_chat_config_endpoint_disabled(monkeypatch: pytest.MonkeyPatch) -> 
 
 
 def test_docs_chat_requires_token_when_enabled(monkeypatch: pytest.MonkeyPatch) -> None:
-    from fastapi.testclient import TestClient
-
     import api.gateway as gw
+    from fastapi.testclient import TestClient
 
     monkeypatch.setattr(gw.settings, "docs_chat_enabled", True)
     monkeypatch.setattr(gw.settings, "docs_chat_token", "secret-token")

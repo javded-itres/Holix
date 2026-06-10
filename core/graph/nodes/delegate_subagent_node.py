@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import logging
-from typing import Any, Dict
+from typing import Any
 
 from langchain_core.runnables import RunnableConfig
 
@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 async def delegate_subagent_node(
     state: HelixGraphState,
     config: RunnableConfig,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Spawn a sub-agent for the current plan step when ``subagent_type`` is set.
 
     When sub-agents are disabled or no type is specified, passes through to react.

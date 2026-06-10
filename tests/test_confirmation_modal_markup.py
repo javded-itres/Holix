@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import json
-
 from cli.tui.modals.confirmation import ConfirmationModal
 from cli.tui.shared.text_escape import escape_for_markup, format_confirmation_body
 

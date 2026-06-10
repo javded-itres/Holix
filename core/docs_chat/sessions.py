@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 import re
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -72,7 +72,7 @@ def save_session(client_id: str, messages: list[dict[str, Any]]) -> dict[str, An
     cid = validate_client_id(client_id)
     payload = {
         "client_id": cid,
-        "updated_at": datetime.now(timezone.utc).isoformat(),
+        "updated_at": datetime.now(UTC).isoformat(),
         "messages": _trim_messages(messages),
     }
     path = _session_path(cid)

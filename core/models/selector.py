@@ -1,6 +1,7 @@
 """Model selection and routing for agents and sub-agents."""
 
-from typing import Dict, Any, Optional, List
+from typing import Any
+
 from pydantic import BaseModel, Field
 
 
@@ -11,8 +12,8 @@ class AgentModelConfig(BaseModel):
     provider: str = Field(..., description="Provider name")
     model: str = Field(..., description="Model ID to use")
     temperature: float = Field(default=0.7, description="Temperature for generation")
-    max_tokens: Optional[int] = Field(default=None, description="Maximum tokens to generate")
-    metadata: Dict[str, Any] = Field(default_factory=dict, description="Additional metadata")
+    max_tokens: int | None = Field(default=None, description="Maximum tokens to generate")
+    metadata: dict[str, Any] = Field(default_factory=dict, description="Additional metadata")
 
 
 class ModelSelector:
@@ -20,8 +21,8 @@ class ModelSelector:
 
     def __init__(self):
         """Initialize model selector."""
-        self.agent_models: Dict[str, AgentModelConfig] = {}
-        self.default_config: Optional[AgentModelConfig] = None
+        self.agent_models: dict[str, AgentModelConfig] = {}
+        self.default_config: AgentModelConfig | None = None
 
     def set_default_model(self, config: AgentModelConfig):
         """Set default model configuration.
@@ -41,7 +42,7 @@ class ModelSelector:
         config.agent_name = agent_name
         self.agent_models[agent_name] = config
 
-    def get_agent_model(self, agent_name: str) -> Optional[AgentModelConfig]:
+    def get_agent_model(self, agent_name: str) -> AgentModelConfig | None:
         """Get model configuration for an agent.
 
         Args:
@@ -66,7 +67,7 @@ class ModelSelector:
             return True
         return False
 
-    def list_agent_models(self) -> List[AgentModelConfig]:
+    def list_agent_models(self) -> list[AgentModelConfig]:
         """List all configured agent models.
 
         Returns:
@@ -74,7 +75,7 @@ class ModelSelector:
         """
         return list(self.agent_models.values())
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert selector state to dictionary.
 
         Returns:
@@ -86,7 +87,7 @@ class ModelSelector:
         }
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "ModelSelector":
+    def from_dict(cls, data: dict[str, Any]) -> "ModelSelector":
         """Create selector from dictionary.
 
         Args:

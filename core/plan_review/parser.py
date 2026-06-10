@@ -4,14 +4,14 @@ from __future__ import annotations
 
 import json
 import re
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
-PlanSteps = List[Dict[str, Any]]
-PlanAnalysis = Optional[Dict[str, Any]]
-PlanArchitecture = Optional[Dict[str, Any]]
+PlanSteps = list[dict[str, Any]]
+PlanAnalysis = dict[str, Any] | None
+PlanArchitecture = dict[str, Any] | None
 
 
-def parse_detailed_plan(text: str) -> Tuple[PlanSteps, PlanAnalysis, PlanArchitecture]:
+def parse_detailed_plan(text: str) -> tuple[PlanSteps, PlanAnalysis, PlanArchitecture]:
     """Parse LLM plan response into structured plan, analysis, and architecture."""
     text = text.strip()
     if not text:
@@ -66,7 +66,7 @@ def strip_markdown_code_blocks(text: str) -> str:
     return text
 
 
-def try_extract_json_from_text(text: str) -> Tuple[PlanSteps, PlanAnalysis, PlanArchitecture]:
+def try_extract_json_from_text(text: str) -> tuple[PlanSteps, PlanAnalysis, PlanArchitecture]:
     candidates = []
     depth = 0
     start = -1
@@ -104,7 +104,7 @@ def try_extract_json_from_text(text: str) -> Tuple[PlanSteps, PlanAnalysis, Plan
     return [], None, None
 
 
-def try_fix_and_parse_json(text: str) -> Tuple[PlanSteps, PlanAnalysis, PlanArchitecture]:
+def try_fix_and_parse_json(text: str) -> tuple[PlanSteps, PlanAnalysis, PlanArchitecture]:
     cleaned = strip_markdown_code_blocks(text)
     json_text = cleaned
     start = json_text.find("{")
@@ -131,7 +131,7 @@ def try_fix_and_parse_json(text: str) -> Tuple[PlanSteps, PlanAnalysis, PlanArch
     return [], None, None
 
 
-def parse_text_to_plan(text: str) -> Tuple[PlanSteps, PlanAnalysis]:
+def parse_text_to_plan(text: str) -> tuple[PlanSteps, PlanAnalysis]:
     steps: PlanSteps = []
     numbered_pattern = re.compile(
         r"(?:step\s*)?(\d+)[.:)\-]\s*(.+?)(?=(?:\n\s*(?:step\s*)?\d+[.:)\-])|$)",
@@ -165,7 +165,7 @@ def parse_text_to_plan(text: str) -> Tuple[PlanSteps, PlanAnalysis]:
     return steps, analysis
 
 
-def _make_step(step_num: int, description: str) -> Dict[str, Any]:
+def _make_step(step_num: int, description: str) -> dict[str, Any]:
     return {
         "step": step_num,
         "description": description,
@@ -194,7 +194,7 @@ def infer_tools_from_text(text: str) -> list:
     return tools
 
 
-def extract_plan_data(data: dict) -> Tuple[PlanSteps, PlanAnalysis, PlanArchitecture]:
+def extract_plan_data(data: dict) -> tuple[PlanSteps, PlanAnalysis, PlanArchitecture]:
     analysis = data.get("analysis", {})
     if analysis:
         analysis = {

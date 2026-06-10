@@ -9,7 +9,7 @@ Provides multiple rendering formats:
 """
 
 import logging
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -40,7 +40,7 @@ class GraphVisualizer:
         "needs_refinement": "needs refinement",
     }
 
-    def render_ascii(self, graph_description: Optional[str] = None) -> str:
+    def render_ascii(self, graph_description: str | None = None) -> str:
         """Render the default Helix graph as ASCII art.
 
         Args:
@@ -181,8 +181,6 @@ class GraphVisualizer:
             from rich.console import Console
             from rich.panel import Panel
             from rich.table import Table
-            from rich.text import Text
-
             console = Console(width=80, force_terminal=True)
 
             # Create a table of nodes
@@ -229,7 +227,7 @@ class GraphVisualizer:
 
     def render_graph_execution(
         self,
-        events: List[Dict[str, Any]],
+        events: list[dict[str, Any]],
         graph_type: str = "react",
     ) -> str:
         """Render an execution trace of graph events.
@@ -285,7 +283,7 @@ class GraphVisualizer:
 
         return "\n".join(lines)
 
-    def get_available_graphs(self) -> List[Dict[str, str]]:
+    def get_available_graphs(self) -> list[dict[str, str]]:
         """List available graph types and their descriptions.
 
         Returns:

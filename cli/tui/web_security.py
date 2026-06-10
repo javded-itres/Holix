@@ -6,8 +6,7 @@ import hmac
 import os
 import secrets
 from dataclasses import dataclass
-from typing import Optional
-from urllib.parse import quote, urlencode, urlsplit, urlunsplit
+from urllib.parse import urlencode, urlsplit, urlunsplit
 
 from aiohttp import web
 
@@ -72,7 +71,7 @@ def generate_web_token() -> str:
 def build_web_tui_policy(
     *,
     host: str,
-    cli_token: Optional[str] = None,
+    cli_token: str | None = None,
     allow_lan: bool = False,
     generate_token: bool = True,
     is_production: bool = False,

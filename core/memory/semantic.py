@@ -9,7 +9,7 @@ information the agent has discovered or been told.
 import json
 import logging
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 import aiosqlite
 
@@ -35,7 +35,7 @@ class SemanticMemoryStore:
         key: str,
         content: str,
         source: str = "",
-        metadata: Optional[Dict[str, Any]] = None,
+        metadata: dict[str, Any] | None = None,
     ) -> int:
         """Store or update a semantic fact.
 
@@ -97,7 +97,7 @@ class SemanticMemoryStore:
         self,
         query: str,
         top_k: int = 5,
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """Semantic search across stored facts.
 
         Args:
@@ -125,7 +125,7 @@ class SemanticMemoryStore:
 
         return facts
 
-    async def get_fact(self, key: str) -> Optional[Dict[str, Any]]:
+    async def get_fact(self, key: str) -> dict[str, Any] | None:
         """Get a specific fact by its key.
 
         Args:
@@ -164,7 +164,7 @@ class SemanticMemoryStore:
                 "updated_at": row["updated_at"],
             }
 
-    async def get_all_facts(self) -> List[Dict[str, Any]]:
+    async def get_all_facts(self) -> list[dict[str, Any]]:
         """Get all stored facts (for prompt injection).
 
         Returns:

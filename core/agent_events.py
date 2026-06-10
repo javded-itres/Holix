@@ -17,15 +17,16 @@ Revives and improves the design previously sketched in the abandoned TUI attempt
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-from datetime import datetime
-from enum import Enum
-from typing import Any, Callable, Dict, List, Optional, Protocol, Union
 import asyncio
 import inspect
+from collections.abc import Callable
+from dataclasses import dataclass, field
+from datetime import datetime
+from enum import StrEnum
+from typing import Any, Protocol
 
 
-class EventType(str, Enum):
+class EventType(StrEnum):
     """All known event types emitted by the Helix agent."""
 
     # Conversation lifecycle
@@ -78,7 +79,7 @@ class AgentEvent:
     conversation_id: str = "default"
     run_id: str = ""
     plan_id: str = ""
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
 
     def __post_init__(self):
         # Subclasses should set self.type in their own __post_init__
@@ -86,7 +87,7 @@ class AgentEvent:
             # Fallback for direct use of base class
             object.__setattr__(self, 'type', EventType.ERROR)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Simple dict representation (useful for logging / SSE)."""
         return {
             "type": self.type.value,
@@ -98,7 +99,7 @@ class AgentEvent:
             **self._extra_fields(),
         }
 
-    def _extra_fields(self) -> Dict[str, Any]:
+    def _extra_fields(self) -> dict[str, Any]:
         """Override in subclasses to add typed fields."""
         return {}
 
@@ -112,7 +113,7 @@ class UserMessageEvent(AgentEvent):
     """User sent a message."""
     content: str = ""
 
-    def _extra_fields(self) -> Dict[str, Any]:
+    def _extra_fields(self) -> dict[str, Any]:
         return {"content": self.content}
 
 
@@ -125,7 +126,7 @@ class ThinkingEvent(AgentEvent):
         super().__post_init__()
         object.__setattr__(self, 'type', EventType.THINKING)
 
-    def _extra_fields(self) -> Dict[str, Any]:
+    def _extra_fields(self) -> dict[str, Any]:
         return {"message": self.message}
 
 
@@ -139,7 +140,7 @@ class AssistantDeltaEvent(AgentEvent):
         super().__post_init__()
         object.__setattr__(self, 'type', EventType.ASSISTANT_DELTA)
 
-    def _extra_fields(self) -> Dict[str, Any]:
+    def _extra_fields(self) -> dict[str, Any]:
         return {"content": self.content, "accumulated": self.accumulated}
 
 
@@ -147,14 +148,14 @@ class AssistantDeltaEvent(AgentEvent):
 class FinalResponseEvent(AgentEvent):
     """Final complete response from the agent."""
     content: str = ""
-    tool_calls_used: List[Dict[str, Any]] = field(default_factory=list)
+    tool_calls_used: list[dict[str, Any]] = field(default_factory=list)
     steps_taken: int = 0
 
     def __post_init__(self):
         super().__post_init__()
         object.__setattr__(self, 'type', EventType.FINAL_RESPONSE)
 
-    def _extra_fields(self) -> Dict[str, Any]:
+    def _extra_fields(self) -> dict[str, Any]:
         return {
             "content": self.content,
             "tool_calls_used": self.tool_calls_used,
@@ -167,14 +168,14 @@ class ToolCallStartEvent(AgentEvent):
     """Agent decided to call a tool."""
     tool_name: str = ""
     tool_id: str = ""
-    arguments: Dict[str, Any] = field(default_factory=dict)
+    arguments: dict[str, Any] = field(default_factory=dict)
     arguments_raw: str = ""
 
     def __post_init__(self):
         super().__post_init__()
         object.__setattr__(self, 'type', EventType.TOOL_CALL_START)
 
-    def _extra_fields(self) -> Dict[str, Any]:
+    def _extra_fields(self) -> dict[str, Any]:
         return {
             "tool_name": self.tool_name,
             "tool_id": self.tool_id,
@@ -189,10 +190,10 @@ class ToolCallResultEvent(AgentEvent):
     tool_name: str = ""
     tool_id: str = ""
     result: str = ""
-    duration_ms: Optional[float] = None
+    duration_ms: float | None = None
     truncated: bool = False
 
-    def _extra_fields(self) -> Dict[str, Any]:
+    def _extra_fields(self) -> dict[str, Any]:
         return {
             "tool_name": self.tool_name,
             "tool_id": self.tool_id,
@@ -209,7 +210,7 @@ class ToolCallErrorEvent(AgentEvent):
     tool_id: str = ""
     error: str = ""
 
-    def _extra_fields(self) -> Dict[str, Any]:
+    def _extra_fields(self) -> dict[str, Any]:
         return {
             "tool_name": self.tool_name,
             "tool_id": self.tool_id,
@@ -247,8 +248,8 @@ class LLMCallCompletedEvent(AgentEvent):
     """LLM call finished (before tool execution or final answer)."""
     model: str = ""
     step: int = 0
-    duration_ms: Optional[float] = None
-    finish_reason: Optional[str] = None
+    duration_ms: float | None = None
+    finish_reason: str | None = None
 
 
 @dataclass
@@ -263,7 +264,7 @@ class SkillCreatedEvent(AgentEvent):
     skill_name: str = ""
     description: str = ""
     filepath: str = ""
-    tags: List[str] = field(default_factory=list)
+    tags: list[str] = field(default_factory=list)
 
 
 @dataclass
@@ -279,7 +280,7 @@ class ContextCompressedEvent(AgentEvent):
         super().__post_init__()
         object.__setattr__(self, 'type', EventType.CONTEXT_COMPRESSED)
 
-    def _extra_fields(self) -> Dict[str, Any]:
+    def _extra_fields(self) -> dict[str, Any]:
         return {
             "original_tokens": self.original_tokens,
             "compressed_tokens": self.compressed_tokens,
@@ -301,7 +302,7 @@ class ContextWarningEvent(AgentEvent):
         super().__post_init__()
         object.__setattr__(self, 'type', EventType.CONTEXT_WARNING)
 
-    def _extra_fields(self) -> Dict[str, Any]:
+    def _extra_fields(self) -> dict[str, Any]:
         return {
             "usage_percent": self.usage_percent,
             "tokens_used": self.tokens_used,
@@ -313,14 +314,14 @@ class ContextWarningEvent(AgentEvent):
 @dataclass
 class PlanGeneratedEvent(AgentEvent):
     """Emitted when plan_node generates a plan (before review)."""
-    plan_steps: List[Dict[str, Any]] = field(default_factory=list)
+    plan_steps: list[dict[str, Any]] = field(default_factory=list)
     step_count: int = 0
 
     def __post_init__(self):
         super().__post_init__()
         object.__setattr__(self, 'type', EventType.PLAN_GENERATED)
 
-    def _extra_fields(self) -> Dict[str, Any]:
+    def _extra_fields(self) -> dict[str, Any]:
         return {"plan_steps": self.plan_steps, "step_count": self.step_count}
 
 
@@ -336,7 +337,7 @@ class PlanStepCompletedEvent(AgentEvent):
         super().__post_init__()
         object.__setattr__(self, 'type', EventType.PLAN_STEP_COMPLETED)
 
-    def _extra_fields(self) -> Dict[str, Any]:
+    def _extra_fields(self) -> dict[str, Any]:
         return {
             "step_number": self.step_number,
             "total_steps": self.total_steps,
@@ -353,7 +354,7 @@ class PlanCompletedEvent(AgentEvent):
         super().__post_init__()
         object.__setattr__(self, 'type', EventType.PLAN_COMPLETED)
 
-    def _extra_fields(self) -> Dict[str, Any]:
+    def _extra_fields(self) -> dict[str, Any]:
         return {"total_steps": self.total_steps}
 
 
@@ -361,7 +362,7 @@ class PlanCompletedEvent(AgentEvent):
 # Event delivery (hybrid design: callbacks now + clear path to Queue)
 # ---------------------------------------------------------------------
 
-EventHandler = Callable[[AgentEvent], Union[None, Any]]
+EventHandler = Callable[[AgentEvent], None | Any]
 
 
 class AgentEventBus:
@@ -380,9 +381,9 @@ class AgentEventBus:
 
     def __init__(self, name: str = "HelixAgentAi"):
         self.name = name
-        self._handlers: List[EventHandler] = []
-        self._async_handlers: List[EventHandler] = []  # tracked separately for clarity
-        self._queues: List[asyncio.Queue] = []
+        self._handlers: list[EventHandler] = []
+        self._async_handlers: list[EventHandler] = []  # tracked separately for clarity
+        self._queues: list[asyncio.Queue] = []
 
     def subscribe(self, handler: EventHandler) -> None:
         """Register a handler. Supports both sync and async callables."""
@@ -546,12 +547,11 @@ def create_rich_cli_handler():
     """
     try:
         from cli.utils.rich_console import (
-            print_tool_call,
-            print_success,
-            print_info,
             console,
+            print_info,
+            print_success,
+            print_tool_call,
         )
-        from rich.markdown import Markdown
     except ImportError:
         # Fallback if called outside CLI context
         return create_compatibility_print_handler()
@@ -589,7 +589,7 @@ def create_rich_cli_handler():
 # Default monitoring wiring (used by HelixAgent)
 # ---------------------------------------------------------------------
 
-def wire_default_monitoring(bus: "AgentEventBus") -> None:
+def wire_default_monitoring(bus: AgentEventBus) -> None:
     """
     Wire the global StructuredLogger and MetricsCollector as subscribers
     to the given event bus.

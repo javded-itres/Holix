@@ -6,7 +6,6 @@ instead of a modal dialog. This module is the single source of truth
 for plan rendering format.
 """
 
-from typing import Any, Dict, List, Optional
 
 
 def build_plan_markdown(

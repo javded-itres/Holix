@@ -5,7 +5,6 @@ from __future__ import annotations
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
-
 from core.agent import HelixAgent
 from core.agent_events import EventType
 from core.di.runtime_config import HelixRuntimeConfig

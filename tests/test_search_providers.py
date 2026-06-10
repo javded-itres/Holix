@@ -3,12 +3,11 @@
 from __future__ import annotations
 
 import json
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import patch
 
 import pytest
-
 from core.search.config import SearchConfig
-from core.search.engine import SearchEngine, set_search_config
+from core.search.engine import SearchEngine
 from core.search.providers import search_duckduckgo, search_firecrawl, search_searxng
 
 

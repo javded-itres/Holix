@@ -9,12 +9,12 @@ import sys
 from typing import NoReturn
 
 from core.platform_compat import popen_background
+from integrations.telegram.config import load_telegram_settings, telegram_aiogram_available
 
 from cli.services.docs_site import docs_url, resolve_web_docs_dir
 from cli.services.gateway_state import update_docs_info, update_telegram_pid
 from cli.utils.ports import resolve_listen_port
 from cli.utils.rich_console import print_info, print_success, print_warning
-from integrations.telegram.config import load_telegram_settings, telegram_aiogram_available
 
 
 def telegram_enabled(profile: str = "default") -> bool:

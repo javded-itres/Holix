@@ -5,10 +5,9 @@ from __future__ import annotations
 from unittest.mock import MagicMock
 
 import pytest
-
 from core.di.runtime_config import HelixRuntimeConfig
 from core.models.manager import ModelConfig
-from integrations.telegram.keyboards import _cb, models_provider_keyboard, models_root_keyboard
+from integrations.telegram.keyboards import _cb, models_provider_keyboard
 from integrations.telegram.model_switch import (
     ModelChoice,
     ProviderMenu,

@@ -1,7 +1,7 @@
 import pytest
+from core.security.auth import APIKeyManager
 
 from config import settings
-from core.security.auth import APIKeyManager
 
 
 @pytest.mark.asyncio

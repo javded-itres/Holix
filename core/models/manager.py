@@ -1,6 +1,7 @@
 """Model manager for handling providers and routing."""
 
-from typing import Optional, Dict, Any
+from typing import Any
+
 from openai import AsyncOpenAI
 from pydantic import BaseModel, Field
 
@@ -15,24 +16,24 @@ class ModelConfig(BaseModel):
     base_url: str
     api_key: str
     temperature: float = 0.7
-    max_tokens: Optional[int] = None
-    context_window: Optional[int] = None  # Context window in tokens, None = use default
-    metadata: Dict[str, Any] = Field(default_factory=dict)
+    max_tokens: int | None = None
+    context_window: int | None = None  # Context window in tokens, None = use default
+    metadata: dict[str, Any] = Field(default_factory=dict)
 
 
 class ModelManager:
     """Manage model providers and create clients."""
 
-    def __init__(self, profile_config: Optional[Any] = None):
+    def __init__(self, profile_config: Any | None = None):
         """Initialize model manager.
 
         Args:
             profile_config: ProfileConfig instance with providers
         """
         self.profile_config = profile_config
-        self._clients: Dict[str, AsyncOpenAI] = {}
+        self._clients: dict[str, AsyncOpenAI] = {}
 
-    def get_default_model_config(self) -> Optional[ModelConfig]:
+    def get_default_model_config(self) -> ModelConfig | None:
         """Get default model configuration from profile.
 
         Returns:
@@ -93,7 +94,7 @@ class ModelManager:
             context_window=context_window,
         )
 
-    def get_agent_model_config(self, agent_name: str) -> Optional[ModelConfig]:
+    def get_agent_model_config(self, agent_name: str) -> ModelConfig | None:
         """Get model configuration for specific agent.
 
         Args:

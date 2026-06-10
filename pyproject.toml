@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "HelixAgentAi"
-version = "0.1.7"
+version = "0.1.8"
 description = "Self-improving AI agent with memory, skills, MCP, CLI, and TUI"
 readme = "README.md"
 license = "MIT"
@@ -138,6 +138,12 @@ src = ["core", "cli", "api", "integrations", "tests"]
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP"]
 ignore = ["E501"]
+
+[tool.ruff.lint.per-file-ignores]
+"cli/main.py" = ["E402"]
+"core/agent_execution.py" = ["E402"]
+"core/config_utils.py" = ["E402"]
+"core/loop_streaming.py" = ["E402"]
 
 [tool.mypy]
 python_version = "3.12"

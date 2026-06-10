@@ -2,12 +2,11 @@
 
 from __future__ import annotations
 
+from cli.tui.legacy.widgets.chat_log import HelixChatLog
+from cli.tui.legacy.widgets.input_area import HelixInputArea
 from textual.app import ComposeResult
 from textual.containers import Vertical
 from textual.widgets import Button, ListView, Static
-
-from cli.tui.legacy.widgets.chat_log import HelixChatLog
-from cli.tui.legacy.widgets.input_area import HelixInputArea
 
 
 class HelixMainContent(Vertical):

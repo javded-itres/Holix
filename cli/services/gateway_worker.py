@@ -6,7 +6,7 @@ import argparse
 import os
 import sys
 
-from cli.services.gateway_state import LOG_PATH, clear_state, new_state, save_state
+from cli.services.gateway_state import clear_state, new_state, save_state
 from cli.services.supervisor import run_gateway_supervisor
 
 

@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import pytest
-
 from core.models.catalog import get_provider_preset
 from core.models.setup_helpers import (
     auto_pick_default_model,

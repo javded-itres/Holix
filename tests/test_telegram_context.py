@@ -5,7 +5,6 @@ from __future__ import annotations
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
-
 from core.agent_events import ContextCompressedEvent, ContextWarningEvent
 from integrations.telegram.event_handler import TelegramEventHandler
 

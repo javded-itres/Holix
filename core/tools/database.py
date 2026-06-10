@@ -1,6 +1,7 @@
-import aiosqlite
 from pathlib import Path
-from typing import Optional
+
+import aiosqlite
+
 from core.tools.base import BaseTool
 
 
@@ -33,7 +34,7 @@ class SQLQueryTool(BaseTool):
             "required": ["db_path", "query"]
         }
 
-    async def execute(self, db_path: str, query: str, params: Optional[list] = None) -> str:
+    async def execute(self, db_path: str, query: str, params: list | None = None) -> str:
         """Execute SQL query on SQLite database.
 
         Args:

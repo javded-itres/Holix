@@ -4,10 +4,10 @@ and optionally auto-summarizes the conversation into episodic memory.
 """
 
 import logging
-from typing import Any, Dict
+
+from langchain_core.runnables import RunnableConfig
 
 from core.graph.state import HelixGraphState, get_agent_from_config
-from langchain_core.runnables import RunnableConfig
 
 logger = logging.getLogger(__name__)
 

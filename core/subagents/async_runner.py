@@ -8,19 +8,16 @@ Zero overhead on startup, shared memory access, fast communication.
 import asyncio
 import logging
 import time
-from typing import Any, Dict, List, Optional
-
-from openai import AsyncOpenAI
+from typing import Any
 
 from core.subagents.base import (
-    SubAgentConfig,
-    SubAgentResult,
-    SubAgentHandle,
-    SubAgentStatus,
-    ProcessMode,
     MemoryAccess,
+    SubAgentConfig,
+    SubAgentHandle,
+    SubAgentResult,
+    SubAgentStatus,
 )
-from core.subagents.communication import AgentMessage, AsyncCommunicationBus
+from core.subagents.communication import AsyncCommunicationBus
 from core.tools.execution_context import reset_subagent_scope, subagent_scope
 
 logger = logging.getLogger(__name__)
@@ -39,11 +36,11 @@ class AsyncSubAgentRunner:
     def __init__(
         self,
         parent_agent: Any,
-        comm_bus: Optional[AsyncCommunicationBus] = None,
+        comm_bus: AsyncCommunicationBus | None = None,
     ):
         self._parent = parent_agent
         self._comm_bus = comm_bus
-        self._active_handles: Dict[str, SubAgentHandle] = {}
+        self._active_handles: dict[str, SubAgentHandle] = {}
 
     async def run(
         self,
@@ -94,7 +91,7 @@ class AsyncSubAgentRunner:
             SubAgentResult with the sub-agent's output.
         """
         start_time = time.monotonic()
-        tool_calls_made: List[Dict[str, Any]] = []
+        tool_calls_made: list[dict[str, Any]] = []
         steps_taken = 0
         max_steps = config.max_steps
 
@@ -136,7 +133,7 @@ class AsyncSubAgentRunner:
                 if memory_parts:
                     messages.append({
                         "role": "system",
-                        "content": f"Relevant context from memory:\n" + "\n".join(memory_parts),
+                        "content": "Relevant context from memory:\n" + "\n".join(memory_parts),
                     })
             except Exception as e:
                 logger.debug(f"Memory injection failed for sub-agent: {e}")
@@ -158,7 +155,7 @@ class AsyncSubAgentRunner:
                         ),
                         timeout=config.timeout,
                     )
-                except asyncio.TimeoutError:
+                except TimeoutError:
                     handle.status = SubAgentStatus.TIMED_OUT
                     handle.result = SubAgentResult(
                         name=config.name,
@@ -279,15 +276,15 @@ class AsyncSubAgentRunner:
         handle.status = SubAgentStatus.CANCELLED
         return True
 
-    def get_handle(self, name: str) -> Optional[SubAgentHandle]:
+    def get_handle(self, name: str) -> SubAgentHandle | None:
         """Get the handle for a sub-agent."""
         return self._active_handles.get(name)
 
-    def list_active(self) -> List[SubAgentHandle]:
+    def list_active(self) -> list[SubAgentHandle]:
         """List all active (running) sub-agents."""
         return [h for h in self._active_handles.values() if h.is_running]
 
-    def _get_tool_schemas(self, config: SubAgentConfig) -> List[Dict[str, Any]]:
+    def _get_tool_schemas(self, config: SubAgentConfig) -> list[dict[str, Any]]:
         """Get OpenAI tool schemas for the sub-agent's tool subset.
 
         Args:
@@ -320,7 +317,7 @@ class AsyncSubAgentRunner:
             Tool execution result string.
         """
         if not hasattr(self._parent, "tools"):
-            return f"Error: No tools available for sub-agent"
+            return "Error: No tools available for sub-agent"
 
         bridge = None
         if hasattr(self._parent, "subagents"):

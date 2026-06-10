@@ -5,7 +5,6 @@ from __future__ import annotations
 import pytest
 from aiohttp import web
 from aiohttp.test_utils import make_mocked_request
-
 from cli.tui.web_security import (
     WebTuiSecurityError,
     append_query_token,

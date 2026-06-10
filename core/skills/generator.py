@@ -1,4 +1,5 @@
-from typing import List, Dict, Any
+from typing import Any
+
 from openai import AsyncOpenAI
 
 
@@ -13,9 +14,9 @@ class SkillGenerator:
 
     async def create_skill_from_session(
         self,
-        messages: List[Dict[str, Any]],
+        messages: list[dict[str, Any]],
         task_description: str
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Generate a new skill from a successful session.
 
         Args:
@@ -75,7 +76,7 @@ EXAMPLES:
 
     def _build_conversation_summary(
         self,
-        messages: List[Dict[str, Any]]
+        messages: list[dict[str, Any]]
     ) -> str:
         """Build a summary of the conversation for skill generation.
 
@@ -110,7 +111,7 @@ EXAMPLES:
     def _parse_skill_response(
         self,
         response: str
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Parse the LLM's skill generation response.
 
         Args:

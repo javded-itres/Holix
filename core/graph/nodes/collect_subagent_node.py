@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import logging
-from typing import Any, Dict
+from typing import Any
 
 from langchain_core.runnables import RunnableConfig
 
@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 async def collect_subagent_node(
     state: HelixGraphState,
     config: RunnableConfig,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Wait for ``pending_subagent`` (spawned earlier) and append result to messages."""
     pending = state.get("pending_subagent")
     if not pending:

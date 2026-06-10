@@ -1,8 +1,9 @@
 """Model provider configuration and management."""
 
-from typing import Optional, Dict, Any, List
-from pydantic import BaseModel, Field
+from typing import Any
+
 from openai import AsyncOpenAI
+from pydantic import BaseModel, Field
 
 from core.models.client_factory import create_openai_client
 
@@ -13,10 +14,10 @@ class ProviderConfig(BaseModel):
     name: str = Field(..., description="Provider name (e.g., 'ollama', 'litellm', 'openai')")
     base_url: str = Field(..., description="Base URL for the provider API")
     api_key: str = Field(default="dummy", description="API key for authentication")
-    default_model: Optional[str] = Field(default=None, description="Default model to use")
-    available_models: List[str] = Field(default_factory=list, description="List of available models")
-    model_contexts: Dict[str, int] = Field(default_factory=dict, description="Mapping model_id → context_window in tokens")
-    metadata: Dict[str, Any] = Field(default_factory=dict, description="Additional provider metadata")
+    default_model: str | None = Field(default=None, description="Default model to use")
+    available_models: list[str] = Field(default_factory=list, description="List of available models")
+    model_contexts: dict[str, int] = Field(default_factory=dict, description="Mapping model_id → context_window in tokens")
+    metadata: dict[str, Any] = Field(default_factory=dict, description="Additional provider metadata")
 
 
 class ModelProvider:
@@ -29,7 +30,7 @@ class ModelProvider:
             config: Provider configuration
         """
         self.config = config
-        self._client: Optional[AsyncOpenAI] = None
+        self._client: AsyncOpenAI | None = None
 
     @property
     def client(self) -> AsyncOpenAI:
@@ -59,7 +60,7 @@ class ModelProvider:
         except Exception:
             return False
 
-    async def get_available_models(self) -> List[str]:
+    async def get_available_models(self) -> list[str]:
         """Get list of available models from provider.
 
         Returns:
@@ -71,7 +72,7 @@ class ModelProvider:
         except Exception:
             return []
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert provider config to dictionary.
 
         Returns:
@@ -80,7 +81,7 @@ class ModelProvider:
         return self.config.model_dump()
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "ModelProvider":
+    def from_dict(cls, data: dict[str, Any]) -> "ModelProvider":
         """Create provider from dictionary.
 
         Args:

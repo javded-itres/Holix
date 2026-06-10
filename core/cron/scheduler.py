@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from core.cron.runner import run_cron_job
 from core.cron.store import CronStore
@@ -17,8 +17,8 @@ TICK_SECONDS = 30
 def _parse_utc_iso(value: str) -> datetime:
     dt = datetime.fromisoformat(value.replace("Z", "+00:00"))
     if dt.tzinfo is None:
-        dt = dt.replace(tzinfo=timezone.utc)
-    return dt.astimezone(timezone.utc)
+        dt = dt.replace(tzinfo=UTC)
+    return dt.astimezone(UTC)
 
 
 def _job_is_due(job, *, now: datetime) -> bool:
@@ -52,7 +52,7 @@ class CronScheduler:
             await asyncio.sleep(TICK_SECONDS)
 
     async def tick(self) -> None:
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         for job in self._store.list_jobs(enabled_only=True):
             if job.id in self._running_jobs:
                 continue

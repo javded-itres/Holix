@@ -5,8 +5,6 @@ from __future__ import annotations
 from textual.selection import Selection
 from textual.widgets import RichLog
 
-from cli.tui.shared.copy_bar import selection_has_text
-
 
 class CodeTranscript(RichLog):
     """Main conversation log."""

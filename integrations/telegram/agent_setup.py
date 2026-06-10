@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-from typing import Any
-
 from cli.core import ProfileConfig, init_profile
 from core.agent import HelixAgent
 

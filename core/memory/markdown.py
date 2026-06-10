@@ -1,6 +1,6 @@
-from pathlib import Path
 from datetime import datetime
-from typing import List, Dict, Any, Optional
+from pathlib import Path
+from typing import Any
 
 
 class MarkdownMemory:
@@ -17,8 +17,8 @@ class MarkdownMemory:
     def save_to_markdown(
         self,
         conversation_id: str,
-        messages: List[Dict[str, Any]],
-        title: Optional[str] = None
+        messages: list[dict[str, Any]],
+        title: str | None = None
     ) -> Path:
         """Save conversation to a markdown file.
 
@@ -63,7 +63,7 @@ class MarkdownMemory:
         self,
         query: str = "",
         limit: int = 5
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """Load relevant markdown conversation files.
 
         Args:
@@ -97,7 +97,7 @@ class MarkdownMemory:
             File content
         """
         try:
-            with open(filepath, 'r', encoding='utf-8') as f:
+            with open(filepath, encoding='utf-8') as f:
                 return f.read()
         except Exception as e:
             return f"Error reading file: {e}"

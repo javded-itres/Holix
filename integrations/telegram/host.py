@@ -8,16 +8,16 @@ from typing import Any
 from cli.shared.commands.agent_commands import AgentCommands
 from cli.shared.rich_text import content_to_plain_text
 from cli.shared.slash_input import is_slash_command, normalize_slash_input
-from integrations.telegram.live_presenter import TelegramLivePresenter
-from integrations.telegram.typing_indicator import TypingIndicator
 from core.i18n import host_locale, t
+
 from integrations.telegram.commands import help_message_html, sync_bot_menu
 from integrations.telegram.interactive import TelegramInteractive
+from integrations.telegram.live_presenter import TelegramLivePresenter
 from integrations.telegram.markdown import (
-    markdown_to_telegram_html,
     plain_to_telegram_html,
     split_telegram_html,
 )
+from integrations.telegram.typing_indicator import TypingIndicator
 
 
 class TelegramHost:
@@ -271,6 +271,7 @@ class TelegramHost:
     async def _switch_profile(self, new_profile: str, *, profile_key: str | None = None) -> None:
         from cli.core import init_profile
         from core.profile_keys import ProfileKeyError, profile_has_access_key
+
         from integrations.telegram.agent_setup import create_agent
 
         try:
@@ -357,7 +358,6 @@ class TelegramHost:
             self.transcript_write("Usage: /mcp install <popular-key|git-url>\nPopular: context7, filesystem, github, ... \nOr use the /mcp menu buttons.")
             return
         try:
-            from cli.commands.mcp import _save_mcp_server  # reuse? better direct
             # Direct logic to avoid heavy CLI import side effects
             from cli.core import get_profile_manager
             manager = get_profile_manager()
@@ -649,6 +649,7 @@ class TelegramHost:
             chat_delivery_scope,
             reset_chat_delivery_scope,
         )
+
         from integrations.telegram.delivery_bridge import TelegramDeliveryBridge
 
         delivery_bridge = TelegramDeliveryBridge(self._bot, self._session.chat_id)

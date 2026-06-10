@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from core.hub.clawhub import ClawHubClient
-from core.hub.lockfile import HubEntry, HubLockfile
+from core.hub.lockfile import HubLockfile
 
 
 @dataclass

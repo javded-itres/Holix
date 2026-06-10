@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from core.env_loader import read_profile_env_map, remove_profile_env_vars, upsert_profile_env_var
-from core.platform_compat import IS_WINDOWS
 from core.security.safety import CommandWhitelist
 
 WHITELIST_ENABLED_KEY = "HELIX_TERMINAL_COMMAND_WHITELIST"

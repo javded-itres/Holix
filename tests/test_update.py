@@ -6,7 +6,6 @@ import json
 from pathlib import Path
 
 import pytest
-
 from cli.installer.manifest import InstallManifest, load_manifest, save_manifest
 from cli.installer.update import (
     UpdateOptions,

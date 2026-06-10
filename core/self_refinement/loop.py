@@ -12,7 +12,7 @@ so the agent learns from its refinement history.
 
 import logging
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from core.meta_agent import MetaAgent, QualityAssessment
 
@@ -30,16 +30,16 @@ class RefinedOutput:
     iterations: int = 0
 
     # Quality scores for each iteration
-    quality_scores: List[float] = field(default_factory=list)
+    quality_scores: list[float] = field(default_factory=list)
 
     # Whether the response was improved
     was_improved: bool = False
 
     # The final quality assessment
-    final_assessment: Optional[QualityAssessment] = None
+    final_assessment: QualityAssessment | None = None
 
     # Areas that were improved
-    improvements: List[str] = field(default_factory=list)
+    improvements: list[str] = field(default_factory=list)
 
 
 class SelfRefinementLoop:
@@ -59,7 +59,7 @@ class SelfRefinementLoop:
 
     def __init__(
         self,
-        meta_agent: Optional[MetaAgent] = None,
+        meta_agent: MetaAgent | None = None,
         max_iterations: int = 2,
         quality_threshold: float = 0.7,
     ):
@@ -80,8 +80,8 @@ class SelfRefinementLoop:
 
     async def refine(
         self,
-        state: Dict[str, Any],
-        max_iterations: Optional[int] = None,
+        state: dict[str, Any],
+        max_iterations: int | None = None,
     ) -> RefinedOutput:
         """Run the self-refinement loop on a draft response.
 

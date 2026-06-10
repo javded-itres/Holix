@@ -6,7 +6,6 @@ import asyncio
 from pathlib import Path
 
 import pytest
-
 from integrations.telegram.file_handler import SavedTelegramFile, format_files_preview
 from integrations.telegram.media_group import MediaGroupBuffer, PendingAttachment
 

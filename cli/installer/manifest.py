@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 from dataclasses import asdict, dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, Self
 
@@ -86,7 +86,7 @@ def build_manifest(
         scope=scope,
         source=source,
         extras=list(extras),
-        installed_at=datetime.now(timezone.utc).isoformat(),
+        installed_at=datetime.now(UTC).isoformat(),
         repo_root=str(repo_root) if repo_root else None,
         helix_path=str(helix_path) if helix_path else None,
         bin_dir=str(bin_dir) if bin_dir else None,

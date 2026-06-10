@@ -5,7 +5,6 @@ from __future__ import annotations
 import socket
 
 import pytest
-
 from cli.utils.ports import is_port_available, resolve_listen_port
 
 

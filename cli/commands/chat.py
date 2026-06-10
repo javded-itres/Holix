@@ -1,22 +1,31 @@
 """Interactive chat command for Helix CLI."""
 
 import asyncio
-from prompt_toolkit import PromptSession
-from prompt_toolkit.history import FileHistory
-from prompt_toolkit.auto_suggest import AutoSuggestFromHistory
-from prompt_toolkit.styles import Style
-from pathlib import Path
-
-from cli.core import ProfileConfig, get_profile_manager, switch_profile, HELIX_HOME
-from cli.utils.banner import show_banner, show_welcome_message
-from cli.utils.rich_console import (
-    console, print_user_message, print_assistant_message,
-    print_tool_call, print_error, print_info, print_success,
-    create_spinner, print_table, print_panel
-)
 
 # Import agent
 import sys
+from pathlib import Path
+
+from prompt_toolkit import PromptSession
+from prompt_toolkit.auto_suggest import AutoSuggestFromHistory
+from prompt_toolkit.history import FileHistory
+from prompt_toolkit.styles import Style
+
+from cli.core import HELIX_HOME, ProfileConfig, get_profile_manager, switch_profile
+from cli.utils.banner import show_banner, show_welcome_message
+from cli.utils.rich_console import (
+    console,
+    create_spinner,
+    print_assistant_message,
+    print_error,
+    print_info,
+    print_panel,
+    print_success,
+    print_table,
+    print_tool_call,
+    print_user_message,
+)
+
 sys.path.append(str(Path(__file__).parent.parent.parent))
 from core.agent import HelixAgent
 
@@ -38,7 +47,7 @@ class ChatSession:
         """
         self.profile = profile
         self.config = config
-        self.agent: Optional[HelixAgent] = None
+        self.agent: HelixAgent | None = None
         self.conversation_id = f"cli_chat_{profile}"
 
         # Event history for the current session (for /debug events)
@@ -61,8 +70,11 @@ class ChatSession:
     async def initialize_agent(self):
         """Initialize the Helix agent."""
         with console.status("[bold cyan]Initializing Helix...", spinner="dots"):
+            from core.agent_events import (
+                create_compatibility_print_handler,
+                create_rich_cli_handler,
+            )
             from core.di import resolve_runtime_config
-            from core.agent_events import create_rich_cli_handler, create_compatibility_print_handler
 
             runtime_config = resolve_runtime_config(self.config)
 
@@ -117,8 +129,13 @@ class ChatSession:
     def _event_summary(self, event) -> str:
         """Create a short human-readable summary for an event."""
         from core.agent_events import (
-            ToolCallStartEvent, ToolCallResultEvent, AssistantDeltaEvent,
-            FinalResponseEvent, ThinkingEvent, ErrorEvent, SkillCreatedEvent
+            AssistantDeltaEvent,
+            ErrorEvent,
+            FinalResponseEvent,
+            SkillCreatedEvent,
+            ThinkingEvent,
+            ToolCallResultEvent,
+            ToolCallStartEvent,
         )
 
         if isinstance(event, ToolCallStartEvent):
@@ -252,14 +269,13 @@ class ChatSession:
 
         # /status
         elif cmd_lower == "/status":
-            console.print(f"\n[cyan]Current Status:[/cyan]")
+            console.print("\n[cyan]Current Status:[/cyan]")
             console.print(f"  Profile: {self.profile}")
             console.print(f"  Model: {self.config.model}")
             console.print(f"  Temperature: {self.config.temperature}")
             console.print(f"  Conversation ID: {self.conversation_id}")
             # Show context usage
             if self.agent and hasattr(self.agent, 'context_manager'):
-                from core.memory.manager import MemoryManager
                 messages = await self.agent.memory.get_conversation(self.conversation_id, limit=200)
                 usage = self.agent.context_manager.get_usage(messages)
                 level = self.agent.context_manager.get_usage_level(messages)
@@ -386,8 +402,10 @@ class ChatSession:
         def create_chat_event_handler():
             """Returns an event handler tailored for the interactive chat UX."""
             from core.agent_events import (
-                ThinkingEvent, ToolCallStartEvent, ToolCallResultEvent,
-                AssistantDeltaEvent, FinalResponseEvent
+                FinalResponseEvent,
+                ThinkingEvent,
+                ToolCallResultEvent,
+                ToolCallStartEvent,
             )
 
             def handler(event):
@@ -462,8 +480,8 @@ class ChatSession:
                     try:
                         if self.streaming_enabled:
                             # Streaming path - use unified generator directly
-                            from core.runtime.executor import run_helix
                             from core.agent_events import AssistantDeltaEvent, FinalResponseEvent
+                            from core.runtime.executor import run_helix
 
                             full_response = ""
                             async for event in run_helix(
@@ -513,7 +531,6 @@ class ChatSession:
             except Exception as e:
                 print_error(f"Unexpected error: {e}")
                 if self.config.__dict__.get("verbose"):
-                    import traceback
                     console.print_exception()
 
 

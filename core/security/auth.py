@@ -3,7 +3,7 @@ import hmac
 import secrets
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any
 
 import aiosqlite
 
@@ -79,7 +79,7 @@ class APIKeyManager:
 
         return api_key
 
-    async def validate_api_key(self, api_key: str) -> Optional[Dict[str, Any]]:
+    async def validate_api_key(self, api_key: str) -> dict[str, Any] | None:
         if not api_key:
             return None
 
@@ -150,7 +150,7 @@ class RateLimiter:
     """Simple in-memory rate limiter."""
 
     def __init__(self) -> None:
-        self.requests: Dict[str, list] = {}
+        self.requests: dict[str, list] = {}
 
     def check_rate_limit(self, key: str, limit: int, window: int = 60) -> bool:
         now = datetime.now()

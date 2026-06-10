@@ -6,7 +6,6 @@ from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-
 from core.tools.browser.policy import parse_allowed_hosts_csv, validate_browser_url
 from core.tools.browser.tools import (
     BrowserClickTool,

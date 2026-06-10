@@ -2,10 +2,7 @@
 
 from __future__ import annotations
 
-import os
-
 import pytest
-
 from core.models.catalog import (
     get_provider_preset,
     list_provider_presets,

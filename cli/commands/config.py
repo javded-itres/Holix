@@ -1,11 +1,12 @@
 """Configuration management commands."""
 
-import typer
-import subprocess
 import os
+import subprocess
 
-from cli.core import get_profile_manager, get_current_config
-from cli.utils.rich_console import print_info, print_error, print_success
+import typer
+
+from cli.core import get_profile_manager
+from cli.utils.rich_console import print_error, print_info, print_success
 
 app = typer.Typer(help="Manage Helix configuration")
 
@@ -38,8 +39,9 @@ def edit_config(ctx: typer.Context):
 @app.command("show")
 def show_config(ctx: typer.Context):
     """Show current configuration."""
-    from cli.utils.rich_console import print_panel
     import yaml
+
+    from cli.utils.rich_console import print_panel
 
     config = ctx.obj["config"]
 

@@ -22,9 +22,9 @@ from core.platform_compat import (
 
 from cli.core import HELIX_HOME, LOGS_DIR, PROFILES_DIR, ProfileConfig, ProfileManager
 from cli.doctor.findings import DoctorFinding, Severity
-from cli.utils.profile import profile_cli_prefix
 from cli.services.gateway_daemon import _running_state
 from cli.services.gateway_state import is_process_alive, load_state
+from cli.utils.profile import profile_cli_prefix
 
 
 async def run_all_checks(profile: str) -> list[DoctorFinding]:

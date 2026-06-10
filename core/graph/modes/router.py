@@ -9,9 +9,8 @@ Uses a lightweight LLM call to classify the user's input into one of:
 Falls back to "react" on any failure (LLM timeout, parse error, etc.).
 """
 
-import json
 import logging
-from typing import Any, Dict, Optional
+from typing import Any
 
 from openai import AsyncOpenAI
 
@@ -41,7 +40,7 @@ class ModeRouter:
 
     def __init__(
         self,
-        client: Optional[AsyncOpenAI] = None,
+        client: AsyncOpenAI | None = None,
         model: str = "",
         default_mode: str = "react",
     ):
@@ -56,7 +55,7 @@ class ModeRouter:
         self._model = model or settings.model
         self._default_mode = default_mode
         # Track routing history for learning
-        self._routing_history: list[Dict[str, Any]] = []
+        self._routing_history: list[dict[str, Any]] = []
 
     def set_client(self, client: AsyncOpenAI) -> None:
         """Set the OpenAI client (called after agent initialization)."""
@@ -65,7 +64,7 @@ class ModeRouter:
     async def select_mode(
         self,
         user_input: str,
-        context: Optional[Dict[str, Any]] = None,
+        context: dict[str, Any] | None = None,
     ) -> str:
         """Select the best execution mode for a task.
 
@@ -94,10 +93,10 @@ class ModeRouter:
                 if "execution_mode" in key or "mode" in key.lower():
                     content = s.get("content", "").lower()
                     if "plan_and_execute" in content:
-                        logger.info(f"Strategic memory suggests plan_and_execute mode")
+                        logger.info("Strategic memory suggests plan_and_execute mode")
                         return "plan_and_execute"
                     elif "hybrid" in content:
-                        logger.info(f"Strategic memory suggests hybrid mode")
+                        logger.info("Strategic memory suggests hybrid mode")
                         return "hybrid"
 
         try:
@@ -139,13 +138,13 @@ class ModeRouter:
             logger.warning(f"Mode router failed: {e}, falling back to {self._default_mode}")
             return self._default_mode
 
-    def get_routing_stats(self) -> Dict[str, Any]:
+    def get_routing_stats(self) -> dict[str, Any]:
         """Get statistics about mode routing decisions.
 
         Returns:
             Dict with mode counts and recent routing history.
         """
-        mode_counts: Dict[str, int] = {}
+        mode_counts: dict[str, int] = {}
         for entry in self._routing_history:
             mode = entry.get("selected_mode", "unknown")
             mode_counts[mode] = mode_counts.get(mode, 0) + 1

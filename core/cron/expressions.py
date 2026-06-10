@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from croniter import croniter
 
@@ -20,7 +20,7 @@ def validate_cron_expression(expr: str) -> str:
             f"Cron must have 5 fields (minute hour day month weekday), got {len(parts)}: {expr!r}"
         )
     try:
-        croniter(normalized, datetime.now(timezone.utc))
+        croniter(normalized, datetime.now(UTC))
     except Exception as e:
         raise ValueError(f"Invalid cron expression: {e}") from e
     return normalized
@@ -29,13 +29,13 @@ def validate_cron_expression(expr: str) -> str:
 def compute_next_run(expr: str, *, base: datetime | None = None) -> datetime:
     """Next run time (UTC) after base."""
     normalized = validate_cron_expression(expr)
-    ref = base or datetime.now(timezone.utc)
+    ref = base or datetime.now(UTC)
     if ref.tzinfo is None:
-        ref = ref.replace(tzinfo=timezone.utc)
+        ref = ref.replace(tzinfo=UTC)
     itr = croniter(normalized, ref)
     nxt = itr.get_next(datetime)
     if nxt.tzinfo is None:
-        nxt = nxt.replace(tzinfo=timezone.utc)
+        nxt = nxt.replace(tzinfo=UTC)
     return nxt
 
 

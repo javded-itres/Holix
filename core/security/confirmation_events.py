@@ -11,8 +11,7 @@ responds.
 """
 
 from dataclasses import dataclass, field
-from datetime import datetime
-from typing import Any, Dict, Optional
+from typing import Any
 
 from core.agent_events import AgentEvent, EventType
 
@@ -44,17 +43,17 @@ class ConfirmationRequestEvent(AgentEvent):
     """
     confirmation_id: str = ""
     tool_name: str = ""
-    arguments: Dict[str, Any] = field(default_factory=dict)
+    arguments: dict[str, Any] = field(default_factory=dict)
     risk_level: str = ""  # RiskLevel value string
     reason: str = ""
-    pattern_matched: Optional[str] = None
+    pattern_matched: str | None = None
     subagent_name: str = ""
 
     def __post_init__(self):
         # Use a valid EventType as the base, then override the display
         object.__setattr__(self, 'type', EventType.ERROR)  # Will be overridden below
 
-    def _extra_fields(self) -> Dict[str, Any]:
+    def _extra_fields(self) -> dict[str, Any]:
         return {
             "confirmation_id": self.confirmation_id,
             "tool_name": self.tool_name,
@@ -65,7 +64,7 @@ class ConfirmationRequestEvent(AgentEvent):
             "event_type": ConfirmationEventType.CONFIRMATION_REQUEST,
         }
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Override to_dict to use our custom event type string."""
         return {
             "type": ConfirmationEventType.CONFIRMATION_REQUEST,
@@ -97,7 +96,7 @@ class ConfirmationResponseEvent(AgentEvent):
     def __post_init__(self):
         object.__setattr__(self, 'type', EventType.ERROR)
 
-    def _extra_fields(self) -> Dict[str, Any]:
+    def _extra_fields(self) -> dict[str, Any]:
         return {
             "confirmation_id": self.confirmation_id,
             "choice": self.choice,
@@ -106,7 +105,7 @@ class ConfirmationResponseEvent(AgentEvent):
             "event_type": ConfirmationEventType.CONFIRMATION_RESPONSE,
         }
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Override to_dict to use our custom event type string."""
         return {
             "type": ConfirmationEventType.CONFIRMATION_RESPONSE,

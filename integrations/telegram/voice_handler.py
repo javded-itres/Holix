@@ -10,8 +10,8 @@ from pathlib import Path
 from typing import Any
 
 import aiohttp
-
 from core.platform_compat import resolve_helix_home
+
 from integrations.telegram.markdown import escape_html
 
 _LOCAL_MODEL_CACHE: dict[tuple[str, str, str, str], Any] = {}

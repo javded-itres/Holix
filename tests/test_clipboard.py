@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import sys
 from unittest.mock import MagicMock, patch
 
 from cli.tui.shared.clipboard import copy_text_best_effort, copy_to_system_clipboard

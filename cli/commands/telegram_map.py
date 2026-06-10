@@ -2,12 +2,6 @@
 
 from __future__ import annotations
 
-from rich.panel import Panel
-from rich.prompt import Confirm, Prompt
-from rich.table import Table
-
-from cli.core import ProfileManager
-from cli.utils.rich_console import console, print_error, print_info, print_success, print_warning
 from integrations.telegram.env_store import load_telegram_env_files, read_telegram_env_values
 from integrations.telegram.user_profiles import (
     ENV_KEY,
@@ -18,6 +12,11 @@ from integrations.telegram.user_profiles import (
     telegram_users_path,
     validate_user_profiles_text,
 )
+from rich.prompt import Confirm, Prompt
+from rich.table import Table
+
+from cli.core import ProfileManager
+from cli.utils.rich_console import console, print_error, print_info, print_success, print_warning
 
 
 def _profiles_list() -> list[str]:

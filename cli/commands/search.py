@@ -4,18 +4,18 @@ from __future__ import annotations
 
 import asyncio
 import os
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 import typer
+from core.search.catalog import SEARCH_PROVIDERS
+from core.search.config import VALID_STRATEGIES, SearchConfig, default_search_config
+from core.search.engine import SearchEngine
 from rich.console import Console
 from rich.prompt import Confirm, Prompt
 from rich.table import Table
 
 from cli.core import get_profile_manager
 from cli.utils.rich_console import print_error, print_info, print_success
-from core.search.catalog import SEARCH_PROVIDERS, get_provider_spec
-from core.search.config import SearchConfig, VALID_STRATEGIES, default_search_config
-from core.search.engine import SearchEngine
 
 app = typer.Typer(help="Configure web search providers (DuckDuckGo, SearXNG, Firecrawl)")
 

@@ -5,7 +5,6 @@ from __future__ import annotations
 import sys
 
 import pytest
-
 from cli.shared import slash_input as si
 from cli.tui.shared import keyboard_layout as kl
 

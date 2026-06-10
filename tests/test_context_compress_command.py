@@ -5,7 +5,6 @@ from __future__ import annotations
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
-
 from cli.shared.commands.context_compress import run_context_compress
 from cli.shared.commands.registry import SLASH_COMMANDS
 

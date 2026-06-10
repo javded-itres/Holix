@@ -3,16 +3,15 @@
 from __future__ import annotations
 
 import time
-from typing import Optional
 
+from core.docs_chat.service import DocsChatService
+from core.docs_chat.sessions import clear_session, load_session, validate_client_id
+from core.security.auth import RateLimiter
 from fastapi import APIRouter, Header, HTTPException, Query
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
 from config import settings
-from core.docs_chat.service import DocsChatService
-from core.docs_chat.sessions import clear_session, load_session, validate_client_id
-from core.security.auth import RateLimiter
 
 router = APIRouter(prefix="/v1/docs/chat", tags=["docs-chat"])
 
@@ -24,7 +23,7 @@ class DocsChatRequest(BaseModel):
     message: str = Field(..., min_length=1, max_length=4000)
     client_id: str = Field(..., min_length=8, max_length=64)
     lang: str = Field(default="ru", pattern=r"^(en|ru)$")
-    page_slug: Optional[str] = Field(default=None, max_length=64)
+    page_slug: str | None = Field(default=None, max_length=64)
     stream: bool = True
 
 
@@ -42,13 +41,13 @@ def _get_service() -> DocsChatService:
 
 
 def _verify_docs_chat_token(
-    authorization: Optional[str],
-    x_docs_chat_token: Optional[str],
+    authorization: str | None,
+    x_docs_chat_token: str | None,
 ) -> None:
     expected = settings.docs_chat_token.strip()
     if not expected:
         raise HTTPException(status_code=503, detail="Docs chat is not configured")
-    token: Optional[str] = None
+    token: str | None = None
     if authorization and authorization.startswith("Bearer "):
         token = authorization[7:].strip()
     elif x_docs_chat_token:
@@ -78,8 +77,8 @@ async def docs_chat_config() -> DocsChatConfigResponse:
 @router.get("/session")
 async def docs_chat_get_session(
     client_id: str = Query(..., min_length=8, max_length=64),
-    authorization: Optional[str] = Header(None),
-    x_docs_chat_token: Optional[str] = Header(None, alias="X-Docs-Chat-Token"),
+    authorization: str | None = Header(None),
+    x_docs_chat_token: str | None = Header(None, alias="X-Docs-Chat-Token"),
 ):
     """Load saved chat history for an anonymous visitor."""
     if not settings.docs_chat_enabled:
@@ -95,8 +94,8 @@ async def docs_chat_get_session(
 @router.delete("/session")
 async def docs_chat_clear_session(
     client_id: str = Query(..., min_length=8, max_length=64),
-    authorization: Optional[str] = Header(None),
-    x_docs_chat_token: Optional[str] = Header(None, alias="X-Docs-Chat-Token"),
+    authorization: str | None = Header(None),
+    x_docs_chat_token: str | None = Header(None, alias="X-Docs-Chat-Token"),
 ):
     """Clear chat history for an anonymous visitor."""
     if not settings.docs_chat_enabled:
@@ -112,8 +111,8 @@ async def docs_chat_clear_session(
 @router.post("")
 async def docs_chat(
     request: DocsChatRequest,
-    authorization: Optional[str] = Header(None),
-    x_docs_chat_token: Optional[str] = Header(None, alias="X-Docs-Chat-Token"),
+    authorization: str | None = Header(None),
+    x_docs_chat_token: str | None = Header(None, alias="X-Docs-Chat-Token"),
 ):
     """Answer questions about Helix documentation — no tools, no commands."""
     if not settings.docs_chat_enabled:

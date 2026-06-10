@@ -2,8 +2,8 @@
 
 from core.i18n.locale import (
     DEFAULT_LOCALE,
-    LocaleStore,
     SUPPORTED_LOCALES,
+    LocaleStore,
     host_locale,
     host_profile_name,
     normalize_locale,

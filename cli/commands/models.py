@@ -3,46 +3,45 @@
 import asyncio
 import sys
 from pathlib import Path
-from typing import Optional, List, Dict, Any
+from typing import Any
 
 # Add parent directory to path for imports
 sys.path.append(str(Path(__file__).parent.parent.parent))
 
 import typer
-from rich.console import Console
-from rich.table import Table
-from rich.panel import Panel
-from rich.prompt import Prompt, Confirm
-from rich import box
-
-from cli.core import get_current_config, get_profile_manager, get_current_profile
-from cli.utils.rich_console import console, print_error, print_success, print_info, create_spinner
 from core.models.catalog import (
     get_provider_preset,
     list_provider_presets,
     resolve_preset_base_url,
 )
 from core.models.discovery import ModelDiscovery
-from core.models.provider import ProviderConfig, ModelProvider
-from core.models.selector import AgentModelConfig
 from core.models.profile_cleanup import profile_has_llm_config, remove_provider_from_profile
+from core.models.provider import ProviderConfig
+from core.models.selector import AgentModelConfig
 from core.models.setup_helpers import (
     add_preset_to_config,
     apply_ssl_override,
     discover_and_select_default_model,
     probe_provider,
     prompt_host_for_preset,
-    resolve_preset_api_key_interactive,
     resolve_api_key_for_preset,
+    resolve_preset_api_key_interactive,
     resolve_ssl_metadata_extra,
 )
+from rich import box
+from rich.panel import Panel
+from rich.prompt import Confirm, Prompt
+from rich.table import Table
+
+from cli.core import get_current_config, get_current_profile, get_profile_manager
+from cli.utils.rich_console import console, create_spinner, print_error, print_info, print_success
 
 app = typer.Typer(help="Manage model providers and configurations")
 
 
 @app.command("setup")
 def setup_models(
-    profile: Optional[str] = typer.Option(None, "--profile", "-p", help="Profile to configure"),
+    profile: str | None = typer.Option(None, "--profile", "-p", help="Profile to configure"),
     no_verify_ssl: bool = typer.Option(
         False,
         "--no-verify-ssl",
@@ -54,7 +53,7 @@ def setup_models(
 
 
 async def _setup_models_interactive(
-    profile: Optional[str] = None,
+    profile: str | None = None,
     *,
     no_verify_ssl: bool = False,
 ):
@@ -415,7 +414,7 @@ async def _test_provider(config, *, no_verify_ssl: bool = False):
             print_error(f"✗ Error: {str(e)}")
 
 
-def _remove_provider(config, *, profile: Optional[str] = None, save: bool = False) -> bool:
+def _remove_provider(config, *, profile: str | None = None, save: bool = False) -> bool:
     """Remove a provider and clean agent_models / legacy LLM fields."""
     if not config.providers:
         print_info("No providers configured")
@@ -530,14 +529,14 @@ def list_presets():
 @app.command("add")
 def add_preset(
     preset_id: str = typer.Argument(..., help="Preset id: openai, openrouter, ollama, litellm, vllm, …"),
-    profile: Optional[str] = typer.Option(None, "--profile", "-p"),
-    name: Optional[str] = typer.Option(None, "--name", help="Profile provider name (default: preset id)"),
-    host: Optional[str] = typer.Option(
+    profile: str | None = typer.Option(None, "--profile", "-p"),
+    name: str | None = typer.Option(None, "--name", help="Profile provider name (default: preset id)"),
+    host: str | None = typer.Option(
         None,
         "--host",
         help="Host for ollama/litellm/vllm: IP, host:port, or full URL (e.g. 192.168.1.10:11434)",
     ),
-    port: Optional[int] = typer.Option(None, "--port", help="Port if --host is hostname only"),
+    port: int | None = typer.Option(None, "--port", help="Port if --host is hostname only"),
     skip_test: bool = typer.Option(False, "--skip-test", help="Skip connection test"),
     no_verify_ssl: bool = typer.Option(
         False,
@@ -551,10 +550,10 @@ def add_preset(
 
 async def _add_preset_cli(
     preset_id: str,
-    profile: Optional[str],
-    name: Optional[str],
-    host: Optional[str],
-    port: Optional[int],
+    profile: str | None,
+    name: str | None,
+    host: str | None,
+    port: int | None,
     skip_test: bool,
     no_verify_ssl: bool,
 ) -> None:
@@ -640,7 +639,7 @@ async def _add_preset_cli(
 @app.command("remove")
 def remove_provider_cmd(
     name: str = typer.Argument(..., help="Provider name to remove"),
-    profile: Optional[str] = typer.Option(None, "--profile", "-p"),
+    profile: str | None = typer.Option(None, "--profile", "-p"),
     yes: bool = typer.Option(False, "--yes", "-y", help="Skip confirmation"),
 ):
     """Remove a provider and clean related agent_models assignments."""
@@ -669,7 +668,7 @@ def remove_provider_cmd(
 
 @app.command("list")
 def list_providers(
-    profile: Optional[str] = typer.Option(None, "--profile", "-p", help="Profile to use"),
+    profile: str | None = typer.Option(None, "--profile", "-p", help="Profile to use"),
 ):
     """List all configured model providers."""
     config = get_current_config()
@@ -678,7 +677,7 @@ def list_providers(
 
 @app.command("agents")
 def list_agent_models(
-    profile: Optional[str] = typer.Option(None, "--profile", "-p", help="Profile to use"),
+    profile: str | None = typer.Option(None, "--profile", "-p", help="Profile to use"),
 ):
     """List agent model assignments."""
     config = get_current_config()

@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
+from textual import on
 from textual.app import ComposeResult
 from textual.containers import Vertical
 from textual.screen import ModalScreen
-from textual import on
 from textual.widgets import Footer, Header, Static, TextArea
 
 from cli.tui.code.widgets.copy_selection_bar import CopySelectionBar

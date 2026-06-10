@@ -1,13 +1,14 @@
 """Memory management commands."""
 
-import typer
 import asyncio
-from pathlib import Path
 import sys
+from pathlib import Path
+
+import typer
 
 sys.path.append(str(Path(__file__).parent.parent.parent))
 
-from cli.utils.rich_console import print_table, print_info, print_error, console
+from cli.utils.rich_console import console, print_info
 
 app = typer.Typer(help="Search and manage Helix memory")
 

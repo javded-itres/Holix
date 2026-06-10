@@ -13,8 +13,7 @@ This creates a feedback loop:
 
 import logging
 import re
-from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -26,7 +25,7 @@ class EvolutionEngine:
     Called after each task completion via finalize_node.
     """
 
-    def __init__(self, memory: Optional[Any] = None):
+    def __init__(self, memory: Any | None = None):
         """Initialize the evolution engine.
 
         Args:
@@ -42,7 +41,7 @@ class EvolutionEngine:
         self,
         task: str,
         result: str,
-        sub_agents_used: Optional[List[str]] = None,
+        sub_agents_used: list[str] | None = None,
         mode: str = "react",
         duration_ms: float = 0.0,
         success: bool = True,
@@ -106,7 +105,7 @@ class EvolutionEngine:
         self,
         task: str,
         result: str,
-        sub_agents_used: List[str],
+        sub_agents_used: list[str],
         mode: str,
         duration_ms: float,
         success: bool,
@@ -189,7 +188,7 @@ class EvolutionEngine:
 
     async def _record_sub_agent_outcomes(
         self,
-        sub_agents_used: List[str],
+        sub_agents_used: list[str],
         success: bool,
         task: str,
     ) -> None:

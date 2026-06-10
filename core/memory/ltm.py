@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 import aiosqlite
 
@@ -78,14 +78,14 @@ class LongTermMemoryStore:
         key: str,
         content: str,
         source: str = "",
-        metadata: Optional[Dict[str, Any]] = None,
+        metadata: dict[str, Any] | None = None,
     ) -> int:
         return await self.semantic.store_fact(key, content, source, metadata)
 
-    async def get_fact(self, key: str) -> Optional[Dict[str, Any]]:
+    async def get_fact(self, key: str) -> dict[str, Any] | None:
         return await self.semantic.get_fact(key)
 
-    async def search_episodes(self, query: str, top_k: int = 5) -> List[Dict[str, Any]]:
+    async def search_episodes(self, query: str, top_k: int = 5) -> list[dict[str, Any]]:
         return await self.episodic.search(query, top_k)
 
     async def store_strategy(
@@ -94,20 +94,20 @@ class LongTermMemoryStore:
         content: str,
         category: str = "general",
         source: str = "",
-        metadata: Optional[Dict[str, Any]] = None,
+        metadata: dict[str, Any] | None = None,
     ) -> int:
         return await self.strategic.store_strategy(
             key, content, category, source, metadata
         )
 
-    async def search_strategies(self, query: str, top_k: int = 5) -> List[Dict[str, Any]]:
+    async def search_strategies(self, query: str, top_k: int = 5) -> list[dict[str, Any]]:
         return await self.strategic.search(query, top_k)
 
     async def get_relevant_context(
         self,
         query: str,
         top_k: int = 5,
-    ) -> Dict[str, List[Dict[str, Any]]]:
+    ) -> dict[str, list[dict[str, Any]]]:
         import asyncio
 
         episodic, semantic, strategic = await asyncio.gather(
@@ -124,5 +124,5 @@ class LongTermMemoryStore:
     def set_skills_manager(self, skills_manager: Any) -> None:
         self.procedural.set_skills_manager(skills_manager)
 
-    def get_memory_stats(self) -> Dict[str, Any]:
+    def get_memory_stats(self) -> dict[str, Any]:
         return {"vector_store": self._vector_store.get_stats()}

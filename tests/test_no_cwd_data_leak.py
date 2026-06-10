@@ -5,11 +5,10 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
-
 from cli.core import ProfileConfig, ProfileManager, resolve_profile_storage_paths
 from core.di.runtime_config import HelixRuntimeConfig
 from core.memory.ltm import LongTermMemoryStore
-from core.security.confirmation import ActionGuard, PermissionManager, RiskLevel
+from core.security.confirmation import ActionGuard, PermissionManager
 
 
 def test_from_profile_resolves_all_memory_paths(tmp_path, monkeypatch) -> None:
@@ -103,7 +102,6 @@ def test_doctor_migrates_stray_project_data(tmp_path, monkeypatch) -> None:
     monkeypatch.chdir(repo)
     from cli.doctor.checks import _check_stray_project_data
     from cli.doctor.fixes import apply_deterministic_fixes
-    from cli.doctor.findings import DoctorFinding
 
     findings = _check_stray_project_data("default", ProfileManager())
     assert findings and findings[0].fix_id == "migrate_stray_data"

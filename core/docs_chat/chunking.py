@@ -74,7 +74,6 @@ def chunk_page(
     """Split one markdown page into section-based chunks."""
     sections: list[tuple[str, str, list[str]]] = []
     current_heading = title
-    current_level = 1
     current_lines: list[str] = []
 
     def flush() -> None:
@@ -89,7 +88,6 @@ def chunk_page(
             level = len(match.group(1))
             if level <= 3:
                 current_heading = match.group(2).strip()
-                current_level = level
                 current_lines = []
                 continue
         current_lines.append(line)

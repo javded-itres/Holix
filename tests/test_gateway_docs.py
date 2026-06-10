@@ -5,10 +5,9 @@ from __future__ import annotations
 import inspect
 import re
 
-from typer.testing import CliRunner
-
 from cli.commands import gateway as gateway_cmd
 from cli.main import app
+from typer.testing import CliRunner
 
 
 def _plain(text: str) -> str:

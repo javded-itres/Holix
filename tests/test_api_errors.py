@@ -1,9 +1,8 @@
 """Tests for API error mapping."""
 
-import pytest
+from api.errors import agent_error_to_http, openai_error_body
 from fastapi import HTTPException
 
-from api.errors import agent_error_to_http, openai_error_body
 from config import settings
 
 

@@ -6,9 +6,8 @@ import json
 from pathlib import Path
 from typing import Any
 
-from pydantic import BaseModel, Field
-
 from cli.core import ProfileManager
+from pydantic import BaseModel, Field
 
 
 class SessionModelRecord(BaseModel):

@@ -16,16 +16,9 @@ the action methods.
 
 from __future__ import annotations
 
-from rich.text import Text
-from rich.table import Table
-from rich.panel import Panel
-from rich.markdown import Markdown
-
-from textual.widgets import Static, ListView, ListItem, Collapsible, Button
 from textual.containers import Vertical
 from textual.message import Message
-from textual import on
-
+from textual.widgets import Button, ListItem, ListView, Static, TextArea
 
 # ─── Messages (posted when user interacts with the widget) ──────────────────
 
@@ -236,7 +229,7 @@ class SubAgentActions:
         self._set_status(f"Spawning {agent_type}...", "yellow")
 
         try:
-            handle = await self._agent.subagents.spawn_sub_agent(config, task)
+            await self._agent.subagents.spawn_sub_agent(config, task)
             self._append_to_log(
                 f"[green]✓ Sub-agent '{config.name}' spawned "
                 f"(mode={config.process_mode.value})[/green]\n"
@@ -345,10 +338,10 @@ class SubAgentActions:
             display = self.query_one("#ltm-stats-display", Static)
             await display.update(f"[bold]Total: {total} entries[/bold]")
 
-        except Exception as e:
+        except Exception:
             try:
                 display = self.query_one("#ltm-stats-display", Static)
-                await display.update(f"[dim]Stats unavailable[/dim]")
+                await display.update("[dim]Stats unavailable[/dim]")
             except Exception:
                 pass
 

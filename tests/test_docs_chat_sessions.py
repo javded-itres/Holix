@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import pytest
-
 from core.docs_chat.sessions import (
     append_exchange,
     clear_session,

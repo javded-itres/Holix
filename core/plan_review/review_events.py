@@ -10,7 +10,7 @@ and calls PlanReviewGuard.resolve_review() when the user responds.
 """
 
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from core.agent_events import AgentEvent, EventType
 
@@ -46,19 +46,19 @@ class PlanReviewRequestEvent(AgentEvent):
         rendered_markdown: Pre-rendered Markdown string of the full plan for chat display.
     """
     review_id: str = ""
-    plan_steps: List[Dict[str, Any]] = field(default_factory=list)
+    plan_steps: list[dict[str, Any]] = field(default_factory=list)
     step_count: int = 0
     reasoning: str = ""
     user_input: str = ""
-    analysis: Optional[Dict[str, Any]] = None
-    architecture: Optional[Dict[str, Any]] = None
+    analysis: dict[str, Any] | None = None
+    architecture: dict[str, Any] | None = None
     rendered_markdown: str = ""
 
     def __post_init__(self):
         super().__post_init__()
         object.__setattr__(self, 'type', EventType.PLAN_GENERATED)
 
-    def _extra_fields(self) -> Dict[str, Any]:
+    def _extra_fields(self) -> dict[str, Any]:
         return {
             "review_id": self.review_id,
             "plan_steps": self.plan_steps,
@@ -71,7 +71,7 @@ class PlanReviewRequestEvent(AgentEvent):
             "event_type": PlanReviewEventType.PLAN_REVIEW_REQUEST,
         }
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Override to_dict to use our custom event type string."""
         return {
             "type": PlanReviewEventType.PLAN_REVIEW_REQUEST,
@@ -102,7 +102,7 @@ class PlanReviewResponseEvent(AgentEvent):
         super().__post_init__()
         object.__setattr__(self, 'type', EventType.PLAN_COMPLETED)
 
-    def _extra_fields(self) -> Dict[str, Any]:
+    def _extra_fields(self) -> dict[str, Any]:
         return {
             "review_id": self.review_id,
             "choice": self.choice,
@@ -110,7 +110,7 @@ class PlanReviewResponseEvent(AgentEvent):
             "event_type": PlanReviewEventType.PLAN_REVIEW_RESPONSE,
         }
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Override to_dict to use our custom event type string."""
         return {
             "type": PlanReviewEventType.PLAN_REVIEW_RESPONSE,

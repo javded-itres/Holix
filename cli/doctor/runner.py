@@ -12,7 +12,7 @@ from cli.doctor.report import (
     print_llm_note,
     print_summary,
 )
-from cli.utils.rich_console import print_error, print_info, print_warning
+from cli.utils.rich_console import print_error, print_info
 
 
 def _needs_llm_config_fix(findings: list[DoctorFinding]) -> bool:

@@ -2,17 +2,18 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any
 
+from cli.utils.rich_console import print_error, print_info, print_success, print_warning
 from rich.console import Console
 from rich.prompt import Confirm, Prompt
 from rich.table import Table
 
-from cli.utils.rich_console import print_error, print_info, print_success, print_warning
 from core.hub.catalog import (
-    SOURCES,
     SOURCE_BY_KEY,
+    SOURCES,
     CatalogRow,
     fetch_catalog_rows,
     parse_selection,
@@ -150,6 +151,7 @@ def run_interactive_hub(
 
         if installed_names and ctx is not None:
             from cli.core import get_profile_manager
+
             from core.skills.assignments import apply_skills_to_agent_slots
 
             if Confirm.ask(

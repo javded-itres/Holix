@@ -5,7 +5,6 @@ from __future__ import annotations
 import asyncio
 
 import pytest
-
 from integrations.telegram.typing_indicator import TypingIndicator
 
 

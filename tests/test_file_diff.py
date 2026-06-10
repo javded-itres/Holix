@@ -6,7 +6,6 @@ import os
 import tempfile
 
 import pytest
-
 from cli.tui.shared.formatters import split_write_file_result
 from core.tools.file_diff import (
     DIFF_SEPARATOR,

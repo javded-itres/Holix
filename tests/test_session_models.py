@@ -6,9 +6,7 @@ from pathlib import Path
 from unittest.mock import MagicMock
 
 import pytest
-
 from core.session_models import SessionModelStore, restore_session_model
-from integrations.telegram.model_switch import ModelChoice
 
 
 def test_session_model_store_roundtrip(tmp_path: Path, monkeypatch):

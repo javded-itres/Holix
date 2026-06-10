@@ -6,8 +6,7 @@ import os
 from pathlib import Path
 
 import pytest
-
-from core.env_loader import bootstrap_env, helix_env_path, init_helix_home, project_env_path
+from core.env_loader import bootstrap_env, helix_env_path, init_helix_home
 
 
 @pytest.fixture
@@ -21,7 +20,7 @@ def test_helix_env_overrides_project(helix_home: Path, monkeypatch: pytest.Monke
     monkeypatch.delenv("HELIX_TEST_VAR", raising=False)
     (helix_home / ".env").write_text("HELIX_TEST_VAR=from_helix\n", encoding="utf-8")
     (helix_home / "project.env").unlink(missing_ok=True)
-    proj_env = helix_home / ".env"
+    helix_home / ".env"
     # project .env is cwd - same dir here, write a separate project file via chdir subdir
     proj_dir = helix_home / "repo"
     proj_dir.mkdir()

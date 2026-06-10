@@ -20,19 +20,20 @@ import json
 import logging
 import re
 import threading
+from collections.abc import Callable
 from contextlib import asynccontextmanager
 from dataclasses import dataclass, field
 from datetime import datetime
-from enum import Enum
+from enum import StrEnum
 from pathlib import Path
-from typing import Any, Callable, Dict, Optional
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
 
 # ─── Risk Levels ──────────────────────────────────────────────────────────
 
-class RiskLevel(str, Enum):
+class RiskLevel(StrEnum):
     """Risk classification for tool calls."""
     NO = "no"          # Safe: read-only, no side effects
     LOW = "low"        # Minor side effects: network reads
@@ -50,8 +51,8 @@ class RiskAssessment:
     risk_level: RiskLevel = RiskLevel.MEDIUM
     reason: str = ""
     tool_name: str = ""
-    arguments: Dict[str, Any] = field(default_factory=dict)
-    pattern_matched: Optional[str] = None  # Which escalation pattern triggered, if any
+    arguments: dict[str, Any] = field(default_factory=dict)
+    pattern_matched: str | None = None  # Which escalation pattern triggered, if any
 
 
 # ─── Risk Classifier ──────────────────────────────────────────────────────
@@ -88,7 +89,7 @@ class RiskClassifier:
         # SQL mutation keywords that escalate sql_query to HIGH
         self._sql_mutation_keywords = {"INSERT", "UPDATE", "DELETE", "DROP", "ALTER", "CREATE", "TRUNCATE"}
 
-    def classify(self, tool_name: str, tool_instance: Any, arguments: Dict[str, Any]) -> RiskAssessment:
+    def classify(self, tool_name: str, tool_instance: Any, arguments: dict[str, Any]) -> RiskAssessment:
         """Classify a tool call by risk level.
 
         Args:
@@ -120,7 +121,7 @@ class RiskClassifier:
         )
 
     def _analyze_arguments(
-        self, tool_name: str, arguments: Dict[str, Any], baseline: RiskLevel
+        self, tool_name: str, arguments: dict[str, Any], baseline: RiskLevel
     ) -> tuple:
         """Analyze tool arguments for risk escalation patterns.
 
@@ -198,7 +199,7 @@ class RiskClassifier:
 
 # ─── Permission Management ────────────────────────────────────────────────
 
-class PermissionScope(str, Enum):
+class PermissionScope(StrEnum):
     """How long a permission grant lasts."""
     ONCE = "once"          # Only this invocation (not stored)
     SESSION = "session"    # Until the agent process exits
@@ -211,7 +212,7 @@ class PermissionGrant:
     tool_name: str
     scope: PermissionScope
     risk_level: RiskLevel
-    argument_pattern: Optional[str] = None
+    argument_pattern: str | None = None
     granted_at: str = ""
 
 
@@ -227,8 +228,8 @@ class PermissionManager:
             Path(data_dir).expanduser().resolve() if data_dir is not None else None
         )
         self._permissions_file_override: Path | None = None
-        self._session_grants: Dict[str, PermissionGrant] = {}
-        self._always_grants: Dict[str, PermissionGrant] = {}
+        self._session_grants: dict[str, PermissionGrant] = {}
+        self._always_grants: dict[str, PermissionGrant] = {}
         self._lock = threading.Lock()
         self._loaded = False
 
@@ -260,7 +261,7 @@ class PermissionManager:
         return self.data_dir / "security" / "confirmation_audit.jsonl"
 
     @staticmethod
-    def _grant_key(tool_name: str, risk_level: RiskLevel, argument_pattern: Optional[str] = None) -> str:
+    def _grant_key(tool_name: str, risk_level: RiskLevel, argument_pattern: str | None = None) -> str:
         """Create a unique key for a permission grant."""
         if argument_pattern:
             return f"{tool_name}:{risk_level.value}:{argument_pattern}"
@@ -303,7 +304,7 @@ class PermissionManager:
         }
         self.PERMISSIONS_FILE.write_text(json.dumps(data, indent=2))
 
-    def is_allowed(self, tool_name: str, risk_level: RiskLevel, argument_pattern: Optional[str] = None) -> bool:
+    def is_allowed(self, tool_name: str, risk_level: RiskLevel, argument_pattern: str | None = None) -> bool:
         """Check if a tool call is pre-authorized by a session or persistent grant.
 
         For ALWAYS grants, also matches if the granted level is >= the requested level
@@ -327,7 +328,7 @@ class PermissionManager:
             return False
 
     def grant(self, tool_name: str, scope: PermissionScope, risk_level: RiskLevel,
-              argument_pattern: Optional[str] = None) -> None:
+              argument_pattern: str | None = None) -> None:
         """Record a permission grant."""
         self._ensure_loaded()
         grant = PermissionGrant(
@@ -347,7 +348,7 @@ class PermissionManager:
             # ONCE is not stored — it only applies to the current invocation
 
     def revoke(self, tool_name: str, scope: PermissionScope, risk_level: RiskLevel,
-               argument_pattern: Optional[str] = None) -> None:
+               argument_pattern: str | None = None) -> None:
         """Revoke a permission grant."""
         self._ensure_loaded()
         key = self._grant_key(tool_name, risk_level, argument_pattern)
@@ -363,7 +364,7 @@ class PermissionManager:
         with self._lock:
             self._session_grants.clear()
 
-    def list_grants(self) -> Dict[str, Any]:
+    def list_grants(self) -> dict[str, Any]:
         """List all active grants for display in UI."""
         self._ensure_loaded()
         with self._lock:
@@ -389,7 +390,7 @@ permission_manager = PermissionManager()
 
 # ─── Confirmation Choice ──────────────────────────────────────────────────
 
-class ConfirmationChoice(str, Enum):
+class ConfirmationChoice(StrEnum):
     """User choices for a confirmation request."""
     ALLOW_ONCE = "allow_once"        # Allow this one invocation only
     ALLOW_SESSION = "allow_session"  # Allow for the rest of this session
@@ -413,9 +414,9 @@ class ActionGuard:
 
     def __init__(
         self,
-        event_bus: Optional[Any] = None,
-        permission_manager: Optional[PermissionManager] = None,
-        risk_classifier: Optional[RiskClassifier] = None,
+        event_bus: Any | None = None,
+        permission_manager: PermissionManager | None = None,
+        risk_classifier: RiskClassifier | None = None,
         auto_allow_threshold: RiskLevel = RiskLevel.LOW,
         interactive: bool = True,
         confirmation_timeout: int = 300,
@@ -435,11 +436,11 @@ class ActionGuard:
         self._confirmation_timeout = confirmation_timeout
 
         # Map from confirmation_id -> asyncio.Future[ConfirmationChoice]
-        self._pending_confirmations: Dict[str, asyncio.Future] = {}
+        self._pending_confirmations: dict[str, asyncio.Future] = {}
         self._confirmation_counter = 0
 
         # Audit logging callback
-        self._audit_logger: Optional[Callable] = None
+        self._audit_logger: Callable | None = None
 
         # When True, all tool calls are auto-approved without confirmation.
         # Set when a confirmed plan is being executed, so tools within
@@ -465,7 +466,7 @@ class ActionGuard:
         self,
         tool_name: str,
         tool_instance: Any,
-        arguments: Dict[str, Any],
+        arguments: dict[str, Any],
         execute_fn: Callable,
         conversation_id: str = "default",
     ) -> str:
@@ -582,7 +583,7 @@ class ActionGuard:
             logger.info(f"ActionGuard: awaiting confirmation (timeout={timeout}s)")
             return await asyncio.wait_for(future, timeout=timeout)
 
-        except asyncio.TimeoutError:
+        except TimeoutError:
             # Timeout = deny
             self._log_audit("timeout", assessment, "confirmation_timeout")
             return ConfirmationChoice.DENY
@@ -614,7 +615,7 @@ class ActionGuard:
 
         return True
 
-    def _log_audit(self, action: str, assessment: RiskAssessment, detail: Optional[str]) -> None:
+    def _log_audit(self, action: str, assessment: RiskAssessment, detail: str | None) -> None:
         """Log an audit record to file and optional callback."""
         record = {
             "timestamp": datetime.now().isoformat(),
@@ -642,7 +643,7 @@ class ActionGuard:
 
 # ─── Global instance and init ──────────────────────────────────────────────
 
-_action_guard: Optional[ActionGuard] = None
+_action_guard: ActionGuard | None = None
 
 
 def configure_security_storage(data_dir: str | Path) -> None:
@@ -675,6 +676,6 @@ def init_action_guard(
     return _action_guard
 
 
-def get_action_guard() -> Optional[ActionGuard]:
+def get_action_guard() -> ActionGuard | None:
     """Get the global ActionGuard instance (or None if not initialized)."""
     return _action_guard

@@ -4,10 +4,9 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from typer.testing import CliRunner
-
 from cli.main import app
 from cli.services.docs_site import build_docs_site, resolve_web_docs_dir
+from typer.testing import CliRunner
 
 
 def test_resolve_web_docs_dir_finds_index() -> None:

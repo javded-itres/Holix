@@ -3,8 +3,7 @@
 from __future__ import annotations
 
 from cli.doctor.findings import DoctorFinding, Severity
-from cli.utils.rich_console import console, print_info, print_panel, print_success, print_warning
-
+from cli.utils.rich_console import print_info, print_panel, print_success, print_warning
 
 _SEVERITY_STYLE = {
     Severity.ERROR.value: "bold red",

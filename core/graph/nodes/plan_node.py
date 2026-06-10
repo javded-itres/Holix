@@ -16,14 +16,13 @@ user can provide answers via the "refine" option, which triggers plan
 regeneration with the user's answers appended as refinement_feedback.
 """
 
-import json
-import logging
 import asyncio
-from typing import Any, Dict, List, Optional
+import logging
+
+from langchain_core.runnables import RunnableConfig
 
 from core.graph.state import HelixGraphState, get_agent_from_config
 from core.plan_review.parser import parse_detailed_plan
-from langchain_core.runnables import RunnableConfig
 
 # Backward-compatible re-exports for tests
 _parse_detailed_plan = parse_detailed_plan
@@ -352,7 +351,7 @@ async def plan_node(state: HelixGraphState, config: RunnableConfig) -> dict:
                         client.chat.completions.create(**api_kwargs),
                         timeout=plan_timeout,
                     )
-                except asyncio.TimeoutError:
+                except TimeoutError:
                     raise  # Let outer handler catch it
             else:
                 response = await asyncio.wait_for(
@@ -372,7 +371,7 @@ async def plan_node(state: HelixGraphState, config: RunnableConfig) -> dict:
 
             logger.warning("Plan LLM returned empty response, retrying...")
 
-        except asyncio.TimeoutError:
+        except TimeoutError:
             last_error = f"Timeout after {plan_timeout}s"
             logger.warning(
                 f"Plan generation timed out on attempt {attempt + 1}/{1 + plan_retries} "

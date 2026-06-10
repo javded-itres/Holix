@@ -19,31 +19,47 @@ from __future__ import annotations
 
 import asyncio
 import json
+from collections.abc import Callable
+from datetime import UTC
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any
 
-from rich.panel import Panel
-from rich.syntax import Syntax
-from rich.text import Text
-
-from textual.app import App, ComposeResult
-from textual.binding import Binding
-from textual.containers import Vertical
-from textual import events, on
-from textual.message import Message
-from textual.widgets import Header, Footer, RichLog, TextArea, Static, Button, ListView, ListItem, Collapsible, OptionList, Input
-from textual.command import CommandInput  # for UX polish in palette highlight
-from textual.command import CommandPalette, Provider, Hit, Hits, Command as PaletteCommandOption
-
-from cli.core import HELIX_HOME, ProfileConfig, init_profile, ProfileManager
+from cli.core import HELIX_HOME, ProfileConfig, ProfileManager, init_profile
 from cli.tui.legacy.handlers import AgentEventHandler, SlashCommandHandler
+from cli.tui.legacy.widgets import HELIX_TUI_CSS, HelixChatLog, HelixMainContent, HelixSidebar
 from cli.tui.modals import ModalStack
-from cli.tui.legacy.widgets import HELIX_TUI_CSS, HelixChatLog, HelixSidebar, HelixMainContent
 from core.agent import HelixAgent
 from core.agent_events import AgentEvent
+from core.plan_review.review_events import PlanReviewRequestEvent
 from core.security.confirmation import ConfirmationChoice
-from core.security.confirmation_events import ConfirmationRequestEvent, ConfirmationResponseEvent
-from core.plan_review.review_events import PlanReviewRequestEvent, PlanReviewResponseEvent
+from core.security.confirmation_events import ConfirmationRequestEvent
+from rich.panel import Panel
+from rich.syntax import Syntax
+from textual import events, on
+from textual.app import App, ComposeResult
+from textual.binding import Binding
+from textual.command import Command as PaletteCommandOption
+from textual.command import (
+    CommandInput,  # for UX polish in palette highlight
+    CommandPalette,
+    Hit,
+    Hits,
+    Provider,
+)
+from textual.message import Message
+from textual.widgets import (
+    Button,
+    Collapsible,
+    Footer,
+    Header,
+    Input,
+    ListItem,
+    ListView,
+    OptionList,
+    RichLog,
+    Static,
+    TextArea,
+)
 
 
 class ExecutePaletteCommand(Message):
@@ -72,7 +88,7 @@ class HelixCommandProvider(Provider):
         super().__init__(screen, match_style)
 
     @property
-    def app(self) -> "HelixTUI":
+    def app(self) -> HelixTUI:
         """Convenience property so the rest of the provider can keep using self.app."""
         return self.screen.app  # type: ignore[attr-defined]
 
@@ -544,7 +560,7 @@ class HelixTUI(App):
         surface the problem to the user in the chat log (if possible) and keep running.
         """
         try:
-            chat_log = self._chat_log()
+            self._chat_log()
             self._append_to_log(
                 f"\n[bold red]⚠ Internal TUI error (recovered):[/bold red] "
                 f"{type(error).__name__}: {error}"
@@ -589,12 +605,12 @@ class HelixTUI(App):
         Binding("ctrl+s", "stop_all", "Stop all tasks", show=True),
     ]
 
-    def __init__(self, profile: str = "default", config: Optional[ProfileConfig] = None):
+    def __init__(self, profile: str = "default", config: ProfileConfig | None = None):
         super().__init__()
         self.profile = profile
         self.config = config or init_profile(profile)
         self.profile_manager = ProfileManager()
-        self.agent: Optional[HelixAgent] = None
+        self.agent: HelixAgent | None = None
         self._event_handler = AgentEventHandler(self)
         self._slash_handler = SlashCommandHandler(self)
         self._modals = ModalStack(self)
@@ -638,7 +654,7 @@ class HelixTUI(App):
         self._is_streaming: bool = False
 
         # Cached context display for header (updated after each response)
-        self._cached_context_display: Optional[str] = None
+        self._cached_context_display: str | None = None
 
         # Marker for responses that came from "Regenerate" action
         self._next_response_is_regenerated: bool = False
@@ -765,7 +781,7 @@ class HelixTUI(App):
         except Exception as e:
             # Even if initialization partially fails, try to keep the TUI alive
             try:
-                chat_log = self._chat_log()
+                self._chat_log()
                 self._append_to_log(f"[bold red]Startup error (partial):[/bold red] {e}\n")
                 self._append_to_log("[yellow]Some features may be limited, but the interface should still work.[/yellow]\n")
             except Exception:
@@ -975,7 +991,7 @@ class HelixTUI(App):
             )
         except Exception as exc:
             try:
-                chat_log = self._chat_log()
+                self._chat_log()
                 self._append_to_log(f"[bold red]Agent error:[/bold red] {exc}")
                 self._set_status("Error", "red")
 
@@ -1008,7 +1024,7 @@ class HelixTUI(App):
 
         except Exception as exc:
             try:
-                chat_log = self._chat_log()
+                self._chat_log()
                 self._append_to_log(f"[bold red]Streaming error:[/bold red] {exc}")
                 self._set_status("Error", "red")
 
@@ -1184,7 +1200,7 @@ class HelixTUI(App):
                     if target != self.profile:
                         self._initiate_profile_switch(target)  # shared with palette (keeps /yes confirmation)
                     else:
-                        chat_log = self._chat_log()
+                        self._chat_log()
                         self._append_to_log(f"[dim]Already using profile '{target}'.[/dim]")
 
         except Exception:
@@ -1245,7 +1261,7 @@ class HelixTUI(App):
                     self._append_to_log(f"[dim]{feedback}[/dim]\n")
                 return
 
-        chat_log = self._chat_log()
+        self._chat_log()
 
         # Handle slash commands locally in TUI
         if message.startswith("/"):
@@ -1610,7 +1626,7 @@ class HelixTUI(App):
     def action_copy_last_output(self) -> None:
         """Copy the last meaningful output to clipboard (best effort)."""
         try:
-            chat_log = self._chat_log()
+            self._chat_log()
 
             if self._recent_tool_results:
                 last = self._recent_tool_results[-1]
@@ -1637,7 +1653,7 @@ class HelixTUI(App):
     def action_copy_log(self) -> None:
         """Copy recent chat log content (best effort)."""
         try:
-            chat_log = self._chat_log()
+            self._chat_log()
             self._append_to_log("[yellow]RichLog has limited selection. Use Ctrl+Shift+C or /copy for recent output.[/yellow]")
         except Exception:
             pass
@@ -1654,7 +1670,7 @@ class HelixTUI(App):
                 if mem.get("role") == "assistant":
                     content = mem.get("content", "")
                     self.app.copy_to_clipboard(content)
-                    preview = content[:80].replace("\n", " ")
+                    content[:80].replace("\n", " ")
                     self._append_to_log(f"[dim]Last Helix response copied ({len(content)} chars).[/dim]")
                     return
 
@@ -1895,7 +1911,7 @@ class HelixTUI(App):
         """Insert the most recent memory entry into the input as context."""
         if not self._recent_memories:
             try:
-                chat_log = self._chat_log()
+                self._chat_log()
                 self._append_to_log("[yellow]No recent memory to insert yet.[/yellow]")
             except Exception:
                 pass
@@ -1957,8 +1973,8 @@ class HelixTUI(App):
             return
 
         try:
-            chat_log = self._chat_log()
-            self._append_to_log(f"\n[dim]⟳ Regenerating response for your last message...[/dim]\n")
+            self._chat_log()
+            self._append_to_log("\n[dim]⟳ Regenerating response for your last message...[/dim]\n")
 
             # Re-display the user message to make the new turn clear in history
             self._append_to_log(f"[bold blue]You (regenerate):[/bold blue] {self._last_user_message}\n")
@@ -2047,7 +2063,7 @@ class HelixTUI(App):
         except Exception:
             # Fallback to chat log
             try:
-                chat_log = self._chat_log()
+                self._chat_log()
                 self._append_to_log("[yellow]Could not insert memory directly; see chat for details.[/yellow]")
             except Exception:
                 pass
@@ -2086,7 +2102,7 @@ class HelixTUI(App):
     def _describe_skill(self, skill: dict) -> None:
         """Show skill details (reused by sidebar click and palette)."""
         try:
-            chat_log = self._chat_log()
+            self._chat_log()
             name = skill.get("name", "unknown")
             desc = skill.get("description", "(no description)")
             tags = skill.get("tags", []) or []
@@ -2135,7 +2151,7 @@ class HelixTUI(App):
             for sk in self._available_skills[:3]:
                 self._describe_skill(sk)
             if len(self._available_skills) > 3:
-                chat_log = self._chat_log()
+                self._chat_log()
                 self._append_to_log(f"[dim]... and {len(self._available_skills)-3} more. Click in sidebar Skills list for details.[/dim]\n")
         except Exception:
             pass
@@ -2146,7 +2162,7 @@ class HelixTUI(App):
             return
         self._pending_profile_switch = profile_name
         try:
-            chat_log = self._chat_log()
+            self._chat_log()
             self._append_to_log(f"\n[yellow]Switch to profile '{profile_name}'?[/yellow] Type /yes to confirm or /no to cancel.")
             self._append_to_log("[dim]This will create a fresh session for the new profile.[/dim]\n")
         except Exception:
@@ -2172,7 +2188,6 @@ class HelixTUI(App):
 
         Execute the command we remembered from OptionHighlighted when the palette closes.
         """
-        has_pending = self._last_palette_command is not None
 
         if self._last_palette_command is not None:
             cmd = self._last_palette_command
@@ -2260,7 +2275,7 @@ class HelixTUI(App):
     def action_help(self) -> None:
         """Show help in the chat log."""
         try:
-            chat_log = self._chat_log()
+            self._chat_log()
             self._append_to_log("\n[bold cyan]Helix TUI — Phase 2 (polished)[/bold cyan]")
             self._append_to_log("[dim]Header always shows: profile • model • session [density]  (even with sidebar closed)[/dim]")
             self._append_to_log("[dim]Strong keyboard focus on input + all sidebar lists • Better contrast in compact mode[/dim]\n")
@@ -2424,16 +2439,6 @@ class HelixTUI(App):
         except Exception:
             pass
 
-    def action_scroll_chat_top(self) -> None:
-        """Jump to the very top of the chat history."""
-        try:
-            self._auto_scroll_chat = False
-            self._update_scroll_indicator()
-            chat_log = self._chat_log()
-            chat_log.scroll_home(animate=False)
-        except Exception:
-            pass
-
     def action_scroll_chat_half_up(self) -> None:
         """Scroll chat up by approximately half a page (Ctrl+U style)."""
         try:
@@ -2545,7 +2550,6 @@ class HelixTUI(App):
             agent = getattr(self, "agent", None)
             if agent and hasattr(agent, "context_manager") and agent.context_manager:
                 try:
-                    messages = agent.memory  # won't work synchronously, use cached value
                     # Use cached context usage if available
                     cached = getattr(self, "_cached_context_display", None)
                     if cached:
@@ -2652,9 +2656,9 @@ class HelixTUI(App):
 
     def _update_context_bar_widget(
         self,
-        percent: Optional[float],
-        color: Optional[str],
-        usage: Optional[Dict[str, Any]],
+        percent: float | None,
+        color: str | None,
+        usage: dict[str, Any] | None,
     ) -> None:
         """Update the #context-bar Static widget with a visual progress bar.
 
@@ -2700,6 +2704,8 @@ class HelixTUI(App):
                 bar_widget.update("[dim]Context: ──[/dim]")
             except Exception:
                 pass
+
+    def _rename_current_session(self, name: str) -> None:
         """Give the current session a human-friendly name."""
         if not name or not self.conversation_id:
             return
@@ -2718,7 +2724,7 @@ class HelixTUI(App):
     def action_show_session_info(self) -> None:
         """Print basic current session info (quick stats)."""
         try:
-            chat_log = self._chat_log()
+            self._chat_log()
             name = self.session_display_name or self.conversation_id
             mem_count = len(self._recent_memories)
             tool_count = len(self._recent_tool_results)
@@ -2795,7 +2801,7 @@ class HelixTUI(App):
 
     async def _debug_show_context(self) -> None:
         try:
-            chat_log = self._chat_log()
+            self._chat_log()
             if not self.agent:
                 self._append_to_log("[yellow]Agent not ready.[/yellow]")
                 return
@@ -2814,7 +2820,7 @@ class HelixTUI(App):
     def action_debug_show_tools(self) -> None:
         """Show loaded tools (debug view)."""
         try:
-            chat_log = self._chat_log()
+            self._chat_log()
             if not self.agent:
                 self._append_to_log("[yellow]Agent not ready.[/yellow]")
                 return
@@ -2831,7 +2837,7 @@ class HelixTUI(App):
     def action_debug_show_skills(self) -> None:
         """Show loaded skills (debug view)."""
         try:
-            chat_log = self._chat_log()
+            self._chat_log()
             if not self.agent:
                 self._append_to_log("[yellow]Agent not ready.[/yellow]")
                 return
@@ -3043,9 +3049,9 @@ class HelixTUI(App):
                 last_hint = ""
                 if last_ts:
                     try:
-                        from datetime import datetime, timezone
+                        from datetime import datetime
                         dt = datetime.fromisoformat(last_ts.replace("Z", "+00:00"))
-                        delta = datetime.now(timezone.utc) - dt
+                        delta = datetime.now(UTC) - dt
                         if delta.days > 0:
                             last_hint = f" {delta.days}d ago"
                         elif delta.seconds > 3600:
@@ -3174,7 +3180,7 @@ class HelixTUI(App):
         """Switch to a different profile (Phase 2 feature)."""
         from core.profile_keys import ProfileKeyError, profile_has_access_key
 
-        chat_log = self._chat_log()
+        self._chat_log()
 
         if new_profile == self.profile:
             self._append_to_log(f"[yellow]Already using profile '{new_profile}'.[/yellow]")
@@ -3261,7 +3267,7 @@ class HelixTUI(App):
 
     async def _show_profile_switcher(self) -> None:
         """Show list of profiles and allow switching (simple version for PoC)."""
-        chat_log = self._chat_log()
+        self._chat_log()
         profiles = self._get_available_profiles()
 
         if not profiles:
@@ -3487,11 +3493,10 @@ class HelixTUI(App):
         """Create and switch to a brand new conversation."""
         import time
         new_id = f"tui_{self.profile}_{int(time.time())}"
-        old_id = self.conversation_id
         self.conversation_id = new_id
         self.session_display_name = self._get_short_session_name(new_id)
 
-        chat_log = self._chat_log()
+        self._chat_log()
         self._append_to_log(f"\n[bold cyan]=== New session started: {self.session_display_name} ===[/bold cyan]\n")
 
         # Clear UI state for new session
@@ -3715,7 +3720,7 @@ class HelixTUI(App):
 
     def _show_full_tool_result(self, index_from_end: int = 0) -> None:
         """Print the full (untruncated) result of a recent tool call into the chat."""
-        chat_log = self._chat_log()
+        self._chat_log()
         if not self._recent_tool_results:
             self._append_to_log("[yellow]No tool results in this session yet.[/yellow]")
             return
@@ -3765,7 +3770,7 @@ class HelixTUI(App):
             self._append_to_log(panel)
             self._scroll_chat_to_bottom()
         except IndexError:
-            self._append_to_log(f"[red]No tool result at that index. Use /tools to list available.[/red]")
+            self._append_to_log("[red]No tool result at that index. Use /tools to list available.[/red]")
         except Exception as e:
             self._append_to_log(f"[red]Failed to show full tool result: {e}[/red]")
 
@@ -3820,7 +3825,7 @@ class HelixTUI(App):
 
     def _list_recent_tools(self) -> None:
         """List recent tool calls with short previews so user can pick one with /last N."""
-        chat_log = self._chat_log()
+        self._chat_log()
         if not self._recent_tool_results:
             self._append_to_log("[yellow]No tool results recorded in this TUI session yet.[/yellow]")
             return
@@ -3848,7 +3853,7 @@ class HelixTUI(App):
     def _show_tool_details(self, tool: dict) -> None:
         """Show full details of a tool from the sidebar list into the chat."""
         try:
-            chat_log = self._chat_log()
+            self._chat_log()
             name = tool.get("name", "unknown")
             desc = tool.get("description", "(no description)")
 
@@ -3894,7 +3899,7 @@ class HelixTUI(App):
     def _show_skill_details(self, skill: dict) -> None:
         """Show details of a skill when clicked in the sidebar (Phase 2)."""
         try:
-            chat_log = self._chat_log()
+            self._chat_log()
             name = skill.get("name", "unknown")
             desc = skill.get("description", "(no description)")
             tags = skill.get("tags", [])
@@ -3908,7 +3913,7 @@ class HelixTUI(App):
 
     async def _search_memory_in_chat(self, query: str) -> None:
         """Perform semantic memory search and display results in chat (used by /memory)."""
-        chat_log = self._chat_log()
+        self._chat_log()
 
         if not query.strip():
             self._append_to_log("[yellow]Usage: /memory <your question or keywords>[/yellow]")
@@ -3950,7 +3955,7 @@ class HelixTUI(App):
 
     async def _show_sessions_list(self) -> None:
         """Show list of recent conversations (sessions)."""
-        chat_log = self._chat_log()
+        self._chat_log()
         await self._load_known_sessions()
 
         if not self.known_sessions:
@@ -3969,9 +3974,9 @@ class HelixTUI(App):
             last_ts = sess.get("last_timestamp")
             if last_ts:
                 try:
-                    from datetime import datetime, timezone
+                    from datetime import datetime
                     dt = datetime.fromisoformat(last_ts.replace("Z", "+00:00"))
-                    delta = datetime.now(timezone.utc) - dt
+                    delta = datetime.now(UTC) - dt
                     if delta.days > 0:
                         last_hint = f" {delta.days}d"
                     elif delta.seconds > 3600:

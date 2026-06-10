@@ -1,16 +1,17 @@
 """Tests for the context management system."""
 
+from unittest.mock import MagicMock
+
 import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
-from core.context.token_counter import TokenCounter, DEFAULT_CONTEXT_WINDOW
-from core.context.compressor import ContextCompressor
-from core.context.manager import ContextManager
 from core.agent_events import (
+    AgentEventBus,
     ContextCompressedEvent,
     ContextWarningEvent,
     EventType,
-    AgentEventBus,
 )
+from core.context.compressor import ContextCompressor
+from core.context.manager import ContextManager
+from core.context.token_counter import DEFAULT_CONTEXT_WINDOW, TokenCounter
 
 
 class TestTokenCounter:

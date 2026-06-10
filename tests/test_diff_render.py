@@ -2,11 +2,10 @@
 
 from __future__ import annotations
 
-from rich.panel import Panel
-
 from cli.tui.shared.diff_render import render_unified_diff
 from cli.tui.shared.formatters import format_write_file_diff_display
 from core.tools.file_diff import format_write_file_result
+from rich.panel import Panel
 
 
 def test_render_unified_diff_returns_panel():

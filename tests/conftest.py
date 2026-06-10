@@ -9,7 +9,6 @@ import tempfile
 import uuid
 
 import pytest
-
 from core.tools.registry import ToolRegistry
 
 
@@ -83,8 +82,9 @@ def tools_registry():
 @pytest.fixture
 def skills_manager(temp_dir):
     """Create skills manager with temp directory."""
-    from config import settings
     from core.skills.manager import SkillsManager
+
+    from config import settings
 
     original_skills_dir = settings.skills_dir
     settings.skills_dir = f"{temp_dir}/skills"

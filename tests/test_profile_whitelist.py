@@ -5,7 +5,6 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
-
 from core.env_loader import profile_env_path
 from core.terminal_whitelist_config import (
     WHITELIST_ENABLED_KEY,

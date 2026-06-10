@@ -1,9 +1,7 @@
 """Tests for per-agent skill assignments."""
 
-from pathlib import Path
 
 import pytest
-
 from core.skills.assignments import (
     assign_skill_to_agents,
     is_skill_allowed_for_agent,

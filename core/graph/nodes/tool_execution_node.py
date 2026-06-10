@@ -2,13 +2,13 @@
 Tool Execution Node — executes tool calls from the graph state.
 """
 
-import time
 import logging
-from typing import Any, Dict
+import time
 
-from core.graph.state import HelixGraphState, get_agent_from_config
-from core.agent_events import ToolCallResultEvent, ToolCallErrorEvent
 from langchain_core.runnables import RunnableConfig
+
+from core.agent_events import ToolCallErrorEvent, ToolCallResultEvent
+from core.graph.state import HelixGraphState, get_agent_from_config
 
 logger = logging.getLogger(__name__)
 
@@ -39,7 +39,7 @@ async def tool_execution_node(state: HelixGraphState, config: RunnableConfig) ->
     for tc_data in tool_calls:
         tool_name = tc_data.get("function", {}).get("name", "")
         tool_id = tc_data.get("id", "")
-        args_raw = tc_data.get("function", {}).get("arguments", "")
+        tc_data.get("function", {}).get("arguments", "")
 
         # Create a minimal tool call object compatible with ToolRegistry.execute()
         class _ToolCall:

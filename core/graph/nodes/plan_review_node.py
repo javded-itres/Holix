@@ -14,10 +14,10 @@ In non-interactive mode or when plan_review_enabled=False, auto-executes.
 """
 
 import logging
-from typing import Any, Dict
+
+from langchain_core.runnables import RunnableConfig
 
 from core.graph.state import HelixGraphState, get_agent_from_config
-from langchain_core.runnables import RunnableConfig
 
 logger = logging.getLogger(__name__)
 
@@ -72,8 +72,8 @@ async def plan_review_node(state: HelixGraphState, config: RunnableConfig) -> di
         pass  # If settings unavailable, proceed with review
 
     # Get the PlanReviewGuard
-    from core.plan_review.review_guard import get_plan_review_guard, PlanReviewChoice
     from core.plan_review.markdown_builder import build_plan_markdown
+    from core.plan_review.review_guard import PlanReviewChoice, get_plan_review_guard
     guard = get_plan_review_guard()
 
     if guard is None:

@@ -7,18 +7,19 @@ Covers:
 - Helper functions (make_event)
 """
 
-import pytest
 import asyncio
+
+import pytest
 from core.agent_events import (
     AgentEvent,
     AgentEventBus,
-    EventType,
-    ToolCallStartEvent,
-    ToolCallResultEvent,
-    FinalResponseEvent,
-    ErrorEvent,
     AssistantDeltaEvent,
+    ErrorEvent,
+    EventType,
+    FinalResponseEvent,
     ThinkingEvent,
+    ToolCallResultEvent,
+    ToolCallStartEvent,
     make_event,
 )
 
@@ -189,9 +190,10 @@ class TestRunAgentLoopWithMocks:
 
     @pytest.mark.asyncio
     async def test_run_agent_loop_emits_expected_events(self, monkeypatch):
-        from core.agent_execution import run_agent_loop
-        from core.agent import HelixAgent
         from unittest.mock import AsyncMock, MagicMock
+
+        from core.agent import HelixAgent
+        from core.agent_execution import run_agent_loop
 
         # Create a minimal agent with mocked dependencies
         agent = HelixAgent(enable_monitoring=False)

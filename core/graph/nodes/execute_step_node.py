@@ -10,12 +10,12 @@ Used in plan_and_execute mode. Each call:
 """
 
 import logging
-from typing import Any, Dict
+from typing import Any
 
+from langchain_core.runnables import RunnableConfig
 from openai import AsyncOpenAI
 
 from core.graph.state import HelixGraphState, get_agent_from_config
-from langchain_core.runnables import RunnableConfig
 
 logger = logging.getLogger(__name__)
 
@@ -187,7 +187,7 @@ async def execute_step_node(state: HelixGraphState, config: RunnableConfig) -> d
 
 def _build_step_prompt(
     state: HelixGraphState,
-    step: Dict[str, Any],
+    step: dict[str, Any],
     step_num: int,
     total_steps: int,
 ) -> str:

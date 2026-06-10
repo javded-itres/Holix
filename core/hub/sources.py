@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
+
 from core.url_utils import spec_looks_like_github
 
 

@@ -23,6 +23,7 @@ from core.agent_events import (
 from core.plan_review.review_events import PlanReviewRequestEvent
 from core.security.confirmation_events import ConfirmationRequestEvent
 from core.subagents.interaction_events import SubAgentQuestionEvent
+
 if TYPE_CHECKING:
     from integrations.telegram.approvals import TelegramApprovals
     from integrations.telegram.live_presenter import TelegramLivePresenter

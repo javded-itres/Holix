@@ -2,18 +2,10 @@
 Tests for Long-term Memory system (Episodic, Semantic, Procedural, Strategic).
 """
 
-import pytest
-import asyncio
-import tempfile
 import shutil
-from pathlib import Path
+import tempfile
 
-from core.memory.manager import LongTermMemoryManager
-from core.memory.episodic import EpisodicMemoryStore
-from core.memory.semantic import SemanticMemoryStore
-from core.memory.procedural import ProceduralMemoryStore
-from core.memory.strategic import StrategicMemoryStore
-from core.memory.vector import VectorMemoryStore
+import pytest
 
 
 @pytest.fixture

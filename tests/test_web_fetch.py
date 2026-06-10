@@ -2,10 +2,9 @@
 
 from __future__ import annotations
 
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock, patch
 
 import pytest
-
 from core.search.content import html_to_text
 from core.subagents.base import ProcessMode, SubAgentConfig
 from core.subagents.process import SubAgentProcessManager

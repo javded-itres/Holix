@@ -9,10 +9,10 @@ conversation history when usage approaches the limit.
 from __future__ import annotations
 
 import logging
-from typing import Optional, Dict, Any, List, Tuple
+from typing import Any
 
-from core.context.token_counter import TokenCounter, DEFAULT_CONTEXT_WINDOW
 from core.context.compressor import ContextCompressor
+from core.context.token_counter import DEFAULT_CONTEXT_WINDOW, TokenCounter
 
 logger = logging.getLogger(__name__)
 
@@ -30,9 +30,9 @@ class ContextManager:
     def __init__(
         self,
         context_window: int = DEFAULT_CONTEXT_WINDOW,
-        token_counter: Optional[TokenCounter] = None,
-        compressor: Optional[ContextCompressor] = None,
-        event_bus: Optional[Any] = None,
+        token_counter: TokenCounter | None = None,
+        compressor: ContextCompressor | None = None,
+        event_bus: Any | None = None,
         compression_threshold: float = 0.95,
         warning_threshold: float = 0.8,
     ):
@@ -66,7 +66,7 @@ class ContextManager:
         """
         self.context_window = context_window
 
-    def get_usage(self, messages: List[Dict[str, Any]]) -> Dict[str, Any]:
+    def get_usage(self, messages: list[dict[str, Any]]) -> dict[str, Any]:
         """Get current context usage information.
 
         Args:
@@ -89,7 +89,7 @@ class ContextManager:
 
     def is_near_limit(
         self,
-        messages: List[Dict[str, Any]],
+        messages: list[dict[str, Any]],
         threshold: float = 0.9,
     ) -> bool:
         """Check if context usage is near the limit.
@@ -104,7 +104,7 @@ class ContextManager:
         usage = self.get_usage(messages)
         return usage["percent"] >= threshold * 100
 
-    def get_usage_level(self, messages: List[Dict[str, Any]]) -> str:
+    def get_usage_level(self, messages: list[dict[str, Any]]) -> str:
         """Get usage level for color-coding display.
 
         Args:
@@ -123,7 +123,7 @@ class ContextManager:
         else:
             return "green"
 
-    def format_usage_display(self, messages: List[Dict[str, Any]]) -> str:
+    def format_usage_display(self, messages: list[dict[str, Any]]) -> str:
         """Format usage for display in UI (e.g., '12k/128k (9%)').
 
         Args:
@@ -139,9 +139,9 @@ class ContextManager:
 
     async def compress_context(
         self,
-        messages: List[Dict[str, Any]],
+        messages: list[dict[str, Any]],
         keep_recent: int = 10,
-    ) -> Tuple[List[Dict[str, Any]], bool]:
+    ) -> tuple[list[dict[str, Any]], bool]:
         """Compress conversation context manually.
 
         Args:
@@ -189,8 +189,8 @@ class ContextManager:
 
     async def auto_compress_if_needed(
         self,
-        messages: List[Dict[str, Any]],
-    ) -> Tuple[List[Dict[str, Any]], bool]:
+        messages: list[dict[str, Any]],
+    ) -> tuple[list[dict[str, Any]], bool]:
         """Automatically compress context if usage exceeds threshold.
 
         Also emits warning events at the warning threshold (70%).
@@ -240,7 +240,7 @@ class ContextManager:
         except Exception as e:
             logger.warning(f"Failed to emit ContextCompressedEvent: {e}")
 
-    def _emit_warning_event(self, usage: Dict[str, Any], level: str) -> None:
+    def _emit_warning_event(self, usage: dict[str, Any], level: str) -> None:
         """Emit a ContextWarningEvent if an event bus is available."""
         if not self.event_bus:
             return

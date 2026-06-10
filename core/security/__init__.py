@@ -3,8 +3,6 @@ Helix Security — authentication, permissions, and dangerous action confirmatio
 """
 
 from core.security.auth import APIKeyManager, RateLimiter
-from core.security.permissions import Permission, PermissionChecker
-from core.security.safety import CommandWhitelist, ConfirmationRequired
 from core.security.confirmation import (
     ActionGuard,
     ConfirmationChoice,
@@ -18,7 +16,31 @@ from core.security.confirmation import (
     permission_manager,
 )
 from core.security.confirmation_events import (
+    ConfirmationEventType,
     ConfirmationRequestEvent,
     ConfirmationResponseEvent,
-    ConfirmationEventType,
 )
+from core.security.permissions import Permission, PermissionChecker
+from core.security.safety import CommandWhitelist, ConfirmationRequired
+
+__all__ = [
+    "APIKeyManager",
+    "ActionGuard",
+    "CommandWhitelist",
+    "ConfirmationChoice",
+    "ConfirmationEventType",
+    "ConfirmationRequestEvent",
+    "ConfirmationRequired",
+    "ConfirmationResponseEvent",
+    "Permission",
+    "PermissionChecker",
+    "PermissionManager",
+    "PermissionScope",
+    "RateLimiter",
+    "RiskAssessment",
+    "RiskClassifier",
+    "RiskLevel",
+    "get_action_guard",
+    "init_action_guard",
+    "permission_manager",
+]

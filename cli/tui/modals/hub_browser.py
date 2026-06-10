@@ -6,6 +6,11 @@ import asyncio
 from pathlib import Path
 from typing import Any
 
+from core.hub.catalog import SOURCES, CatalogRow, fetch_catalog_rows, parse_selection
+from core.hub.claude_marketplace import MARKETPLACES
+from core.hub.importer import SkillImporter
+from core.hub.installed import InstalledItem, installed_flat_rows, remove_hub_install
+from core.hub.slash_registry import rebuild_slash_registry
 from textual import on, work
 from textual.app import ComposeResult
 from textual.binding import Binding
@@ -24,12 +29,6 @@ from textual.widgets import (
     SelectionList,
     Static,
 )
-
-from core.hub.catalog import SOURCES, CatalogRow, fetch_catalog_rows, parse_selection
-from core.hub.claude_marketplace import MARKETPLACES
-from core.hub.importer import SkillImporter
-from core.hub.installed import InstalledItem, installed_flat_rows, remove_hub_install
-from core.hub.slash_registry import rebuild_slash_registry
 
 HUB_VIEW_MODES: list[tuple[str, str]] = [
     ("Search catalog", "search"),
@@ -325,8 +324,9 @@ class HubAssignAgentsScreen(ModalScreen[list[str] | None]):
         return [a.strip() for a in raw.split(",") if a.strip() and a.strip() in valid]
 
     def _persist(self, slots: list[str]) -> list[str]:
-        from cli.core import get_profile_manager
         from core.skills.assignments import apply_skills_to_agent_slots
+
+        from cli.core import get_profile_manager
 
         manager = get_profile_manager()
         return apply_skills_to_agent_slots(
@@ -976,8 +976,9 @@ def _hub_apply_mcp_factory(profile: str, config: Any):
     def _apply_mcp(servers: dict, slug: str) -> int:
         if not servers:
             return 0
-        from cli.core import get_profile_manager
         from core.hub.claude_mcp import merge_into_profile_servers
+
+        from cli.core import get_profile_manager
 
         manager = get_profile_manager()
         merged = merge_into_profile_servers(

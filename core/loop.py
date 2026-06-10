@@ -1,8 +1,6 @@
-from typing import List, Dict, Any, Optional
 from openai import AsyncOpenAI
 
-from config import settings
-from core.agent_events import AgentEvent, FinalResponseEvent, ErrorEvent
+from core.agent_events import AgentEvent, ErrorEvent, FinalResponseEvent
 from core.runtime.executor import run_helix
 
 

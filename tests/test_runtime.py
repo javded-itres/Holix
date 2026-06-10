@@ -1,7 +1,6 @@
 """Tests for unified runtime (session + executor)."""
 
 import pytest
-
 from core.runtime.session import prepare_session
 
 

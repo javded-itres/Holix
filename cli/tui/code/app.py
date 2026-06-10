@@ -10,12 +10,15 @@ import json
 import os
 import time
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any
 
-from rich.markdown import Markdown
+from core.agent import HelixAgent
+from core.agent_events import AgentEvent
+from core.plan_review.review_events import PlanReviewRequestEvent
+from core.security.confirmation import ConfirmationChoice
+from core.security.confirmation_events import ConfirmationRequestEvent
 from rich.panel import Panel
 from rich.syntax import Syntax
-
 from textual import events, on, work
 from textual.app import App, ComposeResult
 from textual.binding import Binding
@@ -33,10 +36,9 @@ from cli.tui.code.widgets import (
     SlashCommandSuggestions,
     TranscriptPanel,
 )
-from cli.tui.shared.slash_suggestions import match_slash_commands
+from cli.tui.modals import ModalStack, TranscriptViewerScreen
 from cli.tui.shared.clipboard import copy_text_best_effort
 from cli.tui.shared.copy_bar import COPY_BAR_ID, hide_copy_bar, show_copy_bar
-from cli.tui.modals import ModalStack, TranscriptViewerScreen
 from cli.tui.shared.keyboard_layout import (
     code_tui_bindings,
     is_macos,
@@ -47,12 +49,8 @@ from cli.tui.shared.keyboard_layout import (
     slash_command_prefix,
     terminal_copy_hint,
 )
+from cli.tui.shared.slash_suggestions import match_slash_commands
 from cli.tui.shared.transcript_store import TranscriptStore, plain_from_rich_write
-from core.agent import HelixAgent
-from core.agent_events import AgentEvent
-from core.plan_review.review_events import PlanReviewRequestEvent, PlanReviewResponseEvent
-from core.security.confirmation import ConfirmationChoice
-from core.security.confirmation_events import ConfirmationRequestEvent, ConfirmationResponseEvent
 
 
 class HelixCodeApp(App):
@@ -63,12 +61,12 @@ class HelixCodeApp(App):
 
     BINDINGS = code_tui_bindings()
 
-    def __init__(self, profile: str = "default", config: Optional[ProfileConfig] = None):
+    def __init__(self, profile: str = "default", config: ProfileConfig | None = None):
         super().__init__()
         self.profile = profile
         self.config = config or init_profile(profile)
         self.profile_manager = ProfileManager()
-        self.agent: Optional[HelixAgent] = None
+        self.agent: HelixAgent | None = None
         self._resolved_model = self.config.model
         self.active_model_slot = "main"
         self.active_model_label = ""
@@ -990,9 +988,10 @@ class HelixCodeApp(App):
             return
         self.transcript_write(f"[dim]Installing '{what}'... (using core logic)[/dim]")
         try:
-            from cli.core import get_profile_manager
             from core.mcp.installer import build_config_from_popular, install_from_git
             from core.mcp.popular import get_popular_by_key
+
+            from cli.core import get_profile_manager
 
             manager = get_profile_manager()
             cfg = manager.load_profile(self.profile)
@@ -1101,8 +1100,9 @@ class HelixCodeApp(App):
             return
         self.transcript_write(f"[dim]Testing {name}...[/dim]")
         try:
-            from cli.core import get_profile_manager
             from core.mcp.manager import MCPManager
+
+            from cli.core import get_profile_manager
             manager = get_profile_manager()
             cfg = manager.load_profile(self.profile)
             servers = getattr(cfg, "mcp_servers", {}) or {}

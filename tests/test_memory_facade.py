@@ -1,10 +1,9 @@
 """Tests for MemoryFacade and memory layer separation."""
 
 import pytest
-
 from core.di.runtime_config import HelixRuntimeConfig
-from core.memory.facade import MemoryFacade
 from core.memory.conversation import ConversationStore
+from core.memory.facade import MemoryFacade
 
 
 @pytest.fixture

@@ -1,22 +1,20 @@
 """Core profile management and initialization for Helix CLI."""
 
 import os
+from pathlib import Path
+from typing import Any
 
 import yaml
-from pathlib import Path
-from typing import Any, Dict, List, Optional
-from pydantic import BaseModel, Field
-
 from core.platform_compat import resolve_helix_home
 from core.profile_keys import (
     ProfileExistsError,
-    ProfileKeyError,
     ProfileNotFoundError,
     profile_has_access_key,
     require_profile_access_key,
     store_profile_access_key,
     verify_profile_access_key,
 )
+from pydantic import BaseModel, Field
 
 # Helix home directory (HELIX_HOME / XDG / %LOCALAPPDATA%\Helix / ~/.helix)
 HELIX_HOME = resolve_helix_home()
@@ -51,46 +49,46 @@ class ProfileConfig(BaseModel):
 
     # Profile settings
     profile_name: str = "default"
-    data_dir: Optional[str] = None
-    memory_db_path: Optional[str] = None
-    vector_db_path: Optional[str] = None
-    ltm_db_path: Optional[str] = None
-    langgraph_checkpoint_db_path: Optional[str] = None
-    skills_dir: Optional[str] = None
-    context_window: Optional[int] = None  # None = use default (128k), otherwise token count
+    data_dir: str | None = None
+    memory_db_path: str | None = None
+    vector_db_path: str | None = None
+    ltm_db_path: str | None = None
+    langgraph_checkpoint_db_path: str | None = None
+    skills_dir: str | None = None
+    context_window: int | None = None  # None = use default (128k), otherwise token count
 
     # System prompt
-    system_prompt: Optional[str] = None
+    system_prompt: str | None = None
 
     # Model providers and routing
-    providers: Dict[str, Any] = Field(default_factory=dict)
-    agent_models: Dict[str, Any] = Field(default_factory=dict)
-    default_provider: Optional[str] = None
+    providers: dict[str, Any] = Field(default_factory=dict)
+    agent_models: dict[str, Any] = Field(default_factory=dict)
+    default_provider: str | None = None
     models_via_providers: bool = False  # True after catalog providers were used
 
     # MCP (Model Context Protocol) servers — stored under ~/.helix only
-    mcp_servers: Dict[str, Dict[str, Any]] = Field(default_factory=dict)
-    mcp_assignments: Dict[str, List[str]] = Field(default_factory=dict)  # e.g. {"main": ["fs"], "researcher": ["fs", "git"]}
+    mcp_servers: dict[str, dict[str, Any]] = Field(default_factory=dict)
+    mcp_assignments: dict[str, list[str]] = Field(default_factory=dict)  # e.g. {"main": ["fs"], "researcher": ["fs", "git"]}
     mcp_enabled: bool = True
 
     # Skills: which skill names each agent/subagent may use (empty dict = all skills)
-    skill_assignments: Dict[str, List[str]] = Field(default_factory=dict)  # e.g. {"main": ["git"], "coder": ["git", "docker"]}
+    skill_assignments: dict[str, list[str]] = Field(default_factory=dict)  # e.g. {"main": ["git"], "coder": ["git", "docker"]}
 
     # Sub-agents
-    enable_subagents: Optional[bool] = None
-    subagent_default_process_mode: Optional[str] = None
-    subagent_max_concurrent: Optional[int] = None
+    enable_subagents: bool | None = None
+    subagent_default_process_mode: str | None = None
+    subagent_max_concurrent: int | None = None
 
     # Hub: optional background ClawHub version updates
     hub_auto_update: bool = False
     hub_auto_update_interval_hours: float = 24.0
 
     # Web search providers (duckduckgo, searxng, firecrawl)
-    search: Dict[str, Any] = Field(default_factory=dict)
+    search: dict[str, Any] = Field(default_factory=dict)
 
     # Workspace jail: restrict file/terminal tools to a single directory tree
     workspace_jail_enabled: bool = False
-    workspace_root: Optional[str] = None
+    workspace_root: str | None = None
 
 
 def resolve_profile_storage_paths(
@@ -102,7 +100,7 @@ def resolve_profile_storage_paths(
     """Bind profile storage paths to ~/.helix/profiles/<name>/ (not process CWD)."""
     base = (profile_dir or (profiles_dir() / profile)).resolve()
 
-    def _resolve(path: Optional[str], default: Path) -> str:
+    def _resolve(path: str | None, default: Path) -> str:
         if not path or not str(path).strip():
             return str(default.resolve())
         expanded = Path(path).expanduser()
@@ -178,7 +176,7 @@ class ProfileManager:
     def create_profile(
         self,
         profile: str,
-        config: Optional[ProfileConfig] = None,
+        config: ProfileConfig | None = None,
         *,
         with_access_key: bool = False,
     ) -> ProfileConfig:
@@ -334,8 +332,8 @@ class ProfileManager:
 
 # Global profile manager
 _profile_manager = ProfileManager()
-_current_profile: Optional[str] = None
-_current_config: Optional[ProfileConfig] = None
+_current_profile: str | None = None
+_current_config: ProfileConfig | None = None
 _unlocked_profiles: set[str] = set()
 
 

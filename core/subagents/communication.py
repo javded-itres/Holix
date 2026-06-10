@@ -11,8 +11,9 @@ import logging
 import multiprocessing
 import pickle
 import time
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import Any, Callable, Dict, List, Optional, Protocol
+from typing import Any, Protocol
 
 logger = logging.getLogger(__name__)
 
@@ -29,7 +30,7 @@ class AgentMessage:
     to_agent: str            # Recipient name
     msg_type: str            # "task" | "result" | "query" | "response" | "cancel" | "heartbeat" | "error"
     content: str = ""        # Message content
-    metadata: Dict[str, Any] = field(default_factory=dict)  # Additional data
+    metadata: dict[str, Any] = field(default_factory=dict)  # Additional data
     timestamp: float = field(default_factory=time.time)  # Unix timestamp
     message_id: str = ""     # Optional unique ID for request-response correlation
 
@@ -57,8 +58,8 @@ class AsyncCommunicationBus:
     """
 
     def __init__(self):
-        self._queues: Dict[str, asyncio.Queue] = {}
-        self._handlers: Dict[str, List[Callable]] = {}
+        self._queues: dict[str, asyncio.Queue] = {}
+        self._handlers: dict[str, list[Callable]] = {}
         self._lock = asyncio.Lock()
 
     async def register(self, agent_name: str) -> None:
@@ -109,7 +110,7 @@ class AsyncCommunicationBus:
         self,
         agent_name: str,
         timeout: float = 0.1,
-    ) -> Optional[AgentMessage]:
+    ) -> AgentMessage | None:
         """Receive a message for a specific agent.
 
         Args:
@@ -127,7 +128,7 @@ class AsyncCommunicationBus:
 
         try:
             return await asyncio.wait_for(queue.get(), timeout=timeout)
-        except asyncio.TimeoutError:
+        except TimeoutError:
             return None
 
     async def broadcast(self, message: AgentMessage) -> None:
@@ -165,7 +166,7 @@ class AsyncCommunicationBus:
             self._handlers[agent_name].append(handler)
 
     @property
-    def registered_agents(self) -> List[str]:
+    def registered_agents(self) -> list[str]:
         """List of registered agent names."""
         return list(self._queues.keys())
 
@@ -178,8 +179,8 @@ class ProcessCommunicationBus:
     """
 
     def __init__(self):
-        self._input_queues: Dict[str, multiprocessing.Queue] = {}
-        self._output_queues: Dict[str, multiprocessing.Queue] = {}
+        self._input_queues: dict[str, multiprocessing.Queue] = {}
+        self._output_queues: dict[str, multiprocessing.Queue] = {}
 
     def register(self, agent_name: str) -> None:
         """Register an agent with input/output queues.
@@ -211,7 +212,7 @@ class ProcessCommunicationBus:
         self,
         agent_name: str,
         timeout: float = 0.1,
-    ) -> Optional[AgentMessage]:
+    ) -> AgentMessage | None:
         """Receive a message from a sub-agent process.
 
         Args:
@@ -246,7 +247,7 @@ class ProcessCommunicationBus:
         self,
         agent_name: str,
         timeout: float = 0.1,
-    ) -> Optional[AgentMessage]:
+    ) -> AgentMessage | None:
         """Receive a message from the main agent (in sub-agent process).
 
         Args:
@@ -265,16 +266,16 @@ class ProcessCommunicationBus:
         except Exception:
             return None
 
-    def get_input_queue(self, agent_name: str) -> Optional[multiprocessing.Queue]:
+    def get_input_queue(self, agent_name: str) -> multiprocessing.Queue | None:
         """Get the raw input queue for a sub-agent (for subprocess init)."""
         return self._input_queues.get(agent_name)
 
-    def get_output_queue(self, agent_name: str) -> Optional[multiprocessing.Queue]:
+    def get_output_queue(self, agent_name: str) -> multiprocessing.Queue | None:
         """Get the raw output queue for a sub-agent (for subprocess init)."""
         return self._output_queues.get(agent_name)
 
     @property
-    def registered_agents(self) -> List[str]:
+    def registered_agents(self) -> list[str]:
         """List of registered agent names."""
         return list(self._input_queues.keys())
 
@@ -334,7 +335,7 @@ class AgentCommunicationBus:
         agent_name: str,
         process_mode: str = "async",
         timeout: float = 0.1,
-    ) -> Optional[AgentMessage]:
+    ) -> AgentMessage | None:
         """Receive a message for an agent.
 
         Args:

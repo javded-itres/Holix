@@ -1,5 +1,5 @@
 import json
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from core.tools.aliases import resolve_tool_name
 from core.tools.base import BaseTool
@@ -11,10 +11,10 @@ class ToolRegistry:
     def __init__(
         self,
         *,
-        workspace_root: Optional[str] = None,
+        workspace_root: str | None = None,
         workspace_jail_enabled: bool = False,
     ):
-        self.tools: Dict[str, BaseTool] = {}
+        self.tools: dict[str, BaseTool] = {}
         self._action_guard = None  # Set by set_action_guard()
         self._workspace_root = workspace_root
         self._workspace_jail_enabled = workspace_jail_enabled
@@ -47,14 +47,14 @@ class ToolRegistry:
 
     def register_all(self) -> None:
         """Import and register all available tools."""
-        from core.tools.terminal import TerminalTool
-        from core.tools.file_ops import ReadFileTool, WriteFileTool, ListDirectoryTool
-        from core.tools.web_search import WebSearchTool, WebFetchTool
-        from core.tools.database import SQLQueryTool, SQLSchemaTool
-        from core.tools.code_executor import PythonExecutorTool, MathCalculatorTool
         from core.tools.ask_user import AskUserTool
+        from core.tools.code_executor import MathCalculatorTool, PythonExecutorTool
+        from core.tools.database import SQLQueryTool, SQLSchemaTool
+        from core.tools.file_ops import ReadFileTool, WriteFileTool
         from core.tools.send_chat_files import SendChatFilesTool
         from core.tools.session_memory import ReadSessionTool, SearchSessionsTool
+        from core.tools.terminal import TerminalTool
+        from core.tools.web_search import WebFetchTool, WebSearchTool
 
         # File operations
         self.register(ReadFileTool())
@@ -94,7 +94,7 @@ class ToolRegistry:
 
             register_browser_tools(self)
 
-    async def register_mcp(self, mcp_servers: Dict[str, Any], assignments: Optional[Dict[str, List[str]]] = None, slot: str = "main") -> int:
+    async def register_mcp(self, mcp_servers: dict[str, Any], assignments: dict[str, list[str]] | None = None, slot: str = "main") -> int:
         """Dynamically register MCP tools for this registry (called from agent init).
 
         Returns number of tools registered.
@@ -128,7 +128,7 @@ class ToolRegistry:
             print(f"Warning: MCP registration skipped: {exc}")
             return 0
 
-    def get_schemas(self) -> List[Dict[str, Any]]:
+    def get_schemas(self) -> list[dict[str, Any]]:
         """Get OpenAI-compatible schemas for all registered tools.
 
         Returns:
@@ -210,7 +210,7 @@ class ToolRegistry:
                 reset_memory_facade_scope(mem_token)
             reset_workspace_scope(ws_tokens)
 
-    def get_tool_names(self) -> List[str]:
+    def get_tool_names(self) -> list[str]:
         """Get names of all registered tools.
 
         Returns:

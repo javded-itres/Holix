@@ -1,17 +1,8 @@
 import asyncio
-from contextlib import asynccontextmanager
-from typing import Optional
-
-from dishka.integrations.fastapi import setup_dishka
-from fastapi import FastAPI, HTTPException, Header, Depends
-from fastapi.responses import PlainTextResponse
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import StreamingResponse
-from datetime import datetime
 import time
+from contextlib import asynccontextmanager
+from datetime import datetime
 
-from api.docs_chat import router as docs_chat_router
-from api.models import ChatCompletionRequest, ChatCompletionResponse
 from core.agent import HelixAgent
 from core.agent_events import create_compatibility_print_handler
 from core.di.container import (
@@ -19,12 +10,19 @@ from core.di.container import (
     get_agent_from_container,
     resolve_gateway_runtime_config,
 )
-from config import settings
-from api.deps import verify_admin_key, verify_api_key
-import api.deps as gateway_deps
 from core.loop_streaming import StreamingAgentLoop
 from core.security.auth import APIKeyManager, RateLimiter
 from core.security.permissions import PermissionChecker
+from dishka.integrations.fastapi import setup_dishka
+from fastapi import Depends, FastAPI, Header, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import PlainTextResponse, StreamingResponse
+
+import api.deps as gateway_deps
+from api.deps import verify_admin_key, verify_api_key
+from api.docs_chat import router as docs_chat_router
+from api.models import ChatCompletionRequest, ChatCompletionResponse
+from config import settings
 
 
 @asynccontextmanager
@@ -67,8 +65,8 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-agent: Optional[HelixAgent] = None
-api_key_manager: Optional[APIKeyManager] = None
+agent: HelixAgent | None = None
+api_key_manager: APIKeyManager | None = None
 rate_limiter = RateLimiter()
 _agent_request_lock = asyncio.Lock()
 
@@ -101,8 +99,8 @@ async def health():
 
 @app.get("/metrics")
 async def prometheus_metrics(
-    authorization: Optional[str] = Header(None),
-    x_api_key: Optional[str] = Header(None),
+    authorization: str | None = Header(None),
+    x_api_key: str | None = Header(None),
 ):
     """Prometheus metrics. Requires admin key in production."""
     if not settings.enable_prometheus_metrics:
@@ -110,8 +108,9 @@ async def prometheus_metrics(
     if settings.is_production:
         await verify_admin_key(authorization=authorization, x_api_key=x_api_key)
 
-    from api.prometheus import format_prometheus
     from core.monitoring import metrics as global_metrics
+
+    from api.prometheus import format_prometheus
 
     return PlainTextResponse(
         format_prometheus(global_metrics),
@@ -122,7 +121,7 @@ async def prometheus_metrics(
 @app.post("/v1/chat/completions", response_model=ChatCompletionResponse)
 async def chat_completions(
     request: ChatCompletionRequest,
-    key_info: Optional[dict] = Depends(verify_api_key)
+    key_info: dict | None = Depends(verify_api_key)
 ):
     """OpenAI-compatible chat completions endpoint.
 
@@ -214,7 +213,7 @@ async def chat_completions(
 async def get_conversation(
     conversation_id: str,
     limit: int = 30,
-    key_info: Optional[dict] = Depends(verify_api_key)
+    key_info: dict | None = Depends(verify_api_key)
 ):
     """Get conversation history.
 
@@ -239,7 +238,7 @@ async def get_conversation(
 
 
 @app.get("/v1/skills")
-async def list_skills(key_info: Optional[dict] = Depends(verify_api_key)):
+async def list_skills(key_info: dict | None = Depends(verify_api_key)):
     """List all available skills.
 
     Returns:
@@ -257,7 +256,7 @@ async def list_skills(key_info: Optional[dict] = Depends(verify_api_key)):
 
 
 @app.get("/v1/tools")
-async def list_tools(key_info: Optional[dict] = Depends(verify_api_key)):
+async def list_tools(key_info: dict | None = Depends(verify_api_key)):
     """List all available tools.
 
     Returns:
@@ -278,7 +277,7 @@ async def list_tools(key_info: Optional[dict] = Depends(verify_api_key)):
 async def search_memory(
     query: str,
     top_k: int = 5,
-    key_info: Optional[dict] = Depends(verify_api_key),
+    key_info: dict | None = Depends(verify_api_key),
 ):
     """Search through agent memory.
 
@@ -398,8 +397,8 @@ async def grant_permission(
     tool_name: str,
     risk_level: str = "high",
     scope: str = "session",
-    argument_pattern: Optional[str] = None,
-    key_info: Optional[dict] = Depends(verify_api_key),
+    argument_pattern: str | None = None,
+    key_info: dict | None = Depends(verify_api_key),
 ):
     """Pre-authorize a tool for subsequent calls.
 
@@ -413,7 +412,8 @@ async def grant_permission(
         argument_pattern: Optional specific pattern to match.
         key_info: API key info (if auth is enabled).
     """
-    from core.security.confirmation import permission_manager, PermissionScope, RiskLevel as RL
+    from core.security.confirmation import PermissionScope, permission_manager
+    from core.security.confirmation import RiskLevel as RL
 
     if key_info:
         checker = PermissionChecker(key_info["permissions"])
@@ -441,7 +441,7 @@ async def grant_permission(
 
 
 @app.get("/v1/permissions")
-async def list_permissions(key_info: Optional[dict] = Depends(verify_api_key)):
+async def list_permissions(key_info: dict | None = Depends(verify_api_key)):
     """List all active permission grants."""
     from core.security.confirmation import permission_manager
 
@@ -453,10 +453,10 @@ async def list_permissions(key_info: Optional[dict] = Depends(verify_api_key)):
 async def revoke_permission(
     grant_key: str,
     scope: str = "always",
-    key_info: Optional[dict] = Depends(verify_api_key),
+    key_info: dict | None = Depends(verify_api_key),
 ):
     """Revoke a permission grant."""
-    from core.security.confirmation import permission_manager, PermissionScope
+    from core.security.confirmation import PermissionScope, permission_manager
 
 
     try:
@@ -488,7 +488,7 @@ async def revoke_permission(
 async def resolve_confirmation(
     confirmation_id: str,
     choice: str,
-    key_info: Optional[dict] = Depends(verify_api_key),
+    key_info: dict | None = Depends(verify_api_key),
 ):
     """Resolve a pending dangerous-action confirmation (same guard as TUI).
 
@@ -496,7 +496,7 @@ async def resolve_confirmation(
         confirmation_id: ID from ConfirmationRequestEvent.
         choice: One of allow_once, allow_session, allow_always, deny.
     """
-    from core.security.confirmation import get_action_guard, ConfirmationChoice
+    from core.security.confirmation import ConfirmationChoice, get_action_guard
 
     if key_info:
         checker = PermissionChecker(key_info["permissions"])
@@ -548,7 +548,7 @@ async def resolve_plan_review(
     review_id: str,
     choice: str,
     feedback: str = "",
-    key_info: Optional[dict] = Depends(verify_api_key),
+    key_info: dict | None = Depends(verify_api_key),
 ):
     """Resolve a pending plan review request.
 
@@ -561,7 +561,7 @@ async def resolve_plan_review(
         feedback: Optional refinement feedback (used when choice is "refine").
         key_info: API key info (if auth is enabled).
     """
-    from core.plan_review.review_guard import get_plan_review_guard, PlanReviewChoice
+    from core.plan_review.review_guard import PlanReviewChoice, get_plan_review_guard
 
     if key_info:
         checker = PermissionChecker(key_info["permissions"])
@@ -594,7 +594,7 @@ async def resolve_plan_review(
 
 
 @app.get("/v1/plans")
-async def list_plans(limit: int = 20, key_info: Optional[dict] = Depends(verify_api_key)):
+async def list_plans(limit: int = 20, key_info: dict | None = Depends(verify_api_key)):
     """List all saved execution plans.
 
     Args:
@@ -608,7 +608,7 @@ async def list_plans(limit: int = 20, key_info: Optional[dict] = Depends(verify_
 
 
 @app.get("/v1/plans/{plan_id}")
-async def get_plan(plan_id: str, key_info: Optional[dict] = Depends(verify_api_key)):
+async def get_plan(plan_id: str, key_info: dict | None = Depends(verify_api_key)):
     """Get a specific plan by its path.
 
     Args:

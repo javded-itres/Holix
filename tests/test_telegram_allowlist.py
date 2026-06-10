@@ -1,7 +1,6 @@
 """Telegram user allowlist — default-deny behavior."""
 
 import pytest
-
 from integrations.telegram.bot import HelixTelegramBot
 from integrations.telegram.config import TelegramSettings
 

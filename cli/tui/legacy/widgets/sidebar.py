@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from textual.app import ComposeResult
 from textual.containers import Vertical
-from textual.widgets import Static, Button, ListView, Collapsible
+from textual.widgets import Button, Collapsible, ListView, Static
 
 
 class HelixSidebar(Vertical):

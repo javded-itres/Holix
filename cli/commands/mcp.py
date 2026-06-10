@@ -3,17 +3,17 @@
 from __future__ import annotations
 
 import asyncio
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 import typer
+from core.mcp.installer import build_config_from_popular, clone_or_update_git, install_from_git
+from core.mcp.popular import get_popular_by_key, get_popular_list
 from rich.console import Console
 from rich.prompt import Confirm, Prompt
 from rich.table import Table
 
-from cli.core import get_profile_manager, get_current_config
+from cli.core import get_profile_manager
 from cli.utils.rich_console import print_error, print_info, print_success
-from core.mcp.installer import build_config_from_popular, clone_or_update_git, install_from_git
-from core.mcp.popular import PopularMCPServer, get_popular_by_key, get_popular_list
 
 app = typer.Typer(help="Manage MCP servers: install popular ones or from git, configure, assign to agents/subs")
 
@@ -27,7 +27,7 @@ def _get_config_and_manager(ctx: typer.Context):
     return profile, config, manager
 
 
-def _save_mcp_server(profile: str, manager, config, name: str, data: Dict[str, Any]) -> None:
+def _save_mcp_server(profile: str, manager, config, name: str, data: dict[str, Any]) -> None:
     servers = dict(getattr(config, "mcp_servers", {}) or {})
     servers[name] = data
     config.mcp_servers = servers  # type: ignore[attr-defined]
@@ -69,7 +69,7 @@ def _interactive_popular_install(profile: str, manager, config) -> None:
         return
 
     print_info(f"Installing {pop.display_name}...")
-    params: Dict[str, str] = {}
+    params: dict[str, str] = {}
     for key, prompt in pop.param_prompts.items():
         default = pop.default_params.get(key, "")
         val = Prompt.ask(prompt, default=default)
@@ -196,7 +196,7 @@ def mcp_list(ctx: typer.Context):
 
 
 @app.command("add")
-def mcp_add(ctx: typer.Context, name: Optional[str] = typer.Argument(None, help="Server name (e.g. filesystem)")):
+def mcp_add(ctx: typer.Context, name: str | None = typer.Argument(None, help="Server name (e.g. filesystem)")):
     """Advanced: manually configure an MCP server (stdio/sse).
 
     For popular ready-made servers (context7, filesystem, github, etc.) or git repos,
@@ -416,7 +416,7 @@ def mcp_list_popular():
 @app.command("install")
 def mcp_install(
     ctx: typer.Context,
-    what: Optional[str] = typer.Argument(
+    what: str | None = typer.Argument(
         None,
         help="Popular key (e.g. filesystem, context7, github) OR a git URL. If omitted, shows interactive menu."
     )

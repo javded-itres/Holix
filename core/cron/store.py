@@ -3,10 +3,11 @@
 from __future__ import annotations
 
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 from cli.core import ProfileManager
+
 from core.cron.expressions import format_next_run_iso, validate_cron_expression
 from core.cron.models import CronJob, CronJobStore
 
@@ -98,7 +99,7 @@ class CronStore:
 
     def update(self, job: CronJob) -> CronJob:
         store = self.load()
-        job.updated_at = datetime.now(timezone.utc).isoformat()
+        job.updated_at = datetime.now(UTC).isoformat()
         self._touch_next_run(job)
         for i, j in enumerate(store.jobs):
             if j.id == job.id:

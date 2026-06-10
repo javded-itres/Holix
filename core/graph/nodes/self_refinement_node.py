@@ -7,12 +7,12 @@ iterations are exhausted.
 """
 
 import logging
-from typing import Any, Dict
+
+from langchain_core.runnables import RunnableConfig
 
 from core.graph.state import HelixGraphState, get_agent_from_config
-from core.self_refinement.loop import SelfRefinementLoop
 from core.meta_agent import MetaAgent
-from langchain_core.runnables import RunnableConfig
+from core.self_refinement.loop import SelfRefinementLoop
 
 logger = logging.getLogger(__name__)
 

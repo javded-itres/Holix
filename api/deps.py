@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-from typing import Optional
-
 from fastapi import Header, HTTPException
 
 from config import settings
@@ -14,9 +12,9 @@ rate_limiter = None
 
 
 def _extract_api_key(
-    authorization: Optional[str],
-    x_api_key: Optional[str],
-) -> Optional[str]:
+    authorization: str | None,
+    x_api_key: str | None,
+) -> str | None:
     if authorization and authorization.startswith("Bearer "):
         return authorization[7:]
     if x_api_key:
@@ -41,9 +39,9 @@ async def _validate_key(api_key: str, *, default_limit: int) -> dict:
 
 
 async def verify_api_key(
-    authorization: Optional[str] = Header(None),
-    x_api_key: Optional[str] = Header(None),
-) -> Optional[dict]:
+    authorization: str | None = Header(None),
+    x_api_key: str | None = Header(None),
+) -> dict | None:
     """Optional auth for public /v1 routes when require_auth is disabled."""
     if not settings.effective_require_auth:
         api_key = _extract_api_key(authorization, x_api_key)
@@ -58,8 +56,8 @@ async def verify_api_key(
 
 
 async def verify_admin_key(
-    authorization: Optional[str] = Header(None),
-    x_api_key: Optional[str] = Header(None),
+    authorization: str | None = Header(None),
+    x_api_key: str | None = Header(None),
 ) -> dict:
     """Admin routes always require a valid admin API key."""
     from core.security.permissions import PermissionChecker

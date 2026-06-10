@@ -3,14 +3,14 @@
 from __future__ import annotations
 
 from contextvars import ContextVar
-from typing import Any, Optional
+from typing import Any
 
 _conversation_id: ContextVar[str] = ContextVar("helix_conversation_id", default="default")
 _subagent_name: ContextVar[str] = ContextVar("helix_subagent_name", default="")
 _interaction_bridge: ContextVar[Any] = ContextVar("helix_interaction_bridge", default=None)
 _chat_delivery_bridge: ContextVar[Any] = ContextVar("helix_chat_delivery_bridge", default=None)
 _memory_facade: ContextVar[Any] = ContextVar("helix_memory_facade", default=None)
-_workspace_root: ContextVar[Optional[str]] = ContextVar("helix_workspace_root", default=None)
+_workspace_root: ContextVar[str | None] = ContextVar("helix_workspace_root", default=None)
 _workspace_jail_enabled: ContextVar[bool] = ContextVar("helix_workspace_jail_enabled", default=False)
 
 
@@ -22,19 +22,19 @@ def get_subagent_name() -> str:
     return _subagent_name.get()
 
 
-def get_interaction_bridge() -> Optional[Any]:
+def get_interaction_bridge() -> Any | None:
     return _interaction_bridge.get()
 
 
-def get_chat_delivery_bridge() -> Optional[Any]:
+def get_chat_delivery_bridge() -> Any | None:
     return _chat_delivery_bridge.get()
 
 
-def get_memory_facade() -> Optional[Any]:
+def get_memory_facade() -> Any | None:
     return _memory_facade.get()
 
 
-def get_workspace_root() -> Optional[str]:
+def get_workspace_root() -> str | None:
     return _workspace_root.get()
 
 
@@ -71,7 +71,7 @@ def reset_memory_facade_scope(token) -> None:
 
 def workspace_scope(
     *,
-    workspace_root: Optional[str] = None,
+    workspace_root: str | None = None,
     workspace_jail_enabled: bool = False,
 ):
     """Return tokens for workspace jail context."""

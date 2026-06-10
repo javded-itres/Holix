@@ -2,10 +2,9 @@
 
 from __future__ import annotations
 
+from cli.tui.shared.copy_bar import selection_has_text
 from textual.geometry import Offset
 from textual.selection import Selection
-
-from cli.tui.shared.copy_bar import selection_has_text
 
 
 def test_selection_has_text_range():

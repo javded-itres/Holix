@@ -11,7 +11,7 @@ from typing import Any
 
 from core.hub.claude_convert import convert_command_file
 from core.hub.claude_mcp import parse_claude_mcp_json
-from core.mcp.installer import clone_or_update_git, _run
+from core.mcp.installer import _run, clone_or_update_git
 from core.platform_compat import resolve_helix_home
 
 HUB_CACHE = resolve_helix_home() / "hub-cache"

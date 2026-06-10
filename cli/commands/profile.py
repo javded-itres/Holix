@@ -7,15 +7,15 @@ import subprocess
 from pathlib import Path
 
 import typer
-
-from cli.core import get_current_config, get_profile_manager, unlock_profile
-from cli.utils.rich_console import print_error, print_info, print_success, print_warning
 from core.profile_keys import (
     profile_has_access_key,
     remove_profile_access_key,
     store_profile_access_key,
     verify_profile_access_key,
 )
+
+from cli.core import get_current_config, get_profile_manager, unlock_profile
+from cli.utils.rich_console import print_error, print_info, print_success, print_warning
 
 app = typer.Typer(help="Manage profile isolation (env, workspace jail, access keys)")
 jail_app = typer.Typer(help="Restrict agent file/terminal access to one directory")
@@ -177,7 +177,7 @@ def profile_env(
     edit: bool = typer.Option(False, "--edit", "-e", help="Open profile .env in editor"),
 ) -> None:
     """Show or edit the active profile's ``.env`` file."""
-    from core.env_loader import ensure_profile_env_template, profile_env_path
+    from core.env_loader import ensure_profile_env_template
 
     profile = _profile(ctx)
     path = ensure_profile_env_template(profile)
@@ -292,7 +292,6 @@ def whitelist_add(
 @whitelist_app.command("list")
 def whitelist_list(ctx: typer.Context) -> None:
     """List terminal whitelist settings for the active profile."""
-    from cli.utils.rich_console import print_panel
     from core.env_loader import profile_env_path
     from core.platform_compat import IS_WINDOWS
     from core.terminal_whitelist_config import (
@@ -301,6 +300,8 @@ def whitelist_list(ctx: typer.Context) -> None:
         read_whitelist_enabled,
         read_whitelist_extra,
     )
+
+    from cli.utils.rich_console import print_panel
 
     profile = _profile(ctx)
     enabled = read_whitelist_enabled(profile)

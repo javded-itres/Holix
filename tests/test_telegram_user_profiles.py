@@ -5,7 +5,6 @@ from __future__ import annotations
 import json
 
 import pytest
-
 from integrations.telegram.user_profiles import (
     ENV_KEY,
     format_user_profiles_text,

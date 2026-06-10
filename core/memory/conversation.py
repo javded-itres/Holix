@@ -6,7 +6,7 @@ import json
 import logging
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 import aiosqlite
 import chromadb
@@ -75,7 +75,7 @@ class ConversationStore:
         conversation_id: str,
         role: str,
         content: str,
-        metadata: Optional[Dict[str, Any]] = None,
+        metadata: dict[str, Any] | None = None,
     ) -> int:
         async with aiosqlite.connect(self.db_path) as db:
             cursor = await db.execute(
@@ -113,7 +113,7 @@ class ConversationStore:
         self,
         conversation_id: str,
         limit: int = 30,
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         async with aiosqlite.connect(self.db_path) as db:
             db.row_factory = aiosqlite.Row
             cursor = await db.execute(
@@ -132,7 +132,7 @@ class ConversationStore:
 
             messages = []
             for row in rows:
-                msg: Dict[str, Any] = {"role": row["role"], "content": row["content"]}
+                msg: dict[str, Any] = {"role": row["role"], "content": row["content"]}
                 if row["metadata"]:
                     try:
                         parsed = json.loads(row["metadata"])
@@ -148,8 +148,8 @@ class ConversationStore:
         self,
         query: str,
         top_k: int = 8,
-        conversation_id: Optional[str] = None,
-    ) -> List[Dict[str, Any]]:
+        conversation_id: str | None = None,
+    ) -> list[dict[str, Any]]:
         try:
             where_filter = {"conversation_id": conversation_id} if conversation_id else None
             results = self.collection.query(
@@ -175,7 +175,7 @@ class ConversationStore:
     async def replace_conversation_messages(
         self,
         conversation_id: str,
-        new_messages: List[Dict[str, Any]],
+        new_messages: list[dict[str, Any]],
     ) -> int:
         async with aiosqlite.connect(self.db_path) as db:
             await db.execute(

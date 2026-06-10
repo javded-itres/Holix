@@ -2,23 +2,28 @@
 
 from __future__ import annotations
 
-from typing import Optional
-
-import typer
 from pathlib import Path
 
-from cli.core import get_profile_manager
-from cli.utils.rich_console import print_error, print_info, print_success, print_table, print_warning
+import typer
 from core.hub import SkillImporter
-from core.hub.clawhub import ClawHubClient
+from core.hub.autoupdate import run_hub_autoupdate, suggested_cron_line
 from core.hub.claude_marketplace import MARKETPLACES, list_plugins, search_plugins
 from core.hub.claude_mcp import merge_into_profile_servers
+from core.hub.clawhub import ClawHubClient
 from core.hub.hermes_hub import list_hermes_skills, search_hermes_skills
-from core.hub.skills_sh import search_skills_sh
-from core.hub.autoupdate import run_hub_autoupdate, suggested_cron_line
-from core.hub.updates import check_hub_updates
 from core.hub.interactive import run_interactive_hub
+from core.hub.skills_sh import search_skills_sh
 from core.hub.slash_registry import rebuild_slash_registry
+from core.hub.updates import check_hub_updates
+
+from cli.core import get_profile_manager
+from cli.utils.rich_console import (
+    print_error,
+    print_info,
+    print_success,
+    print_table,
+    print_warning,
+)
 
 app = typer.Typer(help="Discover and install skills from external catalogs")
 
@@ -169,14 +174,14 @@ def hub_browse(
 @app.command("install")
 def hub_install(
     ctx: typer.Context,
-    spec: Optional[str] = typer.Argument(
+    spec: str | None = typer.Argument(
         None,
         help="Omit for interactive picker, or: clawhub slug | claude:plugin@marketplace | git URL | path",
     ),
     as_name: str | None = typer.Option(None, "--as", help="Override Helix skill name"),
     no_flat: bool = typer.Option(False, "--no-flat", help="Skip flat .md copy in skills root"),
     with_mcp: bool = typer.Option(True, "--with-mcp/--no-mcp", help="Merge Claude plugin MCP into profile"),
-    agents: Optional[str] = typer.Option(
+    agents: str | None = typer.Option(
         None,
         "--agents",
         help="Comma-separated agent slots that may use installed skill(s) (e.g. main,coder)",
@@ -347,12 +352,12 @@ def hub_autoupdate(
     force: bool = typer.Option(False, "--force", help="Run even if interval not elapsed"),
     dry_run: bool = typer.Option(False, "--dry-run", help="Show what would update"),
     full: bool = typer.Option(False, "--full", help="Reinstall all lock entries (not only ClawHub bumps)"),
-    enable: Optional[bool] = typer.Option(
+    enable: bool | None = typer.Option(
         None,
         "--enable/--disable",
         help="Persist hub_auto_update in profile config",
     ),
-    interval_hours: Optional[float] = typer.Option(
+    interval_hours: float | None = typer.Option(
         None,
         "--interval",
         help="Hours between automatic runs (saved to profile if set)",

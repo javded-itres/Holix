@@ -6,7 +6,6 @@ import re
 from dataclasses import dataclass, field
 from typing import Any
 
-
 _RICH_TAG_RE = re.compile(r"\[/?[^\]]+\]")
 
 
@@ -123,8 +122,9 @@ def plain_from_rich_write(content: Any) -> tuple[str, str | None]:
     if markdown_src and isinstance(markdown_src, str):
         return markdown_src.strip(), markdown_src.strip()
     try:
-        from rich.console import Console
         from io import StringIO
+
+        from rich.console import Console
 
         buf = StringIO()
         Console(file=buf, width=120, legacy_windows=False).print(content)

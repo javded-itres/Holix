@@ -22,7 +22,6 @@ def test_helix_md_path_under_dot_helix(tmp_path: Path) -> None:
 
 
 def test_load_and_inject(tmp_path: Path, monkeypatch) -> None:
-    import os
 
     monkeypatch.chdir(tmp_path)
     helix = tmp_path / ".helix"

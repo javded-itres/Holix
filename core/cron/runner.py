@@ -4,10 +4,11 @@ from __future__ import annotations
 
 import logging
 import time
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from cli.core import ProfileManager
+
 from core.cron.expressions import format_next_run_iso
 from core.cron.models import CronJob
 from core.cron.notifier import format_status_message, send_telegram_notification
@@ -21,7 +22,7 @@ logger = logging.getLogger(__name__)
 def _append_run_log(profile: str, line: str) -> None:
     path = runs_log_path(profile)
     path.parent.mkdir(parents=True, exist_ok=True)
-    ts = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
+    ts = datetime.now(UTC).strftime("%Y-%m-%d %H:%M:%S UTC")
     with path.open("a", encoding="utf-8") as f:
         f.write(f"[{ts}] {line}\n")
 
@@ -129,7 +130,7 @@ async def run_cron_job(job: CronJob) -> None:
 
         if job.notify_chat_id and "status" in job.task.lower():
             status = await _gather_agent_status(agent)
-            ts = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
+            ts = datetime.now(UTC).strftime("%Y-%m-%d %H:%M:%S UTC")
             message = format_status_message(
                 session_name=status["session_name"],
                 model=status["model"],
@@ -197,7 +198,7 @@ async def run_cron_job(job: CronJob) -> None:
                 await container.close()
             except Exception:
                 pass
-        job.last_run_at = datetime.now(timezone.utc).isoformat()
+        job.last_run_at = datetime.now(UTC).isoformat()
         job.last_duration_s = round(time.monotonic() - started, 2)
         job.run_count += 1
         try:

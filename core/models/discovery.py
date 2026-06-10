@@ -1,6 +1,7 @@
 """Model discovery from OpenAI-compatible endpoints."""
 
-from typing import List, Dict, Any, Optional
+from typing import Any
+
 import aiohttp
 
 from core.models.catalog import detect_preset_from_url
@@ -14,8 +15,8 @@ class ModelDiscovery:
     async def discover_models(
         base_url: str,
         api_key: str = "dummy",
-        metadata: Optional[Dict[str, Any]] = None,
-    ) -> List[Dict[str, Any]]:
+        metadata: dict[str, Any] | None = None,
+    ) -> list[dict[str, Any]]:
         """Discover available models from an endpoint.
 
         Args:
@@ -69,8 +70,8 @@ class ModelDiscovery:
     @staticmethod
     async def _get_ollama_context_lengths(
         base_url: str,
-        metadata: Optional[Dict[str, Any]] = None,
-    ) -> Dict[str, int]:
+        metadata: dict[str, Any] | None = None,
+    ) -> dict[str, int]:
         """Get context lengths for Ollama models via /api/show endpoint.
 
         Args:
@@ -140,7 +141,7 @@ class ModelDiscovery:
     async def test_endpoint(
         base_url: str,
         api_key: str = "dummy",
-        metadata: Optional[Dict[str, Any]] = None,
+        metadata: dict[str, Any] | None = None,
     ) -> bool:
         """Test if endpoint is accessible and compatible.
 
@@ -167,8 +168,8 @@ class ModelDiscovery:
         base_url: str,
         model_id: str,
         api_key: str = "dummy",
-        metadata: Optional[Dict[str, Any]] = None,
-    ) -> Optional[Dict[str, Any]]:
+        metadata: dict[str, Any] | None = None,
+    ) -> dict[str, Any] | None:
         """Get detailed information about a specific model.
 
         Args:
@@ -198,7 +199,7 @@ class ModelDiscovery:
     @staticmethod
     def detect_provider_type(
         base_url: str,
-        metadata: Optional[Dict[str, Any]] = None,
+        metadata: dict[str, Any] | None = None,
     ) -> str:
         """Detect provider type from URL, metadata, or catalog."""
         if metadata and metadata.get("preset_id"):

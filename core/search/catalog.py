@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Dict, List
 
 
 @dataclass
@@ -12,10 +11,10 @@ class SearchProviderSpec:
     display_name: str
     description: str
     requires_config: bool = False
-    config_prompts: Dict[str, str] = field(default_factory=dict)
-    defaults: Dict[str, str] = field(default_factory=dict)
-    secret_fields: List[str] = field(default_factory=list)
-    env_hints: Dict[str, str] = field(default_factory=dict)
+    config_prompts: dict[str, str] = field(default_factory=dict)
+    defaults: dict[str, str] = field(default_factory=dict)
+    secret_fields: list[str] = field(default_factory=list)
+    env_hints: dict[str, str] = field(default_factory=dict)
 
 
 SEARCH_PROVIDERS: list[SearchProviderSpec] = [

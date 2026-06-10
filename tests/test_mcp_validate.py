@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import pytest
-
 from core.mcp.installer import build_config_from_popular
 from core.mcp.popular import get_popular_by_key
 from core.mcp.validate import format_mcp_error, normalize_allowed_paths

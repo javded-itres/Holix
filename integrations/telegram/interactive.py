@@ -5,21 +5,22 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 
 from core.i18n import host_locale, t
+
 from integrations.telegram.keyboards import (
     MODE_LABELS,
+    SKILLS_PAGE_SIZE,
     mode_picker_html,
     mode_picker_keyboard,
     models_provider_keyboard,
     models_root_keyboard,
     parse_callback,
-    profile_picker_keyboard,
     sessions_picker_keyboard,
     skills_picker_keyboard,
-    SKILLS_PAGE_SIZE,
     status_menu_keyboard,
     stream_picker_keyboard,
     tools_picker_keyboard,
 )
+from integrations.telegram.markdown import escape_html
 from integrations.telegram.model_switch import (
     MODELS_PAGE_SIZE,
     PROVIDERS_PAGE_SIZE,
@@ -28,7 +29,6 @@ from integrations.telegram.model_switch import (
     build_models_menu,
     current_model_label,
 )
-from integrations.telegram.markdown import escape_html
 
 if TYPE_CHECKING:
     from integrations.telegram.host import TelegramHost
@@ -169,9 +169,9 @@ class TelegramInteractive:
     async def show_cron_menu(self) -> None:
         """Cron jobs list with enable/disable/delete buttons."""
         from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
-
         from cli.shared.commands.cron_commands import format_jobs_message
         from core.cron.store import CronStore
+
         from integrations.telegram.keyboards import _cb
 
         host = self._host
@@ -279,6 +279,7 @@ class TelegramInteractive:
     async def show_mcp_menu(self, command: str = "/mcp") -> None:
         """Show MCP management menu with inline keyboard."""
         from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
+
         from integrations.telegram.markdown import escape_html
 
         cmd = command.lower()
@@ -294,7 +295,7 @@ class TelegramInteractive:
             cfg = None
 
         servers = getattr(cfg, "mcp_servers", {}) if cfg else {}
-        assignments = getattr(cfg, "mcp_assignments", {}) if cfg else {}
+        getattr(cfg, "mcp_assignments", {}) if cfg else {}
 
         text_lines = [f"<b>MCP Servers</b> · профиль <code>{escape_html(profile)}</code>"]
 
@@ -597,7 +598,6 @@ class TelegramInteractive:
         )
 
     async def _show_mcp_assign_picker(self) -> None:
-        from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
         from cli.core import get_profile_manager
 
         try:
@@ -619,6 +619,7 @@ class TelegramInteractive:
     async def _show_mcp_remove_picker(self) -> None:
         from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
         from cli.core import get_profile_manager
+
         from integrations.telegram.markdown import escape_html
 
         try:
@@ -642,16 +643,6 @@ class TelegramInteractive:
         await self._host._send_html_with_keyboard(
             "<b>Выберите MCP сервер для удаления:</b>",
             kb
-        )
-        lines = [
-            "<b>Профиль Helix</b>",
-            f"Сейчас: <code>{escape_html(self._host.profile)}</code>",
-            "",
-            "<i>Профиль задаёт модели, память и skills. Смена создаёт новую сессию.</i>",
-        ]
-        await self._host._send_html_with_keyboard(
-            "\n".join(lines),
-            profile_picker_keyboard(profiles, self._host.profile),
         )
 
     async def show_sessions_picker(self, *, page: int = 0) -> None:

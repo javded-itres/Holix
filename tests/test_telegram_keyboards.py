@@ -2,12 +2,10 @@
 
 from __future__ import annotations
 
-import pytest
-
 from integrations.telegram.keyboards import (
     MODE_LABELS,
-    parse_callback,
     mode_picker_html,
+    parse_callback,
 )
 
 

@@ -3,16 +3,20 @@
 from __future__ import annotations
 
 import os
-import sys
 
 from textual.binding import Binding
 
 from cli.shared.slash_input import (
-    MACOS_SLASH_ALIASES,
     is_macos,
-    is_slash_command,
-    normalize_slash_input,
-    slash_command_prefix,
+)
+from cli.shared.slash_input import (
+    is_slash_command as is_slash_command,
+)
+from cli.shared.slash_input import (
+    normalize_slash_input as normalize_slash_input,
+)
+from cli.shared.slash_input import (
+    slash_command_prefix as slash_command_prefix,
 )
 
 

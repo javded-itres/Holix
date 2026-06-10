@@ -1,16 +1,17 @@
-from datetime import datetime
-from typing import Dict, List, Callable, Any, Optional
-from collections import defaultdict
 import time
+from collections import defaultdict
+from collections.abc import Callable
+from datetime import datetime
+from typing import Any, Optional
 
 
 class MetricsCollector:
     """Collect and track agent metrics."""
 
     def __init__(self):
-        self.metrics: Dict[str, List] = defaultdict(list)
-        self.counters: Dict[str, int] = defaultdict(int)
-        self.timers: Dict[str, float] = {}
+        self.metrics: dict[str, list] = defaultdict(list)
+        self.counters: dict[str, int] = defaultdict(int)
+        self.timers: dict[str, float] = {}
 
     def increment(self, metric_name: str, value: int = 1):
         """Increment a counter metric.
@@ -58,7 +59,7 @@ class MetricsCollector:
         del self.timers[timer_name]
         return elapsed
 
-    def get_metrics(self) -> Dict:
+    def get_metrics(self) -> dict:
         """Get all collected metrics.
 
         Returns:
@@ -70,7 +71,7 @@ class MetricsCollector:
             "timestamp": datetime.now().isoformat()
         }
 
-    def get_summary(self) -> Dict:
+    def get_summary(self) -> dict:
         """Get metrics summary.
 
         Returns:
@@ -138,14 +139,18 @@ def create_metrics_subscriber(collector: Optional["MetricsCollector"] = None) ->
     This turns the previously passive metrics into a real-time observer.
     """
     collector = collector or metrics
-    start_times: Dict[str, float] = {}  # per conversation or per step
+    start_times: dict[str, float] = {}  # per conversation or per step
 
     def handler(event: Any) -> None:
         try:
             from core.agent_events import (
-                ToolCallStartEvent, ToolCallResultEvent, FinalResponseEvent,
-                ErrorEvent, SkillCreatedEvent,
-                ContextCompressedEvent, ContextWarningEvent,
+                ContextCompressedEvent,
+                ContextWarningEvent,
+                ErrorEvent,
+                FinalResponseEvent,
+                SkillCreatedEvent,
+                ToolCallResultEvent,
+                ToolCallStartEvent,
             )
             from core.monitoring.event_fields import correlation_fields
 
@@ -186,8 +191,8 @@ def create_metrics_subscriber(collector: Optional["MetricsCollector"] = None) ->
                 collector.record("context_usage_percent", event.usage_percent)
 
             else:
-                from core.security.confirmation_events import ConfirmationResponseEvent
                 from core.plan_review.review_events import PlanReviewResponseEvent
+                from core.security.confirmation_events import ConfirmationResponseEvent
 
                 if isinstance(event, ConfirmationResponseEvent):
                     collector.increment(f"confirmation.{event.choice}")

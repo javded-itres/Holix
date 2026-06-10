@@ -13,30 +13,33 @@ Goals achieved:
 - Clean separation: execution logic vs adapters
 """
 
-import time
 import logging
-from typing import AsyncGenerator, List, Dict, Any, Optional
+import time
+from collections.abc import AsyncGenerator
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from core.context import ContextManager
 
 logger = logging.getLogger(__name__)
-import json
 
 from openai import AsyncOpenAI
 
 from config import settings
-from core.prompt_builder import build_system_prompt, format_tools_description
 from core.agent_events import (
     AgentEvent,
-    ThinkingEvent,
+    AssistantDeltaEvent,
+    ErrorEvent,
     FinalResponseEvent,
     MaxStepsReachedEvent,
-    ErrorEvent,
-    ToolCallStartEvent,
-    ToolCallResultEvent,
-    ToolCallErrorEvent,
     SelfImprovementStartedEvent,
     SkillCreatedEvent,
-    AssistantDeltaEvent,
+    ThinkingEvent,
+    ToolCallErrorEvent,
+    ToolCallResultEvent,
+    ToolCallStartEvent,
 )
+from core.prompt_builder import build_system_prompt, format_tools_description
 
 
 async def run_agent_loop(
@@ -168,7 +171,7 @@ async def run_agent_loop(
                 )
 
                 current_content = ""
-                tool_calls_dict: Dict[int, Dict[str, Any]] = {}
+                tool_calls_dict: dict[int, dict[str, Any]] = {}
 
                 async for chunk in stream_response:
                     delta = chunk.choices[0].delta
@@ -412,7 +415,7 @@ async def run_agent_loop(
 async def _maybe_self_improve(
     agent,
     conversation_id: str,
-    messages: List[Dict[str, Any]],
+    messages: list[dict[str, Any]],
     final_response: str,
 ) -> None:
     """Internal helper for self-improvement (skill creation) and LTM auto-summarization."""
@@ -484,7 +487,7 @@ async def _maybe_self_improve(
                 conversation_id=conversation_id,
                 messages=messages,
                 llm_client=agent.client,
-                model=model,
+                model=agent.model,
             )
         except Exception as e:
             logger.warning(f"Auto-summarization failed for {conversation_id}: {e}")
@@ -492,9 +495,9 @@ async def _maybe_self_improve(
 
 def _build_api_messages(
     system_prompt: str,
-    messages: List[Dict[str, Any]],
-    context_manager: "ContextManager",
-) -> List[Dict[str, Any]]:
+    messages: list[dict[str, Any]],
+    context_manager: ContextManager,
+) -> list[dict[str, Any]]:
     """Build the API message list, fitting as many recent messages as possible
     within the context window.
 

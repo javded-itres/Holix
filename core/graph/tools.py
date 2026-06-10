@@ -3,9 +3,8 @@ Tool Bridge — wraps Helix BaseTool instances as LangChain StructuredTool
 for use within LangGraph nodes.
 """
 
-import json
 import logging
-from typing import Any, Dict, List, Optional, Type
+from typing import Any
 
 from langchain_core.tools import StructuredTool
 from pydantic import BaseModel, create_model
@@ -16,7 +15,7 @@ from core.tools.registry import ToolRegistry
 logger = logging.getLogger(__name__)
 
 
-def _schema_to_pydantic(openai_schema: Dict[str, Any]) -> Type[BaseModel]:
+def _schema_to_pydantic(openai_schema: dict[str, Any]) -> type[BaseModel]:
     """Convert an OpenAI function schema to a Pydantic model.
 
     LangChain StructuredTool requires a Pydantic model as args_schema.
@@ -64,7 +63,7 @@ def _schema_to_pydantic(openai_schema: Dict[str, Any]) -> Type[BaseModel]:
             if default is not None:
                 field_definitions[prop_name] = (python_type, default)
             else:
-                field_definitions[prop_name] = (Optional[python_type], None)
+                field_definitions[prop_name] = (python_type | None, None)
 
     # Create a dynamic Pydantic model
     if field_definitions:
@@ -115,7 +114,7 @@ def wrap_helix_tool(helix_tool: BaseTool) -> StructuredTool:
     )
 
 
-def wrap_all_tools(registry: ToolRegistry) -> List[StructuredTool]:
+def wrap_all_tools(registry: ToolRegistry) -> list[StructuredTool]:
     """Wrap all registered Helix tools as LangChain StructuredTools.
 
     Args:

@@ -4,14 +4,13 @@ from __future__ import annotations
 
 from typing import Any
 
+from core.cron.store import CronStore
 from textual import on, work
 from textual.app import ComposeResult
 from textual.binding import Binding
 from textual.containers import Horizontal, Vertical
 from textual.screen import ModalScreen
 from textual.widgets import Button, Footer, Header, ListItem, ListView, Static
-
-from core.cron.store import CronStore
 
 
 class CronManagerScreen(ModalScreen[None]):

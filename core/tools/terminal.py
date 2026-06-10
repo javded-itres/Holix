@@ -79,7 +79,7 @@ class TerminalTool(BaseTool):
                 else:
                     return f"Error (exit code {process.returncode}):\nSTDOUT:\n{output}\nSTDERR:\n{error}"
 
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 process.kill()
                 return f"Error: Command timed out after {timeout} seconds"
 

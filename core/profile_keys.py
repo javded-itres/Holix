@@ -6,7 +6,7 @@ import hashlib
 import json
 import secrets
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -103,7 +103,7 @@ def store_profile_access_key(profile: str, *, key: str | None = None) -> str:
         version=1,
         salt=salt,
         key_hash=_hash_key(access_key, salt),
-        created_at=datetime.now(timezone.utc).isoformat(),
+        created_at=datetime.now(UTC).isoformat(),
     )
     _save_record(profile_key_path(profile), record)
     return access_key

@@ -42,9 +42,7 @@ def resolve_env_refs(value: Any) -> Any:
 
 # --- Project-local .helix/ supplement support (skills, plans, extra mcp; NO system/model keys) ---
 
-import os
 from pathlib import Path
-from typing import Any, Dict, Iterable, List
 
 _LOCAL_SYSTEM_KEYS: frozenset[str] = frozenset({
     "model", "base_url", "api_key", "temperature", "max_steps",
@@ -58,13 +56,13 @@ _LOCAL_SYSTEM_KEYS: frozenset[str] = frozenset({
 })
 
 
-def get_local_helix_dir(cwd: Optional[str] = None) -> Path:
+def get_local_helix_dir(cwd: str | None = None) -> Path:
     """Return <cwd>/.helix (or CWD/.helix). This is the project-local supplement location."""
     base = Path(cwd) if cwd else Path.cwd()
     return base / ".helix"
 
 
-def load_local_overlay(cwd: Optional[str] = None) -> Dict[str, Any]:
+def load_local_overlay(cwd: str | None = None) -> dict[str, Any]:
     """Load .helix/config.yaml if present (for supplements only). Returns {} if absent."""
     local_dir = get_local_helix_dir(cwd)
     cfg_file = local_dir / "config.yaml"
@@ -80,7 +78,7 @@ def load_local_overlay(cwd: Optional[str] = None) -> Dict[str, Any]:
         return {}
 
 
-def merge_profile_with_local(profile_data: Dict[str, Any], local: Dict[str, Any]) -> Dict[str, Any]:
+def merge_profile_with_local(profile_data: dict[str, Any], local: dict[str, Any]) -> dict[str, Any]:
     """Merge only additive/safe keys from local overlay into profile data.
 
     System/model keys from local are ignored (never override ~/.helix profile).
@@ -117,10 +115,10 @@ def merge_profile_with_local(profile_data: Dict[str, Any], local: Dict[str, Any]
     return merged
 
 
-def get_local_skills_dir(cwd: Optional[str] = None) -> Optional[Path]:
+def get_local_skills_dir(cwd: str | None = None) -> Path | None:
     d = get_local_helix_dir(cwd) / "skills"
     return d if d.exists() else None
 
 
-def get_local_plan_dir(cwd: Optional[str] = None) -> Path:
+def get_local_plan_dir(cwd: str | None = None) -> Path:
     return get_local_helix_dir(cwd) / "plan"

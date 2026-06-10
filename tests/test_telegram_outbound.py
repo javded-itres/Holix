@@ -6,7 +6,6 @@ from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
-
 from integrations.telegram.delivery_bridge import TelegramDeliveryBridge
 from integrations.telegram.outbound import (
     _album_batches,

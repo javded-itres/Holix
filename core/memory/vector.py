@@ -11,7 +11,7 @@ Provides a unified search API across all collections.
 
 import logging
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 import chromadb
 from chromadb.config import Settings as ChromaSettings
@@ -29,7 +29,7 @@ class VectorMemoryStore:
     on first write to minimize initialization overhead.
     """
 
-    def __init__(self, vector_db_path: Optional[str] = None):
+    def __init__(self, vector_db_path: str | None = None):
         if vector_db_path is None:
             from core.di.runtime_config import HelixRuntimeConfig
             vector_db_path = HelixRuntimeConfig.from_settings().vector_db_path
@@ -42,7 +42,7 @@ class VectorMemoryStore:
         )
 
         # Lazy collection cache — created on first access
-        self._collections: Dict[str, chromadb.Collection] = {}
+        self._collections: dict[str, chromadb.Collection] = {}
 
     def _get_collection(self, name: str) -> chromadb.Collection:
         """Get or create a ChromaDB collection by name.
@@ -76,9 +76,9 @@ class VectorMemoryStore:
     def add(
         self,
         collection_name: str,
-        documents: List[str],
-        ids: List[str],
-        metadatas: Optional[List[Dict[str, Any]]] = None,
+        documents: list[str],
+        ids: list[str],
+        metadatas: list[dict[str, Any]] | None = None,
     ) -> None:
         """Add documents to a collection.
 
@@ -108,9 +108,9 @@ class VectorMemoryStore:
     def upsert(
         self,
         collection_name: str,
-        documents: List[str],
-        ids: List[str],
-        metadatas: Optional[List[Dict[str, Any]]] = None,
+        documents: list[str],
+        ids: list[str],
+        metadatas: list[dict[str, Any]] | None = None,
     ) -> None:
         """Upsert documents into a collection (insert or update).
 
@@ -133,10 +133,10 @@ class VectorMemoryStore:
     def query(
         self,
         collection_name: str,
-        query_texts: List[str],
+        query_texts: list[str],
         n_results: int = 8,
-        where: Optional[Dict[str, Any]] = None,
-    ) -> Dict[str, Any]:
+        where: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
         """Semantic search in a specific collection.
 
         Args:
@@ -162,8 +162,8 @@ class VectorMemoryStore:
     def delete(
         self,
         collection_name: str,
-        ids: Optional[List[str]] = None,
-        where: Optional[Dict[str, Any]] = None,
+        ids: list[str] | None = None,
+        where: dict[str, Any] | None = None,
     ) -> None:
         """Delete documents from a collection.
 
@@ -185,8 +185,8 @@ class VectorMemoryStore:
         self,
         query: str,
         top_k: int = 5,
-        collection_names: Optional[List[str]] = None,
-    ) -> Dict[str, List[Dict[str, Any]]]:
+        collection_names: list[str] | None = None,
+    ) -> dict[str, list[dict[str, Any]]]:
         """Search across multiple collections and return categorized results.
 
         Args:
@@ -202,11 +202,11 @@ class VectorMemoryStore:
         if collection_names is None:
             collection_names = ["ltm_episodic", "ltm_semantic", "ltm_strategic"]
 
-        results: Dict[str, List[Dict[str, Any]]] = {}
+        results: dict[str, list[dict[str, Any]]] = {}
 
         for name in collection_names:
             raw = self.query(name, [query], n_results=top_k)
-            items: List[Dict[str, Any]] = []
+            items: list[dict[str, Any]] = []
 
             if raw["documents"] and raw["documents"][0]:
                 for i, doc in enumerate(raw["documents"][0]):
@@ -220,7 +220,7 @@ class VectorMemoryStore:
 
         return results
 
-    def get_stats(self) -> Dict[str, int]:
+    def get_stats(self) -> dict[str, int]:
         """Get document counts for all LTM collections.
 
         Returns:

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import re
 
-from core.cron.expressions import normalize_cron_expression, validate_cron_expression
+from core.cron.expressions import validate_cron_expression
 
 # Already 5-field cron
 _CRON_RE = re.compile(

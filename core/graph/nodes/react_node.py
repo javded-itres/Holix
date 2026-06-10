@@ -6,20 +6,19 @@ or sets is_final + final_response. Emits AgentEvent objects to
 the event bus as side effects.
 """
 
-import time
 import logging
-from typing import Any, Dict, List
+from typing import Any
 
+from langchain_core.runnables import RunnableConfig
 from openai import AsyncOpenAI
 
-from core.graph.state import HelixGraphState, get_agent_from_config
-from langchain_core.runnables import RunnableConfig
 from core.agent_events import (
-    ThinkingEvent,
-    ToolCallStartEvent,
     AssistantDeltaEvent,
     FinalResponseEvent,
+    ThinkingEvent,
+    ToolCallStartEvent,
 )
+from core.graph.state import HelixGraphState, get_agent_from_config
 from core.prompt_builder import build_system_prompt, format_tools_description
 
 logger = logging.getLogger(__name__)
@@ -210,7 +209,7 @@ async def _react_streaming(
     )
 
     current_content = ""
-    tool_calls_dict: Dict[int, Dict[str, Any]] = {}
+    tool_calls_dict: dict[int, dict[str, Any]] = {}
 
     async for chunk in stream_response:
         delta = chunk.choices[0].delta
@@ -384,7 +383,7 @@ def _build_system_prompt_from_state(state: HelixGraphState, agent=None) -> str:
             for i in range(current_step_idx):
                 s = plan_steps[i]
                 prev_steps.append(f"  Step {s.get('step', i+1)}: {s.get('description', '')[:80]}")
-            plan_context += f"\n## Previous Steps Completed\n" + "\n".join(prev_steps) + "\n"
+            plan_context += "\n## Previous Steps Completed\n" + "\n".join(prev_steps) + "\n"
 
     # Append plan context to combined memories
     if plan_context:

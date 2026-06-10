@@ -1,7 +1,5 @@
-import os
 
 import pytest
-
 from core.config_utils import resolve_env_refs
 
 

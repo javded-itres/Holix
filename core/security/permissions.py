@@ -1,8 +1,7 @@
-from typing import List, Set
-from enum import Enum
+from enum import StrEnum
 
 
-class Permission(str, Enum):
+class Permission(StrEnum):
     """Available permissions."""
     READ = "read"
     WRITE = "write"
@@ -13,13 +12,13 @@ class Permission(str, Enum):
 class PermissionChecker:
     """Check permissions for operations."""
 
-    def __init__(self, user_permissions: List[str]):
+    def __init__(self, user_permissions: list[str]):
         """Initialize with user permissions.
 
         Args:
             user_permissions: List of permission strings
         """
-        self.permissions: Set[str] = set(user_permissions)
+        self.permissions: set[str] = set(user_permissions)
 
     def has_permission(self, required: Permission) -> bool:
         """Check if user has required permission.

@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Any, Dict
+from typing import Any
 
 
 class BaseTool(ABC):
@@ -8,7 +8,7 @@ class BaseTool(ABC):
     def __init__(self):
         self.name: str = ""
         self.description: str = ""
-        self.parameters: Dict[str, Any] = {}
+        self.parameters: dict[str, Any] = {}
         self.risk_level: str = "medium"  # "no"|"low"|"medium"|"high" — overridden by subclasses
 
     @abstractmethod
@@ -23,7 +23,7 @@ class BaseTool(ABC):
         """
         pass
 
-    def to_openai_schema(self) -> Dict[str, Any]:
+    def to_openai_schema(self) -> dict[str, Any]:
         """Convert tool to OpenAI function calling schema.
 
         Returns:

@@ -7,7 +7,6 @@ from pathlib import Path
 
 import numpy as np
 import pytest
-
 from core.docs_chat.chunking import chunk_page
 from core.docs_chat.embeddings import save_vectors
 from core.docs_chat.retrieval import search_docs

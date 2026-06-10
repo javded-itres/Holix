@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.1.8 — 2026-06-10
+
 ### Added
 - **`helix telegram map`** — bind Telegram user id → Helix profile (`set`, `list`, `remove`, `bind`, `import`) for a shared bot
 - Auto profile routing per Telegram chat from `telegram-users.json` / `HELIX_TELEGRAM_USER_PROFILES`
@@ -10,6 +12,11 @@
 ### Documentation
 - **CLI**, **CONFIGURATION**, **USER_GUIDE**, **TELEGRAM**, **PROFILES** (EN/RU) — `telegram map` and user→profile bindings
 - **instruction.md** — quick reference at repo root
+
+### Fixed
+- **CI (ruff)** — auto-fix import/style across `core`, `cli`, `api`, `integrations`, `tests`; restore TUI re-exports and session rename handler
+- **Telegram MCP remove picker** — stray profile-picker block removed from `_show_mcp_remove_picker`
+- **Sub-agent tool guard** — pass `data_dir` into permission checks in subprocess
 
 ## 0.1.7 — 2026-06-10
 

@@ -1,24 +1,23 @@
 import json
 import logging
-from typing import Any, AsyncGenerator, Dict, List
+from collections.abc import AsyncGenerator
 
 from openai import AsyncOpenAI
 
 from config import settings
 
 logger = logging.getLogger(__name__)
-from core.prompt_builder import build_system_prompt, format_tools_description
 
 # Import the unified execution engine (Variant B)
-from core.runtime.executor import run_helix
 from core.agent_events import (
-    FinalResponseEvent,
-    ToolCallStartEvent,
-    ToolCallResultEvent,
-    ErrorEvent,
-    MaxStepsReachedEvent,
     AssistantDeltaEvent,
+    ErrorEvent,
+    FinalResponseEvent,
+    MaxStepsReachedEvent,
+    ToolCallResultEvent,
+    ToolCallStartEvent,
 )
+from core.runtime.executor import run_helix
 
 
 class StreamingAgentLoop:

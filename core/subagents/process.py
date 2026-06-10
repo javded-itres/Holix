@@ -351,6 +351,7 @@ def run_sub_agent_in_process(
                             auto_allow_threshold=auto_allow_threshold,
                             confirmation_timeout=confirmation_timeout,
                             interactive=interactive,
+                            data_dir=data_dir,
                             loop=loop,
                         )
                     except Exception as e:
@@ -410,6 +411,7 @@ def _execute_tool_guarded(
     auto_allow_threshold: str,
     confirmation_timeout: float,
     interactive: bool,
+    data_dir: str = "",
     loop: asyncio.AbstractEventLoop | None = None,
 ) -> str:
     """Execute a tool with risk gating and IPC bridge for confirmations / ask_user."""

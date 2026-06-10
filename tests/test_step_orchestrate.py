@@ -10,11 +10,10 @@ Covers:
 - config: max_steps_per_plan_step
 """
 
+from unittest.mock import AsyncMock, MagicMock
+
 import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
-
 from core.graph.state import HelixGraphState
-
 
 # ─── Step Orchestrate Node ──────────────────────────────────────────────────
 
@@ -337,8 +336,8 @@ class TestPlanNodeRetryLogic:
     async def test_plan_node_with_mock_llm(self):
         """Plan node calls LLM and parses the response."""
         import json as _json
+
         from core.graph.nodes.plan_node import plan_node
-        from unittest.mock import AsyncMock, MagicMock
 
         # Create a mock agent
         mock_agent = MagicMock()

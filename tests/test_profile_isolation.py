@@ -2,17 +2,13 @@
 
 from __future__ import annotations
 
-import json
 import os
 from pathlib import Path
 
 import pytest
-
 from cli.core import ProfileConfig, ProfileManager, init_profile, resolve_profile_storage_paths
 from core.env_loader import bootstrap_profile_env, profile_env_path
 from core.tools.execution_context import (
-    get_workspace_root,
-    is_workspace_jail_enabled,
     reset_workspace_scope,
     workspace_scope,
 )

@@ -14,7 +14,7 @@ Created by the Meta-Agent or explicitly by the user.
 import json
 import logging
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 import aiosqlite
 
@@ -43,7 +43,7 @@ class StrategicMemoryStore:
         content: str,
         category: str = "general",
         source: str = "",
-        metadata: Optional[Dict[str, Any]] = None,
+        metadata: dict[str, Any] | None = None,
     ) -> int:
         """Store or update a strategic memory entry.
 
@@ -107,7 +107,7 @@ class StrategicMemoryStore:
         self,
         query: str,
         top_k: int = 5,
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """Semantic search across strategic memories.
 
         Args:
@@ -139,7 +139,7 @@ class StrategicMemoryStore:
     async def get_strategies_for_category(
         self,
         category: str,
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """Get all strategies in a specific category.
 
         Args:
@@ -178,7 +178,7 @@ class StrategicMemoryStore:
 
         return strategies
 
-    async def get_all_strategies(self) -> List[Dict[str, Any]]:
+    async def get_all_strategies(self) -> list[dict[str, Any]]:
         """Get all stored strategies (for prompt injection).
 
         Strategic memory is small and high-value, so injecting
@@ -241,7 +241,7 @@ class StrategicMemoryStore:
 
     def format_strategies_for_prompt(
         self,
-        strategies: List[Dict[str, Any]],
+        strategies: list[dict[str, Any]],
     ) -> str:
         """Format strategies for inclusion in the system prompt.
 
@@ -255,7 +255,7 @@ class StrategicMemoryStore:
             return ""
 
         # Group by category
-        by_category: Dict[str, List[Dict[str, Any]]] = {}
+        by_category: dict[str, list[dict[str, Any]]] = {}
         for s in strategies:
             cat = s.get("category", "general")
             if cat not in by_category:

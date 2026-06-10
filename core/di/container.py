@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 from dishka import AsyncContainer, make_async_container
 
@@ -15,7 +15,7 @@ if TYPE_CHECKING:
 
 
 def create_async_container(
-    config: Optional[HelixRuntimeConfig] = None,
+    config: HelixRuntimeConfig | None = None,
 ) -> AsyncContainer:
     """Create the application async DI container.
 
@@ -35,6 +35,7 @@ def resolve_gateway_runtime_config() -> HelixRuntimeConfig:
     import os
 
     from cli.core import init_profile
+
     from core.env_loader import bootstrap_profile_env
 
     profile = os.getenv("HELIX_PROFILE", "default")
@@ -42,7 +43,7 @@ def resolve_gateway_runtime_config() -> HelixRuntimeConfig:
     return resolve_runtime_config(init_profile(profile))
 
 
-def resolve_runtime_config(profile: Optional[ProfileConfig] = None) -> HelixRuntimeConfig:
+def resolve_runtime_config(profile: ProfileConfig | None = None) -> HelixRuntimeConfig:
     """Build runtime config from env settings and optional CLI profile."""
     if profile is None:
         return HelixRuntimeConfig.from_settings()
@@ -70,9 +71,9 @@ def resolve_runtime_config(profile: Optional[ProfileConfig] = None) -> HelixRunt
 async def create_agent(
     config: HelixRuntimeConfig,
     *,
-    event_listeners: Optional[list[EventHandler]] = None,
+    event_listeners: list[EventHandler] | None = None,
     enable_monitoring: bool = True,
-    container: Optional[AsyncContainer] = None,
+    container: AsyncContainer | None = None,
 ):
     """Create and initialize a HelixAgent using Dishka.
 

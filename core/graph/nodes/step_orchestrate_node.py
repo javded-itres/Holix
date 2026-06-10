@@ -17,10 +17,10 @@ giving the agent full tool-calling capability within each step.
 """
 
 import logging
-from typing import Any, Dict
+
+from langchain_core.runnables import RunnableConfig
 
 from core.graph.state import HelixGraphState, get_agent_from_config
-from langchain_core.runnables import RunnableConfig
 
 logger = logging.getLogger(__name__)
 
@@ -81,9 +81,9 @@ async def step_orchestrate_node(state: HelixGraphState, config: RunnableConfig) 
         # Check for per-step step limit
         try:
             from config import settings
-            max_steps_per_plan_step = getattr(settings, "max_steps_per_plan_step", 5)
+            getattr(settings, "max_steps_per_plan_step", 5)
         except Exception:
-            max_steps_per_plan_step = 5
+            pass
 
         # Emit completion event for current step
         if agent and hasattr(agent, "emit"):
@@ -198,5 +198,8 @@ async def step_orchestrate_node(state: HelixGraphState, config: RunnableConfig) 
     }
 
 
-from core.graph.routers import route_after_react_plan, route_after_step_orchestrate  # noqa: E402, F401
+from core.graph.routers import (  # noqa: E402, F401
+    route_after_react_plan,
+    route_after_step_orchestrate,
+)
 

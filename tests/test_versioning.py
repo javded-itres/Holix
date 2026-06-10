@@ -2,11 +2,9 @@
 
 from __future__ import annotations
 
-import os
 from pathlib import Path
 
 import pytest
-
 from scripts.versioning import (
     _BUILD_VERSION_ENV,
     bump_patch,

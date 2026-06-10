@@ -4,9 +4,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
-import pytest
-
 import cli.core as cli_core
+import pytest
 from core.i18n import LocaleStore, host_locale, set_host_locale, t
 from core.prompt_builder import build_system_prompt
 

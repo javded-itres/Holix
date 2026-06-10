@@ -12,7 +12,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import uuid
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from core.security.confirmation import ConfirmationChoice
 from core.security.confirmation_events import ConfirmationRequestEvent
@@ -27,21 +27,21 @@ class SubAgentInteractionBridge:
     def __init__(self, parent_agent: Any, *, confirmation_timeout: int = 300):
         self._parent = parent_agent
         self._confirmation_timeout = confirmation_timeout
-        self._pending_confirmations: Dict[str, asyncio.Future] = {}
-        self._pending_questions: Dict[str, asyncio.Future] = {}
+        self._pending_confirmations: dict[str, asyncio.Future] = {}
+        self._pending_questions: dict[str, asyncio.Future] = {}
 
     @property
-    def pending_question_ids(self) -> List[str]:
+    def pending_question_ids(self) -> list[str]:
         return list(self._pending_questions.keys())
 
-    def pending_question_for(self, request_id: str) -> Optional[dict]:
+    def pending_question_for(self, request_id: str) -> dict | None:
         """Return metadata for a pending question request."""
         if request_id not in self._pending_questions:
             return None
         meta = getattr(self, "_question_meta", {}).get(request_id)
         return meta
 
-    def list_pending_questions(self) -> List[dict]:
+    def list_pending_questions(self) -> list[dict]:
         """Summaries for UI hints (/subagent-reply, routing)."""
         meta = getattr(self, "_question_meta", {})
         return [
@@ -83,7 +83,7 @@ class SubAgentInteractionBridge:
         try:
             choice = await asyncio.wait_for(future, timeout=timeout)
             return choice.value if isinstance(choice, ConfirmationChoice) else str(choice)
-        except asyncio.TimeoutError:
+        except TimeoutError:
             return ConfirmationChoice.DENY.value
         finally:
             self._pending_confirmations.pop(request_id, None)
@@ -98,7 +98,7 @@ class SubAgentInteractionBridge:
         future = loop.create_future()
         self._pending_questions[request_id] = future
         if not hasattr(self, "_question_meta"):
-            self._question_meta: Dict[str, dict] = {}
+            self._question_meta: dict[str, dict] = {}
         self._question_meta[request_id] = {
             "subagent_name": subagent_name,
             "question": question,
@@ -124,7 +124,7 @@ class SubAgentInteractionBridge:
         timeout = self._confirmation_timeout if self._confirmation_timeout > 0 else None
         try:
             return await asyncio.wait_for(future, timeout=timeout)
-        except asyncio.TimeoutError:
+        except TimeoutError:
             return "Error: question timed out — no answer from user"
         finally:
             self._pending_questions.pop(request_id, None)
@@ -188,7 +188,7 @@ class SubAgentInteractionBridge:
         return bool(self._pending_questions)
 
 
-def get_interaction_bridge(agent: Any) -> Optional[SubAgentInteractionBridge]:
+def get_interaction_bridge(agent: Any) -> SubAgentInteractionBridge | None:
     subagents = getattr(agent, "subagents", None)
     if subagents is None:
         return None

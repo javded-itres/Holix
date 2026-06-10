@@ -4,10 +4,9 @@ from __future__ import annotations
 
 import zipfile
 from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
-
 from integrations.telegram.file_handler import (
     SavedTelegramFile,
     _extract_docx_text,
@@ -67,7 +66,7 @@ def test_safe_filename_sanitizes() -> None:
 
 
 def test_profile_files_dir_under_data(tmp_path, monkeypatch: pytest.MonkeyPatch) -> None:
-    from cli.core import ProfileManager, init_profile
+    from cli.core import ProfileManager
 
     profile = "default"
     pdir = tmp_path / "profiles" / profile

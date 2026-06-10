@@ -5,7 +5,6 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
-
 from cli.core import ProfileManager, init_profile, switch_profile
 from core.profile_keys import (
     ProfileKeyError,

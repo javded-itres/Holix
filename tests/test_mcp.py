@@ -2,12 +2,10 @@
 
 from __future__ import annotations
 
-import asyncio
 from pathlib import Path
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock
 
 import pytest
-
 from core.mcp.config import MCPServerConfig, validate_server_config
 from core.mcp.tool import MCPTool
 

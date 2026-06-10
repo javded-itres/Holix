@@ -8,22 +8,21 @@ in separate OS processes.
 
 import asyncio
 import logging
-import time
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from core.logging.events import log_subagent_event
 from core.platform_compat import process_subagents_supported
-from core.subagents.base import (
-    SubAgentConfig,
-    SubAgentResult,
-    SubAgentHandle,
-    SubAgentStatus,
-    ProcessMode,
-)
 from core.subagents.async_runner import AsyncSubAgentRunner
-from core.subagents.process import SubAgentProcessManager
+from core.subagents.base import (
+    ProcessMode,
+    SubAgentConfig,
+    SubAgentHandle,
+    SubAgentResult,
+    SubAgentStatus,
+)
 from core.subagents.communication import AgentCommunicationBus
 from core.subagents.interaction import SubAgentInteractionBridge
+from core.subagents.process import SubAgentProcessManager
 
 logger = logging.getLogger(__name__)
 
@@ -51,7 +50,7 @@ class SubAgentManager:
         )
         self._async_runner = AsyncSubAgentRunner(parent_agent, self._comm_bus.async_bus)
         self._process_manager = SubAgentProcessManager(parent_agent, self._comm_bus.process_bus)
-        self._handles: Dict[str, SubAgentHandle] = {}
+        self._handles: dict[str, SubAgentHandle] = {}
 
     def _max_concurrent(self) -> int:
         cfg = getattr(self._parent, "config", None)
@@ -183,7 +182,7 @@ class SubAgentManager:
         config.process_mode = ProcessMode.PROCESS
         return await self.spawn_sub_agent(config, task)
 
-    async def get_result(self, name: str) -> Optional[SubAgentResult]:
+    async def get_result(self, name: str) -> SubAgentResult | None:
         """Get the result of a completed sub-agent.
 
         Args:
@@ -200,12 +199,12 @@ class SubAgentManager:
             # Still running — wait briefly
             try:
                 await asyncio.wait_for(self._wait_for_handle(handle), timeout=1.0)
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 return None
 
         return handle.result
 
-    async def wait_for(self, name: str, timeout: Optional[float] = None) -> SubAgentResult:
+    async def wait_for(self, name: str, timeout: float | None = None) -> SubAgentResult:
         """Wait for a specific sub-agent to complete.
 
         Args:
@@ -232,8 +231,8 @@ class SubAgentManager:
 
     async def wait_all(
         self,
-        timeout: Optional[float] = None,
-    ) -> Dict[str, SubAgentResult]:
+        timeout: float | None = None,
+    ) -> dict[str, SubAgentResult]:
         """Wait for all running sub-agents to complete.
 
         Args:
@@ -253,7 +252,7 @@ class SubAgentManager:
                 asyncio.gather(*tasks, return_exceptions=True),
                 timeout=timeout or 300,
             )
-        except asyncio.TimeoutError:
+        except TimeoutError:
             logger.warning("wait_all timed out — some sub-agents may still be running")
 
         return {
@@ -262,7 +261,7 @@ class SubAgentManager:
             if h.result is not None
         }
 
-    def list_active(self) -> List[SubAgentHandle]:
+    def list_active(self) -> list[SubAgentHandle]:
         """List all currently running sub-agents.
 
         Returns:
@@ -270,7 +269,7 @@ class SubAgentManager:
         """
         return [h for h in self._handles.values() if h.is_running]
 
-    def list_all(self) -> List[SubAgentHandle]:
+    def list_all(self) -> list[SubAgentHandle]:
         """List all sub-agents (running and completed).
 
         Returns:
@@ -316,7 +315,7 @@ class SubAgentManager:
             if handle.is_running and handle.config.process_mode != ProcessMode.PROCESS:
                 await self._async_runner.cancel(name)
 
-    def get_handle(self, name: str) -> Optional[SubAgentHandle]:
+    def get_handle(self, name: str) -> SubAgentHandle | None:
         """Get the handle for a sub-agent by name.
 
         Args:
@@ -370,7 +369,7 @@ class SubAgentManager:
                 )
         return "\n".join(lines)
 
-    def get_status_summary(self) -> Dict[str, Any]:
+    def get_status_summary(self) -> dict[str, Any]:
         """Get a summary of all sub-agents' status.
 
         Returns:

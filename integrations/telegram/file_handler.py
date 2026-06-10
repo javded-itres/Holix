@@ -13,8 +13,9 @@ from pathlib import Path
 from typing import Any
 from xml.etree import ElementTree
 
-from config import settings
 from core.config_utils import resolve_env_refs
+
+from config import settings
 
 _IMAGE_MIMES = frozenset(
     {
@@ -297,7 +298,7 @@ def _extract_docx_text(path: Path, *, max_chars: int = 12000) -> str:
         texts = [node.text for node in root.iterfind(".//w:t", ns) if node.text]
         text = " ".join(texts).strip()
         if len(text) > max_chars:
-            text = text[:max_chars] + f"\n\n... (обрезано)"
+            text = text[:max_chars] + "\n\n... (обрезано)"
         return text
     except Exception:
         return ""

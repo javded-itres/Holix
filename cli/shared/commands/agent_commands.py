@@ -5,11 +5,12 @@ from __future__ import annotations
 import asyncio
 from typing import Any
 
-from cli.shared.commands.registry import SLASH_COMMANDS
-from cli.shared.slash_input import is_mode_slash, is_models_slash, normalize_slash_input
 from core.i18n import host_locale, set_host_locale, t
 from core.plan_review.review_guard import PlanReviewChoice
 from core.security.confirmation import ConfirmationChoice
+
+from cli.shared.commands.registry import SLASH_COMMANDS
+from cli.shared.slash_input import is_mode_slash, is_models_slash, normalize_slash_input
 
 
 class AgentCommands:

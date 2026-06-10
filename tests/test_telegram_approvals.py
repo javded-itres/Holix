@@ -2,10 +2,9 @@
 
 from __future__ import annotations
 
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock
 
 import pytest
-
 from integrations.telegram.approvals import TelegramApprovals
 from integrations.telegram.session import ChatSession
 

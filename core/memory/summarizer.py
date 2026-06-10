@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any, Dict, List, Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from openai import AsyncOpenAI
 
@@ -15,7 +15,7 @@ class ConversationSummarizer:
     """Summarize conversations and optionally store episodic memories."""
 
     @staticmethod
-    def statistical_summary(messages: List[Dict[str, Any]]) -> str:
+    def statistical_summary(messages: list[dict[str, Any]]) -> str:
         if not messages:
             return "No conversation history."
 
@@ -50,10 +50,10 @@ class ConversationSummarizer:
         self,
         ltm: LongTermMemoryStore,
         conversation_id: str,
-        messages: List[Dict[str, Any]],
-        llm_client: Optional[AsyncOpenAI] = None,
+        messages: list[dict[str, Any]],
+        llm_client: AsyncOpenAI | None = None,
         model: str = "",
-    ) -> Optional[str]:
+    ) -> str | None:
         if not llm_client:
             user_msgs = [m for m in messages if m.get("role") == "user"]
             tool_msgs = [m for m in messages if m.get("role") == "tool"]

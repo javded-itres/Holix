@@ -7,7 +7,6 @@ import os
 from pathlib import Path
 
 import pytest
-
 from cli.services import gateway_state as gs
 
 

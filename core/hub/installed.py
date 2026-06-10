@@ -113,6 +113,7 @@ def installed_sections(config: Any) -> list[InstalledSection]:
 def remove_hub_install(profile: str, config: Any, entry_id: str, *, drop_flat: bool = True) -> list[str]:
     """Remove hub lock entry, bundle, flat skills; clear skill_assignments."""
     from cli.core import get_profile_manager
+
     from core.skills.assignments import unassign_skill_from_agents
 
     skills_dir = Path(getattr(config, "skills_dir", "") or "")

@@ -4,10 +4,8 @@ from __future__ import annotations
 
 import shlex
 import sys
-from typing import Optional
 
 from cli.tui.web_security import (
-    WebTuiSecurityError,
     WebTuiSecurityPolicy,
     build_web_tui_policy,
     is_loopback_host,
@@ -21,8 +19,8 @@ def run_tui_web(
     *,
     host: str = "127.0.0.1",
     port: int = 8787,
-    public_url: Optional[str] = None,
-    token: Optional[str] = None,
+    public_url: str | None = None,
+    token: str | None = None,
     allow_lan: bool = False,
     generate_token: bool = True,
 ) -> WebTuiSecurityPolicy:

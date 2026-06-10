@@ -8,13 +8,11 @@ dramatically reducing token usage.
 
 from __future__ import annotations
 
-import json
-from typing import List, Dict, Any, Optional
+from typing import Any
 
 from openai import AsyncOpenAI
 
 from core.context.token_counter import TokenCounter
-
 
 # System prompt for the compression LLM call
 _COMPRESSION_PROMPT = """You are a conversation summarizer. Your task is to create a concise but complete summary of a conversation history.
@@ -55,7 +53,7 @@ class ContextCompressor:
         self,
         client: AsyncOpenAI,
         model: str,
-        token_counter: Optional[TokenCounter] = None,
+        token_counter: TokenCounter | None = None,
     ):
         self.client = client
         self.model = model
@@ -63,9 +61,9 @@ class ContextCompressor:
 
     async def compress(
         self,
-        messages: List[Dict[str, Any]],
+        messages: list[dict[str, Any]],
         keep_recent: int = 10,
-    ) -> tuple[List[Dict[str, Any]], str]:
+    ) -> tuple[list[dict[str, Any]], str]:
         """Compress conversation history by summarizing older messages.
 
         Args:
@@ -145,7 +143,7 @@ class ContextCompressor:
             f"Key conversation excerpts:\n{truncated}..."
         )
 
-    def _format_messages_for_summary(self, messages: List[Dict[str, Any]]) -> str:
+    def _format_messages_for_summary(self, messages: list[dict[str, Any]]) -> str:
         """Format messages into a text representation suitable for summarization.
 
         Args:
