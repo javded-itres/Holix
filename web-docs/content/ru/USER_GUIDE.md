@@ -686,7 +686,7 @@ helix gateway reload
 
 ### `helix telegram`
 
-`setup`, `run`, `status`, `sync-menu`
+`setup`, `run`, `status`, `sync-menu`, `map set|list|remove|bind|import` — см. [TELEGRAM_MULTI_PROFILE.md](TELEGRAM_MULTI_PROFILE.md)
 
 ---
 
