@@ -11,12 +11,14 @@
 
 ### Documentation
 - **CLI**, **CONFIGURATION**, **USER_GUIDE**, **TELEGRAM**, **PROFILES** (EN/RU) — `telegram map` and user→profile bindings
+- **INSTALLATION** (EN/RU) — dedicated Windows section (PowerShell, data paths, typical workflow)
 - **instruction.md** — quick reference at repo root
 
 ### Fixed
 - **CI (ruff)** — auto-fix import/style across `core`, `cli`, `api`, `integrations`, `tests`; restore TUI re-exports and session rename handler
 - **Telegram MCP remove picker** — stray profile-picker block removed from `_show_mcp_remove_picker`
 - **Sub-agent tool guard** — pass `data_dir` into permission checks in subprocess
+- **Tests** — isolated telegram vision settings; skill slug names in assignments test
 
 ## 0.1.7 — 2026-06-10
 
@@ -104,40 +106,3 @@
 
 ### Fixed
 - web-docs routing for in-page TOC anchors, home route (`#/`), mobile search and sidebar menu
-
-## Unreleased
-
-### Added
-- **Telegram voice messages** — Whisper transcription for voice notes and audio attachments (`OPENAI_API_KEY`)
-- **`helix logs`** — unified log viewer (agent, sub-agent, gateway, cron, system); filters, follow, rotation, `debug on|off|status` — [docs/en/LOGS.md](en/LOGS.md)
-- Centralized logging under `{HELIX_HOME}/logs/` (`agent.jsonl`, `subagent.jsonl`, `helix.log`, debug JSONL)
-- **`helix cron`** — profile cron jobs with gateway scheduler, TUI manager, Telegram, bundled `helix-cron` skill
-- Cross-platform support: `HELIX_HOME` / XDG / `%LOCALAPPDATA%`, Windows terminal whitelist, optional `windows` extra (`psutil`), CI matrix (linux/windows/macos)
-- Per-session model persistence (`/models`, Telegram picker)
-- TUI GitHub-style file diffs; MCP path validation before spawn
-- PyPI packaging: distribution `HelixAgentAi`, build fixes, [docs/en/PYPI.md](en/PYPI.md)
-- GitHub workflow `.github/workflows/publish-pypi.yml` (manual)
-- Full CLI reference: `docs/en/CLI.md`, `docs/ru/CLI.md`
-- Slash command reference: `docs/en/SLASH_COMMANDS.md`, `docs/ru/SLASH_COMMANDS.md`
-- Installation guide: `docs/en/INSTALLATION.md`, `docs/ru/INSTALLATION.md`
-- Browser tools (active): `docs/en/BROWSER_TOOLS.md`
-- `LICENSE`, `CONTRIBUTING.md`, GitHub-ready root `README.md`
-- Production settings in `config.py` (gateway, security, tools, Telegram)
-- `helix doctor` with `--fix` and LLM config repair
-- `helix gateway start|stop|status|reload` background supervisor
-- Gateway: admin auth always required; optional auth for `/v1/*`
-- Prometheus `/metrics` endpoint
-- Terminal command whitelist enforcement
-- Profile secret placeholders `${VAR}` / `${ENV:VAR}`
-- CI (GitHub Actions), pre-commit, systemd unit example
-- Bilingual docs: `docs/en/`, `docs/ru/`
-
-### Changed
-- Gateway bind default `127.0.0.1`; CORS from `HELIX_CORS_ORIGINS`
-- API keys: HMAC-SHA256 with `HELIX_API_KEY_PEPPER`
-- Docker uses `helix gateway start`
-
-### Removed
-- Root `cli.py`, `main.py` (dead entry points)
-- `helix models-legacy` command
-- Obsolete docs (merged into `docs/en/` and `docs/ru/`)

@@ -6,7 +6,7 @@
     "section": "getting-started",
     "title": "Overview",
     "heading": "Getting started",
-    "body": "1. INSTALLATION.md — PyPI install, extras, updates, Docker 2. START HERE.md — first run checklist 3. QUICKSTART.md — minimal command list 4. CONFIGURATION.md — , profiles, secrets 5. PROFILES.md — isolated profiles, access keys, multi-user setup, workspace jail",
+    "body": "1. INSTALLATION.md — PyPI install, Windows , extras, updates, Docker 2. START HERE.md — first run checklist 3. QUICKSTART.md — minimal command list 4. CONFIGURATION.md — , profiles, secrets 5. PROFILES.md — isolated profiles, access keys, multi-user setup, workspace jail",
     "keywords": [
       "overview",
       "обзор",
@@ -3622,7 +3622,7 @@
     "section": "publishing-to-pypi",
     "title": "PyPI",
     "heading": "Publishing to PyPI",
-    "body": "This guide covers packaging, naming, and releasing Helix on PyPI. Published: HelixAgentAi 0.1.7 — install with .",
+    "body": "This guide covers packaging, naming, and releasing Helix on PyPI. Published: HelixAgentAi 0.1.8 — install with .",
     "keywords": [
       "pypi",
       "publish",
@@ -3960,6 +3960,22 @@
       "global",
       "install",
       "recommended"
+    ],
+    "nav_order": 23
+  },
+  {
+    "id": "en/user-guide#54-windows",
+    "lang": "en",
+    "slug": "user-guide",
+    "section": "54-windows",
+    "title": "User Guide",
+    "heading": "5.4. Windows",
+    "body": "PowerShell install, paths, and troubleshooting: INSTALLATION.md — Windows. ```powershell pipx install HelixAgentAi helix version",
+    "keywords": [
+      "guide",
+      "руководство",
+      "usage",
+      "windows"
     ],
     "nav_order": 23
   },
@@ -4452,7 +4468,7 @@
     "section": "с-чего-начать",
     "title": "Обзор",
     "heading": "С чего начать",
-    "body": "1. INSTALLATION.md — установка с PyPI, extras, обновления 2. START HERE.md — первый запуск 3. QUICKSTART.md — минимум команд 4. CONFIGURATION.md — , профили 5. PROFILES.md — изолированные профили, ключи доступа, несколько пользователей, workspace jail",
+    "body": "1. INSTALLATION.md — установка с PyPI, Windows , extras, обновления 2. START HERE.md — первый запуск 3. QUICKSTART.md — минимум команд 4. CONFIGURATION.md — , профили 5. PROFILES.md — изолированные профили, ключи доступа, несколько пользователей, workspace jail",
     "keywords": [
       "overview",
       "обзор",
@@ -7367,7 +7383,7 @@
     "section": "публикация-на-pypi",
     "title": "PyPI",
     "heading": "Публикация на PyPI",
-    "body": "Руководство по выпуску пакета Helix на PyPI. Опубликовано: HelixAgentAi 0.1.7 — .",
+    "body": "Руководство по выпуску пакета Helix на PyPI. Опубликовано: HelixAgentAi 0.1.8 — .",
     "keywords": [
       "pypi",
       "publish",
@@ -7627,6 +7643,22 @@
       "шаг",
       "установка",
       "pypi"
+    ],
+    "nav_order": 23
+  },
+  {
+    "id": "ru/user-guide#54-windows",
+    "lang": "ru",
+    "slug": "user-guide",
+    "section": "54-windows",
+    "title": "Руководство",
+    "heading": "5.4. Windows",
+    "body": "Установка через PowerShell, пути и troubleshooting: INSTALLATION.md — Windows. ```powershell pipx install HelixAgentAi helix version",
+    "keywords": [
+      "guide",
+      "руководство",
+      "usage",
+      "windows"
     ],
     "nav_order": 23
   },

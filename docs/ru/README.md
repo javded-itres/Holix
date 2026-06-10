@@ -8,7 +8,7 @@
 
 ## С чего начать
 
-1. [INSTALLATION.md](INSTALLATION.md) — установка с PyPI, extras, обновления
+1. [INSTALLATION.md](INSTALLATION.md) — установка с PyPI, **Windows**, extras, обновления
 2. [START_HERE.md](START_HERE.md) — первый запуск
 3. [QUICKSTART.md](QUICKSTART.md) — минимум команд
 4. [CONFIGURATION.md](CONFIGURATION.md) — `.env`, профили

@@ -8,7 +8,7 @@ Helix is a self-improving AI agent with memory, skills, tool calling, MCP, CLI, 
 
 ## Getting started
 
-1. [INSTALLATION.md](INSTALLATION.md) — PyPI install, extras, updates, Docker
+1. [INSTALLATION.md](INSTALLATION.md) — PyPI install, **Windows**, extras, updates, Docker
 2. [START_HERE.md](START_HERE.md) — first run checklist
 3. [QUICKSTART.md](QUICKSTART.md) — minimal command list
 4. [CONFIGURATION.md](CONFIGURATION.md) — `.env`, profiles, secrets

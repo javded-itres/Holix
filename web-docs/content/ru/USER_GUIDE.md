@@ -134,7 +134,18 @@ export PATH="$HOME/.local/bin:$PATH"
 helix version
 ```
 
-### 5.4. Альтернатива — установка из `.whl`
+### 5.4. Windows
+
+Установка через PowerShell, пути `%LOCALAPPDATA%\Helix\` и troubleshooting: [INSTALLATION.md — Windows](INSTALLATION.md#windows).
+
+```powershell
+pipx install HelixAgentAi
+helix version
+# или из клона репозитория:
+.\scripts\install.ps1
+```
+
+### 5.5. Альтернатива — установка из `.whl`
 
 Для офлайн-машин или артефактов CI:
 
@@ -143,7 +154,7 @@ uv build && ls dist/helixagentai-*.whl
 pipx install /путь/к/helixagentai-0.1.3-py3-none-any.whl
 ```
 
-### 5.5. Проверка после установки
+### 5.6. Проверка после установки
 
 ```bash
 helix --help

@@ -135,7 +135,18 @@ export PATH="$HOME/.local/bin:$PATH"
 helix version
 ```
 
-### 5.4. Alternative — install from a `.whl` file
+### 5.4. Windows
+
+PowerShell install, `%LOCALAPPDATA%\Helix\` paths, and troubleshooting: [INSTALLATION.md — Windows](INSTALLATION.md#windows).
+
+```powershell
+pipx install HelixAgentAi
+helix version
+# or from git clone:
+.\scripts\install.ps1
+```
+
+### 5.5. Alternative — install from a `.whl` file
 
 For offline machines or CI artifacts, build or download a wheel:
 
@@ -147,7 +158,7 @@ pipx install /path/to/helixagentai-0.1.3-py3-none-any.whl
 # or: uv tool install /path/to/helixagentai-*.whl
 ```
 
-### 5.5. Post-install verification
+### 5.6. Post-install verification
 
 ```bash
 helix --help
