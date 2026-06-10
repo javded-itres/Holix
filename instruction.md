@@ -2,7 +2,7 @@
 
 Как организовать работу Helix в Telegram, когда нужно несколько пользователей или проектов с изоляцией данных, памяти и настроек.
 
-См. также: [TELEGRAM.md](TELEGRAM.md), [PROFILES.md](PROFILES.md), [DEPLOYMENT.md](DEPLOYMENT.md).
+См. также: [docs/ru/TELEGRAM.md](docs/ru/TELEGRAM.md), [docs/ru/PROFILES.md](docs/ru/PROFILES.md), [docs/ru/DEPLOYMENT.md](docs/ru/DEPLOYMENT.md).
 
 ---
 
@@ -91,7 +91,7 @@ sudo systemctl enable --now helix-gateway@alice
 sudo systemctl enable --now helix-gateway@bob
 ```
 
-См. [DEPLOYMENT.md](DEPLOYMENT.md).
+См. [docs/ru/DEPLOYMENT.md](docs/ru/DEPLOYMENT.md).
 
 ### 5. Ограничить доступ в production
 
@@ -126,7 +126,7 @@ helix -p shared gateway start
 
 | Ограничение | Пояснение |
 |-------------|-----------|
-| Автопривязка `user_id → профиль` | `helix telegram map` (см. ниже) |
+| Автопривязка `user_id → профиль` | Настраивается через `helix telegram map` (см. ниже) |
 | Новый чат | Стартует на профиле, с которым запущен `gateway start` |
 | Один токен | Нельзя держать два профиля как два независимых бота на одном токене |
 | Безопасность | Все видят одного бота; изоляция — после `/profile`, ключей и jail |
@@ -151,7 +151,7 @@ helix -p alice profile jail enable /home/alice/work
 helix -p bob profile jail enable /home/bob/work
 ```
 
-См. [PROFILES.md](PROFILES.md) — разделы «Ключи доступа» и «Workspace jail».
+См. [docs/ru/PROFILES.md](docs/ru/PROFILES.md) — разделы «Ключи доступа» и «Workspace jail».
 
 ---
 
@@ -186,20 +186,25 @@ helix logs -s gateway -n 50
 - **Полная изоляция** → отдельный бот (токен) + отдельный gateway на каждый профиль.
 - **Один бот на команду** → профили с `--protect`, jail, `HELIX_TELEGRAM_ALLOWED_USERS`, переключение через `/profile`.
 
-## Привязка user id → профиль (один бот)
+## Привязка Telegram user id → профиль (один бот)
 
-При `helix telegram setup` мастер предложит привязки, если профилей несколько.
+Настройка при `helix telegram setup` (если несколько профилей) или вручную:
 
 ```bash
+# Профиль shared — тот, где лежит telegram.env и запущен gateway
 helix -p shared telegram map set 123456789 alice
-helix -p shared telegram map bind bob --user-id 987654321
-helix -p shared telegram map import "111:alice,222:bob"
+helix -p shared telegram map set 987654321 bob
 helix -p shared telegram map list
-helix -p shared telegram map remove 111
+
+# Быстро: привязать user id из allowlist к профилю
+helix -p shared telegram map bind alice --user-id 123456789
+
+# Импорт одной строкой
+helix -p shared telegram map import "123456789:alice,987654321:bob"
 ```
 
-- Файл: `~/.helix/profiles/<бот-профиль>/telegram-users.json`
-- Env: `HELIX_TELEGRAM_USER_PROFILES=123456789:alice` в `telegram.env`
+Файл: `~/.helix/profiles/<бот-профиль>/telegram-users.json`  
+Переменная: `HELIX_TELEGRAM_USER_PROFILES=123456789:alice,987654321:bob` в `telegram.env`
 
-Пользователь автоматически попадает в свой профиль (память, модели, jail).  
-`/profile` вручную отключает автопривязку для этого чата.
+После привязки пользователь автоматически попадает в свой профиль Helix (память, модели, jail).  
+Ручное `/profile` по-прежнему работает и отключает автопривязку для этого чата.

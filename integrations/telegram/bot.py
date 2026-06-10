@@ -5,7 +5,6 @@ from __future__ import annotations
 import asyncio
 from typing import Any
 
-from integrations.telegram.agent_setup import create_agent
 from integrations.telegram.approvals import TelegramApprovals
 from integrations.telegram.commands import (
     command_specs,
@@ -17,13 +16,13 @@ from integrations.telegram.host import TelegramHost
 from integrations.telegram.interactive import dispatch_callback
 from integrations.telegram.media_group import MediaGroupBuffer, PendingAttachment
 from integrations.telegram.session import ChatSession
+from integrations.telegram.user_profiles import resolve_user_profile
 
 
 class HelixTelegramBot:
     def __init__(self, settings: TelegramSettings | None = None, *, profile: str = "default") -> None:
         self.settings = settings or load_telegram_settings(profile)
         self._sessions: dict[int, ChatSession] = {}
-        self._agent = None
         self._dp: Any = None
         self._bot: Any = None
         from config import settings as app_settings
@@ -34,20 +33,40 @@ class HelixTelegramBot:
     def _allowed(self, user_id: int) -> bool:
         return self.settings.is_user_allowed(user_id)
 
+    def _default_profile_for_user(self, user_id: int) -> str:
+        mapped = resolve_user_profile(self.settings.profile, user_id)
+        return mapped or self.settings.profile
+
+    async def _switch_session_profile(self, session: ChatSession, profile: str) -> None:
+        from integrations.telegram.agent_setup import create_agent
+
+        session.profile = profile
+        session.conversation_id = f"tg_{profile}_{session.chat_id}"
+        session.agent = await create_agent(profile)
+        session.pending_files.clear()
+        session.pending_plan_review_id = None
+        session.pending_confirmation_message_id = None
+        session.pending_plan_message_ids.clear()
+        session._recent_tool_results.clear()
+        session._memory_search_query = ""
+        session._memory_search_results.clear()
+
     async def _get_session(self, chat_id: int, user_id: int) -> ChatSession:
         if chat_id not in self._sessions:
-            conv = f"tg_{self.settings.profile}_{chat_id}"
+            profile = self._default_profile_for_user(user_id)
             self._sessions[chat_id] = ChatSession(
                 chat_id=chat_id,
                 user_id=user_id,
-                profile=self.settings.profile,
-                conversation_id=conv,
+                profile=profile,
+                conversation_id=f"tg_{profile}_{chat_id}",
             )
         session = self._sessions[chat_id]
+        if not session.profile_manual_override:
+            target = self._default_profile_for_user(user_id)
+            if target != session.profile:
+                await self._switch_session_profile(session, target)
         if session.agent is None:
-            if self._agent is None:
-                self._agent = await create_agent(self.settings.profile)
-            session.agent = self._agent
+            await self._switch_session_profile(session, session.profile)
         return session
 
     async def _handle_transcribed_audio(

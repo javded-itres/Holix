@@ -126,7 +126,7 @@ The **Profile** menu button and `/profile` without args also list profiles.
 
 | Limit | Explanation |
 |-------|-------------|
-| No auto `user_id → profile` mapping | User must run `/profile` |
+| Auto `user_id → profile` mapping | `helix telegram map` (see below) |
 | New chat | Starts on the profile used when `gateway start` was run |
 | One token | Cannot run two profiles as independent bots on one token |
 | Security | Everyone sees the same bot; isolation relies on `/profile`, keys, and jail |
@@ -186,4 +186,20 @@ helix logs -s gateway -n 50
 - **Full isolation** → separate bot (token) + separate gateway per profile.
 - **One bot for a team** → protected profiles, jail, `HELIX_TELEGRAM_ALLOWED_USERS`, switch via `/profile`.
 
-Automatic mapping of Telegram user id → profile in a single bot is **not implemented** in Helix yet.
+## User id → profile mapping (single bot)
+
+`helix telegram setup` offers bindings when multiple Helix profiles exist.
+
+```bash
+helix -p shared telegram map set 123456789 alice
+helix -p shared telegram map bind bob --user-id 987654321
+helix -p shared telegram map import "111:alice,222:bob"
+helix -p shared telegram map list
+helix -p shared telegram map remove 111
+```
+
+- File: `~/.helix/profiles/<bot-profile>/telegram-users.json`
+- Env: `HELIX_TELEGRAM_USER_PROFILES=123456789:alice` in `telegram.env`
+
+Users are routed to their profile automatically (memory, models, jail).  
+Manual `/profile` disables auto-routing for that chat.

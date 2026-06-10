@@ -146,6 +146,10 @@ async def run_telegram_setup(
     path = save_telegram_env(values, profile=profile)
     print_success(f"Сохранено: {path}")
 
+    from cli.commands.telegram_map import run_telegram_map_setup
+
+    run_telegram_map_setup(profile)
+
     if also_project_env or Confirm.ask("Также записать в .env текущего проекта?", default=False):
         proj_env = Path.cwd() / ".env"
         merge_project_env(proj_env, values)
@@ -189,10 +193,17 @@ def show_telegram_status(profile: str = "default") -> None:
         print_warning("Telegram не настроен. Запустите: helix telegram setup")
         return
 
+    from integrations.telegram.user_profiles import load_user_profiles, telegram_users_path
+
+    mapping = load_user_profiles(profile)
+    map_lines = ", ".join(f"{uid}→{name}" for uid, name in sorted(mapping.items())) if mapping else "(нет)"
+
     lines = [
         f"[cyan]Токен:[/cyan] {mask_token(settings.bot_token)}",
         f"[cyan]Allowlist:[/cyan] {settings.allowed_user_ids or '(пусто — не рекомендуется)'}",
-        f"[cyan]Профиль:[/cyan] {settings.profile}",
+        f"[cyan]Профиль бота:[/cyan] {settings.profile}",
+        f"[cyan]Привязки user→профиль:[/cyan] {map_lines}",
         f"[cyan]Конфиг:[/cyan] {path or 'только env'}",
+        f"[cyan]Привязки файл:[/cyan] {telegram_users_path(profile)}",
     ]
     console.print(Panel("\n".join(lines), title="Telegram", border_style="cyan"))

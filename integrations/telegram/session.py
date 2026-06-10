@@ -38,6 +38,7 @@ class ChatSession:
     pending_confirmation_message_id: int | None = None
     pending_plan_message_ids: list[int] = field(default_factory=list)
     agent: Any = None
+    profile_manual_override: bool = False
     ui_profiles: list[str] = field(default_factory=list)
     ui_sessions: list[dict] = field(default_factory=list)
     ui_sessions_page: int = 0

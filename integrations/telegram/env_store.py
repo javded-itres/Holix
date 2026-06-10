@@ -72,6 +72,7 @@ def format_env_lines(values: dict[str, str]) -> str:
     order = (
         "TELEGRAM_BOT_TOKEN",
         "HELIX_TELEGRAM_ALLOWED_USERS",
+        "HELIX_TELEGRAM_USER_PROFILES",
         "HELIX_TELEGRAM_ALLOW_ALL",
         "HELIX_TELEGRAM_EDIT_MS",
     )

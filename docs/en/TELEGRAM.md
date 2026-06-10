@@ -23,7 +23,12 @@ helix -p alice telegram setup
 helix -p bob telegram setup
 ```
 
-Full guide: isolation, shared bot, systemd — [TELEGRAM_MULTI_PROFILE.md](TELEGRAM_MULTI_PROFILE.md).
+Full guide: isolation, shared bot, user id mapping — [TELEGRAM_MULTI_PROFILE.md](TELEGRAM_MULTI_PROFILE.md).
+
+```bash
+helix telegram map set USER_ID PROFILE   # bind user to profile on a shared bot
+helix telegram map list
+```
 
 One live message per task; slash commands shared with TUI; inline approvals.
 
