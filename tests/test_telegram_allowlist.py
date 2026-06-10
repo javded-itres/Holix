@@ -5,6 +5,19 @@ from integrations.telegram.bot import HelixTelegramBot
 from integrations.telegram.config import TelegramSettings
 
 
+@pytest.fixture
+def helix_home(tmp_path, monkeypatch: pytest.MonkeyPatch):
+    import cli.core as cli_core
+
+    root = tmp_path / "helix"
+    profiles = root / "profiles"
+    profiles.mkdir(parents=True)
+    monkeypatch.setenv("HELIX_HOME", str(root))
+    monkeypatch.setattr(cli_core, "HELIX_HOME", root)
+    monkeypatch.setattr(cli_core, "PROFILES_DIR", profiles)
+    return root
+
+
 def test_default_deny_without_allowlist():
     settings = TelegramSettings(bot_token="123:abc")
     assert not settings.is_user_allowed(42)
@@ -24,7 +37,13 @@ def test_allow_all_permits_everyone():
     assert settings.is_user_allowed(999999)
 
 
-def test_bot_allowed_delegates_to_settings():
+def test_bot_allowed_delegates_to_settings(helix_home, monkeypatch: pytest.MonkeyPatch):
+    from integrations.telegram.env_store import save_telegram_env
+
+    save_telegram_env(
+        {"TELEGRAM_BOT_TOKEN": "123:abc", "HELIX_TELEGRAM_ALLOWED_USERS": "7"},
+        profile="default",
+    )
     bot = HelixTelegramBot(TelegramSettings(bot_token="123:abc", allowed_user_ids="7"))
     assert bot._allowed(7)
     assert not bot._allowed(8)
@@ -32,7 +51,9 @@ def test_bot_allowed_delegates_to_settings():
 
 @pytest.mark.asyncio
 async def test_run_polling_requires_allowlist_or_allow_all():
-    bot = HelixTelegramBot(TelegramSettings(bot_token="123:abc"))
+    bot = HelixTelegramBot(
+        TelegramSettings(bot_token="123:abc", access_requests=False),
+    )
     with pytest.raises(RuntimeError, match="HELIX_TELEGRAM_ALLOWED_USERS"):
         await bot.run_polling()
 

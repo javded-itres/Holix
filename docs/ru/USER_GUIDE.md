@@ -366,37 +366,44 @@ pip install "HelixAgentAi[telegram]"
 4. Введите **username** бота (должен заканчиваться на `bot`, например `my_company_helix_bot`).
 5. BotFather пришлёт **токен** вида `123456789:AAHxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx` — сохраните его.
 
-### 9.3. Узнать свой Telegram user id
-
-Нужен для ограничения доступа (кто может писать боту):
-
-- напишите [@userinfobot](https://t.me/userinfobot), или
-- мастер `helix telegram setup` может определить id автоматически.
-
-### 9.4. Интерактивная настройка Helix
+### 9.3. Подключить бота (админ)
 
 ```bash
-helix telegram setup
+helix -p shared telegram setup
 ```
 
-Мастер:
+Мастер проверяет токен через Telegram API (`getMe`), сохраняет его в **`~/.helix/profiles/<имя>/telegram.env`** и включает **режим запросов доступа** (`HELIX_TELEGRAM_ACCESS_REQUESTS=true`). **User id при настройке вводить не нужно.**
 
-1. Проверит токен через Telegram API (`getMe`).
-2. Спросит **allowlist** пользователей (`HELIX_TELEGRAM_ALLOWED_USERS`).
-3. Сохранит настройки в **`~/.helix/profiles/<имя>/telegram.env`**.
-4. При нескольких профилях Helix предложит **привязку user id → профиль** (один бот — разные пользователи).
+Для production и мультипользовательского бота используйте **именованный** профиль (`-p shared`) — `default` в `HELIX_ENV=production` недоступен.
 
-### 9.4.1. Привязка user id к профилю (общий бот)
+### 9.4. Назначение Telegram-администратора (один раз, только CLI)
 
 ```bash
-helix -p shared telegram map set 123456789 alice
-helix -p shared telegram map bind bob --user-id 987654321
-helix -p shared telegram map list
+helix -p shared telegram requests approve USER_ID --set-admin
 ```
 
-Подробно: [TELEGRAM_MULTI_PROFILE.md](TELEGRAM_MULTI_PROFILE.md).
+Создаёт профиль Helix **`admin`**, сохраняет единственного админа в `telegram.env` и включает меню команд. Из Telegram назначить нельзя. Проверка: `helix telegram admin show`.
 
-### 9.5. Запуск бота
+### 9.5. Пользователи запрашивают доступ
+
+1. Пользователь открывает бота в Telegram и отправляет **`/start`**.
+2. Бот отвечает, что доступ ожидает одобрения (меню команд скрыто).
+3. Telegram-администратор получает уведомление с командами CLI для одобрения или отклонения.
+
+### 9.5.1. Админ одобряет и создаёт изолированный профиль
+
+```bash
+helix -p shared telegram requests list
+helix -p shared telegram requests approve USER_ID -i
+helix -p shared telegram requests approve USER_ID --create-profile ivan
+```
+
+Helix создаёт **защищённый** профиль (с `--create-profile`), включает **workspace jail**, привязывает пользователя, **отправляет ключ в Telegram** и включает меню команд. Перезапуск бота не нужен.
+
+Другие варианты: `requests approve … --profile existing`, `requests reject USER_ID`.  
+Ручные привязки: `helix telegram map set …` — см. [TELEGRAM_MULTI_PROFILE.md](TELEGRAM_MULTI_PROFILE.md).
+
+### 9.6. Запуск бота
 
 **Отдельно:**
 
@@ -409,20 +416,20 @@ helix telegram
 **Вместе с API gateway** (рекомендуется для постоянной работы):
 
 ```bash
-helix gateway start
+HELIX_ENV=production helix -p shared gateway start -f
 ```
 
 Supervisor gateway также поднимает Telegram, если он настроен.
 
-### 9.6. Обновить меню команд в Telegram
+### 9.7. Обновить меню команд в Telegram
 
 ```bash
 helix telegram sync-menu
 ```
 
-После изменения навыков, MCP или слэш-команд.
+Обновляет меню **только для одобренных** пользователей (скрыто до approve). После изменения навыков, MCP или слэш-команд.
 
-### 9.7. Голосовые сообщения (опционально)
+### 9.8. Голосовые сообщения (опционально)
 
 Если чат уже через LiteLLM, для Whisper настройте модель транскрибации **в конфиге LiteLLM** и в `.env` профиля:
 
@@ -437,7 +444,13 @@ HELIX_TELEGRAM_VOICE_LANGUAGE=ru
 
 ### 9.8. Production
 
-При `HELIX_ENV=production` обязателен `HELIX_TELEGRAM_ALLOWED_USERS`.
+При `HELIX_ENV=production`:
+
+- используйте **именованный** профиль бота (`-p shared`), не `default`;
+- предпочтительно **запросы доступа** (`telegram setup` + `telegram requests approve --create-profile`);
+- или задайте `HELIX_TELEGRAM_ALLOWED_USERS` для личного бота на одного пользователя.
+
+Полная инструкция: [TELEGRAM.md](TELEGRAM.md).
 
 ---
 
@@ -697,7 +710,7 @@ helix gateway reload
 
 ### `helix telegram`
 
-`setup`, `run`, `status`, `sync-menu`, `map set|list|remove|bind|import` — см. [TELEGRAM_MULTI_PROFILE.md](TELEGRAM_MULTI_PROFILE.md)
+`setup`, `admin show|clear`, `requests list|approve|reject` (`--set-admin`, `-i`), `run`, `status`, `sync-menu`, `map set|list|remove|bind|import` — см. [TELEGRAM.md](TELEGRAM.md) и [TELEGRAM_MULTI_PROFILE.md](TELEGRAM_MULTI_PROFILE.md)
 
 ---
 
@@ -757,7 +770,7 @@ helix logs -l error -n 50
 | `helix: command not found` | PATH, venv, `pipx` / `uv tool` |
 | Нет ответа от модели | `LITELLM_API_KEY`, URL, `helix models list`, curl `/v1/models` |
 | MCP не появляется | `helix mcp test`, `helix gateway reload`, `helix doctor` |
-| Telegram молчит | `helix telegram status`, токен, allowlist, `helix gateway status` |
+| Telegram молчит | `helix telegram status`, токен, `telegram requests list`, `helix gateway status` |
 | Старые слэш-команды | `helix telegram sync-menu`, `helix gateway reload` |
 
 Подробнее: [TROUBLESHOOTING.md](TROUBLESHOOTING.md), [DOCTOR.md](DOCTOR.md).
@@ -773,7 +786,7 @@ helix logs -l error -n 50
 5. `helix models add litellm --host http://localhost:4000`  
 6. `helix models setup` → назначить модель для `main`  
 7. `helix doctor`  
-8. `helix tui` или `helix telegram setup` + `helix gateway start`  
+8. `helix tui` или `helix -p shared telegram setup` + `helix -p shared gateway start`  
 9. По необходимости: `helix mcp install`, `helix hub browse`, `helix search configure`  
 
 ---

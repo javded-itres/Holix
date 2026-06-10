@@ -31,7 +31,9 @@ Optional extras:
 
 ```bash
 pipx install "HelixAgentAi[all]"
-helix telegram setup
+helix -p shared telegram setup
+helix -p shared gateway start
+# users: /start → helix -p shared telegram requests approve USER_ID --create-profile NAME
 playwright install chromium   # after [browser] extra
 helix hub browse
 helix mcp setup

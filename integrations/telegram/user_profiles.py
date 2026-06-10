@@ -56,14 +56,21 @@ def _load_json_mapping(path: Path) -> dict[int, str]:
 
 
 def load_user_profiles(bot_profile: str) -> dict[int, str]:
-    """Load bindings from ``telegram-users.json`` and ``HELIX_TELEGRAM_USER_PROFILES`` env."""
+    """Load bindings from ``telegram-users.json`` and profile ``telegram.env``."""
     name = (bot_profile or "default").strip() or "default"
     merged = _load_json_mapping(telegram_users_path(name))
-    env_raw = os.getenv(ENV_KEY, "").strip()
+    env_raw = _profile_env_user_profiles(name)
     if env_raw:
         for uid, profile in parse_user_profiles_text(env_raw).items():
             merged[uid] = profile
     return merged
+
+
+def _profile_env_user_profiles(bot_profile: str) -> str:
+    """Read ``HELIX_TELEGRAM_USER_PROFILES`` from the bot profile ``telegram.env`` file."""
+    from integrations.telegram.env_store import read_telegram_env_values
+
+    return read_telegram_env_values(bot_profile).get(ENV_KEY, "").strip()
 
 
 def save_user_profiles(bot_profile: str, mapping: dict[int, str]) -> Path:

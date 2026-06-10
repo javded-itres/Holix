@@ -3,17 +3,22 @@
 ## Layers
 
 1. **Shell environment** — highest priority (never overwritten by files)
-2. **Profile `.env`** — `~/.helix/profiles/<name>/.env` (API keys, gateway bind, feature flags)
-3. **Legacy global `.env`** — `~/.helix/.env` (fallback for older installs)
-4. **Project `.env`** — `./.env` in CWD (dev convenience)
-5. **Profile YAML** — `~/.helix/profiles/<name>/config.yaml` (models, MCP, skills)
-6. **CLI flags** — overrides per command
+2. **Profile `.env`** — `~/.helix/profiles/<name>/.env` (overrides only)
+3. **Global `.env`** — `~/.helix/global/.env` (shared API keys, voice, tool flags)
+4. **Legacy global `.env`** — `~/.helix/.env` (fallback when `global/.env` is missing)
+5. **Project `.env`** — `./.env` in CWD (dev convenience)
+6. **Profile YAML** — `~/.helix/profiles/<name>/config.yaml` (per-profile overrides)
+7. **Global YAML** — `~/.helix/global/config.yaml` (shared models, MCP, behavior)
+8. **CLI flags** — overrides per command
 
-Each profile is isolated: own env file, Telegram secrets, gateway process state, memory, and skills.
+**Inheritance:** profiles created with `--inherit` (default) load global settings first; anything set in the profile file overrides global. Change global once → all inheriting profiles pick it up on next start (for keys not overridden in the profile).
 
 ```bash
-helix -p alice profile env --edit    # edit profiles/alice/.env
-cp .env.example ~/.helix/profiles/default/.env   # first-time seed
+helix profile global edit              # shared models, MCP, behavior
+helix profile global edit --env        # shared env (Whisper, gateway defaults, …)
+helix -p alice profile env --edit      # profile-only overrides
+helix profile create bob               # inherits global (default)
+helix profile create carol --clean     # standalone profile, manual setup
 ```
 
 ## Data directory (`HELIX_HOME`)
@@ -25,17 +30,26 @@ cp .env.example ~/.helix/profiles/default/.env   # first-time seed
 | Override | `HELIX_HOME` |
 | Linux (XDG) | `$XDG_DATA_HOME/helix` |
 
-Shared under `HELIX_HOME`: logs, MCP server clones. **Per profile** under `profiles/<name>/`: `.env`, `config.yaml`, `telegram.env`, `gateway/`, `data/`.
+Shared under `HELIX_HOME`: `global/` (shared settings), logs, MCP server clones. **Per profile** under `profiles/<name>/`: `.env`, `config.yaml`, `telegram.env`, `gateway/`, `data/`.
+
+### Global layout
+
+| Path | Content |
+|------|---------|
+| `global/config.yaml` | Shared models, providers, MCP, search, agent behavior |
+| `global/.env` | Shared API keys, Whisper/voice, gateway defaults, tool flags |
+
+Initialized on first run (seeded from `profiles/default/config.yaml` when present, else built-in defaults). Manage with `helix profile global show|edit|init`.
 
 ### Profile layout
 
 | Path | Content |
 |------|---------|
-| `profiles/<name>/.env` | API keys, `HELIX_GATEWAY_PORT`, tool flags |
+| `profiles/<name>/.env` | Overrides only (unset keys inherit from `global/.env`) |
 | `profiles/<name>/telegram.env` | Bot token, allowlist, `HELIX_TELEGRAM_USER_PROFILES` |
 | `profiles/<name>/telegram-users.json` | Telegram user id → Helix profile bindings |
 | `profiles/<name>/gateway/state.json` | Running gateway PID and bind |
-| `profiles/<name>/config.yaml` | Models, MCP, hub, workspace jail |
+| `profiles/<name>/config.yaml` | Overrides only (inherits `global/config.yaml`) |
 | `profiles/<name>/data/` | Memory, skills, security, cron |
 
 ## Workspace jail (optional)
@@ -76,9 +90,15 @@ Equivalent `.env` variables:
 
 Platform defaults are always included. See [SECURITY.md](SECURITY.md).
 
-## Telegram (shared bot, multiple profiles)
+## Telegram (shared bot, multiple users)
 
-When one bot serves several users with different Helix profiles:
+**Recommended** — access requests (`helix telegram setup` enables this by default):
+
+```bash
+helix -p shared telegram requests approve USER_ID --create-profile ivan
+```
+
+**Manual** bindings when one bot serves several Helix profiles:
 
 ```bash
 helix -p shared telegram map set 123456789 alice
@@ -87,11 +107,15 @@ helix -p shared telegram map import "111:alice,222:bob"
 
 | Variable / file | Description |
 |-----------------|-------------|
-| `HELIX_TELEGRAM_ALLOWED_USERS` | Who may message the bot (required in production) |
+| `HELIX_TELEGRAM_ACCESS_REQUESTS` | `true` — users send `/start`, admin approves via CLI (default after `telegram setup`) |
+| `HELIX_TELEGRAM_ADMIN_USER_ID` | Single Telegram admin user id (set via `requests approve --set-admin`; CLI only) |
+| `HELIX_TELEGRAM_ADMIN_PROFILE` | Helix profile for the admin (default: `admin`) |
+| `telegram-access-requests.json` | Pending/resolved access requests per bot profile |
+| `HELIX_TELEGRAM_ALLOWED_USERS` | Manual allowlist (optional when access requests are on) |
 | `HELIX_TELEGRAM_USER_PROFILES` | `USER_ID:profile` comma-separated in `telegram.env` |
-| `telegram-users.json` | Same in JSON; updated by `helix telegram map` |
+| `telegram-users.json` | User bindings; updated by `map` or `requests approve` |
 
-Details: [TELEGRAM_MULTI_PROFILE.md](TELEGRAM_MULTI_PROFILE.md).
+Details: [TELEGRAM.md](TELEGRAM.md), [TELEGRAM_MULTI_PROFILE.md](TELEGRAM_MULTI_PROFILE.md).
 
 ## Key environment variables
 
@@ -182,6 +206,46 @@ providers:
 ```
 
 Legacy top-level fields (`model`, `base_url`) still work; prefer `providers` + `default_provider`.
+
+### Provider fallback (when LLM is unavailable)
+
+If the primary provider fails (connection error, timeout, rate limit, model not found), Helix tries **fallback providers** in order and switches the active client for the rest of the session step.
+
+**Profile-level** (applies to all agents using the default provider chain):
+
+```yaml
+default_provider: openrouter
+fallback_providers:
+  - litellm
+  - ollama
+```
+
+**Per-provider** (tried before profile-level fallbacks):
+
+```yaml
+providers:
+  openrouter:
+    base_url: https://openrouter.ai/api/v1
+    default_model: anthropic/claude-sonnet-4
+    fallback_providers:
+      - litellm
+  litellm:
+    base_url: http://localhost:4000/v1
+    default_model: smart
+  ollama:
+    base_url: http://127.0.0.1:11434/v1
+    default_model: qwen2.5-coder:32b
+```
+
+CLI:
+
+```bash
+helix models fallback list
+helix models fallback set litellm,ollama
+helix models fallback clear
+```
+
+Each fallback uses that provider's `default_model`. Inherited from `global/config.yaml` unless overridden in the profile.
 
 ## MCP and Hub
 

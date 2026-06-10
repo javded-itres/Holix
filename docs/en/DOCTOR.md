@@ -34,7 +34,7 @@ LLM fixes (default profile LLM):
 - Profile YAML and providers
 - LLM endpoint and model availability
 - Gateway stale state / health
-- Telegram token and allowlist
+- Telegram token, access requests, and allowlist
 - Production: pepper, CORS, auth, code executor
 
 After fixes, inspect runtime logs: `helix logs -l error` — see [LOGS.md](LOGS.md).

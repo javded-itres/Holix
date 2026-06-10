@@ -60,18 +60,101 @@ def command_specs(locale: str | None = None) -> list[TelegramCommandSpec]:
     ]
 
 
-async def register_bot_commands(bot: Any, *, locale: str | None = None) -> list[str]:
-    """Register commands in Telegram menu (side button + autocomplete)."""
+def _bot_commands_for_locale(locale: str | None = None) -> list[Any]:
     try:
-        from aiogram.types import BotCommand, BotCommandScopeDefault, MenuButtonCommands
+        from aiogram.types import BotCommand
+    except ImportError:
+        return []
+    return [
+        BotCommand(command=spec.command, description=spec.description[:256])
+        for spec in command_specs(locale)
+    ]
+
+
+def authorized_telegram_user_ids(bot_profile: str) -> set[int]:
+    """User ids that may use the bot (allowlist + profile bindings)."""
+    from integrations.telegram.allowlist import load_allowed_user_ids
+    from integrations.telegram.user_profiles import load_user_profiles
+
+    ids = load_allowed_user_ids(bot_profile)
+    ids.update(load_user_profiles(bot_profile).keys())
+    return ids
+
+
+async def clear_default_bot_menu(bot: Any) -> None:
+    """Hide the global command menu (default scope) for new/unauthorized users."""
+    try:
+        from aiogram.types import BotCommandScopeDefault, MenuButtonDefault
+    except ImportError:
+        return
+
+    scope = BotCommandScopeDefault()
+    try:
+        await bot.delete_my_commands(scope=scope)
+    except Exception:
+        pass
+    try:
+        await bot.set_chat_menu_button(menu_button=MenuButtonDefault())
+    except Exception:
+        pass
+
+
+async def hide_chat_menu(bot: Any, chat_id: int) -> None:
+    """Remove slash-command menu for one private chat."""
+    try:
+        from aiogram.types import BotCommandScopeChat, MenuButtonDefault
+    except ImportError:
+        return
+
+    cid = int(chat_id)
+    scope = BotCommandScopeChat(chat_id=cid)
+    try:
+        await bot.delete_my_commands(scope=scope)
+    except Exception:
+        pass
+    try:
+        await bot.set_chat_menu_button(chat_id=cid, menu_button=MenuButtonDefault())
+    except Exception:
+        pass
+
+
+async def enable_chat_menu(
+    bot: Any,
+    chat_id: int,
+    *,
+    locale: str | None = None,
+) -> list[str]:
+    """Enable slash-command menu for one authorized private chat."""
+    try:
+        from aiogram.types import BotCommandScopeChat, MenuButtonCommands
     except ImportError:
         return []
 
-    specs = command_specs(locale)
-    commands = [
-        BotCommand(command=spec.command, description=spec.description[:256])
-        for spec in specs
-    ]
+    commands = _bot_commands_for_locale(locale)
+    if not commands:
+        return []
+
+    cid = int(chat_id)
+    scope = BotCommandScopeChat(chat_id=cid)
+    await bot.set_my_commands(commands, scope=scope)
+    try:
+        await bot.set_chat_menu_button(chat_id=cid, menu_button=MenuButtonCommands())
+    except Exception:
+        pass
+    return [spec.command for spec in command_specs(locale)]
+
+
+async def register_global_bot_commands(bot: Any, *, locale: str | None = None) -> list[str]:
+    """Register commands globally (used when HELIX_TELEGRAM_ALLOW_ALL=true)."""
+    try:
+        from aiogram.types import BotCommandScopeDefault, MenuButtonCommands
+    except ImportError:
+        return []
+
+    commands = _bot_commands_for_locale(locale)
+    if not commands:
+        return []
+
     scope = BotCommandScopeDefault()
     try:
         await bot.delete_my_commands(scope=scope)
@@ -82,7 +165,27 @@ async def register_bot_commands(bot: Any, *, locale: str | None = None) -> list[
         await bot.set_chat_menu_button(menu_button=MenuButtonCommands())
     except Exception:
         pass
-    return [spec.command for spec in specs]
+    return [spec.command for spec in command_specs(locale)]
+
+
+async def register_bot_commands(
+    bot: Any,
+    *,
+    locale: str | None = None,
+    bot_profile: str = "default",
+) -> list[str]:
+    """Apply menu policy: global when allow-all, per-chat for authorized users only."""
+    from integrations.telegram.config import load_telegram_settings
+
+    settings = load_telegram_settings(bot_profile)
+    if settings.allow_all:
+        return await register_global_bot_commands(bot, locale=locale)
+
+    await clear_default_bot_menu(bot)
+    names: list[str] = []
+    for uid in sorted(authorized_telegram_user_ids(bot_profile)):
+        names = await enable_chat_menu(bot, uid, locale=locale)
+    return names
 
 
 async def sync_bot_menu(profile: str = "default") -> list[str]:
@@ -101,7 +204,7 @@ async def sync_bot_menu(profile: str = "default") -> list[str]:
     locale = LocaleStore(profile).get()
     bot = Bot(token=settings.bot_token)
     try:
-        return await register_bot_commands(bot, locale=locale)
+        return await register_bot_commands(bot, locale=locale, bot_profile=profile)
     finally:
         await bot.session.close()
 

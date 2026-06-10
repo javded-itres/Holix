@@ -19,6 +19,7 @@ from core.profile_keys import (
 @pytest.fixture
 def helix_home(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     monkeypatch.setenv("HELIX_HOME", str(tmp_path))
+    monkeypatch.setenv("HELIX_ENV", "development")
     monkeypatch.chdir(tmp_path)
     return tmp_path
 
@@ -45,6 +46,23 @@ def test_create_profile_with_access_key(helix_home: Path) -> None:
     assert profile_has_access_key("alice")
     key = manager.pop_last_created_access_key()
     assert key and key.startswith("hp_")
+    config = manager.load_profile("alice")
+    workspace = manager.get_profile_dir("alice") / "workspace"
+    assert workspace.is_dir()
+    assert config.workspace_jail_enabled is True
+    assert config.workspace_root == str(workspace.resolve())
+
+
+def test_default_profile_blocked_in_production(helix_home: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    from cli.core import resolve_active_profile_name
+
+    monkeypatch.setenv("HELIX_ENV", "production")
+
+    with pytest.raises(ProfileNotFoundError):
+        resolve_active_profile_name(None)
+
+    with pytest.raises(ProfileNotFoundError):
+        resolve_active_profile_name("default")
 
 
 def test_switch_requires_access_key(helix_home: Path, monkeypatch: pytest.MonkeyPatch) -> None:

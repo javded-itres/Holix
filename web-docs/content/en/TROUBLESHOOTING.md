@@ -41,7 +41,17 @@ helix doctor
 
 ## Telegram access denied
 
-Set `HELIX_TELEGRAM_ALLOWED_USERS` to your numeric user id.
+1. User must send **`/start`** first (access-request mode).
+2. Designate a Telegram admin (once): `helix -p shared telegram requests approve USER_ID --set-admin`.
+3. Admin approves new users: `helix -p shared telegram requests list` → `telegram requests approve USER_ID -i` or `--create-profile NAME`.
+4. For a personal bot, set `HELIX_TELEGRAM_ALLOWED_USERS` to your numeric user id.
+5. In production use a **named** profile (`-p shared`), not `default`.
+
+## Telegram menu visible before approval
+
+Slash commands are hidden until the user is approved (or on allowlist / `map`). After approve, run `helix telegram sync-menu` if the client still shows an old global menu.
+
+See [TELEGRAM.md](TELEGRAM.md).
 
 ## Auth 401 on API
 

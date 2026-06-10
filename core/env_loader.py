@@ -81,23 +81,29 @@ def _seed_env_files(*, first_run: bool) -> None:
         env_dst.write_text(content, encoding="utf-8")
 
 
-def _seed_profile_env(profile: str) -> Path:
-    """Ensure ``profiles/<profile>/.env`` exists (copy from global or template)."""
+def _seed_profile_env(profile: str, *, inherit_global: bool = True) -> Path:
+    """Ensure ``profiles/<profile>/.env`` exists.
+
+    When *inherit_global* is true (default), create a minimal stub so runtime
+    loads shared values from ``global/.env`` / legacy ``~/.helix/.env``.
+    When false (--clean profile), write an empty profile env for manual setup.
+    """
     target = profile_env_path(profile)
     target.parent.mkdir(parents=True, exist_ok=True)
     if target.is_file():
         return target
 
-    global_env = helix_env_path()
-    if global_env.is_file():
-        target.write_text(global_env.read_text(encoding="utf-8"), encoding="utf-8")
+    if inherit_global:
+        target.write_text(
+            "# Profile overrides only — unset keys inherit from ~/.helix/global/.env\n",
+            encoding="utf-8",
+        )
         return target
 
-    src = _find_env_example_path()
-    if src and src.is_file():
-        target.write_text(src.read_text(encoding="utf-8"), encoding="utf-8")
-    else:
-        target.write_text("# Helix profile environment\n", encoding="utf-8")
+    target.write_text(
+        "# Clean profile — configure API keys and feature flags here\n",
+        encoding="utf-8",
+    )
     return target
 
 
@@ -107,6 +113,13 @@ def init_helix_home() -> Path:
     first_run = not home.exists()
     home.mkdir(parents=True, exist_ok=True)
     _seed_env_files(first_run=first_run)
+    try:
+        from core.global_config import ensure_global_config, ensure_global_env_template
+
+        ensure_global_config()
+        ensure_global_env_template()
+    except Exception:
+        pass
     return home
 
 
@@ -134,7 +147,8 @@ def bootstrap_env(*, include_project: bool = True, force: bool = False) -> None:
 
     Priority (lowest → highest among files):
     1. ``./.env`` in the current working directory (dev convenience)
-    2. ``~/.helix/.env`` (legacy global fallback)
+    2. ``~/.helix/global/.env`` (shared global settings)
+    3. ``~/.helix/.env`` (legacy global fallback when ``global/.env`` is absent)
 
     Variables already set in the process environment are never overwritten.
     """
@@ -159,9 +173,20 @@ def bootstrap_env(*, include_project: bool = True, force: bool = False) -> None:
         if proj.is_file():
             merged.update(dotenv_values(proj))
 
-    user_env = helix_env_path()
-    if user_env.is_file():
-        merged.update(dotenv_values(user_env))
+    try:
+        from core.global_config import global_env_path
+
+        shared_env = global_env_path()
+        if shared_env.is_file():
+            merged.update(dotenv_values(shared_env))
+        else:
+            user_env = helix_env_path()
+            if user_env.is_file():
+                merged.update(dotenv_values(user_env))
+    except Exception:
+        user_env = helix_env_path()
+        if user_env.is_file():
+            merged.update(dotenv_values(user_env))
 
     locked = _shell_locked_keys()
     for key, value in merged.items():
@@ -183,7 +208,7 @@ def bootstrap_profile_env(profile: str, *, force: bool = False) -> None:
     bootstrap_env(force=force)
     name = (profile or "default").strip() or "default"
     os.environ["HELIX_PROFILE"] = name
-    _seed_profile_env(name)
+    _seed_profile_env(name, inherit_global=True)
     _apply_env_file(profile_env_path(name), override_file_values=True)
     _ACTIVE_PROFILE_ENV = name
 
@@ -208,16 +233,26 @@ def format_env_context_block(*, profile_name: str | None = None) -> str:
     skills_dir = profile_dir_path(profile) / "data" / "skills"
     gateway_dir = profile_dir_path(profile) / "gateway"
 
+    try:
+        from core.global_config import global_config_path, global_env_path
+
+        g_env = global_env_path()
+        g_cfg = global_config_path()
+    except Exception:
+        g_env = home / "global" / ".env"
+        g_cfg = home / "global" / "config.yaml"
+
     lines = [
         "## Helix configuration paths",
         "",
         "Environment variables load in this order (highest priority wins):",
         "1. Process/shell environment (already exported in the session)",
         f"2. Profile env file: `{prof_env}` ({_file_tag(prof_env)})",
+        f"3. Global env file: `{g_env}` ({_file_tag(g_env)})",
     ]
-    if legacy_env.resolve() != prof_env.resolve():
+    if legacy_env.resolve() != prof_env.resolve() and not g_env.is_file():
         lines.append(
-            f"3. Legacy global env (fallback): `{legacy_env}` ({_file_tag(legacy_env)})"
+            f"4. Legacy global env (fallback): `{legacy_env}` ({_file_tag(legacy_env)})"
         )
     if proj_env.resolve() != prof_env.resolve():
         suffix = "optional" if not proj_env.is_file() else "present"
@@ -230,7 +265,8 @@ def format_env_context_block(*, profile_name: str | None = None) -> str:
             "",
             f"- **HELIX_HOME**: `{home}`",
             f"- **Active profile** (`HELIX_PROFILE`): `{profile}`",
-            f"- **Profile config**: `{profile_yaml}` ({_file_tag(profile_yaml)})",
+            f"- **Global config**: `{g_cfg}` ({_file_tag(g_cfg)})",
+            f"- **Profile config** (overrides): `{profile_yaml}` ({_file_tag(profile_yaml)})",
             f"- **Profile skills**: `{skills_dir}/`",
             f"- **Telegram bot secrets**: `{tg_env}` ({_file_tag(tg_env)})",
             f"- **Gateway state/logs**: `{gateway_dir}/`",
@@ -264,9 +300,9 @@ def ensure_helix_env_template(example_path: Path | None = None) -> Path:
     return target
 
 
-def ensure_profile_env_template(profile: str) -> Path:
-    """Create ``profiles/<profile>/.env`` from template or legacy global env."""
-    return _seed_profile_env(profile)
+def ensure_profile_env_template(profile: str, *, inherit_global: bool = True) -> Path:
+    """Create ``profiles/<profile>/.env`` (minimal stub or clean template)."""
+    return _seed_profile_env(profile, inherit_global=inherit_global)
 
 
 def read_profile_env_map(profile: str) -> dict[str, str]:

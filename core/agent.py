@@ -104,6 +104,22 @@ class HelixAgent:
         self._initialized = False
         self._event_context: EventContext | None = None
         self.agent_slot: str = "main"
+        self._model_manager = None
+
+    @property
+    def model_manager(self):
+        """Lazy ModelManager for provider routing and fallbacks."""
+        if self._model_manager is None:
+            from cli.core import ProfileManager
+            from core.models.manager import ModelManager
+
+            profile_name = getattr(self.config, "profile_name", "default") or "default"
+            self._model_manager = ModelManager(ProfileManager().load_profile(profile_name))
+        return self._model_manager
+
+    def invalidate_model_manager(self) -> None:
+        """Drop cached profile routing (after config reload)."""
+        self._model_manager = None
 
     @property
     def graph(self):

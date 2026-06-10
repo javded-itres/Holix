@@ -1,21 +1,46 @@
+# Helix agent — minimal start: set TELEGRAM_BOT_TOKEN and run `docker compose up -d`
+#
+# Quick start:
+#   export TELEGRAM_BOT_TOKEN="123456:ABC..."
+#   docker compose up -d
+#
+# Approve Telegram users:
+#   docker compose exec helix helix telegram requests list
+#   docker compose exec helix helix telegram requests approve USER_ID --profile default
+#
+# CLI / admin:
+#   docker compose exec helix helix --help
+#   docker compose exec helix helix profile create alice
+
 services:
   helix:
     build: .
+    image: helix-agent:latest
     ports:
       - "${HELIX_GATEWAY_PORT:-8000}:8000"
     environment:
+      HELIX_HOME: /data/.helix
+      HELIX_PROFILE: ${HELIX_PROFILE:-default}
       HELIX_ENV: production
       HELIX_REQUIRE_AUTH: "true"
       HELIX_API_KEY_PEPPER: ${HELIX_API_KEY_PEPPER:-change-me-in-production}
+      HELIX_GATEWAY_HOST: 0.0.0.0
+      HELIX_GATEWAY_PORT: "8000"
+      HELIX_TELEGRAM_ACCESS_REQUESTS: "true"
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:?Set TELEGRAM_BOT_TOKEN in .env or environment}
       MODEL: ${MODEL:-qwen2.5-coder:32b}
-      BASE_URL: http://ollama:11434/v1
-      API_KEY: ollama
-      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
-      HELIX_TELEGRAM_ALLOWED_USERS: ${HELIX_TELEGRAM_ALLOWED_USERS:-}
+      BASE_URL: ${BASE_URL:-http://ollama:11434/v1}
+      API_KEY: ${API_KEY:-ollama}
+      OLLAMA_HOST: ${OLLAMA_HOST:-http://ollama:11434}
+      HELIX_TELEGRAM_VOICE_ENABLED: ${HELIX_TELEGRAM_VOICE_ENABLED:-true}
+      HELIX_TELEGRAM_FILES_ENABLED: ${HELIX_TELEGRAM_FILES_ENABLED:-true}
+      ENABLE_BROWSER_TOOLS: ${ENABLE_BROWSER_TOOLS:-true}
+      BROWSER_HEADLESS: "true"
     volumes:
-      - helix-data:/root/.helix
+      - helix-data:/data/.helix
     depends_on:
-      - ollama
+      ollama:
+        condition: service_started
     restart: unless-stopped
     networks:
       - helix-network
@@ -23,13 +48,12 @@ services:
   ollama:
     image: ollama/ollama:latest
     ports:
-      - "11434:11434"
+      - "${OLLAMA_PORT:-11434}:11434"
     volumes:
       - ollama-data:/root/.ollama
     restart: unless-stopped
     networks:
       - helix-network
-
 volumes:
   ollama-data:
   helix-data:

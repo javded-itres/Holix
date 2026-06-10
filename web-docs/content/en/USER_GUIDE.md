@@ -370,37 +370,44 @@ pip install "HelixAgentAi[telegram]"
 4. Enter the bot **username** (must end with `bot`, e.g. `my_company_helix_bot`).
 5. BotFather will send a **token** like `123456789:AAHxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx` — save it.
 
-### 9.3. Find your Telegram user id
-
-Required to restrict access (who can message the bot):
-
-- message [@userinfobot](https://t.me/userinfobot), or
-- the `helix telegram setup` wizard can detect the id automatically.
-
-### 9.4. Interactive Helix setup
+### 9.3. Connect the bot (admin)
 
 ```bash
-helix telegram setup
+helix -p shared telegram setup
 ```
 
-The wizard:
+The wizard validates the token via the Telegram API (`getMe`), saves it to **`~/.helix/profiles/<name>/telegram.env`**, and enables **access-request mode** (`HELIX_TELEGRAM_ACCESS_REQUESTS=true`). You do **not** enter user ids during setup.
 
-1. Validates the token via the Telegram API (`getMe`).
-2. Asks for the user **allowlist** (`HELIX_TELEGRAM_ALLOWED_USERS`).
-3. Saves settings to **`~/.helix/profiles/<name>/telegram.env`**.
-4. When multiple Helix profiles exist, offers **user id → profile** bindings (one bot, many users).
+Use a **named** profile (`-p shared`) for production multi-user bots — profile `default` is dev-only when `HELIX_ENV=production`.
 
-### 9.4.1. User id → profile mapping (shared bot)
+### 9.4. Designate the Telegram admin (once, CLI only)
 
 ```bash
-helix -p shared telegram map set 123456789 alice
-helix -p shared telegram map bind bob --user-id 987654321
-helix -p shared telegram map list
+helix -p shared telegram requests approve USER_ID --set-admin
 ```
 
-Details: [TELEGRAM_MULTI_PROFILE.md](TELEGRAM_MULTI_PROFILE.md).
+Creates Helix profile **`admin`**, stores the single admin in `telegram.env`, and enables the command menu for that user. Cannot be done from Telegram. Check: `helix telegram admin show`.
 
-### 9.5. Start the bot
+### 9.5. Users request access
+
+1. User opens the bot in Telegram and sends **`/start`**.
+2. Bot replies that access is pending (slash menu hidden).
+3. The Telegram admin receives a notification with CLI approve/reject commands.
+
+### 9.5.1. Admin approves and creates an isolated profile
+
+```bash
+helix -p shared telegram requests list
+helix -p shared telegram requests approve USER_ID -i
+helix -p shared telegram requests approve USER_ID --create-profile ivan
+```
+
+Helix creates a **protected** profile (with `--create-profile`), enables **workspace jail**, binds the user, **sends the access key in Telegram**, and enables the slash menu. No bot restart required.
+
+Other options: `requests approve … --profile existing`, `requests reject USER_ID`.  
+Manual bindings: `helix telegram map set …` — see [TELEGRAM_MULTI_PROFILE.md](TELEGRAM_MULTI_PROFILE.md).
+
+### 9.6. Start the bot
 
 **Standalone:**
 
@@ -413,20 +420,20 @@ helix telegram
 **Together with the API gateway** (recommended for always-on use):
 
 ```bash
-helix gateway start
+HELIX_ENV=production helix -p shared gateway start -f
 ```
 
 The gateway supervisor also starts Telegram if it is configured.
 
-### 9.6. Update the Telegram command menu
+### 9.7. Update the Telegram command menu
 
 ```bash
 helix telegram sync-menu
 ```
 
-After changing skills, MCP, or slash commands.
+Refreshes menus for **authorized** users only (hidden until approve). Run after changing skills, MCP, or slash commands.
 
-### 9.7. Voice messages (optional)
+### 9.8. Voice messages (optional)
 
 If chat already goes through LiteLLM, configure the transcription model **in the LiteLLM config** and in the profile `.env`:
 
@@ -441,7 +448,13 @@ More details: [TELEGRAM.md](TELEGRAM.md).
 
 ### 9.8. Production
 
-When `HELIX_ENV=production`, `HELIX_TELEGRAM_ALLOWED_USERS` is required.
+When `HELIX_ENV=production`:
+
+- use a **named** bot profile (`-p shared`), not `default`;
+- prefer **access requests** (`telegram setup` + `telegram requests approve --create-profile`);
+- or set `HELIX_TELEGRAM_ALLOWED_USERS` for a personal single-user bot.
+
+Full guide: [TELEGRAM.md](TELEGRAM.md).
 
 ---
 
@@ -701,7 +714,7 @@ Requires a running gateway.
 
 ### `helix telegram`
 
-`setup`, `run`, `status`, `sync-menu`, `map set|list|remove|bind|import` — see [TELEGRAM_MULTI_PROFILE.md](TELEGRAM_MULTI_PROFILE.md)
+`setup`, `admin show|clear`, `requests list|approve|reject` (`--set-admin`, `-i`), `run`, `status`, `sync-menu`, `map set|list|remove|bind|import` — see [TELEGRAM.md](TELEGRAM.md) and [TELEGRAM_MULTI_PROFILE.md](TELEGRAM_MULTI_PROFILE.md)
 
 ---
 
@@ -761,7 +774,7 @@ helix logs -l error -n 50
 | `helix: command not found` | PATH, venv, `pipx` / `uv tool` |
 | No response from model | `LITELLM_API_KEY`, URL, `helix models list`, curl `/v1/models` |
 | MCP not showing up | `helix mcp test`, `helix gateway reload`, `helix doctor` |
-| Telegram silent | `helix telegram status`, token, allowlist, `helix gateway status` |
+| Telegram silent | `helix telegram status`, token, `telegram requests list`, `helix gateway status` |
 | Stale slash commands | `helix telegram sync-menu`, `helix gateway reload` |
 
 More: [TROUBLESHOOTING.md](TROUBLESHOOTING.md), [DOCTOR.md](DOCTOR.md).

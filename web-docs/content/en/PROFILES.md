@@ -2,14 +2,21 @@
 
 Helix **profiles** are fully isolated agent environments on one machine. Each profile has its own configuration, secrets, memory, Telegram bot, and API gateway — so different people or projects do not interfere with each other.
 
-For the **default** profile you do not need `-p`:
+### Profile `default` (development only)
+
+In **development** (`HELIX_ENV` not `production`), you can omit `-p` — Helix uses profile `default`:
 
 ```bash
 helix gateway start
 helix profile env --edit
 ```
 
-Other profiles: `helix -p alice gateway start`.
+In **production**, profile `default` is **not available**. Always pass a named profile:
+
+```bash
+HELIX_ENV=production helix -p shared gateway start
+HELIX_ENV=production helix -p alice profile env --edit
+```
 
 ## What is isolated per profile
 
@@ -24,7 +31,24 @@ Other profiles: `helix -p alice gateway start`.
 | Skills | `~/.helix/profiles/<name>/data/skills/` |
 | Cron jobs | `~/.helix/profiles/<name>/data/cron/` |
 
-Global under `~/.helix/`: shared logs, MCP server clones. Everything agent-specific lives under the profile.
+Global under `~/.helix/`:
+
+| Path | Purpose |
+|------|---------|
+| `global/config.yaml` | Shared models, MCP, search, behavior |
+| `global/.env` | Shared API keys, voice, tool flags |
+| `logs/`, MCP clones | Operational shared data |
+
+Profiles **inherit** global settings by default. Per-profile files store **overrides only** — change a model in one profile without touching global; change global and all inheriting profiles update automatically.
+
+```bash
+helix profile global edit                 # edit shared settings
+helix profile create team-a               # inherits global (default)
+helix profile create team-b --clean       # empty profile, configure manually
+helix -p team-a config set model smart    # override model for one profile only
+```
+
+Telegram tokens, memory, and gateway state remain **per profile** (not inherited).
 
 ## Multiple gateways and Telegram bots
 
@@ -50,26 +74,30 @@ helix -p bob telegram setup
 
 ### One bot for multiple users
 
-Alternatively — **one** bot with Telegram user id → profile bindings:
+**Recommended** — access requests + per-user protected profiles:
 
 ```bash
 helix -p shared telegram setup
-helix -p shared telegram map set 123456789 alice
-helix -p shared telegram map set 987654321 bob
-helix -p shared gateway start
+HELIX_ENV=production helix -p shared gateway start -f
+# users send /start; admin approves:
+helix -p shared telegram requests approve USER_ID --create-profile ivan
 ```
 
-See [TELEGRAM_MULTI_PROFILE.md](TELEGRAM_MULTI_PROFILE.md).
+Each approved user gets a protected profile, workspace jail, and the access key in Telegram.
+
+Manual bindings (`helix telegram map`) are still supported. See [TELEGRAM_MULTI_PROFILE.md](TELEGRAM_MULTI_PROFILE.md).
 
 ## Workspace jail (directory isolation)
 
-Optional **workspace jail** restricts file and terminal tools to a single directory tree. The agent cannot read, write, or run commands outside that folder — but works freely inside it.
+**Workspace jail** restricts file and terminal tools to a single directory tree. The agent cannot read, write, or run commands outside that folder — but works freely inside it.
 
-Use cases:
+**Automatic:** when you create a **protected** profile (`--protect`, `profile key init`, or `telegram requests approve --create-profile`), Helix creates:
 
-- Give each user their own folder on a shared server
-- Limit a data-analysis agent to `~/data-agent`
-- Prevent accidental access to the rest of the filesystem
+`~/.helix/profiles/<name>/workspace/`
+
+and enables jail pointing at that directory.
+
+**Manual** (any profile):
 
 ```bash
 helix profile jail enable ~/data-agent
@@ -124,10 +152,11 @@ Optionally, enable an **access key** (format `hp_…`) so only someone who knows
 helix profile create alice
 helix -p alice gateway start
 
-# Create with key protection from the start
+# Create with key protection + workspace jail from the start
 helix profile create bob --protect
+# → ~/.helix/profiles/bob/workspace/ + profile.key (hp_…)
 
-# Protect an existing open profile
+# Protect an existing open profile (also enables workspace jail)
 helix -p alice profile key init
 
 # Switch into a protected profile
@@ -192,8 +221,13 @@ helix -p bob gateway start
 |---------|-------------|
 | `helix -p <name> …` | Select profile (omit for `default`) |
 | `helix --profile-key <key>` | Access key for a protected profile |
-| `helix profile create <name>` | Create profile (open by default) |
+| `helix profile create <name>` | Create profile inheriting global settings (default) |
+| `helix profile create <name> --clean` | Standalone profile without global inheritance |
 | `helix profile create <name> --protect` | Create profile with access key |
+| `helix profile global show` | Show shared global config |
+| `helix profile global edit` | Edit `global/config.yaml` |
+| `helix profile global edit --env` | Edit `global/.env` |
+| `helix profile global init` | (Re)create global config from defaults or `--from-profile` |
 | `helix profile key status` | Show whether active profile is protected |
 | `helix profile key init` | Generate key for an existing open profile |
 | `helix profile key rotate` | Replace access key |

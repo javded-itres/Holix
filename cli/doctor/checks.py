@@ -709,19 +709,36 @@ def _check_telegram(profile: str) -> list[DoctorFinding]:
     allow_all = os.getenv("HELIX_TELEGRAM_ALLOW_ALL", "").strip().lower() in {
         "1", "true", "yes", "on",
     }
+    access_requests_raw = os.getenv("HELIX_TELEGRAM_ACCESS_REQUESTS", "").strip().lower()
+    access_requests = access_requests_raw not in {"0", "false", "no", "off"}
     if not allowed.strip() and not allow_all:
-        out.append(
-            DoctorFinding(
-                code="telegram.no_allowlist",
-                severity=Severity.ERROR.value,
-                title="Telegram allowlist empty",
-                detail="Bot will deny all users until HELIX_TELEGRAM_ALLOWED_USERS is set",
-                recommendation=(
-                    "Set HELIX_TELEGRAM_ALLOWED_USERS to your numeric user id(s), "
-                    "or HELIX_TELEGRAM_ALLOW_ALL=true for local development only"
-                ),
+        if access_requests:
+            out.append(
+                DoctorFinding(
+                    code="telegram.access_requests",
+                    severity=Severity.INFO.value,
+                    title="Telegram access-request mode",
+                    detail=(
+                        "Allowlist is empty; new users must send /start and be approved "
+                        "via `helix telegram requests`"
+                    ),
+                    recommendation="helix telegram requests list",
+                )
             )
-        )
+        else:
+            out.append(
+                DoctorFinding(
+                    code="telegram.no_allowlist",
+                    severity=Severity.ERROR.value,
+                    title="Telegram allowlist empty",
+                    detail="Bot will deny all users until HELIX_TELEGRAM_ALLOWED_USERS is set",
+                    recommendation=(
+                        "Enable HELIX_TELEGRAM_ACCESS_REQUESTS=true (default), "
+                        "set HELIX_TELEGRAM_ALLOWED_USERS, "
+                        "or HELIX_TELEGRAM_ALLOW_ALL=true for local development only"
+                    ),
+                )
+            )
     elif allow_all:
         out.append(
             DoctorFinding(

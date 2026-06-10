@@ -62,7 +62,8 @@ helix config show
 
 ```bash
 pipx install "HelixAgentAi[telegram]"
-helix telegram setup
+helix -p shared telegram setup
+# мультипользовательский бот: /start → helix -p shared telegram requests approve …
 pipx install "HelixAgentAi[browser]"
 playwright install chromium
 helix hub browse

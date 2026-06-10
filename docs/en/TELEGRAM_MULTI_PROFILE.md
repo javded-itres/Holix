@@ -95,41 +95,63 @@ See [DEPLOYMENT.md](DEPLOYMENT.md).
 
 ### 5. Restrict access in production
 
-In `telegram.env` or profile `.env`:
+For a **personal** bot (one owner), set your user id in `telegram.env` or profile `.env`:
 
 ```bash
 HELIX_ENV=production
-HELIX_TELEGRAM_ALLOWED_USERS=123456789   # your Telegram user id only
+HELIX_TELEGRAM_ALLOWED_USERS=123456789
 ```
 
-Get your id via [@userinfobot](https://t.me/userinfobot).
+For a **shared** bot with many users, use access requests instead (next section).
 
 ---
 
-## Alternative: one bot for everyone (with limits)
+## One bot — many users (access requests, recommended)
 
-Suitable for a **trusted team** sharing one bot and switching profiles manually.
+One token, many isolated users — no manual user ids during setup.
+
+```bash
+helix -p shared telegram setup
+HELIX_ENV=production helix -p shared gateway start -f
+```
+
+1. **Bootstrap** (once): designate the Telegram admin from CLI — `helix -p shared telegram requests approve USER_ID --set-admin` (creates profile `admin`, CLI only).
+2. Users send `/start` in Telegram (menu hidden until approved); the admin gets a Telegram notification.
+3. Admin approves from CLI:
+
+```bash
+helix -p shared telegram requests list
+helix -p shared telegram requests approve USER_ID -i
+helix -p shared telegram requests approve USER_ID --create-profile ivan
+```
+
+On approve Helix creates a **protected** profile (with `--create-profile`), enables **workspace jail** at `profiles/ivan/workspace/`, binds the user, **sends the access key in Telegram**, and enables the slash menu for that chat.
+
+- Use a **named bot profile** (`-p shared`), not `default` — `default` is dev-only in production.
+- `HELIX_TELEGRAM_ACCESS_REQUESTS=true` is set by `telegram setup` (see [TELEGRAM.md](TELEGRAM.md)).
+- No bot restart needed after approve.
+
+---
+
+## Alternative: one bot + manual `/profile` or `map`
+
+For a **trusted team** that manages bindings explicitly (without access requests).
 
 ```bash
 helix -p shared gateway start
 ```
 
-In Telegram each user:
-
-1. Messages the bot.
-2. Switches: `/profile alice` or `/profile bob hp_xxxxxxxx` (if the profile is protected).
-3. Works in their profile (memory and sessions: `tg_<profile>_<chat_id>`).
-
-The **Profile** menu button and `/profile` without args also list profiles.
+Each user switches manually: `/profile alice` or `/profile bob hp_xxxxxxxx` (protected profiles).  
+Or bind user ids: `helix telegram map set …` (see below).
 
 ### Limits of a single bot
 
 | Limit | Explanation |
 |-------|-------------|
-| Auto `user_id → profile` mapping | `helix telegram map` (see below) |
-| New chat | Starts on the profile used when `gateway start` was run |
+| Auto `user_id → profile` | `helix telegram map` or `telegram requests approve` |
+| New chat | Starts on the profile active when `gateway start` was run |
 | One token | Cannot run two profiles as independent bots on one token |
-| Security | Everyone sees the same bot; isolation relies on `/profile`, keys, and jail |
+| Security | Shared bot; isolation relies on per-user profiles, keys, and jail |
 
 ### Hardening with one bot
 
@@ -138,20 +160,7 @@ helix profile create alice --protect
 helix profile create bob --protect
 ```
 
-Enter a protected profile:
-
-```text
-/profile bob hp_xxxxxxxx
-```
-
-Plus **workspace jail** — restrict file and terminal tools to one directory:
-
-```bash
-helix -p alice profile jail enable /home/alice/work
-helix -p bob profile jail enable /home/bob/work
-```
-
-See [PROFILES.md](PROFILES.md) — access keys and workspace jail.
+Protected profiles get workspace jail automatically. See [PROFILES.md](PROFILES.md).
 
 ---
 
@@ -159,8 +168,9 @@ See [PROFILES.md](PROFILES.md) — access keys and workspace jail.
 
 | Approach | Isolation | Convenience | Security |
 |----------|-----------|-------------|----------|
-| **1 bot = 1 profile** (recommended) | Full | Each user has their own bot | High |
-| **1 bot + `/profile`** | After manual switch | One bot for all | Medium (keys + jail + allowlist) |
+| **1 bot = 1 profile** (full isolation) | Full | Each user has their own bot | High |
+| **1 bot + access requests** (recommended shared) | Per-user profile | `/start` → admin approve | High (key + jail) |
+| **1 bot + `/profile` / `map`** | After manual setup | One bot for all | Medium |
 
 ---
 
@@ -168,7 +178,7 @@ See [PROFILES.md](PROFILES.md) — access keys and workspace jail.
 
 - **Same token in multiple `telegram.env` files** — only one process can poll; others fail with a conflict.
 - **Same `HELIX_GATEWAY_PORT`** across profiles — the second gateway will not start.
-- **Empty `HELIX_TELEGRAM_ALLOWED_USERS` in production** — bot rejects messages when `HELIX_ENV=production`.
+- **No access path in production** — with `HELIX_ENV=production`, users need access requests, allowlist, or `map` bindings.
 
 Check:
 
@@ -184,9 +194,10 @@ helix logs -s gateway -n 50
 ## Summary
 
 - **Full isolation** → separate bot (token) + separate gateway per profile.
-- **One bot for a team** → protected profiles, jail, `HELIX_TELEGRAM_ALLOWED_USERS`, switch via `/profile`.
+- **One bot, many users** → `telegram setup` + `telegram requests approve --create-profile` (recommended).
+- **Manual team setup** → `map` bindings or `/profile` with protected profiles and jail.
 
-## User id → profile mapping (single bot)
+## User id → profile mapping (single bot, manual)
 
 `helix telegram setup` offers bindings when multiple Helix profiles exist.
 

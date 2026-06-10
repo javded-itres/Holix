@@ -134,6 +134,15 @@ async def run_agent_loop(
     model = getattr(agent, "model", settings.model)
     temperature = getattr(agent_config, "temperature", settings.temperature)
     client: AsyncOpenAI = agent.client
+    agent_slot = getattr(agent, "agent_slot", "main")
+    model_manager = getattr(agent, "model_manager", None)
+
+    def _on_fallback_switch(cfg) -> None:
+        if hasattr(agent, "set_active_model_config"):
+            agent.set_active_model_config(cfg)
+            nonlocal client, model
+            client = agent.client
+            model = agent.model
 
     # Initial thinking signal
     yield ThinkingEvent(
@@ -161,14 +170,31 @@ async def run_agent_loop(
         try:
             if stream:
                 # ==================== STREAMING PATH ====================
-                stream_response = await client.chat.completions.create(
-                    model=model,
-                    messages=api_messages,
-                    tools=agent.tools.get_schemas(),
-                    tool_choice="auto",
-                    temperature=temperature,
-                    stream=True,
-                )
+                from core.models.fallback import run_with_provider_fallback
+
+                if model_manager:
+                    stream_response = await run_with_provider_fallback(
+                        model_manager,
+                        agent_name=agent_slot,
+                        on_switch=_on_fallback_switch,
+                        factory=lambda cfg, llm_client: llm_client.chat.completions.create(
+                            model=cfg.model,
+                            messages=api_messages,
+                            tools=agent.tools.get_schemas(),
+                            tool_choice="auto",
+                            temperature=temperature,
+                            stream=True,
+                        ),
+                    )
+                else:
+                    stream_response = await client.chat.completions.create(
+                        model=model,
+                        messages=api_messages,
+                        tools=agent.tools.get_schemas(),
+                        tool_choice="auto",
+                        temperature=temperature,
+                        stream=True,
+                    )
 
                 current_content = ""
                 tool_calls_dict: dict[int, dict[str, Any]] = {}
@@ -300,13 +326,26 @@ async def run_agent_loop(
 
             else:
                 # ==================== NON-STREAMING PATH ====================
-                response = await client.chat.completions.create(
-                    model=model,
-                    messages=api_messages,
-                    tools=agent.tools.get_schemas(),
-                    tool_choice="auto",
-                    temperature=temperature,
-                )
+                from core.models.fallback import chat_completions_with_fallback
+
+                if model_manager:
+                    response = await chat_completions_with_fallback(
+                        model_manager,
+                        agent_name=agent_slot,
+                        on_switch=_on_fallback_switch,
+                        messages=api_messages,
+                        tools=agent.tools.get_schemas(),
+                        tool_choice="auto",
+                        temperature=temperature,
+                    )
+                else:
+                    response = await client.chat.completions.create(
+                        model=model,
+                        messages=api_messages,
+                        tools=agent.tools.get_schemas(),
+                        tool_choice="auto",
+                        temperature=temperature,
+                    )
 
                 message = response.choices[0].message
                 msg_dict = {"role": "assistant", "content": message.content or ""}

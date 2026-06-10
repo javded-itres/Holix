@@ -65,7 +65,8 @@ In TUI or Telegram, type **`/help`** for slash commands: [SLASH_COMMANDS.md](SLA
 
 ```bash
 pipx install "HelixAgentAi[telegram]"   # or reinstall with [all]
-helix telegram setup
+helix -p shared telegram setup
+# multi-user: users send /start, then helix -p shared telegram requests approve …
 pipx install "HelixAgentAi[browser]"
 playwright install chromium            # after browser extra
 pipx install "HelixAgentAi[tui-web]"   # helix tui --web

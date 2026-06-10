@@ -18,9 +18,11 @@ from cli.core import get_current_config, get_profile_manager, unlock_profile
 from cli.utils.rich_console import print_error, print_info, print_success, print_warning
 
 app = typer.Typer(help="Manage profile isolation (env, workspace jail, access keys)")
+global_app = typer.Typer(help="Shared global settings inherited by profiles")
 jail_app = typer.Typer(help="Restrict agent file/terminal access to one directory")
 key_app = typer.Typer(help="Profile access keys (required to switch into protected profiles)")
 whitelist_app = typer.Typer(help="Terminal command whitelist for the active profile")
+app.add_typer(global_app, name="global")
 app.add_typer(jail_app, name="jail")
 app.add_typer(key_app, name="key")
 app.add_typer(whitelist_app, name="whitelist")
@@ -38,8 +40,13 @@ def profile_create(
         "--protect",
         help="Generate an access key (profile is open by default)",
     ),
+    inherit_global: bool = typer.Option(
+        True,
+        "--inherit/--clean",
+        help="Inherit shared global settings (default) or create a standalone profile",
+    ),
 ) -> None:
-    """Create a profile (open by default; use --protect to require an access key)."""
+    """Create a profile (inherits global settings by default; --clean for manual setup)."""
     from cli.utils.rich_console import print_panel
 
     manager = get_profile_manager()
@@ -47,13 +54,21 @@ def profile_create(
         print_error(f"Profile '{name}' already exists")
         raise typer.Exit(1)
 
-    manager.create_profile(name, with_access_key=protect)
+    manager.create_profile(name, with_access_key=protect, inherit_global=inherit_global)
     access_key = manager.pop_last_created_access_key()
-    print_success(f"Created profile '{name}'")
+    mode = "inherits global settings" if inherit_global else "standalone (clean)"
+    print_success(f"Created profile '{name}' ({mode})")
+    if inherit_global:
+        from core.global_config import global_config_path, global_env_path
+
+        print_info(f"Global config: [dim]{global_config_path()}[/dim]")
+        print_info(f"Global env: [dim]{global_env_path()}[/dim]")
     if access_key:
+        workspace = manager.get_profile_dir(name) / "workspace"
         print_panel(
             f"[cyan]{access_key}[/cyan]\n\n"
             "Save this key — it is shown only once.\n"
+            f"Workspace jail: [dim]{workspace}[/dim]\n"
             f"Switch with: [bold]helix -p {name} --profile-key <key>[/bold]",
             title="Profile access key",
             border_style="yellow",
@@ -61,6 +76,87 @@ def profile_create(
     else:
         print_info(f"Switch freely: [bold]helix -p {name}[/bold]")
         print_info("Protect later: [cyan]helix -p {name} profile key init[/cyan]")
+
+
+@global_app.command("show")
+def global_show() -> None:
+    """Show shared global configuration (models, MCP, behavior)."""
+    import yaml
+    from core.global_config import global_config_path, global_env_path, load_global_config_resolved
+
+    from cli.utils.rich_console import print_panel
+
+    data = load_global_config_resolved()
+    body = yaml.dump(data, default_flow_style=False, allow_unicode=True)
+    print_panel(
+        body,
+        title="Global configuration",
+        subtitle=f"{global_config_path()}\nEnv: {global_env_path()}",
+        border_style="cyan",
+    )
+
+
+@global_app.command("edit")
+def global_edit(
+    env: bool = typer.Option(False, "--env", help="Edit global .env instead of config.yaml"),
+) -> None:
+    """Open global settings in $EDITOR."""
+    from core.global_config import ensure_global_config, ensure_global_env_template, global_config_path
+
+    editor = os.environ.get("EDITOR", "nano")
+    if env:
+        target = ensure_global_env_template()
+    else:
+        target = ensure_global_config()
+    print_info(f"Opening {target} in {editor}...")
+    try:
+        subprocess.run([editor, str(target)], check=False)
+        print_success("Global configuration updated")
+        print_info("Profiles with --inherit pick up changes on next gateway/CLI start")
+    except Exception as exc:
+        print_error(f"Failed to open editor: {exc}")
+        raise typer.Exit(1) from exc
+
+
+@global_app.command("init")
+def global_init(
+    from_profile: str = typer.Option(
+        "default",
+        "--from-profile",
+        help="Seed global config from an existing profile (empty = built-in defaults)",
+    ),
+) -> None:
+    """Create or reset ``~/.helix/global/`` from defaults or an existing profile."""
+    from core.global_config import (
+        default_global_config_data,
+        ensure_global_env_template,
+        global_config_path,
+        global_dir,
+    )
+
+    import yaml
+
+    ensure_global_env_template()
+    path = global_config_path()
+    if from_profile:
+        from cli.core import ProfileManager
+        from core.global_config import strip_profile_only_keys
+
+        manager = ProfileManager()
+        if manager.profile_exists(from_profile):
+            raw = yaml.safe_load((manager.get_profile_dir(from_profile) / "config.yaml").read_text(encoding="utf-8")) or {}
+            data = strip_profile_only_keys(raw)
+        else:
+            print_warning(f"Profile '{from_profile}' not found — using built-in defaults")
+            data = default_global_config_data()
+    else:
+        data = default_global_config_data()
+
+    global_dir().mkdir(parents=True, exist_ok=True)
+    with open(path, "w", encoding="utf-8") as handle:
+        yaml.dump(data, handle, default_flow_style=False, allow_unicode=True)
+    print_success(f"Global config written: {path}")
+    print_info(f"Global env: {global_dir() / '.env'}")
 
 
 @key_app.command("status")
@@ -100,11 +196,15 @@ def key_init(ctx: typer.Context) -> None:
         print_warning(f"Profile '{profile}' already has an access key")
         raise typer.Exit(1)
 
+    from cli.core import enable_profile_workspace_isolation
+
     access_key = store_profile_access_key(profile)
+    workspace = enable_profile_workspace_isolation(manager, profile)
     print_success(f"Access key created for profile '{profile}'")
     print_panel(
         f"[cyan]{access_key}[/cyan]\n\n"
-        "Save this key — it is shown only once.",
+        "Save this key — it is shown only once.\n"
+        f"Workspace jail: [dim]{workspace}[/dim]",
         title="Profile access key",
         border_style="yellow",
     )

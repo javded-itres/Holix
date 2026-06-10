@@ -266,6 +266,10 @@ class Settings(BaseSettings):
         return self.helix_env.strip().lower() == "production"
 
     @property
+    def is_development(self) -> bool:
+        return not self.is_production
+
+    @property
     def effective_require_auth(self) -> bool:
         if self.is_production:
             return True

@@ -66,8 +66,9 @@ def test_env_user_profiles_merged(helix_home, monkeypatch: pytest.MonkeyPatch) -
         },
         profile="shared",
     )
-    save_user_profiles("shared", {111: "alice"})
-    monkeypatch.setenv(ENV_KEY, "333:carol")
+    path = telegram_users_path("shared")
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text('{"111": "alice"}\n', encoding="utf-8")
     assert load_user_profiles("shared") == {111: "alice", 333: "carol"}
 
 

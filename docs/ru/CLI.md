@@ -6,14 +6,16 @@
 
 | Опция | Кратко | По умолчанию | Описание |
 |-------|--------|--------------|----------|
-| `--profile` | `-p` | `default` | Профиль в `~/.helix/profiles/<имя>/` |
+| `--profile` | `-p` | *(dev: `default`)* | Профиль в `~/.helix/profiles/<имя>/` |
+| `--profile-key` | | env `HELIX_PROFILE_KEY` | Ключ доступа к защищённому профилю |
 | `--verbose` | `-v` | выкл | Подробный вывод |
 
-Для профиля **default** флаг `-p` не нужен:
+В **development** можно не указывать `-p` — используется `default`. В **production** (`HELIX_ENV=production`) нужен **именованный** профиль — `default` недоступен:
 
 ```bash
-helix gateway start          # то же, что helix -p default gateway start
-helix -p work status         # -p только для других профилей
+helix gateway start
+helix -p work status
+HELIX_ENV=production helix -p shared gateway start
 ```
 
 ## Команды верхнего уровня
@@ -114,12 +116,17 @@ helix update --check
 
 | Подкоманда | Описание |
 |------------|----------|
-| `setup` | Мастер провайдеров и `agent_models` |
+| `setup` | Мастер провайдеров, `agent_models`, fallback |
 | `list` | Список провайдеров |
 | `agents` | Назначения по агентам |
+| `fallback list` | Цепочка fallback-провайдеров |
+| `fallback set PROVIDERS` | Задать fallback (`litellm,ollama`) |
+| `fallback clear` | Убрать fallback на уровне профиля |
 
 ```bash
 helix models setup
+helix models fallback set litellm,ollama
+helix models fallback list
 ```
 
 ---
@@ -145,12 +152,18 @@ helix models setup
 
 ## `helix profile`
 
-Изоляция профиля: env-файл, опциональный workspace jail и whitelist терминала.
+Изоляция профиля и **общие глобальные настройки** (наследуются по умолчанию).
 
 | Подкоманда | Описание |
 |------------|----------|
-| `env` | Показать `.env` профиля |
-| `env --edit` | Открыть `profiles/<имя>/.env` в `$EDITOR` |
+| `create <имя>` | Новый профиль (`--inherit` по умолчанию, `--clean` — без global) |
+| `create <имя> --protect` | С ключом доступа + workspace jail |
+| `global show` | Показать `~/.helix/global/config.yaml` |
+| `global edit` | Редактировать global YAML (модели, MCP, поведение) |
+| `global edit --env` | Редактировать `~/.helix/global/.env` |
+| `global init` | (Пере)создать global (`--from-profile default`) |
+| `env` | Показать `.env` профиля (переопределения) |
+| `env --edit` | Открыть переопределения профиля в `$EDITOR` |
 | `jail enable <path>` | Ограничить файловые/терминальные инструменты одной директорией |
 | `jail disable` | Выключить jail |
 | `jail status` | Статус jail |
@@ -159,10 +172,11 @@ helix models setup
 | `whitelist enable` | Включить проверку whitelist |
 
 ```bash
+helix profile global edit
+helix profile create team-a
+helix profile create team-b --clean
 helix -p alice profile env --edit
 helix -p data-agent profile jail enable ~/data-agent
-helix -p dev profile whitelist add "docker, make"
-helix -p dev profile whitelist list
 ```
 
 [CONFIGURATION.md](CONFIGURATION.md), [PROFILES.md](PROFILES.md)
@@ -283,11 +297,16 @@ Tools: `mcp_<сервер>_<имя>`. В TUI: `/mcp`.
 
 | Подкоманда | Описание |
 |------------|----------|
-| `setup` | Мастер: токен, allowlist, привязки user→профиль, сохранение |
+| `setup` | Мастер: только токен бота; включает режим запросов доступа |
 | `run` | Запуск polling (`-p` выбирает профиль бота) |
-| `status` | Сохранённая конфигурация (токен скрыт), привязки user id |
-| `sync-menu` | Обновить slash-меню в Telegram |
-| `map set USER_ID PROFILE` | Привязать Telegram user id к профилю Helix |
+| `status` | Сохранённая конфигурация (токен скрыт), привязки |
+| `sync-menu` | Обновить slash-меню **только для одобренных** (скрыто до approve) |
+| `admin show` | Показать Telegram-администратора (назначается только из CLI) |
+| `admin clear` | Сбросить админа перед повторным `--set-admin` |
+| `requests list` | Ожидающие запросы после `/start` |
+| `requests approve USER_ID` | Одобрить (`--create-profile`, `--profile`, `-i` или `--set-admin`) |
+| `requests reject USER_ID` | Отклонить запрос |
+| `map set USER_ID PROFILE` | Ручная привязка Telegram user id → профиль Helix |
 | `map list` | Список привязок |
 | `map remove USER_ID` | Удалить привязку |
 | `map bind PROFILE` | Быстрая привязка (`--user-id` или id из allowlist) |
@@ -295,9 +314,11 @@ Tools: `mcp_<сервер>_<имя>`. В TUI: `/mcp`.
 
 ```bash
 helix -p shared telegram setup
-helix -p shared telegram map set 123456789 alice
-helix -p shared telegram map list
-helix -p shared telegram run
+helix -p shared telegram requests approve 123456789 --set-admin   # первый админ + профиль admin
+helix -p shared telegram requests list
+helix -p shared telegram requests approve 123456789 --create-profile ivan
+helix -p shared telegram admin show
+helix -p shared telegram map set 123456789 alice   # ручная альтернатива
 helix -p shared gateway start
 ```
 

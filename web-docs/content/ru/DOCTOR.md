@@ -33,7 +33,7 @@ LLM (default LLM профиля):
 - YAML профиля и providers
 - LLM endpoint и модель
 - Gateway state / health
-- Telegram token и allowlist
+- Telegram token, access requests и allowlist
 - Production: pepper, CORS, auth, code executor
 
 После исправлений смотрите runtime-логи: `helix logs -l error` — [LOGS.md](LOGS.md).

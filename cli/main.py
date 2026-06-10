@@ -7,6 +7,8 @@ from rich.traceback import install
 # Install rich traceback handler
 install(show_locals=True)
 
+from core.profile_keys import ProfileNotFoundError
+
 from cli.commands import chat, config, doctor, gateway, memory, models, profile, run, skills
 from cli.commands.cron import app as cron_app
 from cli.commands.docs import app as docs_app
@@ -17,7 +19,7 @@ from cli.commands.mcp import app as mcp_app
 from cli.commands.search import app as search_app
 from cli.commands.telegram import register_telegram_command
 from cli.commands.update_cmd import app as update_app
-from cli.core import get_profile_manager, init_profile
+from cli.core import get_profile_manager, init_profile, resolve_active_profile_name
 from cli.utils.rich_console import print_info
 
 # Create Typer app
@@ -50,11 +52,10 @@ app.add_typer(docs_app, name="docs")
 @app.callback()
 def _app_callback(
     ctx: typer.Context,
-    profile: str = typer.Option(
-        "default",
+    profile: str | None = typer.Option(
+        None,
         "--profile", "-p",
-        help="Profile name to use",
-        show_default=True
+        help="Profile name (required in production; implicit default is dev-only)",
     ),
     profile_key: str | None = typer.Option(
         None,
@@ -75,24 +76,28 @@ def _app_callback(
     # Initialize profile
     from core.profile_keys import ProfileKeyError
 
-    try:
-        config = init_profile(profile, profile_key=profile_key)
-    except ProfileKeyError as exc:
-        from cli.utils.rich_console import print_error
+    from cli.utils.rich_console import print_error
 
+    try:
+        resolved_profile = resolve_active_profile_name(profile)
+        config = init_profile(resolved_profile, profile_key=profile_key)
+    except ProfileNotFoundError as exc:
+        print_error(str(exc))
+        raise typer.Exit(1) from exc
+    except ProfileKeyError as exc:
         print_error(str(exc))
         raise typer.Exit(1) from exc
 
     # Store context
     ctx.obj = {
-        "profile": profile,
+        "profile": resolved_profile,
         "config": config,
         "verbose": verbose,
         "profile_key": profile_key,
     }
 
     if verbose:
-        print_info(f"Using profile: {profile}")
+        print_info(f"Using profile: {resolved_profile}")
         print_info(f"Model: {config.model}")
 
 

@@ -15,8 +15,10 @@ def profile_cli_prefix(profile: str = "default") -> str:
 
 def resolve_profile(ctx: typer.Context, override: str | None = None) -> str:
     """Active profile: explicit override, else global ``--profile`` from root callback."""
+    from cli.core import resolve_active_profile_name
+
     if override and override.strip():
-        return override.strip()
+        return resolve_active_profile_name(override.strip())
     if ctx.obj and ctx.obj.get("profile"):
         return str(ctx.obj["profile"])
-    return "default"
+    return resolve_active_profile_name(None)

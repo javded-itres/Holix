@@ -2,13 +2,27 @@
 
 ## Docker
 
+Минимальный запуск (достаточно токена Telegram-бота):
+
 ```bash
-cp .env.example .env
-# Задайте HELIX_API_KEY_PEPPER, TELEGRAM_* при необходимости
+export TELEGRAM_BOT_TOKEN="123456789:AAH..."
 docker compose up -d
 ```
 
-В контейнере: `helix gateway start`.
+Образ включает все опциональные extras (Telegram, voice, browser). При первом запуске создаётся `HELIX_HOME` и сохраняется токен бота. Пользователи отправляют `/start` в Telegram; вы одобряете из контейнера:
+
+```bash
+docker compose exec helix helix -p shared telegram requests list
+docker compose exec helix helix -p shared telegram requests approve USER_ID --create-profile alice
+# или привязка к существующему профилю:
+docker compose exec helix helix -p shared telegram requests approve USER_ID --profile existing
+```
+
+Используйте **именованный** профиль бота (`-p shared` или профиль из bootstrap). Профиль `default` в production (`HELIX_ENV=production`) недоступен.
+
+Опционально: `HELIX_API_KEY_PEPPER`, `MODEL`, `BASE_URL` (облачная LLM вместо встроенного Ollama).
+
+В контейнере: `helix gateway start -f` — gateway, Telegram-бот и cron в одном процессе.
 
 ## systemd
 

@@ -95,41 +95,63 @@ sudo systemctl enable --now helix-gateway@bob
 
 ### 5. Ограничить доступ в production
 
-В `telegram.env` или `.env` профиля:
+Для **личного** бота (один владелец) укажите свой user id в `telegram.env` или `.env` профиля:
 
 ```bash
 HELIX_ENV=production
-HELIX_TELEGRAM_ALLOWED_USERS=123456789   # только свой Telegram user id
+HELIX_TELEGRAM_ALLOWED_USERS=123456789
 ```
 
-Узнать свой ID: например, [@userinfobot](https://t.me/userinfobot).
+Для **общего** бота на многих пользователей используйте запросы доступа (следующий раздел).
 
 ---
 
-## Альтернатива: один бот на всех (с ограничениями)
+## Один бот — много пользователей (access requests, рекомендуется)
 
-Подходит для **доверенной команды**, когда все пользуются одним ботом и вручную переключают профиль.
+Один токен, много изолированных пользователей — user id при настройке вводить не нужно.
+
+```bash
+helix -p shared telegram setup
+HELIX_ENV=production helix -p shared gateway start -f
+```
+
+1. **Первый запуск** (один раз): назначить Telegram-админа из CLI — `helix -p shared telegram requests approve USER_ID --set-admin` (профиль `admin`, только CLI).
+2. Пользователи отправляют `/start` (меню скрыто до approve); админ получает уведомление в Telegram.
+3. Админ одобряет из CLI:
+
+```bash
+helix -p shared telegram requests list
+helix -p shared telegram requests approve USER_ID -i
+helix -p shared telegram requests approve USER_ID --create-profile ivan
+```
+
+При одобрении Helix создаёт **защищённый** профиль (с `--create-profile`), включает **workspace jail** в `profiles/ivan/workspace/`, привязывает пользователя, **отправляет ключ в Telegram** и включает меню команд для чата.
+
+- Используйте **именованный профиль бота** (`-p shared`), не `default` — в production `default` только для dev.
+- `HELIX_TELEGRAM_ACCESS_REQUESTS=true` выставляется мастером `telegram setup` (см. [TELEGRAM.md](TELEGRAM.md)).
+- Перезапуск бота после approve не нужен.
+
+---
+
+## Альтернатива: один бот + ручной `/profile` или `map`
+
+Для **доверенной команды** с явным управлением привязками (без access requests).
 
 ```bash
 helix -p shared gateway start
 ```
 
-В Telegram каждый пользователь:
-
-1. Пишет боту.
-2. Переключается: `/profile alice` или `/profile bob hp_xxxxxxxx` (если профиль защищён).
-3. Работает в своём профиле (память и сессии: `tg_<profile>_<chat_id>`).
-
-Также доступны кнопка **Профиль** в меню бота и `/profile` без аргументов — список профилей.
+Каждый переключается вручную: `/profile alice` или `/profile bob hp_xxxxxxxx` (защищённые профили).  
+Или привязка user id: `helix telegram map set …` (см. ниже).
 
 ### Ограничения одного бота
 
 | Ограничение | Пояснение |
 |-------------|-----------|
-| Автопривязка `user_id → профиль` | `helix telegram map` (см. ниже) |
-| Новый чат | Стартует на профиле, с которым запущен `gateway start` |
+| Автопривязка `user_id → профиль` | `helix telegram map` или `telegram requests approve` |
+| Новый чат | Стартует на профиле, активном при `gateway start` |
 | Один токен | Нельзя держать два профиля как два независимых бота на одном токене |
-| Безопасность | Все видят одного бота; изоляция — после `/profile`, ключей и jail |
+| Безопасность | Общий бот; изоляция — через профили, ключи и jail |
 
 ### Защита при одном боте
 
@@ -138,20 +160,7 @@ helix profile create alice --protect
 helix profile create bob --protect
 ```
 
-Вход в защищённый профиль:
-
-```text
-/profile bob hp_xxxxxxxx
-```
-
-Плюс **workspace jail** — ограничить файловые и терминальные tools одной директорией:
-
-```bash
-helix -p alice profile jail enable /home/alice/work
-helix -p bob profile jail enable /home/bob/work
-```
-
-См. [PROFILES.md](PROFILES.md) — разделы «Ключи доступа» и «Workspace jail».
+Защищённые профили получают workspace jail автоматически. См. [PROFILES.md](PROFILES.md).
 
 ---
 
@@ -159,8 +168,9 @@ helix -p bob profile jail enable /home/bob/work
 
 | Подход | Изоляция | Удобство | Безопасность |
 |--------|----------|----------|--------------|
-| **1 бот = 1 профиль** (рекомендуется) | Полная | Каждый пишет своему боту | Высокая |
-| **1 бот + `/profile`** | После ручного переключения | Один бот на всех | Средняя (нужны ключи + jail + allowlist) |
+| **1 бот = 1 профиль** (полная изоляция) | Полная | Каждый пишет своему боту | Высокая |
+| **1 бот + access requests** (рекомендуется для общего бота) | Профиль на пользователя | `/start` → approve админом | Высокая (ключ + jail) |
+| **1 бот + `/profile` / `map`** | После ручной настройки | Один бот на всех | Средняя |
 
 ---
 
@@ -168,7 +178,7 @@ helix -p bob profile jail enable /home/bob/work
 
 - **Один токен в нескольких `telegram.env`** — только один процесс сможет polling; остальные упадут с конфликтом.
 - **Одинаковый `HELIX_GATEWAY_PORT`** у разных профилей — второй gateway не стартует.
-- **Пустой `HELIX_TELEGRAM_ALLOWED_USERS` в production** — бот не примет сообщения (`HELIX_ENV=production`).
+- **Нет пути доступа в production** — при `HELIX_ENV=production` нужны access requests, allowlist или привязки `map`.
 
 Проверка:
 
@@ -184,9 +194,10 @@ helix logs -s gateway -n 50
 ## Итог
 
 - **Полная изоляция** → отдельный бот (токен) + отдельный gateway на каждый профиль.
-- **Один бот на команду** → профили с `--protect`, jail, `HELIX_TELEGRAM_ALLOWED_USERS`, переключение через `/profile`.
+- **Один бот, много пользователей** → `telegram setup` + `telegram requests approve --create-profile` (рекомендуется).
+- **Ручная настройка команды** → привязки `map` или `/profile` с защищёнными профилями и jail.
 
-## Привязка user id → профиль (один бот)
+## Привязка user id → профиль (один бот, вручную)
 
 При `helix telegram setup` мастер предложит привязки, если профилей несколько.
 

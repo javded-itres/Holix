@@ -7,7 +7,7 @@
 3. `HELIX_API_KEY_PEPPER` — long random secret
 4. `HELIX_CORS_ORIGINS` — explicit origins (no `*`)
 5. `HELIX_GATEWAY_HOST=127.0.0.1` behind reverse proxy with TLS
-6. `HELIX_TELEGRAM_ALLOWED_USERS` set when using Telegram
+6. Telegram: `HELIX_TELEGRAM_ACCESS_REQUESTS=true` (default after `telegram setup`) or `HELIX_TELEGRAM_ALLOWED_USERS` for a personal bot; use named profiles (`-p shared`), not `default`, in production
 7. `HELIX_ENABLE_CODE_EXECUTOR=false` if not required
 8. `HELIX_TERMINAL_COMMAND_WHITELIST=true`
 

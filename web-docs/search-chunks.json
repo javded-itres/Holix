@@ -42,7 +42,7 @@
     "section": "interfaces",
     "title": "Overview",
     "heading": "Interfaces",
-    "body": "- CLI.md — complete command reference - SLASH COMMANDS.md — all commands (TUI, Telegram, chat) - EXECUTION MODES.md — ReAct, Plan, Hybrid, Auto — how modes work and prompt examples - TUI.md — , web mode, copy, hub UI - HUB.md — , catalogs, - GATEWAY.md — - TELEGRAM.md — Telegram - TELEGRAM MULTI PROFILE.md — one bot / multiple bots, user id mapping bot - BROWSER TOOLS.md — Playwright tools",
+    "body": "- CLI.md — complete command reference - SLASH COMMANDS.md — all commands (TUI, Telegram, chat) - EXECUTION MODES.md — ReAct, Plan, Hybrid, Auto — how modes work and prompt examples - TUI.md — , web mode, copy, hub UI - HUB.md — , catalogs, - GATEWAY.md — - TELEGRAM.md — Telegram - TELEGRAM MULTI PROFILE.md — one bot / multiple bots, access requests, manual - BROWSER TOOLS.md — Playwright tools",
     "keywords": [
       "overview",
       "обзор",
@@ -341,6 +341,51 @@
     "nav_order": 2
   },
   {
+    "id": "en/start-here#5-optional-features",
+    "lang": "en",
+    "slug": "start-here",
+    "section": "5-optional-features",
+    "title": "Start Here",
+    "heading": "5. Optional features",
+    "body": "```bash pipx install \"HelixAgentAi[telegram]\" or reinstall with [all] helix -p shared telegram setup",
+    "keywords": [
+      "start",
+      "первый",
+      "запуск",
+      "checklist",
+      "optional",
+      "features"
+    ],
+    "nav_order": 2
+  },
+  {
+    "id": "en/start-here#multi-user-users-send-start-then-helix--p-shared-telegram-reques",
+    "lang": "en",
+    "slug": "start-here",
+    "section": "multi-user-users-send-start-then-helix--p-shared-telegram-reques",
+    "title": "Start Here",
+    "heading": "multi-user: users send /start, then helix -p shared telegram requests approve …",
+    "body": "pipx install \"HelixAgentAi[browser]\" playwright install chromium after browser extra pipx install \"HelixAgentAi[tui-web]\" helix tui --web helix hub browse helix mcp setup ```",
+    "keywords": [
+      "start",
+      "первый",
+      "запуск",
+      "checklist",
+      "multi",
+      "user",
+      "users",
+      "send",
+      "then",
+      "helix",
+      "shared",
+      "telegram",
+      "reques",
+      "requests",
+      "approve"
+    ],
+    "nav_order": 2
+  },
+  {
     "id": "en/start-here#next-steps",
     "lang": "en",
     "slug": "start-here",
@@ -405,12 +450,38 @@
     "section": "run",
     "title": "Quickstart",
     "heading": "Run",
-    "body": "Repair config: Optional extras: Update from PyPI: See CLI.md and SLASH COMMANDS.md.",
+    "body": "Repair config: Optional extras: ```bash pipx install \"HelixAgentAi[all]\" helix -p shared telegram setup helix -p shared gateway start",
     "keywords": [
       "quick",
       "быстрый",
       "старт",
       "run"
+    ],
+    "nav_order": 3
+  },
+  {
+    "id": "en/quickstart#users-start-helix--p-shared-telegram-requests-approve-user_id---",
+    "lang": "en",
+    "slug": "quickstart",
+    "section": "users-start-helix--p-shared-telegram-requests-approve-user_id---",
+    "title": "Quickstart",
+    "heading": "users: /start → helix -p shared telegram requests approve USER_ID --create-profile NAME",
+    "body": "playwright install chromium after [browser] extra helix hub browse helix mcp setup bash helix update --channel pypi ``` See CLI.md and SLASH COMMANDS.md.",
+    "keywords": [
+      "quick",
+      "быстрый",
+      "старт",
+      "users",
+      "start",
+      "helix",
+      "shared",
+      "telegram",
+      "requests",
+      "approve",
+      "user_id",
+      "create",
+      "profile",
+      "name"
     ],
     "nav_order": 3
   },
@@ -421,7 +492,7 @@
     "section": "data-directory-helix_home",
     "title": "Configuration",
     "heading": "Data directory (`HELIX_HOME`)",
-    "body": "OS Default ---- --------- Linux / macOS Windows Override Linux (XDG) Shared under : logs, MCP server clones. Per profile under : , , , , .",
+    "body": "OS Default ---- --------- Linux / macOS Windows Override Linux (XDG) Shared under : (shared settings), logs, MCP server clones. Per profile under : , , , , .",
     "keywords": [
       "config",
       "конфигурация",
@@ -430,6 +501,24 @@
       "data",
       "directory",
       "helix_home"
+    ],
+    "nav_order": 4
+  },
+  {
+    "id": "en/configuration#global-layout",
+    "lang": "en",
+    "slug": "configuration",
+    "section": "global-layout",
+    "title": "Configuration",
+    "heading": "Global layout",
+    "body": "Path Content ------ --------- Shared models, providers, MCP, search, agent behavior Shared API keys, Whisper/voice, gateway defaults, tool flags Initialized on first run (seeded from when present, else built-in defaults). Manage with .",
+    "keywords": [
+      "config",
+      "конфигурация",
+      "env",
+      "переменные",
+      "global",
+      "layout"
     ],
     "nav_order": 4
   },
@@ -461,7 +550,7 @@
     "section": "layers",
     "title": "Configuration",
     "heading": "Layers",
-    "body": "1. Shell environment — highest priority (never overwritten by files) 2. Profile — (API keys, gateway bind, feature flags) 3. Legacy global — (fallback for older installs) 4. Project — in CWD (dev convenience) 5. Profile YAML — (models, MCP, skills) 6. CLI flags — overrides per command Each profile is isolated: own env file, Telegram secrets, gateway process state, memory, and skills.",
+    "body": "1. Shell environment — highest priority (never overwritten by files) 2. Profile — (overrides only) 3. Global — (shared API keys, voice, tool flags) 4. Legacy global — (fallback when is missing) 5. Project — in CWD (dev convenience) 6. Profile YAML — (per-profile overrides) 7. Global YAML — (shared models, MCP, behavior) 8. CLI flags — overrides per command Inheritance: profiles created with (default) load global settings first; anything set in the profile file overrides global. Change global once → all inheriting profiles pick it up on next start (for keys not overridden in the profile).",
     "keywords": [
       "config",
       "конфигурация",
@@ -514,7 +603,7 @@
     "section": "profile-layout",
     "title": "Configuration",
     "heading": "Profile layout",
-    "body": "Path Content ------ --------- API keys, , tool flags Bot token, allowlist, Telegram user id → Helix profile bindings Running gateway PID and bind Models, MCP, hub, workspace jail Memory, skills, security, cron",
+    "body": "Path Content ------ --------- Overrides only (unset keys inherit from ) Bot token, allowlist, Telegram user id → Helix profile bindings Running gateway PID and bind Overrides only (inherits ) Memory, skills, security, cron",
     "keywords": [
       "config",
       "конфигурация",
@@ -544,13 +633,34 @@
     "nav_order": 4
   },
   {
-    "id": "en/configuration#telegram-shared-bot-multiple-profiles",
+    "id": "en/configuration#provider-fallback-when-llm-is-unavailable",
     "lang": "en",
     "slug": "configuration",
-    "section": "telegram-shared-bot-multiple-profiles",
+    "section": "provider-fallback-when-llm-is-unavailable",
     "title": "Configuration",
-    "heading": "Telegram (shared bot, multiple profiles)",
-    "body": "When one bot serves several users with different Helix profiles: Variable / file Description ----------------- ------------- Who may message the bot (required in production) comma-separated in Same in JSON; updated by Details: TELEGRAM MULTI PROFILE.md.",
+    "heading": "Provider fallback (when LLM is unavailable)",
+    "body": "If the primary provider fails (connection error, timeout, rate limit, model not found), Helix tries fallback providers in order and switches the active client for the rest of the session step. Profile-level (applies to all agents using the default provider chain): Per-provider (tried before profile-level fallbacks): CLI: Each fallback uses that provider's . Inherited from unless overridden in the profile.",
+    "keywords": [
+      "config",
+      "конфигурация",
+      "env",
+      "переменные",
+      "provider",
+      "fallback",
+      "when",
+      "llm",
+      "unavailable"
+    ],
+    "nav_order": 4
+  },
+  {
+    "id": "en/configuration#telegram-shared-bot-multiple-users",
+    "lang": "en",
+    "slug": "configuration",
+    "section": "telegram-shared-bot-multiple-users",
+    "title": "Configuration",
+    "heading": "Telegram (shared bot, multiple users)",
+    "body": "Recommended — access requests ( enables this by default): Manual bindings when one bot serves several Helix profiles: Variable / file Description ----------------- ------------- — users send , admin approves via CLI (default after ) Single Telegram admin user id (set via ; CLI only) Helix profile for the admin (default: ) Pending/resolved access requests per bot profile Manual allowlist (optional when access requests are on) comma-separated in User bindings; updated by or Details: TELEGRAM.md, TELEGRAM MULTI PROFILE.md.",
     "keywords": [
       "config",
       "конфигурация",
@@ -560,7 +670,7 @@
       "shared",
       "bot",
       "multiple",
-      "profiles"
+      "users"
     ],
     "nav_order": 4
   },
@@ -656,7 +766,7 @@
     "section": "cli-reference",
     "title": "Profiles & Isolation",
     "heading": "CLI reference",
-    "body": "Command Description --------- ------------- Select profile (omit for ) Access key for a protected profile Create profile (open by default) Create profile with access key Show whether active profile is protected Generate key for an existing open profile Replace access key Remove key and allow free switching Show profile Edit secrets and gateway bind Enable directory isolation Disable jail Show jail settings Add comma-separated terminal commands Show whitelist status and effective commands Enable terminal whitelist enforcement List profiles ( / ) and active one In TUI/chat/Telegram: to switch into a protected profile.",
+    "body": "Command Description --------- ------------- Select profile (omit for ) Access key for a protected profile Create profile inheriting global settings (default) Standalone profile without global inheritance Create profile with access key Show shared global config Edit Edit (Re)create global config from defaults or Show whether active profile is protected Generate key for an existing open profile Replace access key Remove key and allow free switching Show profile Edit secrets and gateway bind Enable directory isolation Disable jail Show jail settings Add comma-separated terminal commands Show whitelist status and effective commands Enable terminal whitelist enforcement List profiles ( / ) and active one In TUI/chat/Telegram: to switch into a protected profile.",
     "keywords": [
       "profile",
       "профиль",
@@ -722,7 +832,7 @@
     "section": "one-bot-for-multiple-users",
     "title": "Profiles & Isolation",
     "heading": "One bot for multiple users",
-    "body": "Alternatively — one bot with Telegram user id → profile bindings: See TELEGRAM MULTI PROFILE.md.",
+    "body": "Recommended — access requests + per-user protected profiles: ```bash helix -p shared telegram setup HELIX ENV=production helix -p shared gateway start -f",
     "keywords": [
       "profile",
       "профиль",
@@ -760,13 +870,34 @@
     "nav_order": 5
   },
   {
+    "id": "en/profiles#profile-default-development-only",
+    "lang": "en",
+    "slug": "profiles",
+    "section": "profile-default-development-only",
+    "title": "Profiles & Isolation",
+    "heading": "Profile `default` (development only)",
+    "body": "In development ( not ), you can omit — Helix uses profile : In production , profile is not available . Always pass a named profile:",
+    "keywords": [
+      "profile",
+      "профиль",
+      "профили",
+      "изоляция",
+      "jail",
+      "workspace",
+      "default",
+      "development",
+      "only"
+    ],
+    "nav_order": 5
+  },
+  {
     "id": "en/profiles#profiles-isolation",
     "lang": "en",
     "slug": "profiles",
     "section": "profiles-isolation",
     "title": "Profiles & Isolation",
     "heading": "Profiles & isolation",
-    "body": "Helix profiles are fully isolated agent environments on one machine. Each profile has its own configuration, secrets, memory, Telegram bot, and API gateway — so different people or projects do not interfere with each other. For the default profile you do not need : Other profiles: .",
+    "body": "Helix profiles are fully isolated agent environments on one machine. Each profile has its own configuration, secrets, memory, Telegram bot, and API gateway — so different people or projects do not interfere with each other.",
     "keywords": [
       "profile",
       "профиль",
@@ -882,13 +1013,36 @@
     "nav_order": 5
   },
   {
+    "id": "en/profiles#users-send-start-admin-approves",
+    "lang": "en",
+    "slug": "profiles",
+    "section": "users-send-start-admin-approves",
+    "title": "Profiles & Isolation",
+    "heading": "users send /start; admin approves:",
+    "body": "helix -p shared telegram requests approve USER ID --create-profile ivan `` helix telegram map`) are still supported. See TELEGRAM MULTI PROFILE.md.",
+    "keywords": [
+      "profile",
+      "профиль",
+      "профили",
+      "изоляция",
+      "jail",
+      "workspace",
+      "users",
+      "send",
+      "start",
+      "admin",
+      "approves"
+    ],
+    "nav_order": 5
+  },
+  {
     "id": "en/profiles#what-is-isolated-per-profile",
     "lang": "en",
     "slug": "profiles",
     "section": "what-is-isolated-per-profile",
     "title": "Profiles & Isolation",
     "heading": "What is isolated per profile",
-    "body": "Resource Path ---------- ------ Profile access key (hash) Environment (API keys, ports) Telegram bot API gateway state & log Models, MCP, skills config Memory (SQLite + ChromaDB) Skills Cron jobs Global under : shared logs, MCP server clones. Everything agent-specific lives under the profile.",
+    "body": "Resource Path ---------- ------ Profile access key (hash) Environment (API keys, ports) Telegram bot API gateway state & log Models, MCP, skills config Memory (SQLite + ChromaDB) Skills Cron jobs Global under : Path Purpose ------ --------- Shared models, MCP, search, behavior Shared API keys, voice, tool flags , MCP clones Operational shared data Profiles inherit global settings by default. Per-profile files store overrides only — change a model in one profile without touching global; change global and all inheriting profiles update automatically. Telegram tokens, memory, and gateway state remain per profile (not inherited).",
     "keywords": [
       "profile",
       "профиль",
@@ -909,7 +1063,7 @@
     "section": "workspace-jail-directory-isolation",
     "title": "Profiles & Isolation",
     "heading": "Workspace jail (directory isolation)",
-    "body": "Optional workspace jail restricts file and terminal tools to a single directory tree. The agent cannot read, write, or run commands outside that folder — but works freely inside it. Use cases: - Give each user their own folder on a shared server - Limit a data-analysis agent to - Prevent accidental access to the rest of the filesystem Or in : When enabled, these tools are scoped to : - , , - (working directory = jail root) - Telegram file delivery from local paths Helix internal data (memory, skills under ) is not affected — jail applies to agent file/terminal tools only.",
+    "body": "Workspace jail restricts file and terminal tools to a single directory tree. The agent cannot read, write, or run commands outside that folder — but works freely inside it. Automatic: when you create a protected profile ( , , or ), Helix creates: and enables jail pointing at that directory. Manual (any profile): Or in : When enabled, these tools are scoped to : - , , - (working directory = jail root) - Telegram file delivery from local paths Helix internal data (memory, skills under ) is not affected — jail applies to agent file/terminal tools only.",
     "keywords": [
       "profile",
       "профиль",
@@ -929,7 +1083,7 @@
     "section": "global-options",
     "title": "CLI Reference",
     "heading": "Global options",
-    "body": "Option Short Default Description -------- ------- --------- ------------- Active profile ( ) off Print profile and model on startup For default profile, omit : ---",
+    "body": "Option Short Default Description -------- ------- --------- ------------- (dev: ) Active profile ( ) env Access key for a protected profile off Print profile and model on startup In development , omit to use profile . In production ( ), with a named profile is required — is not available: ---",
     "keywords": [
       "command",
       "команды",
@@ -1163,7 +1317,7 @@
     "section": "helix-models",
     "title": "CLI Reference",
     "heading": "`helix models`",
-    "body": "Subcommand Description ------------ ------------- Interactive wizard: providers, tests, List configured providers Show per-agent model assignments Example fragment: ---",
+    "body": "Subcommand Description ------------ ------------- Interactive wizard: providers, tests, , fallbacks List configured providers Show per-agent model assignments Show effective fallback chain Set profile fallbacks ( ) Remove profile fallbacks Example fragment: ---",
     "keywords": [
       "command",
       "команды",
@@ -1181,7 +1335,7 @@
     "section": "helix-profile",
     "title": "CLI Reference",
     "heading": "`helix profile`",
-    "body": "Per-profile isolation: env file, optional workspace jail, and terminal whitelist. Subcommand Description ------------ ------------- Show profile path and contents Open in Restrict file/terminal tools to one directory Turn off workspace jail Show jail settings Add comma-separated terminal commands Show whitelist status and effective commands Enable terminal whitelist enforcement See CONFIGURATION.md and PROFILES.md. ---",
+    "body": "Per-profile isolation plus shared global settings inherited by default. Subcommand Description ------------ ------------- New profile ( default, for standalone) Create with access key + workspace jail Show Edit global YAML (models, MCP, behavior) Edit (Re)create global config ( ) Show profile path and contents Open profile overrides in Restrict file/terminal tools to one directory Turn off workspace jail Show jail settings Add comma-separated terminal commands Show whitelist status and effective commands Enable terminal whitelist enforcement See CONFIGURATION.md and PROFILES.md. ---",
     "keywords": [
       "command",
       "команды",
@@ -1253,7 +1407,7 @@
     "section": "helix-telegram",
     "title": "CLI Reference",
     "heading": "`helix telegram`",
-    "body": "Requires . Bot token is stored per profile in . Subcommand Description ------------ ------------- Wizard: token, allowlist, user→profile bindings, save Start polling ( selects bot host profile) Saved config (token masked) and user id bindings Push slash menu to Telegram Bind Telegram user id to Helix profile List bindings Remove a binding Quick bind ( or id from allowlist) Import multiple bindings Shared bot with isolated profiles: TELEGRAM MULTI PROFILE.md. See also TELEGRAM.md. ---",
+    "body": "Requires . Bot token is stored per profile in . Subcommand Description ------------ ------------- Wizard: bot token only; enables access-request mode Start polling ( selects bot host profile) Saved config (token masked) and bindings Push slash menu to authorized users only (hidden until approve) Show the single Telegram admin (CLI-assigned) Clear admin before reassigning ( on approve) Pending access requests Approve user ( , , , or ) Reject a pending request Manual bind Telegram user id → Helix profile List bindings Remove a binding Quick bind ( or id from allowlist) Import multiple bindings Shared bot with isolated profiles: TELEGRAM MULTI PROFILE.md. See also TELEGRAM.md. ---",
     "keywords": [
       "command",
       "команды",
@@ -2199,6 +2353,122 @@
     "nav_order": 11
   },
   {
+    "id": "en/telegram#1-admin-connect-the-bot",
+    "lang": "en",
+    "slug": "telegram",
+    "section": "1-admin-connect-the-bot",
+    "title": "Telegram",
+    "heading": "1. Admin: connect the bot",
+    "body": "The wizard saves only the bot token and enables access-request mode ( by default).",
+    "keywords": [
+      "telegram",
+      "телеграм",
+      "бот",
+      "bot",
+      "allowlist",
+      "whisper",
+      "голосовые",
+      "admin",
+      "connect",
+      "the"
+    ],
+    "nav_order": 12
+  },
+  {
+    "id": "en/telegram#2-bootstrap-designate-the-telegram-admin-cli-only",
+    "lang": "en",
+    "slug": "telegram",
+    "section": "2-bootstrap-designate-the-telegram-admin-cli-only",
+    "title": "Telegram",
+    "heading": "2. Bootstrap: designate the Telegram admin (CLI only)",
+    "body": "The first approved user can become the single Telegram administrator. This cannot be done from Telegram — only from CLI: Helix: - creates the Helix profile (if missing) and binds the user to it - stores in - enables the slash-command menu for that user Check or reset:",
+    "keywords": [
+      "telegram",
+      "телеграм",
+      "бот",
+      "bot",
+      "allowlist",
+      "whisper",
+      "голосовые",
+      "bootstrap",
+      "designate",
+      "the",
+      "admin",
+      "cli",
+      "only"
+    ],
+    "nav_order": 12
+  },
+  {
+    "id": "en/telegram#3-user-request-access",
+    "lang": "en",
+    "slug": "telegram",
+    "section": "3-user-request-access",
+    "title": "Telegram",
+    "heading": "3. User: request access",
+    "body": "1. User opens the bot in Telegram. 2. Sends . 3. Bot replies that access is pending (no slash menu until approved). 4. The Telegram admin receives a notification in Telegram with CLI commands to approve or reject.",
+    "keywords": [
+      "telegram",
+      "телеграм",
+      "бот",
+      "bot",
+      "allowlist",
+      "whisper",
+      "голосовые",
+      "user",
+      "request",
+      "access"
+    ],
+    "nav_order": 12
+  },
+  {
+    "id": "en/telegram#4-admin-approve-and-create-an-isolated-profile",
+    "lang": "en",
+    "slug": "telegram",
+    "section": "4-admin-approve-and-create-an-isolated-profile",
+    "title": "Telegram",
+    "heading": "4. Admin: approve and create an isolated profile",
+    "body": "On approve Helix: - creates a protected profile with access key - enables workspace jail at - binds the Telegram user to that profile - sends the access key to the user in Telegram (shown once) The user can message the bot immediately — no bot restart required. Other commands:",
+    "keywords": [
+      "telegram",
+      "телеграм",
+      "бот",
+      "bot",
+      "allowlist",
+      "whisper",
+      "голосовые",
+      "admin",
+      "approve",
+      "and",
+      "create",
+      "isolated",
+      "profile"
+    ],
+    "nav_order": 12
+  },
+  {
+    "id": "en/telegram#command-menu-visibility",
+    "lang": "en",
+    "slug": "telegram",
+    "section": "command-menu-visibility",
+    "title": "Telegram",
+    "heading": "Command menu visibility",
+    "body": "The slash-command menu is hidden by default for unauthorized users. After approve (or allowlist / binding), Helix enables the menu per private chat . Run to push menus for all currently authorized users without restarting the bot.",
+    "keywords": [
+      "telegram",
+      "телеграм",
+      "бот",
+      "bot",
+      "allowlist",
+      "whisper",
+      "голосовые",
+      "command",
+      "menu",
+      "visibility"
+    ],
+    "nav_order": 12
+  },
+  {
     "id": "en/telegram#ffmpeg-required-on-path",
     "lang": "en",
     "slug": "telegram",
@@ -2221,13 +2491,13 @@
     "nav_order": 12
   },
   {
-    "id": "en/telegram#one-bot-multiple-profiles-user-id-mapping",
+    "id": "en/telegram#one-bot-many-users-recommended",
     "lang": "en",
     "slug": "telegram",
-    "section": "one-bot-multiple-profiles-user-id-mapping",
+    "section": "one-bot-many-users-recommended",
     "title": "Telegram",
-    "heading": "One bot — multiple profiles (user id mapping)",
-    "body": "Files: , in . Users are routed to their profile automatically; manual disables auto-routing for that chat. One live message per task; slash commands shared with TUI; inline approvals.",
+    "heading": "One bot — many users (recommended)",
+    "body": "One Telegram token can serve many people. You do not enter user ids during setup.",
     "keywords": [
       "telegram",
       "телеграм",
@@ -2237,10 +2507,9 @@
       "whisper",
       "голосовые",
       "one",
-      "multiple",
-      "profiles",
-      "user",
-      "mapping"
+      "many",
+      "users",
+      "recommended"
     ],
     "nav_order": 12
   },
@@ -2270,13 +2539,13 @@
     "nav_order": 12
   },
   {
-    "id": "en/telegram#or-with-gateway-for-the-same-profile",
+    "id": "en/telegram#production-notes",
     "lang": "en",
     "slug": "telegram",
-    "section": "or-with-gateway-for-the-same-profile",
+    "section": "production-notes",
     "title": "Telegram",
-    "heading": "or with gateway for the same profile:",
-    "body": "helix gateway start bash helix -p alice telegram setup helix -p bob telegram setup ``` Full guide: TELEGRAM MULTI PROFILE.md.",
+    "heading": "Production notes",
+    "body": "- Use a named bot profile ( ), not — profile is dev-only when . - Prefer per user for full isolation (memory, , workspace). - Manual allowlist ( ) is optional when access requests are enabled. - Exactly one Telegram admin ( ); assign with only. Full guide: TELEGRAM MULTI PROFILE.md. ---",
     "keywords": [
       "telegram",
       "телеграм",
@@ -2285,12 +2554,8 @@
       "allowlist",
       "whisper",
       "голосовые",
-      "with",
-      "gateway",
-      "for",
-      "the",
-      "same",
-      "profile"
+      "production",
+      "notes"
     ],
     "nav_order": 12
   },
@@ -2301,7 +2566,7 @@
     "section": "telegram",
     "title": "Telegram",
     "heading": "Telegram",
-    "body": "Community channel: t.me/helix agent — project news and updates (not the bot you configure below). Each profile can use its own bot and allowlist. Secrets are stored in: ```bash uv sync --extra telegram helix telegram setup wizard: token, allowlist, save to profile helix telegram run",
+    "body": "Community channel: t.me/helix agent — project news and updates (not the bot you configure below). Each profile can use its own bot . Secrets are stored in:",
     "keywords": [
       "telegram",
       "телеграм",
@@ -2330,6 +2595,29 @@
       "whisper",
       "голосовые",
       "usage"
+    ],
+    "nav_order": 12
+  },
+  {
+    "id": "en/telegram#user-id-profile-mapping-manual",
+    "lang": "en",
+    "slug": "telegram",
+    "section": "user-id-profile-mapping-manual",
+    "title": "Telegram",
+    "heading": "User id → profile mapping (manual)",
+    "body": "For teams that manage bindings explicitly: Files: , optional in . Users are routed automatically; manual disables auto-routing for that chat. One live message per task; slash commands shared with TUI; inline approvals.",
+    "keywords": [
+      "telegram",
+      "телеграм",
+      "бот",
+      "bot",
+      "allowlist",
+      "whisper",
+      "голосовые",
+      "user",
+      "profile",
+      "mapping",
+      "manual"
     ],
     "nav_order": 12
   },
@@ -2371,21 +2659,35 @@
     "nav_order": 13
   },
   {
-    "id": "en/telegram-multi-profile#alternative-one-bot-for-everyone-with-limits",
+    "id": "en/telegram-multi-profile#5-restrict-access-in-production",
     "lang": "en",
     "slug": "telegram-multi-profile",
-    "section": "alternative-one-bot-for-everyone-with-limits",
+    "section": "5-restrict-access-in-production",
     "title": "Telegram Multi-Profile",
-    "heading": "Alternative: one bot for everyone (with limits)",
-    "body": "Suitable for a trusted team sharing one bot and switching profiles manually. In Telegram each user: 1. Messages the bot. 2. Switches: or (if the profile is protected). 3. Works in their profile (memory and sessions: ). The Profile menu button and without args also list profiles.",
+    "heading": "5. Restrict access in production",
+    "body": "For a personal bot (one owner), set your user id in or profile : For a shared bot with many users, use access requests instead (next section). ---",
+    "keywords": [
+      "restrict",
+      "access",
+      "production"
+    ],
+    "nav_order": 13
+  },
+  {
+    "id": "en/telegram-multi-profile#alternative-one-bot-manual-profile-or-map",
+    "lang": "en",
+    "slug": "telegram-multi-profile",
+    "section": "alternative-one-bot-manual-profile-or-map",
+    "title": "Telegram Multi-Profile",
+    "heading": "Alternative: one bot + manual `/profile` or `map`",
+    "body": "For a trusted team that manages bindings explicitly (without access requests). Each user switches manually: or (protected profiles). Or bind user ids: (see below).",
     "keywords": [
       "alternative",
       "one",
       "bot",
-      "for",
-      "everyone",
-      "with",
-      "limits"
+      "manual",
+      "profile",
+      "map"
     ],
     "nav_order": 13
   },
@@ -2396,7 +2698,7 @@
     "section": "common-mistakes",
     "title": "Telegram Multi-Profile",
     "heading": "Common mistakes",
-    "body": "- Same token in multiple files — only one process can poll; others fail with a conflict. - Same across profiles — the second gateway will not start. - Empty in production — bot rejects messages when . Check: ---",
+    "body": "- Same token in multiple files — only one process can poll; others fail with a conflict. - Same across profiles — the second gateway will not start. - No access path in production — with , users need access requests, allowlist, or bindings. Check: ---",
     "keywords": [
       "common",
       "mistakes"
@@ -2410,25 +2712,9 @@
     "section": "comparison",
     "title": "Telegram Multi-Profile",
     "heading": "Comparison",
-    "body": "Approach Isolation Convenience Security ---------- ----------- ------------- ---------- 1 bot = 1 profile (recommended) Full Each user has their own bot High 1 bot + After manual switch One bot for all Medium (keys + jail + allowlist) ---",
+    "body": "Approach Isolation Convenience Security ---------- ----------- ------------- ---------- 1 bot = 1 profile (full isolation) Full Each user has their own bot High 1 bot + access requests (recommended shared) Per-user profile → admin approve High (key + jail) 1 bot + / After manual setup One bot for all Medium ---",
     "keywords": [
       "comparison"
-    ],
-    "nav_order": 13
-  },
-  {
-    "id": "en/telegram-multi-profile#hardening-with-one-bot",
-    "lang": "en",
-    "slug": "telegram-multi-profile",
-    "section": "hardening-with-one-bot",
-    "title": "Telegram Multi-Profile",
-    "heading": "Hardening with one bot",
-    "body": "Enter a protected profile: Plus workspace jail — restrict file and terminal tools to one directory: See PROFILES.md — access keys and workspace jail. ---",
-    "keywords": [
-      "hardening",
-      "with",
-      "one",
-      "bot"
     ],
     "nav_order": 13
   },
@@ -2471,11 +2757,30 @@
     "section": "limits-of-a-single-bot",
     "title": "Telegram Multi-Profile",
     "heading": "Limits of a single bot",
-    "body": "Limit Explanation ------- ------------- Auto mapping (see below) New chat Starts on the profile used when was run One token Cannot run two profiles as independent bots on one token Security Everyone sees the same bot; isolation relies on , keys, and jail",
+    "body": "Limit Explanation ------- ------------- Auto or New chat Starts on the profile active when was run One token Cannot run two profiles as independent bots on one token Security Shared bot; isolation relies on per-user profiles, keys, and jail",
     "keywords": [
       "limits",
       "single",
       "bot"
+    ],
+    "nav_order": 13
+  },
+  {
+    "id": "en/telegram-multi-profile#one-bot-many-users-access-requests-recommended",
+    "lang": "en",
+    "slug": "telegram-multi-profile",
+    "section": "one-bot-many-users-access-requests-recommended",
+    "title": "Telegram Multi-Profile",
+    "heading": "One bot — many users (access requests, recommended)",
+    "body": "One token, many isolated users — no manual user ids during setup. 1. Bootstrap (once): designate the Telegram admin from CLI — (creates profile , CLI only). 2. Users send in Telegram (menu hidden until approved); the admin gets a Telegram notification. 3. Admin approves from CLI: On approve Helix creates a protected profile (with ), enables workspace jail at , binds the user, sends the access key in Telegram , and enables the slash menu for that chat. - Use a named bot profile ( ), not — is dev-only in production. - is set by (see TELEGRAM.md). - No bot restart needed after approve. ---",
+    "keywords": [
+      "one",
+      "bot",
+      "many",
+      "users",
+      "access",
+      "requests",
+      "recommended"
     ],
     "nav_order": 13
   },
@@ -2486,7 +2791,7 @@
     "section": "summary",
     "title": "Telegram Multi-Profile",
     "heading": "Summary",
-    "body": "- Full isolation → separate bot (token) + separate gateway per profile. - One bot for a team → protected profiles, jail, , switch via .",
+    "body": "- Full isolation → separate bot (token) + separate gateway per profile. - One bot, many users → + (recommended). - Manual team setup → bindings or with protected profiles and jail.",
     "keywords": [
       "summary"
     ],
@@ -2509,19 +2814,20 @@
     "nav_order": 13
   },
   {
-    "id": "en/telegram-multi-profile#user-id-profile-mapping-single-bot",
+    "id": "en/telegram-multi-profile#user-id-profile-mapping-single-bot-manual",
     "lang": "en",
     "slug": "telegram-multi-profile",
-    "section": "user-id-profile-mapping-single-bot",
+    "section": "user-id-profile-mapping-single-bot-manual",
     "title": "Telegram Multi-Profile",
-    "heading": "User id → profile mapping (single bot)",
+    "heading": "User id → profile mapping (single bot, manual)",
     "body": "offers bindings when multiple Helix profiles exist. - File: - Env: in Users are routed to their profile automatically (memory, models, jail). Manual disables auto-routing for that chat.",
     "keywords": [
       "user",
       "profile",
       "mapping",
       "single",
-      "bot"
+      "bot",
+      "manual"
     ],
     "nav_order": 13
   },
@@ -2737,7 +3043,7 @@
     "section": "production-checklist",
     "title": "Security",
     "heading": "Production checklist",
-    "body": "1. 2. (forced in production) 3. — long random secret 4. — explicit origins (no ) 5. behind reverse proxy with TLS 6. set when using Telegram 7. if not required 8.",
+    "body": "1. 2. (forced in production) 3. — long random secret 4. — explicit origins (no ) 5. behind reverse proxy with TLS 6. Telegram: (default after ) or for a personal bot; use named profiles ( ), not , in production 7. if not required 8.",
     "keywords": [
       "security",
       "безопасность",
@@ -3154,6 +3460,23 @@
     "nav_order": 18
   },
   {
+    "id": "en/deployment#docker",
+    "lang": "en",
+    "slug": "deployment",
+    "section": "docker",
+    "title": "Deployment",
+    "heading": "Docker",
+    "body": "Minimal start (only Telegram bot token required): The image includes all optional extras (Telegram, voice, browser). On first run it bootstraps and saves the bot token. Users send in Telegram; you approve them from the container: ```bash docker compose exec helix helix -p shared telegram requests list docker compose exec helix helix -p shared telegram requests approve USER ID --create-profile alice",
+    "keywords": [
+      "deploy",
+      "деплой",
+      "systemd",
+      "docker",
+      "ci"
+    ],
+    "nav_order": 18
+  },
+  {
     "id": "en/deployment#edit-helix_python-and-helix_bin-to-match-pipx-paths-on-your-host",
     "lang": "en",
     "slug": "deployment",
@@ -3202,6 +3525,26 @@
     "nav_order": 18
   },
   {
+    "id": "en/deployment#or-bind-to-an-existing-profile",
+    "lang": "en",
+    "slug": "deployment",
+    "section": "or-bind-to-an-existing-profile",
+    "title": "Deployment",
+    "heading": "or bind to an existing profile:",
+    "body": "docker compose exec helix helix -p shared telegram requests approve USER ID --profile existing `` -p shared default HELIX ENV=production HELIX API KEY PEPPER MODEL BASE URL helix gateway start -f` with gateway, Telegram bot, and cron in one process.",
+    "keywords": [
+      "deploy",
+      "деплой",
+      "systemd",
+      "docker",
+      "ci",
+      "bind",
+      "existing",
+      "profile"
+    ],
+    "nav_order": 18
+  },
+  {
     "id": "en/deployment#or-for-a-named-profile",
     "lang": "en",
     "slug": "deployment",
@@ -3245,7 +3588,7 @@
     "section": "checks",
     "title": "Doctor",
     "heading": "Checks",
-    "body": "- (or ) writable - Platform: OS, data path, / / / in PATH; Windows: psutil hint, terminal whitelist note - Profile YAML and providers - LLM endpoint and model availability - Gateway stale state / health - Telegram token and allowlist - Production: pepper, CORS, auth, code executor After fixes, inspect runtime logs: — see LOGS.md.",
+    "body": "- (or ) writable - Platform: OS, data path, / / / in PATH; Windows: psutil hint, terminal whitelist note - Profile YAML and providers - LLM endpoint and model availability - Gateway stale state / health - Telegram token, access requests, and allowlist - Production: pepper, CORS, auth, code executor After fixes, inspect runtime logs: — see LOGS.md.",
     "keywords": [
       "doctor",
       "диагностика",
@@ -3714,6 +4057,46 @@
     "nav_order": 21
   },
   {
+    "id": "en/troubleshooting#telegram-access-denied",
+    "lang": "en",
+    "slug": "troubleshooting",
+    "section": "telegram-access-denied",
+    "title": "Troubleshooting",
+    "heading": "Telegram access denied",
+    "body": "1. User must send first (access-request mode). 2. Designate a Telegram admin (once): . 3. Admin approves new users: → or . 4. For a personal bot, set to your numeric user id. 5. In production use a named profile ( ), not .",
+    "keywords": [
+      "troubleshoot",
+      "проблемы",
+      "ошибки",
+      "fix",
+      "telegram",
+      "access",
+      "denied"
+    ],
+    "nav_order": 22
+  },
+  {
+    "id": "en/troubleshooting#telegram-menu-visible-before-approval",
+    "lang": "en",
+    "slug": "troubleshooting",
+    "section": "telegram-menu-visible-before-approval",
+    "title": "Troubleshooting",
+    "heading": "Telegram menu visible before approval",
+    "body": "Slash commands are hidden until the user is approved (or on allowlist / ). After approve, run if the client still shows an old global menu. See TELEGRAM.md.",
+    "keywords": [
+      "troubleshoot",
+      "проблемы",
+      "ошибки",
+      "fix",
+      "telegram",
+      "menu",
+      "visible",
+      "before",
+      "approval"
+    ],
+    "nav_order": 22
+  },
+  {
     "id": "en/troubleshooting#windows-specific",
     "lang": "en",
     "slug": "troubleshooting",
@@ -3865,7 +4248,7 @@
     "section": "17-troubleshooting",
     "title": "User Guide",
     "heading": "17. Troubleshooting",
-    "body": "Problem What to check --------- --------------- PATH, venv, / No response from model , URL, , curl MCP not showing up , , Telegram silent , token, allowlist, Stale slash commands , More: TROUBLESHOOTING.md, DOCTOR.md. ---",
+    "body": "Problem What to check --------- --------------- PATH, venv, / No response from model , URL, , curl MCP not showing up , , Telegram silent , token, , Stale slash commands , More: TROUBLESHOOTING.md, DOCTOR.md. ---",
     "keywords": [
       "guide",
       "руководство",
@@ -4167,49 +4550,129 @@
     "nav_order": 23
   },
   {
-    "id": "en/user-guide#93-find-your-telegram-user-id",
+    "id": "en/user-guide#93-connect-the-bot-admin",
     "lang": "en",
     "slug": "user-guide",
-    "section": "93-find-your-telegram-user-id",
+    "section": "93-connect-the-bot-admin",
     "title": "User Guide",
-    "heading": "9.3. Find your Telegram user id",
-    "body": "Required to restrict access (who can message the bot): - message @userinfobot, or - the wizard can detect the id automatically.",
+    "heading": "9.3. Connect the bot (admin)",
+    "body": "The wizard validates the token via the Telegram API ( ), saves it to , and enables access-request mode ( ). You do not enter user ids during setup. Use a named profile ( ) for production multi-user bots — profile is dev-only when .",
     "keywords": [
       "guide",
       "руководство",
       "usage",
-      "find",
-      "your",
+      "connect",
+      "the",
+      "bot",
+      "admin"
+    ],
+    "nav_order": 23
+  },
+  {
+    "id": "en/user-guide#94-designate-the-telegram-admin-once-cli-only",
+    "lang": "en",
+    "slug": "user-guide",
+    "section": "94-designate-the-telegram-admin-once-cli-only",
+    "title": "User Guide",
+    "heading": "9.4. Designate the Telegram admin (once, CLI only)",
+    "body": "Creates Helix profile , stores the single admin in , and enables the command menu for that user. Cannot be done from Telegram. Check: .",
+    "keywords": [
+      "guide",
+      "руководство",
+      "usage",
+      "designate",
+      "the",
       "telegram",
-      "user"
+      "admin",
+      "once",
+      "cli",
+      "only"
     ],
     "nav_order": 23
   },
   {
-    "id": "en/user-guide#94-interactive-helix-setup",
+    "id": "en/user-guide#95-users-request-access",
     "lang": "en",
     "slug": "user-guide",
-    "section": "94-interactive-helix-setup",
+    "section": "95-users-request-access",
     "title": "User Guide",
-    "heading": "9.4. Interactive Helix setup",
-    "body": "The wizard: 1. Validates the token via the Telegram API ( ). 2. Asks for the user allowlist ( ). 3. Saves settings to . 4. When multiple Helix profiles exist, offers user id → profile bindings (one bot, many users).",
+    "heading": "9.5. Users request access",
+    "body": "1. User opens the bot in Telegram and sends . 2. Bot replies that access is pending (slash menu hidden). 3. The Telegram admin receives a notification with CLI approve/reject commands.",
     "keywords": [
       "guide",
       "руководство",
       "usage",
-      "interactive",
-      "helix",
-      "setup"
+      "users",
+      "request",
+      "access"
     ],
     "nav_order": 23
   },
   {
-    "id": "en/user-guide#97-voice-messages-optional",
+    "id": "en/user-guide#951-admin-approves-and-creates-an-isolated-profile",
     "lang": "en",
     "slug": "user-guide",
-    "section": "97-voice-messages-optional",
+    "section": "951-admin-approves-and-creates-an-isolated-profile",
     "title": "User Guide",
-    "heading": "9.7. Voice messages (optional)",
+    "heading": "9.5.1. Admin approves and creates an isolated profile",
+    "body": "Helix creates a protected profile (with ), enables workspace jail , binds the user, sends the access key in Telegram , and enables the slash menu. No bot restart required. Other options: , . Manual bindings: — see TELEGRAM MULTI PROFILE.md.",
+    "keywords": [
+      "guide",
+      "руководство",
+      "usage",
+      "951",
+      "admin",
+      "approves",
+      "and",
+      "creates",
+      "isolated",
+      "profile"
+    ],
+    "nav_order": 23
+  },
+  {
+    "id": "en/user-guide#97-update-the-telegram-command-menu",
+    "lang": "en",
+    "slug": "user-guide",
+    "section": "97-update-the-telegram-command-menu",
+    "title": "User Guide",
+    "heading": "9.7. Update the Telegram command menu",
+    "body": "Refreshes menus for authorized users only (hidden until approve). Run after changing skills, MCP, or slash commands.",
+    "keywords": [
+      "guide",
+      "руководство",
+      "usage",
+      "update",
+      "the",
+      "telegram",
+      "command",
+      "menu"
+    ],
+    "nav_order": 23
+  },
+  {
+    "id": "en/user-guide#98-production",
+    "lang": "en",
+    "slug": "user-guide",
+    "section": "98-production",
+    "title": "User Guide",
+    "heading": "9.8. Production",
+    "body": "When : - use a named bot profile ( ), not ; - prefer access requests ( + ); - or set for a personal single-user bot. Full guide: TELEGRAM.md. ---",
+    "keywords": [
+      "guide",
+      "руководство",
+      "usage",
+      "production"
+    ],
+    "nav_order": 23
+  },
+  {
+    "id": "en/user-guide#98-voice-messages-optional",
+    "lang": "en",
+    "slug": "user-guide",
+    "section": "98-voice-messages-optional",
+    "title": "User Guide",
+    "heading": "9.8. Voice messages (optional)",
     "body": "If chat already goes through LiteLLM, configure the transcription model in the LiteLLM config and in the profile : More details: TELEGRAM.md.",
     "keywords": [
       "guide",
@@ -4364,7 +4827,7 @@
     "section": "or-simply",
     "title": "User Guide",
     "heading": "or simply:",
-    "body": "helix telegram bash helix gateway start ``` The gateway supervisor also starts Telegram if it is configured.",
+    "body": "helix telegram bash HELIX ENV=production helix -p shared gateway start -f ``` The gateway supervisor also starts Telegram if it is configured.",
     "keywords": [
       "guide",
       "руководство",
@@ -4451,7 +4914,7 @@
     "section": "интерфейсы",
     "title": "Обзор",
     "heading": "Интерфейсы",
-    "body": "- CLI.md — справочник команд - SLASH COMMANDS.md — слэш-команды - EXECUTION MODES.md — ReAct, Plan, Hybrid, Auto — как работают режимы и примеры промптов - TUI.md — - HUB.md — каталоги навыков - GATEWAY.md — API gateway - TELEGRAM.md — Telegram - TELEGRAM MULTI PROFILE.md — один бот / несколько ботов, привязка user id - BROWSER TOOLS.md — Playwright",
+    "body": "- CLI.md — справочник команд - SLASH COMMANDS.md — слэш-команды - EXECUTION MODES.md — ReAct, Plan, Hybrid, Auto — как работают режимы и примеры промптов - TUI.md — - HUB.md — каталоги навыков - GATEWAY.md — API gateway - TELEGRAM.md — Telegram - TELEGRAM MULTI PROFILE.md — один бот / несколько ботов, access requests, ручной - BROWSER TOOLS.md — Playwright",
     "keywords": [
       "overview",
       "обзор",
@@ -4710,6 +5173,30 @@
     "nav_order": 2
   },
   {
+    "id": "ru/start-here#мультипользовательский-бот-start-helix--p-shared-telegram-reques",
+    "lang": "ru",
+    "slug": "start-here",
+    "section": "мультипользовательский-бот-start-helix--p-shared-telegram-reques",
+    "title": "Первый запуск",
+    "heading": "мультипользовательский бот: /start → helix -p shared telegram requests approve …",
+    "body": "pipx install \"HelixAgentAi[browser]\" playwright install chromium helix hub browse helix mcp setup ```",
+    "keywords": [
+      "start",
+      "первый",
+      "запуск",
+      "checklist",
+      "мультипользовательский",
+      "бот",
+      "helix",
+      "shared",
+      "telegram",
+      "reques",
+      "requests",
+      "approve"
+    ],
+    "nav_order": 2
+  },
+  {
     "id": "ru/start-here#опционально-telegram-браузер-веб-tui-голос",
     "lang": "ru",
     "slug": "start-here",
@@ -4749,29 +5236,77 @@
     "nav_order": 2
   },
   {
-    "id": "ru/quickstart#overview",
+    "id": "ru/quickstart#запуск",
     "lang": "ru",
     "slug": "quickstart",
-    "section": "overview",
+    "section": "запуск",
     "title": "Быстрый старт",
-    "heading": "Быстрый старт",
-    "body": "Быстрый старт Установка (PyPI) Пакет: HelixAgentAi на PyPI. Команда: . Запуск Опции: Обновление с PyPI: См. CLI.md и SLASH COMMANDS.md.",
+    "heading": "Запуск",
+    "body": "Опции: ```bash pipx install \"HelixAgentAi[all]\" helix -p shared telegram setup helix -p shared gateway start",
     "keywords": [
       "quick",
       "быстрый",
       "старт",
-      "overview"
+      "запуск"
     ],
     "nav_order": 3
   },
   {
-    "id": "ru/configuration#telegram-общий-бот-несколько-профилей",
+    "id": "ru/quickstart#пользователи-start-helix--p-shared-telegram-requests-approve-use",
+    "lang": "ru",
+    "slug": "quickstart",
+    "section": "пользователи-start-helix--p-shared-telegram-requests-approve-use",
+    "title": "Быстрый старт",
+    "heading": "пользователи: /start → helix -p shared telegram requests approve USER_ID --create-profile NAME",
+    "body": "playwright install chromium helix hub browse helix mcp setup bash helix update --channel pypi ``` См. CLI.md и SLASH COMMANDS.md.",
+    "keywords": [
+      "quick",
+      "быстрый",
+      "старт",
+      "пользователи",
+      "start",
+      "helix",
+      "shared",
+      "telegram",
+      "requests",
+      "approve",
+      "use",
+      "user_id",
+      "create",
+      "profile",
+      "name"
+    ],
+    "nav_order": 3
+  },
+  {
+    "id": "ru/configuration#fallback-провайдеров-если-модель-недоступна",
     "lang": "ru",
     "slug": "configuration",
-    "section": "telegram-общий-бот-несколько-профилей",
+    "section": "fallback-провайдеров-если-модель-недоступна",
     "title": "Конфигурация",
-    "heading": "Telegram (общий бот, несколько профилей)",
-    "body": "Если один бот обслуживает нескольких пользователей с разными профилями Helix: Переменная / файл Описание ------------------- ---------- Кто может писать боту (обязательно в production) через запятую в То же в JSON; обновляется командами Подробно: TELEGRAM MULTI PROFILE.md.",
+    "heading": "Fallback провайдеров (если модель недоступна)",
+    "body": "При ошибке основного провайдера (нет соединения, таймаут, rate limit, модель не найдена) Helix пробует fallback-провайдеры по порядку. На уровне профиля (в или override в профиле): На уровне провайдера (до profile-level fallback): CLI: Каждый fallback использует своего провайдера. Подробнее: ../en/CONFIGURATION.md.",
+    "keywords": [
+      "config",
+      "конфигурация",
+      "env",
+      "переменные",
+      "fallback",
+      "провайдеров",
+      "если",
+      "модель",
+      "недоступна"
+    ],
+    "nav_order": 4
+  },
+  {
+    "id": "ru/configuration#telegram-общий-бот-много-пользователей",
+    "lang": "ru",
+    "slug": "configuration",
+    "section": "telegram-общий-бот-много-пользователей",
+    "title": "Конфигурация",
+    "heading": "Telegram (общий бот, много пользователей)",
+    "body": "Рекомендуется — запросы доступа ( включает это по умолчанию): Ручные привязки, когда один бот обслуживает несколько профилей Helix: Переменная / файл Описание ------------------- ---------- — пользователи шлют , админ одобряет из CLI (по умолчанию после ) Единственный Telegram-админ (через ; только CLI) Профиль Helix администратора (по умолчанию: ) Ожидающие/обработанные запросы доступа на профиль бота Ручной allowlist (не обязателен при access requests) через запятую в Привязки пользователей; обновляется через или Подробнее: TELEGRAM.md, TELEGRAM MULTI PROFILE.md.",
     "keywords": [
       "config",
       "конфигурация",
@@ -4780,8 +5315,8 @@
       "telegram",
       "общий",
       "бот",
-      "несколько",
-      "профилей"
+      "много",
+      "пользователей"
     ],
     "nav_order": 4
   },
@@ -4824,13 +5359,31 @@
     "nav_order": 4
   },
   {
+    "id": "ru/configuration#глобальные-настройки",
+    "lang": "ru",
+    "slug": "configuration",
+    "section": "глобальные-настройки",
+    "title": "Конфигурация",
+    "heading": "Глобальные настройки",
+    "body": "Путь Содержимое ------ ------------ Общие модели, провайдеры, MCP, search, поведение агента Общие ключи API, Whisper/голос, gateway, флаги инструментов Создаётся при первом запуске (из , если есть, иначе встроенные дефолты). Управление: .",
+    "keywords": [
+      "config",
+      "конфигурация",
+      "env",
+      "переменные",
+      "глобальные",
+      "настройки"
+    ],
+    "nav_order": 4
+  },
+  {
     "id": "ru/configuration#каталог-данных-helix_home",
     "lang": "ru",
     "slug": "configuration",
     "section": "каталог-данных-helix_home",
     "title": "Конфигурация",
     "heading": "Каталог данных (`HELIX_HOME`)",
-    "body": "ОС По умолчанию ---- -------------- Linux / macOS Windows Переопределение Linux (XDG) без Общее: логи, клоны MCP. На профиль в : , , , , .",
+    "body": "ОС По умолчанию ---- -------------- Linux / macOS Windows Переопределение Linux (XDG) без Общее: (общие настройки), логи, клоны MCP. На профиль в : , , , , .",
     "keywords": [
       "config",
       "конфигурация",
@@ -4866,7 +5419,7 @@
     "section": "структура-профиля",
     "title": "Конфигурация",
     "heading": "Структура профиля",
-    "body": "Путь Содержимое ------ ------------ Ключи API, , флаги инструментов Токен бота, allowlist, Привязки Telegram user id → профиль Helix PID и bind запущенного gateway Модели, MCP, hub, workspace jail Память, навыки, security, cron",
+    "body": "Путь Содержимое ------ ------------ Только переопределения (остальное из ) Токен бота, allowlist, Привязки Telegram user id → профиль Helix PID и bind запущенного gateway Только переопределения (наследует ) Память, навыки, security, cron",
     "keywords": [
       "config",
       "конфигурация",
@@ -4884,7 +5437,7 @@
     "section": "уровни",
     "title": "Конфигурация",
     "heading": "Уровни",
-    "body": "1. Shell — наивысший приоритет (файлы не перезаписывают экспорт в сессии) 2. профиля — (ключи API, порт gateway, флаги) 3. Глобальный — (legacy, для старых установок) 4. Проектный — в CWD (удобство для разработки) 5. YAML профиля — (модели, MCP, навыки) 6. Флаги CLI — переопределение на команду Каждый профиль изолирован: свой env, Telegram, состояние gateway, память и навыки.",
+    "body": "1. Shell — наивысший приоритет (файлы не перезаписывают экспорт в сессии) 2. профиля — (только переопределения) 3. Глобальный — (общие ключи API, голос, флаги) 4. Legacy — (fallback, если нет ) 5. Проектный — в CWD (удобство для разработки) 6. YAML профиля — (переопределения) 7. Глобальный YAML — (общие модели, MCP, поведение) 8. Флаги CLI — переопределение на команду Наследование: профили с (по умолчанию) загружают глобальные настройки; значения в файле профиля их перезаписывают. Изменили global — все наследующие профили подхватят при следующем старте (для ключей без override в профиле).",
     "keywords": [
       "config",
       "конфигурация",
@@ -5033,7 +5586,7 @@
     "section": "workspace-jail-изоляция-в-директории",
     "title": "Профили и изоляция",
     "heading": "Workspace jail (изоляция в директории)",
-    "body": "Опциональный workspace jail ограничивает файловые и терминальные инструменты одной директорией. Агент не может читать, писать или выполнять команды за её пределами, но внутри работает без ограничений. Сценарии: - Отдельная папка каждому пользователю на общем сервере - Агент анализа данных только в - Защита от случайного доступа к остальной файловой системе Или в : При включении jail действует на: - , , - (рабочая директория = корень jail) - отправку файлов в Telegram с локальных путей Внутренние данные Helix (память, навыки в ) не затрагиваются — jail только для файловых и терминальных инструментов агента.",
+    "body": "Workspace jail ограничивает файловые и терминальные инструменты одной директорией. Агент не может читать, писать или выполнять команды за её пределами, но внутри работает без ограничений. Автоматически: при создании защищённого профиля ( , или ) Helix создаёт: и включает jail с корнем в этой директории. Вручную (любой профиль): Или в : При включении jail действует на: - , , - (рабочая директория = корень jail) - отправку файлов в Telegram с локальных путей Внутренние данные Helix (память, навыки в ) не затрагиваются — jail только для файловых и терминальных инструментов агента.",
     "keywords": [
       "profile",
       "профиль",
@@ -5088,13 +5641,13 @@
     "nav_order": 5
   },
   {
-    "id": "ru/profiles#один-бот-на-нескольких-пользователей",
+    "id": "ru/profiles#один-бот-на-многих-пользователей",
     "lang": "ru",
     "slug": "profiles",
-    "section": "один-бот-на-нескольких-пользователей",
+    "section": "один-бот-на-многих-пользователей",
     "title": "Профили и изоляция",
-    "heading": "Один бот на нескольких пользователей",
-    "body": "Альтернатива — один бот и привязка Telegram user id → профиль: См. TELEGRAM MULTI PROFILE.md.",
+    "heading": "Один бот на многих пользователей",
+    "body": "Рекомендуется — запросы доступа + защищённый профиль на каждого: ```bash helix -p shared telegram setup HELIX ENV=production helix -p shared gateway start -f",
     "keywords": [
       "profile",
       "профиль",
@@ -5104,8 +5657,31 @@
       "workspace",
       "один",
       "бот",
-      "нескольких",
+      "многих",
       "пользователей"
+    ],
+    "nav_order": 5
+  },
+  {
+    "id": "ru/profiles#пользователи-отправляют-start-админ-одобряет",
+    "lang": "ru",
+    "slug": "profiles",
+    "section": "пользователи-отправляют-start-админ-одобряет",
+    "title": "Профили и изоляция",
+    "heading": "пользователи отправляют /start; админ одобряет:",
+    "body": "helix -p shared telegram requests approve USER ID --create-profile ivan `` helix telegram map`) по-прежнему поддерживаются. См. TELEGRAM MULTI PROFILE.md.",
+    "keywords": [
+      "profile",
+      "профиль",
+      "профили",
+      "изоляция",
+      "jail",
+      "workspace",
+      "пользователи",
+      "отправляют",
+      "start",
+      "админ",
+      "одобряет"
     ],
     "nav_order": 5
   },
@@ -5116,7 +5692,7 @@
     "section": "профили-и-изоляция",
     "title": "Профили и изоляция",
     "heading": "Профили и изоляция",
-    "body": "Профили Helix — полностью изолированные окружения агента на одной машине. У каждого профиля свои настройки, секреты, память, Telegram-бот и API gateway — разные люди или проекты не мешают друг другу. Для профиля default флаг не нужен: Другие профили: .",
+    "body": "Профили Helix — полностью изолированные окружения агента на одной машине. У каждого профиля свои настройки, секреты, память, Telegram-бот и API gateway — разные люди или проекты не мешают друг другу.",
     "keywords": [
       "profile",
       "профиль",
@@ -5124,6 +5700,28 @@
       "изоляция",
       "jail",
       "workspace"
+    ],
+    "nav_order": 5
+  },
+  {
+    "id": "ru/profiles#профиль-default-только-для-разработки",
+    "lang": "ru",
+    "slug": "profiles",
+    "section": "профиль-default-только-для-разработки",
+    "title": "Профили и изоляция",
+    "heading": "Профиль `default` (только для разработки)",
+    "body": "В development ( не ) можно не указывать — Helix использует профиль : В production профиль недоступен . Всегда указывайте именованный профиль:",
+    "keywords": [
+      "profile",
+      "профиль",
+      "профили",
+      "изоляция",
+      "jail",
+      "workspace",
+      "default",
+      "только",
+      "для",
+      "разработки"
     ],
     "nav_order": 5
   },
@@ -5153,7 +5751,7 @@
     "section": "справочник-cli",
     "title": "Профили и изоляция",
     "heading": "Справочник CLI",
-    "body": "Команда Описание --------- ---------- Выбор профиля (для не нужен) Ключ доступа к защищённому профилю Создать профиль (по умолчанию открытый) Создать профиль с ключом доступа Защищён ли активный профиль Сгенерировать ключ для открытого профиля Сменить ключ доступа Убрать ключ и разрешить свободное переключение Показать профиля Редактировать секреты и bind gateway Включить изоляцию в директории Выключить jail Статус jail Добавить команды через запятую Статус whitelist и итоговый список Включить проверку whitelist Список профилей ( / ) и активный В TUI/чате/Telegram: для переключения в защищённый профиль.",
+    "body": "Команда Описание --------- ---------- Выбор профиля (для не нужен) Ключ доступа к защищённому профилю Создать профиль с наследованием global (по умолчанию) Чистый профиль без наследования global Создать профиль с ключом доступа Показать общий global config Редактировать Редактировать (Пере)создать global ( ) Защищён ли активный профиль Сгенерировать ключ для открытого профиля Сменить ключ доступа Убрать ключ и разрешить свободное переключение Показать профиля Редактировать секреты и bind gateway Включить изоляцию в директории Выключить jail Статус jail Добавить команды через запятую Статус whitelist и итоговый список Включить проверку whitelist Список профилей ( / ) и активный В TUI/чате/Telegram: для переключения в защищённый профиль.",
     "keywords": [
       "profile",
       "профиль",
@@ -5195,7 +5793,7 @@
     "section": "что-изолировано-в-профиле",
     "title": "Профили и изоляция",
     "heading": "Что изолировано в профиле",
-    "body": "Ресурс Путь -------- ------ Ключ доступа к профилю (хэш) Окружение (ключи API, порты) Telegram-бот Состояние и лог gateway Модели, MCP, навыки Память (SQLite + ChromaDB) Навыки Cron-задачи Глобально в : общие логи, клоны MCP-серверов. Всё, что относится к агенту — в каталоге профиля.",
+    "body": "Ресурс Путь -------- ------ Ключ доступа к профилю (хэш) Окружение (ключи API, порты) Telegram-бот Состояние и лог gateway Модели, MCP, навыки Память (SQLite + ChromaDB) Навыки Cron-задачи Глобально в : Путь Назначение ------ ------------ Общие модели, MCP, search, поведение Общие ключи API, голос, флаги инструментов , клоны MCP Общие операционные данные Профили по умолчанию наследуют глобальные настройки. Файлы профиля хранят только переопределения — можно сменить модель в одном профиле, не трогая global; изменение global обновит все наследующие профили. Токены Telegram, память и состояние gateway остаются на профиль (не наследуются).",
     "keywords": [
       "profile",
       "профиль",
@@ -5288,7 +5886,7 @@
     "section": "helix-models",
     "title": "Справочник CLI",
     "heading": "`helix models`",
-    "body": "Подкоманда Описание ------------ ---------- Мастер провайдеров и Список провайдеров Назначения по агентам ---",
+    "body": "Подкоманда Описание ------------ ---------- Мастер провайдеров, , fallback Список провайдеров Назначения по агентам Цепочка fallback-провайдеров Задать fallback ( ) Убрать fallback на уровне профиля ---",
     "keywords": [
       "command",
       "команды",
@@ -5306,7 +5904,7 @@
     "section": "helix-profile",
     "title": "Справочник CLI",
     "heading": "`helix profile`",
-    "body": "Изоляция профиля: env-файл, опциональный workspace jail и whitelist терминала. Подкоманда Описание ------------ ---------- Показать профиля Открыть в Ограничить файловые/терминальные инструменты одной директорией Выключить jail Статус jail Добавить команды через запятую Статус whitelist и итоговый список Включить проверку whitelist CONFIGURATION.md, PROFILES.md ---",
+    "body": "Изоляция профиля и общие глобальные настройки (наследуются по умолчанию). Подкоманда Описание ------------ ---------- Новый профиль ( по умолчанию, — без global) С ключом доступа + workspace jail Показать Редактировать global YAML (модели, MCP, поведение) Редактировать (Пере)создать global ( ) Показать профиля (переопределения) Открыть переопределения профиля в Ограничить файловые/терминальные инструменты одной директорией Выключить jail Статус jail Добавить команды через запятую Статус whitelist и итоговый список Включить проверку whitelist CONFIGURATION.md, PROFILES.md ---",
     "keywords": [
       "command",
       "команды",
@@ -5362,7 +5960,7 @@
     "section": "helix-telegram",
     "title": "Справочник CLI",
     "heading": "`helix telegram`",
-    "body": "Токен бота хранится в . Подкоманда Описание ------------ ---------- Мастер: токен, allowlist, привязки user→профиль, сохранение Запуск polling ( выбирает профиль бота) Сохранённая конфигурация (токен скрыт), привязки user id Обновить slash-меню в Telegram Привязать Telegram user id к профилю Helix Список привязок Удалить привязку Быстрая привязка ( или id из allowlist) Импорт нескольких привязок Один бот на несколько изолированных профилей: TELEGRAM MULTI PROFILE.md. Общее: TELEGRAM.md. ---",
+    "body": "Токен бота хранится в . Подкоманда Описание ------------ ---------- Мастер: только токен бота; включает режим запросов доступа Запуск polling ( выбирает профиль бота) Сохранённая конфигурация (токен скрыт), привязки Обновить slash-меню только для одобренных (скрыто до approve) Показать Telegram-администратора (назначается только из CLI) Сбросить админа перед повторным Ожидающие запросы после Одобрить ( , , или ) Отклонить запрос Ручная привязка Telegram user id → профиль Helix Список привязок Удалить привязку Быстрая привязка ( или id из allowlist) Импорт нескольких привязок Один бот на несколько изолированных профилей: TELEGRAM MULTI PROFILE.md. Общее: TELEGRAM.md. ---",
     "keywords": [
       "command",
       "команды",
@@ -5380,7 +5978,7 @@
     "section": "глобальные-опции",
     "title": "Справочник CLI",
     "heading": "Глобальные опции",
-    "body": "Опция Кратко По умолчанию Описание ------- -------- -------------- ---------- Профиль в выкл Подробный вывод Для профиля default флаг не нужен:",
+    "body": "Опция Кратко По умолчанию Описание ------- -------- -------------- ---------- (dev: ) Профиль в env Ключ доступа к защищённому профилю выкл Подробный вывод В development можно не указывать — используется . В production ( ) нужен именованный профиль — недоступен:",
     "keywords": [
       "command",
       "команды",
@@ -6199,13 +6797,13 @@
     "nav_order": 11
   },
   {
-    "id": "ru/telegram#env",
+    "id": "ru/telegram#1-админ-подключение-бота",
     "lang": "ru",
     "slug": "telegram",
-    "section": "env",
+    "section": "1-админ-подключение-бота",
     "title": "Telegram",
-    "heading": ".env",
-    "body": "HELIX WHISPER BACKEND=local HELIX WHISPER LOCAL MODEL=base tiny быстрее, small точнее HELIX WHISPER LOCAL DEVICE=cpu cuda + float16 на GPU HELIX TELEGRAM VOICE LANGUAGE=ru bash OPENAI API KEY=sk-... HELIX WHISPER MODEL=whisper-1 `` whisper curl …/v1/models whisper`).",
+    "heading": "1. Админ: подключение бота",
+    "body": "Мастер сохраняет только токен бота и включает режим запросов доступа ( по умолчанию).",
     "keywords": [
       "telegram",
       "телеграм",
@@ -6214,7 +6812,120 @@
       "allowlist",
       "whisper",
       "голосовые",
-      "env"
+      "админ",
+      "подключение",
+      "бота"
+    ],
+    "nav_order": 12
+  },
+  {
+    "id": "ru/telegram#2-первый-администратор-только-cli",
+    "lang": "ru",
+    "slug": "telegram",
+    "section": "2-первый-администратор-только-cli",
+    "title": "Telegram",
+    "heading": "2. Первый администратор (только CLI)",
+    "body": "Первого одобренного пользователя можно назначить единственным Telegram-администратором. Из Telegram это сделать нельзя — только через CLI: Helix: - создаёт профиль Helix (если его нет) и привязывает пользователя - сохраняет в - включает меню команд для этого пользователя Проверка и сброс:",
+    "keywords": [
+      "telegram",
+      "телеграм",
+      "бот",
+      "bot",
+      "allowlist",
+      "whisper",
+      "голосовые",
+      "первый",
+      "администратор",
+      "только",
+      "cli"
+    ],
+    "nav_order": 12
+  },
+  {
+    "id": "ru/telegram#3-пользователь-запрос-доступа",
+    "lang": "ru",
+    "slug": "telegram",
+    "section": "3-пользователь-запрос-доступа",
+    "title": "Telegram",
+    "heading": "3. Пользователь: запрос доступа",
+    "body": "1. Открывает бота в Telegram. 2. Отправляет . 3. Бот отвечает, что доступ ожидает одобрения (меню команд скрыто до approve). 4. Telegram-администратор получает уведомление в Telegram с командами CLI для одобрения или отклонения.",
+    "keywords": [
+      "telegram",
+      "телеграм",
+      "бот",
+      "bot",
+      "allowlist",
+      "whisper",
+      "голосовые",
+      "пользователь",
+      "запрос",
+      "доступа"
+    ],
+    "nav_order": 12
+  },
+  {
+    "id": "ru/telegram#4-админ-одобрение-и-изолированный-профиль",
+    "lang": "ru",
+    "slug": "telegram",
+    "section": "4-админ-одобрение-и-изолированный-профиль",
+    "title": "Telegram",
+    "heading": "4. Админ: одобрение и изолированный профиль",
+    "body": "При одобрении Helix: - создаёт защищённый профиль с ключом - включает workspace jail в - привязывает Telegram-пользователя к профилю - отправляет ключ доступа пользователю в Telegram (показывается один раз) Пользователь сразу может писать боту — перезапуск не нужен. Другие команды:",
+    "keywords": [
+      "telegram",
+      "телеграм",
+      "бот",
+      "bot",
+      "allowlist",
+      "whisper",
+      "голосовые",
+      "админ",
+      "одобрение",
+      "изолированный",
+      "профиль"
+    ],
+    "nav_order": 12
+  },
+  {
+    "id": "ru/telegram#ffmpeg-должен-быть-в-path",
+    "lang": "ru",
+    "slug": "telegram",
+    "section": "ffmpeg-должен-быть-в-path",
+    "title": "Telegram",
+    "heading": "ffmpeg должен быть в PATH",
+    "body": "HELIX WHISPER BACKEND=local HELIX WHISPER LOCAL MODEL=base HELIX TELEGRAM VOICE LANGUAGE=ru bash OPENAI API KEY=sk-... HELIX WHISPER MODEL=whisper-1 ```",
+    "keywords": [
+      "telegram",
+      "телеграм",
+      "бот",
+      "bot",
+      "allowlist",
+      "whisper",
+      "голосовые",
+      "ffmpeg",
+      "должен",
+      "быть",
+      "path"
+    ],
+    "nav_order": 12
+  },
+  {
+    "id": "ru/telegram#production",
+    "lang": "ru",
+    "slug": "telegram",
+    "section": "production",
+    "title": "Telegram",
+    "heading": "Production",
+    "body": "- Используйте именованный профиль бота ( ), не — профиль доступен только в dev при . - Для изоляции лучше на каждого пользователя. - Ручной allowlist ( ) не обязателен при включённых access requests. - Telegram-администратор только один ( ); назначение — . Подробно: TELEGRAM MULTI PROFILE.md. ---",
+    "keywords": [
+      "telegram",
+      "телеграм",
+      "бот",
+      "bot",
+      "allowlist",
+      "whisper",
+      "голосовые",
+      "production"
     ],
     "nav_order": 12
   },
@@ -6225,7 +6936,7 @@
     "section": "telegram",
     "title": "Telegram",
     "heading": "Telegram",
-    "body": "Telegram-канал: t.me/helix agent — новости и обновления проекта (это не бот, который вы настраиваете ниже). У каждого профиля свой бот и allowlist. Секреты хранятся в: ```bash uv sync --extra telegram helix telegram setup мастер: токен, allowlist, сохранение в профиль helix telegram run",
+    "body": "Telegram-канал: t.me/helix agent — новости и обновления проекта (это не бот, который вы настраиваете ниже). У каждого профиля может быть свой бот. Секреты хранятся в:",
     "keywords": [
       "telegram",
       "телеграм",
@@ -6238,13 +6949,13 @@
     "nav_order": 12
   },
   {
-    "id": "ru/telegram#безопасность",
+    "id": "ru/telegram#видимость-меню-команд",
     "lang": "ru",
     "slug": "telegram",
-    "section": "безопасность",
+    "section": "видимость-меню-команд",
     "title": "Telegram",
-    "heading": "Безопасность",
-    "body": "Аудиофайлы временно сохраняются во временной директории и удаляются сразу после транскрибации. Никакие голосовые данные не хранятся постоянно. После изменения или настроек голоса:",
+    "heading": "Видимость меню команд",
+    "body": "Меню slash-команд скрыто для неавторизованных пользователей. После approve (или allowlist / ) Helix включает меню для каждого приватного чата . обновляет меню всех авторизованных пользователей без перезапуска бота.",
     "keywords": [
       "telegram",
       "телеграм",
@@ -6253,7 +6964,9 @@
       "allowlist",
       "whisper",
       "голосовые",
-      "безопасность"
+      "видимость",
+      "меню",
+      "команд"
     ],
     "nav_order": 12
   },
@@ -6278,37 +6991,13 @@
     "nav_order": 12
   },
   {
-    "id": "ru/telegram#или-вместе-с-gateway-того-же-профиля",
-    "lang": "ru",
-    "slug": "telegram",
-    "section": "или-вместе-с-gateway-того-же-профиля",
-    "title": "Telegram",
-    "heading": "или вместе с gateway того же профиля:",
-    "body": "helix gateway start bash helix -p alice telegram setup helix -p bob telegram setup ``` Подробно: TELEGRAM MULTI PROFILE.md.",
-    "keywords": [
-      "telegram",
-      "телеграм",
-      "бот",
-      "bot",
-      "allowlist",
-      "whisper",
-      "голосовые",
-      "или",
-      "вместе",
-      "gateway",
-      "того",
-      "профиля"
-    ],
-    "nav_order": 12
-  },
-  {
     "id": "ru/telegram#использование",
     "lang": "ru",
     "slug": "telegram",
     "section": "использование",
     "title": "Telegram",
     "heading": "Использование",
-    "body": "Отправьте голосовое сообщение или аудиофайл (mp3/m4a) в чат с ботом — Helix автоматически: - 🎙️ Покажет \"Распознано: ...\" - 🤖 Обработает текст через агента - 💬 Ответит на ваш запрос",
+    "body": "Отправьте голосовое сообщение или аудиофайл — Helix распознает текст и ответит как на обычное сообщение. После изменения или настроек голоса:",
     "keywords": [
       "telegram",
       "телеграм",
@@ -6350,7 +7039,7 @@
     "section": "настройка",
     "title": "Telegram",
     "heading": "Настройка",
-    "body": "Вариант 1: LiteLLM (рекомендуется, если chat уже через LiteLLM) На сервере LiteLLM добавьте модель транскрибации в : В Helix: Или автоматически из профиля (тот же ключ/URL, что для chat): Вариант 2: Локально на машине с агентом (offline) Без OpenAI и без LiteLLM — модель Whisper крутится прямо на хосте, где запущен Helix: ```bash uv sync --extra telegram --extra voice",
+    "body": "Вариант 1: LiteLLM (рекомендуется, если chat уже через LiteLLM) На сервере LiteLLM добавьте модель транскрибации в : В Helix: Или автоматически из профиля (тот же ключ/URL, что для chat): Вариант 2: Локально на машине с агентом (offline) ```bash uv sync --extra telegram --extra voice",
     "keywords": [
       "telegram",
       "телеграм",
@@ -6364,13 +7053,13 @@
     "nav_order": 12
   },
   {
-    "id": "ru/telegram#ограничения",
+    "id": "ru/telegram#привязка-user-id-профиль-вручную",
     "lang": "ru",
     "slug": "telegram",
-    "section": "ограничения",
+    "section": "привязка-user-id-профиль-вручную",
     "title": "Telegram",
-    "heading": "Ограничения",
-    "body": "- Максимальная длительность: ~25 МБ (лимит Telegram) - Язык: Whisper автоопределяет язык, но можно задать явно (через код) - Требуется интернет-соединение для API Whisper",
+    "heading": "Привязка user id → профиль (вручную)",
+    "body": "Файлы: , опционально в . Пользователь попадает в профиль автоматически; ручной отключает автопривязку для чата. Одно live-сообщение на задачу; slash-команды как в TUI; inline-подтверждения. ---",
     "keywords": [
       "telegram",
       "телеграм",
@@ -6379,31 +7068,10 @@
       "allowlist",
       "whisper",
       "голосовые",
-      "ограничения"
-    ],
-    "nav_order": 12
-  },
-  {
-    "id": "ru/telegram#один-бот-несколько-профилей-привязка-user-id",
-    "lang": "ru",
-    "slug": "telegram",
-    "section": "один-бот-несколько-профилей-привязка-user-id",
-    "title": "Telegram",
-    "heading": "Один бот — несколько профилей (привязка user id)",
-    "body": "Файлы: , в . Пользователь автоматически попадает в свой профиль; вручную отключает автопривязку для чата. Одно live-сообщение на задачу; slash-команды как в TUI; inline-подтверждения. ---",
-    "keywords": [
-      "telegram",
-      "телеграм",
-      "бот",
-      "bot",
-      "allowlist",
-      "whisper",
-      "голосовые",
-      "один",
-      "несколько",
-      "профилей",
       "привязка",
-      "user"
+      "user",
+      "профиль",
+      "вручную"
     ],
     "nav_order": 12
   },
@@ -6420,6 +7088,21 @@
       "бот",
       "каждого",
       "профиля"
+    ],
+    "nav_order": 13
+  },
+  {
+    "id": "ru/telegram-multi-profile#5-ограничить-доступ-в-production",
+    "lang": "ru",
+    "slug": "telegram-multi-profile",
+    "section": "5-ограничить-доступ-в-production",
+    "title": "Telegram: несколько профилей",
+    "heading": "5. Ограничить доступ в production",
+    "body": "Для личного бота (один владелец) укажите свой user id в или профиля: Для общего бота на многих пользователей используйте запросы доступа (следующий раздел). ---",
+    "keywords": [
+      "ограничить",
+      "доступ",
+      "production"
     ],
     "nav_order": 13
   },
@@ -6457,35 +7140,21 @@
     "nav_order": 13
   },
   {
-    "id": "ru/telegram-multi-profile#альтернатива-один-бот-на-всех-с-ограничениями",
+    "id": "ru/telegram-multi-profile#альтернатива-один-бот-ручной-profile-или-map",
     "lang": "ru",
     "slug": "telegram-multi-profile",
-    "section": "альтернатива-один-бот-на-всех-с-ограничениями",
+    "section": "альтернатива-один-бот-ручной-profile-или-map",
     "title": "Telegram: несколько профилей",
-    "heading": "Альтернатива: один бот на всех (с ограничениями)",
-    "body": "Подходит для доверенной команды , когда все пользуются одним ботом и вручную переключают профиль. В Telegram каждый пользователь: 1. Пишет боту. 2. Переключается: или (если профиль защищён). 3. Работает в своём профиле (память и сессии: ). Также доступны кнопка Профиль в меню бота и без аргументов — список профилей.",
+    "heading": "Альтернатива: один бот + ручной `/profile` или `map`",
+    "body": "Для доверенной команды с явным управлением привязками (без access requests). Каждый переключается вручную: или (защищённые профили). Или привязка user id: (см. ниже).",
     "keywords": [
       "альтернатива",
       "один",
       "бот",
-      "всех",
-      "ограничениями"
-    ],
-    "nav_order": 13
-  },
-  {
-    "id": "ru/telegram-multi-profile#защита-при-одном-боте",
-    "lang": "ru",
-    "slug": "telegram-multi-profile",
-    "section": "защита-при-одном-боте",
-    "title": "Telegram: несколько профилей",
-    "heading": "Защита при одном боте",
-    "body": "Вход в защищённый профиль: Плюс workspace jail — ограничить файловые и терминальные tools одной директорией: См. PROFILES.md — разделы «Ключи доступа» и «Workspace jail». ---",
-    "keywords": [
-      "защита",
-      "при",
-      "одном",
-      "боте"
+      "ручной",
+      "profile",
+      "или",
+      "map"
     ],
     "nav_order": 13
   },
@@ -6496,7 +7165,7 @@
     "section": "итог",
     "title": "Telegram: несколько профилей",
     "heading": "Итог",
-    "body": "- Полная изоляция → отдельный бот (токен) + отдельный gateway на каждый профиль. - Один бот на команду → профили с , jail, , переключение через .",
+    "body": "- Полная изоляция → отдельный бот (токен) + отдельный gateway на каждый профиль. - Один бот, много пользователей → + (рекомендуется). - Ручная настройка команды → привязки или с защищёнными профилями и jail.",
     "keywords": [
       "итог"
     ],
@@ -6524,7 +7193,7 @@
     "section": "ограничения-одного-бота",
     "title": "Telegram: несколько профилей",
     "heading": "Ограничения одного бота",
-    "body": "Ограничение Пояснение ------------- ----------- Автопривязка (см. ниже) Новый чат Стартует на профиле, с которым запущен Один токен Нельзя держать два профиля как два независимых бота на одном токене Безопасность Все видят одного бота; изоляция — после , ключей и jail",
+    "body": "Ограничение Пояснение ------------- ----------- Автопривязка или Новый чат Стартует на профиле, активном при Один токен Нельзя держать два профиля как два независимых бота на одном токене Безопасность Общий бот; изоляция — через профили, ключи и jail",
     "keywords": [
       "ограничения",
       "одного",
@@ -6533,19 +7202,39 @@
     "nav_order": 13
   },
   {
-    "id": "ru/telegram-multi-profile#привязка-user-id-профиль-один-бот",
+    "id": "ru/telegram-multi-profile#один-бот-много-пользователей-access-requests-рекомендуется",
     "lang": "ru",
     "slug": "telegram-multi-profile",
-    "section": "привязка-user-id-профиль-один-бот",
+    "section": "один-бот-много-пользователей-access-requests-рекомендуется",
     "title": "Telegram: несколько профилей",
-    "heading": "Привязка user id → профиль (один бот)",
+    "heading": "Один бот — много пользователей (access requests, рекомендуется)",
+    "body": "Один токен, много изолированных пользователей — user id при настройке вводить не нужно. 1. Первый запуск (один раз): назначить Telegram-админа из CLI — (профиль , только CLI). 2. Пользователи отправляют (меню скрыто до approve); админ получает уведомление в Telegram. 3. Админ одобряет из CLI: При одобрении Helix создаёт защищённый профиль (с ), включает workspace jail в , привязывает пользователя, отправляет ключ в Telegram и включает меню команд для чата. - Используйте именованный профиль бота ( ), не — в production только для dev. - выставляется мастером (см. TELEGRAM.md). - Перезапуск бота после approve не нужен. ---",
+    "keywords": [
+      "один",
+      "бот",
+      "много",
+      "пользователей",
+      "access",
+      "requests",
+      "рекомендуется"
+    ],
+    "nav_order": 13
+  },
+  {
+    "id": "ru/telegram-multi-profile#привязка-user-id-профиль-один-бот-вручную",
+    "lang": "ru",
+    "slug": "telegram-multi-profile",
+    "section": "привязка-user-id-профиль-один-бот-вручную",
+    "title": "Telegram: несколько профилей",
+    "heading": "Привязка user id → профиль (один бот, вручную)",
     "body": "При мастер предложит привязки, если профилей несколько. - Файл: - Env: в Пользователь автоматически попадает в свой профиль (память, модели, jail). вручную отключает автопривязку для этого чата.",
     "keywords": [
       "привязка",
       "user",
       "профиль",
       "один",
-      "бот"
+      "бот",
+      "вручную"
     ],
     "nav_order": 13
   },
@@ -6556,7 +7245,7 @@
     "section": "сравнение-подходов",
     "title": "Telegram: несколько профилей",
     "heading": "Сравнение подходов",
-    "body": "Подход Изоляция Удобство Безопасность -------- ---------- ---------- -------------- 1 бот = 1 профиль (рекомендуется) Полная Каждый пишет своему боту Высокая 1 бот + После ручного переключения Один бот на всех Средняя (нужны ключи + jail + allowlist) ---",
+    "body": "Подход Изоляция Удобство Безопасность -------- ---------- ---------- -------------- 1 бот = 1 профиль (полная изоляция) Полная Каждый пишет своему боту Высокая 1 бот + access requests (рекомендуется для общего бота) Профиль на пользователя → approve админом Высокая (ключ + jail) 1 бот + / После ручной настройки Один бот на всех Средняя ---",
     "keywords": [
       "сравнение",
       "подходов"
@@ -6570,7 +7259,7 @@
     "section": "типичные-ошибки",
     "title": "Telegram: несколько профилей",
     "heading": "Типичные ошибки",
-    "body": "- Один токен в нескольких — только один процесс сможет polling; остальные упадут с конфликтом. - Одинаковый у разных профилей — второй gateway не стартует. - Пустой в production — бот не примет сообщения ( ). Проверка: ---",
+    "body": "- Один токен в нескольких — только один процесс сможет polling; остальные упадут с конфликтом. - Одинаковый у разных профилей — второй gateway не стартует. - Нет пути доступа в production — при нужны access requests, allowlist или привязки . Проверка: ---",
     "keywords": [
       "типичные",
       "ошибки"
@@ -6706,7 +7395,7 @@
     "section": "чеклист-production",
     "title": "Безопасность",
     "heading": "Чеклист production",
-    "body": "1. 2. (в production принудительно) 3. — длинный случайный секрет 4. — явные origin (не ) 5. за reverse proxy с TLS 6. при использовании Telegram 7. если не нужен 8.",
+    "body": "1. 2. (в production принудительно) 3. — длинный случайный секрет 4. — явные origin (не ) 5. за reverse proxy с TLS 6. Telegram: (по умолчанию после ) или для личного бота; в production — именованные профили ( ), не 7. если не нужен 8.",
     "keywords": [
       "security",
       "безопасность",
@@ -7063,6 +7752,23 @@
     "nav_order": 18
   },
   {
+    "id": "ru/deployment#docker",
+    "lang": "ru",
+    "slug": "deployment",
+    "section": "docker",
+    "title": "Деплой",
+    "heading": "Docker",
+    "body": "Минимальный запуск (достаточно токена Telegram-бота): Образ включает все опциональные extras (Telegram, voice, browser). При первом запуске создаётся и сохраняется токен бота. Пользователи отправляют в Telegram; вы одобряете из контейнера: ```bash docker compose exec helix helix -p shared telegram requests list docker compose exec helix helix -p shared telegram requests approve USER ID --create-profile alice",
+    "keywords": [
+      "deploy",
+      "деплой",
+      "systemd",
+      "docker",
+      "ci"
+    ],
+    "nav_order": 18
+  },
+  {
     "id": "ru/deployment#helixprofilesbobenv",
     "lang": "ru",
     "slug": "deployment",
@@ -7123,6 +7829,27 @@
     "nav_order": 18
   },
   {
+    "id": "ru/deployment#или-привязка-к-существующему-профилю",
+    "lang": "ru",
+    "slug": "deployment",
+    "section": "или-привязка-к-существующему-профилю",
+    "title": "Деплой",
+    "heading": "или привязка к существующему профилю:",
+    "body": "docker compose exec helix helix -p shared telegram requests approve USER ID --profile existing `` -p shared default HELIX ENV=production HELIX API KEY PEPPER MODEL BASE URL helix gateway start -f` — gateway, Telegram-бот и cron в одном процессе.",
+    "keywords": [
+      "deploy",
+      "деплой",
+      "systemd",
+      "docker",
+      "ci",
+      "или",
+      "привязка",
+      "существующему",
+      "профилю"
+    ],
+    "nav_order": 18
+  },
+  {
     "id": "ru/deployment#отредактируйте-helix_python-и-helix_bin-под-пути-pipx-на-вашем-х",
     "lang": "ru",
     "slug": "deployment",
@@ -7171,7 +7898,7 @@
     "section": "проверки",
     "title": "Доктор",
     "heading": "Проверки",
-    "body": "- Запись в (или ) - Платформа: ОС, путь данных, / / / в PATH; Windows: подсказка psutil, whitelist терминала - YAML профиля и providers - LLM endpoint и модель - Gateway state / health - Telegram token и allowlist - Production: pepper, CORS, auth, code executor После исправлений смотрите runtime-логи: — LOGS.md.",
+    "body": "- Запись в (или ) - Платформа: ОС, путь данных, / / / в PATH; Windows: подсказка psutil, whitelist терминала - YAML профиля и providers - LLM endpoint и модель - Gateway state / health - Telegram token, access requests и allowlist - Production: pepper, CORS, auth, code executor После исправлений смотрите runtime-логи: — LOGS.md.",
     "keywords": [
       "doctor",
       "диагностика",
@@ -7393,6 +8120,25 @@
     "nav_order": 21
   },
   {
+    "id": "ru/troubleshooting#telegram-access-denied",
+    "lang": "ru",
+    "slug": "troubleshooting",
+    "section": "telegram-access-denied",
+    "title": "Решение проблем",
+    "heading": "Telegram access denied",
+    "body": "1. Пользователь должен отправить (режим access requests). 2. Назначьте Telegram-админа (один раз): . 3. Админ одобряет новых: → или . 4. Для личного бота задайте (числовой user id). 5. В production используйте именованный профиль ( ), не .",
+    "keywords": [
+      "troubleshoot",
+      "проблемы",
+      "ошибки",
+      "fix",
+      "telegram",
+      "access",
+      "denied"
+    ],
+    "nav_order": 22
+  },
+  {
     "id": "ru/troubleshooting#windows",
     "lang": "ru",
     "slug": "troubleshooting",
@@ -7406,6 +8152,26 @@
       "ошибки",
       "fix",
       "windows"
+    ],
+    "nav_order": 22
+  },
+  {
+    "id": "ru/troubleshooting#меню-telegram-видно-до-одобрения",
+    "lang": "ru",
+    "slug": "troubleshooting",
+    "section": "меню-telegram-видно-до-одобрения",
+    "title": "Решение проблем",
+    "heading": "Меню Telegram видно до одобрения",
+    "body": "Slash-команды скрыты до approve (или allowlist / ). После одобрения выполните , если клиент показывает старое глобальное меню. См. TELEGRAM.md.",
+    "keywords": [
+      "troubleshoot",
+      "проблемы",
+      "ошибки",
+      "fix",
+      "меню",
+      "telegram",
+      "видно",
+      "одобрения"
     ],
     "nav_order": 22
   },
@@ -7564,7 +8330,7 @@
     "section": "17-что-делать-если-что-то-не-работает",
     "title": "Руководство",
     "heading": "17. Что делать, если что-то не работает",
-    "body": "Проблема Что проверить ---------- ---------------- PATH, venv, / Нет ответа от модели , URL, , curl MCP не появляется , , Telegram молчит , токен, allowlist, Старые слэш-команды , Подробнее: TROUBLESHOOTING.md, DOCTOR.md. ---",
+    "body": "Проблема Что проверить ---------- ---------------- PATH, venv, / Нет ответа от модели , URL, , curl MCP не появляется , , Telegram молчит , токен, , Старые слэш-команды , Подробнее: TROUBLESHOOTING.md, DOCTOR.md. ---",
     "keywords": [
       "guide",
       "руководство",
@@ -7847,49 +8613,126 @@
     "nav_order": 23
   },
   {
-    "id": "ru/user-guide#93-узнать-свой-telegram-user-id",
+    "id": "ru/user-guide#93-подключить-бота-админ",
     "lang": "ru",
     "slug": "user-guide",
-    "section": "93-узнать-свой-telegram-user-id",
+    "section": "93-подключить-бота-админ",
     "title": "Руководство",
-    "heading": "9.3. Узнать свой Telegram user id",
-    "body": "Нужен для ограничения доступа (кто может писать боту): - напишите @userinfobot, или - мастер может определить id автоматически.",
+    "heading": "9.3. Подключить бота (админ)",
+    "body": "Мастер проверяет токен через Telegram API ( ), сохраняет его в и включает режим запросов доступа ( ). User id при настройке вводить не нужно. Для production и мультипользовательского бота используйте именованный профиль ( ) — в недоступен.",
     "keywords": [
       "guide",
       "руководство",
       "usage",
-      "узнать",
-      "свой",
+      "подключить",
+      "бота",
+      "админ"
+    ],
+    "nav_order": 23
+  },
+  {
+    "id": "ru/user-guide#94-назначение-telegram-администратора-один-раз-только-cli",
+    "lang": "ru",
+    "slug": "user-guide",
+    "section": "94-назначение-telegram-администратора-один-раз-только-cli",
+    "title": "Руководство",
+    "heading": "9.4. Назначение Telegram-администратора (один раз, только CLI)",
+    "body": "Создаёт профиль Helix , сохраняет единственного админа в и включает меню команд. Из Telegram назначить нельзя. Проверка: .",
+    "keywords": [
+      "guide",
+      "руководство",
+      "usage",
+      "назначение",
       "telegram",
-      "user"
+      "администратора",
+      "один",
+      "раз",
+      "только",
+      "cli"
     ],
     "nav_order": 23
   },
   {
-    "id": "ru/user-guide#94-интерактивная-настройка-helix",
+    "id": "ru/user-guide#95-пользователи-запрашивают-доступ",
     "lang": "ru",
     "slug": "user-guide",
-    "section": "94-интерактивная-настройка-helix",
+    "section": "95-пользователи-запрашивают-доступ",
     "title": "Руководство",
-    "heading": "9.4. Интерактивная настройка Helix",
-    "body": "Мастер: 1. Проверит токен через Telegram API ( ). 2. Спросит allowlist пользователей ( ). 3. Сохранит настройки в . 4. При нескольких профилях Helix предложит привязку user id → профиль (один бот — разные пользователи).",
+    "heading": "9.5. Пользователи запрашивают доступ",
+    "body": "1. Пользователь открывает бота в Telegram и отправляет . 2. Бот отвечает, что доступ ожидает одобрения (меню команд скрыто). 3. Telegram-администратор получает уведомление с командами CLI для одобрения или отклонения.",
     "keywords": [
       "guide",
       "руководство",
       "usage",
-      "интерактивная",
-      "настройка",
-      "helix"
+      "пользователи",
+      "запрашивают",
+      "доступ"
     ],
     "nav_order": 23
   },
   {
-    "id": "ru/user-guide#97-голосовые-сообщения-опционально",
+    "id": "ru/user-guide#951-админ-одобряет-и-создаёт-изолированный-профиль",
     "lang": "ru",
     "slug": "user-guide",
-    "section": "97-голосовые-сообщения-опционально",
+    "section": "951-админ-одобряет-и-создаёт-изолированный-профиль",
     "title": "Руководство",
-    "heading": "9.7. Голосовые сообщения (опционально)",
+    "heading": "9.5.1. Админ одобряет и создаёт изолированный профиль",
+    "body": "Helix создаёт защищённый профиль (с ), включает workspace jail , привязывает пользователя, отправляет ключ в Telegram и включает меню команд. Перезапуск бота не нужен. Другие варианты: , . Ручные привязки: — см. TELEGRAM MULTI PROFILE.md.",
+    "keywords": [
+      "guide",
+      "руководство",
+      "usage",
+      "951",
+      "админ",
+      "одобряет",
+      "создаёт",
+      "изолированный",
+      "профиль"
+    ],
+    "nav_order": 23
+  },
+  {
+    "id": "ru/user-guide#97-обновить-меню-команд-в-telegram",
+    "lang": "ru",
+    "slug": "user-guide",
+    "section": "97-обновить-меню-команд-в-telegram",
+    "title": "Руководство",
+    "heading": "9.7. Обновить меню команд в Telegram",
+    "body": "Обновляет меню только для одобренных пользователей (скрыто до approve). После изменения навыков, MCP или слэш-команд.",
+    "keywords": [
+      "guide",
+      "руководство",
+      "usage",
+      "обновить",
+      "меню",
+      "команд",
+      "telegram"
+    ],
+    "nav_order": 23
+  },
+  {
+    "id": "ru/user-guide#98-production",
+    "lang": "ru",
+    "slug": "user-guide",
+    "section": "98-production",
+    "title": "Руководство",
+    "heading": "9.8. Production",
+    "body": "При : - используйте именованный профиль бота ( ), не ; - предпочтительно запросы доступа ( + ); - или задайте для личного бота на одного пользователя. Полная инструкция: TELEGRAM.md. ---",
+    "keywords": [
+      "guide",
+      "руководство",
+      "usage",
+      "production"
+    ],
+    "nav_order": 23
+  },
+  {
+    "id": "ru/user-guide#98-голосовые-сообщения-опционально",
+    "lang": "ru",
+    "slug": "user-guide",
+    "section": "98-голосовые-сообщения-опционально",
+    "title": "Руководство",
+    "heading": "9.8. Голосовые сообщения (опционально)",
     "body": "Если чат уже через LiteLLM, для Whisper настройте модель транскрибации в конфиге LiteLLM и в профиля: Подробнее: TELEGRAM.md.",
     "keywords": [
       "guide",
@@ -8013,7 +8856,7 @@
     "section": "или-просто",
     "title": "Руководство",
     "heading": "или просто:",
-    "body": "helix telegram bash helix gateway start ``` Supervisor gateway также поднимает Telegram, если он настроен.",
+    "body": "helix telegram bash HELIX ENV=production helix -p shared gateway start -f ``` Supervisor gateway также поднимает Telegram, если он настроен.",
     "keywords": [
       "guide",
       "руководство",

@@ -23,7 +23,7 @@
 - [HUB.md](HUB.md) — каталоги навыков
 - [GATEWAY.md](GATEWAY.md) — API gateway
 - [TELEGRAM.md](TELEGRAM.md) — Telegram
-- [TELEGRAM_MULTI_PROFILE.md](TELEGRAM_MULTI_PROFILE.md) — один бот / несколько ботов, привязка user id
+- [TELEGRAM_MULTI_PROFILE.md](TELEGRAM_MULTI_PROFILE.md) — один бот / несколько ботов, access requests, ручной `map`
 - [BROWSER_TOOLS.md](BROWSER_TOOLS.md) — Playwright
 
 ## Эксплуатация
