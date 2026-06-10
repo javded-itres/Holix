@@ -186,6 +186,8 @@ The **`default`** profile is used by default. On first run, Helix creates the re
 
 **Workspace jail** (optional): restrict file/terminal tools to one folder — `helix profile jail enable /path/to/dir`. See [CONFIGURATION.md](CONFIGURATION.md).
 
+**Terminal whitelist** (optional): `helix profile whitelist enable`, `whitelist add "docker, make"`, `whitelist list` — see [PROFILES.md](PROFILES.md).
+
 View settings:
 
 ```bash

@@ -182,6 +182,8 @@ cp .env.example ~/.helix/profiles/default/.env
 
 **Workspace jail** (опционально): ограничить файловые/терминальные инструменты одной папкой — `helix profile jail enable /path/to/dir`. См. [CONFIGURATION.md](CONFIGURATION.md).
 
+**Whitelist терминала** (опционально): `helix profile whitelist enable`, `whitelist add "docker, make"`, `whitelist list` — см. [PROFILES.md](PROFILES.md).
+
 Просмотр настроек:
 
 ```bash

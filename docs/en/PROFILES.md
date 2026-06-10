@@ -79,6 +79,27 @@ When enabled, these tools are scoped to `workspace_root`:
 
 Helix internal data (memory, skills under `~/.helix/profiles/`) is **not** affected — jail applies to agent file/terminal tools only.
 
+## Terminal whitelist (optional)
+
+Control which shell commands the agent may run. Settings are stored per profile in `.env`.
+
+```bash
+helix -p dev profile whitelist enable
+helix -p dev profile whitelist add "docker, make"
+helix -p dev profile whitelist list
+```
+
+Persisted variables:
+
+```bash
+HELIX_TERMINAL_COMMAND_WHITELIST=true
+HELIX_TERMINAL_WHITELIST_EXTRA=docker,make
+```
+
+Helix always applies a platform default set (`ls`, `git status`, `python`, `helix`, etc. on Unix; `dir`, `type`, `where` on Windows). Profile extras extend that list. Duplicate commands are ignored.
+
+After changes, restart gateway/Telegram or re-run the CLI. See [SECURITY.md](SECURITY.md).
+
 ## Profile access keys (optional)
 
 By default, all profiles are **open** — you can switch by name only (`helix -p alice`, `/profile alice`).
@@ -167,6 +188,9 @@ helix -p bob gateway start
 | `helix profile jail enable <path>` | Enable directory isolation |
 | `helix profile jail disable` | Disable jail |
 | `helix profile jail status` | Show jail settings |
+| `helix profile whitelist add "<cmds>"` | Add comma-separated terminal commands |
+| `helix profile whitelist list` | Show whitelist status and effective commands |
+| `helix profile whitelist enable` | Enable terminal whitelist enforcement |
 | `helix status` | List profiles (`locked` / `open`) and active one |
 
 In TUI/chat/Telegram: `/profile <name> <access-key>` to switch into a protected profile.

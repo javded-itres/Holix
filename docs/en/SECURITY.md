@@ -42,7 +42,13 @@ Never commit real keys to git.
 
 ## Tools
 
-- **Terminal**: whitelist enforced when `HELIX_TERMINAL_COMMAND_WHITELIST=true`
+- **Terminal**: whitelist enforced when `HELIX_TERMINAL_COMMAND_WHITELIST=true` (default). Manage per profile:
+  ```bash
+  helix -p dev profile whitelist enable
+  helix -p dev profile whitelist add "docker, make"
+  helix -p dev profile whitelist list
+  ```
+  Or set `HELIX_TERMINAL_WHITELIST_EXTRA` in `profiles/<name>/.env`.
 - **Python executor**: disable in production via `HELIX_ENABLE_CODE_EXECUTOR=false`
 
 ## Run audit

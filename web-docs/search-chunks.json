@@ -487,6 +487,25 @@
     "nav_order": 4
   },
   {
+    "id": "en/configuration#terminal-whitelist-optional",
+    "lang": "en",
+    "slug": "configuration",
+    "section": "terminal-whitelist-optional",
+    "title": "Configuration",
+    "heading": "Terminal whitelist (optional)",
+    "body": "Restrict which shell commands the agent may run. Managed per profile: Equivalent variables: Variable Default Description ---------- --------- ------------- Enforce whitelist for empty Comma-separated extra commands or prefixes Platform defaults are always included. See SECURITY.md.",
+    "keywords": [
+      "config",
+      "конфигурация",
+      "env",
+      "переменные",
+      "terminal",
+      "whitelist",
+      "optional"
+    ],
+    "nav_order": 4
+  },
+  {
     "id": "en/configuration#workspace-jail-optional",
     "lang": "en",
     "slug": "configuration",
@@ -559,7 +578,7 @@
     "section": "cli-reference",
     "title": "Profiles & Isolation",
     "heading": "CLI reference",
-    "body": "Command Description --------- ------------- Select profile (omit for ) Access key for a protected profile Create profile (open by default) Create profile with access key Show whether active profile is protected Generate key for an existing open profile Replace access key Remove key and allow free switching Show profile Edit secrets and gateway bind Enable directory isolation Disable jail Show jail settings List profiles ( / ) and active one In TUI/chat/Telegram: to switch into a protected profile.",
+    "body": "Command Description --------- ------------- Select profile (omit for ) Access key for a protected profile Create profile (open by default) Create profile with access key Show whether active profile is protected Generate key for an existing open profile Replace access key Remove key and allow free switching Show profile Edit secrets and gateway bind Enable directory isolation Disable jail Show jail settings Add comma-separated terminal commands Show whitelist status and effective commands Enable terminal whitelist enforcement List profiles ( / ) and active one In TUI/chat/Telegram: to switch into a protected profile.",
     "keywords": [
       "profile",
       "профиль",
@@ -741,6 +760,27 @@
     "nav_order": 5
   },
   {
+    "id": "en/profiles#terminal-whitelist-optional",
+    "lang": "en",
+    "slug": "profiles",
+    "section": "terminal-whitelist-optional",
+    "title": "Profiles & Isolation",
+    "heading": "Terminal whitelist (optional)",
+    "body": "Control which shell commands the agent may run. Settings are stored per profile in . Persisted variables: Helix always applies a platform default set ( , , , , etc. on Unix; , , on Windows). Profile extras extend that list. Duplicate commands are ignored. After changes, restart gateway/Telegram or re-run the CLI. See SECURITY.md.",
+    "keywords": [
+      "profile",
+      "профиль",
+      "профили",
+      "изоляция",
+      "jail",
+      "workspace",
+      "terminal",
+      "whitelist",
+      "optional"
+    ],
+    "nav_order": 5
+  },
+  {
     "id": "en/profiles#what-is-isolated-per-profile",
     "lang": "en",
     "slug": "profiles",
@@ -868,6 +908,24 @@
       "terminal",
       "helix",
       "cron"
+    ],
+    "nav_order": 6
+  },
+  {
+    "id": "en/cli#helix-docs",
+    "lang": "en",
+    "slug": "cli",
+    "section": "helix-docs",
+    "title": "CLI Reference",
+    "heading": "`helix docs`",
+    "body": "Documentation website (marketing landing + docs SPA, search, EN/RU). Subcommand Description ------------ ------------- (default) Serve site on Same as default Sync + → , rebuild search index and SEO artifacts See DEPLOYMENT.md. ---",
+    "keywords": [
+      "command",
+      "команды",
+      "typer",
+      "terminal",
+      "helix",
+      "docs"
     ],
     "nav_order": 6
   },
@@ -1022,7 +1080,7 @@
     "section": "helix-profile",
     "title": "CLI Reference",
     "heading": "`helix profile`",
-    "body": "Per-profile isolation: env file and optional workspace jail. Subcommand Description ------------ ------------- Show profile path and contents Open in Restrict file/terminal tools to one directory Turn off workspace jail Show jail settings See CONFIGURATION.md. ---",
+    "body": "Per-profile isolation: env file, optional workspace jail, and terminal whitelist. Subcommand Description ------------ ------------- Show profile path and contents Open in Restrict file/terminal tools to one directory Turn off workspace jail Show jail settings Add comma-separated terminal commands Show whitelist status and effective commands Enable terminal whitelist enforcement See CONFIGURATION.md and PROFILES.md. ---",
     "keywords": [
       "command",
       "команды",
@@ -2089,7 +2147,7 @@
     "section": "tools",
     "title": "Security",
     "heading": "Tools",
-    "body": "- Terminal : whitelist enforced when - Python executor : disable in production via",
+    "body": "- Terminal : whitelist enforced when (default). Manage per profile: Or set in . - Python executor : disable in production via",
     "keywords": [
       "security",
       "безопасность",
@@ -2187,7 +2245,7 @@
     "section": "5-documentation-site-chat-widget",
     "title": "Deployment",
     "heading": "5. Documentation-site chat widget",
-    "body": "The assistant answers only documentation and website questions — no tools, commands, or file access. In the profile used when starting gateway + docs: Create a profile with LLM credentials only: Start: Widget behaviour: - first visit — chat opens automatically; - if the user closed it — stays collapsed on later visits ( ). is used by the docs-server proxy ( ) and is not exposed to the browser.",
+    "body": "The assistant answers only documentation and website questions — no tools, commands, or file access. In the profile used when starting gateway + docs: Create a profile with LLM credentials only: Start: Widget behaviour: - first visit — chat opens automatically; - if the user closed it — stays collapsed on later visits ( ); - shows a thinking indicator until the first streamed token; - opens the first link from the assistant reply in the site navigation. is used by the docs-server proxy ( ) and is not exposed to the browser.",
     "keywords": [
       "deploy",
       "деплой",
@@ -2202,12 +2260,34 @@
     "nav_order": 15
   },
   {
-    "id": "en/deployment#6-reverse-proxy-tls",
+    "id": "en/deployment#6-documentation-site-build-and-seo",
     "lang": "en",
     "slug": "deployment",
-    "section": "6-reverse-proxy-tls",
+    "section": "6-documentation-site-build-and-seo",
     "title": "Deployment",
-    "heading": "6. Reverse proxy (TLS)",
+    "heading": "6. Documentation site build and SEO",
+    "body": "Source markdown lives in and . Rebuild the static site before deploy: copies content into , rebuilds search index/chunks, , , and crawlable links in . Public URLs (SPA): Path Page ------ ------ Marketing landing Documentation hub Doc page (e.g. ) Static files at site root: , , Yandex Webmaster verification ( ). After deploy, hard-refresh the browser if assets look stale. Reload gateway after env changes: .",
+    "keywords": [
+      "deploy",
+      "деплой",
+      "systemd",
+      "docker",
+      "ci",
+      "documentation",
+      "site",
+      "build",
+      "and",
+      "seo"
+    ],
+    "nav_order": 15
+  },
+  {
+    "id": "en/deployment#7-reverse-proxy-tls",
+    "lang": "en",
+    "slug": "deployment",
+    "section": "7-reverse-proxy-tls",
+    "title": "Deployment",
+    "heading": "7. Reverse proxy (TLS)",
     "body": "Bind gateway to in the profile and terminate TLS at nginx/Caddy/Traefik. One upstream per profile/port. See also: PROFILES.md, GATEWAY.md, SECURITY.md.",
     "keywords": [
       "deploy",
@@ -2788,7 +2868,7 @@
     "section": "windows-specific",
     "title": "Troubleshooting",
     "heading": "Windows-specific",
-    "body": "- Terminal tool uses cmd builtins ( , , ); Unix commands ( , ) are blocked unless added via - Sub-agents run in async mode (not separate OS processes) - Data dir: unless is set - Optional: for improved process cleanup ( )",
+    "body": "- Terminal tool uses cmd builtins ( , , ); Unix commands ( , ) are blocked unless added via or in the profile - Sub-agents run in async mode (not separate OS processes) - Data dir: unless is set - Optional: for improved process cleanup ( )",
     "keywords": [
       "troubleshoot",
       "проблемы",
@@ -3038,7 +3118,7 @@
     "section": "62-profile",
     "title": "User Guide",
     "heading": "6.2. Profile",
-    "body": "Each profile is an isolated environment: The profile is used by default. On first run, Helix creates the required directories. Workspace jail (optional): restrict file/terminal tools to one folder — . See CONFIGURATION.md. View settings: Switch profile: In chat: or (list).",
+    "body": "Each profile is an isolated environment: The profile is used by default. On first run, Helix creates the required directories. Workspace jail (optional): restrict file/terminal tools to one folder — . See CONFIGURATION.md. Terminal whitelist (optional): , , — see PROFILES.md. View settings: Switch profile: In chat: or (list).",
     "keywords": [
       "guide",
       "руководство",
@@ -3858,6 +3938,25 @@
     "nav_order": 3
   },
   {
+    "id": "ru/configuration#whitelist-терминала-опционально",
+    "lang": "ru",
+    "slug": "configuration",
+    "section": "whitelist-терминала-опционально",
+    "title": "Конфигурация",
+    "heading": "Whitelist терминала (опционально)",
+    "body": "Ограничение shell-команд агента. Настраивается для каждого профиля: Эквивалент в : Переменная По умолчанию Описание ------------ -------------- ---------- Проверять whitelist для пусто Доп. команды или префиксы через запятую Встроенные команды платформы всегда разрешены. См. SECURITY.md.",
+    "keywords": [
+      "config",
+      "конфигурация",
+      "env",
+      "переменные",
+      "whitelist",
+      "терминала",
+      "опционально"
+    ],
+    "nav_order": 4
+  },
+  {
     "id": "ru/configuration#workspace-jail-опционально",
     "lang": "ru",
     "slug": "configuration",
@@ -4059,6 +4158,27 @@
     "nav_order": 5
   },
   {
+    "id": "ru/profiles#whitelist-терминала-опционально",
+    "lang": "ru",
+    "slug": "profiles",
+    "section": "whitelist-терминала-опционально",
+    "title": "Профили и изоляция",
+    "heading": "Whitelist терминала (опционально)",
+    "body": "Ограничение списка shell-команд, которые агент может выполнять. Настройки хранятся в профиля. Переменные в : Helix всегда применяет встроенный набор для платформы ( , , , на Unix; , , в Windows). Extras профиля расширяют этот список. Дубликаты игнорируются. После изменений перезапустите gateway/Telegram или заново запустите CLI. См. SECURITY.md.",
+    "keywords": [
+      "profile",
+      "профиль",
+      "профили",
+      "изоляция",
+      "jail",
+      "workspace",
+      "whitelist",
+      "терминала",
+      "опционально"
+    ],
+    "nav_order": 5
+  },
+  {
     "id": "ru/profiles#workspace-jail-изоляция-в-директории",
     "lang": "ru",
     "slug": "profiles",
@@ -4163,7 +4283,7 @@
     "section": "справочник-cli",
     "title": "Профили и изоляция",
     "heading": "Справочник CLI",
-    "body": "Команда Описание --------- ---------- Выбор профиля (для не нужен) Ключ доступа к защищённому профилю Создать профиль (по умолчанию открытый) Создать профиль с ключом доступа Защищён ли активный профиль Сгенерировать ключ для открытого профиля Сменить ключ доступа Убрать ключ и разрешить свободное переключение Показать профиля Редактировать секреты и bind gateway Включить изоляцию в директории Выключить jail Статус jail Список профилей ( / ) и активный В TUI/чате/Telegram: для переключения в защищённый профиль.",
+    "body": "Команда Описание --------- ---------- Выбор профиля (для не нужен) Ключ доступа к защищённому профилю Создать профиль (по умолчанию открытый) Создать профиль с ключом доступа Защищён ли активный профиль Сгенерировать ключ для открытого профиля Сменить ключ доступа Убрать ключ и разрешить свободное переключение Показать профиля Редактировать секреты и bind gateway Включить изоляцию в директории Выключить jail Статус jail Добавить команды через запятую Статус whitelist и итоговый список Включить проверку whitelist Список профилей ( / ) и активный В TUI/чате/Telegram: для переключения в защищённый профиль.",
     "keywords": [
       "profile",
       "профиль",
@@ -4218,6 +4338,24 @@
       "профиле"
     ],
     "nav_order": 5
+  },
+  {
+    "id": "ru/cli#helix-docs",
+    "lang": "ru",
+    "slug": "cli",
+    "section": "helix-docs",
+    "title": "Справочник CLI",
+    "heading": "`helix docs`",
+    "body": "Сайт документации (лендинг + SPA, поиск, EN/RU). Подкоманда Описание ------------ ---------- (по умолчанию) Запуск на То же, что по умолчанию Синхронизация + → , пересборка поиска и SEO См. DEPLOYMENT.md. ---",
+    "keywords": [
+      "command",
+      "команды",
+      "typer",
+      "terminal",
+      "helix",
+      "docs"
+    ],
+    "nav_order": 6
   },
   {
     "id": "ru/cli#helix-gateway",
@@ -4298,7 +4436,7 @@
     "section": "helix-profile",
     "title": "Справочник CLI",
     "heading": "`helix profile`",
-    "body": "Изоляция профиля: env-файл и опциональный workspace jail. Подкоманда Описание ------------ ---------- Показать профиля Открыть в Ограничить файловые/терминальные инструменты одной директорией Выключить jail Статус jail CONFIGURATION.md ---",
+    "body": "Изоляция профиля: env-файл, опциональный workspace jail и whitelist терминала. Подкоманда Описание ------------ ---------- Показать профиля Открыть в Ограничить файловые/терминальные инструменты одной директорией Выключить jail Статус jail Добавить команды через запятую Статус whitelist и итоговый список Включить проверку whitelist CONFIGURATION.md, PROFILES.md ---",
     "keywords": [
       "command",
       "команды",
@@ -5151,6 +5289,24 @@
     "nav_order": 14
   },
   {
+    "id": "ru/security#инструменты",
+    "lang": "ru",
+    "slug": "security",
+    "section": "инструменты",
+    "title": "Безопасность",
+    "heading": "Инструменты",
+    "body": "- Terminal : whitelist при (по умолчанию). Управление по профилю: Или задайте в . - Python executor : в production",
+    "keywords": [
+      "security",
+      "безопасность",
+      "auth",
+      "cors",
+      "token",
+      "инструменты"
+    ],
+    "nav_order": 14
+  },
+  {
     "id": "ru/security#чеклист-production",
     "lang": "ru",
     "slug": "security",
@@ -5234,7 +5390,7 @@
     "section": "5-виджет-чата-на-сайте-документации",
     "title": "Деплой",
     "heading": "5. Виджет чата на сайте документации",
-    "body": "Ассистент отвечает только на вопросы по документации и сайту — без инструментов, команд и доступа к файлам. В профиля, с которым запускается gateway + docs: Создайте профиль только с ключами LLM: Запуск: Поведение виджета: - при первом визите чат открывается автоматически; - если пользователь закрыл чат — при следующих визитах остаётся свёрнутым ( ). Токен используется прокси на docs-сервере ( ) и не попадает в браузер.",
+    "body": "Ассистент отвечает только на вопросы по документации и сайту — без инструментов, команд и доступа к файлам. В профиля, с которым запускается gateway + docs: Создайте профиль только с ключами LLM: Запуск: Поведение виджета: - при первом визите чат открывается автоматически; - если пользователь закрыл чат — при следующих визитах остаётся свёрнутым ( ); - показывает индикатор «Думаю…» до первого токена ответа; - открывает первую ссылку из ответа ассистента в навигации сайта. Токен используется прокси на docs-сервере ( ) и не попадает в браузер.",
     "keywords": [
       "deploy",
       "деплой",
@@ -5249,12 +5405,33 @@
     "nav_order": 15
   },
   {
-    "id": "ru/deployment#6-reverse-proxy-tls",
+    "id": "ru/deployment#6-сборка-сайта-документации-и-seo",
     "lang": "ru",
     "slug": "deployment",
-    "section": "6-reverse-proxy-tls",
+    "section": "6-сборка-сайта-документации-и-seo",
     "title": "Деплой",
-    "heading": "6. Reverse proxy (TLS)",
+    "heading": "6. Сборка сайта документации и SEO",
+    "body": "Исходники markdown: и . Перед деплоем пересоберите сайт: копирует контент в , пересобирает поиск, , и crawlable-ссылки в . Публичные URL (SPA): Путь Страница ------ ---------- Маркетинговый лендинг Хаб документации Раздел (например ) Статические файлы в корне сайта: , , файл верификации Яндекс.Вебмастера ( ). После деплоя сделайте жёсткое обновление страницы, если ассеты закэшировались. После смены : .",
+    "keywords": [
+      "deploy",
+      "деплой",
+      "systemd",
+      "docker",
+      "ci",
+      "сборка",
+      "сайта",
+      "документации",
+      "seo"
+    ],
+    "nav_order": 15
+  },
+  {
+    "id": "ru/deployment#7-reverse-proxy-tls",
+    "lang": "ru",
+    "slug": "deployment",
+    "section": "7-reverse-proxy-tls",
+    "title": "Деплой",
+    "heading": "7. Reverse proxy (TLS)",
     "body": "Gateway слушает в профиля, TLS — на nginx/Caddy/Traefik. Отдельный upstream на каждый профиль/порт. См. также: PROFILES.md, GATEWAY.md, SECURITY.md.",
     "keywords": [
       "deploy",
@@ -5599,21 +5776,19 @@
     "nav_order": 18
   },
   {
-    "id": "ru/troubleshooting#overview",
+    "id": "ru/troubleshooting#windows",
     "lang": "ru",
     "slug": "troubleshooting",
-    "section": "overview",
+    "section": "windows",
     "title": "Решение проблем",
-    "heading": "Решение проблем",
-    "body": "Решение проблем Gateway не стартует Нет вывода агента / тихие ошибки Windows - Терминал: , , вместо , - Субагенты — режим async - Данные: или - Опционально: Ошибка Dishka / agent init LLM недоступен Telegram access denied Укажите (числовой user id). API 401 Заголовок или . Admin key — через . См. также - LOGS.md — файлы логов, фильтры, ротация, debug",
+    "heading": "Windows",
+    "body": "- Терминал: , , вместо , ; Unix-команды можно добавить через или в профиля - Субагенты — режим async - Данные: или - Опционально:",
     "keywords": [
       "troubleshoot",
       "проблемы",
       "ошибки",
       "fix",
-      "overview",
-      "решение",
-      "проблем"
+      "windows"
     ],
     "nav_order": 19
   },
@@ -5860,7 +6035,7 @@
     "section": "62-профиль",
     "title": "Руководство",
     "heading": "6.2. Профиль",
-    "body": "Каждый профиль — изолированное окружение: По умолчанию используется профиль . При первом запуске Helix создаёт нужные каталоги. Workspace jail (опционально): ограничить файловые/терминальные инструменты одной папкой — . См. CONFIGURATION.md. Просмотр настроек: Смена профиля: В чате: или (список).",
+    "body": "Каждый профиль — изолированное окружение: По умолчанию используется профиль . При первом запуске Helix создаёт нужные каталоги. Workspace jail (опционально): ограничить файловые/терминальные инструменты одной папкой — . См. CONFIGURATION.md. Whitelist терминала (опционально): , , — см. PROFILES.md. Просмотр настроек: Смена профиля: В чате: или (список).",
     "keywords": [
       "guide",
       "руководство",
