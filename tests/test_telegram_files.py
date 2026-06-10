@@ -19,14 +19,23 @@ from integrations.telegram.file_handler import (
 )
 
 
+def _patch_vision_settings(monkeypatch: pytest.MonkeyPatch, **overrides: str) -> None:
+    """Patch settings object used by resolve_vision_config (isolated from global singleton)."""
+
+    class _Settings:
+        telegram_vision_model = overrides.get("telegram_vision_model", "")
+        openai_api_key = overrides.get("openai_api_key", "")
+        openai_base_url = overrides.get("openai_base_url", "")
+
+    monkeypatch.setattr("integrations.telegram.file_handler.settings", _Settings())
+
+
 def test_resolve_vision_config_uses_env_when_model_explicit(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    from config import settings
-
     monkeypatch.setenv("LITELLM_API_KEY", "sk-test-key")
     monkeypatch.setenv("LITELLM_API_BASE", "http://localhost:4000/v1")
-    monkeypatch.setattr(settings, "telegram_vision_model", "vision-smart")
+    _patch_vision_settings(monkeypatch, telegram_vision_model="vision-smart")
 
     class _Mgr:
         def load_profile(self, _profile: str):
@@ -43,12 +52,9 @@ def test_resolve_vision_config_uses_env_when_model_explicit(
 def test_resolve_vision_config_requires_api_when_only_model_set(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    from config import settings
-
     monkeypatch.delenv("LITELLM_API_KEY", raising=False)
     monkeypatch.delenv("LITELLM_API_BASE", raising=False)
-    monkeypatch.setattr(settings, "telegram_vision_model", "vision-smart")
-    monkeypatch.setattr(settings, "openai_api_key", "")
+    _patch_vision_settings(monkeypatch, telegram_vision_model="vision-smart", openai_api_key="")
 
     class _Mgr:
         def load_profile(self, _profile: str):

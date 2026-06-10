@@ -49,13 +49,13 @@ def test_assign_skill_to_agents():
 @pytest.mark.asyncio
 async def test_manager_filters_by_agent(skills_manager: SkillsManager):
     skills_manager.save_skill(
-        name="only_main",
+        name="only-main",
         description="main only",
         content="for main agent",
         tags=["main"],
     )
     skills_manager.save_skill(
-        name="only_coder",
+        name="only-coder",
         description="coder only",
         content="for coder subagent",
         tags=["coder"],
@@ -63,8 +63,8 @@ async def test_manager_filters_by_agent(skills_manager: SkillsManager):
     skills_manager.load_all_skills()
     skills_manager._config = skills_manager._config.with_overrides(
         skill_assignments={
-            "main": ["only_main"],
-            "coder": ["only_coder"],
+            "main": ["only-main"],
+            "coder": ["only-coder"],
         }
     )
 
@@ -72,12 +72,12 @@ async def test_manager_filters_by_agent(skills_manager: SkillsManager):
         "main agent task", top_k=5, agent_slot="main"
     )
     main_names = {s["name"] for s in main_results}
-    assert "only_main" in main_names or len(main_names) <= 1
+    assert "only-main" in main_names or len(main_names) <= 1
     # Main agent is not restricted by skill_assignments allowlists.
 
     coder_results = skills_manager.get_relevant_skills(
         "coder subagent task", top_k=5, agent_slot="coder"
     )
     coder_names = {s["name"] for s in coder_results}
-    assert "only_coder" in coder_names or len(coder_names) <= 1
-    assert "only_main" not in coder_names
+    assert "only-coder" in coder_names or len(coder_names) <= 1
+    assert "only-main" not in coder_names
