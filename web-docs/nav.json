@@ -96,6 +96,12 @@
     "file_key": "SECURITY"
   },
   {
+    "slug": "terminal-security",
+    "en": "Terminal Security",
+    "ru": "Безопасность команд",
+    "file_key": "TERMINAL_SECURITY"
+  },
+  {
     "slug": "deployment",
     "en": "Deployment",
     "ru": "Деплой",

@@ -295,6 +295,22 @@
         "keywords": "Helix безопасность, API key, gateway auth, terminal whitelist, production security"
       }
     },
+    "terminal-security": {
+      "en": {
+        "navTitle": "Terminal Security",
+        "heading": "Terminal Command Security",
+        "title": "Helix Terminal Security — Whitelist, Blocks & Confirmations",
+        "description": "How Helix protects run_terminal_command: per-profile whitelist, dangerous pattern blocks, /yes confirmations, workspace jail, and allowed vs forbidden command examples.",
+        "keywords": "Helix terminal whitelist, command safety, run_terminal_command, HELIX_TERMINAL_WHITELIST_EXTRA, shell confirmation"
+      },
+      "ru": {
+        "navTitle": "Безопасность команд",
+        "heading": "Безопасность команд терминала",
+        "title": "Безопасность команд Helix — whitelist, запреты и подтверждения",
+        "description": "Как Helix защищает run_terminal_command: whitelist по профилю, блокировка опасных паттернов, подтверждение /yes, workspace jail и примеры разрешённых и запрещённых команд.",
+        "keywords": "Helix whitelist, безопасность терминала, run_terminal_command, HELIX_TERMINAL_WHITELIST_EXTRA, подтверждение команд"
+      }
+    },
     "deployment": {
       "en": {
         "navTitle": "Deployment",

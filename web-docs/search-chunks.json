@@ -59,7 +59,7 @@
     "section": "operations",
     "title": "Overview",
     "heading": "Operations",
-    "body": "- LOGS.md — , rotation, debug mode - DOCTOR.md — and - SECURITY.md — auth, tools, production checklist - DEPLOYMENT.md — Docker, systemd, CI - TROUBLESHOOTING.md — common failures",
+    "body": "- LOGS.md — , rotation, debug mode - DOCTOR.md — and - SECURITY.md — auth, tools, production checklist - TERMINAL SECURITY.md — terminal whitelist, blocked commands, confirmations - DEPLOYMENT.md — Docker, systemd, CI - TROUBLESHOOTING.md — common failures",
     "keywords": [
       "overview",
       "обзор",
@@ -766,7 +766,7 @@
     "section": "terminal-whitelist-optional",
     "title": "Profiles & Isolation",
     "heading": "Terminal whitelist (optional)",
-    "body": "Control which shell commands the agent may run. Settings are stored per profile in . Persisted variables: Helix always applies a platform default set ( , , , , etc. on Unix; , , on Windows). Profile extras extend that list. Duplicate commands are ignored. After changes, restart gateway/Telegram or re-run the CLI. See SECURITY.md.",
+    "body": "Control which shell commands the agent may run. Settings are stored per profile in . Persisted variables: Helix always applies a platform default set ( , , , , etc. on Unix; , , on Windows). Profile extras extend that list. Duplicate commands are ignored. After changes, restart gateway/Telegram or re-run the CLI. See TERMINAL SECURITY.md and SECURITY.md.",
     "keywords": [
       "profile",
       "профиль",
@@ -2460,7 +2460,7 @@
     "section": "tools",
     "title": "Security",
     "heading": "Tools",
-    "body": "- Terminal : whitelist enforced when (default). Manage per profile: Or set in . - Python executor : disable in production via",
+    "body": "- Terminal : whitelist, dangerous-pattern blocks, and confirmations — full guide: TERMINAL SECURITY.md. Quick setup: - Python executor : disable in production via",
     "keywords": [
       "security",
       "безопасность",
@@ -2492,6 +2492,249 @@
     "nav_order": 15
   },
   {
+    "id": "en/terminal-security#1-enable-disable-terminal-tool",
+    "lang": "en",
+    "slug": "terminal-security",
+    "section": "1-enable-disable-terminal-tool",
+    "title": "Terminal Security",
+    "heading": "1. Enable / disable terminal tool",
+    "body": "Variable Default Effect ---------- --------- -------- Master switch for When disabled, the agent receives: Recommended in production if the agent does not need a shell. ---",
+    "keywords": [
+      "enable",
+      "disable",
+      "terminal",
+      "tool"
+    ],
+    "nav_order": 16
+  },
+  {
+    "id": "en/terminal-security#2-always-forbidden-patterns-dangerous-commands",
+    "lang": "en",
+    "slug": "terminal-security",
+    "section": "2-always-forbidden-patterns-dangerous-commands",
+    "title": "Terminal Security",
+    "heading": "2. Always forbidden patterns (dangerous commands)",
+    "body": "Even if a command is whitelisted, regex patterns block destructive shell idioms first.",
+    "keywords": [
+      "always",
+      "forbidden",
+      "patterns",
+      "dangerous",
+      "commands"
+    ],
+    "nav_order": 16
+  },
+  {
+    "id": "en/terminal-security#3-command-whitelist-allowlist",
+    "lang": "en",
+    "slug": "terminal-security",
+    "section": "3-command-whitelist-allowlist",
+    "title": "Terminal Security",
+    "heading": "3. Command whitelist (allowlist)",
+    "body": "Controlled by: Variable Default Effect ---------- --------- -------- Enforce allowlist empty Extra commands/prefixes (comma-separated) Per profile: See PROFILES.md.",
+    "keywords": [
+      "command",
+      "whitelist",
+      "allowlist"
+    ],
+    "nav_order": 16
+  },
+  {
+    "id": "en/terminal-security#4-user-confirmation-actionguard",
+    "lang": "en",
+    "slug": "terminal-security",
+    "section": "4-user-confirmation-actionguard",
+    "title": "Terminal Security",
+    "heading": "4. User confirmation (ActionGuard)",
+    "body": "After policy checks approve a tool call, interactive sessions may still ask: Command Meaning --------- --------- , Allow once Allow for session Allow always (stored) , Deny Terminal commands are HIGH risk by default. Patterns like , , , , escalate confirmation (even if you later add them to the whitelist). During , plan-step tools may auto-approve per security policy. Non-interactive API runs without confirmation deny high-risk tools unless pre-authorized. ---",
+    "keywords": [
+      "user",
+      "confirmation",
+      "actionguard"
+    ],
+    "nav_order": 16
+  },
+  {
+    "id": "en/terminal-security#5-workspace-jail-working-directory",
+    "lang": "en",
+    "slug": "terminal-security",
+    "section": "5-workspace-jail-working-directory",
+    "title": "Terminal Security",
+    "heading": "5. Workspace jail (working directory)",
+    "body": "If workspace jail is enabled, runs with set to the jail root. The whitelist does not replace jail — both apply. ---",
+    "keywords": [
+      "workspace",
+      "jail",
+      "working",
+      "directory"
+    ],
+    "nav_order": 16
+  },
+  {
+    "id": "en/terminal-security#allowed-vs-forbidden-practical-guide",
+    "lang": "en",
+    "slug": "terminal-security",
+    "section": "allowed-vs-forbidden-practical-guide",
+    "title": "Terminal Security",
+    "heading": "Allowed vs forbidden — practical guide",
+    "body": "Goal Typical approach ------ ------------------ Read project files tool or / (whitelisted) Run tests , , Check git state , , Push / commit Add to extras and confirm, or run yourself outside Helix Docker / make / custom CLI Install packages Not in default whitelist — manual install recommended Delete files not whitelisted; dangerous patterns block ---",
+    "keywords": [
+      "allowed",
+      "forbidden",
+      "practical",
+      "guide"
+    ],
+    "nav_order": 16
+  },
+  {
+    "id": "en/terminal-security#built-in-allowlist-unix",
+    "lang": "en",
+    "slug": "terminal-security",
+    "section": "built-in-allowlist-unix",
+    "title": "Terminal Security",
+    "heading": "Built-in allowlist (Unix)",
+    "body": "Read-only / diagnostic tools: , , , , , , , , , , , , , , , , , , , , , , , , , Git (read-only subcommands only): , , , , , Runtimes / tests: , , , , , , , , ,",
+    "keywords": [
+      "built",
+      "allowlist",
+      "unix"
+    ],
+    "nav_order": 16
+  },
+  {
+    "id": "en/terminal-security#built-in-allowlist-windows",
+    "lang": "en",
+    "slug": "terminal-security",
+    "section": "built-in-allowlist-windows",
+    "title": "Terminal Security",
+    "heading": "Built-in allowlist (Windows)",
+    "body": ", , , , , , , , , , , , , , , , , plus the same git/python/npm/pytest/helix/uv entries adapted for Windows ( instead of only). Unix commands like or are not on the Windows list — use / , or add extras.",
+    "keywords": [
+      "built",
+      "allowlist",
+      "windows"
+    ],
+    "nav_order": 16
+  },
+  {
+    "id": "en/terminal-security#how-matching-works",
+    "lang": "en",
+    "slug": "terminal-security",
+    "section": "how-matching-works",
+    "title": "Terminal Security",
+    "heading": "How matching works",
+    "body": "For each command string: 1. Lowercase + trim. 2. Check dangerous patterns (section 2). 3. Take the first token as (e.g. for ). 4. Allow if is in the allowlist or the full command starts with any allowlist entry. Examples on Unix: Command Result Reason --------- -------- -------- Allowed in defaults Allowed prefix Blocked alone not allowed; no matching prefix Allowed prefix Blocked not / Blocked until added via Allowed prefix Prefix design means is allowed because is listed, but is not allowed until you add or to extras — only is a default prefix.",
+    "keywords": [
+      "how",
+      "matching",
+      "works"
+    ],
+    "nav_order": 16
+  },
+  {
+    "id": "en/terminal-security#production-recommendations",
+    "lang": "en",
+    "slug": "terminal-security",
+    "section": "production-recommendations",
+    "title": "Terminal Security",
+    "heading": "Production recommendations",
+    "body": "1. Keep (default). 2. Add only the minimum extras per profile ( ). 3. Use workspace jail for shared/multi-user hosts. 4. Disable terminal entirely if not needed: . 5. Disable Python executor if not needed: . 6. Run and review SECURITY.md. ---",
+    "keywords": [
+      "production",
+      "recommendations"
+    ],
+    "nav_order": 16
+  },
+  {
+    "id": "en/terminal-security#protection-layers-order-of-checks",
+    "lang": "en",
+    "slug": "terminal-security",
+    "section": "protection-layers-order-of-checks",
+    "title": "Terminal Security",
+    "heading": "Protection layers (order of checks)",
+    "body": "Important: In interactive TUI/Telegram, confirmation usually runs before the terminal tool body. Even an allowed whitelist command may still prompt because terminal tools are classified as HIGH risk. The whitelist is enforced inside — if confirmation passes but the command is not whitelisted, execution still fails with . ---",
+    "keywords": [
+      "protection",
+      "layers",
+      "order",
+      "checks"
+    ],
+    "nav_order": 16
+  },
+  {
+    "id": "en/terminal-security#related-docs",
+    "lang": "en",
+    "slug": "terminal-security",
+    "section": "related-docs",
+    "title": "Terminal Security",
+    "heading": "Related docs",
+    "body": "- SECURITY.md — auth, API keys, production checklist - PROFILES.md — per-profile whitelist CLI - CONFIGURATION.md — environment variables - SLASH COMMANDS.md — , – confirmations",
+    "keywords": [
+      "related",
+      "docs"
+    ],
+    "nav_order": 16
+  },
+  {
+    "id": "en/terminal-security#terminal-command-security",
+    "lang": "en",
+    "slug": "terminal-security",
+    "section": "terminal-command-security",
+    "title": "Terminal Security",
+    "heading": "Terminal Command Security",
+    "body": "Helix runs shell commands through the tool. Before any command reaches the OS, it passes through several independent checks . This page explains what is allowed, what is blocked, how the whitelist works, and how it relates to user confirmation . ---",
+    "keywords": [
+      "terminal",
+      "command",
+      "security"
+    ],
+    "nav_order": 16
+  },
+  {
+    "id": "en/terminal-security#unix-macos-linux",
+    "lang": "en",
+    "slug": "terminal-security",
+    "section": "unix-macos-linux",
+    "title": "Terminal Security",
+    "heading": "Unix / macOS / Linux",
+    "body": "Pattern (examples) Why blocked -------------------- ------------- Recursive forced delete Writing to device nodes , , Disk destruction , , System control Fork bomb DoS , Remote code execution",
+    "keywords": [
+      "unix",
+      "macos",
+      "linux"
+    ],
+    "nav_order": 16
+  },
+  {
+    "id": "en/terminal-security#when-whitelist-is-disabled",
+    "lang": "en",
+    "slug": "terminal-security",
+    "section": "when-whitelist-is-disabled",
+    "title": "Terminal Security",
+    "heading": "When whitelist is disabled",
+    "body": "Setting skips allowlist checks (dangerous patterns still apply). Use only in fully trusted dev environments. ---",
+    "keywords": [
+      "when",
+      "whitelist",
+      "disabled"
+    ],
+    "nav_order": 16
+  },
+  {
+    "id": "en/terminal-security#windows-additional",
+    "lang": "en",
+    "slug": "terminal-security",
+    "section": "windows-additional",
+    "title": "Terminal Security",
+    "heading": "Windows (additional)",
+    "body": "Pattern (examples) Why blocked -------------------- ------------- , Disk operations , , Forced delete , Suspicious redirection Example: These checks run before whitelist matching. ---",
+    "keywords": [
+      "windows",
+      "additional"
+    ],
+    "nav_order": 16
+  },
+  {
     "id": "en/deployment#2-configure-the-profile",
     "lang": "en",
     "slug": "deployment",
@@ -2509,7 +2752,7 @@
       "the",
       "profile"
     ],
-    "nav_order": 16
+    "nav_order": 17
   },
   {
     "id": "en/deployment#3-install-unit-files",
@@ -2529,7 +2772,7 @@
       "unit",
       "files"
     ],
-    "nav_order": 16
+    "nav_order": 17
   },
   {
     "id": "en/deployment#4-start-and-manage",
@@ -2549,7 +2792,7 @@
       "and",
       "manage"
     ],
-    "nav_order": 16
+    "nav_order": 17
   },
   {
     "id": "en/deployment#5-documentation-site-chat-widget",
@@ -2570,7 +2813,7 @@
       "chat",
       "widget"
     ],
-    "nav_order": 16
+    "nav_order": 17
   },
   {
     "id": "en/deployment#6-documentation-site-build-and-seo",
@@ -2592,7 +2835,7 @@
       "and",
       "seo"
     ],
-    "nav_order": 16
+    "nav_order": 17
   },
   {
     "id": "en/deployment#7-reverse-proxy-tls",
@@ -2612,7 +2855,7 @@
       "proxy",
       "tls"
     ],
-    "nav_order": 16
+    "nav_order": 17
   },
   {
     "id": "en/deployment#edit-helix_python-and-helix_bin-to-match-pipx-paths-on-your-host",
@@ -2638,7 +2881,7 @@
       "your",
       "host"
     ],
-    "nav_order": 16
+    "nav_order": 17
   },
   {
     "id": "en/deployment#helixprofilesbobenv",
@@ -2660,7 +2903,7 @@
       "bob",
       "env"
     ],
-    "nav_order": 16
+    "nav_order": 17
   },
   {
     "id": "en/deployment#or-for-a-named-profile",
@@ -2680,7 +2923,7 @@
       "named",
       "profile"
     ],
-    "nav_order": 16
+    "nav_order": 17
   },
   {
     "id": "en/deployment#systemd",
@@ -2697,7 +2940,7 @@
       "docker",
       "ci"
     ],
-    "nav_order": 16
+    "nav_order": 17
   },
   {
     "id": "en/doctor#checks",
@@ -2714,7 +2957,7 @@
       "repair",
       "checks"
     ],
-    "nav_order": 17
+    "nav_order": 18
   },
   {
     "id": "en/doctor#with---fix",
@@ -2731,7 +2974,7 @@
       "repair",
       "with"
     ],
-    "nav_order": 17
+    "nav_order": 18
   },
   {
     "id": "en/logs#data-directory",
@@ -2749,7 +2992,7 @@
       "data",
       "directory"
     ],
-    "nav_order": 18
+    "nav_order": 19
   },
   {
     "id": "en/logs#debug-mode",
@@ -2766,7 +3009,7 @@
       "rotation",
       "mode"
     ],
-    "nav_order": 18
+    "nav_order": 19
   },
   {
     "id": "en/logs#log-files",
@@ -2784,7 +3027,7 @@
       "log",
       "files"
     ],
-    "nav_order": 18
+    "nav_order": 19
   },
   {
     "id": "en/logs#logs-and-observability",
@@ -2802,7 +3045,7 @@
       "and",
       "observability"
     ],
-    "nav_order": 18
+    "nav_order": 19
   },
   {
     "id": "en/logs#related",
@@ -2819,7 +3062,7 @@
       "rotation",
       "related"
     ],
-    "nav_order": 18
+    "nav_order": 19
   },
   {
     "id": "en/logs#rotation-and-retention",
@@ -2837,7 +3080,7 @@
       "and",
       "retention"
     ],
-    "nav_order": 18
+    "nav_order": 19
   },
   {
     "id": "en/logs#troubleshooting",
@@ -2854,7 +3097,7 @@
       "rotation",
       "troubleshooting"
     ],
-    "nav_order": 18
+    "nav_order": 19
   },
   {
     "id": "en/logs#when-logs-are-written",
@@ -2873,7 +3116,7 @@
       "are",
       "written"
     ],
-    "nav_order": 18
+    "nav_order": 19
   },
   {
     "id": "en/pypi#checklist-before-every-release",
@@ -2893,7 +3136,7 @@
       "every",
       "release"
     ],
-    "nav_order": 19
+    "nav_order": 20
   },
   {
     "id": "en/pypi#github-actions-recommended",
@@ -2912,7 +3155,7 @@
       "actions",
       "recommended"
     ],
-    "nav_order": 19
+    "nav_order": 20
   },
   {
     "id": "en/pypi#helixagentai-010targz",
@@ -2931,7 +3174,7 @@
       "010targz",
       "tar"
     ],
-    "nav_order": 19
+    "nav_order": 20
   },
   {
     "id": "en/pypi#known-limitations",
@@ -2949,7 +3192,7 @@
       "known",
       "limitations"
     ],
-    "nav_order": 19
+    "nav_order": 20
   },
   {
     "id": "en/pypi#local-build-check",
@@ -2968,7 +3211,7 @@
       "build",
       "check"
     ],
-    "nav_order": 19
+    "nav_order": 20
   },
   {
     "id": "en/pypi#one-time-setup",
@@ -2987,7 +3230,7 @@
       "time",
       "setup"
     ],
-    "nav_order": 19
+    "nav_order": 20
   },
   {
     "id": "en/pypi#option-b-twine-compatible",
@@ -3006,7 +3249,7 @@
       "twine",
       "compatible"
     ],
-    "nav_order": 19
+    "nav_order": 20
   },
   {
     "id": "en/pypi#or",
@@ -3022,7 +3265,7 @@
       "публикация",
       "package"
     ],
-    "nav_order": 19
+    "nav_order": 20
   },
   {
     "id": "en/pypi#or-inside-a-venv",
@@ -3040,7 +3283,7 @@
       "inside",
       "venv"
     ],
-    "nav_order": 19
+    "nav_order": 20
   },
   {
     "id": "en/pypi#package-name",
@@ -3057,7 +3300,7 @@
       "package",
       "name"
     ],
-    "nav_order": 19
+    "nav_order": 20
   },
   {
     "id": "en/pypi#prerequisites",
@@ -3074,7 +3317,7 @@
       "package",
       "prerequisites"
     ],
-    "nav_order": 19
+    "nav_order": 20
   },
   {
     "id": "en/pypi#publishing-to-pypi",
@@ -3091,7 +3334,7 @@
       "package",
       "publishing"
     ],
-    "nav_order": 19
+    "nav_order": 20
   },
   {
     "id": "en/pypi#user-facing-install-docs",
@@ -3111,7 +3354,7 @@
       "install",
       "docs"
     ],
-    "nav_order": 19
+    "nav_order": 20
   },
   {
     "id": "en/pypi#version-already-bumped-in-pyprojecttoml-cli__init__py",
@@ -3136,7 +3379,7 @@
       "cli",
       "__init__"
     ],
-    "nav_order": 19
+    "nav_order": 20
   },
   {
     "id": "en/pypi#versioning",
@@ -3153,7 +3396,7 @@
       "package",
       "versioning"
     ],
-    "nav_order": 19
+    "nav_order": 20
   },
   {
     "id": "en/pypi#what-is-already-configured",
@@ -3172,7 +3415,7 @@
       "already",
       "configured"
     ],
-    "nav_order": 19
+    "nav_order": 20
   },
   {
     "id": "en/troubleshooting#windows-specific",
@@ -3190,7 +3433,7 @@
       "windows",
       "specific"
     ],
-    "nav_order": 20
+    "nav_order": 21
   },
   {
     "id": "en/user-guide#1-what-helix-can-do",
@@ -3208,7 +3451,7 @@
       "helix",
       "can"
     ],
-    "nav_order": 21
+    "nav_order": 22
   },
   {
     "id": "en/user-guide#10-step-8-execution-modes",
@@ -3226,7 +3469,7 @@
       "execution",
       "modes"
     ],
-    "nav_order": 21
+    "nav_order": 22
   },
   {
     "id": "en/user-guide#11-step-9-how-to-write-prompts",
@@ -3245,7 +3488,7 @@
       "write",
       "prompts"
     ],
-    "nav_order": 21
+    "nav_order": 22
   },
   {
     "id": "en/user-guide#12-step-10-mcp-step-by-step",
@@ -3262,7 +3505,7 @@
       "step",
       "mcp"
     ],
-    "nav_order": 21
+    "nav_order": 22
   },
   {
     "id": "en/user-guide#122-install-mcp-easy-way",
@@ -3282,7 +3525,7 @@
       "easy",
       "way"
     ],
-    "nav_order": 21
+    "nav_order": 22
   },
   {
     "id": "en/user-guide#15-slash-commands-in-chat",
@@ -3300,7 +3543,7 @@
       "commands",
       "chat"
     ],
-    "nav_order": 21
+    "nav_order": 22
   },
   {
     "id": "en/user-guide#16-helix-features",
@@ -3317,7 +3560,7 @@
       "helix",
       "features"
     ],
-    "nav_order": 21
+    "nav_order": 22
   },
   {
     "id": "en/user-guide#17-troubleshooting",
@@ -3333,7 +3576,7 @@
       "usage",
       "troubleshooting"
     ],
-    "nav_order": 21
+    "nav_order": 22
   },
   {
     "id": "en/user-guide#2-requirements",
@@ -3349,7 +3592,7 @@
       "usage",
       "requirements"
     ],
-    "nav_order": 21
+    "nav_order": 22
   },
   {
     "id": "en/user-guide#3-step-1-install-python",
@@ -3367,7 +3610,7 @@
       "install",
       "python"
     ],
-    "nav_order": 21
+    "nav_order": 22
   },
   {
     "id": "en/user-guide#4-step-2-install-uv-recommended",
@@ -3385,7 +3628,7 @@
       "install",
       "recommended"
     ],
-    "nav_order": 21
+    "nav_order": 22
   },
   {
     "id": "en/user-guide#5-step-3-install-from-pypi",
@@ -3404,7 +3647,7 @@
       "from",
       "pypi"
     ],
-    "nav_order": 21
+    "nav_order": 22
   },
   {
     "id": "en/user-guide#51-global-install-recommended",
@@ -3422,7 +3665,7 @@
       "install",
       "recommended"
     ],
-    "nav_order": 21
+    "nav_order": 22
   },
   {
     "id": "en/user-guide#61-create-the-environment-file",
@@ -3441,7 +3684,7 @@
       "environment",
       "file"
     ],
-    "nav_order": 21
+    "nav_order": 22
   },
   {
     "id": "en/user-guide#62-profile",
@@ -3457,7 +3700,7 @@
       "usage",
       "profile"
     ],
-    "nav_order": 21
+    "nav_order": 22
   },
   {
     "id": "en/user-guide#63-diagnostics",
@@ -3473,7 +3716,7 @@
       "usage",
       "diagnostics"
     ],
-    "nav_order": 21
+    "nav_order": 22
   },
   {
     "id": "en/user-guide#7-step-5-configure-models-via-litellm",
@@ -3493,7 +3736,7 @@
       "via",
       "litellm"
     ],
-    "nav_order": 21
+    "nav_order": 22
   },
   {
     "id": "en/user-guide#71-what-to-get-from-the-litellm-administrator",
@@ -3514,7 +3757,7 @@
       "litellm",
       "administrator"
     ],
-    "nav_order": 21
+    "nav_order": 22
   },
   {
     "id": "en/user-guide#73-add-the-litellm-provider-to-the-profile-interactive",
@@ -3535,7 +3778,7 @@
       "profile",
       "interactive"
     ],
-    "nav_order": 21
+    "nav_order": 22
   },
   {
     "id": "en/user-guide#74-full-setup-wizard-recommended",
@@ -3554,7 +3797,7 @@
       "wizard",
       "recommended"
     ],
-    "nav_order": 21
+    "nav_order": 22
   },
   {
     "id": "en/user-guide#75-assigning-models-to-agents",
@@ -3572,7 +3815,7 @@
       "models",
       "agents"
     ],
-    "nav_order": 21
+    "nav_order": 22
   },
   {
     "id": "en/user-guide#8-step-6-web-search-optional",
@@ -3591,7 +3834,7 @@
       "search",
       "optional"
     ],
-    "nav_order": 21
+    "nav_order": 22
   },
   {
     "id": "en/user-guide#92-create-a-bot-in-telegram",
@@ -3609,7 +3852,7 @@
       "bot",
       "telegram"
     ],
-    "nav_order": 21
+    "nav_order": 22
   },
   {
     "id": "en/user-guide#93-find-your-telegram-user-id",
@@ -3628,7 +3871,7 @@
       "telegram",
       "user"
     ],
-    "nav_order": 21
+    "nav_order": 22
   },
   {
     "id": "en/user-guide#94-interactive-helix-setup",
@@ -3646,7 +3889,7 @@
       "helix",
       "setup"
     ],
-    "nav_order": 21
+    "nav_order": 22
   },
   {
     "id": "en/user-guide#97-voice-messages-optional",
@@ -3664,7 +3907,7 @@
       "messages",
       "optional"
     ],
-    "nav_order": 21
+    "nav_order": 22
   },
   {
     "id": "en/user-guide#build-from-source",
@@ -3682,7 +3925,7 @@
       "from",
       "source"
     ],
-    "nav_order": 21
+    "nav_order": 22
   },
   {
     "id": "en/user-guide#helix-complete-user-guide",
@@ -3700,7 +3943,7 @@
       "complete",
       "user"
     ],
-    "nav_order": 21
+    "nav_order": 22
   },
   {
     "id": "en/user-guide#helix-config",
@@ -3717,7 +3960,7 @@
       "helix",
       "config"
     ],
-    "nav_order": 21
+    "nav_order": 22
   },
   {
     "id": "en/user-guide#helix-models",
@@ -3734,7 +3977,7 @@
       "helix",
       "models"
     ],
-    "nav_order": 21
+    "nav_order": 22
   },
   {
     "id": "en/user-guide#install",
@@ -3750,7 +3993,7 @@
       "usage",
       "install"
     ],
-    "nav_order": 21
+    "nav_order": 22
   },
   {
     "id": "en/user-guide#litellm-proxy",
@@ -3767,7 +4010,7 @@
       "litellm",
       "proxy"
     ],
-    "nav_order": 21
+    "nav_order": 22
   },
   {
     "id": "en/user-guide#main-commands",
@@ -3784,7 +4027,7 @@
       "main",
       "commands"
     ],
-    "nav_order": 21
+    "nav_order": 22
   },
   {
     "id": "en/user-guide#or-manually",
@@ -3800,7 +4043,7 @@
       "usage",
       "manually"
     ],
-    "nav_order": 21
+    "nav_order": 22
   },
   {
     "id": "en/user-guide#or-simply",
@@ -3816,7 +4059,7 @@
       "usage",
       "simply"
     ],
-    "nav_order": 21
+    "nav_order": 22
   },
   {
     "id": "en/user-guide#quick-checklist-from-zero-to-chat",
@@ -3836,7 +4079,7 @@
       "zero",
       "chat"
     ],
-    "nav_order": 21
+    "nav_order": 22
   },
   {
     "id": "en/user-guide#see-also",
@@ -3853,7 +4096,7 @@
       "see",
       "also"
     ],
-    "nav_order": 21
+    "nav_order": 22
   },
   {
     "id": "en/user-guide#table-of-contents",
@@ -3870,7 +4113,7 @@
       "table",
       "contents"
     ],
-    "nav_order": 21
+    "nav_order": 22
   },
   {
     "id": "ru/readme#документация-helix-русский",
@@ -3931,7 +4174,7 @@
     "section": "эксплуатация",
     "title": "Обзор",
     "heading": "Эксплуатация",
-    "body": "- LOGS.md — , ротация, debug - DOCTOR.md - SECURITY.md - DEPLOYMENT.md - TROUBLESHOOTING.md - ARCHITECTURE.md",
+    "body": "- LOGS.md — , ротация, debug - DOCTOR.md - SECURITY.md - TERMINAL SECURITY.md — whitelist терминала, запрещённые команды, подтверждения - DEPLOYMENT.md - TROUBLESHOOTING.md - ARCHITECTURE.md",
     "keywords": [
       "overview",
       "обзор",
@@ -4378,7 +4621,7 @@
     "section": "whitelist-терминала-опционально",
     "title": "Профили и изоляция",
     "heading": "Whitelist терминала (опционально)",
-    "body": "Ограничение списка shell-команд, которые агент может выполнять. Настройки хранятся в профиля. Переменные в : Helix всегда применяет встроенный набор для платформы ( , , , на Unix; , , в Windows). Extras профиля расширяют этот список. Дубликаты игнорируются. После изменений перезапустите gateway/Telegram или заново запустите CLI. См. SECURITY.md.",
+    "body": "Ограничение списка shell-команд, которые агент может выполнять. Настройки хранятся в профиля. Переменные в : Helix всегда применяет встроенный набор для платформы ( , , , на Unix; , , в Windows). Extras профиля расширяют этот список. Дубликаты игнорируются. После изменений перезапустите gateway/Telegram или заново запустите CLI. См. TERMINAL SECURITY.md и SECURITY.md.",
     "keywords": [
       "profile",
       "профиль",
@@ -5820,7 +6063,7 @@
     "section": "инструменты",
     "title": "Безопасность",
     "heading": "Инструменты",
-    "body": "- Terminal : whitelist при (по умолчанию). Управление по профилю: Или задайте в . - Python executor : в production",
+    "body": "- Terminal : whitelist, блокировка опасных паттернов, подтверждения — подробно: TERMINAL SECURITY.md. Быстрая настройка: - Python executor : в production",
     "keywords": [
       "security",
       "безопасность",
@@ -5851,6 +6094,230 @@
     "nav_order": 15
   },
   {
+    "id": "ru/terminal-security#1-включение-отключение-терминала",
+    "lang": "ru",
+    "slug": "terminal-security",
+    "section": "1-включение-отключение-терминала",
+    "title": "Безопасность команд",
+    "heading": "1. Включение / отключение терминала",
+    "body": "Переменная По умолчанию Эффект ------------ -------------- -------- Главный переключатель При отключении агент получает: В production рекомендуется отключать, если shell не нужен. ---",
+    "keywords": [
+      "включение",
+      "отключение",
+      "терминала"
+    ],
+    "nav_order": 16
+  },
+  {
+    "id": "ru/terminal-security#3-whitelist-команд-allowlist",
+    "lang": "ru",
+    "slug": "terminal-security",
+    "section": "3-whitelist-команд-allowlist",
+    "title": "Безопасность команд",
+    "heading": "3. Whitelist команд (allowlist)",
+    "body": "Управление: Переменная По умолчанию Эффект ------------ -------------- -------- Включить allowlist пусто Доп. команды/префиксы через запятую По профилю: См. PROFILES.md.",
+    "keywords": [
+      "whitelist",
+      "команд",
+      "allowlist"
+    ],
+    "nav_order": 16
+  },
+  {
+    "id": "ru/terminal-security#4-подтверждение-пользователем-actionguard",
+    "lang": "ru",
+    "slug": "terminal-security",
+    "section": "4-подтверждение-пользователем-actionguard",
+    "title": "Безопасность команд",
+    "heading": "4. Подтверждение пользователем (ActionGuard)",
+    "body": "После прохождения политик в интерактивной сессии может запрашиваться подтверждение: Команда Значение --------- ---------- , Один раз На сессию Всегда (сохраняется) , Отказ Терминал по умолчанию — риск HIGH . Паттерны , , , , усиливают запрос подтверждения (даже после добавления в whitelist). При инструменты шагов плана могут одобряться автоматически. В неинтерактивном API без предварительных прав высокий риск отклоняется. ---",
+    "keywords": [
+      "подтверждение",
+      "пользователем",
+      "actionguard"
+    ],
+    "nav_order": 16
+  },
+  {
+    "id": "ru/terminal-security#5-workspace-jail-рабочая-директория",
+    "lang": "ru",
+    "slug": "terminal-security",
+    "section": "5-workspace-jail-рабочая-директория",
+    "title": "Безопасность команд",
+    "heading": "5. Workspace jail (рабочая директория)",
+    "body": "При workspace jail запускается с в корне jail. Whitelist не заменяет jail — действуют оба ограничения. ---",
+    "keywords": [
+      "workspace",
+      "jail",
+      "рабочая",
+      "директория"
+    ],
+    "nav_order": 16
+  },
+  {
+    "id": "ru/terminal-security#unix-macos-linux",
+    "lang": "ru",
+    "slug": "terminal-security",
+    "section": "unix-macos-linux",
+    "title": "Безопасность команд",
+    "heading": "Unix / macOS / Linux",
+    "body": "Паттерн (примеры) Зачем блокируется ------------------- ------------------- Рекурсивное удаление Запись в устройства , , Разрушение диска , , Управление системой Fork bomb DoS , Выполнение кода с сети",
+    "keywords": [
+      "unix",
+      "macos",
+      "linux"
+    ],
+    "nav_order": 16
+  },
+  {
+    "id": "ru/terminal-security#windows-дополнительно",
+    "lang": "ru",
+    "slug": "terminal-security",
+    "section": "windows-дополнительно",
+    "title": "Безопасность команд",
+    "heading": "Windows (дополнительно)",
+    "body": "Паттерн (примеры) Зачем блокируется ------------------- ------------------- , Дисковые операции , , Принудительное удаление , Подозрительные перенаправления Пример: Проверка выполняется до whitelist. ---",
+    "keywords": [
+      "windows",
+      "дополнительно"
+    ],
+    "nav_order": 16
+  },
+  {
+    "id": "ru/terminal-security#безопасность-команд-терминала",
+    "lang": "ru",
+    "slug": "terminal-security",
+    "section": "безопасность-команд-терминала",
+    "title": "Безопасность команд",
+    "heading": "Безопасность команд терминала",
+    "body": "Helix выполняет shell-команды через инструмент . До запуска в ОС команда проходит несколько независимых проверок . На этой странице: что разрешено, что запрещено, как работает whitelist и как это связано с подтверждением действий . ---",
+    "keywords": [
+      "безопасность",
+      "команд",
+      "терминала"
+    ],
+    "nav_order": 16
+  },
+  {
+    "id": "ru/terminal-security#встроенный-whitelist-unix",
+    "lang": "ru",
+    "slug": "terminal-security",
+    "section": "встроенный-whitelist-unix",
+    "title": "Безопасность команд",
+    "heading": "Встроенный whitelist (Unix)",
+    "body": "Чтение и диагностика: , , , , , , , , , , , , , , , , , , , , , , , , , Git (только «читающие» подкоманды): , , , , , Среды и тесты: , , , , , , , , ,",
+    "keywords": [
+      "встроенный",
+      "whitelist",
+      "unix"
+    ],
+    "nav_order": 16
+  },
+  {
+    "id": "ru/terminal-security#встроенный-whitelist-windows",
+    "lang": "ru",
+    "slug": "terminal-security",
+    "section": "встроенный-whitelist-windows",
+    "title": "Безопасность команд",
+    "heading": "Встроенный whitelist (Windows)",
+    "body": ", , , , , , , , , , , , , , , , , а также git/python/npm/pytest/helix/uv ( на Windows). Команды Unix ( , ) в списке Windows отсутствуют — используйте / или добавьте в extras.",
+    "keywords": [
+      "встроенный",
+      "whitelist",
+      "windows"
+    ],
+    "nav_order": 16
+  },
+  {
+    "id": "ru/terminal-security#если-whitelist-отключён",
+    "lang": "ru",
+    "slug": "terminal-security",
+    "section": "если-whitelist-отключён",
+    "title": "Безопасность команд",
+    "heading": "Если whitelist отключён",
+    "body": "отключает allowlist (опасные паттерны остаются). Только для полностью доверенной dev-среды. ---",
+    "keywords": [
+      "если",
+      "whitelist",
+      "отключён"
+    ],
+    "nav_order": 16
+  },
+  {
+    "id": "ru/terminal-security#как-работает-сопоставление",
+    "lang": "ru",
+    "slug": "terminal-security",
+    "section": "как-работает-сопоставление",
+    "title": "Безопасность команд",
+    "heading": "Как работает сопоставление",
+    "body": "Для каждой строки команды: 1. Приведение к нижнему регистру и trim. 2. Проверка опасных паттернов (раздел 2). 3. Первый токен — (для это ). 4. Разрешено, если в списке или вся строка начинается с любой записи whitelist. Примеры на Unix: Команда Результат Причина --------- ----------- --------- Разрешено в defaults Разрешено префикс Запрещено нет подходящего префикса Разрешено префикс Запрещено не / Запрещено пока не добавите через Разрешено префикс Префиксы означают: разрешён (есть ), а — нет , пока не добавите или (по умолчанию только префикс ).",
+    "keywords": [
+      "как",
+      "работает",
+      "сопоставление"
+    ],
+    "nav_order": 16
+  },
+  {
+    "id": "ru/terminal-security#разрешено-и-запрещено-практика",
+    "lang": "ru",
+    "slug": "terminal-security",
+    "section": "разрешено-и-запрещено-практика",
+    "title": "Безопасность команд",
+    "heading": "Разрешено и запрещено — практика",
+    "body": "Задача Обычный путь -------- ---------------- Прочитать файлы или / Запустить тесты , , Состояние git , , Push / commit Добавить в extras и подтвердить, или выполнить вручную Docker / make / свой CLI Установка пакетов Не в defaults — лучше вручную Удаление файлов не в whitelist; блокируется паттерном ---",
+    "keywords": [
+      "разрешено",
+      "запрещено",
+      "практика"
+    ],
+    "nav_order": 16
+  },
+  {
+    "id": "ru/terminal-security#рекомендации-для-production",
+    "lang": "ru",
+    "slug": "terminal-security",
+    "section": "рекомендации-для-production",
+    "title": "Безопасность команд",
+    "heading": "Рекомендации для production",
+    "body": "1. Оставляйте . 2. Добавляйте в extras только минимум ( ). 3. Используйте workspace jail на общих хостах. 4. Отключите терминал, если не нужен: . 5. Отключите Python executor: . 6. Запускайте , см. SECURITY.md. ---",
+    "keywords": [
+      "рекомендации",
+      "для",
+      "production"
+    ],
+    "nav_order": 16
+  },
+  {
+    "id": "ru/terminal-security#слои-защиты-порядок-проверок",
+    "lang": "ru",
+    "slug": "terminal-security",
+    "section": "слои-защиты-порядок-проверок",
+    "title": "Безопасность команд",
+    "heading": "Слои защиты (порядок проверок)",
+    "body": "Важно: в интерактивном TUI/Telegram подтверждение обычно запрашивается до тела . Даже разрешённая whitelist-команда может потребовать , потому что терминал классифицируется как риск HIGH . Whitelist проверяется внутри — если подтверждение есть, но команды нет в списке, выполнение всё равно завершится ошибкой . ---",
+    "keywords": [
+      "слои",
+      "защиты",
+      "порядок",
+      "проверок"
+    ],
+    "nav_order": 16
+  },
+  {
+    "id": "ru/terminal-security#см-также",
+    "lang": "ru",
+    "slug": "terminal-security",
+    "section": "см-также",
+    "title": "Безопасность команд",
+    "heading": "См. также",
+    "body": "- SECURITY.md — auth, API keys, production - PROFILES.md — whitelist по профилю - CONFIGURATION.md — переменные окружения - SLASH COMMANDS.md — , –",
+    "keywords": [
+      "также"
+    ],
+    "nav_order": 16
+  },
+  {
     "id": "ru/deployment#2-настройка-профиля",
     "lang": "ru",
     "slug": "deployment",
@@ -5867,7 +6334,7 @@
       "настройка",
       "профиля"
     ],
-    "nav_order": 16
+    "nav_order": 17
   },
   {
     "id": "ru/deployment#3-установка-unit-файлов",
@@ -5887,7 +6354,7 @@
       "unit",
       "файлов"
     ],
-    "nav_order": 16
+    "nav_order": 17
   },
   {
     "id": "ru/deployment#4-запуск-и-управление",
@@ -5906,7 +6373,7 @@
       "запуск",
       "управление"
     ],
-    "nav_order": 16
+    "nav_order": 17
   },
   {
     "id": "ru/deployment#5-виджет-чата-на-сайте-документации",
@@ -5927,7 +6394,7 @@
       "сайте",
       "документации"
     ],
-    "nav_order": 16
+    "nav_order": 17
   },
   {
     "id": "ru/deployment#6-сборка-сайта-документации-и-seo",
@@ -5948,7 +6415,7 @@
       "документации",
       "seo"
     ],
-    "nav_order": 16
+    "nav_order": 17
   },
   {
     "id": "ru/deployment#7-reverse-proxy-tls",
@@ -5968,7 +6435,7 @@
       "proxy",
       "tls"
     ],
-    "nav_order": 16
+    "nav_order": 17
   },
   {
     "id": "ru/deployment#helixprofilesbobenv",
@@ -5990,7 +6457,7 @@
       "bob",
       "env"
     ],
-    "nav_order": 16
+    "nav_order": 17
   },
   {
     "id": "ru/deployment#systemd",
@@ -6007,7 +6474,7 @@
       "docker",
       "ci"
     ],
-    "nav_order": 16
+    "nav_order": 17
   },
   {
     "id": "ru/deployment#или-для-именованного-профиля",
@@ -6028,7 +6495,7 @@
       "именованного",
       "профиля"
     ],
-    "nav_order": 16
+    "nav_order": 17
   },
   {
     "id": "ru/deployment#отредактируйте-helix_python-и-helix_bin-под-пути-pipx-на-вашем-х",
@@ -6053,7 +6520,7 @@
       "вашем",
       "хосте"
     ],
-    "nav_order": 16
+    "nav_order": 17
   },
   {
     "id": "ru/doctor#без---fix",
@@ -6070,7 +6537,7 @@
       "repair",
       "без"
     ],
-    "nav_order": 17
+    "nav_order": 18
   },
   {
     "id": "ru/doctor#проверки",
@@ -6087,7 +6554,7 @@
       "repair",
       "проверки"
     ],
-    "nav_order": 17
+    "nav_order": 18
   },
   {
     "id": "ru/doctor#с---fix",
@@ -6103,7 +6570,7 @@
       "fix",
       "repair"
     ],
-    "nav_order": 17
+    "nav_order": 18
   },
   {
     "id": "ru/logs#каталог-данных",
@@ -6121,7 +6588,7 @@
       "каталог",
       "данных"
     ],
-    "nav_order": 18
+    "nav_order": 19
   },
   {
     "id": "ru/logs#логи-и-наблюдаемость",
@@ -6138,7 +6605,7 @@
       "rotation",
       "наблюдаемость"
     ],
-    "nav_order": 18
+    "nav_order": 19
   },
   {
     "id": "ru/logs#режим-debug",
@@ -6155,7 +6622,7 @@
       "rotation",
       "режим"
     ],
-    "nav_order": 18
+    "nav_order": 19
   },
   {
     "id": "ru/logs#ротация",
@@ -6172,7 +6639,7 @@
       "rotation",
       "ротация"
     ],
-    "nav_order": 18
+    "nav_order": 19
   },
   {
     "id": "ru/logs#файлы-логов",
@@ -6190,7 +6657,7 @@
       "файлы",
       "логов"
     ],
-    "nav_order": 18
+    "nav_order": 19
   },
   {
     "id": "ru/pypi#1-аккаунт-и-имя",
@@ -6208,7 +6675,7 @@
       "аккаунт",
       "имя"
     ],
-    "nav_order": 19
+    "nav_order": 20
   },
   {
     "id": "ru/pypi#3-перед-каждым-релизом",
@@ -6227,7 +6694,7 @@
       "каждым",
       "релизом"
     ],
-    "nav_order": 19
+    "nav_order": 20
   },
   {
     "id": "ru/pypi#4-публикация-через-github-actions-рекомендуется",
@@ -6247,7 +6714,7 @@
       "actions",
       "рекомендуется"
     ],
-    "nav_order": 19
+    "nav_order": 20
   },
   {
     "id": "ru/pypi#имя-пакета",
@@ -6265,7 +6732,7 @@
       "имя",
       "пакета"
     ],
-    "nav_order": 19
+    "nav_order": 20
   },
   {
     "id": "ru/pypi#ограничения",
@@ -6282,7 +6749,7 @@
       "package",
       "ограничения"
     ],
-    "nav_order": 19
+    "nav_order": 20
   },
   {
     "id": "ru/pypi#публикация-на-pypi",
@@ -6298,7 +6765,7 @@
       "публикация",
       "package"
     ],
-    "nav_order": 19
+    "nav_order": 20
   },
   {
     "id": "ru/troubleshooting#windows",
@@ -6315,7 +6782,7 @@
       "fix",
       "windows"
     ],
-    "nav_order": 20
+    "nav_order": 21
   },
   {
     "id": "ru/user-guide#1-что-умеет-helix",
@@ -6333,7 +6800,7 @@
       "умеет",
       "helix"
     ],
-    "nav_order": 21
+    "nav_order": 22
   },
   {
     "id": "ru/user-guide#10-шаг-8-режимы-выполнения",
@@ -6351,7 +6818,7 @@
       "режимы",
       "выполнения"
     ],
-    "nav_order": 21
+    "nav_order": 22
   },
   {
     "id": "ru/user-guide#11-шаг-9-как-писать-запросы",
@@ -6370,7 +6837,7 @@
       "писать",
       "запросы"
     ],
-    "nav_order": 21
+    "nav_order": 22
   },
   {
     "id": "ru/user-guide#12-шаг-10-mcp-пошагово",
@@ -6388,7 +6855,7 @@
       "mcp",
       "пошагово"
     ],
-    "nav_order": 21
+    "nav_order": 22
   },
   {
     "id": "ru/user-guide#122-установить-mcp-простой-способ",
@@ -6408,7 +6875,7 @@
       "простой",
       "способ"
     ],
-    "nav_order": 21
+    "nav_order": 22
   },
   {
     "id": "ru/user-guide#127-переменные-окружения-для-mcp",
@@ -6428,7 +6895,7 @@
       "для",
       "mcp"
     ],
-    "nav_order": 21
+    "nav_order": 22
   },
   {
     "id": "ru/user-guide#15-слэш-команды-в-чате",
@@ -6446,7 +6913,7 @@
       "команды",
       "чате"
     ],
-    "nav_order": 21
+    "nav_order": 22
   },
   {
     "id": "ru/user-guide#16-особенности-helix",
@@ -6463,7 +6930,7 @@
       "особенности",
       "helix"
     ],
-    "nav_order": 21
+    "nav_order": 22
   },
   {
     "id": "ru/user-guide#17-что-делать-если-что-то-не-работает",
@@ -6482,7 +6949,7 @@
       "если",
       "работает"
     ],
-    "nav_order": 21
+    "nav_order": 22
   },
   {
     "id": "ru/user-guide#2-требования",
@@ -6498,7 +6965,7 @@
       "usage",
       "требования"
     ],
-    "nav_order": 21
+    "nav_order": 22
   },
   {
     "id": "ru/user-guide#3-шаг-1-установить-python",
@@ -6516,7 +6983,7 @@
       "установить",
       "python"
     ],
-    "nav_order": 21
+    "nav_order": 22
   },
   {
     "id": "ru/user-guide#4-шаг-2-установить-uv-рекомендуется",
@@ -6534,7 +7001,7 @@
       "установить",
       "рекомендуется"
     ],
-    "nav_order": 21
+    "nav_order": 22
   },
   {
     "id": "ru/user-guide#5-шаг-3-установка-с-pypi",
@@ -6552,7 +7019,7 @@
       "установка",
       "pypi"
     ],
-    "nav_order": 21
+    "nav_order": 22
   },
   {
     "id": "ru/user-guide#61-создать-файл-окружения",
@@ -6570,7 +7037,7 @@
       "файл",
       "окружения"
     ],
-    "nav_order": 21
+    "nav_order": 22
   },
   {
     "id": "ru/user-guide#62-профиль",
@@ -6586,7 +7053,7 @@
       "usage",
       "профиль"
     ],
-    "nav_order": 21
+    "nav_order": 22
   },
   {
     "id": "ru/user-guide#63-диагностика",
@@ -6602,7 +7069,7 @@
       "usage",
       "диагностика"
     ],
-    "nav_order": 21
+    "nav_order": 22
   },
   {
     "id": "ru/user-guide#7-шаг-5-настройка-моделей-через-litellm",
@@ -6622,7 +7089,7 @@
       "через",
       "litellm"
     ],
-    "nav_order": 21
+    "nav_order": 22
   },
   {
     "id": "ru/user-guide#71-что-нужно-получить-у-администратора-litellm",
@@ -6642,7 +7109,7 @@
       "администратора",
       "litellm"
     ],
-    "nav_order": 21
+    "nav_order": 22
   },
   {
     "id": "ru/user-guide#73-добавить-провайдер-litellm-в-профиль-интерактивно",
@@ -6662,7 +7129,7 @@
       "профиль",
       "интерактивно"
     ],
-    "nav_order": 21
+    "nav_order": 22
   },
   {
     "id": "ru/user-guide#74-полный-мастер-настройки-рекомендуется",
@@ -6681,7 +7148,7 @@
       "настройки",
       "рекомендуется"
     ],
-    "nav_order": 21
+    "nav_order": 22
   },
   {
     "id": "ru/user-guide#75-назначение-моделей-агентам",
@@ -6699,7 +7166,7 @@
       "моделей",
       "агентам"
     ],
-    "nav_order": 21
+    "nav_order": 22
   },
   {
     "id": "ru/user-guide#8-шаг-6-поиск-в-интернете-опционально",
@@ -6718,7 +7185,7 @@
       "интернете",
       "опционально"
     ],
-    "nav_order": 21
+    "nav_order": 22
   },
   {
     "id": "ru/user-guide#92-создать-бота-в-telegram",
@@ -6736,7 +7203,7 @@
       "бота",
       "telegram"
     ],
-    "nav_order": 21
+    "nav_order": 22
   },
   {
     "id": "ru/user-guide#93-узнать-свой-telegram-user-id",
@@ -6755,7 +7222,7 @@
       "telegram",
       "user"
     ],
-    "nav_order": 21
+    "nav_order": 22
   },
   {
     "id": "ru/user-guide#94-интерактивная-настройка-helix",
@@ -6773,7 +7240,7 @@
       "настройка",
       "helix"
     ],
-    "nav_order": 21
+    "nav_order": 22
   },
   {
     "id": "ru/user-guide#97-голосовые-сообщения-опционально",
@@ -6791,7 +7258,7 @@
       "сообщения",
       "опционально"
     ],
-    "nav_order": 21
+    "nav_order": 22
   },
   {
     "id": "ru/user-guide#helix-config",
@@ -6808,7 +7275,7 @@
       "helix",
       "config"
     ],
-    "nav_order": 21
+    "nav_order": 22
   },
   {
     "id": "ru/user-guide#helix-models",
@@ -6825,7 +7292,7 @@
       "helix",
       "models"
     ],
-    "nav_order": 21
+    "nav_order": 22
   },
   {
     "id": "ru/user-guide#helix-полное-руководство-пользователя",
@@ -6843,7 +7310,7 @@
       "полное",
       "пользователя"
     ],
-    "nav_order": 21
+    "nav_order": 22
   },
   {
     "id": "ru/user-guide#litellm-proxy",
@@ -6860,7 +7327,7 @@
       "litellm",
       "proxy"
     ],
-    "nav_order": 21
+    "nav_order": 22
   },
   {
     "id": "ru/user-guide#быстрый-чеклист-с-нуля-до-чата",
@@ -6879,7 +7346,7 @@
       "нуля",
       "чата"
     ],
-    "nav_order": 21
+    "nav_order": 22
   },
   {
     "id": "ru/user-guide#или-вручную",
@@ -6896,7 +7363,7 @@
       "или",
       "вручную"
     ],
-    "nav_order": 21
+    "nav_order": 22
   },
   {
     "id": "ru/user-guide#или-просто",
@@ -6913,7 +7380,7 @@
       "или",
       "просто"
     ],
-    "nav_order": 21
+    "nav_order": 22
   },
   {
     "id": "ru/user-guide#основные-команды",
@@ -6930,7 +7397,7 @@
       "основные",
       "команды"
     ],
-    "nav_order": 21
+    "nav_order": 22
   },
   {
     "id": "ru/user-guide#см-также",
@@ -6946,7 +7413,7 @@
       "usage",
       "также"
     ],
-    "nav_order": 21
+    "nav_order": 22
   },
   {
     "id": "ru/user-guide#содержание",
@@ -6962,7 +7429,7 @@
       "usage",
       "содержание"
     ],
-    "nav_order": 21
+    "nav_order": 22
   },
   {
     "id": "ru/user-guide#установка",
@@ -6978,6 +7445,6 @@
       "usage",
       "установка"
     ],
-    "nav_order": 21
+    "nav_order": 22
   }
 ]

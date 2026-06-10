@@ -98,7 +98,7 @@ HELIX_TERMINAL_WHITELIST_EXTRA=docker,make
 
 Helix always applies a platform default set (`ls`, `git status`, `python`, `helix`, etc. on Unix; `dir`, `type`, `where` on Windows). Profile extras extend that list. Duplicate commands are ignored.
 
-After changes, restart gateway/Telegram or re-run the CLI. See [SECURITY.md](SECURITY.md).
+After changes, restart gateway/Telegram or re-run the CLI. See [TERMINAL_SECURITY.md](TERMINAL_SECURITY.md) and [SECURITY.md](SECURITY.md).
 
 ## Profile access keys (optional)
 

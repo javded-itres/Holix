@@ -34,6 +34,7 @@ Helix is a self-improving AI agent with memory, skills, tool calling, MCP, CLI, 
 - [LOGS.md](LOGS.md) — `helix logs`, rotation, debug mode
 - [DOCTOR.md](DOCTOR.md) — `helix doctor` and `--fix`
 - [SECURITY.md](SECURITY.md) — auth, tools, production checklist
+- [TERMINAL_SECURITY.md](TERMINAL_SECURITY.md) — terminal whitelist, blocked commands, confirmations
 - [DEPLOYMENT.md](DEPLOYMENT.md) — Docker, systemd, CI
 - [TROUBLESHOOTING.md](TROUBLESHOOTING.md) — common failures
 

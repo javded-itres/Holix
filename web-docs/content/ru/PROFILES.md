@@ -98,7 +98,7 @@ HELIX_TERMINAL_WHITELIST_EXTRA=docker,make
 
 Helix всегда применяет встроенный набор для платформы (`ls`, `git status`, `python`, `helix` на Unix; `dir`, `type`, `where` в Windows). Extras профиля расширяют этот список. Дубликаты игнорируются.
 
-После изменений перезапустите gateway/Telegram или заново запустите CLI. См. [SECURITY.md](SECURITY.md).
+После изменений перезапустите gateway/Telegram или заново запустите CLI. См. [TERMINAL_SECURITY.md](TERMINAL_SECURITY.md) и [SECURITY.md](SECURITY.md).
 
 ## Ключи доступа к профилю (опционально)
 

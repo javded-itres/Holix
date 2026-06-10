@@ -30,6 +30,7 @@
 - [LOGS.md](LOGS.md) — `helix logs`, ротация, debug
 - [DOCTOR.md](DOCTOR.md)
 - [SECURITY.md](SECURITY.md)
+- [TERMINAL_SECURITY.md](TERMINAL_SECURITY.md) — whitelist терминала, запрещённые команды, подтверждения
 - [DEPLOYMENT.md](DEPLOYMENT.md)
 - [TROUBLESHOOTING.md](TROUBLESHOOTING.md)
 - [ARCHITECTURE.md](ARCHITECTURE.md)

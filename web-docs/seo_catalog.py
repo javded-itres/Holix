@@ -351,6 +351,30 @@ SEO_PAGES: dict[str, dict[str, dict[str, str]]] = {
             "keywords": "Helix security, API key, gateway auth, terminal whitelist, production security",
         },
     },
+    "terminal-security": {
+        "ru": {
+            "title": "Безопасность команд Helix — whitelist, запреты и подтверждения",
+            "description": (
+                "Как Helix защищает run_terminal_command: whitelist по профилю, блокировка опасных "
+                "паттернов, подтверждение /yes, workspace jail и примеры разрешённых и запрещённых команд."
+            ),
+            "keywords": (
+                "Helix whitelist, безопасность терминала, run_terminal_command, "
+                "HELIX_TERMINAL_WHITELIST_EXTRA, подтверждение команд"
+            ),
+        },
+        "en": {
+            "title": "Helix Terminal Security — Whitelist, Blocks & Confirmations",
+            "description": (
+                "How Helix protects run_terminal_command: per-profile whitelist, dangerous pattern "
+                "blocks, /yes confirmations, workspace jail, and allowed vs forbidden command examples."
+            ),
+            "keywords": (
+                "Helix terminal whitelist, command safety, run_terminal_command, "
+                "HELIX_TERMINAL_WHITELIST_EXTRA, shell confirmation"
+            ),
+        },
+    },
     "deployment": {
         "ru": {
             "title": "Деплой Helix — Docker, systemd, multi-profile production",

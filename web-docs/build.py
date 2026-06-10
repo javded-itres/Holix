@@ -40,6 +40,7 @@ NAV = [
     ("BROWSER_TOOLS", {"en": "Browser Tools", "ru": "Браузер"}),
     ("ARCHITECTURE", {"en": "Architecture", "ru": "Архитектура"}),
     ("SECURITY", {"en": "Security", "ru": "Безопасность"}),
+    ("TERMINAL_SECURITY", {"en": "Terminal Security", "ru": "Безопасность команд"}),
     ("DEPLOYMENT", {"en": "Deployment", "ru": "Деплой"}),
     ("DOCTOR", {"en": "Doctor", "ru": "Доктор"}),
     ("LOGS", {"en": "Logs", "ru": "Логи"}),
