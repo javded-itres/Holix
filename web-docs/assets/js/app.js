@@ -328,8 +328,8 @@ const I18N = {
 
 const NAV_SECTIONS = {
   getting_started: ["installation", "start-here", "quickstart", "configuration", "profiles"],
-  interfaces: ["cli", "slash-commands", "tui", "hub", "gateway", "telegram", "browser-tools"],
-  operations: ["security", "deployment", "doctor", "logs", "pypi", "troubleshooting", "user-guide"],
+  interfaces: ["cli", "slash-commands", "execution-modes", "tui", "hub", "gateway", "telegram", "browser-tools"],
+  operations: ["security", "terminal-security", "deployment", "doctor", "logs", "pypi", "troubleshooting", "user-guide"],
   architecture: ["architecture", "readme"],
 };
 

@@ -129,7 +129,12 @@ MESSAGES: dict[str, dict[str, str]] = {
         ),
         "prompt.lang_block": (
             "## Language\n"
-            "Respond to the user in **English** unless they explicitly ask for another language."
+            "The user set the interface language to English (`/lang en`).\n"
+            "**You MUST write ALL responses to the user only in English** — explanations, "
+            "summaries, clarifying questions, and tool-result commentary — even if the user "
+            "writes in another language.\n"
+            "Exception: switch language only if the user explicitly asks for a different "
+            "language in that specific message."
         ),
     },
     "ru": {
@@ -256,7 +261,12 @@ MESSAGES: dict[str, dict[str, str]] = {
         ),
         "prompt.lang_block": (
             "## Язык\n"
-            "Отвечайте пользователю **на русском**, если он явно не попросил другой язык."
+            "Пользователь выбрал язык интерфейса русский (`/lang ru`).\n"
+            "**Все ответы пользователю пиши ТОЛЬКО на русском** — пояснения, итоги, "
+            "уточняющие вопросы и комментарии к результатам tools — даже если пользователь "
+            "пишет на другом языке.\n"
+            "Исключение: другой язык только если пользователь явно попросит ответить на нём "
+            "в конкретном сообщении."
         ),
     },
 }

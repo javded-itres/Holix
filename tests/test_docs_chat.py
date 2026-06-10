@@ -9,6 +9,7 @@ import pytest
 
 from core.docs_chat.retrieval import DocsSearchHit, search_docs
 from core.docs_chat.service import (
+    DocsChatService,
     build_context,
     extract_doc_slugs,
     is_conversational_message,
@@ -97,6 +98,19 @@ def test_pick_open_slug_ignores_search_hits_without_links() -> None:
 def test_pick_open_slug_skips_current_page() -> None:
     hits = [DocsSearchHit(title="Installation", slug="installation", snippet="", score=10)]
     assert pick_open_slug(hits, "", current_slug="installation") is None
+
+
+def test_docs_chat_system_prompt_mandates_russian_for_ru_lang() -> None:
+    svc = DocsChatService()
+    prompt = svc._system_prompt("ru")
+    assert "только на русском" in prompt.lower()
+    assert "том же языке" not in prompt.lower()
+
+
+def test_docs_chat_system_prompt_mandates_english_for_en_lang() -> None:
+    svc = DocsChatService()
+    prompt = svc._system_prompt("en")
+    assert "only in english" in prompt.lower()
 
 
 def test_is_conversational_message_detects_greeting_and_meta() -> None:

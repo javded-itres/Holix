@@ -39,15 +39,17 @@ Focus ONLY on completing this step. Do not try to do the entire task at once.
 Use the available tools as needed. Provide a clear, complete result for this step.
 """
 
-def _step_system_prompt() -> str:
+def _step_system_prompt(profile_name: str | None = None) -> str:
     from core.project.helix_md import append_helix_project_context, task_context_note
+    from core.prompt_builder import language_instruction_block
 
     base = (
         "You are a helpful assistant executing a structured plan step by step. "
         "Complete the current step thoroughly and provide a clear result. "
         f"{task_context_note()}"
     )
-    return append_helix_project_context(base)
+    lang_block = language_instruction_block(profile_name=profile_name)
+    return append_helix_project_context(f"{base}\n\n{lang_block}")
 
 
 async def execute_step_node(state: HelixGraphState, config: RunnableConfig) -> dict:
@@ -104,10 +106,11 @@ async def execute_step_node(state: HelixGraphState, config: RunnableConfig) -> d
             model = agent.model
             temperature = 0.3  # Lower temperature for plan steps
 
+            profile_name = getattr(getattr(agent, "config", None), "profile_name", None)
             response = await client.chat.completions.create(
                 model=model,
                 messages=[
-                    {"role": "system", "content": _step_system_prompt()},
+                    {"role": "system", "content": _step_system_prompt(profile_name)},
                     {"role": "user", "content": step_prompt},
                 ],
                 temperature=temperature,
