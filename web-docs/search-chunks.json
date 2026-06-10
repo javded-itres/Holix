@@ -117,7 +117,7 @@
     "section": "from-pypi-recommended",
     "title": "Installation",
     "heading": "From PyPI (recommended)",
-    "body": "Published on pypi.org/project/HelixAgentAi (current: 0.1.7 ). Package name (not — that name is used by another project). After install, the CLI command is in the environment’s directory. Global CLI from any folder (recommended — no manual PATH): ```bash pipx install HelixAgentAi",
+    "body": "Published on pypi.org/project/HelixAgentAi (current: 0.1.8 ). Package name (not — that name is used by another project). After install, the CLI command is in the environment’s directory. Global CLI from any folder (recommended — no manual PATH): ```bash pipx install HelixAgentAi",
     "keywords": [
       "install",
       "установка",
@@ -157,6 +157,24 @@
     "title": "Installation",
     "heading": "or:",
     "body": "uv tool install HelixAgentAi helix version bash python -m venv .venv source .venv/bin/activate Windows: .venv\\Scripts\\activate pip install HelixAgentAi pip install \"HelixAgentAi[telegram,browser,tui-web]\" helix version helix doctor bash pip install --user HelixAgentAi",
+    "keywords": [
+      "install",
+      "установка",
+      "pipx",
+      "pypi",
+      "uv",
+      "docker"
+    ],
+    "nav_order": 1
+  },
+  {
+    "id": "en/installation#or",
+    "lang": "en",
+    "slug": "installation",
+    "section": "or",
+    "title": "Installation",
+    "heading": "or:",
+    "body": "uv tool install HelixAgentAi helix version helix doctor powershell git clone https://github.com/javded-itres/HelixAgent.git cd HelixAgent .\\scripts\\install.ps1",
     "keywords": [
       "install",
       "установка",
@@ -225,6 +243,25 @@
     "nav_order": 1
   },
   {
+    "id": "en/installation#windows",
+    "lang": "en",
+    "slug": "installation",
+    "section": "windows",
+    "title": "Installation",
+    "heading": "Windows",
+    "body": "Requirements: Python 3.12+ from python.org (check “Add python.exe to PATH” during setup). Recommended: uv for dependencies.",
+    "keywords": [
+      "install",
+      "установка",
+      "pipx",
+      "pypi",
+      "uv",
+      "docker",
+      "windows"
+    ],
+    "nav_order": 1
+  },
+  {
     "id": "en/installation#windows-scriptsinstallps1",
     "lang": "en",
     "slug": "installation",
@@ -243,6 +280,26 @@
       "scriptsinstallps1",
       "scripts",
       "ps1"
+    ],
+    "nav_order": 1
+  },
+  {
+    "id": "en/installation#windows-troubleshooting",
+    "lang": "en",
+    "slug": "installation",
+    "section": "windows-troubleshooting",
+    "title": "Installation",
+    "heading": "Windows troubleshooting",
+    "body": "Symptom Action --------- -------- not found New terminal; check or re-run Script blocked Unicode / TUI glitches Use Windows Terminal; set UTF-8 in profile settings More: TROUBLESHOOTING.md.",
+    "keywords": [
+      "install",
+      "установка",
+      "pipx",
+      "pypi",
+      "uv",
+      "docker",
+      "windows",
+      "troubleshooting"
     ],
     "nav_order": 1
   },
@@ -4430,7 +4487,7 @@
     "section": "pypi-helix-из-любой-папки-рекомендуется",
     "title": "Установка",
     "heading": "PyPI — `helix` из любой папки (рекомендуется)",
-    "body": "Опубликовано: pypi.org/project/HelixAgentAi (версия 0.1.7 ). Пакет (не — это другой проект). Команда: . Глобально (рекомендуется): ```bash pipx install HelixAgentAi",
+    "body": "Опубликовано: pypi.org/project/HelixAgentAi (версия 0.1.8 ). Пакет (не — это другой проект). Команда: . Глобально (рекомендуется): ```bash pipx install HelixAgentAi",
     "keywords": [
       "install",
       "установка",
@@ -4442,6 +4499,25 @@
       "любой",
       "папки",
       "рекомендуется"
+    ],
+    "nav_order": 1
+  },
+  {
+    "id": "ru/installation#windows",
+    "lang": "ru",
+    "slug": "installation",
+    "section": "windows",
+    "title": "Установка",
+    "heading": "Windows",
+    "body": "Требования: Python 3.12+ с python.org (при установке отметьте «Add python.exe to PATH»). Рекомендуется: uv.",
+    "keywords": [
+      "install",
+      "установка",
+      "pipx",
+      "pypi",
+      "uv",
+      "docker",
+      "windows"
     ],
     "nav_order": 1
   },
@@ -4461,6 +4537,25 @@
       "uv",
       "docker",
       "git"
+    ],
+    "nav_order": 1
+  },
+  {
+    "id": "ru/installation#или",
+    "lang": "ru",
+    "slug": "installation",
+    "section": "или",
+    "title": "Установка",
+    "heading": "или:",
+    "body": "uv tool install HelixAgentAi helix version helix doctor powershell git clone https://github.com/javded-itres/HelixAgent.git cd HelixAgent .\\scripts\\install.ps1",
+    "keywords": [
+      "install",
+      "установка",
+      "pipx",
+      "pypi",
+      "uv",
+      "docker",
+      "или"
     ],
     "nav_order": 1
   },
@@ -4502,6 +4597,26 @@
       "docker",
       "первый",
       "запуск"
+    ],
+    "nav_order": 1
+  },
+  {
+    "id": "ru/installation#проблемы-на-windows",
+    "lang": "ru",
+    "slug": "installation",
+    "section": "проблемы-на-windows",
+    "title": "Установка",
+    "heading": "Проблемы на Windows",
+    "body": "Симптом Решение --------- --------- не найден Новый терминал; проверьте или повторите Скрипт заблокирован Кракозябры в TUI Windows Terminal, кодировка UTF-8 Подробнее: TROUBLESHOOTING.md.",
+    "keywords": [
+      "install",
+      "установка",
+      "pipx",
+      "pypi",
+      "uv",
+      "docker",
+      "проблемы",
+      "windows"
     ],
     "nav_order": 1
   },

@@ -27,7 +27,7 @@ After the `browser` extra: `playwright install chromium`
 
 ### From PyPI (recommended)
 
-Published on [pypi.org/project/HelixAgentAi](https://pypi.org/project/HelixAgentAi/) (current: **0.1.7**).
+Published on [pypi.org/project/HelixAgentAi](https://pypi.org/project/HelixAgentAi/) (current: **0.1.8**).
 
 Package name **`HelixAgentAi`** (not `helix` — that name is used by another project).  
 After install, the CLI command is **`helix`** in the environment’s `bin` directory.
@@ -94,6 +94,65 @@ Verify:
 helix version
 helix doctor
 ```
+
+## Windows
+
+**Requirements:** Python 3.12+ from [python.org](https://www.python.org/downloads/) (check “Add python.exe to PATH” during setup).  
+**Recommended:** [uv](https://github.com/astral-sh/uv) for dependencies.
+
+### Global `helix` from any folder
+
+**PyPI (simplest):**
+
+```powershell
+pipx install HelixAgentAi
+# or:
+uv tool install HelixAgentAi
+
+helix version
+helix doctor
+```
+
+**From git clone:**
+
+```powershell
+git clone https://github.com/javded-itres/HelixAgent.git
+cd HelixAgent
+.\scripts\install.ps1
+# or, if helix is already on PATH:
+helix install --extra telegram
+```
+
+The installer adds Helix to your user PATH. **Open a new PowerShell window** after install, then run `helix version`.
+
+### Data and profiles
+
+| Item | Path |
+|------|------|
+| Helix home | `%LOCALAPPDATA%\Helix\` (or `HELIX_HOME`) |
+| Profiles | `%LOCALAPPDATA%\Helix\profiles\<name>\` |
+| Gateway log | `%LOCALAPPDATA%\Helix\profiles\<name>\gateway\` |
+
+### Typical workflow
+
+```powershell
+helix models setup
+helix tui
+helix gateway start          # API + optional Telegram bot
+helix -p shared telegram setup
+```
+
+Optional Windows extra for cleaner process cleanup: `pip install "HelixAgentAi[windows]"`.
+
+### Windows troubleshooting
+
+| Symptom | Action |
+|---------|--------|
+| `helix` not found | New terminal; check `%USERPROFILE%\.local\bin` or re-run `.\scripts\install.ps1` |
+| Script blocked | `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned` |
+| Unicode / TUI glitches | Use Windows Terminal; set UTF-8 in profile settings |
+
+More: [TROUBLESHOOTING.md](TROUBLESHOOTING.md).
 
 ## Developer install (from source)
 

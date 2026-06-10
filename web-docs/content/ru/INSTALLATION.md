@@ -27,7 +27,7 @@ Helix требует **Python 3.12+** и устанавливается как C
 
 ### PyPI — `helix` из любой папки (рекомендуется)
 
-Опубликовано: [pypi.org/project/HelixAgentAi](https://pypi.org/project/HelixAgentAi/) (версия **0.1.7**).
+Опубликовано: [pypi.org/project/HelixAgentAi](https://pypi.org/project/HelixAgentAi/) (версия **0.1.8**).
 
 Пакет **`HelixAgentAi`** (не `pip install helix` — это другой проект). Команда: **`helix`**.
 
@@ -64,6 +64,65 @@ cd HelixAgent
 helix install
 helix doctor
 ```
+
+## Windows
+
+**Требования:** Python 3.12+ с [python.org](https://www.python.org/downloads/) (при установке отметьте «Add python.exe to PATH»).  
+**Рекомендуется:** [uv](https://github.com/astral-sh/uv).
+
+### Глобальная команда `helix` из любой папки
+
+**PyPI (проще всего):**
+
+```powershell
+pipx install HelixAgentAi
+# или:
+uv tool install HelixAgentAi
+
+helix version
+helix doctor
+```
+
+**Из git:**
+
+```powershell
+git clone https://github.com/javded-itres/HelixAgent.git
+cd HelixAgent
+.\scripts\install.ps1
+# или, если helix уже в PATH:
+helix install --extra telegram
+```
+
+Установщик добавляет Helix в PATH пользователя. **Откройте новое окно PowerShell**, затем `helix version`.
+
+### Данные и профили
+
+| Что | Путь |
+|-----|------|
+| Домашний каталог Helix | `%LOCALAPPDATA%\Helix\` (или `HELIX_HOME`) |
+| Профили | `%LOCALAPPDATA%\Helix\profiles\<имя>\` |
+| Лог gateway | `%LOCALAPPDATA%\Helix\profiles\<имя>\gateway\` |
+
+### Типичный запуск
+
+```powershell
+helix models setup
+helix tui
+helix gateway start
+helix -p shared telegram setup
+```
+
+Опционально extra `windows` для корректного завершения дочерних процессов: `pip install "HelixAgentAi[windows]"`.
+
+### Проблемы на Windows
+
+| Симптом | Решение |
+|---------|---------|
+| `helix` не найден | Новый терминал; проверьте `%USERPROFILE%\.local\bin` или повторите `.\scripts\install.ps1` |
+| Скрипт заблокирован | `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned` |
+| Кракозябры в TUI | Windows Terminal, кодировка UTF-8 |
+
+Подробнее: [TROUBLESHOOTING.md](TROUBLESHOOTING.md).
 
 ## Установка для разработки
 
