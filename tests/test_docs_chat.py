@@ -76,7 +76,7 @@ def test_sanitize_strips_paths_and_keys() -> None:
 
 
 def test_extract_doc_slugs_from_response() -> None:
-    text = "See #/docs/installation and #/docs/cli for details."
+    text = "See /docs/installation and /docs/cli for details."
     assert extract_doc_slugs(text) == ["installation", "cli"]
 
 
@@ -85,7 +85,7 @@ def test_pick_open_slug_uses_first_response_link() -> None:
         DocsSearchHit(title="PyPI", slug="pypi", snippet="", score=10),
         DocsSearchHit(title="Telegram", slug="telegram", snippet="", score=80),
     ]
-    text = "См. также #/docs/pypi. Настройка в #/docs/telegram."
+    text = "См. также /docs/pypi. Настройка в /docs/telegram."
     assert pick_open_slug(hits, text, current_slug=None) == "pypi"
 
 

@@ -11,9 +11,11 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
 REPO = ROOT.parent
+SITE_URL = "https://helix-agent.ru"
 sys.path.insert(0, str(REPO))
 
 from core.docs_chat.build_index import make_page_entry, write_chunk_index  # noqa: E402
+from seo_catalog import SEO_PAGES, SEO_VIEWS, seo_entry_for_slug  # noqa: E402
 
 DOCS_EN = REPO / "docs" / "en"
 DOCS_RU = REPO / "docs" / "ru"
@@ -87,6 +89,94 @@ def copy_docs() -> tuple[list[dict], dict[str, str]]:
     return entries, raw_by_file
 
 
+def write_seo_artifacts(entries: list[dict]) -> None:
+    """Generate sitemap.xml, seo-meta.json, and crawlable link list for index.html."""
+    pages: dict[str, dict[str, dict[str, str]]] = {}
+    for entry in entries:
+        slug = entry["slug"]
+        lang = entry["lang"]
+        seo = seo_entry_for_slug(
+            slug,
+            lang,
+            fallback_title=entry["title"],
+            fallback_heading=entry["heading"],
+        )
+        pages.setdefault(slug, {})[lang] = {
+            "navTitle": entry["title"],
+            "heading": entry["heading"],
+            **seo,
+        }
+
+    missing = sorted(set(SEO_PAGES) - set(pages))
+    if missing:
+        print(f"Warning: SEO catalog slugs without built pages: {', '.join(missing)}")
+
+    seo_meta = {
+        "siteUrl": SITE_URL,
+        "views": SEO_VIEWS,
+        "defaults": {
+            "ru": SEO_VIEWS["home"]["ru"],
+            "en": SEO_VIEWS["home"]["en"],
+        },
+        "pages": pages,
+    }
+    (ROOT / "seo-meta.json").write_text(
+        json.dumps(seo_meta, ensure_ascii=False, indent=2),
+        encoding="utf-8",
+    )
+
+    slugs = sorted(pages)
+    url_lines = [
+        "  <url>",
+        f"    <loc>{SITE_URL}/</loc>",
+        "    <changefreq>weekly</changefreq>",
+        "    <priority>1.0</priority>",
+        "  </url>",
+        "  <url>",
+        f"    <loc>{SITE_URL}/docs</loc>",
+        "    <changefreq>weekly</changefreq>",
+        "    <priority>0.9</priority>",
+        "  </url>",
+    ]
+    for slug in slugs:
+        url_lines.extend(
+            [
+                "  <url>",
+                f"    <loc>{SITE_URL}/docs/{slug}</loc>",
+                "    <changefreq>monthly</changefreq>",
+                "    <priority>0.8</priority>",
+                "  </url>",
+            ]
+        )
+    sitemap = (
+        '<?xml version="1.0" encoding="UTF-8"?>\n'
+        '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
+        + "\n".join(url_lines)
+        + "\n</urlset>\n"
+    )
+    (ROOT / "sitemap.xml").write_text(sitemap, encoding="utf-8")
+
+    crawl_links = [
+        f'<a href="{SITE_URL}/">Helix</a>',
+        f'<a href="{SITE_URL}/docs">Documentation</a>',
+    ]
+    for slug in slugs:
+        label = pages[slug].get("ru", pages[slug].get("en", {})).get("title", slug)
+        crawl_links.append(f'<a href="{SITE_URL}/docs/{slug}">{label}</a>')
+    crawl_html = "\n      ".join(crawl_links)
+    index_path = ROOT / "index.html"
+    index_html = index_path.read_text(encoding="utf-8")
+    marker_start = "<!-- SEO_CRAWL_LINKS -->"
+    marker_end = "<!-- /SEO_CRAWL_LINKS -->"
+    if marker_start in index_html and marker_end in index_html:
+        start = index_html.index(marker_start) + len(marker_start)
+        end = index_html.index(marker_end)
+        index_path.write_text(
+            index_html[:start] + f"\n      {crawl_html}\n      " + index_html[end:],
+            encoding="utf-8",
+        )
+
+
 def main() -> None:
     entries, raw_by_file = copy_docs()
     entries.sort(key=lambda e: (e["lang"], e["nav_order"], e["title"]))
@@ -102,9 +192,10 @@ def main() -> None:
         json.dumps(nav_meta, ensure_ascii=False, indent=2),
         encoding="utf-8",
     )
+    write_seo_artifacts(entries)
     print(
         f"Built {len(entries)} pages, {len(chunks)} chunks → "
-        f"{SEARCH_INDEX.name}, search-chunks.json, search-vectors.npz"
+        f"{SEARCH_INDEX.name}, search-chunks.json, search-vectors.npz, sitemap.xml"
     )
 
 

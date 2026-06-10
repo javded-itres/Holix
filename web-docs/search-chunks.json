@@ -117,7 +117,7 @@
     "section": "from-pypi-recommended",
     "title": "Installation",
     "heading": "From PyPI (recommended)",
-    "body": "Published on pypi.org/project/HelixAgentAi (current: 0.1.5 ). Package name (not — that name is used by another project). After install, the CLI command is in the environment’s directory. Global CLI from any folder (recommended — no manual PATH): ```bash pipx install HelixAgentAi",
+    "body": "Published on pypi.org/project/HelixAgentAi (current: 0.1.6 ). Package name (not — that name is used by another project). After install, the CLI command is in the environment’s directory. Global CLI from any folder (recommended — no manual PATH): ```bash pipx install HelixAgentAi",
     "keywords": [
       "install",
       "установка",
@@ -2690,7 +2690,7 @@
     "section": "publishing-to-pypi",
     "title": "PyPI",
     "heading": "Publishing to PyPI",
-    "body": "This guide covers packaging, naming, and releasing Helix on PyPI. Published: HelixAgentAi 0.1.5 — install with .",
+    "body": "This guide covers packaging, naming, and releasing Helix on PyPI. Published: HelixAgentAi 0.1.6 — install with .",
     "keywords": [
       "pypi",
       "publish",
@@ -3654,7 +3654,7 @@
     "section": "pypi-helix-из-любой-папки-рекомендуется",
     "title": "Установка",
     "heading": "PyPI — `helix` из любой папки (рекомендуется)",
-    "body": "Опубликовано: pypi.org/project/HelixAgentAi (версия 0.1.5 ). Пакет (не — это другой проект). Команда: . Глобально (рекомендуется): ```bash pipx install HelixAgentAi",
+    "body": "Опубликовано: pypi.org/project/HelixAgentAi (версия 0.1.6 ). Пакет (не — это другой проект). Команда: . Глобально (рекомендуется): ```bash pipx install HelixAgentAi",
     "keywords": [
       "install",
       "установка",
@@ -5589,7 +5589,7 @@
     "section": "публикация-на-pypi",
     "title": "PyPI",
     "heading": "Публикация на PyPI",
-    "body": "Руководство по выпуску пакета Helix на PyPI. Опубликовано: HelixAgentAi 0.1.5 — .",
+    "body": "Руководство по выпуску пакета Helix на PyPI. Опубликовано: HelixAgentAi 0.1.6 — .",
     "keywords": [
       "pypi",
       "publish",

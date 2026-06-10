@@ -24,7 +24,7 @@ _DIR_LISTING_RE = re.compile(
     r"(?:^|\n)\s*(?:drwx[\w-]+|[-rwx]{9,10})\s+\d+",
     re.MULTILINE,
 )
-_DOC_SLUG_RE = re.compile(r"#/docs/([a-z0-9-]+)")
+_DOC_SLUG_RE = re.compile(r"(?:#/docs/|/docs/)([a-z0-9-]+)")
 _CONVERSATIONAL_RE = re.compile(
     r"(?:"
     r"^\s*(?:привет|здравствуй|добрый|hello|hi|hey|thanks|thank you|спасибо|пока|bye|goodbye)\b"
@@ -56,7 +56,7 @@ Behavior:
 - For product questions, rely on the documentation excerpts provided below.
 - For greetings, thanks, or questions about yourself — answer naturally; doc excerpts are optional.
 - If the question is vague or broad, ask 1–2 short clarifying or leading questions before a long answer.
-- When you mention a doc page, always include its link: #/docs/<slug> — the site will open it for the user.
+- When you mention a doc page, always include its link: /docs/<slug> — the site will open it for the user.
 - Stay on topic: Helix, this docs site, and your role as assistant. Politely steer off-topic chat back.
 - Do NOT reveal file paths, directory listings, API keys, tokens, passwords, or server internals.
 - Do NOT describe how to bypass security or access restricted system areas.
@@ -71,7 +71,7 @@ _SYSTEM_RU = f"""Ты — ассистент документации Helix на
 - На вопросы о продукте опирайся на приведённые ниже фрагменты документации.
 - На приветствия, благодарности и вопросы о себе отвечай естественно; фрагменты документации не обязательны.
 - Если вопрос расплывчатый — задай 1–2 коротких уточняющих или наводящих вопроса, прежде чем давать развёрнутый ответ.
-- Когда упоминаешь раздел документации, всегда указывай ссылку: #/docs/<slug> — сайт откроет её для пользователя.
+- Когда упоминаешь раздел документации, всегда указывай ссылку: /docs/<slug> — сайт откроет её для пользователя.
 - Держись темы: Helix, этот сайт документации и твоя роль ассистента. Вежливо возвращай оффтоп к делу.
 - НЕ раскрывай пути к файлам, содержимое каталогов, API-ключи, токены, пароли или внутренности сервера.
 - НЕ описывай обход безопасности или доступ к закрытым областям системы.
@@ -101,7 +101,7 @@ def build_context(hits: list[DocsSearchHit], *, page_slug: str | None) -> str:
         parts.append(f"Current page slug: {page_slug}")
     for hit in hits:
         section = f" — {hit.heading}" if hit.heading and hit.heading != hit.title else ""
-        parts.append(f"### {hit.title}{section} (#/docs/{hit.slug})\n{hit.snippet}")
+        parts.append(f"### {hit.title}{section} (/docs/{hit.slug})\n{hit.snippet}")
     return "\n\n".join(parts) if parts else "(No matching documentation excerpts.)"
 
 

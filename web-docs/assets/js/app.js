@@ -32,10 +32,10 @@ function makeBreadcrumb(homeLabel, docsLabel, title) {
   const el = document.createElement("div");
   el.className = "breadcrumb";
   const home = document.createElement("a");
-  home.href = "#/";
+  home.href = "/";
   home.textContent = homeLabel;
   const docs = document.createElement("a");
-  docs.href = "#/docs";
+  docs.href = "/docs";
   docs.textContent = docsLabel;
   el.append(home, document.createTextNode(" / "), docs, document.createTextNode(` / ${title}`));
   return el;
@@ -47,6 +47,108 @@ const DONATE_URL = "https://boosty.to/javded/single-payment/donation/805721/targ
 const SITE_URL = "https://helix-agent.ru";
 const TELEGRAM_CHANNEL_URL = "https://t.me/helix_agent";
 const YANDEX_METRIKA_ID = 109712139;
+const OG_IMAGE_URL = `${SITE_URL}/assets/logo.svg`;
+
+/** Root-absolute path for static assets and content (safe under /docs/* routes). */
+function rootUrl(path) {
+  if (!path) return "/";
+  return path.startsWith("/") ? path : `/${path}`;
+}
+
+let seoMeta = null;
+
+function upsertMeta(attr, key, content) {
+  if (!content) return;
+  let el = document.head.querySelector(`meta[${attr}="${key}"]`);
+  if (!el) {
+    el = document.createElement("meta");
+    el.setAttribute(attr, key);
+    document.head.appendChild(el);
+  }
+  el.setAttribute("content", content);
+}
+
+function upsertLink(rel, href, attrs = {}) {
+  if (!href) return;
+  const selector = [`link[rel="${rel}"]`];
+  Object.entries(attrs).forEach(([name, value]) => selector.push(`[${name}="${value}"]`));
+  let el = document.head.querySelector(selector.join(""));
+  if (!el) {
+    el = document.createElement("link");
+    el.setAttribute("rel", rel);
+    document.head.appendChild(el);
+  }
+  el.setAttribute("href", href);
+  Object.entries(attrs).forEach(([name, value]) => el.setAttribute(name, value));
+}
+
+function updateHreflang(path) {
+  const canonical = `${SITE_URL}${path.startsWith("/") ? path : `/${path}`}`;
+  document.head.querySelectorAll('link[rel="alternate"][data-seo-managed="1"]').forEach((el) => el.remove());
+  ["ru", "en", "x-default"].forEach((lang) => {
+    const el = document.createElement("link");
+    el.setAttribute("rel", "alternate");
+    el.setAttribute("hreflang", lang);
+    el.setAttribute("href", canonical);
+    el.dataset.seoManaged = "1";
+    document.head.appendChild(el);
+  });
+}
+
+function pagePath(type, slug) {
+  if (type === "doc" && slug) return `/docs/${slug}`;
+  if (type === "docs-hub") return "/docs";
+  return "/";
+}
+
+function updatePageSeo({ title, description, path = "/", keywords }) {
+  const canonical = `${SITE_URL}${path.startsWith("/") ? path : `/${path}`}`;
+  const locale = state.lang === "ru" ? "ru_RU" : "en_US";
+
+  document.title = title;
+  document.documentElement.lang = state.lang === "ru" ? "ru" : "en";
+  upsertMeta("name", "description", description);
+  if (keywords) upsertMeta("name", "keywords", keywords);
+  upsertLink("canonical", canonical);
+  updateHreflang(path);
+  upsertMeta("property", "og:title", title);
+  upsertMeta("property", "og:description", description);
+  upsertMeta("property", "og:url", canonical);
+  upsertMeta("property", "og:type", "website");
+  upsertMeta("property", "og:site_name", "Helix");
+  upsertMeta("property", "og:locale", locale);
+  upsertMeta("property", "og:image", OG_IMAGE_URL);
+  upsertMeta("name", "twitter:card", "summary");
+  upsertMeta("name", "twitter:title", title);
+  upsertMeta("name", "twitter:description", description);
+}
+
+function seoDefaults() {
+  return seoMeta?.defaults?.[state.lang] ?? seoMeta?.defaults?.en ?? {
+    title: "Helix",
+    description: "Helix AI agent documentation",
+    keywords: "Helix, AI agent",
+  };
+}
+
+function seoForView(viewKey) {
+  const view = seoMeta?.views?.[viewKey]?.[state.lang]
+    ?? seoMeta?.views?.[viewKey]?.en;
+  if (view) return view;
+  return seoDefaults();
+}
+
+function seoForPage(slug) {
+  const page = seoMeta?.pages?.[slug]?.[state.lang]
+    ?? seoMeta?.pages?.[slug]?.en;
+  const defaults = seoDefaults();
+  if (!page) return defaults;
+  return {
+    title: page.title || `${page.heading} — Helix`,
+    description: page.description || defaults.description,
+    keywords: page.keywords || defaults.keywords,
+  };
+}
 
 function trackMetrikaPageView() {
   if (typeof ym !== "function") return;
@@ -309,42 +411,67 @@ function closeMobileSidebar() {
   if (isMobileLayout()) setMobileSidebarOpen(false);
 }
 
-/** `#/` marketing · `#/docs` hub · `#/docs/slug` or `#/slug` doc · `#anchor` in-page */
-function parseHash() {
-  const raw = location.hash.slice(1);
-  if (!raw || raw === "/") return { type: "marketing" };
+/** `/` marketing · `/docs` hub · `/docs/slug` doc · `#anchor` in-page */
+function migrateLegacyHash() {
+  const hash = location.hash.slice(1);
+  if (!hash.startsWith("/")) return;
+  history.replaceState(null, "", hash);
+  location.hash = "";
+}
 
-  if (!raw.startsWith("/")) {
-    return { type: "anchor", anchor: raw };
+function parseRoute() {
+  const path = location.pathname.replace(/\/+$/, "") || "/";
+  const hash = location.hash.slice(1);
+
+  if (path === "/" && hash && !hash.startsWith("/")) {
+    return { type: "anchor", anchor: hash };
   }
-
-  let path = raw.slice(1);
-  if (!path) return { type: "marketing" };
-
-  if (path === "docs") return { type: "docs-hub" };
-
-  if (path.startsWith("docs/")) path = path.slice(5);
-
-  const slash = path.indexOf("/");
-  const slug = slash >= 0 ? path.slice(0, slash) : path;
-  const anchor = slash >= 0 ? path.slice(slash + 1) : null;
-  if (!slug) return { type: "docs-hub" };
-  if (!isValidSlug(slug)) return { type: "docs-hub" };
-  return { type: "doc", slug, anchor };
+  if (path === "/") return { type: "marketing" };
+  if (path === "/docs") return { type: "docs-hub" };
+  if (path.startsWith("/docs/")) {
+    const slug = path.slice(6);
+    if (!slug || !isValidSlug(slug)) return { type: "docs-hub" };
+    const anchor = hash && !hash.startsWith("/") ? hash : null;
+    return { type: "doc", slug, anchor };
+  }
+  return { type: "marketing" };
 }
 
 function docHref(slug) {
-  return `#/docs/${slug}`;
+  return `/docs/${slug}`;
+}
+
+function navigateTo(path, { replace = false } = {}) {
+  const target = path.startsWith("/") ? path : `/${path}`;
+  const current = `${location.pathname}${location.search}`;
+  if (current === target) {
+    route();
+    return;
+  }
+  if (replace) history.replaceState(null, "", target);
+  else history.pushState(null, "", target);
+  route();
 }
 
 function openDocPage(slug) {
   if (!isValidSlug(slug)) return;
-  const target = docHref(slug).slice(1);
-  if (location.hash.slice(1) === target) {
-    route();
-    return;
-  }
-  location.hash = target;
+  navigateTo(docHref(slug));
+}
+
+function isInternalAppPath(pathname) {
+  const path = pathname.replace(/\/+$/, "") || "/";
+  return path === "/" || path === "/docs" || path.startsWith("/docs/");
+}
+
+function setupClientNavigation() {
+  document.addEventListener("click", (ev) => {
+    const link = ev.target.closest("a[href]");
+    if (!link || link.target === "_blank" || ev.defaultPrevented) return;
+    const url = new URL(link.href, location.origin);
+    if (url.origin !== location.origin || !isInternalAppPath(url.pathname)) return;
+    ev.preventDefault();
+    navigateTo(`${url.pathname}${url.search}${url.hash}`);
+  });
 }
 
 function scrollToAnchor(anchor) {
@@ -411,9 +538,14 @@ function applyI18n() {
 }
 
 async function loadData() {
-  const [navRes, indexRes] = await Promise.all([fetch("nav.json"), fetch("search-index.json")]);
+  const [navRes, indexRes, seoRes] = await Promise.all([
+    fetch(rootUrl("nav.json")),
+    fetch(rootUrl("search-index.json")),
+    fetch(rootUrl("seo-meta.json")),
+  ]);
   state.nav = await navRes.json();
   state.searchIndex = await indexRes.json();
+  if (seoRes.ok) seoMeta = await seoRes.json();
 }
 
 function navItemsForLang() {
@@ -442,7 +574,7 @@ function renderSidebar() {
   };
 
   html += `<div class="sidebar-section"><div class="sidebar-label">${t("docs")}</div>`;
-  html += `<a href="#/docs" class="nav-link${state.activeSlug === null && state.viewMode === "docs" ? " active" : ""}">${t("docs_hub_title")}</a>`;
+  html += `<a href="/docs" class="nav-link${state.activeSlug === null && state.viewMode === "docs" ? " active" : ""}">${t("docs_hub_title")}</a>`;
   html += "</div>";
 
   addSection("getting_started", NAV_SECTIONS.getting_started);
@@ -494,7 +626,7 @@ function renderMarketing() {
         <a href="${PYPI_URL}" class="hero-install-link" target="_blank" rel="noopener noreferrer">${t("install_pypi_link")} ↗</a>
       </div>
       <div class="hero-actions">
-        <a href="#/docs" class="btn btn-primary">${t("cta_docs")}</a>
+        <a href="/docs" class="btn btn-primary">${t("cta_docs")}</a>
         <a href="${docHref("installation")}" class="btn btn-ghost">${t("cta_install")}</a>
         <a href="${TELEGRAM_CHANNEL_URL}" class="btn btn-telegram" target="_blank" rel="noopener noreferrer">${t("tg_callout_cta")} ↗</a>
         <a href="${DONATE_URL}" class="btn btn-donate" target="_blank" rel="noopener noreferrer">♥ ${t("donate")}</a>
@@ -551,15 +683,19 @@ function renderMarketing() {
 
     <section class="cta-band">
       <p>${t("install_pypi")}</p>
-      <a href="#/docs" class="btn btn-primary">${t("cta_docs")}</a>
+      <a href="/docs" class="btn btn-primary">${t("cta_docs")}</a>
     </section>
 
     <footer class="footer">${footerHtml()}</footer>
   `;
 
-  document.title = state.lang === "ru"
-    ? "Helix — AI-агент · Российская разработка"
-    : "Helix — AI Agent · Made in Russia";
+  const seo = seoForView("home");
+  updatePageSeo({
+    title: seo.title,
+    description: seo.description,
+    keywords: seo.keywords,
+    path: "/",
+  });
   trackMetrikaPageView();
 }
 
@@ -592,7 +728,13 @@ function renderDocsHub() {
     <footer class="footer">${footerHtml()}</footer>
   `;
 
-  document.title = state.lang === "ru" ? "Документация — Helix" : "Documentation — Helix";
+  const seo = seoForView("docs-hub");
+  updatePageSeo({
+    title: seo.title,
+    description: seo.description,
+    keywords: seo.keywords,
+    path: "/docs",
+  });
   trackMetrikaPageView();
   window.scrollTo({ top: 0, behavior: "smooth" });
 }
@@ -616,7 +758,7 @@ async function renderDoc(slug, scrollAnchor = null) {
   );
 
   try {
-    const res = await fetch(entry.file);
+    const res = await fetch(rootUrl(entry.file));
     if (!res.ok) throw new Error(res.statusText);
     const md = await res.text();
     const container = document.createElement("div");
@@ -646,7 +788,13 @@ async function renderDoc(slug, scrollAnchor = null) {
     footer.innerHTML = footerHtml();
     main.replaceChildren(makeBreadcrumb(t("nav_home"), t("nav_docs"), entry.title), container, footer);
 
-    document.title = `${entry.heading} — Helix`;
+    const seo = seoForPage(slug);
+    updatePageSeo({
+      title: seo.title || `${entry.heading} — Helix`,
+      description: seo.description,
+      keywords: seo.keywords,
+      path: `/docs/${slug}`,
+    });
     trackMetrikaPageView();
     if (scrollAnchor && scrollToAnchor(scrollAnchor)) {
       history.replaceState(null, "", `#${scrollAnchor}`);
@@ -668,9 +816,10 @@ async function handleAnchor(anchor) {
 }
 
 function route() {
+  migrateLegacyHash();
   closeMobileSidebar();
   closeSearch();
-  const parsed = parseHash();
+  const parsed = parseRoute();
 
   if (parsed.type === "marketing") {
     renderMarketing();
@@ -792,7 +941,7 @@ function setupSearch() {
       items.forEach((el, i) => el.classList.toggle("active", i === activeIdx));
     } else if (ev.key === "Enter" && activeIdx >= 0) {
       ev.preventDefault();
-      location.hash = docHref(items[activeIdx].dataset.slug).slice(1);
+      navigateTo(docHref(items[activeIdx].dataset.slug));
       setSearchOpen(false);
       input.blur();
     } else if (ev.key === "Escape") {
@@ -803,7 +952,7 @@ function setupSearch() {
   results.addEventListener("click", (ev) => {
     const el = ev.target.closest(".search-result");
     if (!el) return;
-    location.hash = docHref(el.dataset.slug).slice(1);
+    navigateTo(docHref(el.dataset.slug));
     setSearchOpen(false);
     input.value = "";
   });
@@ -877,6 +1026,8 @@ async function init() {
   setupSearch();
   setupLangToggle();
   setupMobileMenu();
+  setupClientNavigation();
+  window.addEventListener("popstate", route);
   window.addEventListener("hashchange", route);
   document.addEventListener("helix-open-doc", (ev) => {
     openDocPage(ev.detail?.slug);

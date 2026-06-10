@@ -213,6 +213,19 @@ def run_docs_server_forever(
         def _docs_chat_disabled(self) -> bool:
             return not _env_bool("HELIX_DOCS_CHAT_ENABLED") or not _docs_chat_token()
 
+        def _spa_index_path(self, path: str) -> str | None:
+            clean = path.split("?", 1)[0].rstrip("/") or "/"
+            if clean.startswith("/api/"):
+                return None
+            if clean.startswith("/assets/") or clean.startswith("/content/"):
+                return None
+            # Static files (json, md, xml, …) must not be replaced with index.html.
+            if "." in Path(clean).name:
+                return None
+            if clean in {"/", "/docs"} or clean.startswith("/docs/"):
+                return "/index.html"
+            return None
+
         def do_GET(self) -> None:
             path = self.path.split("?", 1)[0].rstrip("/")
             if path == "/api/docs-chat/config.json":
@@ -239,6 +252,9 @@ def run_docs_server_forever(
                 )
                 _proxy_gateway_response(self, req)
                 return
+            spa_index = self._spa_index_path(self.path)
+            if spa_index is not None:
+                self.path = spa_index
             super().do_GET()
 
         def do_POST(self) -> None:
