@@ -2,13 +2,19 @@
 
 from __future__ import annotations
 
+import re
+from dataclasses import dataclass
+
 from fastapi import Header, HTTPException
 
 from config import settings
 
-# Set by gateway lifespan
+# Legacy re-export for tests patching api.deps.api_key_manager
 api_key_manager = None
 rate_limiter = None
+
+_SESSION_KEY_MAX = 256
+_CONTROL_CHARS = re.compile(r"[\r\n\x00]")
 
 
 def _extract_api_key(
@@ -16,23 +22,27 @@ def _extract_api_key(
     x_api_key: str | None,
 ) -> str | None:
     if authorization and authorization.startswith("Bearer "):
-        return authorization[7:]
+        return authorization[7:].strip()
     if x_api_key:
-        return x_api_key
+        return x_api_key.strip()
     return None
 
 
 async def _validate_key(api_key: str, *, default_limit: int) -> dict:
-    if api_key_manager is None:
+    from api import state
+
+    manager = state.api_key_manager
+    limiter = state.rate_limiter
+    if manager is None:
         raise HTTPException(status_code=503, detail="API key manager not initialized")
 
-    key_info = await api_key_manager.validate_api_key(api_key)
+    key_info = await manager.validate_api_key(api_key)
     if not key_info:
         raise HTTPException(status_code=401, detail="Invalid API key")
 
     limit = int(key_info.get("rate_limit") or default_limit)
-    key_hash = api_key_manager.hash_key(api_key)
-    if rate_limiter and not rate_limiter.check_rate_limit(key_hash, limit):
+    key_hash = manager.hash_key(api_key)
+    if limiter and not limiter.check_rate_limit(key_hash, limit):
         raise HTTPException(status_code=429, detail="Rate limit exceeded")
 
     return key_info
@@ -41,17 +51,22 @@ async def _validate_key(api_key: str, *, default_limit: int) -> dict:
 async def verify_api_key(
     authorization: str | None = Header(None),
     x_api_key: str | None = Header(None),
-) -> dict | None:
-    """Optional auth for public /v1 routes when require_auth is disabled."""
-    if not settings.effective_require_auth:
-        api_key = _extract_api_key(authorization, x_api_key)
-        if not api_key:
-            return None
-        return await _validate_key(api_key, default_limit=settings.rate_limit_rpm)
-
+) -> dict:
+    """Require a valid API key on all protected routes."""
     api_key = _extract_api_key(authorization, x_api_key)
     if not api_key:
         raise HTTPException(status_code=401, detail="API key required")
+    return await _validate_key(api_key, default_limit=settings.rate_limit_rpm)
+
+
+async def verify_optional_api_key(
+    authorization: str | None = Header(None),
+    x_api_key: str | None = Header(None),
+) -> dict | None:
+    """Health endpoints: validate key when provided, else None."""
+    api_key = _extract_api_key(authorization, x_api_key)
+    if not api_key:
+        return None
     return await _validate_key(api_key, default_limit=settings.rate_limit_rpm)
 
 
@@ -59,15 +74,57 @@ async def verify_admin_key(
     authorization: str | None = Header(None),
     x_api_key: str | None = Header(None),
 ) -> dict:
-    """Admin routes always require a valid admin API key."""
+    """Admin routes require a valid key with admin permission."""
     from core.security.permissions import PermissionChecker
 
-    api_key = _extract_api_key(authorization, x_api_key)
-    if not api_key:
-        raise HTTPException(status_code=401, detail="Admin API key required")
-
-    key_info = await _validate_key(api_key, default_limit=settings.admin_rate_limit_rpm)
+    key_info = await verify_api_key(authorization=authorization, x_api_key=x_api_key)
     checker = PermissionChecker(key_info["permissions"])
     if not checker.is_admin():
         raise HTTPException(status_code=403, detail="Admin permission required")
     return key_info
+
+
+def _header_alias(
+    helix: str | None,
+    hermes: str | None,
+) -> str | None:
+    value = (helix or hermes or "").strip()
+    return value or None
+
+
+def _validate_session_key(value: str | None) -> str | None:
+    if not value:
+        return None
+    if len(value) > _SESSION_KEY_MAX or _CONTROL_CHARS.search(value):
+        raise HTTPException(status_code=400, detail="Invalid session key header")
+    return value
+
+
+@dataclass(frozen=True, slots=True)
+class RequestContext:
+    profile: str
+    conversation_id: str
+    session_key: str | None
+    api_key_info: dict
+
+
+def resolve_profile_name(
+    *,
+    header_profile: str | None,
+    model: str | None,
+    host_profile: str,
+) -> str:
+    """Profile routing: X-Helix-Profile > model field > gateway host profile."""
+    if header_profile and header_profile.strip():
+        return header_profile.strip()
+    if model and model.strip() and model.strip() not in {"helix", "helix-agent", "hermes-agent"}:
+        return model.strip()
+    return host_profile
+
+
+async def get_registry():
+    from api import state
+
+    if state.registry is None:
+        raise HTTPException(status_code=503, detail="Gateway registry not initialized")
+    return state.registry
