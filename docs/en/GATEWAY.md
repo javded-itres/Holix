@@ -70,16 +70,75 @@ Admin routes (`/admin/*`) **always** require an admin API key.
 | Chat | `POST /v1/chat/completions` |
 | Hermes | `GET /v1/models`, `/v1/capabilities`, `/v1/runs`, `/api/sessions`, `/api/jobs` |
 | Management | `GET/POST /api/helix/profiles`, `…/models`, `…/telegram`, `…/reload` |
-| Admin | `POST /admin/api-keys`, `GET /metrics` |
+| Admin | `POST /admin/api-keys`, `GET /admin/metrics`, `GET /metrics` (Prometheus) |
 
-Create first admin key:
+## Gateway API keys
+
+Gateway API keys (`hx_…`) authenticate HTTP clients. There is **no** `helix` CLI command for creating them yet — use the admin API or Swagger UI.
+
+**Bootstrap the first admin key** (one-time, when no keys exist):
 
 ```bash
-# Bootstrap with auth disabled once, or use helix admin key create from CLI
 export HELIX_REQUIRE_AUTH=false
 helix gateway start -f
-# POST /admin/api-keys with permissions including admin
+# Create admin key (see below), save the returned hx_… value
 # Then set HELIX_REQUIRE_AUTH=true and restart
 ```
 
-Interactive API docs: `http://127.0.0.1:8000/docs` (OpenAPI).
+**Create keys** (requires an existing admin key):
+
+```bash
+curl -sS -X POST "http://127.0.0.1:8000/admin/api-keys?name=my-app&permissions=read,write&rate_limit=100" \
+  -H "Authorization: Bearer hx_admin_…"
+```
+
+Or use Swagger at `/docs` → **Authorize** → paste your `hx_…` key → try `POST /admin/api-keys`.
+
+Keys are shown **once** on create. Permissions: `read`, `write`, `execute`, `admin`. See [GATEWAY_API.md](GATEWAY_API.md) and [SECURITY.md](SECURITY.md).
+
+**Profile access keys** (`hp_…`) are a separate layer for `/api/helix/*` — create via `helix profile key init`, not via `/admin/api-keys`.
+
+## Interactive API docs
+
+FastAPI serves OpenAPI documentation on the gateway port (default `8000`):
+
+| URL | Format |
+|-----|--------|
+| `/docs` | Swagger UI — try endpoints in the browser |
+| `/redoc` | ReDoc — readable reference |
+| `/openapi.json` | Raw OpenAPI 3 schema |
+
+Example: `http://127.0.0.1:8000/docs`
+
+### Swagger Authorize
+
+1. Open `/docs`
+2. Click **Authorize** (lock icon)
+3. Under **HelixApiKey**, paste your gateway API key (`hx_…`) — with or without the `Bearer ` prefix
+4. **Authorize** → close the dialog
+5. Protected endpoints now send `Authorization: Bearer hx_…` (also accepted as `X-API-Key`)
+
+`/health` and `/v1/health` work without a key. All other routes require auth when `HELIX_REQUIRE_AUTH=true`.
+
+## Documentation site (`--with-docs`)
+
+Bundle the Helix documentation site with the gateway:
+
+```bash
+helix gateway start --with-docs
+# or: HELIX_GATEWAY_WITH_DOCS=1 helix gateway start
+```
+
+Serves the built docs SPA on a companion port (default `8080`) alongside the API. Build content first with `helix docs build`. Optional docs-chat widget uses a **separate** token (`HELIX_DOCS_CHAT_TOKEN`) — not the gateway `hx_` key. See [DEPLOYMENT.md](DEPLOYMENT.md#documentation-site-build-and-seo).
+
+## Metrics
+
+Two metrics surfaces — both require an **admin** API key:
+
+| Endpoint | Format | Description |
+|----------|--------|-------------|
+| `GET /metrics` | Prometheus text | Root-level scrape target (common for Prometheus config) |
+| `GET /admin/metrics` | JSON | In-memory counters and summary (`metrics`, `summary` fields) |
+| `GET /admin/metrics/prometheus` | Prometheus text | Same Prometheus output as `/metrics` (hidden from OpenAPI schema) |
+
+Disabled when `HELIX_ENABLE_PROMETHEUS_METRICS=false` — `/metrics` and `/admin/metrics/prometheus` return 404; `/admin/metrics` JSON still works.

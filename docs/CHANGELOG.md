@@ -14,8 +14,10 @@
 - **Telegram access flow** — admin notifications on `/start`; slash menu hidden until approve; `telegram sync-menu`
 
 ### Documentation
-- **GATEWAY_API.md** (EN/RU) — full Gateway API reference: Hermes 1:1 mapping, management endpoints, SaaS curl workflow
-- **GATEWAY.md** (EN/RU) — multi-profile gateway, updated auth defaults, link to API reference
+- **GATEWAY_API.md** (EN/RU) — **complete API reference** (~110 endpoints): auth, Swagger Authorize, Hermes, sessions, jobs, `/api/helix/`, admin, metrics, docs-chat; curl examples per section
+- **GATEWAY.md** (EN/RU) — interactive `/docs`, API key bootstrap, metrics endpoints, bundled docs site
+- **CLI.md**, **SECURITY.md**, **README** (EN/RU) — gateway API keys (`hx_` vs `hp_`), two-layer auth, docs-chat token
+- **web-docs** — nav label "Complete API Reference" / "Полный справочник API", updated SEO for `gateway-api`
 - **PROFILES**, **CONFIGURATION**, **USER_GUIDE**, **START_HERE**, **DOCTOR** (EN/RU) — agent identity files and onboarding
 - **CHANGELOG** — unreleased features from `feature/telegram-profiles`
 

@@ -1,84 +1,225 @@
-# Gateway API Reference
+# Helix Gateway API — Complete Reference
 
-Helix gateway exposes two HTTP API layers on a **single multi-profile process**:
+Helix runs a **single multi-profile HTTP gateway** with three public surfaces:
 
-1. **Hermes-compatible API** — drop-in for Open WebUI, LobeChat, and other Hermes clients
-2. **Helix Management API** — control plane for SaaS: profiles, models, MCP, skills, Telegram admin
+| Surface | Prefix | Purpose |
+|---------|--------|---------|
+| **Hermes-compatible API** | `/v1`, `/api/sessions`, `/api/jobs` | Drop-in for Open WebUI, LobeChat, Hermes clients |
+| **Helix agent extensions** | `/v1/chat/completions`, permissions, plans | OpenAI chat + tool permissions + plan review |
+| **Helix Management API** | `/api/helix/` | SaaS control plane: profiles, models, MCP, skills, Telegram |
 
 Operational guide (start/stop, ports, logs): [GATEWAY.md](GATEWAY.md).
 
 ---
 
-## Base URL and version
+## Table of contents
+
+1. [Base URL and interactive docs](#base-url-and-interactive-docs)
+2. [Authentication](#authentication)
+3. [Common concepts](#common-concepts)
+4. [SaaS workflow examples](#saas-workflow-examples)
+5. [Health & gateway info](#health--gateway-info)
+6. [Admin API](#admin-api)
+7. [Hermes API (`/v1`)](#hermes-api-v1)
+8. [Agent extensions (`/v1`)](#agent-extensions-v1)
+9. [Sessions (`/api/sessions`)](#sessions-apisessions)
+10. [Cron jobs (`/api/jobs`)](#cron-jobs-apijobs)
+11. [Management: profiles](#management-profiles)
+12. [Management: models](#management-models)
+13. [Management: skills](#management-skills)
+14. [Management: MCP](#management-mcp)
+15. [Management: config & env](#management-config--env)
+16. [Management: global settings](#management-global-settings)
+17. [Management: Telegram](#management-telegram)
+18. [Docs-site chat API](#docs-site-chat-api)
+19. [Multi-profile architecture](#multi-profile-architecture)
+20. [Security notes](#security-notes)
+
+---
+
+## Base URL and interactive docs
+
+Default base URL (per profile `.env`):
 
 ```text
 http://127.0.0.1:8000
 ```
 
-Gateway version is reported by `GET /` (`version`, `host_profile`, `loaded_profiles`).
+| Resource | URL | Auth |
+|----------|-----|------|
+| Swagger UI | `http://HOST:PORT/docs` | — |
+| ReDoc | `http://HOST:PORT/redoc` | — |
+| OpenAPI JSON | `http://HOST:PORT/openapi.json` | — |
+
+### Swagger Authorize (one token for all requests)
+
+1. Open `/docs`
+2. Click **Authorize** (lock icon)
+3. Under **HelixApiKey**, paste your gateway key (`hx_…`) **without** the `Bearer` prefix — Swagger adds it automatically
+4. Try any protected endpoint with **Try it out**
+
+`X-API-Key: hx_…` also works in curl and code but is not configured via the Authorize dialog.
+
+Gateway metadata (requires API key):
+
+```bash
+curl -sS -H "Authorization: Bearer $API_KEY" http://127.0.0.1:8000/
+```
+
+```json
+{
+  "name": "Helix API",
+  "version": "0.2.0",
+  "status": "running",
+  "host_profile": "default",
+  "loaded_profiles": ["default"],
+  "require_auth": true
+}
+```
 
 ---
 
 ## Authentication
 
-### API key (layer 1)
+Helix uses up to **three independent auth mechanisms** depending on the route.
 
-All routes **except** `GET /health` and `GET /v1/health` require a valid API key when `HELIX_REQUIRE_AUTH=true` (default).
+### Layer 1 — Gateway API key (`hx_…`)
+
+Required on almost all routes when `HELIX_REQUIRE_AUTH=true` (default).
 
 | Header | Example |
 |--------|---------|
 | `Authorization` | `Bearer hx_…` |
 | `X-API-Key` | `hx_…` |
 
-Permissions: `read`, `write`, `execute`, `admin` (see [SECURITY.md](SECURITY.md)).
+**Permissions** (comma-separated at creation): `read`, `write`, `execute`, `admin`. See [SECURITY.md](SECURITY.md).
 
-Create keys via `POST /admin/api-keys` (admin permission required).
+**Create a key** — no CLI command yet; use HTTP or Swagger:
 
-### Profile access key (layer 2)
+```bash
+# Requires existing admin key, OR bootstrap with HELIX_REQUIRE_AUTH=false once
+curl -sS -X POST "http://127.0.0.1:8000/admin/api-keys" \
+  -H "Authorization: Bearer $ADMIN_KEY" \
+  -d "name=my-app&permissions=read,write,execute&rate_limit=100"
+```
 
-`/api/helix/*` management routes also require profile authorization:
+Response includes `api_key` — **shown once**. Store it securely.
 
-| Who | Headers | Scope |
-|-----|---------|-------|
-| Profile owner | `X-Helix-Profile-Key: hp_…` | Own profile only |
-| Gateway admin | API key with `admin` **or** master key of admin profile | All profiles |
+**Bootstrap first admin key:**
+
+```bash
+helix profile env --edit   # HELIX_REQUIRE_AUTH=false
+helix gateway reload
+curl -sS -X POST "http://127.0.0.1:8000/admin/api-keys" \
+  -d "name=admin&permissions=read,write,execute,admin&rate_limit=1000"
+# Save hx_…, set HELIX_REQUIRE_AUTH=true, helix gateway reload
+```
+
+### Layer 2 — Profile access key (`hp_…`)
+
+Required for `/api/helix/*` routes (in addition to gateway API key):
+
+```http
+X-Helix-Profile-Key: hp_…
+```
+
+| Caller | Headers | Scope |
+|--------|---------|-------|
+| Profile owner | Gateway key + `X-Helix-Profile-Key` for own profile | Single profile |
+| Platform admin | Gateway key with `admin` permission **or** admin profile master key | All profiles |
 
 Admin profile name defaults to `admin` (`HELIX_TELEGRAM_ADMIN_PROFILE`).
 
-### Public endpoints
+Profile keys are created via CLI (`helix profile key init`) or Management API (`POST …/key/init`). **Not** the same as `hx_…` gateway keys.
+
+### Layer 3 — Docs-chat token (website widget only)
+
+Routes under `/v1/docs/chat/*` (except `/config`) use `HELIX_DOCS_CHAT_TOKEN`:
+
+| Header | Example |
+|--------|---------|
+| `Authorization` | `Bearer <docs-chat-token>` |
+| `X-Docs-Chat-Token` | `<docs-chat-token>` |
+
+Separate from gateway API keys. See [Docs-site chat API](#docs-site-chat-api).
+
+### Public endpoints (no gateway API key)
 
 | Method | Path |
 |--------|------|
 | GET | `/health` |
 | GET | `/v1/health` |
+| GET | `/health/detailed` |
+| GET | `/v1/docs/chat/config` |
 
 ---
 
-## Profile routing (chat / Hermes surface)
+## Common concepts
 
-Priority (first non-empty wins):
+### Profile routing
 
-1. `X-Helix-Profile` or `X-Hermes-Profile`
-2. `model` field in `/v1/chat/completions` or `/v1/responses` (profile name)
-3. Gateway host profile (`HELIX_PROFILE` at process start)
+For chat, Hermes, sessions, and jobs, profile is resolved in order:
 
-### Session continuity (header aliases)
+1. `X-Helix-Profile` or `X-Hermes-Profile` header
+2. `model` field in request body (profile name; not `helix`, `helix-agent`, `hermes-agent`)
+3. Gateway **host profile** (`HELIX_PROFILE` at process start)
 
-| Purpose | Helix | Hermes (alias) |
-|---------|-------|----------------|
+### Session headers (aliases)
+
+| Purpose | Helix | Hermes alias |
+|---------|-------|--------------|
 | Conversation / transcript id | `X-Helix-Session-Id` | `X-Hermes-Session-Id` |
 | Stable memory scope | `X-Helix-Session-Key` | `X-Hermes-Session-Key` |
 
-Session key max 256 chars; control characters rejected.
+Session key: max 256 chars; control characters rejected → `400`.
+
+### `reload_required`
+
+Management mutations that change running agent config return `"reload_required": true`. Apply without restarting uvicorn:
+
+```bash
+curl -sS -X POST "$HELIX_URL/api/helix/profiles/$PROFILE/reload" \
+  -H "Authorization: Bearer $API_KEY" \
+  -H "X-Helix-Profile-Key: $PROFILE_KEY"
+```
+
+### Masked secrets
+
+Management `GET` responses mask API keys, tokens, and sensitive env vars. Plaintext is returned **once** on create/init/rotate.
+
+### Errors
+
+| Code | Meaning |
+|------|---------|
+| 400 | Invalid body, headers, or business rule |
+| 401 | Missing or invalid API key / profile key / docs-chat token |
+| 403 | Valid key but insufficient permission |
+| 404 | Resource not found or feature disabled |
+| 409 | Conflict (e.g. profile exists, admin already assigned) |
+| 429 | Per-key rate limit exceeded |
+| 503 | Gateway not initialized (registry, key manager, agent) |
+
+### Rate limiting
+
+Each API key has `rate_limit` (requests per minute). Docs-chat has separate `HELIX_DOCS_CHAT_RATE_LIMIT_RPM` per `client_id`.
+
+### Server-Sent Events (SSE)
+
+Streaming endpoints return `text/event-stream`:
+
+- `POST /v1/chat/completions` with `"stream": true`
+- `GET /v1/runs/{id}/events`
+- `POST /api/sessions/{id}/chat/stream`
+- `POST /v1/docs/chat` with `"stream": true`
 
 ---
 
-## SaaS workflow (curl)
+## SaaS workflow examples
 
 ```bash
 export HELIX_URL=http://127.0.0.1:8000
-export ADMIN_KEY=hx_admin_…
-export ADMIN_PROFILE_KEY=hp_…   # master key of admin profile
+export ADMIN_KEY=hx_…
+export ADMIN_PROFILE_KEY=hp_…
 
 # 1. Create tenant profile (admin)
 curl -sS -X POST "$HELIX_URL/api/helix/profiles" \
@@ -103,194 +244,684 @@ curl -sS "$HELIX_URL/v1/chat/completions" \
   -H "Authorization: Bearer $TENANT_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{"model":"tenant-42","messages":[{"role":"user","content":"hi"}]}'
-
-# 5. Telegram setup for tenant bot profile
-curl -sS -X POST "$HELIX_URL/api/helix/profiles/tenant-42/telegram/setup" \
-  -H "Authorization: Bearer $ADMIN_KEY" \
-  -H "X-Helix-Profile-Key: $TENANT_PROFILE_KEY" \
-  -H "Content-Type: application/json" \
-  -d '{"bot_token":"123456789:AAH…"}'
-
-# 6. Approve Telegram user (admin only)
-curl -sS -X POST "$HELIX_URL/api/helix/profiles/tenant-42/telegram/requests/12345/approve" \
-  -H "Authorization: Bearer $ADMIN_KEY" \
-  -H "X-Helix-Profile-Key: $ADMIN_PROFILE_KEY" \
-  -H "Content-Type: application/json" \
-  -d '{"profile":"tenant-42"}'
 ```
 
-Management mutations return `"reload_required": true` when the running agent must be refreshed. Call `POST /api/helix/profiles/{id}/reload` to apply config changes without restarting uvicorn.
+More examples in each endpoint section below.
 
 ---
 
-## Hermes-compatible API
+## Health & gateway info
 
-Mapping to [Hermes API Server](https://github.com/NousResearch/hermes-agent/blob/main/website/docs/user-guide/features/api-server.md) endpoints.
+### `GET /health`
 
-| Hermes | Helix | Notes |
-|--------|-------|-------|
-| `GET /v1/models` | ✅ | Lists profile names as model ids |
-| `GET /v1/capabilities` | ✅ | Agent capabilities |
-| `GET /v1/health` | ✅ | Public |
-| `GET /health/detailed` | ✅ | Extended health (auth optional) |
-| `GET /v1/toolsets` | ✅ | From agent tools |
-| `GET /v1/skills` | ✅ | `[{name, description, category}]` |
-| `POST /v1/responses` | ✅ | SQLite store, LRU 100 |
-| `GET /v1/responses/{id}` | ✅ | |
-| `DELETE /v1/responses/{id}` | ✅ | |
-| `POST /v1/runs` | ✅ | In-memory + SSE |
-| `GET /v1/runs/{id}` | ✅ | |
-| `GET /v1/runs/{id}/events` | ✅ | SSE stream |
-| `POST /v1/runs/{id}/stop` | ✅ | |
-| `POST /v1/runs/{id}/approval` | ✅ | Human-in-the-loop |
-| `GET/POST/PATCH/DELETE /api/jobs` | ✅ | Cron jobs per profile |
-| `POST /api/jobs/{id}/pause\|resume\|run` | ✅ | |
-| `GET/POST /api/sessions` | ✅ | |
-| `GET/PATCH/DELETE /api/sessions/{id}` | ✅ | |
-| `GET /api/sessions/{id}/messages` | ✅ | |
-| `POST /api/sessions/{id}/fork` | ✅ | |
-| `POST /api/sessions/{id}/chat` | ✅ | |
-| `POST /api/sessions/{id}/chat/stream` | ✅ | SSE |
+**Auth:** Public
 
-### Helix legacy extensions (`/v1`)
+Basic liveness: `status`, `timestamp`, `agent_ready`, `require_auth`.
 
-| Method | Path | Description |
-|--------|------|-------------|
-| POST | `/v1/chat/completions` | OpenAI-compatible chat |
-| GET | `/v1/conversations/{id}` | Conversation history |
-| GET | `/v1/tools` | Tool list |
-| POST | `/v1/search` | Memory search |
-| POST/GET/DELETE | `/v1/permissions/*` | Tool permissions |
-| POST | `/v1/confirmations/resolve` | Approve risky actions |
-| POST/GET | `/v1/plan/*` | Plan review |
+```bash
+curl -sS http://127.0.0.1:8000/health
+```
 
----
+### `GET /v1/health`
 
-## Helix Management API (`/api/helix/`)
+**Auth:** Public
 
-Prefix for control-plane operations. All routes require API key + profile access (see above).
+Minimal Hermes health: `{"status":"ok"}`.
 
-### Profiles — `/api/helix/profiles`
+### `GET /health/detailed`
 
-| Method | Path | Description |
-|--------|------|-------------|
-| GET | `/api/helix/profiles` | List profiles (admin) |
-| POST | `/api/helix/profiles` | Create profile (admin) |
-| GET | `/api/helix/profiles/{id}` | Profile details |
-| GET | `/api/helix/profiles/{id}/status` | Agent + companions status |
-| DELETE | `/api/helix/profiles/{id}` | Delete profile (admin) |
-| POST | `/api/helix/profiles/{id}/reload` | Reload agent + Telegram + cron |
-| GET | `/api/helix/profiles/{id}/key/status` | Access key status |
-| POST | `/api/helix/profiles/{id}/key/init` | Enable profile key + jail |
-| POST | `/api/helix/profiles/{id}/key/rotate` | Rotate key (body: `current_key`) |
-| POST | `/api/helix/profiles/{id}/key/disable` | Remove key (admin) |
-| GET | `/api/helix/profiles/{id}/jail` | Workspace jail status |
-| POST | `/api/helix/profiles/{id}/jail/enable` | Enable jail (optional `path`) |
-| POST | `/api/helix/profiles/{id}/jail/disable` | Disable jail |
+**Auth:** Public (no API key)
 
-### Models — `/api/helix/profiles/{id}/models`
+Extended diagnostics: `host_profile`, `loaded_profiles`, `active_runs`, `companions` per profile, bind host/port.
 
-| Method | Path | Description |
-|--------|------|-------------|
-| GET | `…/presets` | Provider catalog |
-| GET | `…/providers` | Configured providers (keys masked) |
-| POST | `…/providers` | Add preset provider |
-| DELETE | `…/providers/{name}` | Remove provider |
-| POST | `…/providers/{name}/test` | Probe + discover models |
-| GET/PATCH | `…/agent-models` | Agent model routing |
-| GET/PATCH | `…/fallbacks` | Fallback provider chain |
+```bash
+curl -sS http://127.0.0.1:8000/health/detailed
+```
 
-### Skills — `/api/helix/profiles/{id}/skills`
+### `GET /`
 
-| Method | Path | Description |
-|--------|------|-------------|
-| GET | `…/skills` | List skills (`?agent=`, `?limit=`) |
-| GET | `…/skills/search?q=` | Semantic search |
-| GET | `…/skills/{name}` | Skill detail |
-| GET/PATCH | `…/skills/assignments` | Per-agent skill allowlists |
-| POST | `…/skills/seed-bundled` | Install bundled skills |
+**Auth:** API key
 
-### MCP — `/api/helix/profiles/{id}/mcp`
+Gateway version, host profile, loaded profiles. See [Base URL](#base-url-and-interactive-docs).
 
-| Method | Path | Description |
-|--------|------|-------------|
-| GET | `…/servers` | List servers + assignments |
-| POST | `…/servers` | Create server |
-| GET | `…/servers/{name}` | Server config |
-| DELETE | `…/servers/{name}` | Remove server |
-| POST | `…/servers/{name}/test` | Connect + list tools |
-| GET/PATCH | `…/assignments` | Agent ↔ server mapping |
-| GET | `…/popular` | Curated install list |
-| POST | `…/install` | Install popular or git MCP |
+### `GET /metrics`
 
-### Config — `/api/helix/profiles/{id}`
+**Auth:** Admin API key
 
-| Method | Path | Description |
-|--------|------|-------------|
-| GET/PATCH | `…/config` | Profile YAML (secrets masked) |
-| GET/PATCH | `…/env` | Profile `.env` (secrets masked) |
+Prometheus text exposition (when `enable_prometheus_metrics=true`). Same format as admin prometheus endpoint.
 
-### Global — `/api/helix/global` (admin only)
-
-| Method | Path | Description |
-|--------|------|-------------|
-| POST | `/api/helix/global/init` | Create global config + env |
-| GET/PATCH | `/api/helix/global/config` | `~/.helix/global/config.yaml` |
-| GET/PATCH | `/api/helix/global/env` | `~/.helix/global/.env` |
-
-### Telegram — `/api/helix/profiles/{id}/telegram`
-
-CLI equivalents in [TELEGRAM.md](TELEGRAM.md).
-
-| Method | Path | CLI | Auth |
-|--------|------|-----|------|
-| GET | `…/status` | `telegram status` | owner/admin |
-| POST | `…/setup` | `telegram setup` | owner/admin |
-| GET | `…/requests` | `telegram requests list` | owner/admin |
-| POST | `…/requests/{user_id}/approve` | `telegram requests approve` | **admin** |
-| POST | `…/requests/{user_id}/reject` | `telegram requests reject` | **admin** |
-| GET | `…/admin` | `telegram admin show` | owner/admin |
-| DELETE | `…/admin` | `telegram admin clear` | **admin** |
-| GET | `…/map` | `telegram map list` | owner/admin |
-| POST | `…/map` | `telegram map set` | owner/admin |
-| DELETE | `…/map/{user_id}` | `telegram map remove` | owner/admin |
-| POST | `…/sync-menu` | `telegram sync-menu` | owner/admin |
-
-`POST …/setup` body: `{"bot_token":"…","also_project_env":false}`. Verifies token via Telegram `getMe`, saves `telegram.env`, reloads Telegram companion when gateway companions are active.
-
-`POST …/approve` body: `{"profile":"alice"}` or `{"create_profile":"bob"}` or `{"set_admin":true}`.
+```bash
+curl -sS -H "Authorization: Bearer $ADMIN_KEY" http://127.0.0.1:8000/metrics
+```
 
 ---
 
-## Admin routes (`/admin`)
+## Admin API
 
-| Method | Path | Description |
-|--------|------|-------------|
-| POST | `/admin/api-keys` | Create API key |
-| GET | `/admin/api-keys` | List keys |
-| DELETE | `/admin/api-keys/{id}` | Revoke key |
-| GET | `/metrics` | Prometheus (admin; disabled unless enabled) |
+Prefix `/admin`. **Always** requires API key with `admin` permission.
+
+### `POST /admin/api-keys`
+
+Create a new gateway API key.
+
+**Query parameters:**
+
+| Param | Default | Description |
+|-------|---------|-------------|
+| `name` | required | Human-readable label |
+| `permissions` | `read,write` | Comma-separated permissions |
+| `rate_limit` | `100` | Requests per minute |
+
+```bash
+curl -sS -X POST "http://127.0.0.1:8000/admin/api-keys?name=ci&permissions=read,execute&rate_limit=200" \
+  -H "Authorization: Bearer $ADMIN_KEY"
+```
+
+**Response:** `api_key` (once), `name`, `permissions`, `rate_limit`, `warning`.
+
+### `GET /admin/api-keys`
+
+List active keys (metadata only — no secret values).
+
+### `DELETE /admin/api-keys/{key_id}`
+
+Revoke key by numeric `id` from list response (path param name in OpenAPI: `key_id`; pass the key **id**, not the secret).
+
+### `GET /admin/metrics`
+
+JSON application metrics + summary.
+
+### `GET /admin/metrics/prometheus`
+
+Prometheus text (hidden from OpenAPI schema; same family as `GET /metrics`).
+
+---
+
+## Hermes API (`/v1`)
+
+Hermes-compatible surface. All routes require gateway API key unless noted.
+
+Profile headers apply where noted. See [Hermes agent docs](https://github.com/NousResearch/hermes-agent/blob/main/website/docs/user-guide/features/api-server.md).
+
+### `GET /v1/models`
+
+List Helix profiles as OpenAI-style models (`id` = profile name).
+
+```bash
+curl -sS -H "Authorization: Bearer $API_KEY" http://127.0.0.1:8000/v1/models
+```
+
+### `GET /v1/capabilities`
+
+Feature flags and endpoint map for Hermes clients.
+
+### `GET /v1/toolsets`
+
+Agent tools grouped as a single `"core"` toolset for the resolved profile.
+
+### `GET /v1/skills`
+
+Skills list: `[{name, description, category}]`.
+
+### `POST /v1/responses`
+
+Create a stored response (Responses API). Requires `read` permission.
+
+**Body (`ResponsesCreateRequest`):**
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `model` | string | Profile name (default `helix`) |
+| `input` | string or array | User input |
+| `instructions` | string? | System instructions |
+| `store` | bool | Persist in SQLite store (default true) |
+| `previous_response_id` | string? | Chain responses |
+| `conversation` | string? | Conversation id |
+
+### `GET /v1/responses/{response_id}`
+
+Retrieve stored response.
+
+### `DELETE /v1/responses/{response_id}`
+
+Delete stored response.
+
+### `POST /v1/runs`
+
+Submit async agent run. Requires `execute` or `read`.
+
+**Body (`RunsCreateRequest`):** `model`, `input`, `session_id`, `instructions`, `conversation_history`, `previous_response_id`.
+
+### `GET /v1/runs/{run_id}`
+
+Poll run status and output.
+
+### `GET /v1/runs/{run_id}/events`
+
+SSE stream of run events until completion.
+
+### `POST /v1/runs/{run_id}/stop`
+
+Request cancellation.
+
+### `POST /v1/runs/{run_id}/approval`
+
+Human-in-the-loop approval.
+
+**Body:** `{"decision":"approve"|"reject", "comment": "…"}`
+
+---
+
+## Agent extensions (`/v1`)
+
+Helix-specific agent endpoints (OpenAI chat, permissions, plans).
+
+### `POST /v1/chat/completions`
+
+OpenAI-compatible chat. Requires `read` on API key.
+
+**Body:** standard `ChatCompletionRequest` — `model`, `messages`, optional `stream`, `conversation_id`.
+
+```bash
+curl -sS http://127.0.0.1:8000/v1/chat/completions \
+  -H "Authorization: Bearer $API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "default",
+    "messages": [{"role": "user", "content": "Hello"}]
+  }'
+```
+
+With streaming: `"stream": true` → SSE chunks.
+
+### `GET /v1/conversations/{conversation_id}`
+
+Conversation history. Query: `limit` (default 30).
+
+### `GET /v1/tools`
+
+List tools available to the agent for the resolved profile.
+
+### `POST /v1/search`
+
+Memory search. Query params: `query`, `top_k`.
+
+### `POST /v1/permissions/grant`
+
+Grant tool permission. Requires `execute`. Params: `tool_name`, `risk_level`, `scope` (`session`|`permanent`).
+
+### `GET /v1/permissions`
+
+List current permission grants.
+
+### `DELETE /v1/permissions/{grant_key}`
+
+Revoke grant. Query: `scope`.
+
+### `POST /v1/confirmations/resolve`
+
+Resolve risky-action confirmation from agent UI flow.
+
+### `POST /v1/plan/review`
+
+Resolve plan review: `review_id`, `choice`, `feedback`.
+
+### `GET /v1/plans`
+
+List plans. Query: `limit` (default 20).
+
+### `GET /v1/plans/{plan_id}`
+
+Get plan by id.
+
+---
+
+## Sessions (`/api/sessions`)
+
+Hermes session store per profile.
+
+### `GET /api/sessions`
+
+List sessions. Query: `limit` (50), `offset` (0). Profile via `X-Helix-Profile`.
+
+### `POST /api/sessions`
+
+Create session. Body: `{"title":"","profile":null}`.
+
+### `GET /api/sessions/{session_id}`
+
+Get session metadata.
+
+### `PATCH /api/sessions/{session_id}`
+
+Update `title`, `end_reason`.
+
+### `DELETE /api/sessions/{session_id}`
+
+Delete session.
+
+### `GET /api/sessions/{session_id}/messages`
+
+Messages for session. Query: `limit` (50).
+
+### `POST /api/sessions/{session_id}/fork`
+
+Fork session to new id.
+
+### `POST /api/sessions/{session_id}/chat`
+
+Chat in session context. Body: `{"input":"…","model":null}`. Requires `read`.
+
+### `POST /api/sessions/{session_id}/chat/stream`
+
+Same as chat but SSE stream.
+
+---
+
+## Cron jobs (`/api/jobs`)
+
+Per-profile scheduled tasks (gateway cron companion).
+
+### `GET /api/jobs`
+
+List cron jobs for resolved profile.
+
+### `POST /api/jobs`
+
+Create job.
+
+**Body (`JobCreateRequest`):**
+
+| Field | Description |
+|-------|-------------|
+| `task` | Natural-language or instruction for agent |
+| `cron_expression` | Standard cron |
+| `name` | Display name |
+| `enabled` | Active flag |
+| `notify_chat_id` | Optional Telegram chat for notifications |
+| `session_id` | Tie to session |
+
+```bash
+curl -sS -X POST http://127.0.0.1:8000/api/jobs \
+  -H "Authorization: Bearer $API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"task":"Daily summary","cron_expression":"0 9 * * *","name":"morning"}'
+```
+
+### `GET /api/jobs/{job_id}`
+
+Get job details.
+
+### `PATCH /api/jobs/{job_id}`
+
+Update any of: `task`, `cron_expression`, `name`, `enabled`, `notify_chat_id`, `session_id`.
+
+### `DELETE /api/jobs/{job_id}`
+
+Remove job.
+
+### `POST /api/jobs/{job_id}/pause`
+
+Disable job (`enabled=false`).
+
+### `POST /api/jobs/{job_id}/resume`
+
+Enable job.
+
+### `POST /api/jobs/{job_id}/run`
+
+Run job immediately (one-shot).
+
+---
+
+## Management: profiles
+
+Prefix `/api/helix/profiles`. Gateway API key + profile access (see [Authentication](#authentication)).
+
+### `GET /api/helix/profiles`
+
+**Auth:** Admin
+
+List all profiles with `name`, `protected`, `path`.
+
+### `POST /api/helix/profiles`
+
+**Auth:** Admin
+
+Create profile.
+
+**Body (`ProfileCreateRequest`):**
+
+| Field | Default | Description |
+|-------|---------|-------------|
+| `name` | required | Profile id |
+| `inherit_global` | true | Copy global config |
+| `with_access_key` | false | Generate `hp_…` access key |
+| `workspace_jail` | false | Enable workspace isolation |
+
+**Response:** `profile`, `access_key` (if created), `protected`, `reload_required`.
+
+### `GET /api/helix/profiles/{profile_id}`
+
+Profile metadata: jail settings, paths.
+
+### `GET /api/helix/profiles/{profile_id}/status`
+
+Agent loaded in registry, companion status (Telegram, cron).
+
+### `DELETE /api/helix/profiles/{profile_id}`
+
+**Auth:** Admin. Delete profile directory.
+
+### `POST /api/helix/profiles/{profile_id}/reload`
+
+Reload agent + Telegram + cron for this profile.
+
+### `GET /api/helix/profiles/{profile_id}/key/status`
+
+Whether profile requires access key.
+
+### `POST /api/helix/profiles/{profile_id}/key/init`
+
+Enable access key + workspace jail. Returns new `hp_…` once.
+
+### `POST /api/helix/profiles/{profile_id}/key/rotate`
+
+**Body:** `{"current_key":"hp_…"}`. Returns new key once.
+
+### `POST /api/helix/profiles/{profile_id}/key/disable`
+
+**Auth:** Admin. Remove access key protection.
+
+### `GET /api/helix/profiles/{profile_id}/jail`
+
+Workspace jail enabled/path.
+
+### `POST /api/helix/profiles/{profile_id}/jail/enable`
+
+**Body:** optional `{"path":"/allowed/root"}`.
+
+### `POST /api/helix/profiles/{profile_id}/jail/disable`
+
+Disable workspace jail.
+
+---
+
+## Management: models
+
+Prefix `/api/helix/profiles/{profile_id}/models`.
+
+### `GET …/presets`
+
+Provider catalog (OpenRouter, Ollama, etc.).
+
+### `GET …/providers`
+
+Configured providers (API keys masked).
+
+### `POST …/providers`
+
+Add provider from preset.
+
+**Body (`ProviderAddRequest`):** `preset_id`, optional `name`, `api_key`, `host`, `port`, `skip_test`, `no_verify_ssl`.
+
+### `DELETE …/providers/{provider_name}`
+
+Remove provider from profile config.
+
+### `POST …/providers/{provider_name}/test`
+
+Probe connectivity and discover models.
+
+### `GET …/agent-models`
+
+Map of agent role → model configuration.
+
+### `PATCH …/agent-models`
+
+**Body:** `{"agent_models":{…}}`.
+
+### `GET …/fallbacks`
+
+Ordered fallback provider chain.
+
+### `PATCH …/fallbacks`
+
+**Body:** `{"providers":["openrouter","ollama"]}`.
+
+---
+
+## Management: skills
+
+Prefix `/api/helix/profiles/{profile_id}/skills`.
+
+### `GET …/skills`
+
+List skills. Query: `limit`, `agent` (filter by assignment).
+
+### `GET …/skills/search`
+
+Semantic search. Query: `q` (required).
+
+### `GET …/skills/{skill_name}`
+
+Skill metadata and markdown content.
+
+### `GET …/skills/assignments`
+
+Skill → agent allowlists.
+
+### `PATCH …/skills/assignments`
+
+**Body:** `{"assignments":{"agent_name":["skill-a","skill-b"]}}`.
+
+### `POST …/skills/seed-bundled`
+
+Install bundled skills. Query: `force` (bool).
+
+---
+
+## Management: MCP
+
+Prefix `/api/helix/profiles/{profile_id}/mcp`.
+
+### `GET …/servers`
+
+All MCP servers + assignments.
+
+### `POST …/servers`
+
+**Body (`McpServerCreateRequest`):** `name`, `transport` (`stdio`|`sse`), `command`, `args`, `url`, `env`, `risk_level`.
+
+### `GET …/servers/{server_name}`
+
+Single server config (masked).
+
+### `DELETE …/servers/{server_name}`
+
+Remove server.
+
+### `POST …/servers/{server_name}/test`
+
+Connect and list remote tools.
+
+### `GET …/assignments`
+
+Agent → MCP server mapping.
+
+### `PATCH …/assignments`
+
+**Body:** `{"assignments":{"agent":["server-a"]}}`.
+
+### `GET …/popular`
+
+Curated installable MCP servers.
+
+### `POST …/install`
+
+**Body (`McpInstallRequest`):** `popular_key` or `git_url`, optional `params`.
+
+---
+
+## Management: config & env
+
+Prefix `/api/helix/profiles/{profile_id}`.
+
+### `GET …/config`
+
+Profile `config.yaml` (secrets masked).
+
+### `PATCH …/config`
+
+**Body:** `{"updates":{…}}` deep-merged into profile config. Returns `reload_required`.
+
+### `GET …/env`
+
+Profile `.env` variables (masked).
+
+### `PATCH …/env`
+
+**Body:** `{"variables":{"KEY":"value"}}`.
+
+---
+
+## Management: global settings
+
+Prefix `/api/helix/global`. **Admin** profile access required.
+
+### `POST /api/helix/global/init`
+
+Create `~/.helix/global/config.yaml` and `.env` templates.
+
+### `GET /api/helix/global/config`
+
+Read global config (masked).
+
+### `PATCH /api/helix/global/config`
+
+Patch global YAML.
+
+### `GET /api/helix/global/env`
+
+Read global `.env` (masked).
+
+### `PATCH /api/helix/global/env`
+
+Patch global environment variables.
+
+---
+
+## Management: Telegram
+
+Prefix `/api/helix/profiles/{profile_id}/telegram`. CLI equivalents in [TELEGRAM.md](TELEGRAM.md).
+
+### `GET …/status`
+
+Bot configured, token masked, pending access requests, user map, companions.
+
+### `POST …/setup`
+
+**Body:** `{"bot_token":"…","also_project_env":false}`. Verifies via Telegram `getMe`, saves `telegram.env`.
+
+### `GET …/requests`
+
+Pending access requests list + count.
+
+### `POST …/requests/{user_id}/approve`
+
+**Auth:** Admin profile access.
+
+**Body (`TelegramApproveRequest`):** one of `profile`, `create_profile`, or `set_admin:true`.
+
+### `POST …/requests/{user_id}/reject`
+
+**Auth:** Admin. Reject pending request.
+
+### `GET …/admin`
+
+Telegram admin user id and mapped Helix profile.
+
+### `DELETE …/admin`
+
+**Auth:** Admin. Clear Telegram admin.
+
+### `GET …/map`
+
+User id → Helix profile mapping.
+
+### `POST …/map`
+
+**Body:** `{"user_id":12345,"profile":"alice"}`.
+
+### `DELETE …/map/{user_id}`
+
+Remove mapping.
+
+### `POST …/sync-menu`
+
+Push bot command menu to Telegram API.
+
+---
+
+## Docs-site chat API
+
+Prefix `/v1/docs/chat`. Powers the documentation website widget — **no agent tools**, RAG over docs only.
+
+### `GET /v1/docs/chat/config`
+
+**Auth:** Public
+
+`{"enabled":true,"proxy_path":"/api/docs-chat",…}`
+
+### `GET /v1/docs/chat/session`
+
+**Auth:** Docs-chat token
+
+Query: `client_id` (8–64 chars). Returns saved visitor chat history.
+
+### `DELETE /v1/docs/chat/session`
+
+**Auth:** Docs-chat token
+
+Clear history for `client_id`.
+
+### `POST /v1/docs/chat`
+
+**Auth:** Docs-chat token
+
+**Body:**
+
+| Field | Description |
+|-------|-------------|
+| `message` | Question (1–4000 chars) |
+| `client_id` | Anonymous visitor id |
+| `lang` | `en` or `ru` |
+| `page_slug` | Optional current doc page |
+| `stream` | SSE if true (default) |
+
+Rate limited per `client_id` (`HELIX_DOCS_CHAT_RATE_LIMIT_RPM`).
 
 ---
 
 ## Multi-profile architecture
 
-One uvicorn process serves **N profiles** via in-memory `ProfileAgentRegistry`:
+One uvicorn process serves **N profiles** via `ProfileAgentRegistry`:
 
-- Agents are lazy-loaded per profile
+- Agents lazy-load on first request
 - `CompanionManager` runs Telegram polling + cron per profile
-- `POST …/reload` stops and restarts companions for one profile without gateway restart
+- `POST …/reload` restarts one profile's agent and companions without gateway restart
+- Host profile set at startup (`HELIX_PROFILE`)
 
-Host profile is set at startup (`HELIX_PROFILE`). Other profiles load on first request or via management API.
+Stores: `ResponsesStore` (SQLite), `RunsStore` (memory), `SessionsStore` (memory).
 
 ---
 
 ## Security notes
 
-- Secrets in management responses are **masked** (tokens, API keys, env vars)
-- Access keys are returned **once** on create/init/rotate — store securely
-- `GET /metrics` requires admin API key
-- Security headers on all responses: `X-Content-Type-Options: nosniff`, `Referrer-Policy: no-referrer`
-- Production: set `HELIX_API_KEY_PEPPER`, bind to `127.0.0.1`, terminate TLS at reverse proxy
+- Use **TLS** behind reverse proxy in production; bind `127.0.0.1` by default
+- Set `HELIX_API_KEY_PEPPER` in production (required when `HELIX_ENV=production`)
+- Admin routes always require admin permission
+- Security headers: `X-Content-Type-Options: nosniff`, `Referrer-Policy: no-referrer`
+- CORS: `HELIX_CORS_ORIGINS` (comma-separated)
 
-See also: [SECURITY.md](SECURITY.md), [DEPLOYMENT.md](DEPLOYMENT.md), [PROFILES.md](PROFILES.md).
+See also: [SECURITY.md](SECURITY.md), [DEPLOYMENT.md](DEPLOYMENT.md), [PROFILES.md](PROFILES.md), [TELEGRAM.md](TELEGRAM.md).

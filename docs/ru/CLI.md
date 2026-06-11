@@ -200,6 +200,28 @@ helix -p alice gateway start -f
 
 Состояние: `profiles/<имя>/gateway/state.json` · [GATEWAY.md](GATEWAY.md)
 
+### Ключи gateway API
+
+**Нет** CLI-команды `helix` для создания ключей gateway (`hx_…`). Варианты:
+
+```bash
+# curl (нужен существующий admin hx_ key)
+curl -sS -X POST "http://127.0.0.1:8000/admin/api-keys?name=my-app&permissions=read,write" \
+  -H "Authorization: Bearer hx_admin_…"
+
+# или Swagger UI после helix gateway start
+open http://127.0.0.1:8000/docs   # Authorize → HelixApiKey → вставьте hx_…
+```
+
+**Ключи доступа к профилю** (`hp_…`) — другое назначение: защита переключения профиля и `/api/helix/*` management, не HTTP-поверхность gateway:
+
+```bash
+helix -p alice profile key init    # генерирует hp_… (показывается один раз)
+helix -p alice --profile-key hp_…  # использование в CLI/TUI
+```
+
+Первый admin-ключ: временно `HELIX_REQUIRE_AUTH=false`, создайте через `POST /admin/api-keys`, затем включите auth. Полный справочник: [GATEWAY_API.md](GATEWAY_API.md).
+
 ---
 
 ## `helix docs`

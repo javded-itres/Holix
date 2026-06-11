@@ -42,7 +42,7 @@
     "section": "interfaces",
     "title": "Overview",
     "heading": "Interfaces",
-    "body": "- CLI.md — complete command reference - SLASH COMMANDS.md — all commands (TUI, Telegram, chat) - EXECUTION MODES.md — ReAct, Plan, Hybrid, Auto — how modes work and prompt examples - TUI.md — , web mode, copy, hub UI - HUB.md — , catalogs, - GATEWAY.md — - GATEWAY API.md — Hermes + Helix Management API reference (auth, , SaaS curl) - TELEGRAM.md — Telegram - TELEGRAM MULTI PROFILE.md — one bot / multiple bots, access requests, manual - BROWSER TOOLS.md — Playwright tools",
+    "body": "- CLI.md — complete command reference - SLASH COMMANDS.md — all commands (TUI, Telegram, chat) - EXECUTION MODES.md — ReAct, Plan, Hybrid, Auto — how modes work and prompt examples - TUI.md — , web mode, copy, hub UI - HUB.md — , catalogs, - GATEWAY.md — - GATEWAY API.md — Complete API reference — every endpoint documented (auth, , SaaS curl) - TELEGRAM.md — Telegram - TELEGRAM MULTI PROFILE.md — one bot / multiple bots, access requests, manual - BROWSER TOOLS.md — Playwright tools",
     "keywords": [
       "overview",
       "обзор",
@@ -1182,6 +1182,47 @@
     "nav_order": 5
   },
   {
+    "id": "en/cli#curl-requires-an-existing-admin-hx_-key",
+    "lang": "en",
+    "slug": "cli",
+    "section": "curl-requires-an-existing-admin-hx_-key",
+    "title": "CLI Reference",
+    "heading": "curl (requires an existing admin hx_ key)",
+    "body": "curl -sS -X POST \"http://127.0.0.1:8000/admin/api-keys?name=my-app&permissions=read,write\" \\ -H \"Authorization: Bearer hx admin …\"",
+    "keywords": [
+      "command",
+      "команды",
+      "typer",
+      "terminal",
+      "curl",
+      "requires",
+      "existing",
+      "admin",
+      "hx_",
+      "key"
+    ],
+    "nav_order": 6
+  },
+  {
+    "id": "en/cli#gateway-api-keys",
+    "lang": "en",
+    "slug": "cli",
+    "section": "gateway-api-keys",
+    "title": "CLI Reference",
+    "heading": "Gateway API keys",
+    "body": "There is no CLI command for creating gateway API keys ( ) yet. Use one of: ```bash",
+    "keywords": [
+      "command",
+      "команды",
+      "typer",
+      "terminal",
+      "gateway",
+      "api",
+      "keys"
+    ],
+    "nav_order": 6
+  },
+  {
     "id": "en/cli#global-options",
     "lang": "en",
     "slug": "cli",
@@ -1560,13 +1601,34 @@
     "nav_order": 6
   },
   {
+    "id": "en/cli#or-swagger-ui-after-helix-gateway-start",
+    "lang": "en",
+    "slug": "cli",
+    "section": "or-swagger-ui-after-helix-gateway-start",
+    "title": "CLI Reference",
+    "heading": "or Swagger UI after helix gateway start",
+    "body": "open http://127.0.0.1:8000/docs Authorize → HelixApiKey → paste hx … bash helix -p alice profile key init generates hp … (shown once) helix -p alice --profile-key hp … use on CLI/TUI `` HELIX REQUIRE AUTH=false POST /admin/api-keys`, then re-enable auth. Full endpoint reference: GATEWAY API.md. ---",
+    "keywords": [
+      "command",
+      "команды",
+      "typer",
+      "terminal",
+      "swagger",
+      "after",
+      "helix",
+      "gateway",
+      "start"
+    ],
+    "nav_order": 6
+  },
+  {
     "id": "en/cli#other-profile-helix--p-alice-gateway-start",
     "lang": "en",
     "slug": "cli",
     "section": "other-profile-helix--p-alice-gateway-start",
     "title": "CLI Reference",
     "heading": "other profile: helix -p alice gateway start",
-    "body": "`` ~/.helix/profiles/<profile /gateway/state.json profiles/<profile /gateway/gateway.log` API details: GATEWAY.md. ---",
+    "body": "`` ~/.helix/profiles/<profile /gateway/state.json profiles/<profile /gateway/gateway.log` API details: GATEWAY.md.",
     "keywords": [
       "command",
       "команды",
@@ -2418,6 +2480,27 @@
     "nav_order": 11
   },
   {
+    "id": "en/gateway#documentation-site---with-docs",
+    "lang": "en",
+    "slug": "gateway",
+    "section": "documentation-site---with-docs",
+    "title": "API Gateway",
+    "heading": "Documentation site (`--with-docs`)",
+    "body": "Bundle the Helix documentation site with the gateway: ```bash helix gateway start --with-docs",
+    "keywords": [
+      "api",
+      "gateway",
+      "гейтвей",
+      "uvicorn",
+      "openai",
+      "documentation",
+      "site",
+      "with",
+      "docs"
+    ],
+    "nav_order": 11
+  },
+  {
     "id": "en/gateway#environment",
     "lang": "en",
     "slug": "gateway",
@@ -2432,6 +2515,61 @@
       "uvicorn",
       "openai",
       "environment"
+    ],
+    "nav_order": 11
+  },
+  {
+    "id": "en/gateway#gateway-api-keys",
+    "lang": "en",
+    "slug": "gateway",
+    "section": "gateway-api-keys",
+    "title": "API Gateway",
+    "heading": "Gateway API keys",
+    "body": "Gateway API keys ( ) authenticate HTTP clients. There is no CLI command for creating them yet — use the admin API or Swagger UI. Bootstrap the first admin key (one-time, when no keys exist): ```bash export HELIX REQUIRE AUTH=false helix gateway start -f",
+    "keywords": [
+      "api",
+      "gateway",
+      "гейтвей",
+      "uvicorn",
+      "openai",
+      "keys"
+    ],
+    "nav_order": 11
+  },
+  {
+    "id": "en/gateway#interactive-api-docs",
+    "lang": "en",
+    "slug": "gateway",
+    "section": "interactive-api-docs",
+    "title": "API Gateway",
+    "heading": "Interactive API docs",
+    "body": "FastAPI serves OpenAPI documentation on the gateway port (default ): URL Format ----- -------- Swagger UI — try endpoints in the browser ReDoc — readable reference Raw OpenAPI 3 schema Example:",
+    "keywords": [
+      "api",
+      "gateway",
+      "гейтвей",
+      "uvicorn",
+      "openai",
+      "interactive",
+      "docs"
+    ],
+    "nav_order": 11
+  },
+  {
+    "id": "en/gateway#metrics",
+    "lang": "en",
+    "slug": "gateway",
+    "section": "metrics",
+    "title": "API Gateway",
+    "heading": "Metrics",
+    "body": "Two metrics surfaces — both require an admin API key: Endpoint Format Description ---------- -------- ------------- Prometheus text Root-level scrape target (common for Prometheus config) JSON In-memory counters and summary ( , fields) Prometheus text Same Prometheus output as (hidden from OpenAPI schema) Disabled when — and return 404; JSON still works.",
+    "keywords": [
+      "api",
+      "gateway",
+      "гейтвей",
+      "uvicorn",
+      "openai",
+      "metrics"
     ],
     "nav_order": 11
   },
@@ -2483,7 +2621,7 @@
     "section": "quick-endpoint-map",
     "title": "API Gateway",
     "heading": "Quick endpoint map",
-    "body": "Group Examples ------- ---------- Health , , Chat Hermes , , , , Management , , , Admin , Create first admin key: ```bash",
+    "body": "Group Examples ------- ---------- Health , , Chat Hermes , , , , Management , , , Admin , , (Prometheus)",
     "keywords": [
       "api",
       "gateway",
@@ -2497,11 +2635,54 @@
     "nav_order": 11
   },
   {
+    "id": "en/gateway#swagger-authorize",
+    "lang": "en",
+    "slug": "gateway",
+    "section": "swagger-authorize",
+    "title": "API Gateway",
+    "heading": "Swagger Authorize",
+    "body": "1. Open 2. Click Authorize (lock icon) 3. Under HelixApiKey , paste your gateway API key ( ) — with or without the prefix 4. Authorize → close the dialog 5. Protected endpoints now send (also accepted as ) and work without a key. All other routes require auth when .",
+    "keywords": [
+      "api",
+      "gateway",
+      "гейтвей",
+      "uvicorn",
+      "openai",
+      "swagger",
+      "authorize"
+    ],
+    "nav_order": 11
+  },
+  {
+    "id": "en/gateway#then-set-helix_require_authtrue-and-restart",
+    "lang": "en",
+    "slug": "gateway",
+    "section": "then-set-helix_require_authtrue-and-restart",
+    "title": "API Gateway",
+    "heading": "Then set HELIX_REQUIRE_AUTH=true and restart",
+    "body": "bash curl -sS -X POST \"http://127.0.0.1:8000/admin/api-keys?name=my-app&permissions=read,write&rate limit=100\" \\ -H \"Authorization: Bearer hx admin …\" `` /docs hx … POST /admin/api-keys read write execute admin hp … /api/helix/ helix profile key init /admin/api-keys`.",
+    "keywords": [
+      "api",
+      "gateway",
+      "гейтвей",
+      "uvicorn",
+      "openai",
+      "then",
+      "set",
+      "helix_require_authtrue",
+      "and",
+      "restart",
+      "helix_require_auth",
+      "true"
+    ],
+    "nav_order": 11
+  },
+  {
     "id": "en/gateway-api#1-create-tenant-profile-admin",
     "lang": "en",
     "slug": "gateway-api",
     "section": "1-create-tenant-profile-admin",
-    "title": "Gateway API Reference",
+    "title": "Complete API Reference",
     "heading": "1. Create tenant profile (admin)",
     "body": "curl -sS -X POST \"$HELIX URL/api/helix/profiles\" \\ -H \"Authorization: Bearer $ADMIN KEY\" \\ -H \"Content-Type: application/json\" \\ -d '{\"name\":\"tenant-42\",\"with access key\":true}'",
     "keywords": [
@@ -2517,7 +2698,7 @@
     "lang": "en",
     "slug": "gateway-api",
     "section": "2-add-llm-provider",
-    "title": "Gateway API Reference",
+    "title": "Complete API Reference",
     "heading": "2. Add LLM provider",
     "body": "curl -sS -X POST \"$HELIX URL/api/helix/profiles/tenant-42/models/providers\" \\ -H \"Authorization: Bearer $ADMIN KEY\" \\ -H \"X-Helix-Profile-Key: $ADMIN PROFILE KEY\" \\ -H \"Content-Type: application/json\" \\ -d '{\"preset id\":\"openrouter\",\"skip test\":true}'",
     "keywords": [
@@ -2532,7 +2713,7 @@
     "lang": "en",
     "slug": "gateway-api",
     "section": "3-reload-tenant-agent-companions",
-    "title": "Gateway API Reference",
+    "title": "Complete API Reference",
     "heading": "3. Reload tenant agent + companions",
     "body": "curl -sS -X POST \"$HELIX URL/api/helix/profiles/tenant-42/reload\" \\ -H \"Authorization: Bearer $ADMIN KEY\" \\ -H \"X-Helix-Profile-Key: $ADMIN PROFILE KEY\"",
     "keywords": [
@@ -2548,9 +2729,9 @@
     "lang": "en",
     "slug": "gateway-api",
     "section": "4-chat-as-tenant-openai-client-model-profile-name",
-    "title": "Gateway API Reference",
+    "title": "Complete API Reference",
     "heading": "4. Chat as tenant (OpenAI client: model = profile name)",
-    "body": "curl -sS \"$HELIX URL/v1/chat/completions\" \\ -H \"Authorization: Bearer $TENANT API KEY\" \\ -H \"Content-Type: application/json\" \\ -d '{\"model\":\"tenant-42\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}'",
+    "body": "curl -sS \"$HELIX URL/v1/chat/completions\" \\ -H \"Authorization: Bearer $TENANT API KEY\" \\ -H \"Content-Type: application/json\" \\ -d '{\"model\":\"tenant-42\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}' ``` More examples in each endpoint section below. ---",
     "keywords": [
       "chat",
       "tenant",
@@ -2563,196 +2744,195 @@
     "nav_order": 12
   },
   {
-    "id": "en/gateway-api#5-telegram-setup-for-tenant-bot-profile",
+    "id": "en/gateway-api#base-url-and-interactive-docs",
     "lang": "en",
     "slug": "gateway-api",
-    "section": "5-telegram-setup-for-tenant-bot-profile",
-    "title": "Gateway API Reference",
-    "heading": "5. Telegram setup for tenant bot profile",
-    "body": "curl -sS -X POST \"$HELIX URL/api/helix/profiles/tenant-42/telegram/setup\" \\ -H \"Authorization: Bearer $ADMIN KEY\" \\ -H \"X-Helix-Profile-Key: $TENANT PROFILE KEY\" \\ -H \"Content-Type: application/json\" \\ -d '{\"bot token\":\"123456789:AAH…\"}'",
+    "section": "base-url-and-interactive-docs",
+    "title": "Complete API Reference",
+    "heading": "Base URL and interactive docs",
+    "body": "Default base URL (per profile ): Resource URL Auth ---------- ----- ------ Swagger UI — ReDoc — OpenAPI JSON —",
     "keywords": [
-      "telegram",
-      "setup",
-      "for",
-      "tenant",
-      "bot",
-      "profile"
+      "base",
+      "url",
+      "and",
+      "interactive",
+      "docs"
     ],
     "nav_order": 12
   },
   {
-    "id": "en/gateway-api#6-approve-telegram-user-admin-only",
+    "id": "en/gateway-api#delete-adminapi-keyskey_id",
     "lang": "en",
     "slug": "gateway-api",
-    "section": "6-approve-telegram-user-admin-only",
-    "title": "Gateway API Reference",
-    "heading": "6. Approve Telegram user (admin only)",
-    "body": "curl -sS -X POST \"$HELIX URL/api/helix/profiles/tenant-42/telegram/requests/12345/approve\" \\ -H \"Authorization: Bearer $ADMIN KEY\" \\ -H \"X-Helix-Profile-Key: $ADMIN PROFILE KEY\" \\ -H \"Content-Type: application/json\" \\ -d '{\"profile\":\"tenant-42\"}' `` \"reload required\": true POST /api/helix/profiles/{id}/reload` to apply config changes without restarting uvicorn. ---",
+    "section": "delete-adminapi-keyskey_id",
+    "title": "Complete API Reference",
+    "heading": "`DELETE /admin/api-keys/{key_id}`",
+    "body": "Revoke key by numeric from list response (path param name in OpenAPI: ; pass the key id , not the secret).",
     "keywords": [
-      "approve",
-      "telegram",
-      "user",
+      "delete",
+      "adminapi",
+      "keyskey_id",
       "admin",
-      "only"
-    ],
-    "nav_order": 12
-  },
-  {
-    "id": "en/gateway-api#admin-routes-admin",
-    "lang": "en",
-    "slug": "gateway-api",
-    "section": "admin-routes-admin",
-    "title": "Gateway API Reference",
-    "heading": "Admin routes (`/admin`)",
-    "body": "Method Path Description -------- ------ ------------- POST Create API key GET List keys DELETE Revoke key GET Prometheus (admin; disabled unless enabled) ---",
-    "keywords": [
-      "admin",
-      "routes"
-    ],
-    "nav_order": 12
-  },
-  {
-    "id": "en/gateway-api#api-key-layer-1",
-    "lang": "en",
-    "slug": "gateway-api",
-    "section": "api-key-layer-1",
-    "title": "Gateway API Reference",
-    "heading": "API key (layer 1)",
-    "body": "All routes except and require a valid API key when (default). Header Example -------- --------- Permissions: , , , (see SECURITY.md). Create keys via (admin permission required).",
-    "keywords": [
       "api",
-      "key",
-      "layer"
+      "keys",
+      "key_id"
     ],
     "nav_order": 12
   },
   {
-    "id": "en/gateway-api#config-apihelixprofilesid",
+    "id": "en/gateway-api#docs-site-chat-api",
     "lang": "en",
     "slug": "gateway-api",
-    "section": "config-apihelixprofilesid",
-    "title": "Gateway API Reference",
-    "heading": "Config — `/api/helix/profiles/{id}`",
-    "body": "Method Path Description -------- ------ ------------- GET/PATCH Profile YAML (secrets masked) GET/PATCH Profile (secrets masked)",
+    "section": "docs-site-chat-api",
+    "title": "Complete API Reference",
+    "heading": "Docs-site chat API",
+    "body": "Prefix . Powers the documentation website widget — no agent tools , RAG over docs only.",
     "keywords": [
-      "config",
-      "apihelixprofilesid",
-      "api",
-      "helix",
-      "profiles"
-    ],
-    "nav_order": 12
-  },
-  {
-    "id": "en/gateway-api#gateway-api-reference",
-    "lang": "en",
-    "slug": "gateway-api",
-    "section": "gateway-api-reference",
-    "title": "Gateway API Reference",
-    "heading": "Gateway API Reference",
-    "body": "Helix gateway exposes two HTTP API layers on a single multi-profile process : 1. Hermes-compatible API — drop-in for Open WebUI, LobeChat, and other Hermes clients 2. Helix Management API — control plane for SaaS: profiles, models, MCP, skills, Telegram admin Operational guide (start/stop, ports, logs): GATEWAY.md. ---",
-    "keywords": [
-      "gateway",
-      "api",
-      "reference"
-    ],
-    "nav_order": 12
-  },
-  {
-    "id": "en/gateway-api#global-apihelixglobal-admin-only",
-    "lang": "en",
-    "slug": "gateway-api",
-    "section": "global-apihelixglobal-admin-only",
-    "title": "Gateway API Reference",
-    "heading": "Global — `/api/helix/global` (admin only)",
-    "body": "Method Path Description -------- ------ ------------- POST Create global config + env GET/PATCH GET/PATCH",
-    "keywords": [
-      "global",
-      "apihelixglobal",
-      "admin",
-      "only",
-      "api",
-      "helix"
-    ],
-    "nav_order": 12
-  },
-  {
-    "id": "en/gateway-api#helix-legacy-extensions-v1",
-    "lang": "en",
-    "slug": "gateway-api",
-    "section": "helix-legacy-extensions-v1",
-    "title": "Gateway API Reference",
-    "heading": "Helix legacy extensions (`/v1`)",
-    "body": "Method Path Description -------- ------ ------------- POST OpenAI-compatible chat GET Conversation history GET Tool list POST Memory search POST/GET/DELETE Tool permissions POST Approve risky actions POST/GET Plan review ---",
-    "keywords": [
-      "helix",
-      "legacy",
-      "extensions"
-    ],
-    "nav_order": 12
-  },
-  {
-    "id": "en/gateway-api#helix-management-api-apihelix",
-    "lang": "en",
-    "slug": "gateway-api",
-    "section": "helix-management-api-apihelix",
-    "title": "Gateway API Reference",
-    "heading": "Helix Management API (`/api/helix/`)",
-    "body": "Prefix for control-plane operations. All routes require API key + profile access (see above).",
-    "keywords": [
-      "helix",
-      "management",
-      "api",
-      "apihelix"
-    ],
-    "nav_order": 12
-  },
-  {
-    "id": "en/gateway-api#hermes-compatible-api",
-    "lang": "en",
-    "slug": "gateway-api",
-    "section": "hermes-compatible-api",
-    "title": "Gateway API Reference",
-    "heading": "Hermes-compatible API",
-    "body": "Mapping to Hermes API Server endpoints. Hermes Helix Notes -------- ------- ------- ✅ Lists profile names as model ids ✅ Agent capabilities ✅ Public ✅ Extended health (auth optional) ✅ From agent tools ✅ ✅ SQLite store, LRU 100 ✅ ✅ ✅ In-memory + SSE ✅ ✅ SSE stream ✅ ✅ Human-in-the-loop ✅ Cron jobs per profile ✅ ✅ ✅ ✅ ✅ ✅ ✅ SSE",
-    "keywords": [
-      "hermes",
-      "compatible",
+      "docs",
+      "site",
+      "chat",
       "api"
     ],
     "nav_order": 12
   },
   {
-    "id": "en/gateway-api#mcp-apihelixprofilesidmcp",
+    "id": "en/gateway-api#errors",
     "lang": "en",
     "slug": "gateway-api",
-    "section": "mcp-apihelixprofilesidmcp",
-    "title": "Gateway API Reference",
-    "heading": "MCP — `/api/helix/profiles/{id}/mcp`",
-    "body": "Method Path Description -------- ------ ------------- GET List servers + assignments POST Create server GET Server config DELETE Remove server POST Connect + list tools GET/PATCH Agent ↔ server mapping GET Curated install list POST Install popular or git MCP",
+    "section": "errors",
+    "title": "Complete API Reference",
+    "heading": "Errors",
+    "body": "Code Meaning ------ --------- 400 Invalid body, headers, or business rule 401 Missing or invalid API key / profile key / docs-chat token 403 Valid key but insufficient permission 404 Resource not found or feature disabled 409 Conflict (e.g. profile exists, admin already assigned) 429 Per-key rate limit exceeded 503 Gateway not initialized (registry, key manager, agent)",
     "keywords": [
-      "mcp",
-      "apihelixprofilesidmcp",
-      "api",
-      "helix",
-      "profiles"
+      "errors"
     ],
     "nav_order": 12
   },
   {
-    "id": "en/gateway-api#models-apihelixprofilesidmodels",
+    "id": "en/gateway-api#get-healthdetailed",
     "lang": "en",
     "slug": "gateway-api",
-    "section": "models-apihelixprofilesidmodels",
-    "title": "Gateway API Reference",
-    "heading": "Models — `/api/helix/profiles/{id}/models`",
-    "body": "Method Path Description -------- ------ ------------- GET Provider catalog GET Configured providers (keys masked) POST Add preset provider DELETE Remove provider POST Probe + discover models GET/PATCH Agent model routing GET/PATCH Fallback provider chain",
+    "section": "get-healthdetailed",
+    "title": "Complete API Reference",
+    "heading": "`GET /health/detailed`",
+    "body": "Auth: Public (no API key) Extended diagnostics: , , , per profile, bind host/port.",
     "keywords": [
-      "models",
-      "apihelixprofilesidmodels",
-      "api",
+      "get",
+      "healthdetailed",
+      "health",
+      "detailed"
+    ],
+    "nav_order": 12
+  },
+  {
+    "id": "en/gateway-api#get-metrics",
+    "lang": "en",
+    "slug": "gateway-api",
+    "section": "get-metrics",
+    "title": "Complete API Reference",
+    "heading": "`GET /metrics`",
+    "body": "Auth: Admin API key Prometheus text exposition (when ). Same format as admin prometheus endpoint. ---",
+    "keywords": [
+      "get",
+      "metrics"
+    ],
+    "nav_order": 12
+  },
+  {
+    "id": "en/gateway-api#helix-gateway-api-complete-reference",
+    "lang": "en",
+    "slug": "gateway-api",
+    "section": "helix-gateway-api-complete-reference",
+    "title": "Complete API Reference",
+    "heading": "Helix Gateway API — Complete Reference",
+    "body": "Helix runs a single multi-profile HTTP gateway with three public surfaces: Surface Prefix Purpose --------- -------- --------- Hermes-compatible API , , Drop-in for Open WebUI, LobeChat, Hermes clients Helix agent extensions , permissions, plans OpenAI chat + tool permissions + plan review Helix Management API SaaS control plane: profiles, models, MCP, skills, Telegram Operational guide (start/stop, ports, logs): GATEWAY.md. ---",
+    "keywords": [
       "helix",
-      "profiles"
+      "gateway",
+      "api",
+      "complete",
+      "reference"
+    ],
+    "nav_order": 12
+  },
+  {
+    "id": "en/gateway-api#hermes-api-v1",
+    "lang": "en",
+    "slug": "gateway-api",
+    "section": "hermes-api-v1",
+    "title": "Complete API Reference",
+    "heading": "Hermes API (`/v1`)",
+    "body": "Hermes-compatible surface. All routes require gateway API key unless noted. Profile headers apply where noted. See Hermes agent docs.",
+    "keywords": [
+      "hermes",
+      "api"
+    ],
+    "nav_order": 12
+  },
+  {
+    "id": "en/gateway-api#layer-1-gateway-api-key-hx_",
+    "lang": "en",
+    "slug": "gateway-api",
+    "section": "layer-1-gateway-api-key-hx_",
+    "title": "Complete API Reference",
+    "heading": "Layer 1 — Gateway API key (`hx_…`)",
+    "body": "Required on almost all routes when (default). Header Example -------- --------- Permissions (comma-separated at creation): , , , . See SECURITY.md. Create a key — no CLI command yet; use HTTP or Swagger: ```bash",
+    "keywords": [
+      "layer",
+      "gateway",
+      "api",
+      "key",
+      "hx_"
+    ],
+    "nav_order": 12
+  },
+  {
+    "id": "en/gateway-api#layer-2-profile-access-key-hp_",
+    "lang": "en",
+    "slug": "gateway-api",
+    "section": "layer-2-profile-access-key-hp_",
+    "title": "Complete API Reference",
+    "heading": "Layer 2 — Profile access key (`hp_…`)",
+    "body": "Required for routes (in addition to gateway API key): Caller Headers Scope -------- --------- ------- Profile owner Gateway key + for own profile Single profile Platform admin Gateway key with permission or admin profile master key All profiles Admin profile name defaults to ( ). Profile keys are created via CLI ( ) or Management API ( ). Not the same as gateway keys.",
+    "keywords": [
+      "layer",
+      "profile",
+      "access",
+      "key",
+      "hp_"
+    ],
+    "nav_order": 12
+  },
+  {
+    "id": "en/gateway-api#layer-3-docs-chat-token-website-widget-only",
+    "lang": "en",
+    "slug": "gateway-api",
+    "section": "layer-3-docs-chat-token-website-widget-only",
+    "title": "Complete API Reference",
+    "heading": "Layer 3 — Docs-chat token (website widget only)",
+    "body": "Routes under (except ) use : Header Example -------- --------- Separate from gateway API keys. See Docs-site chat API.",
+    "keywords": [
+      "layer",
+      "docs",
+      "chat",
+      "token",
+      "website",
+      "widget",
+      "only"
+    ],
+    "nav_order": 12
+  },
+  {
+    "id": "en/gateway-api#masked-secrets",
+    "lang": "en",
+    "slug": "gateway-api",
+    "section": "masked-secrets",
+    "title": "Complete API Reference",
+    "heading": "Masked secrets",
+    "body": "Management responses mask API keys, tokens, and sensitive env vars. Plaintext is returned once on create/init/rotate.",
+    "keywords": [
+      "masked",
+      "secrets"
     ],
     "nav_order": 12
   },
@@ -2761,9 +2941,9 @@
     "lang": "en",
     "slug": "gateway-api",
     "section": "multi-profile-architecture",
-    "title": "Gateway API Reference",
+    "title": "Complete API Reference",
     "heading": "Multi-profile architecture",
-    "body": "One uvicorn process serves N profiles via in-memory : - Agents are lazy-loaded per profile - runs Telegram polling + cron per profile - stops and restarts companions for one profile without gateway restart Host profile is set at startup ( ). Other profiles load on first request or via management API. ---",
+    "body": "One uvicorn process serves N profiles via : - Agents lazy-load on first request - runs Telegram polling + cron per profile - restarts one profile's agent and companions without gateway restart - Host profile set at startup ( ) Stores: (SQLite), (memory), (memory). ---",
     "keywords": [
       "multi",
       "profile",
@@ -2772,66 +2952,162 @@
     "nav_order": 12
   },
   {
-    "id": "en/gateway-api#profile-access-key-layer-2",
+    "id": "en/gateway-api#post-adminapi-keys",
     "lang": "en",
     "slug": "gateway-api",
-    "section": "profile-access-key-layer-2",
-    "title": "Gateway API Reference",
-    "heading": "Profile access key (layer 2)",
-    "body": "management routes also require profile authorization: Who Headers Scope ----- --------- ------- Profile owner Own profile only Gateway admin API key with or master key of admin profile All profiles Admin profile name defaults to ( ).",
+    "section": "post-adminapi-keys",
+    "title": "Complete API Reference",
+    "heading": "`POST /admin/api-keys`",
+    "body": "Create a new gateway API key. Query parameters: Param Default Description ------- --------- ------------- required Human-readable label Comma-separated permissions Requests per minute Response: (once), , , , .",
     "keywords": [
-      "profile",
-      "access",
-      "key",
-      "layer"
+      "post",
+      "adminapi",
+      "keys",
+      "admin",
+      "api"
     ],
     "nav_order": 12
   },
   {
-    "id": "en/gateway-api#profile-routing-chat-hermes-surface",
+    "id": "en/gateway-api#post-apihelixprofiles",
     "lang": "en",
     "slug": "gateway-api",
-    "section": "profile-routing-chat-hermes-surface",
-    "title": "Gateway API Reference",
-    "heading": "Profile routing (chat / Hermes surface)",
-    "body": "Priority (first non-empty wins): 1. or 2. field in or (profile name) 3. Gateway host profile ( at process start)",
+    "section": "post-apihelixprofiles",
+    "title": "Complete API Reference",
+    "heading": "`POST /api/helix/profiles`",
+    "body": "Auth: Admin Create profile. Body ( ): Field Default Description ------- --------- ------------- required Profile id true Copy global config false Generate access key false Enable workspace isolation Response: , (if created), , .",
     "keywords": [
-      "profile",
-      "routing",
-      "chat",
-      "hermes",
-      "surface"
-    ],
-    "nav_order": 12
-  },
-  {
-    "id": "en/gateway-api#profiles-apihelixprofiles",
-    "lang": "en",
-    "slug": "gateway-api",
-    "section": "profiles-apihelixprofiles",
-    "title": "Gateway API Reference",
-    "heading": "Profiles — `/api/helix/profiles`",
-    "body": "Method Path Description -------- ------ ------------- GET List profiles (admin) POST Create profile (admin) GET Profile details GET Agent + companions status DELETE Delete profile (admin) POST Reload agent + Telegram + cron GET Access key status POST Enable profile key + jail POST Rotate key (body: ) POST Remove key (admin) GET Workspace jail status POST Enable jail (optional ) POST Disable jail",
-    "keywords": [
-      "profiles",
+      "post",
       "apihelixprofiles",
       "api",
-      "helix"
+      "helix",
+      "profiles"
     ],
     "nav_order": 12
   },
   {
-    "id": "en/gateway-api#saas-workflow-curl",
+    "id": "en/gateway-api#post-apijobs",
     "lang": "en",
     "slug": "gateway-api",
-    "section": "saas-workflow-curl",
-    "title": "Gateway API Reference",
-    "heading": "SaaS workflow (curl)",
-    "body": "```bash export HELIX URL=http://127.0.0.1:8000 export ADMIN KEY=hx admin … export ADMIN PROFILE KEY=hp … master key of admin profile",
+    "section": "post-apijobs",
+    "title": "Complete API Reference",
+    "heading": "`POST /api/jobs`",
+    "body": "Create job. Body ( ): Field Description ------- ------------- Natural-language or instruction for agent Standard cron Display name Active flag Optional Telegram chat for notifications Tie to session",
+    "keywords": [
+      "post",
+      "apijobs",
+      "api",
+      "jobs"
+    ],
+    "nav_order": 12
+  },
+  {
+    "id": "en/gateway-api#post-v1chatcompletions",
+    "lang": "en",
+    "slug": "gateway-api",
+    "section": "post-v1chatcompletions",
+    "title": "Complete API Reference",
+    "heading": "`POST /v1/chat/completions`",
+    "body": "OpenAI-compatible chat. Requires on API key. Body: standard — , , optional , . With streaming: → SSE chunks.",
+    "keywords": [
+      "post",
+      "v1chatcompletions",
+      "chat",
+      "completions"
+    ],
+    "nav_order": 12
+  },
+  {
+    "id": "en/gateway-api#post-v1docschat",
+    "lang": "en",
+    "slug": "gateway-api",
+    "section": "post-v1docschat",
+    "title": "Complete API Reference",
+    "heading": "`POST /v1/docs/chat`",
+    "body": "Auth: Docs-chat token Body: Field Description ------- ------------- Question (1–4000 chars) Anonymous visitor id or Optional current doc page SSE if true (default) Rate limited per ( ). ---",
+    "keywords": [
+      "post",
+      "v1docschat",
+      "docs",
+      "chat"
+    ],
+    "nav_order": 12
+  },
+  {
+    "id": "en/gateway-api#post-v1responses",
+    "lang": "en",
+    "slug": "gateway-api",
+    "section": "post-v1responses",
+    "title": "Complete API Reference",
+    "heading": "`POST /v1/responses`",
+    "body": "Create a stored response (Responses API). Requires permission. Body ( ): Field Type Description ------- ------ ------------- string Profile name (default ) string or array User input string? System instructions bool Persist in SQLite store (default true) string? Chain responses string? Conversation id",
+    "keywords": [
+      "post",
+      "v1responses",
+      "responses"
+    ],
+    "nav_order": 12
+  },
+  {
+    "id": "en/gateway-api#profile-routing",
+    "lang": "en",
+    "slug": "gateway-api",
+    "section": "profile-routing",
+    "title": "Complete API Reference",
+    "heading": "Profile routing",
+    "body": "For chat, Hermes, sessions, and jobs, profile is resolved in order: 1. or header 2. field in request body (profile name; not , , ) 3. Gateway host profile ( at process start)",
+    "keywords": [
+      "profile",
+      "routing"
+    ],
+    "nav_order": 12
+  },
+  {
+    "id": "en/gateway-api#reload_required",
+    "lang": "en",
+    "slug": "gateway-api",
+    "section": "reload_required",
+    "title": "Complete API Reference",
+    "heading": "`reload_required`",
+    "body": "Management mutations that change running agent config return . Apply without restarting uvicorn:",
+    "keywords": [
+      "reload_required"
+    ],
+    "nav_order": 12
+  },
+  {
+    "id": "en/gateway-api#requires-existing-admin-key-or-bootstrap-with-helix_require_auth",
+    "lang": "en",
+    "slug": "gateway-api",
+    "section": "requires-existing-admin-key-or-bootstrap-with-helix_require_auth",
+    "title": "Complete API Reference",
+    "heading": "Requires existing admin key, OR bootstrap with HELIX_REQUIRE_AUTH=false once",
+    "body": "curl -sS -X POST \"http://127.0.0.1:8000/admin/api-keys\" \\ -H \"Authorization: Bearer $ADMIN KEY\" \\ -d \"name=my-app&permissions=read,write,execute&rate limit=100\" bash helix profile env --edit HELIX REQUIRE AUTH=false helix gateway reload curl -sS -X POST \"http://127.0.0.1:8000/admin/api-keys\" \\ -d \"name=admin&permissions=read,write,execute,admin&rate limit=1000\"",
+    "keywords": [
+      "requires",
+      "existing",
+      "admin",
+      "key",
+      "bootstrap",
+      "with",
+      "helix_require_auth",
+      "false",
+      "once"
+    ],
+    "nav_order": 12
+  },
+  {
+    "id": "en/gateway-api#saas-workflow-examples",
+    "lang": "en",
+    "slug": "gateway-api",
+    "section": "saas-workflow-examples",
+    "title": "Complete API Reference",
+    "heading": "SaaS workflow examples",
+    "body": "```bash export HELIX URL=http://127.0.0.1:8000 export ADMIN KEY=hx … export ADMIN PROFILE KEY=hp …",
     "keywords": [
       "saas",
       "workflow",
-      "curl"
+      "examples"
     ],
     "nav_order": 12
   },
@@ -2840,9 +3116,9 @@
     "lang": "en",
     "slug": "gateway-api",
     "section": "security-notes",
-    "title": "Gateway API Reference",
+    "title": "Complete API Reference",
     "heading": "Security notes",
-    "body": "- Secrets in management responses are masked (tokens, API keys, env vars) - Access keys are returned once on create/init/rotate — store securely - requires admin API key - Security headers on all responses: , - Production: set , bind to , terminate TLS at reverse proxy See also: SECURITY.md, DEPLOYMENT.md, PROFILES.md.",
+    "body": "- Use TLS behind reverse proxy in production; bind by default - Set in production (required when ) - Admin routes always require admin permission - Security headers: , - CORS: (comma-separated) See also: SECURITY.md, DEPLOYMENT.md, PROFILES.md, TELEGRAM.md.",
     "keywords": [
       "security",
       "notes"
@@ -2850,52 +3126,50 @@
     "nav_order": 12
   },
   {
-    "id": "en/gateway-api#session-continuity-header-aliases",
+    "id": "en/gateway-api#session-headers-aliases",
     "lang": "en",
     "slug": "gateway-api",
-    "section": "session-continuity-header-aliases",
-    "title": "Gateway API Reference",
-    "heading": "Session continuity (header aliases)",
-    "body": "Purpose Helix Hermes (alias) --------- ------- ---------------- Conversation / transcript id Stable memory scope Session key max 256 chars; control characters rejected. ---",
+    "section": "session-headers-aliases",
+    "title": "Complete API Reference",
+    "heading": "Session headers (aliases)",
+    "body": "Purpose Helix Hermes alias --------- ------- -------------- Conversation / transcript id Stable memory scope Session key: max 256 chars; control characters rejected → .",
     "keywords": [
       "session",
-      "continuity",
-      "header",
+      "headers",
       "aliases"
     ],
     "nav_order": 12
   },
   {
-    "id": "en/gateway-api#skills-apihelixprofilesidskills",
+    "id": "en/gateway-api#swagger-authorize-one-token-for-all-requests",
     "lang": "en",
     "slug": "gateway-api",
-    "section": "skills-apihelixprofilesidskills",
-    "title": "Gateway API Reference",
-    "heading": "Skills — `/api/helix/profiles/{id}/skills`",
-    "body": "Method Path Description -------- ------ ------------- GET List skills ( , ) GET Semantic search GET Skill detail GET/PATCH Per-agent skill allowlists POST Install bundled skills",
+    "section": "swagger-authorize-one-token-for-all-requests",
+    "title": "Complete API Reference",
+    "heading": "Swagger Authorize (one token for all requests)",
+    "body": "1. Open 2. Click Authorize (lock icon) 3. Under HelixApiKey , paste your gateway key ( ) without the prefix — Swagger adds it automatically 4. Try any protected endpoint with Try it out also works in curl and code but is not configured via the Authorize dialog. Gateway metadata (requires API key): ---",
     "keywords": [
-      "skills",
-      "apihelixprofilesidskills",
-      "api",
-      "helix",
-      "profiles"
+      "swagger",
+      "authorize",
+      "one",
+      "token",
+      "for",
+      "all",
+      "requests"
     ],
     "nav_order": 12
   },
   {
-    "id": "en/gateway-api#telegram-apihelixprofilesidtelegram",
+    "id": "en/gateway-api#table-of-contents",
     "lang": "en",
     "slug": "gateway-api",
-    "section": "telegram-apihelixprofilesidtelegram",
-    "title": "Gateway API Reference",
-    "heading": "Telegram — `/api/helix/profiles/{id}/telegram`",
-    "body": "CLI equivalents in TELEGRAM.md. Method Path CLI Auth -------- ------ ----- ------ GET owner/admin POST owner/admin GET owner/admin POST admin POST admin GET owner/admin DELETE admin GET owner/admin POST owner/admin DELETE owner/admin POST owner/admin body: . Verifies token via Telegram , saves , reloads Telegram companion when gateway companions are active. body: or or . ---",
+    "section": "table-of-contents",
+    "title": "Complete API Reference",
+    "heading": "Table of contents",
+    "body": "1. Base URL and interactive docs 2. Authentication 3. Common concepts 4. SaaS workflow examples 5. Health & gateway info 6. Admin API 7. Hermes API ( ) 8. Agent extensions ( ) 9. Sessions ( ) 10. Cron jobs ( ) 11. Management: profiles 12. Management: models 13. Management: skills 14. Management: MCP 15. Management: config & env 16. Management: global settings 17. Management: Telegram 18. Docs-site chat API 19. Multi-profile architecture 20. Security notes ---",
     "keywords": [
-      "telegram",
-      "apihelixprofilesidtelegram",
-      "api",
-      "helix",
-      "profiles"
+      "table",
+      "contents"
     ],
     "nav_order": 12
   },
@@ -3589,7 +3863,7 @@
     "section": "api-keys",
     "title": "Security",
     "heading": "API keys",
-    "body": "- Stored as HMAC-SHA256 with pepper - Admin endpoints always require permission - Create keys via with admin key",
+    "body": "- Stored as HMAC-SHA256 with pepper - Admin endpoints always require permission - Create keys via with admin key (no CLI command for keys yet — use curl or Swagger )",
     "keywords": [
       "security",
       "безопасность",
@@ -3598,6 +3872,27 @@
       "token",
       "api",
       "keys"
+    ],
+    "nav_order": 17
+  },
+  {
+    "id": "en/security#docs-chat-token-separate-surface",
+    "lang": "en",
+    "slug": "security",
+    "section": "docs-chat-token-separate-surface",
+    "title": "Security",
+    "heading": "Docs-chat token (separate surface)",
+    "body": "When the documentation site runs with and , the embedded docs assistant uses — a dedicated secret for and the docs-server proxy ( ). This token is not a gateway API key ( ) and not a profile key ( ). It is server-side only (proxy holds the token; the browser never sees it). Rotate independently from gateway keys.",
+    "keywords": [
+      "security",
+      "безопасность",
+      "auth",
+      "cors",
+      "token",
+      "docs",
+      "chat",
+      "separate",
+      "surface"
     ],
     "nav_order": 17
   },
@@ -3635,6 +3930,26 @@
       "cors",
       "token",
       "tools"
+    ],
+    "nav_order": 17
+  },
+  {
+    "id": "en/security#two-layer-gateway-auth",
+    "lang": "en",
+    "slug": "security",
+    "section": "two-layer-gateway-auth",
+    "title": "Security",
+    "heading": "Two-layer gateway auth",
+    "body": "The gateway uses two independent credentials : Layer Key Prefix Purpose ------- ----- -------- --------- 1 — Gateway API key or Authenticates every protected HTTP route (chat, Hermes, management) 2 — Profile access key Authorizes management for a specific profile Layer 1 is always required when (except , ). Create keys via . Layer 2 applies to only. A profile owner sends their key to manage their own profile. Gateway admins bypass layer 2 with an API key that has permission, or with the master key of the admin profile ( , default ). Create keys via — not via the gateway admin API. Chat and Hermes routes ( , , etc.) need layer 1 only . Profile routing uses or the field — not . Full tables: GATEWAY API.md.",
+    "keywords": [
+      "security",
+      "безопасность",
+      "auth",
+      "cors",
+      "token",
+      "two",
+      "layer",
+      "gateway"
     ],
     "nav_order": 17
   },
@@ -5479,7 +5794,7 @@
     "section": "интерфейсы",
     "title": "Обзор",
     "heading": "Интерфейсы",
-    "body": "- CLI.md — справочник команд - SLASH COMMANDS.md — слэш-команды - EXECUTION MODES.md — ReAct, Plan, Hybrid, Auto — как работают режимы и примеры промптов - TUI.md — - HUB.md — каталоги навыков - GATEWAY.md — API gateway - GATEWAY API.md — справочник Hermes + Helix Management API (auth, , SaaS curl) - TELEGRAM.md — Telegram - TELEGRAM MULTI PROFILE.md — один бот / несколько ботов, access requests, ручной - BROWSER TOOLS.md — Playwright",
+    "body": "- CLI.md — справочник команд - SLASH COMMANDS.md — слэш-команды - EXECUTION MODES.md — ReAct, Plan, Hybrid, Auto — как работают режимы и примеры промптов - TUI.md — - HUB.md — каталоги навыков - GATEWAY.md — API gateway - GATEWAY API.md — полный справочник API — каждый эндпоинт задокументирован (auth, , SaaS curl) - TELEGRAM.md — Telegram - TELEGRAM MULTI PROFILE.md — один бот / несколько ботов, access requests, ручной - BROWSER TOOLS.md — Playwright",
     "keywords": [
       "overview",
       "обзор",
@@ -6475,6 +6790,28 @@
     "nav_order": 5
   },
   {
+    "id": "ru/cli#curl-нужен-существующий-admin-hx_-key",
+    "lang": "ru",
+    "slug": "cli",
+    "section": "curl-нужен-существующий-admin-hx_-key",
+    "title": "Справочник CLI",
+    "heading": "curl (нужен существующий admin hx_ key)",
+    "body": "curl -sS -X POST \"http://127.0.0.1:8000/admin/api-keys?name=my-app&permissions=read,write\" \\ -H \"Authorization: Bearer hx admin …\"",
+    "keywords": [
+      "command",
+      "команды",
+      "typer",
+      "terminal",
+      "curl",
+      "нужен",
+      "существующий",
+      "admin",
+      "hx_",
+      "key"
+    ],
+    "nav_order": 6
+  },
+  {
     "id": "ru/cli#helix-docs",
     "lang": "ru",
     "slug": "cli",
@@ -6499,7 +6836,7 @@
     "section": "helix-gateway",
     "title": "Справочник CLI",
     "heading": "`helix gateway`",
-    "body": "Привязан к активному профилю ( ). Несколько gateway на разных портах. Подкоманда Описание ------------ ---------- Фоновый запуск Остановка gateway этого профиля Статус этого профиля Перезапуск Состояние: · GATEWAY.md ---",
+    "body": "Привязан к активному профилю ( ). Несколько gateway на разных портах. Подкоманда Описание ------------ ---------- Фоновый запуск Остановка gateway этого профиля Статус этого профиля Перезапуск Состояние: · GATEWAY.md",
     "keywords": [
       "command",
       "команды",
@@ -6653,6 +6990,28 @@
       "terminal",
       "глобальные",
       "опции"
+    ],
+    "nav_order": 6
+  },
+  {
+    "id": "ru/cli#или-swagger-ui-после-helix-gateway-start",
+    "lang": "ru",
+    "slug": "cli",
+    "section": "или-swagger-ui-после-helix-gateway-start",
+    "title": "Справочник CLI",
+    "heading": "или Swagger UI после helix gateway start",
+    "body": "open http://127.0.0.1:8000/docs Authorize → HelixApiKey → вставьте hx … bash helix -p alice profile key init генерирует hp … (показывается один раз) helix -p alice --profile-key hp … использование в CLI/TUI `` HELIX REQUIRE AUTH=false POST /admin/api-keys`, затем включите auth. Полный справочник: GATEWAY API.md. ---",
+    "keywords": [
+      "command",
+      "команды",
+      "typer",
+      "terminal",
+      "или",
+      "swagger",
+      "после",
+      "helix",
+      "gateway",
+      "start"
     ],
     "nav_order": 6
   },
@@ -7446,6 +7805,84 @@
     "nav_order": 11
   },
   {
+    "id": "ru/gateway#swagger-authorize",
+    "lang": "ru",
+    "slug": "gateway",
+    "section": "swagger-authorize",
+    "title": "API Gateway",
+    "heading": "Swagger Authorize",
+    "body": "1. Откройте 2. Нажмите Authorize (иконка замка) 3. В поле HelixApiKey вставьте ключ gateway ( ) — с префиксом или без 4. Authorize → закройте диалог 5. Защищённые эндпоинты отправляют (также принимается ) и работают без ключа. Остальные маршруты требуют auth при .",
+    "keywords": [
+      "api",
+      "gateway",
+      "гейтвей",
+      "uvicorn",
+      "openai",
+      "swagger",
+      "authorize"
+    ],
+    "nav_order": 11
+  },
+  {
+    "id": "ru/gateway#затем-helix_require_authtrue-и-перезапуск",
+    "lang": "ru",
+    "slug": "gateway",
+    "section": "затем-helix_require_authtrue-и-перезапуск",
+    "title": "API Gateway",
+    "heading": "Затем HELIX_REQUIRE_AUTH=true и перезапуск",
+    "body": "bash curl -sS -X POST \"http://127.0.0.1:8000/admin/api-keys?name=my-app&permissions=read,write&rate limit=100\" \\ -H \"Authorization: Bearer hx admin …\" `` /docs hx … POST /admin/api-keys read write execute admin hp … /api/helix/ helix profile key init /admin/api-keys`.",
+    "keywords": [
+      "api",
+      "gateway",
+      "гейтвей",
+      "uvicorn",
+      "openai",
+      "затем",
+      "helix_require_authtrue",
+      "перезапуск",
+      "helix_require_auth",
+      "true"
+    ],
+    "nav_order": 11
+  },
+  {
+    "id": "ru/gateway#интерактивная-документация-api",
+    "lang": "ru",
+    "slug": "gateway",
+    "section": "интерактивная-документация-api",
+    "title": "API Gateway",
+    "heading": "Интерактивная документация API",
+    "body": "FastAPI отдаёт OpenAPI-документацию на порту gateway (по умолчанию ): URL Формат ----- -------- Swagger UI — вызов эндпоинтов в браузере ReDoc — читаемый справочник Сырая схема OpenAPI 3 Пример:",
+    "keywords": [
+      "api",
+      "gateway",
+      "гейтвей",
+      "uvicorn",
+      "openai",
+      "интерактивная",
+      "документация"
+    ],
+    "nav_order": 11
+  },
+  {
+    "id": "ru/gateway#ключи-gateway-api",
+    "lang": "ru",
+    "slug": "gateway",
+    "section": "ключи-gateway-api",
+    "title": "API Gateway",
+    "heading": "Ключи gateway API",
+    "body": "Ключи gateway ( ) аутентифицируют HTTP-клиентов. Нет CLI-команды для их создания — используйте admin API или Swagger UI. Первый admin-ключ (однократно, когда ключей ещё нет): ```bash export HELIX REQUIRE AUTH=false helix gateway start -f",
+    "keywords": [
+      "api",
+      "gateway",
+      "гейтвей",
+      "uvicorn",
+      "openai",
+      "ключи"
+    ],
+    "nav_order": 11
+  },
+  {
     "id": "ru/gateway#команды",
     "lang": "ru",
     "slug": "gateway",
@@ -7470,7 +7907,7 @@
     "section": "краткая-карта-эндпоинтов",
     "title": "API Gateway",
     "heading": "Краткая карта эндпоинтов",
-    "body": "Группа Примеры -------- --------- Health , , Chat Hermes , , , , Management , , , Admin , Создание первого admin-ключа: ```bash",
+    "body": "Группа Примеры -------- --------- Health , , Chat Hermes , , , , Management , , , Admin , , (Prometheus)",
     "keywords": [
       "api",
       "gateway",
@@ -7480,6 +7917,24 @@
       "краткая",
       "карта",
       "эндпоинтов"
+    ],
+    "nav_order": 11
+  },
+  {
+    "id": "ru/gateway#метрики",
+    "lang": "ru",
+    "slug": "gateway",
+    "section": "метрики",
+    "title": "API Gateway",
+    "heading": "Метрики",
+    "body": "Два эндпоинта метрик — оба требуют admin API key: Эндпоинт Формат Описание ---------- -------- ---------- Prometheus text Корневой scrape target (типично для Prometheus) JSON Счётчики и сводка в памяти (поля , ) Prometheus text Тот же Prometheus-вывод, что и (скрыт из OpenAPI) Отключены при — и возвращают 404; JSON работает.",
+    "keywords": [
+      "api",
+      "gateway",
+      "гейтвей",
+      "uvicorn",
+      "openai",
+      "метрики"
     ],
     "nav_order": 11
   },
@@ -7503,65 +7958,85 @@
     "nav_order": 11
   },
   {
-    "id": "ru/gateway-api#1-создать-tenant-профиль-admin",
+    "id": "ru/gateway#сайт-документации---with-docs",
+    "lang": "ru",
+    "slug": "gateway",
+    "section": "сайт-документации---with-docs",
+    "title": "API Gateway",
+    "heading": "Сайт документации (`--with-docs`)",
+    "body": "Запуск сайта документации вместе с gateway: ```bash helix gateway start --with-docs",
+    "keywords": [
+      "api",
+      "gateway",
+      "гейтвей",
+      "uvicorn",
+      "openai",
+      "сайт",
+      "документации",
+      "with",
+      "docs"
+    ],
+    "nav_order": 11
+  },
+  {
+    "id": "ru/gateway-api#1-создать-профиль-арендатора-admin",
     "lang": "ru",
     "slug": "gateway-api",
-    "section": "1-создать-tenant-профиль-admin",
-    "title": "Справочник Gateway API",
-    "heading": "1. Создать tenant-профиль (admin)",
+    "section": "1-создать-профиль-арендатора-admin",
+    "title": "Полный справочник API",
+    "heading": "1. Создать профиль арендатора (admin)",
     "body": "curl -sS -X POST \"$HELIX URL/api/helix/profiles\" \\ -H \"Authorization: Bearer $ADMIN KEY\" \\ -H \"Content-Type: application/json\" \\ -d '{\"name\":\"tenant-42\",\"with access key\":true}'",
     "keywords": [
       "создать",
-      "tenant",
       "профиль",
+      "арендатора",
       "admin"
     ],
     "nav_order": 12
   },
   {
-    "id": "ru/gateway-api#2-добавить-llm-провайдер",
+    "id": "ru/gateway-api#2-добавить-llm-провайдера",
     "lang": "ru",
     "slug": "gateway-api",
-    "section": "2-добавить-llm-провайдер",
-    "title": "Справочник Gateway API",
-    "heading": "2. Добавить LLM-провайдер",
+    "section": "2-добавить-llm-провайдера",
+    "title": "Полный справочник API",
+    "heading": "2. Добавить LLM-провайдера",
     "body": "curl -sS -X POST \"$HELIX URL/api/helix/profiles/tenant-42/models/providers\" \\ -H \"Authorization: Bearer $ADMIN KEY\" \\ -H \"X-Helix-Profile-Key: $ADMIN PROFILE KEY\" \\ -H \"Content-Type: application/json\" \\ -d '{\"preset id\":\"openrouter\",\"skip test\":true}'",
     "keywords": [
       "добавить",
       "llm",
-      "провайдер"
+      "провайдера"
     ],
     "nav_order": 12
   },
   {
-    "id": "ru/gateway-api#3-reload-agent-companions-для-tenant",
+    "id": "ru/gateway-api#3-перезагрузить-агента-арендатора-companions",
     "lang": "ru",
     "slug": "gateway-api",
-    "section": "3-reload-agent-companions-для-tenant",
-    "title": "Справочник Gateway API",
-    "heading": "3. Reload agent + companions для tenant",
+    "section": "3-перезагрузить-агента-арендатора-companions",
+    "title": "Полный справочник API",
+    "heading": "3. Перезагрузить агента арендатора + companions",
     "body": "curl -sS -X POST \"$HELIX URL/api/helix/profiles/tenant-42/reload\" \\ -H \"Authorization: Bearer $ADMIN KEY\" \\ -H \"X-Helix-Profile-Key: $ADMIN PROFILE KEY\"",
     "keywords": [
-      "reload",
-      "agent",
-      "companions",
-      "для",
-      "tenant"
+      "перезагрузить",
+      "агента",
+      "арендатора",
+      "companions"
     ],
     "nav_order": 12
   },
   {
-    "id": "ru/gateway-api#4-chat-от-имени-tenant-openai-client-model-имя-профиля",
+    "id": "ru/gateway-api#4-чат-от-имени-арендатора-openai-client-model-имя-профиля",
     "lang": "ru",
     "slug": "gateway-api",
-    "section": "4-chat-от-имени-tenant-openai-client-model-имя-профиля",
-    "title": "Справочник Gateway API",
-    "heading": "4. Chat от имени tenant (OpenAI client: model = имя профиля)",
-    "body": "curl -sS \"$HELIX URL/v1/chat/completions\" \\ -H \"Authorization: Bearer $TENANT API KEY\" \\ -H \"Content-Type: application/json\" \\ -d '{\"model\":\"tenant-42\",\"messages\":[{\"role\":\"user\",\"content\":\"привет\"}]}'",
+    "section": "4-чат-от-имени-арендатора-openai-client-model-имя-профиля",
+    "title": "Полный справочник API",
+    "heading": "4. Чат от имени арендатора (OpenAI client: model = имя профиля)",
+    "body": "curl -sS \"$HELIX URL/v1/chat/completions\" \\ -H \"Authorization: Bearer $TENANT API KEY\" \\ -H \"Content-Type: application/json\" \\ -d '{\"model\":\"tenant-42\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}' ``` Дополнительные примеры — в соответствующих разделах эндпоинтов ниже. ---",
     "keywords": [
-      "chat",
+      "чат",
       "имени",
-      "tenant",
+      "арендатора",
       "openai",
       "client",
       "model",
@@ -7571,240 +8046,172 @@
     "nav_order": 12
   },
   {
-    "id": "ru/gateway-api#5-настройка-telegram-для-профиля-бота",
+    "id": "ru/gateway-api#api-чата-сайта-документации",
     "lang": "ru",
     "slug": "gateway-api",
-    "section": "5-настройка-telegram-для-профиля-бота",
-    "title": "Справочник Gateway API",
-    "heading": "5. Настройка Telegram для профиля бота",
-    "body": "curl -sS -X POST \"$HELIX URL/api/helix/profiles/tenant-42/telegram/setup\" \\ -H \"Authorization: Bearer $ADMIN KEY\" \\ -H \"X-Helix-Profile-Key: $TENANT PROFILE KEY\" \\ -H \"Content-Type: application/json\" \\ -d '{\"bot token\":\"123456789:AAH…\"}'",
-    "keywords": [
-      "настройка",
-      "telegram",
-      "для",
-      "профиля",
-      "бота"
-    ],
-    "nav_order": 12
-  },
-  {
-    "id": "ru/gateway-api#6-одобрить-пользователя-telegram-только-admin",
-    "lang": "ru",
-    "slug": "gateway-api",
-    "section": "6-одобрить-пользователя-telegram-только-admin",
-    "title": "Справочник Gateway API",
-    "heading": "6. Одобрить пользователя Telegram (только admin)",
-    "body": "curl -sS -X POST \"$HELIX URL/api/helix/profiles/tenant-42/telegram/requests/12345/approve\" \\ -H \"Authorization: Bearer $ADMIN KEY\" \\ -H \"X-Helix-Profile-Key: $ADMIN PROFILE KEY\" \\ -H \"Content-Type: application/json\" \\ -d '{\"profile\":\"tenant-42\"}' `` \"reload required\": true POST /api/helix/profiles/{id}/reload` — без рестарта uvicorn. ---",
-    "keywords": [
-      "одобрить",
-      "пользователя",
-      "telegram",
-      "только",
-      "admin"
-    ],
-    "nav_order": 12
-  },
-  {
-    "id": "ru/gateway-api#admin-admin",
-    "lang": "ru",
-    "slug": "gateway-api",
-    "section": "admin-admin",
-    "title": "Справочник Gateway API",
-    "heading": "Admin (`/admin`)",
-    "body": "Метод Путь Описание -------- ------ ------------- POST Создать ключ GET Список DELETE Отозвать GET Prometheus (admin) ---",
-    "keywords": [
-      "admin"
-    ],
-    "nav_order": 12
-  },
-  {
-    "id": "ru/gateway-api#api-key-уровень-1",
-    "lang": "ru",
-    "slug": "gateway-api",
-    "section": "api-key-уровень-1",
-    "title": "Справочник Gateway API",
-    "heading": "API key (уровень 1)",
-    "body": "Все маршруты кроме и требуют валидный API key при (по умолчанию). Заголовок Пример ----------- -------- Права: , , , — см. SECURITY.md. Создание ключей: (нужно право admin).",
+    "section": "api-чата-сайта-документации",
+    "title": "Полный справочник API",
+    "heading": "API чата сайта документации",
+    "body": "Префикс . Питает виджет сайта документации — без инструментов агента , только RAG по документации.",
     "keywords": [
       "api",
-      "key",
-      "уровень"
+      "чата",
+      "сайта",
+      "документации"
     ],
     "nav_order": 12
   },
   {
-    "id": "ru/gateway-api#global-apihelixglobal-только-admin",
+    "id": "ru/gateway-api#delete-adminapi-keyskey_id",
     "lang": "ru",
     "slug": "gateway-api",
-    "section": "global-apihelixglobal-только-admin",
-    "title": "Справочник Gateway API",
-    "heading": "Global — `/api/helix/global` (только admin)",
-    "body": "Метод Путь Описание -------- ------ ---------- POST Инициализация global GET/PATCH GET/PATCH",
+    "section": "delete-adminapi-keyskey_id",
+    "title": "Полный справочник API",
+    "heading": "`DELETE /admin/api-keys/{key_id}`",
+    "body": "Отозвать ключ по числовому из ответа списка (имя path-параметра в OpenAPI: ; передавайте id ключа, а не секрет).",
     "keywords": [
-      "global",
-      "apihelixglobal",
-      "только",
+      "delete",
+      "adminapi",
+      "keyskey_id",
       "admin",
       "api",
-      "helix"
+      "keys",
+      "key_id"
     ],
     "nav_order": 12
   },
   {
-    "id": "ru/gateway-api#hermes-compatible-api",
+    "id": "ru/gateway-api#get",
     "lang": "ru",
     "slug": "gateway-api",
-    "section": "hermes-compatible-api",
-    "title": "Справочник Gateway API",
-    "heading": "Hermes-compatible API",
-    "body": "Соответствие Hermes API Server. Hermes Helix Примечание -------- ------- ------------ ✅ Имена профилей как model id ✅ Возможности агента ✅ Публичный ✅ Расширенный health ✅ Инструменты агента ✅ ✅ SQLite, LRU 100 ✅ , SSE events ✅ ✅ CRUD + pause/resume/run ✅ Cron на профиль CRUD + chat/stream ✅",
+    "section": "get",
+    "title": "Полный справочник API",
+    "heading": "`GET /`",
+    "body": "Аутентификация: API key Версия gateway, host profile, загруженные профили. См. Базовый URL.",
+    "keywords": [
+      "get"
+    ],
+    "nav_order": 12
+  },
+  {
+    "id": "ru/gateway-api#get-healthdetailed",
+    "lang": "ru",
+    "slug": "gateway-api",
+    "section": "get-healthdetailed",
+    "title": "Полный справочник API",
+    "heading": "`GET /health/detailed`",
+    "body": "Аутентификация: публичный (без API key) Расширенная диагностика: , , , по профилям, bind host/port.",
+    "keywords": [
+      "get",
+      "healthdetailed",
+      "health",
+      "detailed"
+    ],
+    "nav_order": 12
+  },
+  {
+    "id": "ru/gateway-api#get-metrics",
+    "lang": "ru",
+    "slug": "gateway-api",
+    "section": "get-metrics",
+    "title": "Полный справочник API",
+    "heading": "`GET /metrics`",
+    "body": "Аутентификация: Admin API key Prometheus text exposition (при ). Тот же формат, что у admin prometheus endpoint. ---",
+    "keywords": [
+      "get",
+      "metrics"
+    ],
+    "nav_order": 12
+  },
+  {
+    "id": "ru/gateway-api#get-status",
+    "lang": "ru",
+    "slug": "gateway-api",
+    "section": "get-status",
+    "title": "Полный справочник API",
+    "heading": "`GET …/status`",
+    "body": "Бот настроен, токен замаскирован, pending access requests, карта пользователей, companions.",
+    "keywords": [
+      "get",
+      "status"
+    ],
+    "nav_order": 12
+  },
+  {
+    "id": "ru/gateway-api#get-v1docschatsession",
+    "lang": "ru",
+    "slug": "gateway-api",
+    "section": "get-v1docschatsession",
+    "title": "Полный справочник API",
+    "heading": "`GET /v1/docs/chat/session`",
+    "body": "Аутентификация: docs-chat token Query: (8–64 символа). Возвращает сохранённую историю чата посетителя.",
+    "keywords": [
+      "get",
+      "v1docschatsession",
+      "docs",
+      "chat",
+      "session"
+    ],
+    "nav_order": 12
+  },
+  {
+    "id": "ru/gateway-api#helix-gateway-api-полный-справочник",
+    "lang": "ru",
+    "slug": "gateway-api",
+    "section": "helix-gateway-api-полный-справочник",
+    "title": "Полный справочник API",
+    "heading": "Helix Gateway API — полный справочник",
+    "body": "Helix запускает единый multi-profile HTTP gateway с тремя публичными поверхностями: Поверхность Префикс Назначение ------------- --------- ------------ Hermes-compatible API , , Drop-in для Open WebUI, LobeChat, Hermes-клиентов Расширения агента Helix , permissions, plans OpenAI chat + разрешения на инструменты + ревью планов Helix Management API SaaS control plane: профили, модели, MCP, навыки, Telegram Эксплуатационное руководство (start/stop, порты, логи): GATEWAY.md. ---",
+    "keywords": [
+      "helix",
+      "gateway",
+      "api",
+      "полный",
+      "справочник"
+    ],
+    "nav_order": 12
+  },
+  {
+    "id": "ru/gateway-api#hermes-api-v1",
+    "lang": "ru",
+    "slug": "gateway-api",
+    "section": "hermes-api-v1",
+    "title": "Полный справочник API",
+    "heading": "Hermes API (`/v1`)",
+    "body": "Hermes-compatible поверхность. Все маршруты требуют API key gateway, если не указано иное. Заголовки профиля применяются там, где указано. См. документацию Hermes agent.",
     "keywords": [
       "hermes",
-      "compatible",
       "api"
     ],
     "nav_order": 12
   },
   {
-    "id": "ru/gateway-api#mcp-mcp",
+    "id": "ru/gateway-api#post-adminapi-keys",
     "lang": "ru",
     "slug": "gateway-api",
-    "section": "mcp-mcp",
-    "title": "Справочник Gateway API",
-    "heading": "MCP — `…/mcp`",
-    "body": "Метод Путь Описание -------- ------ ---------- GET/POST/DELETE CRUD серверов POST Тест подключения GET/PATCH Назначения GET Популярные серверы POST Установка popular/git",
+    "section": "post-adminapi-keys",
+    "title": "Полный справочник API",
+    "heading": "`POST /admin/api-keys`",
+    "body": "Создать новый API key gateway. Query-параметры: Параметр По умолчанию Описание ---------- -------------- ---------- обязательный Человекочитаемая метка Права через запятую Запросов в минуту Ответ: (один раз), , , , .",
     "keywords": [
-      "mcp"
+      "post",
+      "adminapi",
+      "keys",
+      "admin",
+      "api"
     ],
     "nav_order": 12
   },
   {
-    "id": "ru/gateway-api#multi-profile-архитектура",
+    "id": "ru/gateway-api#post-apihelixprofiles",
     "lang": "ru",
     "slug": "gateway-api",
-    "section": "multi-profile-архитектура",
-    "title": "Справочник Gateway API",
-    "heading": "Multi-profile архитектура",
-    "body": "Один uvicorn обслуживает N профилей через : - Агенты загружаются lazy по профилю - — Telegram polling + cron на профиль - перезапускает companions одного профиля без рестарта gateway Host profile задаётся при старте ( ). ---",
+    "section": "post-apihelixprofiles",
+    "title": "Полный справочник API",
+    "heading": "`POST /api/helix/profiles`",
+    "body": "Аутентификация: Admin Создать профиль. Тело ( ): Поле По умолчанию Описание ------ -------------- ---------- обязательный Id профиля true Копировать глобальный config false Сгенерировать ключ доступа false Включить изоляцию workspace Ответ: , (если создан), , .",
     "keywords": [
-      "multi",
-      "profile",
-      "архитектура"
-    ],
-    "nav_order": 12
-  },
-  {
-    "id": "ru/gateway-api#saas-workflow-curl",
-    "lang": "ru",
-    "slug": "gateway-api",
-    "section": "saas-workflow-curl",
-    "title": "Справочник Gateway API",
-    "heading": "SaaS workflow (curl)",
-    "body": "```bash export HELIX URL=http://127.0.0.1:8000 export ADMIN KEY=hx admin … export ADMIN PROFILE KEY=hp … master key профиля admin",
-    "keywords": [
-      "saas",
-      "workflow",
-      "curl"
-    ],
-    "nav_order": 12
-  },
-  {
-    "id": "ru/gateway-api#telegram-telegram",
-    "lang": "ru",
-    "slug": "gateway-api",
-    "section": "telegram-telegram",
-    "title": "Справочник Gateway API",
-    "heading": "Telegram — `…/telegram`",
-    "body": "Эквиваленты CLI: TELEGRAM.md. Метод Путь CLI Auth -------- ------ ----- ------ GET owner/admin POST owner/admin GET owner/admin POST admin POST admin GET/DELETE clear — admin GET/POST/DELETE owner/admin POST owner/admin ---",
-    "keywords": [
-      "telegram"
-    ],
-    "nav_order": 12
-  },
-  {
-    "id": "ru/gateway-api#безопасность",
-    "lang": "ru",
-    "slug": "gateway-api",
-    "section": "безопасность",
-    "title": "Справочник Gateway API",
-    "heading": "Безопасность",
-    "body": "- Секреты в ответах management API маскируются - Ключи доступа возвращаются один раз при create/init/rotate - — только admin API key - Заголовки: , - Production: , bind , TLS на reverse proxy См. также: SECURITY.md, DEPLOYMENT.md, PROFILES.md.",
-    "keywords": [
-      "безопасность"
-    ],
-    "nav_order": 12
-  },
-  {
-    "id": "ru/gateway-api#ключ-доступа-к-профилю-уровень-2",
-    "lang": "ru",
-    "slug": "gateway-api",
-    "section": "ключ-доступа-к-профилю-уровень-2",
-    "title": "Справочник Gateway API",
-    "heading": "Ключ доступа к профилю (уровень 2)",
-    "body": "Маршруты дополнительно требуют авторизацию профиля: Кто Заголовки Область ----- ----------- --------- Владелец профиля Только свой профиль Админ gateway API key с или master key admin-профиля Все профили Имя admin-профиля по умолчанию: ( ).",
-    "keywords": [
-      "ключ",
-      "доступа",
-      "профилю",
-      "уровень"
-    ],
-    "nav_order": 12
-  },
-  {
-    "id": "ru/gateway-api#конфиг-apihelixprofilesid",
-    "lang": "ru",
-    "slug": "gateway-api",
-    "section": "конфиг-apihelixprofilesid",
-    "title": "Справочник Gateway API",
-    "heading": "Конфиг — `/api/helix/profiles/{id}`",
-    "body": "Метод Путь Описание -------- ------ ---------- GET/PATCH config.yaml (секреты замаскированы) GET/PATCH профиля",
-    "keywords": [
-      "конфиг",
-      "apihelixprofilesid",
-      "api",
-      "helix",
-      "profiles"
-    ],
-    "nav_order": 12
-  },
-  {
-    "id": "ru/gateway-api#модели-models",
-    "lang": "ru",
-    "slug": "gateway-api",
-    "section": "модели-models",
-    "title": "Справочник Gateway API",
-    "heading": "Модели — `…/models`",
-    "body": "Метод Путь Описание -------- ------ ---------- GET Каталог провайдеров GET/POST/DELETE CRUD провайдеров POST Проверка + список моделей GET/PATCH , Маршрутизация моделей",
-    "keywords": [
-      "модели",
-      "models"
-    ],
-    "nav_order": 12
-  },
-  {
-    "id": "ru/gateway-api#навыки-skills",
-    "lang": "ru",
-    "slug": "gateway-api",
-    "section": "навыки-skills",
-    "title": "Справочник Gateway API",
-    "heading": "Навыки — `…/skills`",
-    "body": "Метод Путь Описание -------- ------ ---------- GET Список GET Поиск GET Детали GET/PATCH Назначения по агентам POST Установка bundled skills",
-    "keywords": [
-      "навыки",
-      "skills"
-    ],
-    "nav_order": 12
-  },
-  {
-    "id": "ru/gateway-api#профили-apihelixprofiles",
-    "lang": "ru",
-    "slug": "gateway-api",
-    "section": "профили-apihelixprofiles",
-    "title": "Справочник Gateway API",
-    "heading": "Профили — `/api/helix/profiles`",
-    "body": "Метод Путь Описание -------- ------ ---------- GET Список (admin) POST Создать (admin) GET Детали GET Статус agent + companions DELETE Удалить (admin) POST Reload agent + Telegram + cron GET/POST Ключ доступа к профилю GET/POST , Workspace jail",
-    "keywords": [
-      "профили",
+      "post",
       "apihelixprofiles",
       "api",
       "helix",
@@ -7813,63 +8220,316 @@
     "nav_order": 12
   },
   {
-    "id": "ru/gateway-api#расширения-helix-v1",
+    "id": "ru/gateway-api#post-apijobs",
     "lang": "ru",
     "slug": "gateway-api",
-    "section": "расширения-helix-v1",
-    "title": "Справочник Gateway API",
-    "heading": "Расширения Helix (`/v1`)",
-    "body": "Метод Путь Описание -------- ------ ---------- POST OpenAI-совместимый чат GET История GET Список инструментов POST Поиск по памяти POST/GET/DELETE Права на инструменты POST Подтверждение рискованных действий POST/GET Ревью плана ---",
+    "section": "post-apijobs",
+    "title": "Полный справочник API",
+    "heading": "`POST /api/jobs`",
+    "body": "Создать job. Тело ( ): Поле Описание ------ ---------- Естественный язык или инструкция для агента Стандартный cron Отображаемое имя Флаг активности Опциональный Telegram chat для уведомлений Привязка к сессии",
     "keywords": [
-      "расширения",
-      "helix"
+      "post",
+      "apijobs",
+      "api",
+      "jobs"
     ],
     "nav_order": 12
   },
   {
-    "id": "ru/gateway-api#роутинг-профиля-chat-hermes-surface",
+    "id": "ru/gateway-api#post-v1chatcompletions",
     "lang": "ru",
     "slug": "gateway-api",
-    "section": "роутинг-профиля-chat-hermes-surface",
-    "title": "Справочник Gateway API",
-    "heading": "Роутинг профиля (chat / Hermes surface)",
-    "body": "Приоритет (первый непустой wins): 1. или 2. Поле в или (имя профиля) 3. Host profile процесса gateway ( при старте)",
+    "section": "post-v1chatcompletions",
+    "title": "Полный справочник API",
+    "heading": "`POST /v1/chat/completions`",
+    "body": "OpenAI-совместимый chat. Требуется на API key. Тело: стандартный — , , опционально , . Со streaming: → SSE chunks.",
     "keywords": [
-      "роутинг",
-      "профиля",
+      "post",
+      "v1chatcompletions",
       "chat",
-      "hermes",
-      "surface"
+      "completions"
     ],
     "nav_order": 12
   },
   {
-    "id": "ru/gateway-api#сессии-алиасы-заголовков",
+    "id": "ru/gateway-api#post-v1docschat",
     "lang": "ru",
     "slug": "gateway-api",
-    "section": "сессии-алиасы-заголовков",
-    "title": "Справочник Gateway API",
-    "heading": "Сессии (алиасы заголовков)",
-    "body": "Назначение Helix Hermes (алиас) ------------ ------- ---------------- ID разговора / транскрипт Стабильная область памяти Ключ сессии — до 256 символов; control-символы отклоняются. ---",
+    "section": "post-v1docschat",
+    "title": "Полный справочник API",
+    "heading": "`POST /v1/docs/chat`",
+    "body": "Аутентификация: docs-chat token Тело: Поле Описание ------ ---------- Вопрос (1–4000 символов) Анонимный id посетителя или Опционально текущая страница документации SSE при true (по умолчанию) Rate limit на ( ). ---",
     "keywords": [
+      "post",
+      "v1docschat",
+      "docs",
+      "chat"
+    ],
+    "nav_order": 12
+  },
+  {
+    "id": "ru/gateway-api#post-v1responses",
+    "lang": "ru",
+    "slug": "gateway-api",
+    "section": "post-v1responses",
+    "title": "Полный справочник API",
+    "heading": "`POST /v1/responses`",
+    "body": "Создать сохранённый response (Responses API). Требуется право . Тело ( ): Поле Тип Описание ------ ----- ---------- string Имя профиля (по умолчанию ) string или array Ввод пользователя string? Системные инструкции bool Сохранить в SQLite store (по умолчанию true) string? Цепочка responses string? Id разговора",
+    "keywords": [
+      "post",
+      "v1responses",
+      "responses"
+    ],
+    "nav_order": 12
+  },
+  {
+    "id": "ru/gateway-api#reload_required",
+    "lang": "ru",
+    "slug": "gateway-api",
+    "section": "reload_required",
+    "title": "Полный справочник API",
+    "heading": "`reload_required`",
+    "body": "Мутации в management, меняющие конфигурацию работающего агента, возвращают . Применить без перезапуска uvicorn:",
+    "keywords": [
+      "reload_required"
+    ],
+    "nav_order": 12
+  },
+  {
+    "id": "ru/gateway-api#swagger-authorize-один-токен-для-всех-запросов",
+    "lang": "ru",
+    "slug": "gateway-api",
+    "section": "swagger-authorize-один-токен-для-всех-запросов",
+    "title": "Полный справочник API",
+    "heading": "Swagger Authorize (один токен для всех запросов)",
+    "body": "1. Откройте 2. Нажмите Authorize (иконка замка) 3. В поле HelixApiKey вставьте ключ gateway ( ) без префикса — Swagger добавит его автоматически 4. Попробуйте любой защищённый эндпоинт через Try it out также работает в curl и коде, но не настраивается через диалог Authorize. Метаданные gateway (требуется API key): ---",
+    "keywords": [
+      "swagger",
+      "authorize",
+      "один",
+      "токен",
+      "для",
+      "всех",
+      "запросов"
+    ],
+    "nav_order": 12
+  },
+  {
+    "id": "ru/gateway-api#архитектура-multi-profile",
+    "lang": "ru",
+    "slug": "gateway-api",
+    "section": "архитектура-multi-profile",
+    "title": "Полный справочник API",
+    "heading": "Архитектура multi-profile",
+    "body": "Один процесс uvicorn обслуживает N профилей через : - Агенты lazy-load при первом запросе - запускает Telegram polling + cron для каждого профиля - перезапускает агента и companions одного профиля без перезапуска gateway - Host profile задаётся при старте ( ) Хранилища: (SQLite), (memory), (memory). ---",
+    "keywords": [
+      "архитектура",
+      "multi",
+      "profile"
+    ],
+    "nav_order": 12
+  },
+  {
+    "id": "ru/gateway-api#аутентификация",
+    "lang": "ru",
+    "slug": "gateway-api",
+    "section": "аутентификация",
+    "title": "Полный справочник API",
+    "heading": "Аутентификация",
+    "body": "В зависимости от маршрута Helix использует до трёх независимых механизмов аутентификации .",
+    "keywords": [
+      "аутентификация"
+    ],
+    "nav_order": 12
+  },
+  {
+    "id": "ru/gateway-api#базовый-url-и-интерактивная-документация",
+    "lang": "ru",
+    "slug": "gateway-api",
+    "section": "базовый-url-и-интерактивная-документация",
+    "title": "Полный справочник API",
+    "heading": "Базовый URL и интерактивная документация",
+    "body": "Базовый URL по умолчанию (из профиля): Ресурс URL Аутентификация -------- ----- ---------------- Swagger UI — ReDoc — OpenAPI JSON —",
+    "keywords": [
+      "базовый",
+      "url",
+      "интерактивная",
+      "документация"
+    ],
+    "nav_order": 12
+  },
+  {
+    "id": "ru/gateway-api#заголовки-сессии-алиасы",
+    "lang": "ru",
+    "slug": "gateway-api",
+    "section": "заголовки-сессии-алиасы",
+    "title": "Полный справочник API",
+    "heading": "Заголовки сессии (алиасы)",
+    "body": "Назначение Helix Алиас Hermes ------------ ------- -------------- Id разговора / транскрипта Стабильная область памяти Ключ сессии: максимум 256 символов; управляющие символы отклоняются → .",
+    "keywords": [
+      "заголовки",
       "сессии",
-      "алиасы",
-      "заголовков"
+      "алиасы"
     ],
     "nav_order": 12
   },
   {
-    "id": "ru/gateway-api#справочник-gateway-api",
+    "id": "ru/gateway-api#замечания-по-безопасности",
     "lang": "ru",
     "slug": "gateway-api",
-    "section": "справочник-gateway-api",
-    "title": "Справочник Gateway API",
-    "heading": "Справочник Gateway API",
-    "body": "Gateway Helix предоставляет два слоя HTTP API в одном multi-profile процессе : 1. Hermes-compatible API — совместимость с Open WebUI, LobeChat и другими Hermes-клиентами 2. Helix Management API — control plane для SaaS: профили, модели, MCP, навыки, Telegram admin Эксплуатация (start/stop, порты, логи): GATEWAY.md. ---",
+    "section": "замечания-по-безопасности",
+    "title": "Полный справочник API",
+    "heading": "Замечания по безопасности",
+    "body": "- Используйте TLS за reverse proxy в production; по умолчанию bind - Установите в production (обязательно при ) - Admin-маршруты всегда требуют право admin - Security headers: , - CORS: (через запятую) См. также: SECURITY.md, DEPLOYMENT.md, PROFILES.md, TELEGRAM.md.",
     "keywords": [
-      "справочник",
+      "замечания",
+      "безопасности"
+    ],
+    "nav_order": 12
+  },
+  {
+    "id": "ru/gateway-api#маршрутизация-профиля",
+    "lang": "ru",
+    "slug": "gateway-api",
+    "section": "маршрутизация-профиля",
+    "title": "Полный справочник API",
+    "heading": "Маршрутизация профиля",
+    "body": "Для chat, Hermes, sessions и jobs профиль определяется в следующем порядке: 1. Заголовок или 2. Поле в теле запроса (имя профиля; не , , ) 3. Host profile gateway ( при старте процесса)",
+    "keywords": [
+      "маршрутизация",
+      "профиля"
+    ],
+    "nav_order": 12
+  },
+  {
+    "id": "ru/gateway-api#маскирование-секретов",
+    "lang": "ru",
+    "slug": "gateway-api",
+    "section": "маскирование-секретов",
+    "title": "Полный справочник API",
+    "heading": "Маскирование секретов",
+    "body": "Ответы в management маскируют API keys, токены и чувствительные env-переменные. Открытый текст возвращается один раз при create/init/rotate.",
+    "keywords": [
+      "маскирование",
+      "секретов"
+    ],
+    "nav_order": 12
+  },
+  {
+    "id": "ru/gateway-api#нужен-существующий-admin-key-или-bootstrap-с-helix_require_authf",
+    "lang": "ru",
+    "slug": "gateway-api",
+    "section": "нужен-существующий-admin-key-или-bootstrap-с-helix_require_authf",
+    "title": "Полный справочник API",
+    "heading": "Нужен существующий admin key ИЛИ bootstrap с HELIX_REQUIRE_AUTH=false один раз",
+    "body": "curl -sS -X POST \"http://127.0.0.1:8000/admin/api-keys\" \\ -H \"Authorization: Bearer $ADMIN KEY\" \\ -d \"name=my-app&permissions=read,write,execute&rate limit=100\" bash helix profile env --edit HELIX REQUIRE AUTH=false helix gateway reload curl -sS -X POST \"http://127.0.0.1:8000/admin/api-keys\" \\ -d \"name=admin&permissions=read,write,execute,admin&rate limit=1000\"",
+    "keywords": [
+      "нужен",
+      "существующий",
+      "admin",
+      "key",
+      "или",
+      "bootstrap",
+      "helix_require_authf",
+      "helix_require_auth",
+      "false",
+      "один",
+      "раз"
+    ],
+    "nav_order": 12
+  },
+  {
+    "id": "ru/gateway-api#ошибки",
+    "lang": "ru",
+    "slug": "gateway-api",
+    "section": "ошибки",
+    "title": "Полный справочник API",
+    "heading": "Ошибки",
+    "body": "Код Значение ----- ---------- 400 Невалидное тело, заголовки или бизнес-правило 401 Отсутствует или невалидный API key / ключ профиля / docs-chat token 403 Валидный ключ, но недостаточно прав 404 Ресурс не найден или функция отключена 409 Конфликт (например, профиль уже существует, admin уже назначен) 429 Превышен rate limit для ключа 503 Gateway не инициализирован (registry, key manager, agent)",
+    "keywords": [
+      "ошибки"
+    ],
+    "nav_order": 12
+  },
+  {
+    "id": "ru/gateway-api#примеры-saas-воркфлоу",
+    "lang": "ru",
+    "slug": "gateway-api",
+    "section": "примеры-saas-воркфлоу",
+    "title": "Полный справочник API",
+    "heading": "Примеры SaaS-воркфлоу",
+    "body": "```bash export HELIX URL=http://127.0.0.1:8000 export ADMIN KEY=hx … export ADMIN PROFILE KEY=hp …",
+    "keywords": [
+      "примеры",
+      "saas",
+      "воркфлоу"
+    ],
+    "nav_order": 12
+  },
+  {
+    "id": "ru/gateway-api#содержание",
+    "lang": "ru",
+    "slug": "gateway-api",
+    "section": "содержание",
+    "title": "Полный справочник API",
+    "heading": "Содержание",
+    "body": "1. Базовый URL и интерактивная документация 2. Аутентификация 3. Общие понятия 4. Примеры SaaS-воркфлоу 5. Health и информация о gateway 6. Admin API 7. Hermes API ( ) 8. Расширения агента ( ) 9. Сессии ( ) 10. Cron-задачи ( ) 11. Управление: профили 12. Управление: модели 13. Управление: навыки 14. Управление: MCP 15. Управление: config и env 16. Управление: глобальные настройки 17. Управление: Telegram 18. API чата сайта документации 19. Архитектура multi-profile 20. Замечания по безопасности ---",
+    "keywords": [
+      "содержание"
+    ],
+    "nav_order": 12
+  },
+  {
+    "id": "ru/gateway-api#уровень-1-api-key-gateway-hx_",
+    "lang": "ru",
+    "slug": "gateway-api",
+    "section": "уровень-1-api-key-gateway-hx_",
+    "title": "Полный справочник API",
+    "heading": "Уровень 1 — API key gateway (`hx_…`)",
+    "body": "Требуется почти на всех маршрутах при (по умолчанию). Заголовок Пример ----------- -------- Права (через запятую при создании): , , , . См. SECURITY.md. Создание ключа — отдельной CLI-команды пока нет; используйте HTTP или Swagger: ```bash",
+    "keywords": [
+      "уровень",
+      "api",
+      "key",
       "gateway",
-      "api"
+      "hx_"
+    ],
+    "nav_order": 12
+  },
+  {
+    "id": "ru/gateway-api#уровень-2-ключ-доступа-к-профилю-hp_",
+    "lang": "ru",
+    "slug": "gateway-api",
+    "section": "уровень-2-ключ-доступа-к-профилю-hp_",
+    "title": "Полный справочник API",
+    "heading": "Уровень 2 — Ключ доступа к профилю (`hp_…`)",
+    "body": "Требуется для маршрутов (дополнительно к API key gateway): Вызывающая сторона Заголовки Область -------------------- ----------- --------- Владелец профиля Gateway key + для своего профиля Один профиль Админ платформы Gateway key с правом или master key admin-профиля Все профили Имя admin-профиля по умолчанию: ( ). Ключи профиля создаются через CLI ( ) или Management API ( ). Это не то же самое, что gateway keys .",
+    "keywords": [
+      "уровень",
+      "ключ",
+      "доступа",
+      "профилю",
+      "hp_"
+    ],
+    "nav_order": 12
+  },
+  {
+    "id": "ru/gateway-api#уровень-3-токен-docs-chat-только-для-виджета-сайта",
+    "lang": "ru",
+    "slug": "gateway-api",
+    "section": "уровень-3-токен-docs-chat-только-для-виджета-сайта",
+    "title": "Полный справочник API",
+    "heading": "Уровень 3 — Токен docs-chat (только для виджета сайта)",
+    "body": "Маршруты под (кроме ) используют : Заголовок Пример ----------- -------- Отдельно от API keys gateway. См. API чата сайта документации.",
+    "keywords": [
+      "уровень",
+      "токен",
+      "docs",
+      "chat",
+      "только",
+      "для",
+      "виджета",
+      "сайта"
     ],
     "nav_order": 12
   },
@@ -8415,7 +9075,7 @@
     "section": "api-keys",
     "title": "Безопасность",
     "heading": "API keys",
-    "body": "- Хранение: HMAC-SHA256 с pepper - всегда требуют permission - Создание: с admin key",
+    "body": "- Хранение: HMAC-SHA256 с pepper - всегда требуют permission - Создание: с admin key (нет CLI-команды для — используйте curl или Swagger )",
     "keywords": [
       "security",
       "безопасность",
@@ -8448,6 +9108,26 @@
     "nav_order": 17
   },
   {
+    "id": "ru/security#двухслойная-аутентификация-gateway",
+    "lang": "ru",
+    "slug": "security",
+    "section": "двухслойная-аутентификация-gateway",
+    "title": "Безопасность",
+    "heading": "Двухслойная аутентификация gateway",
+    "body": "Gateway использует два независимых credential : Слой Ключ Префикс Назначение ------ ------ --------- ------------ 1 — API key gateway или Аутентификация всех защищённых HTTP-маршрутов (chat, Hermes, management) 2 — Ключ доступа к профилю Авторизация management для конкретного профиля Слой 1 обязателен при (кроме , ). Ключи создаются через . Слой 2 только для . Владелец профиля отправляет свой для управления своим профилем. Админы gateway обходят слой 2 ключом API с правом или master-ключом admin-профиля ( , по умолчанию ). Ключи — через , не через admin API gateway. Chat и Hermes ( , и т.д.) требуют только слой 1 . Роутинг профиля — или поле , не . Таблицы: GATEWAY API.md.",
+    "keywords": [
+      "security",
+      "безопасность",
+      "auth",
+      "cors",
+      "token",
+      "двухслойная",
+      "аутентификация",
+      "gateway"
+    ],
+    "nav_order": 17
+  },
+  {
     "id": "ru/security#инструменты",
     "lang": "ru",
     "slug": "security",
@@ -8462,6 +9142,28 @@
       "cors",
       "token",
       "инструменты"
+    ],
+    "nav_order": 17
+  },
+  {
+    "id": "ru/security#токен-docs-chat-отдельная-поверхность",
+    "lang": "ru",
+    "slug": "security",
+    "section": "токен-docs-chat-отдельная-поверхность",
+    "title": "Безопасность",
+    "heading": "Токен docs-chat (отдельная поверхность)",
+    "body": "При запуске сайта документации с и встроенный ассистент использует — отдельный секрет для и прокси docs-server ( ). Это не API key gateway ( ) и не ключ профиля ( ). Токен только на стороне сервера (прокси хранит его; браузер не видит). Ротируйте независимо от ключей gateway.",
+    "keywords": [
+      "security",
+      "безопасность",
+      "auth",
+      "cors",
+      "token",
+      "токен",
+      "docs",
+      "chat",
+      "отдельная",
+      "поверхность"
     ],
     "nav_order": 17
   },

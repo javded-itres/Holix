@@ -281,25 +281,25 @@ SEO_PAGES: dict[str, dict[str, dict[str, str]]] = {
     },
     "gateway-api": {
         "ru": {
-            "title": "Справочник Gateway API Helix — Hermes, Management, SaaS",
+            "title": "Полный справочник Helix Gateway API — все эндпоинты",
             "description": (
-                "Полный справочник Helix Gateway API: Hermes-compatible endpoints, Helix Management "
-                "/api/helix/, двухуровневая auth, multi-profile routing, Telegram admin API и curl-примеры SaaS."
+                "Полное описание Helix Gateway API: 110+ эндпоинтов Hermes, chat, sessions, jobs, "
+                "/api/helix/ management, admin, metrics, docs-chat. Аутентификация, Swagger Authorize, curl-примеры."
             ),
             "keywords": (
-                "Helix Gateway API, Hermes API, Helix Management API, /api/helix, multi-profile gateway, "
-                "SaaS API, Telegram admin API"
+                "Helix Gateway API, справочник API, Hermes API, Helix Management API, /api/helix, "
+                "OpenAPI Swagger, Telegram admin API, REST API документация"
             ),
         },
         "en": {
-            "title": "Helix Gateway API Reference — Hermes, Management, SaaS",
+            "title": "Complete Helix Gateway API Reference — Every Endpoint",
             "description": (
-                "Complete Helix Gateway API reference: Hermes-compatible endpoints, Helix Management "
-                "/api/helix/, two-level auth, multi-profile routing, Telegram admin API, and SaaS curl examples."
+                "Full Helix Gateway API docs: 110+ endpoints for Hermes, chat, sessions, jobs, "
+                "/api/helix/ management, admin, metrics, docs-chat. Auth, Swagger Authorize, curl examples."
             ),
             "keywords": (
-                "Helix Gateway API, Hermes API, Helix Management API, /api/helix, multi-profile gateway, "
-                "SaaS API, Telegram admin API"
+                "Helix Gateway API, complete API reference, Hermes API, Helix Management API, /api/helix, "
+                "OpenAPI Swagger, Telegram admin API, REST API documentation"
             ),
         },
     },

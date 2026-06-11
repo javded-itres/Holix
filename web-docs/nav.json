@@ -73,8 +73,8 @@
   },
   {
     "slug": "gateway-api",
-    "en": "Gateway API Reference",
-    "ru": "Справочник Gateway API",
+    "en": "Complete API Reference",
+    "ru": "Полный справочник API",
     "file_key": "GATEWAY_API"
   },
   {
