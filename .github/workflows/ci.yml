@@ -10,6 +10,7 @@ permissions:
 
 jobs:
   test:
+    timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
@@ -40,9 +41,11 @@ jobs:
         run: uv run ruff check core cli api integrations tests
 
       - name: Pytest
+        shell: bash
         run: uv run pytest -m "not llm" -q
 
       - name: Doctor (dry run)
+        shell: bash
         env:
           HELIX_HOME: ${{ runner.temp }}/helix-doctor
           TELEGRAM_BOT_TOKEN: ""
