@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+## 0.1.9 — 2026-06-11
+
+### Changed
+- **Rebrand Helix → Holix** — CLI command `holix`, package `HolixAgentAi`, repo `javded-itres/Holix`
+- Management API prefix `/api/holix/`; env vars `HOLIX_*`; data dir `~/.holix` (legacy `~/.helix` / `HELIX_HOME` supported)
+- Project context file `.holix/HOLIX.md` (legacy `HELIX.md` still read)
+
 ### Added
 - **Multi-profile gateway (v0.2)** — one uvicorn process, `ProfileAgentRegistry`, per-profile Telegram + cron companions
 - **Hermes-compatible API** — `/v1/models`, `/v1/capabilities`, `/v1/responses`, `/v1/runs` (SSE), `/api/jobs`, `/api/sessions`; session header aliases `X-Holix-*` / `X-Hermes-*`
