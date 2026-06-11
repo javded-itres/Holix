@@ -6,6 +6,8 @@ Supports two modes:
 - Process (OS process): multiprocessing.Queue with pickle serialization
 """
 
+from __future__ import annotations
+
 import asyncio
 import logging
 import multiprocessing
@@ -39,7 +41,7 @@ class AgentMessage:
         return pickle.dumps(self)
 
     @classmethod
-    def deserialize(cls, data: bytes) -> "AgentMessage":
+    def deserialize(cls, data: bytes) -> AgentMessage:
         """Deserialize from IPC data."""
         return pickle.loads(data)
 

@@ -47,6 +47,7 @@ def test_terminate_process_noop_when_dead(_alive: MagicMock) -> None:
     pc.terminate_process(99999)
 
 
+@patch.object(pc, "_psutil_terminate_tree", return_value=False)
 @patch.object(pc.os, "killpg", create=True)
 @patch.object(pc.os, "getpgid", create=True, side_effect=OSError("no pgid"))
 @patch.object(pc, "is_process_alive", side_effect=[True, False])
@@ -56,6 +57,7 @@ def test_terminate_process_sigterm_fallback(
     _alive: MagicMock,
     _pgid: MagicMock,
     _killpg: MagicMock,
+    _psutil: MagicMock,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setattr(pc, "IS_WINDOWS", False)

@@ -9,7 +9,6 @@ def is_port_available(host: str, port: int) -> bool:
     """Return True if ``host:port`` can be bound for listening."""
     family = socket.AF_INET6 if ":" in host else socket.AF_INET
     sock = socket.socket(family, socket.SOCK_STREAM)
-    sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     try:
         sock.bind((host, port))
         return True
