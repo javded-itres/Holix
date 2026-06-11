@@ -2763,6 +2763,9 @@ class HelixTUI(App):
             compressed, was_compressed = await agent.context_manager.compress_context(messages)
 
             if was_compressed:
+                from core.profile.soul import inject_soul_into_messages
+
+                compressed = inject_soul_into_messages(compressed, self.profile)
                 usage_before = agent.token_counter.count_message_tokens(messages)
                 usage_after = agent.token_counter.count_message_tokens(compressed)
                 self._append_to_log(

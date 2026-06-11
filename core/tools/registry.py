@@ -87,6 +87,10 @@ class ToolRegistry:
         self.register(SearchSessionsTool())
         self.register(ReadSessionTool())
 
+        from core.tools.profile_identity import register_profile_identity_tools
+
+        register_profile_identity_tools(self)
+
         from config import settings
 
         if settings.enable_browser_tools:

@@ -18,9 +18,16 @@ async def compress_session_if_needed(
     if not cm:
         return messages, False
 
+    from core.profile.soul import inject_soul_into_messages, profile_name_from_agent
+
+    profile = profile_name_from_agent(agent)
+    messages = inject_soul_into_messages(messages, profile)
+
     compressed, was_compressed = await cm.auto_compress_if_needed(messages)
     if not was_compressed:
         return messages, False
+
+    compressed = inject_soul_into_messages(compressed, profile)
 
     try:
         count = await agent.memory.replace_conversation_messages(

@@ -20,6 +20,7 @@ async def test_run_context_compress_success():
     compressed = [{"role": "system", "content": "summary"}, {"role": "user", "content": "a"}]
 
     mock_agent = MagicMock()
+    mock_agent.config.profile_name = "default"
     mock_agent.context_manager.compressor = MagicMock()
     mock_agent.memory.get_conversation = AsyncMock(return_value=messages)
     mock_agent.memory.replace_conversation_messages = AsyncMock()
@@ -40,9 +41,9 @@ async def test_run_context_compress_success():
     await run_context_compress(Host())
 
     assert any("compressed" in line.lower() for line in lines)
-    mock_agent.memory.replace_conversation_messages.assert_awaited_once_with(
-        "conv-1", compressed
-    )
+    saved = mock_agent.memory.replace_conversation_messages.await_args.args[1]
+    assert saved[0]["metadata"]["type"] == "agent_soul"
+    assert saved[-2]["content"] == "summary"
 
 
 @pytest.mark.asyncio

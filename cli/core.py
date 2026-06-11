@@ -263,8 +263,10 @@ class ProfileManager:
         (profile_dir / "gateway").mkdir(parents=True, exist_ok=True)
 
         from core.env_loader import ensure_profile_env_template
+        from core.profile.soul import bootstrap_profile_identity
 
         ensure_profile_env_template(profile, inherit_global=inherit_global)
+        bootstrap_profile_identity(profile)
 
         # Set default config if not provided
         if config is None:
