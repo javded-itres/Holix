@@ -160,6 +160,8 @@ const I18N = {
     tagline: "Self-Improving Agent",
     nav_home: "Home",
     nav_docs: "Documentation",
+    nav_api: "API Reference",
+    section_api: "API",
     search_placeholder: "Search documentation…",
     loading: "Loading…",
     docs: "Documentation",
@@ -222,6 +224,8 @@ const I18N = {
     github: "GitHub",
     docs_hub_lead: "Guides, CLI reference, deployment, and troubleshooting.",
     docs_hub_title: "Documentation",
+    api_callout_lead: "110+ HTTP endpoints: Hermes, chat, sessions, jobs, /api/helix/ management, admin, metrics — with auth, parameters, and curl examples.",
+    api_callout_cta: "Open full API reference",
     footer: "Helix · Russian software · MIT License",
     feat_tools: "Tool calling",
     feat_tools_desc: "Files, shell, web, code, optional Playwright browser.",
@@ -244,6 +248,8 @@ const I18N = {
     tagline: "Самообучающийся агент",
     nav_home: "Главная",
     nav_docs: "Документация",
+    nav_api: "Справочник API",
+    section_api: "API",
     search_placeholder: "Поиск по документации…",
     loading: "Загрузка…",
     docs: "Документация",
@@ -306,6 +312,8 @@ const I18N = {
     github: "GitHub",
     docs_hub_lead: "Установка, справочник CLI, развёртывание и решение проблем.",
     docs_hub_title: "Документация",
+    api_callout_lead: "110+ HTTP-эндпоинтов: Hermes, chat, sessions, jobs, /api/helix/ management, admin, metrics — auth, параметры и curl-примеры.",
+    api_callout_cta: "Открыть полный справочник API",
     footer: "Helix · Российское ПО · MIT License",
     feat_tools: "Инструменты",
     feat_tools_desc: "Файлы, shell, веб, код, браузер Playwright.",
@@ -328,7 +336,8 @@ const I18N = {
 
 const NAV_SECTIONS = {
   getting_started: ["installation", "start-here", "quickstart", "configuration", "profiles"],
-  interfaces: ["cli", "slash-commands", "execution-modes", "tui", "hub", "gateway", "telegram", "telegram-multi-profile", "browser-tools"],
+  api: ["gateway-api", "gateway"],
+  interfaces: ["cli", "slash-commands", "execution-modes", "tui", "hub", "telegram", "telegram-multi-profile", "browser-tools"],
   operations: ["security", "terminal-security", "deployment", "doctor", "logs", "pypi", "troubleshooting", "user-guide"],
   architecture: ["architecture", "readme"],
 };
@@ -519,8 +528,14 @@ function setViewMode(mode) {
 function updateSiteNav() {
   $$(".site-nav-link").forEach((link) => {
     const view = link.dataset.view;
-    const active = (view === "marketing" && state.viewMode === "marketing")
-      || (view === "docs" && state.viewMode === "docs");
+    let active = false;
+    if (view === "marketing") {
+      active = state.viewMode === "marketing";
+    } else if (view === "api") {
+      active = state.viewMode === "docs" && state.activeSlug === "gateway-api";
+    } else if (view === "docs") {
+      active = state.viewMode === "docs" && state.activeSlug !== "gateway-api";
+    }
     link.classList.toggle("active", active);
   });
 }
@@ -578,6 +593,7 @@ function renderSidebar() {
   html += "</div>";
 
   addSection("getting_started", NAV_SECTIONS.getting_started);
+  addSection("section_api", NAV_SECTIONS.api);
   addSection("interfaces", NAV_SECTIONS.interfaces);
   addSection("operations", NAV_SECTIONS.operations);
   addSection("architecture", NAV_SECTIONS.architecture);
@@ -627,6 +643,7 @@ function renderMarketing() {
       </div>
       <div class="hero-actions">
         <a href="/docs" class="btn btn-primary">${t("cta_docs")}</a>
+        <a href="${docHref("gateway-api")}" class="btn btn-ghost">${t("nav_api")}</a>
         <a href="${docHref("installation")}" class="btn btn-ghost">${t("cta_install")}</a>
         <a href="${TELEGRAM_CHANNEL_URL}" class="btn btn-telegram" target="_blank" rel="noopener noreferrer">${t("tg_callout_cta")} ↗</a>
         <a href="${DONATE_URL}" class="btn btn-donate" target="_blank" rel="noopener noreferrer">♥ ${t("donate")}</a>
@@ -706,6 +723,8 @@ function renderDocsHub() {
   const main = $("#main-content");
   main.className = "content";
   const aspects = navItemsForLang().filter((i) => i.slug !== "readme");
+  const apiRef = aspects.find((a) => a.slug === "gateway-api");
+  const hubAspects = aspects.filter((a) => a.slug !== "gateway-api");
 
   main.innerHTML = `
     <section class="docs-hub">
@@ -716,9 +735,17 @@ function renderDocsHub() {
         <a href="${PYPI_URL}" class="hero-install-link" target="_blank" rel="noopener noreferrer">${t("install_pypi_link")} ↗</a>
       </div>
     </section>
+    ${apiRef ? `
+    <section class="api-callout">
+      <div class="api-callout-body">
+        <h2>${t("nav_api")}</h2>
+        <p>${t("api_callout_lead")}</p>
+        <a href="${docHref("gateway-api")}" class="btn btn-primary">${t("api_callout_cta")} →</a>
+      </div>
+    </section>` : ""}
     ${telegramCalloutHtml()}
     <div class="aspects-grid">
-      ${aspects.map((a) => `
+      ${hubAspects.map((a) => `
         <a href="${docHref(a.slug)}" class="aspect-link">
           <span>${a.label}</span>
           <span class="arrow">→</span>

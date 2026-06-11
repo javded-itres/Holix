@@ -8,12 +8,22 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 from fastapi.testclient import TestClient
 
+_TELEGRAM_ENV_KEYS = (
+    "TELEGRAM_BOT_TOKEN",
+    "HELIX_TELEGRAM_BOT_TOKEN",
+    "HELIX_TELEGRAM_ALLOWED_USERS",
+    "HELIX_TELEGRAM_ACCESS_REQUESTS",
+    "HELIX_TELEGRAM_ALLOW_ALL",
+)
+
 
 @pytest.fixture
 def helix_home(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     monkeypatch.setenv("HELIX_HOME", str(tmp_path))
     monkeypatch.setenv("HELIX_ENV", "development")
     monkeypatch.chdir(tmp_path)
+    for key in _TELEGRAM_ENV_KEYS:
+        monkeypatch.delenv(key, raising=False)
     return tmp_path
 
 
@@ -147,8 +157,8 @@ def test_telegram_map_and_admin(
     telegram_client: TestClient,
     gateway_auth_headers: dict,
 ) -> None:
-    from integrations.telegram.env_store import save_telegram_env
     from cli.core import ProfileManager
+    from integrations.telegram.env_store import save_telegram_env
 
     ProfileManager().create_profile("tg-map")
     save_telegram_env({"TELEGRAM_BOT_TOKEN": "123456789:AAHdqTcvCH1vGWJxfSeofSAs0K5PALDsaw"}, profile="tg-map")
@@ -180,8 +190,8 @@ def test_telegram_sync_menu(
     gateway_auth_headers: dict,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    from integrations.telegram.env_store import save_telegram_env
     from cli.core import ProfileManager
+    from integrations.telegram.env_store import save_telegram_env
 
     ProfileManager().create_profile("tg-sync")
     save_telegram_env({"TELEGRAM_BOT_TOKEN": "123456789:AAHdqTcvCH1vGWJxfSeofSAs0K5PALDsaw"}, profile="tg-sync")

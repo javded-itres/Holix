@@ -5,7 +5,6 @@ from __future__ import annotations
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-
 from core.gateway.profile_registry import ProfileAgentRegistry
 
 

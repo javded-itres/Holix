@@ -304,14 +304,16 @@ def _extract_docx_text(path: Path, *, max_chars: int = 12000) -> str:
         return ""
 
 
-async def describe_image(path: Path, *, profile: str) -> str:
-    vision = resolve_vision_config(profile=profile)
-    mime, _ = mimetypes.guess_type(str(path))
-    mime = mime or "image/jpeg"
-    image_b64 = base64.standard_b64encode(path.read_bytes()).decode("ascii")
-
+async def _vision_describe_bytes(
+    image_bytes: bytes,
+    *,
+    profile: str,
+    mime: str = "image/jpeg",
+) -> str:
+    image_b64 = base64.standard_b64encode(image_bytes).decode("ascii")
     from core.models.client_factory import create_openai_client
 
+    vision = resolve_vision_config(profile=profile)
     client = create_openai_client(
         base_url=vision.base_url,
         api_key=vision.api_key,
@@ -326,9 +328,8 @@ async def describe_image(path: Path, *, profile: str) -> str:
                     {
                         "type": "text",
                         "text": (
-                            "Опиши изображение подробно на русском: видимый текст (OCR), "
-                            "объекты, таблицы, диаграммы, контекст. "
-                            "Если есть текст — процитируй его дословно."
+                            "Describe this image in detail. Transcribe visible text (OCR), "
+                            "objects, tables, and diagrams."
                         ),
                     },
                     {
@@ -342,6 +343,35 @@ async def describe_image(path: Path, *, profile: str) -> str:
         temperature=0.2,
     )
     return (response.choices[0].message.content or "").strip()
+
+
+async def describe_image_from_url(url: str, *, profile: str) -> str:
+    """Describe an inline or remote image URL (Hermes multimodal gateway path)."""
+    raw = (url or "").strip()
+    if raw.startswith("data:"):
+        header, _, payload = raw.partition(",")
+        mime = "image/jpeg"
+        if header.startswith("data:") and ";" in header:
+            mime = header[5:].split(";", 1)[0] or mime
+        image_bytes = base64.standard_b64decode(payload)
+        return await _vision_describe_bytes(image_bytes, profile=profile, mime=mime)
+
+    if raw.startswith(("http://", "https://")):
+        import httpx
+
+        async with httpx.AsyncClient(timeout=30.0, follow_redirects=True) as client:
+            response = await client.get(raw)
+            response.raise_for_status()
+            mime = response.headers.get("content-type", "image/jpeg").split(";", 1)[0]
+            return await _vision_describe_bytes(response.content, profile=profile, mime=mime)
+
+    raise ValueError(f"Unsupported image URL: {raw[:80]}")
+
+
+async def describe_image(path: Path, *, profile: str) -> str:
+    mime, _ = mimetypes.guess_type(str(path))
+    mime = mime or "image/jpeg"
+    return await _vision_describe_bytes(path.read_bytes(), profile=profile, mime=mime)
 
 
 async def enrich_saved_file(saved: SavedTelegramFile, *, profile: str) -> SavedTelegramFile:

@@ -339,8 +339,15 @@ def test_importer_remove(tmp_path: Path):
 
 @pytest.mark.integration
 def test_clawhub_search_live():
+    from urllib.error import HTTPError
+
     from core.hub.clawhub import ClawHubClient
 
-    hits = ClawHubClient().search("git", limit=3)
+    try:
+        hits = ClawHubClient().search("git", limit=3)
+    except HTTPError as exc:
+        if 500 <= exc.code < 600:
+            pytest.skip(f"ClawHub temporarily unavailable: HTTP {exc.code}")
+        raise
     assert hits
     assert hits[0].slug

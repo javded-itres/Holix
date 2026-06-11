@@ -5,7 +5,8 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 
-from fastapi import Header, HTTPException
+from fastapi import Depends, HTTPException, Request
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from config import settings
 
@@ -16,15 +17,24 @@ rate_limiter = None
 _SESSION_KEY_MAX = 256
 _CONTROL_CHARS = re.compile(r"[\r\n\x00]")
 
+_bearer_scheme = HTTPBearer(
+    auto_error=False,
+    scheme_name="HelixApiKey",
+    bearerFormat="API key",
+    description="Helix gateway API key (hx_…). Also accepted via X-API-Key header.",
+)
 
-def _extract_api_key(
-    authorization: str | None,
-    x_api_key: str | None,
+
+def _api_key_from_request(
+    request: Request,
+    credentials: HTTPAuthorizationCredentials | None,
 ) -> str | None:
-    if authorization and authorization.startswith("Bearer "):
-        return authorization[7:].strip()
-    if x_api_key:
-        return x_api_key.strip()
+    if credentials is not None:
+        token = credentials.credentials.strip()
+        return token or None
+    header = request.headers.get("X-API-Key") or request.headers.get("x-api-key")
+    if header:
+        return header.strip() or None
     return None
 
 
@@ -49,35 +59,31 @@ async def _validate_key(api_key: str, *, default_limit: int) -> dict:
 
 
 async def verify_api_key(
-    authorization: str | None = Header(None),
-    x_api_key: str | None = Header(None),
+    request: Request,
+    credentials: HTTPAuthorizationCredentials | None = Depends(_bearer_scheme),
 ) -> dict:
     """Require a valid API key on all protected routes."""
-    api_key = _extract_api_key(authorization, x_api_key)
+    api_key = _api_key_from_request(request, credentials)
     if not api_key:
         raise HTTPException(status_code=401, detail="API key required")
     return await _validate_key(api_key, default_limit=settings.rate_limit_rpm)
 
 
 async def verify_optional_api_key(
-    authorization: str | None = Header(None),
-    x_api_key: str | None = Header(None),
+    request: Request,
+    credentials: HTTPAuthorizationCredentials | None = Depends(_bearer_scheme),
 ) -> dict | None:
     """Health endpoints: validate key when provided, else None."""
-    api_key = _extract_api_key(authorization, x_api_key)
+    api_key = _api_key_from_request(request, credentials)
     if not api_key:
         return None
     return await _validate_key(api_key, default_limit=settings.rate_limit_rpm)
 
 
-async def verify_admin_key(
-    authorization: str | None = Header(None),
-    x_api_key: str | None = Header(None),
-) -> dict:
+async def verify_admin_key(key_info: dict = Depends(verify_api_key)) -> dict:
     """Admin routes require a valid key with admin permission."""
     from core.security.permissions import PermissionChecker
 
-    key_info = await verify_api_key(authorization=authorization, x_api_key=x_api_key)
     checker = PermissionChecker(key_info["permissions"])
     if not checker.is_admin():
         raise HTTPException(status_code=403, detail="Admin permission required")

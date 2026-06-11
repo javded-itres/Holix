@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from cli.core import ProfileManager
 from fastapi import APIRouter, Depends, Header, HTTPException
 
 from api import state
@@ -23,7 +24,6 @@ from api.services.telegram_ops import (
     setup_telegram,
     sync_telegram_menu,
 )
-from cli.core import ProfileManager
 
 router = APIRouter(prefix="/api/helix/profiles/{profile_id}/telegram", tags=["helix-telegram"])
 

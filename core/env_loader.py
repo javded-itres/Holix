@@ -26,11 +26,11 @@ def project_env_path() -> Path:
 
 
 def profile_dir_path(profile: str | None = None) -> Path:
-    """Return ``~/.helix/profiles/<profile>``."""
-    from cli.core import PROFILES_DIR
+    """Return ``{HELIX_HOME}/profiles/<profile>`` (honours HELIX_HOME at call time)."""
+    from cli.core import profiles_dir
 
     name = (profile or active_profile_name()).strip() or "default"
-    return (PROFILES_DIR / name).resolve()
+    return (profiles_dir() / name).resolve()
 
 
 def profile_env_path(profile: str | None = None) -> Path:

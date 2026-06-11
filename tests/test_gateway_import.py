@@ -1,6 +1,6 @@
 """Ensure api.gateway module loads and critical endpoints behave."""
 
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 from fastapi.testclient import TestClient
@@ -96,8 +96,11 @@ def test_per_key_rate_limit_applied(monkeypatch) -> None:
 
 @pytest.mark.asyncio
 async def test_chat_completions_serializes_agent_access() -> None:
-    import api.gateway
+    import asyncio
+
+    import api.state
     from api.models import ChatCompletionRequest, Message
+    from api.routers.legacy_v1 import chat_completions
 
     mock_agent = AsyncMock()
     mock_agent._initialized = True
@@ -109,13 +112,11 @@ async def test_chat_completions_serializes_agent_access() -> None:
         conversation_id="c1",
     )
 
-    import api.state
-
-    api.state._agent_request_lock = __import__("asyncio").Lock()
+    api.state._agent_request_lock = asyncio.Lock()
     key_info = {"permissions": ["read", "write", "execute"]}
     mock_registry = MagicMock()
     mock_registry.get_agent = AsyncMock(return_value=mock_agent)
-    response = await api.gateway.chat_completions(
+    response = await chat_completions(
         request,
         key_info=key_info,
         registry=mock_registry,

@@ -28,7 +28,30 @@
 
 - Хранение: HMAC-SHA256 с pepper
 - `/admin/*` всегда требуют permission `admin`
-- Создание: `POST /admin/api-keys` с admin key
+- Создание: `POST /admin/api-keys` с admin key (нет CLI-команды `helix` для `hx_` — используйте curl или Swagger `/docs`)
+
+### Двухслойная аутентификация gateway
+
+Gateway использует **два независимых credential**:
+
+| Слой | Ключ | Префикс | Назначение |
+|------|------|---------|------------|
+| 1 — API key gateway | `Authorization: Bearer …` или `X-API-Key` | `hx_…` | Аутентификация всех защищённых HTTP-маршрутов (chat, Hermes, management) |
+| 2 — Ключ доступа к профилю | `X-Helix-Profile-Key` | `hp_…` | Авторизация `/api/helix/*` management для конкретного профиля |
+
+**Слой 1** обязателен при `HELIX_REQUIRE_AUTH=true` (кроме `/health`, `/v1/health`). Ключи `hx_` создаются через `POST /admin/api-keys`.
+
+**Слой 2** только для `/api/helix/*`. Владелец профиля отправляет свой `hp_…` для управления своим профилем. Админы gateway обходят слой 2 ключом API с правом `admin` или master-ключом admin-профиля (`HELIX_TELEGRAM_ADMIN_PROFILE`, по умолчанию `admin`). Ключи `hp_` — через `helix profile key init`, не через admin API gateway.
+
+Chat и Hermes (`/v1/chat/completions`, `/v1/models` и т.д.) требуют **только слой 1**. Роутинг профиля — `X-Helix-Profile` или поле `model`, не `hp_`.
+
+Таблицы: [GATEWAY_API.md](GATEWAY_API.md#authentication).
+
+### Токен docs-chat (отдельная поверхность)
+
+При запуске сайта документации с `--with-docs` и `HELIX_DOCS_CHAT_ENABLED=1` встроенный ассистент использует **`HELIX_DOCS_CHAT_TOKEN`** — отдельный секрет для `/v1/docs/chat` и прокси docs-server (`/api/docs-chat`).
+
+Это **не** API key gateway (`hx_`) и **не** ключ профиля (`hp_`). Токен только на стороне сервера (прокси хранит его; браузер не видит). Ротируйте независимо от ключей gateway.
 
 ## Секреты в профиле
 

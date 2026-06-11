@@ -25,6 +25,11 @@ from api.schemas.hermes import (
     RunApprovalRequest,
     RunsCreateRequest,
 )
+from api.services.content_parts import (
+    UnsupportedContentTypeError,
+    enrich_with_vision_descriptions,
+    parse_responses_input,
+)
 
 router = APIRouter(prefix="/v1", tags=["hermes"])
 
@@ -102,7 +107,11 @@ async def capabilities(key_info: dict = Depends(verify_api_key)):
             "session_chat": True,
             "session_chat_stream": True,
             "jobs_crud": True,
+            "jobs_hermes_schema": True,
             "multi_profile": True,
+            "multimodal_input": True,
+            "session_source_filter": True,
+            "hermes_sse_events": True,
         },
         endpoints={
             "chat_completions": "/v1/chat/completions",
@@ -163,22 +172,6 @@ async def list_skills_hermes(
     return items
 
 
-def _extract_input_text(payload: ResponsesCreateRequest) -> str:
-    if isinstance(payload.input, str):
-        return payload.input
-    parts: list[str] = []
-    for item in payload.input:
-        if not isinstance(item, dict):
-            continue
-        if item.get("type") in {"input_text", "text"}:
-            parts.append(str(item.get("text", "")))
-        elif item.get("role") == "user":
-            content = item.get("content", "")
-            if isinstance(content, str):
-                parts.append(content)
-    return "\n".join(p for p in parts if p).strip()
-
-
 @router.post("/responses")
 async def create_response(
     body: ResponsesCreateRequest,
@@ -211,7 +204,11 @@ async def create_response(
         if prev is None:
             raise HTTPException(status_code=404, detail="previous_response_id not found")
 
-    user_input = _extract_input_text(body)
+    try:
+        parsed = parse_responses_input(body.input)
+    except UnsupportedContentTypeError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    user_input = await enrich_with_vision_descriptions(parsed, profile=ctx.profile)
     if not user_input:
         raise HTTPException(status_code=400, detail="input is required")
 

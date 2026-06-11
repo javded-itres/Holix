@@ -105,14 +105,13 @@ def gateway_client(gateway_auth_headers, monkeypatch: pytest.MonkeyPatch):
     """TestClient with auth bypass and mocked host-profile agent."""
     from unittest.mock import AsyncMock, MagicMock
 
-    from fastapi.testclient import TestClient
-
     import api.deps
     import api.gateway
     import api.state
     from core.gateway.responses_store import ResponsesStore
     from core.gateway.runs_store import RunsStore
     from core.gateway.sessions_store import SessionsStore
+    from fastapi.testclient import TestClient
 
     mock_agent = AsyncMock()
     mock_agent._initialized = True

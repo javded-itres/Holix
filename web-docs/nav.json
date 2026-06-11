@@ -72,6 +72,12 @@
     "file_key": "GATEWAY"
   },
   {
+    "slug": "gateway-api",
+    "en": "Complete API Reference",
+    "ru": "Полный справочник API",
+    "file_key": "GATEWAY_API"
+  },
+  {
     "slug": "telegram",
     "en": "Telegram",
     "ru": "Telegram",

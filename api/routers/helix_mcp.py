@@ -4,15 +4,15 @@ from __future__ import annotations
 
 from typing import Any
 
+from cli.core import ProfileManager
+from core.mcp.installer import build_config_from_popular, install_from_git
+from core.mcp.popular import get_popular_by_key, get_popular_list
 from fastapi import APIRouter, Depends, Header, HTTPException
 
 from api.deps import verify_api_key
 from api.schemas.helix import McpAssignmentsPatchRequest, McpInstallRequest, McpServerCreateRequest
 from api.services.config_mask import mask_config_dict
 from api.services.helix_deps import profile_access
-from cli.core import ProfileManager
-from core.mcp.installer import build_config_from_popular, install_from_git
-from core.mcp.popular import get_popular_by_key, get_popular_list
 
 router = APIRouter(prefix="/api/helix/profiles/{profile_id}/mcp", tags=["helix-mcp"])
 

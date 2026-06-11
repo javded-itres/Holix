@@ -22,6 +22,7 @@
 - [TUI.md](TUI.md) — `helix tui`
 - [HUB.md](HUB.md) — каталоги навыков
 - [GATEWAY.md](GATEWAY.md) — API gateway
+- [GATEWAY_API.md](GATEWAY_API.md) — **полный справочник API — каждый эндпоинт задокументирован** (auth, `/api/helix/`, SaaS curl)
 - [TELEGRAM.md](TELEGRAM.md) — Telegram
 - [TELEGRAM_MULTI_PROFILE.md](TELEGRAM_MULTI_PROFILE.md) — один бот / несколько ботов, access requests, ручной `map`
 - [BROWSER_TOOLS.md](BROWSER_TOOLS.md) — Playwright

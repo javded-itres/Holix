@@ -340,6 +340,28 @@ helix gateway reload
 State: `~/.helix/profiles/<profile>/gateway/state.json` · Logs: `profiles/<profile>/gateway/gateway.log`  
 API details: [GATEWAY.md](GATEWAY.md).
 
+### Gateway API keys
+
+There is **no** `helix` CLI command for creating gateway API keys (`hx_…`) yet. Use one of:
+
+```bash
+# curl (requires an existing admin hx_ key)
+curl -sS -X POST "http://127.0.0.1:8000/admin/api-keys?name=my-app&permissions=read,write" \
+  -H "Authorization: Bearer hx_admin_…"
+
+# or Swagger UI after helix gateway start
+open http://127.0.0.1:8000/docs   # Authorize → HelixApiKey → paste hx_…
+```
+
+**Profile access keys** (`hp_…`) are different — they protect profile switching and `/api/helix/*` management, not the gateway HTTP surface:
+
+```bash
+helix -p alice profile key init    # generates hp_… (shown once)
+helix -p alice --profile-key hp_…  # use on CLI/TUI
+```
+
+First admin key bootstrap: temporarily set `HELIX_REQUIRE_AUTH=false`, create via `POST /admin/api-keys`, then re-enable auth. Full endpoint reference: [GATEWAY_API.md](GATEWAY_API.md).
+
 ---
 
 ## `helix docs`

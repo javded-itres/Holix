@@ -11,6 +11,11 @@ from fastapi.responses import StreamingResponse
 from api import state
 from api.deps import get_registry, resolve_profile_name, verify_api_key
 from api.schemas.hermes import SessionChatRequest, SessionCreateRequest, SessionPatchRequest
+from api.services.content_parts import (
+    UnsupportedContentTypeError,
+    enrich_with_vision_descriptions,
+    parse_content_parts,
+)
 
 router = APIRouter(prefix="/api/sessions", tags=["sessions"])
 
@@ -39,13 +44,21 @@ def _profile(
 async def list_sessions(
     limit: int = 50,
     offset: int = 0,
+    source: str = "all",
+    include_children: bool = True,
     key_info: dict = Depends(verify_api_key),
     x_helix_profile: str | None = Header(None),
     x_hermes_profile: str | None = Header(None),
 ):
     store = _sessions_store()
     profile = _profile(x_helix_profile, x_hermes_profile)
-    sessions = store.list(profile=profile, limit=limit, offset=offset)
+    sessions = store.list(
+        profile=profile,
+        limit=limit,
+        offset=offset,
+        source=source,
+        include_children=include_children,
+    )
     return {"sessions": [s.to_dict() for s in sessions], "count": len(sessions)}
 
 
@@ -58,7 +71,7 @@ async def create_session(
 ):
     store = _sessions_store()
     profile = _profile(x_helix_profile, x_hermes_profile, body.profile)
-    session = store.create(profile=profile, title=body.title)
+    session = store.create(profile=profile, title=body.title, source=body.source or "api")
     return session.to_dict()
 
 
@@ -139,10 +152,18 @@ async def session_chat(
     checker = PermissionChecker(key_info["permissions"])
     if not checker.can_read():
         raise HTTPException(status_code=403, detail="Insufficient permissions")
+    try:
+        parsed = parse_content_parts(body.input)
+    except UnsupportedContentTypeError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    user_input = await enrich_with_vision_descriptions(parsed, profile=session.profile)
+    if not user_input:
+        raise HTTPException(status_code=400, detail="input is required")
+
     agent = await registry.get_agent(session.profile)
     async with state._agent_request_lock:  # type: ignore[attr-defined]
         output = await agent.run(
-            user_input=body.input,
+            user_input=user_input,
             conversation_id=session.conversation_id,
         )
     store.update(session_id)
@@ -166,13 +187,21 @@ async def session_chat_stream(
     session = store.get(session_id)
     if session is None:
         raise HTTPException(status_code=404, detail="Session not found")
+    try:
+        parsed = parse_content_parts(body.input)
+    except UnsupportedContentTypeError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    user_input = await enrich_with_vision_descriptions(parsed, profile=session.profile)
+    if not user_input:
+        raise HTTPException(status_code=400, detail="input is required")
+
     agent = await registry.get_agent(session.profile)
     streaming_loop = StreamingAgentLoop(agent)
 
     async def generate():
         async with state._agent_request_lock:  # type: ignore[attr-defined]
             async for chunk in streaming_loop.run_conversation_stream(
-                user_input=body.input,
+                user_input=user_input,
                 conversation_id=session.conversation_id,
             ):
                 yield chunk

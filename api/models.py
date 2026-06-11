@@ -6,7 +6,7 @@ from pydantic import BaseModel
 class Message(BaseModel):
     """Chat message model."""
     role: str
-    content: str
+    content: str | list[dict[str, Any]]
     name: str | None = None
 
 

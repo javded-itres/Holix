@@ -12,6 +12,11 @@ from fastapi.responses import StreamingResponse
 from api import state
 from api.deps import get_registry, resolve_profile_name, verify_api_key
 from api.models import ChatCompletionRequest, ChatCompletionResponse
+from api.services.content_parts import (
+    UnsupportedContentTypeError,
+    enrich_with_vision_descriptions,
+    parse_content_parts,
+)
 
 router = APIRouter(prefix="/v1", tags=["agent"])
 
@@ -65,7 +70,13 @@ async def chat_completions(
     user_messages = [msg for msg in request.messages if msg.role == "user"]
     if not user_messages:
         raise HTTPException(status_code=400, detail="No user message found")
-    user_input = user_messages[-1].content
+    try:
+        parsed = parse_content_parts(user_messages[-1].content)
+    except UnsupportedContentTypeError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    user_input = await enrich_with_vision_descriptions(parsed, profile=profile)
+    if not user_input:
+        raise HTTPException(status_code=400, detail="No user message found")
     conversation_id = request.conversation_id or session_id
 
     if request.stream:

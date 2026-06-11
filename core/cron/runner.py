@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import time
 from datetime import UTC, datetime
@@ -9,6 +10,7 @@ from typing import Any
 
 from cli.core import ProfileManager
 
+from core.cron import active_runs
 from core.cron.expressions import format_next_run_iso
 from core.cron.models import CronJob
 from core.cron.notifier import format_status_message, send_telegram_notification
@@ -109,9 +111,14 @@ async def run_cron_job(job: CronJob) -> None:
     current = store.get(job.id)
     if current is None or not current.enabled:
         return
-    if current.last_status == "running":
+    if current.last_status == "running" or active_runs.is_active(job.id):
         logger.warning("Cron job %s already running, skip", job.id)
         return
+
+    cancel_ev = active_runs.begin(job.id)
+    current_task = asyncio.current_task()
+    if current_task is not None:
+        active_runs.register_task(job.id, current_task)
 
     job = current
     job.last_status = "running"
@@ -123,8 +130,16 @@ async def run_cron_job(job: CronJob) -> None:
     container = None
     response_text = ""
     try:
+        if cancel_ev.is_set():
+            job.last_status = "cancelled"
+            return
+
+        from dataclasses import replace
+
         config = ProfileManager().load_profile(job.profile)
         runtime = resolve_runtime_config(config)
+        if job.model_override:
+            runtime = replace(runtime, model=job.model_override)
         agent, container = await create_agent(runtime)
         run_conv = job.conversation_id()
 
@@ -150,11 +165,18 @@ async def run_cron_job(job: CronJob) -> None:
             job.last_status = "success"
             job.last_error = None
         else:
+            skills_hint = ""
+            if job.skills:
+                skills_hint = f"\n\nPreferred skills: {', '.join(job.skills)}."
             prompt = (
                 f"[Scheduled cron job: {job.name}]\n\n"
                 f"{job.task}\n\n"
                 "This is an automated background run. Complete the task and summarize results."
+                f"{skills_hint}"
             )
+            if cancel_ev.is_set():
+                job.last_status = "cancelled"
+                return
             response_text = await _run_agent_task(agent, job, prompt=prompt)
             job.last_result = await persist_cron_result(
                 agent, job, response=response_text, run_conversation_id=run_conv
@@ -173,10 +195,19 @@ async def run_cron_job(job: CronJob) -> None:
             preview = response_text.strip().replace("\n", " ")[:240]
             _append_run_log(job.profile, f"RESULT {job.id}: {preview}")
 
+    except asyncio.CancelledError:
+        job.last_status = "cancelled"
+        job.last_error = None
+        _append_run_log(job.profile, f"CANCELLED {job.id}")
+        raise
     except Exception as e:
         logger.exception("Cron job %s failed", job.id)
-        job.last_status = "error"
-        job.last_error = str(e)[:2000]
+        if cancel_ev.is_set():
+            job.last_status = "cancelled"
+            job.last_error = None
+        else:
+            job.last_status = "error"
+            job.last_error = str(e)[:2000]
         _append_run_log(job.profile, f"ERROR {job.id}: {e}")
 
         if job.notify_chat_id:
@@ -193,6 +224,7 @@ async def run_cron_job(job: CronJob) -> None:
             except Exception:
                 pass
     finally:
+        active_runs.clear(job.id)
         if container is not None:
             try:
                 await container.close()

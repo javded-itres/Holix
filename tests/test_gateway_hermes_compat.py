@@ -12,6 +12,8 @@ def test_capabilities(gateway_client: TestClient, gateway_auth_headers: dict) ->
     assert data["object"] == "helix.api_server.capabilities"
     assert data["features"]["chat_completions"] is True
     assert data["features"]["responses_api"] is True
+    assert data["features"]["jobs_hermes_schema"] is True
+    assert data["features"]["multimodal_input"] is True
     assert data["session_id_header"] == "X-Helix-Session-Id"
 
 
@@ -46,6 +48,42 @@ def test_sessions_crud(gateway_client: TestClient, gateway_auth_headers: dict) -
     )
     assert chat.status_code == 200
     assert chat.json()["output"] == "ok"
+
+
+def test_sessions_source_filter(gateway_client: TestClient, gateway_auth_headers: dict) -> None:
+    gateway_client.post(
+        "/api/sessions",
+        headers=gateway_auth_headers,
+        json={"title": "api session", "source": "api"},
+    )
+    listed = gateway_client.get(
+        "/api/sessions?source=api&include_children=false",
+        headers=gateway_auth_headers,
+    )
+    assert listed.status_code == 200
+    assert listed.json()["count"] >= 1
+    assert all(s["source"] == "api" for s in listed.json()["sessions"])
+
+
+def test_multimodal_rejects_file_upload(
+    gateway_client: TestClient,
+    gateway_auth_headers: dict,
+) -> None:
+    response = gateway_client.post(
+        "/v1/chat/completions",
+        headers=gateway_auth_headers,
+        json={
+            "model": "default",
+            "messages": [
+                {
+                    "role": "user",
+                    "content": [{"type": "file", "file_id": "file-abc"}],
+                }
+            ],
+        },
+    )
+    assert response.status_code == 400
+    assert "unsupported_content_type" in response.json()["detail"]
 
 
 def test_runs_lifecycle(gateway_client: TestClient, gateway_auth_headers: dict) -> None:

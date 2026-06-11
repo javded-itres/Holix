@@ -1,5 +1,5 @@
 {
   "model": "onnx-miniLM-l6-v2",
   "dim": 384,
-  "count": 503
+  "count": 596
 }

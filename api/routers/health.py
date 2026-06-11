@@ -13,15 +13,17 @@ router = APIRouter(tags=["health"])
 
 
 @router.get("/health")
-async def health():
+async def health(detailed: bool = False):
     registry = state.registry
     agent_ready = False
     if registry is not None:
         entry = registry.entry(state.host_profile)
         if entry is not None:
             agent_ready = entry.agent._initialized
+    if not detailed:
+        return {"status": "ok"}
     return {
-        "status": "healthy",
+        "status": "ok",
         "timestamp": datetime.now().isoformat(),
         "agent_ready": agent_ready,
         "require_auth": True,

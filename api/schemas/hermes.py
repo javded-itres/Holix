@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 
 class ResponsesCreateRequest(BaseModel):
@@ -31,26 +31,47 @@ class RunApprovalRequest(BaseModel):
 
 
 class JobCreateRequest(BaseModel):
-    task: str
-    cron_expression: str
+    task: str | None = None
+    prompt: str | None = None
+    cron_expression: str | None = None
+    schedule: str | None = None
     name: str = ""
     enabled: bool = True
     notify_chat_id: int | None = None
+    delivery_target: int | str | None = None
     session_id: str | None = None
+    skills: list[str] = Field(default_factory=list)
+    model_override: str | None = None
+    provider_override: str | None = None
+
+    @model_validator(mode="after")
+    def _require_task_and_schedule(self) -> JobCreateRequest:
+        if not (self.task or self.prompt):
+            raise ValueError("task or prompt is required")
+        if not (self.cron_expression or self.schedule):
+            raise ValueError("cron_expression or schedule is required")
+        return self
 
 
 class JobPatchRequest(BaseModel):
     task: str | None = None
+    prompt: str | None = None
     cron_expression: str | None = None
+    schedule: str | None = None
     name: str | None = None
     enabled: bool | None = None
     notify_chat_id: int | None = None
+    delivery_target: int | str | None = None
     session_id: str | None = None
+    skills: list[str] | None = None
+    model_override: str | None = None
+    provider_override: str | None = None
 
 
 class SessionCreateRequest(BaseModel):
     title: str = ""
     profile: str | None = None
+    source: str | None = None
 
 
 class SessionPatchRequest(BaseModel):
@@ -59,7 +80,7 @@ class SessionPatchRequest(BaseModel):
 
 
 class SessionChatRequest(BaseModel):
-    input: str = ""
+    input: str | list[dict[str, Any]] = ""
     model: str | None = None
 
 
