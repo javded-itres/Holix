@@ -2,7 +2,7 @@
 
 ## Unreleased
 
-## 0.1.9 — 2026-06-11
+## 0.1.10 — 2026-06-11
 
 ### Changed
 - **Rebrand Helix → Holix** — CLI command `holix`, PyPI package `HelixAgentAi`, repo `javded-itres/Holix`
