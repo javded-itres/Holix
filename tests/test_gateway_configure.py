@@ -12,6 +12,21 @@ from cli.commands.gateway_configure import (
     suggest_gateway_port,
 )
 
+_GATEWAY_ENV_KEYS = (
+    "HELIX_GATEWAY_HOST",
+    "HELIX_GATEWAY_PORT",
+    "HELIX_REQUIRE_AUTH",
+    "HELIX_GATEWAY_WITH_DOCS",
+    "HELIX_GATEWAY_DOCS",
+    "HELIX_DOCS_HOST",
+    "HELIX_DOCS_PORT",
+)
+
+
+def _clear_gateway_env(monkeypatch: pytest.MonkeyPatch) -> None:
+    for key in _GATEWAY_ENV_KEYS:
+        monkeypatch.delenv(key, raising=False)
+
 
 def _seed_profile(profiles_root: Path, name: str, env_body: str) -> None:
     profile_dir = profiles_root / name
@@ -21,6 +36,7 @@ def _seed_profile(profiles_root: Path, name: str, env_body: str) -> None:
 
 
 def test_list_configured_gateway_ports(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    _clear_gateway_env(monkeypatch)
     monkeypatch.setenv("HELIX_HOME", str(tmp_path))
     profiles = tmp_path / "profiles"
     _seed_profile(profiles, "alice", "HELIX_GATEWAY_PORT=8001\n")
@@ -35,6 +51,7 @@ def test_list_configured_gateway_ports_excludes_profile(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    _clear_gateway_env(monkeypatch)
     monkeypatch.setenv("HELIX_HOME", str(tmp_path))
     profiles = tmp_path / "profiles"
     _seed_profile(profiles, "alice", "HELIX_GATEWAY_PORT=8001\n")
@@ -49,6 +66,7 @@ def test_suggest_gateway_port_skips_other_profiles(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    _clear_gateway_env(monkeypatch)
     monkeypatch.setenv("HELIX_HOME", str(tmp_path))
     profiles = tmp_path / "profiles"
     _seed_profile(profiles, "alice", "HELIX_GATEWAY_PORT=8000\n")
@@ -59,6 +77,7 @@ def test_suggest_gateway_port_skips_other_profiles(
 
 
 def test_load_effective_gateway_config(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    _clear_gateway_env(monkeypatch)
     monkeypatch.setenv("HELIX_HOME", str(tmp_path))
     _seed_profile(
         tmp_path / "profiles",
@@ -78,6 +97,7 @@ def test_load_effective_gateway_config(tmp_path: Path, monkeypatch: pytest.Monke
 
 
 def test_save_gateway_env_roundtrip(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    _clear_gateway_env(monkeypatch)
     monkeypatch.setenv("HELIX_HOME", str(tmp_path))
     from cli.commands.gateway_configure import _save_gateway_env
 

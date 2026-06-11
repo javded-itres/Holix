@@ -46,8 +46,8 @@ def _profile_env_file(profile: str):
     return profiles_dir() / profile / ".env"
 
 
-def _merged_profile_env(profile: str) -> dict[str, str]:
-    """Merge global + profile ``.env`` (profile wins); shell exports override files."""
+def _profile_env_from_files(profile: str) -> dict[str, str]:
+    """Merge global + profile ``.env`` files (profile wins); no shell overrides."""
     from core.global_config import global_env_path
 
     merged: dict[str, str] = {}
@@ -74,6 +74,12 @@ def _merged_profile_env(profile: str) -> dict[str, str]:
                 if value is not None and str(value).strip()
             }
         )
+    return merged
+
+
+def _merged_profile_env(profile: str) -> dict[str, str]:
+    """Merge global + profile ``.env``; shell exports override files for this process."""
+    merged = _profile_env_from_files(profile)
     for key in list(merged):
         shell_val = os.getenv(key)
         if shell_val is not None:
@@ -123,7 +129,7 @@ def list_configured_gateway_ports(*, exclude_profile: str | None = None) -> dict
     for name in ProfileManager().list_profiles():
         if exclude_profile and name == exclude_profile:
             continue
-        env_map = _merged_profile_env(name)
+        env_map = _profile_env_from_files(name)
         raw = env_map.get("HELIX_GATEWAY_PORT")
         out[name] = _env_int_value(raw, global_port) if raw else global_port
     return out
