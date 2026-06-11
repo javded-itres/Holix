@@ -12,7 +12,7 @@
 set -euo pipefail
 
 OWNER="javded-itres"
-REPO="HolixAgent"
+REPO="Holix"
 PACKAGE="HolixAgentAi"
 WORKFLOW="publish-pypi.yml"
 CHECK_ONLY=false
