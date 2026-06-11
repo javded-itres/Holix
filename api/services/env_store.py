@@ -5,7 +5,7 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
-from core.env_loader import ensure_profile_env_template, profile_env_path, upsert_profile_env_var
+from core.env_loader import ensure_profile_env_template, profile_env_path
 
 
 def _read_env_map(path: Path) -> dict[str, str]:
@@ -43,7 +43,7 @@ def patch_env_file(path: Path, variables: dict[str, str]) -> None:
 
 
 def patch_global_env(variables: dict[str, str]) -> Path:
-    from core.global_config import ensure_global_env_template, global_env_path
+    from core.global_config import ensure_global_env_template
 
     path = ensure_global_env_template()
     patch_env_file(path, variables)

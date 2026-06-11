@@ -5,10 +5,9 @@ from __future__ import annotations
 import os
 from dataclasses import dataclass
 
-from fastapi import HTTPException
-
 from core.profile_keys import profile_has_access_key, verify_profile_access_key
 from core.security.permissions import PermissionChecker
+from fastapi import HTTPException
 
 
 def resolve_admin_helix_profile() -> str:

@@ -2,6 +2,14 @@
 
 from __future__ import annotations
 
+from cli.core import ProfileManager, enable_profile_workspace_isolation
+from core.profile_keys import (
+    ProfileExistsError,
+    profile_has_access_key,
+    remove_profile_access_key,
+    store_profile_access_key,
+    verify_profile_access_key,
+)
 from fastapi import APIRouter, Depends, Header, HTTPException
 
 from api import state
@@ -14,14 +22,6 @@ from api.schemas.helix import (
 )
 from api.services.helix_deps import profile_access
 from api.services.profile_access import require_admin_access
-from cli.core import ProfileManager, enable_profile_workspace_isolation
-from core.profile_keys import (
-    ProfileExistsError,
-    profile_has_access_key,
-    remove_profile_access_key,
-    store_profile_access_key,
-    verify_profile_access_key,
-)
 
 router = APIRouter(prefix="/api/helix/profiles", tags=["helix-profiles"])
 

@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+from cli.core import ProfileManager
+from core.env_loader import read_profile_env_map
+from core.global_config import deep_merge_dict
 from fastapi import APIRouter, Depends, Header, HTTPException
 
 from api.deps import verify_api_key
@@ -10,9 +13,6 @@ from api.services.config_mask import mask_config_dict
 from api.services.env_mask import mask_env_map
 from api.services.env_store import patch_profile_env
 from api.services.helix_deps import profile_access
-from cli.core import ProfileManager
-from core.env_loader import read_profile_env_map
-from core.global_config import deep_merge_dict
 
 router = APIRouter(prefix="/api/helix/profiles/{profile_id}", tags=["helix-config"])
 

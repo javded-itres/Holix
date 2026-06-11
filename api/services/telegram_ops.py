@@ -5,15 +5,19 @@ from __future__ import annotations
 from dataclasses import asdict
 from typing import Any
 
-from cli.core import ProfileManager, enable_profile_workspace_isolation, validate_profile_name_for_env
+from cli.core import (
+    ProfileManager,
+    enable_profile_workspace_isolation,
+    validate_profile_name_for_env,
+)
 from core.profile_keys import profile_has_access_key, store_profile_access_key
 from integrations.telegram.access_requests import (
     STATUS_PENDING,
     TelegramAccessRequest,
     get_access_request,
     list_pending_requests,
-    reject_access_request,
     register_access_request,
+    reject_access_request,
     resolve_access_request,
 )
 from integrations.telegram.admin import (
@@ -80,8 +84,9 @@ def _prepare_profile_for_user(
 
 
 def get_telegram_status(profile_id: str) -> dict[str, Any]:
-    from api import state
     from integrations.telegram.config import load_telegram_settings
+
+    from api import state
 
     load_telegram_env_files(profile_id)
     settings = load_telegram_settings(profile_id)

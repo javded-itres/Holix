@@ -16,9 +16,9 @@ def telegram_env_path(profile: str | None = None) -> Path:
 
 
 def legacy_telegram_env_path() -> Path:
-    from cli.core import HELIX_HOME
+    from core.env_loader import helix_home
 
-    return HELIX_HOME / "telegram.env"
+    return helix_home() / "telegram.env"
 
 
 # Backward-compatible alias for default profile.

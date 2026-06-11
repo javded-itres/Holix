@@ -3,7 +3,15 @@
 from __future__ import annotations
 
 import yaml
-from fastapi import APIRouter, Depends, Header, HTTPException
+from core.global_config import (
+    deep_merge_dict,
+    ensure_global_config,
+    ensure_global_env_template,
+    global_config_path,
+    load_global_config_raw,
+    strip_profile_only_keys,
+)
+from fastapi import APIRouter, Depends, Header
 
 from api import state
 from api.deps import verify_api_key
@@ -13,14 +21,6 @@ from api.services.env_mask import mask_env_map
 from api.services.env_store import patch_global_env, read_global_env_map
 from api.services.helix_deps import profile_access
 from api.services.profile_access import require_admin_access
-from core.global_config import (
-    deep_merge_dict,
-    ensure_global_config,
-    ensure_global_env_template,
-    global_config_path,
-    load_global_config_raw,
-    strip_profile_only_keys,
-)
 
 router = APIRouter(prefix="/api/helix/global", tags=["helix-global"])
 

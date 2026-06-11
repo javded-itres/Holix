@@ -4,14 +4,14 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from cli.core import ProfileManager
+from core.hub.normalize import discover_skill_files, parse_skill_file
+from core.skills.assignments import agents_for_skill
 from fastapi import APIRouter, Depends, Header, HTTPException, Query
 
 from api.deps import verify_api_key
 from api.schemas.helix import SkillAssignmentsPatchRequest
 from api.services.helix_deps import profile_access
-from cli.core import ProfileManager
-from core.hub.normalize import discover_skill_files, parse_skill_file
-from core.skills.assignments import agents_for_skill
 
 router = APIRouter(prefix="/api/helix/profiles/{profile_id}/skills", tags=["helix-skills"])
 

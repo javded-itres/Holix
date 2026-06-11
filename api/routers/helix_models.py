@@ -2,16 +2,16 @@
 
 from __future__ import annotations
 
+from cli.core import ProfileManager
+from core.models.catalog import get_provider_preset, list_provider_presets
+from core.models.profile_cleanup import remove_provider_from_profile
+from core.models.setup_helpers import add_preset_to_config, apply_ssl_override, probe_provider
 from fastapi import APIRouter, Depends, Header, HTTPException
 
 from api.deps import verify_api_key
 from api.schemas.helix import AgentModelsPatchRequest, FallbacksPatchRequest, ProviderAddRequest
 from api.services.config_mask import mask_config_dict
 from api.services.helix_deps import profile_access
-from cli.core import ProfileManager
-from core.models.catalog import get_provider_preset, list_provider_presets
-from core.models.profile_cleanup import remove_provider_from_profile
-from core.models.setup_helpers import add_preset_to_config, apply_ssl_override, probe_provider
 
 router = APIRouter(prefix="/api/helix/profiles/{profile_id}/models", tags=["helix-models"])
 
