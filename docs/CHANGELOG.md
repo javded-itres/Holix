@@ -5,7 +5,7 @@
 ## 0.1.9 — 2026-06-11
 
 ### Changed
-- **Rebrand Helix → Holix** — CLI command `holix`, package `HolixAgentAi`, repo `javded-itres/Holix`
+- **Rebrand Helix → Holix** — CLI command `holix`, PyPI package `HelixAgentAi`, repo `javded-itres/Holix`
 - Management API prefix `/api/holix/`; env vars `HOLIX_*`; data dir `~/.holix` (legacy `~/.helix` / `HELIX_HOME` supported)
 - Project context file `.holix/HOLIX.md` (legacy `HELIX.md` still read)
 
@@ -115,15 +115,15 @@
 
 ### Changed
 - Site default language set to **Russian** (`ru`)
-- Install guides and PyPI docs updated for `HolixAgentAi`
+- Install guides and PyPI docs updated for `HelixAgentAi`
 
 ## 0.1.3 — 2026-06-07
 
 ### Changed
-- PyPI distribution renamed to **`HolixAgentAi`**; Python **`>=3.12`**; heavy deps moved to extras (`browser`, `telegram`, `voice`, `tui-web`, `windows`, `all`)
+- PyPI distribution renamed to **`HelixAgentAi`**; Python **`>=3.12`**; heavy deps moved to extras (`browser`, `telegram`, `voice`, `tui-web`, `windows`, `all`)
 - CI: Python 3.12/3.13/3.14 matrix, `build` job with `twine check` and wheel smoke install
 - Publish workflow: build + publish jobs, tag `v*` trigger, Trusted Publishing (OIDC), smoke install before upload
-- Documentation and web-docs: PyPI install as default path (`pipx install HolixAgentAi`)
+- Documentation and web-docs: PyPI install as default path (`pipx install HelixAgentAi`)
 
 ### Added
 - **web-docs** — dark documentation site with search, EN/RU, mobile layout (`holix docs`)

@@ -40,7 +40,7 @@ Unit files:
 
 ```bash
 sudo useradd --system --create-home --home-dir /home/holix --shell /usr/sbin/nologin holix
-sudo -u holix pipx install HolixAgentAi
+sudo -u holix pipx install HelixAgentAi
 sudo -u holix pipx inject HolixAgentAi telegram   # optional, for Telegram bot
 ```
 

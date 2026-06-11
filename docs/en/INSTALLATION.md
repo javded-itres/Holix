@@ -14,12 +14,12 @@ Optional extras (install when needed):
 
 | Extra | PyPI (`pip` / `pipx`) | From source (`uv sync`) | Enables |
 |-------|----------------------|-------------------------|---------|
-| `telegram` | `pip install "HolixAgentAi[telegram]"` | `uv sync --extra telegram` | `holix telegram`, gateway Telegram |
-| `browser` | `pip install "HolixAgentAi[browser]"` | `uv sync --extra browser` | Playwright tools — [BROWSER_TOOLS.md](BROWSER_TOOLS.md) |
-| `voice` | `pip install "HolixAgentAi[voice]"` | `uv sync --extra voice` | Whisper voice notes in Telegram |
-| `tui-web` | `pip install "HolixAgentAi[tui-web]"` | `uv sync --extra tui-web` | `holix tui --web` |
-| `windows` | `pip install "HolixAgentAi[windows]"` | `uv sync --extra windows` | `psutil` process-tree cleanup |
-| `all` | `pip install "HolixAgentAi[all]"` | `uv sync --extra all` | all of the above |
+| `telegram` | `pip install "HelixAgentAi[telegram]"` | `uv sync --extra telegram` | `holix telegram`, gateway Telegram |
+| `browser` | `pip install "HelixAgentAi[browser]"` | `uv sync --extra browser` | Playwright tools — [BROWSER_TOOLS.md](BROWSER_TOOLS.md) |
+| `voice` | `pip install "HelixAgentAi[voice]"` | `uv sync --extra voice` | Whisper voice notes in Telegram |
+| `tui-web` | `pip install "HelixAgentAi[tui-web]"` | `uv sync --extra tui-web` | `holix tui --web` |
+| `windows` | `pip install "HelixAgentAi[windows]"` | `uv sync --extra windows` | `psutil` process-tree cleanup |
+| `all` | `pip install "HelixAgentAi[all]"` | `uv sync --extra all` | all of the above |
 
 After the `browser` extra: `playwright install chromium`
 
@@ -27,15 +27,15 @@ After the `browser` extra: `playwright install chromium`
 
 ### From PyPI (recommended)
 
-Published on [pypi.org/project/HolixAgentAi](https://pypi.org/project/HolixAgentAi/) (current: **0.1.8**).
+Published on [pypi.org/project/HelixAgentAi](https://pypi.org/project/HelixAgentAi/) (current: **0.1.8**).
 
-Package name **`HolixAgentAi`** (not `holix` — that name is used by another project).  
+Package name **`HelixAgentAi`** (not `holix` — that name is used by another project).  
 After install, the CLI command is **`holix`** in the environment’s `bin` directory.
 
 **Global CLI from any folder** (recommended — no manual PATH):
 
 ```bash
-pipx install HolixAgentAi
+pipx install HelixAgentAi
 # or:
 uv tool install HolixAgentAi
 
@@ -47,8 +47,8 @@ holix version
 ```bash
 python -m venv .venv
 source .venv/bin/activate   # Windows: .venv\Scripts\activate
-pip install HolixAgentAi
-pip install "HolixAgentAi[telegram,browser,tui-web]"
+pip install HelixAgentAi
+pip install "HelixAgentAi[telegram,browser,tui-web]"
 holix version
 holix doctor
 ```
@@ -105,7 +105,7 @@ holix doctor
 **PyPI (simplest):**
 
 ```powershell
-pipx install HolixAgentAi
+pipx install HelixAgentAi
 # or:
 uv tool install HolixAgentAi
 
@@ -142,7 +142,7 @@ holix gateway start          # API + optional Telegram bot
 holix -p shared telegram setup
 ```
 
-Optional Windows extra for cleaner process cleanup: `pip install "HolixAgentAi[windows]"`.
+Optional Windows extra for cleaner process cleanup: `pip install "HelixAgentAi[windows]"`.
 
 ### Windows troubleshooting
 

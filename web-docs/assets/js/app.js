@@ -42,7 +42,7 @@ function makeBreadcrumb(homeLabel, docsLabel, title) {
 }
 
 const GITHUB_URL = "https://github.com/javded-itres/Holix";
-const PYPI_URL = "https://pypi.org/project/HolixAgentAi/";
+const PYPI_URL = "https://pypi.org/project/HelixAgentAi/";
 const DONATE_URL = "https://boosty.to/javded/single-payment/donation/805721/target?share=target_link";
 const SITE_URL = "https://holix-agent.ru";
 const TELEGRAM_CHANNEL_URL = "https://t.me/holix_agent";
@@ -210,7 +210,7 @@ const I18N = {
     mkt_how_chat: "Terminal REPL — lightweight chat",
     mkt_how_run: "One-shot queries and scripting",
     mkt_how_gw: "Background HTTP gateway + optional docs site",
-    install_pypi: "pipx install HolixAgentAi",
+    install_pypi: "pipx install HelixAgentAi",
     install_pypi_hint: "PyPI · CLI command: helix",
     install_pypi_link: "PyPI",
     cta_docs: "Read documentation",
@@ -298,7 +298,7 @@ const I18N = {
     mkt_how_chat: "Чат в терминале — лёгкий REPL",
     mkt_how_run: "Одиночные запросы и скрипты",
     mkt_how_gw: "Фоновый HTTP gateway",
-    install_pypi: "pipx install HolixAgentAi",
+    install_pypi: "pipx install HelixAgentAi",
     install_pypi_hint: "PyPI · команда: helix",
     install_pypi_link: "PyPI",
     cta_docs: "Открыть документацию",

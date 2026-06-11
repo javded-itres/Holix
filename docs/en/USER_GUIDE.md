@@ -3,7 +3,7 @@
 Step-by-step instructions: install from `.whl`, initial setup, LiteLLM connection, MCP, skills, Telegram, and execution modes.
 
 > All commands and paths are taken from the Holix repository (`cli/`, `docs/`, `config.py`, `pyproject.toml`).  
-> The package is named **`HolixAgentAi`**; the terminal command is **`holix`**.
+> The package is named **`HelixAgentAi`**; the terminal command is **`holix`**.
 
 ---
 
@@ -97,22 +97,22 @@ Alternative without UV: plain `pip` (see step 5).
 
 ## 5. Step 3 — Install from PyPI
 
-Package **[HolixAgentAi](https://pypi.org/project/HolixAgentAi/)** on PyPI; terminal command **`holix`**.
+Package **[HolixAgentAi](https://pypi.org/project/HelixAgentAi/)** on PyPI; terminal command **`holix`**.
 
 > Do not use `pip install helix` — on PyPI that is a **different** project.
 
 ### 5.1. Global install (recommended)
 
 ```bash
-pipx install HolixAgentAi
+pipx install HelixAgentAi
 holix version
 ```
 
 With optional extras (Telegram, browser, web TUI, voice):
 
 ```bash
-pipx install "HolixAgentAi[all]"
-# or: pipx install "HolixAgentAi[telegram,browser,tui-web]"
+pipx install "HelixAgentAi[all]"
+# or: pipx install "HelixAgentAi[telegram,browser,tui-web]"
 ```
 
 Alternative: `uv tool install HolixAgentAi`
@@ -122,8 +122,8 @@ Alternative: `uv tool install HolixAgentAi`
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate          # Windows: .venv\Scripts\activate
-pip install HolixAgentAi
-pip install "HolixAgentAi[telegram]"
+pip install HelixAgentAi
+pip install "HelixAgentAi[telegram]"
 holix version
 ```
 
@@ -140,7 +140,7 @@ holix version
 PowerShell install, `%LOCALAPPDATA%\Holix\` paths, and troubleshooting: [INSTALLATION.md — Windows](INSTALLATION.md#windows).
 
 ```powershell
-pipx install HolixAgentAi
+pipx install HelixAgentAi
 holix version
 # or from git clone:
 .\scripts\install.ps1
@@ -364,7 +364,7 @@ Secrets in `.env`: `FIRECRAWL_API_KEY`, `SEARXNG_BASE_URL` (see `.env.example`).
 ```bash
 uv sync --extra telegram
 # or when installing the wheel:
-pip install "HolixAgentAi[telegram]"
+pip install "HelixAgentAi[telegram]"
 ```
 
 ### 9.2. Create a bot in Telegram

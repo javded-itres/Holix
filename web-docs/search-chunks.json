@@ -24,7 +24,7 @@
     "section": "holix-documentation-english",
     "title": "Overview",
     "heading": "Holix Documentation (English)",
-    "body": "Holix is a self-improving AI agent with memory, skills, tool calling, MCP, CLI, TUI, API gateway, and Telegram. Install from PyPI: — pypi.org/project/HolixAgentAi Follow development: subscribe to the Telegram channel @holix agent for releases, roadmap, and project news.",
+    "body": "Holix is a self-improving AI agent with memory, skills, tool calling, MCP, CLI, TUI, API gateway, and Telegram. Install from PyPI: — pypi.org/project/HelixAgentAi Follow development: subscribe to the Telegram channel @holix agent for releases, roadmap, and project news.",
     "keywords": [
       "overview",
       "обзор",
@@ -117,7 +117,7 @@
     "section": "from-pypi-recommended",
     "title": "Installation",
     "heading": "From PyPI (recommended)",
-    "body": "Published on pypi.org/project/HolixAgentAi (current: 0.1.8 ). Package name (not — that name is used by another project). After install, the CLI command is in the environment’s directory. Global CLI from any folder (recommended — no manual PATH): ```bash pipx install HolixAgentAi",
+    "body": "Published on pypi.org/project/HelixAgentAi (current: 0.1.8 ). Package name (not — that name is used by another project). After install, the CLI command is in the environment’s directory. Global CLI from any folder (recommended — no manual PATH): ```bash pipx install HelixAgentAi",
     "keywords": [
       "install",
       "установка",
@@ -156,7 +156,7 @@
     "section": "or",
     "title": "Installation",
     "heading": "or:",
-    "body": "uv tool install HolixAgentAi holix version bash python -m venv .venv source .venv/bin/activate Windows: .venv\\Scripts\\activate pip install HolixAgentAi pip install \"HolixAgentAi[telegram,browser,tui-web]\" holix version holix doctor bash pip install --user HolixAgentAi",
+    "body": "uv tool install HolixAgentAi holix version bash python -m venv .venv source .venv/bin/activate Windows: .venv\\Scripts\\activate pip install HelixAgentAi pip install \"HelixAgentAi[telegram,browser,tui-web]\" holix version holix doctor bash pip install --user HolixAgentAi",
     "keywords": [
       "install",
       "установка",
@@ -310,7 +310,7 @@
     "section": "1-install-from-pypi",
     "title": "Start Here",
     "heading": "1. Install from PyPI",
-    "body": "Package HolixAgentAi on PyPI; terminal command . ```bash pipx install HolixAgentAi",
+    "body": "Package HolixAgentAi on PyPI; terminal command . ```bash pipx install HelixAgentAi",
     "keywords": [
       "start",
       "первый",
@@ -347,7 +347,7 @@
     "section": "5-optional-features",
     "title": "Start Here",
     "heading": "5. Optional features",
-    "body": "```bash pipx install \"HolixAgentAi[telegram]\" or reinstall with [all] holix -p shared telegram setup",
+    "body": "```bash pipx install \"HelixAgentAi[telegram]\" or reinstall with [all] holix -p shared telegram setup",
     "keywords": [
       "start",
       "первый",
@@ -386,7 +386,7 @@
     "section": "multi-user-users-send-start-then-holix--p-shared-telegram-reques",
     "title": "Start Here",
     "heading": "multi-user: users send /start, then holix -p shared telegram requests approve …",
-    "body": "pipx install \"HolixAgentAi[browser]\" playwright install chromium after browser extra pipx install \"HolixAgentAi[tui-web]\" holix tui --web holix hub browse holix mcp setup ```",
+    "body": "pipx install \"HelixAgentAi[browser]\" playwright install chromium after browser extra pipx install \"HelixAgentAi[tui-web]\" holix tui --web holix hub browse holix mcp setup ```",
     "keywords": [
       "start",
       "первый",
@@ -431,7 +431,7 @@
     "section": "optional-extras-telegram-browser-web-tui-voice",
     "title": "Start Here",
     "heading": "optional extras (Telegram, browser, web TUI, voice):",
-    "body": "pipx install \"HolixAgentAi[all]\" holix version holix doctor bash python -m venv .venv && source .venv/bin/activate pip install HolixAgentAi `` pip install helix` — that installs an unrelated package. Developers (from git): INSTALLATION.md",
+    "body": "pipx install \"HelixAgentAi[all]\" holix version holix doctor bash python -m venv .venv && source .venv/bin/activate pip install HelixAgentAi `` pip install helix` — that installs an unrelated package. Developers (from git): INSTALLATION.md",
     "keywords": [
       "start",
       "первый",
@@ -471,7 +471,7 @@
     "section": "run",
     "title": "Quickstart",
     "heading": "Run",
-    "body": "Repair config: Optional extras: ```bash pipx install \"HolixAgentAi[all]\" holix -p shared telegram setup holix -p shared gateway start",
+    "body": "Repair config: Optional extras: ```bash pipx install \"HelixAgentAi[all]\" holix -p shared telegram setup holix -p shared gateway start",
     "keywords": [
       "quick",
       "быстрый",
@@ -4829,7 +4829,7 @@
     "section": "or-inside-a-venv",
     "title": "PyPI",
     "heading": "or inside a venv:",
-    "body": "pip install HolixAgentAi pip install \"HolixAgentAi[telegram,browser,tui-web]\" `` holix [project.scripts] cli.main:main bin venv/bin ~/.local/bin holix pip install helix PYPI PACKAGE cli/installer/update.py` if the distribution name changes.",
+    "body": "pip install HelixAgentAi pip install \"HelixAgentAi[telegram,browser,tui-web]\" `` holix [project.scripts] cli.main:main bin venv/bin ~/.local/bin holix pip install helix PYPI PACKAGE cli/installer/update.py` if the distribution name changes.",
     "keywords": [
       "pypi",
       "publish",
@@ -4847,7 +4847,7 @@
     "section": "package-name",
     "title": "PyPI",
     "heading": "Package name",
-    "body": "The PyPI distribution name is (not — that name is used by another project). Name on PyPI Status -------------- -------- Taken (MIT LL mutation framework) Taken (ML toolkit) Available (not used) Published — pypi.org/project/HolixAgentAi Install: ```bash pipx install HolixAgentAi",
+    "body": "The PyPI distribution name is (not — that name is used by another project). Name on PyPI Status -------------- -------- Taken (MIT LL mutation framework) Taken (ML toolkit) Available (not used) Published — pypi.org/project/HelixAgentAi Install: ```bash pipx install HelixAgentAi",
     "keywords": [
       "pypi",
       "publish",
@@ -4881,7 +4881,7 @@
     "section": "publishing-to-pypi",
     "title": "PyPI",
     "heading": "Publishing to PyPI",
-    "body": "This guide covers packaging, naming, and releasing Holix on PyPI. Published: HolixAgentAi 0.1.8 — install with .",
+    "body": "This guide covers packaging, naming, and releasing Holix on PyPI. Published: HelixAgentAi 0.1.8 — install with .",
     "keywords": [
       "pypi",
       "publish",
@@ -4918,7 +4918,7 @@
     "section": "version-already-bumped-in-pyprojecttoml-cli__init__py",
     "title": "PyPI",
     "heading": "version already bumped in pyproject.toml + cli/__init__.py",
-    "body": "git tag v0.1.3 git push origin v0.1.3 bash pipx install HolixAgentAi holix version ```",
+    "body": "git tag v0.1.3 git push origin v0.1.3 bash pipx install HelixAgentAi holix version ```",
     "keywords": [
       "pypi",
       "publish",
@@ -5251,7 +5251,7 @@
     "section": "51-global-install-recommended",
     "title": "User Guide",
     "heading": "5.1. Global install (recommended)",
-    "body": "With optional extras (Telegram, browser, web TUI, voice): ```bash pipx install \"HolixAgentAi[all]\"",
+    "body": "With optional extras (Telegram, browser, web TUI, voice): ```bash pipx install \"HelixAgentAi[all]\"",
     "keywords": [
       "guide",
       "руководство",
@@ -5269,7 +5269,7 @@
     "section": "54-windows",
     "title": "User Guide",
     "heading": "5.4. Windows",
-    "body": "PowerShell install, paths, and troubleshooting: INSTALLATION.md — Windows. ```powershell pipx install HolixAgentAi holix version",
+    "body": "PowerShell install, paths, and troubleshooting: INSTALLATION.md — Windows. ```powershell pipx install HelixAgentAi holix version",
     "keywords": [
       "guide",
       "руководство",
@@ -5813,7 +5813,7 @@
     "section": "документация-holix-русский",
     "title": "Обзор",
     "heading": "Документация Holix (русский)",
-    "body": "Английская версия — основная: ../en/README.md. Установка с PyPI: — pypi.org/project/HolixAgentAi Следите за развитием: подпишитесь на Telegram-канал @holix agent — релизы, планы и новости проекта.",
+    "body": "Английская версия — основная: ../en/README.md. Установка с PyPI: — pypi.org/project/HelixAgentAi Следите за развитием: подпишитесь на Telegram-канал @holix agent — релизы, планы и новости проекта.",
     "keywords": [
       "overview",
       "обзор",
@@ -5882,7 +5882,7 @@
     "section": "pypi-holix-из-любой-папки-рекомендуется",
     "title": "Установка",
     "heading": "PyPI — `holix` из любой папки (рекомендуется)",
-    "body": "Опубликовано: pypi.org/project/HolixAgentAi (версия 0.1.8 ). Пакет (не — это другой проект). Команда: . Глобально (рекомендуется): ```bash pipx install HolixAgentAi",
+    "body": "Опубликовано: pypi.org/project/HelixAgentAi (версия 0.1.8 ). Пакет (не — это другой проект). Команда: . Глобально (рекомендуется): ```bash pipx install HelixAgentAi",
     "keywords": [
       "install",
       "установка",
@@ -5961,7 +5961,7 @@
     "section": "или-uv-tool-install-holixagentai",
     "title": "Установка",
     "heading": "или: uv tool install HolixAgentAi",
-    "body": "holix version bash pip install HolixAgentAi holix version bash pip install --user HolixAgentAi export PATH=\"$HOME/.local/bin:$PATH\" holix version ```",
+    "body": "holix version bash pip install HelixAgentAi holix version bash pip install --user HolixAgentAi export PATH=\"$HOME/.local/bin:$PATH\" holix version ```",
     "keywords": [
       "install",
       "установка",
@@ -6060,7 +6060,7 @@
     "section": "1-установка-с-pypi",
     "title": "Первый запуск",
     "heading": "1. Установка с PyPI",
-    "body": "Пакет HolixAgentAi на PyPI; команда в терминале — . ```bash pipx install HolixAgentAi",
+    "body": "Пакет HelixAgentAi на PyPI; команда в терминале — . ```bash pipx install HelixAgentAi",
     "keywords": [
       "start",
       "первый",
@@ -6113,7 +6113,7 @@
     "section": "мультипользовательский-бот-start-holix--p-shared-telegram-reques",
     "title": "Первый запуск",
     "heading": "мультипользовательский бот: /start → holix -p shared telegram requests approve …",
-    "body": "pipx install \"HolixAgentAi[browser]\" playwright install chromium holix hub browse holix mcp setup ```",
+    "body": "pipx install \"HelixAgentAi[browser]\" playwright install chromium holix hub browse holix mcp setup ```",
     "keywords": [
       "start",
       "первый",
@@ -6137,7 +6137,7 @@
     "section": "опционально-telegram-браузер-веб-tui-голос",
     "title": "Первый запуск",
     "heading": "опционально: Telegram, браузер, веб-TUI, голос:",
-    "body": "pipx install \"HolixAgentAi[all]\" holix version holix doctor bash python -m venv .venv && source .venv/bin/activate pip install HolixAgentAi `` pip install helix` — это другой пакет на PyPI. Разработчикам (из git): INSTALLATION.md",
+    "body": "pipx install \"HelixAgentAi[all]\" holix version holix doctor bash python -m venv .venv && source .venv/bin/activate pip install HelixAgentAi `` pip install helix` — это другой пакет на PyPI. Разработчикам (из git): INSTALLATION.md",
     "keywords": [
       "start",
       "первый",
@@ -6176,7 +6176,7 @@
     "section": "запуск",
     "title": "Быстрый старт",
     "heading": "Запуск",
-    "body": "Опции: ```bash pipx install \"HolixAgentAi[all]\" holix -p shared telegram setup holix -p shared gateway start",
+    "body": "Опции: ```bash pipx install \"HelixAgentAi[all]\" holix -p shared telegram setup holix -p shared gateway start",
     "keywords": [
       "quick",
       "быстрый",
@@ -9962,7 +9962,7 @@
     "section": "публикация-на-pypi",
     "title": "PyPI",
     "heading": "Публикация на PyPI",
-    "body": "Руководство по выпуску пакета Holix на PyPI. Опубликовано: HolixAgentAi 0.1.8 — .",
+    "body": "Руководство по выпуску пакета Holix на PyPI. Опубликовано: HelixAgentAi 0.1.8 — .",
     "keywords": [
       "pypi",
       "publish",
@@ -10253,7 +10253,7 @@
     "section": "5-шаг-3-установка-с-pypi",
     "title": "Руководство",
     "heading": "5. Шаг 3 — Установка с PyPI",
-    "body": "Пакет HolixAgentAi на PyPI; команда в терминале — . Не используйте — на PyPI это другой проект.",
+    "body": "Пакет HelixAgentAi на PyPI; команда в терминале — . Не используйте — на PyPI это другой проект.",
     "keywords": [
       "guide",
       "руководство",
@@ -10271,7 +10271,7 @@
     "section": "54-windows",
     "title": "Руководство",
     "heading": "5.4. Windows",
-    "body": "Установка через PowerShell, пути и troubleshooting: INSTALLATION.md — Windows. ```powershell pipx install HolixAgentAi holix version",
+    "body": "Установка через PowerShell, пути и troubleshooting: INSTALLATION.md — Windows. ```powershell pipx install HelixAgentAi holix version",
     "keywords": [
       "guide",
       "руководство",

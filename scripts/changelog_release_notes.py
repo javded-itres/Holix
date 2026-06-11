@@ -11,7 +11,7 @@ ROOT = Path(__file__).resolve().parent.parent
 CHANGELOG = ROOT / "docs" / "CHANGELOG.md"
 
 INSTALL_FOOTER = (
-    "\n\n**Install:** `pipx install HolixAgentAi` or `pip install -U HolixAgentAi`"
+    "\n\n**Install:** `pipx install HelixAgentAi` or `pip install -U HolixAgentAi`"
 )
 
 

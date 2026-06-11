@@ -2,7 +2,7 @@
 
 Holix is a self-improving AI agent with memory, skills, tool calling, MCP, CLI, TUI, API gateway, and Telegram.
 
-**Install from PyPI:** `pipx install HolixAgentAi` — [pypi.org/project/HolixAgentAi](https://pypi.org/project/HolixAgentAi/)
+**Install from PyPI:** `pipx install HelixAgentAi` — [pypi.org/project/HelixAgentAi](https://pypi.org/project/HelixAgentAi/)
 
 > **Follow development:** subscribe to the [Telegram channel @holix_agent](https://t.me/holix_agent) for releases, roadmap, and project news.
 
@@ -29,7 +29,7 @@ Holix is a self-improving AI agent with memory, skills, tool calling, MCP, CLI, 
 
 ## Packaging
 
-- [PYPI.md](PYPI.md) — build and publish to PyPI (`HolixAgentAi`)
+- [PYPI.md](PYPI.md) — build and publish to PyPI (`HelixAgentAi`)
 
 ## Operations
 

@@ -82,7 +82,7 @@ SEO_PAGES: dict[str, dict[str, dict[str, str]]] = {
                 "Как установить Holix с PyPI (HolixAgentAi): pipx, venv, Python 3.12+, опциональные extras "
                 "(Telegram, браузер, голос). Обновление, удаление и решение проблем установки."
             ),
-            "keywords": "установка Holix, pipx install HolixAgentAi, PyPI, Python 3.12, Holix Docker",
+            "keywords": "установка Holix, pipx install HelixAgentAi, PyPI, Python 3.12, Holix Docker",
         },
         "en": {
             "title": "Install Holix — PyPI, pipx, Python 3.12, Docker",
@@ -90,7 +90,7 @@ SEO_PAGES: dict[str, dict[str, dict[str, str]]] = {
                 "How to install Holix from PyPI (HolixAgentAi): pipx, venv, Python 3.12+, optional extras "
                 "(Telegram, browser, voice). Updates, uninstall, and install troubleshooting."
             ),
-            "keywords": "install Holix, pipx install HolixAgentAi, PyPI, Python 3.12, Holix Docker",
+            "keywords": "install Holix, pipx install HelixAgentAi, PyPI, Python 3.12, Holix Docker",
         },
     },
     "start-here": {
@@ -115,7 +115,7 @@ SEO_PAGES: dict[str, dict[str, dict[str, str]]] = {
         "ru": {
             "title": "Быстрый старт Holix — минимальные команды для запуска",
             "description": (
-                "Минимальный быстрый старт Holix: pipx install HolixAgentAi, holix doctor, holix models setup, "
+                "Минимальный быстрый старт Holix: pipx install HelixAgentAi, holix doctor, holix models setup, "
                 "holix tui. Краткий список команд для немедленного начала работы с агентом."
             ),
             "keywords": "Holix быстрый старт, holix tui, holix models setup, минимальные команды",
@@ -123,7 +123,7 @@ SEO_PAGES: dict[str, dict[str, dict[str, str]]] = {
         "en": {
             "title": "Holix Quickstart — Minimal Commands to Run the Agent",
             "description": (
-                "Minimal Holix quickstart: pipx install HolixAgentAi, holix doctor, holix models setup, "
+                "Minimal Holix quickstart: pipx install HelixAgentAi, holix doctor, holix models setup, "
                 "holix tui. Short command list to start using the agent immediately."
             ),
             "keywords": "Holix quickstart, holix tui, holix models setup, minimal commands",
@@ -473,9 +473,9 @@ SEO_PAGES: dict[str, dict[str, dict[str, str]]] = {
     },
     "pypi": {
         "ru": {
-            "title": "PyPI HolixAgentAi — публикация и версионирование пакета",
+            "title": "PyPI HelixAgentAi — публикация и версионирование пакета",
             "description": (
-                "Пакет HolixAgentAi на PyPI: pipx install, Trusted Publishing через GitHub Actions, "
+                "Пакет HelixAgentAi на PyPI: pipx install, Trusted Publishing через GitHub Actions, "
                 "версионирование, extras и чеклист релиза open-source дистрибутива Holix."
             ),
             "keywords": "HolixAgentAi PyPI, pip install Holix, публикация PyPI, Holix версия, open source",

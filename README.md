@@ -2,12 +2,12 @@
 
 **Holix** is a self-improving AI agent with persistent memory, a skills system, tool calling, MCP integration, and multiple interfaces: CLI, TUI, API gateway, and Telegram.
 
-[![PyPI](https://img.shields.io/pypi/v/HolixAgentAi.svg)](https://pypi.org/project/HolixAgentAi/)
+[![PyPI](https://img.shields.io/pypi/v/HolixAgentAi.svg)](https://pypi.org/project/HelixAgentAi/)
 [![Python](https://img.shields.io/badge/python-3.12%2B-blue.svg)](https://python.org)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![Docs](https://img.shields.io/badge/docs-en%20%7C%20ru-blue)](docs/README.md)
 
-**Website:** [holix-agent.ru](https://holix-agent.ru) · **PyPI:** [HolixAgentAi](https://pypi.org/project/HolixAgentAi/) · **GitHub:** [javded-itres/Holix](https://github.com/javded-itres/Holix) · **Telegram:** [@holix_agent](https://t.me/holix_agent) · **Docs:** [EN](docs/en/README.md) · [RU](docs/ru/README.md) · **Donate:** [Boosty](https://boosty.to/javded/single-payment/donation/805721/target?share=target_link)
+**Website:** [holix-agent.ru](https://holix-agent.ru) · **PyPI:** [HolixAgentAi](https://pypi.org/project/HelixAgentAi/) · **GitHub:** [javded-itres/Holix](https://github.com/javded-itres/Holix) · **Telegram:** [@holix_agent](https://t.me/holix_agent) · **Docs:** [EN](docs/en/README.md) · [RU](docs/ru/README.md) · **Donate:** [Boosty](https://boosty.to/javded/single-payment/donation/805721/target?share=target_link)
 
 ---
 
@@ -28,15 +28,15 @@
 
 ### Install
 
-**Install from PyPI** (Python 3.12+). Package: [`HolixAgentAi`](https://pypi.org/project/HolixAgentAi/), CLI command: `holix`:
+**Install from PyPI** (Python 3.12+). Package: [`HelixAgentAi`](https://pypi.org/project/HelixAgentAi/), CLI command: `holix`:
 
 ```bash
-pipx install HolixAgentAi              # global CLI (recommended)
-pipx install "HolixAgentAi[all]"       # + telegram, browser, tui-web, voice
+pipx install HelixAgentAi              # global CLI (recommended)
+pipx install "HelixAgentAi[all]"       # + telegram, browser, tui-web, voice
 
 # or in a virtualenv:
-pip install HolixAgentAi
-pip install "HolixAgentAi[telegram,browser]"
+pip install HelixAgentAi
+pip install "HelixAgentAi[telegram,browser]"
 ```
 
 Do not use `pip install helix` — that is a **different** package on PyPI.

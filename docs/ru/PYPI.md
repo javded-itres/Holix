@@ -2,16 +2,16 @@
 
 Руководство по выпуску пакета **Holix** на [PyPI](https://pypi.org).
 
-> **Опубликовано:** [HolixAgentAi 0.1.8](https://pypi.org/project/HolixAgentAi/) — `pipx install HolixAgentAi`.
+> **Опубликовано:** [HelixAgentAi 0.1.8](https://pypi.org/project/HelixAgentAi/) — `pipx install HelixAgentAi`.
 
 ## Имя пакета
 
-На PyPI проект публикуется как **`HolixAgentAi`** (не `holix` — это другой пакет на PyPI).
+На PyPI проект публикуется как **`HelixAgentAi`** (не `holix` — это другой пакет на PyPI).
 
 ```bash
-pip install HolixAgentAi
-pip install "HolixAgentAi[telegram,browser]"
-pip install "HolixAgentAi[all]"
+pip install HelixAgentAi
+pip install "HelixAgentAi[telegram,browser]"
+pip install "HelixAgentAi[all]"
 ```
 
 Команда в терминале по-прежнему: **`holix`**.
@@ -21,12 +21,12 @@ pip install "HolixAgentAi[all]"
 ### 1. Аккаунт и имя
 
 - Регистрация на [pypi.org](https://pypi.org/account/register/)
-- Проверить, что `HolixAgentAi` свободен
+- Проверить, что `HelixAgentAi` свободен
 - API-токен или Trusted Publishing с GitHub
 
 ### 2. Метаданные (уже в репозитории)
 
-- `pyproject.toml` — `name = "HolixAgentAi"`, зависимости, extras, `license-files`
+- `pyproject.toml` — `name = "HelixAgentAi"`, зависимости, extras, `license-files`
 - `config.py` включён в wheel (обязательно для `from config import settings`)
 - `[project.scripts]` → `holix`
 
@@ -50,7 +50,7 @@ Workflow: `.github/workflows/publish-pypi.yml`
 
 | Поле | Значение |
 |------|----------|
-| Project | `HolixAgentAi` |
+| Project | `HelixAgentAi` |
 | Owner | `javded-itres` |
 | Repository | `HolixAgent` |
 | Workflow | `publish-pypi.yml` |
@@ -81,7 +81,7 @@ uv publish dist/*
 
 ### 6. Документация для пользователей
 
-После публикации обновить [INSTALLATION.md](INSTALLATION.md) и README: `pip install HolixAgentAi`.
+После публикации обновить [INSTALLATION.md](INSTALLATION.md) и README: `pip install HelixAgentAi`.
 
 ## Ограничения
 

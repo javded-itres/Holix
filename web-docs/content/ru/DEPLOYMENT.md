@@ -40,7 +40,7 @@ Gateway Holix привязан к **профилю**. У каждого проф
 
 ```bash
 sudo useradd --system --create-home --home-dir /home/holix --shell /usr/sbin/nologin holix
-sudo -u holix pipx install HolixAgentAi
+sudo -u holix pipx install HelixAgentAi
 sudo -u holix pipx inject HolixAgentAi telegram   # опционально, для Telegram
 ```
 

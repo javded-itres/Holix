@@ -3,7 +3,7 @@
 Пошаговая инструкция: установка из `.whl`, первичная настройка, подключение к LiteLLM, MCP, навыки, Telegram и режимы работы.
 
 > Все команды и пути взяты из репозитория Holix (`cli/`, `docs/`, `config.py`, `pyproject.toml`).  
-> Пакет называется **`HolixAgentAi`**, команда в терминале — **`holix`**.
+> Пакет называется **`HelixAgentAi`**, команда в терминале — **`holix`**.
 
 ---
 
@@ -97,21 +97,21 @@ uv --version
 
 ## 5. Шаг 3 — Установка с PyPI
 
-Пакет **[HolixAgentAi](https://pypi.org/project/HolixAgentAi/)** на PyPI; команда в терминале — **`holix`**.
+Пакет **[HolixAgentAi](https://pypi.org/project/HelixAgentAi/)** на PyPI; команда в терминале — **`holix`**.
 
 > Не используйте `pip install helix` — на PyPI это **другой** проект.
 
 ### 5.1. Глобально (рекомендуется)
 
 ```bash
-pipx install HolixAgentAi
+pipx install HelixAgentAi
 holix version
 ```
 
 С extras (Telegram, браузер, веб-TUI, голос):
 
 ```bash
-pipx install "HolixAgentAi[all]"
+pipx install "HelixAgentAi[all]"
 ```
 
 Альтернатива: `uv tool install HolixAgentAi`
@@ -121,8 +121,8 @@ pipx install "HolixAgentAi[all]"
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
-pip install HolixAgentAi
-pip install "HolixAgentAi[telegram]"
+pip install HelixAgentAi
+pip install "HelixAgentAi[telegram]"
 holix version
 ```
 
@@ -139,7 +139,7 @@ holix version
 Установка через PowerShell, пути `%LOCALAPPDATA%\Holix\` и troubleshooting: [INSTALLATION.md — Windows](INSTALLATION.md#windows).
 
 ```powershell
-pipx install HolixAgentAi
+pipx install HelixAgentAi
 holix version
 # или из клона репозитория:
 .\scripts\install.ps1
@@ -360,7 +360,7 @@ holix search test "тестовый запрос"
 ```bash
 uv sync --extra telegram
 # или при установке wheel:
-pip install "HolixAgentAi[telegram]"
+pip install "HelixAgentAi[telegram]"
 ```
 
 ### 9.2. Создать бота в Telegram

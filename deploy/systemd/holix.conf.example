@@ -1,7 +1,7 @@
 # Copy to /etc/holix/holix.conf and adjust paths for your install.
 # API keys, gateway port, Telegram — in ~/.holix/profiles/<name>/.env, not here.
 
-# Python from pipx venv (pipx install HolixAgentAi):
+# Python from pipx venv (pipx install HelixAgentAi):
 HOLIX_PYTHON=/home/holix/.local/share/pipx/venvs/holixagentai/bin/python
 HOLIX_BIN=/home/holix/.local/bin/helix
 

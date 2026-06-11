@@ -25,14 +25,14 @@ def search_index(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
             "slug": "installation",
             "title": "Установка",
             "heading": "",
-            "body": "Установите Holix через pipx install HolixAgentAi",
+            "body": "Установите Holix через pipx install HelixAgentAi",
         },
         {
             "lang": "en",
             "slug": "installation",
             "title": "Installation",
             "heading": "",
-            "body": "Install Holix with pipx install HolixAgentAi",
+            "body": "Install Holix with pipx install HelixAgentAi",
         },
     ]
     web_docs = tmp_path / "web-docs"
