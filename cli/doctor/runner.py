@@ -30,6 +30,7 @@ async def run_doctor(
     fix: bool = False,
     use_llm: bool = True,
     llm_advice: bool = True,
+    skip_llm_check: bool = False,
 ) -> int:
     """Run doctor. Exit code 1 if errors remain."""
     print_info(f"Helix Doctor — profile [cyan]{profile}[/cyan]")
@@ -38,7 +39,7 @@ async def run_doctor(
     else:
         print_info("Mode: [bold]check only[/bold] (use --fix to apply repairs)")
 
-    findings = await run_all_checks(profile)
+    findings = await run_all_checks(profile, skip_llm_check=skip_llm_check)
     print_findings(findings)
 
     applied: list[str] = []
@@ -47,7 +48,7 @@ async def run_doctor(
         applied.extend(apply_deterministic_fixes(profile, findings))
         if applied:
             print_applied_fixes(applied)
-            findings = await run_all_checks(profile)
+            findings = await run_all_checks(profile, skip_llm_check=skip_llm_check)
             if findings:
                 print_info("Re-check after deterministic fixes:")
                 print_findings(findings)
@@ -58,7 +59,7 @@ async def run_doctor(
             if ok:
                 applied.append(msg)
                 print_applied_fixes([msg])
-                findings = await run_all_checks(profile)
+                findings = await run_all_checks(profile, skip_llm_check=skip_llm_check)
                 if findings:
                     print_info("Re-check after LLM repair:")
                     print_findings(findings)

@@ -27,14 +27,15 @@ from cli.services.gateway_state import is_process_alive, load_state
 from cli.utils.profile import profile_cli_prefix
 
 
-async def run_all_checks(profile: str) -> list[DoctorFinding]:
+async def run_all_checks(profile: str, *, skip_llm_check: bool = False) -> list[DoctorFinding]:
     findings: list[DoctorFinding] = []
     manager = ProfileManager()
 
     findings.extend(_check_helix_home())
     findings.extend(_check_platform())
     findings.extend(_check_profile_config(profile, manager))
-    findings.extend(await _check_llm(profile, manager))
+    if not skip_llm_check:
+        findings.extend(await _check_llm(profile, manager))
     findings.extend(_check_gateway(profile))
     findings.extend(_check_telegram(profile))
     findings.extend(_check_env_file())

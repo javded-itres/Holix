@@ -43,6 +43,10 @@ jobs:
         run: uv run pytest -m "not llm" -q
 
       - name: Doctor (dry run)
+        env:
+          HELIX_HOME: ${{ runner.temp }}/helix-doctor
+          TELEGRAM_BOT_TOKEN: ""
+          HELIX_TELEGRAM_BOT_TOKEN: ""
         run: uv run helix doctor --no-llm
 
   build:

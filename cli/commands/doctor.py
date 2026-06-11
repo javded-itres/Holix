@@ -54,6 +54,7 @@ def doctor_main(
                 fix=fix,
                 use_llm=not no_llm,
                 llm_advice=not no_advice,
+                skip_llm_check=no_llm,
             )
         )
     except Exception as e:
