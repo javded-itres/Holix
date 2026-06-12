@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 from integrations.telegram.access_requests import register_access_request
@@ -55,8 +55,7 @@ def test_format_access_request_admin_message(holix_home) -> None:
     )
     text = format_access_request_admin_message(req, "default")
     assert "55" in text
-    assert "approve 55" in text
-    assert "reject 55" in text
+    assert "Одобрите" in text or "кнопками" in text
     assert "Bob" in text
 
 
@@ -97,13 +96,25 @@ async def test_notify_admin_access_request_sends_to_admin(
     set_admin_user("default", 900)
     req, _ = register_access_request("default", user_id=77, username="newbie")
     send_mock = AsyncMock()
-    monkeypatch.setattr(
-        "integrations.telegram.notify.send_user_message",
-        send_mock,
-    )
+    bot_instance = MagicMock()
+    bot_instance.send_message = send_mock
+    bot_instance.session = MagicMock()
+    bot_instance.session.close = AsyncMock()
+
+    class _FakeBot:
+        def __init__(self, token: str) -> None:
+            pass
+
+        async def __aenter__(self):
+            return bot_instance
+
+        def __call__(self, token: str):
+            return bot_instance
+
+    monkeypatch.setattr("aiogram.Bot", lambda token: bot_instance)
     await notify_admin_access_request("default", req)
     send_mock.assert_awaited_once()
-    assert send_mock.await_args.args[1] == 900
+    assert send_mock.await_args.args[0] == 900
 
 
 def test_approve_set_admin_creates_admin_profile(holix_home, monkeypatch: pytest.MonkeyPatch) -> None:

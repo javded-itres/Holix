@@ -1,4 +1,4 @@
-"""Telegram access requests — users apply via /start, admins approve from CLI."""
+"""Telegram access requests — users apply via /start, admins approve in Telegram or CLI."""
 
 from __future__ import annotations
 

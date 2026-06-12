@@ -1,4 +1,4 @@
-"""Telegram bot administrator — single user, CLI-only assignment."""
+"""Telegram bot administrator — single user; assigned via bootstrap or CLI."""
 
 from __future__ import annotations
 

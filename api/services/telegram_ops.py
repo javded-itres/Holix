@@ -5,28 +5,20 @@ from __future__ import annotations
 from dataclasses import asdict
 from typing import Any
 
-from cli.core import (
-    ProfileManager,
-    enable_profile_workspace_isolation,
-    validate_profile_name_for_env,
+from integrations.telegram.access_approval import (
+    approve_access_request as approve_access_request_core,
+    reject_access_request_op as reject_access_request_core,
 )
-from core.profile_keys import profile_has_access_key, store_profile_access_key
 from integrations.telegram.access_requests import (
-    STATUS_PENDING,
     TelegramAccessRequest,
-    get_access_request,
     list_pending_requests,
     register_access_request,
-    reject_access_request,
-    resolve_access_request,
 )
 from integrations.telegram.admin import (
     clear_admin_user,
     load_admin_holix_profile,
     load_admin_user_id,
-    set_admin_user,
 )
-from integrations.telegram.allowlist import add_allowed_user
 from integrations.telegram.env_store import (
     load_telegram_env_files,
     mask_token,
@@ -54,33 +46,6 @@ def _request_dict(req: TelegramAccessRequest) -> dict[str, Any]:
     data = asdict(req)
     data["display_name"] = req.display_name
     return data
-
-
-def _prepare_profile_for_user(
-    manager: ProfileManager,
-    target_profile: str,
-    *,
-    create_new: bool,
-) -> tuple[str | None, bool]:
-    target_profile = validate_profile_name_for_env(target_profile)
-    access_key: str | None = None
-    key_already_set = False
-
-    if create_new:
-        if manager.profile_exists(target_profile):
-            if profile_has_access_key(target_profile):
-                key_already_set = True
-            else:
-                access_key = store_profile_access_key(target_profile)
-                enable_profile_workspace_isolation(manager, target_profile)
-        else:
-            manager.create_profile(target_profile, with_access_key=True)
-            access_key = manager.pop_last_created_access_key()
-        return access_key, key_already_set
-
-    if not manager.profile_exists(target_profile):
-        raise TelegramOpError(f"Profile '{target_profile}' not found", status_code=404)
-    return None, profile_has_access_key(target_profile)
 
 
 def get_telegram_status(profile_id: str) -> dict[str, Any]:
@@ -173,88 +138,43 @@ async def approve_access_request(
 ) -> dict[str, Any]:
     if set_admin and (holix_profile or create_profile):
         raise TelegramOpError("--set-admin cannot be combined with profile or create_profile")
-
-    load_telegram_env_files(profile_id)
-    req = get_access_request(profile_id, user_id)
-    if req is None or req.status != STATUS_PENDING:
-        raise TelegramOpError(f"No pending request for user id {user_id}", status_code=404)
-
-    if set_admin:
-        existing_admin = load_admin_user_id(profile_id)
-        if existing_admin is not None and int(existing_admin) != int(user_id):
-            raise TelegramOpError(
-                f"Admin already assigned (user id {existing_admin})",
-                status_code=409,
-            )
-
-    target_profile: str | None = None
-    if set_admin:
-        target_profile = load_admin_holix_profile(profile_id)
-    elif create_profile:
-        target_profile = create_profile.strip()
-    elif holix_profile:
-        target_profile = holix_profile.strip()
-
-    if not target_profile:
+    if not set_admin and not holix_profile and not create_profile:
         raise TelegramOpError("profile or create_profile is required")
 
-    manager = ProfileManager()
-    if set_admin and not manager.profile_exists(target_profile):
-        manager.create_profile(target_profile, inherit_global=True)
-
-    access_key, key_already_set = _prepare_profile_for_user(
-        manager,
-        target_profile,
-        create_new=bool(create_profile) and not set_admin,
-    )
-
-    if set_admin:
-        set_admin_user(profile_id, user_id, holix_profile=target_profile)
-
-    add_allowed_user(profile_id, user_id)
-    set_user_profile(profile_id, user_id, target_profile)
-    resolve_access_request(
-        profile_id,
-        user_id,
-        status="approved",
-        holix_profile=target_profile,
-    )
-
-    notify_error: str | None = None
     try:
-        from integrations.telegram.notify import notify_access_approved_sync
-
-        notify_access_approved_sync(
+        result = approve_access_request_core(
             profile_id,
             user_id,
-            target_profile,
-            access_key=access_key,
-            key_already_set=key_already_set and not access_key,
+            holix_profile=holix_profile,
+            create_profile=create_profile,
+            set_admin=set_admin,
         )
-    except TelegramApiError as exc:
-        notify_error = str(exc)
-    except Exception as exc:
-        notify_error = str(exc)
+    except ValueError as exc:
+        msg = str(exc)
+        status = 409 if "Admin already" in msg else 404
+        raise TelegramOpError(msg, status_code=status) from exc
 
-    result: dict[str, Any] = {
+    payload: dict[str, Any] = {
         "user_id": user_id,
-        "holix_profile": target_profile,
+        "holix_profile": result.holix_profile,
         "set_admin": set_admin,
         "reload_required": True,
     }
-    if access_key:
-        result["access_key"] = access_key
-    if notify_error:
-        result["notify_error"] = notify_error
-    return result
+    if result.access_key:
+        payload["access_key"] = result.access_key
+    return payload
 
 
 def reject_access_request_op(profile_id: str, user_id: int) -> dict[str, Any]:
-    load_telegram_env_files(profile_id)
-    req = reject_access_request(profile_id, user_id)
-    if req is None:
-        raise TelegramOpError(f"No pending request for user id {user_id}", status_code=404)
-    return {"user_id": user_id, "status": "rejected", "display_name": req.display_name}
+    try:
+        result = reject_access_request_core(profile_id, user_id)
+    except ValueError as exc:
+        raise TelegramOpError(str(exc), status_code=404) from exc
+    return {
+        "user_id": user_id,
+        "status": "rejected",
+        "display_name": result.user_display,
+    }
 
 
 def get_telegram_admin(profile_id: str) -> dict[str, Any]:

@@ -550,9 +550,38 @@ class HolixTelegramBot:
             except Exception as exc:
                 await query.answer(f"Error: {exc}"[:200], show_alert=True)
 
+        @dp.callback_query(F.data.startswith("hx:ar"))
+        async def on_access_admin_cb(query: CallbackQuery) -> None:
+            if query.from_user is None or not query.data or query.message is None:
+                return
+            from integrations.telegram.access_approval import handle_access_admin_callback
+            from integrations.telegram.keyboards import parse_callback
+
+            parsed = parse_callback(query.data)
+            if not parsed:
+                await query.answer("Неверная кнопка.", show_alert=True)
+                return
+            action, value = parsed
+            try:
+                msg = await handle_access_admin_callback(
+                    self.settings.profile,
+                    actor_user_id=int(query.from_user.id),
+                    action=action,
+                    value=value,
+                    message=query.message,
+                    bot=bot,
+                )
+                await query.answer(msg[:200] if msg else "OK")
+            except ValueError as exc:
+                await query.answer(str(exc)[:200], show_alert=True)
+            except Exception as exc:
+                await query.answer(f"Ошибка: {exc}"[:200], show_alert=True)
+
         @dp.callback_query(F.data.startswith("hx:"))
         async def on_holix_ui_cb(query: CallbackQuery) -> None:
             if query.from_user is None or not query.data or query.message is None:
+                return
+            if query.data.startswith("hx:ar"):
                 return
             if not self._allowed(query.from_user.id):
                 await query.answer("Access denied.", show_alert=True)

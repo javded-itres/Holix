@@ -112,29 +112,36 @@ async def notify_access_approved(
 def format_access_request_admin_message(
     req: TelegramAccessRequest,
     bot_profile: str,
+    *,
+    pick_profile: bool = False,
 ) -> str:
-    profile_esc = escape_html(bot_profile)
+    from integrations.telegram.access_approval import suggest_holix_profile_name
+
     name_esc = escape_html(req.display_name)
     username_line = (
         f"\n<b>Username:</b> @{escape_html(req.username)}"
         if req.username
         else ""
     )
+    suggested = suggest_holix_profile_name(req)
+    if pick_profile:
+        header = "📁 <b>Выбор профиля Holix</b>"
+        footer = "Нажмите кнопку профиля или создайте новый."
+    else:
+        header = "🔔 <b>Новый запрос доступа</b>"
+        footer = (
+            "Одобрите или отклоните кнопками ниже.\n"
+            f"Быстрое одобрение создаст профиль <code>{escape_html(suggested)}</code> "
+            "(если его ещё нет)."
+        )
     return "\n".join(
         [
-            "🔔 <b>Новый запрос доступа</b>",
+            header,
             "",
             f"<b>Пользователь:</b> {name_esc}{username_line}",
             f"<b>Telegram ID:</b> <code>{req.user_id}</code>",
             "",
-            "Одобрить в CLI (выбор или создание профиля):",
-            f"<code>holix -p {profile_esc} telegram requests approve {req.user_id} -i</code>",
-            "",
-            "Или сразу создать профиль:",
-            f"<code>holix -p {profile_esc} telegram requests approve {req.user_id} --create-profile NAME</code>",
-            "",
-            "Отклонить:",
-            f"<code>holix -p {profile_esc} telegram requests reject {req.user_id}</code>",
+            footer,
         ]
     )
 
@@ -157,8 +164,50 @@ async def notify_admin_access_request(
     if not token:
         return
 
+    from integrations.telegram.keyboards import access_request_admin_keyboard
+
     text = format_access_request_admin_message(req, bot_profile)
-    await send_user_message(token, int(admin_id), text)
+    keyboard = access_request_admin_keyboard(req.user_id)
+    try:
+        from aiogram import Bot
+
+        bot = Bot(token=token)
+        try:
+            await bot.send_message(
+                int(admin_id),
+                text,
+                parse_mode="HTML",
+                reply_markup=keyboard,
+            )
+        finally:
+            await bot.session.close()
+    except ImportError:
+        await send_user_message(token, int(admin_id), text)
+
+
+async def notify_access_rejected(
+    bot_profile: str,
+    user_id: int,
+) -> None:
+    from integrations.telegram.config import load_telegram_settings
+    from integrations.telegram.env_store import load_telegram_env_files
+
+    load_telegram_env_files(bot_profile)
+    settings = load_telegram_settings(bot_profile)
+    token = settings.bot_token.strip()
+    if not token:
+        raise TelegramApiError("TELEGRAM_BOT_TOKEN is not configured")
+
+    text = (
+        "❌ <b>Доступ не одобрен</b>\n\n"
+        "Администратор отклонил запрос. "
+        "Если это ошибка — свяжитесь с администратором Holix."
+    )
+    await send_user_message(token, int(user_id), text)
+
+
+def notify_access_rejected_sync(bot_profile: str, user_id: int) -> None:
+    asyncio.run(notify_access_rejected(bot_profile, user_id))
 
 
 def notify_access_approved_sync(
