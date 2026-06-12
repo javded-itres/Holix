@@ -101,7 +101,7 @@ class Settings(BaseSettings):
     require_auth: bool = True
     cors_origins: str = "http://127.0.0.1:8000,http://localhost:8000"
     api_keys_db_path: str = Field(
-        default="data/security/api_keys.db",
+        default="security/api_keys.db",
         validation_alias=AliasChoices("HOLIX_API_KEYS_DB", "API_KEYS_DB"),
     )
     api_key_pepper: str = Field(

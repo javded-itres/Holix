@@ -55,6 +55,11 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Initialize multi-profile registry, stores, and API key DB."""
+    from core.env_loader import init_holix_home
+    from core.paths import resolve_api_keys_db_path
+
+    init_holix_home()
+
     if settings.is_production and not settings.api_key_pepper.strip():
         raise RuntimeError("HOLIX_API_KEY_PEPPER is required when HOLIX_ENV=production")
 
@@ -70,7 +75,7 @@ async def lifespan(app: FastAPI):
 
     import api.deps as gateway_deps
 
-    state.api_key_manager = APIKeyManager(settings.api_keys_db_path)
+    state.api_key_manager = APIKeyManager(str(resolve_api_keys_db_path()))
     await state.api_key_manager.initialize_db()
     gateway_deps.api_key_manager = state.api_key_manager
     gateway_deps.rate_limiter = state.rate_limiter

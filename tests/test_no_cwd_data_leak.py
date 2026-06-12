@@ -91,6 +91,41 @@ async def test_action_guard_audit_log_in_profile(tmp_path, monkeypatch) -> None:
     assert not (tmp_path / "repo" / "data").exists()
 
 
+def test_api_keys_db_resolves_under_holix_home(tmp_path, monkeypatch) -> None:
+    holix_home = tmp_path / "holix"
+    monkeypatch.setenv("HOLIX_HOME", str(holix_home))
+    repo = tmp_path / "repo"
+    repo.mkdir(parents=True)
+    monkeypatch.chdir(repo)
+
+    from core.paths import resolve_api_keys_db_path
+
+    resolved = resolve_api_keys_db_path("security/api_keys.db")
+    assert resolved == (holix_home / "security" / "api_keys.db").resolve()
+    assert not resolved.is_relative_to(repo)
+
+
+@pytest.mark.asyncio
+async def test_api_key_manager_opens_resolved_db(tmp_path, monkeypatch) -> None:
+    holix_home = tmp_path / "holix"
+    monkeypatch.setenv("HOLIX_HOME", str(holix_home))
+    repo = tmp_path / "repo"
+    repo.mkdir(parents=True)
+    monkeypatch.chdir(repo)
+
+    from config import settings
+    from core.security.auth import APIKeyManager
+
+    updated = settings.model_copy(update={"api_key_pepper": "test-pepper"})
+    monkeypatch.setattr("config.settings", updated)
+    monkeypatch.setattr("core.security.auth.settings", updated)
+
+    mgr = APIKeyManager()
+    await mgr.initialize_db()
+    assert mgr.db_path == (holix_home / "security" / "api_keys.db").resolve()
+    assert mgr.db_path.exists()
+
+
 def test_doctor_migrates_stray_project_data(tmp_path, monkeypatch) -> None:
     monkeypatch.setattr("cli.core.PROFILES_DIR", tmp_path / "profiles")
     repo = tmp_path / "repo"
