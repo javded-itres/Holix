@@ -1,0 +1,1 @@
+"""Holix Link — gateway relay and pairing."""

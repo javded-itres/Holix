@@ -108,6 +108,8 @@ def gateway_client(gateway_auth_headers, monkeypatch: pytest.MonkeyPatch):
     import api.deps
     import api.gateway
     import api.state
+    from core.gateway.link_relay import LinkRelay
+    from core.gateway.links_store import LinksStore
     from core.gateway.responses_store import ResponsesStore
     from core.gateway.runs_store import RunsStore
     from core.gateway.sessions_store import SessionsStore
@@ -137,6 +139,8 @@ def gateway_client(gateway_auth_headers, monkeypatch: pytest.MonkeyPatch):
     monkeypatch.setattr(api.state, "responses_store", ResponsesStore())
     monkeypatch.setattr(api.state, "runs_store", RunsStore())
     monkeypatch.setattr(api.state, "sessions_store", SessionsStore())
+    monkeypatch.setattr(api.state, "links_store", LinksStore())
+    monkeypatch.setattr(api.state, "link_relay", LinkRelay())
     monkeypatch.setattr(api.state, "_agent_request_lock", asyncio.Lock())
 
     api.gateway.app.dependency_overrides[api.deps.verify_api_key] = _fake_key

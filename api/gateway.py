@@ -8,6 +8,8 @@ from contextlib import asynccontextmanager
 
 from core.di.container import create_async_container, resolve_gateway_runtime_config
 from core.gateway.companions import CompanionManager
+from core.gateway.link_relay import LinkRelay
+from core.gateway.links_store import LinksStore
 from core.gateway.profile_registry import ProfileAgentRegistry
 from core.gateway.responses_store import ResponsesStore
 from core.gateway.runs_store import RunsStore
@@ -38,6 +40,7 @@ from api.routers import (
     holix_skills,
     holix_telegram,
     legacy_v1,
+    link,
 )
 from config import settings
 
@@ -70,6 +73,8 @@ async def lifespan(app: FastAPI):
     state.responses_store = ResponsesStore()
     state.runs_store = RunsStore()
     state.sessions_store = SessionsStore()
+    state.links_store = LinksStore()
+    state.link_relay = LinkRelay()
     state.rate_limiter = RateLimiter()
     state._agent_request_lock = asyncio.Lock()
 
@@ -127,6 +132,7 @@ app.include_router(holix_mcp.router)
 app.include_router(holix_config.router)
 app.include_router(holix_global.router)
 app.include_router(holix_telegram.router)
+app.include_router(link.router)
 app.include_router(docs_chat_router)
 
 

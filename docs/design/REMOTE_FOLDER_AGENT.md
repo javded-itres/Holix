@@ -469,9 +469,10 @@ strategy:
 
 | PR | Статус |
 |----|--------|
-| **PR-1** протокол | в работе — [Holix-Link](https://github.com/javded-itres/Holix-Link) |
-| **PR-2** paths/jail | в работе — [Holix-Link](https://github.com/javded-itres/Holix-Link) |
-| PR-3 … PR-10 | очередь (Holix + Holix-Link) |
+| **PR-1** протокол | ✅ [Holix-Link](https://github.com/javded-itres/Holix-Link) |
+| **PR-2** paths/jail | ✅ [Holix-Link](https://github.com/javded-itres/Holix-Link) |
+| **PR-3** gateway relay | ✅ `POST /v1/link/create\|pair`, `WS /v1/link/ws`, `links.db` |
+| PR-4 … PR-10 | очередь (Holix + Holix-Link) |
 
 ---
 
