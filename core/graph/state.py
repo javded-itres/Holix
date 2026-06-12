@@ -57,7 +57,15 @@ class HolixGraphState(TypedDict, total=False):
     # Sub-agent state (Phase 4b)
     sub_agent_tasks: list[dict[str, Any]]    # Sub-tasks for sub-agents
     sub_agent_results: dict[str, Any]        # {agent_name: result}
-    pending_subagent: str | None          # Job id awaiting collect_subagent_node
+    pending_subagent: str | None          # Legacy single job id (use pending_subagents)
+    pending_subagents: list[str]          # Active wave job ids
+    subagent_orchestration: dict[str, Any] | None  # Serialized OrchestrationPlan
+    current_subagent_wave: int            # Next wave index to run
+    subagent_wave_results: dict[str, Any]  # {wave_id: {job_id: result}}
+    subagent_task_meta: dict[str, Any]     # {job_id: task metadata}
+    subagent_wave_step_indices: list[int] | None  # Plan indices finished in last wave
+    subagent_awaiting_synthesis: bool     # True after collect, before react synthesis
+    subagent_delegate_next: bool           # Router hint to spawn the next wave
 
     # Plan state (for plan_and_execute and hybrid modes)
     plan_steps: list[dict[str, Any]]         # Ordered list of plan steps

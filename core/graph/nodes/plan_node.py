@@ -138,6 +138,19 @@ Now create a plan for the task above. Respond with ONLY valid JSON:
     "reasoning": "..."
 }}"""
 
+SUBAGENT_PLAN_APPENDIX = """
+## Sub-agent delegation (enabled)
+When complexity is medium or complex, assign `subagent_type` on steps that specialists should run:
+- research / web search → `web_researcher` or `researcher`
+- coding / implementation → `coder`
+- data / SQL analysis → `analyst`
+- code review → `reviewer`
+- documentation → `writer`
+For complex tasks, use `parallel_group` (same integer) for independent steps that can run in parallel.
+Use `depends_on` so downstream steps wait for prerequisites.
+Leave `subagent_type` null only for steps the main agent must handle directly.
+"""
+
 FALLBACK_PLAN_PROMPT = """You are a task planner. Break down the following task into clear, ordered sub-tasks.
 
 Task: {task}
@@ -278,6 +291,9 @@ async def plan_node(state: HolixGraphState, config: RunnableConfig) -> dict:
         prompt = FALLBACK_PLAN_PROMPT.format(task=user_input)
         if project_handbook:
             prompt += f"\n\n## PROJECT HANDBOOK\n{project_handbook}\n"
+
+    if getattr(agent.config, "enable_subagents", False):
+        prompt += SUBAGENT_PLAN_APPENDIX
 
     # Append refinement feedback if the user requested changes to a previous plan
     if refinement_feedback:

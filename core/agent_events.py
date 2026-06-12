@@ -60,6 +60,10 @@ class EventType(StrEnum):
     PLAN_STEP_COMPLETED = "plan_step_completed"
     PLAN_COMPLETED = "plan_completed"
 
+    # Sub-agent orchestration
+    SUBAGENT_WAVE_STARTED = "subagent_wave_started"
+    SUBAGENT_WAVE_COMPLETED = "subagent_wave_completed"
+
 
 @dataclass
 class EventContext:
@@ -356,6 +360,46 @@ class PlanCompletedEvent(AgentEvent):
 
     def _extra_fields(self) -> dict[str, Any]:
         return {"total_steps": self.total_steps}
+
+
+@dataclass
+class SubAgentWaveStartedEvent(AgentEvent):
+    """Emitted when a sub-agent orchestration wave begins."""
+    wave_id: int = 0
+    total_waves: int = 0
+    job_ids: list[str] = field(default_factory=list)
+
+    def __post_init__(self):
+        super().__post_init__()
+        object.__setattr__(self, "type", EventType.SUBAGENT_WAVE_STARTED)
+
+    def _extra_fields(self) -> dict[str, Any]:
+        return {
+            "wave_id": self.wave_id,
+            "total_waves": self.total_waves,
+            "job_ids": self.job_ids,
+        }
+
+
+@dataclass
+class SubAgentWaveCompletedEvent(AgentEvent):
+    """Emitted when a sub-agent orchestration wave is collected."""
+    wave_id: int = 0
+    total_waves: int = 0
+    completed: int = 0
+    total: int = 0
+
+    def __post_init__(self):
+        super().__post_init__()
+        object.__setattr__(self, "type", EventType.SUBAGENT_WAVE_COMPLETED)
+
+    def _extra_fields(self) -> dict[str, Any]:
+        return {
+            "wave_id": self.wave_id,
+            "total_waves": self.total_waves,
+            "completed": self.completed,
+            "total": self.total,
+        }
 
 
 # ---------------------------------------------------------------------

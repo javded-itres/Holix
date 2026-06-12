@@ -75,8 +75,11 @@ async def step_orchestrate_node(state: HolixGraphState, config: RunnableConfig) 
 
     # Check if current step has been completed by react
     if is_step_complete:
-        # Current step is done, advance to next
-        new_step_idx = current_step_idx + 1
+        wave_indices = state.get("subagent_wave_step_indices") or []
+        if wave_indices:
+            new_step_idx = max(wave_indices) + 1
+        else:
+            new_step_idx = current_step_idx + 1
 
         # Check for per-step step limit
         try:
@@ -110,11 +113,18 @@ async def step_orchestrate_node(state: HolixGraphState, config: RunnableConfig) 
                     conversation_id=conversation_id,
                 ))
 
+            clear_orch: dict = {
+                "subagent_orchestration": None,
+                "subagent_delegate_next": False,
+                "subagent_awaiting_synthesis": False,
+                "subagent_wave_step_indices": None,
+            }
             return {
                 "current_plan_step": new_step_idx,
                 "is_step_complete": False,
                 "is_final": True,
                 "final_response": state.get("final_response", f"Plan completed: all {len(plan_steps)} steps executed."),
+                **clear_orch,
             }
 
         # Inject next step description as a user message
@@ -145,15 +155,53 @@ async def step_orchestrate_node(state: HolixGraphState, config: RunnableConfig) 
             except Exception as e:
                 logger.warning(f"Failed to save plan step message: {e}")
 
+        orch_updates: dict = {
+            "subagent_awaiting_synthesis": False,
+            "subagent_wave_step_indices": None,
+        }
+        raw_orch = state.get("subagent_orchestration")
+        if raw_orch:
+            from core.subagents.orchestrator import OrchestrationPlan
+
+            orch_plan = OrchestrationPlan.from_dict(raw_orch)
+            if int(state.get("current_subagent_wave", 0)) >= len(orch_plan.waves):
+                orch_updates["subagent_orchestration"] = None
+                orch_updates["subagent_delegate_next"] = False
+
         return {
             "current_plan_step": new_step_idx,
             "is_step_complete": False,
             "current_step_start_count": step_count,
             "messages": messages,
+            **orch_updates,
         }
 
+    cfg = getattr(agent, "config", None) if agent else None
+    if (
+        cfg
+        and getattr(cfg, "enable_subagents", False)
+        and not state.get("subagent_orchestration")
+        and not state.get("subagent_awaiting_synthesis")
+    ):
+        from core.subagents.orchestrator import build_orchestration_plan
+
+        orch_plan = build_orchestration_plan(
+            plan_analysis=state.get("plan_analysis"),
+            plan_steps=plan_steps,
+            current_step_index=current_step_idx,
+            enable_subagents=True,
+            max_concurrent=int(getattr(cfg, "subagent_max_concurrent", 4) or 4),
+        )
+        if orch_plan.enabled:
+            return {
+                "subagent_orchestration": orch_plan.to_dict(),
+                "current_subagent_wave": 0,
+                "subagent_delegate_next": True,
+                "is_step_complete": False,
+                "current_step_start_count": step_count,
+            }
+
     # First entry for this step — inject step context
-    # Check if this is the very first step (current_step_idx == 0 and no step messages yet)
     step_context_msg = (
         f"[Plan Step {step_num}/{len(plan_steps)}] {step_description}\n"
         f"Tools: {', '.join(current_step.get('tools_needed', [])) or 'all available tools'}\n"

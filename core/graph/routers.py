@@ -87,6 +87,17 @@ def route_after_step_orchestrate(state: HolixGraphState) -> str:
     current_step_idx = state.get("current_plan_step", 0)
     if state.get("is_final", False):
         return "finalize"
+    if state.get("subagent_delegate_next"):
+        return "delegate_subagent"
+    if not state.get("subagent_awaiting_synthesis"):
+        orch = state.get("subagent_orchestration")
+        if orch:
+            from core.subagents.orchestrator import OrchestrationPlan
+
+            plan = OrchestrationPlan.from_dict(orch)
+            wave_idx = int(state.get("current_subagent_wave", 0))
+            if wave_idx < len(plan.waves):
+                return "delegate_subagent"
     if current_step_idx < len(plan_steps):
         return "react"
     return "finalize"
