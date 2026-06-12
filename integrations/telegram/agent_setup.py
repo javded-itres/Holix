@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from cli.core import ProfileConfig, init_profile
 from core.agent import HolixAgent
+
 from integrations.telegram.profile_auth import authorize_telegram_profile_access
 
 
@@ -19,6 +20,7 @@ async def create_agent(
         authorize_telegram_profile_access(bot_profile, telegram_user_id, profile)
         if config is None:
             from cli.core import ProfileManager
+
             from integrations.telegram.profile_seed import seed_telegram_user_profile_from_bot
 
             seed_telegram_user_profile_from_bot(

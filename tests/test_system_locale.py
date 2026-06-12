@@ -23,6 +23,9 @@ def test_detect_system_locale_en_default(monkeypatch: pytest.MonkeyPatch) -> Non
 
 def test_resolve_install_locale_russian_system(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("LANG", "ru_RU.UTF-8")
+    monkeypatch.delenv("LC_ALL", raising=False)
+    monkeypatch.delenv("LC_MESSAGES", raising=False)
+    monkeypatch.delenv("LANGUAGE", raising=False)
     assert resolve_install_locale(interactive=False) == "ru"
 
 

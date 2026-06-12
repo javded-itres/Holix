@@ -24,7 +24,7 @@ logger = logging.getLogger(__name__)
 class SubAgentInteractionBridge:
     """Routes sub-agent IPC prompts to the parent event bus and awaits replies."""
 
-    def __init__(self, parent_agent: Any, *, confirmation_timeout: int = 300):
+    def __init__(self, parent_agent: Any, *, confirmation_timeout: int = 0):
         self._parent = parent_agent
         self._confirmation_timeout = confirmation_timeout
         self._pending_confirmations: dict[str, asyncio.Future] = {}

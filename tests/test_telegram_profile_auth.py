@@ -48,7 +48,6 @@ def test_telegram_user_may_access_mapped_profile(holix_home) -> None:
 
 def test_authorize_unlocks_mapped_profile_without_key(holix_home) -> None:
     import cli.core as cli_core
-
     from integrations.telegram.user_profiles import set_user_profile
 
     manager = ProfileManager()

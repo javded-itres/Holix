@@ -103,7 +103,7 @@ def run_sub_agent_in_process(
     skills_dir: str = "",
     skill_assignments: dict[str, list[str]] | None = None,
     auto_allow_threshold: str = "low",
-    confirmation_timeout: float = 300.0,
+    confirmation_timeout: float = 0.0,
     interactive: bool = True,
     search_config: dict[str, Any] | None = None,
 ) -> None:
@@ -713,8 +713,10 @@ class SubAgentProcessManager:
         auto_allow_threshold = str(
             getattr(parent_cfg, "auto_allow_threshold", "low") or "low"
         )
+        from core.security.confirmation import normalize_confirmation_timeout
+
         confirmation_timeout = float(
-            getattr(parent_cfg, "confirmation_timeout", 300) or 300
+            normalize_confirmation_timeout(getattr(parent_cfg, "confirmation_timeout", None))
         )
         interactive = not bool(getattr(parent_cfg, "non_interactive", False))
         search_config = dict(getattr(parent_cfg, "search", None) or {})

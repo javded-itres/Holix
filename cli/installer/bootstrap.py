@@ -8,12 +8,6 @@ import re
 import sys
 from dataclasses import dataclass
 
-from rich.panel import Panel
-from rich.prompt import Confirm, Prompt
-
-from cli.core import ProfileManager, get_current_config, init_profile
-from cli.installer.bootstrap_i18n import bootstrap_preset_labels, bt
-from cli.utils.rich_console import console, print_error, print_info, print_success, print_warning
 from core.i18n.system_locale import apply_profile_locale, resolve_install_locale
 from core.models.catalog import get_provider_preset, resolve_preset_base_url
 from core.models.setup_helpers import (
@@ -24,6 +18,12 @@ from core.models.setup_helpers import (
     resolve_api_key_for_preset,
     resolve_preset_api_key_interactive,
 )
+from rich.panel import Panel
+from rich.prompt import Confirm, Prompt
+
+from cli.core import ProfileManager, get_current_config, init_profile
+from cli.installer.bootstrap_i18n import bootstrap_preset_labels, bt
+from cli.utils.rich_console import console, print_error, print_info, print_success, print_warning
 
 
 @dataclass(frozen=True, slots=True)
@@ -281,9 +281,8 @@ async def _configure_telegram(profile: str, lang: str) -> bool:
 
 
 def _configure_search(profile: str, lang: str) -> bool:
-    from rich.prompt import Confirm
-
     from core.search.setup_helpers import configure_search_interactive
+    from rich.prompt import Confirm
 
     console.print()
     if not Confirm.ask(bt("search_configure", lang), default=True):

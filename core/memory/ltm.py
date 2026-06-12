@@ -3,18 +3,17 @@
 from __future__ import annotations
 
 import logging
-from pathlib import Path
 from typing import Any
 
 import aiosqlite
 
 from core.di.runtime_config import HolixRuntimeConfig
-from core.paths import prepare_sqlite_db_file
 from core.memory.episodic import EpisodicMemoryStore
 from core.memory.procedural import ProceduralMemoryStore
 from core.memory.semantic import SemanticMemoryStore
 from core.memory.strategic import StrategicMemoryStore
 from core.memory.vector import VectorMemoryStore
+from core.paths import prepare_sqlite_db_file
 
 logger = logging.getLogger(__name__)
 

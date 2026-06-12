@@ -7,13 +7,13 @@ from integrations.telegram.access_approval import (
     reject_access_request_op,
 )
 from integrations.telegram.access_requests import STATUS_PENDING, list_pending_requests
-from integrations.telegram.admin import load_admin_holix_profile, load_admin_user_id, set_admin_user
+from integrations.telegram.admin import load_admin_holix_profile, load_admin_user_id
 from integrations.telegram.env_store import load_telegram_env_files
 from rich.prompt import Confirm, Prompt
 from rich.table import Table
 
 from cli.core import ProfileManager
-from cli.utils.rich_console import console, print_error, print_info, print_success, print_warning
+from cli.utils.rich_console import console, print_error, print_info, print_success
 
 
 def _profiles_list() -> list[str]:

@@ -7,6 +7,8 @@ from typing import Any
 
 from integrations.telegram.access_approval import (
     approve_access_request as approve_access_request_core,
+)
+from integrations.telegram.access_approval import (
     reject_access_request_op as reject_access_request_core,
 )
 from integrations.telegram.access_requests import (

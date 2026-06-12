@@ -219,6 +219,7 @@ def profile_files_dir(
     telegram_user_id: int | None = None,
 ) -> Path:
     from cli.core import ProfileManager, resolve_profile_storage_paths
+
     from integrations.telegram.profile_auth import init_profile_for_telegram
 
     mgr = ProfileManager()

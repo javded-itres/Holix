@@ -6,8 +6,13 @@ import re
 from dataclasses import dataclass
 from typing import Any
 
-from cli.core import ProfileManager, enable_profile_workspace_isolation, validate_profile_name_for_env
+from cli.core import (
+    ProfileManager,
+    enable_profile_workspace_isolation,
+    validate_profile_name_for_env,
+)
 from core.profile_keys import profile_has_access_key, store_profile_access_key
+
 from integrations.telegram.access_requests import (
     STATUS_PENDING,
     TelegramAccessRequest,

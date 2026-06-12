@@ -251,8 +251,9 @@ class AgentCommands:
             await h._sync_telegram_menu()
 
     async def _profile(self, command: str) -> None:
-        from cli.core import ProfileManager
         from core.profile_keys import profile_has_access_key
+
+        from cli.core import ProfileManager
 
         h = self.host
         lang = host_locale(h)

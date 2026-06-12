@@ -43,7 +43,9 @@ class SubAgentManager:
         self._parent = parent_agent
         self._comm_bus = AgentCommunicationBus()
         cfg = getattr(parent_agent, "config", None)
-        timeout = int(getattr(cfg, "confirmation_timeout", 300) or 300)
+        from core.security.confirmation import normalize_confirmation_timeout
+
+        timeout = normalize_confirmation_timeout(getattr(cfg, "confirmation_timeout", None))
         self.interactions = SubAgentInteractionBridge(
             parent_agent,
             confirmation_timeout=timeout,

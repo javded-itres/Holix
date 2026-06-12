@@ -2,7 +2,6 @@ import hashlib
 import hmac
 import secrets
 from datetime import datetime, timedelta
-from pathlib import Path
 from typing import Any
 
 import aiosqlite

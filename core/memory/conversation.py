@@ -13,8 +13,8 @@ import chromadb
 from chromadb.config import Settings as ChromaSettings
 
 from core.di.runtime_config import HolixRuntimeConfig
-from core.paths import prepare_sqlite_db_file
 from core.memory.chroma_embeddings import get_or_create_collection
+from core.paths import prepare_sqlite_db_file
 
 logger = logging.getLogger(__name__)
 

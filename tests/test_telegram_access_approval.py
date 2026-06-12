@@ -105,8 +105,8 @@ def test_reject_notifies_user(holix_home, monkeypatch: pytest.MonkeyPatch) -> No
 
 
 def test_approve_creates_profile(holix_home, monkeypatch: pytest.MonkeyPatch) -> None:
-    from integrations.telegram.env_store import save_telegram_env
     from cli.core import ProfileManager
+    from integrations.telegram.env_store import save_telegram_env
 
     save_telegram_env({"TELEGRAM_BOT_TOKEN": "1:abc"}, profile="default")
     register_access_request("default", user_id=88, username="carol")
