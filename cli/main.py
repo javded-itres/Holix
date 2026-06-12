@@ -1,5 +1,8 @@
 """Main CLI entry point for Holix."""
 
+from __future__ import annotations
+
+import sys
 
 import typer
 from rich.traceback import install
@@ -9,17 +12,6 @@ install(show_locals=True)
 
 from core.profile_keys import ProfileNotFoundError
 
-from cli.commands import chat, config, doctor, gateway, memory, models, profile, run, skills
-from cli.commands.cron import app as cron_app
-from cli.commands.docs import app as docs_app
-from cli.commands.hub import app as hub_app
-from cli.commands.bootstrap import app as bootstrap_app
-from cli.commands.install_cmd import app as install_app
-from cli.commands.logs import app as logs_app
-from cli.commands.mcp import app as mcp_app
-from cli.commands.search import app as search_app
-from cli.commands.telegram import register_telegram_command
-from cli.commands.update_cmd import app as update_app
 from cli.core import get_profile_manager, init_profile, resolve_active_profile_name
 from cli.utils.rich_console import print_info
 
@@ -31,24 +23,82 @@ app = typer.Typer(
     rich_markup_mode="rich"
 )
 
-# Add command modules
-app.add_typer(skills.app, name="skills")
-app.add_typer(memory.app, name="memory")
-app.add_typer(config.app, name="config")
-app.add_typer(profile.app, name="profile")
-app.add_typer(models.app, name="models")
-register_telegram_command(app)
-app.add_typer(gateway.app, name="gateway")
-app.add_typer(doctor.app, name="doctor")
-app.add_typer(mcp_app, name="mcp")
-app.add_typer(search_app, name="search")
-app.add_typer(cron_app, name="cron")
-app.add_typer(logs_app, name="logs")
-app.add_typer(hub_app, name="hub")
-app.add_typer(install_app, name="install")
-app.add_typer(bootstrap_app, name="bootstrap")
-app.add_typer(update_app, name="update")
-app.add_typer(docs_app, name="docs")
+_BASE_COMMANDS_REGISTERED = False
+_HEAVY_COMMANDS_REGISTERED = False
+
+# Commands that pull chromadb/numpy via HolixAgent or SkillsManager.
+_HEAVY_ROOT_COMMANDS = frozenset({"chat", "run", "tui", "skills", "memory"})
+
+
+def _needs_heavy_commands(argv: list[str]) -> bool:
+    """Return True when argv invokes agent/memory-heavy CLI modules."""
+    if not argv or argv[0].startswith("-"):
+        return False
+    root = argv[0]
+    if root in _HEAVY_ROOT_COMMANDS:
+        return True
+    # ``holix --profile X chat`` / ``holix -p X run ...``
+    for index, token in enumerate(argv):
+        if token in {"--profile", "-p"} and index + 1 < len(argv):
+            continue
+        if token in _HEAVY_ROOT_COMMANDS:
+            return True
+    return False
+
+
+def _register_base_commands() -> None:
+    """Register lightweight subcommands (safe on old CPUs / before chromadb)."""
+    global _BASE_COMMANDS_REGISTERED
+    if _BASE_COMMANDS_REGISTERED:
+        return
+
+    from cli.commands import config, doctor, gateway, models, profile
+    from cli.commands.bootstrap import app as bootstrap_app
+    from cli.commands.cron import app as cron_app
+    from cli.commands.docs import app as docs_app
+    from cli.commands.hub import app as hub_app
+    from cli.commands.install_cmd import app as install_app
+    from cli.commands.logs import app as logs_app
+    from cli.commands.mcp import app as mcp_app
+    from cli.commands.search import app as search_app
+    from cli.commands.telegram import register_telegram_command
+    from cli.commands.update_cmd import app as update_app
+
+    app.add_typer(config.app, name="config")
+    app.add_typer(profile.app, name="profile")
+    app.add_typer(models.app, name="models")
+    register_telegram_command(app)
+    app.add_typer(gateway.app, name="gateway")
+    app.add_typer(doctor.app, name="doctor")
+    app.add_typer(mcp_app, name="mcp")
+    app.add_typer(search_app, name="search")
+    app.add_typer(cron_app, name="cron")
+    app.add_typer(logs_app, name="logs")
+    app.add_typer(hub_app, name="hub")
+    app.add_typer(install_app, name="install")
+    app.add_typer(bootstrap_app, name="bootstrap")
+    app.add_typer(update_app, name="update")
+    app.add_typer(docs_app, name="docs")
+    _BASE_COMMANDS_REGISTERED = True
+
+
+def _register_heavy_commands() -> None:
+    """Register subcommands that import chromadb (agent, skills, memory)."""
+    global _HEAVY_COMMANDS_REGISTERED
+    if _HEAVY_COMMANDS_REGISTERED:
+        return
+
+    from cli.commands import memory, skills
+
+    app.add_typer(skills.app, name="skills")
+    app.add_typer(memory.app, name="memory")
+    _HEAVY_COMMANDS_REGISTERED = True
+
+
+def _register_commands(argv: list[str] | None = None) -> None:
+    _register_base_commands()
+    if _needs_heavy_commands(argv or sys.argv[1:]):
+        _register_heavy_commands()
 
 
 @app.callback()
@@ -134,6 +184,8 @@ def chat_command(
     if max_steps:
         config.max_steps = max_steps
 
+    from cli.commands import chat
+
     asyncio.run(chat.run_interactive_chat(profile, config))
 
 
@@ -162,6 +214,8 @@ def run_command(
         config.model = model
     if temperature is not None:
         config.temperature = temperature
+
+    from cli.commands import run
 
     asyncio.run(run.run_single_query(query, conversation_id, config))
 
@@ -341,6 +395,10 @@ def tui(
     run_tui(profile=profile)
 
 
+# Register lightweight subcommands at import so ``CliRunner(app)`` in tests works.
+_register_base_commands()
+
+
 def main() -> None:
     """Console entry point (``pip install`` → ``holix`` on PATH)."""
     from core.logging.setup import configure_holix_logging
@@ -348,6 +406,8 @@ def main() -> None:
 
     ensure_multiprocessing_support()
     configure_holix_logging()
+    if _needs_heavy_commands(sys.argv[1:]):
+        _register_heavy_commands()
     app()
 
 

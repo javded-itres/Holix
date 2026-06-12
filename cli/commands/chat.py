@@ -1,10 +1,13 @@
 """Interactive chat command for Holix CLI."""
 
+from __future__ import annotations
+
 import asyncio
 
 # Import agent
 import sys
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from prompt_toolkit import PromptSession
 from prompt_toolkit.auto_suggest import AutoSuggestFromHistory
@@ -27,7 +30,9 @@ from cli.utils.rich_console import (
 )
 
 sys.path.append(str(Path(__file__).parent.parent.parent))
-from core.agent import HolixAgent
+
+if TYPE_CHECKING:
+    from core.agent import HolixAgent
 
 # Prompt style
 prompt_style = Style.from_dict({
@@ -101,6 +106,8 @@ class ChatSession:
                 listeners = [create_rich_cli_handler()]
             except Exception:
                 listeners = [create_compatibility_print_handler()]
+
+            from core.agent import HolixAgent
 
             self.agent = HolixAgent(
                 config=runtime_config,

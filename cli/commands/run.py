@@ -6,8 +6,6 @@ from pathlib import Path
 # Add parent directory to path
 sys.path.append(str(Path(__file__).parent.parent.parent))
 
-from core.di import create_agent, resolve_runtime_config
-
 from cli.core import ProfileConfig
 from cli.utils.rich_console import (
     create_spinner,
@@ -25,6 +23,8 @@ async def run_single_query(query: str, conversation_id: str, config: ProfileConf
         conversation_id: Conversation ID
         config: Profile configuration
     """
+    from core.di import create_agent, resolve_runtime_config
+
     runtime_config = resolve_runtime_config(config)
 
     with create_spinner() as progress:

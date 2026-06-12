@@ -4,7 +4,6 @@ from dishka import Provider, Scope, from_context, provide
 from openai import AsyncOpenAI
 
 from core.agent_events import AgentEventBus
-from core.di.factories import create_holix_agent
 from core.di.runtime_config import HolixRuntimeConfig
 
 
@@ -39,15 +38,14 @@ class AgentDepsProvider(Provider):
         return AgentEventBus(name="Holix")
 
 
-# Standalone provider for agent factory (avoid binding `self` on class methods)
-AgentFactoryProvider = Provider(scope=Scope.APP)
-AgentFactoryProvider.provide(create_holix_agent)
-
-
 def get_all_providers() -> list[Provider]:
+    from core.di.factories import create_holix_agent
+
+    agent_factory_provider = Provider(scope=Scope.APP)
+    agent_factory_provider.provide(create_holix_agent)
     return [
         ConfigProvider(),
         InfrastructureProvider(),
         AgentDepsProvider(),
-        AgentFactoryProvider,
+        agent_factory_provider,
     ]
