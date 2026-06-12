@@ -2,7 +2,7 @@
 
 **Статус:** черновик на согласование (реализация не начата)  
 **Ветка:** `feature/remote-folder-agent`  
-**Версия документа:** 0.2  
+**Версия документа:** 0.3  
 **Дата:** 2026-06-12
 
 ---
@@ -12,21 +12,28 @@
 Сейчас Holix-агент работает **локально** на машине, где установлен CLI/gateway: файловые инструменты, терминал и workspace jail привязаны к `~/.holix/profiles/<name>/`. Удалённый оператор (другой сервер, Telegram, веб-UI) не может безопасно работать с **произвольной папкой на ПК пользователя** без:
 
 - проброса портов и открытия gateway в интернет;
-- полной установки Holix на клиентской машине с тем же уровнем доступа, что и у «основного» агента.
+- полной установки Holix (агент, память, MCP, gateway) на ПК пользователя.
 
-Нужно **простое приложение-компаньон**: пользователь выбирает одну папку, подключается к уже существующему Holix (сервер / gateway), агент на стороне сервера видит только эту папку — **за NAT**, с **шифрованием** и **простой отвязкой**.
+Нужно **отдельное лёгкое приложение Holix Link** — **без локального агента Holix**: пользователь выбирает папку, клиент подключается к **удалённому** gateway, агент **на сервере** видит только эту папку — **за NAT**, с **шифрованием** и **простой отвязкой**.
 
 ---
 
 ## 2. Предлагаемое решение: **Holix Link**
 
-Лёгкий клиент **Holix Link** (отдельный пакет или extra `Holix[link]`) + расширение gateway **Link Relay**.
+**Два независимых артефакта:**
+
+| Артефакт | Где ставится | Что включает |
+|----------|--------------|--------------|
+| **`Holix-Link`** (PyPI) | ПК пользователя | Только клиент: pairing, daemon, jail FS, WSS — **без** `holix`, агента, ChromaDB, LangGraph, MCP |
+| **`Holix`** (существующий пакет) | Сервер / VPS | Gateway + Link Relay + агент + `holix link create` |
+
+На машине пользователя **не устанавливается** полный Holix и **не создаётся** `~/.holix/profiles/`. Локально — только `holix-link` и каталог данных Link (§9.1).
 
 | Роль | Где работает | Задача |
 |------|--------------|--------|
-| **Holix Link (клиент)** | ПК/ноутбук пользователя | Выбор папки, исходящее соединение к gateway, исполнение файловых операций только внутри jail |
+| **Holix Link (клиент)** | ПК/ноутбук пользователя | Выбор папки, исходящее WSS к gateway, RPC файловых операций в jail |
 | **Link Relay (сервер)** | Gateway на VPS / `holix-agent.ru` | Приём сессий Link, маршрутизация к агенту профиля `linked-<id>` |
-| **Агент** | Профиль на gateway | Использует виртуальные инструменты `link_read_file`, `link_list_dir`, … вместо прямого FS |
+| **Агент Holix** | Только на сервере | `link_read_file`, `link_list_dir`, … — удалённый FS через bridge |
 
 **Ключевая идея:** клиент **сам** устанавливает исходящее соединение (WebSocket over TLS). Входящих портов на стороне пользователя не нужно — работает за NAT/CGNAT.
 
@@ -38,7 +45,8 @@
 
 ### Цели (MVP)
 
-- Установка клиента за **1–2 команды** (`curl … | bash` или `pipx install Holix-Link`).
+- Установка **только Holix Link** за **1–2 команды** — без `pip install Holix`, без bootstrap агента.
+- Размер клиента: целевой **&lt; 15 MB** wheel, **5–8** прямых зависимостей (httpx/websockets, cryptography, typer, rich).
 - Пользователь **явно выбирает папку** (и может сменить только после переподключения).
 - **Pairing** по одноразовому коду / QR (как Telegram access request).
 - Трафик **TLS 1.3** + подписанные сообщений на уровне приложения.
@@ -172,26 +180,41 @@ flowchart TB
 
 ## 8. Установка (UX)
 
+### Принцип: на ПК пользователя — только Holix Link
+
+```text
+Пользователь НЕ выполняет:
+  pip install Holix
+  holix bootstrap
+  holix gateway start
+  holix models setup
+
+Пользователь выполняет ТОЛЬКО:
+  pipx install Holix-Link   # или install-link.sh / install-link.ps1
+  holix-link wizard
+```
+
+Команда `holix` на клиентской машине **отсутствует**. Pairing-код выдаёт админ **на сервере** (Telegram, email, support-портал).
+
 ### Клиент — все платформы
 
 | Платформа | Установка | Требования |
 |-----------|-----------|------------|
-| **Linux** | `pipx install Holix-Link` или `curl … \| bash` | Python 3.12+ |
-| **macOS** | `pipx install Holix-Link` или `curl … \| bash` | Python 3.12+ (Homebrew/pyenv) |
-| **Windows** | `pipx install Holix-Link` или `install-link.ps1` | Python 3.12+ с python.org или `winget install Python.Python.3.12` |
+| **Linux** | `pipx install Holix-Link` или `curl … \| bash` | Только Python 3.12+ |
+| **macOS** | `pipx install Holix-Link` или `curl … \| bash` | Только Python 3.12+ |
+| **Windows** | `pipx install Holix-Link` или `install-link.ps1` | Только Python 3.12+ |
 
-Общие команды (имя CLI одинаковое):
+CLI клиента — **`holix-link`** (отдельная entry point, не `holix link`):
 
 ```bash
-holix-link wizard      # pairing + выбор папки + фоновый daemon
+holix-link wizard           # pairing + папка + daemon
+holix-link pair CODE --folder ~/work
 holix-link status
 holix-link disconnect
-holix-link install-service   # автозапуск (см. §9)
+holix-link install-service  # автозапуск (§9)
 ```
 
-На Windows те же команды в **PowerShell** / **cmd** (после `pipx ensurepath`).
-
-### Сервер (уже есть Holix)
+### Сервер (полный Holix — уже установлен)
 
 ```bash
 holix link create --profile support --ttl 10m
@@ -199,7 +222,7 @@ holix link list
 holix link revoke <id>
 ```
 
-Серверная часть (gateway relay) — только Linux/macOS/Windows **как хост gateway**; клиент Link — обязательно все три ОС у пользователя.
+Relay и агент — часть пакета **`Holix`** на gateway; обновление сервера: `pip install -U Holix` + `holix gateway reload`.
 
 ---
 
@@ -207,16 +230,19 @@ holix link revoke <id>
 
 Клиент Holix Link — **не серверный** компонент: он ставится на машину пользователя с любой из трёх ОС. Архитектура протокола и relay **одинаковая**; отличаются только пути, фоновый сервис и edge-cases ФС.
 
-### 9.1 Каталоги данных
+### 9.1 Каталоги данных (отдельно от Holix-агента)
 
-Переиспользовать `core/platform_compat.resolve_holix_home()`:
+Клиент **не использует** `~/.holix/profiles/`. Собственный корень данных:
 
-| ОС | Путь по умолчанию |
-|----|-------------------|
-| Linux / macOS | `~/.holix/link/` |
-| Windows | `%LOCALAPPDATA%\Holix\link\` |
+| Переменная | Путь по умолчанию |
+|------------|-------------------|
+| `HOLIX_LINK_HOME` | переопределение |
+| Linux / macOS | `~/.holix-link/` |
+| Windows | `%LOCALAPPDATA%\HolixLink\` |
 
 Содержимое: `credentials.json`, `config.json` (folder, link_id, server URL), `link.log`, `daemon.pid`.
+
+> Если на той же машине позже установят полный Holix — каталоги **не пересекаются** (`~/.holix-link/` ≠ `~/.holix/`).
 
 Права: Unix `chmod 600` на секреты; Windows — ACL только для текущего пользователя (фаза 1), DPAPI — фаза 2.
 
@@ -283,36 +309,36 @@ strategy:
 
 Проверки: pairing mock, jail escape, path normalize, daemon start/stop (smoke), `holix doctor --link` (план).
 
-### 9.7 Зависимости клиента
+### 9.7 Зависимости клиента (отдельный `pyproject.toml`)
 
-Минимальный набор (без Chromium/Playwright):
+Пакет **`Holix-Link`** — свой репозиторий / subdirectory `packages/holix-link/` в монорепо, **не** зависит от `Holix`:
 
-- `httpx`, `websockets` (или `aiohttp`), `cryptography` (Ed25519)
-- Опционально `pywin32` / `psutil` — extra `Holix-Link[windows]` (как `Holix[windows]` сегодня)
-- **Без** компиляции: wheels на PyPI для win_amd64, macosx arm64/x86_64, manylinux
+| Включено | Исключено намеренно |
+|----------|---------------------|
+| `httpx`, `websockets`, `cryptography`, `typer`, `rich` | `chromadb`, `langgraph`, `openai`, `textual`, `mcp` |
+| `pydantic` (протокол RPC) | `fastapi`, `uvicorn` (только на сервере) |
+
+Опционально: `Holix-Link[windows]` → `pywin32` для Task Scheduler.
+
+Публикация: отдельный PyPI-проект `Holix-Link`, версионирование синхронно с gateway-частью в `Holix` (например Link 0.1.0 ↔ Holix 0.1.13).
 
 ---
 
 ## 10. Компоненты кодовой базы
 
-| Компонент | Путь (план) | Описание |
-|-----------|-------------|----------|
-| `integrations/link/` | новый | Протокол, клиент daemon, jail executor |
-| `api/routers/link.py` | новый | REST + WebSocket relay |
-| `core/tools/link_fs.py` | новый | `link_read_file`, `link_write_file`, `link_list_directory` |
-| `cli/commands/link.py` | новый | `holix link *` |
-| `cli/link_worker.py` | новый | фоновый процесс (аналог `gateway_worker`) |
-| `integrations/link/service_install.py` | новый | systemd / LaunchAgent / Task Scheduler |
-| `integrations/link/paths.py` | новый | нормализация путей Win/Unix |
-| `scripts/install-link.sh` / `.ps1` | новый | установщики |
-| `docs/en|ru/LINK.md` | новый | пользовательская документация (Windows/Linux/macOS) |
+| Компонент | Пакет | Описание |
+|-----------|-------|----------|
+| `holix_link/` (клиент) | **Holix-Link** | CLI `holix-link`, daemon, jail, pairing, service install |
+| `holix_link/protocol.py` | **Holix-Link** + **Holix** | Общий контракт RPC (shared wheel `holix-link-protocol` или vendored copy) |
+| `api/routers/link.py` | **Holix** | REST + WebSocket relay на gateway |
+| `core/tools/link_fs.py` | **Holix** | Agent tools `link_*` |
+| `cli/commands/link.py` | **Holix** | `holix link create|list|revoke` (сервер) |
+| `scripts/install-link.sh` / `.ps1` | **Holix-Link** | Установщик **только клиента** |
+| `docs/en|ru/LINK.md` | оба | Клиент vs сервер — явно разделены |
 
-Переиспользование:
+Переиспользование **на сервере** (пакет Holix): `ProfileManager`, pairing UX как в Telegram access approval.
 
-- `core/platform_compat` — `resolve_holix_home`, `terminate_process`, `popen_background`
-- `workspace_jail` / path guards из `core/tools/`
-- `ProfileManager`, pairing UX как в `integrations/telegram/access_approval`
-- `gateway_daemon` / supervisor pattern для фонового link worker на сервере не нужен — WS внутри uvicorn
+Клиент **не импортирует** `cli/`, `core/agent`, `api/` — только тонкий слой path jail (скопирован или вынесен в `holix-link-protocol`).
 
 ---
 
@@ -342,7 +368,8 @@ strategy:
 
 - [ ] Утвердить название (Holix Link / другое)
 - [ ] Утвердить: только файлы в MVP или нужен read-only
-- [ ] Утвердить: отдельный PyPI-пакет `Holix-Link` vs extra `Holix[link]`
+- [x] Клиент — **отдельный PyPI `Holix-Link`**, без локального агента Holix
+- [ ] Утвердить: монорепо (`packages/holix-link/`) vs отдельный git-репозиторий
 - [ ] Утвердить модель хостинга relay (только self-hosted gateway / managed cloud)
 - [x] Поддержка клиента: **Windows + Linux + macOS** (обязательно в MVP)
 
@@ -395,22 +422,45 @@ strategy:
 
 ---
 
-## 14. Открытые вопросы для согласования
+## 14. Вопросы для согласования
 
-1. **Имя продукта:** Holix Link / Holix Remote / Holix Folder Bridge?
-2. **MVP write:** разрешать запись файлов сразу или только read-only?
-3. **Пакет:** отдельный `Holix-Link` на PyPI (меньше размер) или `pip install Holix[link]`?
-4. **Кто может создавать pair-код:** только admin gateway или любой владелец профиля?
-5. **Лимит одновременных link на профиль:** 1 папка = 1 link или несколько?
-6. **Интеграция с Telegram:** отдельный бот для «клиентских» машин или тот же бот с ролью link?
+См. список в конце документа и ответы пользователя — после этого версия **1.0**.
+
+### Уже согласовано (v0.3)
+
+| # | Решение |
+|---|---------|
+| — | Клиент: **Windows + Linux + macOS** |
+| — | На ПК пользователя ставится **только Holix Link**, без локального агента `Holix` |
 
 ---
 
 ## 15. Следующий шаг после согласования
 
-1. Зафиксировать ответы на §14 в этом файле (версия 1.0).
+1. Зафиксировать ответы на вопросы ниже в этом файле (версия 1.0).
 2. Создать issue/PR stack по таблице Фазы 1.
 3. Начать с **PR-1** (протокол + тесты контракта без сети).
+
+---
+
+---
+
+## 16. Анкета (ответьте на все пункты)
+
+Скопируйте блок и заполните:
+
+```
+1. Имя продукта: 
+2. MVP — доступ к файлам: read-only / read+write / write по запросу
+3. Репозиторий клиента: монорепо packages/holix-link / отдельный repo
+4. Каталог данных клиента: ~/.holix-link / другое: ___
+5. Кто выдаёт pair-код: только admin / любой владелец профиля / оба
+6. Сколько link на один серверный профиль: 1 / N (макс: ___)
+7. Telegram: тот же бот / отдельный / не нужен в MVP
+8. Хостинг relay: только self-hosted / managed holix-agent.ru / оба
+9. Уведомления на клиенте при доступе агента: да / нет / только запись
+10. UNC/сетевые папки Windows в MVP: да / нет
+```
 
 ---
 
