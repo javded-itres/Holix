@@ -292,6 +292,7 @@ class HolixAgent:
             interactive=interactive,
             confirmation_timeout=self.config.confirmation_timeout,
             data_dir=self.config.data_dir,
+            profile_name=self.config.profile_name,
         )
         self.tools.set_action_guard(guard)
 

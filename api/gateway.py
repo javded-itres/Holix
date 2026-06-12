@@ -140,7 +140,7 @@ async def root():
         "status": "running",
         "host_profile": state.host_profile,
         "loaded_profiles": loaded,
-        "require_auth": True,
+        "require_auth": settings.effective_require_auth,
     }
 
 

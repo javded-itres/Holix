@@ -26,7 +26,7 @@ async def health(detailed: bool = False):
         "status": "ok",
         "timestamp": datetime.now().isoformat(),
         "agent_ready": agent_ready,
-        "require_auth": True,
+        "require_auth": settings.effective_require_auth,
     }
 
 
@@ -53,7 +53,7 @@ async def health_detailed():
         "loaded_profiles": loaded,
         "active_runs": runs_count,
         "companions": companion_status,
-        "require_auth": True,
+        "require_auth": settings.effective_require_auth,
         "gateway_host": settings.gateway_host,
         "gateway_port": settings.gateway_port,
     }

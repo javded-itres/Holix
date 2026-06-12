@@ -1,7 +1,8 @@
 import asyncio
+import shlex
 
 from config import settings
-from core.platform_compat import subprocess_shell_kwargs
+from core.platform_compat import IS_WINDOWS, subprocess_shell_kwargs
 from core.security.safety import command_whitelist
 from core.tools.base import BaseTool
 
@@ -57,8 +58,16 @@ class TerminalTool(BaseTool):
             if root is not None:
                 cwd = str(root)
 
-            process = await asyncio.create_subprocess_shell(
-                command,
+            try:
+                argv = shlex.split(command, posix=not IS_WINDOWS)
+            except ValueError as exc:
+                return f"Error: Invalid command syntax: {exc}"
+
+            if not argv:
+                return "Error: Empty command"
+
+            process = await asyncio.create_subprocess_exec(
+                *argv,
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
                 cwd=cwd,

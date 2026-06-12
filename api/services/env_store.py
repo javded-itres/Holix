@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import re
 from pathlib import Path
 
 from core.env_loader import ensure_profile_env_template, profile_env_path
@@ -29,13 +30,25 @@ def read_global_env_map() -> dict[str, str]:
     return _read_env_map(global_env_path())
 
 
+def _format_env_value(value: str) -> str:
+    if re.search(r'[\r\n#"\\]', value):
+        escaped = (
+            value.replace("\\", "\\\\")
+            .replace("\n", "\\n")
+            .replace("\r", "\\r")
+            .replace('"', '\\"')
+        )
+        return f'"{escaped}"'
+    return value
+
+
 def patch_env_file(path: Path, variables: dict[str, str]) -> None:
     lines = path.read_text(encoding="utf-8").splitlines() if path.is_file() else []
     existing_keys = {line.split("=", 1)[0] for line in lines if "=" in line}
     for key, value in variables.items():
         prefix = f"{key}="
         lines = [line for line in lines if not line.startswith(prefix)]
-        lines.append(f"{prefix}{value}")
+        lines.append(f"{prefix}{_format_env_value(value)}")
         os.environ[key] = value
         existing_keys.add(key)
     path.parent.mkdir(parents=True, exist_ok=True)

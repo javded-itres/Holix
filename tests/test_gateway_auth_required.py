@@ -33,6 +33,16 @@ def test_protected_route_accepts_x_api_key_header(gateway_client: TestClient) ->
     assert response.json()["object"] == "list"
 
 
+def test_bootstrap_mode_allows_unauthenticated(gateway_client, monkeypatch) -> None:
+    from config import settings
+
+    monkeypatch.setattr(settings, "require_auth", False)
+    monkeypatch.setattr(settings, "holix_env", "development")
+
+    response = gateway_client.get("/v1/models")
+    assert response.status_code == 200
+
+
 def test_openapi_uses_single_authorize_scheme() -> None:
     import api.gateway
 
