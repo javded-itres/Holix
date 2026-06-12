@@ -662,34 +662,42 @@ class TelegramHost:
             chat_delivery_scope,
             reset_chat_delivery_scope,
         )
+        from core.workspace import agent_path_visibility_context
 
+        from integrations.telegram.access_approval import is_telegram_admin
         from integrations.telegram.delivery_bridge import TelegramDeliveryBridge
 
         delivery_bridge = TelegramDeliveryBridge(self._bot, self._session.chat_id)
         delivery_token = chat_delivery_scope(delivery_bridge)
+        agent_cfg = getattr(self.agent, "config", None)
+        visibility_ctx = agent_path_visibility_context(
+            is_admin=is_telegram_admin(self._session.bot_profile, self._session.user_id),
+            workspace_jail_enabled=bool(getattr(agent_cfg, "workspace_jail_enabled", False)),
+        )
 
         async with TypingIndicator(self._bot, self._session.chat_id):
             await presenter.start()
 
             mode = self._session.execution_mode
             try:
-                if self._session.streaming_enabled:
-                    from core.runtime.executor import run_holix
+                with visibility_ctx:
+                    if self._session.streaming_enabled:
+                        from core.runtime.executor import run_holix
 
-                    async for event in run_holix(
-                        self.agent,
-                        user_input,
-                        self.conversation_id,
-                        stream=True,
-                        execution_mode=mode,
-                    ):
-                        self.agent.emit(event)
-                else:
-                    await self.agent.run(
-                        user_input=user_input,
-                        conversation_id=self.conversation_id,
-                        execution_mode=mode,
-                    )
+                        async for event in run_holix(
+                            self.agent,
+                            user_input,
+                            self.conversation_id,
+                            stream=True,
+                            execution_mode=mode,
+                        ):
+                            self.agent.emit(event)
+                    else:
+                        await self.agent.run(
+                            user_input=user_input,
+                            conversation_id=self.conversation_id,
+                            execution_mode=mode,
+                        )
             except asyncio.CancelledError:
                 buf = self._session.live_buffer
                 if buf:

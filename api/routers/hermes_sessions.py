@@ -21,6 +21,7 @@ from api.services.content_parts import (
     enrich_with_vision_descriptions,
     parse_content_parts,
 )
+from api.services.path_visibility import gateway_agent_path_visibility
 
 router = APIRouter(prefix="/api/sessions", tags=["sessions"])
 
@@ -200,10 +201,11 @@ async def session_chat(
 
     agent = await registry.get_agent(session.profile)
     async with state._agent_request_lock:  # type: ignore[attr-defined]
-        output = await agent.run(
-            user_input=user_input,
-            conversation_id=session.conversation_id,
-        )
+        with gateway_agent_path_visibility(agent, key_info):
+            output = await agent.run(
+                user_input=user_input,
+                conversation_id=session.conversation_id,
+            )
     store.update(session_id)
     return {
         "session_id": session_id,
@@ -239,11 +241,12 @@ async def session_chat_stream(
 
     async def generate():
         async with state._agent_request_lock:  # type: ignore[attr-defined]
-            async for chunk in streaming_loop.run_conversation_stream(
-                user_input=user_input,
-                conversation_id=session.conversation_id,
-            ):
-                yield chunk
+            with gateway_agent_path_visibility(agent, key_info):
+                async for chunk in streaming_loop.run_conversation_stream(
+                    user_input=user_input,
+                    conversation_id=session.conversation_id,
+                ):
+                    yield chunk
         yield f"data: {json.dumps({'type': 'run.completed', 'session_id': session_id})}\n\n"
 
     return StreamingResponse(

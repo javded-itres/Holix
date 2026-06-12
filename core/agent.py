@@ -228,8 +228,10 @@ class HolixAgent:
 
     def emit(self, event: AgentEvent) -> None:
         """Convenience method to emit an event through the agent's bus."""
+        from core.workspace import sanitize_agent_event
+
         self.stamp_event(event)
-        self.events.emit(event)
+        self.events.emit(sanitize_agent_event(event))
 
     async def initialize(self):
         """Initialize the agent (async setup)."""
@@ -414,7 +416,11 @@ class HolixAgent:
             elif isinstance(event, ErrorEvent):
                 final_response = event.error
 
-        return final_response or "Agent completed without producing a final response."
+        from core.workspace import sanitize_paths_in_text
+
+        return sanitize_paths_in_text(
+            final_response or "Agent completed without producing a final response."
+        )
 
     async def get_conversation_history(
         self,

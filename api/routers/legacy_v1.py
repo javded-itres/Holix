@@ -17,6 +17,7 @@ from api.services.content_parts import (
     enrich_with_vision_descriptions,
     parse_content_parts,
 )
+from api.services.path_visibility import gateway_agent_path_visibility
 
 router = APIRouter(prefix="/v1", tags=["agent"])
 
@@ -84,11 +85,12 @@ async def chat_completions(
 
         async def generate():
             async with state._agent_request_lock:  # type: ignore[attr-defined]
-                async for chunk in streaming_loop.run_conversation_stream(
-                    user_input=user_input,
-                    conversation_id=conversation_id,
-                ):
-                    yield chunk
+                with gateway_agent_path_visibility(agent, key_info):
+                    async for chunk in streaming_loop.run_conversation_stream(
+                        user_input=user_input,
+                        conversation_id=conversation_id,
+                    ):
+                        yield chunk
 
         return StreamingResponse(
             generate(),
@@ -99,10 +101,11 @@ async def chat_completions(
     try:
         start_time = time.time()
         async with state._agent_request_lock:  # type: ignore[attr-defined]
-            response = await agent.run(
-                user_input=user_input,
-                conversation_id=conversation_id,
-            )
+            with gateway_agent_path_visibility(agent, key_info):
+                response = await agent.run(
+                    user_input=user_input,
+                    conversation_id=conversation_id,
+                )
         elapsed_time = time.time() - start_time
         return ChatCompletionResponse(
             id=f"chatcmpl-{int(time.time())}",

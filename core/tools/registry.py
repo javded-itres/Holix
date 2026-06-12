@@ -184,6 +184,7 @@ class ToolRegistry:
             reset_workspace_scope,
             workspace_scope,
         )
+        from core.workspace import sanitize_paths_in_text
 
         token = conversation_scope(conversation_id)
         mem_token = memory_facade_scope(memory) if memory is not None else None
@@ -201,13 +202,14 @@ class ToolRegistry:
                     execute_fn=tool.execute,
                     conversation_id=conversation_id,
                 )
-                return result
+                return sanitize_paths_in_text(result) if isinstance(result, str) else result
 
             # No guard: execute directly (backward compatible)
             try:
-                return await tool.execute(**args)
+                result = await tool.execute(**args)
+                return sanitize_paths_in_text(result) if isinstance(result, str) else result
             except Exception as e:
-                return f"Error executing {tool_name}: {str(e)}"
+                return sanitize_paths_in_text(f"Error executing {tool_name}: {str(e)}")
         finally:
             reset_conversation_scope(token)
             if mem_token is not None:

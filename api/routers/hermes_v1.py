@@ -31,6 +31,10 @@ from api.services.content_parts import (
     enrich_with_vision_descriptions,
     parse_responses_input,
 )
+from api.services.path_visibility import (
+    gateway_agent_path_visibility,
+    gateway_agent_path_visibility_for_admin,
+)
 
 router = APIRouter(prefix="/v1", tags=["hermes"])
 
@@ -217,10 +221,11 @@ async def create_response(
     conversation = body.conversation or ctx.conversation_id
     agent = await registry.get_agent(ctx.profile)
     async with state._agent_request_lock:  # type: ignore[attr-defined]
-        output = await agent.run(
-            user_input=user_input,
-            conversation_id=conversation,
-        )
+        with gateway_agent_path_visibility(agent, key_info):
+            output = await agent.run(
+                user_input=user_input,
+                conversation_id=conversation,
+            )
 
     response_payload = {
         "id": f"resp_{uuid.uuid4().hex[:24]}",
@@ -284,7 +289,7 @@ async def delete_response(
     return {"deleted": True, "id": response_id}
 
 
-async def _execute_run(record, registry) -> None:
+async def _execute_run(record, registry, *, is_admin: bool = False) -> None:
     runs = state.runs_store
     if runs is None:
         return
@@ -295,10 +300,11 @@ async def _execute_run(record, registry) -> None:
             if record._cancel.is_set():
                 runs.update(record.run_id, status=RunStatus.CANCELLED)
                 return
-            output = await agent.run(
-                user_input=record.input_text,
-                conversation_id=record.session_id or "default",
-            )
+            with gateway_agent_path_visibility_for_admin(agent, is_admin=is_admin):
+                output = await agent.run(
+                    user_input=record.input_text,
+                    conversation_id=record.session_id or "default",
+                )
         runs.update(
             record.run_id,
             status=RunStatus.COMPLETED,
@@ -333,7 +339,7 @@ async def create_run(
         session_id=body.session_id or ctx.conversation_id,
         instructions=body.instructions,
     )
-    asyncio.create_task(_execute_run(record, registry))
+    asyncio.create_task(_execute_run(record, registry, is_admin=checker.is_admin()))
     return {"run_id": record.run_id, "status": record.status.value}
 
 

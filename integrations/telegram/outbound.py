@@ -78,8 +78,10 @@ def prepare_outbound_files(paths: list[str | Path]) -> tuple[list[OutboundFile],
     files: list[OutboundFile] = []
     errors: list[str] = []
 
+    from core.workspace import display_path_for_user
+
     for raw in paths:
-        label = str(raw)
+        label = display_path_for_user(str(raw), input_path=str(raw))
         try:
             path = resolve_outbound_path(raw)
         except Exception as exc:

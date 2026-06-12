@@ -5,6 +5,7 @@ from config import settings
 from core.platform_compat import IS_WINDOWS, subprocess_shell_kwargs
 from core.security.safety import command_whitelist
 from core.tools.base import BaseTool
+from core.workspace import sanitize_paths_in_text
 
 
 class TerminalTool(BaseTool):
@@ -83,6 +84,8 @@ class TerminalTool(BaseTool):
                 output = stdout.decode('utf-8', errors='replace')
                 error = stderr.decode('utf-8', errors='replace')
 
+                output = sanitize_paths_in_text(output)
+                error = sanitize_paths_in_text(error)
                 if process.returncode == 0:
                     return f"Success (exit code 0):\n{output}" if output else "Success (no output)"
                 else:
