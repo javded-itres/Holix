@@ -72,6 +72,7 @@ api_key: ${OPENAI_API_KEY}
   holix -p dev profile whitelist list
   ```
 - **Python executor**: `HOLIX_ENABLE_CODE_EXECUTOR=false` в production
+- **Приватность путей workspace**: при [workspace jail](PROFILES.md#видимость-путей-в-ответах) пользователи профиля видят только относительные пути; ключи gateway с `admin` и админ Telegram-бота — полные
 
 ## Аудит
 

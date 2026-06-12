@@ -154,17 +154,17 @@ SEO_PAGES: dict[str, dict[str, dict[str, str]]] = {
             "title": "Профили Holix — изоляция пользователей, ключи доступа, workspace jail",
             "description": (
                 "Изоляция профилей Holix: отдельные .env, gateway, Telegram-бот и память на пользователя. "
-                "Опциональные ключи доступа и workspace jail для ограничения файловых операций."
+                "Workspace jail, относительные пути в ответах для пользователей, полные пути для администратора."
             ),
-            "keywords": "Holix профили, изоляция профилей, workspace jail, ключ доступа профиля, multi-user",
+            "keywords": "Holix профили, изоляция профилей, workspace jail, относительные пути, ключ доступа профиля",
         },
         "en": {
             "title": "Holix Profiles — User Isolation, Access Keys & Workspace Jail",
             "description": (
                 "Holix profile isolation: separate .env, gateway, Telegram bot, and memory per user. "
-                "Optional access keys and workspace jail to restrict file and terminal tools."
+                "Workspace jail, relative paths in replies for users, full paths for administrators."
             ),
-            "keywords": "Holix profiles, profile isolation, workspace jail, profile access key, multi-user",
+            "keywords": "Holix profiles, profile isolation, workspace jail, relative paths, profile access key",
         },
     },
     "cli": {

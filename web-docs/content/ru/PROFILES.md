@@ -162,6 +162,32 @@ workspace_root: /home/user/data-agent
 
 Внутренние данные Holix (память, навыки в `~/.holix/profiles/`) **не затрагиваются** — jail только для файловых и терминальных инструментов агента.
 
+### Видимость путей в ответах
+
+При включённом workspace jail **не-администраторы** (владельцы профиля, пользователи Telegram, API-ключи без `admin`) видят в ответах агента и в выводе инструментов **только пути относительно workspace** — например `docs/readme.txt` или `.` для корня jail. Абсолютные пути выше workspace (`~/.holix/profiles/…`, каталоги хоста вне jail) заменяются на `[restricted]`.
+
+**Администраторы** по-прежнему видят полные абсолютные пути:
+
+| Роль | Что видит в чате / API / Telegram |
+|------|-----------------------------------|
+| Админ Telegram-бота (`HOLIX_TELEGRAM_ADMIN_USER_ID`) | Полные пути |
+| API-ключ gateway с правом `admin` | Полные пути |
+| Пользователь профиля с jail (CLI, Telegram, API без admin) | Только относительно `workspace_root` |
+| Локальный CLI / TUI на хосте (без jail) | Полные пути (доверенный оператор) |
+
+Санитизация применяется к результатам инструментов (`read_file`, `write_file`, `list_directory`, `run_terminal_command`), финальным ответам агента, стримингу и ошибкам отправки файлов в Telegram. Внутренние логи и admin management API (например `GET /api/holix/profiles/{id}/jail`) не меняются.
+
+Пример для корня jail `/home/user/.holix/profiles/alice/workspace`:
+
+```text
+# Пользователь профиля видит
+Content of docs/report.pdf: …
+Updated notes.txt (+3 lines)
+
+# Администратор видит
+Content of /home/user/.holix/profiles/alice/workspace/docs/report.pdf: …
+```
+
 ## Whitelist терминала (опционально)
 
 Ограничение списка shell-команд, которые агент может выполнять. Настройки хранятся в `.env` профиля.

@@ -72,6 +72,7 @@ Never commit real keys to git.
   holix -p dev profile whitelist list
   ```
 - **Python executor**: disable in production via `HOLIX_ENABLE_CODE_EXECUTOR=false`
+- **Workspace path privacy**: when [workspace jail](PROFILES.md#path-visibility-in-responses) is on, profile users see relative paths only; gateway `admin` keys and the Telegram bot admin see full paths
 
 ## Run audit
 

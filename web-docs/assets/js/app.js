@@ -191,7 +191,7 @@ const I18N = {
     mkt_adv_5_d: "Separate .env, memory, Telegram bot, and gateway per profile — several users on one host without overlap.",
     mkt_profiles_title: "Profiles & workspace jail",
     mkt_profiles_text:
-      "Each profile is a sandbox: own API keys, bot, gateway port, and conversation memory. Optional workspace jail locks file and terminal tools to one directory — the agent cannot leave the folder but works freely inside.",
+      "Each profile is a sandbox: own API keys, bot, gateway port, and conversation memory. Optional workspace jail locks file and terminal tools to one directory — the agent cannot leave the folder but works freely inside. Jailed users see relative paths only; admins see full paths.",
     mkt_profiles_cta: "Profiles guide",
     mkt_feat_title: "Capabilities",
     mkt_use_title: "How teams use Holix",
@@ -242,7 +242,7 @@ const I18N = {
     feat_interfaces: "Interfaces",
     feat_interfaces_desc: "TUI, chat, run, gateway, Telegram.",
     feat_profiles: "Profile isolation",
-    feat_profiles_desc: "Per-profile secrets, gateway, Telegram; optional directory jail for tools.",
+    feat_profiles_desc: "Per-profile secrets, gateway, Telegram; optional directory jail; relative paths for users.",
   },
   ru: {
     tagline: "Самообучающийся агент",
@@ -279,7 +279,7 @@ const I18N = {
     mkt_adv_5_d: "Свой .env, память, Telegram и gateway на профиль — несколько пользователей на одном хосте без пересечений.",
     mkt_profiles_title: "Профили и workspace jail",
     mkt_profiles_text:
-      "Каждый профиль — отдельная песочница: свои ключи API, бот, порт gateway и память диалогов. Опциональный workspace jail ограничивает файловые и терминальные инструменты одной директорией — агент не выходит из папки, но внутри работает свободно.",
+      "Каждый профиль — отдельная песочница: свои ключи API, бот, порт gateway и память диалогов. Опциональный workspace jail ограничивает файловые и терминальные инструменты одной директорией — агент не выходит из папки, но внутри работает свободно. Пользователи с jail видят только относительные пути; администратор — полные.",
     mkt_profiles_cta: "Руководство по профилям",
     mkt_feat_title: "Возможности",
     mkt_use_title: "Сценарии использования",
@@ -330,7 +330,7 @@ const I18N = {
     feat_interfaces: "Интерфейсы",
     feat_interfaces_desc: "TUI, chat, run, gateway, Telegram.",
     feat_profiles: "Изоляция профилей",
-    feat_profiles_desc: "Секреты, gateway и Telegram на профиль; опциональный jail по директории.",
+    feat_profiles_desc: "Секреты, gateway и Telegram на профиль; jail по директории; относительные пути для пользователей.",
   },
 };
 

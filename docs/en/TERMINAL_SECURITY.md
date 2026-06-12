@@ -169,7 +169,9 @@ Non-interactive API runs without confirmation deny high-risk tools unless pre-au
 
 ## 5. Workspace jail (working directory)
 
-If [workspace jail](PROFILES.md#workspace-jail-optional) is enabled, `run_terminal_command` runs with `cwd` set to the jail root. The whitelist does **not** replace jail — both apply.
+If [workspace jail](PROFILES.md#workspace-jail-directory-isolation) is enabled, `run_terminal_command` runs with `cwd` set to the jail root. The whitelist does **not** replace jail — both apply.
+
+For non-admin profile users, absolute paths in command **stdout/stderr** are rewritten to workspace-relative paths (or `[restricted]` for paths outside the jail). See [Path visibility in responses](PROFILES.md#path-visibility-in-responses).
 
 ---
 

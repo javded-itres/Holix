@@ -162,6 +162,32 @@ When enabled, these tools are scoped to `workspace_root`:
 
 Holix internal data (memory, skills under `~/.holix/profiles/`) is **not** affected — jail applies to agent file/terminal tools only.
 
+### Path visibility in responses
+
+When workspace jail is enabled, **non-admin** users (profile owners, Telegram users, API keys without `admin`) see **workspace-relative paths only** in agent replies and tool output — for example `docs/readme.txt` or `.` for the jail root. Absolute paths above the workspace (`~/.holix/profiles/…`, host directories outside the jail) are replaced with `[restricted]`.
+
+**Administrators** still see full absolute paths:
+
+| Role | Sees in chat / API / Telegram |
+|------|-------------------------------|
+| Telegram bot admin (`HOLIX_TELEGRAM_ADMIN_USER_ID`) | Full paths |
+| Gateway API key with `admin` permission | Full paths |
+| Profile user with jail (CLI, Telegram, non-admin API key) | Relative to `workspace_root` only |
+| Local CLI / TUI on the host (no jail) | Full paths (trusted operator) |
+
+Sanitized surfaces include tool results (`read_file`, `write_file`, `list_directory`, `run_terminal_command`), final assistant messages, streamed deltas, and Telegram file-send errors. Internal logs and admin management APIs (for example `GET /api/holix/profiles/{id}/jail`) are unchanged.
+
+Example for jail root `/home/user/.holix/profiles/alice/workspace`:
+
+```text
+# Profile user sees
+Content of docs/report.pdf: …
+Updated notes.txt (+3 lines)
+
+# Administrator sees
+Content of /home/user/.holix/profiles/alice/workspace/docs/report.pdf: …
+```
+
 ## Terminal whitelist (optional)
 
 Control which shell commands the agent may run. Settings are stored per profile in `.env`.

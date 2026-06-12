@@ -169,7 +169,9 @@ Git (только «читающие» подкоманды):
 
 ## 5. Workspace jail (рабочая директория)
 
-При [workspace jail](PROFILES.md#workspace-jail-опционально) `run_terminal_command` запускается с `cwd` в корне jail. Whitelist **не заменяет** jail — действуют оба ограничения.
+При [workspace jail](PROFILES.md#workspace-jail-изоляция-в-директории) `run_terminal_command` запускается с `cwd` в корне jail. Whitelist **не заменяет** jail — действуют оба ограничения.
+
+Для не-администраторов профиля абсолютные пути в **stdout/stderr** команд переписываются в относительные пути workspace (или `[restricted]` для путей вне jail). См. [Видимость путей в ответах](PROFILES.md#видимость-путей-в-ответах).
 
 ---
 

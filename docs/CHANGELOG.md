@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+### Added
+- **Workspace path privacy** — jailed profile users see workspace-relative paths in tool output and agent replies; Telegram admin and gateway `admin` API keys still see full absolute paths ([PROFILES.md](en/PROFILES.md#path-visibility-in-responses))
+
 ## 0.1.12 — 2026-06-12
 
 ### Added
