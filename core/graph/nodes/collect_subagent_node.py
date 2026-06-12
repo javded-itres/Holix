@@ -57,4 +57,25 @@ async def collect_subagent_node(
         }
     except Exception as exc:
         logger.warning("collect_subagent failed for %s: %s", pending, exc)
-        return {"pending_subagent": None}
+        messages = list(state.get("messages", []))
+        messages.append(
+            {
+                "role": "user",
+                "content": (
+                    f"[Sub-agent '{pending}' failed]\n"
+                    f"success=false\n\n{exc}"
+                ),
+            }
+        )
+        results = dict(state.get("sub_agent_results", {}))
+        results[pending] = {
+            "response": "",
+            "success": False,
+            "error": str(exc),
+        }
+        return {
+            "pending_subagent": None,
+            "sub_agent_results": results,
+            "messages": messages,
+            "is_step_complete": True,
+        }
