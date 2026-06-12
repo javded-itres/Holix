@@ -112,6 +112,28 @@ MESSAGES: dict[str, dict[str, str]] = {
         "tg.cmd.compress": "Compress context",
         "tg.cmd.init": "Project analysis → HOLIX.md",
         "tg.cmd.cron": "Cron jobs",
+        "tg.cmd.message": "Admin broadcast (all or profile)",
+        "tg.message_admin_only": "Only the Telegram bot admin can use /message.",
+        "tg.message_help": (
+            "<b>Admin broadcast</b>\n\n"
+            "<code>/message all</code> — all approved users\n"
+            "<code>/message PROFILE</code> — users mapped to a Holix profile\n"
+            "<code>/message cancel</code> — cancel draft\n\n"
+            "After <code>/message …</code> send the post text in the next message."
+        ),
+        "tg.message_cancelled": "Broadcast draft cancelled.",
+        "tg.message_unknown_profile": "Unknown profile or no recipients: {name}",
+        "tg.message_no_recipients": "No recipients for this broadcast.",
+        "tg.message_compose_all": (
+            "📝 <b>Broadcast to all</b> ({count} users)\n\n"
+            "Send the post text in your next message.\n"
+            "Cancel: <code>/message cancel</code>"
+        ),
+        "tg.message_compose_profile": (
+            "📝 <b>Broadcast</b> → profile <code>{profile}</code> ({count} users)\n\n"
+            "Send the post text in your next message.\n"
+            "Cancel: <code>/message cancel</code>"
+        ),
         "tg.cmd.yes": "Confirm action",
         "tg.cmd.no": "Deny action",
         "tg.cmd.lang": "Interface language (en / ru)",
@@ -247,6 +269,28 @@ MESSAGES: dict[str, dict[str, str]] = {
         "tg.cmd.compress": "Сжать контекст",
         "tg.cmd.init": "Анализ проекта → HOLIX.md",
         "tg.cmd.cron": "Периодические задачи",
+        "tg.cmd.message": "Рассылка админа (всем или профилю)",
+        "tg.message_admin_only": "Команда /message доступна только администратору бота.",
+        "tg.message_help": (
+            "<b>Рассылка администратора</b>\n\n"
+            "<code>/message all</code> — всем одобренным пользователям\n"
+            "<code>/message ПРОФИЛЬ</code> — пользователям Holix-профиля\n"
+            "<code>/message cancel</code> — отменить черновик\n\n"
+            "После <code>/message …</code> отправьте текст поста следующим сообщением."
+        ),
+        "tg.message_cancelled": "Черновик рассылки отменён.",
+        "tg.message_unknown_profile": "Профиль не найден или нет получателей: {name}",
+        "tg.message_no_recipients": "Нет получателей для рассылки.",
+        "tg.message_compose_all": (
+            "📝 <b>Рассылка всем</b> ({count} чел.)\n\n"
+            "Отправьте текст поста следующим сообщением.\n"
+            "Отмена: <code>/message cancel</code>"
+        ),
+        "tg.message_compose_profile": (
+            "📝 <b>Рассылка</b> → профиль <code>{profile}</code> ({count} чел.)\n\n"
+            "Отправьте текст поста следующим сообщением.\n"
+            "Отмена: <code>/message cancel</code>"
+        ),
         "tg.cmd.yes": "Подтвердить действие",
         "tg.cmd.no": "Отклонить действие",
         "tg.cmd.lang": "Язык интерфейса (en / ru)",

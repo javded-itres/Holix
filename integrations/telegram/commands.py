@@ -31,6 +31,7 @@ _TELEGRAM_COMMAND_KEYS: list[tuple[str, str]] = [
     ("compress", "tg.cmd.compress"),
     ("init", "tg.cmd.init"),
     ("cron", "tg.cmd.cron"),
+    ("message", "tg.cmd.message"),
     ("lang", "tg.cmd.lang"),
     ("yes", "tg.cmd.yes"),
     ("no", "tg.cmd.no"),

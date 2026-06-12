@@ -121,6 +121,12 @@ class TelegramInteractive:
             await self.show_profile_picker()
             return True
 
+        if lower.startswith("/message"):
+            from integrations.telegram.admin_broadcast import handle_admin_message_command
+
+            await handle_admin_message_command(self._host, cmd)
+            return True
+
         if lower in ("/sessions",):
             await self.show_sessions_picker()
             return True

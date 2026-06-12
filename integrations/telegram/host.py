@@ -590,6 +590,11 @@ class TelegramHost:
         if not message:
             return
 
+        from integrations.telegram.admin_broadcast import try_compose_admin_broadcast
+
+        if await try_compose_admin_broadcast(self, message):
+            return
+
         if self._session.pending_plan_review_id:
             from integrations.telegram.approvals import TelegramApprovals
 

@@ -54,6 +54,7 @@ class ChatSession:
     active_model_label: str = ""
     _model_synced_for: str | None = None
     pending_files: list[SavedTelegramFile] = field(default_factory=list)
+    pending_admin_broadcast: Any = None
 
     @property
     def execution_mode(self) -> str:
