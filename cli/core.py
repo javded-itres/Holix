@@ -149,16 +149,50 @@ def resolve_profile_storage_paths(
     """Bind profile storage paths to ~/.holix/profiles/<name>/ (not process CWD)."""
     base = (profile_dir or (profiles_dir() / profile)).resolve()
 
-    def _resolve(path: str | None, default: Path) -> str:
-        if not path or not str(path).strip():
-            return str(default.resolve())
-        expanded = Path(path).expanduser()
-        if expanded.is_absolute():
-            return str(expanded.resolve())
-        return str((base / expanded).resolve())
+    def _path_is_writable(path: Path, *, mkdir_target: bool) -> bool:
+        try:
+            if mkdir_target:
+                path.mkdir(parents=True, exist_ok=True)
+                probe = path / ".holix_write_probe"
+            else:
+                path.parent.mkdir(parents=True, exist_ok=True)
+                probe = path.parent / ".holix_write_probe"
+            probe.write_text("", encoding="utf-8")
+            probe.unlink(missing_ok=True)
+            return True
+        except OSError:
+            return False
+
+    def _resolve(
+        path: str | None,
+        default: Path,
+        *,
+        mkdir_target: bool = False,
+    ) -> str:
+        """Resolve under profile dir; fall back when outside paths are not writable."""
+        target = default.resolve()
+        if path and str(path).strip():
+            expanded = Path(path).expanduser()
+            if expanded.is_absolute():
+                candidate = expanded.resolve()
+                try:
+                    candidate.relative_to(base)
+                    target = candidate
+                except ValueError:
+                    if _path_is_writable(candidate, mkdir_target=mkdir_target):
+                        target = candidate
+            else:
+                target = (base / expanded).resolve()
+
+        if not mkdir_target and target.exists() and target.is_dir():
+            target = default.resolve()
+        if not _path_is_writable(target, mkdir_target=mkdir_target):
+            target = default.resolve()
+            _path_is_writable(target, mkdir_target=mkdir_target)
+        return str(target)
 
     config.profile_name = profile
-    config.data_dir = _resolve(config.data_dir, base / "data")
+    config.data_dir = _resolve(config.data_dir, base / "data", mkdir_target=True)
     config.memory_db_path = _resolve(
         config.memory_db_path,
         base / "data" / "memory" / "memory.db",
@@ -166,6 +200,7 @@ def resolve_profile_storage_paths(
     config.vector_db_path = _resolve(
         config.vector_db_path,
         base / "data" / "memory" / "vector_db",
+        mkdir_target=True,
     )
     config.ltm_db_path = _resolve(
         config.ltm_db_path,
@@ -175,7 +210,11 @@ def resolve_profile_storage_paths(
         config.langgraph_checkpoint_db_path,
         base / "data" / "memory" / "checkpoints.db",
     )
-    config.skills_dir = _resolve(config.skills_dir, base / "data" / "skills")
+    config.skills_dir = _resolve(
+        config.skills_dir,
+        base / "data" / "skills",
+        mkdir_target=True,
+    )
     if config.workspace_root and str(config.workspace_root).strip():
         config.workspace_root = _resolve(config.workspace_root, base / "workspace")
     else:

@@ -91,6 +91,22 @@ async def test_action_guard_audit_log_in_profile(tmp_path, monkeypatch) -> None:
     assert not (tmp_path / "repo" / "data").exists()
 
 
+def test_stale_absolute_ltm_path_reset_to_profile(tmp_path, monkeypatch) -> None:
+    monkeypatch.setattr("cli.core.PROFILES_DIR", tmp_path / "profiles")
+    profile_dir = ProfileManager().get_profile_dir("default")
+    profile_dir.mkdir(parents=True)
+
+    cfg = ProfileConfig(
+        profile_name="default",
+        ltm_db_path="/root/.holix-stale/ltm.db",
+        memory_db_path="/root/.holix-stale/memory.db",
+    )
+    resolved = resolve_profile_storage_paths("default", cfg, profile_dir=profile_dir)
+    expected = (profile_dir / "data" / "memory" / "ltm.db").resolve()
+    assert Path(resolved.ltm_db_path) == expected
+    assert Path(resolved.memory_db_path) == (profile_dir / "data" / "memory" / "memory.db").resolve()
+
+
 def test_api_keys_db_resolves_under_holix_home(tmp_path, monkeypatch) -> None:
     holix_home = tmp_path / "holix"
     monkeypatch.setenv("HOLIX_HOME", str(holix_home))

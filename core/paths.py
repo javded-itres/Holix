@@ -46,6 +46,24 @@ def resolve_holix_storage_path(path: str | None, *, default: Path) -> Path:
     return (resolve_holix_home() / expanded).resolve()
 
 
+def ensure_sqlite_parent(path: str | Path) -> Path:
+    """Create parent directory for a SQLite file and return the path."""
+    db_path = Path(path).expanduser().resolve()
+    db_path.parent.mkdir(parents=True, exist_ok=True)
+    return db_path
+
+
+def ensure_profile_memory_dirs(profile: str) -> None:
+    """Ensure SQLite/Chroma memory directories exist for a profile."""
+    from cli.core import ProfileManager
+
+    cfg = ProfileManager().load_profile(profile)
+    ensure_sqlite_parent(cfg.memory_db_path)
+    ensure_sqlite_parent(cfg.ltm_db_path)
+    ensure_sqlite_parent(cfg.langgraph_checkpoint_db_path)
+    Path(cfg.vector_db_path).expanduser().resolve().mkdir(parents=True, exist_ok=True)
+
+
 def resolve_api_keys_db_path(path: str | None = None) -> Path:
     """Gateway API key SQLite DB — global under ``HOLIX_HOME``."""
     from config import settings

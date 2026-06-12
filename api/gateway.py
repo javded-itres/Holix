@@ -56,7 +56,7 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
 async def lifespan(app: FastAPI):
     """Initialize multi-profile registry, stores, and API key DB."""
     from core.env_loader import init_holix_home
-    from core.paths import resolve_api_keys_db_path
+    from core.paths import ensure_profile_memory_dirs, resolve_api_keys_db_path
 
     init_holix_home()
 
@@ -80,6 +80,7 @@ async def lifespan(app: FastAPI):
     gateway_deps.api_key_manager = state.api_key_manager
     gateway_deps.rate_limiter = state.rate_limiter
 
+    ensure_profile_memory_dirs(host_profile)
     await state.registry.get_agent(host_profile)
     await state.companions.start_cron(host_profile)
     await state.companions.start_telegram(host_profile)
