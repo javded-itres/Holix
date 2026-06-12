@@ -398,6 +398,16 @@ class ConfirmationChoice(StrEnum):
     DENY = "deny"                    # Block this tool call
 
 
+def normalize_confirmation_timeout(value: int | float | None, *, default: int = 0) -> int:
+    """Seconds to wait for user approval. 0 or negative = no timeout."""
+    if value is None:
+        return default
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return default
+
+
 # ─── Action Guard ──────────────────────────────────────────────────────────
 
 class ActionGuard:
@@ -419,7 +429,7 @@ class ActionGuard:
         risk_classifier: RiskClassifier | None = None,
         auto_allow_threshold: RiskLevel = RiskLevel.LOW,
         interactive: bool = True,
-        confirmation_timeout: int = 300,
+        confirmation_timeout: int = 0,
         data_dir: str | Path | None = None,
     ):
         self._event_bus = event_bus
@@ -655,7 +665,7 @@ def init_action_guard(
     event_bus: Any,
     auto_allow_threshold: RiskLevel = RiskLevel.LOW,
     interactive: bool = True,
-    confirmation_timeout: int = 300,
+    confirmation_timeout: int = 0,
     data_dir: str | Path | None = None,
 ) -> ActionGuard:
     """Initialize the global ActionGuard instance.

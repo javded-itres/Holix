@@ -49,7 +49,7 @@ class Settings(BaseSettings):
     # Confirmation / Safety Configuration
     auto_allow_threshold: str = "low"
     non_interactive: bool = False
-    confirmation_timeout: int = 300
+    confirmation_timeout: int = 0  # 0 = wait indefinitely for user approval
 
     # Plan Review Configuration
     plan_review_enabled: bool = True
