@@ -261,12 +261,16 @@ class TelegramHost:
         self.transcript_write(f"session name: {name.strip()}")
 
     def _get_available_profiles(self) -> list[str]:
-        from cli.core import ProfileManager
+        from integrations.telegram.profile_visibility import list_visible_profiles
 
         try:
-            return ProfileManager().list_profiles()
+            return list_visible_profiles(
+                self._session.bot_profile,
+                self._session.user_id,
+                current=self._session.profile,
+            )
         except Exception:
-            return ["default"]
+            return [self._session.profile or "default"]
 
     async def _switch_profile(self, new_profile: str, *, profile_key: str | None = None) -> None:
         from cli.core import init_profile

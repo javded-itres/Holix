@@ -251,16 +251,24 @@ class AgentCommands:
             await h._sync_telegram_menu()
 
     async def _profile(self, command: str) -> None:
+        from cli.core import ProfileManager
         from core.profile_keys import profile_has_access_key
 
         h = self.host
         lang = host_locale(h)
         parts = command.split()
         profiles = h._get_available_profiles()
+        manager = ProfileManager()
+        hidden_list = self._telegram_profile_list_hidden(h)
         if len(parts) >= 2:
             target = parts[1]
             profile_key = parts[2] if len(parts) >= 3 else None
-            if target.isdigit() and profile_key is None:
+            if profile_key:
+                if manager.profile_exists(target):
+                    h.run_worker(h._switch_profile(target, profile_key=profile_key))
+                else:
+                    h.transcript_write(f"[red]{t('unknown_profile', lang, name=target)}[/red]")
+            elif target.isdigit() and profile_key is None:
                 idx = int(target) - 1
                 if 0 <= idx < len(profiles):
                     h.run_worker(h._switch_profile(profiles[idx]))
@@ -268,17 +276,39 @@ class AgentCommands:
                     h.transcript_write(f"[red]{t('invalid_profile_num', lang)}[/red]")
             elif target in profiles:
                 h.run_worker(h._switch_profile(target, profile_key=profile_key))
+            elif hidden_list and manager.profile_exists(target):
+                h.transcript_write(
+                    f"[yellow]{t('tg.profile_requires_key', lang, name=target)}[/yellow]"
+                )
             else:
                 h.transcript_write(f"[red]{t('unknown_profile', lang, name=target)}[/red]")
         else:
             lines = [f"[bold]{t('profiles_title', lang)}[/bold]"]
-            for i, p in enumerate(profiles, 1):
-                mark = " *" if p == h.profile else ""
-                lock = " [dim](locked)[/dim]" if profile_has_access_key(p) else ""
-                lines.append(f"  {i}. {p}{mark}{lock}")
-            lines.append(f"[dim]{t('usage_profile', lang)}[/dim]")
-            lines.append("[dim]/profile <name> <access-key>[/dim]")
+            if hidden_list:
+                mark = " *" if h.profile else ""
+                lines.append(f"  {h.profile}{mark}")
+                lines.append(f"[dim]{t('tg.profile_switch_by_key', lang)}[/dim]")
+            else:
+                for i, p in enumerate(profiles, 1):
+                    mark = " *" if p == h.profile else ""
+                    lock = " [dim](locked)[/dim]" if profile_has_access_key(p) else ""
+                    lines.append(f"  {i}. {p}{mark}{lock}")
+                lines.append(f"[dim]{t('usage_profile', lang)}[/dim]")
+                lines.append("[dim]/profile <name> <access-key>[/dim]")
             h.transcript_write("\n".join(lines))
+
+    @staticmethod
+    def _telegram_profile_list_hidden(host: Any) -> bool:
+        session = getattr(host, "_session", None)
+        if session is None:
+            return False
+        from integrations.telegram.profile_visibility import is_profile_list_hidden
+
+        bot_profile = getattr(session, "bot_profile", "default")
+        user_id = getattr(session, "user_id", None)
+        if user_id is None:
+            return False
+        return is_profile_list_hidden(bot_profile, int(user_id))
 
     async def _try_skill_slash(self, h: Any, command: str) -> bool:
         """Run a hub-registered skill via /skill-name [args]."""

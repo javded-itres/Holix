@@ -14,6 +14,7 @@ from integrations.telegram.keyboards import (
     models_provider_keyboard,
     models_root_keyboard,
     parse_callback,
+    profile_picker_keyboard,
     sessions_picker_keyboard,
     skills_picker_keyboard,
     status_menu_keyboard,
@@ -372,6 +373,13 @@ class TelegramInteractive:
             if 0 <= idx < len(profiles):
                 name = profiles[idx]
                 if name != self._host.profile:
+                    from integrations.telegram.profile_visibility import is_profile_list_hidden
+
+                    if is_profile_list_hidden(
+                        self._session.bot_profile,
+                        self._session.user_id,
+                    ):
+                        return t("tg.profile_switch_by_key", lang)
                     await self._host._switch_profile(name)
                     return t("tg.profile", lang, name=name)
                 return t("tg.profile_same", lang, name=name)
@@ -532,8 +540,33 @@ class TelegramInteractive:
         await self._host._send_html_with_keyboard(text, stream_picker_keyboard(on))
 
     async def show_profile_picker(self) -> None:
+        from integrations.telegram.profile_visibility import is_profile_list_hidden
+
         profiles = self._host._get_available_profiles()
         self._session.ui_profiles = profiles
+        lang = host_locale(self._host)
+        current = self._host.profile
+
+        if is_profile_list_hidden(self._session.bot_profile, self._session.user_id):
+            await self._host._send_html(
+                f"<b>{escape_html(t('profiles_title', lang))}</b>\n"
+                f"{escape_html(t('tg.profile_current', lang, name=current))}\n\n"
+                f"<i>{escape_html(t('tg.profile_switch_by_key', lang))}</i>"
+            )
+            return
+
+        lines = [
+            f"<b>{escape_html(t('profiles_title', lang))}</b>",
+            escape_html(t("tg.profile_current", lang, name=current)),
+            "",
+        ]
+        for name in profiles[:12]:
+            mark = " ✓" if name == current else ""
+            lines.append(f"• <code>{escape_html(name)}</code>{mark}")
+        await self._host._send_html_with_keyboard(
+            "\n".join(lines),
+            profile_picker_keyboard(profiles, current),
+        )
 
     async def _handle_mcp_callback(self, value: str) -> None:
         """Handle mcp:* callbacks from the MCP menu."""
