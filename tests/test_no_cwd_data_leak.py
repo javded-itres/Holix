@@ -125,10 +125,17 @@ def test_stale_absolute_ltm_path_reset_to_profile(tmp_path, monkeypatch) -> None
     profile_dir = ProfileManager().get_profile_dir("default")
     profile_dir.mkdir(parents=True)
 
+    # Absolute paths pointing at directories must fall back to profile defaults
+    # (portable across OSes; /root/... is writable on some Windows CI runners).
+    stale_dir = tmp_path / "stale_abs"
+    stale_dir.mkdir(parents=True)
+    stale_memory_dir = stale_dir / "memory"
+    stale_memory_dir.mkdir()
+
     cfg = ProfileConfig(
         profile_name="default",
-        ltm_db_path="/root/.holix-stale/ltm.db",
-        memory_db_path="/root/.holix-stale/memory.db",
+        ltm_db_path=str(stale_dir.resolve()),
+        memory_db_path=str(stale_memory_dir.resolve()),
     )
     resolved = resolve_profile_storage_paths("default", cfg, profile_dir=profile_dir)
     expected = (profile_dir / "data" / "memory" / "ltm.db").resolve()
@@ -162,7 +169,12 @@ async def test_api_key_manager_opens_resolved_db(tmp_path, monkeypatch) -> None:
 
     from config import settings
 
-    updated = settings.model_copy(update={"api_key_pepper": "test-pepper"})
+    updated = settings.model_copy(
+        update={
+            "api_key_pepper": "test-pepper",
+            "api_keys_db_path": "security/api_keys.db",
+        }
+    )
     monkeypatch.setattr("config.settings", updated)
     monkeypatch.setattr("core.security.auth.settings", updated)
 
