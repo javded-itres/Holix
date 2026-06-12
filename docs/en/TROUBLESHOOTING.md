@@ -57,6 +57,42 @@ See [TELEGRAM.md](TELEGRAM.md).
 
 Set `Authorization: Bearer <key>` or `X-API-Key`. Create admin key via `/admin/api-keys` (requires admin key when auth enabled).
 
+## Workspace paths: `[restricted]` or relative paths only
+
+**Expected behavior** when [workspace jail](PROFILES.md#workspace-jail-directory-isolation) is enabled and the caller is **not** an administrator:
+
+- Agent replies and tool output show paths like `docs/file.txt` or `.` (jail root), not `/home/…/.holix/profiles/…`.
+- Paths outside the jail appear as `[restricted]`.
+
+**Not a bug** if a Telegram user or API client without `admin` never sees host absolute paths.
+
+To show full paths you must be:
+
+| Surface | Requirement |
+|---------|-------------|
+| Telegram | Your numeric user id equals `HOLIX_TELEGRAM_ADMIN_USER_ID` (set via `telegram requests approve … --set-admin`) |
+| Gateway API | API key `permissions` include `admin` (create via `POST /admin/api-keys`) |
+| Local CLI on server | Operator session without jail, or jail disabled for that profile |
+
+Check jail status: `holix -p NAME profile jail status`. Full guide: [Path visibility in responses](PROFILES.md#path-visibility-in-responses).
+
+## Admin still sees relative paths in Telegram
+
+1. Confirm admin assignment: `holix -p shared telegram admin show` — must list your Telegram user id.
+2. Re-assign if needed: `holix -p shared telegram requests approve USER_ID --set-admin` (CLI only).
+3. Only the **single** stored admin gets full paths; other approved users remain relative-only.
+
+## Admin still sees relative paths via API
+
+1. Inspect key permissions: `GET /admin/api-keys` (admin key required) — entry must include `"admin"` in `permissions`.
+2. Recreate key with admin if needed:
+   ```bash
+   curl -sS -X POST "$HOLIX_URL/admin/api-keys" \
+     -H "Authorization: Bearer $ADMIN_KEY" \
+     -d "name=ops-admin&permissions=read,write,execute,admin&rate_limit=1000"
+   ```
+3. Profile must have `workspace_jail_enabled: true`; without jail, all callers see full paths.
+
 ## Related
 
 - [LOGS.md](LOGS.md) — log files, filters, rotation, debug mode

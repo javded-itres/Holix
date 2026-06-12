@@ -405,6 +405,8 @@ holix -p shared telegram requests approve USER_ID --create-profile ivan
 
 Holix создаёт **защищённый** профиль (с `--create-profile`), включает **workspace jail**, привязывает пользователя, **отправляет ключ в Telegram** и включает меню команд. Перезапуск бота не нужен.
 
+> **Что видит пользователь:** когда агент упоминает файлы, в ответах показываются пути **относительно его workspace** (например `notes.txt` или `docs/report.pdf`), а не полный серверный путь в `~/.holix/profiles/…`. Это сделано для приватности на общих хостах. Администраторы платформы видят полные пути — [PROFILES.md](PROFILES.md#видимость-путей-в-ответах).
+
 Другие варианты: `requests approve … --profile existing`, `requests reject USER_ID`.  
 Ручные привязки: `holix telegram map set …` — см. [TELEGRAM_MULTI_PROFILE.md](TELEGRAM_MULTI_PROFILE.md).
 

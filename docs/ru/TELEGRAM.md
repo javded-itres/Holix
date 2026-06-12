@@ -70,6 +70,8 @@ holix -p shared telegram requests approve USER_ID --create-profile ivan
 
 Пользователь сразу может писать боту — перезапуск не нужен.
 
+> **Пути в ответах бота:** одобренные пользователи с workspace jail видят **только относительные пути** (`docs/report.pdf`, а не `~/.holix/profiles/ivan/workspace/…`). **Админ Telegram** (`HOLIX_TELEGRAM_ADMIN_USER_ID`) по-прежнему видит полные абсолютные пути. Подробнее: [Видимость путей в ответах](PROFILES.md#видимость-путей-в-ответах).
+
 Другие команды:
 
 ```bash

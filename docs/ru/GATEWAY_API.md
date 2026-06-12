@@ -180,6 +180,36 @@ X-Holix-Profile-Key: hp_…
 2. Поле `model` в теле запроса (имя профиля; не `holix`, `holix-agent`, `hermes-agent`)
 3. **Host profile** gateway (`HOLIX_PROFILE` при старте процесса)
 
+### Видимость путей в ответах агента
+
+Если у выбранного профиля включён **workspace jail** (`workspace_jail_enabled: true` в `config.yaml`), **текст ответов агента** санитизируется для API-ключей **без** `admin`:
+
+| `permissions` API-ключа | Пути в `output` / стриминговом тексте ассистента |
+|-------------------------|---------------------------------------------------|
+| Есть `admin` | Полные абсолютные пути |
+| Только `read` / `write` / `execute` | Относительные пути workspace; каталоги выше → `[restricted]` |
+
+Затрагивает:
+
+- `POST /v1/chat/completions` (включая `"stream": true`)
+- `POST /v1/responses`
+- `POST /v1/runs` (готовый `output` и SSE-события)
+- `POST /api/sessions/{session_id}/chat` и `…/chat/stream`
+
+**Не** меняет management-метаданные, где админам и так отдаётся полный `workspace_root` — например `GET /api/holix/profiles/{profile_id}/jail`. См. [Видимость путей в ответах](PROFILES.md#видимость-путей-в-ответах).
+
+**Пример** — один профиль, корень jail `~/.holix/profiles/alice/workspace`:
+
+```json
+// API-ключ без admin (только read)
+{"choices":[{"message":{"content":"Updated docs/report.pdf (+12 lines)"}}]}
+
+// API-ключ с admin
+{"choices":[{"message":{"content":"Updated /home/user/.holix/profiles/alice/workspace/docs/report.pdf (+12 lines)"}}]}
+```
+
+В Telegram те же правила: одобренные пользователи профиля видят относительные пути; админ бота — полные.
+
 ### Заголовки сессии (алиасы)
 
 | Назначение | Holix | Алиас Hermes |

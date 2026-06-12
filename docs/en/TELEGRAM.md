@@ -70,6 +70,8 @@ On approve Holix:
 
 The user can message the bot immediately — no bot restart required.
 
+> **Paths in bot replies:** approved users with workspace jail see **relative paths only** (`docs/report.pdf`, not `~/.holix/profiles/ivan/workspace/…`). The **Telegram admin** (`HOLIX_TELEGRAM_ADMIN_USER_ID`) still sees full absolute paths. Details: [Path visibility in responses](PROFILES.md#path-visibility-in-responses).
+
 Other commands:
 
 ```bash

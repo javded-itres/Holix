@@ -409,6 +409,8 @@ holix -p shared telegram requests approve USER_ID --create-profile ivan
 
 Holix creates a **protected** profile (with `--create-profile`), enables **workspace jail**, binds the user, **sends the access key in Telegram**, and enables the slash menu. No bot restart required.
 
+> **What users see:** when the agent mentions files, replies show paths **relative to the user's workspace folder** (for example `notes.txt` or `docs/report.pdf`), not the full server path under `~/.holix/profiles/…`. This is intentional privacy for multi-user hosts. Platform admins see full paths — [PROFILES.md](PROFILES.md#path-visibility-in-responses).
+
 Other options: `requests approve … --profile existing`, `requests reject USER_ID`.  
 Manual bindings: `holix telegram map set …` — see [TELEGRAM_MULTI_PROFILE.md](TELEGRAM_MULTI_PROFILE.md).
 

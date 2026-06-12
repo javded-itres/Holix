@@ -180,6 +180,36 @@ For chat, Hermes, sessions, and jobs, profile is resolved in order:
 2. `model` field in request body (profile name; not `holix`, `holix-agent`, `hermes-agent`)
 3. Gateway **host profile** (`HOLIX_PROFILE` at process start)
 
+### Path visibility in agent responses
+
+When the resolved profile has **workspace jail** enabled (`workspace_jail_enabled: true` in `config.yaml`), agent **response text** is sanitized for **non-admin** API keys:
+
+| API key `permissions` | Paths in `output` / streamed assistant text |
+|-----------------------|---------------------------------------------|
+| Includes `admin` | Full absolute paths |
+| `read` / `write` / `execute` only (no `admin`) | Workspace-relative paths; parent dirs → `[restricted]` |
+
+Applies to:
+
+- `POST /v1/chat/completions` (including `"stream": true`)
+- `POST /v1/responses`
+- `POST /v1/runs` (completed `output` and SSE events)
+- `POST /api/sessions/{session_id}/chat` and `…/chat/stream`
+
+Does **not** change management metadata that already exposes full `workspace_root` to authorized admins — for example `GET /api/holix/profiles/{profile_id}/jail`. See [Path visibility in responses](PROFILES.md#path-visibility-in-responses).
+
+**Example** — same profile, jail root `~/.holix/profiles/alice/workspace`:
+
+```json
+// Non-admin API key (read only)
+{"choices":[{"message":{"content":"Updated docs/report.pdf (+12 lines)"}}]}
+
+// Admin API key
+{"choices":[{"message":{"content":"Updated /home/user/.holix/profiles/alice/workspace/docs/report.pdf (+12 lines)"}}]}
+```
+
+Telegram uses the same rules: approved profile users see relative paths; the Telegram bot admin sees full paths.
+
 ### Session headers (aliases)
 
 | Purpose | Holix | Hermes alias |

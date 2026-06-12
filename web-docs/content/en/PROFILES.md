@@ -188,6 +188,19 @@ Updated notes.txt (+3 lines)
 Content of /home/user/.holix/profiles/alice/workspace/docs/report.pdf: …
 ```
 
+```mermaid
+flowchart TD
+  A[Tool result or assistant reply contains a path] --> B{Workspace jail enabled?}
+  B -->|no| C[Show path unchanged]
+  B -->|yes| D{Caller is admin?}
+  D -->|yes| E[Full absolute path]
+  D -->|no| F{Path inside workspace_root?}
+  F -->|yes| G[Relative path e.g. docs/file.txt or .]
+  F -->|no| H["[restricted]"]
+```
+
+Admin callers: Telegram bot admin (`HOLIX_TELEGRAM_ADMIN_USER_ID`) or gateway API key with `admin` permission.
+
 ## Terminal whitelist (optional)
 
 Control which shell commands the agent may run. Settings are stored per profile in `.env`.

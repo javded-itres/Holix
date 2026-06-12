@@ -188,6 +188,19 @@ Updated notes.txt (+3 lines)
 Content of /home/user/.holix/profiles/alice/workspace/docs/report.pdf: …
 ```
 
+```mermaid
+flowchart TD
+  A[Результат инструмента или ответ агента с путём] --> B{Workspace jail включён?}
+  B -->|нет| C[Путь без изменений]
+  B -->|да| D{Вызывающий — админ?}
+  D -->|да| E[Полный абсолютный путь]
+  D -->|нет| F{Путь внутри workspace_root?}
+  F -->|да| G[Относительный путь, напр. docs/file.txt или .]
+  F -->|нет| H["[restricted]"]
+```
+
+Админ: пользователь Telegram-бота из `HOLIX_TELEGRAM_ADMIN_USER_ID` или API-ключ gateway с правом `admin`.
+
 ## Whitelist терминала (опционально)
 
 Ограничение списка shell-команд, которые агент может выполнять. Настройки хранятся в `.env` профиля.

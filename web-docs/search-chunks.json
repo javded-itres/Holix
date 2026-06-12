@@ -788,6 +788,33 @@
     "nav_order": 4
   },
   {
+    "id": "en/profiles#administrator-sees",
+    "lang": "en",
+    "slug": "profiles",
+    "section": "administrator-sees",
+    "title": "Profiles & Isolation",
+    "heading": "Administrator sees",
+    "body": "Content of /home/user/.holix/profiles/alice/workspace/docs/report.pdf: … mermaid flowchart TD A[Tool result or assistant reply contains a path] -- B{Workspace jail enabled?} B -- no C[Show path unchanged] B -- yes D{Caller is admin?} D -- yes E[Full absolute path] D -- no F{Path inside workspace root?} F -- yes G[Relative path e.g. docs/file.txt or .] F -- no H[\"[restricted]\"] `` HOLIX TELEGRAM ADMIN USER ID admin` permission.",
+    "keywords": [
+      "profile",
+      "профиль",
+      "профили",
+      "изоляция",
+      "jail",
+      "workspace",
+      "path",
+      "paths",
+      "путь",
+      "пути",
+      "relative",
+      "относительный",
+      "restricted",
+      "administrator",
+      "sees"
+    ],
+    "nav_order": 5
+  },
+  {
     "id": "en/profiles#agent-identity-soul-init-user",
     "lang": "en",
     "slug": "profiles",
@@ -2702,7 +2729,10 @@
       "gateway",
       "гейтвей",
       "uvicorn",
-      "openai"
+      "openai",
+      "path",
+      "путь",
+      "restricted"
     ],
     "nav_order": 11
   },
@@ -2720,6 +2750,9 @@
       "гейтвей",
       "uvicorn",
       "openai",
+      "path",
+      "путь",
+      "restricted",
       "commands"
     ],
     "nav_order": 11
@@ -2738,6 +2771,9 @@
       "гейтвей",
       "uvicorn",
       "openai",
+      "path",
+      "путь",
+      "restricted",
       "documentation",
       "site",
       "with",
@@ -2759,6 +2795,9 @@
       "гейтвей",
       "uvicorn",
       "openai",
+      "path",
+      "путь",
+      "restricted",
       "environment"
     ],
     "nav_order": 11
@@ -2777,6 +2816,9 @@
       "гейтвей",
       "uvicorn",
       "openai",
+      "path",
+      "путь",
+      "restricted",
       "keys"
     ],
     "nav_order": 11
@@ -2795,6 +2837,9 @@
       "гейтвей",
       "uvicorn",
       "openai",
+      "path",
+      "путь",
+      "restricted",
       "interactive",
       "docs"
     ],
@@ -2814,6 +2859,9 @@
       "гейтвей",
       "uvicorn",
       "openai",
+      "path",
+      "путь",
+      "restricted",
       "metrics"
     ],
     "nav_order": 11
@@ -2832,6 +2880,9 @@
       "гейтвей",
       "uvicorn",
       "openai",
+      "path",
+      "путь",
+      "restricted",
       "multi",
       "profile",
       "v02"
@@ -2852,6 +2903,9 @@
       "гейтвей",
       "uvicorn",
       "openai",
+      "path",
+      "путь",
+      "restricted",
       "holix_gateway_with_docs1",
       "holix",
       "start",
@@ -2873,6 +2927,9 @@
       "гейтвей",
       "uvicorn",
       "openai",
+      "path",
+      "путь",
+      "restricted",
       "profilesbobenv",
       "profiles",
       "bob",
@@ -2894,6 +2951,9 @@
       "гейтвей",
       "uvicorn",
       "openai",
+      "path",
+      "путь",
+      "restricted",
       "quick",
       "endpoint",
       "map"
@@ -2914,6 +2974,9 @@
       "гейтвей",
       "uvicorn",
       "openai",
+      "path",
+      "путь",
+      "restricted",
       "swagger",
       "authorize"
     ],
@@ -2933,6 +2996,9 @@
       "гейтвей",
       "uvicorn",
       "openai",
+      "path",
+      "путь",
+      "restricted",
       "then",
       "set",
       "holix_require_authtrue",
@@ -2952,10 +3018,16 @@
     "heading": "1. Create tenant profile (admin)",
     "body": "curl -sS -X POST \"$HOLIX URL/api/holix/profiles\" \\ -H \"Authorization: Bearer $ADMIN KEY\" \\ -H \"Content-Type: application/json\" \\ -d '{\"name\":\"tenant-42\",\"with access key\":true}'",
     "keywords": [
+      "api",
+      "gateway",
+      "chat",
+      "completions",
+      "sessions",
+      "path",
+      "admin",
       "create",
       "tenant",
-      "profile",
-      "admin"
+      "profile"
     ],
     "nav_order": 12
   },
@@ -2968,6 +3040,13 @@
     "heading": "2. Add LLM provider",
     "body": "curl -sS -X POST \"$HOLIX URL/api/holix/profiles/tenant-42/models/providers\" \\ -H \"Authorization: Bearer $ADMIN KEY\" \\ -H \"X-Holix-Profile-Key: $ADMIN PROFILE KEY\" \\ -H \"Content-Type: application/json\" \\ -d '{\"preset id\":\"openrouter\",\"skip test\":true}'",
     "keywords": [
+      "api",
+      "gateway",
+      "chat",
+      "completions",
+      "sessions",
+      "path",
+      "admin",
       "add",
       "llm",
       "provider"
@@ -2983,6 +3062,13 @@
     "heading": "3. Reload tenant agent + companions",
     "body": "curl -sS -X POST \"$HOLIX URL/api/holix/profiles/tenant-42/reload\" \\ -H \"Authorization: Bearer $ADMIN KEY\" \\ -H \"X-Holix-Profile-Key: $ADMIN PROFILE KEY\"",
     "keywords": [
+      "api",
+      "gateway",
+      "chat",
+      "completions",
+      "sessions",
+      "path",
+      "admin",
       "reload",
       "tenant",
       "agent",
@@ -2999,7 +3085,13 @@
     "heading": "4. Chat as tenant (OpenAI client: model = profile name)",
     "body": "curl -sS \"$HOLIX URL/v1/chat/completions\" \\ -H \"Authorization: Bearer $TENANT API KEY\" \\ -H \"Content-Type: application/json\" \\ -d '{\"model\":\"tenant-42\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}' ``` More examples in each endpoint section below. ---",
     "keywords": [
+      "api",
+      "gateway",
       "chat",
+      "completions",
+      "sessions",
+      "path",
+      "admin",
       "tenant",
       "openai",
       "client",
@@ -3018,6 +3110,13 @@
     "heading": "Base URL and interactive docs",
     "body": "Default base URL (per profile ): Resource URL Auth ---------- ----- ------ Swagger UI — ReDoc — OpenAPI JSON —",
     "keywords": [
+      "api",
+      "gateway",
+      "chat",
+      "completions",
+      "sessions",
+      "path",
+      "admin",
       "base",
       "url",
       "and",
@@ -3035,11 +3134,16 @@
     "heading": "`DELETE /admin/api-keys/{key_id}`",
     "body": "Revoke key by numeric from list response (path param name in OpenAPI: ; pass the key id , not the secret).",
     "keywords": [
+      "api",
+      "gateway",
+      "chat",
+      "completions",
+      "sessions",
+      "path",
+      "admin",
       "delete",
       "adminapi",
       "keyskey_id",
-      "admin",
-      "api",
       "keys",
       "key_id"
     ],
@@ -3054,10 +3158,15 @@
     "heading": "Docs-site chat API",
     "body": "Prefix . Powers the documentation website widget — no agent tools , RAG over docs only.",
     "keywords": [
-      "docs",
-      "site",
+      "api",
+      "gateway",
       "chat",
-      "api"
+      "completions",
+      "sessions",
+      "path",
+      "admin",
+      "docs",
+      "site"
     ],
     "nav_order": 12
   },
@@ -3070,6 +3179,13 @@
     "heading": "Errors",
     "body": "Code Meaning ------ --------- 400 Invalid body, headers, or business rule 401 Missing or invalid API key / profile key / docs-chat token 403 Valid key but insufficient permission 404 Resource not found or feature disabled 409 Conflict (e.g. profile exists, admin already assigned) 429 Per-key rate limit exceeded 503 Gateway not initialized (registry, key manager, agent)",
     "keywords": [
+      "api",
+      "gateway",
+      "chat",
+      "completions",
+      "sessions",
+      "path",
+      "admin",
       "errors"
     ],
     "nav_order": 12
@@ -3083,6 +3199,13 @@
     "heading": "`GET /health/detailed`",
     "body": "Auth: Public (no API key) Extended diagnostics: , , , per profile, bind host/port.",
     "keywords": [
+      "api",
+      "gateway",
+      "chat",
+      "completions",
+      "sessions",
+      "path",
+      "admin",
       "get",
       "healthdetailed",
       "health",
@@ -3099,6 +3222,13 @@
     "heading": "`GET /metrics`",
     "body": "Auth: Admin API key Prometheus text exposition (when ). Same format as admin prometheus endpoint. ---",
     "keywords": [
+      "api",
+      "gateway",
+      "chat",
+      "completions",
+      "sessions",
+      "path",
+      "admin",
       "get",
       "metrics"
     ],
@@ -3113,8 +3243,14 @@
     "heading": "Hermes API (`/v1`)",
     "body": "Hermes-compatible surface. All routes require gateway API key unless noted. Profile headers apply where noted. See Hermes agent docs.",
     "keywords": [
-      "hermes",
-      "api"
+      "api",
+      "gateway",
+      "chat",
+      "completions",
+      "sessions",
+      "path",
+      "admin",
+      "hermes"
     ],
     "nav_order": 12
   },
@@ -3127,6 +3263,13 @@
     "heading": "Hermes compatibility matrix",
     "body": "Area Status Notes ------ -------- ------- , , Full Bearer + header aliases , , , Full Capabilities advertises Hermes feature flags CRUD + chat/stream Full , ; persisted under CRUD + pause/resume/run Full Hermes body aliases: , , , , Multimodal inline images Full / ; file uploads return SSE tool progress Full , , , , Job DELETE cancels in-flight run Full Shared cron active-run registry Holix-only Extra , permissions, plans — not in Hermes ---",
     "keywords": [
+      "api",
+      "gateway",
+      "chat",
+      "completions",
+      "sessions",
+      "path",
+      "admin",
       "hermes",
       "compatibility",
       "matrix"
@@ -3142,9 +3285,14 @@
     "heading": "Holix Gateway API — Complete Reference",
     "body": "On this documentation site: (same content as this page). Live OpenAPI (try requests): on the gateway port — not the docs site port. Holix runs a single multi-profile HTTP gateway with three public surfaces: Surface Prefix Purpose --------- -------- --------- Hermes-compatible API , , Drop-in for Open WebUI, LobeChat, Hermes clients Holix agent extensions , permissions, plans OpenAI chat + tool permissions + plan review Holix Management API SaaS control plane: profiles, models, MCP, skills, Telegram Operational guide (start/stop, ports, logs): GATEWAY.md.",
     "keywords": [
-      "holix",
-      "gateway",
       "api",
+      "gateway",
+      "chat",
+      "completions",
+      "sessions",
+      "path",
+      "admin",
+      "holix",
       "complete",
       "reference"
     ],
@@ -3159,9 +3307,14 @@
     "heading": "Layer 1 — Gateway API key (`hx_…`)",
     "body": "Required on almost all routes when (default). Header Example -------- --------- Permissions (comma-separated at creation): , , , . See SECURITY.md. Create a key — no CLI command yet; use HTTP or Swagger: ```bash",
     "keywords": [
-      "layer",
-      "gateway",
       "api",
+      "gateway",
+      "chat",
+      "completions",
+      "sessions",
+      "path",
+      "admin",
+      "layer",
       "key",
       "hx_"
     ],
@@ -3176,6 +3329,13 @@
     "heading": "Layer 2 — Profile access key (`hp_…`)",
     "body": "Required for routes (in addition to gateway API key): Caller Headers Scope -------- --------- ------- Profile owner Gateway key + for own profile Single profile Platform admin Gateway key with permission or admin profile master key All profiles Admin profile name defaults to ( ). Profile keys are created via CLI ( ) or Management API ( ). Not the same as gateway keys.",
     "keywords": [
+      "api",
+      "gateway",
+      "chat",
+      "completions",
+      "sessions",
+      "path",
+      "admin",
       "layer",
       "profile",
       "access",
@@ -3193,9 +3353,15 @@
     "heading": "Layer 3 — Docs-chat token (website widget only)",
     "body": "Routes under (except ) use : Header Example -------- --------- Separate from gateway API keys. See Docs-site chat API.",
     "keywords": [
+      "api",
+      "gateway",
+      "chat",
+      "completions",
+      "sessions",
+      "path",
+      "admin",
       "layer",
       "docs",
-      "chat",
       "token",
       "website",
       "widget",
@@ -3212,6 +3378,13 @@
     "heading": "Masked secrets",
     "body": "Management responses mask API keys, tokens, and sensitive env vars. Plaintext is returned once on create/init/rotate.",
     "keywords": [
+      "api",
+      "gateway",
+      "chat",
+      "completions",
+      "sessions",
+      "path",
+      "admin",
       "masked",
       "secrets"
     ],
@@ -3226,9 +3399,38 @@
     "heading": "Multi-profile architecture",
     "body": "One uvicorn process serves N profiles via : - Agents lazy-load on first request - runs Telegram polling + cron per profile - restarts one profile's agent and companions without gateway restart - Host profile set at startup ( ) Stores: (SQLite), (memory), (memory). ---",
     "keywords": [
+      "api",
+      "gateway",
+      "chat",
+      "completions",
+      "sessions",
+      "path",
+      "admin",
       "multi",
       "profile",
       "architecture"
+    ],
+    "nav_order": 12
+  },
+  {
+    "id": "en/gateway-api#path-visibility-in-agent-responses",
+    "lang": "en",
+    "slug": "gateway-api",
+    "section": "path-visibility-in-agent-responses",
+    "title": "Complete API Reference",
+    "heading": "Path visibility in agent responses",
+    "body": "When the resolved profile has workspace jail enabled ( in ), agent response text is sanitized for non-admin API keys: API key Paths in / streamed assistant text ----------------------- --------------------------------------------- Includes Full absolute paths / / only (no ) Workspace-relative paths; parent dirs → Applies to: - (including ) - - (completed and SSE events) - and Does not change management metadata that already exposes full to authorized admins — for example . See Path visibility in responses. Example — same profile, jail root : Telegram uses the same rules: approved profile users see relative paths; the Telegram bot admin sees full paths.",
+    "keywords": [
+      "api",
+      "gateway",
+      "chat",
+      "completions",
+      "sessions",
+      "path",
+      "admin",
+      "visibility",
+      "agent",
+      "responses"
     ],
     "nav_order": 12
   },
@@ -3241,11 +3443,16 @@
     "heading": "`POST /admin/api-keys`",
     "body": "Create a new gateway API key. Query parameters: Param Default Description ------- --------- ------------- required Human-readable label Comma-separated permissions Requests per minute Response: (once), , , , .",
     "keywords": [
+      "api",
+      "gateway",
+      "chat",
+      "completions",
+      "sessions",
+      "path",
+      "admin",
       "post",
       "adminapi",
-      "keys",
-      "admin",
-      "api"
+      "keys"
     ],
     "nav_order": 12
   },
@@ -3258,9 +3465,15 @@
     "heading": "`POST /api/holix/profiles`",
     "body": "Auth: Admin Create profile. Body ( ): Field Default Description ------- --------- ------------- required Profile id true Copy global config false Generate access key false Enable workspace isolation Response: , (if created), , .",
     "keywords": [
+      "api",
+      "gateway",
+      "chat",
+      "completions",
+      "sessions",
+      "path",
+      "admin",
       "post",
       "apiholixprofiles",
-      "api",
       "holix",
       "profiles"
     ],
@@ -3275,9 +3488,15 @@
     "heading": "`POST /api/jobs`",
     "body": "Create job. Body ( ): Field Hermes alias Description ------- -------------- ------------- Natural-language instruction for agent 5-field cron or phrases ( , ) — Display name — Active flag Telegram chat for notifications — Session that receives run summaries — Preferred skills list for the run Optional model override for this job",
     "keywords": [
+      "api",
+      "gateway",
+      "chat",
+      "completions",
+      "sessions",
+      "path",
+      "admin",
       "post",
       "apijobs",
-      "api",
       "jobs"
     ],
     "nav_order": 12
@@ -3291,10 +3510,15 @@
     "heading": "`POST /v1/chat/completions`",
     "body": "OpenAI-compatible chat. Requires on API key. Body: standard — , , optional , . With streaming: → SSE chunks.",
     "keywords": [
-      "post",
-      "v1chatcompletions",
+      "api",
+      "gateway",
       "chat",
-      "completions"
+      "completions",
+      "sessions",
+      "path",
+      "admin",
+      "post",
+      "v1chatcompletions"
     ],
     "nav_order": 12
   },
@@ -3307,10 +3531,16 @@
     "heading": "`POST /v1/docs/chat`",
     "body": "Auth: Docs-chat token Body: Field Description ------- ------------- Question (1–4000 chars) Anonymous visitor id or Optional current doc page SSE if true (default) Rate limited per ( ). ---",
     "keywords": [
+      "api",
+      "gateway",
+      "chat",
+      "completions",
+      "sessions",
+      "path",
+      "admin",
       "post",
       "v1docschat",
-      "docs",
-      "chat"
+      "docs"
     ],
     "nav_order": 12
   },
@@ -3323,6 +3553,13 @@
     "heading": "`POST /v1/responses`",
     "body": "Create a stored response (Responses API). Requires permission. Body ( ): Field Type Description ------- ------ ------------- string Profile name (default ) string or array User input string? System instructions bool Persist in SQLite store (default true) string? Chain responses string? Conversation id",
     "keywords": [
+      "api",
+      "gateway",
+      "chat",
+      "completions",
+      "sessions",
+      "path",
+      "admin",
       "post",
       "v1responses",
       "responses"
@@ -3338,6 +3575,13 @@
     "heading": "Profile routing",
     "body": "For chat, Hermes, sessions, and jobs, profile is resolved in order: 1. or header 2. field in request body (profile name; not , , ) 3. Gateway host profile ( at process start)",
     "keywords": [
+      "api",
+      "gateway",
+      "chat",
+      "completions",
+      "sessions",
+      "path",
+      "admin",
       "profile",
       "routing"
     ],
@@ -3352,6 +3596,13 @@
     "heading": "`reload_required`",
     "body": "Management mutations that change running agent config return . Apply without restarting uvicorn:",
     "keywords": [
+      "api",
+      "gateway",
+      "chat",
+      "completions",
+      "sessions",
+      "path",
+      "admin",
       "reload_required"
     ],
     "nav_order": 12
@@ -3365,9 +3616,15 @@
     "heading": "Requires existing admin key, OR bootstrap with HOLIX_REQUIRE_AUTH=false once",
     "body": "curl -sS -X POST \"http://127.0.0.1:8000/admin/api-keys\" \\ -H \"Authorization: Bearer $ADMIN KEY\" \\ -d \"name=my-app&permissions=read,write,execute&rate limit=100\" bash holix profile env --edit HOLIX REQUIRE AUTH=false holix gateway reload curl -sS -X POST \"http://127.0.0.1:8000/admin/api-keys\" \\ -d \"name=admin&permissions=read,write,execute,admin&rate limit=1000\"",
     "keywords": [
+      "api",
+      "gateway",
+      "chat",
+      "completions",
+      "sessions",
+      "path",
+      "admin",
       "requires",
       "existing",
-      "admin",
       "key",
       "bootstrap",
       "with",
@@ -3386,6 +3643,13 @@
     "heading": "SaaS workflow examples",
     "body": "```bash export HOLIX URL=http://127.0.0.1:8000 export ADMIN KEY=hx … export ADMIN PROFILE KEY=hp …",
     "keywords": [
+      "api",
+      "gateway",
+      "chat",
+      "completions",
+      "sessions",
+      "path",
+      "admin",
       "saas",
       "workflow",
       "examples"
@@ -3401,6 +3665,13 @@
     "heading": "Security notes",
     "body": "- Use TLS behind reverse proxy in production; bind by default - Set in production (required when ) - Admin routes always require admin permission - Security headers: , - CORS: (comma-separated) See also: SECURITY.md, DEPLOYMENT.md, PROFILES.md, TELEGRAM.md.",
     "keywords": [
+      "api",
+      "gateway",
+      "chat",
+      "completions",
+      "sessions",
+      "path",
+      "admin",
       "security",
       "notes"
     ],
@@ -3415,6 +3686,13 @@
     "heading": "Session headers (aliases)",
     "body": "Purpose Holix Hermes alias --------- ------- -------------- Conversation / transcript id Stable memory scope Session key: max 256 chars; control characters rejected → .",
     "keywords": [
+      "api",
+      "gateway",
+      "chat",
+      "completions",
+      "sessions",
+      "path",
+      "admin",
       "session",
       "headers",
       "aliases"
@@ -3430,6 +3708,13 @@
     "heading": "Swagger Authorize (one token for all requests)",
     "body": "1. Open 2. Click Authorize (lock icon) 3. Under HolixApiKey , paste your gateway key ( ) without the prefix — Swagger adds it automatically 4. Try any protected endpoint with Try it out also works in curl and code but is not configured via the Authorize dialog. Gateway metadata (requires API key): ---",
     "keywords": [
+      "api",
+      "gateway",
+      "chat",
+      "completions",
+      "sessions",
+      "path",
+      "admin",
       "swagger",
       "authorize",
       "one",
@@ -3449,6 +3734,13 @@
     "heading": "Table of contents",
     "body": "1. Base URL and interactive docs 2. Authentication 3. Common concepts 4. SaaS workflow examples 5. Health & gateway info 6. Admin API 7. Hermes API ( ) 8. Agent extensions ( ) 9. Sessions ( ) 10. Cron jobs ( ) 11. Management: profiles 12. Management: models 13. Management: skills 14. Management: MCP 15. Management: config & env 16. Management: global settings 17. Management: Telegram 18. Docs-site chat API 19. Multi-profile architecture 20. Security notes ---",
     "keywords": [
+      "api",
+      "gateway",
+      "chat",
+      "completions",
+      "sessions",
+      "path",
+      "admin",
       "table",
       "contents"
     ],
@@ -3530,7 +3822,7 @@
     "section": "4-admin-approve-and-create-an-isolated-profile",
     "title": "Telegram",
     "heading": "4. Admin: approve and create an isolated profile",
-    "body": "On approve Holix: - creates a protected profile with access key - enables workspace jail at - binds the Telegram user to that profile - sends the access key to the user in Telegram (shown once) The user can message the bot immediately — no bot restart required. Other commands:",
+    "body": "On approve Holix: - creates a protected profile with access key - enables workspace jail at - binds the Telegram user to that profile - sends the access key to the user in Telegram (shown once) The user can message the bot immediately — no bot restart required. Paths in bot replies: approved users with workspace jail see relative paths only ( , not ). The Telegram admin ( ) still sees full absolute paths. Details: Path visibility in responses. Other commands:",
     "keywords": [
       "telegram",
       "телеграм",
@@ -5193,6 +5485,51 @@
     "nav_order": 22
   },
   {
+    "id": "en/troubleshooting#admin-still-sees-relative-paths-in-telegram",
+    "lang": "en",
+    "slug": "troubleshooting",
+    "section": "admin-still-sees-relative-paths-in-telegram",
+    "title": "Troubleshooting",
+    "heading": "Admin still sees relative paths in Telegram",
+    "body": "1. Confirm admin assignment: — must list your Telegram user id. 2. Re-assign if needed: (CLI only). 3. Only the single stored admin gets full paths; other approved users remain relative-only.",
+    "keywords": [
+      "troubleshoot",
+      "проблемы",
+      "ошибки",
+      "fix",
+      "admin",
+      "still",
+      "sees",
+      "relative",
+      "paths",
+      "telegram"
+    ],
+    "nav_order": 23
+  },
+  {
+    "id": "en/troubleshooting#admin-still-sees-relative-paths-via-api",
+    "lang": "en",
+    "slug": "troubleshooting",
+    "section": "admin-still-sees-relative-paths-via-api",
+    "title": "Troubleshooting",
+    "heading": "Admin still sees relative paths via API",
+    "body": "1. Inspect key permissions: (admin key required) — entry must include in . 2. Recreate key with admin if needed: 3. Profile must have ; without jail, all callers see full paths.",
+    "keywords": [
+      "troubleshoot",
+      "проблемы",
+      "ошибки",
+      "fix",
+      "admin",
+      "still",
+      "sees",
+      "relative",
+      "paths",
+      "via",
+      "api"
+    ],
+    "nav_order": 23
+  },
+  {
     "id": "en/troubleshooting#telegram-access-denied",
     "lang": "en",
     "slug": "troubleshooting",
@@ -5247,6 +5584,27 @@
       "fix",
       "windows",
       "specific"
+    ],
+    "nav_order": 23
+  },
+  {
+    "id": "en/troubleshooting#workspace-paths-restricted-or-relative-paths-only",
+    "lang": "en",
+    "slug": "troubleshooting",
+    "section": "workspace-paths-restricted-or-relative-paths-only",
+    "title": "Troubleshooting",
+    "heading": "Workspace paths: `[restricted]` or relative paths only",
+    "body": "Expected behavior when workspace jail is enabled and the caller is not an administrator: - Agent replies and tool output show paths like or (jail root), not . - Paths outside the jail appear as . Not a bug if a Telegram user or API client without never sees host absolute paths. To show full paths you must be: Surface Requirement --------- ------------- Telegram Your numeric user id equals (set via ) Gateway API API key include (create via ) Local CLI on server Operator session without jail, or jail disabled for that profile Check jail status: . Full guide: Path visibility in responses.",
+    "keywords": [
+      "troubleshoot",
+      "проблемы",
+      "ошибки",
+      "fix",
+      "workspace",
+      "paths",
+      "restricted",
+      "relative",
+      "only"
     ],
     "nav_order": 23
   },
@@ -5751,7 +6109,7 @@
     "section": "951-admin-approves-and-creates-an-isolated-profile",
     "title": "User Guide",
     "heading": "9.5.1. Admin approves and creates an isolated profile",
-    "body": "Holix creates a protected profile (with ), enables workspace jail , binds the user, sends the access key in Telegram , and enables the slash menu. No bot restart required. Other options: , . Manual bindings: — see TELEGRAM MULTI PROFILE.md.",
+    "body": "Holix creates a protected profile (with ), enables workspace jail , binds the user, sends the access key in Telegram , and enables the slash menu. No bot restart required. What users see: when the agent mentions files, replies show paths relative to the user's workspace folder (for example or ), not the full server path under . This is intentional privacy for multi-user hosts. Platform admins see full paths — PROFILES.md. Other options: , . Manual bindings: — see TELEGRAM MULTI PROFILE.md.",
     "keywords": [
       "guide",
       "руководство",
@@ -6851,6 +7209,33 @@
       "относительный",
       "restricted",
       "директории"
+    ],
+    "nav_order": 5
+  },
+  {
+    "id": "ru/profiles#администратор-видит",
+    "lang": "ru",
+    "slug": "profiles",
+    "section": "администратор-видит",
+    "title": "Профили и изоляция",
+    "heading": "Администратор видит",
+    "body": "Content of /home/user/.holix/profiles/alice/workspace/docs/report.pdf: … mermaid flowchart TD A[Результат инструмента или ответ агента с путём] -- B{Workspace jail включён?} B -- нет C[Путь без изменений] B -- да D{Вызывающий — админ?} D -- да E[Полный абсолютный путь] D -- нет F{Путь внутри workspace root?} F -- да G[Относительный путь, напр. docs/file.txt или .] F -- нет H[\"[restricted]\"] `` HOLIX TELEGRAM ADMIN USER ID admin`.",
+    "keywords": [
+      "profile",
+      "профиль",
+      "профили",
+      "изоляция",
+      "jail",
+      "workspace",
+      "path",
+      "paths",
+      "путь",
+      "пути",
+      "relative",
+      "относительный",
+      "restricted",
+      "администратор",
+      "видит"
     ],
     "nav_order": 5
   },
@@ -8261,7 +8646,10 @@
       "gateway",
       "гейтвей",
       "uvicorn",
-      "openai"
+      "openai",
+      "path",
+      "путь",
+      "restricted"
     ],
     "nav_order": 11
   },
@@ -8279,6 +8667,9 @@
       "гейтвей",
       "uvicorn",
       "openai",
+      "path",
+      "путь",
+      "restricted",
       "multi",
       "profile",
       "v02"
@@ -8299,6 +8690,9 @@
       "гейтвей",
       "uvicorn",
       "openai",
+      "path",
+      "путь",
+      "restricted",
       "profilesbobenv",
       "profiles",
       "bob",
@@ -8320,6 +8714,9 @@
       "гейтвей",
       "uvicorn",
       "openai",
+      "path",
+      "путь",
+      "restricted",
       "swagger",
       "authorize"
     ],
@@ -8339,6 +8736,9 @@
       "гейтвей",
       "uvicorn",
       "openai",
+      "path",
+      "путь",
+      "restricted",
       "затем",
       "holix_require_authtrue",
       "перезапуск",
@@ -8361,6 +8761,9 @@
       "гейтвей",
       "uvicorn",
       "openai",
+      "path",
+      "путь",
+      "restricted",
       "или",
       "holix_gateway_with_docs1",
       "holix",
@@ -8383,6 +8786,9 @@
       "гейтвей",
       "uvicorn",
       "openai",
+      "path",
+      "путь",
+      "restricted",
       "интерактивная",
       "документация"
     ],
@@ -8402,6 +8808,9 @@
       "гейтвей",
       "uvicorn",
       "openai",
+      "path",
+      "путь",
+      "restricted",
       "ключи"
     ],
     "nav_order": 11
@@ -8420,6 +8829,9 @@
       "гейтвей",
       "uvicorn",
       "openai",
+      "path",
+      "путь",
+      "restricted",
       "команды"
     ],
     "nav_order": 11
@@ -8438,6 +8850,9 @@
       "гейтвей",
       "uvicorn",
       "openai",
+      "path",
+      "путь",
+      "restricted",
       "краткая",
       "карта",
       "эндпоинтов"
@@ -8458,6 +8873,9 @@
       "гейтвей",
       "uvicorn",
       "openai",
+      "path",
+      "путь",
+      "restricted",
       "метрики"
     ],
     "nav_order": 11
@@ -8476,6 +8894,9 @@
       "гейтвей",
       "uvicorn",
       "openai",
+      "path",
+      "путь",
+      "restricted",
       "переменные",
       "окружения"
     ],
@@ -8495,6 +8916,9 @@
       "гейтвей",
       "uvicorn",
       "openai",
+      "path",
+      "путь",
+      "restricted",
       "сайт",
       "документации",
       "with",
@@ -8511,10 +8935,16 @@
     "heading": "1. Создать профиль арендатора (admin)",
     "body": "curl -sS -X POST \"$HOLIX URL/api/holix/profiles\" \\ -H \"Authorization: Bearer $ADMIN KEY\" \\ -H \"Content-Type: application/json\" \\ -d '{\"name\":\"tenant-42\",\"with access key\":true}'",
     "keywords": [
+      "api",
+      "gateway",
+      "chat",
+      "completions",
+      "sessions",
+      "path",
+      "admin",
       "создать",
       "профиль",
-      "арендатора",
-      "admin"
+      "арендатора"
     ],
     "nav_order": 12
   },
@@ -8527,6 +8957,13 @@
     "heading": "2. Добавить LLM-провайдера",
     "body": "curl -sS -X POST \"$HOLIX URL/api/holix/profiles/tenant-42/models/providers\" \\ -H \"Authorization: Bearer $ADMIN KEY\" \\ -H \"X-Holix-Profile-Key: $ADMIN PROFILE KEY\" \\ -H \"Content-Type: application/json\" \\ -d '{\"preset id\":\"openrouter\",\"skip test\":true}'",
     "keywords": [
+      "api",
+      "gateway",
+      "chat",
+      "completions",
+      "sessions",
+      "path",
+      "admin",
       "добавить",
       "llm",
       "провайдера"
@@ -8542,6 +8979,13 @@
     "heading": "3. Перезагрузить агента арендатора + companions",
     "body": "curl -sS -X POST \"$HOLIX URL/api/holix/profiles/tenant-42/reload\" \\ -H \"Authorization: Bearer $ADMIN KEY\" \\ -H \"X-Holix-Profile-Key: $ADMIN PROFILE KEY\"",
     "keywords": [
+      "api",
+      "gateway",
+      "chat",
+      "completions",
+      "sessions",
+      "path",
+      "admin",
       "перезагрузить",
       "агента",
       "арендатора",
@@ -8558,6 +9002,13 @@
     "heading": "4. Чат от имени арендатора (OpenAI client: model = имя профиля)",
     "body": "curl -sS \"$HOLIX URL/v1/chat/completions\" \\ -H \"Authorization: Bearer $TENANT API KEY\" \\ -H \"Content-Type: application/json\" \\ -d '{\"model\":\"tenant-42\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}' ``` Дополнительные примеры — в соответствующих разделах эндпоинтов ниже. ---",
     "keywords": [
+      "api",
+      "gateway",
+      "chat",
+      "completions",
+      "sessions",
+      "path",
+      "admin",
       "чат",
       "имени",
       "арендатора",
@@ -8579,6 +9030,12 @@
     "body": "Префикс . Питает виджет сайта документации — без инструментов агента , только RAG по документации.",
     "keywords": [
       "api",
+      "gateway",
+      "chat",
+      "completions",
+      "sessions",
+      "path",
+      "admin",
       "чата",
       "сайта",
       "документации"
@@ -8594,11 +9051,16 @@
     "heading": "`DELETE /admin/api-keys/{key_id}`",
     "body": "Отозвать ключ по числовому из ответа списка (имя path-параметра в OpenAPI: ; передавайте id ключа, а не секрет).",
     "keywords": [
+      "api",
+      "gateway",
+      "chat",
+      "completions",
+      "sessions",
+      "path",
+      "admin",
       "delete",
       "adminapi",
       "keyskey_id",
-      "admin",
-      "api",
       "keys",
       "key_id"
     ],
@@ -8613,6 +9075,13 @@
     "heading": "`GET /`",
     "body": "Аутентификация: API key Версия gateway, host profile, загруженные профили. См. Базовый URL.",
     "keywords": [
+      "api",
+      "gateway",
+      "chat",
+      "completions",
+      "sessions",
+      "path",
+      "admin",
       "get"
     ],
     "nav_order": 12
@@ -8626,6 +9095,13 @@
     "heading": "`GET /health/detailed`",
     "body": "Аутентификация: публичный (без API key) Расширенная диагностика: , , , по профилям, bind host/port.",
     "keywords": [
+      "api",
+      "gateway",
+      "chat",
+      "completions",
+      "sessions",
+      "path",
+      "admin",
       "get",
       "healthdetailed",
       "health",
@@ -8642,6 +9118,13 @@
     "heading": "`GET /metrics`",
     "body": "Аутентификация: Admin API key Prometheus text exposition (при ). Тот же формат, что у admin prometheus endpoint. ---",
     "keywords": [
+      "api",
+      "gateway",
+      "chat",
+      "completions",
+      "sessions",
+      "path",
+      "admin",
       "get",
       "metrics"
     ],
@@ -8656,6 +9139,13 @@
     "heading": "`GET …/status`",
     "body": "Бот настроен, токен замаскирован, pending access requests, карта пользователей, companions.",
     "keywords": [
+      "api",
+      "gateway",
+      "chat",
+      "completions",
+      "sessions",
+      "path",
+      "admin",
       "get",
       "status"
     ],
@@ -8670,10 +9160,16 @@
     "heading": "`GET /v1/docs/chat/session`",
     "body": "Аутентификация: docs-chat token Query: (8–64 символа). Возвращает сохранённую историю чата посетителя.",
     "keywords": [
+      "api",
+      "gateway",
+      "chat",
+      "completions",
+      "sessions",
+      "path",
+      "admin",
       "get",
       "v1docschatsession",
       "docs",
-      "chat",
       "session"
     ],
     "nav_order": 12
@@ -8687,8 +9183,14 @@
     "heading": "Hermes API (`/v1`)",
     "body": "Hermes-compatible поверхность. Все маршруты требуют API key gateway, если не указано иное. Заголовки профиля применяются там, где указано. См. документацию Hermes agent.",
     "keywords": [
-      "hermes",
-      "api"
+      "api",
+      "gateway",
+      "chat",
+      "completions",
+      "sessions",
+      "path",
+      "admin",
+      "hermes"
     ],
     "nav_order": 12
   },
@@ -8701,9 +9203,14 @@
     "heading": "Holix Gateway API — полный справочник",
     "body": "На сайте документации: (тот же текст, что и эта страница). Живой OpenAPI (вызов запросов): на порту gateway — не на порту сайта docs. Holix запускает единый multi-profile HTTP gateway с тремя публичными поверхностями: Поверхность Префикс Назначение ------------- --------- ------------ Hermes-compatible API , , Drop-in для Open WebUI, LobeChat, Hermes-клиентов Расширения агента Holix , permissions, plans OpenAI chat + разрешения на инструменты + ревью планов Holix Management API SaaS control plane: профили, модели, MCP, навыки, Telegram Эксплуатационное руководство (start/stop, порты, логи): GATEWAY.md.",
     "keywords": [
-      "holix",
-      "gateway",
       "api",
+      "gateway",
+      "chat",
+      "completions",
+      "sessions",
+      "path",
+      "admin",
+      "holix",
       "полный",
       "справочник"
     ],
@@ -8718,11 +9225,16 @@
     "heading": "`POST /admin/api-keys`",
     "body": "Создать новый API key gateway. Query-параметры: Параметр По умолчанию Описание ---------- -------------- ---------- обязательный Человекочитаемая метка Права через запятую Запросов в минуту Ответ: (один раз), , , , .",
     "keywords": [
+      "api",
+      "gateway",
+      "chat",
+      "completions",
+      "sessions",
+      "path",
+      "admin",
       "post",
       "adminapi",
-      "keys",
-      "admin",
-      "api"
+      "keys"
     ],
     "nav_order": 12
   },
@@ -8735,9 +9247,15 @@
     "heading": "`POST /api/holix/profiles`",
     "body": "Аутентификация: Admin Создать профиль. Тело ( ): Поле По умолчанию Описание ------ -------------- ---------- обязательный Id профиля true Копировать глобальный config false Сгенерировать ключ доступа false Включить изоляцию workspace Ответ: , (если создан), , .",
     "keywords": [
+      "api",
+      "gateway",
+      "chat",
+      "completions",
+      "sessions",
+      "path",
+      "admin",
       "post",
       "apiholixprofiles",
-      "api",
       "holix",
       "profiles"
     ],
@@ -8752,9 +9270,15 @@
     "heading": "`POST /api/jobs`",
     "body": "Создать job. Тело ( ): Поле Алиас Hermes Описание ------ -------------- ---------- Инструкция для агента 5-field cron или фразы ( , ) — Отображаемое имя — Флаг активности Telegram chat для уведомлений — Сессия для сводок запусков — Предпочитаемые навыки для run Опциональная модель для job",
     "keywords": [
+      "api",
+      "gateway",
+      "chat",
+      "completions",
+      "sessions",
+      "path",
+      "admin",
       "post",
       "apijobs",
-      "api",
       "jobs"
     ],
     "nav_order": 12
@@ -8768,10 +9292,15 @@
     "heading": "`POST /v1/chat/completions`",
     "body": "OpenAI-совместимый chat. Требуется на API key. Тело: стандартный — , , опционально , . Со streaming: → SSE chunks.",
     "keywords": [
-      "post",
-      "v1chatcompletions",
+      "api",
+      "gateway",
       "chat",
-      "completions"
+      "completions",
+      "sessions",
+      "path",
+      "admin",
+      "post",
+      "v1chatcompletions"
     ],
     "nav_order": 12
   },
@@ -8784,10 +9313,16 @@
     "heading": "`POST /v1/docs/chat`",
     "body": "Аутентификация: docs-chat token Тело: Поле Описание ------ ---------- Вопрос (1–4000 символов) Анонимный id посетителя или Опционально текущая страница документации SSE при true (по умолчанию) Rate limit на ( ). ---",
     "keywords": [
+      "api",
+      "gateway",
+      "chat",
+      "completions",
+      "sessions",
+      "path",
+      "admin",
       "post",
       "v1docschat",
-      "docs",
-      "chat"
+      "docs"
     ],
     "nav_order": 12
   },
@@ -8800,6 +9335,13 @@
     "heading": "`POST /v1/responses`",
     "body": "Создать сохранённый response (Responses API). Требуется право . Тело ( ): Поле Тип Описание ------ ----- ---------- string Имя профиля (по умолчанию ) string или array Ввод пользователя string? Системные инструкции bool Сохранить в SQLite store (по умолчанию true) string? Цепочка responses string? Id разговора",
     "keywords": [
+      "api",
+      "gateway",
+      "chat",
+      "completions",
+      "sessions",
+      "path",
+      "admin",
       "post",
       "v1responses",
       "responses"
@@ -8815,6 +9357,13 @@
     "heading": "`reload_required`",
     "body": "Мутации в management, меняющие конфигурацию работающего агента, возвращают . Применить без перезапуска uvicorn:",
     "keywords": [
+      "api",
+      "gateway",
+      "chat",
+      "completions",
+      "sessions",
+      "path",
+      "admin",
       "reload_required"
     ],
     "nav_order": 12
@@ -8828,6 +9377,13 @@
     "heading": "Swagger Authorize (один токен для всех запросов)",
     "body": "1. Откройте 2. Нажмите Authorize (иконка замка) 3. В поле HolixApiKey вставьте ключ gateway ( ) без префикса — Swagger добавит его автоматически 4. Попробуйте любой защищённый эндпоинт через Try it out также работает в curl и коде, но не настраивается через диалог Authorize. Метаданные gateway (требуется API key): ---",
     "keywords": [
+      "api",
+      "gateway",
+      "chat",
+      "completions",
+      "sessions",
+      "path",
+      "admin",
       "swagger",
       "authorize",
       "один",
@@ -8847,6 +9403,13 @@
     "heading": "Архитектура multi-profile",
     "body": "Один процесс uvicorn обслуживает N профилей через : - Агенты lazy-load при первом запросе - запускает Telegram polling + cron для каждого профиля - перезапускает агента и companions одного профиля без перезапуска gateway - Host profile задаётся при старте ( ) Хранилища: (SQLite), (memory), (memory). ---",
     "keywords": [
+      "api",
+      "gateway",
+      "chat",
+      "completions",
+      "sessions",
+      "path",
+      "admin",
       "архитектура",
       "multi",
       "profile"
@@ -8862,6 +9425,13 @@
     "heading": "Аутентификация",
     "body": "В зависимости от маршрута Holix использует до трёх независимых механизмов аутентификации .",
     "keywords": [
+      "api",
+      "gateway",
+      "chat",
+      "completions",
+      "sessions",
+      "path",
+      "admin",
       "аутентификация"
     ],
     "nav_order": 12
@@ -8875,10 +9445,40 @@
     "heading": "Базовый URL и интерактивная документация",
     "body": "Базовый URL по умолчанию (из профиля): Ресурс URL Аутентификация -------- ----- ---------------- Swagger UI — ReDoc — OpenAPI JSON —",
     "keywords": [
+      "api",
+      "gateway",
+      "chat",
+      "completions",
+      "sessions",
+      "path",
+      "admin",
       "базовый",
       "url",
       "интерактивная",
       "документация"
+    ],
+    "nav_order": 12
+  },
+  {
+    "id": "ru/gateway-api#видимость-путей-в-ответах-агента",
+    "lang": "ru",
+    "slug": "gateway-api",
+    "section": "видимость-путей-в-ответах-агента",
+    "title": "Полный справочник API",
+    "heading": "Видимость путей в ответах агента",
+    "body": "Если у выбранного профиля включён workspace jail ( в ), текст ответов агента санитизируется для API-ключей без : API-ключа Пути в / стриминговом тексте ассистента ------------------------- --------------------------------------------------- Есть Полные абсолютные пути Только / / Относительные пути workspace; каталоги выше → Затрагивает: - (включая ) - - (готовый и SSE-события) - и Не меняет management-метаданные, где админам и так отдаётся полный — например . См. Видимость путей в ответах. Пример — один профиль, корень jail : В Telegram те же правила: одобренные пользователи профиля видят относительные пути; админ бота — полные.",
+    "keywords": [
+      "api",
+      "gateway",
+      "chat",
+      "completions",
+      "sessions",
+      "path",
+      "admin",
+      "видимость",
+      "путей",
+      "ответах",
+      "агента"
     ],
     "nav_order": 12
   },
@@ -8891,6 +9491,13 @@
     "heading": "Заголовки сессии (алиасы)",
     "body": "Назначение Holix Алиас Hermes ------------ ------- -------------- Id разговора / транскрипта Стабильная область памяти Ключ сессии: максимум 256 символов; управляющие символы отклоняются → .",
     "keywords": [
+      "api",
+      "gateway",
+      "chat",
+      "completions",
+      "sessions",
+      "path",
+      "admin",
       "заголовки",
       "сессии",
       "алиасы"
@@ -8906,6 +9513,13 @@
     "heading": "Замечания по безопасности",
     "body": "- Используйте TLS за reverse proxy в production; по умолчанию bind - Установите в production (обязательно при ) - Admin-маршруты всегда требуют право admin - Security headers: , - CORS: (через запятую) См. также: SECURITY.md, DEPLOYMENT.md, PROFILES.md, TELEGRAM.md.",
     "keywords": [
+      "api",
+      "gateway",
+      "chat",
+      "completions",
+      "sessions",
+      "path",
+      "admin",
       "замечания",
       "безопасности"
     ],
@@ -8920,6 +9534,13 @@
     "heading": "Маршрутизация профиля",
     "body": "Для chat, Hermes, sessions и jobs профиль определяется в следующем порядке: 1. Заголовок или 2. Поле в теле запроса (имя профиля; не , , ) 3. Host profile gateway ( при старте процесса)",
     "keywords": [
+      "api",
+      "gateway",
+      "chat",
+      "completions",
+      "sessions",
+      "path",
+      "admin",
       "маршрутизация",
       "профиля"
     ],
@@ -8934,6 +9555,13 @@
     "heading": "Маскирование секретов",
     "body": "Ответы в management маскируют API keys, токены и чувствительные env-переменные. Открытый текст возвращается один раз при create/init/rotate.",
     "keywords": [
+      "api",
+      "gateway",
+      "chat",
+      "completions",
+      "sessions",
+      "path",
+      "admin",
       "маскирование",
       "секретов"
     ],
@@ -8948,6 +9576,13 @@
     "heading": "Матрица совместимости с Hermes",
     "body": "Область Статус Примечания --------- -------- ------------ , , Полная Bearer + алиасы заголовков , , , Полная Capabilities объявляет флаги Hermes CRUD + chat/stream Полная , ; персистентность в CRUD + pause/resume/run Полная Алиасы тела: , , , , Multimodal (inline images) Полная / ; загрузка файлов → SSE tool progress Полная , , , , DELETE job отменяет in-flight run Полная Общий реестр активных cron-запусков Только Holix Дополнительно , permissions, plans — нет в Hermes ---",
     "keywords": [
+      "api",
+      "gateway",
+      "chat",
+      "completions",
+      "sessions",
+      "path",
+      "admin",
       "матрица",
       "совместимости",
       "hermes"
@@ -8963,9 +9598,15 @@
     "heading": "Нужен существующий admin key ИЛИ bootstrap с HOLIX_REQUIRE_AUTH=false один раз",
     "body": "curl -sS -X POST \"http://127.0.0.1:8000/admin/api-keys\" \\ -H \"Authorization: Bearer $ADMIN KEY\" \\ -d \"name=my-app&permissions=read,write,execute&rate limit=100\" bash holix profile env --edit HOLIX REQUIRE AUTH=false holix gateway reload curl -sS -X POST \"http://127.0.0.1:8000/admin/api-keys\" \\ -d \"name=admin&permissions=read,write,execute,admin&rate limit=1000\"",
     "keywords": [
+      "api",
+      "gateway",
+      "chat",
+      "completions",
+      "sessions",
+      "path",
+      "admin",
       "нужен",
       "существующий",
-      "admin",
       "key",
       "или",
       "bootstrap",
@@ -8986,6 +9627,13 @@
     "heading": "Ошибки",
     "body": "Код Значение ----- ---------- 400 Невалидное тело, заголовки или бизнес-правило 401 Отсутствует или невалидный API key / ключ профиля / docs-chat token 403 Валидный ключ, но недостаточно прав 404 Ресурс не найден или функция отключена 409 Конфликт (например, профиль уже существует, admin уже назначен) 429 Превышен rate limit для ключа 503 Gateway не инициализирован (registry, key manager, agent)",
     "keywords": [
+      "api",
+      "gateway",
+      "chat",
+      "completions",
+      "sessions",
+      "path",
+      "admin",
       "ошибки"
     ],
     "nav_order": 12
@@ -8999,6 +9647,13 @@
     "heading": "Примеры SaaS-воркфлоу",
     "body": "```bash export HOLIX URL=http://127.0.0.1:8000 export ADMIN KEY=hx … export ADMIN PROFILE KEY=hp …",
     "keywords": [
+      "api",
+      "gateway",
+      "chat",
+      "completions",
+      "sessions",
+      "path",
+      "admin",
       "примеры",
       "saas",
       "воркфлоу"
@@ -9014,6 +9669,13 @@
     "heading": "Содержание",
     "body": "1. Базовый URL и интерактивная документация 2. Аутентификация 3. Общие понятия 4. Примеры SaaS-воркфлоу 5. Health и информация о gateway 6. Admin API 7. Hermes API ( ) 8. Расширения агента ( ) 9. Сессии ( ) 10. Cron-задачи ( ) 11. Управление: профили 12. Управление: модели 13. Управление: навыки 14. Управление: MCP 15. Управление: config и env 16. Управление: глобальные настройки 17. Управление: Telegram 18. API чата сайта документации 19. Архитектура multi-profile 20. Замечания по безопасности ---",
     "keywords": [
+      "api",
+      "gateway",
+      "chat",
+      "completions",
+      "sessions",
+      "path",
+      "admin",
       "содержание"
     ],
     "nav_order": 12
@@ -9027,10 +9689,15 @@
     "heading": "Уровень 1 — API key gateway (`hx_…`)",
     "body": "Требуется почти на всех маршрутах при (по умолчанию). Заголовок Пример ----------- -------- Права (через запятую при создании): , , , . См. SECURITY.md. Создание ключа — отдельной CLI-команды пока нет; используйте HTTP или Swagger: ```bash",
     "keywords": [
-      "уровень",
       "api",
-      "key",
       "gateway",
+      "chat",
+      "completions",
+      "sessions",
+      "path",
+      "admin",
+      "уровень",
+      "key",
       "hx_"
     ],
     "nav_order": 12
@@ -9044,6 +9711,13 @@
     "heading": "Уровень 2 — Ключ доступа к профилю (`hp_…`)",
     "body": "Требуется для маршрутов (дополнительно к API key gateway): Вызывающая сторона Заголовки Область -------------------- ----------- --------- Владелец профиля Gateway key + для своего профиля Один профиль Админ платформы Gateway key с правом или master key admin-профиля Все профили Имя admin-профиля по умолчанию: ( ). Ключи профиля создаются через CLI ( ) или Management API ( ). Это не то же самое, что gateway keys .",
     "keywords": [
+      "api",
+      "gateway",
+      "chat",
+      "completions",
+      "sessions",
+      "path",
+      "admin",
       "уровень",
       "ключ",
       "доступа",
@@ -9061,10 +9735,16 @@
     "heading": "Уровень 3 — Токен docs-chat (только для виджета сайта)",
     "body": "Маршруты под (кроме ) используют : Заголовок Пример ----------- -------- Отдельно от API keys gateway. См. API чата сайта документации.",
     "keywords": [
+      "api",
+      "gateway",
+      "chat",
+      "completions",
+      "sessions",
+      "path",
+      "admin",
       "уровень",
       "токен",
       "docs",
-      "chat",
       "только",
       "для",
       "виджета",
@@ -9146,7 +9826,7 @@
     "section": "4-админ-одобрение-и-изолированный-профиль",
     "title": "Telegram",
     "heading": "4. Админ: одобрение и изолированный профиль",
-    "body": "При одобрении Holix: - создаёт защищённый профиль с ключом - включает workspace jail в - привязывает Telegram-пользователя к профилю - отправляет ключ доступа пользователю в Telegram (показывается один раз) Пользователь сразу может писать боту — перезапуск не нужен. Другие команды:",
+    "body": "При одобрении Holix: - создаёт защищённый профиль с ключом - включает workspace jail в - привязывает Telegram-пользователя к профилю - отправляет ключ доступа пользователю в Telegram (показывается один раз) Пользователь сразу может писать боту — перезапуск не нужен. Пути в ответах бота: одобренные пользователи с workspace jail видят только относительные пути ( , а не ). Админ Telegram ( ) по-прежнему видит полные абсолютные пути. Подробнее: Видимость путей в ответах. Другие команды:",
     "keywords": [
       "telegram",
       "телеграм",
@@ -10458,6 +11138,53 @@
     "nav_order": 23
   },
   {
+    "id": "ru/troubleshooting#админ-в-telegram-всё-ещё-видит-относительные-пути",
+    "lang": "ru",
+    "slug": "troubleshooting",
+    "section": "админ-в-telegram-всё-ещё-видит-относительные-пути",
+    "title": "Решение проблем",
+    "heading": "Админ в Telegram всё ещё видит относительные пути",
+    "body": "1. Проверьте назначение: — должен быть ваш Telegram user id. 2. Переназначьте при необходимости: (только CLI). 3. Полные пути получает только один сохранённый админ; остальные одобренные пользователи — относительные.",
+    "keywords": [
+      "troubleshoot",
+      "проблемы",
+      "ошибки",
+      "fix",
+      "админ",
+      "telegram",
+      "всё",
+      "ещё",
+      "видит",
+      "относительные",
+      "пути"
+    ],
+    "nav_order": 23
+  },
+  {
+    "id": "ru/troubleshooting#админ-через-api-всё-ещё-видит-относительные-пути",
+    "lang": "ru",
+    "slug": "troubleshooting",
+    "section": "админ-через-api-всё-ещё-видит-относительные-пути",
+    "title": "Решение проблем",
+    "heading": "Админ через API всё ещё видит относительные пути",
+    "body": "1. Проверьте права ключа: (нужен admin key) — в должно быть . 2. Пересоздайте ключ с admin: 3. У профиля должен быть ; без jail все видят полные пути.",
+    "keywords": [
+      "troubleshoot",
+      "проблемы",
+      "ошибки",
+      "fix",
+      "админ",
+      "через",
+      "api",
+      "всё",
+      "ещё",
+      "видит",
+      "относительные",
+      "пути"
+    ],
+    "nav_order": 23
+  },
+  {
     "id": "ru/troubleshooting#меню-telegram-видно-до-одобрения",
     "lang": "ru",
     "slug": "troubleshooting",
@@ -10474,6 +11201,28 @@
       "telegram",
       "видно",
       "одобрения"
+    ],
+    "nav_order": 23
+  },
+  {
+    "id": "ru/troubleshooting#пути-workspace-restricted-или-только-относительные",
+    "lang": "ru",
+    "slug": "troubleshooting",
+    "section": "пути-workspace-restricted-или-только-относительные",
+    "title": "Решение проблем",
+    "heading": "Пути workspace: `[restricted]` или только относительные",
+    "body": "Ожидаемое поведение , если включён workspace jail и вызывающий не администратор: - В ответах агента и выводе инструментов пути вида или (корень jail), а не . - Пути вне jail отображаются как . Это не баг , если пользователь Telegram или API-клиент без не видит абсолютные пути хоста. Чтобы видеть полные пути: Интерфейс Требование ----------- ------------ Telegram Ваш numeric user id совпадает с (назначение: ) Gateway API В API-ключа есть ( ) Локальный CLI на сервере Сессия без jail или jail отключён для профиля Проверка jail: . Подробнее: Видимость путей в ответах.",
+    "keywords": [
+      "troubleshoot",
+      "проблемы",
+      "ошибки",
+      "fix",
+      "пути",
+      "workspace",
+      "restricted",
+      "или",
+      "только",
+      "относительные"
     ],
     "nav_order": 23
   },
@@ -10979,7 +11728,7 @@
     "section": "951-админ-одобряет-и-создаёт-изолированный-профиль",
     "title": "Руководство",
     "heading": "9.5.1. Админ одобряет и создаёт изолированный профиль",
-    "body": "Holix создаёт защищённый профиль (с ), включает workspace jail , привязывает пользователя, отправляет ключ в Telegram и включает меню команд. Перезапуск бота не нужен. Другие варианты: , . Ручные привязки: — см. TELEGRAM MULTI PROFILE.md.",
+    "body": "Holix создаёт защищённый профиль (с ), включает workspace jail , привязывает пользователя, отправляет ключ в Telegram и включает меню команд. Перезапуск бота не нужен. Что видит пользователь: когда агент упоминает файлы, в ответах показываются пути относительно его workspace (например или ), а не полный серверный путь в . Это сделано для приватности на общих хостах. Администраторы платформы видят полные пути — PROFILES.md. Другие варианты: , . Ручные привязки: — см. TELEGRAM MULTI PROFILE.md.",
     "keywords": [
       "guide",
       "руководство",
