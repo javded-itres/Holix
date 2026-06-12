@@ -238,6 +238,14 @@ def stop_gateway_daemon(profile: str = "default") -> None:
     if state.docs_pid and is_process_alive(state.docs_pid):
         terminate_process(state.docs_pid, grace=5.0)
 
+    if state.docs_host and state.docs_port:
+        from cli.utils.ports import wait_for_port_available
+
+        bind_host = (
+            "127.0.0.1" if state.docs_host in ("0.0.0.0", "::") else state.docs_host
+        )
+        wait_for_port_available(bind_host, state.docs_port, timeout=8.0)
+
     if is_process_alive(state.pid):
         print_info(f"Stopping gateway (pid={state.pid})…")
         terminate_process(state.pid)
@@ -346,7 +354,6 @@ def reload_gateway_daemon(profile: str = "default") -> None:
     docs_port = state.docs_port or int(os.environ.get("HOLIX_DOCS_PORT", "8080"))
     print_info(f"Reloading gateway for profile '{profile}' (stop → start)…")
     stop_gateway_daemon(profile)
-    time.sleep(0.5)
     start_gateway_daemon(
         host,
         port,

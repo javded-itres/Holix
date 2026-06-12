@@ -109,7 +109,7 @@ def _docs_subprocess(
         print_warning("Documentation site skipped (web-docs/ not found)")
         return None
 
-    listen_port = resolve_listen_port(host, port)
+    listen_port = resolve_listen_port(host, port, wait_timeout=8.0)
     if listen_port != port:
         print_warning(f"Docs port {port} is in use; using {listen_port} instead")
         port = listen_port
