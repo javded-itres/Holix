@@ -74,6 +74,20 @@ workspace_root: /home/user/data-agent
 
 При включении `read_file`, `write_file`, `list_directory`, `run_terminal_command` и отправка файлов в Telegram не выходят за пределы `workspace_root`.
 
+## Holix Link (опционально)
+
+Удалённая папка на ПК пользователя (за NAT) через клиент **Holix-Link** — см. [LINK.md](LINK.md).
+
+```yaml
+link:
+  max_connections: 5
+  permissions:
+    read: true
+    write: true
+    mkdir: true
+    delete: false
+```
+
 ## Whitelist терминала (опционально)
 
 Ограничение shell-команд агента. Настраивается для каждого профиля:

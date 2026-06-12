@@ -49,6 +49,18 @@ Supervisor также запускает **cron** и **Telegram** (если на
 
 Таблицы эндпоинтов и аутентификация: [GATEWAY_API.md](GATEWAY_API.md).
 
+## Holix Link
+
+Удалённый доступ агента к папке на ПК пользователя (за NAT) через исходящий WebSocket:
+
+```bash
+holix link create --profile support --ttl 10m
+holix link list
+holix link revoke <link_id>
+```
+
+На ПК пользователя ставится только клиент **[Holix-Link](https://pypi.org/project/Holix-Link/)** (`holix-link pair …`). Полное руководство: [LINK.md](LINK.md).
+
 ## Переменные окружения
 
 Задаются в **`.env` профиля** (`holix profile env --edit`):

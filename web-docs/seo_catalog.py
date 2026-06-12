@@ -263,6 +263,24 @@ SEO_PAGES: dict[str, dict[str, dict[str, str]]] = {
             "keywords": "Holix Hub, holix skills, ClawHub, MCP install, agent skills, holix hub install",
         },
     },
+    "link": {
+        "ru": {
+            "title": "Holix Link — удалённый доступ к папке за NAT",
+            "description": (
+                "Holix Link: клиент holix-link на ПК пользователя, holix link create на сервере, "
+                "WebSocket relay, tools link_read_file. Windows, Linux, macOS. Self-hosted gateway."
+            ),
+            "keywords": "Holix Link, holix-link, удалённая папка, NAT, remote folder, WebSocket",
+        },
+        "en": {
+            "title": "Holix Link — Remote Folder Access Behind NAT",
+            "description": (
+                "Holix Link: holix-link client on user PC, holix link create on server, "
+                "WebSocket relay, link_read_file agent tools. Windows, Linux, macOS."
+            ),
+            "keywords": "Holix Link, holix-link, remote folder, NAT traversal, WebSocket relay",
+        },
+    },
     "gateway": {
         "ru": {
             "title": "API Gateway Holix — OpenAI-совместимый HTTP API",

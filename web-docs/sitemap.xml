@@ -66,6 +66,11 @@
     <priority>0.8</priority>
   </url>
   <url>
+    <loc>https://holix-agent.ru/docs/link</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
     <loc>https://holix-agent.ru/docs/logs</loc>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>

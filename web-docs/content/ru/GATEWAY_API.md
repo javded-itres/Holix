@@ -921,6 +921,23 @@ Rate limit на `client_id` (`HOLIX_DOCS_CHAT_RATE_LIMIT_RPM`).
 
 ---
 
+## Holix Link API
+
+Удалённый доступ к папке: клиент **Holix-Link** на ПК пользователя ↔ Link Relay в gateway. Руководство: [LINK.md](LINK.md).
+
+| Метод | Путь | Auth | Описание |
+|--------|------|------|----------|
+| `POST` | `/v1/link/create` | API key | Создать pair-код |
+| `POST` | `/v1/link/pair` | Публичный (rate limit) | Обмен кода на `link_id` |
+| `GET` | `/v1/link/list` | API key | Список link (`?profile=`) |
+| `GET` | `/v1/link/{link_id}` | API key | Статус + online |
+| `POST` | `/v1/link/revoke/{link_id}` | API key | Отзыв |
+| `WS` | `/v1/link/ws` | Device key (сообщение `auth`) | Сессия клиента |
+
+Tools агента (`link_read_file`, …) работают, когда клиент подключён по WebSocket.
+
+---
+
 ## Архитектура multi-profile
 
 Один процесс uvicorn обслуживает **N профилей** через `ProfileAgentRegistry`:

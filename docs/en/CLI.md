@@ -387,6 +387,24 @@ First admin key bootstrap: temporarily set `HOLIX_REQUIRE_AUTH=false`, create vi
 
 ---
 
+## `holix link`
+
+Manage **Holix Link** remote folder connections (server side). Users pair with the separate `holix-link` client — see [LINK.md](LINK.md).
+
+| Subcommand | Description |
+|------------|-------------|
+| `create` | Generate one-time pairing code (`--profile`, `--ttl 10m`) |
+| `list` | List links (`--profile`, `--all`) |
+| `revoke <link_id>` | Revoke a connection |
+
+```bash
+holix link create --profile support --ttl 10m
+holix link list --profile support
+holix link revoke link_abc123
+```
+
+---
+
 ## `holix docs`
 
 Documentation website (marketing landing + docs SPA, search, EN/RU).

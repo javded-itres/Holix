@@ -37,6 +37,7 @@ async def run_all_checks(profile: str, *, skip_llm_check: bool = False) -> list[
     if not skip_llm_check:
         findings.extend(await _check_llm(profile, manager))
     findings.extend(_check_gateway(profile))
+    findings.extend(_check_link(profile))
     findings.extend(_check_telegram(profile))
     findings.extend(_check_env_file())
     findings.extend(_check_security_settings())
@@ -668,6 +669,58 @@ def _check_gateway(profile: str) -> list[DoctorFinding]:
                     recommendation="Run: holix gateway reload",
                 )
             )
+    return out
+
+
+def _check_link(profile: str) -> list[DoctorFinding]:
+    out: list[DoctorFinding] = []
+    try:
+        from core.gateway.links_store import LinksStore
+
+        store = LinksStore()
+        links = store.list_links(profile=profile, status="active")
+    except Exception:
+        return out
+
+    if not links:
+        return out
+
+    online: int | None = None
+    try:
+        from api import state
+
+        relay = state.link_relay
+        if relay is not None:
+            online = sum(1 for link in links if relay.is_online(link.link_id))
+    except Exception:
+        online = None
+
+    if online is None:
+        detail = f"{len(links)} active link(s) for profile '{profile}'"
+        recommendation = "Start gateway to accept client connections: holix gateway start"
+        severity = Severity.INFO.value
+    elif online == 0:
+        detail = f"{len(links)} active link(s), none online"
+        recommendation = "On client PC: holix-link status && holix-link install-service"
+        severity = Severity.WARNING.value
+    elif online < len(links):
+        detail = f"{online}/{len(links)} link(s) online for profile '{profile}'"
+        recommendation = "Check offline clients with holix link list"
+        severity = Severity.WARNING.value
+    else:
+        detail = f"All {len(links)} link(s) online for profile '{profile}'"
+        recommendation = "Holix Link connections healthy"
+        severity = Severity.INFO.value
+
+    out.append(
+        DoctorFinding(
+            code="link.status",
+            severity=severity,
+            title="Holix Link connections",
+            detail=detail,
+            recommendation=recommendation,
+        )
+    )
     return out
 
 

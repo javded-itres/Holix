@@ -34,6 +34,7 @@ LLM fixes (default profile LLM):
 - Profile YAML and providers
 - LLM endpoint and model availability (skipped with `--no-llm`)
 - Gateway stale state / health
+- Holix Link connections (count, online/offline when gateway runs)
 - Telegram token, access requests, and allowlist
 - Production: pepper, CORS, auth, code executor
 

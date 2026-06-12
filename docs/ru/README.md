@@ -22,6 +22,7 @@
 - [TUI.md](TUI.md) — `holix tui`
 - [HUB.md](HUB.md) — каталоги навыков
 - [GATEWAY.md](GATEWAY.md) — API gateway
+- [LINK.md](LINK.md) — **Holix Link** — удалённый доступ к папке за NAT (`holix link`, клиент `holix-link`)
 - [GATEWAY_API.md](GATEWAY_API.md) — **полный справочник API — каждый эндпоинт задокументирован** (auth, `/api/holix/`, SaaS curl)
 - [TELEGRAM.md](TELEGRAM.md) — Telegram
 - [TELEGRAM_MULTI_PROFILE.md](TELEGRAM_MULTI_PROFILE.md) — один бот / несколько ботов, access requests, ручной `map`

@@ -247,6 +247,24 @@ holix -p alice --profile-key hp_…  # использование в CLI/TUI
 
 ---
 
+## `holix link`
+
+Управление **Holix Link** на сервере. Пользователи подключаются клиентом `holix-link` — см. [LINK.md](LINK.md).
+
+| Подкоманда | Описание |
+|------------|----------|
+| `create` | Одноразовый pair-код (`--profile`, `--ttl 10m`) |
+| `list` | Список link (`--profile`, `--all`) |
+| `revoke <link_id>` | Отозвать связь |
+
+```bash
+holix link create --profile support --ttl 10m
+holix link list --profile support
+holix link revoke link_abc123
+```
+
+---
+
 ## `holix docs`
 
 Сайт документации (лендинг + SPA, поиск, EN/RU).

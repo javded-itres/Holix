@@ -72,6 +72,12 @@
     "file_key": "GATEWAY"
   },
   {
+    "slug": "link",
+    "en": "Holix Link",
+    "ru": "Holix Link",
+    "file_key": "LINK"
+  },
+  {
     "slug": "gateway-api",
     "en": "Complete API Reference",
     "ru": "Полный справочник API",

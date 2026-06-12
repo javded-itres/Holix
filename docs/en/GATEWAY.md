@@ -49,6 +49,18 @@ A single uvicorn process can serve **multiple Holix profiles**:
 
 See [GATEWAY_API.md](GATEWAY_API.md) for endpoint tables and authentication.
 
+## Holix Link
+
+Remote folder access for agents (user PC behind NAT) via outbound WebSocket:
+
+```bash
+holix link create --profile support --ttl 10m
+holix link list
+holix link revoke <link_id>
+```
+
+Users install only the lightweight **[Holix-Link](https://pypi.org/project/Holix-Link/)** client (`holix-link pair …`). Full guide: [LINK.md](LINK.md).
+
 ## Environment
 
 Set bind address and port in the **profile** `.env` (`holix profile env --edit`):

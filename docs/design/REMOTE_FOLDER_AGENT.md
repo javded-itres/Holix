@@ -476,7 +476,9 @@ strategy:
 | **PR-5** install-service | ✅ [Holix-Link](https://github.com/javded-itres/Holix-Link) v0.1.2 |
 | **PR-6** agent tools `link_*` | ✅ Holix |
 | **PR-7** `holix link create\|list\|revoke` | ✅ Holix |
-| PR-8 … PR-10 | очередь (CI docs, installers, EN/RU) |
+| **PR-8** CI link tests | ✅ matrix в Holix + Holix-Link; `holix docs build` в CI |
+| **PR-9** install scripts | ✅ `install-link.sh` / `.ps1` |
+| **PR-10** документация EN/RU | ✅ `docs/en|ru/LINK.md`, nav, SEO, doctor |
 
 ---
 

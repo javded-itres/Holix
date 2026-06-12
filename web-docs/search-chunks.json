@@ -42,7 +42,7 @@
     "section": "interfaces",
     "title": "Overview",
     "heading": "Interfaces",
-    "body": "- CLI.md — complete command reference - SLASH COMMANDS.md — all commands (TUI, Telegram, chat) - EXECUTION MODES.md — ReAct, Plan, Hybrid, Auto — how modes work and prompt examples - TUI.md — , web mode, copy, hub UI - HUB.md — , catalogs, - GATEWAY.md — - GATEWAY API.md — Complete API reference — every endpoint documented (auth, , SaaS curl) - TELEGRAM.md — Telegram - TELEGRAM MULTI PROFILE.md — one bot / multiple bots, access requests, manual - BROWSER TOOLS.md — Playwright tools",
+    "body": "- CLI.md — complete command reference - SLASH COMMANDS.md — all commands (TUI, Telegram, chat) - EXECUTION MODES.md — ReAct, Plan, Hybrid, Auto — how modes work and prompt examples - TUI.md — , web mode, copy, hub UI - HUB.md — , catalogs, - GATEWAY.md — - LINK.md — Holix Link — remote folder access behind NAT ( , client) - GATEWAY API.md — Complete API reference — every endpoint documented (auth, , SaaS curl) - TELEGRAM.md — Telegram - TELEGRAM MULTI PROFILE.md — one bot / multiple bots, access requests, manual - BROWSER TOOLS.md — Playwright tools",
     "keywords": [
       "overview",
       "обзор",
@@ -594,6 +594,25 @@
       "переменные",
       "global",
       "layout"
+    ],
+    "nav_order": 4
+  },
+  {
+    "id": "en/configuration#holix-link-optional",
+    "lang": "en",
+    "slug": "configuration",
+    "section": "holix-link-optional",
+    "title": "Configuration",
+    "heading": "Holix Link (optional)",
+    "body": "Remote folder on a user PC (behind NAT) via the Holix-Link client — see LINK.md.",
+    "keywords": [
+      "config",
+      "конфигурация",
+      "env",
+      "переменные",
+      "holix",
+      "link",
+      "optional"
     ],
     "nav_order": 4
   },
@@ -1471,6 +1490,24 @@
       "terminal",
       "holix",
       "install"
+    ],
+    "nav_order": 6
+  },
+  {
+    "id": "en/cli#holix-link",
+    "lang": "en",
+    "slug": "cli",
+    "section": "holix-link",
+    "title": "CLI Reference",
+    "heading": "`holix link`",
+    "body": "Manage Holix Link remote folder connections (server side). Users pair with the separate client — see LINK.md. Subcommand Description ------------ ------------- Generate one-time pairing code ( , ) List links ( , ) Revoke a connection ---",
+    "keywords": [
+      "command",
+      "команды",
+      "typer",
+      "terminal",
+      "holix",
+      "link"
     ],
     "nav_order": 6
   },
@@ -2609,6 +2646,25 @@
     "nav_order": 11
   },
   {
+    "id": "en/gateway#holix-link",
+    "lang": "en",
+    "slug": "gateway",
+    "section": "holix-link",
+    "title": "API Gateway",
+    "heading": "Holix Link",
+    "body": "Remote folder access for agents (user PC behind NAT) via outbound WebSocket: Users install only the lightweight Holix-Link client ( ). Full guide: LINK.md.",
+    "keywords": [
+      "api",
+      "gateway",
+      "гейтвей",
+      "uvicorn",
+      "openai",
+      "holix",
+      "link"
+    ],
+    "nav_order": 11
+  },
+  {
     "id": "en/gateway#interactive-api-docs",
     "lang": "en",
     "slug": "gateway",
@@ -2771,6 +2827,194 @@
     "nav_order": 11
   },
   {
+    "id": "en/link#agent-tools",
+    "lang": "en",
+    "slug": "link",
+    "section": "agent-tools",
+    "title": "Holix Link",
+    "heading": "Agent tools",
+    "body": "Registered automatically when the profile has active links: Tool Description ------ ------------- List remote directory Read remote file (max 10 MB) Write remote file File or directory metadata Create remote directory Delete remote file If multiple links are connected to one profile, pass in tool arguments. Requires: gateway running (Link Relay is in-process) and client daemon online. ---",
+    "keywords": [
+      "agent",
+      "tools"
+    ],
+    "nav_order": 12
+  },
+  {
+    "id": "en/link#client-commands-holix-link",
+    "lang": "en",
+    "slug": "link",
+    "section": "client-commands-holix-link",
+    "title": "Holix Link",
+    "heading": "Client commands (`holix-link`)",
+    "body": "Command Description --------- ------------- Interactive pairing Pair with gateway Run connection loop Autostart (systemd / LaunchAgent / Task Scheduler) Remove autostart Stop background daemon Link id, folder, permissions, daemon state Remove local credentials",
+    "keywords": [
+      "client",
+      "commands",
+      "holix",
+      "link"
+    ],
+    "nav_order": 12
+  },
+  {
+    "id": "en/link#holix-link-remote-folder-access",
+    "lang": "en",
+    "slug": "link",
+    "section": "holix-link-remote-folder-access",
+    "title": "Holix Link",
+    "heading": "Holix Link — Remote Folder Access",
+    "body": "Holix Link lets a server-side Holix agent read and write files in a folder on the user's PC behind NAT — without installing full Holix on that machine. Component Package Where it runs ----------- --------- --------------- Holix Link client Holix-Link ( ) User PC (Windows / Linux / macOS) Link Relay + agent tools ( , ) Your VPS / server The client opens an outbound WebSocket (TLS/WSS). No inbound ports on the user's network. ---",
+    "keywords": [
+      "holix",
+      "link",
+      "remote",
+      "folder",
+      "access"
+    ],
+    "nav_order": 12
+  },
+  {
+    "id": "en/link#http-websocket-api",
+    "lang": "en",
+    "slug": "link",
+    "section": "http-websocket-api",
+    "title": "Holix Link",
+    "heading": "HTTP / WebSocket API",
+    "body": "Endpoint Auth Purpose ---------- ------ --------- API key Create pairing code Public (rate limited) Exchange code for API key List links API key Link status API key Revoke link Device key (first message) Persistent client session Details: GATEWAY API.md. ---",
+    "keywords": [
+      "http",
+      "websocket",
+      "api"
+    ],
+    "nav_order": 12
+  },
+  {
+    "id": "en/link#link-7k3m-9q2p",
+    "lang": "en",
+    "slug": "link",
+    "section": "link-7k3m-9q2p",
+    "title": "Holix Link",
+    "heading": "→ LINK-7K3M-9Q2P",
+    "body": "holix gateway start ``` Share the pairing code with the user (Telegram, email, support portal).",
+    "keywords": [
+      "link",
+      "7k3m",
+      "9q2p"
+    ],
+    "nav_order": 12
+  },
+  {
+    "id": "en/link#operator-telegram-chat-on-profile-support",
+    "lang": "en",
+    "slug": "link",
+    "section": "operator-telegram-chat-on-profile-support",
+    "title": "Holix Link",
+    "heading": "Operator (Telegram / chat on profile `support`)",
+    "body": "Ask the agent to read a file — it uses automatically when links exist: Read README.md in the linked folder ---",
+    "keywords": [
+      "operator",
+      "telegram",
+      "chat",
+      "profile",
+      "support"
+    ],
+    "nav_order": 12
+  },
+  {
+    "id": "en/link#or",
+    "lang": "en",
+    "slug": "link",
+    "section": "or",
+    "title": "Holix Link",
+    "heading": "or",
+    "body": "curl -fsSL https://raw.githubusercontent.com/javded-itres/Holix-Link/main/scripts/install-link.sh bash `` scripts/install-link.ps1` from the Holix-Link repo.",
+    "keywords": [],
+    "nav_order": 12
+  },
+  {
+    "id": "en/link#platform-notes",
+    "lang": "en",
+    "slug": "link",
+    "section": "platform-notes",
+    "title": "Holix Link",
+    "heading": "Platform notes",
+    "body": "OS Folder examples Autostart ---- ----------------- ----------- Linux , systemd user unit macOS LaunchAgent Windows , Task Scheduler on logon UNC and network paths are supported; paths inside the jail use a portable relative form. ---",
+    "keywords": [
+      "platform",
+      "notes"
+    ],
+    "nav_order": 12
+  },
+  {
+    "id": "en/link#profile-configuration",
+    "lang": "en",
+    "slug": "link",
+    "section": "profile-configuration",
+    "title": "Holix Link",
+    "heading": "Profile configuration",
+    "body": "In : Field Default Description ------- --------- ------------- Max simultaneous links per profile Allow , , Allow Allow Allow (files only) Pair codes can be created by gateway admin or profile owner (same Telegram bot on the server). ---",
+    "keywords": [
+      "profile",
+      "configuration"
+    ],
+    "nav_order": 12
+  },
+  {
+    "id": "en/link#related",
+    "lang": "en",
+    "slug": "link",
+    "section": "related",
+    "title": "Holix Link",
+    "heading": "Related",
+    "body": "- GATEWAY.md — start gateway - PROFILES.md — profile isolation - Holix-Link on GitHub",
+    "keywords": [
+      "related"
+    ],
+    "nav_order": 12
+  },
+  {
+    "id": "en/link#security",
+    "lang": "en",
+    "slug": "link",
+    "section": "security",
+    "title": "Holix Link",
+    "heading": "Security",
+    "body": "- TLS 1.3 (WSS) for all client traffic - Server fingerprint shown at pairing; trust with confirmation or - Workspace jail on client — no path escape, symlink blocked - Revoke from server or on client - Self-hosted relay only (no managed cloud in current release) See SECURITY.md and the design doc. ---",
+    "keywords": [
+      "security"
+    ],
+    "nav_order": 12
+  },
+  {
+    "id": "en/link#server-commands-holix-link",
+    "lang": "en",
+    "slug": "link",
+    "section": "server-commands-holix-link",
+    "title": "Holix Link",
+    "heading": "Server commands (`holix link`)",
+    "body": "Command Description --------- ------------- One-time pairing code (admin or profile owner) Active and revoked links Revoke connection Pairing codes expire (default 10 minutes , max 1 hour). Data is stored in . ---",
+    "keywords": [
+      "server",
+      "commands",
+      "holix",
+      "link"
+    ],
+    "nav_order": 12
+  },
+  {
+    "id": "en/link#troubleshooting",
+    "lang": "en",
+    "slug": "link",
+    "section": "troubleshooting",
+    "title": "Holix Link",
+    "heading": "Troubleshooting",
+    "body": "Symptom Check --------- -------- Pairing fails 404 Code expired or typo; run again Pairing fails 409 reached — revoke old links Agent: link offline , daemon running, outbound HTTPS allowed Agent: no link tools Profile has no active links in warnings See link section in doctor output ---",
+    "keywords": [
+      "troubleshooting"
+    ],
+    "nav_order": 12
+  },
+  {
     "id": "en/gateway-api#1-create-tenant-profile-admin",
     "lang": "en",
     "slug": "gateway-api",
@@ -2784,7 +3028,7 @@
       "profile",
       "admin"
     ],
-    "nav_order": 12
+    "nav_order": 13
   },
   {
     "id": "en/gateway-api#2-add-llm-provider",
@@ -2799,7 +3043,7 @@
       "llm",
       "provider"
     ],
-    "nav_order": 12
+    "nav_order": 13
   },
   {
     "id": "en/gateway-api#3-reload-tenant-agent-companions",
@@ -2815,7 +3059,7 @@
       "agent",
       "companions"
     ],
-    "nav_order": 12
+    "nav_order": 13
   },
   {
     "id": "en/gateway-api#4-chat-as-tenant-openai-client-model-profile-name",
@@ -2834,7 +3078,7 @@
       "profile",
       "name"
     ],
-    "nav_order": 12
+    "nav_order": 13
   },
   {
     "id": "en/gateway-api#base-url-and-interactive-docs",
@@ -2851,7 +3095,7 @@
       "interactive",
       "docs"
     ],
-    "nav_order": 12
+    "nav_order": 13
   },
   {
     "id": "en/gateway-api#delete-adminapi-keyskey_id",
@@ -2870,7 +3114,7 @@
       "keys",
       "key_id"
     ],
-    "nav_order": 12
+    "nav_order": 13
   },
   {
     "id": "en/gateway-api#docs-site-chat-api",
@@ -2886,7 +3130,7 @@
       "chat",
       "api"
     ],
-    "nav_order": 12
+    "nav_order": 13
   },
   {
     "id": "en/gateway-api#errors",
@@ -2899,7 +3143,7 @@
     "keywords": [
       "errors"
     ],
-    "nav_order": 12
+    "nav_order": 13
   },
   {
     "id": "en/gateway-api#get-healthdetailed",
@@ -2915,7 +3159,7 @@
       "health",
       "detailed"
     ],
-    "nav_order": 12
+    "nav_order": 13
   },
   {
     "id": "en/gateway-api#get-metrics",
@@ -2929,7 +3173,7 @@
       "get",
       "metrics"
     ],
-    "nav_order": 12
+    "nav_order": 13
   },
   {
     "id": "en/gateway-api#hermes-api-v1",
@@ -2943,7 +3187,7 @@
       "hermes",
       "api"
     ],
-    "nav_order": 12
+    "nav_order": 13
   },
   {
     "id": "en/gateway-api#hermes-compatibility-matrix",
@@ -2958,7 +3202,7 @@
       "compatibility",
       "matrix"
     ],
-    "nav_order": 12
+    "nav_order": 13
   },
   {
     "id": "en/gateway-api#holix-gateway-api-complete-reference",
@@ -2975,7 +3219,22 @@
       "complete",
       "reference"
     ],
-    "nav_order": 12
+    "nav_order": 13
+  },
+  {
+    "id": "en/gateway-api#holix-link-api",
+    "lang": "en",
+    "slug": "gateway-api",
+    "section": "holix-link-api",
+    "title": "Complete API Reference",
+    "heading": "Holix Link API",
+    "body": "Remote folder access: lightweight Holix-Link client on user PC ↔ Link Relay in gateway. Guide: LINK.md. Method Path Auth Description -------- ------ ------ ------------- API key Create pairing code None (rate limited) Client exchanges code for API key List links ( ) API key Link status + online API key Revoke link Device key ( message) Persistent client session Create pairing code: Client pair (no API key): Agent tools ( , …) call the relay when the client WebSocket is connected. ---",
+    "keywords": [
+      "holix",
+      "link",
+      "api"
+    ],
+    "nav_order": 13
   },
   {
     "id": "en/gateway-api#layer-1-gateway-api-key-hx_",
@@ -2992,7 +3251,7 @@
       "key",
       "hx_"
     ],
-    "nav_order": 12
+    "nav_order": 13
   },
   {
     "id": "en/gateway-api#layer-2-profile-access-key-hp_",
@@ -3009,7 +3268,7 @@
       "key",
       "hp_"
     ],
-    "nav_order": 12
+    "nav_order": 13
   },
   {
     "id": "en/gateway-api#layer-3-docs-chat-token-website-widget-only",
@@ -3028,7 +3287,7 @@
       "widget",
       "only"
     ],
-    "nav_order": 12
+    "nav_order": 13
   },
   {
     "id": "en/gateway-api#masked-secrets",
@@ -3042,7 +3301,7 @@
       "masked",
       "secrets"
     ],
-    "nav_order": 12
+    "nav_order": 13
   },
   {
     "id": "en/gateway-api#multi-profile-architecture",
@@ -3057,7 +3316,7 @@
       "profile",
       "architecture"
     ],
-    "nav_order": 12
+    "nav_order": 13
   },
   {
     "id": "en/gateway-api#post-adminapi-keys",
@@ -3074,7 +3333,7 @@
       "admin",
       "api"
     ],
-    "nav_order": 12
+    "nav_order": 13
   },
   {
     "id": "en/gateway-api#post-apiholixprofiles",
@@ -3091,7 +3350,7 @@
       "holix",
       "profiles"
     ],
-    "nav_order": 12
+    "nav_order": 13
   },
   {
     "id": "en/gateway-api#post-apijobs",
@@ -3107,7 +3366,7 @@
       "api",
       "jobs"
     ],
-    "nav_order": 12
+    "nav_order": 13
   },
   {
     "id": "en/gateway-api#post-v1chatcompletions",
@@ -3123,7 +3382,7 @@
       "chat",
       "completions"
     ],
-    "nav_order": 12
+    "nav_order": 13
   },
   {
     "id": "en/gateway-api#post-v1docschat",
@@ -3139,7 +3398,7 @@
       "docs",
       "chat"
     ],
-    "nav_order": 12
+    "nav_order": 13
   },
   {
     "id": "en/gateway-api#post-v1responses",
@@ -3154,7 +3413,7 @@
       "v1responses",
       "responses"
     ],
-    "nav_order": 12
+    "nav_order": 13
   },
   {
     "id": "en/gateway-api#profile-routing",
@@ -3168,7 +3427,7 @@
       "profile",
       "routing"
     ],
-    "nav_order": 12
+    "nav_order": 13
   },
   {
     "id": "en/gateway-api#reload_required",
@@ -3181,7 +3440,7 @@
     "keywords": [
       "reload_required"
     ],
-    "nav_order": 12
+    "nav_order": 13
   },
   {
     "id": "en/gateway-api#requires-existing-admin-key-or-bootstrap-with-holix_require_auth",
@@ -3202,7 +3461,7 @@
       "false",
       "once"
     ],
-    "nav_order": 12
+    "nav_order": 13
   },
   {
     "id": "en/gateway-api#saas-workflow-examples",
@@ -3217,7 +3476,7 @@
       "workflow",
       "examples"
     ],
-    "nav_order": 12
+    "nav_order": 13
   },
   {
     "id": "en/gateway-api#security-notes",
@@ -3231,7 +3490,7 @@
       "security",
       "notes"
     ],
-    "nav_order": 12
+    "nav_order": 13
   },
   {
     "id": "en/gateway-api#session-headers-aliases",
@@ -3246,7 +3505,7 @@
       "headers",
       "aliases"
     ],
-    "nav_order": 12
+    "nav_order": 13
   },
   {
     "id": "en/gateway-api#swagger-authorize-one-token-for-all-requests",
@@ -3265,7 +3524,7 @@
       "all",
       "requests"
     ],
-    "nav_order": 12
+    "nav_order": 13
   },
   {
     "id": "en/gateway-api#table-of-contents",
@@ -3274,12 +3533,12 @@
     "section": "table-of-contents",
     "title": "Complete API Reference",
     "heading": "Table of contents",
-    "body": "1. Base URL and interactive docs 2. Authentication 3. Common concepts 4. SaaS workflow examples 5. Health & gateway info 6. Admin API 7. Hermes API ( ) 8. Agent extensions ( ) 9. Sessions ( ) 10. Cron jobs ( ) 11. Management: profiles 12. Management: models 13. Management: skills 14. Management: MCP 15. Management: config & env 16. Management: global settings 17. Management: Telegram 18. Docs-site chat API 19. Multi-profile architecture 20. Security notes ---",
+    "body": "1. Base URL and interactive docs 2. Authentication 3. Common concepts 4. SaaS workflow examples 5. Health & gateway info 6. Admin API 7. Hermes API ( ) 8. Agent extensions ( ) 9. Sessions ( ) 10. Cron jobs ( ) 11. Management: profiles 12. Management: models 13. Management: skills 14. Management: MCP 15. Management: config & env 16. Management: global settings 17. Management: Telegram 18. Docs-site chat API 19. Holix Link API 20. Multi-profile architecture 21. Security notes ---",
     "keywords": [
       "table",
       "contents"
     ],
-    "nav_order": 12
+    "nav_order": 13
   },
   {
     "id": "en/telegram#1-admin-connect-the-bot",
@@ -3301,7 +3560,7 @@
       "connect",
       "the"
     ],
-    "nav_order": 13
+    "nav_order": 14
   },
   {
     "id": "en/telegram#2-bootstrap-designate-the-telegram-admin-cli-only",
@@ -3326,7 +3585,7 @@
       "cli",
       "only"
     ],
-    "nav_order": 13
+    "nav_order": 14
   },
   {
     "id": "en/telegram#3-user-request-access",
@@ -3348,7 +3607,7 @@
       "request",
       "access"
     ],
-    "nav_order": 13
+    "nav_order": 14
   },
   {
     "id": "en/telegram#4-admin-approve-and-create-an-isolated-profile",
@@ -3373,7 +3632,7 @@
       "isolated",
       "profile"
     ],
-    "nav_order": 13
+    "nav_order": 14
   },
   {
     "id": "en/telegram#command-menu-visibility",
@@ -3395,7 +3654,7 @@
       "menu",
       "visibility"
     ],
-    "nav_order": 13
+    "nav_order": 14
   },
   {
     "id": "en/telegram#ffmpeg-required-on-path",
@@ -3417,7 +3676,7 @@
       "required",
       "path"
     ],
-    "nav_order": 13
+    "nav_order": 14
   },
   {
     "id": "en/telegram#one-bot-many-users-recommended",
@@ -3440,7 +3699,7 @@
       "users",
       "recommended"
     ],
-    "nav_order": 13
+    "nav_order": 14
   },
   {
     "id": "en/telegram#option-b-local-on-the-agent-machine-offline",
@@ -3465,7 +3724,7 @@
       "machine",
       "offline"
     ],
-    "nav_order": 13
+    "nav_order": 14
   },
   {
     "id": "en/telegram#production-notes",
@@ -3486,7 +3745,7 @@
       "production",
       "notes"
     ],
-    "nav_order": 13
+    "nav_order": 14
   },
   {
     "id": "en/telegram#telegram",
@@ -3505,7 +3764,7 @@
       "whisper",
       "голосовые"
     ],
-    "nav_order": 13
+    "nav_order": 14
   },
   {
     "id": "en/telegram#usage",
@@ -3525,7 +3784,7 @@
       "голосовые",
       "usage"
     ],
-    "nav_order": 13
+    "nav_order": 14
   },
   {
     "id": "en/telegram#user-id-profile-mapping-manual",
@@ -3548,7 +3807,7 @@
       "mapping",
       "manual"
     ],
-    "nav_order": 13
+    "nav_order": 14
   },
   {
     "id": "en/telegram#voice-messages",
@@ -3569,7 +3828,7 @@
       "voice",
       "messages"
     ],
-    "nav_order": 13
+    "nav_order": 14
   },
   {
     "id": "en/telegram-multi-profile#3-one-bot-per-profile",
@@ -3585,7 +3844,7 @@
       "per",
       "profile"
     ],
-    "nav_order": 14
+    "nav_order": 15
   },
   {
     "id": "en/telegram-multi-profile#5-restrict-access-in-production",
@@ -3600,7 +3859,7 @@
       "access",
       "production"
     ],
-    "nav_order": 14
+    "nav_order": 15
   },
   {
     "id": "en/telegram-multi-profile#alternative-one-bot-manual-profile-or-map",
@@ -3618,7 +3877,7 @@
       "profile",
       "map"
     ],
-    "nav_order": 14
+    "nav_order": 15
   },
   {
     "id": "en/telegram-multi-profile#common-mistakes",
@@ -3632,7 +3891,7 @@
       "common",
       "mistakes"
     ],
-    "nav_order": 14
+    "nav_order": 15
   },
   {
     "id": "en/telegram-multi-profile#comparison",
@@ -3645,7 +3904,7 @@
     "keywords": [
       "comparison"
     ],
-    "nav_order": 14
+    "nav_order": 15
   },
   {
     "id": "en/telegram-multi-profile#holixprofilesbobenv",
@@ -3662,7 +3921,7 @@
       "bob",
       "env"
     ],
-    "nav_order": 14
+    "nav_order": 15
   },
   {
     "id": "en/telegram-multi-profile#how-holix-is-designed",
@@ -3677,7 +3936,7 @@
       "holix",
       "designed"
     ],
-    "nav_order": 14
+    "nav_order": 15
   },
   {
     "id": "en/telegram-multi-profile#limits-of-a-single-bot",
@@ -3692,7 +3951,7 @@
       "single",
       "bot"
     ],
-    "nav_order": 14
+    "nav_order": 15
   },
   {
     "id": "en/telegram-multi-profile#one-bot-many-users-access-requests-recommended",
@@ -3711,7 +3970,7 @@
       "requests",
       "recommended"
     ],
-    "nav_order": 14
+    "nav_order": 15
   },
   {
     "id": "en/telegram-multi-profile#summary",
@@ -3724,7 +3983,7 @@
     "keywords": [
       "summary"
     ],
-    "nav_order": 14
+    "nav_order": 15
   },
   {
     "id": "en/telegram-multi-profile#telegram-multiple-isolated-profiles",
@@ -3740,7 +3999,7 @@
       "isolated",
       "profiles"
     ],
-    "nav_order": 14
+    "nav_order": 15
   },
   {
     "id": "en/telegram-multi-profile#user-id-profile-mapping-single-bot-manual",
@@ -3758,7 +4017,7 @@
       "bot",
       "manual"
     ],
-    "nav_order": 14
+    "nav_order": 15
   },
   {
     "id": "en/browser-tools#browser-automation-playwright",
@@ -3774,7 +4033,7 @@
       "браузер",
       "automation"
     ],
-    "nav_order": 15
+    "nav_order": 16
   },
   {
     "id": "en/browser-tools#profile-gateway",
@@ -3791,7 +4050,7 @@
       "profile",
       "gateway"
     ],
-    "nav_order": 15
+    "nav_order": 16
   },
   {
     "id": "en/browser-tools#security",
@@ -3807,7 +4066,7 @@
       "браузер",
       "security"
     ],
-    "nav_order": 15
+    "nav_order": 16
   },
   {
     "id": "en/browser-tools#tools",
@@ -3823,7 +4082,7 @@
       "браузер",
       "tools"
     ],
-    "nav_order": 15
+    "nav_order": 16
   },
   {
     "id": "en/browser-tools#when-to-use",
@@ -3840,7 +4099,7 @@
       "when",
       "use"
     ],
-    "nav_order": 15
+    "nav_order": 16
   },
   {
     "id": "en/architecture#architecture",
@@ -3856,7 +4115,7 @@
       "runtime",
       "events"
     ],
-    "nav_order": 16
+    "nav_order": 17
   },
   {
     "id": "en/architecture#component-map",
@@ -3874,7 +4133,7 @@
       "component",
       "map"
     ],
-    "nav_order": 16
+    "nav_order": 17
   },
   {
     "id": "en/architecture#configuration",
@@ -3891,7 +4150,7 @@
       "events",
       "configuration"
     ],
-    "nav_order": 16
+    "nav_order": 17
   },
   {
     "id": "en/architecture#execution-flow",
@@ -3909,7 +4168,7 @@
       "execution",
       "flow"
     ],
-    "nav_order": 16
+    "nav_order": 17
   },
   {
     "id": "en/architecture#extension-points",
@@ -3927,7 +4186,7 @@
       "extension",
       "points"
     ],
-    "nav_order": 16
+    "nav_order": 17
   },
   {
     "id": "en/architecture#interfaces",
@@ -3944,7 +4203,7 @@
       "events",
       "interfaces"
     ],
-    "nav_order": 16
+    "nav_order": 17
   },
   {
     "id": "en/architecture#profile-identity",
@@ -3962,7 +4221,7 @@
       "profile",
       "identity"
     ],
-    "nav_order": 16
+    "nav_order": 17
   },
   {
     "id": "en/security#api-keys",
@@ -3981,7 +4240,7 @@
       "api",
       "keys"
     ],
-    "nav_order": 17
+    "nav_order": 18
   },
   {
     "id": "en/security#docs-chat-token-separate-surface",
@@ -4002,7 +4261,7 @@
       "separate",
       "surface"
     ],
-    "nav_order": 17
+    "nav_order": 18
   },
   {
     "id": "en/security#production-checklist",
@@ -4021,7 +4280,7 @@
       "production",
       "checklist"
     ],
-    "nav_order": 17
+    "nav_order": 18
   },
   {
     "id": "en/security#tools",
@@ -4039,7 +4298,7 @@
       "token",
       "tools"
     ],
-    "nav_order": 17
+    "nav_order": 18
   },
   {
     "id": "en/security#two-layer-gateway-auth",
@@ -4059,7 +4318,7 @@
       "layer",
       "gateway"
     ],
-    "nav_order": 17
+    "nav_order": 18
   },
   {
     "id": "en/security#web-tui-holix-tui---web",
@@ -4079,7 +4338,7 @@
       "tui",
       "holix"
     ],
-    "nav_order": 17
+    "nav_order": 18
   },
   {
     "id": "en/terminal-security#1-enable-disable-terminal-tool",
@@ -4095,7 +4354,7 @@
       "terminal",
       "tool"
     ],
-    "nav_order": 18
+    "nav_order": 19
   },
   {
     "id": "en/terminal-security#2-always-forbidden-patterns-dangerous-commands",
@@ -4112,7 +4371,7 @@
       "dangerous",
       "commands"
     ],
-    "nav_order": 18
+    "nav_order": 19
   },
   {
     "id": "en/terminal-security#3-command-whitelist-allowlist",
@@ -4127,7 +4386,7 @@
       "whitelist",
       "allowlist"
     ],
-    "nav_order": 18
+    "nav_order": 19
   },
   {
     "id": "en/terminal-security#4-user-confirmation-actionguard",
@@ -4142,7 +4401,7 @@
       "confirmation",
       "actionguard"
     ],
-    "nav_order": 18
+    "nav_order": 19
   },
   {
     "id": "en/terminal-security#5-workspace-jail-working-directory",
@@ -4158,7 +4417,7 @@
       "working",
       "directory"
     ],
-    "nav_order": 18
+    "nav_order": 19
   },
   {
     "id": "en/terminal-security#allowed-vs-forbidden-practical-guide",
@@ -4174,7 +4433,7 @@
       "practical",
       "guide"
     ],
-    "nav_order": 18
+    "nav_order": 19
   },
   {
     "id": "en/terminal-security#built-in-allowlist-unix",
@@ -4189,7 +4448,7 @@
       "allowlist",
       "unix"
     ],
-    "nav_order": 18
+    "nav_order": 19
   },
   {
     "id": "en/terminal-security#built-in-allowlist-windows",
@@ -4204,7 +4463,7 @@
       "allowlist",
       "windows"
     ],
-    "nav_order": 18
+    "nav_order": 19
   },
   {
     "id": "en/terminal-security#how-matching-works",
@@ -4219,7 +4478,7 @@
       "matching",
       "works"
     ],
-    "nav_order": 18
+    "nav_order": 19
   },
   {
     "id": "en/terminal-security#production-recommendations",
@@ -4233,7 +4492,7 @@
       "production",
       "recommendations"
     ],
-    "nav_order": 18
+    "nav_order": 19
   },
   {
     "id": "en/terminal-security#protection-layers-order-of-checks",
@@ -4249,7 +4508,7 @@
       "order",
       "checks"
     ],
-    "nav_order": 18
+    "nav_order": 19
   },
   {
     "id": "en/terminal-security#related-docs",
@@ -4263,7 +4522,7 @@
       "related",
       "docs"
     ],
-    "nav_order": 18
+    "nav_order": 19
   },
   {
     "id": "en/terminal-security#terminal-command-security",
@@ -4278,7 +4537,7 @@
       "command",
       "security"
     ],
-    "nav_order": 18
+    "nav_order": 19
   },
   {
     "id": "en/terminal-security#unix-macos-linux",
@@ -4293,7 +4552,7 @@
       "macos",
       "linux"
     ],
-    "nav_order": 18
+    "nav_order": 19
   },
   {
     "id": "en/terminal-security#when-whitelist-is-disabled",
@@ -4308,7 +4567,7 @@
       "whitelist",
       "disabled"
     ],
-    "nav_order": 18
+    "nav_order": 19
   },
   {
     "id": "en/terminal-security#windows-additional",
@@ -4322,7 +4581,7 @@
       "windows",
       "additional"
     ],
-    "nav_order": 18
+    "nav_order": 19
   },
   {
     "id": "en/deployment#2-configure-the-profile",
@@ -4342,7 +4601,7 @@
       "the",
       "profile"
     ],
-    "nav_order": 19
+    "nav_order": 20
   },
   {
     "id": "en/deployment#3-install-unit-files",
@@ -4362,7 +4621,7 @@
       "unit",
       "files"
     ],
-    "nav_order": 19
+    "nav_order": 20
   },
   {
     "id": "en/deployment#4-start-and-manage",
@@ -4382,7 +4641,7 @@
       "and",
       "manage"
     ],
-    "nav_order": 19
+    "nav_order": 20
   },
   {
     "id": "en/deployment#5-documentation-site-chat-widget",
@@ -4403,7 +4662,7 @@
       "chat",
       "widget"
     ],
-    "nav_order": 19
+    "nav_order": 20
   },
   {
     "id": "en/deployment#6-documentation-site-build-and-seo",
@@ -4425,7 +4684,7 @@
       "and",
       "seo"
     ],
-    "nav_order": 19
+    "nav_order": 20
   },
   {
     "id": "en/deployment#7-reverse-proxy-tls",
@@ -4445,7 +4704,7 @@
       "proxy",
       "tls"
     ],
-    "nav_order": 19
+    "nav_order": 20
   },
   {
     "id": "en/deployment#docker",
@@ -4462,7 +4721,7 @@
       "docker",
       "ci"
     ],
-    "nav_order": 19
+    "nav_order": 20
   },
   {
     "id": "en/deployment#edit-holix_python-and-holix_bin-to-match-pipx-paths-on-your-host",
@@ -4488,7 +4747,7 @@
       "your",
       "host"
     ],
-    "nav_order": 19
+    "nav_order": 20
   },
   {
     "id": "en/deployment#holixprofilesbobenv",
@@ -4510,7 +4769,7 @@
       "bob",
       "env"
     ],
-    "nav_order": 19
+    "nav_order": 20
   },
   {
     "id": "en/deployment#or-bind-to-an-existing-profile",
@@ -4530,7 +4789,7 @@
       "existing",
       "profile"
     ],
-    "nav_order": 19
+    "nav_order": 20
   },
   {
     "id": "en/deployment#or-for-a-named-profile",
@@ -4550,7 +4809,7 @@
       "named",
       "profile"
     ],
-    "nav_order": 19
+    "nav_order": 20
   },
   {
     "id": "en/deployment#systemd",
@@ -4567,7 +4826,7 @@
       "docker",
       "ci"
     ],
-    "nav_order": 19
+    "nav_order": 20
   },
   {
     "id": "en/doctor#checks",
@@ -4576,7 +4835,7 @@
     "section": "checks",
     "title": "Doctor",
     "heading": "Checks",
-    "body": "- (or ) writable - Platform: OS, data path, / / / in PATH; Windows: psutil hint, terminal whitelist note - Profile YAML and providers - LLM endpoint and model availability (skipped with ) - Gateway stale state / health - Telegram token, access requests, and allowlist - Production: pepper, CORS, auth, code executor After fixes, inspect runtime logs: — see LOGS.md.",
+    "body": "- (or ) writable - Platform: OS, data path, / / / in PATH; Windows: psutil hint, terminal whitelist note - Profile YAML and providers - LLM endpoint and model availability (skipped with ) - Gateway stale state / health - Holix Link connections (count, online/offline when gateway runs) - Telegram token, access requests, and allowlist - Production: pepper, CORS, auth, code executor After fixes, inspect runtime logs: — see LOGS.md.",
     "keywords": [
       "doctor",
       "диагностика",
@@ -4584,7 +4843,7 @@
       "repair",
       "checks"
     ],
-    "nav_order": 20
+    "nav_order": 21
   },
   {
     "id": "en/doctor#with---fix",
@@ -4601,7 +4860,7 @@
       "repair",
       "with"
     ],
-    "nav_order": 20
+    "nav_order": 21
   },
   {
     "id": "en/logs#data-directory",
@@ -4619,7 +4878,7 @@
       "data",
       "directory"
     ],
-    "nav_order": 21
+    "nav_order": 22
   },
   {
     "id": "en/logs#debug-mode",
@@ -4636,7 +4895,7 @@
       "rotation",
       "mode"
     ],
-    "nav_order": 21
+    "nav_order": 22
   },
   {
     "id": "en/logs#log-files",
@@ -4654,7 +4913,7 @@
       "log",
       "files"
     ],
-    "nav_order": 21
+    "nav_order": 22
   },
   {
     "id": "en/logs#logs-and-observability",
@@ -4672,7 +4931,7 @@
       "and",
       "observability"
     ],
-    "nav_order": 21
+    "nav_order": 22
   },
   {
     "id": "en/logs#related",
@@ -4689,7 +4948,7 @@
       "rotation",
       "related"
     ],
-    "nav_order": 21
+    "nav_order": 22
   },
   {
     "id": "en/logs#rotation-and-retention",
@@ -4707,7 +4966,7 @@
       "and",
       "retention"
     ],
-    "nav_order": 21
+    "nav_order": 22
   },
   {
     "id": "en/logs#troubleshooting",
@@ -4724,7 +4983,7 @@
       "rotation",
       "troubleshooting"
     ],
-    "nav_order": 21
+    "nav_order": 22
   },
   {
     "id": "en/logs#when-logs-are-written",
@@ -4743,7 +5002,7 @@
       "are",
       "written"
     ],
-    "nav_order": 21
+    "nav_order": 22
   },
   {
     "id": "en/pypi#checklist-before-every-release",
@@ -4763,7 +5022,7 @@
       "every",
       "release"
     ],
-    "nav_order": 22
+    "nav_order": 23
   },
   {
     "id": "en/pypi#github-actions-recommended",
@@ -4782,7 +5041,7 @@
       "actions",
       "recommended"
     ],
-    "nav_order": 22
+    "nav_order": 23
   },
   {
     "id": "en/pypi#holix-010targz",
@@ -4801,7 +5060,7 @@
       "010targz",
       "tar"
     ],
-    "nav_order": 22
+    "nav_order": 23
   },
   {
     "id": "en/pypi#known-limitations",
@@ -4819,7 +5078,7 @@
       "known",
       "limitations"
     ],
-    "nav_order": 22
+    "nav_order": 23
   },
   {
     "id": "en/pypi#local-build-check",
@@ -4838,7 +5097,7 @@
       "build",
       "check"
     ],
-    "nav_order": 22
+    "nav_order": 23
   },
   {
     "id": "en/pypi#one-time-setup",
@@ -4857,7 +5116,7 @@
       "time",
       "setup"
     ],
-    "nav_order": 22
+    "nav_order": 23
   },
   {
     "id": "en/pypi#option-b-twine-compatible",
@@ -4876,7 +5135,7 @@
       "twine",
       "compatible"
     ],
-    "nav_order": 22
+    "nav_order": 23
   },
   {
     "id": "en/pypi#or",
@@ -4892,7 +5151,7 @@
       "публикация",
       "package"
     ],
-    "nav_order": 22
+    "nav_order": 23
   },
   {
     "id": "en/pypi#or-inside-a-venv",
@@ -4910,7 +5169,7 @@
       "inside",
       "venv"
     ],
-    "nav_order": 22
+    "nav_order": 23
   },
   {
     "id": "en/pypi#package-name",
@@ -4927,7 +5186,7 @@
       "package",
       "name"
     ],
-    "nav_order": 22
+    "nav_order": 23
   },
   {
     "id": "en/pypi#prerequisites",
@@ -4944,7 +5203,7 @@
       "package",
       "prerequisites"
     ],
-    "nav_order": 22
+    "nav_order": 23
   },
   {
     "id": "en/pypi#publishing-to-pypi",
@@ -4961,7 +5220,7 @@
       "package",
       "publishing"
     ],
-    "nav_order": 22
+    "nav_order": 23
   },
   {
     "id": "en/pypi#user-facing-install-docs",
@@ -4981,7 +5240,7 @@
       "install",
       "docs"
     ],
-    "nav_order": 22
+    "nav_order": 23
   },
   {
     "id": "en/pypi#versioning",
@@ -4998,7 +5257,7 @@
       "package",
       "versioning"
     ],
-    "nav_order": 22
+    "nav_order": 23
   },
   {
     "id": "en/pypi#what-is-already-configured",
@@ -5017,7 +5276,7 @@
       "already",
       "configured"
     ],
-    "nav_order": 22
+    "nav_order": 23
   },
   {
     "id": "en/troubleshooting#telegram-access-denied",
@@ -5036,7 +5295,7 @@
       "access",
       "denied"
     ],
-    "nav_order": 23
+    "nav_order": 24
   },
   {
     "id": "en/troubleshooting#telegram-menu-visible-before-approval",
@@ -5057,7 +5316,7 @@
       "before",
       "approval"
     ],
-    "nav_order": 23
+    "nav_order": 24
   },
   {
     "id": "en/troubleshooting#windows-specific",
@@ -5075,7 +5334,7 @@
       "windows",
       "specific"
     ],
-    "nav_order": 23
+    "nav_order": 24
   },
   {
     "id": "en/user-guide#1-what-holix-can-do",
@@ -5093,7 +5352,7 @@
       "holix",
       "can"
     ],
-    "nav_order": 24
+    "nav_order": 25
   },
   {
     "id": "en/user-guide#10-step-8-execution-modes",
@@ -5111,7 +5370,7 @@
       "execution",
       "modes"
     ],
-    "nav_order": 24
+    "nav_order": 25
   },
   {
     "id": "en/user-guide#11-step-9-how-to-write-prompts",
@@ -5130,7 +5389,7 @@
       "write",
       "prompts"
     ],
-    "nav_order": 24
+    "nav_order": 25
   },
   {
     "id": "en/user-guide#12-step-10-mcp-step-by-step",
@@ -5147,7 +5406,7 @@
       "step",
       "mcp"
     ],
-    "nav_order": 24
+    "nav_order": 25
   },
   {
     "id": "en/user-guide#122-install-mcp-easy-way",
@@ -5167,7 +5426,7 @@
       "easy",
       "way"
     ],
-    "nav_order": 24
+    "nav_order": 25
   },
   {
     "id": "en/user-guide#15-slash-commands-in-chat",
@@ -5185,7 +5444,7 @@
       "commands",
       "chat"
     ],
-    "nav_order": 24
+    "nav_order": 25
   },
   {
     "id": "en/user-guide#16-holix-features",
@@ -5202,7 +5461,7 @@
       "holix",
       "features"
     ],
-    "nav_order": 24
+    "nav_order": 25
   },
   {
     "id": "en/user-guide#17-troubleshooting",
@@ -5218,7 +5477,7 @@
       "usage",
       "troubleshooting"
     ],
-    "nav_order": 24
+    "nav_order": 25
   },
   {
     "id": "en/user-guide#2-requirements",
@@ -5234,7 +5493,7 @@
       "usage",
       "requirements"
     ],
-    "nav_order": 24
+    "nav_order": 25
   },
   {
     "id": "en/user-guide#3-step-1-install-python",
@@ -5252,7 +5511,7 @@
       "install",
       "python"
     ],
-    "nav_order": 24
+    "nav_order": 25
   },
   {
     "id": "en/user-guide#4-step-2-install-uv-recommended",
@@ -5270,7 +5529,7 @@
       "install",
       "recommended"
     ],
-    "nav_order": 24
+    "nav_order": 25
   },
   {
     "id": "en/user-guide#5-step-3-install-from-pypi",
@@ -5289,7 +5548,7 @@
       "from",
       "pypi"
     ],
-    "nav_order": 24
+    "nav_order": 25
   },
   {
     "id": "en/user-guide#51-global-install-recommended",
@@ -5307,7 +5566,7 @@
       "install",
       "recommended"
     ],
-    "nav_order": 24
+    "nav_order": 25
   },
   {
     "id": "en/user-guide#54-windows",
@@ -5323,7 +5582,7 @@
       "usage",
       "windows"
     ],
-    "nav_order": 24
+    "nav_order": 25
   },
   {
     "id": "en/user-guide#61-create-the-environment-file",
@@ -5342,7 +5601,7 @@
       "environment",
       "file"
     ],
-    "nav_order": 24
+    "nav_order": 25
   },
   {
     "id": "en/user-guide#62-profile",
@@ -5358,7 +5617,7 @@
       "usage",
       "profile"
     ],
-    "nav_order": 24
+    "nav_order": 25
   },
   {
     "id": "en/user-guide#63-diagnostics",
@@ -5374,7 +5633,7 @@
       "usage",
       "diagnostics"
     ],
-    "nav_order": 24
+    "nav_order": 25
   },
   {
     "id": "en/user-guide#7-step-5-configure-models-via-litellm",
@@ -5394,7 +5653,7 @@
       "via",
       "litellm"
     ],
-    "nav_order": 24
+    "nav_order": 25
   },
   {
     "id": "en/user-guide#71-what-to-get-from-the-litellm-administrator",
@@ -5415,7 +5674,7 @@
       "litellm",
       "administrator"
     ],
-    "nav_order": 24
+    "nav_order": 25
   },
   {
     "id": "en/user-guide#73-add-the-litellm-provider-to-the-profile-interactive",
@@ -5436,7 +5695,7 @@
       "profile",
       "interactive"
     ],
-    "nav_order": 24
+    "nav_order": 25
   },
   {
     "id": "en/user-guide#74-full-setup-wizard-recommended",
@@ -5455,7 +5714,7 @@
       "wizard",
       "recommended"
     ],
-    "nav_order": 24
+    "nav_order": 25
   },
   {
     "id": "en/user-guide#75-assigning-models-to-agents",
@@ -5473,7 +5732,7 @@
       "models",
       "agents"
     ],
-    "nav_order": 24
+    "nav_order": 25
   },
   {
     "id": "en/user-guide#8-step-6-web-search-optional",
@@ -5492,7 +5751,7 @@
       "search",
       "optional"
     ],
-    "nav_order": 24
+    "nav_order": 25
   },
   {
     "id": "en/user-guide#92-create-a-bot-in-telegram",
@@ -5510,7 +5769,7 @@
       "bot",
       "telegram"
     ],
-    "nav_order": 24
+    "nav_order": 25
   },
   {
     "id": "en/user-guide#93-connect-the-bot-admin",
@@ -5529,7 +5788,7 @@
       "bot",
       "admin"
     ],
-    "nav_order": 24
+    "nav_order": 25
   },
   {
     "id": "en/user-guide#94-designate-the-telegram-admin-once-cli-only",
@@ -5551,7 +5810,7 @@
       "cli",
       "only"
     ],
-    "nav_order": 24
+    "nav_order": 25
   },
   {
     "id": "en/user-guide#95-users-request-access",
@@ -5569,7 +5828,7 @@
       "request",
       "access"
     ],
-    "nav_order": 24
+    "nav_order": 25
   },
   {
     "id": "en/user-guide#951-admin-approves-and-creates-an-isolated-profile",
@@ -5591,7 +5850,7 @@
       "isolated",
       "profile"
     ],
-    "nav_order": 24
+    "nav_order": 25
   },
   {
     "id": "en/user-guide#97-update-the-telegram-command-menu",
@@ -5611,7 +5870,7 @@
       "command",
       "menu"
     ],
-    "nav_order": 24
+    "nav_order": 25
   },
   {
     "id": "en/user-guide#98-production",
@@ -5627,7 +5886,7 @@
       "usage",
       "production"
     ],
-    "nav_order": 24
+    "nav_order": 25
   },
   {
     "id": "en/user-guide#98-voice-messages-optional",
@@ -5645,7 +5904,7 @@
       "messages",
       "optional"
     ],
-    "nav_order": 24
+    "nav_order": 25
   },
   {
     "id": "en/user-guide#build-from-source",
@@ -5663,7 +5922,7 @@
       "from",
       "source"
     ],
-    "nav_order": 24
+    "nav_order": 25
   },
   {
     "id": "en/user-guide#holix-complete-user-guide",
@@ -5681,7 +5940,7 @@
       "complete",
       "user"
     ],
-    "nav_order": 24
+    "nav_order": 25
   },
   {
     "id": "en/user-guide#holix-config",
@@ -5698,7 +5957,7 @@
       "holix",
       "config"
     ],
-    "nav_order": 24
+    "nav_order": 25
   },
   {
     "id": "en/user-guide#holix-models",
@@ -5715,7 +5974,7 @@
       "holix",
       "models"
     ],
-    "nav_order": 24
+    "nav_order": 25
   },
   {
     "id": "en/user-guide#install",
@@ -5731,7 +5990,7 @@
       "usage",
       "install"
     ],
-    "nav_order": 24
+    "nav_order": 25
   },
   {
     "id": "en/user-guide#litellm-proxy",
@@ -5748,7 +6007,7 @@
       "litellm",
       "proxy"
     ],
-    "nav_order": 24
+    "nav_order": 25
   },
   {
     "id": "en/user-guide#main-commands",
@@ -5765,7 +6024,7 @@
       "main",
       "commands"
     ],
-    "nav_order": 24
+    "nav_order": 25
   },
   {
     "id": "en/user-guide#or-manually",
@@ -5781,7 +6040,7 @@
       "usage",
       "manually"
     ],
-    "nav_order": 24
+    "nav_order": 25
   },
   {
     "id": "en/user-guide#or-simply",
@@ -5797,7 +6056,7 @@
       "usage",
       "simply"
     ],
-    "nav_order": 24
+    "nav_order": 25
   },
   {
     "id": "en/user-guide#quick-checklist-from-zero-to-chat",
@@ -5817,7 +6076,7 @@
       "zero",
       "chat"
     ],
-    "nav_order": 24
+    "nav_order": 25
   },
   {
     "id": "en/user-guide#see-also",
@@ -5834,7 +6093,7 @@
       "see",
       "also"
     ],
-    "nav_order": 24
+    "nav_order": 25
   },
   {
     "id": "en/user-guide#table-of-contents",
@@ -5851,7 +6110,7 @@
       "table",
       "contents"
     ],
-    "nav_order": 24
+    "nav_order": 25
   },
   {
     "id": "ru/readme#документация-holix-русский",
@@ -5877,7 +6136,7 @@
     "section": "интерфейсы",
     "title": "Обзор",
     "heading": "Интерфейсы",
-    "body": "- CLI.md — справочник команд - SLASH COMMANDS.md — слэш-команды - EXECUTION MODES.md — ReAct, Plan, Hybrid, Auto — как работают режимы и примеры промптов - TUI.md — - HUB.md — каталоги навыков - GATEWAY.md — API gateway - GATEWAY API.md — полный справочник API — каждый эндпоинт задокументирован (auth, , SaaS curl) - TELEGRAM.md — Telegram - TELEGRAM MULTI PROFILE.md — один бот / несколько ботов, access requests, ручной - BROWSER TOOLS.md — Playwright",
+    "body": "- CLI.md — справочник команд - SLASH COMMANDS.md — слэш-команды - EXECUTION MODES.md — ReAct, Plan, Hybrid, Auto — как работают режимы и примеры промптов - TUI.md — - HUB.md — каталоги навыков - GATEWAY.md — API gateway - LINK.md — Holix Link — удалённый доступ к папке за NAT ( , клиент ) - GATEWAY API.md — полный справочник API — каждый эндпоинт задокументирован (auth, , SaaS curl) - TELEGRAM.md — Telegram - TELEGRAM MULTI PROFILE.md — один бот / несколько ботов, access requests, ручной - BROWSER TOOLS.md — Playwright",
     "keywords": [
       "overview",
       "обзор",
@@ -6330,6 +6589,25 @@
       "если",
       "модель",
       "недоступна"
+    ],
+    "nav_order": 4
+  },
+  {
+    "id": "ru/configuration#holix-link-опционально",
+    "lang": "ru",
+    "slug": "configuration",
+    "section": "holix-link-опционально",
+    "title": "Конфигурация",
+    "heading": "Holix Link (опционально)",
+    "body": "Удалённая папка на ПК пользователя (за NAT) через клиент Holix-Link — см. LINK.md.",
+    "keywords": [
+      "config",
+      "конфигурация",
+      "env",
+      "переменные",
+      "holix",
+      "link",
+      "опционально"
     ],
     "nav_order": 4
   },
@@ -7016,6 +7294,24 @@
       "terminal",
       "holix",
       "hub"
+    ],
+    "nav_order": 6
+  },
+  {
+    "id": "ru/cli#holix-link",
+    "lang": "ru",
+    "slug": "cli",
+    "section": "holix-link",
+    "title": "Справочник CLI",
+    "heading": "`holix link`",
+    "body": "Управление Holix Link на сервере. Пользователи подключаются клиентом — см. LINK.md. Подкоманда Описание ------------ ---------- Одноразовый pair-код ( , ) Список link ( , ) Отозвать связь ---",
+    "keywords": [
+      "command",
+      "команды",
+      "typer",
+      "terminal",
+      "holix",
+      "link"
     ],
     "nav_order": 6
   },
@@ -7918,6 +8214,25 @@
     "nav_order": 11
   },
   {
+    "id": "ru/gateway#holix-link",
+    "lang": "ru",
+    "slug": "gateway",
+    "section": "holix-link",
+    "title": "API Gateway",
+    "heading": "Holix Link",
+    "body": "Удалённый доступ агента к папке на ПК пользователя (за NAT) через исходящий WebSocket: На ПК пользователя ставится только клиент Holix-Link ( ). Полное руководство: LINK.md.",
+    "keywords": [
+      "api",
+      "gateway",
+      "гейтвей",
+      "uvicorn",
+      "openai",
+      "holix",
+      "link"
+    ],
+    "nav_order": 11
+  },
+  {
     "id": "ru/gateway#multi-profile-gateway-v02",
     "lang": "ru",
     "slug": "gateway",
@@ -8155,6 +8470,184 @@
     "nav_order": 11
   },
   {
+    "id": "ru/link#holix-link-удалённый-доступ-к-папке",
+    "lang": "ru",
+    "slug": "link",
+    "section": "holix-link-удалённый-доступ-к-папке",
+    "title": "Holix Link",
+    "heading": "Holix Link — удалённый доступ к папке",
+    "body": "Holix Link позволяет агенту Holix на сервере читать и записывать файлы в папке на ПК пользователя за NAT — без установки полного Holix на этой машине. Компонент Пакет Где работает ----------- ------- -------------- Клиент Holix Link Holix-Link ( ) ПК пользователя (Windows / Linux / macOS) Link Relay + tools агента ( , ) VPS / сервер Клиент открывает исходящий WebSocket (TLS/WSS). Входящие порты на стороне пользователя не нужны. ---",
+    "keywords": [
+      "holix",
+      "link",
+      "удалённый",
+      "доступ",
+      "папке"
+    ],
+    "nav_order": 12
+  },
+  {
+    "id": "ru/link#http-websocket-api",
+    "lang": "ru",
+    "slug": "link",
+    "section": "http-websocket-api",
+    "title": "Holix Link",
+    "heading": "HTTP / WebSocket API",
+    "body": "Endpoint Auth Назначение ---------- ------ ------------ API key Создать pair-код Публичный (rate limit) Обмен кода на API key Список link API key Статус link API key Отзыв Device key (первое сообщение) Сессия клиента Подробнее: GATEWAY API.md. ---",
+    "keywords": [
+      "http",
+      "websocket",
+      "api"
+    ],
+    "nav_order": 12
+  },
+  {
+    "id": "ru/link#link-7k3m-9q2p",
+    "lang": "ru",
+    "slug": "link",
+    "section": "link-7k3m-9q2p",
+    "title": "Holix Link",
+    "heading": "→ LINK-7K3M-9Q2P",
+    "body": "holix gateway start ``` Передайте pair-код пользователю (Telegram, email, support).",
+    "keywords": [
+      "link",
+      "7k3m",
+      "9q2p"
+    ],
+    "nav_order": 12
+  },
+  {
+    "id": "ru/link#tools-агента",
+    "lang": "ru",
+    "slug": "link",
+    "section": "tools-агента",
+    "title": "Holix Link",
+    "heading": "Tools агента",
+    "body": "Регистрируются автоматически, если у профиля есть активные link: Tool Описание ------ ---------- Список каталога на клиенте Чтение файла (макс. 10 MB) Запись файла Метаданные пути Создать каталог Удалить файл При нескольких link на профиль укажите в аргументах tool. Нужно: запущенный gateway и онлайн-клиент ( / ). ---",
+    "keywords": [
+      "tools",
+      "агента"
+    ],
+    "nav_order": 12
+  },
+  {
+    "id": "ru/link#безопасность",
+    "lang": "ru",
+    "slug": "link",
+    "section": "безопасность",
+    "title": "Holix Link",
+    "heading": "Безопасность",
+    "body": "- TLS 1.3 (WSS) - Fingerprint сервера при pairing; доверие через подтверждение или - Workspace jail на клиенте — без escape, symlink заблокирован - Отзыв: или - Только self-hosted relay См. SECURITY.md и design doc. ---",
+    "keywords": [
+      "безопасность"
+    ],
+    "nav_order": 12
+  },
+  {
+    "id": "ru/link#заметки-по-платформам",
+    "lang": "ru",
+    "slug": "link",
+    "section": "заметки-по-платформам",
+    "title": "Holix Link",
+    "heading": "Заметки по платформам",
+    "body": "ОС Примеры папок Автозапуск ---- --------------- ------------ Linux , systemd user unit macOS LaunchAgent Windows , Task Scheduler при входе Поддерживаются UNC и сетевые пути; внутри jail — portable относительные пути. ---",
+    "keywords": [
+      "заметки",
+      "платформам"
+    ],
+    "nav_order": 12
+  },
+  {
+    "id": "ru/link#или",
+    "lang": "ru",
+    "slug": "link",
+    "section": "или",
+    "title": "Holix Link",
+    "heading": "или",
+    "body": "curl -fsSL https://raw.githubusercontent.com/javded-itres/Holix-Link/main/scripts/install-link.sh bash `` scripts/install-link.ps1` из репозитория Holix-Link.",
+    "keywords": [
+      "или"
+    ],
+    "nav_order": 12
+  },
+  {
+    "id": "ru/link#команды-клиента-holix-link",
+    "lang": "ru",
+    "slug": "link",
+    "section": "команды-клиента-holix-link",
+    "title": "Holix Link",
+    "heading": "Команды клиента (`holix-link`)",
+    "body": "Команда Описание --------- ---------- Интерактивный pairing Pairing с gateway Цикл подключения Автозапуск (systemd / LaunchAgent / Task Scheduler) Убрать автозапуск Остановить daemon Статус link и daemon Удалить локальные credentials",
+    "keywords": [
+      "команды",
+      "клиента",
+      "holix",
+      "link"
+    ],
+    "nav_order": 12
+  },
+  {
+    "id": "ru/link#команды-сервера-holix-link",
+    "lang": "ru",
+    "slug": "link",
+    "section": "команды-сервера-holix-link",
+    "title": "Holix Link",
+    "heading": "Команды сервера (`holix link`)",
+    "body": "Команда Описание --------- ---------- Одноразовый pair-код (admin или владелец профиля) Список link Отзыв связи Коды истекают (по умолчанию 10 минут , максимум 1 час). Данные: . ---",
+    "keywords": [
+      "команды",
+      "сервера",
+      "holix",
+      "link"
+    ],
+    "nav_order": 12
+  },
+  {
+    "id": "ru/link#конфигурация-профиля",
+    "lang": "ru",
+    "slug": "link",
+    "section": "конфигурация-профиля",
+    "title": "Holix Link",
+    "heading": "Конфигурация профиля",
+    "body": "В : Поле По умолчанию Описание ------ -------------- ---------- Макс. одновременных link на профиль , , (только файлы) Pair-код выдают admin gateway или владелец профиля (тот же Telegram-бот на сервере). ---",
+    "keywords": [
+      "конфигурация",
+      "профиля"
+    ],
+    "nav_order": 12
+  },
+  {
+    "id": "ru/link#оператор-telegram-чат-профиля-support",
+    "lang": "ru",
+    "slug": "link",
+    "section": "оператор-telegram-чат-профиля-support",
+    "title": "Holix Link",
+    "heading": "Оператор (Telegram / чат профиля `support`)",
+    "body": "Попросите агента прочитать файл — при наличии link используются tools : Прочитай README.md в подключённой папке ---",
+    "keywords": [
+      "оператор",
+      "telegram",
+      "чат",
+      "профиля",
+      "support"
+    ],
+    "nav_order": 12
+  },
+  {
+    "id": "ru/link#решение-проблем",
+    "lang": "ru",
+    "slug": "link",
+    "section": "решение-проблем",
+    "title": "Holix Link",
+    "heading": "Решение проблем",
+    "body": "Симптом Проверка --------- ---------- Pairing 404 Код истёк — снова Pairing 409 Лимит — отзовите старые link Агент: link offline , daemon, исходящий HTTPS Нет link tools — нет активных link Предупреждения doctor Секция link в выводе ---",
+    "keywords": [
+      "решение",
+      "проблем"
+    ],
+    "nav_order": 12
+  },
+  {
     "id": "ru/gateway-api#1-создать-профиль-арендатора-admin",
     "lang": "ru",
     "slug": "gateway-api",
@@ -8168,7 +8661,7 @@
       "арендатора",
       "admin"
     ],
-    "nav_order": 12
+    "nav_order": 13
   },
   {
     "id": "ru/gateway-api#2-добавить-llm-провайдера",
@@ -8183,7 +8676,7 @@
       "llm",
       "провайдера"
     ],
-    "nav_order": 12
+    "nav_order": 13
   },
   {
     "id": "ru/gateway-api#3-перезагрузить-агента-арендатора-companions",
@@ -8199,7 +8692,7 @@
       "арендатора",
       "companions"
     ],
-    "nav_order": 12
+    "nav_order": 13
   },
   {
     "id": "ru/gateway-api#4-чат-от-имени-арендатора-openai-client-model-имя-профиля",
@@ -8219,7 +8712,7 @@
       "имя",
       "профиля"
     ],
-    "nav_order": 12
+    "nav_order": 13
   },
   {
     "id": "ru/gateway-api#api-чата-сайта-документации",
@@ -8235,7 +8728,7 @@
       "сайта",
       "документации"
     ],
-    "nav_order": 12
+    "nav_order": 13
   },
   {
     "id": "ru/gateway-api#delete-adminapi-keyskey_id",
@@ -8254,7 +8747,7 @@
       "keys",
       "key_id"
     ],
-    "nav_order": 12
+    "nav_order": 13
   },
   {
     "id": "ru/gateway-api#get",
@@ -8267,7 +8760,7 @@
     "keywords": [
       "get"
     ],
-    "nav_order": 12
+    "nav_order": 13
   },
   {
     "id": "ru/gateway-api#get-healthdetailed",
@@ -8283,7 +8776,7 @@
       "health",
       "detailed"
     ],
-    "nav_order": 12
+    "nav_order": 13
   },
   {
     "id": "ru/gateway-api#get-metrics",
@@ -8297,7 +8790,7 @@
       "get",
       "metrics"
     ],
-    "nav_order": 12
+    "nav_order": 13
   },
   {
     "id": "ru/gateway-api#get-status",
@@ -8311,7 +8804,7 @@
       "get",
       "status"
     ],
-    "nav_order": 12
+    "nav_order": 13
   },
   {
     "id": "ru/gateway-api#get-v1docschatsession",
@@ -8328,7 +8821,7 @@
       "chat",
       "session"
     ],
-    "nav_order": 12
+    "nav_order": 13
   },
   {
     "id": "ru/gateway-api#hermes-api-v1",
@@ -8342,7 +8835,7 @@
       "hermes",
       "api"
     ],
-    "nav_order": 12
+    "nav_order": 13
   },
   {
     "id": "ru/gateway-api#holix-gateway-api-полный-справочник",
@@ -8359,7 +8852,22 @@
       "полный",
       "справочник"
     ],
-    "nav_order": 12
+    "nav_order": 13
+  },
+  {
+    "id": "ru/gateway-api#holix-link-api",
+    "lang": "ru",
+    "slug": "gateway-api",
+    "section": "holix-link-api",
+    "title": "Полный справочник API",
+    "heading": "Holix Link API",
+    "body": "Удалённый доступ к папке: клиент Holix-Link на ПК пользователя ↔ Link Relay в gateway. Руководство: LINK.md. Метод Путь Auth Описание -------- ------ ------ ---------- API key Создать pair-код Публичный (rate limit) Обмен кода на API key Список link ( ) API key Статус + online API key Отзыв Device key (сообщение ) Сессия клиента Tools агента ( , …) работают, когда клиент подключён по WebSocket. ---",
+    "keywords": [
+      "holix",
+      "link",
+      "api"
+    ],
+    "nav_order": 13
   },
   {
     "id": "ru/gateway-api#post-adminapi-keys",
@@ -8376,7 +8884,7 @@
       "admin",
       "api"
     ],
-    "nav_order": 12
+    "nav_order": 13
   },
   {
     "id": "ru/gateway-api#post-apiholixprofiles",
@@ -8393,7 +8901,7 @@
       "holix",
       "profiles"
     ],
-    "nav_order": 12
+    "nav_order": 13
   },
   {
     "id": "ru/gateway-api#post-apijobs",
@@ -8409,7 +8917,7 @@
       "api",
       "jobs"
     ],
-    "nav_order": 12
+    "nav_order": 13
   },
   {
     "id": "ru/gateway-api#post-v1chatcompletions",
@@ -8425,7 +8933,7 @@
       "chat",
       "completions"
     ],
-    "nav_order": 12
+    "nav_order": 13
   },
   {
     "id": "ru/gateway-api#post-v1docschat",
@@ -8441,7 +8949,7 @@
       "docs",
       "chat"
     ],
-    "nav_order": 12
+    "nav_order": 13
   },
   {
     "id": "ru/gateway-api#post-v1responses",
@@ -8456,7 +8964,7 @@
       "v1responses",
       "responses"
     ],
-    "nav_order": 12
+    "nav_order": 13
   },
   {
     "id": "ru/gateway-api#reload_required",
@@ -8469,7 +8977,7 @@
     "keywords": [
       "reload_required"
     ],
-    "nav_order": 12
+    "nav_order": 13
   },
   {
     "id": "ru/gateway-api#swagger-authorize-один-токен-для-всех-запросов",
@@ -8488,7 +8996,7 @@
       "всех",
       "запросов"
     ],
-    "nav_order": 12
+    "nav_order": 13
   },
   {
     "id": "ru/gateway-api#архитектура-multi-profile",
@@ -8503,7 +9011,7 @@
       "multi",
       "profile"
     ],
-    "nav_order": 12
+    "nav_order": 13
   },
   {
     "id": "ru/gateway-api#аутентификация",
@@ -8516,7 +9024,7 @@
     "keywords": [
       "аутентификация"
     ],
-    "nav_order": 12
+    "nav_order": 13
   },
   {
     "id": "ru/gateway-api#базовый-url-и-интерактивная-документация",
@@ -8532,7 +9040,7 @@
       "интерактивная",
       "документация"
     ],
-    "nav_order": 12
+    "nav_order": 13
   },
   {
     "id": "ru/gateway-api#заголовки-сессии-алиасы",
@@ -8547,7 +9055,7 @@
       "сессии",
       "алиасы"
     ],
-    "nav_order": 12
+    "nav_order": 13
   },
   {
     "id": "ru/gateway-api#замечания-по-безопасности",
@@ -8561,7 +9069,7 @@
       "замечания",
       "безопасности"
     ],
-    "nav_order": 12
+    "nav_order": 13
   },
   {
     "id": "ru/gateway-api#маршрутизация-профиля",
@@ -8575,7 +9083,7 @@
       "маршрутизация",
       "профиля"
     ],
-    "nav_order": 12
+    "nav_order": 13
   },
   {
     "id": "ru/gateway-api#маскирование-секретов",
@@ -8589,7 +9097,7 @@
       "маскирование",
       "секретов"
     ],
-    "nav_order": 12
+    "nav_order": 13
   },
   {
     "id": "ru/gateway-api#матрица-совместимости-с-hermes",
@@ -8604,7 +9112,7 @@
       "совместимости",
       "hermes"
     ],
-    "nav_order": 12
+    "nav_order": 13
   },
   {
     "id": "ru/gateway-api#нужен-существующий-admin-key-или-bootstrap-с-holix_require_authf",
@@ -8627,7 +9135,7 @@
       "один",
       "раз"
     ],
-    "nav_order": 12
+    "nav_order": 13
   },
   {
     "id": "ru/gateway-api#ошибки",
@@ -8640,7 +9148,7 @@
     "keywords": [
       "ошибки"
     ],
-    "nav_order": 12
+    "nav_order": 13
   },
   {
     "id": "ru/gateway-api#примеры-saas-воркфлоу",
@@ -8655,7 +9163,7 @@
       "saas",
       "воркфлоу"
     ],
-    "nav_order": 12
+    "nav_order": 13
   },
   {
     "id": "ru/gateway-api#содержание",
@@ -8668,7 +9176,7 @@
     "keywords": [
       "содержание"
     ],
-    "nav_order": 12
+    "nav_order": 13
   },
   {
     "id": "ru/gateway-api#уровень-1-api-key-gateway-hx_",
@@ -8685,7 +9193,7 @@
       "gateway",
       "hx_"
     ],
-    "nav_order": 12
+    "nav_order": 13
   },
   {
     "id": "ru/gateway-api#уровень-2-ключ-доступа-к-профилю-hp_",
@@ -8702,7 +9210,7 @@
       "профилю",
       "hp_"
     ],
-    "nav_order": 12
+    "nav_order": 13
   },
   {
     "id": "ru/gateway-api#уровень-3-токен-docs-chat-только-для-виджета-сайта",
@@ -8722,7 +9230,7 @@
       "виджета",
       "сайта"
     ],
-    "nav_order": 12
+    "nav_order": 13
   },
   {
     "id": "ru/telegram#1-админ-подключение-бота",
@@ -8744,7 +9252,7 @@
       "подключение",
       "бота"
     ],
-    "nav_order": 13
+    "nav_order": 14
   },
   {
     "id": "ru/telegram#2-первый-администратор-только-cli",
@@ -8767,7 +9275,7 @@
       "только",
       "cli"
     ],
-    "nav_order": 13
+    "nav_order": 14
   },
   {
     "id": "ru/telegram#3-пользователь-запрос-доступа",
@@ -8789,7 +9297,7 @@
       "запрос",
       "доступа"
     ],
-    "nav_order": 13
+    "nav_order": 14
   },
   {
     "id": "ru/telegram#4-админ-одобрение-и-изолированный-профиль",
@@ -8812,7 +9320,7 @@
       "изолированный",
       "профиль"
     ],
-    "nav_order": 13
+    "nav_order": 14
   },
   {
     "id": "ru/telegram#ffmpeg-должен-быть-в-path",
@@ -8835,7 +9343,7 @@
       "быть",
       "path"
     ],
-    "nav_order": 13
+    "nav_order": 14
   },
   {
     "id": "ru/telegram#production",
@@ -8855,7 +9363,7 @@
       "голосовые",
       "production"
     ],
-    "nav_order": 13
+    "nav_order": 14
   },
   {
     "id": "ru/telegram#telegram",
@@ -8874,7 +9382,7 @@
       "whisper",
       "голосовые"
     ],
-    "nav_order": 13
+    "nav_order": 14
   },
   {
     "id": "ru/telegram#видимость-меню-команд",
@@ -8896,7 +9404,7 @@
       "меню",
       "команд"
     ],
-    "nav_order": 13
+    "nav_order": 14
   },
   {
     "id": "ru/telegram#голосовые-сообщения",
@@ -8916,7 +9424,7 @@
       "голосовые",
       "сообщения"
     ],
-    "nav_order": 13
+    "nav_order": 14
   },
   {
     "id": "ru/telegram#использование",
@@ -8936,7 +9444,7 @@
       "голосовые",
       "использование"
     ],
-    "nav_order": 13
+    "nav_order": 14
   },
   {
     "id": "ru/telegram#как-это-работает",
@@ -8958,7 +9466,7 @@
       "это",
       "работает"
     ],
-    "nav_order": 13
+    "nav_order": 14
   },
   {
     "id": "ru/telegram#настройка",
@@ -8978,7 +9486,7 @@
       "голосовые",
       "настройка"
     ],
-    "nav_order": 13
+    "nav_order": 14
   },
   {
     "id": "ru/telegram#привязка-user-id-профиль-вручную",
@@ -9001,7 +9509,7 @@
       "профиль",
       "вручную"
     ],
-    "nav_order": 13
+    "nav_order": 14
   },
   {
     "id": "ru/telegram-multi-profile#3-свой-бот-у-каждого-профиля",
@@ -9017,7 +9525,7 @@
       "каждого",
       "профиля"
     ],
-    "nav_order": 14
+    "nav_order": 15
   },
   {
     "id": "ru/telegram-multi-profile#5-ограничить-доступ-в-production",
@@ -9032,7 +9540,7 @@
       "доступ",
       "production"
     ],
-    "nav_order": 14
+    "nav_order": 15
   },
   {
     "id": "ru/telegram-multi-profile#holixprofilesbobenv",
@@ -9049,7 +9557,7 @@
       "bob",
       "env"
     ],
-    "nav_order": 14
+    "nav_order": 15
   },
   {
     "id": "ru/telegram-multi-profile#telegram-несколько-изолированных-профилей",
@@ -9065,7 +9573,7 @@
       "изолированных",
       "профилей"
     ],
-    "nav_order": 14
+    "nav_order": 15
   },
   {
     "id": "ru/telegram-multi-profile#альтернатива-один-бот-ручной-profile-или-map",
@@ -9084,7 +9592,7 @@
       "или",
       "map"
     ],
-    "nav_order": 14
+    "nav_order": 15
   },
   {
     "id": "ru/telegram-multi-profile#итог",
@@ -9097,7 +9605,7 @@
     "keywords": [
       "итог"
     ],
-    "nav_order": 14
+    "nav_order": 15
   },
   {
     "id": "ru/telegram-multi-profile#как-устроено-в-holix",
@@ -9112,7 +9620,7 @@
       "устроено",
       "holix"
     ],
-    "nav_order": 14
+    "nav_order": 15
   },
   {
     "id": "ru/telegram-multi-profile#ограничения-одного-бота",
@@ -9127,7 +9635,7 @@
       "одного",
       "бота"
     ],
-    "nav_order": 14
+    "nav_order": 15
   },
   {
     "id": "ru/telegram-multi-profile#один-бот-много-пользователей-access-requests-рекомендуется",
@@ -9146,7 +9654,7 @@
       "requests",
       "рекомендуется"
     ],
-    "nav_order": 14
+    "nav_order": 15
   },
   {
     "id": "ru/telegram-multi-profile#привязка-user-id-профиль-один-бот-вручную",
@@ -9164,7 +9672,7 @@
       "бот",
       "вручную"
     ],
-    "nav_order": 14
+    "nav_order": 15
   },
   {
     "id": "ru/telegram-multi-profile#сравнение-подходов",
@@ -9178,7 +9686,7 @@
       "сравнение",
       "подходов"
     ],
-    "nav_order": 14
+    "nav_order": 15
   },
   {
     "id": "ru/telegram-multi-profile#типичные-ошибки",
@@ -9192,7 +9700,7 @@
       "типичные",
       "ошибки"
     ],
-    "nav_order": 14
+    "nav_order": 15
   },
   {
     "id": "ru/browser-tools#безопасность",
@@ -9208,7 +9716,7 @@
       "браузер",
       "безопасность"
     ],
-    "nav_order": 15
+    "nav_order": 16
   },
   {
     "id": "ru/browser-tools#браузерная-автоматизация-playwright",
@@ -9225,7 +9733,7 @@
       "браузерная",
       "автоматизация"
     ],
-    "nav_order": 15
+    "nav_order": 16
   },
   {
     "id": "ru/browser-tools#инструменты",
@@ -9241,7 +9749,7 @@
       "браузер",
       "инструменты"
     ],
-    "nav_order": 15
+    "nav_order": 16
   },
   {
     "id": "ru/architecture#архитектура",
@@ -9257,7 +9765,7 @@
       "runtime",
       "events"
     ],
-    "nav_order": 16
+    "nav_order": 17
   },
   {
     "id": "ru/security#api-keys",
@@ -9276,7 +9784,7 @@
       "api",
       "keys"
     ],
-    "nav_order": 17
+    "nav_order": 18
   },
   {
     "id": "ru/security#web-tui-holix-tui---web",
@@ -9296,7 +9804,7 @@
       "tui",
       "holix"
     ],
-    "nav_order": 17
+    "nav_order": 18
   },
   {
     "id": "ru/security#двухслойная-аутентификация-gateway",
@@ -9316,7 +9824,7 @@
       "аутентификация",
       "gateway"
     ],
-    "nav_order": 17
+    "nav_order": 18
   },
   {
     "id": "ru/security#инструменты",
@@ -9334,7 +9842,7 @@
       "token",
       "инструменты"
     ],
-    "nav_order": 17
+    "nav_order": 18
   },
   {
     "id": "ru/security#токен-docs-chat-отдельная-поверхность",
@@ -9356,7 +9864,7 @@
       "отдельная",
       "поверхность"
     ],
-    "nav_order": 17
+    "nav_order": 18
   },
   {
     "id": "ru/security#чеклист-production",
@@ -9375,7 +9883,7 @@
       "чеклист",
       "production"
     ],
-    "nav_order": 17
+    "nav_order": 18
   },
   {
     "id": "ru/terminal-security#1-включение-отключение-терминала",
@@ -9390,7 +9898,7 @@
       "отключение",
       "терминала"
     ],
-    "nav_order": 18
+    "nav_order": 19
   },
   {
     "id": "ru/terminal-security#3-whitelist-команд-allowlist",
@@ -9405,7 +9913,7 @@
       "команд",
       "allowlist"
     ],
-    "nav_order": 18
+    "nav_order": 19
   },
   {
     "id": "ru/terminal-security#4-подтверждение-пользователем-actionguard",
@@ -9420,7 +9928,7 @@
       "пользователем",
       "actionguard"
     ],
-    "nav_order": 18
+    "nav_order": 19
   },
   {
     "id": "ru/terminal-security#5-workspace-jail-рабочая-директория",
@@ -9436,7 +9944,7 @@
       "рабочая",
       "директория"
     ],
-    "nav_order": 18
+    "nav_order": 19
   },
   {
     "id": "ru/terminal-security#unix-macos-linux",
@@ -9451,7 +9959,7 @@
       "macos",
       "linux"
     ],
-    "nav_order": 18
+    "nav_order": 19
   },
   {
     "id": "ru/terminal-security#windows-дополнительно",
@@ -9465,7 +9973,7 @@
       "windows",
       "дополнительно"
     ],
-    "nav_order": 18
+    "nav_order": 19
   },
   {
     "id": "ru/terminal-security#безопасность-команд-терминала",
@@ -9480,7 +9988,7 @@
       "команд",
       "терминала"
     ],
-    "nav_order": 18
+    "nav_order": 19
   },
   {
     "id": "ru/terminal-security#встроенный-whitelist-unix",
@@ -9495,7 +10003,7 @@
       "whitelist",
       "unix"
     ],
-    "nav_order": 18
+    "nav_order": 19
   },
   {
     "id": "ru/terminal-security#встроенный-whitelist-windows",
@@ -9510,7 +10018,7 @@
       "whitelist",
       "windows"
     ],
-    "nav_order": 18
+    "nav_order": 19
   },
   {
     "id": "ru/terminal-security#если-whitelist-отключён",
@@ -9525,7 +10033,7 @@
       "whitelist",
       "отключён"
     ],
-    "nav_order": 18
+    "nav_order": 19
   },
   {
     "id": "ru/terminal-security#как-работает-сопоставление",
@@ -9540,7 +10048,7 @@
       "работает",
       "сопоставление"
     ],
-    "nav_order": 18
+    "nav_order": 19
   },
   {
     "id": "ru/terminal-security#разрешено-и-запрещено-практика",
@@ -9555,7 +10063,7 @@
       "запрещено",
       "практика"
     ],
-    "nav_order": 18
+    "nav_order": 19
   },
   {
     "id": "ru/terminal-security#рекомендации-для-production",
@@ -9570,7 +10078,7 @@
       "для",
       "production"
     ],
-    "nav_order": 18
+    "nav_order": 19
   },
   {
     "id": "ru/terminal-security#слои-защиты-порядок-проверок",
@@ -9586,7 +10094,7 @@
       "порядок",
       "проверок"
     ],
-    "nav_order": 18
+    "nav_order": 19
   },
   {
     "id": "ru/terminal-security#см-также",
@@ -9599,7 +10107,7 @@
     "keywords": [
       "также"
     ],
-    "nav_order": 18
+    "nav_order": 19
   },
   {
     "id": "ru/deployment#2-настройка-профиля",
@@ -9618,7 +10126,7 @@
       "настройка",
       "профиля"
     ],
-    "nav_order": 19
+    "nav_order": 20
   },
   {
     "id": "ru/deployment#3-установка-unit-файлов",
@@ -9638,7 +10146,7 @@
       "unit",
       "файлов"
     ],
-    "nav_order": 19
+    "nav_order": 20
   },
   {
     "id": "ru/deployment#4-запуск-и-управление",
@@ -9657,7 +10165,7 @@
       "запуск",
       "управление"
     ],
-    "nav_order": 19
+    "nav_order": 20
   },
   {
     "id": "ru/deployment#5-виджет-чата-на-сайте-документации",
@@ -9678,7 +10186,7 @@
       "сайте",
       "документации"
     ],
-    "nav_order": 19
+    "nav_order": 20
   },
   {
     "id": "ru/deployment#6-сборка-сайта-документации-и-seo",
@@ -9699,7 +10207,7 @@
       "документации",
       "seo"
     ],
-    "nav_order": 19
+    "nav_order": 20
   },
   {
     "id": "ru/deployment#7-reverse-proxy-tls",
@@ -9719,7 +10227,7 @@
       "proxy",
       "tls"
     ],
-    "nav_order": 19
+    "nav_order": 20
   },
   {
     "id": "ru/deployment#docker",
@@ -9736,7 +10244,7 @@
       "docker",
       "ci"
     ],
-    "nav_order": 19
+    "nav_order": 20
   },
   {
     "id": "ru/deployment#holixprofilesbobenv",
@@ -9758,7 +10266,7 @@
       "bob",
       "env"
     ],
-    "nav_order": 19
+    "nav_order": 20
   },
   {
     "id": "ru/deployment#systemd",
@@ -9775,7 +10283,7 @@
       "docker",
       "ci"
     ],
-    "nav_order": 19
+    "nav_order": 20
   },
   {
     "id": "ru/deployment#или-для-именованного-профиля",
@@ -9796,7 +10304,7 @@
       "именованного",
       "профиля"
     ],
-    "nav_order": 19
+    "nav_order": 20
   },
   {
     "id": "ru/deployment#или-привязка-к-существующему-профилю",
@@ -9817,7 +10325,7 @@
       "существующему",
       "профилю"
     ],
-    "nav_order": 19
+    "nav_order": 20
   },
   {
     "id": "ru/deployment#отредактируйте-holix_python-и-holix_bin-под-пути-pipx-на-вашем-х",
@@ -9842,7 +10350,7 @@
       "вашем",
       "хосте"
     ],
-    "nav_order": 19
+    "nav_order": 20
   },
   {
     "id": "ru/doctor#без---fix",
@@ -9859,7 +10367,7 @@
       "repair",
       "без"
     ],
-    "nav_order": 20
+    "nav_order": 21
   },
   {
     "id": "ru/doctor#проверки",
@@ -9876,7 +10384,7 @@
       "repair",
       "проверки"
     ],
-    "nav_order": 20
+    "nav_order": 21
   },
   {
     "id": "ru/doctor#с---fix",
@@ -9892,7 +10400,7 @@
       "fix",
       "repair"
     ],
-    "nav_order": 20
+    "nav_order": 21
   },
   {
     "id": "ru/logs#каталог-данных",
@@ -9910,7 +10418,7 @@
       "каталог",
       "данных"
     ],
-    "nav_order": 21
+    "nav_order": 22
   },
   {
     "id": "ru/logs#логи-и-наблюдаемость",
@@ -9927,7 +10435,7 @@
       "rotation",
       "наблюдаемость"
     ],
-    "nav_order": 21
+    "nav_order": 22
   },
   {
     "id": "ru/logs#режим-debug",
@@ -9944,7 +10452,7 @@
       "rotation",
       "режим"
     ],
-    "nav_order": 21
+    "nav_order": 22
   },
   {
     "id": "ru/logs#ротация",
@@ -9961,7 +10469,7 @@
       "rotation",
       "ротация"
     ],
-    "nav_order": 21
+    "nav_order": 22
   },
   {
     "id": "ru/logs#файлы-логов",
@@ -9979,7 +10487,7 @@
       "файлы",
       "логов"
     ],
-    "nav_order": 21
+    "nav_order": 22
   },
   {
     "id": "ru/pypi#1-аккаунт-и-имя",
@@ -9997,7 +10505,7 @@
       "аккаунт",
       "имя"
     ],
-    "nav_order": 22
+    "nav_order": 23
   },
   {
     "id": "ru/pypi#3-перед-каждым-релизом",
@@ -10016,7 +10524,7 @@
       "каждым",
       "релизом"
     ],
-    "nav_order": 22
+    "nav_order": 23
   },
   {
     "id": "ru/pypi#4-публикация-через-github-actions-рекомендуется",
@@ -10036,7 +10544,7 @@
       "actions",
       "рекомендуется"
     ],
-    "nav_order": 22
+    "nav_order": 23
   },
   {
     "id": "ru/pypi#имя-пакета",
@@ -10054,7 +10562,7 @@
       "имя",
       "пакета"
     ],
-    "nav_order": 22
+    "nav_order": 23
   },
   {
     "id": "ru/pypi#ограничения",
@@ -10071,7 +10579,7 @@
       "package",
       "ограничения"
     ],
-    "nav_order": 22
+    "nav_order": 23
   },
   {
     "id": "ru/troubleshooting#telegram-access-denied",
@@ -10090,7 +10598,7 @@
       "access",
       "denied"
     ],
-    "nav_order": 23
+    "nav_order": 24
   },
   {
     "id": "ru/troubleshooting#windows",
@@ -10107,7 +10615,7 @@
       "fix",
       "windows"
     ],
-    "nav_order": 23
+    "nav_order": 24
   },
   {
     "id": "ru/troubleshooting#меню-telegram-видно-до-одобрения",
@@ -10127,7 +10635,7 @@
       "видно",
       "одобрения"
     ],
-    "nav_order": 23
+    "nav_order": 24
   },
   {
     "id": "ru/user-guide#1-что-умеет-holix",
@@ -10145,7 +10653,7 @@
       "умеет",
       "holix"
     ],
-    "nav_order": 24
+    "nav_order": 25
   },
   {
     "id": "ru/user-guide#10-шаг-8-режимы-выполнения",
@@ -10163,7 +10671,7 @@
       "режимы",
       "выполнения"
     ],
-    "nav_order": 24
+    "nav_order": 25
   },
   {
     "id": "ru/user-guide#11-шаг-9-как-писать-запросы",
@@ -10182,7 +10690,7 @@
       "писать",
       "запросы"
     ],
-    "nav_order": 24
+    "nav_order": 25
   },
   {
     "id": "ru/user-guide#12-шаг-10-mcp-пошагово",
@@ -10200,7 +10708,7 @@
       "mcp",
       "пошагово"
     ],
-    "nav_order": 24
+    "nav_order": 25
   },
   {
     "id": "ru/user-guide#122-установить-mcp-простой-способ",
@@ -10220,7 +10728,7 @@
       "простой",
       "способ"
     ],
-    "nav_order": 24
+    "nav_order": 25
   },
   {
     "id": "ru/user-guide#127-переменные-окружения-для-mcp",
@@ -10240,7 +10748,7 @@
       "для",
       "mcp"
     ],
-    "nav_order": 24
+    "nav_order": 25
   },
   {
     "id": "ru/user-guide#15-слэш-команды-в-чате",
@@ -10258,7 +10766,7 @@
       "команды",
       "чате"
     ],
-    "nav_order": 24
+    "nav_order": 25
   },
   {
     "id": "ru/user-guide#16-особенности-holix",
@@ -10275,7 +10783,7 @@
       "особенности",
       "holix"
     ],
-    "nav_order": 24
+    "nav_order": 25
   },
   {
     "id": "ru/user-guide#17-что-делать-если-что-то-не-работает",
@@ -10294,7 +10802,7 @@
       "если",
       "работает"
     ],
-    "nav_order": 24
+    "nav_order": 25
   },
   {
     "id": "ru/user-guide#2-требования",
@@ -10310,7 +10818,7 @@
       "usage",
       "требования"
     ],
-    "nav_order": 24
+    "nav_order": 25
   },
   {
     "id": "ru/user-guide#3-шаг-1-установить-python",
@@ -10328,7 +10836,7 @@
       "установить",
       "python"
     ],
-    "nav_order": 24
+    "nav_order": 25
   },
   {
     "id": "ru/user-guide#4-шаг-2-установить-uv-рекомендуется",
@@ -10346,7 +10854,7 @@
       "установить",
       "рекомендуется"
     ],
-    "nav_order": 24
+    "nav_order": 25
   },
   {
     "id": "ru/user-guide#5-шаг-3-установка-с-pypi",
@@ -10364,7 +10872,7 @@
       "установка",
       "pypi"
     ],
-    "nav_order": 24
+    "nav_order": 25
   },
   {
     "id": "ru/user-guide#54-windows",
@@ -10380,7 +10888,7 @@
       "usage",
       "windows"
     ],
-    "nav_order": 24
+    "nav_order": 25
   },
   {
     "id": "ru/user-guide#61-создать-файл-окружения",
@@ -10398,7 +10906,7 @@
       "файл",
       "окружения"
     ],
-    "nav_order": 24
+    "nav_order": 25
   },
   {
     "id": "ru/user-guide#62-профиль",
@@ -10414,7 +10922,7 @@
       "usage",
       "профиль"
     ],
-    "nav_order": 24
+    "nav_order": 25
   },
   {
     "id": "ru/user-guide#63-диагностика",
@@ -10430,7 +10938,7 @@
       "usage",
       "диагностика"
     ],
-    "nav_order": 24
+    "nav_order": 25
   },
   {
     "id": "ru/user-guide#7-шаг-5-настройка-моделей-через-litellm",
@@ -10450,7 +10958,7 @@
       "через",
       "litellm"
     ],
-    "nav_order": 24
+    "nav_order": 25
   },
   {
     "id": "ru/user-guide#71-что-нужно-получить-у-администратора-litellm",
@@ -10470,7 +10978,7 @@
       "администратора",
       "litellm"
     ],
-    "nav_order": 24
+    "nav_order": 25
   },
   {
     "id": "ru/user-guide#73-добавить-провайдер-litellm-в-профиль-интерактивно",
@@ -10490,7 +10998,7 @@
       "профиль",
       "интерактивно"
     ],
-    "nav_order": 24
+    "nav_order": 25
   },
   {
     "id": "ru/user-guide#74-полный-мастер-настройки-рекомендуется",
@@ -10509,7 +11017,7 @@
       "настройки",
       "рекомендуется"
     ],
-    "nav_order": 24
+    "nav_order": 25
   },
   {
     "id": "ru/user-guide#75-назначение-моделей-агентам",
@@ -10527,7 +11035,7 @@
       "моделей",
       "агентам"
     ],
-    "nav_order": 24
+    "nav_order": 25
   },
   {
     "id": "ru/user-guide#8-шаг-6-поиск-в-интернете-опционально",
@@ -10546,7 +11054,7 @@
       "интернете",
       "опционально"
     ],
-    "nav_order": 24
+    "nav_order": 25
   },
   {
     "id": "ru/user-guide#92-создать-бота-в-telegram",
@@ -10564,7 +11072,7 @@
       "бота",
       "telegram"
     ],
-    "nav_order": 24
+    "nav_order": 25
   },
   {
     "id": "ru/user-guide#93-подключить-бота-админ",
@@ -10582,7 +11090,7 @@
       "бота",
       "админ"
     ],
-    "nav_order": 24
+    "nav_order": 25
   },
   {
     "id": "ru/user-guide#94-назначение-telegram-администратора-один-раз-только-cli",
@@ -10604,7 +11112,7 @@
       "только",
       "cli"
     ],
-    "nav_order": 24
+    "nav_order": 25
   },
   {
     "id": "ru/user-guide#95-пользователи-запрашивают-доступ",
@@ -10622,7 +11130,7 @@
       "запрашивают",
       "доступ"
     ],
-    "nav_order": 24
+    "nav_order": 25
   },
   {
     "id": "ru/user-guide#951-админ-одобряет-и-создаёт-изолированный-профиль",
@@ -10643,7 +11151,7 @@
       "изолированный",
       "профиль"
     ],
-    "nav_order": 24
+    "nav_order": 25
   },
   {
     "id": "ru/user-guide#97-обновить-меню-команд-в-telegram",
@@ -10662,7 +11170,7 @@
       "команд",
       "telegram"
     ],
-    "nav_order": 24
+    "nav_order": 25
   },
   {
     "id": "ru/user-guide#98-production",
@@ -10678,7 +11186,7 @@
       "usage",
       "production"
     ],
-    "nav_order": 24
+    "nav_order": 25
   },
   {
     "id": "ru/user-guide#98-голосовые-сообщения-опционально",
@@ -10696,7 +11204,7 @@
       "сообщения",
       "опционально"
     ],
-    "nav_order": 24
+    "nav_order": 25
   },
   {
     "id": "ru/user-guide#holix-config",
@@ -10713,7 +11221,7 @@
       "holix",
       "config"
     ],
-    "nav_order": 24
+    "nav_order": 25
   },
   {
     "id": "ru/user-guide#holix-models",
@@ -10730,7 +11238,7 @@
       "holix",
       "models"
     ],
-    "nav_order": 24
+    "nav_order": 25
   },
   {
     "id": "ru/user-guide#holix-полное-руководство-пользователя",
@@ -10748,7 +11256,7 @@
       "полное",
       "пользователя"
     ],
-    "nav_order": 24
+    "nav_order": 25
   },
   {
     "id": "ru/user-guide#litellm-proxy",
@@ -10765,7 +11273,7 @@
       "litellm",
       "proxy"
     ],
-    "nav_order": 24
+    "nav_order": 25
   },
   {
     "id": "ru/user-guide#быстрый-чеклист-с-нуля-до-чата",
@@ -10784,7 +11292,7 @@
       "нуля",
       "чата"
     ],
-    "nav_order": 24
+    "nav_order": 25
   },
   {
     "id": "ru/user-guide#или-вручную",
@@ -10801,7 +11309,7 @@
       "или",
       "вручную"
     ],
-    "nav_order": 24
+    "nav_order": 25
   },
   {
     "id": "ru/user-guide#или-просто",
@@ -10818,7 +11326,7 @@
       "или",
       "просто"
     ],
-    "nav_order": 24
+    "nav_order": 25
   },
   {
     "id": "ru/user-guide#основные-команды",
@@ -10835,7 +11343,7 @@
       "основные",
       "команды"
     ],
-    "nav_order": 24
+    "nav_order": 25
   },
   {
     "id": "ru/user-guide#см-также",
@@ -10851,7 +11359,7 @@
       "usage",
       "также"
     ],
-    "nav_order": 24
+    "nav_order": 25
   },
   {
     "id": "ru/user-guide#содержание",
@@ -10867,7 +11375,7 @@
       "usage",
       "содержание"
     ],
-    "nav_order": 24
+    "nav_order": 25
   },
   {
     "id": "ru/user-guide#установка",
@@ -10883,6 +11391,6 @@
       "usage",
       "установка"
     ],
-    "nav_order": 24
+    "nav_order": 25
   }
 ]

@@ -54,6 +54,9 @@ jobs:
           PYTHONIOENCODING: utf-8
         run: uv run holix doctor --no-llm
 
+      - name: Docs build (LINK.md and search index)
+        run: uv run holix docs build
+
   build:
     runs-on: ubuntu-latest
     steps:

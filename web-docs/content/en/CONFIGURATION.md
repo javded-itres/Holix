@@ -74,6 +74,20 @@ workspace_root: /home/user/data-agent
 
 When enabled, `read_file`, `write_file`, `list_directory`, `run_terminal_command`, and Telegram file delivery cannot access paths outside `workspace_root`.
 
+## Holix Link (optional)
+
+Remote folder on a user PC (behind NAT) via the **Holix-Link** client — see [LINK.md](LINK.md).
+
+```yaml
+link:
+  max_connections: 5
+  permissions:
+    read: true
+    write: true
+    mkdir: true
+    delete: false
+```
+
 ## Terminal whitelist (optional)
 
 Restrict which shell commands the agent may run. Managed per profile:

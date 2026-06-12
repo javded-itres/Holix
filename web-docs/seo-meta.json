@@ -231,6 +231,22 @@
         "keywords": "Holix gateway, API gateway, OpenAI compatible API, holix gateway start, Prometheus"
       }
     },
+    "link": {
+      "en": {
+        "navTitle": "Holix Link",
+        "heading": "Holix Link — Remote Folder Access",
+        "title": "Holix Link — Remote Folder Access Behind NAT",
+        "description": "Holix Link: holix-link client on user PC, holix link create on server, WebSocket relay, link_read_file agent tools. Windows, Linux, macOS.",
+        "keywords": "Holix Link, holix-link, remote folder, NAT traversal, WebSocket relay"
+      },
+      "ru": {
+        "navTitle": "Holix Link",
+        "heading": "Holix Link — удалённый доступ к папке",
+        "title": "Holix Link — удалённый доступ к папке за NAT",
+        "description": "Holix Link: клиент holix-link на ПК пользователя, holix link create на сервере, WebSocket relay, tools link_read_file. Windows, Linux, macOS. Self-hosted gateway.",
+        "keywords": "Holix Link, holix-link, удалённая папка, NAT, remote folder, WebSocket"
+      }
+    },
     "gateway-api": {
       "en": {
         "navTitle": "Complete API Reference",

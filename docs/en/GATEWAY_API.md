@@ -48,8 +48,9 @@ Operational guide (start/stop, ports, logs): [GATEWAY.md](GATEWAY.md).
 16. [Management: global settings](#management-global-settings)
 17. [Management: Telegram](#management-telegram)
 18. [Docs-site chat API](#docs-site-chat-api)
-19. [Multi-profile architecture](#multi-profile-architecture)
-20. [Security notes](#security-notes)
+19. [Holix Link API](#holix-link-api)
+20. [Multi-profile architecture](#multi-profile-architecture)
+21. [Security notes](#security-notes)
 
 ---
 
@@ -918,6 +919,40 @@ Clear history for `client_id`.
 | `stream` | SSE if true (default) |
 
 Rate limited per `client_id` (`HOLIX_DOCS_CHAT_RATE_LIMIT_RPM`).
+
+---
+
+## Holix Link API
+
+Remote folder access: lightweight **Holix-Link** client on user PC ↔ Link Relay in gateway. Guide: [LINK.md](LINK.md).
+
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| `POST` | `/v1/link/create` | API key | Create pairing code |
+| `POST` | `/v1/link/pair` | None (rate limited) | Client exchanges code for `link_id` |
+| `GET` | `/v1/link/list` | API key | List links (`?profile=`) |
+| `GET` | `/v1/link/{link_id}` | API key | Link status + online |
+| `POST` | `/v1/link/revoke/{link_id}` | API key | Revoke link |
+| `WS` | `/v1/link/ws` | Device key (`auth` message) | Persistent client session |
+
+**Create pairing code:**
+
+```bash
+curl -sS -X POST "http://127.0.0.1:8000/v1/link/create" \
+  -H "Authorization: Bearer hx_…" \
+  -H "Content-Type: application/json" \
+  -d '{"profile":"support","ttl_seconds":600}'
+```
+
+**Client pair (no API key):**
+
+```bash
+curl -sS -X POST "http://127.0.0.1:8000/v1/link/pair" \
+  -H "Content-Type: application/json" \
+  -d '{"code":"LINK-XXXX-YYYY","folder":"/home/user/work","device_public_key_b64":"…"}'
+```
+
+Agent tools (`link_read_file`, …) call the relay when the client WebSocket is connected.
 
 ---
 

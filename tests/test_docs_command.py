@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 from cli.main import app
@@ -19,6 +20,10 @@ def test_build_docs_site() -> None:
     root = build_docs_site()
     assert (root / "nav.json").is_file()
     assert (root / "content" / "en" / "CLI.md").is_file()
+    assert (root / "content" / "en" / "LINK.md").is_file()
+    assert (root / "content" / "ru" / "LINK.md").is_file()
+    nav = json.loads((root / "nav.json").read_text(encoding="utf-8"))
+    assert any(item.get("slug") == "link" for item in nav)
 
 
 def test_docs_help_lists_commands() -> None:
