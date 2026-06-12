@@ -30,6 +30,7 @@ from core.models.setup_helpers import (
 class BootstrapOptions:
     full_install: bool | None = None
     skip_llm: bool = False
+    skip_search: bool = False
     skip_telegram: bool = False
     profile: str = "default"
     non_interactive: bool = False
@@ -279,6 +280,25 @@ async def _configure_telegram(profile: str, lang: str) -> bool:
     return True
 
 
+def _configure_search(profile: str, lang: str) -> bool:
+    from rich.prompt import Confirm
+
+    from core.search.setup_helpers import configure_search_interactive
+
+    console.print()
+    if not Confirm.ask(bt("search_configure", lang), default=True):
+        print_info(bt("search_skipped", lang))
+        return False
+
+    return configure_search_interactive(
+        profile,
+        lang=lang,
+        allow_skip=True,
+        title=bt("search_title", lang),
+        body=bt("search_body", lang),
+    )
+
+
 def pypi_package_spec(*, full: bool) -> str:
     return "Holix[all]" if full else "Holix"
 
@@ -311,6 +331,13 @@ async def run_bootstrap_setup(options: BootstrapOptions | None = None) -> int:
         else:
             llm_ok = await _configure_llm(profile, lang)
 
+    search_ok = True
+    if not opts.skip_search:
+        if opts.non_interactive or not _is_tty():
+            print_info(bt("skip_search_non_tty", lang))
+        else:
+            search_ok = _configure_search(profile, lang)
+
     tg_ok = False
     if not opts.skip_telegram:
         if opts.non_interactive or not _is_tty():
@@ -326,6 +353,8 @@ async def run_bootstrap_setup(options: BootstrapOptions | None = None) -> int:
     ]
     if not llm_ok:
         lines.insert(1, f"  {bt('done_models', lang)}")
+    if not search_ok:
+        lines.append(f"  {bt('done_search', lang)}")
     if not tg_ok:
         lines.append(f"  {bt('done_telegram', lang)}")
     lines.append(f"  {bt('done_gateway', lang)}")

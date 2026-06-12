@@ -8,7 +8,7 @@ from cli.installer.bootstrap import BootstrapOptions, run_bootstrap_setup_sync
 from cli.utils.rich_console import print_error
 
 app = typer.Typer(
-    help="Первичная настройка после установки (LLM, Telegram)",
+    help="Первичная настройка после установки (LLM, поиск, Telegram)",
     invoke_without_command=True,
 )
 
@@ -27,6 +27,7 @@ def bootstrap_entry(
         help="Минимальная установка (без подсказки про extras)",
     ),
     skip_llm: bool = typer.Option(False, "--skip-llm", help="Не настраивать LLM"),
+    skip_search: bool = typer.Option(False, "--skip-search", help="Не настраивать веб-поиск"),
     skip_telegram: bool = typer.Option(False, "--skip-telegram", help="Не настраивать Telegram"),
     profile: str = typer.Option("default", "--profile", "-p", help="Профиль Holix"),
     lang: str | None = typer.Option(
@@ -36,7 +37,7 @@ def bootstrap_entry(
     ),
     yes: bool = typer.Option(False, "--yes", "-y", help="Неинтерактивный режим"),
 ) -> None:
-    """Интерактивная настройка LLM и Telegram после установки.
+    """Интерактивная настройка LLM, веб-поиска и Telegram после установки.
 
     Examples:
 
@@ -52,6 +53,7 @@ def bootstrap_entry(
         BootstrapOptions(
             full_install=full_install,
             skip_llm=skip_llm,
+            skip_search=skip_search,
             skip_telegram=skip_telegram,
             profile=profile,
             lang=lang,
