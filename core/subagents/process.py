@@ -20,6 +20,7 @@ import json
 import logging
 import multiprocessing
 import os
+import queue
 import threading
 import time
 import uuid
@@ -614,8 +615,8 @@ def _send_result(
     )
     try:
         output_queue.put(msg.serialize(), timeout=5)
-    except Exception:
-        pass
+    except Exception as exc:
+        logger.error("Sub-agent '%s' failed to send result: %s", agent_name, exc)
 
 
 def _build_process_system_prompt(
@@ -790,11 +791,30 @@ class SubAgentProcessManager:
         """
         while not handle.is_done:
             try:
-                # Non-blocking check with timeout
-                data = output_queue.get(timeout=1.0)
-                msg = AgentMessage.deserialize(data)
+                data = await asyncio.to_thread(output_queue.get, True, 1.0)
+            except queue.Empty:
+                if handle.task and not handle.task.is_alive():
+                    handle.result = SubAgentResult(
+                        name=agent_name,
+                        success=False,
+                        error="Sub-agent process terminated unexpectedly",
+                        duration_ms=(time.monotonic() - (handle.started_at or time.monotonic())) * 1000,
+                    )
+                    handle.status = SubAgentStatus.FAILED
+                    self._notify_parent_done(agent_name)
+                    return
+                continue
+            except Exception as exc:
+                logger.warning("Sub-agent '%s' IPC read failed: %s", agent_name, exc)
+                continue
 
-                if msg.msg_type == "result":
+            try:
+                msg = AgentMessage.deserialize(data)
+            except Exception as exc:
+                logger.warning("Sub-agent '%s' IPC deserialize failed: %s", agent_name, exc)
+                continue
+
+            if msg.msg_type == "result":
                     # Final result received
                     meta = msg.metadata
                     handle.result = SubAgentResult(
@@ -810,39 +830,25 @@ class SubAgentProcessManager:
                     self._notify_parent_done(agent_name)
                     return
 
-                elif msg.msg_type == "heartbeat":
-                    pass
+            elif msg.msg_type == "heartbeat":
+                pass
 
-                elif msg.msg_type == "confirmation_request":
-                    await self._handle_ipc_confirmation(agent_name, msg)
+            elif msg.msg_type == "confirmation_request":
+                await self._handle_ipc_confirmation(agent_name, msg)
 
-                elif msg.msg_type == "question":
-                    await self._handle_ipc_question(agent_name, msg)
+            elif msg.msg_type == "question":
+                await self._handle_ipc_question(agent_name, msg)
 
-                elif msg.msg_type == "error":
-                    handle.result = SubAgentResult(
-                        name=agent_name,
-                        success=False,
-                        error=msg.content,
-                        duration_ms=(time.monotonic() - (handle.started_at or time.monotonic())) * 1000,
-                    )
-                    handle.status = SubAgentStatus.FAILED
-                    self._notify_parent_done(agent_name)
-                    return
-
-            except Exception:
-                # Queue.get timeout — check if process is still alive
-                if handle.task and not handle.task.is_alive():
-                    # Process died without sending result
-                    handle.result = SubAgentResult(
-                        name=agent_name,
-                        success=False,
-                        error="Sub-agent process terminated unexpectedly",
-                        duration_ms=(time.monotonic() - (handle.started_at or time.monotonic())) * 1000,
-                    )
-                    handle.status = SubAgentStatus.FAILED
-                    self._notify_parent_done(agent_name)
-                    return
+            elif msg.msg_type == "error":
+                handle.result = SubAgentResult(
+                    name=agent_name,
+                    success=False,
+                    error=msg.content,
+                    duration_ms=(time.monotonic() - (handle.started_at or time.monotonic())) * 1000,
+                )
+                handle.status = SubAgentStatus.FAILED
+                self._notify_parent_done(agent_name)
+                return
 
     async def _handle_ipc_confirmation(self, agent_name: str, msg: AgentMessage) -> None:
         bridge = getattr(getattr(self._parent, "subagents", None), "interactions", None)
@@ -924,6 +930,13 @@ class SubAgentProcessManager:
             process.join(timeout=1)
 
         handle.status = SubAgentStatus.CANCELLED
+        handle.result = SubAgentResult(
+            name=name,
+            success=False,
+            error="Cancelled by parent",
+            duration_ms=(time.monotonic() - (handle.started_at or time.monotonic())) * 1000,
+        )
+        self._notify_parent_done(name)
         return True
 
     async def terminate_all(self) -> None:
