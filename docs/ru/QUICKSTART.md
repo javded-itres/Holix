@@ -1,13 +1,22 @@
 # Быстрый старт
 
-## Установка (PyPI)
+## Установка
+
+**Одной командой (macOS/Linux):**
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/javded-itres/Holix/main/scripts/install.sh | bash
+```
+
+**Или вручную с PyPI:**
 
 ```bash
 pipx install Holix
+holix bootstrap
 # или: pip install Holix  (в активированном venv)
 ```
 
-Пакет: [Holix на PyPI](https://pypi.org/project/Holix/). Команда: `holix`.
+Пакет: [Holix на PyPI](https://pypi.org/project/Holix/). Команда: `holix`. Подробнее: [INSTALLATION.md](INSTALLATION.md).
 
 ## Запуск
 

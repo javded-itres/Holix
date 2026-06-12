@@ -76,7 +76,7 @@
     "section": "first-time-configuration",
     "title": "Installation",
     "heading": "First-time configuration",
-    "body": "1. Copy environment defaults: 2. Run diagnostics: 3. Configure models: 4. Start chatting: or Data directory: (Linux/macOS), (Windows), or . Profile data: (not in the project directory). Logs: LOGS.md. See CONFIGURATION.md.",
+    "body": "Recommended after curl install: bootstrap already configured LLM and Telegram. Otherwise: ```bash holix bootstrap interactive: language, LLM, Telegram",
     "keywords": [
       "install",
       "установка",
@@ -111,13 +111,13 @@
     "nav_order": 1
   },
   {
-    "id": "en/installation#from-pypi-recommended",
+    "id": "en/installation#from-pypi-manual",
     "lang": "en",
     "slug": "installation",
-    "section": "from-pypi-recommended",
+    "section": "from-pypi-manual",
     "title": "Installation",
-    "heading": "From PyPI (recommended)",
-    "body": "Published on pypi.org/project/Holix (current: 0.1.8 ). Package name (not — that name is used by another project). After install, the CLI command is in the environment’s directory. Global CLI from any folder (recommended — no manual PATH): ```bash pipx install Holix",
+    "heading": "From PyPI (manual)",
+    "body": "Published on pypi.org/project/Holix (current: 0.1.11 ). Package name (not — that name is used by another project). After install, the CLI command is in the environment’s directory. Global CLI from any folder (recommended — no manual PATH): ```bash pipx install Holix",
     "keywords": [
       "install",
       "установка",
@@ -126,7 +126,7 @@
       "uv",
       "docker",
       "from",
-      "recommended"
+      "manual"
     ],
     "nav_order": 1
   },
@@ -146,6 +146,27 @@
       "uv",
       "docker",
       "installation"
+    ],
+    "nav_order": 1
+  },
+  {
+    "id": "en/installation#one-line-install-curl",
+    "lang": "en",
+    "slug": "installation",
+    "section": "one-line-install-curl",
+    "title": "Installation",
+    "heading": "One-line install (curl)",
+    "body": "The fastest path for macOS/Linux: download , detect UI language, choose install type, install from PyPI, then run interactive setup. Or save and run: What the script does: 1. Language — reads / / : - Russian system ( ) → installer and use Russian automatically - English or other → prompts: / 2. Install type — full vs minimal (see table below) 3. Package — or from PyPI 4. Bootstrap — : LLM provider + optional Telegram (bot token, admin Telegram ID) Choice PyPI package Includes -------- -------------- ---------- Full (default) Telegram, browser, voice, web TUI Minimal Core CLI, TUI, gateway, MCP Bootstrap ( ) after install: Step Action ------ -------- Locale Saves UI language to and LLM Choose Ollama, LiteLLM, OpenAI, or Groq; probe connection; save to profile Telegram Optional: bot token, your Telegram user ID as admin, Force language or re-run setup: From a git clone, uses the same flow (local + bootstrap).",
+    "keywords": [
+      "install",
+      "установка",
+      "pipx",
+      "pypi",
+      "uv",
+      "docker",
+      "one",
+      "line",
+      "curl"
     ],
     "nav_order": 1
   },
@@ -182,6 +203,25 @@
       "pypi",
       "uv",
       "docker"
+    ],
+    "nav_order": 1
+  },
+  {
+    "id": "en/installation#or-step-by-step",
+    "lang": "en",
+    "slug": "installation",
+    "section": "or-step-by-step",
+    "title": "Installation",
+    "heading": "or step by step:",
+    "body": "holix doctor holix models setup holix telegram setup `` cp .env.example .env ~/.holix/global/.env holix doctor holix models setup holix tui holix chat-command /lang ru /lang en profiles/<name /data/locale.json ~/.holix/ %LOCALAPPDATA%\\Holix\\ HOLIX HOME profiles/<name /` (not in the project directory). Logs: LOGS.md. See CONFIGURATION.md.",
+    "keywords": [
+      "install",
+      "установка",
+      "pipx",
+      "pypi",
+      "uv",
+      "docker",
+      "step"
     ],
     "nav_order": 1
   },
@@ -304,21 +344,19 @@
     "nav_order": 1
   },
   {
-    "id": "en/start-here#1-install-from-pypi",
+    "id": "en/start-here#1-install",
     "lang": "en",
     "slug": "start-here",
-    "section": "1-install-from-pypi",
+    "section": "1-install",
     "title": "Start Here",
-    "heading": "1. Install from PyPI",
-    "body": "Package Holix on PyPI; terminal command . ```bash pipx install Holix",
+    "heading": "1. Install",
+    "body": "Fastest (macOS/Linux): one-line installer with language detection, full/minimal choice, and : See INSTALLATION.md for language rules and bootstrap details. Manual PyPI: package Holix ; terminal command . ```bash pipx install Holix",
     "keywords": [
       "start",
       "первый",
       "запуск",
       "checklist",
-      "install",
-      "from",
-      "pypi"
+      "install"
     ],
     "nav_order": 2
   },
@@ -431,7 +469,7 @@
     "section": "optional-extras-telegram-browser-web-tui-voice",
     "title": "Start Here",
     "heading": "optional extras (Telegram, browser, web TUI, voice):",
-    "body": "pipx install \"Holix[all]\" holix version holix doctor bash python -m venv .venv && source .venv/bin/activate pip install Holix `` pip install helix` — that installs an unrelated package. Developers (from git): INSTALLATION.md",
+    "body": "pipx install \"Holix[all]\" holix bootstrap LLM + optional Telegram; sets profile locale holix version holix doctor bash python -m venv .venv && source .venv/bin/activate pip install Holix `` pip install helix` — that installs an unrelated package. Developers (from git): INSTALLATION.md",
     "keywords": [
       "start",
       "первый",
@@ -463,6 +501,22 @@
       "requirements"
     ],
     "nav_order": 2
+  },
+  {
+    "id": "en/quickstart#install",
+    "lang": "en",
+    "slug": "quickstart",
+    "section": "install",
+    "title": "Quickstart",
+    "heading": "Install",
+    "body": "One line (recommended on macOS/Linux): Or PyPI manually: ```bash pipx install Holix holix bootstrap",
+    "keywords": [
+      "quick",
+      "быстрый",
+      "старт",
+      "install"
+    ],
+    "nav_order": 3
   },
   {
     "id": "en/quickstart#run",
@@ -1237,6 +1291,24 @@
       "terminal",
       "global",
       "options"
+    ],
+    "nav_order": 6
+  },
+  {
+    "id": "en/cli#holix-bootstrap",
+    "lang": "en",
+    "slug": "cli",
+    "section": "holix-bootstrap",
+    "title": "CLI Reference",
+    "heading": "`holix bootstrap`",
+    "body": "First-run wizard after install: detect or choose UI language (RU/EN), configure LLM provider, optional Telegram bot + admin ID. Called automatically by . Option Description -------- ------------- UI language for setup ( \\ ); Russian OS locale skips the prompt Skip LLM provider setup Skip Telegram wizard , Non-interactive (skip prompts) , Holix profile (default: ) Sets and . See INSTALLATION.md. ---",
+    "keywords": [
+      "command",
+      "команды",
+      "typer",
+      "terminal",
+      "holix",
+      "bootstrap"
     ],
     "nav_order": 6
   },
@@ -4912,31 +4984,6 @@
     "nav_order": 22
   },
   {
-    "id": "en/pypi#version-already-bumped-in-pyprojecttoml-cli__init__py",
-    "lang": "en",
-    "slug": "pypi",
-    "section": "version-already-bumped-in-pyprojecttoml-cli__init__py",
-    "title": "PyPI",
-    "heading": "version already bumped in pyproject.toml + cli/__init__.py",
-    "body": "git tag v0.1.3 git push origin v0.1.3 bash pipx install Holix holix version ```",
-    "keywords": [
-      "pypi",
-      "publish",
-      "публикация",
-      "package",
-      "version",
-      "already",
-      "bumped",
-      "pyprojecttoml",
-      "cli__init__py",
-      "pyproject",
-      "toml",
-      "cli",
-      "__init__"
-    ],
-    "nav_order": 22
-  },
-  {
     "id": "en/pypi#versioning",
     "lang": "en",
     "slug": "pypi",
@@ -5876,13 +5923,13 @@
     "nav_order": 0
   },
   {
-    "id": "ru/installation#pypi-holix-из-любой-папки-рекомендуется",
+    "id": "ru/installation#pypi-вручную",
     "lang": "ru",
     "slug": "installation",
-    "section": "pypi-holix-из-любой-папки-рекомендуется",
+    "section": "pypi-вручную",
     "title": "Установка",
-    "heading": "PyPI — `holix` из любой папки (рекомендуется)",
-    "body": "Опубликовано: pypi.org/project/Holix (версия 0.1.8 ). Пакет (не — это другой проект). Команда: . Глобально (рекомендуется): ```bash pipx install Holix",
+    "heading": "PyPI — вручную",
+    "body": "Опубликовано: pypi.org/project/Holix (версия 0.1.11 ). Пакет (не — это другой проект). Команда: . Глобально (рекомендуется): ```bash pipx install Holix",
     "keywords": [
       "install",
       "установка",
@@ -5890,10 +5937,7 @@
       "pypi",
       "uv",
       "docker",
-      "holix",
-      "любой",
-      "папки",
-      "рекомендуется"
+      "вручную"
     ],
     "nav_order": 1
   },
@@ -5976,13 +6020,33 @@
     "nav_order": 1
   },
   {
+    "id": "ru/installation#или-по-шагам",
+    "lang": "ru",
+    "slug": "installation",
+    "section": "или-по-шагам",
+    "title": "Установка",
+    "heading": "или по шагам:",
+    "body": "holix doctor holix models setup holix telegram setup `` cp .env.example .env ~/.holix/global/.env holix doctor holix models setup holix tui holix chat-command /lang ru /lang en profiles/<имя /data/locale.json ~/.holix/ %LOCALAPPDATA%\\Holix\\ HOLIX HOME` — см. CONFIGURATION.md. Логи: LOGS.md.",
+    "keywords": [
+      "install",
+      "установка",
+      "pipx",
+      "pypi",
+      "uv",
+      "docker",
+      "или",
+      "шагам"
+    ],
+    "nav_order": 1
+  },
+  {
     "id": "ru/installation#первый-запуск",
     "lang": "ru",
     "slug": "installation",
     "section": "первый-запуск",
     "title": "Установка",
     "heading": "Первый запуск",
-    "body": "1. 2. 3. 4. или Данные: (Linux/macOS), (Windows) или — см. CONFIGURATION.md. Логи: LOGS.md.",
+    "body": "После curl-установки bootstrap обычно уже настроил LLM и Telegram. Иначе: ```bash holix bootstrap язык, LLM, Telegram",
     "keywords": [
       "install",
       "установка",
@@ -6054,20 +6118,40 @@
     "nav_order": 1
   },
   {
-    "id": "ru/start-here#1-установка-с-pypi",
+    "id": "ru/installation#установка-одной-командой-curl",
+    "lang": "ru",
+    "slug": "installation",
+    "section": "установка-одной-командой-curl",
+    "title": "Установка",
+    "heading": "Установка одной командой (curl)",
+    "body": "Самый быстрый способ для macOS/Linux: скачивает , определяет язык, спрашивает тип установки, ставит пакет с PyPI и запускает интерактивную настройку. Сохранить и запустить: Что делает скрипт: 1. Язык — читает / / : - Русская система ( ) → установщик и сразу на русском - Английская или другая → меню: / 2. Тип установки — полная или минимальная (см. таблицу) 3. Пакет — или с PyPI 4. Bootstrap — : LLM + опционально Telegram (токен бота, Telegram ID админа) Выбор Пакет Состав ------- ------- -------- Полная (по умолчанию) Telegram, браузер, голос, web TUI Минимальная CLI, TUI, gateway, MCP Bootstrap ( ) после установки: Шаг Действие ----- ---------- Язык Сохраняет UI-локаль в и LLM Ollama, LiteLLM, OpenAI или Groq; проверка подключения; запись в профиля Telegram Опционально: токен бота, ваш Telegram ID как админ, Принудительный язык или повтор настройки: Из git-клона работает так же (локальный + bootstrap).",
+    "keywords": [
+      "install",
+      "установка",
+      "pipx",
+      "pypi",
+      "uv",
+      "docker",
+      "одной",
+      "командой",
+      "curl"
+    ],
+    "nav_order": 1
+  },
+  {
+    "id": "ru/start-here#1-установка",
     "lang": "ru",
     "slug": "start-here",
-    "section": "1-установка-с-pypi",
+    "section": "1-установка",
     "title": "Первый запуск",
-    "heading": "1. Установка с PyPI",
-    "body": "Пакет Holix на PyPI; команда в терминале — . ```bash pipx install Holix",
+    "heading": "1. Установка",
+    "body": "Быстрый способ (macOS/Linux): установка одной командой с определением языка, выбором полной/минимальной установки и : Подробнее: INSTALLATION.md. Вручную с PyPI: пакет Holix ; команда — . ```bash pipx install Holix",
     "keywords": [
       "start",
       "первый",
       "запуск",
       "checklist",
-      "установка",
-      "pypi"
+      "установка"
     ],
     "nav_order": 2
   },
@@ -6137,7 +6221,7 @@
     "section": "опционально-telegram-браузер-веб-tui-голос",
     "title": "Первый запуск",
     "heading": "опционально: Telegram, браузер, веб-TUI, голос:",
-    "body": "pipx install \"Holix[all]\" holix version holix doctor bash python -m venv .venv && source .venv/bin/activate pip install Holix `` pip install helix` — это другой пакет на PyPI. Разработчикам (из git): INSTALLATION.md",
+    "body": "pipx install \"Holix[all]\" holix bootstrap LLM + Telegram; язык профилей holix version holix doctor bash python -m venv .venv && source .venv/bin/activate pip install Holix `` pip install helix` — это другой пакет на PyPI. Разработчикам (из git): INSTALLATION.md",
     "keywords": [
       "start",
       "первый",
@@ -6209,6 +6293,22 @@
       "create",
       "profile",
       "name"
+    ],
+    "nav_order": 3
+  },
+  {
+    "id": "ru/quickstart#установка",
+    "lang": "ru",
+    "slug": "quickstart",
+    "section": "установка",
+    "title": "Быстрый старт",
+    "heading": "Установка",
+    "body": "Одной командой (macOS/Linux): Или вручную с PyPI: ```bash pipx install Holix holix bootstrap",
+    "keywords": [
+      "quick",
+      "быстрый",
+      "старт",
+      "установка"
     ],
     "nav_order": 3
   },
@@ -6844,6 +6944,24 @@
       "admin",
       "hx_",
       "key"
+    ],
+    "nav_order": 6
+  },
+  {
+    "id": "ru/cli#holix-bootstrap",
+    "lang": "ru",
+    "slug": "cli",
+    "section": "holix-bootstrap",
+    "title": "Справочник CLI",
+    "heading": "`holix bootstrap`",
+    "body": "Первичная настройка после установки: язык (RU/EN), LLM, опционально Telegram. Вызывается автоматически из . Опция Описание ------- ---------- Язык мастера ( \\ ); на русской системе выбор не спрашивается Пропустить настройку LLM Пропустить Telegram , Без интерактива , Профиль Holix (по умолчанию ) Записывает локаль в и . См. INSTALLATION.md. ---",
+    "keywords": [
+      "command",
+      "команды",
+      "typer",
+      "terminal",
+      "holix",
+      "bootstrap"
     ],
     "nav_order": 6
   },
@@ -9952,22 +10070,6 @@
       "публикация",
       "package",
       "ограничения"
-    ],
-    "nav_order": 22
-  },
-  {
-    "id": "ru/pypi#публикация-на-pypi",
-    "lang": "ru",
-    "slug": "pypi",
-    "section": "публикация-на-pypi",
-    "title": "PyPI",
-    "heading": "Публикация на PyPI",
-    "body": "Руководство по выпуску пакета Holix на PyPI. Опубликовано: Holix 0.1.8 — .",
-    "keywords": [
-      "pypi",
-      "publish",
-      "публикация",
-      "package"
     ],
     "nav_order": 22
   },

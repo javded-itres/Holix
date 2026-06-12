@@ -8,15 +8,24 @@ Follow this checklist for a working Holix install on a new machine.
 - An OpenAI-compatible LLM ([Ollama](https://ollama.com), LiteLLM, OpenAI, Groq, …)
 - [pipx](https://pipx.pypa.io/) (recommended) or `pip` in a venv
 
-## 1. Install from PyPI
+## 1. Install
 
-Package **[Holix](https://pypi.org/project/Holix/)** on PyPI; terminal command **`holix`**.
+**Fastest (macOS/Linux):** one-line installer with language detection, full/minimal choice, and `holix bootstrap`:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/javded-itres/Holix/main/scripts/install.sh | bash
+```
+
+See [INSTALLATION.md](INSTALLATION.md#one-line-install-curl) for language rules and bootstrap details.
+
+**Manual PyPI:** package **[Holix](https://pypi.org/project/Holix/)**; terminal command **`holix`**.
 
 ```bash
 pipx install Holix
 # optional extras (Telegram, browser, web TUI, voice):
 pipx install "Holix[all]"
 
+holix bootstrap    # LLM + optional Telegram; sets profile locale
 holix version
 holix doctor
 ```

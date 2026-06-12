@@ -13,6 +13,7 @@ from cli.commands import chat, config, doctor, gateway, memory, models, profile,
 from cli.commands.cron import app as cron_app
 from cli.commands.docs import app as docs_app
 from cli.commands.hub import app as hub_app
+from cli.commands.bootstrap import app as bootstrap_app
 from cli.commands.install_cmd import app as install_app
 from cli.commands.logs import app as logs_app
 from cli.commands.mcp import app as mcp_app
@@ -45,6 +46,7 @@ app.add_typer(cron_app, name="cron")
 app.add_typer(logs_app, name="logs")
 app.add_typer(hub_app, name="hub")
 app.add_typer(install_app, name="install")
+app.add_typer(bootstrap_app, name="bootstrap")
 app.add_typer(update_app, name="update")
 app.add_typer(docs_app, name="docs")
 

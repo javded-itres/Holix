@@ -28,6 +28,14 @@
 
 ### Install
 
+**One-line install** (detects OS language, asks full vs minimal, runs `holix bootstrap` for LLM + Telegram):
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/javded-itres/Holix/main/scripts/install.sh | bash
+```
+
+Russian systems use Russian prompts automatically; English systems choose EN/RU. See [docs/en/INSTALLATION.md](docs/en/INSTALLATION.md).
+
 **Install from PyPI** (Python 3.12+). Package: [`Holix`](https://pypi.org/project/Holix/), CLI command: `holix`:
 
 ```bash

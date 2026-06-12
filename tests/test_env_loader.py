@@ -94,3 +94,35 @@ def test_empty_values_not_set(holix_home: Path, monkeypatch: pytest.MonkeyPatch)
 
     bootstrap_env(force=True)
     assert "TELEGRAM_BOT_TOKEN" not in os.environ
+
+
+def test_legacy_helix_env_aliases_mapped_to_holix(
+    holix_home: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.delenv("HOLIX_DOCS_CHAT_ENABLED", raising=False)
+    monkeypatch.delenv("HELIX_DOCS_CHAT_ENABLED", raising=False)
+    monkeypatch.delenv("HOLIX_DOCS_CHAT_TOKEN", raising=False)
+    monkeypatch.delenv("HELIX_DOCS_CHAT_TOKEN", raising=False)
+    holix_env_path().write_text(
+        "HELIX_DOCS_CHAT_ENABLED=1\n"
+        "HELIX_DOCS_CHAT_TOKEN=legacy-secret\n",
+        encoding="utf-8",
+    )
+
+    bootstrap_env(force=True)
+    assert os.environ.get("HOLIX_DOCS_CHAT_ENABLED") == "1"
+    assert os.environ.get("HOLIX_DOCS_CHAT_TOKEN") == "legacy-secret"
+
+
+def test_holix_env_wins_over_legacy_helix_alias(
+    holix_home: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.delenv("HOLIX_DOCS_CHAT_ENABLED", raising=False)
+    monkeypatch.delenv("HELIX_DOCS_CHAT_ENABLED", raising=False)
+    holix_env_path().write_text(
+        "HELIX_DOCS_CHAT_ENABLED=1\nHOLIX_DOCS_CHAT_ENABLED=0\n",
+        encoding="utf-8",
+    )
+
+    bootstrap_env(force=True)
+    assert os.environ.get("HOLIX_DOCS_CHAT_ENABLED") == "0"

@@ -25,9 +25,57 @@ Holix требует **Python 3.12+** и устанавливается как C
 
 ## Быстрая установка (пользователям)
 
-### PyPI — `holix` из любой папки (рекомендуется)
+### Установка одной командой (curl)
 
-Опубликовано: [pypi.org/project/Holix](https://pypi.org/project/Holix/) (версия **0.1.8**).
+Самый быстрый способ для macOS/Linux: скачивает `install.sh`, определяет язык, спрашивает тип установки, ставит пакет с PyPI и запускает интерактивную настройку.
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/javded-itres/Holix/main/scripts/install.sh | bash
+```
+
+Сохранить и запустить:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/javded-itres/Holix/main/scripts/install.sh -o install.sh
+bash install.sh
+```
+
+**Что делает скрипт:**
+
+1. **Язык** — читает `LANG` / `LC_ALL` / `LC_MESSAGES`:
+   - Русская система (`ru_*`) → установщик и `holix bootstrap` сразу на **русском**
+   - Английская или другая → меню: `1) English` / `2) Русский`
+2. **Тип установки** — полная или минимальная (см. таблицу)
+3. **Пакет** — `pipx install` или `uv tool install` с PyPI
+4. **Bootstrap** — `holix bootstrap`: LLM + опционально Telegram (токен бота, Telegram ID админа)
+
+| Выбор | Пакет | Состав |
+|-------|-------|--------|
+| **Полная** (по умолчанию) | `Holix[all]` | Telegram, браузер, голос, web TUI |
+| **Минимальная** | `Holix` | CLI, TUI, gateway, MCP |
+
+**Bootstrap (`holix bootstrap`)** после установки:
+
+| Шаг | Действие |
+|-----|----------|
+| Язык | Сохраняет UI-локаль в `profiles/default/data/locale.json` и `profiles/admin/data/locale.json` |
+| LLM | Ollama, LiteLLM, OpenAI или Groq; проверка подключения; запись в `config.yaml` профиля |
+| Telegram | Опционально: токен бота, ваш Telegram ID как админ, `HOLIX_TELEGRAM_VOICE_LANGUAGE` |
+
+Принудительный язык или повтор настройки:
+
+```bash
+HOLIX_BOOTSTRAP_LANG=ru bash install.sh
+holix bootstrap --lang en
+holix bootstrap --skip-telegram
+holix bootstrap -y          # без интерактива
+```
+
+Из git-клона `./scripts/install.sh` работает так же (локальный `uv sync` + bootstrap).
+
+### PyPI — вручную
+
+Опубликовано: [pypi.org/project/Holix](https://pypi.org/project/Holix/) (версия **0.1.11**).
 
 Пакет **`Holix`** (не `pip install helix` — это другой проект). Команда: **`holix`**.
 
@@ -135,10 +183,22 @@ holix models setup
 
 ## Первый запуск
 
-1. `cp .env.example .env`
+**После curl-установки** bootstrap обычно уже настроил LLM и Telegram. Иначе:
+
+```bash
+holix bootstrap              # язык, LLM, Telegram
+# или по шагам:
+holix doctor
+holix models setup
+holix telegram setup
+```
+
+1. `cp .env.example .env` (опционально) или `~/.holix/global/.env`
 2. `holix doctor`
-3. `holix models setup`
+3. `holix models setup` (если пропустили в bootstrap)
 4. `holix tui` или `holix chat-command`
+
+Язык интерфейса профиля: `/lang ru` или `/lang en` в TUI; файл `profiles/<имя>/data/locale.json`.
 
 Данные: `~/.holix/` (Linux/macOS), `%LOCALAPPDATA%\Holix\` (Windows) или `HOLIX_HOME` — см. [CONFIGURATION.md](CONFIGURATION.md). Логи: [LOGS.md](LOGS.md).
 

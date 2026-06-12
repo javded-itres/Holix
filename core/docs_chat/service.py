@@ -177,6 +177,20 @@ def sanitize_assistant_text(text: str) -> str:
     return cleaned
 
 
+def _user_facing_error(exc: Exception, *, lang: str) -> str:
+    name = type(exc).__name__
+    if name in {"ConnectTimeout", "APITimeoutError", "ReadTimeout", "TimeoutException"}:
+        if lang == "ru":
+            return "Сервис ответа временно недоступен. Проверьте LLM-провайдер профиля docs и попробуйте снова."
+        return "The answer service is temporarily unavailable. Check the docs profile LLM provider and try again."
+    text = str(exc).strip()
+    if not text:
+        text = name
+    if lang == "ru" and len(text) > 120:
+        return "Не удалось получить ответ. Попробуйте ещё раз или переформулируйте вопрос."
+    return text
+
+
 def _resolve_llm(profile_name: str) -> tuple[str, str, str, float, int]:
     from cli.core import init_profile
 
@@ -408,4 +422,4 @@ class DocsChatService:
             yield f"data: {json.dumps({'type': 'done', 'open_slug': open_slug}, ensure_ascii=False)}\n\n"
         except Exception as exc:
             logger.exception("docs chat stream failed")
-            yield f"data: {json.dumps({'type': 'error', 'message': str(exc)})}\n\n"
+            yield f"data: {json.dumps({'type': 'error', 'message': _user_facing_error(exc, lang=lang)}, ensure_ascii=False)}\n\n"

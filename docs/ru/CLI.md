@@ -102,6 +102,29 @@ holix update --check
 
 ---
 
+## `holix bootstrap`
+
+Первичная настройка после установки: язык (RU/EN), LLM, опционально Telegram. Вызывается автоматически из `install.sh`.
+
+```bash
+holix bootstrap
+holix bootstrap --lang ru
+holix bootstrap --skip-telegram
+holix bootstrap -y
+```
+
+| Опция | Описание |
+|-------|----------|
+| `--lang` | Язык мастера (`en` \| `ru`); на русской системе выбор не спрашивается |
+| `--skip-llm` | Пропустить настройку LLM |
+| `--skip-telegram` | Пропустить Telegram |
+| `-y`, `--yes` | Без интерактива |
+| `-p`, `--profile` | Профиль Holix (по умолчанию `default`) |
+
+Записывает локаль в `profiles/default/data/locale.json` и `profiles/admin/data/locale.json`. См. [INSTALLATION.md](INSTALLATION.md).
+
+---
+
 ## `holix config`
 
 | Подкоманда | Описание |

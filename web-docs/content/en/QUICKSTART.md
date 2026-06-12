@@ -1,13 +1,22 @@
 # Quickstart
 
-## Install (PyPI)
+## Install
+
+**One line (recommended on macOS/Linux):**
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/javded-itres/Holix/main/scripts/install.sh | bash
+```
+
+**Or PyPI manually:**
 
 ```bash
 pipx install Holix
+holix bootstrap
 # or: pip install Holix  (inside an activated venv)
 ```
 
-Package: [Holix on PyPI](https://pypi.org/project/Holix/). CLI command: `holix`.
+Package: [Holix on PyPI](https://pypi.org/project/Holix/). CLI command: `holix`. Details: [INSTALLATION.md](INSTALLATION.md).
 
 ## Run
 

@@ -162,6 +162,29 @@ See [INSTALLATION.md](INSTALLATION.md).
 
 ---
 
+## `holix bootstrap`
+
+First-run wizard after install: detect or choose UI language (RU/EN), configure LLM provider, optional Telegram bot + admin ID. Called automatically by `install.sh`.
+
+```bash
+holix bootstrap
+holix bootstrap --lang ru
+holix bootstrap --skip-telegram
+holix bootstrap -y
+```
+
+| Option | Description |
+|--------|-------------|
+| `--lang` | UI language for setup (`en` \| `ru`); Russian OS locale skips the prompt |
+| `--skip-llm` | Skip LLM provider setup |
+| `--skip-telegram` | Skip Telegram wizard |
+| `-y`, `--yes` | Non-interactive (skip prompts) |
+| `-p`, `--profile` | Holix profile (default: `default`) |
+
+Sets `profiles/default/data/locale.json` and `profiles/admin/data/locale.json`. See [INSTALLATION.md](INSTALLATION.md#one-line-install-curl).
+
+---
+
 ## `holix update`
 
 ```bash

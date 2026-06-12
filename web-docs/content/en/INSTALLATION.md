@@ -25,9 +25,57 @@ After the `browser` extra: `playwright install chromium`
 
 ## Quick install (recommended for users)
 
-### From PyPI (recommended)
+### One-line install (curl)
 
-Published on [pypi.org/project/Holix](https://pypi.org/project/Holix/) (current: **0.1.8**).
+The fastest path for macOS/Linux: download `install.sh`, detect UI language, choose install type, install from PyPI, then run interactive setup.
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/javded-itres/Holix/main/scripts/install.sh | bash
+```
+
+Or save and run:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/javded-itres/Holix/main/scripts/install.sh -o install.sh
+bash install.sh
+```
+
+**What the script does:**
+
+1. **Language** — reads `LANG` / `LC_ALL` / `LC_MESSAGES`:
+   - Russian system (`ru_*`) → installer and `holix bootstrap` use **Russian** automatically
+   - English or other → prompts: `1) English` / `2) Русский`
+2. **Install type** — full vs minimal (see table below)
+3. **Package** — `pipx install` or `uv tool install` from PyPI
+4. **Bootstrap** — `holix bootstrap`: LLM provider + optional Telegram (bot token, admin Telegram ID)
+
+| Choice | PyPI package | Includes |
+|--------|--------------|----------|
+| **Full** (default) | `Holix[all]` | Telegram, browser, voice, web TUI |
+| **Minimal** | `Holix` | Core CLI, TUI, gateway, MCP |
+
+**Bootstrap (`holix bootstrap`)** after install:
+
+| Step | Action |
+|------|--------|
+| Locale | Saves UI language to `profiles/default/data/locale.json` and `profiles/admin/data/locale.json` |
+| LLM | Choose Ollama, LiteLLM, OpenAI, or Groq; probe connection; save to profile `config.yaml` |
+| Telegram | Optional: bot token, your Telegram user ID as admin, `HOLIX_TELEGRAM_VOICE_LANGUAGE` |
+
+Force language or re-run setup:
+
+```bash
+HOLIX_BOOTSTRAP_LANG=ru bash install.sh
+holix bootstrap --lang en
+holix bootstrap --skip-telegram
+holix bootstrap -y          # non-interactive (skips prompts)
+```
+
+From a git clone, `./scripts/install.sh` uses the same flow (local `uv sync` + bootstrap).
+
+### From PyPI (manual)
+
+Published on [pypi.org/project/Holix](https://pypi.org/project/Holix/) (current: **0.1.11**).
 
 Package name **`Holix`** (not `holix` — that name is used by another project).  
 After install, the CLI command is **`holix`** in the environment’s `bin` directory.
@@ -175,10 +223,22 @@ uv run holix tui
 
 ## First-time configuration
 
-1. Copy environment defaults: `cp .env.example .env`
+**Recommended** after curl install: bootstrap already configured LLM and Telegram. Otherwise:
+
+```bash
+holix bootstrap              # interactive: language, LLM, Telegram
+# or step by step:
+holix doctor
+holix models setup
+holix telegram setup
+```
+
+1. Copy environment defaults (optional): `cp .env.example .env` or use `~/.holix/global/.env`
 2. Run diagnostics: `holix doctor`
-3. Configure models: `holix models setup`
+3. Configure models (if skipped in bootstrap): `holix models setup`
 4. Start chatting: `holix tui` or `holix chat-command`
+
+UI language per profile: `/lang ru` or `/lang en` in TUI; stored in `profiles/<name>/data/locale.json`.
 
 Data directory: `~/.holix/` (Linux/macOS), `%LOCALAPPDATA%\Holix\` (Windows), or `HOLIX_HOME`.  
 Profile data: `profiles/<name>/` (not in the project directory). Logs: [LOGS.md](LOGS.md). See [CONFIGURATION.md](CONFIGURATION.md).

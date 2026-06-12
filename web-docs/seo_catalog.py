@@ -77,20 +77,22 @@ SEO_PAGES: dict[str, dict[str, dict[str, str]]] = {
     },
     "installation": {
         "ru": {
-            "title": "Установка Holix — PyPI, pipx, Python 3.12, Docker",
+            "title": "Установка Holix — curl, PyPI, bootstrap, Python 3.12",
             "description": (
-                "Как установить Holix с PyPI (Holix): pipx, venv, Python 3.12+, опциональные extras "
-                "(Telegram, браузер, голос). Обновление, удаление и решение проблем установки."
+                "Установка Holix одной командой curl: определение языка (RU/EN), полная или минимальная "
+                "установка, holix bootstrap (LLM, Telegram, локаль профилей). PyPI, pipx, Docker, "
+                "обновление и решение проблем."
             ),
-            "keywords": "установка Holix, pipx install Holix, PyPI, Python 3.12, Holix Docker",
+            "keywords": "установка Holix, curl install Holix, holix bootstrap, pipx install Holix, PyPI",
         },
         "en": {
-            "title": "Install Holix — PyPI, pipx, Python 3.12, Docker",
+            "title": "Install Holix — curl, PyPI, bootstrap, Python 3.12",
             "description": (
-                "How to install Holix from PyPI (Holix): pipx, venv, Python 3.12+, optional extras "
-                "(Telegram, browser, voice). Updates, uninstall, and install troubleshooting."
+                "Install Holix with one curl command: OS language detection (RU/EN), full or minimal "
+                "install, holix bootstrap (LLM, Telegram, profile locale). PyPI, pipx, Docker, "
+                "updates, and troubleshooting."
             ),
-            "keywords": "install Holix, pipx install Holix, PyPI, Python 3.12, Holix Docker",
+            "keywords": "install Holix, curl install Holix, holix bootstrap, pipx install Holix, PyPI",
         },
     },
     "start-here": {
@@ -115,7 +117,7 @@ SEO_PAGES: dict[str, dict[str, dict[str, str]]] = {
         "ru": {
             "title": "Быстрый старт Holix — минимальные команды для запуска",
             "description": (
-                "Минимальный быстрый старт Holix: pipx install Holix, holix doctor, holix models setup, "
+                "Минимальный быстрый старт Holix: curl install.sh, holix bootstrap, holix doctor, "
                 "holix tui. Краткий список команд для немедленного начала работы с агентом."
             ),
             "keywords": "Holix быстрый старт, holix tui, holix models setup, минимальные команды",
@@ -123,7 +125,7 @@ SEO_PAGES: dict[str, dict[str, dict[str, str]]] = {
         "en": {
             "title": "Holix Quickstart — Minimal Commands to Run the Agent",
             "description": (
-                "Minimal Holix quickstart: pipx install Holix, holix doctor, holix models setup, "
+                "Minimal Holix quickstart: curl install.sh, holix bootstrap, holix doctor, "
                 "holix tui. Short command list to start using the agent immediately."
             ),
             "keywords": "Holix quickstart, holix tui, holix models setup, minimal commands",

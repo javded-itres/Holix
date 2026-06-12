@@ -8,15 +8,24 @@
 - OpenAI-совместимый LLM (Ollama, LiteLLM, OpenAI, Groq, …)
 - [pipx](https://pipx.pypa.io/) (рекомендуется) или `pip` в venv
 
-## 1. Установка с PyPI
+## 1. Установка
 
-Пакет **[Holix](https://pypi.org/project/Holix/)** на PyPI; команда в терминале — **`holix`**.
+**Быстрый способ (macOS/Linux):** установка одной командой с определением языка, выбором полной/минимальной установки и `holix bootstrap`:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/javded-itres/Holix/main/scripts/install.sh | bash
+```
+
+Подробнее: [INSTALLATION.md](INSTALLATION.md#установка-одной-командой-curl).
+
+**Вручную с PyPI:** пакет **[Holix](https://pypi.org/project/Holix/)**; команда — **`holix`**.
 
 ```bash
 pipx install Holix
 # опционально: Telegram, браузер, веб-TUI, голос:
 pipx install "Holix[all]"
 
+holix bootstrap    # LLM + Telegram; язык профилей
 holix version
 holix doctor
 ```

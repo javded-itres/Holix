@@ -82,11 +82,22 @@ class Settings(BaseSettings):
     gateway_port: int = 8000
     gateway_with_docs: bool = Field(
         default=False,
-        validation_alias=AliasChoices("HOLIX_GATEWAY_WITH_DOCS", "HOLIX_GATEWAY_DOCS"),
+        validation_alias=AliasChoices(
+            "HOLIX_GATEWAY_WITH_DOCS",
+            "HOLIX_GATEWAY_DOCS",
+            "HELIX_GATEWAY_WITH_DOCS",
+            "HELIX_GATEWAY_DOCS",
+        ),
         description="Start documentation site together with holix gateway start",
     )
-    docs_host: str = Field(default="127.0.0.1", validation_alias="HOLIX_DOCS_HOST")
-    docs_port: int = Field(default=8080, validation_alias="HOLIX_DOCS_PORT")
+    docs_host: str = Field(
+        default="127.0.0.1",
+        validation_alias=AliasChoices("HOLIX_DOCS_HOST", "HELIX_DOCS_HOST"),
+    )
+    docs_port: int = Field(
+        default=8080,
+        validation_alias=AliasChoices("HOLIX_DOCS_PORT", "HELIX_DOCS_PORT"),
+    )
     require_auth: bool = True
     cors_origins: str = "http://127.0.0.1:8000,http://localhost:8000"
     api_keys_db_path: str = Field(
@@ -105,30 +116,48 @@ class Settings(BaseSettings):
     # Documentation-site chat widget (isolated profile, no agent tools)
     docs_chat_enabled: bool = Field(
         default=False,
-        validation_alias="HOLIX_DOCS_CHAT_ENABLED",
+        validation_alias=AliasChoices(
+            "HOLIX_DOCS_CHAT_ENABLED",
+            "HELIX_DOCS_CHAT_ENABLED",
+        ),
     )
     docs_chat_profile: str = Field(
         default="docs",
-        validation_alias="HOLIX_DOCS_CHAT_PROFILE",
+        validation_alias=AliasChoices(
+            "HOLIX_DOCS_CHAT_PROFILE",
+            "HELIX_DOCS_CHAT_PROFILE",
+        ),
         description="Profile with LLM credentials for the public docs assistant only",
     )
     docs_chat_token: str = Field(
         default="",
-        validation_alias="HOLIX_DOCS_CHAT_TOKEN",
+        validation_alias=AliasChoices(
+            "HOLIX_DOCS_CHAT_TOKEN",
+            "HELIX_DOCS_CHAT_TOKEN",
+        ),
         description="Shared token for docs server proxy → gateway (not exposed to browsers)",
     )
     docs_chat_rate_limit_rpm: int = Field(
         default=30,
-        validation_alias="HOLIX_DOCS_CHAT_RATE_LIMIT_RPM",
+        validation_alias=AliasChoices(
+            "HOLIX_DOCS_CHAT_RATE_LIMIT_RPM",
+            "HELIX_DOCS_CHAT_RATE_LIMIT_RPM",
+        ),
     )
     docs_chat_model: str = Field(
         default="",
-        validation_alias="HOLIX_DOCS_CHAT_MODEL",
+        validation_alias=AliasChoices(
+            "HOLIX_DOCS_CHAT_MODEL",
+            "HELIX_DOCS_CHAT_MODEL",
+        ),
         description="Optional model override for docs chat (use a non-reasoning model like smart)",
     )
     docs_chat_max_tokens: int = Field(
         default=4096,
-        validation_alias="HOLIX_DOCS_CHAT_MAX_TOKENS",
+        validation_alias=AliasChoices(
+            "HOLIX_DOCS_CHAT_MAX_TOKENS",
+            "HELIX_DOCS_CHAT_MAX_TOKENS",
+        ),
     )
 
     # Tools (production hardening)

@@ -123,6 +123,19 @@ def init_holix_home() -> Path:
     return home
 
 
+def _apply_legacy_helix_env_aliases() -> None:
+    """Map legacy ``HELIX_*`` keys to ``HOLIX_*`` when the new name is unset."""
+    for key, value in list(os.environ.items()):
+        if not key.startswith("HELIX_"):
+            continue
+        holix_key = f"HOLIX_{key[6:]}"
+        if holix_key in os.environ:
+            continue
+        if not str(value).strip():
+            continue
+        os.environ[holix_key] = str(value)
+
+
 def _apply_env_file(path: Path, *, override_file_values: bool = False) -> None:
     if not path.is_file():
         return
@@ -194,6 +207,7 @@ def bootstrap_env(*, include_project: bool = True, force: bool = False) -> None:
             continue
         os.environ[key] = str(value)
 
+    _apply_legacy_helix_env_aliases()
     _BOOTSTRAPPED = True
 
 
@@ -210,6 +224,7 @@ def bootstrap_profile_env(profile: str, *, force: bool = False) -> None:
     os.environ["HOLIX_PROFILE"] = name
     _seed_profile_env(name, inherit_global=True)
     _apply_env_file(profile_env_path(name), override_file_values=True)
+    _apply_legacy_helix_env_aliases()
     _ACTIVE_PROFILE_ENV = name
 
 
