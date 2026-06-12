@@ -1,9 +1,10 @@
 # Holix Link — удалённый доступ агента к папке пользователя
 
-**Статус:** черновик на согласование (реализация не начата)  
+**Статус:** согласовано (v1.0), реализация начата  
 **Ветка:** `feature/remote-folder-agent`  
-**Версия документа:** 0.3  
-**Дата:** 2026-06-12
+**Версия документа:** 1.0  
+**Дата:** 2026-06-12  
+**Клиентский репозиторий:** [github.com/javded-itres/Holix-Link](https://github.com/javded-itres/Holix-Link)
 
 ---
 
@@ -53,7 +54,10 @@
 - Работа **за NAT** (outbound-only).
 - На сервере — **отдельный профиль** или режим `link` с workspace jail = удалённая папка.
 - **Отзыв** связи с любой стороны, аудит операций.
+- **Права на файлы** задаются в **конфиге серверного профиля** (`link.permissions`), не жёсткий read-only.
+- **Уведомления на клиенте** при доступе агента — **opt-in** в `config.json` клиента.
 - **Паритет платформ:** клиент Holix Link с первого релиза на **Windows 10+**, **Linux** (glibc systemd/non-systemd), **macOS 12+** (Intel + Apple Silicon).
+- **Сетевые и UNC-пути** поддерживаются; внутренняя модель путей **портативная** (не привязана к одной ОС).
 
 ### Не входит в MVP
 
@@ -153,11 +157,27 @@ flowchart TB
 
 Полное E2E без расшифровки на relay **не требуется в MVP**, если relay на том же доверенном gateway. Для multi-tenant SaaS — фаза 2: envelope encryption per link.
 
-### 6.3 Права на клиенте
+### 6.3 Права и лимиты
 
-- Переиспользовать **`workspace_jail`** из `core/tools/` — тот же код нормализации путей.
-- Запрет symlink-escape (resolve realpath внутри jail).
-- Лимиты: max file size read (например 10 MB MVP), max list entries, rate limit RPC/мин.
+**Серверный профиль** (`profiles/<name>/config.yaml`):
+
+```yaml
+link:
+  max_connections: 5          # лимит одновременных link на профиль; позже — отдельный тариф
+  permissions:
+    read: true
+    write: true               # оператор настраивает; не жёсткий read-only в MVP
+    mkdir: true
+    delete: false             # по умолчанию выкл.
+```
+
+**Pair-код** выдают **админ** (`holix link create`) и **владелец профиля** (через Telegram / TUI того же бота, что на сервере).
+
+**Клиент:**
+
+- Переиспользовать логику **`workspace_jail`** — нормализация путей, запрет symlink-escape.
+- Лимиты: max file size read (10 MB MVP), max list entries, rate limit RPC/мин.
+- **Уведомления:** `notifications.enabled` в `~/.holix-link/config.json` — пользователь включает сам.
 
 ---
 
@@ -252,13 +272,14 @@ Relay и агент — часть пакета **`Holix`** на gateway; обн
 |----|-----|--------|
 | Все | Аргумент `--folder <path>` в CLI | `holix-link wizard` с нативным диалогом |
 | Linux/macOS | `~/…`, `/home/…` | `zenity` / AppleScript `choose folder` |
-| Windows | `C:\Users\…`, UNC `\\server\share` (read-only share — осторожно) | PowerShell `FolderBrowserDialog` |
+| Windows | `C:\Users\…`, UNC `\\server\share` | PowerShell `FolderBrowserDialog` |
+| Сетевые | SMB/NFS/UNC — **да в MVP** | Единая portable-модель путей |
 
-**Нормализация путей** (`integrations/link/paths.py`):
+**Нормализация путей** (`holix_link/paths.py` в [Holix-Link](https://github.com/javded-itres/Holix-Link)):
 
-- Внутреннее представление: POSIX-style относительно jail root (`src/main.py`).
-- Windows: `Path.resolve()`, поддержка длинных путей (`\\?\` при &gt;260 символов).
-- Запрет: `..`, absolute escape, **junction/symlink** за пределы jail (`os.path.realpath` / `Path.resolve(strict=False)` с проверкой `is_relative_to`).
+- Внутреннее представление: **portable** относительные пути от jail root (`src/main.py`) — одна схема для всех ОС.
+- Windows: `Path.resolve()`, длинные пути (`\\?\` при &gt;260 символов), UNC `\\host\share\…`.
+- Запрет: `..`, absolute escape, **junction/symlink** за пределы jail (`Path.resolve(strict=False)` + `is_relative_to`).
 
 Отдельный набор тестов: `tests/test_link_paths_windows.py` (моки `sys.platform`), `test_link_jail_unix.py`.
 
@@ -311,7 +332,7 @@ strategy:
 
 ### 9.7 Зависимости клиента (отдельный `pyproject.toml`)
 
-Пакет **`Holix-Link`** — свой репозиторий / subdirectory `packages/holix-link/` в монорепо, **не** зависит от `Holix`:
+Пакет **`Holix-Link`** — **отдельный git-репозиторий** [Holix-Link](https://github.com/javded-itres/Holix-Link), **не** зависит от `Holix`:
 
 | Включено | Исключено намеренно |
 |----------|---------------------|
@@ -329,7 +350,7 @@ strategy:
 | Компонент | Пакет | Описание |
 |-----------|-------|----------|
 | `holix_link/` (клиент) | **Holix-Link** | CLI `holix-link`, daemon, jail, pairing, service install |
-| `holix_link/protocol.py` | **Holix-Link** + **Holix** | Общий контракт RPC (shared wheel `holix-link-protocol` или vendored copy) |
+| `holix_link/protocol.py` | **Holix-Link** + **Holix** | Общий контракт RPC (копия в `integrations/link/protocol.py` на сервере) |
 | `api/routers/link.py` | **Holix** | REST + WebSocket relay на gateway |
 | `core/tools/link_fs.py` | **Holix** | Agent tools `link_*` |
 | `cli/commands/link.py` | **Holix** | `holix link create|list|revoke` (сервер) |
@@ -362,16 +383,20 @@ strategy:
 
 ## 12. План реализации по фазам
 
-> **Важно:** код пишется только после согласования этого документа.
+### Фаза 0 — Согласование ✅
 
-### Фаза 0 — Согласование (текущий этап)
-
-- [ ] Утвердить название (Holix Link / другое)
-- [ ] Утвердить: только файлы в MVP или нужен read-only
+- [x] Название: **Holix Link**
+- [x] Права на файлы: **настраиваются в конфиге профиля** (read/write/mkdir/delete)
 - [x] Клиент — **отдельный PyPI `Holix-Link`**, без локального агента Holix
-- [ ] Утвердить: монорепо (`packages/holix-link/`) vs отдельный git-репозиторий
-- [ ] Утвердить модель хостинга relay (только self-hosted gateway / managed cloud)
-- [x] Поддержка клиента: **Windows + Linux + macOS** (обязательно в MVP)
+- [x] Репозиторий: **отдельный git** [Holix-Link](https://github.com/javded-itres/Holix-Link)
+- [x] Relay: **только self-hosted** gateway (managed cloud — фаза 3)
+- [x] Поддержка клиента: **Windows + Linux + macOS**
+- [x] Каталог данных: **`~/.holix-link`**
+- [x] Pair-код: **admin + владелец профиля**
+- [x] Лимит link: **`link.max_connections` в config.yaml профиля**
+- [x] Telegram: **тот же бот**, что на сервере
+- [x] Уведомления на клиенте: **да, opt-in**
+- [x] UNC/сетевые пути: **да**, portable path model
 
 ### Фаза 1 — MVP (оценка 4–5 недель с кроссплатформой)
 
@@ -392,13 +417,12 @@ strategy:
 
 ### Фаза 2 — Усиление (2 недели)
 
-- Read-only режим по умолчанию + toggle `holix link grant write`
 - OS keychain: **Keychain** (macOS), **Credential Manager** (Windows), **secretstorage** (Linux)
 - Нативный диалог выбора папки в `wizard`
 - Windows: полноценная Service + корпоративный `HTTPS_PROXY`
 - Ограничение MIME/расширений
 - Статус в `holix gateway status` / Prometheus метрики
-- Уведомление клиенту при каждой записи файла
+- Тарифные лимиты `link.max_connections` (billing)
 
 ### Фаза 3 — Опционально
 
@@ -422,46 +446,33 @@ strategy:
 
 ---
 
-## 14. Вопросы для согласования
+## 14. Решения (v1.0)
 
-См. список в конце документа и ответы пользователя — после этого версия **1.0**.
+| # | Вопрос | Решение |
+|---|--------|---------|
+| 1 | Имя продукта | **Holix Link** |
+| 2 | Доступ к файлам в MVP | **Права в конфиге профиля** (read/write/mkdir/delete — не жёсткий read-only) |
+| 3 | Репозиторий клиента | **Отдельный repo** [Holix-Link](https://github.com/javded-itres/Holix-Link) |
+| 4 | Каталог данных клиента | **`~/.holix-link`** (Windows: `%LOCALAPPDATA%\HolixLink\`) |
+| 5 | Кто выдаёт pair-код | **Admin и владелец профиля** |
+| 6 | Link на профиль | **N**, лимит в **`link.max_connections`** в config.yaml; тариф — позже |
+| 7 | Telegram | **Тот же бот**, что на сервере |
+| 8 | Хостинг relay | **Только self-hosted** gateway |
+| 9 | Уведомления на клиенте | **Да**, пользователь **сам включает** в настройках |
+| 10 | UNC/сетевые папки | **Да**, portable path model без привязки к одной ОС |
 
-### Уже согласовано (v0.3)
-
-| # | Решение |
-|---|---------|
-| — | Клиент: **Windows + Linux + macOS** |
-| — | На ПК пользователя ставится **только Holix Link**, без локального агента `Holix` |
-
----
-
-## 15. Следующий шаг после согласования
-
-1. Зафиксировать ответы на вопросы ниже в этом файле (версия 1.0).
-2. Создать issue/PR stack по таблице Фазы 1.
-3. Начать с **PR-1** (протокол + тесты контракта без сети).
+Дополнительно (v0.3): клиент **Windows + Linux + macOS**; на ПК — **только Holix Link**, без локального агента `Holix`.
 
 ---
 
----
+## 15. Текущий статус реализации
 
-## 16. Анкета (ответьте на все пункты)
-
-Скопируйте блок и заполните:
-
-```
-1. Имя продукта: 
-2. MVP — доступ к файлам: read-only / read+write / write по запросу
-3. Репозиторий клиента: монорепо packages/holix-link / отдельный repo
-4. Каталог данных клиента: ~/.holix-link / другое: ___
-5. Кто выдаёт pair-код: только admin / любой владелец профиля / оба
-6. Сколько link на один серверный профиль: 1 / N (макс: ___)
-7. Telegram: тот же бот / отдельный / не нужен в MVP
-8. Хостинг relay: только self-hosted / managed holix-agent.ru / оба
-9. Уведомления на клиенте при доступе агента: да / нет / только запись
-10. UNC/сетевые папки Windows в MVP: да / нет
-```
+| PR | Статус |
+|----|--------|
+| **PR-1** протокол | в работе — [Holix-Link](https://github.com/javded-itres/Holix-Link) |
+| **PR-2** paths/jail | в работе — [Holix-Link](https://github.com/javded-itres/Holix-Link) |
+| PR-3 … PR-10 | очередь (Holix + Holix-Link) |
 
 ---
 
-*Документ подготовлен для ветки `feature/remote-folder-agent`. Изменения в коде до approval не вносятся.*
+*Документ v1.0 для ветки `feature/remote-folder-agent`. Клиент: [Holix-Link](https://github.com/javded-itres/Holix-Link).*
