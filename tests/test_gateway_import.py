@@ -12,12 +12,13 @@ def test_gateway_module_imports() -> None:
     assert api.gateway.app is not None
 
 
-def test_permissions_endpoints_use_shared_manager(
+def test_permissions_endpoints_use_profile_scoped_manager(
     gateway_client: TestClient,
     gateway_auth_headers: dict,
 ) -> None:
-    from core.security.confirmation import permission_manager
+    from core.security.confirmation import get_permission_manager_for_profile
 
+    permission_manager = get_permission_manager_for_profile("default")
     permission_manager.clear_session()
     client = gateway_client
     headers = gateway_auth_headers

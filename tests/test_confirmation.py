@@ -559,7 +559,7 @@ class TestSharedPermissionManager:
 
         assert isinstance(pm, PermissionManager)
 
-    def test_init_action_guard_uses_shared_instance(self):
+    def test_init_action_guard_uses_shared_instance_without_profile(self):
         from unittest.mock import MagicMock
 
         from core.security.confirmation import get_action_guard, init_action_guard
@@ -568,3 +568,25 @@ class TestSharedPermissionManager:
         guard = init_action_guard(event_bus=bus, interactive=True)
         assert guard._permission_manager is permission_manager
         assert get_action_guard() is guard
+
+    def test_init_action_guard_uses_profile_scoped_manager(self, tmp_path):
+        from unittest.mock import MagicMock
+
+        from core.security.confirmation import (
+            get_action_guard,
+            get_permission_manager_for_profile,
+            init_action_guard,
+        )
+
+        bus = MagicMock()
+        data_dir = tmp_path / "alice" / "data"
+        guard = init_action_guard(
+            event_bus=bus,
+            interactive=True,
+            data_dir=data_dir,
+            profile_name="alice",
+        )
+        pm = get_permission_manager_for_profile("alice")
+        assert guard._permission_manager is pm
+        assert pm is not permission_manager
+        assert get_action_guard("alice") is guard

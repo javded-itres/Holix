@@ -654,6 +654,8 @@ class ActionGuard:
 # ─── Global instance and init ──────────────────────────────────────────────
 
 _action_guard: ActionGuard | None = None
+_profile_action_guards: dict[str, ActionGuard] = {}
+_profile_permission_managers: dict[str, PermissionManager] = {}
 
 
 def configure_security_storage(data_dir: str | Path) -> None:
@@ -667,25 +669,53 @@ def init_action_guard(
     interactive: bool = True,
     confirmation_timeout: int = 0,
     data_dir: str | Path | None = None,
+    profile_name: str | None = None,
 ) -> ActionGuard:
     """Initialize the global ActionGuard instance.
 
     Called by HolixAgent after the event bus is ready.
     """
     global _action_guard
-    if data_dir is not None:
+    profile_key = (profile_name or "").strip() or None
+    if data_dir is not None and profile_key:
+        pm = PermissionManager(data_dir=data_dir)
+        _profile_permission_managers[profile_key] = pm
+    elif data_dir is not None:
         configure_security_storage(data_dir)
-    _action_guard = ActionGuard(
+        pm = permission_manager
+    else:
+        pm = permission_manager
+
+    guard = ActionGuard(
         event_bus=event_bus,
-        permission_manager=permission_manager,
+        permission_manager=pm,
         auto_allow_threshold=auto_allow_threshold,
         interactive=interactive,
         confirmation_timeout=confirmation_timeout,
         data_dir=data_dir,
     )
+    if profile_key:
+        _profile_action_guards[profile_key] = guard
+    _action_guard = guard
+    return guard
+
+
+def get_action_guard(profile_name: str | None = None) -> ActionGuard | None:
+    """Get ActionGuard for a profile, or the last-initialized global guard."""
+    profile_key = (profile_name or "").strip() or None
+    if profile_key:
+        return _profile_action_guards.get(profile_key) or _action_guard
     return _action_guard
 
 
-def get_action_guard() -> ActionGuard | None:
-    """Get the global ActionGuard instance (or None if not initialized)."""
-    return _action_guard
+def get_permission_manager_for_profile(profile_name: str) -> PermissionManager:
+    """Return the permission store scoped to a profile."""
+    profile_key = (profile_name or "").strip() or "default"
+    existing = _profile_permission_managers.get(profile_key)
+    if existing is not None:
+        return existing
+    from core.paths import resolve_profile_data_dir
+
+    pm = PermissionManager(data_dir=resolve_profile_data_dir(profile_key))
+    _profile_permission_managers[profile_key] = pm
+    return pm

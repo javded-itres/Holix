@@ -58,13 +58,22 @@ async def _validate_key(api_key: str, *, default_limit: int) -> dict:
     return key_info
 
 
+_BOOTSTRAP_KEY_INFO: dict = {
+    "permissions": ["read", "write", "execute", "admin"],
+    "rate_limit": 0,
+    "bootstrap": True,
+}
+
+
 async def verify_api_key(
     request: Request,
     credentials: HTTPAuthorizationCredentials | None = Depends(_bearer_scheme),
 ) -> dict:
-    """Require a valid API key on all protected routes."""
+    """Require a valid API key when HOLIX_REQUIRE_AUTH is enabled."""
     api_key = _api_key_from_request(request, credentials)
     if not api_key:
+        if not settings.effective_require_auth:
+            return dict(_BOOTSTRAP_KEY_INFO)
         raise HTTPException(status_code=401, detail="API key required")
     return await _validate_key(api_key, default_limit=settings.rate_limit_rpm)
 
@@ -114,6 +123,15 @@ class RequestContext:
     api_key_info: dict
 
 
+def _sanitize_profile_name(name: str) -> str:
+    from cli.core import ProfileNotFoundError, validate_profile_name_for_env
+
+    try:
+        return validate_profile_name_for_env(name)
+    except ProfileNotFoundError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
 def resolve_profile_name(
     *,
     header_profile: str | None,
@@ -122,10 +140,16 @@ def resolve_profile_name(
 ) -> str:
     """Profile routing: X-Holix-Profile > model field > gateway host profile."""
     if header_profile and header_profile.strip():
-        return header_profile.strip()
+        return _sanitize_profile_name(header_profile.strip())
     if model and model.strip() and model.strip() not in {"holix", "holix-agent", "hermes-agent"}:
-        return model.strip()
-    return host_profile
+        return _sanitize_profile_name(model.strip())
+    return _sanitize_profile_name(host_profile)
+
+
+def ensure_resource_profile(resource_profile: str, expected_profile: str) -> None:
+    """Reject cross-profile access (returns 404 to avoid resource enumeration)."""
+    if resource_profile != expected_profile:
+        raise HTTPException(status_code=404, detail="Not found")
 
 
 async def get_registry():

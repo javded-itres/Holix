@@ -183,13 +183,19 @@ async def grant_permission(
     scope: str = "session",
     argument_pattern: str | None = None,
     key_info: dict = Depends(verify_api_key),
+    x_holix_profile: str | None = Header(None),
+    x_hermes_profile: str | None = Header(None),
 ):
-    from core.security.confirmation import PermissionScope, permission_manager
+    from core.security.confirmation import PermissionScope, get_permission_manager_for_profile
     from core.security.confirmation import RiskLevel as RL
 
     checker = PermissionChecker(key_info["permissions"])
     if not checker.can_execute():
         raise HTTPException(status_code=403, detail="Execute permission required")
+    profile, _, _ = _ctx_from_headers(
+        key_info, None, x_holix_profile, x_hermes_profile, None, None
+    )
+    permission_manager = get_permission_manager_for_profile(profile)
     try:
         risk_enum = RL(risk_level)
         scope_enum = PermissionScope(scope)
@@ -200,10 +206,17 @@ async def grant_permission(
 
 
 @router.get("/permissions")
-async def list_permissions(key_info: dict = Depends(verify_api_key)):
-    from core.security.confirmation import permission_manager
+async def list_permissions(
+    key_info: dict = Depends(verify_api_key),
+    x_holix_profile: str | None = Header(None),
+    x_hermes_profile: str | None = Header(None),
+):
+    from core.security.confirmation import get_permission_manager_for_profile
 
-    return permission_manager.list_grants()
+    profile, _, _ = _ctx_from_headers(
+        key_info, None, x_holix_profile, x_hermes_profile, None, None
+    )
+    return get_permission_manager_for_profile(profile).list_grants()
 
 
 @router.delete("/permissions/{grant_key}")
@@ -211,10 +224,16 @@ async def revoke_permission(
     grant_key: str,
     scope: str = "always",
     key_info: dict = Depends(verify_api_key),
+    x_holix_profile: str | None = Header(None),
+    x_hermes_profile: str | None = Header(None),
 ):
-    from core.security.confirmation import PermissionScope, permission_manager
+    from core.security.confirmation import PermissionScope, get_permission_manager_for_profile
     from core.security.confirmation import RiskLevel as RL
 
+    profile, _, _ = _ctx_from_headers(
+        key_info, None, x_holix_profile, x_hermes_profile, None, None
+    )
+    permission_manager = get_permission_manager_for_profile(profile)
     try:
         scope_enum = PermissionScope(scope)
     except ValueError:
@@ -236,13 +255,18 @@ async def resolve_confirmation(
     confirmation_id: str,
     choice: str,
     key_info: dict = Depends(verify_api_key),
+    x_holix_profile: str | None = Header(None),
+    x_hermes_profile: str | None = Header(None),
 ):
     from core.security.confirmation import ConfirmationChoice, get_action_guard
 
     checker = PermissionChecker(key_info["permissions"])
     if not checker.can_execute():
         raise HTTPException(status_code=403, detail="Execute permission required")
-    guard = get_action_guard()
+    profile, _, _ = _ctx_from_headers(
+        key_info, None, x_holix_profile, x_hermes_profile, None, None
+    )
+    guard = get_action_guard(profile)
     if guard is None:
         raise HTTPException(status_code=404, detail="No confirmation guard initialized")
     try:

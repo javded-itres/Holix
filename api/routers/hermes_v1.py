@@ -15,6 +15,7 @@ from fastapi.responses import StreamingResponse
 from api import state
 from api.deps import (
     RequestContext,
+    ensure_resource_profile,
     get_registry,
     resolve_profile_name,
     verify_api_key,
@@ -203,6 +204,7 @@ async def create_response(
         prev = store.get(body.previous_response_id)
         if prev is None:
             raise HTTPException(status_code=404, detail="previous_response_id not found")
+        ensure_resource_profile(prev.profile, ctx.profile)
 
     try:
         parsed = parse_responses_input(body.input)
@@ -248,13 +250,17 @@ async def create_response(
 async def get_response(
     response_id: str,
     key_info: dict = Depends(verify_api_key),
+    x_holix_profile: str | None = Header(None),
+    x_hermes_profile: str | None = Header(None),
 ):
+    ctx = _resolve_ctx(key_info, None, x_holix_profile, x_hermes_profile, None, None, None, None)
     store = state.responses_store
     if store is None:
         raise HTTPException(status_code=503, detail="Responses store unavailable")
     item = store.get(response_id)
     if item is None:
         raise HTTPException(status_code=404, detail="Response not found")
+    ensure_resource_profile(item.profile, ctx.profile)
     return item.to_api_dict()
 
 
@@ -262,10 +268,17 @@ async def get_response(
 async def delete_response(
     response_id: str,
     key_info: dict = Depends(verify_api_key),
+    x_holix_profile: str | None = Header(None),
+    x_hermes_profile: str | None = Header(None),
 ):
+    ctx = _resolve_ctx(key_info, None, x_holix_profile, x_hermes_profile, None, None, None, None)
     store = state.responses_store
     if store is None:
         raise HTTPException(status_code=503, detail="Responses store unavailable")
+    item = store.get(response_id)
+    if item is None:
+        raise HTTPException(status_code=404, detail="Response not found")
+    ensure_resource_profile(item.profile, ctx.profile)
     if not store.delete(response_id):
         raise HTTPException(status_code=404, detail="Response not found")
     return {"deleted": True, "id": response_id}
@@ -324,25 +337,45 @@ async def create_run(
     return {"run_id": record.run_id, "status": record.status.value}
 
 
-@router.get("/runs/{run_id}")
-async def get_run(run_id: str, key_info: dict = Depends(verify_api_key)):
-    runs = state.runs_store
-    if runs is None:
-        raise HTTPException(status_code=503, detail="Runs store unavailable")
+def _require_run(
+    runs,
+    run_id: str,
+    expected_profile: str,
+):
     record = runs.get(run_id)
     if record is None:
         raise HTTPException(status_code=404, detail="Run not found")
+    ensure_resource_profile(record.profile, expected_profile)
+    return record
+
+
+@router.get("/runs/{run_id}")
+async def get_run(
+    run_id: str,
+    key_info: dict = Depends(verify_api_key),
+    x_holix_profile: str | None = Header(None),
+    x_hermes_profile: str | None = Header(None),
+):
+    ctx = _resolve_ctx(key_info, None, x_holix_profile, x_hermes_profile, None, None, None, None)
+    runs = state.runs_store
+    if runs is None:
+        raise HTTPException(status_code=503, detail="Runs store unavailable")
+    record = _require_run(runs, run_id, ctx.profile)
     return record.to_dict()
 
 
 @router.get("/runs/{run_id}/events")
-async def run_events(run_id: str, key_info: dict = Depends(verify_api_key)):
+async def run_events(
+    run_id: str,
+    key_info: dict = Depends(verify_api_key),
+    x_holix_profile: str | None = Header(None),
+    x_hermes_profile: str | None = Header(None),
+):
+    ctx = _resolve_ctx(key_info, None, x_holix_profile, x_hermes_profile, None, None, None, None)
     runs = state.runs_store
     if runs is None:
         raise HTTPException(status_code=503, detail="Runs store unavailable")
-    record = runs.get(run_id)
-    if record is None:
-        raise HTTPException(status_code=404, detail="Run not found")
+    _require_run(runs, run_id, ctx.profile)
 
     async def generate():
         sent = 0
@@ -371,10 +404,17 @@ async def run_events(run_id: str, key_info: dict = Depends(verify_api_key)):
 
 
 @router.post("/runs/{run_id}/stop")
-async def stop_run(run_id: str, key_info: dict = Depends(verify_api_key)):
+async def stop_run(
+    run_id: str,
+    key_info: dict = Depends(verify_api_key),
+    x_holix_profile: str | None = Header(None),
+    x_hermes_profile: str | None = Header(None),
+):
+    ctx = _resolve_ctx(key_info, None, x_holix_profile, x_hermes_profile, None, None, None, None)
     runs = state.runs_store
     if runs is None:
         raise HTTPException(status_code=503, detail="Runs store unavailable")
+    _require_run(runs, run_id, ctx.profile)
     if not runs.request_cancel(run_id):
         raise HTTPException(status_code=404, detail="Run not found")
     return {"status": "stopping", "run_id": run_id}
@@ -385,10 +425,14 @@ async def approve_run(
     run_id: str,
     body: RunApprovalRequest,
     key_info: dict = Depends(verify_api_key),
+    x_holix_profile: str | None = Header(None),
+    x_hermes_profile: str | None = Header(None),
 ):
+    ctx = _resolve_ctx(key_info, None, x_holix_profile, x_hermes_profile, None, None, None, None)
     runs = state.runs_store
     if runs is None:
         raise HTTPException(status_code=503, detail="Runs store unavailable")
+    _require_run(runs, run_id, ctx.profile)
     if not runs.resolve_approval(run_id, body.model_dump()):
         raise HTTPException(status_code=404, detail="Run not found")
     return {"status": "recorded", "run_id": run_id, "decision": body.decision}

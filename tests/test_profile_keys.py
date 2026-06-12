@@ -65,6 +65,14 @@ def test_default_profile_blocked_in_production(holix_home: Path, monkeypatch: py
         resolve_active_profile_name("default")
 
 
+def test_invalid_profile_names_rejected(holix_home: Path) -> None:
+    from cli.core import resolve_active_profile_name
+
+    for bad in ("../etc", "foo/bar", "..", "."):
+        with pytest.raises(ProfileNotFoundError):
+            resolve_active_profile_name(bad)
+
+
 def test_switch_requires_access_key(holix_home: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     manager = ProfileManager()
     manager.create_profile("bob", with_access_key=True)

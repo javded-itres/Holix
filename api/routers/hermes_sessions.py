@@ -9,7 +9,12 @@ from fastapi import APIRouter, Depends, Header, HTTPException
 from fastapi.responses import StreamingResponse
 
 from api import state
-from api.deps import get_registry, resolve_profile_name, verify_api_key
+from api.deps import (
+    ensure_resource_profile,
+    get_registry,
+    resolve_profile_name,
+    verify_api_key,
+)
 from api.schemas.hermes import SessionChatRequest, SessionCreateRequest, SessionPatchRequest
 from api.services.content_parts import (
     UnsupportedContentTypeError,
@@ -38,6 +43,18 @@ def _profile(
         model=None,
         host_profile=state.host_profile or "default",
     )
+
+
+def _require_session(
+    store,
+    session_id: str,
+    expected_profile: str,
+):
+    session = store.get(session_id)
+    if session is None:
+        raise HTTPException(status_code=404, detail="Session not found")
+    ensure_resource_profile(session.profile, expected_profile)
+    return session
 
 
 @router.get("")
@@ -76,11 +93,15 @@ async def create_session(
 
 
 @router.get("/{session_id}")
-async def get_session(session_id: str, key_info: dict = Depends(verify_api_key)):
+async def get_session(
+    session_id: str,
+    key_info: dict = Depends(verify_api_key),
+    x_holix_profile: str | None = Header(None),
+    x_hermes_profile: str | None = Header(None),
+):
     store = _sessions_store()
-    session = store.get(session_id)
-    if session is None:
-        raise HTTPException(status_code=404, detail="Session not found")
+    profile = _profile(x_holix_profile, x_hermes_profile)
+    session = _require_session(store, session_id, profile)
     return session.to_dict()
 
 
@@ -89,8 +110,12 @@ async def patch_session(
     session_id: str,
     body: SessionPatchRequest,
     key_info: dict = Depends(verify_api_key),
+    x_holix_profile: str | None = Header(None),
+    x_hermes_profile: str | None = Header(None),
 ):
     store = _sessions_store()
+    profile = _profile(x_holix_profile, x_hermes_profile)
+    _require_session(store, session_id, profile)
     session = store.update(
         session_id,
         title=body.title,
@@ -102,8 +127,15 @@ async def patch_session(
 
 
 @router.delete("/{session_id}")
-async def delete_session(session_id: str, key_info: dict = Depends(verify_api_key)):
+async def delete_session(
+    session_id: str,
+    key_info: dict = Depends(verify_api_key),
+    x_holix_profile: str | None = Header(None),
+    x_hermes_profile: str | None = Header(None),
+):
     store = _sessions_store()
+    profile = _profile(x_holix_profile, x_hermes_profile)
+    _require_session(store, session_id, profile)
     if not store.delete(session_id):
         raise HTTPException(status_code=404, detail="Session not found")
     return {"deleted": True, "id": session_id}
@@ -115,11 +147,12 @@ async def session_messages(
     limit: int = 50,
     key_info: dict = Depends(verify_api_key),
     registry=Depends(get_registry),
+    x_holix_profile: str | None = Header(None),
+    x_hermes_profile: str | None = Header(None),
 ):
     store = _sessions_store()
-    session = store.get(session_id)
-    if session is None:
-        raise HTTPException(status_code=404, detail="Session not found")
+    profile = _profile(x_holix_profile, x_hermes_profile)
+    session = _require_session(store, session_id, profile)
     agent = await registry.get_agent(session.profile)
     messages = await agent.get_conversation_history(session.conversation_id, limit)
     return {"session_id": session_id, "messages": messages, "count": len(messages)}
@@ -130,8 +163,12 @@ async def fork_session(
     session_id: str,
     body: SessionCreateRequest,
     key_info: dict = Depends(verify_api_key),
+    x_holix_profile: str | None = Header(None),
+    x_hermes_profile: str | None = Header(None),
 ):
     store = _sessions_store()
+    profile = _profile(x_holix_profile, x_hermes_profile)
+    _require_session(store, session_id, profile)
     child = store.fork(session_id, title=body.title)
     if child is None:
         raise HTTPException(status_code=404, detail="Session not found")
@@ -144,11 +181,12 @@ async def session_chat(
     body: SessionChatRequest,
     key_info: dict = Depends(verify_api_key),
     registry=Depends(get_registry),
+    x_holix_profile: str | None = Header(None),
+    x_hermes_profile: str | None = Header(None),
 ):
     store = _sessions_store()
-    session = store.get(session_id)
-    if session is None:
-        raise HTTPException(status_code=404, detail="Session not found")
+    profile = _profile(x_holix_profile, x_hermes_profile)
+    session = _require_session(store, session_id, profile)
     checker = PermissionChecker(key_info["permissions"])
     if not checker.can_read():
         raise HTTPException(status_code=403, detail="Insufficient permissions")
@@ -180,13 +218,14 @@ async def session_chat_stream(
     body: SessionChatRequest,
     key_info: dict = Depends(verify_api_key),
     registry=Depends(get_registry),
+    x_holix_profile: str | None = Header(None),
+    x_hermes_profile: str | None = Header(None),
 ):
     from core.loop_streaming import StreamingAgentLoop
 
     store = _sessions_store()
-    session = store.get(session_id)
-    if session is None:
-        raise HTTPException(status_code=404, detail="Session not found")
+    profile = _profile(x_holix_profile, x_hermes_profile)
+    session = _require_session(store, session_id, profile)
     try:
         parsed = parse_content_parts(body.input)
     except UnsupportedContentTypeError as exc:
