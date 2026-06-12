@@ -2,7 +2,12 @@
 
 from __future__ import annotations
 
+import logging
+import os
+import sqlite3
 from pathlib import Path
+
+logger = logging.getLogger(__name__)
 
 
 def resolve_holix_default_data_dir(profile: str = "default") -> Path:
@@ -46,11 +51,50 @@ def resolve_holix_storage_path(path: str | None, *, default: Path) -> Path:
     return (resolve_holix_home() / expanded).resolve()
 
 
-def ensure_sqlite_parent(path: str | Path) -> Path:
-    """Create parent directory for a SQLite file and return the path."""
+def _rename_blocking_path(path: Path) -> Path | None:
+    """Move a file/dir blocking SQLite creation aside; return backup path if moved."""
+    if not path.exists():
+        return None
+    backup = path.with_name(f"{path.name}.holix-bak")
+    index = 0
+    while backup.exists():
+        index += 1
+        backup = path.with_name(f"{path.name}.holix-bak{index}")
+    try:
+        path.rename(backup)
+        logger.warning("Moved blocking SQLite path %s -> %s", path, backup)
+        return backup
+    except OSError as exc:
+        logger.error("Cannot move blocking SQLite path %s: %s", path, exc)
+        return None
+
+
+def prepare_sqlite_db_file(path: str | Path) -> Path:
+    """Ensure a SQLite file path exists and is openable (not a directory / read-only)."""
     db_path = Path(path).expanduser().resolve()
     db_path.parent.mkdir(parents=True, exist_ok=True)
+
+    if db_path.exists() and db_path.is_dir():
+        _rename_blocking_path(db_path)
+
+    if db_path.exists() and not os.access(db_path, os.W_OK):
+        _rename_blocking_path(db_path)
+
+    try:
+        conn = sqlite3.connect(str(db_path))
+        conn.execute("PRAGMA user_version")
+        conn.close()
+    except sqlite3.Error as exc:
+        raise RuntimeError(
+            f"Cannot open SQLite database at {db_path} "
+            f"(parent={db_path.parent}, writable={os.access(db_path.parent, os.W_OK)}): {exc}"
+        ) from exc
     return db_path
+
+
+def ensure_sqlite_parent(path: str | Path) -> Path:
+    """Backward-compatible alias for :func:`prepare_sqlite_db_file`."""
+    return prepare_sqlite_db_file(path)
 
 
 def ensure_profile_memory_dirs(profile: str) -> None:
@@ -58,9 +102,9 @@ def ensure_profile_memory_dirs(profile: str) -> None:
     from cli.core import ProfileManager
 
     cfg = ProfileManager().load_profile(profile)
-    ensure_sqlite_parent(cfg.memory_db_path)
-    ensure_sqlite_parent(cfg.ltm_db_path)
-    ensure_sqlite_parent(cfg.langgraph_checkpoint_db_path)
+    prepare_sqlite_db_file(cfg.memory_db_path)
+    prepare_sqlite_db_file(cfg.ltm_db_path)
+    prepare_sqlite_db_file(cfg.langgraph_checkpoint_db_path)
     Path(cfg.vector_db_path).expanduser().resolve().mkdir(parents=True, exist_ok=True)
 
 

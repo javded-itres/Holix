@@ -91,6 +91,35 @@ async def test_action_guard_audit_log_in_profile(tmp_path, monkeypatch) -> None:
     assert not (tmp_path / "repo" / "data").exists()
 
 
+def test_ltm_path_always_colocated_with_memory_db(tmp_path, monkeypatch) -> None:
+    monkeypatch.setattr("cli.core.PROFILES_DIR", tmp_path / "profiles")
+    profile_dir = ProfileManager().get_profile_dir("default")
+    profile_dir.mkdir(parents=True)
+
+    cfg = ProfileConfig(
+        profile_name="default",
+        memory_db_path=str(profile_dir / "data" / "memory" / "memory.db"),
+        ltm_db_path="/tmp/other/ltm.db",
+    )
+    resolved = resolve_profile_storage_paths("default", cfg, profile_dir=profile_dir)
+    memory_dir = profile_dir / "data" / "memory"
+    assert Path(resolved.ltm_db_path) == (memory_dir / "ltm.db").resolve()
+    assert Path(resolved.langgraph_checkpoint_db_path) == (memory_dir / "checkpoints.db").resolve()
+
+
+def test_prepare_sqlite_recovers_when_db_path_is_directory(tmp_path) -> None:
+    from core.paths import prepare_sqlite_db_file
+
+    db_path = tmp_path / "ltm.db"
+    db_path.mkdir()
+    opened = prepare_sqlite_db_file(db_path)
+    assert opened == db_path.resolve()
+    assert db_path.is_file()
+    assert not db_path.is_dir()
+    backups = list(tmp_path.glob("ltm.db.holix-bak*"))
+    assert backups
+
+
 def test_stale_absolute_ltm_path_reset_to_profile(tmp_path, monkeypatch) -> None:
     monkeypatch.setattr("cli.core.PROFILES_DIR", tmp_path / "profiles")
     profile_dir = ProfileManager().get_profile_dir("default")

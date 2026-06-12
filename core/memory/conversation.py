@@ -13,7 +13,7 @@ import chromadb
 from chromadb.config import Settings as ChromaSettings
 
 from core.di.runtime_config import HolixRuntimeConfig
-from core.paths import ensure_sqlite_parent
+from core.paths import prepare_sqlite_db_file
 from core.memory.chroma_embeddings import get_or_create_collection
 
 logger = logging.getLogger(__name__)
@@ -32,7 +32,7 @@ class ConversationStore:
     def __init__(self, config: HolixRuntimeConfig | None = None):
         cfg = config or HolixRuntimeConfig.from_settings()
         self.config = cfg
-        self.db_path = ensure_sqlite_parent(cfg.memory_db_path)
+        self.db_path = prepare_sqlite_db_file(cfg.memory_db_path)
         self.vector_db_path = Path(cfg.vector_db_path)
 
         self.vector_db_path.mkdir(parents=True, exist_ok=True)

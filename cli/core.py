@@ -202,18 +202,20 @@ def resolve_profile_storage_paths(
         base / "data" / "memory" / "vector_db",
         mkdir_target=True,
     )
-    config.ltm_db_path = _resolve(
-        config.ltm_db_path,
-        base / "data" / "memory" / "ltm.db",
-    )
-    config.langgraph_checkpoint_db_path = _resolve(
-        config.langgraph_checkpoint_db_path,
-        base / "data" / "memory" / "checkpoints.db",
-    )
     config.skills_dir = _resolve(
         config.skills_dir,
         base / "data" / "skills",
         mkdir_target=True,
+    )
+    # Keep all SQLite memory stores next to memory.db (fixes stale ltm/checkpoint paths).
+    memory_dir = Path(config.memory_db_path).resolve().parent
+    config.ltm_db_path = _resolve(
+        str(memory_dir / "ltm.db"),
+        memory_dir / "ltm.db",
+    )
+    config.langgraph_checkpoint_db_path = _resolve(
+        str(memory_dir / "checkpoints.db"),
+        memory_dir / "checkpoints.db",
     )
     if config.workspace_root and str(config.workspace_root).strip():
         config.workspace_root = _resolve(config.workspace_root, base / "workspace")

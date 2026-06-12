@@ -9,7 +9,7 @@ from typing import Any
 import aiosqlite
 
 from core.di.runtime_config import HolixRuntimeConfig
-from core.paths import ensure_sqlite_parent
+from core.paths import prepare_sqlite_db_file
 from core.memory.episodic import EpisodicMemoryStore
 from core.memory.procedural import ProceduralMemoryStore
 from core.memory.semantic import SemanticMemoryStore
@@ -25,7 +25,7 @@ class LongTermMemoryStore:
     def __init__(self, config: HolixRuntimeConfig | None = None):
         cfg = config or HolixRuntimeConfig.from_settings()
         self.config = cfg
-        self._ltm_db_path = ensure_sqlite_parent(cfg.ltm_db_path)
+        self._ltm_db_path = prepare_sqlite_db_file(cfg.ltm_db_path)
 
         self._vector_store = VectorMemoryStore(vector_db_path=cfg.vector_db_path)
 
