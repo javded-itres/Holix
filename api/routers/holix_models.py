@@ -1,4 +1,4 @@
-"""Helix management: model providers, agent routing, fallbacks."""
+"""Holix management: model providers, agent routing, fallbacks."""
 
 from __future__ import annotations
 
@@ -9,11 +9,11 @@ from core.models.setup_helpers import add_preset_to_config, apply_ssl_override, 
 from fastapi import APIRouter, Depends, Header, HTTPException
 
 from api.deps import verify_api_key
-from api.schemas.helix import AgentModelsPatchRequest, FallbacksPatchRequest, ProviderAddRequest
+from api.schemas.holix import AgentModelsPatchRequest, FallbacksPatchRequest, ProviderAddRequest
 from api.services.config_mask import mask_config_dict
-from api.services.helix_deps import profile_access
+from api.services.holix_deps import profile_access
 
-router = APIRouter(prefix="/api/helix/profiles/{profile_id}/models", tags=["helix-models"])
+router = APIRouter(prefix="/api/holix/profiles/{profile_id}/models", tags=["holix-models"])
 
 
 def _require_profile(profile_id: str) -> ProfileManager:
@@ -27,10 +27,10 @@ def _require_profile(profile_id: str) -> ProfileManager:
 async def list_presets(
     profile_id: str,
     key_info: dict = Depends(verify_api_key),
-    x_helix_profile: str | None = Header(None),
-    x_helix_profile_key: str | None = Header(None, alias="X-Helix-Profile-Key"),
+    x_holix_profile: str | None = Header(None),
+    x_holix_profile_key: str | None = Header(None, alias="X-Holix-Profile-Key"),
 ):
-    profile_access(profile_id, key_info, x_helix_profile, x_helix_profile_key)
+    profile_access(profile_id, key_info, x_holix_profile, x_holix_profile_key)
     presets = []
     for preset in list_provider_presets():
         presets.append({
@@ -48,10 +48,10 @@ async def list_presets(
 async def list_providers(
     profile_id: str,
     key_info: dict = Depends(verify_api_key),
-    x_helix_profile: str | None = Header(None),
-    x_helix_profile_key: str | None = Header(None, alias="X-Helix-Profile-Key"),
+    x_holix_profile: str | None = Header(None),
+    x_holix_profile_key: str | None = Header(None, alias="X-Holix-Profile-Key"),
 ):
-    profile_access(profile_id, key_info, x_helix_profile, x_helix_profile_key)
+    profile_access(profile_id, key_info, x_holix_profile, x_holix_profile_key)
     manager = _require_profile(profile_id)
     config = manager.load_profile(profile_id)
     providers = mask_config_dict({"providers": config.providers or {}})["providers"]
@@ -67,10 +67,10 @@ async def add_provider(
     profile_id: str,
     body: ProviderAddRequest,
     key_info: dict = Depends(verify_api_key),
-    x_helix_profile: str | None = Header(None),
-    x_helix_profile_key: str | None = Header(None, alias="X-Helix-Profile-Key"),
+    x_holix_profile: str | None = Header(None),
+    x_holix_profile_key: str | None = Header(None, alias="X-Holix-Profile-Key"),
 ):
-    profile_access(profile_id, key_info, x_helix_profile, x_helix_profile_key)
+    profile_access(profile_id, key_info, x_holix_profile, x_holix_profile_key)
     manager = _require_profile(profile_id)
     config = manager.load_profile(profile_id)
 
@@ -109,10 +109,10 @@ async def remove_provider(
     profile_id: str,
     provider_name: str,
     key_info: dict = Depends(verify_api_key),
-    x_helix_profile: str | None = Header(None),
-    x_helix_profile_key: str | None = Header(None, alias="X-Helix-Profile-Key"),
+    x_holix_profile: str | None = Header(None),
+    x_holix_profile_key: str | None = Header(None, alias="X-Holix-Profile-Key"),
 ):
-    profile_access(profile_id, key_info, x_helix_profile, x_helix_profile_key)
+    profile_access(profile_id, key_info, x_holix_profile, x_holix_profile_key)
     manager = _require_profile(profile_id)
     config = manager.load_profile(profile_id)
     if provider_name not in (config.providers or {}):
@@ -128,10 +128,10 @@ async def test_provider(
     profile_id: str,
     provider_name: str,
     key_info: dict = Depends(verify_api_key),
-    x_helix_profile: str | None = Header(None),
-    x_helix_profile_key: str | None = Header(None, alias="X-Helix-Profile-Key"),
+    x_holix_profile: str | None = Header(None),
+    x_holix_profile_key: str | None = Header(None, alias="X-Holix-Profile-Key"),
 ):
-    profile_access(profile_id, key_info, x_helix_profile, x_helix_profile_key)
+    profile_access(profile_id, key_info, x_holix_profile, x_holix_profile_key)
     manager = _require_profile(profile_id)
     config = manager.load_profile(profile_id)
     providers = config.providers or {}
@@ -164,10 +164,10 @@ async def test_provider(
 async def get_agent_models(
     profile_id: str,
     key_info: dict = Depends(verify_api_key),
-    x_helix_profile: str | None = Header(None),
-    x_helix_profile_key: str | None = Header(None, alias="X-Helix-Profile-Key"),
+    x_holix_profile: str | None = Header(None),
+    x_holix_profile_key: str | None = Header(None, alias="X-Holix-Profile-Key"),
 ):
-    profile_access(profile_id, key_info, x_helix_profile, x_helix_profile_key)
+    profile_access(profile_id, key_info, x_holix_profile, x_holix_profile_key)
     manager = _require_profile(profile_id)
     config = manager.load_profile(profile_id)
     return {"agent_models": config.agent_models or {}, "count": len(config.agent_models or {})}
@@ -178,10 +178,10 @@ async def patch_agent_models(
     profile_id: str,
     body: AgentModelsPatchRequest,
     key_info: dict = Depends(verify_api_key),
-    x_helix_profile: str | None = Header(None),
-    x_helix_profile_key: str | None = Header(None, alias="X-Helix-Profile-Key"),
+    x_holix_profile: str | None = Header(None),
+    x_holix_profile_key: str | None = Header(None, alias="X-Holix-Profile-Key"),
 ):
-    profile_access(profile_id, key_info, x_helix_profile, x_helix_profile_key)
+    profile_access(profile_id, key_info, x_holix_profile, x_holix_profile_key)
     manager = _require_profile(profile_id)
     config = manager.load_profile(profile_id)
     config.agent_models = body.agent_models
@@ -193,10 +193,10 @@ async def patch_agent_models(
 async def get_fallbacks(
     profile_id: str,
     key_info: dict = Depends(verify_api_key),
-    x_helix_profile: str | None = Header(None),
-    x_helix_profile_key: str | None = Header(None, alias="X-Helix-Profile-Key"),
+    x_holix_profile: str | None = Header(None),
+    x_holix_profile_key: str | None = Header(None, alias="X-Holix-Profile-Key"),
 ):
-    profile_access(profile_id, key_info, x_helix_profile, x_helix_profile_key)
+    profile_access(profile_id, key_info, x_holix_profile, x_holix_profile_key)
     manager = _require_profile(profile_id)
     config = manager.load_profile(profile_id)
     return {"providers": config.fallback_providers or []}
@@ -207,10 +207,10 @@ async def patch_fallbacks(
     profile_id: str,
     body: FallbacksPatchRequest,
     key_info: dict = Depends(verify_api_key),
-    x_helix_profile: str | None = Header(None),
-    x_helix_profile_key: str | None = Header(None, alias="X-Helix-Profile-Key"),
+    x_holix_profile: str | None = Header(None),
+    x_holix_profile_key: str | None = Header(None, alias="X-Holix-Profile-Key"),
 ):
-    profile_access(profile_id, key_info, x_helix_profile, x_helix_profile_key)
+    profile_access(profile_id, key_info, x_holix_profile, x_holix_profile_key)
     manager = _require_profile(profile_id)
     config = manager.load_profile(profile_id)
     unknown = [p for p in body.providers if p not in (config.providers or {})]

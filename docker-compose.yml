@@ -1,49 +1,49 @@
-# Helix agent — minimal start: set TELEGRAM_BOT_TOKEN and run `docker compose up -d`
+# Holix agent — minimal start: set TELEGRAM_BOT_TOKEN and run `docker compose up -d`
 #
 # Quick start:
 #   export TELEGRAM_BOT_TOKEN="123456:ABC..."
 #   docker compose up -d
 #
 # Approve Telegram users:
-#   docker compose exec helix helix telegram requests list
-#   docker compose exec helix helix telegram requests approve USER_ID --profile default
+#   docker compose exec holix holix telegram requests list
+#   docker compose exec holix holix telegram requests approve USER_ID --profile default
 #
 # CLI / admin:
-#   docker compose exec helix helix --help
-#   docker compose exec helix helix profile create alice
+#   docker compose exec holix holix --help
+#   docker compose exec holix holix profile create alice
 
 services:
-  helix:
+  holix:
     build: .
-    image: helix-agent:latest
+    image: holix-agent:latest
     ports:
-      - "${HELIX_GATEWAY_PORT:-8000}:8000"
+      - "${HOLIX_GATEWAY_PORT:-8000}:8000"
     environment:
-      HELIX_HOME: /data/.helix
-      HELIX_PROFILE: ${HELIX_PROFILE:-default}
-      HELIX_ENV: production
-      HELIX_REQUIRE_AUTH: "true"
-      HELIX_API_KEY_PEPPER: ${HELIX_API_KEY_PEPPER:-change-me-in-production}
-      HELIX_GATEWAY_HOST: 0.0.0.0
-      HELIX_GATEWAY_PORT: "8000"
-      HELIX_TELEGRAM_ACCESS_REQUESTS: "true"
+      HOLIX_HOME: /data/.holix
+      HOLIX_PROFILE: ${HOLIX_PROFILE:-default}
+      HOLIX_ENV: production
+      HOLIX_REQUIRE_AUTH: "true"
+      HOLIX_API_KEY_PEPPER: ${HOLIX_API_KEY_PEPPER:-change-me-in-production}
+      HOLIX_GATEWAY_HOST: 0.0.0.0
+      HOLIX_GATEWAY_PORT: "8000"
+      HOLIX_TELEGRAM_ACCESS_REQUESTS: "true"
       TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:?Set TELEGRAM_BOT_TOKEN in .env or environment}
       MODEL: ${MODEL:-qwen2.5-coder:32b}
       BASE_URL: ${BASE_URL:-http://ollama:11434/v1}
       API_KEY: ${API_KEY:-ollama}
       OLLAMA_HOST: ${OLLAMA_HOST:-http://ollama:11434}
-      HELIX_TELEGRAM_VOICE_ENABLED: ${HELIX_TELEGRAM_VOICE_ENABLED:-true}
-      HELIX_TELEGRAM_FILES_ENABLED: ${HELIX_TELEGRAM_FILES_ENABLED:-true}
+      HOLIX_TELEGRAM_VOICE_ENABLED: ${HOLIX_TELEGRAM_VOICE_ENABLED:-true}
+      HOLIX_TELEGRAM_FILES_ENABLED: ${HOLIX_TELEGRAM_FILES_ENABLED:-true}
       ENABLE_BROWSER_TOOLS: ${ENABLE_BROWSER_TOOLS:-true}
       BROWSER_HEADLESS: "true"
     volumes:
-      - helix-data:/data/.helix
+      - holix-data:/data/.holix
     depends_on:
       ollama:
         condition: service_started
     restart: unless-stopped
     networks:
-      - helix-network
+      - holix-network
 
   ollama:
     image: ollama/ollama:latest
@@ -53,11 +53,11 @@ services:
       - ollama-data:/root/.ollama
     restart: unless-stopped
     networks:
-      - helix-network
+      - holix-network
 volumes:
   ollama-data:
-  helix-data:
+  holix-data:
 
 networks:
-  helix-network:
+  holix-network:
     driver: bridge

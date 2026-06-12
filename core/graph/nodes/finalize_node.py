@@ -7,12 +7,12 @@ import logging
 
 from langchain_core.runnables import RunnableConfig
 
-from core.graph.state import HelixGraphState, get_agent_from_config
+from core.graph.state import HolixGraphState, get_agent_from_config
 
 logger = logging.getLogger(__name__)
 
 
-async def finalize_node(state: HelixGraphState, config: RunnableConfig) -> dict:
+async def finalize_node(state: HolixGraphState, config: RunnableConfig) -> dict:
     """Finalize the graph execution.
 
     1. If plan was rejected, emit a clear message and clean up plan state

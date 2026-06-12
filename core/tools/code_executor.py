@@ -48,7 +48,7 @@ class PythonExecutorTool(BaseTool):
             Execution result
         """
         if not settings.enable_code_executor:
-            return "Error: Code executor is disabled (HELIX_ENABLE_CODE_EXECUTOR=false)"
+            return "Error: Code executor is disabled (HOLIX_ENABLE_CODE_EXECUTOR=false)"
 
         try:
             # Run in separate process for safety

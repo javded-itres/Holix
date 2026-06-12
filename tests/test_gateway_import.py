@@ -60,7 +60,7 @@ def test_prometheus_metrics_uses_global_collector(
     client = gateway_client
     response = client.get("/metrics", headers=gateway_auth_headers)
     assert response.status_code == 200
-    assert "helix_" in response.text
+    assert "holix_" in response.text
 
 
 def test_per_key_rate_limit_applied(monkeypatch) -> None:
@@ -120,9 +120,9 @@ async def test_chat_completions_serializes_agent_access() -> None:
         request,
         key_info=key_info,
         registry=mock_registry,
-        x_helix_profile=None,
+        x_holix_profile=None,
         x_hermes_profile=None,
-        x_helix_session_id=None,
+        x_holix_session_id=None,
         x_hermes_session_id=None,
     )
 

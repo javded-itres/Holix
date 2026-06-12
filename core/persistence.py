@@ -1,5 +1,5 @@
 """
-Persistence — wraps LangGraph checkpointing for Helix.
+Persistence — wraps LangGraph checkpointing for Holix.
 
 Uses InMemorySaver for in-process checkpointing. Profile-aware
 path resolution for file-based checkpointers.

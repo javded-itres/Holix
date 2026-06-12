@@ -1,4 +1,4 @@
-"""Telegram user id → Helix profile bindings (shared bot)."""
+"""Telegram user id → Holix profile bindings (shared bot)."""
 
 from __future__ import annotations
 
@@ -10,7 +10,7 @@ from pathlib import Path
 from core.env_loader import profile_dir_path
 
 TELEGRAM_USERS_FILE = "telegram-users.json"
-ENV_KEY = "HELIX_TELEGRAM_USER_PROFILES"
+ENV_KEY = "HOLIX_TELEGRAM_USER_PROFILES"
 _PAIR_RE = re.compile(r"^\d+:[\w.-]+$")
 
 
@@ -67,7 +67,7 @@ def load_user_profiles(bot_profile: str) -> dict[int, str]:
 
 
 def _profile_env_user_profiles(bot_profile: str) -> str:
-    """Read ``HELIX_TELEGRAM_USER_PROFILES`` from the bot profile ``telegram.env`` file."""
+    """Read ``HOLIX_TELEGRAM_USER_PROFILES`` from the bot profile ``telegram.env`` file."""
     from integrations.telegram.env_store import read_telegram_env_values
 
     return read_telegram_env_values(bot_profile).get(ENV_KEY, "").strip()

@@ -31,7 +31,7 @@ from textual.widgets import RichLog
 
 
 class AgentEventHandler:
-    """Maps AgentEvent stream to Helix TUI widgets (via app reference)."""
+    """Maps AgentEvent stream to Holix TUI widgets (via app reference)."""
 
     def __init__(self, app) -> None:
         self.app = app
@@ -255,10 +255,10 @@ class AgentEventHandler:
 
                 try:
                     from rich.markdown import Markdown
-                    self.app._append_to_log(f"[bold green]Helix:{regen_tag}[/bold green]")
+                    self.app._append_to_log(f"[bold green]Holix:{regen_tag}[/bold green]")
                     self.app._append_to_log(Markdown(event.content))
                 except Exception:
-                    self.app._append_to_log(f"[bold green]Helix:{regen_tag}[/bold green]")
+                    self.app._append_to_log(f"[bold green]Holix:{regen_tag}[/bold green]")
                     self.app._append_to_log(event.content)
 
                 self.app._scroll_chat_to_bottom()

@@ -8,7 +8,7 @@ from cli.services.docs_site import build_docs_site, serve_docs_site
 from cli.utils.rich_console import print_error
 
 app = typer.Typer(
-    help="Helix documentation website (dark theme, search, EN/RU)",
+    help="Holix documentation website (dark theme, search, EN/RU)",
     invoke_without_command=True,
 )
 
@@ -28,9 +28,9 @@ def docs_entry(
     """Start the documentation site (default when no subcommand is given).
 
     Examples:
-        helix docs
-        helix docs --port 9000 --open
-        helix docs serve -p 8080
+        holix docs
+        holix docs --port 9000 --open
+        holix docs serve -p 8080
     """
     if ctx.invoked_subcommand is None:
         _serve(host=host, port=port, open_browser=open_browser)

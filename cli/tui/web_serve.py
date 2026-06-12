@@ -1,4 +1,4 @@
-"""Serve Helix Textual TUI in the browser via textual-serve."""
+"""Serve Holix Textual TUI in the browser via textual-serve."""
 
 from __future__ import annotations
 
@@ -24,12 +24,12 @@ def run_tui_web(
     allow_lan: bool = False,
     generate_token: bool = True,
 ) -> WebTuiSecurityPolicy:
-    """Start a local web server; each browser tab gets a Helix TUI session."""
+    """Start a local web server; each browser tab gets a Holix TUI session."""
     try:
         from textual_serve.server import Server  # noqa: F401 — import check
     except ImportError as e:
         raise RuntimeError(
-            "Web TUI requires textual-serve. Install with: pip install 'HelixAgentAi[tui-web]'"
+            "Web TUI requires textual-serve. Install with: pip install 'Holix[tui-web]'"
         ) from e
 
     from config import settings
@@ -42,14 +42,14 @@ def run_tui_web(
         is_production=settings.is_production,
     )
 
-    from cli.tui.web_server import HelixWebTuiServer
+    from cli.tui.web_server import HolixWebTuiServer
 
     cmd = shlex.join([sys.executable, "-m", "cli.tui.web_entry", "--profile", profile])
-    server = HelixWebTuiServer(
+    server = HolixWebTuiServer(
         cmd,
         host=policy.host,
         port=port,
-        title=f"Helix ({profile})",
+        title=f"Holix ({profile})",
         public_url=public_url,
         web_token=policy.token,
     )
@@ -66,7 +66,7 @@ def _print_web_tui_banner(
     public = getattr(server, "public_url", "http://127.0.0.1:8787")
     url = public_url_with_token(public, policy.token)
     console = Console()
-    console.print(f"[bold cyan]Helix Web TUI[/bold cyan] — profile [bold]{profile}[/bold]")
+    console.print(f"[bold cyan]Holix Web TUI[/bold cyan] — profile [bold]{profile}[/bold]")
     console.print(f"  URL: [link={url}]{url}[/link]")
     if policy.token_generated:
         console.print("  [yellow]Ephemeral token generated for this session.[/yellow]")

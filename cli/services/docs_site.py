@@ -1,4 +1,4 @@
-"""Helix documentation website (web-docs/) — path resolution, build, serve."""
+"""Holix documentation website (web-docs/) — path resolution, build, serve."""
 
 from __future__ import annotations
 
@@ -46,7 +46,7 @@ def resolve_web_docs_dir() -> Path:
             return resolved
 
     raise FileNotFoundError(
-        "web-docs/ not found. Run from the Helix repository or reinstall HelixAgentAi."
+        "web-docs/ not found. Run from the Holix repository or reinstall Holix."
     )
 
 
@@ -87,9 +87,9 @@ def _env_bool(name: str) -> bool:
 
 def _docs_chat_public_config() -> dict:
     bootstrap_docs_env()
-    token = os.getenv("HELIX_DOCS_CHAT_TOKEN", "").strip()
+    token = os.getenv("HOLIX_DOCS_CHAT_TOKEN", "").strip()
     return {
-        "enabled": bool(_env_bool("HELIX_DOCS_CHAT_ENABLED") and token),
+        "enabled": bool(_env_bool("HOLIX_DOCS_CHAT_ENABLED") and token),
         "proxyPath": "/api/docs-chat",
         "configPath": "/api/docs-chat/config.json",
         "sessionPath": "/api/docs-chat/session",
@@ -108,8 +108,8 @@ def _gateway_docs_chat_base(profile: str | None = None) -> str:
             host = "127.0.0.1"
         return f"http://{host}:{state.port}/v1/docs/chat"
 
-    host = os.getenv("HELIX_GATEWAY_HOST", "127.0.0.1").strip() or "127.0.0.1"
-    port = int(os.getenv("HELIX_GATEWAY_PORT", "8000"))
+    host = os.getenv("HOLIX_GATEWAY_HOST", "127.0.0.1").strip() or "127.0.0.1"
+    port = int(os.getenv("HOLIX_GATEWAY_PORT", "8000"))
     return f"http://{host}:{port}/v1/docs/chat"
 
 
@@ -119,7 +119,7 @@ def _gateway_docs_chat_url() -> str:
 
 def _docs_chat_token() -> str:
     bootstrap_docs_env()
-    return os.getenv("HELIX_DOCS_CHAT_TOKEN", "").strip()
+    return os.getenv("HOLIX_DOCS_CHAT_TOKEN", "").strip()
 
 
 def _open_docs_chat_request(
@@ -211,7 +211,7 @@ def run_docs_server_forever(
                 super().log_message(format, *args)
 
         def _docs_chat_disabled(self) -> bool:
-            return not _env_bool("HELIX_DOCS_CHAT_ENABLED") or not _docs_chat_token()
+            return not _env_bool("HOLIX_DOCS_CHAT_ENABLED") or not _docs_chat_token()
 
         def _spa_index_path(self, path: str) -> str | None:
             clean = path.split("?", 1)[0].rstrip("/") or "/"
@@ -311,7 +311,7 @@ def run_docs_server_forever(
             self.send_error(404)
 
     if quiet:
-        print(f"Helix docs → {docs_url(host, port)}", flush=True)
+        print(f"Holix docs → {docs_url(host, port)}", flush=True)
 
     socketserver.TCPServer.allow_reuse_address = True
     with socketserver.TCPServer((host, port), DocsHandler) as httpd:
@@ -328,7 +328,7 @@ def serve_docs_site(
     """Serve the static documentation site until interrupted (interactive CLI)."""
     url = docs_url(host, port)
     console.print()
-    print_success(f"Helix documentation → [link={url}]{url}[/link]")
+    print_success(f"Holix documentation → [link={url}]{url}[/link]")
     console.print("[dim]Press Ctrl+C to stop[/dim]")
     console.print()
 

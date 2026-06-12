@@ -40,7 +40,7 @@ class RunRecord:
 
     def to_dict(self) -> dict[str, Any]:
         return {
-            "object": "helix.run",
+            "object": "holix.run",
             "run_id": self.run_id,
             "status": self.status.value,
             "session_id": self.session_id,

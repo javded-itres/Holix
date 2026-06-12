@@ -1,4 +1,4 @@
-"""Tests for /api/helix/profiles management routes."""
+"""Tests for /api/holix/profiles management routes."""
 
 from __future__ import annotations
 
@@ -10,15 +10,15 @@ from fastapi.testclient import TestClient
 
 
 @pytest.fixture
-def helix_home(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
-    monkeypatch.setenv("HELIX_HOME", str(tmp_path))
-    monkeypatch.setenv("HELIX_ENV", "development")
+def holix_home(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
+    monkeypatch.setenv("HOLIX_HOME", str(tmp_path))
+    monkeypatch.setenv("HOLIX_ENV", "development")
     monkeypatch.chdir(tmp_path)
     return tmp_path
 
 
 @pytest.fixture
-def helix_client(monkeypatch: pytest.MonkeyPatch) -> TestClient:
+def holix_client(monkeypatch: pytest.MonkeyPatch) -> TestClient:
     import asyncio
 
     import api.deps
@@ -64,20 +64,20 @@ def helix_client(monkeypatch: pytest.MonkeyPatch) -> TestClient:
     api.gateway.app.dependency_overrides.clear()
 
 
-def test_profiles_require_api_key(helix_home: Path) -> None:
+def test_profiles_require_api_key(holix_home: Path) -> None:
     import api.gateway
 
     client = TestClient(api.gateway.app)
-    assert client.get("/api/helix/profiles").status_code == 401
+    assert client.get("/api/holix/profiles").status_code == 401
 
 
-def test_profiles_list_and_create(helix_home: Path, helix_client: TestClient, gateway_auth_headers: dict) -> None:
-    listed = helix_client.get("/api/helix/profiles", headers=gateway_auth_headers)
+def test_profiles_list_and_create(holix_home: Path, holix_client: TestClient, gateway_auth_headers: dict) -> None:
+    listed = holix_client.get("/api/holix/profiles", headers=gateway_auth_headers)
     assert listed.status_code == 200
     assert "profiles" in listed.json()
 
-    created = helix_client.post(
-        "/api/helix/profiles",
+    created = holix_client.post(
+        "/api/holix/profiles",
         headers=gateway_auth_headers,
         json={"name": "tenant-a", "with_access_key": True},
     )
@@ -87,18 +87,18 @@ def test_profiles_list_and_create(helix_home: Path, helix_client: TestClient, ga
     assert body["protected"] is True
     assert body["access_key"].startswith("hp_")
 
-    detail = helix_client.get("/api/helix/profiles/tenant-a", headers=gateway_auth_headers)
+    detail = holix_client.get("/api/holix/profiles/tenant-a", headers=gateway_auth_headers)
     assert detail.status_code == 200
     assert detail.json()["protected"] is True
 
 
-def test_profile_reload(helix_home: Path, helix_client: TestClient, gateway_auth_headers: dict) -> None:
+def test_profile_reload(holix_home: Path, holix_client: TestClient, gateway_auth_headers: dict) -> None:
     from cli.core import ProfileManager
 
     ProfileManager().create_profile("reload-me")
 
-    response = helix_client.post(
-        "/api/helix/profiles/reload-me/reload",
+    response = holix_client.post(
+        "/api/holix/profiles/reload-me/reload",
         headers=gateway_auth_headers,
     )
     assert response.status_code == 200
@@ -107,13 +107,13 @@ def test_profile_reload(helix_home: Path, helix_client: TestClient, gateway_auth
     assert body["profile"] == "reload-me"
 
 
-def test_profile_key_init(helix_home: Path, helix_client: TestClient, gateway_auth_headers: dict) -> None:
+def test_profile_key_init(holix_home: Path, holix_client: TestClient, gateway_auth_headers: dict) -> None:
     from cli.core import ProfileManager
 
     ProfileManager().create_profile("open-profile")
 
-    response = helix_client.post(
-        "/api/helix/profiles/open-profile/key/init",
+    response = holix_client.post(
+        "/api/holix/profiles/open-profile/key/init",
         headers=gateway_auth_headers,
     )
     assert response.status_code == 200

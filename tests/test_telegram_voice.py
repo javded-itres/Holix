@@ -75,13 +75,13 @@ def test_local_whisper_download_root_default(monkeypatch: pytest.MonkeyPatch, tm
 
     monkeypatch.setattr(settings, "whisper_local_download_root", "")
     monkeypatch.setattr(
-        "integrations.telegram.voice_handler.resolve_helix_home",
-        lambda: tmp_path / "helix",
+        "integrations.telegram.voice_handler.resolve_holix_home",
+        lambda: tmp_path / "holix",
     )
 
     root = local_whisper_download_root()
-    assert root == str(tmp_path / "helix" / "models" / "whisper")
-    assert (tmp_path / "helix" / "models" / "whisper").is_dir()
+    assert root == str(tmp_path / "holix" / "models" / "whisper")
+    assert (tmp_path / "holix" / "models" / "whisper").is_dir()
 
 
 def test_warm_local_whisper_model_downloads_when_local(

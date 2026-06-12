@@ -3,53 +3,53 @@
 ## Gateway won't start
 
 ```bash
-helix doctor
-helix gateway status
-helix logs -s gateway -n 50
-# or: cat ~/.helix/gateway/gateway.log
+holix doctor
+holix gateway status
+holix logs -s gateway -n 50
+# or: cat ~/.holix/gateway/gateway.log
 ```
 
-On Windows, check port binding: `netstat -ano | findstr :8000` (hint from `helix gateway start` on failure).
+On Windows, check port binding: `netstat -ano | findstr :8000` (hint from `holix gateway start` on failure).
 
 ## No agent output / silent failures
 
 ```bash
-helix logs -l error -n 100
-helix logs -s agent -f
-helix logs debug on
-helix run "test"
+holix logs -l error -n 100
+holix logs -s agent -f
+holix logs debug on
+holix run "test"
 ```
 
 ## Windows-specific
 
-- Terminal tool uses **cmd** builtins (`dir`, `type`, `where`); Unix commands (`ls`, `grep`) are blocked unless added via `helix profile whitelist add` or `HELIX_TERMINAL_WHITELIST_EXTRA` in the profile `.env`
+- Terminal tool uses **cmd** builtins (`dir`, `type`, `where`); Unix commands (`ls`, `grep`) are blocked unless added via `holix profile whitelist add` or `HOLIX_TERMINAL_WHITELIST_EXTRA` in the profile `.env`
 - Sub-agents run in **async** mode (not separate OS processes)
-- Data dir: `%LOCALAPPDATA%\Helix` unless `HELIX_HOME` is set
+- Data dir: `%LOCALAPPDATA%\Holix` unless `HOLIX_HOME` is set
 - Optional: `uv sync --extra windows` for improved process cleanup (`psutil`)
 
 ## Dishka / agent init error
 
-Ensure profile loads: `helix doctor --fix`
+Ensure profile loads: `holix doctor --fix`
 
 ## LLM connection failed
 
 ```bash
-helix models setup
+holix models setup
 ollama serve
-helix doctor
+holix doctor
 ```
 
 ## Telegram access denied
 
 1. User must send **`/start`** first (access-request mode).
-2. Designate a Telegram admin (once): `helix -p shared telegram requests approve USER_ID --set-admin`.
-3. Admin approves new users: `helix -p shared telegram requests list` → `telegram requests approve USER_ID -i` or `--create-profile NAME`.
-4. For a personal bot, set `HELIX_TELEGRAM_ALLOWED_USERS` to your numeric user id.
+2. Designate a Telegram admin (once): `holix -p shared telegram requests approve USER_ID --set-admin`.
+3. Admin approves new users: `holix -p shared telegram requests list` → `telegram requests approve USER_ID -i` or `--create-profile NAME`.
+4. For a personal bot, set `HOLIX_TELEGRAM_ALLOWED_USERS` to your numeric user id.
 5. In production use a **named** profile (`-p shared`), not `default`.
 
 ## Telegram menu visible before approval
 
-Slash commands are hidden until the user is approved (or on allowlist / `map`). After approve, run `helix telegram sync-menu` if the client still shows an old global menu.
+Slash commands are hidden until the user is approved (or on allowlist / `map`). After approve, run `holix telegram sync-menu` if the client still shows an old global menu.
 
 See [TELEGRAM.md](TELEGRAM.md).
 

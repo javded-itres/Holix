@@ -11,27 +11,27 @@ import pytest
 from core import platform_compat as pc
 
 
-def test_resolve_helix_home_env_override(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_resolve_holix_home_env_override(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     custom = tmp_path / "custom-helix"
-    monkeypatch.setenv("HELIX_HOME", str(custom))
+    monkeypatch.setenv("HOLIX_HOME", str(custom))
     monkeypatch.delenv("XDG_DATA_HOME", raising=False)
-    assert pc.resolve_helix_home() == custom.resolve()
+    assert pc.resolve_holix_home() == custom.resolve()
 
 
-def test_resolve_helix_home_xdg(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.delenv("HELIX_HOME", raising=False)
+def test_resolve_holix_home_xdg(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("HOLIX_HOME", raising=False)
     monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path / "xdg"))
     monkeypatch.setattr(pc, "IS_WINDOWS", False)
-    assert pc.resolve_helix_home() == (tmp_path / "xdg" / "helix").resolve()
+    assert pc.resolve_holix_home() == (tmp_path / "xdg" / "holix").resolve()
 
 
-def test_resolve_helix_home_windows_localappdata(
+def test_resolve_holix_home_windows_localappdata(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    monkeypatch.delenv("HELIX_HOME", raising=False)
+    monkeypatch.delenv("HOLIX_HOME", raising=False)
     monkeypatch.setenv("LOCALAPPDATA", str(tmp_path / "AppData" / "Local"))
     monkeypatch.setattr(pc, "IS_WINDOWS", True)
-    assert pc.resolve_helix_home() == (tmp_path / "AppData" / "Local" / "Helix").resolve()
+    assert pc.resolve_holix_home() == (tmp_path / "AppData" / "Local" / "Holix").resolve()
 
 
 def test_port_check_hint_windows(monkeypatch: pytest.MonkeyPatch) -> None:

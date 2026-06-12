@@ -1,5 +1,5 @@
 """
-Helix Graph State — defines the state schema for the LangGraph execution graph.
+Holix Graph State — defines the state schema for the LangGraph execution graph.
 """
 
 from typing import Any
@@ -8,13 +8,13 @@ from langchain_core.runnables import RunnableConfig
 from typing_extensions import TypedDict
 
 
-class HelixGraphState(TypedDict, total=False):
-    """State schema for the Helix LangGraph execution graph.
+class HolixGraphState(TypedDict, total=False):
+    """State schema for the Holix LangGraph execution graph.
 
     This state flows through all graph nodes and accumulates
     partial updates at each step.
 
-    IMPORTANT: The HelixAgent instance is NOT stored in state because
+    IMPORTANT: The HolixAgent instance is NOT stored in state because
     it cannot be serialized by msgpack-based checkpointers. Instead, it
     is passed via config["configurable"]["_agent"] and accessed through
     the get_agent_from_config() helper.
@@ -78,7 +78,7 @@ class HelixGraphState(TypedDict, total=False):
 
 
 def get_agent_from_config(config: RunnableConfig) -> Any:
-    """Retrieve the HelixAgent instance from LangGraph RunnableConfig.
+    """Retrieve the HolixAgent instance from LangGraph RunnableConfig.
 
     The agent is passed via config["configurable"]["_agent"] to avoid
     msgpack serialization errors with checkpointers. This helper
@@ -88,7 +88,7 @@ def get_agent_from_config(config: RunnableConfig) -> Any:
         config: The RunnableConfig passed to graph nodes by LangGraph.
 
     Returns:
-        The HelixAgent instance, or None if not available.
+        The HolixAgent instance, or None if not available.
     """
     configurable = config.get("configurable", {})
     return configurable.get("_agent")

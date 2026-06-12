@@ -1,14 +1,14 @@
-# Helix Doctor
+# Holix Doctor
 
 Diagnostics for profiles, LLM, gateway, Telegram, and security settings.
 
 ## Usage
 
 ```bash
-helix doctor              # report only
-helix doctor --fix        # safe fixes + LLM config repair
-helix doctor --no-llm     # no LLM calls; skips live endpoint probe (CI-safe)
-helix -p work doctor
+holix doctor              # report only
+holix doctor --fix        # safe fixes + LLM config repair
+holix doctor --no-llm     # no LLM calls; skips live endpoint probe (CI-safe)
+holix -p work doctor
 ```
 
 ## Without `--fix`
@@ -29,7 +29,7 @@ LLM fixes (default profile LLM):
 
 ## Checks
 
-- `~/.helix` (or `HELIX_HOME`) writable
+- `~/.holix` (or `HOLIX_HOME`) writable
 - **Platform:** OS, data path, `node`/`npx`/`uv`/`git` in PATH; Windows: psutil hint, terminal whitelist note
 - Profile YAML and providers
 - LLM endpoint and model availability (skipped with `--no-llm`)
@@ -37,4 +37,4 @@ LLM fixes (default profile LLM):
 - Telegram token, access requests, and allowlist
 - Production: pepper, CORS, auth, code executor
 
-After fixes, inspect runtime logs: `helix logs -l error` — see [LOGS.md](LOGS.md).
+After fixes, inspect runtime logs: `holix logs -l error` — see [LOGS.md](LOGS.md).

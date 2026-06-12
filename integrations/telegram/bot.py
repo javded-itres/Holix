@@ -1,4 +1,4 @@
-"""Aiogram bot wiring for Helix."""
+"""Aiogram bot wiring for Holix."""
 
 from __future__ import annotations
 
@@ -21,7 +21,7 @@ from integrations.telegram.session import ChatSession
 from integrations.telegram.user_profiles import resolve_user_profile
 
 
-class HelixTelegramBot:
+class HolixTelegramBot:
     def __init__(self, settings: TelegramSettings | None = None, *, profile: str = "default") -> None:
         self.settings = settings or load_telegram_settings(profile)
         self._sessions: dict[int, ChatSession] = {}
@@ -173,7 +173,7 @@ class HelixTelegramBot:
         if not app_settings.telegram_voice_enabled:
             await message.answer(
                 "🎙️ Распознавание голоса отключено. "
-                "Установите HELIX_TELEGRAM_VOICE_ENABLED=true в .env.",
+                "Установите HOLIX_TELEGRAM_VOICE_ENABLED=true в .env.",
             )
             return
 
@@ -231,7 +231,7 @@ class HelixTelegramBot:
 
         if not app_settings.telegram_files_enabled:
             await message.answer(
-                "📎 Приём файлов отключён. Установите HELIX_TELEGRAM_FILES_ENABLED=true.",
+                "📎 Приём файлов отключён. Установите HOLIX_TELEGRAM_FILES_ENABLED=true.",
             )
             return
 
@@ -551,7 +551,7 @@ class HelixTelegramBot:
                 await query.answer(f"Error: {exc}"[:200], show_alert=True)
 
         @dp.callback_query(F.data.startswith("hx:"))
-        async def on_helix_ui_cb(query: CallbackQuery) -> None:
+        async def on_holix_ui_cb(query: CallbackQuery) -> None:
             if query.from_user is None or not query.data or query.message is None:
                 return
             if not self._allowed(query.from_user.id):
@@ -599,12 +599,12 @@ class HelixTelegramBot:
         ):
             if settings.is_production and settings.telegram_require_allowlist_in_production:
                 raise RuntimeError(
-                    "HELIX_TELEGRAM_ALLOWED_USERS is required when HELIX_ENV=production "
-                    "(or enable HELIX_TELEGRAM_ACCESS_REQUESTS=true)"
+                    "HOLIX_TELEGRAM_ALLOWED_USERS is required when HOLIX_ENV=production "
+                    "(or enable HOLIX_TELEGRAM_ACCESS_REQUESTS=true)"
                 )
             raise RuntimeError(
-                "HELIX_TELEGRAM_ALLOWED_USERS is required "
-                "(or HELIX_TELEGRAM_ACCESS_REQUESTS=true / HELIX_TELEGRAM_ALLOW_ALL=true)"
+                "HOLIX_TELEGRAM_ALLOWED_USERS is required "
+                "(or HOLIX_TELEGRAM_ACCESS_REQUESTS=true / HOLIX_TELEGRAM_ALLOW_ALL=true)"
             )
         if not self.settings.bot_token:
             raise RuntimeError("Set TELEGRAM_BOT_TOKEN in environment or .env")

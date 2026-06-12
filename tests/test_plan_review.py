@@ -314,11 +314,11 @@ class TestPlanEvents:
 # ─── Graph State ────────────────────────────────────────────────────────────
 
 class TestGraphStatePlanReviewFields:
-    """Tests for the new plan_review fields in HelixGraphState."""
+    """Tests for the new plan_review fields in HolixGraphState."""
 
     def test_state_has_plan_review_fields(self):
-        from core.graph.state import HelixGraphState
-        state = HelixGraphState(
+        from core.graph.state import HolixGraphState
+        state = HolixGraphState(
             plan_status="pending_review",
             plan_review_id="",
             plan_refinement_feedback="",

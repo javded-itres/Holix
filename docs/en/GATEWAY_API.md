@@ -1,15 +1,15 @@
-# Helix Gateway API — Complete Reference
+# Holix Gateway API — Complete Reference
 
 > **On this documentation site:** `/docs/gateway-api` (same content as this page).  
 > **Live OpenAPI (try requests):** `http://127.0.0.1:8000/docs` on the gateway port — not the docs site port.
 
-Helix runs a **single multi-profile HTTP gateway** with three public surfaces:
+Holix runs a **single multi-profile HTTP gateway** with three public surfaces:
 
 | Surface | Prefix | Purpose |
 |---------|--------|---------|
 | **Hermes-compatible API** | `/v1`, `/api/sessions`, `/api/jobs` | Drop-in for Open WebUI, LobeChat, Hermes clients |
-| **Helix agent extensions** | `/v1/chat/completions`, permissions, plans | OpenAI chat + tool permissions + plan review |
-| **Helix Management API** | `/api/helix/` | SaaS control plane: profiles, models, MCP, skills, Telegram |
+| **Holix agent extensions** | `/v1/chat/completions`, permissions, plans | OpenAI chat + tool permissions + plan review |
+| **Holix Management API** | `/api/holix/` | SaaS control plane: profiles, models, MCP, skills, Telegram |
 
 Operational guide (start/stop, ports, logs): [GATEWAY.md](GATEWAY.md).
 
@@ -19,12 +19,12 @@ Operational guide (start/stop, ports, logs): [GATEWAY.md](GATEWAY.md).
 |------|--------|-------|
 | `/v1/chat/completions`, `/v1/responses`, `/v1/runs` | Full | Bearer + `X-Hermes-*` header aliases |
 | `/v1/models`, `/v1/capabilities`, `/v1/skills`, `/v1/toolsets` | Full | Capabilities advertises Hermes feature flags |
-| `/api/sessions` CRUD + chat/stream | Full | `source`, `include_children`; persisted under `~/.helix/data/gateway/sessions.json` |
+| `/api/sessions` CRUD + chat/stream | Full | `source`, `include_children`; persisted under `~/.holix/data/gateway/sessions.json` |
 | `/api/jobs` CRUD + pause/resume/run | Full | Hermes body aliases: `prompt`, `schedule`, `delivery_target`, `skills`, `provider_override` |
 | Multimodal inline images | Full | `image_url` / `input_image`; file uploads return `400 unsupported_content_type` |
 | SSE tool progress | Full | `hermes.tool.progress`, `assistant.delta`, `tool.started`, `tool.completed`, `run.completed` |
 | Job DELETE cancels in-flight run | Full | Shared cron active-run registry |
-| Helix-only | Extra | `/api/helix/*`, permissions, plans — not in Hermes |
+| Holix-only | Extra | `/api/holix/*`, permissions, plans — not in Hermes |
 
 ---
 
@@ -71,7 +71,7 @@ http://127.0.0.1:8000
 
 1. Open `/docs`
 2. Click **Authorize** (lock icon)
-3. Under **HelixApiKey**, paste your gateway key (`hx_…`) **without** the `Bearer` prefix — Swagger adds it automatically
+3. Under **HolixApiKey**, paste your gateway key (`hx_…`) **without** the `Bearer` prefix — Swagger adds it automatically
 4. Try any protected endpoint with **Try it out**
 
 `X-API-Key: hx_…` also works in curl and code but is not configured via the Authorize dialog.
@@ -84,7 +84,7 @@ curl -sS -H "Authorization: Bearer $API_KEY" http://127.0.0.1:8000/
 
 ```json
 {
-  "name": "Helix API",
+  "name": "Holix API",
   "version": "0.2.0",
   "status": "running",
   "host_profile": "default",
@@ -97,11 +97,11 @@ curl -sS -H "Authorization: Bearer $API_KEY" http://127.0.0.1:8000/
 
 ## Authentication
 
-Helix uses up to **three independent auth mechanisms** depending on the route.
+Holix uses up to **three independent auth mechanisms** depending on the route.
 
 ### Layer 1 — Gateway API key (`hx_…`)
 
-Required on almost all routes when `HELIX_REQUIRE_AUTH=true` (default).
+Required on almost all routes when `HOLIX_REQUIRE_AUTH=true` (default).
 
 | Header | Example |
 |--------|---------|
@@ -113,7 +113,7 @@ Required on almost all routes when `HELIX_REQUIRE_AUTH=true` (default).
 **Create a key** — no CLI command yet; use HTTP or Swagger:
 
 ```bash
-# Requires existing admin key, OR bootstrap with HELIX_REQUIRE_AUTH=false once
+# Requires existing admin key, OR bootstrap with HOLIX_REQUIRE_AUTH=false once
 curl -sS -X POST "http://127.0.0.1:8000/admin/api-keys" \
   -H "Authorization: Bearer $ADMIN_KEY" \
   -d "name=my-app&permissions=read,write,execute&rate_limit=100"
@@ -124,33 +124,33 @@ Response includes `api_key` — **shown once**. Store it securely.
 **Bootstrap first admin key:**
 
 ```bash
-helix profile env --edit   # HELIX_REQUIRE_AUTH=false
-helix gateway reload
+holix profile env --edit   # HOLIX_REQUIRE_AUTH=false
+holix gateway reload
 curl -sS -X POST "http://127.0.0.1:8000/admin/api-keys" \
   -d "name=admin&permissions=read,write,execute,admin&rate_limit=1000"
-# Save hx_…, set HELIX_REQUIRE_AUTH=true, helix gateway reload
+# Save hx_…, set HOLIX_REQUIRE_AUTH=true, holix gateway reload
 ```
 
 ### Layer 2 — Profile access key (`hp_…`)
 
-Required for `/api/helix/*` routes (in addition to gateway API key):
+Required for `/api/holix/*` routes (in addition to gateway API key):
 
 ```http
-X-Helix-Profile-Key: hp_…
+X-Holix-Profile-Key: hp_…
 ```
 
 | Caller | Headers | Scope |
 |--------|---------|-------|
-| Profile owner | Gateway key + `X-Helix-Profile-Key` for own profile | Single profile |
+| Profile owner | Gateway key + `X-Holix-Profile-Key` for own profile | Single profile |
 | Platform admin | Gateway key with `admin` permission **or** admin profile master key | All profiles |
 
-Admin profile name defaults to `admin` (`HELIX_TELEGRAM_ADMIN_PROFILE`).
+Admin profile name defaults to `admin` (`HOLIX_TELEGRAM_ADMIN_PROFILE`).
 
-Profile keys are created via CLI (`helix profile key init`) or Management API (`POST …/key/init`). **Not** the same as `hx_…` gateway keys.
+Profile keys are created via CLI (`holix profile key init`) or Management API (`POST …/key/init`). **Not** the same as `hx_…` gateway keys.
 
 ### Layer 3 — Docs-chat token (website widget only)
 
-Routes under `/v1/docs/chat/*` (except `/config`) use `HELIX_DOCS_CHAT_TOKEN`:
+Routes under `/v1/docs/chat/*` (except `/config`) use `HOLIX_DOCS_CHAT_TOKEN`:
 
 | Header | Example |
 |--------|---------|
@@ -176,16 +176,16 @@ Separate from gateway API keys. See [Docs-site chat API](#docs-site-chat-api).
 
 For chat, Hermes, sessions, and jobs, profile is resolved in order:
 
-1. `X-Helix-Profile` or `X-Hermes-Profile` header
-2. `model` field in request body (profile name; not `helix`, `helix-agent`, `hermes-agent`)
-3. Gateway **host profile** (`HELIX_PROFILE` at process start)
+1. `X-Holix-Profile` or `X-Hermes-Profile` header
+2. `model` field in request body (profile name; not `holix`, `holix-agent`, `hermes-agent`)
+3. Gateway **host profile** (`HOLIX_PROFILE` at process start)
 
 ### Session headers (aliases)
 
-| Purpose | Helix | Hermes alias |
+| Purpose | Holix | Hermes alias |
 |---------|-------|--------------|
-| Conversation / transcript id | `X-Helix-Session-Id` | `X-Hermes-Session-Id` |
-| Stable memory scope | `X-Helix-Session-Key` | `X-Hermes-Session-Key` |
+| Conversation / transcript id | `X-Holix-Session-Id` | `X-Hermes-Session-Id` |
+| Stable memory scope | `X-Holix-Session-Key` | `X-Hermes-Session-Key` |
 
 Session key: max 256 chars; control characters rejected → `400`.
 
@@ -194,9 +194,9 @@ Session key: max 256 chars; control characters rejected → `400`.
 Management mutations that change running agent config return `"reload_required": true`. Apply without restarting uvicorn:
 
 ```bash
-curl -sS -X POST "$HELIX_URL/api/helix/profiles/$PROFILE/reload" \
+curl -sS -X POST "$HOLIX_URL/api/holix/profiles/$PROFILE/reload" \
   -H "Authorization: Bearer $API_KEY" \
-  -H "X-Helix-Profile-Key: $PROFILE_KEY"
+  -H "X-Holix-Profile-Key: $PROFILE_KEY"
 ```
 
 ### Masked secrets
@@ -217,7 +217,7 @@ Management `GET` responses mask API keys, tokens, and sensitive env vars. Plaint
 
 ### Rate limiting
 
-Each API key has `rate_limit` (requests per minute). Docs-chat has separate `HELIX_DOCS_CHAT_RATE_LIMIT_RPM` per `client_id`.
+Each API key has `rate_limit` (requests per minute). Docs-chat has separate `HOLIX_DOCS_CHAT_RATE_LIMIT_RPM` per `client_id`.
 
 ### Server-Sent Events (SSE)
 
@@ -233,30 +233,30 @@ Streaming endpoints return `text/event-stream`:
 ## SaaS workflow examples
 
 ```bash
-export HELIX_URL=http://127.0.0.1:8000
+export HOLIX_URL=http://127.0.0.1:8000
 export ADMIN_KEY=hx_…
 export ADMIN_PROFILE_KEY=hp_…
 
 # 1. Create tenant profile (admin)
-curl -sS -X POST "$HELIX_URL/api/helix/profiles" \
+curl -sS -X POST "$HOLIX_URL/api/holix/profiles" \
   -H "Authorization: Bearer $ADMIN_KEY" \
   -H "Content-Type: application/json" \
   -d '{"name":"tenant-42","with_access_key":true}'
 
 # 2. Add LLM provider
-curl -sS -X POST "$HELIX_URL/api/helix/profiles/tenant-42/models/providers" \
+curl -sS -X POST "$HOLIX_URL/api/holix/profiles/tenant-42/models/providers" \
   -H "Authorization: Bearer $ADMIN_KEY" \
-  -H "X-Helix-Profile-Key: $ADMIN_PROFILE_KEY" \
+  -H "X-Holix-Profile-Key: $ADMIN_PROFILE_KEY" \
   -H "Content-Type: application/json" \
   -d '{"preset_id":"openrouter","skip_test":true}'
 
 # 3. Reload tenant agent + companions
-curl -sS -X POST "$HELIX_URL/api/helix/profiles/tenant-42/reload" \
+curl -sS -X POST "$HOLIX_URL/api/holix/profiles/tenant-42/reload" \
   -H "Authorization: Bearer $ADMIN_KEY" \
-  -H "X-Helix-Profile-Key: $ADMIN_PROFILE_KEY"
+  -H "X-Holix-Profile-Key: $ADMIN_PROFILE_KEY"
 
 # 4. Chat as tenant (OpenAI client: model = profile name)
-curl -sS "$HELIX_URL/v1/chat/completions" \
+curl -sS "$HOLIX_URL/v1/chat/completions" \
   -H "Authorization: Bearer $TENANT_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{"model":"tenant-42","messages":[{"role":"user","content":"hi"}]}'
@@ -361,7 +361,7 @@ Profile headers apply where noted. See [Hermes agent docs](https://github.com/No
 
 ### `GET /v1/models`
 
-List Helix profiles as OpenAI-style models (`id` = profile name).
+List Holix profiles as OpenAI-style models (`id` = profile name).
 
 ```bash
 curl -sS -H "Authorization: Bearer $API_KEY" http://127.0.0.1:8000/v1/models
@@ -387,7 +387,7 @@ Create a stored response (Responses API). Requires `read` permission.
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `model` | string | Profile name (default `helix`) |
+| `model` | string | Profile name (default `holix`) |
 | `input` | string or array | User input |
 | `instructions` | string? | System instructions |
 | `store` | bool | Persist in SQLite store (default true) |
@@ -430,7 +430,7 @@ Human-in-the-loop approval.
 
 ## Agent extensions (`/v1`)
 
-Helix-specific agent endpoints (OpenAI chat, permissions, plans).
+Holix-specific agent endpoints (OpenAI chat, permissions, plans).
 
 ### `POST /v1/chat/completions`
 
@@ -498,7 +498,7 @@ Hermes session store per profile.
 
 ### `GET /api/sessions`
 
-List sessions. Query: `limit` (50), `offset` (0). Profile via `X-Helix-Profile`.
+List sessions. Query: `limit` (50), `offset` (0). Profile via `X-Holix-Profile`.
 
 ### `POST /api/sessions`
 
@@ -594,15 +594,15 @@ Run job immediately (one-shot).
 
 ## Management: profiles
 
-Prefix `/api/helix/profiles`. Gateway API key + profile access (see [Authentication](#authentication)).
+Prefix `/api/holix/profiles`. Gateway API key + profile access (see [Authentication](#authentication)).
 
-### `GET /api/helix/profiles`
+### `GET /api/holix/profiles`
 
 **Auth:** Admin
 
 List all profiles with `name`, `protected`, `path`.
 
-### `POST /api/helix/profiles`
+### `POST /api/holix/profiles`
 
 **Auth:** Admin
 
@@ -619,47 +619,47 @@ Create profile.
 
 **Response:** `profile`, `access_key` (if created), `protected`, `reload_required`.
 
-### `GET /api/helix/profiles/{profile_id}`
+### `GET /api/holix/profiles/{profile_id}`
 
 Profile metadata: jail settings, paths.
 
-### `GET /api/helix/profiles/{profile_id}/status`
+### `GET /api/holix/profiles/{profile_id}/status`
 
 Agent loaded in registry, companion status (Telegram, cron).
 
-### `DELETE /api/helix/profiles/{profile_id}`
+### `DELETE /api/holix/profiles/{profile_id}`
 
 **Auth:** Admin. Delete profile directory.
 
-### `POST /api/helix/profiles/{profile_id}/reload`
+### `POST /api/holix/profiles/{profile_id}/reload`
 
 Reload agent + Telegram + cron for this profile.
 
-### `GET /api/helix/profiles/{profile_id}/key/status`
+### `GET /api/holix/profiles/{profile_id}/key/status`
 
 Whether profile requires access key.
 
-### `POST /api/helix/profiles/{profile_id}/key/init`
+### `POST /api/holix/profiles/{profile_id}/key/init`
 
 Enable access key + workspace jail. Returns new `hp_…` once.
 
-### `POST /api/helix/profiles/{profile_id}/key/rotate`
+### `POST /api/holix/profiles/{profile_id}/key/rotate`
 
 **Body:** `{"current_key":"hp_…"}`. Returns new key once.
 
-### `POST /api/helix/profiles/{profile_id}/key/disable`
+### `POST /api/holix/profiles/{profile_id}/key/disable`
 
 **Auth:** Admin. Remove access key protection.
 
-### `GET /api/helix/profiles/{profile_id}/jail`
+### `GET /api/holix/profiles/{profile_id}/jail`
 
 Workspace jail enabled/path.
 
-### `POST /api/helix/profiles/{profile_id}/jail/enable`
+### `POST /api/holix/profiles/{profile_id}/jail/enable`
 
 **Body:** optional `{"path":"/allowed/root"}`.
 
-### `POST /api/helix/profiles/{profile_id}/jail/disable`
+### `POST /api/holix/profiles/{profile_id}/jail/disable`
 
 Disable workspace jail.
 
@@ -667,7 +667,7 @@ Disable workspace jail.
 
 ## Management: models
 
-Prefix `/api/helix/profiles/{profile_id}/models`.
+Prefix `/api/holix/profiles/{profile_id}/models`.
 
 ### `GET …/presets`
 
@@ -711,7 +711,7 @@ Ordered fallback provider chain.
 
 ## Management: skills
 
-Prefix `/api/helix/profiles/{profile_id}/skills`.
+Prefix `/api/holix/profiles/{profile_id}/skills`.
 
 ### `GET …/skills`
 
@@ -741,7 +741,7 @@ Install bundled skills. Query: `force` (bool).
 
 ## Management: MCP
 
-Prefix `/api/helix/profiles/{profile_id}/mcp`.
+Prefix `/api/holix/profiles/{profile_id}/mcp`.
 
 ### `GET …/servers`
 
@@ -783,7 +783,7 @@ Curated installable MCP servers.
 
 ## Management: config & env
 
-Prefix `/api/helix/profiles/{profile_id}`.
+Prefix `/api/holix/profiles/{profile_id}`.
 
 ### `GET …/config`
 
@@ -805,25 +805,25 @@ Profile `.env` variables (masked).
 
 ## Management: global settings
 
-Prefix `/api/helix/global`. **Admin** profile access required.
+Prefix `/api/holix/global`. **Admin** profile access required.
 
-### `POST /api/helix/global/init`
+### `POST /api/holix/global/init`
 
-Create `~/.helix/global/config.yaml` and `.env` templates.
+Create `~/.holix/global/config.yaml` and `.env` templates.
 
-### `GET /api/helix/global/config`
+### `GET /api/holix/global/config`
 
 Read global config (masked).
 
-### `PATCH /api/helix/global/config`
+### `PATCH /api/holix/global/config`
 
 Patch global YAML.
 
-### `GET /api/helix/global/env`
+### `GET /api/holix/global/env`
 
 Read global `.env` (masked).
 
-### `PATCH /api/helix/global/env`
+### `PATCH /api/holix/global/env`
 
 Patch global environment variables.
 
@@ -831,7 +831,7 @@ Patch global environment variables.
 
 ## Management: Telegram
 
-Prefix `/api/helix/profiles/{profile_id}/telegram`. CLI equivalents in [TELEGRAM.md](TELEGRAM.md).
+Prefix `/api/holix/profiles/{profile_id}/telegram`. CLI equivalents in [TELEGRAM.md](TELEGRAM.md).
 
 ### `GET …/status`
 
@@ -857,7 +857,7 @@ Pending access requests list + count.
 
 ### `GET …/admin`
 
-Telegram admin user id and mapped Helix profile.
+Telegram admin user id and mapped Holix profile.
 
 ### `DELETE …/admin`
 
@@ -865,7 +865,7 @@ Telegram admin user id and mapped Helix profile.
 
 ### `GET …/map`
 
-User id → Helix profile mapping.
+User id → Holix profile mapping.
 
 ### `POST …/map`
 
@@ -917,7 +917,7 @@ Clear history for `client_id`.
 | `page_slug` | Optional current doc page |
 | `stream` | SSE if true (default) |
 
-Rate limited per `client_id` (`HELIX_DOCS_CHAT_RATE_LIMIT_RPM`).
+Rate limited per `client_id` (`HOLIX_DOCS_CHAT_RATE_LIMIT_RPM`).
 
 ---
 
@@ -928,7 +928,7 @@ One uvicorn process serves **N profiles** via `ProfileAgentRegistry`:
 - Agents lazy-load on first request
 - `CompanionManager` runs Telegram polling + cron per profile
 - `POST …/reload` restarts one profile's agent and companions without gateway restart
-- Host profile set at startup (`HELIX_PROFILE`)
+- Host profile set at startup (`HOLIX_PROFILE`)
 
 Stores: `ResponsesStore` (SQLite), `RunsStore` (memory), `SessionsStore` (memory).
 
@@ -937,9 +937,9 @@ Stores: `ResponsesStore` (SQLite), `RunsStore` (memory), `SessionsStore` (memory
 ## Security notes
 
 - Use **TLS** behind reverse proxy in production; bind `127.0.0.1` by default
-- Set `HELIX_API_KEY_PEPPER` in production (required when `HELIX_ENV=production`)
+- Set `HOLIX_API_KEY_PEPPER` in production (required when `HOLIX_ENV=production`)
 - Admin routes always require admin permission
 - Security headers: `X-Content-Type-Options: nosniff`, `Referrer-Policy: no-referrer`
-- CORS: `HELIX_CORS_ORIGINS` (comma-separated)
+- CORS: `HOLIX_CORS_ORIGINS` (comma-separated)
 
 See also: [SECURITY.md](SECURITY.md), [DEPLOYMENT.md](DEPLOYMENT.md), [PROFILES.md](PROFILES.md), [TELEGRAM.md](TELEGRAM.md).

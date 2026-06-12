@@ -1,15 +1,15 @@
-"""Resolve Helix profile storage paths (never relative to process CWD)."""
+"""Resolve Holix profile storage paths (never relative to process CWD)."""
 
 from __future__ import annotations
 
 from pathlib import Path
 
 
-def resolve_helix_default_data_dir(profile: str = "default") -> Path:
-    """Return ``~/.helix/profiles/<profile>/data`` (or HELIX_HOME equivalent)."""
-    from core.platform_compat import resolve_helix_home
+def resolve_holix_default_data_dir(profile: str = "default") -> Path:
+    """Return ``~/.holix/profiles/<profile>/data`` (or HOLIX_HOME equivalent)."""
+    from core.platform_compat import resolve_holix_home
 
-    return (resolve_helix_home() / "profiles" / profile / "data").resolve()
+    return (resolve_holix_home() / "profiles" / profile / "data").resolve()
 
 
 def resolve_profile_data_dir(profile: str | None = None) -> Path:
@@ -28,7 +28,7 @@ def resolve_profile_data_dir(profile: str | None = None) -> Path:
             return Path(cfg.data_dir).expanduser().resolve()
     except Exception:
         pass
-    return resolve_helix_default_data_dir(profile or "default")
+    return resolve_holix_default_data_dir(profile or "default")
 
 
 def memory_paths_from_data_dir(data_dir: str | Path) -> dict[str, str]:
@@ -41,8 +41,8 @@ def memory_paths_from_data_dir(data_dir: str | Path) -> dict[str, str]:
     }
 
 
-def is_stray_helix_data_dir(path: Path) -> bool:
-    """True if ``path`` looks like Helix runtime data leaked into a project tree."""
+def is_stray_holix_data_dir(path: Path) -> bool:
+    """True if ``path`` looks like Holix runtime data leaked into a project tree."""
     if not path.is_dir():
         return False
     markers = (

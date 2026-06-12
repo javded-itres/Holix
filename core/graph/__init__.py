@@ -1,7 +1,7 @@
 """
-Helix LangGraph Execution Graph.
+Holix LangGraph Execution Graph.
 """
 
-from core.graph.state import HelixGraphState
+from core.graph.state import HolixGraphState
 
-__all__ = ["HelixGraphState"]
+__all__ = ["HolixGraphState"]

@@ -1,4 +1,4 @@
-"""Model management commands for Helix CLI."""
+"""Model management commands for Holix CLI."""
 
 import asyncio
 import sys
@@ -246,7 +246,7 @@ async def _add_provider_custom(config, *, no_verify_ssl: bool = False):
     metadata: dict = {"auth_type": auth_type}
     if auth_type == "openrouter":
         metadata["http_referer"] = "${OPENROUTER_HTTP_REFERER}"
-        metadata["x_title"] = "Helix"
+        metadata["x_title"] = "Holix"
     metadata.update(
         resolve_ssl_metadata_extra(base_url, no_verify_ssl=no_verify_ssl, console=console)
     )
@@ -465,7 +465,7 @@ def _remove_provider(config, *, profile: str | None = None, save: bool = False) 
         print_info(note)
 
     if not profile_has_llm_config(config):
-        print_info("No LLM configured. Run: helix models add <preset>  or  helix models setup")
+        print_info("No LLM configured. Run: holix models add <preset>  or  holix models setup")
 
     if save and profile:
         get_profile_manager().save_profile(profile, config)
@@ -558,7 +558,7 @@ def _view_agent_models(config):
 def list_presets():
     """List built-in provider presets (OpenAI, OpenRouter, DeepSeek, Kimi, Grok, …)."""
     _print_preset_catalog()
-    console.print("[dim]Add: helix models add openai[/dim]")
+    console.print("[dim]Add: holix models add openai[/dim]")
 
 
 @app.command("add")
@@ -602,7 +602,7 @@ async def _add_preset_cli(
 
     preset = get_provider_preset(preset_id)
     if not preset:
-        print_error(f"Unknown preset '{preset_id}'. Run: helix models presets")
+        print_error(f"Unknown preset '{preset_id}'. Run: holix models presets")
         raise typer.Exit(1)
 
     import os
@@ -698,7 +698,7 @@ def remove_provider_cmd(
     manager.save_profile(prof, config)
     print_success(f"Provider '{name}' removed from profile '{prof}'")
     if not profile_has_llm_config(config):
-        print_info("No LLM configured. Run: helix models add <preset>")
+        print_info("No LLM configured. Run: holix models add <preset>")
 
 
 @app.command("list")

@@ -23,19 +23,19 @@ from core.runtime.session import prepare_session
 
 
 @pytest.fixture
-def helix_home(tmp_path, monkeypatch: pytest.MonkeyPatch):
+def holix_home(tmp_path, monkeypatch: pytest.MonkeyPatch):
     import cli.core as cli_core
 
-    root = tmp_path / "helix"
+    root = tmp_path / "holix"
     profiles = root / "profiles"
     profiles.mkdir(parents=True)
-    monkeypatch.setenv("HELIX_HOME", str(root))
-    monkeypatch.setattr(cli_core, "HELIX_HOME", root)
+    monkeypatch.setenv("HOLIX_HOME", str(root))
+    monkeypatch.setattr(cli_core, "HOLIX_HOME", root)
     monkeypatch.setattr(cli_core, "PROFILES_DIR", profiles)
     return root
 
 
-def test_create_profile_writes_soul_md(helix_home) -> None:
+def test_create_profile_writes_soul_md(holix_home) -> None:
     ProfileManager().create_profile("alice")
     path = soul_path("alice")
     assert path.is_file()
@@ -45,20 +45,20 @@ def test_create_profile_writes_soul_md(helix_home) -> None:
     assert init_pending("alice")
 
 
-def test_load_soul_md_creates_default_when_missing(helix_home) -> None:
+def test_load_soul_md_creates_default_when_missing(holix_home) -> None:
     text = load_soul_md("ghost")
     assert "Agent Soul" in text
     assert soul_path("ghost").is_file()
 
 
-def test_load_soul_without_init_gets_default_template(helix_home) -> None:
+def test_load_soul_without_init_gets_default_template(holix_home) -> None:
     soul_path("mature").parent.mkdir(parents=True)
     soul_path("mature").write_text("", encoding="utf-8")
     text = load_soul_md("mature")
     assert "Clarity over verbosity" in text
 
 
-def test_build_system_prompt_always_includes_soul(helix_home) -> None:
+def test_build_system_prompt_always_includes_soul(holix_home) -> None:
     ensure_soul_file("default")
     soul_path("default").write_text("# Custom Soul\nBe playful.\n", encoding="utf-8")
     prompt = build_system_prompt(
@@ -71,7 +71,7 @@ def test_build_system_prompt_always_includes_soul(helix_home) -> None:
     assert SOUL_MD_FILENAME in prompt
 
 
-def test_inject_soul_replaces_stale_soul_message(helix_home) -> None:
+def test_inject_soul_replaces_stale_soul_message(holix_home) -> None:
     ensure_soul_file("work")
     soul_path("work").write_text("Version A", encoding="utf-8")
     messages = inject_soul_into_messages([], "work")
@@ -92,7 +92,7 @@ def test_strip_soul_keeps_other_messages() -> None:
 
 
 @pytest.mark.asyncio
-async def test_prepare_session_injects_soul_for_new_conversation(helix_home) -> None:
+async def test_prepare_session_injects_soul_for_new_conversation(holix_home) -> None:
     ensure_soul_file("default")
     soul_path("default").write_text("Soul on new session", encoding="utf-8")
 
@@ -110,7 +110,7 @@ async def test_prepare_session_injects_soul_for_new_conversation(helix_home) -> 
 
 
 @pytest.mark.asyncio
-async def test_compress_session_reinjects_soul(helix_home) -> None:
+async def test_compress_session_reinjects_soul(holix_home) -> None:
     ensure_soul_file("default")
     soul_path("default").write_text("Persistent soul", encoding="utf-8")
 
@@ -137,7 +137,7 @@ async def test_compress_session_reinjects_soul(helix_home) -> None:
 
 
 @pytest.mark.asyncio
-async def test_compressor_excludes_soul_from_summarized_chunk(helix_home) -> None:
+async def test_compressor_excludes_soul_from_summarized_chunk(holix_home) -> None:
     ensure_soul_file("default")
     counter = MagicMock()
     counter.count_message_tokens.return_value = 10

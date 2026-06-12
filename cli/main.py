@@ -1,4 +1,4 @@
-"""Main CLI entry point for Helix."""
+"""Main CLI entry point for Holix."""
 
 
 import typer
@@ -13,6 +13,7 @@ from cli.commands import chat, config, doctor, gateway, memory, models, profile,
 from cli.commands.cron import app as cron_app
 from cli.commands.docs import app as docs_app
 from cli.commands.hub import app as hub_app
+from cli.commands.bootstrap import app as bootstrap_app
 from cli.commands.install_cmd import app as install_app
 from cli.commands.logs import app as logs_app
 from cli.commands.mcp import app as mcp_app
@@ -24,8 +25,8 @@ from cli.utils.rich_console import print_info
 
 # Create Typer app
 app = typer.Typer(
-    name="helix",
-    help="Helix - Self-Improving AI Agent with Memory and Skills",
+    name="holix",
+    help="Holix - Self-Improving AI Agent with Memory and Skills",
     add_completion=False,
     rich_markup_mode="rich"
 )
@@ -45,6 +46,7 @@ app.add_typer(cron_app, name="cron")
 app.add_typer(logs_app, name="logs")
 app.add_typer(hub_app, name="hub")
 app.add_typer(install_app, name="install")
+app.add_typer(bootstrap_app, name="bootstrap")
 app.add_typer(update_app, name="update")
 app.add_typer(docs_app, name="docs")
 
@@ -60,7 +62,7 @@ def _app_callback(
     profile_key: str | None = typer.Option(
         None,
         "--profile-key",
-        envvar="HELIX_PROFILE_KEY",
+        envvar="HOLIX_PROFILE_KEY",
         help="Access key for a protected profile",
     ),
     verbose: bool = typer.Option(
@@ -69,7 +71,7 @@ def _app_callback(
         help="Enable verbose output"
     ),
 ):
-    """Helix AI Agent CLI.
+    """Holix AI Agent CLI.
 
     A powerful, self-improving AI agent with memory, skills, and tool-calling capabilities.
     """
@@ -110,7 +112,7 @@ def chat_command(
 ):
     """Start interactive chat session.
 
-    Launch an interactive chat interface with Helix. Supports special commands:
+    Launch an interactive chat interface with Holix. Supports special commands:
 
     - /clear - Clear conversation
     - /model <name> - Switch model
@@ -148,7 +150,7 @@ def run_command(
     Run a one-shot query without entering interactive mode.
 
     Example:
-        helix run "Create a FastAPI endpoint for user registration"
+        holix run "Create a FastAPI endpoint for user registration"
     """
     import asyncio
 
@@ -247,13 +249,13 @@ def clear(
 
 @app.command()
 def version():
-    """Show Helix version information."""
+    """Show Holix version information."""
     from cli import __version__
     from cli.utils.rich_console import print_panel
 
-    info = f"""[bold cyan]Helix AI Agent[/bold cyan]
+    info = f"""[bold cyan]Holix AI Agent[/bold cyan]
 Version: {__version__}
-Homepage: https://github.com/javded-itres/HelixAgent
+Homepage: https://github.com/javded-itres/Holix
 License: MIT
 """
     print_panel(info, title="Version Info", border_style="cyan")
@@ -291,7 +293,7 @@ def tui(
     token: str | None = typer.Option(
         None,
         "--token",
-        envvar="HELIX_TUI_WEB_TOKEN",
+        envvar="HOLIX_TUI_WEB_TOKEN",
         help="Shared secret for browser access (--web). Required for LAN/production.",
     ),
     allow_lan: bool = typer.Option(
@@ -340,12 +342,12 @@ def tui(
 
 
 def main() -> None:
-    """Console entry point (``pip install`` → ``helix`` on PATH)."""
-    from core.logging.setup import configure_helix_logging
+    """Console entry point (``pip install`` → ``holix`` on PATH)."""
+    from core.logging.setup import configure_holix_logging
     from core.platform_compat import ensure_multiprocessing_support
 
     ensure_multiprocessing_support()
-    configure_helix_logging()
+    configure_holix_logging()
     app()
 
 

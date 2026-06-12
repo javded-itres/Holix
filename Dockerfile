@@ -37,26 +37,26 @@ COPY . .
 RUN mkdir -p data/memory data/skills data/security \
     && uv run playwright install chromium
 
-ENV HELIX_HOME=/data/.helix
-ENV HELIX_ENV=production
-ENV HELIX_REQUIRE_AUTH=true
-ENV HELIX_GATEWAY_HOST=0.0.0.0
-ENV HELIX_GATEWAY_PORT=8000
-ENV HELIX_TELEGRAM_ACCESS_REQUESTS=true
-ENV HELIX_TELEGRAM_VOICE_ENABLED=true
-ENV HELIX_TELEGRAM_FILES_ENABLED=true
+ENV HOLIX_HOME=/data/.holix
+ENV HOLIX_ENV=production
+ENV HOLIX_REQUIRE_AUTH=true
+ENV HOLIX_GATEWAY_HOST=0.0.0.0
+ENV HOLIX_GATEWAY_PORT=8000
+ENV HOLIX_TELEGRAM_ACCESS_REQUESTS=true
+ENV HOLIX_TELEGRAM_VOICE_ENABLED=true
+ENV HOLIX_TELEGRAM_FILES_ENABLED=true
 ENV ENABLE_BROWSER_TOOLS=true
 ENV BROWSER_HEADLESS=true
 
 EXPOSE 8000
 
 HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
-    CMD curl -f "http://127.0.0.1:${HELIX_GATEWAY_PORT:-8000}/health" || exit 1
+    CMD curl -f "http://127.0.0.1:${HOLIX_GATEWAY_PORT:-8000}/health" || exit 1
 
 COPY scripts/docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 
-VOLUME ["/data/.helix"]
+VOLUME ["/data/.holix"]
 
 ENTRYPOINT ["docker-entrypoint.sh"]
 CMD ["gateway"]

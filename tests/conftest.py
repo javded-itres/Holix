@@ -55,10 +55,10 @@ async def temp_dir():
 @pytest.fixture
 async def memory_manager(temp_dir, request):
     """Memory facade with isolated SQLite + Chroma collection per test."""
-    from core.di.runtime_config import HelixRuntimeConfig
+    from core.di.runtime_config import HolixRuntimeConfig
     from core.memory.facade import MemoryFacade
 
-    cfg = HelixRuntimeConfig.from_settings().with_overrides(
+    cfg = HolixRuntimeConfig.from_settings().with_overrides(
         memory_db_path=f"{temp_dir}/test_memory.db",
         vector_db_path=f"{temp_dir}/test_vector_db",
         ltm_db_path=f"{temp_dir}/test_ltm.db",

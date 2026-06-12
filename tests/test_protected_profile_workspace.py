@@ -10,13 +10,13 @@ from core.profile_keys import store_profile_access_key
 
 
 @pytest.fixture
-def helix_home(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
-    monkeypatch.setenv("HELIX_HOME", str(tmp_path))
-    monkeypatch.setenv("HELIX_ENV", "development")
+def holix_home(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
+    monkeypatch.setenv("HOLIX_HOME", str(tmp_path))
+    monkeypatch.setenv("HOLIX_ENV", "development")
     return tmp_path
 
 
-def test_enable_workspace_isolation_on_existing_profile(helix_home: Path) -> None:
+def test_enable_workspace_isolation_on_existing_profile(holix_home: Path) -> None:
     manager = ProfileManager()
     manager.create_profile("bob")
     store_profile_access_key("bob")

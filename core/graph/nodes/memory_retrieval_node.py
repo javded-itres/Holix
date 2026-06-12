@@ -10,12 +10,12 @@ import logging
 
 from langchain_core.runnables import RunnableConfig
 
-from core.graph.state import HelixGraphState, get_agent_from_config
+from core.graph.state import HolixGraphState, get_agent_from_config
 
 logger = logging.getLogger(__name__)
 
 
-async def memory_retrieval_node(state: HelixGraphState, config: RunnableConfig) -> dict:
+async def memory_retrieval_node(state: HolixGraphState, config: RunnableConfig) -> dict:
     """Retrieve relevant context from all long-term memory stores.
 
     This is the first node in every graph run. It queries:

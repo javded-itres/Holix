@@ -12,7 +12,7 @@ import aiosqlite
 import chromadb
 from chromadb.config import Settings as ChromaSettings
 
-from core.di.runtime_config import HelixRuntimeConfig
+from core.di.runtime_config import HolixRuntimeConfig
 from core.memory.chroma_embeddings import get_or_create_collection
 
 logger = logging.getLogger(__name__)
@@ -28,8 +28,8 @@ class ConversationStore:
     ``search`` returns results ordered by relevance (ChromaDB distance).
     """
 
-    def __init__(self, config: HelixRuntimeConfig | None = None):
-        cfg = config or HelixRuntimeConfig.from_settings()
+    def __init__(self, config: HolixRuntimeConfig | None = None):
+        cfg = config or HolixRuntimeConfig.from_settings()
         self.config = cfg
         self.db_path = Path(cfg.memory_db_path)
         self.vector_db_path = Path(cfg.vector_db_path)

@@ -53,7 +53,7 @@ def test_resolve_build_version_bumps_once(monkeypatch: pytest.MonkeyPatch, tmp_p
     (root / "cli" / "__init__.py").write_text('__version__ = "0.1.0"\n', encoding="utf-8")
 
     monkeypatch.delenv(_BUILD_VERSION_ENV, raising=False)
-    monkeypatch.delenv("HELIX_NO_VERSION_BUMP", raising=False)
+    monkeypatch.delenv("HOLIX_NO_VERSION_BUMP", raising=False)
 
     first = resolve_build_version("0.1.0", root=root)
     second = resolve_build_version("0.1.0", root=root)
@@ -69,7 +69,7 @@ def test_resolve_build_version_respects_disable(monkeypatch: pytest.MonkeyPatch,
     (root / "pyproject.toml").write_text('version = "0.1.0"\n', encoding="utf-8")
     (root / "cli" / "__init__.py").write_text('__version__ = "0.1.0"\n', encoding="utf-8")
 
-    monkeypatch.setenv("HELIX_NO_VERSION_BUMP", "1")
+    monkeypatch.setenv("HOLIX_NO_VERSION_BUMP", "1")
     monkeypatch.delenv(_BUILD_VERSION_ENV, raising=False)
 
     assert resolve_build_version("0.1.0", root=root) == "0.1.0"

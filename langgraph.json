@@ -1,8 +1,8 @@
 {
   "dependencies": ["."],
   "graphs": {
-    "helix_react": "./core/graph/builder.py:build_react_graph_for_studio",
-    "helix_plan_execute": "./core/graph/builder.py:build_plan_execute_graph_for_studio"
+    "holix_react": "./core/graph/builder.py:build_react_graph_for_studio",
+    "holix_plan_execute": "./core/graph/builder.py:build_plan_execute_graph_for_studio"
   },
   "env": ".env"
 }

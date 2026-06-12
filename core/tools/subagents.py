@@ -48,7 +48,7 @@ class DelegateToSubAgentTool(BaseTool):
         if not cfg or not getattr(cfg, "enable_subagents", False):
             return (
                 "Error: sub-agents are disabled. Set enable_subagents: true in profile "
-                "config.yaml or HELIX_ENABLE_SUBAGENTS=true in ~/.helix/.env"
+                "config.yaml or HOLIX_ENABLE_SUBAGENTS=true in ~/.holix/.env"
             )
         try:
             handle = await agent.subagents.spawn_typed(agent_type.strip(), task.strip())

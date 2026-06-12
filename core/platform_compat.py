@@ -17,22 +17,37 @@ _CREATE_NEW_PROCESS_GROUP = getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0)
 _CREATE_NO_WINDOW = getattr(subprocess, "CREATE_NO_WINDOW", 0)
 
 
-def resolve_helix_home() -> Path:
-    """Helix data directory (HELIX_HOME, XDG_DATA_HOME, LOCALAPPDATA, or ~/.helix)."""
+def _legacy_helix_home() -> Path | None:
+    """Return ~/.helix when present and ~/.holix is not (pre-rebrand data dir)."""
+    holix = Path.home() / ".holix"
+    helix = Path.home() / ".helix"
+    if helix.is_dir() and not holix.is_dir():
+        return helix.resolve()
+    return None
+
+
+def resolve_holix_home() -> Path:
+    """Holix data directory (HOLIX_HOME, HELIX_HOME legacy, XDG, or ~/.holix)."""
+    if raw := os.environ.get("HOLIX_HOME", "").strip():
+        return Path(raw).expanduser().resolve()
     if raw := os.environ.get("HELIX_HOME", "").strip():
         return Path(raw).expanduser().resolve()
     if IS_WINDOWS:
         base = os.environ.get("LOCALAPPDATA") or os.environ.get("APPDATA")
         if base:
-            return (Path(base) / "Helix").resolve()
-        return (Path.home() / ".helix").resolve()
+            return (Path(base) / "Holix").resolve()
+        if legacy := _legacy_helix_home():
+            return legacy
+        return (Path.home() / ".holix").resolve()
     if xdg := os.environ.get("XDG_DATA_HOME", "").strip():
-        return (Path(xdg) / "helix").resolve()
-    return (Path.home() / ".helix").resolve()
+        return (Path(xdg) / "holix").resolve()
+    if legacy := _legacy_helix_home():
+        return legacy
+    return (Path.home() / ".holix").resolve()
 
 
-def helix_home_display() -> str:
-    return str(resolve_helix_home())
+def holix_home_display() -> str:
+    return str(resolve_holix_home())
 
 
 def process_subagents_supported() -> bool:

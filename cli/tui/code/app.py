@@ -1,5 +1,5 @@
 """
-Strict Helix TUI (Claude Code / Grok Build style).
+Strict Holix TUI (Claude Code / Grok Build style).
 
 Single-column transcript, compact tool lines, status footer — no sidebar, no command palette.
 """
@@ -12,7 +12,7 @@ import time
 from pathlib import Path
 from typing import Any
 
-from core.agent import HelixAgent
+from core.agent import HolixAgent
 from core.agent_events import AgentEvent
 from core.plan_review.review_events import PlanReviewRequestEvent
 from core.security.confirmation import ConfirmationChoice
@@ -24,7 +24,7 @@ from textual.app import App, ComposeResult
 from textual.binding import Binding
 from textual.widgets import Static, TextArea
 
-from cli.core import HELIX_HOME, ProfileConfig, ProfileManager, init_profile
+from cli.core import HOLIX_HOME, ProfileConfig, ProfileManager, init_profile
 from cli.tui.code.handlers import CodeEventHandler, SlashCommandsCore
 from cli.tui.code.styles import CODE_TUI_CSS
 from cli.tui.code.widgets import (
@@ -53,7 +53,7 @@ from cli.tui.shared.slash_suggestions import match_slash_commands
 from cli.tui.shared.transcript_store import TranscriptStore, plain_from_rich_write
 
 
-class HelixCodeApp(App):
+class HolixCodeApp(App):
     """Code-style strict TUI."""
 
     ENABLE_MOUSE_SUPPORT = True
@@ -66,7 +66,7 @@ class HelixCodeApp(App):
         self.profile = profile
         self.config = config or init_profile(profile)
         self.profile_manager = ProfileManager()
-        self.agent: HelixAgent | None = None
+        self.agent: HolixAgent | None = None
         self._resolved_model = self.config.model
         self.active_model_slot = "main"
         self.active_model_label = ""
@@ -122,9 +122,9 @@ class HelixCodeApp(App):
         yield CodePrompt()
 
     async def on_mount(self) -> None:
-        self.title = "Helix"
+        self.title = "Holix"
         self._load_ui_state()
-        self.transcript_write("[bold]Helix[/bold]  [dim]code ui[/dim]")
+        self.transcript_write("[bold]Holix[/bold]  [dim]code ui[/dim]")
         hints = (
             "[dim]Enter send · Shift+Enter newline · / — command menu (↑↓ pick) · "
             "/models — switch LLM · /hub — skill catalog · F2 /open — copy window · "
@@ -236,7 +236,7 @@ class HelixCodeApp(App):
     # --- Persistence ---
 
     def _state_path(self) -> Path:
-        return HELIX_HOME / "tui-state.json"
+        return HOLIX_HOME / "tui-state.json"
 
     def _load_ui_state(self) -> None:
         try:
@@ -299,7 +299,7 @@ class HelixCodeApp(App):
             self._resolved_model = "—"
             return
 
-        self.agent = HelixAgent(config=runtime_config)
+        self.agent = HolixAgent(config=runtime_config)
         self.agent.events.subscribe(self._on_agent_event)
         await self.agent.initialize()
         await self._load_conversation_history()
@@ -412,9 +412,9 @@ class HelixCodeApp(App):
             return
         mode = self._execution_modes[self._execution_mode_index]
         try:
-            from core.runtime.executor import run_helix
+            from core.runtime.executor import run_holix
 
-            async for event in run_helix(
+            async for event in run_holix(
                 self.agent,
                 user_input,
                 self.conversation_id,
@@ -824,7 +824,7 @@ class HelixCodeApp(App):
         if not body.strip():
             self._clipboard_notify("transcript empty")
             return
-        self.push_screen(TranscriptViewerScreen(body, title="Helix transcript"))
+        self.push_screen(TranscriptViewerScreen(body, title="Holix transcript"))
 
     def copy_text(self, text: str, *, label: str = "copied") -> None:
         if not text or not text.strip():
@@ -972,7 +972,7 @@ class HelixCodeApp(App):
             cfg = manager.load_profile(self.profile)
             servers = getattr(cfg, "mcp_servers", {}) or {}
             if not servers:
-                self.transcript_write("[dim]No MCP servers. Use terminal: helix mcp install[/dim]")
+                self.transcript_write("[dim]No MCP servers. Use terminal: holix mcp install[/dim]")
                 return
             lines = ["MCP servers:"]
             for name, data in servers.items():
@@ -984,7 +984,7 @@ class HelixCodeApp(App):
 
     async def _mcp_install(self, what: str = "") -> None:
         if not what:
-            self.transcript_write("Usage: /mcp install <key|git-url>\nKeys: compass, context7, filesystem, github...\nOr use terminal `helix mcp install` for full interactive.")
+            self.transcript_write("Usage: /mcp install <key|git-url>\nKeys: compass, context7, filesystem, github...\nOr use terminal `holix mcp install` for full interactive.")
             return
         self.transcript_write(f"[dim]Installing '{what}'... (using core logic)[/dim]")
         try:
@@ -1029,7 +1029,7 @@ class HelixCodeApp(App):
 
             pop = get_popular_by_key(what)
             if not pop:
-                self.transcript_write(f"Unknown key '{what}'. See terminal `helix mcp list-popular`.")
+                self.transcript_write(f"Unknown key '{what}'. See terminal `holix mcp list-popular`.")
                 return
 
             data = build_config_from_popular(pop, {})
@@ -1063,7 +1063,7 @@ class HelixCodeApp(App):
                 if mcp_ts:
                     self.transcript_write(f"[dim]MCP tools now active ({len(mcp_ts)}): use /mcp tools[/dim]")
         except Exception as e:
-            self.transcript_write(f"Install error: {e}. Fall back to terminal: helix mcp install {what}")
+            self.transcript_write(f"Install error: {e}. Fall back to terminal: holix mcp install {what}")
 
     async def _mcp_assign(self, rest: str = "") -> None:
         if not rest:
@@ -1313,7 +1313,7 @@ class HelixCodeApp(App):
             except Exception:
                 pass
 
-            new_agent = HelixAgent(config=runtime_config)
+            new_agent = HolixAgent(config=runtime_config)
             await new_agent.initialize()
             self.agent = new_agent
             self.profile = new_profile
@@ -1390,17 +1390,17 @@ class HelixCodeApp(App):
 
 
 def run_tui(profile: str = "default") -> None:
-    """Launch strict code-style TUI (default for helix tui)."""
+    """Launch strict code-style TUI (default for holix tui)."""
     import os
 
-    if os.environ.get("HELIX_TUI_LEGACY", "").strip() in ("1", "true", "yes"):
+    if os.environ.get("HOLIX_TUI_LEGACY", "").strip() in ("1", "true", "yes"):
         from cli.tui.legacy.app import run_tui_legacy
 
         run_tui_legacy(profile=profile)
         return
 
     config = init_profile(profile)
-    HelixCodeApp(profile=profile, config=config).run()
+    HolixCodeApp(profile=profile, config=config).run()
 
 
 if __name__ == "__main__":

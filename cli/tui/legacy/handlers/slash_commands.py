@@ -8,7 +8,7 @@ from textual.widgets import RichLog
 
 
 class SlashCommandHandler:
-    """Dispatches /commands to HelixApp actions."""
+    """Dispatches /commands to HolixApp actions."""
 
     def __init__(self, app) -> None:
         self.app = app

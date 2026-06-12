@@ -22,19 +22,19 @@ from core.tools.profile_identity import (
 
 
 @pytest.fixture
-def helix_home(tmp_path, monkeypatch: pytest.MonkeyPatch):
+def holix_home(tmp_path, monkeypatch: pytest.MonkeyPatch):
     import cli.core as cli_core
 
-    root = tmp_path / "helix"
+    root = tmp_path / "holix"
     profiles = root / "profiles"
     profiles.mkdir(parents=True)
-    monkeypatch.setenv("HELIX_HOME", str(root))
-    monkeypatch.setattr(cli_core, "HELIX_HOME", root)
+    monkeypatch.setenv("HOLIX_HOME", str(root))
+    monkeypatch.setattr(cli_core, "HOLIX_HOME", root)
     monkeypatch.setattr(cli_core, "PROFILES_DIR", profiles)
     return root
 
 
-def test_create_profile_bootstraps_init_and_placeholder_soul(helix_home) -> None:
+def test_create_profile_bootstraps_init_and_placeholder_soul(holix_home) -> None:
     ProfileManager().create_profile("nova")
     assert init_pending("nova")
     assert init_path("nova").is_file()
@@ -42,7 +42,7 @@ def test_create_profile_bootstraps_init_and_placeholder_soul(helix_home) -> None
     assert "first conversation" in soul_path("nova").read_text(encoding="utf-8").lower()
 
 
-def test_update_soul_writes_then_appends(helix_home) -> None:
+def test_update_soul_writes_then_appends(holix_home) -> None:
     ProfileManager().create_profile("bob")
     action1 = update_soul_content("bob", "Friendly and concise.")
     assert action1 == "written"
@@ -57,7 +57,7 @@ def test_update_soul_writes_then_appends(helix_home) -> None:
 
 
 @pytest.mark.asyncio
-async def test_save_agent_soul_tool(helix_home, monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_save_agent_soul_tool(holix_home, monkeypatch: pytest.MonkeyPatch) -> None:
     ProfileManager().create_profile("t1")
 
     class _Cfg:
@@ -78,7 +78,7 @@ async def test_save_agent_soul_tool(helix_home, monkeypatch: pytest.MonkeyPatch)
 
 
 @pytest.mark.asyncio
-async def test_save_user_profile_tool(helix_home, monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_save_user_profile_tool(holix_home, monkeypatch: pytest.MonkeyPatch) -> None:
     ProfileManager().create_profile("t2")
 
     class _Cfg:
@@ -102,7 +102,7 @@ async def test_save_user_profile_tool(helix_home, monkeypatch: pytest.MonkeyPatc
 
 
 @pytest.mark.asyncio
-async def test_complete_initialization_removes_init(helix_home, monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_complete_initialization_removes_init(holix_home, monkeypatch: pytest.MonkeyPatch) -> None:
     ProfileManager().create_profile("t3")
     update_user_profile("t3", name="Anna")
     update_soul_content("t3", "Warm and proactive.")
@@ -126,7 +126,7 @@ async def test_complete_initialization_removes_init(helix_home, monkeypatch: pyt
     assert complete_init("t3") is False
 
 
-def test_prompt_includes_init_block_when_pending(helix_home) -> None:
+def test_prompt_includes_init_block_when_pending(holix_home) -> None:
     ProfileManager().create_profile("onboard")
     prompt = build_system_prompt(
         tools_description="- **save_agent_soul**: save",
@@ -138,7 +138,7 @@ def test_prompt_includes_init_block_when_pending(helix_home) -> None:
     assert "complete_agent_initialization" in prompt
 
 
-def test_prompt_includes_user_block_after_save(helix_home) -> None:
+def test_prompt_includes_user_block_after_save(holix_home) -> None:
     ProfileManager().create_profile("u1")
     update_user_profile("u1", name="Petr")
     prompt = build_system_prompt(

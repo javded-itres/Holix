@@ -1,10 +1,10 @@
-# Helix Documentation (English)
+# Holix Documentation (English)
 
-Helix is a self-improving AI agent with memory, skills, tool calling, MCP, CLI, TUI, API gateway, and Telegram.
+Holix is a self-improving AI agent with memory, skills, tool calling, MCP, CLI, TUI, API gateway, and Telegram.
 
-**Install from PyPI:** `pipx install HelixAgentAi` — [pypi.org/project/HelixAgentAi](https://pypi.org/project/HelixAgentAi/)
+**Install from PyPI:** `pipx install Holix` — [pypi.org/project/Holix](https://pypi.org/project/Holix/)
 
-> **Follow development:** subscribe to the [Telegram channel @helix_agent](https://t.me/helix_agent) for releases, roadmap, and project news.
+> **Follow development:** subscribe to the [Telegram channel @holix_agent](https://t.me/holix_agent) for releases, roadmap, and project news.
 
 ## Getting started
 
@@ -16,25 +16,25 @@ Helix is a self-improving AI agent with memory, skills, tool calling, MCP, CLI, 
 
 ## Interfaces
 
-- [CLI.md](CLI.md) — **complete `helix` command reference**
+- [CLI.md](CLI.md) — **complete `holix` command reference**
 - [SLASH_COMMANDS.md](SLASH_COMMANDS.md) — **all `/` commands** (TUI, Telegram, chat)
 - [EXECUTION_MODES.md](EXECUTION_MODES.md) — **ReAct, Plan, Hybrid, Auto** — how modes work and prompt examples
-- [TUI.md](TUI.md) — `helix tui`, web mode, copy, hub UI
-- [HUB.md](HUB.md) — `helix hub`, catalogs, `skill_assignments`
-- [GATEWAY.md](GATEWAY.md) — `helix gateway start|stop|status|reload`
-- [GATEWAY_API.md](GATEWAY_API.md) — **Complete API reference — every endpoint documented** (auth, `/api/helix/`, SaaS curl)
+- [TUI.md](TUI.md) — `holix tui`, web mode, copy, hub UI
+- [HUB.md](HUB.md) — `holix hub`, catalogs, `skill_assignments`
+- [GATEWAY.md](GATEWAY.md) — `holix gateway start|stop|status|reload`
+- [GATEWAY_API.md](GATEWAY_API.md) — **Complete API reference — every endpoint documented** (auth, `/api/holix/`, SaaS curl)
 - [TELEGRAM.md](TELEGRAM.md) — Telegram
 - [TELEGRAM_MULTI_PROFILE.md](TELEGRAM_MULTI_PROFILE.md) — one bot / multiple bots, access requests, manual `map`
 - [BROWSER_TOOLS.md](BROWSER_TOOLS.md) — Playwright `browser_*` tools
 
 ## Packaging
 
-- [PYPI.md](PYPI.md) — build and publish to PyPI (`HelixAgentAi`)
+- [PYPI.md](PYPI.md) — build and publish to PyPI (`Holix`)
 
 ## Operations
 
-- [LOGS.md](LOGS.md) — `helix logs`, rotation, debug mode
-- [DOCTOR.md](DOCTOR.md) — `helix doctor` and `--fix`
+- [LOGS.md](LOGS.md) — `holix logs`, rotation, debug mode
+- [DOCTOR.md](DOCTOR.md) — `holix doctor` and `--fix`
 - [SECURITY.md](SECURITY.md) — auth, tools, production checklist
 - [TERMINAL_SECURITY.md](TERMINAL_SECURITY.md) — terminal whitelist, blocked commands, confirmations
 - [DEPLOYMENT.md](DEPLOYMENT.md) — Docker, systemd, CI

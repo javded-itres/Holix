@@ -6,11 +6,11 @@ import typer
 
 
 def profile_cli_prefix(profile: str = "default") -> str:
-    """``helix`` or ``helix -p <name>`` — omit flag for the default profile."""
+    """``holix`` or ``holix -p <name>`` — omit flag for the default profile."""
     name = (profile or "default").strip() or "default"
     if name == "default":
-        return "helix"
-    return f"helix -p {name}"
+        return "holix"
+    return f"holix -p {name}"
 
 
 def resolve_profile(ctx: typer.Context, override: str | None = None) -> str:

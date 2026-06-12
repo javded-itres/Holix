@@ -27,7 +27,7 @@ def test_menu_has_help_and_status() -> None:
 
 def test_help_html_lists_commands_en() -> None:
     html = help_message_html("en")
-    assert "Helix" in html
+    assert "Holix" in html
     assert "<code>/help</code>" in html
     assert "<code>/memory</code>" in html
     assert "<code>/compress</code>" in html
@@ -41,24 +41,24 @@ def test_help_html_lists_commands_ru() -> None:
 
 
 @pytest.fixture
-def helix_home(tmp_path, monkeypatch: pytest.MonkeyPatch):
+def holix_home(tmp_path, monkeypatch: pytest.MonkeyPatch):
     import cli.core as cli_core
 
-    root = tmp_path / "helix"
+    root = tmp_path / "holix"
     profiles = root / "profiles"
     profiles.mkdir(parents=True)
-    monkeypatch.setenv("HELIX_HOME", str(root))
-    monkeypatch.setattr(cli_core, "HELIX_HOME", root)
+    monkeypatch.setenv("HOLIX_HOME", str(root))
+    monkeypatch.setattr(cli_core, "HOLIX_HOME", root)
     monkeypatch.setattr(cli_core, "PROFILES_DIR", profiles)
     return root
 
 
-def test_authorized_user_ids_merges_allowlist_and_profiles(helix_home) -> None:
+def test_authorized_user_ids_merges_allowlist_and_profiles(holix_home) -> None:
     from integrations.telegram.env_store import save_telegram_env
     from integrations.telegram.user_profiles import save_user_profiles
 
     save_telegram_env(
-        {"HELIX_TELEGRAM_ALLOWED_USERS": "100,200"},
+        {"HOLIX_TELEGRAM_ALLOWED_USERS": "100,200"},
         profile="default",
     )
     save_user_profiles("default", {300: "alice"})
@@ -113,7 +113,7 @@ async def test_enable_chat_menu_sets_commands_for_chat() -> None:
 
 @pytest.mark.asyncio
 async def test_register_bot_commands_per_user_when_not_allow_all(
-    helix_home,
+    holix_home,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     from integrations.telegram.env_store import save_telegram_env
@@ -121,7 +121,7 @@ async def test_register_bot_commands_per_user_when_not_allow_all(
     save_telegram_env(
         {
             "TELEGRAM_BOT_TOKEN": "1:token",
-            "HELIX_TELEGRAM_ALLOWED_USERS": "42",
+            "HOLIX_TELEGRAM_ALLOWED_USERS": "42",
         },
         profile="default",
     )
@@ -141,7 +141,7 @@ async def test_register_bot_commands_per_user_when_not_allow_all(
 
 @pytest.mark.asyncio
 async def test_register_bot_commands_global_when_allow_all(
-    helix_home,
+    holix_home,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     from integrations.telegram.env_store import save_telegram_env
@@ -149,7 +149,7 @@ async def test_register_bot_commands_global_when_allow_all(
     save_telegram_env(
         {
             "TELEGRAM_BOT_TOKEN": "1:token",
-            "HELIX_TELEGRAM_ALLOW_ALL": "true",
+            "HOLIX_TELEGRAM_ALLOW_ALL": "true",
         },
         profile="default",
     )

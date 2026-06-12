@@ -9,9 +9,9 @@ from fastapi.testclient import TestClient
 
 
 @pytest.fixture
-def helix_home(tmp_path, monkeypatch: pytest.MonkeyPatch):
-    monkeypatch.setenv("HELIX_HOME", str(tmp_path))
-    monkeypatch.setenv("HELIX_ENV", "development")
+def holix_home(tmp_path, monkeypatch: pytest.MonkeyPatch):
+    monkeypatch.setenv("HOLIX_HOME", str(tmp_path))
+    monkeypatch.setenv("HOLIX_ENV", "development")
     monkeypatch.chdir(tmp_path)
     return tmp_path
 
@@ -20,7 +20,7 @@ def helix_home(tmp_path, monkeypatch: pytest.MonkeyPatch):
 def jobs_client(
     gateway_client: TestClient,
     gateway_auth_headers: dict,
-    helix_home,
+    holix_home,
     monkeypatch: pytest.MonkeyPatch,
 ):
     async def _fast_run(job):

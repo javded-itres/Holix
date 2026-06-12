@@ -30,7 +30,7 @@ def test_extract_release_notes_for_version() -> None:
     assert "Feature A" in notes
     assert "Bug B" in notes
     assert "Older feature" not in notes
-    assert "pipx install HelixAgentAi" in notes
+    assert "pipx install Holix" in notes
 
 
 def test_extract_release_notes_missing_version() -> None:
@@ -41,4 +41,4 @@ def test_extract_release_notes_missing_version() -> None:
 def test_extract_release_notes_from_repo_changelog() -> None:
     notes = extract_release_notes("0.1.7")
     assert "profile whitelist" in notes.lower()
-    assert "pipx install HelixAgentAi" in notes
+    assert "pipx install Holix" in notes

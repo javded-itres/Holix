@@ -1,4 +1,4 @@
-"""Helix management: profiles CRUD, keys, jail, reload."""
+"""Holix management: profiles CRUD, keys, jail, reload."""
 
 from __future__ import annotations
 
@@ -14,25 +14,25 @@ from fastapi import APIRouter, Depends, Header, HTTPException
 
 from api import state
 from api.deps import verify_api_key
-from api.schemas.helix import (
+from api.schemas.holix import (
     JailEnableRequest,
     ProfileCreateRequest,
     ProfileKeyRotateRequest,
     ReloadResponse,
 )
-from api.services.helix_deps import profile_access
+from api.services.holix_deps import profile_access
 from api.services.profile_access import require_admin_access
 
-router = APIRouter(prefix="/api/helix/profiles", tags=["helix-profiles"])
+router = APIRouter(prefix="/api/holix/profiles", tags=["holix-profiles"])
 
 
 @router.get("")
 async def list_profiles(
     key_info: dict = Depends(verify_api_key),
-    x_helix_profile: str | None = Header(None),
-    x_helix_profile_key: str | None = Header(None, alias="X-Helix-Profile-Key"),
+    x_holix_profile: str | None = Header(None),
+    x_holix_profile_key: str | None = Header(None, alias="X-Holix-Profile-Key"),
 ):
-    ctx = profile_access(state.host_profile, key_info, x_helix_profile, x_helix_profile_key)
+    ctx = profile_access(state.host_profile, key_info, x_holix_profile, x_holix_profile_key)
     require_admin_access(ctx)
     manager = ProfileManager()
     profiles = []
@@ -49,10 +49,10 @@ async def list_profiles(
 async def create_profile(
     body: ProfileCreateRequest,
     key_info: dict = Depends(verify_api_key),
-    x_helix_profile: str | None = Header(None),
-    x_helix_profile_key: str | None = Header(None, alias="X-Helix-Profile-Key"),
+    x_holix_profile: str | None = Header(None),
+    x_holix_profile_key: str | None = Header(None, alias="X-Holix-Profile-Key"),
 ):
-    ctx = profile_access(state.host_profile, key_info, x_helix_profile, x_helix_profile_key)
+    ctx = profile_access(state.host_profile, key_info, x_holix_profile, x_holix_profile_key)
     require_admin_access(ctx)
     manager = ProfileManager()
     name = body.name.strip()
@@ -84,10 +84,10 @@ async def create_profile(
 async def get_profile(
     profile_id: str,
     key_info: dict = Depends(verify_api_key),
-    x_helix_profile: str | None = Header(None),
-    x_helix_profile_key: str | None = Header(None, alias="X-Helix-Profile-Key"),
+    x_holix_profile: str | None = Header(None),
+    x_holix_profile_key: str | None = Header(None, alias="X-Holix-Profile-Key"),
 ):
-    profile_access(profile_id, key_info, x_helix_profile, x_helix_profile_key)
+    profile_access(profile_id, key_info, x_holix_profile, x_holix_profile_key)
     manager = ProfileManager()
     if not manager.profile_exists(profile_id):
         raise HTTPException(status_code=404, detail="Profile not found")
@@ -105,10 +105,10 @@ async def get_profile(
 async def profile_status(
     profile_id: str,
     key_info: dict = Depends(verify_api_key),
-    x_helix_profile: str | None = Header(None),
-    x_helix_profile_key: str | None = Header(None, alias="X-Helix-Profile-Key"),
+    x_holix_profile: str | None = Header(None),
+    x_holix_profile_key: str | None = Header(None, alias="X-Holix-Profile-Key"),
 ):
-    profile_access(profile_id, key_info, x_helix_profile, x_helix_profile_key)
+    profile_access(profile_id, key_info, x_holix_profile, x_holix_profile_key)
     manager = ProfileManager()
     if not manager.profile_exists(profile_id):
         raise HTTPException(status_code=404, detail="Profile not found")
@@ -127,10 +127,10 @@ async def profile_status(
 async def delete_profile(
     profile_id: str,
     key_info: dict = Depends(verify_api_key),
-    x_helix_profile: str | None = Header(None),
-    x_helix_profile_key: str | None = Header(None, alias="X-Helix-Profile-Key"),
+    x_holix_profile: str | None = Header(None),
+    x_holix_profile_key: str | None = Header(None, alias="X-Holix-Profile-Key"),
 ):
-    ctx = profile_access(profile_id, key_info, x_helix_profile, x_helix_profile_key)
+    ctx = profile_access(profile_id, key_info, x_holix_profile, x_holix_profile_key)
     require_admin_access(ctx)
     if profile_id == "default":
         raise HTTPException(status_code=400, detail="Cannot delete default profile")
@@ -151,10 +151,10 @@ async def delete_profile(
 async def reload_profile(
     profile_id: str,
     key_info: dict = Depends(verify_api_key),
-    x_helix_profile: str | None = Header(None),
-    x_helix_profile_key: str | None = Header(None, alias="X-Helix-Profile-Key"),
+    x_holix_profile: str | None = Header(None),
+    x_holix_profile_key: str | None = Header(None, alias="X-Holix-Profile-Key"),
 ):
-    profile_access(profile_id, key_info, x_helix_profile, x_helix_profile_key)
+    profile_access(profile_id, key_info, x_holix_profile, x_holix_profile_key)
     if state.registry is None or state.companions is None:
         raise HTTPException(status_code=503, detail="Gateway not initialized")
     manager = ProfileManager()
@@ -179,10 +179,10 @@ async def reload_profile(
 async def key_status(
     profile_id: str,
     key_info: dict = Depends(verify_api_key),
-    x_helix_profile: str | None = Header(None),
-    x_helix_profile_key: str | None = Header(None, alias="X-Helix-Profile-Key"),
+    x_holix_profile: str | None = Header(None),
+    x_holix_profile_key: str | None = Header(None, alias="X-Holix-Profile-Key"),
 ):
-    profile_access(profile_id, key_info, x_helix_profile, x_helix_profile_key)
+    profile_access(profile_id, key_info, x_holix_profile, x_holix_profile_key)
     return {"profile": profile_id, "protected": profile_has_access_key(profile_id)}
 
 
@@ -190,10 +190,10 @@ async def key_status(
 async def key_init(
     profile_id: str,
     key_info: dict = Depends(verify_api_key),
-    x_helix_profile: str | None = Header(None),
-    x_helix_profile_key: str | None = Header(None, alias="X-Helix-Profile-Key"),
+    x_holix_profile: str | None = Header(None),
+    x_holix_profile_key: str | None = Header(None, alias="X-Holix-Profile-Key"),
 ):
-    profile_access(profile_id, key_info, x_helix_profile, x_helix_profile_key)
+    profile_access(profile_id, key_info, x_holix_profile, x_holix_profile_key)
     manager = ProfileManager()
     if not manager.profile_exists(profile_id):
         raise HTTPException(status_code=404, detail="Profile not found")
@@ -214,10 +214,10 @@ async def key_rotate(
     profile_id: str,
     body: ProfileKeyRotateRequest,
     key_info: dict = Depends(verify_api_key),
-    x_helix_profile: str | None = Header(None),
-    x_helix_profile_key: str | None = Header(None, alias="X-Helix-Profile-Key"),
+    x_holix_profile: str | None = Header(None),
+    x_holix_profile_key: str | None = Header(None, alias="X-Holix-Profile-Key"),
 ):
-    profile_access(profile_id, key_info, x_helix_profile, x_helix_profile_key)
+    profile_access(profile_id, key_info, x_holix_profile, x_holix_profile_key)
     if not profile_has_access_key(profile_id):
         raise HTTPException(status_code=400, detail="Profile has no access key")
     if not verify_profile_access_key(profile_id, body.current_key):
@@ -230,10 +230,10 @@ async def key_rotate(
 async def key_disable(
     profile_id: str,
     key_info: dict = Depends(verify_api_key),
-    x_helix_profile: str | None = Header(None),
-    x_helix_profile_key: str | None = Header(None, alias="X-Helix-Profile-Key"),
+    x_holix_profile: str | None = Header(None),
+    x_holix_profile_key: str | None = Header(None, alias="X-Holix-Profile-Key"),
 ):
-    ctx = profile_access(profile_id, key_info, x_helix_profile, x_helix_profile_key)
+    ctx = profile_access(profile_id, key_info, x_holix_profile, x_holix_profile_key)
     require_admin_access(ctx)
     if not remove_profile_access_key(profile_id):
         raise HTTPException(status_code=400, detail="Profile has no access key")
@@ -244,10 +244,10 @@ async def key_disable(
 async def jail_status(
     profile_id: str,
     key_info: dict = Depends(verify_api_key),
-    x_helix_profile: str | None = Header(None),
-    x_helix_profile_key: str | None = Header(None, alias="X-Helix-Profile-Key"),
+    x_holix_profile: str | None = Header(None),
+    x_holix_profile_key: str | None = Header(None, alias="X-Holix-Profile-Key"),
 ):
-    profile_access(profile_id, key_info, x_helix_profile, x_helix_profile_key)
+    profile_access(profile_id, key_info, x_holix_profile, x_holix_profile_key)
     config = ProfileManager().load_profile(profile_id)
     return {
         "enabled": config.workspace_jail_enabled,
@@ -260,10 +260,10 @@ async def jail_enable(
     profile_id: str,
     body: JailEnableRequest,
     key_info: dict = Depends(verify_api_key),
-    x_helix_profile: str | None = Header(None),
-    x_helix_profile_key: str | None = Header(None, alias="X-Helix-Profile-Key"),
+    x_holix_profile: str | None = Header(None),
+    x_holix_profile_key: str | None = Header(None, alias="X-Holix-Profile-Key"),
 ):
-    profile_access(profile_id, key_info, x_helix_profile, x_helix_profile_key)
+    profile_access(profile_id, key_info, x_holix_profile, x_holix_profile_key)
     manager = ProfileManager()
     config = manager.load_profile(profile_id)
     if body.path:
@@ -288,10 +288,10 @@ async def jail_enable(
 async def jail_disable(
     profile_id: str,
     key_info: dict = Depends(verify_api_key),
-    x_helix_profile: str | None = Header(None),
-    x_helix_profile_key: str | None = Header(None, alias="X-Helix-Profile-Key"),
+    x_holix_profile: str | None = Header(None),
+    x_holix_profile_key: str | None = Header(None, alias="X-Holix-Profile-Key"),
 ):
-    profile_access(profile_id, key_info, x_helix_profile, x_helix_profile_key)
+    profile_access(profile_id, key_info, x_holix_profile, x_holix_profile_key)
     manager = ProfileManager()
     config = manager.load_profile(profile_id)
     config.workspace_jail_enabled = False

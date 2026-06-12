@@ -1,4 +1,4 @@
-"""Orchestrate helix doctor checks and fixes."""
+"""Orchestrate holix doctor checks and fixes."""
 
 from __future__ import annotations
 
@@ -33,7 +33,7 @@ async def run_doctor(
     skip_llm_check: bool = False,
 ) -> int:
     """Run doctor. Exit code 1 if errors remain."""
-    print_info(f"Helix Doctor — profile [cyan]{profile}[/cyan]")
+    print_info(f"Holix Doctor — profile [cyan]{profile}[/cyan]")
     if fix:
         print_info("Mode: [bold]fix[/bold] (deterministic + LLM config repair)")
     else:

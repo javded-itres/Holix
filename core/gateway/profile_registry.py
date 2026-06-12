@@ -1,4 +1,4 @@
-"""Lazy in-memory Helix agents keyed by profile name."""
+"""Lazy in-memory Holix agents keyed by profile name."""
 
 from __future__ import annotations
 
@@ -10,13 +10,13 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from dishka import AsyncContainer
 
-    from core.agent import HelixAgent
+    from core.agent import HolixAgent
 
 
 @dataclass(slots=True)
 class ProfileEntry:
     profile: str
-    agent: HelixAgent
+    agent: HolixAgent
     container: AsyncContainer
     lock: asyncio.Lock = field(default_factory=asyncio.Lock)
     initialized_at: float = field(default_factory=time.time)
@@ -37,7 +37,7 @@ class ProfileAgentRegistry:
         name = (profile or self.host_profile).strip() or self.host_profile
         return self._entries.get(name)
 
-    async def get_agent(self, profile: str | None = None) -> HelixAgent:
+    async def get_agent(self, profile: str | None = None) -> HolixAgent:
         name = (profile or self.host_profile).strip() or self.host_profile
         existing = self._entries.get(name)
         if existing is not None and existing.agent._initialized:

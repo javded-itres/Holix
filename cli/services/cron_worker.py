@@ -11,10 +11,10 @@ from core.cron.scheduler import CronScheduler
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description="Helix cron scheduler worker")
-    parser.add_argument("--profile", default=os.environ.get("HELIX_PROFILE", "default"))
+    parser = argparse.ArgumentParser(description="Holix cron scheduler worker")
+    parser.add_argument("--profile", default=os.environ.get("HOLIX_PROFILE", "default"))
     args = parser.parse_args(argv)
-    os.environ["HELIX_PROFILE"] = args.profile
+    os.environ["HOLIX_PROFILE"] = args.profile
 
     async def _run() -> None:
         await CronScheduler(args.profile).run_forever()

@@ -31,7 +31,7 @@ class TelegramSettings:
         return out
 
     def is_user_allowed(self, user_id: int) -> bool:
-        """Default-deny unless allowlist is set or HELIX_TELEGRAM_ALLOW_ALL=true."""
+        """Default-deny unless allowlist is set or HOLIX_TELEGRAM_ALLOW_ALL=true."""
         if self.allow_all:
             return True
         allowed = self.allowed_ids()
@@ -56,7 +56,7 @@ def load_telegram_settings(profile: str = "default") -> TelegramSettings:
     from integrations.telegram.env_store import load_telegram_env_files
 
     load_telegram_env_files(profile)
-    access_requests_raw = os.getenv("HELIX_TELEGRAM_ACCESS_REQUESTS", "").strip().lower()
+    access_requests_raw = os.getenv("HOLIX_TELEGRAM_ACCESS_REQUESTS", "").strip().lower()
     if access_requests_raw:
         access_requests = access_requests_raw in {"1", "true", "yes", "on"}
     else:
@@ -65,11 +65,11 @@ def load_telegram_settings(profile: str = "default") -> TelegramSettings:
     from integrations.telegram.admin import load_admin_user_id
 
     return TelegramSettings(
-        bot_token=os.getenv("TELEGRAM_BOT_TOKEN", os.getenv("HELIX_TELEGRAM_BOT_TOKEN", "")),
-        allowed_user_ids=os.getenv("HELIX_TELEGRAM_ALLOWED_USERS", ""),
+        bot_token=os.getenv("TELEGRAM_BOT_TOKEN", os.getenv("HOLIX_TELEGRAM_BOT_TOKEN", "")),
+        allowed_user_ids=os.getenv("HOLIX_TELEGRAM_ALLOWED_USERS", ""),
         profile=profile,
-        edit_interval_ms=int(os.getenv("HELIX_TELEGRAM_EDIT_MS", "500")),
-        allow_all=_env_bool("HELIX_TELEGRAM_ALLOW_ALL"),
+        edit_interval_ms=int(os.getenv("HOLIX_TELEGRAM_EDIT_MS", "500")),
+        allow_all=_env_bool("HOLIX_TELEGRAM_ALLOW_ALL"),
         access_requests=access_requests,
         admin_user_id=load_admin_user_id(profile),
     )

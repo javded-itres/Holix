@@ -1,4 +1,4 @@
-"""``helix telegram map`` — bind Telegram user ids to Helix profiles."""
+"""``holix telegram map`` — bind Telegram user ids to Holix profiles."""
 
 from __future__ import annotations
 
@@ -42,13 +42,13 @@ def telegram_map_list(bot_profile: str) -> None:
     console.print()
     if not mapping:
         print_warning("Привязок нет.")
-        print_info(f"Добавить: helix -p {bot_profile} telegram map set USER_ID PROFILE")
+        print_info(f"Добавить: holix -p {bot_profile} telegram map set USER_ID PROFILE")
         print_info(f"Файл: {path}")
         return
 
     table = Table(title=f"Telegram → профиль (бот: {bot_profile})")
     table.add_column("User ID", style="cyan")
-    table.add_column("Профиль Helix", style="green")
+    table.add_column("Профиль Holix", style="green")
     for uid, name in sorted(mapping.items()):
         table.add_row(str(uid), name)
     console.print(table)
@@ -80,7 +80,7 @@ def telegram_map_remove(bot_profile: str, user_id: int) -> None:
 def telegram_map_bind(bot_profile: str, profile: str, *, user_id: int | None = None) -> None:
     """Bind one user id to a profile (interactive if user_id omitted)."""
     load_telegram_env_files(bot_profile)
-    allowed_raw = read_telegram_env_values(bot_profile).get("HELIX_TELEGRAM_ALLOWED_USERS", "")
+    allowed_raw = read_telegram_env_values(bot_profile).get("HOLIX_TELEGRAM_ALLOWED_USERS", "")
     allowed = [p.strip() for p in allowed_raw.replace(" ", "").split(",") if p.strip().isdigit()]
 
     if user_id is None:
@@ -98,14 +98,14 @@ def telegram_map_bind(bot_profile: str, profile: str, *, user_id: int | None = N
                 raise SystemExit(1)
             user_id = int(user_id_s)
 
-    profile = profile.strip() or _pick_profile("Профиль Helix для этого user id", "default")
+    profile = profile.strip() or _pick_profile("Профиль Holix для этого user id", "default")
     telegram_map_set(bot_profile, user_id, profile)
 
 
 def run_telegram_map_setup(bot_profile: str) -> None:
-    """Optional wizard step: map allowlisted users to Helix profiles."""
+    """Optional wizard step: map allowlisted users to Holix profiles."""
     load_telegram_env_files(bot_profile)
-    allowed_raw = read_telegram_env_values(bot_profile).get("HELIX_TELEGRAM_ALLOWED_USERS", "")
+    allowed_raw = read_telegram_env_values(bot_profile).get("HOLIX_TELEGRAM_ALLOWED_USERS", "")
     user_ids = [int(p) for p in allowed_raw.replace(" ", "").split(",") if p.strip().isdigit()]
     if not user_ids:
         return
@@ -116,7 +116,7 @@ def run_telegram_map_setup(bot_profile: str) -> None:
 
     console.print()
     if not Confirm.ask(
-        "Привязать Telegram user id к профилям Helix? (один бот — разные профили)",
+        "Привязать Telegram user id к профилям Holix? (один бот — разные профили)",
         default=True,
     ):
         return
@@ -126,7 +126,7 @@ def run_telegram_map_setup(bot_profile: str) -> None:
         current = existing.get(uid, "")
         default_profile = current or (profiles[0] if len(profiles) == 1 else bot_profile)
         profile = Prompt.ask(
-            f"User id [cyan]{uid}[/cyan] → профиль Helix",
+            f"User id [cyan]{uid}[/cyan] → профиль Holix",
             default=default_profile,
         ).strip()
         if profile:

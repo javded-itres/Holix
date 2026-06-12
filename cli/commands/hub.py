@@ -92,7 +92,7 @@ def hub_search(
                 for h in hits
             ]
             print_table("ClawHub", ["Slug", "Name", "Summary", "Version", "Owner"], rows)
-            print_info("Install: helix hub install <slug>")
+            print_info("Install: holix hub install <slug>")
 
         elif source == "skills-sh":
             hits = search_skills_sh(query, limit=limit)
@@ -101,7 +101,7 @@ def hub_search(
                 return
             rows = [[h.skill_name, h.repo, h.path[:50], h.install_spec] for h in hits]
             print_table("skills.sh (GitHub)", ["Skill", "Repo", "Path", "Install spec"], rows)
-            print_info("Install: helix hub install <install spec>")
+            print_info("Install: holix hub install <install spec>")
 
         elif source == "hermes":
             hits = search_hermes_skills(query, limit=limit) if query else list_hermes_skills(limit=limit)
@@ -110,7 +110,7 @@ def hub_search(
                 return
             rows = [[h.slug, h.category, (h.description or h.slug)[:55], h.install_spec] for h in hits]
             print_table("HermesHub (GitHub)", ["Slug", "Category", "Summary", "Install spec"], rows)
-            print_info("Install: helix hub install hermes:<slug>")
+            print_info("Install: holix hub install hermes:<slug>")
 
         elif source in MARKETPLACES:
             hits = search_plugins(source, query, limit=limit)
@@ -119,7 +119,7 @@ def hub_search(
                 return
             rows = [[p.name, p.category, (p.description or "")[:60]] for p in hits]
             print_table(f"Claude marketplace ({source})", ["Plugin", "Category", "Description"], rows)
-            print_info(f"Install: helix hub install claude:<plugin>@{source}")
+            print_info(f"Install: holix hub install claude:<plugin>@{source}")
 
         else:
             print_error(
@@ -136,7 +136,7 @@ def hub_marketplaces():
     """List known Claude Code marketplaces."""
     rows = [[k, v["repo"], v["marketplace"]] for k, v in MARKETPLACES.items()]
     print_table("Claude marketplaces", ["ID", "Repository", "Catalog path"], rows)
-    print_info("Search: helix hub search QUERY -s claude-official")
+    print_info("Search: holix hub search QUERY -s claude-official")
 
 
 @app.command("plugins")
@@ -178,7 +178,7 @@ def hub_install(
         None,
         help="Omit for interactive picker, or: clawhub slug | claude:plugin@marketplace | git URL | path",
     ),
-    as_name: str | None = typer.Option(None, "--as", help="Override Helix skill name"),
+    as_name: str | None = typer.Option(None, "--as", help="Override Holix skill name"),
     no_flat: bool = typer.Option(False, "--no-flat", help="Skip flat .md copy in skills root"),
     with_mcp: bool = typer.Option(True, "--with-mcp/--no-mcp", help="Merge Claude plugin MCP into profile"),
     agents: str | None = typer.Option(
@@ -190,10 +190,10 @@ def hub_install(
     """Install a skill or Claude plugin into the active profile.
 
     Examples:
-      helix hub install              # interactive browser
-      helix hub browse               # same as install with no args
-      helix hub install git
-      helix hub install claude:github@claude-official
+      holix hub install              # interactive browser
+      holix hub browse               # same as install with no args
+      holix hub install git
+      holix hub install claude:github@claude-official
     """
     if not spec:
         run_interactive_hub(ctx, apply_mcp_fn=_apply_mcp)
@@ -251,7 +251,7 @@ def hub_check_updates(ctx: typer.Context):
         ["ID", "Skill", "Installed", "Latest", "Install spec"],
         rows,
     )
-    print_info("Update all: helix hub update  ·  One entry: helix hub update <id>")
+    print_info("Update all: holix hub update  ·  One entry: holix hub update <id>")
 
 
 @app.command("update")
@@ -293,12 +293,12 @@ def hub_update(
 
 @app.command("list")
 def hub_list(ctx: typer.Context):
-    """List skills installed via helix hub."""
+    """List skills installed via holix hub."""
     config = ctx.obj["config"]
     importer = SkillImporter(Path(config.skills_dir))
     entries = importer.lock.list_entries()
     if not entries:
-        print_info("No hub-installed skills (use helix hub install)")
+        print_info("No hub-installed skills (use holix hub install)")
         return
     rows = [
         [
@@ -321,7 +321,7 @@ def hub_list(ctx: typer.Context):
 @app.command("remove")
 def hub_remove(
     ctx: typer.Context,
-    entry_id: str = typer.Argument(..., help="Lock entry id from `helix hub list`"),
+    entry_id: str = typer.Argument(..., help="Lock entry id from `holix hub list`"),
     keep_flat: bool = typer.Option(False, "--keep-flat", help="Keep flat .md copy in skills root"),
 ):
     """Remove a hub-installed skill (bundle + lockfile; optional flat .md)."""
@@ -393,7 +393,7 @@ def hub_autoupdate(
     )
 
     if not result.ran:
-        print_info(f"Skipped ({result.reason}). Enable: helix hub autoupdate --enable")
+        print_info(f"Skipped ({result.reason}). Enable: holix hub autoupdate --enable")
         return
     if result.updated:
         print_success(f"Updated: {', '.join(result.updated)}")

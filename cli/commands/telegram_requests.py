@@ -1,4 +1,4 @@
-"""``helix telegram requests`` — approve Telegram users who sent /start."""
+"""``holix telegram requests`` — approve Telegram users who sent /start."""
 
 from __future__ import annotations
 
@@ -54,9 +54,9 @@ def _prepare_profile_for_user(
 
     if not manager.profile_exists(target_profile):
         print_error(f"Профиль '{target_profile}' не найден.")
-        print_info(f"Создать: helix profile create {target_profile}")
+        print_info(f"Создать: holix profile create {target_profile}")
         print_info(
-            f"Или: helix -p {bot_profile} telegram requests approve … --create-profile NAME"
+            f"Или: holix -p {bot_profile} telegram requests approve … --create-profile NAME"
         )
         raise SystemExit(1)
 
@@ -76,7 +76,7 @@ def telegram_requests_list(bot_profile: str) -> None:
     console.print()
     if not pending:
         print_info("Нет ожидающих запросов. Пользователь должен отправить /start боту.")
-        print_info(f"Проверка: helix -p {bot_profile} telegram requests list")
+        print_info(f"Проверка: holix -p {bot_profile} telegram requests list")
         return
 
     table = Table(title=f"Запросы доступа Telegram (бот: {bot_profile})")
@@ -95,16 +95,16 @@ def telegram_requests_list(bot_profile: str) -> None:
     console.print()
     print_info("Одобрить:")
     print_info(
-        f"  helix -p {bot_profile} telegram requests approve USER_ID --profile PROFILE"
+        f"  holix -p {bot_profile} telegram requests approve USER_ID --profile PROFILE"
     )
     print_info(
-        f"  helix -p {bot_profile} telegram requests approve USER_ID --create-profile NAME"
+        f"  holix -p {bot_profile} telegram requests approve USER_ID --create-profile NAME"
     )
     print_info(
-        f"  helix -p {bot_profile} telegram requests approve USER_ID --set-admin"
+        f"  holix -p {bot_profile} telegram requests approve USER_ID --set-admin"
     )
     print_info("  (--create-profile создаёт защищённый профиль и шлёт ключ в Telegram)")
-    print_info("  (--set-admin — первый администратор, профиль Helix admin; только CLI)")
+    print_info("  (--set-admin — первый администратор, профиль Holix admin; только CLI)")
 
 
 def telegram_requests_approve(
@@ -117,7 +117,7 @@ def telegram_requests_approve(
     set_admin: bool = False,
 ) -> None:
     from integrations.telegram.admin import (
-        load_admin_helix_profile,
+        load_admin_holix_profile,
         load_admin_user_id,
         set_admin_user,
     )
@@ -126,7 +126,7 @@ def telegram_requests_approve(
     req = get_access_request(bot_profile, user_id)
     if req is None or req.status != STATUS_PENDING:
         print_error(f"Нет ожидающего запроса для user id {user_id}.")
-        print_info(f"Список: helix -p {bot_profile} telegram requests list")
+        print_info(f"Список: holix -p {bot_profile} telegram requests list")
         raise SystemExit(1)
 
     if set_admin:
@@ -137,13 +137,13 @@ def telegram_requests_approve(
         if existing_admin is not None and int(existing_admin) != int(user_id):
             print_error(
                 f"Администратор уже назначен (user id {existing_admin}). "
-                "Смена: helix telegram admin clear, затем approve с --set-admin."
+                "Смена: holix telegram admin clear, затем approve с --set-admin."
             )
             raise SystemExit(1)
 
     target_profile: str | None = None
     if set_admin:
-        target_profile = load_admin_helix_profile(bot_profile)
+        target_profile = load_admin_holix_profile(bot_profile)
     elif create_profile:
         target_profile = create_profile.strip()
     elif profile:
@@ -156,7 +156,7 @@ def telegram_requests_approve(
             f"[cyan]Пользователь:[/cyan] {req.display_name} "
             f"(id={req.user_id})"
         )
-        if Confirm.ask("Создать новый профиль Helix для этого пользователя?", default=False):
+        if Confirm.ask("Создать новый профиль Holix для этого пользователя?", default=False):
             target_profile = Prompt.ask("Имя нового профиля").strip()
         else:
             if len(profiles) == 1:
@@ -164,7 +164,7 @@ def telegram_requests_approve(
             else:
                 console.print("[dim]Профили:[/dim] " + ", ".join(profiles))
                 target_profile = Prompt.ask(
-                    "Профиль Helix",
+                    "Профиль Holix",
                     default=bot_profile,
                 ).strip()
 
@@ -185,7 +185,7 @@ def telegram_requests_approve(
     )
 
     if set_admin:
-        set_admin_user(bot_profile, user_id, helix_profile=target_profile)
+        set_admin_user(bot_profile, user_id, holix_profile=target_profile)
 
     add_allowed_user(bot_profile, user_id)
     set_user_profile(bot_profile, user_id, target_profile)
@@ -193,7 +193,7 @@ def telegram_requests_approve(
         bot_profile,
         user_id,
         status="approved",
-        helix_profile=target_profile,
+        holix_profile=target_profile,
     )
 
     try:

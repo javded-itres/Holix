@@ -7,7 +7,7 @@ from textual.containers import Vertical
 from textual.widgets import Button, Collapsible, ListView, Static
 
 
-class HelixSidebar(Vertical):
+class HolixSidebar(Vertical):
     """Collapsible sidebar (width toggled by app)."""
 
     def __init__(self, profile: str, model: str, **kwargs) -> None:

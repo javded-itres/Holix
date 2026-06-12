@@ -1,8 +1,8 @@
-# Helix Documentation
+# Holix Documentation
 
 Bilingual documentation. **English is the primary language** for accuracy and GitHub discovery.
 
-**Telegram channel:** [t.me/helix_agent](https://t.me/helix_agent)
+**Telegram channel:** [t.me/holix_agent](https://t.me/holix_agent)
 
 | Language | Index |
 |----------|--------|

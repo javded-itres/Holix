@@ -9,13 +9,13 @@ import sys
 def main(argv: list[str] | None = None) -> int:
     import os
 
-    parser = argparse.ArgumentParser(description="Helix documentation HTTP server")
+    parser = argparse.ArgumentParser(description="Holix documentation HTTP server")
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--port", type=int, default=8080)
     parser.add_argument(
         "--profile",
-        default=os.environ.get("HELIX_PROFILE", "default"),
-        help="Helix profile whose .env supplies docs-chat settings",
+        default=os.environ.get("HOLIX_PROFILE", "default"),
+        help="Holix profile whose .env supplies docs-chat settings",
     )
     args = parser.parse_args(argv)
 

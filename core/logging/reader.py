@@ -1,4 +1,4 @@
-"""Read and filter Helix log files for ``helix logs``."""
+"""Read and filter Holix log files for ``holix logs``."""
 
 from __future__ import annotations
 

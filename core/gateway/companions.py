@@ -39,7 +39,7 @@ class CompanionManager:
         async def _run() -> None:
             await CronScheduler(profile).run_forever()
 
-        state.cron_task = asyncio.create_task(_run(), name=f"helix-cron-{profile}")
+        state.cron_task = asyncio.create_task(_run(), name=f"holix-cron-{profile}")
 
     async def stop_cron(self, profile: str) -> None:
         state = self._states.get(profile)
@@ -58,17 +58,17 @@ class CompanionManager:
 
         if not telegram_should_start(profile):
             return
-        from integrations.telegram.bot import HelixTelegramBot
+        from integrations.telegram.bot import HolixTelegramBot
 
         state = self._states.setdefault(profile, CompanionState(profile=profile))
 
         async def _run() -> None:
-            bot = HelixTelegramBot(profile=profile)
+            bot = HolixTelegramBot(profile=profile)
             await bot.run_polling()
 
         state.telegram_task = asyncio.create_task(
             _run(),
-            name=f"helix-telegram-{profile}",
+            name=f"holix-telegram-{profile}",
         )
 
     async def stop_telegram(self, profile: str) -> None:

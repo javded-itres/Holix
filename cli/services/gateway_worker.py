@@ -11,7 +11,7 @@ from cli.services.supervisor import run_gateway_supervisor
 
 
 def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Helix gateway background worker")
+    parser = argparse.ArgumentParser(description="Holix gateway background worker")
     from config import settings
 
     parser.add_argument("--host", default=settings.gateway_host)
@@ -25,9 +25,9 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
 
 
 def main(argv: list[str] | None = None) -> int:
-    from core.logging.setup import configure_helix_logging
+    from core.logging.setup import configure_holix_logging
 
-    configure_helix_logging()
+    configure_holix_logging()
     args = _parse_args(argv)
     from core.env_loader import bootstrap_profile_env
 
@@ -36,13 +36,13 @@ def main(argv: list[str] | None = None) -> int:
     def _env_bool(name: str) -> bool:
         return os.getenv(name, "").strip().lower() in {"1", "true", "yes", "on"}
 
-    with_docs = args.with_docs or _env_bool("HELIX_GATEWAY_WITH_DOCS") or _env_bool(
-        "HELIX_GATEWAY_DOCS"
+    with_docs = args.with_docs or _env_bool("HOLIX_GATEWAY_WITH_DOCS") or _env_bool(
+        "HOLIX_GATEWAY_DOCS"
     )
-    docs_host = args.docs_host or os.getenv("HELIX_DOCS_HOST", "127.0.0.1")
+    docs_host = args.docs_host or os.getenv("HOLIX_DOCS_HOST", "127.0.0.1")
     docs_port = args.docs_port
     if not args.with_docs:
-        raw_port = os.getenv("HELIX_DOCS_PORT", "").strip()
+        raw_port = os.getenv("HOLIX_DOCS_PORT", "").strip()
         if raw_port.isdigit():
             docs_port = int(raw_port)
 

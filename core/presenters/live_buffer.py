@@ -91,7 +91,7 @@ class LiveTranscriptBuffer:
 
     def render_plain(self) -> str:
         parts: list[str] = [
-            f"🤖 Helix · {self.profile} · {self.mode} · {self.session_label}",
+            f"🤖 Holix · {self.profile} · {self.mode} · {self.session_label}",
             "─" * 32,
         ]
         if self.thinking:

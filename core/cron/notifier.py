@@ -56,7 +56,7 @@ def format_status_message(
 ) -> str:
     """Format a status update message for Telegram."""
     lines = [
-        "🔔 <b>Helix Agent Status</b>",
+        "🔔 <b>Holix Agent Status</b>",
         "",
         f"📌 <b>Сессия:</b> <code>{session_name}</code>",
         f"🤖 <b>Модель:</b> <code>{model}</code>",

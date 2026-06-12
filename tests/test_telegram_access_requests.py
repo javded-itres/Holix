@@ -15,19 +15,19 @@ from integrations.telegram.user_profiles import resolve_user_profile
 
 
 @pytest.fixture
-def helix_home(tmp_path, monkeypatch: pytest.MonkeyPatch):
+def holix_home(tmp_path, monkeypatch: pytest.MonkeyPatch):
     import cli.core as cli_core
 
-    root = tmp_path / "helix"
+    root = tmp_path / "holix"
     profiles = root / "profiles"
     profiles.mkdir(parents=True)
-    monkeypatch.setenv("HELIX_HOME", str(root))
-    monkeypatch.setattr(cli_core, "HELIX_HOME", root)
+    monkeypatch.setenv("HOLIX_HOME", str(root))
+    monkeypatch.setattr(cli_core, "HOLIX_HOME", root)
     monkeypatch.setattr(cli_core, "PROFILES_DIR", profiles)
     return root
 
 
-def test_register_access_request_creates_pending(helix_home) -> None:
+def test_register_access_request_creates_pending(holix_home) -> None:
     req, created = register_access_request(
         "default",
         user_id=42,
@@ -42,20 +42,20 @@ def test_register_access_request_creates_pending(helix_home) -> None:
     assert pending[0].username == "alice"
 
 
-def test_register_access_request_idempotent_pending(helix_home) -> None:
+def test_register_access_request_idempotent_pending(holix_home) -> None:
     register_access_request("default", user_id=42, username="alice")
     _, created_again = register_access_request("default", user_id=42, username="alice2")
     assert created_again is False
     assert len(list_pending_requests("default")) == 1
 
 
-def test_add_allowed_user_persists(helix_home) -> None:
+def test_add_allowed_user_persists(holix_home) -> None:
     from integrations.telegram.env_store import save_telegram_env
 
     save_telegram_env(
         {
             "TELEGRAM_BOT_TOKEN": "1:abc",
-            "HELIX_TELEGRAM_ACCESS_REQUESTS": "true",
+            "HOLIX_TELEGRAM_ACCESS_REQUESTS": "true",
         },
         profile="default",
     )
@@ -72,26 +72,26 @@ def test_access_requests_settings_default_true() -> None:
 
 @pytest.mark.asyncio
 async def test_run_polling_allows_access_request_mode(monkeypatch: pytest.MonkeyPatch) -> None:
-    from integrations.telegram.bot import HelixTelegramBot
+    from integrations.telegram.bot import HolixTelegramBot
 
     monkeypatch.setattr(
-        "integrations.telegram.bot.HelixTelegramBot.build",
+        "integrations.telegram.bot.HolixTelegramBot.build",
         lambda self: (_ for _ in ()).throw(AssertionError("build should not run")),
     )
-    bot = HelixTelegramBot(
+    bot = HolixTelegramBot(
         TelegramSettings(bot_token="123:abc", access_requests=True),
     )
     with pytest.raises(AssertionError, match="build should not run"):
         await bot.run_polling()
 
 
-def test_approve_flow_maps_profile(helix_home) -> None:
+def test_approve_flow_maps_profile(holix_home) -> None:
     from integrations.telegram.env_store import save_telegram_env
 
     save_telegram_env(
         {
             "TELEGRAM_BOT_TOKEN": "1:abc",
-            "HELIX_TELEGRAM_ACCESS_REQUESTS": "true",
+            "HOLIX_TELEGRAM_ACCESS_REQUESTS": "true",
         },
         profile="default",
     )
@@ -103,7 +103,7 @@ def test_approve_flow_maps_profile(helix_home) -> None:
     assert resolve_user_profile("default", 77) == "bob-profile"
 
 
-def test_reject_access_request(helix_home) -> None:
+def test_reject_access_request(holix_home) -> None:
     register_access_request("default", user_id=55)
     rejected = reject_access_request("default", 55)
     assert rejected is not None

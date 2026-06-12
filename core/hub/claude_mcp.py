@@ -1,4 +1,4 @@
-"""Map Claude Code .mcp.json entries to Helix MCP server config."""
+"""Map Claude Code .mcp.json entries to Holix MCP server config."""
 
 from __future__ import annotations
 
@@ -8,7 +8,7 @@ from core.config_utils import resolve_env_refs
 
 
 def parse_claude_mcp_json(data: dict[str, Any]) -> dict[str, dict[str, Any]]:
-    """Return Helix-style mcp_servers dict from Claude plugin .mcp.json."""
+    """Return Holix-style mcp_servers dict from Claude plugin .mcp.json."""
     out: dict[str, dict[str, Any]] = {}
     for name, spec in data.items():
         if not isinstance(spec, dict):
@@ -61,7 +61,7 @@ def merge_into_profile_servers(
 ) -> dict[str, dict[str, Any]]:
     merged = dict(existing)
     for key, cfg in servers.items():
-        helix_name = f"{prefix}-{plugin_name}-{key}" if key != plugin_name else f"{prefix}-{plugin_name}"
-        helix_name = helix_name.replace("__", "-")[:64]
-        merged[helix_name] = cfg
+        holix_name = f"{prefix}-{plugin_name}-{key}" if key != plugin_name else f"{prefix}-{plugin_name}"
+        holix_name = holix_name.replace("__", "-")[:64]
+        merged[holix_name] = cfg
     return merged

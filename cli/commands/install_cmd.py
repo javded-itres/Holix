@@ -1,21 +1,21 @@
-"""Install Helix globally: ``helix install``."""
+"""Install Holix globally: ``holix install``."""
 
 from __future__ import annotations
 
 import typer
 
-from cli.installer import InstallOptions, detect_repo_root, install_helix, verify_helix_on_path
+from cli.installer import InstallOptions, detect_repo_root, install_holix, verify_holix_on_path
 from cli.installer.system import record_install
 from cli.utils.rich_console import print_error, print_info, print_success, print_warning
 
 app = typer.Typer(
-    help="Install or update the helix command on your system PATH",
+    help="Install or update the holix command on your system PATH",
     invoke_without_command=True,
 )
 
 
 @app.callback()
-def install_helix_cli(
+def install_holix_cli(
     ctx: typer.Context,
     system: bool = typer.Option(
         False,
@@ -36,16 +36,16 @@ def install_helix_cli(
     repo: str | None = typer.Option(
         None,
         "--repo",
-        help="Path to Helix source (default: auto-detect from this install)",
+        help="Path to Holix source (default: auto-detect from this install)",
     ),
 ) -> None:
-    """Install ``helix`` so it works from any directory.
+    """Install ``holix`` so it works from any directory.
 
     Examples:
 
-        helix install
-        helix install --extra telegram
-        helix install --system
+        holix install
+        holix install --extra telegram
+        holix install --system
     """
     if ctx.invoked_subcommand is not None:
         return
@@ -69,7 +69,7 @@ def install_helix_cli(
         extras=tuple(extra or ()),
     )
     print_info(f"Installing from {repo_root} ({scope})…")
-    result = install_helix(opts)
+    result = install_holix(opts)
 
     if not result.success:
         print_error(result.message)
@@ -80,10 +80,10 @@ def install_helix_cli(
     for line in result.message.strip().splitlines():
         print_info(line)
 
-    ok, loc = verify_helix_on_path()
+    ok, loc = verify_holix_on_path()
     if ok:
-        print_success(f"`helix` is on PATH → {loc}")
+        print_success(f"`holix` is on PATH → {loc}")
     else:
-        print_warning("Open a new terminal, then run: helix version")
+        print_warning("Open a new terminal, then run: holix version")
 
 

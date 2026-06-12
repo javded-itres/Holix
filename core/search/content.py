@@ -137,7 +137,7 @@ async def fetch_page_content(
             pass
 
     headers = {
-        "User-Agent": "HelixAgent/1.0",
+        "User-Agent": "HolixAgent/1.0",
         "Accept": "text/html,application/xhtml+xml,text/plain,application/json;q=0.9,*/*;q=0.8",
     }
 

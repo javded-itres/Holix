@@ -150,18 +150,18 @@ class TestAgentEventBus:
         assert bus.handler_count == 0
 
 
-class TestHelixAgentEventIntegration:
-    """Light integration tests with HelixAgent (without full LLM calls)."""
+class TestHolixAgentEventIntegration:
+    """Light integration tests with HolixAgent (without full LLM calls)."""
 
     def test_agent_accepts_listeners(self):
-        from core.agent import HelixAgent
+        from core.agent import HolixAgent
 
         received = []
 
         def listener(event):
             received.append(event)
 
-        agent = HelixAgent(event_listeners=[listener], enable_monitoring=False)
+        agent = HolixAgent(event_listeners=[listener], enable_monitoring=False)
 
         # Manually emit something
         agent.emit(ThinkingEvent(message="Test"))
@@ -170,9 +170,9 @@ class TestHelixAgentEventIntegration:
         assert received[0].message == "Test"
 
     def test_agent_has_default_event_bus(self):
-        from core.agent import HelixAgent
+        from core.agent import HolixAgent
 
-        agent = HelixAgent(enable_monitoring=False)
+        agent = HolixAgent(enable_monitoring=False)
         assert agent.events is not None
         assert isinstance(agent.events, AgentEventBus)
 
@@ -192,11 +192,11 @@ class TestRunAgentLoopWithMocks:
     async def test_run_agent_loop_emits_expected_events(self, monkeypatch):
         from unittest.mock import AsyncMock, MagicMock
 
-        from core.agent import HelixAgent
+        from core.agent import HolixAgent
         from core.agent_execution import run_agent_loop
 
         # Create a minimal agent with mocked dependencies
-        agent = HelixAgent(enable_monitoring=False)
+        agent = HolixAgent(enable_monitoring=False)
 
         # Mock memory
         agent.memory.get_conversation = AsyncMock(return_value=[])
@@ -256,11 +256,11 @@ class TestEventCorrelation:
         assert d["plan_id"] == "plan-xyz"
 
     def test_agent_stamps_events_on_emit(self):
-        from core.agent import HelixAgent
-        from core.di.runtime_config import HelixRuntimeConfig
+        from core.agent import HolixAgent
+        from core.di.runtime_config import HolixRuntimeConfig
 
-        cfg = HelixRuntimeConfig.from_settings()
-        agent = HelixAgent(config=cfg, enable_monitoring=False)
+        cfg = HolixRuntimeConfig.from_settings()
+        agent = HolixAgent(config=cfg, enable_monitoring=False)
 
         received: list[AgentEvent] = []
         agent.events.subscribe(received.append)

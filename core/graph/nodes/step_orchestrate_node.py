@@ -20,12 +20,12 @@ import logging
 
 from langchain_core.runnables import RunnableConfig
 
-from core.graph.state import HelixGraphState, get_agent_from_config
+from core.graph.state import HolixGraphState, get_agent_from_config
 
 logger = logging.getLogger(__name__)
 
 
-async def step_orchestrate_node(state: HelixGraphState, config: RunnableConfig) -> dict:
+async def step_orchestrate_node(state: HolixGraphState, config: RunnableConfig) -> dict:
     """Orchestrate plan step execution.
 
     Manages transitions between plan steps by injecting step context

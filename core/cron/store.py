@@ -1,4 +1,4 @@
-"""Persist cron jobs under ~/.helix/profiles/<profile>/data/cron/."""
+"""Persist cron jobs under ~/.holix/profiles/<profile>/data/cron/."""
 
 from __future__ import annotations
 

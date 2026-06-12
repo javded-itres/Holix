@@ -1,4 +1,4 @@
-"""Install Helix CLI into the user or system PATH (macOS, Linux, Windows)."""
+"""Install Holix CLI into the user or system PATH (macOS, Linux, Windows)."""
 
 from __future__ import annotations
 
@@ -28,7 +28,7 @@ class InstallOptions:
 class InstallResult:
     success: bool
     message: str
-    helix_path: Path | None = None
+    holix_path: Path | None = None
     bin_dir: Path | None = None
     path_updated: bool = False
     method: str = "pip"
@@ -44,9 +44,9 @@ def detect_repo_root(start: Path | None = None) -> Path:
         pyproject = parent / "pyproject.toml"
         if pyproject.is_file():
             text = pyproject.read_text(encoding="utf-8")
-            if 'name = "HelixAgentAi"' in text or 'name = "helix-agent"' in text or 'name = "helix"' in text:
+            if 'name = "Holix"' in text or 'name = "holix-agent"' in text or 'name = "holix"' in text:
                 return parent
-    raise FileNotFoundError("Helix repository root not found (pyproject.toml)")
+    raise FileNotFoundError("Holix repository root not found (pyproject.toml)")
 
 
 def _python_version_ok(exe: str) -> bool:
@@ -101,14 +101,14 @@ def scripts_bin_dir(python_exe: str, *, scope: str) -> Path:
     return user_base / "bin"
 
 
-def _helix_executable(bin_dir: Path) -> Path | None:
+def _holix_executable(bin_dir: Path) -> Path | None:
     if platform.system() == "Windows":
-        for name in ("helix.exe", "helix.cmd", "helix"):
+        for name in ("helix.exe", "helix.cmd", "holix"):
             path = bin_dir / name
             if path.is_file():
                 return path
         return None
-    path = bin_dir / "helix"
+    path = bin_dir / "holix"
     return path if path.is_file() or path.is_symlink() else None
 
 
@@ -151,11 +151,11 @@ def _uv_pip_install(python_exe: str, repo_root: Path, opts: InstallOptions) -> N
     subprocess.run(cmd, cwd=str(repo_root), check=True, timeout=600)
 
 
-def install_helix(opts: InstallOptions) -> InstallResult:
-    """Install helix from *opts.repo_root* and optionally update PATH."""
+def install_holix(opts: InstallOptions) -> InstallResult:
+    """Install holix from *opts.repo_root* and optionally update PATH."""
     repo_root = opts.repo_root.resolve()
     if not (repo_root / "pyproject.toml").is_file():
-        return InstallResult(False, f"Not a Helix repo: {repo_root}")
+        return InstallResult(False, f"Not a Holix repo: {repo_root}")
 
     try:
         python_exe = find_python()
@@ -190,23 +190,23 @@ def install_helix(opts: InstallOptions) -> InstallResult:
     except OSError as e:
         return InstallResult(False, f"Install failed: {e}")
 
-    helix_path = _helix_executable(bin_dir)
-    if helix_path is None:
+    holix_path = _holix_executable(bin_dir)
+    if holix_path is None:
         # uv tool may use different layout — scan common dirs
         for candidate in (
             bin_dir,
             Path.home() / ".local" / "bin",
             scripts_bin_dir(python_exe, scope=opts.scope),
         ):
-            helix_path = _helix_executable(candidate)
-            if helix_path:
+            holix_path = _holix_executable(candidate)
+            if holix_path:
                 bin_dir = candidate
                 break
 
-    if helix_path is None:
+    if holix_path is None:
         return InstallResult(
             False,
-            f"Install finished via {method} but `helix` executable was not found. "
+            f"Install finished via {method} but `holix` executable was not found. "
             f"Check {bin_dir}",
             bin_dir=bin_dir,
         )
@@ -217,8 +217,8 @@ def install_helix(opts: InstallOptions) -> InstallResult:
         path_updated, path_msg = ensure_path_in_shell(bin_dir)
 
     msg = (
-        f"Helix installed via {method}\n"
-        f"  binary: {helix_path}\n"
+        f"Holix installed via {method}\n"
+        f"  binary: {holix_path}\n"
         f"  bin dir: {bin_dir}\n"
     )
     if path_msg:
@@ -231,7 +231,7 @@ def install_helix(opts: InstallOptions) -> InstallResult:
     return InstallResult(
         True,
         msg,
-        helix_path=helix_path,
+        holix_path=holix_path,
         bin_dir=bin_dir,
         path_updated=path_updated,
         method=method,
@@ -255,8 +255,8 @@ def ensure_path_in_shell(bin_dir: Path) -> tuple[bool, str]:
 
     updated = False
     messages: list[str] = []
-    export_line = f'export PATH="{bin_str}:$PATH"  # helix'
-    marker = "# helix"
+    export_line = f'export PATH="{bin_str}:$PATH"  # holix'
+    marker = "# holix"
 
     for rc_name in (".zshrc", ".bashrc", ".profile"):
         rc = Path.home() / rc_name
@@ -332,7 +332,7 @@ def record_install(
     *,
     repo_root: Path,
 ) -> None:
-    """Persist install metadata for ``helix update``."""
+    """Persist install metadata for ``holix update``."""
     from cli import __version__
     from cli.installer.manifest import build_manifest, save_manifest
 
@@ -346,7 +346,7 @@ def record_install(
             source=source,
             extras=opts.extras,
             repo_root=repo_root,
-            helix_path=result.helix_path,
+            holix_path=result.holix_path,
             bin_dir=result.bin_dir,
             git_remote=git_remote,
             git_branch=git_branch,
@@ -360,9 +360,9 @@ def _read_installed_version(repo_root: Path) -> str:
     return match.group(1) if match else ""
 
 
-def verify_helix_on_path() -> tuple[bool, str]:
-    """Check whether `helix` is invocable."""
-    found = shutil.which("helix")
+def verify_holix_on_path() -> tuple[bool, str]:
+    """Check whether `holix` is invocable."""
+    found = shutil.which("holix")
     if found:
         try:
             out = subprocess.run(
@@ -376,4 +376,4 @@ def verify_helix_on_path() -> tuple[bool, str]:
         except (OSError, subprocess.SubprocessError):
             return True, found
         return True, found
-    return False, "helix not found on PATH"
+    return False, "holix not found on PATH"

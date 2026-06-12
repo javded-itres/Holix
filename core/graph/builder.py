@@ -1,5 +1,5 @@
 """
-Graph Builder — composes Helix LangGraph execution graphs by mode.
+Graph Builder — composes Holix LangGraph execution graphs by mode.
 """
 
 from __future__ import annotations
@@ -21,13 +21,13 @@ _MODE_BUILDERS = {
 }
 
 
-def build_helix_graph(
+def build_holix_graph(
     agent=None,
     execution_mode: str = "react",
     checkpointer: Any = None,
     stream: bool = False,
 ):
-    """Build the Helix LangGraph execution graph for the given mode."""
+    """Build the Holix LangGraph execution graph for the given mode."""
     builder = _MODE_BUILDERS.get(execution_mode, build_react_graph)
     return builder(agent=agent, checkpointer=checkpointer, stream=stream)
 
@@ -39,7 +39,7 @@ def prepare_initial_state(
     stream: bool = False,
     execution_mode: str = "react",
 ) -> dict:
-    """Prepare initial HelixGraphState for a graph invocation."""
+    """Prepare initial HolixGraphState for a graph invocation."""
     cfg = getattr(agent, "config", None)
     max_steps = cfg.max_steps if cfg else 15
     max_per_step = cfg.max_steps_per_plan_step if cfg else 5
@@ -90,7 +90,7 @@ async def run_graph_loop(
     stream: bool = False,
     execution_mode: str = "react",
 ):
-    """Run the Helix graph and translate state transitions to AgentEvents."""
+    """Run the Holix graph and translate state transitions to AgentEvents."""
     from core.agent_events import ErrorEvent, MaxStepsReachedEvent, ThinkingEvent
     from core.graph.modes.router import ModeRouter
     from core.runtime.session import prepare_session
@@ -115,7 +115,7 @@ async def run_graph_loop(
         db_path=cfg.langgraph_checkpoint_db_path if cfg else None,
     )
 
-    compiled_graph = build_helix_graph(
+    compiled_graph = build_holix_graph(
         agent=agent,
         execution_mode=execution_mode,
         checkpointer=checkpointer,
@@ -129,7 +129,7 @@ async def run_graph_loop(
     }.get(execution_mode, execution_mode)
 
     yield ThinkingEvent(
-        message=f"Helix is thinking... (mode: {mode_label})",
+        message=f"Holix is thinking... (mode: {mode_label})",
         conversation_id=conversation_id,
     )
 
@@ -183,7 +183,7 @@ from core.graph.routers import (  # noqa: E402
 )
 
 __all__ = [
-    "build_helix_graph",
+    "build_holix_graph",
     "build_react_graph",
     "build_plan_and_execute_graph",
     "build_hybrid_graph",

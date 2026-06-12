@@ -340,7 +340,7 @@ class TelegramHost:
             servers = getattr(cfg, "mcp_servers", {}) or {}
             assignments = getattr(cfg, "mcp_assignments", {}) or {}
             if not servers:
-                self.transcript_write("No MCP servers in this profile.\nUse /mcp install or `helix mcp install` in terminal.")
+                self.transcript_write("No MCP servers in this profile.\nUse /mcp install or `holix mcp install` in terminal.")
                 return
             lines = ["MCP servers:"]
             for name, data in servers.items():
@@ -496,7 +496,7 @@ class TelegramHost:
                 return
             mcp_tools = [n for n in agent.tools.get_tool_names() if str(n).startswith("mcp_")]
             if not mcp_tools:
-                self.transcript_write("No MCP tools registered yet. Assign servers with /mcp assign or helix mcp assign.")
+                self.transcript_write("No MCP tools registered yet. Assign servers with /mcp assign or holix mcp assign.")
             else:
                 self.transcript_write("MCP tools:\n" + "\n".join(f"  • {t}" for t in mcp_tools))
         except Exception as e:
@@ -661,9 +661,9 @@ class TelegramHost:
             mode = self._session.execution_mode
             try:
                 if self._session.streaming_enabled:
-                    from core.runtime.executor import run_helix
+                    from core.runtime.executor import run_holix
 
-                    async for event in run_helix(
+                    async for event in run_holix(
                         self.agent,
                         user_input,
                         self.conversation_id,

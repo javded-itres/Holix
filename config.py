@@ -9,7 +9,7 @@ class Settings(BaseSettings):
     """Application settings loaded from environment variables."""
 
     # Environment
-    helix_env: str = Field(default="development", description="development | production")
+    holix_env: str = Field(default="development", description="development | production")
 
     # LLM Configuration
     model: str = "qwen2.5-coder:32b"
@@ -82,20 +82,31 @@ class Settings(BaseSettings):
     gateway_port: int = 8000
     gateway_with_docs: bool = Field(
         default=False,
-        validation_alias=AliasChoices("HELIX_GATEWAY_WITH_DOCS", "HELIX_GATEWAY_DOCS"),
-        description="Start documentation site together with helix gateway start",
+        validation_alias=AliasChoices(
+            "HOLIX_GATEWAY_WITH_DOCS",
+            "HOLIX_GATEWAY_DOCS",
+            "HELIX_GATEWAY_WITH_DOCS",
+            "HELIX_GATEWAY_DOCS",
+        ),
+        description="Start documentation site together with holix gateway start",
     )
-    docs_host: str = Field(default="127.0.0.1", validation_alias="HELIX_DOCS_HOST")
-    docs_port: int = Field(default=8080, validation_alias="HELIX_DOCS_PORT")
+    docs_host: str = Field(
+        default="127.0.0.1",
+        validation_alias=AliasChoices("HOLIX_DOCS_HOST", "HELIX_DOCS_HOST"),
+    )
+    docs_port: int = Field(
+        default=8080,
+        validation_alias=AliasChoices("HOLIX_DOCS_PORT", "HELIX_DOCS_PORT"),
+    )
     require_auth: bool = True
     cors_origins: str = "http://127.0.0.1:8000,http://localhost:8000"
     api_keys_db_path: str = Field(
         default="data/security/api_keys.db",
-        validation_alias=AliasChoices("HELIX_API_KEYS_DB", "API_KEYS_DB"),
+        validation_alias=AliasChoices("HOLIX_API_KEYS_DB", "API_KEYS_DB"),
     )
     api_key_pepper: str = Field(
         default="",
-        validation_alias=AliasChoices("HELIX_API_KEY_PEPPER", "API_KEY_PEPPER"),
+        validation_alias=AliasChoices("HOLIX_API_KEY_PEPPER", "API_KEY_PEPPER"),
     )
     rate_limit_rpm: int = 100
     admin_rate_limit_rpm: int = 30
@@ -105,30 +116,48 @@ class Settings(BaseSettings):
     # Documentation-site chat widget (isolated profile, no agent tools)
     docs_chat_enabled: bool = Field(
         default=False,
-        validation_alias="HELIX_DOCS_CHAT_ENABLED",
+        validation_alias=AliasChoices(
+            "HOLIX_DOCS_CHAT_ENABLED",
+            "HELIX_DOCS_CHAT_ENABLED",
+        ),
     )
     docs_chat_profile: str = Field(
         default="docs",
-        validation_alias="HELIX_DOCS_CHAT_PROFILE",
+        validation_alias=AliasChoices(
+            "HOLIX_DOCS_CHAT_PROFILE",
+            "HELIX_DOCS_CHAT_PROFILE",
+        ),
         description="Profile with LLM credentials for the public docs assistant only",
     )
     docs_chat_token: str = Field(
         default="",
-        validation_alias="HELIX_DOCS_CHAT_TOKEN",
+        validation_alias=AliasChoices(
+            "HOLIX_DOCS_CHAT_TOKEN",
+            "HELIX_DOCS_CHAT_TOKEN",
+        ),
         description="Shared token for docs server proxy → gateway (not exposed to browsers)",
     )
     docs_chat_rate_limit_rpm: int = Field(
         default=30,
-        validation_alias="HELIX_DOCS_CHAT_RATE_LIMIT_RPM",
+        validation_alias=AliasChoices(
+            "HOLIX_DOCS_CHAT_RATE_LIMIT_RPM",
+            "HELIX_DOCS_CHAT_RATE_LIMIT_RPM",
+        ),
     )
     docs_chat_model: str = Field(
         default="",
-        validation_alias="HELIX_DOCS_CHAT_MODEL",
+        validation_alias=AliasChoices(
+            "HOLIX_DOCS_CHAT_MODEL",
+            "HELIX_DOCS_CHAT_MODEL",
+        ),
         description="Optional model override for docs chat (use a non-reasoning model like smart)",
     )
     docs_chat_max_tokens: int = Field(
         default=4096,
-        validation_alias="HELIX_DOCS_CHAT_MAX_TOKENS",
+        validation_alias=AliasChoices(
+            "HOLIX_DOCS_CHAT_MAX_TOKENS",
+            "HELIX_DOCS_CHAT_MAX_TOKENS",
+        ),
     )
 
     # Tools (production hardening)
@@ -137,15 +166,15 @@ class Settings(BaseSettings):
     terminal_command_whitelist: bool = Field(
         default=True,
         validation_alias=AliasChoices(
-            "HELIX_TERMINAL_COMMAND_WHITELIST",
+            "HOLIX_TERMINAL_COMMAND_WHITELIST",
             "TERMINAL_COMMAND_WHITELIST",
         ),
     )
-    # Comma-separated extra base commands or prefixes (e.g. helix,uv run,docker)
+    # Comma-separated extra base commands or prefixes (e.g. holix,uv run,docker)
     terminal_whitelist_extra: str = Field(
         default="",
         validation_alias=AliasChoices(
-            "HELIX_TERMINAL_WHITELIST_EXTRA",
+            "HOLIX_TERMINAL_WHITELIST_EXTRA",
             "TERMINAL_WHITELIST_EXTRA",
         ),
     )
@@ -154,29 +183,29 @@ class Settings(BaseSettings):
     telegram_require_allowlist_in_production: bool = True
     telegram_voice_enabled: bool = Field(
         default=True,
-        validation_alias="HELIX_TELEGRAM_VOICE_ENABLED",
+        validation_alias="HOLIX_TELEGRAM_VOICE_ENABLED",
     )
     telegram_voice_language: str = Field(
         default="",
-        validation_alias="HELIX_TELEGRAM_VOICE_LANGUAGE",
+        validation_alias="HOLIX_TELEGRAM_VOICE_LANGUAGE",
         description="Whisper language hint (ISO-639-1), empty = auto-detect",
     )
     telegram_files_enabled: bool = Field(
         default=True,
-        validation_alias="HELIX_TELEGRAM_FILES_ENABLED",
+        validation_alias="HOLIX_TELEGRAM_FILES_ENABLED",
     )
     telegram_max_file_mb: int = Field(
         default=20,
-        validation_alias="HELIX_TELEGRAM_MAX_FILE_MB",
+        validation_alias="HOLIX_TELEGRAM_MAX_FILE_MB",
     )
     telegram_vision_model: str = Field(
         default="",
-        validation_alias="HELIX_TELEGRAM_VISION_MODEL",
+        validation_alias="HOLIX_TELEGRAM_VISION_MODEL",
         description="Vision model for Telegram images; empty = main agent model",
     )
     telegram_media_group_delay_ms: int = Field(
         default=800,
-        validation_alias="HELIX_TELEGRAM_MEDIA_GROUP_DELAY_MS",
+        validation_alias="HOLIX_TELEGRAM_MEDIA_GROUP_DELAY_MS",
         description="Wait for all items in a Telegram album before processing",
     )
 
@@ -191,74 +220,74 @@ class Settings(BaseSettings):
     )
     whisper_api_key: str = Field(
         default="",
-        validation_alias="HELIX_WHISPER_API_KEY",
+        validation_alias="HOLIX_WHISPER_API_KEY",
         description="Override API key for transcription (e.g. LiteLLM virtual key)",
     )
     whisper_base_url: str = Field(
         default="",
-        validation_alias="HELIX_WHISPER_BASE_URL",
+        validation_alias="HOLIX_WHISPER_BASE_URL",
         description="Override base URL for transcription (e.g. http://host:4000/v1)",
     )
     whisper_use_profile_litellm: bool = Field(
         default=True,
-        validation_alias="HELIX_WHISPER_USE_PROFILE_LITELLM",
+        validation_alias="HOLIX_WHISPER_USE_PROFILE_LITELLM",
         description="Fallback to profile litellm provider when no whisper/openai keys set",
     )
     whisper_backend: str = Field(
         default="api",
-        validation_alias="HELIX_WHISPER_BACKEND",
+        validation_alias="HOLIX_WHISPER_BACKEND",
         description="api | local | auto — auto picks local when faster-whisper installed and no API keys",
     )
     whisper_local_model: str = Field(
         default="base",
-        validation_alias="HELIX_WHISPER_LOCAL_MODEL",
+        validation_alias="HOLIX_WHISPER_LOCAL_MODEL",
         description="faster-whisper size: tiny, base, small, medium, large-v3, …",
     )
     whisper_local_device: str = Field(
         default="cpu",
-        validation_alias="HELIX_WHISPER_LOCAL_DEVICE",
+        validation_alias="HOLIX_WHISPER_LOCAL_DEVICE",
         description="cpu | cuda | auto",
     )
     whisper_local_compute_type: str = Field(
         default="int8",
-        validation_alias="HELIX_WHISPER_LOCAL_COMPUTE_TYPE",
+        validation_alias="HOLIX_WHISPER_LOCAL_COMPUTE_TYPE",
         description="CTranslate2 type: int8 (cpu), float16 (gpu), …",
     )
     whisper_auto_download: bool = Field(
         default=True,
-        validation_alias="HELIX_WHISPER_AUTO_DOWNLOAD",
+        validation_alias="HOLIX_WHISPER_AUTO_DOWNLOAD",
         description="Pre-download local faster-whisper weights on Telegram bot startup",
     )
     whisper_local_download_root: str = Field(
         default="",
-        validation_alias="HELIX_WHISPER_LOCAL_DOWNLOAD_ROOT",
-        description="Directory for faster-whisper model cache (default: ~/.helix/models/whisper)",
+        validation_alias="HOLIX_WHISPER_LOCAL_DOWNLOAD_ROOT",
+        description="Directory for faster-whisper model cache (default: ~/.holix/models/whisper)",
     )
     whisper_model: str = Field(
         default="whisper-1",
-        validation_alias=AliasChoices("HELIX_WHISPER_MODEL", "WHISPER_MODEL"),
+        validation_alias=AliasChoices("HOLIX_WHISPER_MODEL", "WHISPER_MODEL"),
     )
 
     # Logging
     log_level: str = Field(
         default="INFO",
-        validation_alias=AliasChoices("HELIX_LOG_LEVEL", "LOG_LEVEL"),
+        validation_alias=AliasChoices("HOLIX_LOG_LEVEL", "LOG_LEVEL"),
     )
     log_debug_enabled: bool = Field(
         default=False,
-        validation_alias=AliasChoices("HELIX_LOG_DEBUG", "LOG_DEBUG"),
+        validation_alias=AliasChoices("HOLIX_LOG_DEBUG", "LOG_DEBUG"),
     )
     log_max_bytes: int = Field(
         default=10_485_760,
-        validation_alias=AliasChoices("HELIX_LOG_MAX_BYTES", "LOG_MAX_BYTES"),
+        validation_alias=AliasChoices("HOLIX_LOG_MAX_BYTES", "LOG_MAX_BYTES"),
     )
     log_backup_count: int = Field(
         default=10,
-        validation_alias=AliasChoices("HELIX_LOG_BACKUP_COUNT", "LOG_BACKUP_COUNT"),
+        validation_alias=AliasChoices("HOLIX_LOG_BACKUP_COUNT", "LOG_BACKUP_COUNT"),
     )
     log_rotation_days: int = Field(
         default=14,
-        validation_alias=AliasChoices("HELIX_LOG_ROTATION_DAYS", "LOG_ROTATION_DAYS"),
+        validation_alias=AliasChoices("HOLIX_LOG_ROTATION_DAYS", "LOG_ROTATION_DAYS"),
     )
 
     model_config = SettingsConfigDict(
@@ -268,7 +297,7 @@ class Settings(BaseSettings):
 
     @property
     def is_production(self) -> bool:
-        return self.helix_env.strip().lower() == "production"
+        return self.holix_env.strip().lower() == "production"
 
     @property
     def is_development(self) -> bool:

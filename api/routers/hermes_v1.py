@@ -37,24 +37,24 @@ router = APIRouter(prefix="/v1", tags=["hermes"])
 def _resolve_ctx(
     key_info: dict,
     model: str | None,
-    x_helix_profile: str | None = Header(None),
+    x_holix_profile: str | None = Header(None),
     x_hermes_profile: str | None = Header(None),
-    x_helix_session_id: str | None = Header(None),
+    x_holix_session_id: str | None = Header(None),
     x_hermes_session_id: str | None = Header(None),
-    x_helix_session_key: str | None = Header(None),
+    x_holix_session_key: str | None = Header(None),
     x_hermes_session_key: str | None = Header(None),
 ) -> RequestContext:
     from api.deps import _header_alias, _validate_session_key
 
     host = state.host_profile or "default"
     profile = resolve_profile_name(
-        header_profile=_header_alias(x_helix_profile, x_hermes_profile),
+        header_profile=_header_alias(x_holix_profile, x_hermes_profile),
         model=model,
         host_profile=host,
     )
-    session_id = _header_alias(x_helix_session_id, x_hermes_session_id) or "default"
+    session_id = _header_alias(x_holix_session_id, x_hermes_session_id) or "default"
     session_key = _validate_session_key(
-        _header_alias(x_helix_session_key, x_hermes_session_key)
+        _header_alias(x_holix_session_key, x_hermes_session_key)
     )
     return RequestContext(
         profile=profile,
@@ -78,21 +78,21 @@ async def list_models(
             "id": name,
             "object": "model",
             "created": int(time.time()),
-            "owned_by": "helix",
+            "owned_by": "holix",
         })
     if not data:
         data.append({
             "id": state.host_profile,
             "object": "model",
             "created": int(time.time()),
-            "owned_by": "helix",
+            "owned_by": "holix",
         })
     return {"object": "list", "data": data}
 
 
 @router.get("/capabilities", response_model=CapabilitiesResponse)
 async def capabilities(key_info: dict = Depends(verify_api_key)):
-    model_name = state.host_profile or "helix"
+    model_name = state.host_profile or "holix"
     return CapabilitiesResponse(
         model=model_name,
         features={
@@ -122,7 +122,7 @@ async def capabilities(key_info: dict = Depends(verify_api_key)):
             "toolsets": "/v1/toolsets",
             "jobs": "/api/jobs",
             "sessions": "/api/sessions",
-            "helix_profiles": "/api/helix/profiles",
+            "holix_profiles": "/api/holix/profiles",
         },
     )
 
@@ -131,17 +131,17 @@ async def capabilities(key_info: dict = Depends(verify_api_key)):
 async def list_toolsets(
     key_info: dict = Depends(verify_api_key),
     registry=Depends(get_registry),
-    x_helix_profile: str | None = Header(None),
+    x_holix_profile: str | None = Header(None),
     x_hermes_profile: str | None = Header(None),
 ):
-    ctx = _resolve_ctx(key_info, None, x_helix_profile, x_hermes_profile, None, None, None, None)
+    ctx = _resolve_ctx(key_info, None, x_holix_profile, x_hermes_profile, None, None, None, None)
     agent = await registry.get_agent(ctx.profile)
     tools = agent.get_tools()
     return [
         {
             "name": "core",
             "label": "Core tools",
-            "description": "Helix built-in tools for profile",
+            "description": "Holix built-in tools for profile",
             "enabled": True,
             "configured": True,
             "tools": tools,
@@ -153,10 +153,10 @@ async def list_toolsets(
 async def list_skills_hermes(
     key_info: dict = Depends(verify_api_key),
     registry=Depends(get_registry),
-    x_helix_profile: str | None = Header(None),
+    x_holix_profile: str | None = Header(None),
     x_hermes_profile: str | None = Header(None),
 ):
-    ctx = _resolve_ctx(key_info, None, x_helix_profile, x_hermes_profile, None, None, None, None)
+    ctx = _resolve_ctx(key_info, None, x_holix_profile, x_hermes_profile, None, None, None, None)
     agent = await registry.get_agent(ctx.profile)
     raw = agent.get_skills()
     items = []
@@ -177,21 +177,21 @@ async def create_response(
     body: ResponsesCreateRequest,
     key_info: dict = Depends(verify_api_key),
     registry=Depends(get_registry),
-    x_helix_profile: str | None = Header(None),
+    x_holix_profile: str | None = Header(None),
     x_hermes_profile: str | None = Header(None),
-    x_helix_session_id: str | None = Header(None),
+    x_holix_session_id: str | None = Header(None),
     x_hermes_session_id: str | None = Header(None),
-    x_helix_session_key: str | None = Header(None),
+    x_holix_session_key: str | None = Header(None),
     x_hermes_session_key: str | None = Header(None),
 ):
     ctx = _resolve_ctx(
         key_info,
         body.model,
-        x_helix_profile,
+        x_holix_profile,
         x_hermes_profile,
-        x_helix_session_id,
+        x_holix_session_id,
         x_hermes_session_id,
-        x_helix_session_key,
+        x_holix_session_key,
         x_hermes_session_key,
     )
     checker = PermissionChecker(key_info["permissions"])

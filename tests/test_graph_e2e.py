@@ -5,10 +5,10 @@ from __future__ import annotations
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
-from core.agent import HelixAgent
+from core.agent import HolixAgent
 from core.agent_events import EventType
-from core.di.runtime_config import HelixRuntimeConfig
-from core.graph.builder import build_helix_graph, prepare_initial_state
+from core.di.runtime_config import HolixRuntimeConfig
+from core.graph.builder import build_holix_graph, prepare_initial_state
 from core.persistence import create_checkpointer
 
 
@@ -25,7 +25,7 @@ def _mock_llm_response(content: str = "Graph mock answer.", tool_calls=None):
 @pytest.mark.asyncio
 async def test_react_graph_completes_with_mock_llm(temp_dir, monkeypatch):
     """ReAct graph: memory_retrieval → react → finalize yields final response."""
-    cfg = HelixRuntimeConfig.from_settings().with_overrides(
+    cfg = HolixRuntimeConfig.from_settings().with_overrides(
         memory_db_path=f"{temp_dir}/mem.db",
         vector_db_path=f"{temp_dir}/vec",
         ltm_db_path=f"{temp_dir}/ltm.db",
@@ -34,7 +34,7 @@ async def test_react_graph_completes_with_mock_llm(temp_dir, monkeypatch):
         use_langgraph=True,
         non_interactive=True,
     )
-    agent = HelixAgent(config=cfg, enable_monitoring=False)
+    agent = HolixAgent(config=cfg, enable_monitoring=False)
 
     agent.memory.get_conversation = AsyncMock(return_value=[])
     agent.memory.save_message = AsyncMock()
@@ -53,7 +53,7 @@ async def test_react_graph_completes_with_mock_llm(temp_dir, monkeypatch):
         _mock_chat_completions_with_fallback,
     )
 
-    graph = build_helix_graph(
+    graph = build_holix_graph(
         agent=agent,
         execution_mode="react",
         checkpointer=create_checkpointer(use_persistent=False),
@@ -82,11 +82,11 @@ async def test_react_graph_completes_with_mock_llm(temp_dir, monkeypatch):
 
 @pytest.mark.integration
 @pytest.mark.asyncio
-async def test_run_helix_graph_path_yields_events(temp_dir, monkeypatch):
-    """run_helix (graph branch) emits thinking events with run_id correlation."""
-    from core.runtime.executor import run_helix
+async def test_run_holix_graph_path_yields_events(temp_dir, monkeypatch):
+    """run_holix (graph branch) emits thinking events with run_id correlation."""
+    from core.runtime.executor import run_holix
 
-    cfg = HelixRuntimeConfig.from_settings().with_overrides(
+    cfg = HolixRuntimeConfig.from_settings().with_overrides(
         memory_db_path=f"{temp_dir}/mem.db",
         vector_db_path=f"{temp_dir}/vec",
         ltm_db_path=f"{temp_dir}/ltm.db",
@@ -95,7 +95,7 @@ async def test_run_helix_graph_path_yields_events(temp_dir, monkeypatch):
         non_interactive=True,
         plan_review_enabled=False,
     )
-    agent = HelixAgent(config=cfg, enable_monitoring=False)
+    agent = HolixAgent(config=cfg, enable_monitoring=False)
     await agent.initialize()
 
     agent.memory.get_conversation = AsyncMock(return_value=[])
@@ -105,7 +105,7 @@ async def test_run_helix_graph_path_yields_events(temp_dir, monkeypatch):
     agent.skills.format_skills_for_prompt = MagicMock(return_value="")
     agent.tools.get_schemas = MagicMock(return_value=[])
     agent.client.chat.completions.create = AsyncMock(
-        return_value=_mock_llm_response("Helix unified runtime OK.")
+        return_value=_mock_llm_response("Holix unified runtime OK.")
     )
 
     monkeypatch.setattr(
@@ -114,7 +114,7 @@ async def test_run_helix_graph_path_yields_events(temp_dir, monkeypatch):
     )
 
     collected = []
-    async for event in run_helix(agent, "ping", "run_helix_e2e", stream=False):
+    async for event in run_holix(agent, "ping", "run_holix_e2e", stream=False):
         collected.append(event)
 
     types = {e.type for e in collected}

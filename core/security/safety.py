@@ -14,7 +14,7 @@ _UNIX_SAFE: set[str] = {
     "python", "python3", "node", "npm",
     "pip list", "pip show",
     "pytest", "npm test", "make test",
-    "helix", "uv",
+    "holix", "uv",
 }
 
 _WINDOWS_SAFE: set[str] = {
@@ -26,7 +26,7 @@ _WINDOWS_SAFE: set[str] = {
     "python", "python3", "py", "node", "npm",
     "pip list", "pip show",
     "pytest", "npm test",
-    "helix", "uv",
+    "holix", "uv",
 }
 
 _COMMON_DANGEROUS: list[str] = [
@@ -97,7 +97,7 @@ class CommandWhitelist:
         self.safe_commands.discard(command.lower())
 
     def apply_extra(self, extra: str | None) -> None:
-        """Add comma-separated commands from HELIX_TERMINAL_WHITELIST_EXTRA."""
+        """Add comma-separated commands from HOLIX_TERMINAL_WHITELIST_EXTRA."""
         if not extra:
             return
         for part in extra.split(","):

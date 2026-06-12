@@ -8,7 +8,7 @@ from typing import Any
 
 import aiosqlite
 
-from core.di.runtime_config import HelixRuntimeConfig
+from core.di.runtime_config import HolixRuntimeConfig
 from core.memory.episodic import EpisodicMemoryStore
 from core.memory.procedural import ProceduralMemoryStore
 from core.memory.semantic import SemanticMemoryStore
@@ -21,8 +21,8 @@ logger = logging.getLogger(__name__)
 class LongTermMemoryStore:
     """Typed long-term memory backed by SQLite + shared ChromaDB collections."""
 
-    def __init__(self, config: HelixRuntimeConfig | None = None):
-        cfg = config or HelixRuntimeConfig.from_settings()
+    def __init__(self, config: HolixRuntimeConfig | None = None):
+        cfg = config or HolixRuntimeConfig.from_settings()
         self.config = cfg
         self._ltm_db_path = Path(cfg.ltm_db_path)
         self._ltm_db_path.parent.mkdir(parents=True, exist_ok=True)

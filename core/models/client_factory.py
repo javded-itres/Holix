@@ -31,7 +31,7 @@ def build_default_headers(metadata: dict[str, Any] | None) -> dict[str, str]:
 
     if auth_type == "openrouter":
         referer = metadata.get("http_referer") or os.environ.get("OPENROUTER_HTTP_REFERER", "")
-        title = metadata.get("x_title") or os.environ.get("OPENROUTER_APP_TITLE", "Helix")
+        title = metadata.get("x_title") or os.environ.get("OPENROUTER_APP_TITLE", "Holix")
         referer = resolve_env_refs(referer) if isinstance(referer, str) else referer
         title = resolve_env_refs(title) if isinstance(title, str) else title
         if referer:

@@ -20,7 +20,7 @@ def format_access_approved_message(
     lines = [
         "✅ <b>Доступ одобрен</b>",
         "",
-        f"Ваш профиль Helix: <code>{profile_esc}</code>",
+        f"Ваш профиль Holix: <code>{profile_esc}</code>",
     ]
     if access_key:
         key_esc = escape_html(access_key)
@@ -128,13 +128,13 @@ def format_access_request_admin_message(
             f"<b>Telegram ID:</b> <code>{req.user_id}</code>",
             "",
             "Одобрить в CLI (выбор или создание профиля):",
-            f"<code>helix -p {profile_esc} telegram requests approve {req.user_id} -i</code>",
+            f"<code>holix -p {profile_esc} telegram requests approve {req.user_id} -i</code>",
             "",
             "Или сразу создать профиль:",
-            f"<code>helix -p {profile_esc} telegram requests approve {req.user_id} --create-profile NAME</code>",
+            f"<code>holix -p {profile_esc} telegram requests approve {req.user_id} --create-profile NAME</code>",
             "",
             "Отклонить:",
-            f"<code>helix -p {profile_esc} telegram requests reject {req.user_id}</code>",
+            f"<code>holix -p {profile_esc} telegram requests reject {req.user_id}</code>",
         ]
     )
 

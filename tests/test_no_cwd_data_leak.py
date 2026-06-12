@@ -1,4 +1,4 @@
-"""Ensure Helix runtime data never lands in process CWD."""
+"""Ensure Holix runtime data never lands in process CWD."""
 
 from __future__ import annotations
 
@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 from cli.core import ProfileConfig, ProfileManager, resolve_profile_storage_paths
-from core.di.runtime_config import HelixRuntimeConfig
+from core.di.runtime_config import HolixRuntimeConfig
 from core.memory.ltm import LongTermMemoryStore
 from core.security.confirmation import ActionGuard, PermissionManager
 
@@ -18,7 +18,7 @@ def test_from_profile_resolves_all_memory_paths(tmp_path, monkeypatch) -> None:
 
     cfg = ProfileConfig(profile_name="work")
     resolved = resolve_profile_storage_paths("work", cfg, profile_dir=profile_dir)
-    runtime = HelixRuntimeConfig.from_profile(resolved)
+    runtime = HolixRuntimeConfig.from_profile(resolved)
 
     assert runtime.ltm_db_path == str((profile_dir / "data" / "memory" / "ltm.db").resolve())
     assert runtime.langgraph_checkpoint_db_path == str(
@@ -40,7 +40,7 @@ def test_ltm_store_uses_profile_path_not_cwd(tmp_path, monkeypatch) -> None:
         ProfileConfig(profile_name="default"),
         profile_dir=profile_dir,
     )
-    runtime = HelixRuntimeConfig.from_profile(cfg)
+    runtime = HolixRuntimeConfig.from_profile(cfg)
 
     LongTermMemoryStore(runtime)
 

@@ -1,4 +1,4 @@
-"""Configure Python logging for Helix processes."""
+"""Configure Python logging for Holix processes."""
 
 from __future__ import annotations
 
@@ -34,12 +34,12 @@ def _level_from_state(state: LoggingState) -> int:
 
 
 def _apply_root_level(state: LoggingState) -> None:
-    logging.getLogger("helix").setLevel(_level_from_state(state))
+    logging.getLogger("holix").setLevel(_level_from_state(state))
     logging.getLogger().setLevel(_level_from_state(state))
 
 
-def configure_helix_logging(*, force: bool = False) -> None:
-    """Install rotating file handlers under HELIX_HOME/logs (idempotent)."""
+def configure_holix_logging(*, force: bool = False) -> None:
+    """Install rotating file handlers under HOLIX_HOME/logs (idempotent)."""
     global _CONFIGURED
     if _CONFIGURED and not force:
         return
@@ -60,7 +60,7 @@ def configure_helix_logging(*, force: bool = False) -> None:
     )
 
     # Avoid duplicate handlers on reconfigure
-    helix_handler_ids = {id(h) for h in root.handlers}
+    holix_handler_ids = {id(h) for h in root.handlers}
 
     system_handler = RotatingFileHandler(
         system_log(),
@@ -70,7 +70,7 @@ def configure_helix_logging(*, force: bool = False) -> None:
     )
     system_handler.setFormatter(formatter)
     system_handler.setLevel(level)
-    if id(system_handler) not in helix_handler_ids:
+    if id(system_handler) not in holix_handler_ids:
         root.addHandler(system_handler)
 
     subagent_logger = logging.getLogger("core.subagents")

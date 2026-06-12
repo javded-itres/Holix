@@ -5,7 +5,7 @@ from __future__ import annotations
 from textual.widgets import RichLog
 
 
-class HelixChatLog(RichLog):
+class HolixChatLog(RichLog):
     """RichLog for agent output with stable id and scroll helpers."""
 
     def __init__(self, **kwargs) -> None:

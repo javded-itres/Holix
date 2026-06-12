@@ -1,10 +1,10 @@
-"""``helix telegram admin`` — view or clear the single Telegram administrator."""
+"""``holix telegram admin`` — view or clear the single Telegram administrator."""
 
 from __future__ import annotations
 
 from integrations.telegram.admin import (
     clear_admin_user,
-    load_admin_helix_profile,
+    load_admin_holix_profile,
     load_admin_user_id,
 )
 from integrations.telegram.env_store import load_telegram_env_files
@@ -19,13 +19,13 @@ def telegram_admin_show(bot_profile: str) -> None:
         print_warning("Telegram-администратор не назначен.")
         print_info(
             f"Назначить при первом approve: "
-            f"helix -p {bot_profile} telegram requests approve USER_ID --set-admin"
+            f"holix -p {bot_profile} telegram requests approve USER_ID --set-admin"
         )
         return
 
-    helix_profile = load_admin_helix_profile(bot_profile)
+    holix_profile = load_admin_holix_profile(bot_profile)
     print_success(f"Telegram admin: user id {admin_id}")
-    print_info(f"Профиль Helix: {helix_profile}")
+    print_info(f"Профиль Holix: {holix_profile}")
     print_info("Назначение и смена — только через CLI (не из Telegram).")
 
 
@@ -39,5 +39,5 @@ def telegram_admin_clear(bot_profile: str) -> None:
         raise SystemExit(1)
     print_success("Telegram-администратор сброшен.")
     print_info(
-        f"Назначить снова: helix -p {bot_profile} telegram requests approve USER_ID --set-admin"
+        f"Назначить снова: holix -p {bot_profile} telegram requests approve USER_ID --set-admin"
     )

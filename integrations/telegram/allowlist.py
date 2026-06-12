@@ -1,4 +1,4 @@
-"""Manage ``HELIX_TELEGRAM_ALLOWED_USERS`` for a bot profile."""
+"""Manage ``HOLIX_TELEGRAM_ALLOWED_USERS`` for a bot profile."""
 
 from __future__ import annotations
 
@@ -11,7 +11,7 @@ def load_allowed_user_ids(bot_profile: str) -> set[int]:
 
     load_telegram_env_files(bot_profile)
     raw = read_telegram_env_values(bot_profile).get(
-        "HELIX_TELEGRAM_ALLOWED_USERS",
+        "HOLIX_TELEGRAM_ALLOWED_USERS",
         "",
     )
     out: set[int] = set()
@@ -31,7 +31,7 @@ def add_allowed_user(bot_profile: str, user_id: int) -> str:
     allowed = load_allowed_user_ids(bot_profile)
     allowed.add(int(user_id))
     text = format_allowed_user_ids(allowed)
-    values["HELIX_TELEGRAM_ALLOWED_USERS"] = text
+    values["HOLIX_TELEGRAM_ALLOWED_USERS"] = text
     save_telegram_env(values, profile=bot_profile)
     return text
 
@@ -44,8 +44,8 @@ def remove_allowed_user(bot_profile: str, user_id: int) -> str | None:
     allowed.remove(int(user_id))
     text = format_allowed_user_ids(allowed)
     if text:
-        values["HELIX_TELEGRAM_ALLOWED_USERS"] = text
+        values["HOLIX_TELEGRAM_ALLOWED_USERS"] = text
     else:
-        values.pop("HELIX_TELEGRAM_ALLOWED_USERS", None)
+        values.pop("HOLIX_TELEGRAM_ALLOWED_USERS", None)
     save_telegram_env(values, profile=bot_profile)
     return text

@@ -1,4 +1,4 @@
-"""Global Helix settings shared across profiles (~/.helix/global/)."""
+"""Global Holix settings shared across profiles (~/.holix/global/)."""
 
 from __future__ import annotations
 
@@ -6,8 +6,8 @@ from copy import deepcopy
 from pathlib import Path
 from typing import Any
 
-from core.env_loader import helix_env_path, helix_home
-from core.platform_compat import resolve_helix_home
+from core.env_loader import holix_env_path, holix_home
+from core.platform_compat import resolve_holix_home
 
 # Keys stored per profile only (never inherited from global config.yaml).
 PROFILE_ONLY_KEYS: frozenset[str] = frozenset({
@@ -24,7 +24,7 @@ PROFILE_ONLY_KEYS: frozenset[str] = frozenset({
 
 
 def global_dir() -> Path:
-    return resolve_helix_home() / "global"
+    return resolve_holix_home() / "global"
 
 
 def global_config_path() -> Path:
@@ -67,11 +67,11 @@ def _load_yaml(path: Path) -> dict[str, Any]:
 
 
 def _migrate_legacy_global_env() -> None:
-    """Copy legacy ``~/.helix/.env`` into ``global/.env`` once when global is missing."""
+    """Copy legacy ``~/.holix/.env`` into ``global/.env`` once when global is missing."""
     target = global_env_path()
     if target.is_file():
         return
-    legacy = helix_env_path()
+    legacy = holix_env_path()
     if legacy.is_file():
         ensure_global_dir()
         target.write_text(legacy.read_text(encoding="utf-8"), encoding="utf-8")
@@ -115,7 +115,7 @@ def ensure_global_env_template() -> Path:
     if path.is_file():
         return path
 
-    legacy = helix_env_path()
+    legacy = holix_env_path()
     if legacy.is_file():
         path.write_text(legacy.read_text(encoding="utf-8"), encoding="utf-8")
         return path
@@ -127,7 +127,7 @@ def ensure_global_env_template() -> Path:
         path.write_text(src.read_text(encoding="utf-8"), encoding="utf-8")
     else:
         path.write_text(
-            "# Helix global environment (inherited by profiles unless overridden)\n",
+            "# Holix global environment (inherited by profiles unless overridden)\n",
             encoding="utf-8",
         )
     return path
@@ -217,11 +217,11 @@ def _extract_dict_diff(profile: dict[str, Any], global_map: dict[str, Any]) -> d
 
 
 def format_global_paths_block() -> str:
-    home = helix_home()
+    home = holix_home()
     cfg = global_config_path()
     env = global_env_path()
     return (
         f"- **Global config**: `{cfg}`\n"
         f"- **Global env**: `{env}`\n"
-        f"- **HELIX_HOME**: `{home}`"
+        f"- **HOLIX_HOME**: `{home}`"
     )

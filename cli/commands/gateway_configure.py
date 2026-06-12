@@ -1,4 +1,4 @@
-"""Interactive gateway configuration for a Helix profile."""
+"""Interactive gateway configuration for a Holix profile."""
 
 from __future__ import annotations
 
@@ -94,14 +94,14 @@ def load_effective_gateway_config(profile: str) -> GatewayProfileConfig:
     env = _merged_profile_env(profile)
     return GatewayProfileConfig(
         profile=profile,
-        host=env.get("HELIX_GATEWAY_HOST", settings.gateway_host),
-        port=_env_int_value(env.get("HELIX_GATEWAY_PORT"), settings.gateway_port),
-        require_auth=_env_bool_value(env.get("HELIX_REQUIRE_AUTH")) or settings.is_production,
-        with_docs=_env_bool_value(env.get("HELIX_GATEWAY_WITH_DOCS"))
-        or _env_bool_value(env.get("HELIX_GATEWAY_DOCS"))
+        host=env.get("HOLIX_GATEWAY_HOST", settings.gateway_host),
+        port=_env_int_value(env.get("HOLIX_GATEWAY_PORT"), settings.gateway_port),
+        require_auth=_env_bool_value(env.get("HOLIX_REQUIRE_AUTH")) or settings.is_production,
+        with_docs=_env_bool_value(env.get("HOLIX_GATEWAY_WITH_DOCS"))
+        or _env_bool_value(env.get("HOLIX_GATEWAY_DOCS"))
         or settings.gateway_with_docs,
-        docs_host=env.get("HELIX_DOCS_HOST", settings.docs_host),
-        docs_port=_env_int_value(env.get("HELIX_DOCS_PORT"), settings.docs_port),
+        docs_host=env.get("HOLIX_DOCS_HOST", settings.docs_host),
+        docs_port=_env_int_value(env.get("HOLIX_DOCS_PORT"), settings.docs_port),
         env_path=str(_profile_env_file(profile)),
     )
 
@@ -119,18 +119,18 @@ def _global_gateway_port_default() -> int:
         from dotenv import dotenv_values
     except ImportError:
         return default
-    return _env_int_value(dotenv_values(path).get("HELIX_GATEWAY_PORT"), default)
+    return _env_int_value(dotenv_values(path).get("HOLIX_GATEWAY_PORT"), default)
 
 
 def list_configured_gateway_ports(*, exclude_profile: str | None = None) -> dict[str, int]:
-    """Map profile name → configured HELIX_GATEWAY_PORT (profile override or global default)."""
+    """Map profile name → configured HOLIX_GATEWAY_PORT (profile override or global default)."""
     global_port = _global_gateway_port_default()
     out: dict[str, int] = {}
     for name in ProfileManager().list_profiles():
         if exclude_profile and name == exclude_profile:
             continue
         env_map = _profile_env_from_files(name)
-        raw = env_map.get("HELIX_GATEWAY_PORT")
+        raw = env_map.get("HOLIX_GATEWAY_PORT")
         out[name] = _env_int_value(raw, global_port) if raw else global_port
     return out
 
@@ -216,20 +216,20 @@ def _remove_env_vars(path, *keys: str) -> None:
 
 def _save_gateway_env(profile: str, cfg: GatewayProfileConfig) -> None:
     path = _profile_env_file(profile)
-    _upsert_env_var(path, "HELIX_GATEWAY_HOST", cfg.host)
-    _upsert_env_var(path, "HELIX_GATEWAY_PORT", str(cfg.port))
-    _upsert_env_var(path, "HELIX_REQUIRE_AUTH", "true" if cfg.require_auth else "false")
+    _upsert_env_var(path, "HOLIX_GATEWAY_HOST", cfg.host)
+    _upsert_env_var(path, "HOLIX_GATEWAY_PORT", str(cfg.port))
+    _upsert_env_var(path, "HOLIX_REQUIRE_AUTH", "true" if cfg.require_auth else "false")
     if cfg.with_docs:
-        _upsert_env_var(path, "HELIX_GATEWAY_WITH_DOCS", "1")
-        _upsert_env_var(path, "HELIX_DOCS_HOST", cfg.docs_host)
-        _upsert_env_var(path, "HELIX_DOCS_PORT", str(cfg.docs_port))
+        _upsert_env_var(path, "HOLIX_GATEWAY_WITH_DOCS", "1")
+        _upsert_env_var(path, "HOLIX_DOCS_HOST", cfg.docs_host)
+        _upsert_env_var(path, "HOLIX_DOCS_PORT", str(cfg.docs_port))
     else:
         _remove_env_vars(
             path,
-            "HELIX_GATEWAY_WITH_DOCS",
-            "HELIX_GATEWAY_DOCS",
-            "HELIX_DOCS_HOST",
-            "HELIX_DOCS_PORT",
+            "HOLIX_GATEWAY_WITH_DOCS",
+            "HOLIX_GATEWAY_DOCS",
+            "HOLIX_DOCS_HOST",
+            "HOLIX_DOCS_PORT",
         )
 
 
@@ -239,7 +239,7 @@ def run_gateway_configure(*, profile: str, start_after: bool = False) -> None:
     console.print(
         Panel.fit(
             "[bold cyan]Gateway — настройка профиля[/bold cyan]\n\n"
-            "Каждый профиль Helix может запускать свой gateway (API + Telegram + cron).\n"
+            "Каждый профиль Holix может запускать свой gateway (API + Telegram + cron).\n"
             "Для нескольких профилей задайте [bold]разные порты[/bold].",
             border_style="cyan",
         )
@@ -325,4 +325,4 @@ def run_gateway_configure(*, profile: str, start_after: bool = False) -> None:
             docs_port=docs_port,
         )
     else:
-        print_info(f"Запуск: helix -p {profile} gateway start")
+        print_info(f"Запуск: holix -p {profile} gateway start")

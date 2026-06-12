@@ -1,4 +1,4 @@
-"""FastAPI dependencies for Helix gateway."""
+"""FastAPI dependencies for Holix gateway."""
 
 from __future__ import annotations
 
@@ -19,9 +19,9 @@ _CONTROL_CHARS = re.compile(r"[\r\n\x00]")
 
 _bearer_scheme = HTTPBearer(
     auto_error=False,
-    scheme_name="HelixApiKey",
+    scheme_name="HolixApiKey",
     bearerFormat="API key",
-    description="Helix gateway API key (hx_…). Also accepted via X-API-Key header.",
+    description="Holix gateway API key (hx_…). Also accepted via X-API-Key header.",
 )
 
 
@@ -120,10 +120,10 @@ def resolve_profile_name(
     model: str | None,
     host_profile: str,
 ) -> str:
-    """Profile routing: X-Helix-Profile > model field > gateway host profile."""
+    """Profile routing: X-Holix-Profile > model field > gateway host profile."""
     if header_profile and header_profile.strip():
         return header_profile.strip()
-    if model and model.strip() and model.strip() not in {"helix", "helix-agent", "hermes-agent"}:
+    if model and model.strip() and model.strip() not in {"holix", "holix-agent", "hermes-agent"}:
         return model.strip()
     return host_profile
 

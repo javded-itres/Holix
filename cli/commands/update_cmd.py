@@ -1,4 +1,4 @@
-"""Update Helix: ``helix update``."""
+"""Update Holix: ``holix update``."""
 
 from __future__ import annotations
 
@@ -8,17 +8,17 @@ import typer
 
 from cli import __version__
 from cli.installer.manifest import load_manifest
-from cli.installer.update import UpdateOptions, update_helix
+from cli.installer.update import UpdateOptions, update_holix
 from cli.utils.rich_console import print_error, print_info, print_success, print_warning
 
 app = typer.Typer(
-    help="Check for and apply Helix updates",
+    help="Check for and apply Holix updates",
     invoke_without_command=True,
 )
 
 
 @app.callback()
-def update_helix_cli(
+def update_holix_cli(
     ctx: typer.Context,
     check: bool = typer.Option(
         False,
@@ -49,16 +49,16 @@ def update_helix_cli(
         help="Skip git fetch (git channel only)",
     ),
 ) -> None:
-    """Update Helix from git or PyPI.
+    """Update Holix from git or PyPI.
 
-    Uses ``~/.helix/install.json`` written by ``helix install``.
+    Uses ``~/.holix/install.json`` written by ``holix install``.
 
     Examples:
 
-        helix update
-        helix update --check
-        helix update --channel git --repo ~/src/Helix
-        helix update --force
+        holix update
+        holix update --check
+        holix update --channel git --repo ~/src/Holix
+        holix update --force
     """
     if ctx.invoked_subcommand is not None:
         return
@@ -85,7 +85,7 @@ def update_helix_cli(
 
     action = "Checking" if check else "Updating"
     print_info(f"{action}…")
-    result = update_helix(opts)
+    result = update_holix(opts)
 
     if not result.success:
         print_error(result.message)

@@ -1,3 +1,3 @@
 """
-Graph nodes for Helix LangGraph execution.
+Graph nodes for Holix LangGraph execution.
 """

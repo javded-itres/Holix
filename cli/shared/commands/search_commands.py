@@ -43,16 +43,16 @@ async def run_search_command(host: Any, command: str) -> None:
                     f"  firecrawl: {'configured' if key else 'missing api_key'}"
                 )
         lines.append("")
-        lines.append("Configure: helix search configure  (or /search configure for hint)")
+        lines.append("Configure: holix search configure  (or /search configure for hint)")
         host.transcript_write("\n".join(lines))
         return
 
     if cmd == "/search configure":
         host.transcript_write(
             "Interactive search setup:\n"
-            "  helix search configure\n\n"
+            "  holix search configure\n\n"
             "Providers: DuckDuckGo (free), SearXNG (self-hosted URL), Firecrawl (API key).\n"
-            "After saving: helix gateway reload"
+            "After saving: holix gateway reload"
         )
         return
 

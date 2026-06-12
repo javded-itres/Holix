@@ -47,12 +47,12 @@ jobs:
       - name: Doctor (dry run)
         shell: bash
         env:
-          HELIX_HOME: ${{ runner.temp }}/helix-doctor
+          HOLIX_HOME: ${{ runner.temp }}/helix-doctor
           TELEGRAM_BOT_TOKEN: ""
-          HELIX_TELEGRAM_BOT_TOKEN: ""
+          HOLIX_TELEGRAM_BOT_TOKEN: ""
           PYTHONUTF8: "1"
           PYTHONIOENCODING: utf-8
-        run: uv run helix doctor --no-llm
+        run: uv run holix doctor --no-llm
 
   build:
     runs-on: ubuntu-latest
@@ -69,7 +69,7 @@ jobs:
 
       - name: Build package
         env:
-          HELIX_NO_VERSION_BUMP: "1"
+          HOLIX_NO_VERSION_BUMP: "1"
         run: uv build --no-sources
 
       - name: Validate artifacts
@@ -78,9 +78,9 @@ jobs:
       - name: Smoke install wheel
         run: |
           uv venv /tmp/helix-smoke --python 3.12
-          uv pip install --python /tmp/helix-smoke/bin/python dist/helixagentai-*.whl
-          /tmp/helix-smoke/bin/helix version
-          /tmp/helix-smoke/bin/helix --help
+          uv pip install --python /tmp/helix-smoke/bin/python dist/holix-*.whl
+          /tmp/helix-smoke/bin/holix version
+          /tmp/helix-smoke/bin/holix --help
 
   security:
     runs-on: ubuntu-latest

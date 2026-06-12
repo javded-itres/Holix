@@ -25,14 +25,14 @@ def search_index(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
             "slug": "installation",
             "title": "Установка",
             "heading": "",
-            "body": "Установите Helix через pipx install HelixAgentAi",
+            "body": "Установите Holix через pipx install Holix",
         },
         {
             "lang": "en",
             "slug": "installation",
             "title": "Installation",
             "heading": "",
-            "body": "Install Helix with pipx install HelixAgentAi",
+            "body": "Install Holix with pipx install Holix",
         },
     ]
     web_docs = tmp_path / "web-docs"
@@ -60,14 +60,14 @@ def test_search_docs_ignores_other_language(search_index: Path) -> None:
 
 
 def test_build_context_includes_page_slug(search_index: Path) -> None:
-    hits = search_docs("Helix", lang="en")
+    hits = search_docs("Holix", lang="en")
     ctx = build_context(hits, page_slug="gateway")
     assert "gateway" in ctx
     assert "Installation" in ctx
 
 
 def test_sanitize_strips_paths_and_keys() -> None:
-    raw = "Key: sk-abcdefghijklmnopqrstuvwx Path: /Users/alice/.helix/profiles/default/.env"
+    raw = "Key: sk-abcdefghijklmnopqrstuvwx Path: /Users/alice/.holix/profiles/default/.env"
     cleaned = sanitize_assistant_text(raw)
     assert "sk-" not in cleaned
     assert "/Users/" not in cleaned
@@ -116,14 +116,14 @@ def test_is_conversational_message_detects_greeting_and_meta() -> None:
     assert is_conversational_message("Привет!")
     assert is_conversational_message("Who are you?")
     assert is_conversational_message("Что ты умеешь?")
-    assert not is_conversational_message("How do I install Helix?")
+    assert not is_conversational_message("How do I install Holix?")
 
 
 def test_sanitize_blocks_directory_listing() -> None:
     raw = "drwxr-xr-x  5 alice  staff  160 Jun  9 12:00 profiles\n-rw-r--r--  1 alice  staff  220 Jun  9 12:00 .env"
     cleaned = sanitize_assistant_text(raw)
     assert "drwx" not in cleaned
-    assert "документации Helix" in cleaned
+    assert "документации Holix" in cleaned
 
 
 def test_docs_chat_config_endpoint_disabled(monkeypatch: pytest.MonkeyPatch) -> None:

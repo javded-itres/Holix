@@ -41,7 +41,7 @@ class TerminalTool(BaseTool):
             Command output or error message
         """
         if not settings.enable_terminal_tool:
-            return "Error: Terminal tool is disabled (HELIX_ENABLE_TERMINAL_TOOL=false)"
+            return "Error: Terminal tool is disabled (HOLIX_ENABLE_TERMINAL_TOOL=false)"
 
         if settings.terminal_command_whitelist:
             command_whitelist.apply_extra(settings.terminal_whitelist_extra)

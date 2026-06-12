@@ -20,26 +20,26 @@ def test_format_access_approved_open_profile() -> None:
 
 
 @pytest.fixture
-def helix_home(tmp_path, monkeypatch: pytest.MonkeyPatch):
+def holix_home(tmp_path, monkeypatch: pytest.MonkeyPatch):
     import cli.core as cli_core
 
-    root = tmp_path / "helix"
+    root = tmp_path / "holix"
     profiles = root / "profiles"
     profiles.mkdir(parents=True)
-    monkeypatch.setenv("HELIX_HOME", str(root))
-    monkeypatch.setattr(cli_core, "HELIX_HOME", root)
+    monkeypatch.setenv("HOLIX_HOME", str(root))
+    monkeypatch.setattr(cli_core, "HOLIX_HOME", root)
     monkeypatch.setattr(cli_core, "PROFILES_DIR", profiles)
     return root
 
 
-def test_approve_create_profile_sends_key(helix_home, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_approve_create_profile_sends_key(holix_home, monkeypatch: pytest.MonkeyPatch) -> None:
     from integrations.telegram.access_requests import register_access_request
     from integrations.telegram.env_store import save_telegram_env
 
     save_telegram_env(
         {
             "TELEGRAM_BOT_TOKEN": "123456789:AAHdqTcvCH1vGWJxfSeofSAs0K5PALDsaw",
-            "HELIX_TELEGRAM_ACCESS_REQUESTS": "true",
+            "HOLIX_TELEGRAM_ACCESS_REQUESTS": "true",
         },
         profile="default",
     )

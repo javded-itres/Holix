@@ -1,15 +1,15 @@
 # Режимы работы (execution modes)
 
-Helix запускает агента через **LangGraph**. **Режим работы** определяет, как граф строит план, вызывает инструменты и запрашивает ваше согласие.
+Holix запускает агента через **LangGraph**. **Режим работы** определяет, как граф строит план, вызывает инструменты и запрашивает ваше согласие.
 
-Режимы доступны в **TUI** (`helix tui`), **Telegram** и **веб-TUI** (`helix tui --web`). Переключение: **`/mode`**, **`/mode <имя>`** или **Shift+Tab** (legacy TUI).
+Режимы доступны в **TUI** (`holix tui`), **Telegram** и **веб-TUI** (`holix tui --web`). Переключение: **`/mode`**, **`/mode <имя>`** или **Shift+Tab** (legacy TUI).
 
 | Режим | Системное имя | Когда использовать |
 |-------|---------------|-------------------|
 | **ReAct** | `react` | Одиночные вопросы, быстрые инструменты, разведка (по умолчанию) |
 | **Plan & Execute** | `plan_and_execute` | Многошаговые задачи с понятными подцелями |
 | **Hybrid** | `hybrid` | Крупные задачи: план + гибкая работа внутри каждого шага |
-| **Auto** | `auto` | Helix сам выбирает один из трёх режимов выше |
+| **Auto** | `auto` | Holix сам выбирает один из трёх режимов выше |
 
 ```text
 /mode react
@@ -88,7 +88,7 @@ flowchart LR
 ```
 
 ```text
-Найди в интернете HelixAgentAi на PyPI и скажи последнюю версию.
+Найди в интернете Holix на PyPI и скажи последнюю версию.
 ```
 
 ```text
@@ -150,12 +150,12 @@ flowchart LR
 ```text
 Онбординг новой машины разработчика:
 1) проверить Python 3.12 и uv
-2) helix doctor
-3) helix models setup с локальным Ollama
+2) holix doctor
+3) holix models setup с локальным Ollama
 4) следующие шаги из START_HERE.md
 ```
 
-**Хороший (короткий — Helix развернёт план сам)**
+**Хороший (короткий — Holix развернёт план сам)**
 
 ```text
 Рефакторинг cli/commands/profile.py: вынести whitelist в модуль, добавить тесты, поведение CLI не менять.
@@ -204,7 +204,7 @@ flowchart LR
 Улучши поиск на сайте документации:
 - разбор build.py и формата search-index
 - предложения по ранжированию
-- реализация и helix docs build
+- реализация и holix docs build
 ```
 
 ```text
@@ -249,7 +249,7 @@ flowchart LR
 **Скорее → ReAct**
 
 ```text
-Что делает HELIX_DOCS_CHAT_ENABLED?
+Что делает HOLIX_DOCS_CHAT_ENABLED?
 ```
 
 ```text
@@ -259,7 +259,7 @@ flowchart LR
 **Скорее → Plan & Execute**
 
 ```text
-Переименуй docs_chat_token в HELIX_DOCS_CHAT_TOKEN в коде и доках, затем прогони тесты.
+Переименуй docs_chat_token в HOLIX_DOCS_CHAT_TOKEN в коде и доках, затем прогони тесты.
 ```
 
 ```text
@@ -269,7 +269,7 @@ flowchart LR
 **Скорее → Hybrid**
 
 ```text
-Изучи, как другие проекты документируют режимы работы, и напиши EXECUTION_MODES.md для Helix с примерами.
+Изучи, как другие проекты документируют режимы работы, и напиши EXECUTION_MODES.md для Holix с примерами.
 ```
 
 ```text

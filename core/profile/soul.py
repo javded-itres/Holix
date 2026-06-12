@@ -1,4 +1,4 @@
-"""Profile-bound agent soul — ``SOUL.md`` in ``~/.helix/profiles/<name>/``."""
+"""Profile-bound agent soul — ``SOUL.md`` in ``~/.holix/profiles/<name>/``."""
 
 from __future__ import annotations
 
@@ -15,7 +15,7 @@ DEFAULT_MAX_CHARS = 12_000
 DEFAULT_SOUL_MD = """# Agent Soul
 
 This file defines who you are across every session. Edit it to shape personality,
-values, and behavior. Helix reloads it on each new session and after context compression.
+values, and behavior. Holix reloads it on each new session and after context compression.
 
 ## Identity
 
@@ -163,7 +163,7 @@ def format_soul_block(profile: str | None = None) -> str:
     name = (profile or "default").strip() or "default"
     return (
         f"## Agent Soul (profiles/{name}/{SOUL_MD_FILENAME})\n"
-        "This is your persistent identity for this Helix profile. "
+        "This is your persistent identity for this Holix profile. "
         "Follow it in every reply; it reloads from disk on new sessions and after compression.\n\n"
         f"{body}"
     )

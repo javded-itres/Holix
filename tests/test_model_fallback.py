@@ -13,8 +13,8 @@ from openai import APIConnectionError
 
 
 @pytest.fixture
-def helix_home(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
-    monkeypatch.setenv("HELIX_HOME", str(tmp_path))
+def holix_home(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
+    monkeypatch.setenv("HOLIX_HOME", str(tmp_path))
     return tmp_path
 
 
@@ -103,7 +103,7 @@ async def test_chat_completions_raises_when_no_fallback() -> None:
             await chat_completions_with_fallback(mm, messages=[])
 
 
-def test_fallback_persisted_in_profile_yaml(helix_home: Path) -> None:
+def test_fallback_persisted_in_profile_yaml(holix_home: Path) -> None:
     manager = ProfileManager()
     cfg = _profile_with_providers()
     manager.create_profile("fb", config=cfg, inherit_global=False)

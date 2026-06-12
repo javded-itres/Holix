@@ -1,4 +1,4 @@
-"""Helix web TUI server with token auth (subclass of textual-serve Server)."""
+"""Holix web TUI server with token auth (subclass of textual-serve Server)."""
 
 from __future__ import annotations
 
@@ -15,7 +15,7 @@ def _textual_serve() -> tuple[type, Any]:
         from textual_serve.server import Server, to_int
     except ImportError as e:
         raise RuntimeError(
-            "Web TUI requires textual-serve. Install with: pip install 'HelixAgentAi[tui-web]'"
+            "Web TUI requires textual-serve. Install with: pip install 'Holix[tui-web]'"
         ) from e
     return Server, to_int
 
@@ -23,7 +23,7 @@ def _textual_serve() -> tuple[type, Any]:
 _Server, to_int = _textual_serve()
 
 
-class HelixWebTuiServer(_Server):
+class HolixWebTuiServer(_Server):
     """textual-serve Server that requires a shared secret on / and /ws."""
 
     def __init__(self, *args, web_token: str, **kwargs) -> None:

@@ -7,13 +7,13 @@ from typing import Any
 
 from langchain_core.runnables import RunnableConfig
 
-from core.graph.state import HelixGraphState, get_agent_from_config
+from core.graph.state import HolixGraphState, get_agent_from_config
 
 logger = logging.getLogger(__name__)
 
 
 async def delegate_subagent_node(
-    state: HelixGraphState,
+    state: HolixGraphState,
     config: RunnableConfig,
 ) -> dict[str, Any]:
     """Spawn a sub-agent for the current plan step when ``subagent_type`` is set.

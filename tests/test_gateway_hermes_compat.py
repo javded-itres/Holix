@@ -9,12 +9,12 @@ def test_capabilities(gateway_client: TestClient, gateway_auth_headers: dict) ->
     response = gateway_client.get("/v1/capabilities", headers=gateway_auth_headers)
     assert response.status_code == 200
     data = response.json()
-    assert data["object"] == "helix.api_server.capabilities"
+    assert data["object"] == "holix.api_server.capabilities"
     assert data["features"]["chat_completions"] is True
     assert data["features"]["responses_api"] is True
     assert data["features"]["jobs_hermes_schema"] is True
     assert data["features"]["multimodal_input"] is True
-    assert data["session_id_header"] == "X-Helix-Session-Id"
+    assert data["session_id_header"] == "X-Holix-Session-Id"
 
 
 def test_toolsets(gateway_client: TestClient, gateway_auth_headers: dict) -> None:

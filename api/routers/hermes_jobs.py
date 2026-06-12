@@ -32,13 +32,13 @@ def _store_fields(fields: dict) -> dict:
 
 
 def _job_profile(
-    x_helix_profile: str | None,
+    x_holix_profile: str | None,
     x_hermes_profile: str | None,
 ) -> str:
     from api.deps import _header_alias
 
     return resolve_profile_name(
-        header_profile=_header_alias(x_helix_profile, x_hermes_profile),
+        header_profile=_header_alias(x_holix_profile, x_hermes_profile),
         model=None,
         host_profile=state.host_profile or "default",
     )
@@ -47,10 +47,10 @@ def _job_profile(
 @router.get("")
 async def list_jobs(
     key_info: dict = Depends(verify_api_key),
-    x_helix_profile: str | None = Header(None),
+    x_holix_profile: str | None = Header(None),
     x_hermes_profile: str | None = Header(None),
 ):
-    profile = _job_profile(x_helix_profile, x_hermes_profile)
+    profile = _job_profile(x_holix_profile, x_hermes_profile)
     jobs = CronStore(profile).list_jobs()
     return {"jobs": [job_to_api_dict(j) for j in jobs], "count": len(jobs)}
 
@@ -59,10 +59,10 @@ async def list_jobs(
 async def create_job(
     body: JobCreateRequest,
     key_info: dict = Depends(verify_api_key),
-    x_helix_profile: str | None = Header(None),
+    x_holix_profile: str | None = Header(None),
     x_hermes_profile: str | None = Header(None),
 ):
-    profile = _job_profile(x_helix_profile, x_hermes_profile)
+    profile = _job_profile(x_holix_profile, x_hermes_profile)
     try:
         fields = normalize_job_fields(
             body.model_dump(exclude_none=True),
@@ -79,10 +79,10 @@ async def create_job(
 async def get_job(
     job_id: str,
     key_info: dict = Depends(verify_api_key),
-    x_helix_profile: str | None = Header(None),
+    x_holix_profile: str | None = Header(None),
     x_hermes_profile: str | None = Header(None),
 ):
-    profile = _job_profile(x_helix_profile, x_hermes_profile)
+    profile = _job_profile(x_holix_profile, x_hermes_profile)
     job = CronStore(profile).get(job_id)
     if job is None:
         raise HTTPException(status_code=404, detail="Job not found")
@@ -94,10 +94,10 @@ async def patch_job(
     job_id: str,
     body: JobPatchRequest,
     key_info: dict = Depends(verify_api_key),
-    x_helix_profile: str | None = Header(None),
+    x_holix_profile: str | None = Header(None),
     x_hermes_profile: str | None = Header(None),
 ):
-    profile = _job_profile(x_helix_profile, x_hermes_profile)
+    profile = _job_profile(x_holix_profile, x_hermes_profile)
     store = CronStore(profile)
     job = store.get(job_id)
     if job is None:
@@ -124,10 +124,10 @@ async def patch_job(
 async def delete_job(
     job_id: str,
     key_info: dict = Depends(verify_api_key),
-    x_helix_profile: str | None = Header(None),
+    x_holix_profile: str | None = Header(None),
     x_hermes_profile: str | None = Header(None),
 ):
-    profile = _job_profile(x_helix_profile, x_hermes_profile)
+    profile = _job_profile(x_holix_profile, x_hermes_profile)
     store = CronStore(profile)
     active_runs.cancel(job_id)
     job = store.get(job_id)
@@ -144,10 +144,10 @@ async def delete_job(
 async def pause_job(
     job_id: str,
     key_info: dict = Depends(verify_api_key),
-    x_helix_profile: str | None = Header(None),
+    x_holix_profile: str | None = Header(None),
     x_hermes_profile: str | None = Header(None),
 ):
-    profile = _job_profile(x_helix_profile, x_hermes_profile)
+    profile = _job_profile(x_holix_profile, x_hermes_profile)
     try:
         job = CronStore(profile).set_enabled(job_id, False)
     except KeyError:
@@ -159,10 +159,10 @@ async def pause_job(
 async def resume_job(
     job_id: str,
     key_info: dict = Depends(verify_api_key),
-    x_helix_profile: str | None = Header(None),
+    x_holix_profile: str | None = Header(None),
     x_hermes_profile: str | None = Header(None),
 ):
-    profile = _job_profile(x_helix_profile, x_hermes_profile)
+    profile = _job_profile(x_holix_profile, x_hermes_profile)
     try:
         job = CronStore(profile).set_enabled(job_id, True)
     except KeyError:
@@ -174,10 +174,10 @@ async def resume_job(
 async def run_job_now(
     job_id: str,
     key_info: dict = Depends(verify_api_key),
-    x_helix_profile: str | None = Header(None),
+    x_holix_profile: str | None = Header(None),
     x_hermes_profile: str | None = Header(None),
 ):
-    profile = _job_profile(x_helix_profile, x_hermes_profile)
+    profile = _job_profile(x_holix_profile, x_hermes_profile)
     store = CronStore(profile)
     job = store.get(job_id)
     if job is None:

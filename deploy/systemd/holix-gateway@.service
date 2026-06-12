@@ -1,0 +1,23 @@
+[Unit]
+Description=Holix API Gateway (profile %i)
+Documentation=https://github.com/javded-itres/Holix/blob/master/docs/en/DEPLOYMENT.md
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=helix
+Group=helix
+WorkingDirectory=/home/helix
+Environment=HOME=/home/helix
+Environment=HOLIX_HOME=/home/helix/.holix
+EnvironmentFile=-/etc/holix/holix.conf
+# Secrets and gateway bind: ~/.holix/profiles/%i/.env (loaded by gateway_worker)
+ExecStart=${HOLIX_PYTHON} -m cli.services.gateway_worker --profile %i
+ExecStop=${HOLIX_BIN} -p %i gateway stop
+Restart=on-failure
+RestartSec=5
+TimeoutStopSec=30
+
+[Install]
+WantedBy=multi-user.target

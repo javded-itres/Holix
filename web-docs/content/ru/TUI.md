@@ -1,22 +1,22 @@
 # TUI
 
 ```bash
-helix tui
-helix tui -p myprofile
+holix tui
+holix tui -p myprofile
 
 # В браузере (textual-serve; сессия на вкладку; нужен token)
 uv sync --extra tui-web
-helix tui --web
+holix tui --web
 # URL http://127.0.0.1:8787/?token=... (если --token не задан — токен в консоли)
 
 # LAN (полный доступ к агенту — задайте надёжный token)
-helix tui --web --allow-lan --host 0.0.0.0 --port 8787 --token "$(openssl rand -hex 32)"
-export HELIX_TUI_WEB_TOKEN="..."   # вместо --token
+holix tui --web --allow-lan --host 0.0.0.0 --port 8787 --token "$(openssl rand -hex 32)"
+export HOLIX_TUI_WEB_TOKEN="..."   # вместо --token
 ```
 
 По умолчанию: **code-style** UI (`cli/tui/code/`).
 
-Legacy dashboard: `HELIX_TUI_LEGACY=1 helix tui`
+Legacy dashboard: `HOLIX_TUI_LEGACY=1 holix tui`
 
 ## Копирование
 

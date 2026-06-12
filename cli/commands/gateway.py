@@ -16,7 +16,7 @@ from cli.utils.rich_console import print_error
 from config import settings
 
 app = typer.Typer(
-    help="Manage Helix API gateway and companion services (Telegram, …)",
+    help="Manage Holix API gateway and companion services (Telegram, …)",
     no_args_is_help=True,
 )
 
@@ -54,7 +54,7 @@ def gateway_start(
     with_docs: bool = typer.Option(
         False,
         "--with-docs",
-        help="Also serve the documentation site (or set HELIX_GATEWAY_WITH_DOCS=1)",
+        help="Also serve the documentation site (or set HOLIX_GATEWAY_WITH_DOCS=1)",
     ),
     docs_host: str = typer.Option(None, "--docs-host", help="Docs bind address"),
     docs_port: int = typer.Option(None, "--docs-port", help="Docs HTTP port"),
@@ -62,24 +62,24 @@ def gateway_start(
     """Start gateway and companion services in the background.
 
     Example:
-        helix gateway start
-        helix gateway start --port 8000 --profile work
-        helix gateway start --with-docs --docs-port 8080
-        helix gateway start -f   # foreground, blocks terminal
+        holix gateway start
+        holix gateway start --port 8000 --profile work
+        holix gateway start --with-docs --docs-port 8080
+        holix gateway start -f   # foreground, blocks terminal
     """
     try:
-        resolved_host = host or os.getenv("HELIX_GATEWAY_HOST", settings.gateway_host)
+        resolved_host = host or os.getenv("HOLIX_GATEWAY_HOST", settings.gateway_host)
         resolved_port = port if port is not None else _env_int(
-            "HELIX_GATEWAY_PORT", settings.gateway_port
+            "HOLIX_GATEWAY_PORT", settings.gateway_port
         )
-        resolved_with_docs = with_docs or _env_bool("HELIX_GATEWAY_WITH_DOCS") or _env_bool(
-            "HELIX_GATEWAY_DOCS"
+        resolved_with_docs = with_docs or _env_bool("HOLIX_GATEWAY_WITH_DOCS") or _env_bool(
+            "HOLIX_GATEWAY_DOCS"
         )
-        resolved_docs_host = docs_host or os.getenv("HELIX_DOCS_HOST", settings.docs_host)
+        resolved_docs_host = docs_host or os.getenv("HOLIX_DOCS_HOST", settings.docs_host)
         resolved_docs_port = (
             docs_port
             if docs_port is not None
-            else _env_int("HELIX_DOCS_PORT", settings.docs_port)
+            else _env_int("HOLIX_DOCS_PORT", settings.docs_port)
         )
         start_gateway_daemon(
             resolved_host,
@@ -136,8 +136,8 @@ def gateway_configure(
     """Interactively configure gateway host, port, auth, and docs companion.
 
     Example:
-        helix gateway configure
-        helix -p alice gateway configure --start
+        holix gateway configure
+        holix -p alice gateway configure --start
     """
     from cli.commands.gateway_configure import run_gateway_configure
 

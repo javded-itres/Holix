@@ -10,13 +10,13 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from core.platform_compat import resolve_helix_home
+from core.platform_compat import resolve_holix_home
 
 _MAX_STORED = 100
 
 
 def _db_path() -> Path:
-    path = resolve_helix_home() / "gateway" / "responses.db"
+    path = resolve_holix_home() / "gateway" / "responses.db"
     path.parent.mkdir(parents=True, exist_ok=True)
     return path
 

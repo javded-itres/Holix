@@ -27,14 +27,14 @@ def _sessions_store():
 
 
 def _profile(
-    x_helix_profile: str | None,
+    x_holix_profile: str | None,
     x_hermes_profile: str | None,
     body_profile: str | None = None,
 ) -> str:
     from api.deps import _header_alias
 
     return resolve_profile_name(
-        header_profile=_header_alias(x_helix_profile, x_hermes_profile) or body_profile,
+        header_profile=_header_alias(x_holix_profile, x_hermes_profile) or body_profile,
         model=None,
         host_profile=state.host_profile or "default",
     )
@@ -47,11 +47,11 @@ async def list_sessions(
     source: str = "all",
     include_children: bool = True,
     key_info: dict = Depends(verify_api_key),
-    x_helix_profile: str | None = Header(None),
+    x_holix_profile: str | None = Header(None),
     x_hermes_profile: str | None = Header(None),
 ):
     store = _sessions_store()
-    profile = _profile(x_helix_profile, x_hermes_profile)
+    profile = _profile(x_holix_profile, x_hermes_profile)
     sessions = store.list(
         profile=profile,
         limit=limit,
@@ -66,11 +66,11 @@ async def list_sessions(
 async def create_session(
     body: SessionCreateRequest,
     key_info: dict = Depends(verify_api_key),
-    x_helix_profile: str | None = Header(None),
+    x_holix_profile: str | None = Header(None),
     x_hermes_profile: str | None = Header(None),
 ):
     store = _sessions_store()
-    profile = _profile(x_helix_profile, x_hermes_profile, body.profile)
+    profile = _profile(x_holix_profile, x_hermes_profile, body.profile)
     session = store.create(profile=profile, title=body.title, source=body.source or "api")
     return session.to_dict()
 

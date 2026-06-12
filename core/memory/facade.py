@@ -1,4 +1,4 @@
-"""Unified memory facade for HelixAgent."""
+"""Unified memory facade for HolixAgent."""
 
 from __future__ import annotations
 
@@ -6,7 +6,7 @@ from typing import Any
 
 from openai import AsyncOpenAI
 
-from core.di.runtime_config import HelixRuntimeConfig
+from core.di.runtime_config import HolixRuntimeConfig
 from core.memory.conversation import ConversationStore
 from core.memory.ltm import LongTermMemoryStore
 from core.memory.summarizer import ConversationSummarizer
@@ -19,8 +19,8 @@ class MemoryFacade:
     Exposes the legacy API used across the agent, graph nodes, and CLI.
     """
 
-    def __init__(self, config: HelixRuntimeConfig | None = None):
-        self.config = config or HelixRuntimeConfig.from_settings()
+    def __init__(self, config: HolixRuntimeConfig | None = None):
+        self.config = config or HolixRuntimeConfig.from_settings()
         self.conversations = ConversationStore(self.config)
         self._ltm: LongTermMemoryStore | None = None
         if self.config.enable_long_term_memory:

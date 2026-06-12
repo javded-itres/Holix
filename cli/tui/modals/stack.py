@@ -1,4 +1,4 @@
-"""Unified modal / overlay coordinator for Helix TUI."""
+"""Unified modal / overlay coordinator for Holix TUI."""
 
 from __future__ import annotations
 

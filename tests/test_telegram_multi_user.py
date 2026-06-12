@@ -3,38 +3,38 @@
 from __future__ import annotations
 
 import pytest
-from integrations.telegram.bot import HelixTelegramBot
+from integrations.telegram.bot import HolixTelegramBot
 from integrations.telegram.config import TelegramSettings
 from integrations.telegram.user_profiles import set_user_profile
 
 
 @pytest.fixture
-def helix_home(tmp_path, monkeypatch: pytest.MonkeyPatch):
+def holix_home(tmp_path, monkeypatch: pytest.MonkeyPatch):
     import cli.core as cli_core
 
-    root = tmp_path / "helix"
+    root = tmp_path / "holix"
     profiles = root / "profiles"
     profiles.mkdir(parents=True)
-    monkeypatch.setenv("HELIX_HOME", str(root))
-    monkeypatch.setattr(cli_core, "HELIX_HOME", root)
+    monkeypatch.setenv("HOLIX_HOME", str(root))
+    monkeypatch.setattr(cli_core, "HOLIX_HOME", root)
     monkeypatch.setattr(cli_core, "PROFILES_DIR", profiles)
     return root
 
 
-def test_allowed_via_profile_mapping_without_allowlist_env(helix_home) -> None:
+def test_allowed_via_profile_mapping_without_allowlist_env(holix_home) -> None:
     from integrations.telegram.env_store import save_telegram_env
 
     save_telegram_env(
         {
             "TELEGRAM_BOT_TOKEN": "1:abc",
-            "HELIX_TELEGRAM_ACCESS_REQUESTS": "true",
+            "HOLIX_TELEGRAM_ACCESS_REQUESTS": "true",
         },
         profile="shared",
     )
     set_user_profile("shared", 1001, "alice")
     set_user_profile("shared", 1002, "bob")
 
-    bot = HelixTelegramBot(
+    bot = HolixTelegramBot(
         TelegramSettings(
             bot_token="1:abc",
             profile="shared",
@@ -46,17 +46,17 @@ def test_allowed_via_profile_mapping_without_allowlist_env(helix_home) -> None:
     assert not bot._allowed(9999)
 
 
-def test_allowed_hot_reload_after_cli_approve(helix_home) -> None:
+def test_allowed_hot_reload_after_cli_approve(holix_home) -> None:
     from integrations.telegram.env_store import save_telegram_env
 
     save_telegram_env(
         {
             "TELEGRAM_BOT_TOKEN": "1:abc",
-            "HELIX_TELEGRAM_ACCESS_REQUESTS": "true",
+            "HOLIX_TELEGRAM_ACCESS_REQUESTS": "true",
         },
         profile="shared",
     )
-    bot = HelixTelegramBot(
+    bot = HolixTelegramBot(
         TelegramSettings(
             bot_token="1:abc",
             profile="shared",
@@ -70,14 +70,14 @@ def test_allowed_hot_reload_after_cli_approve(helix_home) -> None:
 
 
 @pytest.mark.asyncio
-async def test_sessions_isolated_per_chat(helix_home, monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_sessions_isolated_per_chat(holix_home, monkeypatch: pytest.MonkeyPatch) -> None:
     from integrations.telegram.env_store import save_telegram_env
 
     save_telegram_env({"TELEGRAM_BOT_TOKEN": "1:abc"}, profile="shared")
     set_user_profile("shared", 10, "alice")
     set_user_profile("shared", 20, "bob")
 
-    bot = HelixTelegramBot(
+    bot = HolixTelegramBot(
         TelegramSettings(
             bot_token="1:abc",
             allowed_user_ids="10,20",
@@ -109,7 +109,7 @@ async def test_sessions_isolated_per_chat(helix_home, monkeypatch: pytest.Monkey
 
 
 @pytest.mark.asyncio
-async def test_many_users_session_map_scales(helix_home, monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_many_users_session_map_scales(holix_home, monkeypatch: pytest.MonkeyPatch) -> None:
     from integrations.telegram.env_store import save_telegram_env
 
     save_telegram_env({"TELEGRAM_BOT_TOKEN": "1:abc"}, profile="shared")
@@ -117,7 +117,7 @@ async def test_many_users_session_map_scales(helix_home, monkeypatch: pytest.Mon
     for uid in range(1, user_count + 1):
         set_user_profile("shared", uid, f"user{uid}")
 
-    bot = HelixTelegramBot(
+    bot = HolixTelegramBot(
         TelegramSettings(bot_token="1:abc", profile="shared", access_requests=True)
     )
     from unittest.mock import AsyncMock

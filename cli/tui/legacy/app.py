@@ -1,7 +1,7 @@
 """
-Minimal Textual TUI for Helix (Phase 1 PoC + Phase 2 polish)
+Minimal Textual TUI for Holix (Phase 1 PoC + Phase 2 polish)
 
-Command: helix tui
+Command: holix tui
 
 Essential widgets:
 - Header + status
@@ -9,10 +9,10 @@ Essential widgets:
 - TextArea (multiline input with Shift+Enter support)
 - Sidebar with Collapsible sections (Tools, Memory, Sessions, Skills, Profiles)
 - Command Palette (Ctrl+P) with categories + dynamic contextual actions
-- Density modes + persistence (~/.helix/tui-state.json)
+- Density modes + persistence (~/.holix/tui-state.json)
 
 Keyboard-first, macOS-friendly scroll/focus, full power-user features via / and Ctrl+P.
-Integrates with HelixAgent + AgentEvent system (single source of truth in core/agent_execution.py).
+Integrates with HolixAgent + AgentEvent system (single source of truth in core/agent_execution.py).
 """
 
 from __future__ import annotations
@@ -24,11 +24,11 @@ from datetime import UTC
 from pathlib import Path
 from typing import Any
 
-from cli.core import HELIX_HOME, ProfileConfig, ProfileManager, init_profile
+from cli.core import HOLIX_HOME, ProfileConfig, ProfileManager, init_profile
 from cli.tui.legacy.handlers import AgentEventHandler, SlashCommandHandler
-from cli.tui.legacy.widgets import HELIX_TUI_CSS, HelixChatLog, HelixMainContent, HelixSidebar
+from cli.tui.legacy.widgets import HOLIX_TUI_CSS, HolixChatLog, HolixMainContent, HolixSidebar
 from cli.tui.modals import ModalStack
-from core.agent import HelixAgent
+from core.agent import HolixAgent
 from core.agent_events import AgentEvent
 from core.plan_review.review_events import PlanReviewRequestEvent
 from core.security.confirmation import ConfirmationChoice
@@ -71,8 +71,8 @@ class ExecutePaletteCommand(Message):
         super().__init__()
 
 
-class HelixCommandProvider(Provider):
-    """Provides commands for the Helix TUI command palette (Phase 2).
+class HolixCommandProvider(Provider):
+    """Provides commands for the Holix TUI command palette (Phase 2).
 
     Commands are organized into logical categories using ▸ prefixes for easy
     discovery (Session, Memory, Tools, Profile, Navigation, Customize, System).
@@ -88,7 +88,7 @@ class HelixCommandProvider(Provider):
         super().__init__(screen, match_style)
 
     @property
-    def app(self) -> HelixTUI:
+    def app(self) -> HolixTUI:
         """Convenience property so the rest of the provider can keep using self.app."""
         return self.screen.app  # type: ignore[attr-defined]
 
@@ -169,12 +169,12 @@ class HelixCommandProvider(Provider):
             ("Tools ▸ Show Last Tool Result", self.app.action_show_last_tool_result, "Display full output of the last tool call"),
             ("Tools ▸ Copy Last Tool Result", self.app.action_copy_last_tool_result, "Copy full last tool output to clipboard (works in most terminals)"),
             ("Tools ▸ List Recent Tools", self.app._list_recent_tools, "List recent tool calls with previews"),
-            ("Tools ▸ Copy Last Assistant Response", self.app.action_copy_last_assistant, "Copy the most recent Helix reply to clipboard"),
-            ("Context ▸ Insert Last Assistant Response", self.app.action_insert_last_assistant, "Insert the last Helix reply into input as context (great for follow-ups)"),
+            ("Tools ▸ Copy Last Assistant Response", self.app.action_copy_last_assistant, "Copy the most recent Holix reply to clipboard"),
+            ("Context ▸ Insert Last Assistant Response", self.app.action_insert_last_assistant, "Insert the last Holix reply into input as context (great for follow-ups)"),
             ("Skills ▸ Browse Skills", self.app.action_show_skills, "Show available agent skills"),
 
             # Profile & Navigation
-            ("Profile ▸ Switch Profile", self.app.action_switch_profile, "Change active Helix profile"),
+            ("Profile ▸ Switch Profile", self.app.action_switch_profile, "Change active Holix profile"),
             ("Navigation ▸ Toggle Sidebar", self.app.action_toggle_sidebar, "Show or hide the sidebar"),
             ("Navigation ▸ Jump to Bottom", self.app.action_jump_to_bottom, "Scroll chat to bottom and re-enable auto-scroll"),
 
@@ -254,10 +254,10 @@ class HelixCommandProvider(Provider):
             # Check if there's at least one assistant message
             has_assistant = any(m.get("role") == "assistant" for m in self.app._recent_memories)
             if has_assistant:
-                label = "Insert last Helix response as context"
+                label = "Insert last Holix response as context"
                 help_text = "Insert the most recent assistant reply into the input for follow-up"
-                match = matcher.match(label) or matcher.match("assistant") or matcher.match("helix")
-                if not match and any(k in qlower for k in ("insert", "last", "context", "assistant", "helix", "response")):
+                match = matcher.match(label) or matcher.match("assistant") or matcher.match("holix")
+                if not match and any(k in qlower for k in ("insert", "last", "context", "assistant", "holix", "response")):
                     match = 58
                 if match:
                     cb = self._wrap_callback(self._make_insert_last_assistant_cb())
@@ -316,7 +316,7 @@ class HelixCommandProvider(Provider):
                 has_assistant = any(m.get("role") == "assistant" for m in self.app._recent_memories)
                 if has_assistant:
                     recent_actions.append((
-                        "Insert last Helix response as context",
+                        "Insert last Holix response as context",
                         "Add previous assistant output into input",
                         lambda: self.app.action_insert_last_assistant()
                     ))
@@ -449,7 +449,7 @@ class HelixCommandProvider(Provider):
         return _cb
 
     def _make_insert_last_assistant_cb(self):
-        """Factory for the dynamic 'Insert last Helix response' palette hit."""
+        """Factory for the dynamic 'Insert last Holix response' palette hit."""
         def _cb() -> None:
             try:
                 self.app._append_to_log("[dim]→ Dynamic last-assistant insert running[/dim]")
@@ -527,8 +527,8 @@ class HelixCommandProvider(Provider):
         return _cb
 
 
-class HelixTUI(App):
-    """Minimal Helix TUI application."""
+class HolixTUI(App):
+    """Minimal Holix TUI application."""
 
     ENABLE_MOUSE_SUPPORT = True
 
@@ -571,7 +571,7 @@ class HelixTUI(App):
             # The most important thing is that the app stays alive.
             pass
 
-    CSS = HELIX_TUI_CSS
+    CSS = HOLIX_TUI_CSS
 
     BINDINGS = [
         Binding("ctrl+c", "quit", "Quit", show=True),
@@ -610,7 +610,7 @@ class HelixTUI(App):
         self.profile = profile
         self.config = config or init_profile(profile)
         self.profile_manager = ProfileManager()
-        self.agent: HelixAgent | None = None
+        self.agent: HolixAgent | None = None
         self._event_handler = AgentEventHandler(self)
         self._slash_handler = SlashCommandHandler(self)
         self._modals = ModalStack(self)
@@ -687,7 +687,7 @@ class HelixTUI(App):
         self.density: str = "normal"  # compact | normal | comfortable
 
         # Phase 2: Persisted UI state (density + which Collapsible sections are closed)
-        # Loaded on mount, saved on change via _persist_ui_state ( ~/.helix/tui-state.json )
+        # Loaded on mount, saved on change via _persist_ui_state ( ~/.holix/tui-state.json )
         self._persisted_ui: dict = {}
 
         # Execution mode state (shift+tab cycling)
@@ -726,11 +726,11 @@ class HelixTUI(App):
             ("/reset-ui", "Reset saved density and sidebar section collapse preferences"),
             ("/regenerate", "Regenerate response for your last message"),
             ("/session-info", "Show quick stats for the current session"),
-            ("/insert-assistant", "Insert last Helix response as context"),
+            ("/insert-assistant", "Insert last Holix response as context"),
             ("/insert-tool", "Insert last tool result as context"),
             ("/edit-last", "Edit your last message and resend it"),
             ("/compress", "Compress conversation context to free up context window"),
-            ("/init", "Deep project analysis → .helix/HELIX.md"),
+            ("/init", "Deep project analysis → .holix/HOLIX.md"),
             ("/cron", "Cron jobs: list / add / enable / disable / remove"),
             ("/cron list", "List scheduled cron jobs"),
             ("/models", "Switch LLM model at runtime"),
@@ -755,17 +755,17 @@ class HelixTUI(App):
 
     def compose(self) -> ComposeResult:
         yield Header(show_clock=True)
-        yield HelixSidebar(profile=self.profile, model=self.config.model)
-        yield HelixMainContent()
+        yield HolixSidebar(profile=self.profile, model=self.config.model)
+        yield HolixMainContent()
         yield Footer()
 
     async def on_mount(self) -> None:
         """Initialize agent and welcome message when app starts."""
         try:
-            self.title = "Helix"
+            self.title = "Holix"
             # sub_title will be immediately overwritten by _refresh_header_subtitle() with rich info
 
-            self._append_to_log("[bold cyan]Helix[/bold cyan] — ready\n")
+            self._append_to_log("[bold cyan]Holix[/bold cyan] — ready\n")
             self._append_to_log("[dim]Enter = send  •  Shift+Enter = newline  •  Ctrl+P = command palette (recommended)  •  Ctrl+B = sidebar[/dim]\n")
             self._append_to_log("[dim]Ctrl+↑/↓ scroll  •  /help or F1  •  density: compact/normal/comfort  •  sessions & profiles fully supported[/dim]\n\n")
 
@@ -790,7 +790,7 @@ class HelixTUI(App):
     async def _initialize_agent(self) -> None:
         chat_log = self._chat_log()
 
-        self._append_to_log("[yellow]Initializing Helix agent...[/yellow]\n")
+        self._append_to_log("[yellow]Initializing Holix agent...[/yellow]\n")
         self._set_status("Initializing...", "yellow")
 
         from core.di import resolve_runtime_config
@@ -824,7 +824,7 @@ class HelixTUI(App):
             self._resolved_model = "—"
             return
 
-        self.agent = HelixAgent(config=runtime_config)
+        self.agent = HolixAgent(config=runtime_config)
         self._resolved_model = runtime_config.model
 
         # Subscribe to all events for reactive UI updates
@@ -940,7 +940,7 @@ class HelixTUI(App):
                 if role == "user":
                     self._append_to_log(f"[bold blue]You:[/bold blue] {content}\n")
                 elif role == "assistant":
-                    self._append_to_log(f"[bold green]Helix:[/bold green] {content}\n")
+                    self._append_to_log(f"[bold green]Holix:[/bold green] {content}\n")
                 elif role == "tool":
                     self._append_to_log(f"[yellow]Tool result:[/yellow] {content[:150]}...\n")
             self._append_to_log("[dim]--- End of history ---[/dim]\n\n")
@@ -1011,9 +1011,9 @@ class HelixTUI(App):
         execution_mode = self._execution_modes[self._execution_mode_index]
 
         try:
-            from core.runtime.executor import run_helix
+            from core.runtime.executor import run_holix
 
-            async for event in run_helix(
+            async for event in run_holix(
                 self.agent,
                 user_input,
                 self.conversation_id,
@@ -1659,7 +1659,7 @@ class HelixTUI(App):
             pass
 
     def action_copy_last_assistant(self) -> None:
-        """Copy the last assistant (Helix) response to clipboard via Textual (works in most modern terminals)."""
+        """Copy the last assistant (Holix) response to clipboard via Textual (works in most modern terminals)."""
         try:
             if not self._recent_memories:
                 self._append_to_log("[yellow]No assistant responses yet in this session.[/yellow]")
@@ -1671,7 +1671,7 @@ class HelixTUI(App):
                     content = mem.get("content", "")
                     self.app.copy_to_clipboard(content)
                     content[:80].replace("\n", " ")
-                    self._append_to_log(f"[dim]Last Helix response copied ({len(content)} chars).[/dim]")
+                    self._append_to_log(f"[dim]Last Holix response copied ({len(content)} chars).[/dim]")
                     return
 
             self._append_to_log("[yellow]No assistant response found yet.[/yellow]")
@@ -1735,8 +1735,8 @@ class HelixTUI(App):
 
     def _get_tui_state_path(self) -> Path:
         """Return path to persisted TUI prefs."""
-        HELIX_HOME.mkdir(parents=True, exist_ok=True)
-        return HELIX_HOME / "tui-state.json"
+        HOLIX_HOME.mkdir(parents=True, exist_ok=True)
+        return HOLIX_HOME / "tui-state.json"
 
     def _load_persisted_ui_state(self) -> dict:
         """Load saved density / collapsed sections. Safe on any error."""
@@ -1857,9 +1857,9 @@ class HelixTUI(App):
         if event.text_area.id == "input-area":
             self._on_input_text_changed(event.text_area.text)
 
-    def _chat_log(self) -> HelixChatLog | None:
+    def _chat_log(self) -> HolixChatLog | None:
         try:
-            return self.query_one(HelixChatLog)
+            return self.query_one(HolixChatLog)
         except Exception:
             return None
 
@@ -1928,7 +1928,7 @@ class HelixTUI(App):
             pass
 
     def action_insert_last_assistant(self) -> None:
-        """Insert the most recent assistant (Helix) response as context into the input field.
+        """Insert the most recent assistant (Holix) response as context into the input field.
         Extremely useful for iterative refinement in long conversations.
         """
         try:
@@ -1948,13 +1948,13 @@ class HelixTUI(App):
                 return
 
             input_area = self.query_one("#input-area", TextArea)
-            context = f"\n[Previous Helix response]:\n{last_assistant['content']}\n"
+            context = f"\n[Previous Holix response]:\n{last_assistant['content']}\n"
             current = input_area.text or ""
             input_area.text = (current.rstrip() + context).lstrip()
             lines = input_area.text.splitlines()
             input_area.cursor_location = (len(lines) - 1, 0)
             input_area.focus()
-            self._append_to_log("[dim]Last Helix response inserted as context.[/dim]")
+            self._append_to_log("[dim]Last Holix response inserted as context.[/dim]")
         except Exception as e:
             try:
                 self._append_to_log(f"[red]Insert failed: {e}[/red]")
@@ -2178,7 +2178,7 @@ class HelixTUI(App):
 
     def action_command_palette(self) -> None:
         """Open the real Textual Command Palette (Phase 2)."""
-        self.push_screen(CommandPalette(providers=[HelixCommandProvider]))
+        self.push_screen(CommandPalette(providers=[HolixCommandProvider]))
         # Ensure input gets focus back after palette closes (best effort)
         self.set_timer(0.2, self._restore_input_focus)
 
@@ -2276,13 +2276,13 @@ class HelixTUI(App):
         """Show help in the chat log."""
         try:
             self._chat_log()
-            self._append_to_log("\n[bold cyan]Helix TUI — Phase 2 (polished)[/bold cyan]")
+            self._append_to_log("\n[bold cyan]Holix TUI — Phase 2 (polished)[/bold cyan]")
             self._append_to_log("[dim]Header always shows: profile • model • session [density]  (even with sidebar closed)[/dim]")
             self._append_to_log("[dim]Strong keyboard focus on input + all sidebar lists • Better contrast in compact mode[/dim]\n")
 
             self._append_to_log("[bold]Recent power-user features (Ctrl+P is fastest):[/bold]")
             self._append_to_log("  Regenerate last response     — Re-run the agent on your previous message")
-            self._append_to_log("  Insert last Helix response   — Add previous assistant output as context")
+            self._append_to_log("  Insert last Holix response   — Add previous assistant output as context")
             self._append_to_log("  Copy last assistant / tool   — Copy full content via clipboard protocol")
             self._append_to_log("  Session ▸ Show Current Info  — Quick stats (messages, tools in view)\n")
 
@@ -2463,7 +2463,7 @@ class HelixTUI(App):
     @staticmethod
     def _is_chat_at_bottom(chat_log: RichLog) -> bool:
         """Check if the chat log is scrolled to (or very near) the bottom."""
-        return HelixChatLog.is_at_bottom(chat_log)
+        return HolixChatLog.is_at_bottom(chat_log)
 
     def _on_chat_log_scrolled(self, scroll_y: float | None) -> None:
         """React to any scroll change on the chat log (mouse, trackpad, keyboard, etc.).
@@ -2814,7 +2814,7 @@ class HelixTUI(App):
             for msg in history:
                 role = msg.get("role", "?")
                 content = str(msg.get("content", ""))[:120].replace("\n", " ")
-                marker = {"user": "You", "assistant": "Helix", "tool": "Tool"}.get(role, role)
+                marker = {"user": "You", "assistant": "Holix", "tool": "Tool"}.get(role, role)
                 self._append_to_log(f"  [dim]{marker}:[/dim] {content}...")
             self._append_to_log("[dim]Use full agent memory for deeper inspection.[/dim]\n")
         except Exception as e:
@@ -3216,7 +3216,7 @@ class HelixTUI(App):
             except Exception:
                 pass
 
-            new_agent = HelixAgent(config=runtime_config)
+            new_agent = HolixAgent(config=runtime_config)
             resolved_model = runtime_config.model
 
             # Initialize new agent
@@ -4006,9 +4006,9 @@ class HelixTUI(App):
 
 
 def run_tui_legacy(profile: str = "default") -> None:
-    """Launch the legacy dashboard TUI (HELIX_TUI_LEGACY=1)."""
+    """Launch the legacy dashboard TUI (HOLIX_TUI_LEGACY=1)."""
     config = init_profile(profile)
-    app = HelixTUI(profile=profile, config=config)
+    app = HolixTUI(profile=profile, config=config)
     app.run()
 
 

@@ -62,7 +62,7 @@ SEARCH_STOPWORDS = frozenset(
 )
 
 SLUG_KEYWORDS: dict[str, list[str]] = {
-    "readme": ["overview", "обзор", "helix", "документация"],
+    "readme": ["overview", "обзор", "holix", "документация"],
     "installation": ["install", "установка", "pipx", "pypi", "uv", "docker"],
     "start-here": ["start", "первый", "запуск", "checklist"],
     "quickstart": ["quick", "быстрый", "старт"],

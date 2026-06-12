@@ -1,5 +1,5 @@
 """
-Semantic Memory Store for Helix Long-term Memory.
+Semantic Memory Store for Holix Long-term Memory.
 
 Stores facts, concepts, and learned knowledge as key-value entries
 with rich metadata. This is the "knowledge base" layer — structured

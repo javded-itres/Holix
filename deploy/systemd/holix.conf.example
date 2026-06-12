@@ -1,0 +1,13 @@
+# Copy to /etc/holix/holix.conf and adjust paths for your install.
+# API keys, gateway port, Telegram — in ~/.holix/profiles/<name>/.env, not here.
+
+# Python from pipx venv (pipx install Holix):
+HOLIX_PYTHON=/home/holix/.local/share/pipx/venvs/holix/bin/python
+HOLIX_BIN=/home/holix/.local/bin/helix
+
+# Or from a source checkout with uv:
+# HOLIX_PYTHON=/opt/helix/.venv/bin/python
+# HOLIX_BIN=/opt/helix/.venv/bin/helix
+
+# Optional: override data directory (default: ~/.holix)
+# HOLIX_HOME=/home/holix/.holix

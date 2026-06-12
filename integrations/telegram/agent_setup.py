@@ -1,12 +1,12 @@
-"""Initialize HelixAgent for Telegram sessions."""
+"""Initialize HolixAgent for Telegram sessions."""
 
 from __future__ import annotations
 
 from cli.core import ProfileConfig, init_profile
-from core.agent import HelixAgent
+from core.agent import HolixAgent
 
 
-async def create_agent(profile: str, config: ProfileConfig | None = None) -> HelixAgent:
+async def create_agent(profile: str, config: ProfileConfig | None = None) -> HolixAgent:
     config = config or init_profile(profile)
     from core.di import resolve_runtime_config
 
@@ -25,6 +25,6 @@ async def create_agent(profile: str, config: ProfileConfig | None = None) -> Hel
     except Exception:
         pass
 
-    agent = HelixAgent(config=runtime_config)
+    agent = HolixAgent(config=runtime_config)
     await agent.initialize()
     return agent

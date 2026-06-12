@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Cross-platform Helix installer (run before ``helix`` is on PATH).
+"""Cross-platform Holix installer (run before ``holix`` is on PATH).
 
 Usage:
     python scripts/install.py
@@ -21,14 +21,14 @@ if str(_REPO) not in sys.path:
 from cli.installer import (  # noqa: E402
     InstallOptions,
     detect_repo_root,
-    install_helix,
-    verify_helix_on_path,
+    install_holix,
+    verify_holix_on_path,
 )
 from cli.installer.system import record_install  # noqa: E402
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description="Install Helix CLI globally")
+    parser = argparse.ArgumentParser(description="Install Holix CLI globally")
     parser.add_argument(
         "--system",
         action="store_true",
@@ -50,7 +50,7 @@ def main(argv: list[str] | None = None) -> int:
         "--repo",
         type=Path,
         default=None,
-        help="Helix repository path (default: parent of scripts/)",
+        help="Holix repository path (default: parent of scripts/)",
     )
     args = parser.parse_args(argv)
 
@@ -67,19 +67,19 @@ def main(argv: list[str] | None = None) -> int:
         extras=tuple(args.extra),
     )
 
-    print(f"Installing Helix from {repo_root} …")
-    result = install_helix(opts)
+    print(f"Installing Holix from {repo_root} …")
+    result = install_holix(opts)
     print(result.message)
     if not result.success:
         return 1
 
     record_install(result, opts, repo_root=repo_root)
 
-    ok, loc = verify_helix_on_path()
+    ok, loc = verify_holix_on_path()
     if ok:
-        print(f"OK: helix found at {loc}")
+        print(f"OK: holix found at {loc}")
     else:
-        print("Note: open a new terminal and run: helix version")
+        print("Note: open a new terminal and run: holix version")
     return 0
 
 

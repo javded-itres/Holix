@@ -1,10 +1,10 @@
 ---
-name: helix-cron
-description: Schedule recurring agent tasks via Helix built-in gateway cron (not crontab or custom scripts)
+name: holix-cron
+description: Schedule recurring agent tasks via Holix built-in gateway cron (not crontab or custom scripts)
 tags:
   - cron
   - schedule
-  - helix
+  - holix
   - gateway
   - periodic
   - automation
@@ -15,25 +15,25 @@ user-invocable: true
 
 The user wants a **recurring or scheduled task** (daily report, hourly check, weekly backup summary, etc.).
 
-**Always use Helix built-in cron** — jobs stored in the profile and executed by the gateway scheduler with the same agent stack as chat.
+**Always use Holix built-in cron** — jobs stored in the profile and executed by the gateway scheduler with the same agent stack as chat.
 
 ## Do NOT
 
-- Do **not** create or edit system `crontab`, `launchd` plists, or `systemd` timers for Helix agent work.
-- Do **not** write standalone Python/bash “scheduler” scripts that loop with `sleep` unless the user explicitly needs OS-level scheduling outside Helix.
-- Do **not** suggest third-party job runners when `helix gateway` can run the task.
+- Do **not** create or edit system `crontab`, `launchd` plists, or `systemd` timers for Holix agent work.
+- Do **not** write standalone Python/bash “scheduler” scripts that loop with `sleep` unless the user explicitly needs OS-level scheduling outside Holix.
+- Do **not** suggest third-party job runners when `holix gateway` can run the task.
 
 ## Prerequisites
 
 1. **Gateway must be running** (scheduler lives inside gateway):
-   - `helix gateway start` (background) or `helix gateway start -f` (foreground)
-   - `helix gateway status` — verify running
-2. Jobs are **per profile** (`--profile` / `HELIX_PROFILE`).
+   - `holix gateway start` (background) or `holix gateway start -f` (foreground)
+   - `holix gateway status` — verify running
+2. Jobs are **per profile** (`--profile` / `HOLIX_PROFILE`).
 
 ## Storage (read-only for debugging)
 
-- Jobs: `~/.helix/profiles/<profile>/data/cron/jobs.json`
-- Run log: `~/.helix/profiles/<profile>/data/cron/runs.log`
+- Jobs: `~/.holix/profiles/<profile>/data/cron/jobs.json`
+- Run log: `~/.holix/profiles/<profile>/data/cron/runs.log`
 
 Prefer **commands** below; edit JSON only if the user insists.
 
@@ -57,11 +57,11 @@ Examples:
 **CLI (terminal):**
 
 ```bash
-helix cron add "every day at 9 :: Summarize logs"
-helix cron list
-helix cron disable <job-id>
-helix cron enable <job-id>
-helix cron remove <job-id>
+holix cron add "every day at 9 :: Summarize logs"
+holix cron list
+holix cron disable <job-id>
+holix cron enable <job-id>
+holix cron remove <job-id>
 ```
 
 ### Schedule formats
@@ -75,10 +75,10 @@ Task text after `::` is the **agent prompt** for each run (be specific: what to 
 
 | Action | Slash | CLI |
 |--------|-------|-----|
-| List / UI | `/cron` or `/cron list` | `helix cron list` |
-| Enable | `/cron enable <id>` | `helix cron enable <id>` |
-| Disable | `/cron disable <id>` | `helix cron disable <id>` |
-| Delete | `/cron remove <id>` | `helix cron remove <id>` |
+| List / UI | `/cron` or `/cron list` | `holix cron list` |
+| Enable | `/cron enable <id>` | `holix cron enable <id>` |
+| Disable | `/cron disable <id>` | `holix cron disable <id>` |
+| Delete | `/cron remove <id>` | `holix cron remove <id>` |
 
 Job IDs are short strings shown in the list (prefix match works).
 
@@ -95,8 +95,8 @@ TUI opens a modal with enable/disable/delete. Telegram has inline buttons under 
 
 1. Clarify **what** should run and **how often** (timezone: server local UTC for croniter unless user specifies).
 2. Draft a **clear task prompt** (one-shot instructions, no “ask me later”).
-3. Propose exact `/cron add …` or `helix cron add "…"` for the user to confirm, or execute CLI if allowed.
-4. Remind to start gateway if not running: `helix gateway start`.
+3. Propose exact `/cron add …` or `holix cron add "…"` for the user to confirm, or execute CLI if allowed.
+4. Remind to start gateway if not running: `holix gateway start`.
 5. After creation, suggest `/cron list` to verify `next_run_at`.
 
 ## Natural language → user request
@@ -113,12 +113,12 @@ If the user says “every Monday at 10 run X”, translate to:
 
 | Problem | Check |
 |---------|--------|
-| Job never runs | `helix gateway status`; gateway must be up |
+| Job never runs | `holix gateway status`; gateway must be up |
 | Invalid schedule | Use `every day at 9` or valid 5-field cron |
 | Task runs but fails | Read `runs.log`; fix prompt or model/profile config |
 | Duplicate jobs | `/cron list`; remove old rule with `/cron remove` |
 
-## Related Helix commands (not cron)
+## Related Holix commands (not cron)
 
 - `/init` — one-shot project analysis, not periodic
-- `helix hub` — skills/plugins, not scheduling
+- `holix hub` — skills/plugins, not scheduling

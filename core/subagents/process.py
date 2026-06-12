@@ -47,8 +47,8 @@ HEARTBEAT_INTERVAL = 5.0
 GRACE_PERIOD = 5.0
 
 # Child reads credentials from env (not Process args — avoids pickle/log exposure).
-_SUBAGENT_API_KEY_ENV = "HELIX_SUBAGENT_API_KEY"
-_SUBAGENT_BASE_URL_ENV = "HELIX_SUBAGENT_BASE_URL"
+_SUBAGENT_API_KEY_ENV = "HOLIX_SUBAGENT_API_KEY"
+_SUBAGENT_BASE_URL_ENV = "HOLIX_SUBAGENT_BASE_URL"
 _subagent_spawn_lock = threading.Lock()
 
 
@@ -122,7 +122,7 @@ def run_sub_agent_in_process(
         input_queue: Queue for parent → child messages.
         output_queue: Queue for child → parent messages.
         parent_model: Default model name.
-        Credentials are read from HELIX_SUBAGENT_API_KEY / HELIX_SUBAGENT_BASE_URL in the child env.
+        Credentials are read from HOLIX_SUBAGENT_API_KEY / HOLIX_SUBAGENT_BASE_URL in the child env.
         ltm_db_path: Path to LTM SQLite database (empty = no memory).
         vector_db_path: Path to ChromaDB vector database.
         mcp_servers: dict | None = None  # MCP server defs filtered for sub
@@ -188,10 +188,10 @@ def run_sub_agent_in_process(
     skills_block = ""
     if skills_dir:
         try:
-            from core.di.runtime_config import HelixRuntimeConfig
+            from core.di.runtime_config import HolixRuntimeConfig
             from core.skills.manager import SkillsManager
 
-            sk_cfg = HelixRuntimeConfig.from_settings().with_overrides(
+            sk_cfg = HolixRuntimeConfig.from_settings().with_overrides(
                 skills_dir=skills_dir,
                 skill_assignments=skill_assignments or {},
             )
@@ -644,9 +644,9 @@ Remember: You are {config.name}. Stay focused on your specialized role.
 """
     if skills_block:
         prompt += f"\n\n{skills_block}"
-    from core.project.helix_md import append_helix_project_context
+    from core.project.holix_md import append_holix_project_context
 
-    return append_helix_project_context(prompt)
+    return append_holix_project_context(prompt)
 
 
 class SubAgentProcessManager:

@@ -11,7 +11,7 @@ from cli.services import gateway_state as gs
 
 
 def test_gateway_state_roundtrip(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("HELIX_HOME", str(tmp_path))
+    monkeypatch.setenv("HOLIX_HOME", str(tmp_path))
     profile = "default"
 
     state = gs.new_state(
@@ -37,7 +37,7 @@ def test_is_process_alive_dead_pid() -> None:
 
 
 def test_running_state_clears_stale(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("HELIX_HOME", str(tmp_path))
+    monkeypatch.setenv("HOLIX_HOME", str(tmp_path))
     profile = "default"
     state_path = gs.state_path(profile)
 
@@ -58,7 +58,7 @@ def test_running_state_clears_stale(tmp_path: Path, monkeypatch: pytest.MonkeyPa
 
 
 def test_gateway_state_docs_fields(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("HELIX_HOME", str(tmp_path))
+    monkeypatch.setenv("HOLIX_HOME", str(tmp_path))
     profile = "default"
 
     state = gs.new_state(
@@ -81,7 +81,7 @@ def test_gateway_state_docs_fields(tmp_path: Path, monkeypatch: pytest.MonkeyPat
 def test_load_state_prefers_alive_legacy_over_stale_profile(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    monkeypatch.setenv("HELIX_HOME", str(tmp_path))
+    monkeypatch.setenv("HOLIX_HOME", str(tmp_path))
     profile = "default"
 
     stale = gs.new_state(
@@ -114,7 +114,7 @@ def test_load_state_prefers_alive_legacy_over_stale_profile(
 
 
 def test_clear_state_removes_legacy(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("HELIX_HOME", str(tmp_path))
+    monkeypatch.setenv("HOLIX_HOME", str(tmp_path))
     profile = "default"
 
     state = gs.new_state(pid=42, host="127.0.0.1", port=8000, profile=profile, reload=False)

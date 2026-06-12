@@ -1,5 +1,5 @@
 """
-Agent Event System for Helix.
+Agent Event System for Holix.
 
 Provides structured, real-time events from the agent loop.
 This decouples the core agent logic from any specific UI, logging,
@@ -27,7 +27,7 @@ from typing import Any, Protocol
 
 
 class EventType(StrEnum):
-    """All known event types emitted by the Helix agent."""
+    """All known event types emitted by the Holix agent."""
 
     # Conversation lifecycle
     USER_MESSAGE = "user_message"
@@ -63,7 +63,7 @@ class EventType(StrEnum):
 
 @dataclass
 class EventContext:
-    """Correlation IDs for a single agent run (set via HelixAgent.begin_run)."""
+    """Correlation IDs for a single agent run (set via HolixAgent.begin_run)."""
 
     conversation_id: str = "default"
     run_id: str = ""
@@ -120,7 +120,7 @@ class UserMessageEvent(AgentEvent):
 @dataclass
 class ThinkingEvent(AgentEvent):
     """Agent is thinking / about to call the LLM."""
-    message: str = "Helix is thinking..."
+    message: str = "Holix is thinking..."
 
     def __post_init__(self):
         super().__post_init__()
@@ -379,7 +379,7 @@ class AgentEventBus:
     - Wildcard / filtered subscriptions.
     """
 
-    def __init__(self, name: str = "HelixAgentAi"):
+    def __init__(self, name: str = "Holix"):
         self.name = name
         self._handlers: list[EventHandler] = []
         self._async_handlers: list[EventHandler] = []  # tracked separately for clarity
@@ -539,9 +539,9 @@ def create_compatibility_print_handler() -> EventHandler:
 
 def create_rich_cli_handler():
     """
-    Returns a handler that uses Helix's Rich utilities for beautiful output.
+    Returns a handler that uses Holix's Rich utilities for beautiful output.
 
-    This is the recommended handler for the modern `helix chat` experience.
+    This is the recommended handler for the modern `holix chat` experience.
     It provides colored tool calls, markdown rendering, spinners (when used
     together with chat.py logic), etc.
     """
@@ -586,7 +586,7 @@ def create_rich_cli_handler():
 
 
 # ---------------------------------------------------------------------
-# Default monitoring wiring (used by HelixAgent)
+# Default monitoring wiring (used by HolixAgent)
 # ---------------------------------------------------------------------
 
 def wire_default_monitoring(bus: AgentEventBus) -> None:
@@ -595,7 +595,7 @@ def wire_default_monitoring(bus: AgentEventBus) -> None:
     to the given event bus.
 
     This makes monitoring actually work (previously it was defined but never fed events).
-    Called automatically by HelixAgent unless disabled.
+    Called automatically by HolixAgent unless disabled.
     """
     try:
         from core.monitoring.logger import create_logger_subscriber
@@ -605,7 +605,7 @@ def wire_default_monitoring(bus: AgentEventBus) -> None:
         bus.subscribe(create_metrics_subscriber())
     except Exception as exc:
         # Monitoring must never break agent startup
-        print(f"[Helix] Warning: Could not wire default monitoring: {exc}")
+        print(f"[Holix] Warning: Could not wire default monitoring: {exc}")
 
 
 __all__ = [

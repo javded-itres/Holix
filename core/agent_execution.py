@@ -1,7 +1,7 @@
 """
 Unified Agent Execution Engine (Variant B - Phase 0)
 
-This module contains the single source of truth for Helix agent reasoning.
+This module contains the single source of truth for Holix agent reasoning.
 
 Both classic (AgentLoop) and streaming (StreamingAgentLoop) paths now delegate
 to the event-driven generator defined here.
@@ -58,7 +58,7 @@ async def run_agent_loop(
     happens here.
 
     Args:
-        agent: The HelixAgent instance (must have memory, skills, tools, client, etc.)
+        agent: The HolixAgent instance (must have memory, skills, tools, client, etc.)
         user_input: The user's message
         conversation_id: Conversation identifier for memory
         stream: If True, uses LLM streaming and yields AssistantDeltaEvent chunks.
@@ -148,7 +148,7 @@ async def run_agent_loop(
 
     # Initial thinking signal
     yield ThinkingEvent(
-        message="Helix is thinking...",
+        message="Holix is thinking...",
         conversation_id=conversation_id,
     )
 

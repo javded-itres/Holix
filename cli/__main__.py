@@ -1,4 +1,4 @@
-"""Allow ``python -m cli`` / ``uv run python -m cli`` as the Helix CLI entry."""
+"""Allow ``python -m cli`` / ``uv run python -m cli`` as the Holix CLI entry."""
 
 from cli.main import main
 

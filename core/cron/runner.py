@@ -1,4 +1,4 @@
-"""Execute a single cron job via the Helix agent."""
+"""Execute a single cron job via the Holix agent."""
 
 from __future__ import annotations
 

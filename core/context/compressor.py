@@ -1,5 +1,5 @@
 """
-Context compression module for Helix.
+Context compression module for Holix.
 
 Uses the LLM to intelligently summarize conversation history,
 preserving key facts, decisions, artifacts, and goals while

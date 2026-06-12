@@ -1,5 +1,5 @@
 /**
- * Helix site — marketing landing + documentation SPA.
+ * Holix site — marketing landing + documentation SPA.
  */
 
 const $ = (sel, root = document) => root.querySelector(sel);
@@ -41,11 +41,11 @@ function makeBreadcrumb(homeLabel, docsLabel, title) {
   return el;
 }
 
-const GITHUB_URL = "https://github.com/javded-itres/HelixAgent";
-const PYPI_URL = "https://pypi.org/project/HelixAgentAi/";
+const GITHUB_URL = "https://github.com/javded-itres/Holix";
+const PYPI_URL = "https://pypi.org/project/Holix/";
 const DONATE_URL = "https://boosty.to/javded/single-payment/donation/805721/target?share=target_link";
-const SITE_URL = "https://helix-agent.ru";
-const TELEGRAM_CHANNEL_URL = "https://t.me/helix_agent";
+const SITE_URL = "https://holix-agent.ru";
+const TELEGRAM_CHANNEL_URL = "https://t.me/holix_agent";
 const YANDEX_METRIKA_ID = 109712139;
 const OG_IMAGE_URL = `${SITE_URL}/assets/logo.svg`;
 
@@ -115,7 +115,7 @@ function updatePageSeo({ title, description, path = "/", keywords }) {
   upsertMeta("property", "og:description", description);
   upsertMeta("property", "og:url", canonical);
   upsertMeta("property", "og:type", "website");
-  upsertMeta("property", "og:site_name", "Helix");
+  upsertMeta("property", "og:site_name", "Holix");
   upsertMeta("property", "og:locale", locale);
   upsertMeta("property", "og:image", OG_IMAGE_URL);
   upsertMeta("name", "twitter:card", "summary");
@@ -125,9 +125,9 @@ function updatePageSeo({ title, description, path = "/", keywords }) {
 
 function seoDefaults() {
   return seoMeta?.defaults?.[state.lang] ?? seoMeta?.defaults?.en ?? {
-    title: "Helix",
-    description: "Helix AI agent documentation",
-    keywords: "Helix, AI agent",
+    title: "Holix",
+    description: "Holix AI agent documentation",
+    keywords: "Holix, AI agent",
   };
 }
 
@@ -144,7 +144,7 @@ function seoForPage(slug) {
   const defaults = seoDefaults();
   if (!page) return defaults;
   return {
-    title: page.title || `${page.heading} — Helix`,
+    title: page.title || `${page.heading} — Holix`,
     description: page.description || defaults.description,
     keywords: page.keywords || defaults.keywords,
   };
@@ -174,11 +174,11 @@ const I18N = {
     mkt_hero_title: "Self-improving",
     mkt_hero_accent: "AI agent",
     mkt_hero_lead:
-      "Helix is a production-ready agent platform: persistent memory, skills, tool calling, MCP, and CLI, TUI, API gateway, and Telegram — deploy on your infrastructure with local or cloud LLMs.",
+      "Holix is a production-ready agent platform: persistent memory, skills, tool calling, MCP, and CLI, TUI, API gateway, and Telegram — deploy on your infrastructure with local or cloud LLMs.",
     mkt_ru_title: "Russian engineering",
     mkt_ru_text:
-      "Helix is developed in Russia by the IT-RES team. Open source (MIT), on-premise deployment, support for Ollama and LiteLLM — your data stays under your control. Domestic software you can audit and extend.",
-    mkt_adv_title: "Why Helix",
+      "Holix is developed in Russia by the IT-RES team. Open source (MIT), on-premise deployment, support for Ollama and LiteLLM — your data stays under your control. Domestic software you can audit and extend.",
+    mkt_adv_title: "Why Holix",
     mkt_adv_1_t: "Learns from work",
     mkt_adv_1_d: "Successful tasks become reusable skills — the agent improves over time, not just one-off chats.",
     mkt_adv_2_t: "Remembers context",
@@ -194,11 +194,11 @@ const I18N = {
       "Each profile is a sandbox: own API keys, bot, gateway port, and conversation memory. Optional workspace jail locks file and terminal tools to one directory — the agent cannot leave the folder but works freely inside.",
     mkt_profiles_cta: "Profiles guide",
     mkt_feat_title: "Capabilities",
-    mkt_use_title: "How teams use Helix",
+    mkt_use_title: "How teams use Holix",
     mkt_use_1_t: "Developer copilot",
     mkt_use_1_d: "Repo-aware agent in TUI: files, shell, MCP tools, slash commands, subagents.",
     mkt_use_2_t: "Automation & cron",
-    mkt_use_2_d: "Scheduled jobs, gateway API, `helix run` in scripts and CI pipelines.",
+    mkt_use_2_d: "Scheduled jobs, gateway API, `holix run` in scripts and CI pipelines.",
     mkt_use_3_t: "Telegram assistant",
     mkt_use_3_d: "Mobile access with voice notes, file handling, and the same agent brain.",
     mkt_use_4_t: "API gateway",
@@ -210,7 +210,7 @@ const I18N = {
     mkt_how_chat: "Terminal REPL — lightweight chat",
     mkt_how_run: "One-shot queries and scripting",
     mkt_how_gw: "Background HTTP gateway + optional docs site",
-    install_pypi: "pipx install HelixAgentAi",
+    install_pypi: "pipx install Holix",
     install_pypi_hint: "PyPI · CLI command: helix",
     install_pypi_link: "PyPI",
     cta_docs: "Read documentation",
@@ -219,14 +219,14 @@ const I18N = {
     telegram_channel: "Telegram",
     tg_callout_title: "Stay in the loop",
     tg_callout_lead:
-      "Subscribe to our Telegram channel for release notes, roadmap updates, tips, and early news about Helix.",
-    tg_callout_cta: "Subscribe to @helix_agent",
+      "Subscribe to our Telegram channel for release notes, roadmap updates, tips, and early news about Holix.",
+    tg_callout_cta: "Subscribe to @holix_agent",
     github: "GitHub",
     docs_hub_lead: "Guides, CLI reference, deployment, and troubleshooting.",
     docs_hub_title: "Documentation",
-    api_callout_lead: "110+ HTTP endpoints: Hermes, chat, sessions, jobs, /api/helix/ management, admin, metrics — with auth, parameters, and curl examples.",
+    api_callout_lead: "110+ HTTP endpoints: Hermes, chat, sessions, jobs, /api/holix/ management, admin, metrics — with auth, parameters, and curl examples.",
     api_callout_cta: "Open full API reference",
-    footer: "Helix · Russian software · MIT License",
+    footer: "Holix · Russian software · MIT License",
     feat_tools: "Tool calling",
     feat_tools_desc: "Files, shell, web, code, optional Playwright browser.",
     feat_memory: "Memory",
@@ -262,10 +262,10 @@ const I18N = {
     mkt_hero_title: "Самообучающийся",
     mkt_hero_accent: "AI-агент",
     mkt_hero_lead:
-      "Helix — платформа AI-агентов для продакшена: память, навыки, инструменты, MCP и интерфейсы CLI, TUI, API gateway и Telegram. Развёртывание на своей инфраструктуре с локальными или облачными LLM.",
+      "Holix — платформа AI-агентов для продакшена: память, навыки, инструменты, MCP и интерфейсы CLI, TUI, API gateway и Telegram. Развёртывание на своей инфраструктуре с локальными или облачными LLM.",
     mkt_ru_title: "Отечественная разработка",
     mkt_ru_text:
-      "Helix разработан в России командой IT-RES. Открытый исходный код (MIT), установка on-premise, поддержка Ollama и LiteLLM — данные остаются под вашим контролем. Российское ПО, которое можно проверить и расширить.",
+      "Holix разработан в России командой IT-RES. Открытый исходный код (MIT), установка on-premise, поддержка Ollama и LiteLLM — данные остаются под вашим контролем. Российское ПО, которое можно проверить и расширить.",
     mkt_adv_title: "Преимущества",
     mkt_adv_1_t: "Учится на задачах",
     mkt_adv_1_d: "Успешные сценарии превращаются в навыки — агент развивается, а не забывает контекст после чата.",
@@ -286,19 +286,19 @@ const I18N = {
     mkt_use_1_t: "Помощник разработчика",
     mkt_use_1_d: "TUI с доступом к репозиторию: файлы, shell, MCP, слэш-команды, субагенты.",
     mkt_use_2_t: "Автоматизация",
-    mkt_use_2_d: "Cron-задачи, API gateway, `helix run` в скриптах и CI.",
+    mkt_use_2_d: "Cron-задачи, API gateway, `holix run` в скриптах и CI.",
     mkt_use_3_t: "Telegram-бот",
     mkt_use_3_d: "Мобильный доступ, голосовые сообщения, файлы — тот же агент.",
     mkt_use_4_t: "API gateway",
     mkt_use_4_d: "HTTP API в формате OpenAI для приложений и внутренних сервисов.",
     mkt_use_5_t: "Несколько пользователей",
     mkt_use_5_d: "Один сервер — много профилей: отдельные боты, gateway и опциональный jail по папке на человека.",
-    mkt_how_title: "Как работать с Helix",
+    mkt_how_title: "Как работать с Holix",
     mkt_how_tui: "Полноэкранный TUI — основной интерфейс",
     mkt_how_chat: "Чат в терминале — лёгкий REPL",
     mkt_how_run: "Одиночные запросы и скрипты",
     mkt_how_gw: "Фоновый HTTP gateway",
-    install_pypi: "pipx install HelixAgentAi",
+    install_pypi: "pipx install Holix",
     install_pypi_hint: "PyPI · команда: helix",
     install_pypi_link: "PyPI",
     cta_docs: "Открыть документацию",
@@ -307,14 +307,14 @@ const I18N = {
     telegram_channel: "Telegram",
     tg_callout_title: "Следите за развитием",
     tg_callout_lead:
-      "Telegram-канал Helix: анонсы релизов, планы развития, советы по использованию и свежие новости проекта.",
-    tg_callout_cta: "Подписаться на @helix_agent",
+      "Telegram-канал Holix: анонсы релизов, планы развития, советы по использованию и свежие новости проекта.",
+    tg_callout_cta: "Подписаться на @holix_agent",
     github: "GitHub",
     docs_hub_lead: "Установка, справочник CLI, развёртывание и решение проблем.",
     docs_hub_title: "Документация",
-    api_callout_lead: "110+ HTTP-эндпоинтов: Hermes, chat, sessions, jobs, /api/helix/ management, admin, metrics — auth, параметры и curl-примеры.",
+    api_callout_lead: "110+ HTTP-эндпоинтов: Hermes, chat, sessions, jobs, /api/holix/ management, admin, metrics — auth, параметры и curl-примеры.",
     api_callout_cta: "Открыть полный справочник API",
-    footer: "Helix · Российское ПО · MIT License",
+    footer: "Holix · Российское ПО · MIT License",
     feat_tools: "Инструменты",
     feat_tools_desc: "Файлы, shell, веб, код, браузер Playwright.",
     feat_memory: "Память",
@@ -497,7 +497,7 @@ function t(key) {
 }
 
 function footerHtml() {
-  return `${t("footer")} · <a href="${SITE_URL}">helix-agent.ru</a> · <a href="${TELEGRAM_CHANNEL_URL}" target="_blank" rel="noopener noreferrer">${t("telegram_channel")}</a> · <a href="${GITHUB_URL}" target="_blank" rel="noopener noreferrer">${t("github")}</a>`;
+  return `${t("footer")} · <a href="${SITE_URL}">holix-agent.ru</a> · <a href="${TELEGRAM_CHANNEL_URL}" target="_blank" rel="noopener noreferrer">${t("telegram_channel")}</a> · <a href="${GITHUB_URL}" target="_blank" rel="noopener noreferrer">${t("github")}</a>`;
 }
 
 function telegramCalloutHtml() {
@@ -692,10 +692,10 @@ function renderMarketing() {
 
     <h2 class="section-title">${t("mkt_how_title")}</h2>
     <div class="how-grid">
-      <div class="how-card"><code>helix tui</code><p>${t("mkt_how_tui")}</p></div>
-      <div class="how-card"><code>helix chat-command</code><p>${t("mkt_how_chat")}</p></div>
-      <div class="how-card"><code>helix run "…"</code><p>${t("mkt_how_run")}</p></div>
-      <div class="how-card"><code>helix gateway start</code><p>${t("mkt_how_gw")}</p></div>
+      <div class="how-card"><code>holix tui</code><p>${t("mkt_how_tui")}</p></div>
+      <div class="how-card"><code>holix chat-command</code><p>${t("mkt_how_chat")}</p></div>
+      <div class="how-card"><code>holix run "…"</code><p>${t("mkt_how_run")}</p></div>
+      <div class="how-card"><code>holix gateway start</code><p>${t("mkt_how_gw")}</p></div>
     </div>
 
     <section class="cta-band">
@@ -817,7 +817,7 @@ async function renderDoc(slug, scrollAnchor = null) {
 
     const seo = seoForPage(slug);
     updatePageSeo({
-      title: seo.title || `${entry.heading} — Helix`,
+      title: seo.title || `${entry.heading} — Holix`,
       description: seo.description,
       keywords: seo.keywords,
       path: `/docs/${slug}`,
@@ -1063,8 +1063,9 @@ async function init() {
   try {
     const { initChatWidget } = await import("./chat-widget.js");
     await initChatWidget({ getLang: () => state.lang });
-  } catch {
-    /* chat widget optional when static hosting without API */
+  } catch (err) {
+    /* optional when static hosting without API */
+    console.warn("Docs chat widget failed to load:", err);
   }
 }
 

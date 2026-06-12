@@ -1,4 +1,4 @@
-"""Inline keyboards for Telegram Helix UX."""
+"""Inline keyboards for Telegram Holix UX."""
 
 from __future__ import annotations
 

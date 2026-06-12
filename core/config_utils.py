@@ -40,7 +40,7 @@ def resolve_env_refs(value: Any) -> Any:
     return value
 
 
-# --- Project-local .helix/ supplement support (skills, plans, extra mcp; NO system/model keys) ---
+# --- Project-local .holix/ supplement support (skills, plans, extra mcp; NO system/model keys) ---
 
 from pathlib import Path
 
@@ -56,15 +56,19 @@ _LOCAL_SYSTEM_KEYS: frozenset[str] = frozenset({
 })
 
 
-def get_local_helix_dir(cwd: str | None = None) -> Path:
-    """Return <cwd>/.helix (or CWD/.helix). This is the project-local supplement location."""
+def get_local_holix_dir(cwd: str | None = None) -> Path:
+    """Return <cwd>/.holix (or CWD/.holix). Falls back to legacy .helix when present."""
     base = Path(cwd) if cwd else Path.cwd()
-    return base / ".helix"
+    holix = base / ".holix"
+    helix = base / ".helix"
+    if helix.is_dir() and not holix.is_dir():
+        return helix
+    return holix
 
 
 def load_local_overlay(cwd: str | None = None) -> dict[str, Any]:
-    """Load .helix/config.yaml if present (for supplements only). Returns {} if absent."""
-    local_dir = get_local_helix_dir(cwd)
+    """Load .holix/config.yaml if present (for supplements only). Returns {} if absent."""
+    local_dir = get_local_holix_dir(cwd)
     cfg_file = local_dir / "config.yaml"
     if not cfg_file.exists():
         return {}
@@ -74,14 +78,14 @@ def load_local_overlay(cwd: str | None = None) -> dict[str, Any]:
             data = yaml.safe_load(f) or {}
         return resolve_env_refs(data)
     except Exception as exc:
-        print(f"Warning: failed to load local .helix/config.yaml: {exc}")
+        print(f"Warning: failed to load local .holix/config.yaml: {exc}")
         return {}
 
 
 def merge_profile_with_local(profile_data: dict[str, Any], local: dict[str, Any]) -> dict[str, Any]:
     """Merge only additive/safe keys from local overlay into profile data.
 
-    System/model keys from local are ignored (never override ~/.helix profile).
+    System/model keys from local are ignored (never override ~/.holix profile).
     """
     if not local:
         return profile_data
@@ -116,9 +120,9 @@ def merge_profile_with_local(profile_data: dict[str, Any], local: dict[str, Any]
 
 
 def get_local_skills_dir(cwd: str | None = None) -> Path | None:
-    d = get_local_helix_dir(cwd) / "skills"
+    d = get_local_holix_dir(cwd) / "skills"
     return d if d.exists() else None
 
 
 def get_local_plan_dir(cwd: str | None = None) -> Path:
-    return get_local_helix_dir(cwd) / "plan"
+    return get_local_holix_dir(cwd) / "plan"

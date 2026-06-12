@@ -1,4 +1,4 @@
-"""Normalize Hermes / Helix job request bodies for CronStore."""
+"""Normalize Hermes / Holix job request bodies for CronStore."""
 
 from __future__ import annotations
 
@@ -13,7 +13,7 @@ def normalize_job_fields(
     require_task: bool = False,
     require_schedule: bool = False,
 ) -> dict[str, Any]:
-    """Map Hermes fields (prompt, schedule) to Helix cron store fields."""
+    """Map Hermes fields (prompt, schedule) to Holix cron store fields."""
     out = dict(data)
 
     task = (out.pop("prompt", None) or out.get("task") or "").strip()

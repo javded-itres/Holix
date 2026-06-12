@@ -1,5 +1,5 @@
 """
-Context Manager for Helix.
+Context Manager for Holix.
 
 Monitors token usage relative to the model's context window,
 emits warnings as usage increases, and automatically compresses

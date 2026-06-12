@@ -1,4 +1,4 @@
-"""Universal Helix updater (git source, uv tool, pip / PyPI)."""
+"""Universal Holix updater (git source, uv tool, pip / PyPI)."""
 
 from __future__ import annotations
 
@@ -17,10 +17,10 @@ from cli.installer.system import (
     InstallOptions,
     _has_uv,
     detect_repo_root,
-    install_helix,
+    install_holix,
 )
 
-PYPI_PACKAGE = "HelixAgentAi"
+PYPI_PACKAGE = "Holix"
 _VERSION_RE = re.compile(r"^v?(\d+\.\d+\.\d+)")
 
 
@@ -190,8 +190,8 @@ def _channel(manifest: InstallManifest, opts: UpdateOptions) -> str:
     return "pypi"
 
 
-def update_helix(opts: UpdateOptions) -> UpdateResult:
-    """Check for or apply a Helix update."""
+def update_holix(opts: UpdateOptions) -> UpdateResult:
+    """Check for or apply a Holix update."""
     manifest, repo = resolve_update_context(opts)
     current = __version__
     channel = _channel(manifest, opts)
@@ -211,7 +211,7 @@ def _update_from_git(
         return UpdateResult(
             False,
             "Git update requires a local repository. "
-            "Re-clone Helix or run `helix install --repo /path/to/Helix`.",
+            "Re-clone Holix or run `holix install --repo /path/to/Holix`.",
             current_version=current,
         )
 
@@ -235,7 +235,7 @@ def _update_from_git(
         if local_newer:
             msg += f" Reinstall recommended: {current} → {target_version}."
         else:
-            msg += " Run `helix update --force` to reinstall from the current tree."
+            msg += " Run `holix update --force` to reinstall from the current tree."
         return UpdateResult(
             True,
             msg,
@@ -295,7 +295,7 @@ def _update_from_git(
         update_path=False,
         extras=tuple(manifest.extras),
     )
-    install_result = install_helix(install_opts)
+    install_result = install_holix(install_opts)
     if not install_result.success:
         return UpdateResult(
             False,
@@ -345,7 +345,7 @@ def _update_from_pypi(
         return UpdateResult(
             False,
             "Could not reach PyPI and no local git repository is configured. "
-            "Use `helix install --repo /path/to/Helix` or set channel to git.",
+            "Use `holix install --repo /path/to/Holix` or set channel to git.",
             current_version=current,
         )
 
@@ -412,7 +412,7 @@ def _update_from_pypi(
             source="pypi",
             extras=tuple(manifest.extras),
             repo_root=None,
-            helix_path=Path(shutil.which("helix") or ""),
+            holix_path=Path(shutil.which("holix") or ""),
             bin_dir=None,
         )
     )

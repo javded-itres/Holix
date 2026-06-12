@@ -15,7 +15,7 @@ from typing import Any
 from langchain_core.runnables import RunnableConfig
 from openai import AsyncOpenAI
 
-from core.graph.state import HelixGraphState, get_agent_from_config
+from core.graph.state import HolixGraphState, get_agent_from_config
 
 logger = logging.getLogger(__name__)
 
@@ -40,7 +40,7 @@ Use the available tools as needed. Provide a clear, complete result for this ste
 """
 
 def _step_system_prompt(profile_name: str | None = None) -> str:
-    from core.project.helix_md import append_helix_project_context, task_context_note
+    from core.project.holix_md import append_holix_project_context, task_context_note
     from core.prompt_builder import language_instruction_block
 
     base = (
@@ -49,10 +49,10 @@ def _step_system_prompt(profile_name: str | None = None) -> str:
         f"{task_context_note()}"
     )
     lang_block = language_instruction_block(profile_name=profile_name)
-    return append_helix_project_context(f"{base}\n\n{lang_block}")
+    return append_holix_project_context(f"{base}\n\n{lang_block}")
 
 
-async def execute_step_node(state: HelixGraphState, config: RunnableConfig) -> dict:
+async def execute_step_node(state: HolixGraphState, config: RunnableConfig) -> dict:
     """Execute the current plan step by calling the LLM.
 
     Reads the current plan step from state, builds a prompt, calls the LLM,
@@ -186,7 +186,7 @@ async def execute_step_node(state: HelixGraphState, config: RunnableConfig) -> d
 
 
 def _build_step_prompt(
-    state: HelixGraphState,
+    state: HolixGraphState,
     step: dict[str, Any],
     step_num: int,
     total_steps: int,

@@ -1,4 +1,4 @@
-"""Helix management: MCP servers, assignments, install."""
+"""Holix management: MCP servers, assignments, install."""
 
 from __future__ import annotations
 
@@ -10,11 +10,11 @@ from core.mcp.popular import get_popular_by_key, get_popular_list
 from fastapi import APIRouter, Depends, Header, HTTPException
 
 from api.deps import verify_api_key
-from api.schemas.helix import McpAssignmentsPatchRequest, McpInstallRequest, McpServerCreateRequest
+from api.schemas.holix import McpAssignmentsPatchRequest, McpInstallRequest, McpServerCreateRequest
 from api.services.config_mask import mask_config_dict
-from api.services.helix_deps import profile_access
+from api.services.holix_deps import profile_access
 
-router = APIRouter(prefix="/api/helix/profiles/{profile_id}/mcp", tags=["helix-mcp"])
+router = APIRouter(prefix="/api/holix/profiles/{profile_id}/mcp", tags=["holix-mcp"])
 
 
 def _require_profile(profile_id: str) -> tuple[ProfileManager, object]:
@@ -46,10 +46,10 @@ async def _test_mcp_server(name: str, data: dict[str, Any]) -> list[str]:
 async def list_servers(
     profile_id: str,
     key_info: dict = Depends(verify_api_key),
-    x_helix_profile: str | None = Header(None),
-    x_helix_profile_key: str | None = Header(None, alias="X-Helix-Profile-Key"),
+    x_holix_profile: str | None = Header(None),
+    x_holix_profile_key: str | None = Header(None, alias="X-Holix-Profile-Key"),
 ):
-    profile_access(profile_id, key_info, x_helix_profile, x_helix_profile_key)
+    profile_access(profile_id, key_info, x_holix_profile, x_holix_profile_key)
     _, config = _require_profile(profile_id)
     servers = mask_config_dict({"mcp_servers": getattr(config, "mcp_servers", {}) or {}})["mcp_servers"]
     assignments = getattr(config, "mcp_assignments", {}) or {}
@@ -61,10 +61,10 @@ async def create_server(
     profile_id: str,
     body: McpServerCreateRequest,
     key_info: dict = Depends(verify_api_key),
-    x_helix_profile: str | None = Header(None),
-    x_helix_profile_key: str | None = Header(None, alias="X-Helix-Profile-Key"),
+    x_holix_profile: str | None = Header(None),
+    x_holix_profile_key: str | None = Header(None, alias="X-Holix-Profile-Key"),
 ):
-    profile_access(profile_id, key_info, x_helix_profile, x_helix_profile_key)
+    profile_access(profile_id, key_info, x_holix_profile, x_holix_profile_key)
     manager, config = _require_profile(profile_id)
     servers = dict(getattr(config, "mcp_servers", {}) or {})
     if body.name in servers:
@@ -96,10 +96,10 @@ async def get_server(
     profile_id: str,
     server_name: str,
     key_info: dict = Depends(verify_api_key),
-    x_helix_profile: str | None = Header(None),
-    x_helix_profile_key: str | None = Header(None, alias="X-Helix-Profile-Key"),
+    x_holix_profile: str | None = Header(None),
+    x_holix_profile_key: str | None = Header(None, alias="X-Holix-Profile-Key"),
 ):
-    profile_access(profile_id, key_info, x_helix_profile, x_helix_profile_key)
+    profile_access(profile_id, key_info, x_holix_profile, x_holix_profile_key)
     _, config = _require_profile(profile_id)
     servers = getattr(config, "mcp_servers", {}) or {}
     if server_name not in servers:
@@ -113,10 +113,10 @@ async def delete_server(
     profile_id: str,
     server_name: str,
     key_info: dict = Depends(verify_api_key),
-    x_helix_profile: str | None = Header(None),
-    x_helix_profile_key: str | None = Header(None, alias="X-Helix-Profile-Key"),
+    x_holix_profile: str | None = Header(None),
+    x_holix_profile_key: str | None = Header(None, alias="X-Holix-Profile-Key"),
 ):
-    profile_access(profile_id, key_info, x_helix_profile, x_helix_profile_key)
+    profile_access(profile_id, key_info, x_holix_profile, x_holix_profile_key)
     manager, config = _require_profile(profile_id)
     servers = dict(getattr(config, "mcp_servers", {}) or {})
     if server_name not in servers:
@@ -137,10 +137,10 @@ async def test_server(
     profile_id: str,
     server_name: str,
     key_info: dict = Depends(verify_api_key),
-    x_helix_profile: str | None = Header(None),
-    x_helix_profile_key: str | None = Header(None, alias="X-Helix-Profile-Key"),
+    x_holix_profile: str | None = Header(None),
+    x_holix_profile_key: str | None = Header(None, alias="X-Holix-Profile-Key"),
 ):
-    profile_access(profile_id, key_info, x_helix_profile, x_helix_profile_key)
+    profile_access(profile_id, key_info, x_holix_profile, x_holix_profile_key)
     _, config = _require_profile(profile_id)
     servers = getattr(config, "mcp_servers", {}) or {}
     if server_name not in servers:
@@ -156,10 +156,10 @@ async def test_server(
 async def get_assignments(
     profile_id: str,
     key_info: dict = Depends(verify_api_key),
-    x_helix_profile: str | None = Header(None),
-    x_helix_profile_key: str | None = Header(None, alias="X-Helix-Profile-Key"),
+    x_holix_profile: str | None = Header(None),
+    x_holix_profile_key: str | None = Header(None, alias="X-Holix-Profile-Key"),
 ):
-    profile_access(profile_id, key_info, x_helix_profile, x_helix_profile_key)
+    profile_access(profile_id, key_info, x_holix_profile, x_holix_profile_key)
     _, config = _require_profile(profile_id)
     return {"assignments": getattr(config, "mcp_assignments", {}) or {}}
 
@@ -169,10 +169,10 @@ async def patch_assignments(
     profile_id: str,
     body: McpAssignmentsPatchRequest,
     key_info: dict = Depends(verify_api_key),
-    x_helix_profile: str | None = Header(None),
-    x_helix_profile_key: str | None = Header(None, alias="X-Helix-Profile-Key"),
+    x_holix_profile: str | None = Header(None),
+    x_holix_profile_key: str | None = Header(None, alias="X-Holix-Profile-Key"),
 ):
-    profile_access(profile_id, key_info, x_helix_profile, x_helix_profile_key)
+    profile_access(profile_id, key_info, x_holix_profile, x_holix_profile_key)
     manager, config = _require_profile(profile_id)
     servers = set((getattr(config, "mcp_servers", {}) or {}).keys())
     for role, lst in body.assignments.items():
@@ -191,10 +191,10 @@ async def patch_assignments(
 async def list_popular(
     profile_id: str,
     key_info: dict = Depends(verify_api_key),
-    x_helix_profile: str | None = Header(None),
-    x_helix_profile_key: str | None = Header(None, alias="X-Helix-Profile-Key"),
+    x_holix_profile: str | None = Header(None),
+    x_holix_profile_key: str | None = Header(None, alias="X-Holix-Profile-Key"),
 ):
-    profile_access(profile_id, key_info, x_helix_profile, x_helix_profile_key)
+    profile_access(profile_id, key_info, x_holix_profile, x_holix_profile_key)
     _require_profile(profile_id)
     popular = []
     for entry in get_popular_list():
@@ -213,10 +213,10 @@ async def install_server(
     profile_id: str,
     body: McpInstallRequest,
     key_info: dict = Depends(verify_api_key),
-    x_helix_profile: str | None = Header(None),
-    x_helix_profile_key: str | None = Header(None, alias="X-Helix-Profile-Key"),
+    x_holix_profile: str | None = Header(None),
+    x_holix_profile_key: str | None = Header(None, alias="X-Holix-Profile-Key"),
 ):
-    profile_access(profile_id, key_info, x_helix_profile, x_helix_profile_key)
+    profile_access(profile_id, key_info, x_holix_profile, x_holix_profile_key)
     manager, config = _require_profile(profile_id)
     servers = dict(getattr(config, "mcp_servers", {}) or {})
 

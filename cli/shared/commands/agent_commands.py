@@ -378,7 +378,7 @@ class AgentCommands:
             "  [cyan]/hub[/cyan]  — pick catalog (TUI)",
             "  [cyan]/hub installed[/cyan]  — hub skills, plugins, MCP (TUI)",
             "  [cyan]/hub clawhub[/cyan]  ·  [cyan]/hub hermes[/cyan]  ·  [cyan]/hub claude[/cyan]",
-            "  [cyan]helix hub browse[/cyan]  ·  [cyan]helix hub list[/cyan]",
+            "  [cyan]holix hub browse[/cyan]  ·  [cyan]holix hub list[/cyan]",
         ]
         if config and getattr(config, "skills_dir", None):
             try:
@@ -425,7 +425,7 @@ class AgentCommands:
                     cfg = get_current_config()
                     servers = getattr(cfg, "mcp_servers", {}) or {}
                     if not servers:
-                        h.transcript_write("No MCP servers configured. Use CLI: helix mcp install")
+                        h.transcript_write("No MCP servers configured. Use CLI: holix mcp install")
                     else:
                         lines = ["MCP servers:"]
                         for name, data in servers.items():
@@ -460,8 +460,8 @@ class AgentCommands:
             if hasattr(h, "_mcp_install"):
                 h.run_worker(h._mcp_install(arg))
             else:
-                h.transcript_write("Use CLI for install: helix mcp install [name|git-url]")
-                h.transcript_write("Example: helix mcp install compass  (or context7, filesystem, etc.)")
+                h.transcript_write("Use CLI for install: holix mcp install [name|git-url]")
+                h.transcript_write("Example: holix mcp install compass  (or context7, filesystem, etc.)")
             return
 
         if sub in ("assign", "enable"):
@@ -470,7 +470,7 @@ class AgentCommands:
             if hasattr(h, "_mcp_assign"):
                 h.run_worker(h._mcp_assign(rest))
             else:
-                h.transcript_write("MCP assign via CLI: helix mcp assign")
+                h.transcript_write("MCP assign via CLI: holix mcp assign")
             return
 
         if sub == "test":
@@ -478,7 +478,7 @@ class AgentCommands:
             if hasattr(h, "_mcp_test"):
                 h.run_worker(h._mcp_test(name))
             else:
-                h.transcript_write("Test via CLI: helix mcp test <name>")
+                h.transcript_write("Test via CLI: holix mcp test <name>")
             return
 
         if sub in ("remove", "rm", "delete"):
@@ -486,9 +486,9 @@ class AgentCommands:
             if hasattr(h, "_mcp_remove"):
                 h.run_worker(h._mcp_remove(name))
             else:
-                h.transcript_write("Remove via CLI: helix mcp remove <name>")
+                h.transcript_write("Remove via CLI: holix mcp remove <name>")
             return
 
         # Unknown subcommand
         h.transcript_write("MCP commands: /mcp, /mcp list, /mcp install <name|url>, /mcp assign, /mcp remove <name>, /mcp test <name>, /mcp tools")
-        h.transcript_write("For full UI use Telegram menus or TUI, or run `helix mcp` in terminal.")
+        h.transcript_write("For full UI use Telegram menus or TUI, or run `holix mcp` in terminal.")

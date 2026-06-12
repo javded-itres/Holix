@@ -1,5 +1,5 @@
 """
-Procedural Memory Store for Helix Long-term Memory.
+Procedural Memory Store for Holix Long-term Memory.
 
 Backed by the existing SkillsManager for skill definitions,
 plus outcome tracking in ltm_entries. Enriches skill retrieval

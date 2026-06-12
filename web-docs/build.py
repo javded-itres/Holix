@@ -11,7 +11,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
 REPO = ROOT.parent
-SITE_URL = "https://helix-agent.ru"
+SITE_URL = "https://holix-agent.ru"
 sys.path.insert(0, str(REPO))
 
 from core.docs_chat.build_index import make_page_entry, write_chunk_index  # noqa: E402
@@ -161,7 +161,7 @@ def write_seo_artifacts(entries: list[dict]) -> None:
     (ROOT / "sitemap.xml").write_text(sitemap, encoding="utf-8")
 
     crawl_links = [
-        f'<a href="{SITE_URL}/">Helix</a>',
+        f'<a href="{SITE_URL}/">Holix</a>',
         f'<a href="{SITE_URL}/docs">Documentation</a>',
     ]
     for slug in slugs:

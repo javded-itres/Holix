@@ -22,7 +22,7 @@ from integrations.telegram.access_requests import (
 )
 from integrations.telegram.admin import (
     clear_admin_user,
-    load_admin_helix_profile,
+    load_admin_holix_profile,
     load_admin_user_id,
     set_admin_user,
 )
@@ -103,7 +103,7 @@ def get_telegram_status(profile_id: str) -> dict[str, Any]:
         "pending_count": len(pending),
         "allowed_user_ids": settings.allowed_user_ids,
         "admin_user_id": admin_id,
-        "admin_helix_profile": load_admin_helix_profile(profile_id) if admin_id else None,
+        "admin_holix_profile": load_admin_holix_profile(profile_id) if admin_id else None,
         "user_profile_map": {str(uid): name for uid, name in sorted(mapping.items())},
         "telegram_env_path": str(telegram_env_path(profile_id)),
         "user_profiles_path": str(telegram_users_path(profile_id)),
@@ -130,14 +130,14 @@ async def setup_telegram(
     existing = read_telegram_env_values(profile_id)
     values = {
         "TELEGRAM_BOT_TOKEN": token,
-        "HELIX_TELEGRAM_ACCESS_REQUESTS": "true",
+        "HOLIX_TELEGRAM_ACCESS_REQUESTS": "true",
     }
-    allowed = existing.get("HELIX_TELEGRAM_ALLOWED_USERS", "").strip()
+    allowed = existing.get("HOLIX_TELEGRAM_ALLOWED_USERS", "").strip()
     if allowed:
-        values["HELIX_TELEGRAM_ALLOWED_USERS"] = allowed.replace(" ", "")
-    edit_ms = existing.get("HELIX_TELEGRAM_EDIT_MS", "")
+        values["HOLIX_TELEGRAM_ALLOWED_USERS"] = allowed.replace(" ", "")
+    edit_ms = existing.get("HOLIX_TELEGRAM_EDIT_MS", "")
     if edit_ms:
-        values["HELIX_TELEGRAM_EDIT_MS"] = edit_ms
+        values["HOLIX_TELEGRAM_EDIT_MS"] = edit_ms
 
     path = save_telegram_env(values, profile=profile_id)
     if also_project_env:
@@ -167,11 +167,11 @@ async def approve_access_request(
     profile_id: str,
     user_id: int,
     *,
-    helix_profile: str | None = None,
+    holix_profile: str | None = None,
     create_profile: str | None = None,
     set_admin: bool = False,
 ) -> dict[str, Any]:
-    if set_admin and (helix_profile or create_profile):
+    if set_admin and (holix_profile or create_profile):
         raise TelegramOpError("--set-admin cannot be combined with profile or create_profile")
 
     load_telegram_env_files(profile_id)
@@ -189,11 +189,11 @@ async def approve_access_request(
 
     target_profile: str | None = None
     if set_admin:
-        target_profile = load_admin_helix_profile(profile_id)
+        target_profile = load_admin_holix_profile(profile_id)
     elif create_profile:
         target_profile = create_profile.strip()
-    elif helix_profile:
-        target_profile = helix_profile.strip()
+    elif holix_profile:
+        target_profile = holix_profile.strip()
 
     if not target_profile:
         raise TelegramOpError("profile or create_profile is required")
@@ -209,7 +209,7 @@ async def approve_access_request(
     )
 
     if set_admin:
-        set_admin_user(profile_id, user_id, helix_profile=target_profile)
+        set_admin_user(profile_id, user_id, holix_profile=target_profile)
 
     add_allowed_user(profile_id, user_id)
     set_user_profile(profile_id, user_id, target_profile)
@@ -217,7 +217,7 @@ async def approve_access_request(
         profile_id,
         user_id,
         status="approved",
-        helix_profile=target_profile,
+        holix_profile=target_profile,
     )
 
     notify_error: str | None = None
@@ -238,7 +238,7 @@ async def approve_access_request(
 
     result: dict[str, Any] = {
         "user_id": user_id,
-        "helix_profile": target_profile,
+        "holix_profile": target_profile,
         "set_admin": set_admin,
         "reload_required": True,
     }
@@ -261,11 +261,11 @@ def get_telegram_admin(profile_id: str) -> dict[str, Any]:
     load_telegram_env_files(profile_id)
     admin_id = load_admin_user_id(profile_id)
     if admin_id is None:
-        return {"assigned": False, "user_id": None, "helix_profile": None}
+        return {"assigned": False, "user_id": None, "holix_profile": None}
     return {
         "assigned": True,
         "user_id": admin_id,
-        "helix_profile": load_admin_helix_profile(profile_id),
+        "holix_profile": load_admin_holix_profile(profile_id),
     }
 
 
@@ -288,12 +288,12 @@ def list_user_map(profile_id: str) -> dict[str, Any]:
     }
 
 
-def set_user_map(profile_id: str, user_id: int, helix_profile: str) -> dict[str, Any]:
+def set_user_map(profile_id: str, user_id: int, holix_profile: str) -> dict[str, Any]:
     load_telegram_env_files(profile_id)
-    path = set_user_profile(profile_id, user_id, helix_profile.strip())
+    path = set_user_profile(profile_id, user_id, holix_profile.strip())
     return {
         "user_id": user_id,
-        "helix_profile": helix_profile.strip(),
+        "holix_profile": holix_profile.strip(),
         "path": str(path),
         "reload_required": True,
     }

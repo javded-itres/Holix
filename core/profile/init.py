@@ -11,9 +11,9 @@ INIT_MD_FILENAME = "INIT.md"
 INIT_ONBOARDING_PROMPT = """
 ## First-time initialization (INIT.md is active)
 
-This Helix profile has **not** completed onboarding. Before normal task work:
+This Holix profile has **not** completed onboarding. Before normal task work:
 
-1. **Introduce yourself** warmly as this user's Helix agent for this profile.
+1. **Introduce yourself** warmly as this user's Holix agent for this profile.
 2. **Learn the user:** ask their name and how they prefer to be addressed.
 3. **Learn how to work together:** pace, detail level, language, feedback style.
 4. **Define your personality:** invite the user to describe the agent they want (tone, values, style).
@@ -31,7 +31,7 @@ Rules:
 
 DEFAULT_INIT_MD = """# Initialization in progress
 
-First-time setup for this Helix profile.
+First-time setup for this Holix profile.
 Complete onboarding with the user, then call `complete_agent_initialization`.
 """
 

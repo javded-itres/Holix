@@ -1,6 +1,6 @@
 # Terminal Command Security
 
-Helix runs shell commands through the `run_terminal_command` tool. Before any command reaches the OS, it passes through **several independent checks**.
+Holix runs shell commands through the `run_terminal_command` tool. Before any command reaches the OS, it passes through **several independent checks**.
 
 This page explains what is allowed, what is blocked, how the **whitelist** works, and how it relates to **user confirmation**.
 
@@ -11,11 +11,11 @@ This page explains what is allowed, what is blocked, how the **whitelist** works
 ```mermaid
 flowchart TD
   A[Agent calls run_terminal_command] --> B{Terminal tool enabled?}
-  B -->|HELIX_ENABLE_TERMINAL_TOOL=false| X1[Blocked: tool disabled]
+  B -->|HOLIX_ENABLE_TERMINAL_TOOL=false| X1[Blocked: tool disabled]
   B -->|yes| C{ActionGuard confirmation}
   C -->|user denies| X2[Blocked: denied by user]
   C -->|approved / auto-allowed| D{Whitelist enabled?}
-  D -->|HELIX_TERMINAL_COMMAND_WHITELIST=false| F[Execute in shell]
+  D -->|HOLIX_TERMINAL_COMMAND_WHITELIST=false| F[Execute in shell]
   D -->|true default| E{Dangerous pattern?}
   E -->|yes| X3[Blocked: dangerous pattern]
   E -->|no| G{In whitelist?}
@@ -34,12 +34,12 @@ The whitelist is enforced **inside** `TerminalTool.execute()` — if confirmatio
 
 | Variable | Default | Effect |
 |----------|---------|--------|
-| `HELIX_ENABLE_TERMINAL_TOOL` | `true` | Master switch for `run_terminal_command` |
+| `HOLIX_ENABLE_TERMINAL_TOOL` | `true` | Master switch for `run_terminal_command` |
 
 When disabled, the agent receives:
 
 ```text
-Error: Terminal tool is disabled (HELIX_ENABLE_TERMINAL_TOOL=false)
+Error: Terminal tool is disabled (HOLIX_ENABLE_TERMINAL_TOOL=false)
 ```
 
 Recommended in production if the agent does not need a shell.
@@ -86,15 +86,15 @@ Controlled by:
 
 | Variable | Default | Effect |
 |----------|---------|--------|
-| `HELIX_TERMINAL_COMMAND_WHITELIST` | `true` | Enforce allowlist |
-| `HELIX_TERMINAL_WHITELIST_EXTRA` | empty | Extra commands/prefixes (comma-separated) |
+| `HOLIX_TERMINAL_COMMAND_WHITELIST` | `true` | Enforce allowlist |
+| `HOLIX_TERMINAL_WHITELIST_EXTRA` | empty | Extra commands/prefixes (comma-separated) |
 
 Per profile:
 
 ```bash
-helix -p dev profile whitelist enable
-helix -p dev profile whitelist add "docker, make"
-helix -p dev profile whitelist list
+holix -p dev profile whitelist enable
+holix -p dev profile whitelist add "docker, make"
+holix -p dev profile whitelist list
 ```
 
 See [PROFILES.md](PROFILES.md#terminal-whitelist-optional).
@@ -118,7 +118,7 @@ Examples on Unix:
 | `pip list` | Allowed | prefix `pip list` |
 | `pip install requests` | **Blocked** | not `pip list` / `pip show` |
 | `docker ps` | **Blocked** | until added via `whitelist add` |
-| `helix gateway status` | Allowed | prefix `helix` |
+| `holix gateway status` | Allowed | prefix `holix` |
 
 Prefix design means `pytest tests/` is allowed because `pytest` is listed, but `make build` is **not** allowed until you add `make` or `make build` to extras — only `make test` is a default prefix.
 
@@ -134,17 +134,17 @@ Git (read-only subcommands only):
 
 Runtimes / tests:
 
-`python`, `python3`, `node`, `pip list`, `pip show`, `pytest`, `npm test`, `make test`, `helix`, `uv`
+`python`, `python3`, `node`, `pip list`, `pip show`, `pytest`, `npm test`, `make test`, `holix`, `uv`
 
 ### Built-in allowlist (Windows)
 
-`dir`, `type`, `more`, `findstr`, `where`, `cd`, `echo`, `tree`, `whoami`, `hostname`, `date`, `systeminfo`, `tasklist`, `ipconfig`, `ping`, `curl`, `nslookup`, plus the same git/python/npm/pytest/helix/uv entries adapted for Windows (`py` instead of `python3` only).
+`dir`, `type`, `more`, `findstr`, `where`, `cd`, `echo`, `tree`, `whoami`, `hostname`, `date`, `systeminfo`, `tasklist`, `ipconfig`, `ping`, `curl`, `nslookup`, plus the same git/python/npm/pytest/holix/uv entries adapted for Windows (`py` instead of `python3` only).
 
 Unix commands like `ls` or `grep` are **not** on the Windows list — use `dir` / `findstr`, or add extras.
 
 ### When whitelist is disabled
 
-Setting `HELIX_TERMINAL_COMMAND_WHITELIST=false` skips allowlist checks (dangerous patterns still apply). Use only in fully trusted dev environments.
+Setting `HOLIX_TERMINAL_COMMAND_WHITELIST=false` skips allowlist checks (dangerous patterns still apply). Use only in fully trusted dev environments.
 
 ---
 
@@ -180,8 +180,8 @@ If [workspace jail](PROFILES.md#workspace-jail-optional) is enabled, `run_termin
 | Read project files | `read_file` tool or `cat` / `type` (whitelisted) |
 | Run tests | `pytest`, `npm test`, `make test` |
 | Check git state | `git status`, `git log`, `git diff` |
-| Push / commit | Add `git` to extras **and** confirm, or run yourself outside Helix |
-| Docker / make / custom CLI | `helix profile whitelist add "docker, make"` |
+| Push / commit | Add `git` to extras **and** confirm, or run yourself outside Holix |
+| Docker / make / custom CLI | `holix profile whitelist add "docker, make"` |
 | Install packages | Not in default whitelist — manual install recommended |
 | Delete files | `rm` not whitelisted; dangerous patterns block `rm -rf` |
 
@@ -211,12 +211,12 @@ Error: Tool call 'run_terminal_command' denied by user. Reason: Terminal command
 
 ## Production recommendations
 
-1. Keep `HELIX_TERMINAL_COMMAND_WHITELIST=true` (default).
+1. Keep `HOLIX_TERMINAL_COMMAND_WHITELIST=true` (default).
 2. Add only the **minimum** extras per profile (`whitelist add`).
 3. Use **workspace jail** for shared/multi-user hosts.
-4. Disable terminal entirely if not needed: `HELIX_ENABLE_TERMINAL_TOOL=false`.
-5. Disable Python executor if not needed: `HELIX_ENABLE_CODE_EXECUTOR=false`.
-6. Run `helix doctor` and review [SECURITY.md](SECURITY.md).
+4. Disable terminal entirely if not needed: `HOLIX_ENABLE_TERMINAL_TOOL=false`.
+5. Disable Python executor if not needed: `HOLIX_ENABLE_CODE_EXECUTOR=false`.
+6. Run `holix doctor` and review [SECURITY.md](SECURITY.md).
 
 ---
 

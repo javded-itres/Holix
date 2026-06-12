@@ -1,4 +1,4 @@
-"""Immutable runtime configuration for Helix (replaces global settings mutation)."""
+"""Immutable runtime configuration for Holix (replaces global settings mutation)."""
 
 from __future__ import annotations
 
@@ -18,7 +18,7 @@ if TYPE_CHECKING:
 
 
 @dataclass(frozen=True, slots=True)
-class HelixRuntimeConfig:
+class HolixRuntimeConfig:
     """Resolved configuration for a single agent / session."""
 
     # LLM
@@ -94,8 +94,8 @@ class HelixRuntimeConfig:
     # Web search (DuckDuckGo / SearXNG / Firecrawl)
     search: dict[str, Any] = field(default_factory=dict)
 
-    # Local project supplement dir (CWD/.helix) — used for skills, plans, extra mcp; NEVER for model/system keys.
-    local_project_dir: str = ".helix"
+    # Local project supplement dir (CWD/.holix) — used for skills, plans, extra mcp; NEVER for model/system keys.
+    local_project_dir: str = ".holix"
     local_skills_dir: str | None = None  # resolved at use site if None
 
     # Workspace jail (optional per-profile directory isolation)
@@ -153,7 +153,7 @@ class HelixRuntimeConfig:
             mcp_enabled=True,
             skill_assignments={},
             search={},
-            local_project_dir=".helix",
+            local_project_dir=".holix",
             local_skills_dir=None,
             workspace_jail_enabled=False,
             workspace_root=None,

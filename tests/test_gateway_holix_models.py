@@ -1,4 +1,4 @@
-"""Tests for /api/helix/profiles/{id}/models routes."""
+"""Tests for /api/holix/profiles/{id}/models routes."""
 
 from __future__ import annotations
 
@@ -9,15 +9,15 @@ from fastapi.testclient import TestClient
 
 
 @pytest.fixture
-def helix_home(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
-    monkeypatch.setenv("HELIX_HOME", str(tmp_path))
-    monkeypatch.setenv("HELIX_ENV", "development")
+def holix_home(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
+    monkeypatch.setenv("HOLIX_HOME", str(tmp_path))
+    monkeypatch.setenv("HOLIX_ENV", "development")
     monkeypatch.chdir(tmp_path)
     return tmp_path
 
 
 def test_models_presets_and_fallbacks(
-    helix_home: Path,
+    holix_home: Path,
     gateway_client: TestClient,
     gateway_auth_headers: dict,
 ) -> None:
@@ -26,7 +26,7 @@ def test_models_presets_and_fallbacks(
     ProfileManager().create_profile("models-test")
 
     presets = gateway_client.get(
-        "/api/helix/profiles/models-test/models/presets",
+        "/api/holix/profiles/models-test/models/presets",
         headers=gateway_auth_headers,
     )
     assert presets.status_code == 200
@@ -35,7 +35,7 @@ def test_models_presets_and_fallbacks(
     assert any(p["id"] == "ollama" for p in data["presets"])
 
     fallbacks = gateway_client.patch(
-        "/api/helix/profiles/models-test/models/fallbacks",
+        "/api/holix/profiles/models-test/models/fallbacks",
         headers=gateway_auth_headers,
         json={"providers": []},
     )
@@ -43,7 +43,7 @@ def test_models_presets_and_fallbacks(
     assert fallbacks.json()["reload_required"] is True
 
     agents = gateway_client.patch(
-        "/api/helix/profiles/models-test/models/agent-models",
+        "/api/holix/profiles/models-test/models/agent-models",
         headers=gateway_auth_headers,
         json={"agent_models": {"main": {"provider": "ollama", "model": "qwen", "temperature": 0.5}}},
     )
@@ -52,7 +52,7 @@ def test_models_presets_and_fallbacks(
 
 
 def test_add_provider_skip_test(
-    helix_home: Path,
+    holix_home: Path,
     gateway_client: TestClient,
     gateway_auth_headers: dict,
 ) -> None:
@@ -61,7 +61,7 @@ def test_add_provider_skip_test(
     ProfileManager().create_profile("provider-test")
 
     added = gateway_client.post(
-        "/api/helix/profiles/provider-test/models/providers",
+        "/api/holix/profiles/provider-test/models/providers",
         headers=gateway_auth_headers,
         json={"preset_id": "ollama", "skip_test": True},
     )
@@ -69,7 +69,7 @@ def test_add_provider_skip_test(
     assert added.json()["reload_required"] is True
 
     listed = gateway_client.get(
-        "/api/helix/profiles/provider-test/models/providers",
+        "/api/holix/profiles/provider-test/models/providers",
         headers=gateway_auth_headers,
     )
     assert listed.status_code == 200

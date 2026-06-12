@@ -1,23 +1,23 @@
-"""Tests for Dishka DI and HelixRuntimeConfig."""
+"""Tests for Dishka DI and HolixRuntimeConfig."""
 
 from pathlib import Path
 
 import pytest
 from cli.core import ProfileConfig
-from core.agent import HelixAgent
+from core.agent import HolixAgent
 from core.di.container import create_agent, create_async_container, resolve_runtime_config
-from core.di.runtime_config import HelixRuntimeConfig
+from core.di.runtime_config import HolixRuntimeConfig
 
 
 def test_runtime_config_from_settings():
-    cfg = HelixRuntimeConfig.from_settings()
+    cfg = HolixRuntimeConfig.from_settings()
     assert cfg.model
     assert cfg.memory_db_path
     assert cfg.use_langgraph is True
 
 
 def test_runtime_config_with_overrides():
-    base = HelixRuntimeConfig.from_settings()
+    base = HolixRuntimeConfig.from_settings()
     updated = base.with_overrides(model="test-model", max_steps=99)
     assert updated.model == "test-model"
     assert updated.max_steps == 99
@@ -32,7 +32,7 @@ def test_runtime_config_from_profile():
         vector_db_path="/tmp/test_vector",
         skills_dir="/tmp/test_skills",
     )
-    cfg = HelixRuntimeConfig.from_profile(profile)
+    cfg = HolixRuntimeConfig.from_profile(profile)
     assert cfg.model == "profile-model"
     assert Path(cfg.memory_db_path) == Path(profile.memory_db_path)
     assert cfg.ltm_db_path.endswith("ltm.db")
@@ -44,9 +44,9 @@ def test_runtime_config_from_profile():
 async def test_create_async_container_without_explicit_config():
     container = create_async_container()
     try:
-        from core.agent import HelixAgent
+        from core.agent import HolixAgent
 
-        agent = await container.get(HelixAgent)
+        agent = await container.get(HolixAgent)
         assert agent.config.model
     finally:
         await container.close()
@@ -54,7 +54,7 @@ async def test_create_async_container_without_explicit_config():
 
 @pytest.mark.asyncio
 async def test_dishka_container_provides_agent(temp_dir):
-    cfg = HelixRuntimeConfig.from_settings().with_overrides(
+    cfg = HolixRuntimeConfig.from_settings().with_overrides(
         memory_db_path=f"{temp_dir}/mem.db",
         vector_db_path=f"{temp_dir}/vec",
         ltm_db_path=f"{temp_dir}/ltm.db",
@@ -63,7 +63,7 @@ async def test_dishka_container_provides_agent(temp_dir):
 
     container = create_async_container(cfg)
     try:
-        agent = await container.get(HelixAgent)
+        agent = await container.get(HolixAgent)
         assert agent.config.memory_db_path == cfg.memory_db_path
         assert agent.model == cfg.model
     finally:

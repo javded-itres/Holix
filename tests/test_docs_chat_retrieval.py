@@ -24,7 +24,7 @@ def chunk_index(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
 Configure Telegram bot token and allowlist for each profile.
 
 ## Voice messages
-Helix transcribes Telegram voice notes via Whisper API.
+Holix transcribes Telegram voice notes via Whisper API.
 """
     pypi_raw = """# PyPI
 

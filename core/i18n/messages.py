@@ -24,7 +24,7 @@ MESSAGES: dict[str, dict[str, str]] = {
         "profiles_title": "Profiles",
         "invalid_profile_num": "invalid profile number",
         "unknown_profile": "unknown profile: {name}",
-        "models_hint": "Models: configure agent_models in profile (helix models)",
+        "models_hint": "Models: configure agent_models in profile (holix models)",
         "memory_cleared": "memory search cleared",
         "copy_nothing": "nothing to copy",
         "copy_label": "copied",
@@ -68,7 +68,7 @@ MESSAGES: dict[str, dict[str, str]] = {
         "tg.menu.compress": "Compress context",
         "tg.menu.prev": "Prev",
         "tg.menu.next": "Next",
-        "tg.help.title": "Helix — commands",
+        "tg.help.title": "Holix — commands",
         "tg.help.chat": "Chat",
         "tg.help.chat_body": "Send text — the agent replies in one live message.",
         "tg.help.commands": "Commands (menu left of the input field):",
@@ -78,7 +78,7 @@ MESSAGES: dict[str, dict[str, str]] = {
         "tg.help.extra_body": (
             "• /memory query — semantic search\n"
             "• /compress — compress chat history\n"
-            "• /init — project analysis → .helix/HELIX.md\n"
+            "• /init — project analysis → .holix/HOLIX.md\n"
             "• /profile name — switch profile\n"
             "• /plan-confirm · /plan-reject — plan review\n"
             "• /cron — scheduled jobs\n"
@@ -92,7 +92,7 @@ MESSAGES: dict[str, dict[str, str]] = {
         "tg.cmd.models": "Switch LLM model",
         "tg.cmd.menu": "Control panel",
         "tg.cmd.mode": "Execution mode",
-        "tg.cmd.profile": "Helix profile",
+        "tg.cmd.profile": "Holix profile",
         "tg.cmd.stream": "Streaming on/off",
         "tg.cmd.sessions": "Session list",
         "tg.cmd.switch": "Session by number",
@@ -107,12 +107,12 @@ MESSAGES: dict[str, dict[str, str]] = {
         "tg.cmd.last": "Last tool result",
         "tg.cmd.metrics": "Agent metrics",
         "tg.cmd.compress": "Compress context",
-        "tg.cmd.init": "Project analysis → HELIX.md",
+        "tg.cmd.init": "Project analysis → HOLIX.md",
         "tg.cmd.cron": "Cron jobs",
         "tg.cmd.yes": "Confirm action",
         "tg.cmd.no": "Deny action",
         "tg.cmd.lang": "Interface language (en / ru)",
-        "tui.help.title": "Helix code UI",
+        "tui.help.title": "Holix code UI",
         "tui.help.keys1": "  Enter — send    Shift+Enter — newline",
         "tui.help.keys2": "  {quit} — quit  {clear} — clear  {end} — bottom  Shift+Tab — mode",
         "tui.help.keys3": "  F2 or /open — copy window ({copy} copies there)",
@@ -156,7 +156,7 @@ MESSAGES: dict[str, dict[str, str]] = {
         "profiles_title": "Профили",
         "invalid_profile_num": "неверный номер профиля",
         "unknown_profile": "неизвестный профиль: {name}",
-        "models_hint": "Модели: настройте agent_models в профиле (helix models)",
+        "models_hint": "Модели: настройте agent_models в профиле (holix models)",
         "memory_cleared": "поиск в памяти сброшен",
         "copy_nothing": "нечего копировать",
         "copy_label": "скопировано",
@@ -200,7 +200,7 @@ MESSAGES: dict[str, dict[str, str]] = {
         "tg.menu.compress": "Сжать контекст",
         "tg.menu.prev": "Пред.",
         "tg.menu.next": "След.",
-        "tg.help.title": "Helix — команды",
+        "tg.help.title": "Holix — команды",
         "tg.help.chat": "Чат",
         "tg.help.chat_body": "Отправьте текст — агент ответит одним живым сообщением.",
         "tg.help.commands": "Команды (меню слева от поля ввода):",
@@ -210,7 +210,7 @@ MESSAGES: dict[str, dict[str, str]] = {
         "tg.help.extra_body": (
             "• /memory запрос — семантический поиск\n"
             "• /compress — сжать историю диалога\n"
-            "• /init — анализ проекта в .helix/HELIX.md\n"
+            "• /init — анализ проекта в .holix/HOLIX.md\n"
             "• /profile имя — смена профиля\n"
             "• /plan-confirm · /plan-reject — план\n"
             "• /cron — периодические задачи\n"
@@ -224,7 +224,7 @@ MESSAGES: dict[str, dict[str, str]] = {
         "tg.cmd.models": "Сменить LLM модель",
         "tg.cmd.menu": "Панель управления",
         "tg.cmd.mode": "Режим выполнения",
-        "tg.cmd.profile": "Профиль Helix",
+        "tg.cmd.profile": "Профиль Holix",
         "tg.cmd.stream": "Стриминг вкл/выкл",
         "tg.cmd.sessions": "Список сессий",
         "tg.cmd.switch": "Сессия по номеру",
@@ -239,12 +239,12 @@ MESSAGES: dict[str, dict[str, str]] = {
         "tg.cmd.last": "Последний результат tool",
         "tg.cmd.metrics": "Метрики агента",
         "tg.cmd.compress": "Сжать контекст",
-        "tg.cmd.init": "Анализ проекта → HELIX.md",
+        "tg.cmd.init": "Анализ проекта → HOLIX.md",
         "tg.cmd.cron": "Периодические задачи",
         "tg.cmd.yes": "Подтвердить действие",
         "tg.cmd.no": "Отклонить действие",
         "tg.cmd.lang": "Язык интерфейса (en / ru)",
-        "tui.help.title": "Helix code UI",
+        "tui.help.title": "Holix code UI",
         "tui.help.keys1": "  Enter — отправить    Shift+Enter — новая строка",
         "tui.help.keys2": "  {quit} — выход  {clear} — очистить  {end} — вниз  Shift+Tab — режим",
         "tui.help.keys3": "  F2 или /open — окно копирования ({copy})",

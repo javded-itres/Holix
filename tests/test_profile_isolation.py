@@ -16,32 +16,32 @@ from core.workspace import WorkspaceJailError, resolve_tool_path
 
 
 @pytest.fixture
-def helix_home(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
-    monkeypatch.setenv("HELIX_HOME", str(tmp_path))
+def holix_home(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
+    monkeypatch.setenv("HOLIX_HOME", str(tmp_path))
     monkeypatch.chdir(tmp_path)
     return tmp_path
 
 
-def test_profile_env_overrides_global(helix_home: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.delenv("HELIX_TEST_VAR", raising=False)
-    (helix_home / ".env").write_text("HELIX_TEST_VAR=global\n", encoding="utf-8")
+def test_profile_env_overrides_global(holix_home: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("HOLIX_TEST_VAR", raising=False)
+    (holix_home / ".env").write_text("HOLIX_TEST_VAR=global\n", encoding="utf-8")
 
     manager = ProfileManager()
     manager.create_profile("work")
-    (profile_env_path("work")).write_text("HELIX_TEST_VAR=profile\n", encoding="utf-8")
+    (profile_env_path("work")).write_text("HOLIX_TEST_VAR=profile\n", encoding="utf-8")
 
     bootstrap_profile_env("work", force=True)
-    assert os.environ.get("HELIX_TEST_VAR") == "profile"
+    assert os.environ.get("HOLIX_TEST_VAR") == "profile"
 
 
-def test_profile_env_seeded_on_create(helix_home: Path) -> None:
+def test_profile_env_seeded_on_create(holix_home: Path) -> None:
     manager = ProfileManager()
     manager.create_profile("alice")
     path = profile_env_path("alice")
     assert path.is_file()
 
 
-def test_per_profile_gateway_state(helix_home: Path) -> None:
+def test_per_profile_gateway_state(holix_home: Path) -> None:
     from cli.services import gateway_state as gs
 
     a = gs.new_state(pid=100, host="127.0.0.1", port=8001, profile="a", reload=False)
@@ -83,7 +83,7 @@ def test_workspace_jail_disabled_allows_anywhere(tmp_path: Path) -> None:
         reset_workspace_scope(tokens)
 
 
-def test_profile_config_workspace_fields(helix_home: Path) -> None:
+def test_profile_config_workspace_fields(holix_home: Path) -> None:
     manager = ProfileManager()
     cfg = ProfileConfig(
         profile_name="jailed",
@@ -95,11 +95,11 @@ def test_profile_config_workspace_fields(helix_home: Path) -> None:
     assert cfg.workspace_root.endswith("data-agent")
 
 
-def test_init_profile_loads_profile_env(helix_home: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.delenv("HELIX_TEST_PROFILE_ONLY", raising=False)
+def test_init_profile_loads_profile_env(holix_home: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("HOLIX_TEST_PROFILE_ONLY", raising=False)
     manager = ProfileManager()
     manager.create_profile("gw")
-    profile_env_path("gw").write_text("HELIX_TEST_PROFILE_ONLY=from_profile\n", encoding="utf-8")
+    profile_env_path("gw").write_text("HOLIX_TEST_PROFILE_ONLY=from_profile\n", encoding="utf-8")
 
     init_profile("gw", prompt_key=False)
-    assert os.environ.get("HELIX_TEST_PROFILE_ONLY") == "from_profile"
+    assert os.environ.get("HOLIX_TEST_PROFILE_ONLY") == "from_profile"

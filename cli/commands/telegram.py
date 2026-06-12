@@ -1,4 +1,4 @@
-"""helix telegram — setup and run Helix via Telegram bot."""
+"""holix telegram — setup and run Holix via Telegram bot."""
 
 from __future__ import annotations
 
@@ -28,7 +28,7 @@ telegram_app = typer.Typer(
     invoke_without_command=True,
 )
 
-map_app = typer.Typer(help="Привязка Telegram user id → профиль Helix (один бот, несколько профилей)")
+map_app = typer.Typer(help="Привязка Telegram user id → профиль Holix (один бот, несколько профилей)")
 requests_app = typer.Typer(help="Запросы доступа: пользователи подают через /start, админ одобряет здесь")
 admin_app = typer.Typer(help="Telegram-администратор (один, назначается только через CLI)")
 telegram_app.add_typer(map_app, name="map")
@@ -38,7 +38,7 @@ telegram_app.add_typer(admin_app, name="admin")
 
 @telegram_app.callback()
 def telegram_default(ctx: typer.Context) -> None:
-    """Start Telegram bot (same as ``helix telegram run``)."""
+    """Start Telegram bot (same as ``holix telegram run``)."""
     if ctx.invoked_subcommand is not None:
         return
     telegram_run(ctx)
@@ -58,13 +58,13 @@ def telegram_run(ctx: typer.Context) -> None:
         print_info("Install: uv sync --extra telegram")
         raise typer.Exit(1) from e
 
-    print_info(f"Starting Helix Telegram bot (profile={profile})…")
+    print_info(f"Starting Holix Telegram bot (profile={profile})…")
     try:
         asyncio.run(run_bot(profile))
     except RuntimeError as e:
         print_error(str(e))
         if "TELEGRAM_BOT_TOKEN" in str(e):
-            print_info("Настройка: helix telegram setup")
+            print_info("Настройка: holix telegram setup")
         raise typer.Exit(1) from e
 
 
@@ -131,7 +131,7 @@ def telegram_map_list_cmd(ctx: typer.Context) -> None:
 def telegram_map_set_cmd(
     ctx: typer.Context,
     user_id: int = typer.Argument(..., help="Telegram user id (число)"),
-    profile: str = typer.Argument(..., help="Имя профиля Helix"),
+    profile: str = typer.Argument(..., help="Имя профиля Holix"),
 ) -> None:
     """Привязать user id к профилю."""
     telegram_map_set(resolve_profile(ctx), user_id, profile)
@@ -149,7 +149,7 @@ def telegram_map_remove_cmd(
 @map_app.command("bind")
 def telegram_map_bind_cmd(
     ctx: typer.Context,
-    profile: str = typer.Argument(..., help="Профиль Helix"),
+    profile: str = typer.Argument(..., help="Профиль Holix"),
     user_id: int | None = typer.Option(None, "--user-id", "-u", help="Telegram user id"),
 ) -> None:
     """Быстрая привязка (user id из allowlist или --user-id)."""
@@ -169,12 +169,12 @@ def telegram_requests_approve_cmd(
     profile: str | None = typer.Option(
         None,
         "--profile",
-        help="Существующий профиль Helix для пользователя",
+        help="Существующий профиль Holix для пользователя",
     ),
     create_profile: str | None = typer.Option(
         None,
         "--create-profile",
-        help="Создать новый профиль Helix и назначить пользователю",
+        help="Создать новый профиль Holix и назначить пользователю",
     ),
     interactive: bool = typer.Option(
         False,

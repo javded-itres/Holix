@@ -1,5 +1,5 @@
 """
-Confirmation System — dangerous action confirmation for Helix tools.
+Confirmation System — dangerous action confirmation for Holix tools.
 
 Provides risk classification, permission management, and interactive
 confirmation prompts before executing high-risk tool calls.
@@ -660,7 +660,7 @@ def init_action_guard(
 ) -> ActionGuard:
     """Initialize the global ActionGuard instance.
 
-    Called by HelixAgent after the event bus is ready.
+    Called by HolixAgent after the event bus is ready.
     """
     global _action_guard
     if data_dir is not None:

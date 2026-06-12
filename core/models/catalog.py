@@ -10,7 +10,7 @@ from core.url_utils import host_is, url_hostname, url_port
 
 @dataclass(frozen=True, slots=True)
 class ProviderPreset:
-    """Built-in provider template for ``helix models setup`` / ``models add``."""
+    """Built-in provider template for ``holix models setup`` / ``models add``."""
 
     id: str
     display_name: str
@@ -36,7 +36,7 @@ class ProviderPreset:
         meta: dict[str, Any] = {"auth_type": self.auth_type, "preset_id": self.id}
         if self.auth_type == "openrouter":
             meta["http_referer"] = "${OPENROUTER_HTTP_REFERER}"
-            meta["x_title"] = "Helix"
+            meta["x_title"] = "Holix"
         if self.extra_env:
             meta["extra_env"] = list(self.extra_env)
         if self.configurable_host:

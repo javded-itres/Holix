@@ -23,7 +23,7 @@ from core.agent_events import (
     ToolCallResultEvent,
     ToolCallStartEvent,
 )
-from core.runtime.executor import run_helix
+from core.runtime.executor import run_holix
 
 
 class StreamingAgentLoop:
@@ -47,10 +47,10 @@ class StreamingAgentLoop:
         """
         Streaming version of the agent loop.
 
-        Emits legacy Helix chunks plus Hermes-compatible SSE events.
+        Emits legacy Holix chunks plus Hermes-compatible SSE events.
         """
         try:
-            async for event in run_helix(
+            async for event in run_holix(
                 self.agent,
                 user_input,
                 conversation_id,

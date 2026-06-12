@@ -69,13 +69,13 @@ def profile_create(
             f"[cyan]{access_key}[/cyan]\n\n"
             "Save this key — it is shown only once.\n"
             f"Workspace jail: [dim]{workspace}[/dim]\n"
-            f"Switch with: [bold]helix -p {name} --profile-key <key>[/bold]",
+            f"Switch with: [bold]holix -p {name} --profile-key <key>[/bold]",
             title="Profile access key",
             border_style="yellow",
         )
     else:
-        print_info(f"Switch freely: [bold]helix -p {name}[/bold]")
-        print_info("Protect later: [cyan]helix -p {name} profile key init[/cyan]")
+        print_info(f"Switch freely: [bold]holix -p {name}[/bold]")
+        print_info("Protect later: [cyan]holix -p {name} profile key init[/cyan]")
 
 
 @global_app.command("show")
@@ -129,7 +129,7 @@ def global_init(
         help="Seed global config from an existing profile (empty = built-in defaults)",
     ),
 ) -> None:
-    """Create or reset ``~/.helix/global/`` from defaults or an existing profile."""
+    """Create or reset ``~/.holix/global/`` from defaults or an existing profile."""
     import yaml
     from core.global_config import (
         default_global_config_data,
@@ -172,14 +172,14 @@ def key_status(ctx: typer.Context) -> None:
         body = (
             "[green]Protected[/green]\n\n"
             "Switching into this profile requires its access key.\n"
-            "Disable with: [cyan]helix profile key disable[/cyan]"
+            "Disable with: [cyan]holix profile key disable[/cyan]"
         )
         border = "green"
     else:
         body = (
             "[yellow]Open[/yellow]\n\n"
             "Free switching — no access key required.\n"
-            "Protect with: [cyan]helix profile key init[/cyan]"
+            "Protect with: [cyan]holix profile key init[/cyan]"
         )
         border = "yellow"
     print_panel(body, title=f"Profile access — {profile}", border_style=border)
@@ -229,7 +229,7 @@ def key_rotate(
 
     profile = _profile(ctx)
     if not profile_has_access_key(profile):
-        print_error("This profile has no access key yet. Use: helix profile key init")
+        print_error("This profile has no access key yet. Use: holix profile key init")
         raise typer.Exit(1)
     if not verify_profile_access_key(profile, current_key):
         print_error("Current access key is invalid")
@@ -357,7 +357,7 @@ def jail_status(ctx: typer.Context) -> None:
     else:
         body = (
             "[yellow]Disabled[/yellow]\n\n"
-            "Enable with: [cyan]helix profile jail enable /path/to/dir[/cyan]"
+            "Enable with: [cyan]holix profile jail enable /path/to/dir[/cyan]"
         )
         border = "yellow"
 

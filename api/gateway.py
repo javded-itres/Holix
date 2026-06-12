@@ -1,4 +1,4 @@
-"""Helix API Gateway — multi-profile Hermes-compatible HTTP API."""
+"""Holix API Gateway — multi-profile Hermes-compatible HTTP API."""
 
 from __future__ import annotations
 
@@ -27,16 +27,16 @@ from api.docs_chat import router as docs_chat_router
 from api.routers import (
     admin,
     health,
-    helix_config,
-    helix_global,
-    helix_mcp,
-    helix_models,
-    helix_profiles,
-    helix_skills,
-    helix_telegram,
     hermes_jobs,
     hermes_sessions,
     hermes_v1,
+    holix_config,
+    holix_global,
+    holix_mcp,
+    holix_models,
+    holix_profiles,
+    holix_skills,
+    holix_telegram,
     legacy_v1,
 )
 from config import settings
@@ -56,9 +56,9 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
 async def lifespan(app: FastAPI):
     """Initialize multi-profile registry, stores, and API key DB."""
     if settings.is_production and not settings.api_key_pepper.strip():
-        raise RuntimeError("HELIX_API_KEY_PEPPER is required when HELIX_ENV=production")
+        raise RuntimeError("HOLIX_API_KEY_PEPPER is required when HOLIX_ENV=production")
 
-    host_profile = (os.getenv("HELIX_PROFILE") or "default").strip() or "default"
+    host_profile = (os.getenv("HOLIX_PROFILE") or "default").strip() or "default"
     state.host_profile = host_profile
     state.registry = ProfileAgentRegistry(host_profile)
     state.companions = CompanionManager()
@@ -89,8 +89,8 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(
-    title="Helix API",
-    description="Multi-profile AI agent gateway (Hermes-compatible + Helix management)",
+    title="Holix API",
+    description="Multi-profile AI agent gateway (Hermes-compatible + Holix management)",
     version="0.2.0",
     lifespan=lifespan,
 )
@@ -114,13 +114,13 @@ app.include_router(legacy_v1.router)
 app.include_router(hermes_jobs.router)
 app.include_router(hermes_sessions.router)
 app.include_router(admin.router)
-app.include_router(helix_profiles.router)
-app.include_router(helix_models.router)
-app.include_router(helix_skills.router)
-app.include_router(helix_mcp.router)
-app.include_router(helix_config.router)
-app.include_router(helix_global.router)
-app.include_router(helix_telegram.router)
+app.include_router(holix_profiles.router)
+app.include_router(holix_models.router)
+app.include_router(holix_skills.router)
+app.include_router(holix_mcp.router)
+app.include_router(holix_config.router)
+app.include_router(holix_global.router)
+app.include_router(holix_telegram.router)
 app.include_router(docs_chat_router)
 
 
@@ -129,7 +129,7 @@ async def root():
     registry = state.registry
     loaded = registry.list_loaded_profiles() if registry else []
     return {
-        "name": "Helix API",
+        "name": "Holix API",
         "version": "0.2.0",
         "status": "running",
         "host_profile": state.host_profile,

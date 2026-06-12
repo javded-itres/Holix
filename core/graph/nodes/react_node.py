@@ -1,5 +1,5 @@
 """
-ReAct Node — core reasoning node for the Helix LangGraph.
+ReAct Node — core reasoning node for the Holix LangGraph.
 
 Calls the LLM, processes the response, and either sets tool_calls
 or sets is_final + final_response. Emits AgentEvent objects to
@@ -18,13 +18,13 @@ from core.agent_events import (
     ThinkingEvent,
     ToolCallStartEvent,
 )
-from core.graph.state import HelixGraphState, get_agent_from_config
+from core.graph.state import HolixGraphState, get_agent_from_config
 from core.prompt_builder import build_system_prompt, format_tools_description
 
 logger = logging.getLogger(__name__)
 
 
-async def react_node(state: HelixGraphState, config: RunnableConfig) -> dict:
+async def react_node(state: HolixGraphState, config: RunnableConfig) -> dict:
     """ReAct reasoning node: call LLM, decide next action.
 
     This is a direct translation of the reasoning step from
@@ -407,7 +407,7 @@ async def _react_streaming(
     }
 
 
-def _build_system_prompt_from_state(state: HelixGraphState, agent=None) -> str:
+def _build_system_prompt_from_state(state: HolixGraphState, agent=None) -> str:
     """Build the system prompt using state's memory/skills/strategies."""
     # Format tools
     tools_desc = ""

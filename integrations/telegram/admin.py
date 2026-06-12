@@ -6,8 +6,8 @@ import os
 
 from integrations.telegram.env_store import read_telegram_env_values, save_telegram_env
 
-ENV_ADMIN_USER_ID = "HELIX_TELEGRAM_ADMIN_USER_ID"
-ENV_ADMIN_PROFILE = "HELIX_TELEGRAM_ADMIN_PROFILE"
+ENV_ADMIN_USER_ID = "HOLIX_TELEGRAM_ADMIN_USER_ID"
+ENV_ADMIN_PROFILE = "HOLIX_TELEGRAM_ADMIN_PROFILE"
 DEFAULT_ADMIN_PROFILE = "admin"
 
 
@@ -21,7 +21,7 @@ def load_admin_user_id(bot_profile: str) -> int | None:
     return None
 
 
-def load_admin_helix_profile(bot_profile: str) -> str:
+def load_admin_holix_profile(bot_profile: str) -> str:
     from integrations.telegram.env_store import load_telegram_env_files
 
     load_telegram_env_files(bot_profile)
@@ -29,11 +29,11 @@ def load_admin_helix_profile(bot_profile: str) -> str:
     return raw or DEFAULT_ADMIN_PROFILE
 
 
-def set_admin_user(bot_profile: str, user_id: int, *, helix_profile: str | None = None) -> None:
+def set_admin_user(bot_profile: str, user_id: int, *, holix_profile: str | None = None) -> None:
     """Persist the single Telegram admin (CLI only — never call from bot handlers)."""
     values = read_telegram_env_values(bot_profile)
     values[ENV_ADMIN_USER_ID] = str(int(user_id))
-    values[ENV_ADMIN_PROFILE] = (helix_profile or DEFAULT_ADMIN_PROFILE).strip() or DEFAULT_ADMIN_PROFILE
+    values[ENV_ADMIN_PROFILE] = (holix_profile or DEFAULT_ADMIN_PROFILE).strip() or DEFAULT_ADMIN_PROFILE
     save_telegram_env(values, profile=bot_profile)
 
 

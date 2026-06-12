@@ -12,7 +12,7 @@ class Message(BaseModel):
 
 class ChatCompletionRequest(BaseModel):
     """OpenAI-compatible chat completion request."""
-    model: str = "helix"
+    model: str = "holix"
     messages: list[Message]
     temperature: float | None = 0.7
     max_tokens: int | None = None

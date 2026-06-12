@@ -1,4 +1,4 @@
-"""Outbound file delivery from Helix agent to Telegram chat."""
+"""Outbound file delivery from Holix agent to Telegram chat."""
 
 from __future__ import annotations
 

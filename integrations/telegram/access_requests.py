@@ -25,7 +25,7 @@ class TelegramAccessRequest:
     status: str = STATUS_PENDING
     requested_at: str = ""
     resolved_at: str | None = None
-    helix_profile: str | None = None
+    holix_profile: str | None = None
 
     @property
     def display_name(self) -> str:
@@ -88,7 +88,7 @@ def _from_dict(payload: dict[str, Any]) -> TelegramAccessRequest | None:
         status=str(payload.get("status") or STATUS_PENDING),
         requested_at=str(payload.get("requested_at") or ""),
         resolved_at=payload.get("resolved_at"),
-        helix_profile=payload.get("helix_profile"),
+        holix_profile=payload.get("holix_profile"),
     )
 
 
@@ -161,7 +161,7 @@ def resolve_access_request(
     user_id: int,
     *,
     status: str,
-    helix_profile: str | None = None,
+    holix_profile: str | None = None,
 ) -> TelegramAccessRequest | None:
     data = _load_raw(bot_profile)
     key = str(int(user_id))
@@ -170,8 +170,8 @@ def resolve_access_request(
         return None
     existing.status = status
     existing.resolved_at = _utc_now()
-    if helix_profile:
-        existing.helix_profile = helix_profile.strip()
+    if holix_profile:
+        existing.holix_profile = holix_profile.strip()
     data[key] = asdict(existing)
     _save_raw(bot_profile, data)
     return existing

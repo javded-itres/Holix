@@ -2,19 +2,26 @@
 
 ## Unreleased
 
+## 0.1.11 — 2026-06-11
+
+### Changed
+- **Rebrand Helix → Holix** — CLI command `holix`, PyPI package `Holix`, repo `javded-itres/Holix`
+- Management API prefix `/api/holix/`; env vars `HOLIX_*`; data dir `~/.holix` (legacy `~/.helix` / `HELIX_HOME` supported)
+- Project context file `.holix/HOLIX.md` (legacy `HELIX.md` still read)
+
 ### Added
 - **Multi-profile gateway (v0.2)** — one uvicorn process, `ProfileAgentRegistry`, per-profile Telegram + cron companions
-- **Hermes-compatible API** — `/v1/models`, `/v1/capabilities`, `/v1/responses`, `/v1/runs` (SSE), `/api/jobs`, `/api/sessions`; session header aliases `X-Helix-*` / `X-Hermes-*`
-- **Helix Management API** — `/api/helix/` profiles, models, skills, MCP, config/env, global settings; profile key auth (`X-Helix-Profile-Key`)
-- **Telegram admin API** — `/api/helix/profiles/{id}/telegram/*` (setup, requests approve/reject, admin, map, sync-menu)
-- **`HELIX_REQUIRE_AUTH=true`** by default — public without key: only `GET /health`, `GET /v1/health`
+- **Hermes-compatible API** — `/v1/models`, `/v1/capabilities`, `/v1/responses`, `/v1/runs` (SSE), `/api/jobs`, `/api/sessions`; session header aliases `X-Holix-*` / `X-Hermes-*`
+- **Holix Management API** — `/api/holix/` profiles, models, skills, MCP, config/env, global settings; profile key auth (`X-Holix-Profile-Key`)
+- **Telegram admin API** — `/api/holix/profiles/{id}/telegram/*` (setup, requests approve/reject, admin, map, sync-menu)
+- **`HOLIX_REQUIRE_AUTH=true`** by default — public without key: only `GET /health`, `GET /v1/health`
 - **Profile identity** — `SOUL.md`, `USER.md`, `INIT.md` per profile; first-run onboarding with `save_agent_soul`, `save_user_profile`, `complete_agent_initialization`
 - **SOUL injection** — pinned agent soul in every session and after context compression
 - **Telegram admin** — single admin via `telegram requests approve --set-admin`; `telegram admin show|clear`
 - **Telegram access flow** — admin notifications on `/start`; slash menu hidden until approve; `telegram sync-menu`
 
 ### Documentation
-- **GATEWAY_API.md** (EN/RU) — **complete API reference** (~110 endpoints): auth, Swagger Authorize, Hermes, sessions, jobs, `/api/helix/`, admin, metrics, docs-chat; curl examples per section
+- **GATEWAY_API.md** (EN/RU) — **complete API reference** (~110 endpoints): auth, Swagger Authorize, Hermes, sessions, jobs, `/api/holix/`, admin, metrics, docs-chat; curl examples per section
 - **GATEWAY.md** (EN/RU) — interactive `/docs`, API key bootstrap, metrics endpoints, bundled docs site
 - **CLI.md**, **SECURITY.md**, **README** (EN/RU) — gateway API keys (`hx_` vs `hp_`), two-layer auth, docs-chat token
 - **web-docs** — nav label "Complete API Reference" / "Полный справочник API", updated SEO for `gateway-api`
@@ -23,13 +30,13 @@
 
 ### Fixed
 - **CI** — ruff, SOUL-related tests, Python 3.12 annotations, Linux port checks, Windows pytest/doctor encoding
-- **`helix doctor --no-llm`** — skips live LLM endpoint probe (deterministic checks only)
+- **`holix doctor --no-llm`** — skips live LLM endpoint probe (deterministic checks only)
 
 ## 0.1.8 — 2026-06-10
 
 ### Added
-- **`helix telegram map`** — bind Telegram user id → Helix profile (`set`, `list`, `remove`, `bind`, `import`) for a shared bot
-- Auto profile routing per Telegram chat from `telegram-users.json` / `HELIX_TELEGRAM_USER_PROFILES`
+- **`holix telegram map`** — bind Telegram user id → Holix profile (`set`, `list`, `remove`, `bind`, `import`) for a shared bot
+- Auto profile routing per Telegram chat from `telegram-users.json` / `HOLIX_TELEGRAM_USER_PROFILES`
 - **TELEGRAM_MULTI_PROFILE** (EN/RU) — one bot vs multiple bots, isolation, mapping guide
 
 ### Documentation
@@ -46,7 +53,7 @@
 ## 0.1.7 — 2026-06-10
 
 ### Added
-- **`helix profile whitelist`** — `add`, `list`, `enable` for per-profile terminal command whitelist
+- **`holix profile whitelist`** — `add`, `list`, `enable` for per-profile terminal command whitelist
 - **web-docs SEO** — per-page meta, `sitemap.xml`, `robots.txt`, clean `/docs/<slug>` URLs
 - **Docs chat widget** — stable thinking indicator, auto-navigation to first doc link in reply
 - **Yandex Webmaster** verification file at site root
@@ -64,20 +71,20 @@
 
 ### Documentation
 - **Profiles & Isolation** (EN/RU) — per-profile `.env`, gateway, Telegram, workspace jail
-- **Profile access keys** — optional protection for profile switching (`profile key`, `--protect`, `HELIX_PROFILE_KEY`)
-- **Telegram channel** [@helix_agent](https://t.me/helix_agent) linked in README and TELEGRAM guides
-- **DEPLOYMENT** — per-profile gateway, systemd `helix-gateway@`, docs-server env vars
+- **Profile access keys** — optional protection for profile switching (`profile key`, `--protect`, `HOLIX_PROFILE_KEY`)
+- **Telegram channel** [@holix_agent](https://t.me/holix_agent) linked in README and TELEGRAM guides
+- **DEPLOYMENT** — per-profile gateway, systemd `holix-gateway@`, docs-server env vars
 - **CONFIGURATION**, **CLI**, **GATEWAY**, **USER_GUIDE** updated for profiles and multi-gateway setup
 - Donation link updated to Boosty
 
 ### Added
 - **Per-profile isolation** — `.env`, gateway state/logs, Telegram bot, workspace jail per profile
 - **Optional profile access keys** — off by default; opt-in via `profile create --protect` or `profile key init`
-- **`helix profile`** — `env`, `jail`, `key status|init|rotate|disable`
-- **`--no-verify-ssl`** on `helix models setup` and `helix models add` for self-signed/internal LLM endpoints
+- **`holix profile`** — `env`, `jail`, `key status|init|rotate|disable`
+- **`--no-verify-ssl`** on `holix models setup` and `holix models add` for self-signed/internal LLM endpoints
 - Cross-session memory search tools (`search_session_memory`, `read_session_memory`)
 - Telegram: send generated files to chat; paginated `/skills` picker
-- Per-profile gateway deployment (`helix-gateway@.service`)
+- Per-profile gateway deployment (`holix-gateway@.service`)
 
 ### Fixed
 - Custom provider setup: `probe_provider is not defined`
@@ -90,13 +97,13 @@
 ## 0.1.5 — 2026-06-07
 
 ### Added
-- **Yandex Metrika** on helix-agent.ru (counter 109712139, SPA page-view tracking)
+- **Yandex Metrika** on holix-agent.ru (counter 109712139, SPA page-view tracking)
 
 ### Security
 - Path traversal fix for `GET /v1/plans/{plan_id}`
-- Hide exception details in API/streaming unless `HELIX_LOG_DEBUG`
+- Hide exception details in API/streaming unless `HOLIX_LOG_DEBUG`
 - XSS hardening in web-docs SPA (slug validation, safe DOM rendering)
-- API key hashing requires `HELIX_API_KEY_PEPPER` (HMAC-SHA256 only)
+- API key hashing requires `HOLIX_API_KEY_PEPPER` (HMAC-SHA256 only)
 - Strict URL hostname matching for provider presets and GitHub sources
 - CI workflow: explicit `permissions: contents: read`
 
@@ -108,21 +115,21 @@
 
 ### Changed
 - Site default language set to **Russian** (`ru`)
-- Install guides and PyPI docs updated for `HelixAgentAi`
+- Install guides and PyPI docs updated for `Holix`
 
 ## 0.1.3 — 2026-06-07
 
 ### Changed
-- PyPI distribution renamed to **`HelixAgentAi`**; Python **`>=3.12`**; heavy deps moved to extras (`browser`, `telegram`, `voice`, `tui-web`, `windows`, `all`)
+- PyPI distribution renamed to **`Holix`**; Python **`>=3.12`**; heavy deps moved to extras (`browser`, `telegram`, `voice`, `tui-web`, `windows`, `all`)
 - CI: Python 3.12/3.13/3.14 matrix, `build` job with `twine check` and wheel smoke install
 - Publish workflow: build + publish jobs, tag `v*` trigger, Trusted Publishing (OIDC), smoke install before upload
-- Documentation and web-docs: PyPI install as default path (`pipx install HelixAgentAi`)
+- Documentation and web-docs: PyPI install as default path (`pipx install Holix`)
 
 ### Added
-- **web-docs** — dark documentation site with search, EN/RU, mobile layout (`helix docs`)
-- **Gateway docs companion** — optional `--with-docs` / `HELIX_GATEWAY_WITH_DOCS`
-- Auto-seed `~/.helix/.env` and `.env.example` on first `HELIX_HOME` setup
-- Hatch build hook for patch version bump on `uv build` (`HELIX_NO_VERSION_BUMP=1` to disable)
+- **web-docs** — dark documentation site with search, EN/RU, mobile layout (`holix docs`)
+- **Gateway docs companion** — optional `--with-docs` / `HOLIX_GATEWAY_WITH_DOCS`
+- Auto-seed `~/.holix/.env` and `.env.example` on first `HOLIX_HOME` setup
+- Hatch build hook for patch version bump on `uv build` (`HOLIX_NO_VERSION_BUMP=1` to disable)
 
 ### Security
 - Shared permission manager, gateway auth hardening, SSRF checks, subagent API key via env, chat locking

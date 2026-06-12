@@ -1,4 +1,4 @@
-"""Interactive ``helix telegram setup`` wizard."""
+"""Interactive ``holix telegram setup`` wizard."""
 
 from __future__ import annotations
 
@@ -41,7 +41,7 @@ def _install_telegram_extra() -> bool:
     cmd = (
         [uv, "sync", "--extra", "telegram"]
         if uv
-        else [sys.executable, "-m", "pip", "install", "HelixAgentAi[telegram]"]
+        else [sys.executable, "-m", "pip", "install", "Holix[telegram]"]
     )
     print_info("Installing Telegram dependencies…")
     try:
@@ -64,8 +64,8 @@ async def run_telegram_setup(
             "[bold cyan]Telegram — подключение бота[/bold cyan]\n\n"
             "1. Откройте [@BotFather](https://t.me/BotFather) → /newbot → скопируйте токен\n"
             "2. Запустите бота — пользователи отправляют /start\n"
-            "3. Одобрите доступ: [dim]helix telegram requests list[/dim] → "
-            "[dim]helix telegram requests approve …[/dim]",
+            "3. Одобрите доступ: [dim]holix telegram requests list[/dim] → "
+            "[dim]holix telegram requests approve …[/dim]",
             border_style="cyan",
         )
     )
@@ -85,8 +85,8 @@ async def run_telegram_setup(
         if len(profiles) == 1:
             profile = profiles[0]
         else:
-            console.print("[dim]Профили Helix:[/dim] " + ", ".join(profiles))
-            profile = Prompt.ask("Профиль Helix для бота", default="default")
+            console.print("[dim]Профили Holix:[/dim] " + ", ".join(profiles))
+            profile = Prompt.ask("Профиль Holix для бота", default="default")
     if profile not in profiles:
         print_warning(f"Профиль '{profile}' не найден — будет создан при первом запуске.")
 
@@ -117,14 +117,14 @@ async def run_telegram_setup(
 
     values = {
         "TELEGRAM_BOT_TOKEN": token,
-        "HELIX_TELEGRAM_ACCESS_REQUESTS": "true",
+        "HOLIX_TELEGRAM_ACCESS_REQUESTS": "true",
     }
-    allowed = existing.get("HELIX_TELEGRAM_ALLOWED_USERS", "").strip()
+    allowed = existing.get("HOLIX_TELEGRAM_ALLOWED_USERS", "").strip()
     if allowed:
-        values["HELIX_TELEGRAM_ALLOWED_USERS"] = allowed.replace(" ", "")
-    edit_ms = existing.get("HELIX_TELEGRAM_EDIT_MS", "")
+        values["HOLIX_TELEGRAM_ALLOWED_USERS"] = allowed.replace(" ", "")
+    edit_ms = existing.get("HOLIX_TELEGRAM_EDIT_MS", "")
     if edit_ms:
-        values["HELIX_TELEGRAM_EDIT_MS"] = edit_ms
+        values["HOLIX_TELEGRAM_EDIT_MS"] = edit_ms
 
     path = save_telegram_env(values, profile=profile)
     print_success(f"Сохранено: {path}")
@@ -149,10 +149,10 @@ async def run_telegram_setup(
         )
     )
     print_info(f"Откройте https://t.me/{username} и отправьте /start")
-    print_info(f"Затем: helix -p {profile} telegram requests list")
+    print_info(f"Затем: holix -p {profile} telegram requests list")
 
     if skip_start:
-        print_info("Запуск: helix telegram")
+        print_info("Запуск: holix telegram")
         return
 
     if Confirm.ask("Запустить бота сейчас?", default=False):
@@ -171,16 +171,16 @@ def show_telegram_status(profile: str = "default") -> None:
     path = tg_path if tg_path.is_file() else None
     console.print()
     if not settings.bot_token.strip():
-        print_warning("Telegram не настроен. Запустите: helix telegram setup")
+        print_warning("Telegram не настроен. Запустите: holix telegram setup")
         return
 
     from integrations.telegram.access_requests import list_pending_requests
-    from integrations.telegram.admin import load_admin_helix_profile, load_admin_user_id
+    from integrations.telegram.admin import load_admin_holix_profile, load_admin_user_id
     from integrations.telegram.user_profiles import load_user_profiles, telegram_users_path
 
     admin_id = load_admin_user_id(profile)
     admin_line = (
-        f"{admin_id} → {load_admin_helix_profile(profile)}"
+        f"{admin_id} → {load_admin_holix_profile(profile)}"
         if admin_id is not None
         else "(не назначен — approve с --set-admin)"
     )
@@ -202,4 +202,4 @@ def show_telegram_status(profile: str = "default") -> None:
     ]
     console.print(Panel("\n".join(lines), title="Telegram", border_style="cyan"))
     if pending:
-        print_info(f"Одобрить: helix -p {profile} telegram requests list")
+        print_info(f"Одобрить: holix -p {profile} telegram requests list")

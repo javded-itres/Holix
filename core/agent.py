@@ -16,7 +16,7 @@ from core.agent_events import (
     wire_default_monitoring,
 )
 from core.context import DEFAULT_CONTEXT_WINDOW, ContextCompressor, ContextManager, TokenCounter
-from core.di.runtime_config import HelixRuntimeConfig
+from core.di.runtime_config import HolixRuntimeConfig
 from core.loop import AgentLoop
 from core.memory.facade import MemoryFacade
 from core.models.client_factory import create_openai_client
@@ -24,8 +24,8 @@ from core.skills.manager import SkillsManager
 from core.tools.registry import ToolRegistry
 
 
-class HelixAgent:
-    """Main Helix Agent - A self-improving AI agent with memory and skills.
+class HolixAgent:
+    """Main Holix Agent - A self-improving AI agent with memory and skills.
 
     The agent is now event-aware. You can subscribe to rich structured events
     (tool calls, deltas, self-improvement, errors, etc.) instead of relying on
@@ -37,7 +37,7 @@ class HelixAgent:
 
     def __init__(
         self,
-        config: HelixRuntimeConfig | None = None,
+        config: HolixRuntimeConfig | None = None,
         event_bus: AgentEventBus | None = None,
         event_listeners: list[EventHandler] | None = None,
         *,
@@ -50,8 +50,8 @@ class HelixAgent:
         max_steps: int | None = None,
         enable_monitoring: bool = True,
     ):
-        """Initialize the Helix agent."""
-        base_config = config or HelixRuntimeConfig.from_settings()
+        """Initialize the Holix agent."""
+        base_config = config or HolixRuntimeConfig.from_settings()
         self.config = base_config.with_overrides(
             model=model,
             base_url=base_url,
@@ -67,7 +67,7 @@ class HelixAgent:
             metadata=self.config.provider_metadata or None,
         )
 
-        self.events = event_bus or AgentEventBus(name="HelixAgentAi")
+        self.events = event_bus or AgentEventBus(name="Holix")
         if event_listeners:
             for listener in event_listeners:
                 self.events.subscribe(listener)
@@ -126,10 +126,10 @@ class HelixAgent:
     def graph(self):
         """Lazy-compiled LangGraph execution graph."""
         if self._graph is None:
-            from core.graph.builder import build_helix_graph
+            from core.graph.builder import build_holix_graph
 
             mode = self._execution_mode_last or self.config.execution_mode
-            self._graph = build_helix_graph(
+            self._graph = build_holix_graph(
                 agent=self,
                 execution_mode=mode,
             )
@@ -236,7 +236,7 @@ class HelixAgent:
         if self._initialized:
             return
 
-        self.emit(ThinkingEvent(message="Initializing Helix Agent..."))
+        self.emit(ThinkingEvent(message="Initializing Holix Agent..."))
 
         await self.memory.initialize_db()
 
@@ -304,7 +304,7 @@ class HelixAgent:
         )
 
         self._initialized = True
-        self.emit(ThinkingEvent(message="Helix Agent ready!"))
+        self.emit(ThinkingEvent(message="Holix Agent ready!"))
 
     async def close(self) -> None:
         """Cleanup (MCP sessions etc.). Safe to call multiple times."""
@@ -397,10 +397,10 @@ class HelixAgent:
     ) -> str:
         """Run the agent using the LangGraph execution graph."""
         from core.agent_events import ErrorEvent, FinalResponseEvent
-        from core.runtime.executor import run_helix
+        from core.runtime.executor import run_holix
 
         final_response = ""
-        async for event in run_helix(
+        async for event in run_holix(
             self,
             user_input,
             conversation_id,

@@ -21,7 +21,7 @@ from core.graph.routers import (
     route_after_react_plan,
     route_after_step_orchestrate,
 )
-from core.graph.state import HelixGraphState
+from core.graph.state import HolixGraphState
 
 
 def build_plan_and_execute_graph(
@@ -29,7 +29,7 @@ def build_plan_and_execute_graph(
     checkpointer: Any = None,
     stream: bool = False,
 ):
-    graph = StateGraph(HelixGraphState)
+    graph = StateGraph(HolixGraphState)
     graph.add_node("memory_retrieval", memory_retrieval_node)
     graph.add_node("plan", plan_node)
     graph.add_node("plan_review", plan_review_node)

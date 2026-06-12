@@ -16,5 +16,5 @@ def test_resolve_env_refs(monkeypatch: pytest.MonkeyPatch) -> None:
 def test_production_requires_auth() -> None:
     from config import Settings
 
-    s = Settings(helix_env="production", require_auth=False)
+    s = Settings(holix_env="production", require_auth=False)
     assert s.effective_require_auth is True

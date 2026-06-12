@@ -1,4 +1,4 @@
-"""Tests for /api/helix/profiles/{id}/telegram routes."""
+"""Tests for /api/holix/profiles/{id}/telegram routes."""
 
 from __future__ import annotations
 
@@ -10,17 +10,17 @@ from fastapi.testclient import TestClient
 
 _TELEGRAM_ENV_KEYS = (
     "TELEGRAM_BOT_TOKEN",
-    "HELIX_TELEGRAM_BOT_TOKEN",
-    "HELIX_TELEGRAM_ALLOWED_USERS",
-    "HELIX_TELEGRAM_ACCESS_REQUESTS",
-    "HELIX_TELEGRAM_ALLOW_ALL",
+    "HOLIX_TELEGRAM_BOT_TOKEN",
+    "HOLIX_TELEGRAM_ALLOWED_USERS",
+    "HOLIX_TELEGRAM_ACCESS_REQUESTS",
+    "HOLIX_TELEGRAM_ALLOW_ALL",
 )
 
 
 @pytest.fixture
-def helix_home(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
-    monkeypatch.setenv("HELIX_HOME", str(tmp_path))
-    monkeypatch.setenv("HELIX_ENV", "development")
+def holix_home(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
+    monkeypatch.setenv("HOLIX_HOME", str(tmp_path))
+    monkeypatch.setenv("HOLIX_ENV", "development")
     monkeypatch.chdir(tmp_path)
     for key in _TELEGRAM_ENV_KEYS:
         monkeypatch.delenv(key, raising=False)
@@ -56,7 +56,7 @@ def telegram_client(monkeypatch: pytest.MonkeyPatch) -> TestClient:
 
 
 def test_telegram_status_unconfigured(
-    helix_home: Path,
+    holix_home: Path,
     telegram_client: TestClient,
     gateway_auth_headers: dict,
 ) -> None:
@@ -65,7 +65,7 @@ def test_telegram_status_unconfigured(
     ProfileManager().create_profile("tg-bot")
 
     response = telegram_client.get(
-        "/api/helix/profiles/tg-bot/telegram/status",
+        "/api/holix/profiles/tg-bot/telegram/status",
         headers=gateway_auth_headers,
     )
     assert response.status_code == 200
@@ -75,7 +75,7 @@ def test_telegram_status_unconfigured(
 
 
 def test_telegram_setup(
-    helix_home: Path,
+    holix_home: Path,
     telegram_client: TestClient,
     gateway_auth_headers: dict,
     monkeypatch: pytest.MonkeyPatch,
@@ -85,7 +85,7 @@ def test_telegram_setup(
     ProfileManager().create_profile("tg-setup")
 
     async def _fake_verify(_token: str):
-        return {"id": 999, "username": "helix_test_bot", "first_name": "Helix"}
+        return {"id": 999, "username": "holix_test_bot", "first_name": "Holix"}
 
     monkeypatch.setattr(
         "api.services.telegram_ops.verify_bot_token",
@@ -93,25 +93,25 @@ def test_telegram_setup(
     )
 
     response = telegram_client.post(
-        "/api/helix/profiles/tg-setup/telegram/setup",
+        "/api/holix/profiles/tg-setup/telegram/setup",
         headers=gateway_auth_headers,
         json={"bot_token": "123456789:AAHdqTcvCH1vGWJxfSeofSAs0K5PALDsaw"},
     )
     assert response.status_code == 200
     body = response.json()
-    assert body["bot_username"] == "helix_test_bot"
+    assert body["bot_username"] == "holix_test_bot"
     assert "token_masked" in body
     assert body["reload_required"] is False
 
     status = telegram_client.get(
-        "/api/helix/profiles/tg-setup/telegram/status",
+        "/api/holix/profiles/tg-setup/telegram/status",
         headers=gateway_auth_headers,
     )
     assert status.json()["configured"] is True
 
 
 def test_telegram_requests_approve_reject(
-    helix_home: Path,
+    holix_home: Path,
     telegram_client: TestClient,
     gateway_auth_headers: dict,
     monkeypatch: pytest.MonkeyPatch,
@@ -129,23 +129,23 @@ def test_telegram_requests_approve_reject(
     )
 
     listed = telegram_client.get(
-        "/api/helix/profiles/tg-req/telegram/requests",
+        "/api/holix/profiles/tg-req/telegram/requests",
         headers=gateway_auth_headers,
     )
     assert listed.status_code == 200
     assert listed.json()["count"] == 1
 
     approved = telegram_client.post(
-        "/api/helix/profiles/tg-req/telegram/requests/4242/approve",
+        "/api/holix/profiles/tg-req/telegram/requests/4242/approve",
         headers=gateway_auth_headers,
         json={"profile": "alice"},
     )
     assert approved.status_code == 200
-    assert approved.json()["helix_profile"] == "alice"
+    assert approved.json()["holix_profile"] == "alice"
 
     seed_pending_request_for_tests("tg-req", 5555)
     rejected = telegram_client.post(
-        "/api/helix/profiles/tg-req/telegram/requests/5555/reject",
+        "/api/holix/profiles/tg-req/telegram/requests/5555/reject",
         headers=gateway_auth_headers,
     )
     assert rejected.status_code == 200
@@ -153,7 +153,7 @@ def test_telegram_requests_approve_reject(
 
 
 def test_telegram_map_and_admin(
-    helix_home: Path,
+    holix_home: Path,
     telegram_client: TestClient,
     gateway_auth_headers: dict,
 ) -> None:
@@ -164,20 +164,20 @@ def test_telegram_map_and_admin(
     save_telegram_env({"TELEGRAM_BOT_TOKEN": "123456789:AAHdqTcvCH1vGWJxfSeofSAs0K5PALDsaw"}, profile="tg-map")
 
     mapped = telegram_client.post(
-        "/api/helix/profiles/tg-map/telegram/map",
+        "/api/holix/profiles/tg-map/telegram/map",
         headers=gateway_auth_headers,
         json={"user_id": 100, "profile": "default"},
     )
     assert mapped.status_code == 200
 
     listing = telegram_client.get(
-        "/api/helix/profiles/tg-map/telegram/map",
+        "/api/holix/profiles/tg-map/telegram/map",
         headers=gateway_auth_headers,
     )
     assert listing.json()["map"]["100"] == "default"
 
     admin = telegram_client.get(
-        "/api/helix/profiles/tg-map/telegram/admin",
+        "/api/holix/profiles/tg-map/telegram/admin",
         headers=gateway_auth_headers,
     )
     assert admin.status_code == 200
@@ -185,7 +185,7 @@ def test_telegram_map_and_admin(
 
 
 def test_telegram_sync_menu(
-    helix_home: Path,
+    holix_home: Path,
     telegram_client: TestClient,
     gateway_auth_headers: dict,
     monkeypatch: pytest.MonkeyPatch,
@@ -205,7 +205,7 @@ def test_telegram_sync_menu(
     )
 
     response = telegram_client.post(
-        "/api/helix/profiles/tg-sync/telegram/sync-menu",
+        "/api/holix/profiles/tg-sync/telegram/sync-menu",
         headers=gateway_auth_headers,
     )
     assert response.status_code == 200

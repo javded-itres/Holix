@@ -145,7 +145,7 @@ async def enable_chat_menu(
 
 
 async def register_global_bot_commands(bot: Any, *, locale: str | None = None) -> list[str]:
-    """Register commands globally (used when HELIX_TELEGRAM_ALLOW_ALL=true)."""
+    """Register commands globally (used when HOLIX_TELEGRAM_ALLOW_ALL=true)."""
     try:
         from aiogram.types import BotCommandScopeDefault, MenuButtonCommands
     except ImportError:

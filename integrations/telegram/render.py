@@ -29,7 +29,7 @@ def buffer_to_telegram_html(buf: LiveTranscriptBuffer) -> str:
 
     parts: list[str] = [
         (
-            f"<b>🤖 Helix</b> · {escape_html(buf.profile)} · "
+            f"<b>🤖 Holix</b> · {escape_html(buf.profile)} · "
             f"{escape_html(buf.mode)} · {escape_html(buf.session_label)}"
         ),
     ]

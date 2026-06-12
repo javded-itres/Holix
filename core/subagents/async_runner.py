@@ -370,6 +370,6 @@ Remember: You are {config.name}. Stay focused on your specialized role.
 """
         if skills_block:
             prompt += f"\n\n{skills_block}"
-        from core.project.helix_md import append_helix_project_context
+        from core.project.holix_md import append_holix_project_context
 
-        return append_helix_project_context(prompt)
+        return append_holix_project_context(prompt)

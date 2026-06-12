@@ -1,4 +1,4 @@
-"""Log file locations under HELIX_HOME."""
+"""Log file locations under HOLIX_HOME."""
 
 from __future__ import annotations
 
@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path
 
-from cli.core import HELIX_HOME, LOGS_DIR
+from cli.core import HOLIX_HOME, LOGS_DIR
 
 from core.cron.store import runs_log_path
 
@@ -33,7 +33,7 @@ def agent_debug_log() -> Path:
 
 
 def system_log() -> Path:
-    return LOGS_DIR / "helix.log"
+    return LOGS_DIR / "holix.log"
 
 
 def subagent_log() -> Path:
@@ -41,7 +41,7 @@ def subagent_log() -> Path:
 
 
 def gateway_log() -> Path:
-    return HELIX_HOME / "gateway" / "gateway.log"
+    return HOLIX_HOME / "gateway" / "gateway.log"
 
 
 @dataclass(frozen=True, slots=True)
@@ -58,11 +58,11 @@ class LogFileInfo:
 
 
 def discover_log_files(profile: str = "default") -> list[LogFileInfo]:
-    """Return known Helix log files (existing or expected paths)."""
+    """Return known Holix log files (existing or expected paths)."""
     files = [
         LogFileInfo(LogSource.AGENT, agent_events_log(), "Agent events (JSONL)"),
         LogFileInfo(LogSource.AGENT, agent_debug_log(), "Agent debug (JSONL)"),
-        LogFileInfo(LogSource.SYSTEM, system_log(), "Helix system log"),
+        LogFileInfo(LogSource.SYSTEM, system_log(), "Holix system log"),
         LogFileInfo(LogSource.SUBAGENT, subagent_log(), "Sub-agent events (JSONL)"),
         LogFileInfo(LogSource.GATEWAY, gateway_log(), "Gateway / uvicorn"),
         LogFileInfo(LogSource.CRON, runs_log_path(profile), f"Cron runs ({profile})"),

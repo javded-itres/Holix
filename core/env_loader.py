@@ -1,24 +1,24 @@
-"""Load Helix environment files from profile dirs (and optional project .env)."""
+"""Load Holix environment files from profile dirs (and optional project .env)."""
 
 from __future__ import annotations
 
 import os
 from pathlib import Path
 
-from core.platform_compat import resolve_helix_home
+from core.platform_compat import resolve_holix_home
 
 _BOOTSTRAPPED = False
 _SHELL_ENV_KEYS: set[str] | None = None
 _ACTIVE_PROFILE_ENV: str | None = None
 
 
-def helix_home() -> Path:
-    return resolve_helix_home()
+def holix_home() -> Path:
+    return resolve_holix_home()
 
 
-def helix_env_path() -> Path:
-    """Legacy global env file: ``{HELIX_HOME}/.env`` (fallback for migration)."""
-    return helix_home() / ".env"
+def holix_env_path() -> Path:
+    """Legacy global env file: ``{HOLIX_HOME}/.env`` (fallback for migration)."""
+    return holix_home() / ".env"
 
 
 def project_env_path() -> Path:
@@ -26,7 +26,7 @@ def project_env_path() -> Path:
 
 
 def profile_dir_path(profile: str | None = None) -> Path:
-    """Return ``{HELIX_HOME}/profiles/<profile>`` (honours HELIX_HOME at call time)."""
+    """Return ``{HOLIX_HOME}/profiles/<profile>`` (honours HOLIX_HOME at call time)."""
     from cli.core import profiles_dir
 
     name = (profile or active_profile_name()).strip() or "default"
@@ -63,15 +63,15 @@ def _find_env_example_path() -> Path | None:
 
 
 def _seed_env_files(*, first_run: bool) -> None:
-    """Copy bundled ``.env.example`` into ``~/.helix`` on first setup."""
-    home = helix_home()
+    """Copy bundled ``.env.example`` into ``~/.holix`` on first setup."""
+    home = holix_home()
     example_dst = home / ".env.example"
-    env_dst = helix_env_path()
+    env_dst = holix_env_path()
     src = _find_env_example_path()
 
     if src is None:
         if not env_dst.is_file():
-            env_dst.write_text("# Helix environment\n", encoding="utf-8")
+            env_dst.write_text("# Holix environment\n", encoding="utf-8")
         return
 
     content = src.read_text(encoding="utf-8")
@@ -85,7 +85,7 @@ def _seed_profile_env(profile: str, *, inherit_global: bool = True) -> Path:
     """Ensure ``profiles/<profile>/.env`` exists.
 
     When *inherit_global* is true (default), create a minimal stub so runtime
-    loads shared values from ``global/.env`` / legacy ``~/.helix/.env``.
+    loads shared values from ``global/.env`` / legacy ``~/.holix/.env``.
     When false (--clean profile), write an empty profile env for manual setup.
     """
     target = profile_env_path(profile)
@@ -95,7 +95,7 @@ def _seed_profile_env(profile: str, *, inherit_global: bool = True) -> Path:
 
     if inherit_global:
         target.write_text(
-            "# Profile overrides only — unset keys inherit from ~/.helix/global/.env\n",
+            "# Profile overrides only — unset keys inherit from ~/.holix/global/.env\n",
             encoding="utf-8",
         )
         return target
@@ -107,9 +107,9 @@ def _seed_profile_env(profile: str, *, inherit_global: bool = True) -> Path:
     return target
 
 
-def init_helix_home() -> Path:
-    """Create ``HELIX_HOME`` and seed legacy ``.env.example`` / ``.env`` on first run."""
-    home = helix_home()
+def init_holix_home() -> Path:
+    """Create ``HOLIX_HOME`` and seed legacy ``.env.example`` / ``.env`` on first run."""
+    home = holix_home()
     first_run = not home.exists()
     home.mkdir(parents=True, exist_ok=True)
     _seed_env_files(first_run=first_run)
@@ -121,6 +121,19 @@ def init_helix_home() -> Path:
     except Exception:
         pass
     return home
+
+
+def _apply_legacy_helix_env_aliases() -> None:
+    """Map legacy ``HELIX_*`` keys to ``HOLIX_*`` when the new name is unset."""
+    for key, value in list(os.environ.items()):
+        if not key.startswith("HELIX_"):
+            continue
+        holix_key = f"HOLIX_{key[6:]}"
+        if holix_key in os.environ:
+            continue
+        if not str(value).strip():
+            continue
+        os.environ[holix_key] = str(value)
 
 
 def _apply_env_file(path: Path, *, override_file_values: bool = False) -> None:
@@ -147,13 +160,13 @@ def bootstrap_env(*, include_project: bool = True, force: bool = False) -> None:
 
     Priority (lowest → highest among files):
     1. ``./.env`` in the current working directory (dev convenience)
-    2. ``~/.helix/global/.env`` (shared global settings)
-    3. ``~/.helix/.env`` (legacy global fallback when ``global/.env`` is absent)
+    2. ``~/.holix/global/.env`` (shared global settings)
+    3. ``~/.holix/.env`` (legacy global fallback when ``global/.env`` is absent)
 
     Variables already set in the process environment are never overwritten.
     """
     global _BOOTSTRAPPED, _SHELL_ENV_KEYS
-    init_helix_home()
+    init_holix_home()
     if _BOOTSTRAPPED and not force:
         return
 
@@ -180,11 +193,11 @@ def bootstrap_env(*, include_project: bool = True, force: bool = False) -> None:
         if shared_env.is_file():
             merged.update(dotenv_values(shared_env))
         else:
-            user_env = helix_env_path()
+            user_env = holix_env_path()
             if user_env.is_file():
                 merged.update(dotenv_values(user_env))
     except Exception:
-        user_env = helix_env_path()
+        user_env = holix_env_path()
         if user_env.is_file():
             merged.update(dotenv_values(user_env))
 
@@ -194,6 +207,7 @@ def bootstrap_env(*, include_project: bool = True, force: bool = False) -> None:
             continue
         os.environ[key] = str(value)
 
+    _apply_legacy_helix_env_aliases()
     _BOOTSTRAPPED = True
 
 
@@ -207,14 +221,15 @@ def bootstrap_profile_env(profile: str, *, force: bool = False) -> None:
         _SHELL_ENV_KEYS = set(os.environ.keys())
     bootstrap_env(force=force)
     name = (profile or "default").strip() or "default"
-    os.environ["HELIX_PROFILE"] = name
+    os.environ["HOLIX_PROFILE"] = name
     _seed_profile_env(name, inherit_global=True)
     _apply_env_file(profile_env_path(name), override_file_values=True)
+    _apply_legacy_helix_env_aliases()
     _ACTIVE_PROFILE_ENV = name
 
 
 def active_profile_name() -> str:
-    return (os.environ.get("HELIX_PROFILE") or "default").strip() or "default"
+    return (os.environ.get("HOLIX_PROFILE") or "default").strip() or "default"
 
 
 def _file_tag(path: Path) -> str:
@@ -222,11 +237,11 @@ def _file_tag(path: Path) -> str:
 
 
 def format_env_context_block(*, profile_name: str | None = None) -> str:
-    """Markdown for system prompts: where Helix env vars and profile config live."""
+    """Markdown for system prompts: where Holix env vars and profile config live."""
     profile = (profile_name or active_profile_name()).strip() or "default"
-    home = helix_home()
+    home = holix_home()
     prof_env = profile_env_path(profile)
-    legacy_env = helix_env_path()
+    legacy_env = holix_env_path()
     proj_env = project_env_path()
     tg_env = profile_dir_path(profile) / "telegram.env"
     profile_yaml = profile_dir_path(profile) / "config.yaml"
@@ -243,7 +258,7 @@ def format_env_context_block(*, profile_name: str | None = None) -> str:
         g_cfg = home / "global" / "config.yaml"
 
     lines = [
-        "## Helix configuration paths",
+        "## Holix configuration paths",
         "",
         "Environment variables load in this order (highest priority wins):",
         "1. Process/shell environment (already exported in the session)",
@@ -263,8 +278,8 @@ def format_env_context_block(*, profile_name: str | None = None) -> str:
             "Each profile is isolated: own `.env`, Telegram secrets, gateway state, "
             "memory, and skills under `profiles/<name>/`.",
             "",
-            f"- **HELIX_HOME**: `{home}`",
-            f"- **Active profile** (`HELIX_PROFILE`): `{profile}`",
+            f"- **HOLIX_HOME**: `{home}`",
+            f"- **Active profile** (`HOLIX_PROFILE`): `{profile}`",
             f"- **Global config**: `{g_cfg}` ({_file_tag(g_cfg)})",
             f"- **Profile config** (overrides): `{profile_yaml}` ({_file_tag(profile_yaml)})",
             f"- **Profile skills**: `{skills_dir}/`",
@@ -273,17 +288,17 @@ def format_env_context_block(*, profile_name: str | None = None) -> str:
             "",
             "To change API keys, gateway bind, Telegram, or feature flags, edit the "
             f"profile env file `{prof_env}` and/or profile YAML — not application source. "
-            "Web search: `search:` block in profile YAML or `helix search configure`. "
-            "After env changes with gateway/Telegram running: `helix gateway reload`.",
+            "Web search: `search:` block in profile YAML or `holix search configure`. "
+            "After env changes with gateway/Telegram running: `holix gateway reload`.",
         ]
     )
     return "\n".join(lines)
 
 
-def ensure_helix_env_template(example_path: Path | None = None) -> Path:
-    """Create legacy ``~/.helix/.env`` from ``.env.example`` when missing."""
-    home = init_helix_home()
-    target = helix_env_path()
+def ensure_holix_env_template(example_path: Path | None = None) -> Path:
+    """Create legacy ``~/.holix/.env`` from ``.env.example`` when missing."""
+    home = init_holix_home()
+    target = holix_env_path()
     if target.is_file():
         return target
 
@@ -295,7 +310,7 @@ def ensure_helix_env_template(example_path: Path | None = None) -> Path:
         if not example_dst.is_file():
             example_dst.write_text(content, encoding="utf-8")
     else:
-        target.write_text("# Helix environment\n", encoding="utf-8")
+        target.write_text("# Holix environment\n", encoding="utf-8")
 
     return target
 

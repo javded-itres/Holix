@@ -1,15 +1,15 @@
 # Execution Modes
 
-Helix runs the agent through a **LangGraph** workflow. The **execution mode** decides how the graph plans, calls tools, and asks for your approval.
+Holix runs the agent through a **LangGraph** workflow. The **execution mode** decides how the graph plans, calls tools, and asks for your approval.
 
-Modes are available in **TUI** (`helix tui`), **Telegram**, and **web TUI** (`helix tui --web`). Switch with **`/mode`**, **`/mode <name>`**, or **Shift+Tab** (legacy TUI).
+Modes are available in **TUI** (`holix tui`), **Telegram**, and **web TUI** (`holix tui --web`). Switch with **`/mode`**, **`/mode <name>`**, or **Shift+Tab** (legacy TUI).
 
 | Mode | System name | Best for |
 |------|-------------|----------|
 | **ReAct** | `react` | Single questions, quick tool use, exploration (default) |
 | **Plan & Execute** | `plan_and_execute` | Multi-step work with clear subgoals |
 | **Hybrid** | `hybrid` | Large tasks: structured plan, flexible work inside each step |
-| **Auto** | `auto` | Let Helix pick `react`, `plan_and_execute`, or `hybrid` |
+| **Auto** | `auto` | Let Holix pick `react`, `plan_and_execute`, or `hybrid` |
 
 ```text
 /mode react
@@ -88,7 +88,7 @@ Run `git status` in the repo root and explain which files are modified.
 ```
 
 ```text
-Search the web for HelixAgentAi on PyPI and tell me the latest version.
+Search the web for Holix on PyPI and tell me the latest version.
 ```
 
 ```text
@@ -150,12 +150,12 @@ Prepare this repo for a release:
 ```text
 Onboard a new developer machine:
 1) verify Python 3.12 and uv
-2) run helix doctor
-3) run helix models setup with local Ollama
+2) run holix doctor
+3) run holix models setup with local Ollama
 4) print next steps from START_HERE.md
 ```
 
-**Good (shorter — Helix will expand the plan)**
+**Good (shorter — Holix will expand the plan)**
 
 ```text
 Refactor cli/commands/profile.py: extract whitelist helpers to a module, add tests, keep CLI behaviour unchanged.
@@ -204,7 +204,7 @@ Design and implement a small health-check endpoint for the gateway:
 Improve docs-site search:
 - analyze current build.py and search-index format
 - propose ranking improvements
-- implement and rebuild with helix docs build
+- implement and rebuild with holix docs build
 ```
 
 ```text
@@ -226,7 +226,7 @@ Use **ReAct**.
 
 ## Auto (`auto`)
 
-Helix sends your message to a **lightweight classifier** (small LLM call) that picks `react`, `plan_and_execute`, or `hybrid`.
+Holix sends your message to a **lightweight classifier** (small LLM call) that picks `react`, `plan_and_execute`, or `hybrid`.
 
 ### When to use
 
@@ -249,7 +249,7 @@ Strategic memory can bias the choice if it contains mode hints.
 **Likely → ReAct**
 
 ```text
-Explain what HELIX_DOCS_CHAT_ENABLED does.
+Explain what HOLIX_DOCS_CHAT_ENABLED does.
 ```
 
 ```text
@@ -259,7 +259,7 @@ Show the last 20 lines of gateway.log for this profile.
 **Likely → Plan & Execute**
 
 ```text
-Rename env variable docs_chat_token to HELIX_DOCS_CHAT_TOKEN across code and docs, then run tests.
+Rename env variable docs_chat_token to HOLIX_DOCS_CHAT_TOKEN across code and docs, then run tests.
 ```
 
 ```text
@@ -269,7 +269,7 @@ Add a new CLI subcommand following the pattern of profile jail: implementation, 
 **Likely → Hybrid**
 
 ```text
-Research how other projects document execution modes, then write EXECUTION_MODES.md for Helix with examples.
+Research how other projects document execution modes, then write EXECUTION_MODES.md for Holix with examples.
 ```
 
 ```text

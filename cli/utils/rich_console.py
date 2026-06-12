@@ -8,8 +8,8 @@ from rich.progress import Progress, SpinnerColumn, TextColumn
 from rich.table import Table
 from rich.theme import Theme
 
-# Custom theme for Helix
-HELIX_THEME = Theme({
+# Custom theme for Holix
+HOLIX_THEME = Theme({
     "info": "cyan",
     "warning": "yellow",
     "error": "bold red",
@@ -22,7 +22,7 @@ HELIX_THEME = Theme({
 })
 
 # Global console instance
-console = Console(theme=HELIX_THEME)
+console = Console(theme=HOLIX_THEME)
 
 
 def print_user_message(message: str):
@@ -42,7 +42,7 @@ def print_assistant_message(message: str, markdown: bool = True):
         markdown: Whether to render as Markdown
     """
     console.print()
-    console.print("[assistant]🤖 Helix:[/assistant]", end=" ")
+    console.print("[assistant]🤖 Holix:[/assistant]", end=" ")
 
     if markdown and ("```" in message or "#" in message or "*" in message):
         md = Markdown(message)

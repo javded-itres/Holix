@@ -1,4 +1,4 @@
-"""macOS / non-US keyboard layout helpers for Helix TUI."""
+"""macOS / non-US keyboard layout helpers for Holix TUI."""
 
 from __future__ import annotations
 
@@ -103,7 +103,7 @@ def shortcut_label(key: str) -> str:
 
 
 def code_tui_bindings() -> list[Binding]:
-    """Default Helix code TUI bindings; extra scroll keys on macOS."""
+    """Default Holix code TUI bindings; extra scroll keys on macOS."""
     # macOS: quit on ctrl+q; copy shortcuts only in F2 transcript viewer
     if is_macos():
         quit_binding = Binding("ctrl+q", "quit", "Quit", show=True, id="quit")

@@ -193,13 +193,13 @@ def resolve_vision_config(*, profile: str) -> VisionConfig:
     model = _pick_model(*model_candidates)
     if not model:
         raise RuntimeError(
-            "Vision: не задана модель. Укажите HELIX_TELEGRAM_VISION_MODEL "
-            "или назначьте модель для main в helix models setup."
+            "Vision: не задана модель. Укажите HOLIX_TELEGRAM_VISION_MODEL "
+            "или назначьте модель для main в holix models setup."
         )
     if not api_key or not base_url:
         raise RuntimeError(
-            "Vision: не настроен API (ключ/URL). Проверьте ~/.helix/.env "
-            "(LITELLM_API_KEY, LITELLM_API_BASE), helix models setup, "
+            "Vision: не настроен API (ключ/URL). Проверьте ~/.holix/.env "
+            "(LITELLM_API_KEY, LITELLM_API_BASE), holix models setup, "
             "или OPENAI_API_KEY."
         )
 

@@ -12,17 +12,17 @@ Data layout:
 ## CLI
 
 ```bash
-helix hub search "git" -s clawhub
-helix hub search "react" -s skills-sh
-helix hub search "" -s hermes
-helix hub browse                    # interactive picker
-helix hub install <spec>
-helix hub install --agents main,coder
-helix hub list
-helix hub remove <lock-id>
-helix hub check-updates
-helix hub update                    # all ClawHub bumps
-helix hub autoupdate --enable       # background policy in profile
+holix hub search "git" -s clawhub
+holix hub search "react" -s skills-sh
+holix hub search "" -s hermes
+holix hub browse                    # interactive picker
+holix hub install <spec>
+holix hub install --agents main,coder
+holix hub list
+holix hub remove <lock-id>
+holix hub check-updates
+holix hub update                    # all ClawHub bumps
+holix hub autoupdate --enable       # background policy in profile
 ```
 
 ### Install specs
@@ -42,7 +42,7 @@ Claude plugins may ship MCP servers; use `--with-mcp` (default) to merge into `m
 
 ```bash
 uv sync --extra tui-web    # optional: browser mode
-helix tui
+holix tui
 ```
 
 In TUI:
@@ -53,17 +53,17 @@ In TUI:
 | Installed list | `/hub installed` or mode **Installed** |
 | Browse & install | `/hub browse` → Search → Install |
 | Remove hub bundle | Installed view → highlight hub row → **Remove hub** or Delete |
-| Browser UI | `helix tui --web` → http://127.0.0.1:8787 |
+| Browser UI | `holix tui --web` → http://127.0.0.1:8787 |
 
 ## Per-agent skills
 
 Profile field `skill_assignments` limits which skills each agent/subagent may use.
 
 ```bash
-helix skills list --agent main
-helix skills assign my-skill --agents main,coder
-helix skills unassign my-skill --agent coder
-helix hub install <spec> --agents main
+holix skills list --agent main
+holix skills assign my-skill --agents main,coder
+holix skills unassign my-skill --agent coder
+holix hub install <spec> --agents main
 ```
 
 Skill frontmatter may include `agents:` / `agent_roles:` for defaults.
@@ -71,4 +71,4 @@ Skill frontmatter may include `agents:` / `agent_roles:` for defaults.
 ## MCP env in plugins
 
 `${VAR}` and `${ENV:VAR}` in Claude plugin MCP configs are resolved at load time.  
-`helix doctor` reports `mcp.unresolved_env` when variables are missing.
+`holix doctor` reports `mcp.unresolved_env` when variables are missing.

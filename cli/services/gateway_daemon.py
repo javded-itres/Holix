@@ -72,8 +72,8 @@ def _wait_for_state(profile: str, timeout: float = 15.0) -> GatewayState | None:
     return None
 
 
-def _is_helix_health(state: GatewayState) -> bool:
-    """True when Helix gateway responds on /health."""
+def _is_holix_health(state: GatewayState) -> bool:
+    """True when Holix gateway responds on /health."""
     try:
         resp = httpx.get(health_url(state), timeout=2.0)
         if resp.status_code != 200:
@@ -89,7 +89,7 @@ def _wait_for_healthy(state: GatewayState, timeout: float = 30.0) -> bool:
     while time.monotonic() < deadline:
         if not is_process_alive(state.pid):
             return False
-        if _is_helix_health(state):
+        if _is_holix_health(state):
             return True
         time.sleep(0.5)
     return False
@@ -200,7 +200,7 @@ def start_gateway_daemon(
     if docs:
         print_info(f"Docs: {docs}")
     print_info(f"Logs: {state.log_file}")
-    print_info("Stop: helix gateway stop")
+    print_info("Stop: holix gateway stop")
 
 
 def stop_gateway_daemon(profile: str = "default") -> None:
@@ -312,11 +312,11 @@ def reload_gateway_daemon(profile: str = "default") -> None:
         print_warning(f"Gateway is not running for profile '{profile}'. Starting…")
         from config import settings
 
-        host = os.environ.get("HELIX_GATEWAY_HOST", settings.gateway_host)
-        port = int(os.environ.get("HELIX_GATEWAY_PORT", str(settings.gateway_port)))
-        with_docs = _env_bool("HELIX_GATEWAY_WITH_DOCS") or _env_bool("HELIX_GATEWAY_DOCS")
-        docs_host = os.environ.get("HELIX_DOCS_HOST", settings.docs_host)
-        docs_port = int(os.environ.get("HELIX_DOCS_PORT", str(settings.docs_port)))
+        host = os.environ.get("HOLIX_GATEWAY_HOST", settings.gateway_host)
+        port = int(os.environ.get("HOLIX_GATEWAY_PORT", str(settings.gateway_port)))
+        with_docs = _env_bool("HOLIX_GATEWAY_WITH_DOCS") or _env_bool("HOLIX_GATEWAY_DOCS")
+        docs_host = os.environ.get("HOLIX_DOCS_HOST", settings.docs_host)
+        docs_port = int(os.environ.get("HOLIX_DOCS_PORT", str(settings.docs_port)))
         start_gateway_daemon(
             host,
             port,
@@ -328,11 +328,11 @@ def reload_gateway_daemon(profile: str = "default") -> None:
         return
 
     host, port, profile, reload = state.host, state.port, state.profile, state.reload
-    with_docs = state.docs_pid is not None or _env_bool("HELIX_GATEWAY_WITH_DOCS") or _env_bool(
-        "HELIX_GATEWAY_DOCS"
+    with_docs = state.docs_pid is not None or _env_bool("HOLIX_GATEWAY_WITH_DOCS") or _env_bool(
+        "HOLIX_GATEWAY_DOCS"
     )
-    docs_host = state.docs_host or os.environ.get("HELIX_DOCS_HOST", "127.0.0.1")
-    docs_port = state.docs_port or int(os.environ.get("HELIX_DOCS_PORT", "8080"))
+    docs_host = state.docs_host or os.environ.get("HOLIX_DOCS_HOST", "127.0.0.1")
+    docs_port = state.docs_port or int(os.environ.get("HOLIX_DOCS_PORT", "8080"))
     print_info(f"Reloading gateway for profile '{profile}' (stop → start)…")
     stop_gateway_daemon(profile)
     time.sleep(0.5)

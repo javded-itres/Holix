@@ -1,4 +1,4 @@
-"""Helix management: skills list, search, assignments."""
+"""Holix management: skills list, search, assignments."""
 
 from __future__ import annotations
 
@@ -10,10 +10,10 @@ from core.skills.assignments import agents_for_skill
 from fastapi import APIRouter, Depends, Header, HTTPException, Query
 
 from api.deps import verify_api_key
-from api.schemas.helix import SkillAssignmentsPatchRequest
-from api.services.helix_deps import profile_access
+from api.schemas.holix import SkillAssignmentsPatchRequest
+from api.services.holix_deps import profile_access
 
-router = APIRouter(prefix="/api/helix/profiles/{profile_id}/skills", tags=["helix-skills"])
+router = APIRouter(prefix="/api/holix/profiles/{profile_id}/skills", tags=["holix-skills"])
 
 
 def _require_profile(profile_id: str) -> tuple[ProfileManager, object]:
@@ -38,10 +38,10 @@ async def list_skills(
     limit: int = Query(50, ge=1, le=500),
     agent: str | None = Query(None),
     key_info: dict = Depends(verify_api_key),
-    x_helix_profile: str | None = Header(None),
-    x_helix_profile_key: str | None = Header(None, alias="X-Helix-Profile-Key"),
+    x_holix_profile: str | None = Header(None),
+    x_holix_profile_key: str | None = Header(None, alias="X-Holix-Profile-Key"),
 ):
-    profile_access(profile_id, key_info, x_helix_profile, x_helix_profile_key)
+    profile_access(profile_id, key_info, x_holix_profile, x_holix_profile_key)
     _, config = _require_profile(profile_id)
     mgr = _skills_manager(config)
     slot = agent or "main"
@@ -68,10 +68,10 @@ async def search_skills(
     q: str = Query(..., min_length=1),
     agent: str | None = Query(None),
     key_info: dict = Depends(verify_api_key),
-    x_helix_profile: str | None = Header(None),
-    x_helix_profile_key: str | None = Header(None, alias="X-Helix-Profile-Key"),
+    x_holix_profile: str | None = Header(None),
+    x_holix_profile_key: str | None = Header(None, alias="X-Holix-Profile-Key"),
 ):
-    profile_access(profile_id, key_info, x_helix_profile, x_helix_profile_key)
+    profile_access(profile_id, key_info, x_holix_profile, x_holix_profile_key)
     _, config = _require_profile(profile_id)
     mgr = _skills_manager(config)
     results = mgr.get_relevant_skills(q, top_k=20, agent_slot=agent or "main")
@@ -89,10 +89,10 @@ async def search_skills(
 async def get_assignments(
     profile_id: str,
     key_info: dict = Depends(verify_api_key),
-    x_helix_profile: str | None = Header(None),
-    x_helix_profile_key: str | None = Header(None, alias="X-Helix-Profile-Key"),
+    x_holix_profile: str | None = Header(None),
+    x_holix_profile_key: str | None = Header(None, alias="X-Holix-Profile-Key"),
 ):
-    profile_access(profile_id, key_info, x_helix_profile, x_helix_profile_key)
+    profile_access(profile_id, key_info, x_holix_profile, x_holix_profile_key)
     _, config = _require_profile(profile_id)
     return {"assignments": getattr(config, "skill_assignments", None) or {}}
 
@@ -102,10 +102,10 @@ async def patch_assignments(
     profile_id: str,
     body: SkillAssignmentsPatchRequest,
     key_info: dict = Depends(verify_api_key),
-    x_helix_profile: str | None = Header(None),
-    x_helix_profile_key: str | None = Header(None, alias="X-Helix-Profile-Key"),
+    x_holix_profile: str | None = Header(None),
+    x_holix_profile_key: str | None = Header(None, alias="X-Holix-Profile-Key"),
 ):
-    profile_access(profile_id, key_info, x_helix_profile, x_helix_profile_key)
+    profile_access(profile_id, key_info, x_holix_profile, x_holix_profile_key)
     manager, config = _require_profile(profile_id)
     config.skill_assignments = body.assignments
     manager.save_profile(profile_id, config)
@@ -117,10 +117,10 @@ async def seed_bundled(
     profile_id: str,
     force: bool = Query(False),
     key_info: dict = Depends(verify_api_key),
-    x_helix_profile: str | None = Header(None),
-    x_helix_profile_key: str | None = Header(None, alias="X-Helix-Profile-Key"),
+    x_holix_profile: str | None = Header(None),
+    x_holix_profile_key: str | None = Header(None, alias="X-Holix-Profile-Key"),
 ):
-    profile_access(profile_id, key_info, x_helix_profile, x_helix_profile_key)
+    profile_access(profile_id, key_info, x_holix_profile, x_holix_profile_key)
     manager, config = _require_profile(profile_id)
     from core.skills.bundled import ensure_bundled_assigned_to_main, seed_bundled_skills
 
@@ -145,10 +145,10 @@ async def show_skill(
     profile_id: str,
     skill_name: str,
     key_info: dict = Depends(verify_api_key),
-    x_helix_profile: str | None = Header(None),
-    x_helix_profile_key: str | None = Header(None, alias="X-Helix-Profile-Key"),
+    x_holix_profile: str | None = Header(None),
+    x_holix_profile_key: str | None = Header(None, alias="X-Holix-Profile-Key"),
 ):
-    profile_access(profile_id, key_info, x_helix_profile, x_helix_profile_key)
+    profile_access(profile_id, key_info, x_holix_profile, x_holix_profile_key)
     _, config = _require_profile(profile_id)
     skills_dir = Path(config.skills_dir)
     skill = None

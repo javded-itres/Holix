@@ -1,4 +1,4 @@
-"""Subprocess entry for `helix tui --web` (textual-serve launches this module)."""
+"""Subprocess entry for `holix tui --web` (textual-serve launches this module)."""
 
 from __future__ import annotations
 

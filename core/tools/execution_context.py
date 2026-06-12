@@ -5,13 +5,13 @@ from __future__ import annotations
 from contextvars import ContextVar
 from typing import Any
 
-_conversation_id: ContextVar[str] = ContextVar("helix_conversation_id", default="default")
-_subagent_name: ContextVar[str] = ContextVar("helix_subagent_name", default="")
-_interaction_bridge: ContextVar[Any] = ContextVar("helix_interaction_bridge", default=None)
-_chat_delivery_bridge: ContextVar[Any] = ContextVar("helix_chat_delivery_bridge", default=None)
-_memory_facade: ContextVar[Any] = ContextVar("helix_memory_facade", default=None)
-_workspace_root: ContextVar[str | None] = ContextVar("helix_workspace_root", default=None)
-_workspace_jail_enabled: ContextVar[bool] = ContextVar("helix_workspace_jail_enabled", default=False)
+_conversation_id: ContextVar[str] = ContextVar("holix_conversation_id", default="default")
+_subagent_name: ContextVar[str] = ContextVar("holix_subagent_name", default="")
+_interaction_bridge: ContextVar[Any] = ContextVar("holix_interaction_bridge", default=None)
+_chat_delivery_bridge: ContextVar[Any] = ContextVar("holix_chat_delivery_bridge", default=None)
+_memory_facade: ContextVar[Any] = ContextVar("holix_memory_facade", default=None)
+_workspace_root: ContextVar[str | None] = ContextVar("holix_workspace_root", default=None)
+_workspace_jail_enabled: ContextVar[bool] = ContextVar("holix_workspace_jail_enabled", default=False)
 
 
 def get_conversation_id() -> str:

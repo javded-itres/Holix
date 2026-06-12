@@ -235,7 +235,7 @@ class TelegramInteractive:
                 "<b>Добавить cron</b>\n"
                 "<code>/cron add every day at 9 :: текст задачи</code>\n"
                 "<code>/cron add 0 9 * * * :: текст задачи</code>\n\n"
-                "Планировщик работает в <code>helix gateway</code>."
+                "Планировщик работает в <code>holix gateway</code>."
             )
             return
 
@@ -301,7 +301,7 @@ class TelegramInteractive:
 
         if not servers:
             text_lines.append("\nНет настроенных MCP серверов.")
-            text_lines.append("Используй /mcp install или helix mcp install в терминале.")
+            text_lines.append("Используй /mcp install или holix mcp install в терминале.")
         else:
             for name, data in list(servers.items())[:8]:
                 src = data.get("_source", "manual")
@@ -548,7 +548,7 @@ class TelegramInteractive:
             await host._send_html(
                 "Чтобы установить из git, напиши:\n"
                 "<code>/mcp install https://github.com/owner/repo</code>\n\n"
-                "Или используй в терминале: <code>helix mcp install &lt;url&gt;</code>"
+                "Или используй в терминале: <code>holix mcp install &lt;url&gt;</code>"
             )
             return
         if value == "assign":
@@ -613,7 +613,7 @@ class TelegramInteractive:
 
         # Simple: send list and instruct to use /mcp assign or CLI
         text = "MCP серверы для назначения:\n" + "\n".join(f"• {s}" for s in servers)
-        text += "\n\nИспользуй: <code>/mcp assign &lt;server&gt; main,researcher</code> или helix mcp assign в терминале."
+        text += "\n\nИспользуй: <code>/mcp assign &lt;server&gt; main,researcher</code> или holix mcp assign в терминале."
         await self._host._send_html(text)
 
     async def _show_mcp_remove_picker(self) -> None:
@@ -702,7 +702,7 @@ class TelegramInteractive:
             await self._host._send_html(
                 "<b>Skills</b>\n\n"
                 "<i>Нет skills в профиле. Установите через "
-                "<code>/hub</code> или <code>helix hub install</code>.</i>"
+                "<code>/hub</code> или <code>holix hub install</code>.</i>"
             )
             return
 
@@ -756,7 +756,7 @@ class TelegramInteractive:
             "<b>Провайдеры</b> — список моделей без префикса",
         ]
         if not presets and not providers:
-            lines.append("\n<b>Нет моделей</b> — <code>helix models setup</code>")
+            lines.append("\n<b>Нет моделей</b> — <code>holix models setup</code>")
             await self._host._send_html("\n".join(lines))
             return
 
@@ -825,7 +825,7 @@ class TelegramInteractive:
                 subagents = "выкл"
 
         lines = [
-            "<b>Helix — статус</b>",
+            "<b>Holix — статус</b>",
             f"Профиль: <code>{escape_html(self._host.profile)}</code>",
             f"Модель: <code>{escape_html(model_line)}</code>",
             f"Режим: <code>{escape_html(mode)}</code> ({escape_html(mode_title)})",

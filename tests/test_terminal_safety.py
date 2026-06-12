@@ -15,8 +15,8 @@ def test_allows_list_dir() -> None:
     assert ok, reason
 
 
-def test_helix_in_default_whitelist():
-    ok, reason = command_whitelist.is_command_allowed("helix gateway status")
+def test_holix_in_default_whitelist():
+    ok, reason = command_whitelist.is_command_allowed("holix gateway status")
     assert ok, reason
 
 

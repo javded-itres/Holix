@@ -8,7 +8,7 @@ from pydantic import BaseModel, Field, model_validator
 
 
 class ResponsesCreateRequest(BaseModel):
-    model: str = "helix"
+    model: str = "holix"
     input: str | list[dict[str, Any]] = ""
     instructions: str | None = None
     store: bool = True
@@ -17,7 +17,7 @@ class ResponsesCreateRequest(BaseModel):
 
 
 class RunsCreateRequest(BaseModel):
-    model: str = "helix"
+    model: str = "holix"
     input: str = ""
     session_id: str | None = None
     instructions: str | None = None
@@ -85,11 +85,11 @@ class SessionChatRequest(BaseModel):
 
 
 class CapabilitiesResponse(BaseModel):
-    object: str = "helix.api_server.capabilities"
-    platform: str = "helix"
-    model: str = "helix"
+    object: str = "holix.api_server.capabilities"
+    platform: str = "holix"
+    model: str = "holix"
     auth: dict[str, Any] = Field(default_factory=lambda: {"type": "bearer", "required": True})
     features: dict[str, bool] = Field(default_factory=dict)
-    session_id_header: str = "X-Helix-Session-Id"
-    session_key_header: str = "X-Helix-Session-Key"
+    session_id_header: str = "X-Holix-Session-Id"
+    session_key_header: str = "X-Holix-Session-Key"
     endpoints: dict[str, str] = Field(default_factory=dict)

@@ -45,7 +45,7 @@ class APIKeyManager:
         pepper = settings.api_key_pepper.strip()
         if not pepper:
             raise RuntimeError(
-                "HELIX_API_KEY_PEPPER must be set for API key hashing"
+                "HOLIX_API_KEY_PEPPER must be set for API key hashing"
             )
         return pepper
 

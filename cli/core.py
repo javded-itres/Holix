@@ -1,11 +1,11 @@
-"""Core profile management and initialization for Helix CLI."""
+"""Core profile management and initialization for Holix CLI."""
 
 import os
 from pathlib import Path
 from typing import Any
 
 import yaml
-from core.platform_compat import resolve_helix_home
+from core.platform_compat import resolve_holix_home
 from core.profile_keys import (
     ProfileExistsError,
     ProfileNotFoundError,
@@ -16,29 +16,29 @@ from core.profile_keys import (
 )
 from pydantic import BaseModel, Field
 
-# Helix home directory (HELIX_HOME / XDG / %LOCALAPPDATA%\Helix / ~/.helix)
-HELIX_HOME = resolve_helix_home()
-PROFILES_DIR = HELIX_HOME / "profiles"
-LOGS_DIR = HELIX_HOME / "logs"
+# Holix home directory (HOLIX_HOME / XDG / %LOCALAPPDATA%\Holix / ~/.holix)
+HOLIX_HOME = resolve_holix_home()
+PROFILES_DIR = HOLIX_HOME / "profiles"
+LOGS_DIR = HOLIX_HOME / "logs"
 
 
 def profiles_dir() -> Path:
-    """Resolve profiles root (honours HELIX_HOME at call time for tests/runtime)."""
-    home = os.environ.get("HELIX_HOME", "").strip()
+    """Resolve profiles root (honours HOLIX_HOME at call time for tests/runtime)."""
+    home = os.environ.get("HOLIX_HOME", "").strip()
     if home:
         return Path(home).expanduser().resolve() / "profiles"
     return PROFILES_DIR
 
 
 def logs_dir() -> Path:
-    home = os.environ.get("HELIX_HOME", "").strip()
+    home = os.environ.get("HOLIX_HOME", "").strip()
     if home:
         return Path(home).expanduser().resolve() / "logs"
     return LOGS_DIR
 
 
 class ProfileConfig(BaseModel):
-    """Configuration for a Helix profile."""
+    """Configuration for a Holix profile."""
 
     # LLM settings
     model: str = "qwen2.5-coder:32b"
@@ -67,7 +67,7 @@ class ProfileConfig(BaseModel):
     fallback_providers: list[str] = Field(default_factory=list)
     models_via_providers: bool = False  # True after catalog providers were used
 
-    # MCP (Model Context Protocol) servers — stored under ~/.helix only
+    # MCP (Model Context Protocol) servers — stored under ~/.holix only
     mcp_servers: dict[str, dict[str, Any]] = Field(default_factory=dict)
     mcp_assignments: dict[str, list[str]] = Field(default_factory=dict)  # e.g. {"main": ["fs"], "researcher": ["fs", "git"]}
     mcp_enabled: bool = True
@@ -92,23 +92,23 @@ class ProfileConfig(BaseModel):
     workspace_root: str | None = None
 
 
-def _helix_env_name() -> str:
-    return os.getenv("HELIX_ENV", "development").strip().lower()
+def _holix_env_name() -> str:
+    return os.getenv("HOLIX_ENV", "development").strip().lower()
 
 
 def default_profile_allowed() -> bool:
     """Implicit profile ``default`` is available only outside production."""
-    return _helix_env_name() != "production"
+    return _holix_env_name() != "production"
 
 
 def validate_profile_name_for_env(profile: str) -> str:
     """Reject reserved ``default`` profile name in production."""
     name = (profile or "").strip() or "default"
 
-    if _helix_env_name() == "production" and name == "default":
+    if _holix_env_name() == "production" and name == "default":
         raise ProfileNotFoundError(
-            "Profile 'default' is only available when HELIX_ENV is not production. "
-            "Use a named profile: helix -p <name> …"
+            "Profile 'default' is only available when HOLIX_ENV is not production. "
+            "Use a named profile: holix -p <name> …"
         )
     return name
 
@@ -120,8 +120,8 @@ def resolve_active_profile_name(explicit: str | None = None) -> str:
     if default_profile_allowed():
         return "default"
     raise ProfileNotFoundError(
-        "Profile name is required when HELIX_ENV=production. "
-        "Example: helix -p alice gateway start"
+        "Profile name is required when HOLIX_ENV=production. "
+        "Example: holix -p alice gateway start"
     )
 
 
@@ -146,7 +146,7 @@ def resolve_profile_storage_paths(
     *,
     profile_dir: Path | None = None,
 ) -> ProfileConfig:
-    """Bind profile storage paths to ~/.helix/profiles/<name>/ (not process CWD)."""
+    """Bind profile storage paths to ~/.holix/profiles/<name>/ (not process CWD)."""
     base = (profile_dir or (profiles_dir() / profile)).resolve()
 
     def _resolve(path: str | None, default: Path) -> str:
@@ -184,7 +184,7 @@ def resolve_profile_storage_paths(
 
 
 class ProfileManager:
-    """Manage Helix profiles."""
+    """Manage Holix profiles."""
 
     def __init__(self):
         """Initialize profile manager."""
@@ -192,10 +192,10 @@ class ProfileManager:
         self.ensure_directories()
 
     def ensure_directories(self):
-        """Ensure Helix directories exist."""
-        from core.env_loader import init_helix_home
+        """Ensure Holix directories exist."""
+        from core.env_loader import init_holix_home
 
-        init_helix_home()
+        init_holix_home()
         profiles_dir().mkdir(parents=True, exist_ok=True)
         logs_dir().mkdir(parents=True, exist_ok=True)
 
@@ -350,7 +350,7 @@ class ProfileManager:
         from core.models.profile_cleanup import sanitize_model_routing_data
 
         data = sanitize_model_routing_data(data)
-        # Supplement with project-local .helix/config.yaml (additive only: mcp, not models/system)
+        # Supplement with project-local .holix/config.yaml (additive only: mcp, not models/system)
         local = load_local_overlay()
         data = merge_profile_with_local(data, local)
         config = ProfileConfig(**data)
@@ -432,7 +432,7 @@ _unlocked_profiles: set[str] = set()
 def _resolve_profile_key(profile_key: str | None) -> str | None:
     if profile_key and str(profile_key).strip():
         return str(profile_key).strip()
-    env_key = os.getenv("HELIX_PROFILE_KEY", "").strip()
+    env_key = os.getenv("HOLIX_PROFILE_KEY", "").strip()
     return env_key or None
 
 
@@ -505,7 +505,7 @@ def init_profile(
             print_panel(
                 f"[cyan]{created_key}[/cyan]\n\n"
                 f"Save this access key for profile '{profile}' — it is shown only once.\n"
-                f"Use: [bold]helix -p {profile} --profile-key <key>[/bold]",
+                f"Use: [bold]holix -p {profile} --profile-key <key>[/bold]",
                 title="Profile access key",
                 border_style="yellow",
             )

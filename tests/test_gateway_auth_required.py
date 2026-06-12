@@ -38,11 +38,11 @@ def test_openapi_uses_single_authorize_scheme() -> None:
 
     schema = api.gateway.app.openapi()
     security_schemes = schema["components"]["securitySchemes"]
-    assert "HelixApiKey" in security_schemes
-    assert security_schemes["HelixApiKey"]["type"] == "http"
-    assert security_schemes["HelixApiKey"]["scheme"] == "bearer"
+    assert "HolixApiKey" in security_schemes
+    assert security_schemes["HolixApiKey"]["type"] == "http"
+    assert security_schemes["HolixApiKey"]["scheme"] == "bearer"
 
     models_op = schema["paths"]["/v1/models"]["get"]
-    assert models_op["security"] == [{"HelixApiKey": []}]
+    assert models_op["security"] == [{"HolixApiKey": []}]
     assert "authorization" not in models_op.get("parameters", [])
     assert "x-api-key" not in {p["name"] for p in models_op.get("parameters", [])}

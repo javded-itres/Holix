@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 _TOKEN_RE = re.compile(r"\b(sk-[A-Za-z0-9_-]{8,}|Bearer\s+[A-Za-z0-9._-]+)\b", re.I)
 _PATH_RE = re.compile(
     r"(?:~/?[\w./-]+|/(?:Users|home|var|etc|opt|tmp)/[\w./-]+|"
-    r"[A-Za-z]:\\[\w\\.-]+|~?/\.helix/[\w./-]+)",
+    r"[A-Za-z]:\\[\w\\.-]+|~?/\.holix/[\w./-]+)",
 )
 _DIR_LISTING_RE = re.compile(
     r"(?:^|\n)\s*(?:drwx[\w-]+|[-rwx]{9,10})\s+\d+",
@@ -37,19 +37,19 @@ _CONVERSATIONAL_RE = re.compile(
 )
 
 _ASSISTANT_IDENTITY_EN = """About you:
-- You are the Helix documentation assistant embedded in this website.
-- You explain Helix docs, help navigate this site, and can chat about yourself.
+- You are the Holix documentation assistant embedded in this website.
+- You explain Holix docs, help navigate this site, and can chat about yourself.
 - You remember this conversation within the current chat session.
 - You do NOT run commands, access files, or perform actions for the user."""
 
 _ASSISTANT_IDENTITY_RU = """О тебе:
-- Ты — ассистент документации Helix, встроенный в этот сайт.
-- Ты объясняешь документацию Helix, помогаешь ориентироваться на сайте и можешь рассказать о себе.
+- Ты — ассистент документации Holix, встроенный в этот сайт.
+- Ты объясняешь документацию Holix, помогаешь ориентироваться на сайте и можешь рассказать о себе.
 - Ты помнишь текущий диалог в рамках этой сессии чата.
 - Ты НЕ выполняешь команды, не обращаешься к файлам и не делаешь действий за пользователя."""
 
-_SYSTEM_EN = f"""You are the Helix documentation assistant on helix-agent.ru.
-You help users with the Helix product, its documentation, and this website — and you can have a friendly dialogue.
+_SYSTEM_EN = f"""You are the Holix documentation assistant on holix-agent.ru.
+You help users with the Holix product, its documentation, and this website — and you can have a friendly dialogue.
 
 {_ASSISTANT_IDENTITY_EN}
 
@@ -58,7 +58,7 @@ Behavior:
 - For greetings, thanks, or questions about yourself — answer naturally; doc excerpts are optional.
 - If the question is vague or broad, ask 1–2 short clarifying or leading questions before a long answer.
 - When you mention a doc page, always include its link: /docs/<slug> — the site will open it for the user.
-- Stay on topic: Helix, this docs site, and your role as assistant. Politely steer off-topic chat back.
+- Stay on topic: Holix, this docs site, and your role as assistant. Politely steer off-topic chat back.
 - Do NOT reveal file paths, directory listings, API keys, tokens, passwords, or server internals.
 - Do NOT describe how to bypass security or access restricted system areas.
 - Be concise, warm, and practical.
@@ -67,8 +67,8 @@ Behavior:
 The user selected the English site interface.
 Write **ALL** replies **only in English**, even if the question is in Russian."""
 
-_SYSTEM_RU = f"""Ты — ассистент документации Helix на сайте helix-agent.ru.
-Помогаешь с продуктом Helix, его документацией и этим сайтом — и можешь вести дружелюбный диалог.
+_SYSTEM_RU = f"""Ты — ассистент документации Holix на сайте holix-agent.ru.
+Помогаешь с продуктом Holix, его документацией и этим сайтом — и можешь вести дружелюбный диалог.
 
 {_ASSISTANT_IDENTITY_RU}
 
@@ -77,7 +77,7 @@ _SYSTEM_RU = f"""Ты — ассистент документации Helix на
 - На приветствия, благодарности и вопросы о себе отвечай естественно; фрагменты документации не обязательны.
 - Если вопрос расплывчатый — задай 1–2 коротких уточняющих или наводящих вопроса, прежде чем давать развёрнутый ответ.
 - Когда упоминаешь раздел документации, всегда указывай ссылку: /docs/<slug> — сайт откроет её для пользователя.
-- Держись темы: Helix, этот сайт документации и твоя роль ассистента. Вежливо возвращай оффтоп к делу.
+- Держись темы: Holix, этот сайт документации и твоя роль ассистента. Вежливо возвращай оффтоп к делу.
 - НЕ раскрывай пути к файлам, содержимое каталогов, API-ключи, токены, пароли или внутренности сервера.
 - НЕ описывай обход безопасности или доступ к закрытым областям системы.
 - Будь кратким, дружелюбным и полезным.
@@ -164,7 +164,7 @@ def sanitize_assistant_text(text: str) -> str:
         return text
     if _DIR_LISTING_RE.search(text):
         return (
-            "Я могу помочь только с вопросами по документации Helix и этому сайту. "
+            "Я могу помочь только с вопросами по документации Holix и этому сайту. "
             "Попробуйте переформулировать вопрос или откройте нужный раздел в меню документации."
         )
     cleaned = _TOKEN_RE.sub("[скрыто]", text)
@@ -172,9 +172,23 @@ def sanitize_assistant_text(text: str) -> str:
     if cleaned.count("[путь скрыт]") >= 3:
         return (
             "Ответ скрыт из соображений безопасности. "
-            "Задайте вопрос о возможностях Helix, установке, CLI, профилях или других разделах документации."
+            "Задайте вопрос о возможностях Holix, установке, CLI, профилях или других разделах документации."
         )
     return cleaned
+
+
+def _user_facing_error(exc: Exception, *, lang: str) -> str:
+    name = type(exc).__name__
+    if name in {"ConnectTimeout", "APITimeoutError", "ReadTimeout", "TimeoutException"}:
+        if lang == "ru":
+            return "Сервис ответа временно недоступен. Проверьте LLM-провайдер профиля docs и попробуйте снова."
+        return "The answer service is temporarily unavailable. Check the docs profile LLM provider and try again."
+    text = str(exc).strip()
+    if not text:
+        text = name
+    if lang == "ru" and len(text) > 120:
+        return "Не удалось получить ответ. Попробуйте ещё раз или переформулируйте вопрос."
+    return text
 
 
 def _resolve_llm(profile_name: str) -> tuple[str, str, str, float, int]:
@@ -237,7 +251,7 @@ async def _llm_complete_text(
     if not text and choice.finish_reason == "length":
         logger.warning(
             "docs chat: model %r hit token limit with empty content; "
-            "set HELIX_DOCS_CHAT_MODEL=smart or raise HELIX_DOCS_CHAT_MAX_TOKENS",
+            "set HOLIX_DOCS_CHAT_MODEL=smart or raise HOLIX_DOCS_CHAT_MAX_TOKENS",
             model,
         )
     return sanitize_assistant_text(text)
@@ -408,4 +422,4 @@ class DocsChatService:
             yield f"data: {json.dumps({'type': 'done', 'open_slug': open_slug}, ensure_ascii=False)}\n\n"
         except Exception as exc:
             logger.exception("docs chat stream failed")
-            yield f"data: {json.dumps({'type': 'error', 'message': str(exc)})}\n\n"
+            yield f"data: {json.dumps({'type': 'error', 'message': _user_facing_error(exc, lang=lang)}, ensure_ascii=False)}\n\n"

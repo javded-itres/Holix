@@ -20,13 +20,13 @@ from core.global_config import (
 
 
 @pytest.fixture
-def helix_home(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
-    monkeypatch.setenv("HELIX_HOME", str(tmp_path))
+def holix_home(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
+    monkeypatch.setenv("HOLIX_HOME", str(tmp_path))
     monkeypatch.chdir(tmp_path)
     return tmp_path
 
 
-def test_global_config_merge_profile_overrides(helix_home: Path) -> None:
+def test_global_config_merge_profile_overrides(holix_home: Path) -> None:
     global_data = {"model": "global-model", "temperature": 0.5, "providers": {"litellm": {"default_model": "a"}}}
     profile_data = {"profile_name": "alice", "model": "alice-model"}
     merged = merge_global_with_profile(global_data, profile_data)
@@ -35,7 +35,7 @@ def test_global_config_merge_profile_overrides(helix_home: Path) -> None:
     assert merged["providers"]["litellm"]["default_model"] == "a"
 
 
-def test_load_profile_inherits_global_model(helix_home: Path) -> None:
+def test_load_profile_inherits_global_model(holix_home: Path) -> None:
     ensure_global_config()
     global_config_path().write_text(
         "model: shared-llm\ntemperature: 0.2\n",
@@ -54,7 +54,7 @@ def test_load_profile_inherits_global_model(helix_home: Path) -> None:
     assert cfg.temperature == 0.2
 
 
-def test_profile_override_beats_global(helix_home: Path) -> None:
+def test_profile_override_beats_global(holix_home: Path) -> None:
     ensure_global_config()
     global_config_path().write_text("model: global-model\n", encoding="utf-8")
 
@@ -69,7 +69,7 @@ def test_profile_override_beats_global(helix_home: Path) -> None:
     assert cfg.model == "bob-model"
 
 
-def test_save_profile_stores_only_overrides(helix_home: Path) -> None:
+def test_save_profile_stores_only_overrides(holix_home: Path) -> None:
     ensure_global_config()
     global_config_path().write_text(
         "model: global-model\ntemperature: 0.7\n",
@@ -87,11 +87,11 @@ def test_save_profile_stores_only_overrides(helix_home: Path) -> None:
 
 
 def test_clean_profile_does_not_inherit_env_copy(
-    helix_home: Path, monkeypatch: pytest.MonkeyPatch
+    holix_home: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    monkeypatch.delenv("HELIX_TEST_VAR", raising=False)
+    monkeypatch.delenv("HOLIX_TEST_VAR", raising=False)
     ensure_global_env_template()
-    global_env_path().write_text("HELIX_TEST_VAR=global\n", encoding="utf-8")
+    global_env_path().write_text("HOLIX_TEST_VAR=global\n", encoding="utf-8")
 
     manager = ProfileManager()
     manager.create_profile("clean", inherit_global=False)
@@ -99,28 +99,28 @@ def test_clean_profile_does_not_inherit_env_copy(
     assert "global" not in profile_env.read_text(encoding="utf-8")
 
     bootstrap_profile_env("clean", force=True)
-    assert os.environ.get("HELIX_TEST_VAR") == "global"
+    assert os.environ.get("HOLIX_TEST_VAR") == "global"
 
 
 def test_inherit_profile_env_runtime_fallback(
-    helix_home: Path, monkeypatch: pytest.MonkeyPatch
+    holix_home: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    monkeypatch.delenv("HELIX_TEST_VAR", raising=False)
+    monkeypatch.delenv("HOLIX_TEST_VAR", raising=False)
     ensure_global_env_template()
-    global_env_path().write_text("HELIX_TEST_VAR=global\n", encoding="utf-8")
+    global_env_path().write_text("HOLIX_TEST_VAR=global\n", encoding="utf-8")
 
     manager = ProfileManager()
     manager.create_profile("inherit", inherit_global=True)
     profile_env_path("inherit").write_text(
-        "# overrides only\nHELIX_TEST_VAR=profile\n",
+        "# overrides only\nHOLIX_TEST_VAR=profile\n",
         encoding="utf-8",
     )
 
     bootstrap_profile_env("inherit", force=True)
-    assert os.environ.get("HELIX_TEST_VAR") == "profile"
+    assert os.environ.get("HOLIX_TEST_VAR") == "profile"
 
 
-def test_extract_profile_overrides_nested_providers(helix_home: Path) -> None:
+def test_extract_profile_overrides_nested_providers(holix_home: Path) -> None:
     global_data = {
         "providers": {
             "litellm": {"default_model": "shared", "base_url": "http://localhost:4000/v1"},
@@ -137,7 +137,7 @@ def test_extract_profile_overrides_nested_providers(helix_home: Path) -> None:
     assert "base_url" not in out["providers"]["litellm"]
 
 
-def test_global_change_applies_to_inherited_profile(helix_home: Path) -> None:
+def test_global_change_applies_to_inherited_profile(holix_home: Path) -> None:
     ensure_global_config()
     global_config_path().write_text("model: v1\n", encoding="utf-8")
 
@@ -149,7 +149,7 @@ def test_global_change_applies_to_inherited_profile(helix_home: Path) -> None:
     assert manager.load_profile("dyn").model == "v2"
 
 
-def test_ensure_global_seeds_from_default_profile(helix_home: Path) -> None:
+def test_ensure_global_seeds_from_default_profile(holix_home: Path) -> None:
     manager = ProfileManager()
     manager.create_profile("default", inherit_global=False)
     (manager.get_profile_dir("default") / "config.yaml").write_text(

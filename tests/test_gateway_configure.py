@@ -13,13 +13,13 @@ from cli.commands.gateway_configure import (
 )
 
 _GATEWAY_ENV_KEYS = (
-    "HELIX_GATEWAY_HOST",
-    "HELIX_GATEWAY_PORT",
-    "HELIX_REQUIRE_AUTH",
-    "HELIX_GATEWAY_WITH_DOCS",
-    "HELIX_GATEWAY_DOCS",
-    "HELIX_DOCS_HOST",
-    "HELIX_DOCS_PORT",
+    "HOLIX_GATEWAY_HOST",
+    "HOLIX_GATEWAY_PORT",
+    "HOLIX_REQUIRE_AUTH",
+    "HOLIX_GATEWAY_WITH_DOCS",
+    "HOLIX_GATEWAY_DOCS",
+    "HOLIX_DOCS_HOST",
+    "HOLIX_DOCS_PORT",
 )
 
 
@@ -37,10 +37,10 @@ def _seed_profile(profiles_root: Path, name: str, env_body: str) -> None:
 
 def test_list_configured_gateway_ports(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     _clear_gateway_env(monkeypatch)
-    monkeypatch.setenv("HELIX_HOME", str(tmp_path))
+    monkeypatch.setenv("HOLIX_HOME", str(tmp_path))
     profiles = tmp_path / "profiles"
-    _seed_profile(profiles, "alice", "HELIX_GATEWAY_PORT=8001\n")
-    _seed_profile(profiles, "bob", "HELIX_GATEWAY_PORT=8002\n")
+    _seed_profile(profiles, "alice", "HOLIX_GATEWAY_PORT=8001\n")
+    _seed_profile(profiles, "bob", "HOLIX_GATEWAY_PORT=8002\n")
 
     ports = list_configured_gateway_ports()
     assert ports["alice"] == 8001
@@ -52,10 +52,10 @@ def test_list_configured_gateway_ports_excludes_profile(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     _clear_gateway_env(monkeypatch)
-    monkeypatch.setenv("HELIX_HOME", str(tmp_path))
+    monkeypatch.setenv("HOLIX_HOME", str(tmp_path))
     profiles = tmp_path / "profiles"
-    _seed_profile(profiles, "alice", "HELIX_GATEWAY_PORT=8001\n")
-    _seed_profile(profiles, "bob", "HELIX_GATEWAY_PORT=8002\n")
+    _seed_profile(profiles, "alice", "HOLIX_GATEWAY_PORT=8001\n")
+    _seed_profile(profiles, "bob", "HOLIX_GATEWAY_PORT=8002\n")
 
     ports = list_configured_gateway_ports(exclude_profile="alice")
     assert "alice" not in ports
@@ -67,9 +67,9 @@ def test_suggest_gateway_port_skips_other_profiles(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     _clear_gateway_env(monkeypatch)
-    monkeypatch.setenv("HELIX_HOME", str(tmp_path))
+    monkeypatch.setenv("HOLIX_HOME", str(tmp_path))
     profiles = tmp_path / "profiles"
-    _seed_profile(profiles, "alice", "HELIX_GATEWAY_PORT=8000\n")
+    _seed_profile(profiles, "alice", "HOLIX_GATEWAY_PORT=8000\n")
     _seed_profile(profiles, "bob", "")
 
     port = suggest_gateway_port("127.0.0.1", profile="bob", base_port=8000)
@@ -78,14 +78,14 @@ def test_suggest_gateway_port_skips_other_profiles(
 
 def test_load_effective_gateway_config(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     _clear_gateway_env(monkeypatch)
-    monkeypatch.setenv("HELIX_HOME", str(tmp_path))
+    monkeypatch.setenv("HOLIX_HOME", str(tmp_path))
     _seed_profile(
         tmp_path / "profiles",
         "work",
         (
-            "HELIX_GATEWAY_HOST=0.0.0.0\n"
-            "HELIX_GATEWAY_PORT=9001\n"
-            "HELIX_REQUIRE_AUTH=true\n"
+            "HOLIX_GATEWAY_HOST=0.0.0.0\n"
+            "HOLIX_GATEWAY_PORT=9001\n"
+            "HOLIX_REQUIRE_AUTH=true\n"
         ),
     )
 
@@ -98,7 +98,7 @@ def test_load_effective_gateway_config(tmp_path: Path, monkeypatch: pytest.Monke
 
 def test_save_gateway_env_roundtrip(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     _clear_gateway_env(monkeypatch)
-    monkeypatch.setenv("HELIX_HOME", str(tmp_path))
+    monkeypatch.setenv("HOLIX_HOME", str(tmp_path))
     from cli.commands.gateway_configure import _save_gateway_env
 
     _seed_profile(tmp_path / "profiles", "demo", "# demo\n")

@@ -21,7 +21,7 @@ import logging
 
 from langchain_core.runnables import RunnableConfig
 
-from core.graph.state import HelixGraphState, get_agent_from_config
+from core.graph.state import HolixGraphState, get_agent_from_config
 from core.plan_review.parser import parse_detailed_plan
 
 # Backward-compatible re-exports for tests
@@ -172,7 +172,7 @@ Respond with ONLY valid JSON:
 }}"""
 
 
-async def plan_node(state: HelixGraphState, config: RunnableConfig) -> dict:
+async def plan_node(state: HolixGraphState, config: RunnableConfig) -> dict:
     """Generate a comprehensive plan from the user's input.
 
     Uses the LLM to analyze the task, design architecture, assess risks,
@@ -254,13 +254,13 @@ async def plan_node(state: HelixGraphState, config: RunnableConfig) -> dict:
 
     context = "\n".join(context_parts) if context_parts else "No relevant context available."
 
-    from core.project.helix_md import format_helix_md_block, planning_context_note
+    from core.project.holix_md import format_holix_md_block, planning_context_note
 
-    project_handbook = format_helix_md_block()
+    project_handbook = format_holix_md_block()
     if not project_handbook:
         project_handbook = (
             f"{planning_context_note()} "
-            "No `.helix/HELIX.md` yet — run `/init` in this repo to generate it."
+            "No `.holix/HOLIX.md` yet — run `/init` in this repo to generate it."
         )
 
     # Build tools description

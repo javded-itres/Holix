@@ -1,4 +1,4 @@
-"""Parse and normalize AgentSkills / OpenClaw / Hermes SKILL.md for Helix."""
+"""Parse and normalize AgentSkills / OpenClaw / Hermes SKILL.md for Holix."""
 
 from __future__ import annotations
 
@@ -109,7 +109,7 @@ def _slugify(name: str) -> str:
 
 
 def write_flat_skill(dest: Path, skill: dict[str, Any]) -> Path:
-    """Write Helix flat {name}.md from parsed skill dict."""
+    """Write Holix flat {name}.md from parsed skill dict."""
     dest.parent.mkdir(parents=True, exist_ok=True)
     meta = {k: v for k, v in skill.items() if k not in ("content", "filepath", "bundle_dir")}
     with dest.open("w", encoding="utf-8") as f:

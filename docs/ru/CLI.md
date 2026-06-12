@@ -1,21 +1,21 @@
 # Справочник CLI
 
-Точка входа: **`helix`** (Typer).
+Точка входа: **`holix`** (Typer).
 
 ## Глобальные опции
 
 | Опция | Кратко | По умолчанию | Описание |
 |-------|--------|--------------|----------|
-| `--profile` | `-p` | *(dev: `default`)* | Профиль в `~/.helix/profiles/<имя>/` |
-| `--profile-key` | | env `HELIX_PROFILE_KEY` | Ключ доступа к защищённому профилю |
+| `--profile` | `-p` | *(dev: `default`)* | Профиль в `~/.holix/profiles/<имя>/` |
+| `--profile-key` | | env `HOLIX_PROFILE_KEY` | Ключ доступа к защищённому профилю |
 | `--verbose` | `-v` | выкл | Подробный вывод |
 
-В **development** можно не указывать `-p` — используется `default`. В **production** (`HELIX_ENV=production`) нужен **именованный** профиль — `default` недоступен:
+В **development** можно не указывать `-p` — используется `default`. В **production** (`HOLIX_ENV=production`) нужен **именованный** профиль — `default` недоступен:
 
 ```bash
-helix gateway start
-helix -p work status
-HELIX_ENV=production helix -p shared gateway start
+holix gateway start
+holix -p work status
+HOLIX_ENV=production holix -p shared gateway start
 ```
 
 ## Команды верхнего уровня
@@ -47,11 +47,11 @@ HELIX_ENV=production helix -p shared gateway start
 
 ---
 
-## `helix chat-command`
+## `holix chat-command`
 
 ```bash
-helix chat-command
-helix chat-command -m qwen2.5-coder:32b --max-steps 20
+holix chat-command
+holix chat-command -m qwen2.5-coder:32b --max-steps 20
 ```
 
 Опции: `--model`, `--temperature`, `--max-steps`.
@@ -60,29 +60,29 @@ helix chat-command -m qwen2.5-coder:32b --max-steps 20
 
 ---
 
-## `helix run`
+## `holix run`
 
 ```bash
-helix run "Кратко опиши репозиторий"
-helix run "…" -c id_разговора
+holix run "Кратко опиши репозиторий"
+holix run "…" -c id_разговора
 ```
 
 ---
 
-## `helix tui`
+## `holix tui`
 
 ```bash
-helix tui
-helix tui --web
-helix tui --web --allow-lan --token "$(openssl rand -hex 32)"
+holix tui
+holix tui --web
+holix tui --web --allow-lan --token "$(openssl rand -hex 32)"
 ```
 
-Legacy: `HELIX_TUI_LEGACY=1 helix tui`.  
+Legacy: `HOLIX_TUI_LEGACY=1 holix tui`.  
 Подробнее: [TUI.md](TUI.md).
 
 ---
 
-## `helix status` / `clear` / `version`
+## `holix status` / `clear` / `version`
 
 - **status** — модель, URL, каталоги, список профилей  
 - **clear** — удаление памяти и навыков (`-y` без подтверждения)  
@@ -90,19 +90,42 @@ Legacy: `HELIX_TUI_LEGACY=1 helix tui`.
 
 ---
 
-## `helix install` / `update`
+## `holix install` / `update`
 
 ```bash
-helix install
-helix install --extra telegram
-helix update --check
+holix install
+holix install --extra telegram
+holix update --check
 ```
 
 См. [INSTALLATION.md](INSTALLATION.md).
 
 ---
 
-## `helix config`
+## `holix bootstrap`
+
+Первичная настройка после установки: язык (RU/EN), LLM, опционально Telegram. Вызывается автоматически из `install.sh`.
+
+```bash
+holix bootstrap
+holix bootstrap --lang ru
+holix bootstrap --skip-telegram
+holix bootstrap -y
+```
+
+| Опция | Описание |
+|-------|----------|
+| `--lang` | Язык мастера (`en` \| `ru`); на русской системе выбор не спрашивается |
+| `--skip-llm` | Пропустить настройку LLM |
+| `--skip-telegram` | Пропустить Telegram |
+| `-y`, `--yes` | Без интерактива |
+| `-p`, `--profile` | Профиль Holix (по умолчанию `default`) |
+
+Записывает локаль в `profiles/default/data/locale.json` и `profiles/admin/data/locale.json`. См. [INSTALLATION.md](INSTALLATION.md).
+
+---
+
+## `holix config`
 
 | Подкоманда | Описание |
 |------------|----------|
@@ -112,7 +135,7 @@ helix update --check
 
 ---
 
-## `helix models`
+## `holix models`
 
 | Подкоманда | Описание |
 |------------|----------|
@@ -124,14 +147,14 @@ helix update --check
 | `fallback clear` | Убрать fallback на уровне профиля |
 
 ```bash
-helix models setup
-helix models fallback set litellm,ollama
-helix models fallback list
+holix models setup
+holix models fallback set litellm,ollama
+holix models fallback list
 ```
 
 ---
 
-## `helix skills`
+## `holix skills`
 
 | Подкоманда | Описание |
 |------------|----------|
@@ -144,13 +167,13 @@ helix models fallback list
 
 ---
 
-## `helix memory`
+## `holix memory`
 
-`helix memory search "<запрос>"` — в TUI: `/memory <запрос>`.
+`holix memory search "<запрос>"` — в TUI: `/memory <запрос>`.
 
 ---
 
-## `helix profile`
+## `holix profile`
 
 Изоляция профиля и **общие глобальные настройки** (наследуются по умолчанию).
 
@@ -158,9 +181,9 @@ helix models fallback list
 |------------|----------|
 | `create <имя>` | Новый профиль (`--inherit` по умолчанию, `--clean` — без global) |
 | `create <имя> --protect` | С ключом доступа + workspace jail |
-| `global show` | Показать `~/.helix/global/config.yaml` |
+| `global show` | Показать `~/.holix/global/config.yaml` |
 | `global edit` | Редактировать global YAML (модели, MCP, поведение) |
-| `global edit --env` | Редактировать `~/.helix/global/.env` |
+| `global edit --env` | Редактировать `~/.holix/global/.env` |
 | `global init` | (Пере)создать global (`--from-profile default`) |
 | `env` | Показать `.env` профиля (переопределения) |
 | `env --edit` | Открыть переопределения профиля в `$EDITOR` |
@@ -172,18 +195,18 @@ helix models fallback list
 | `whitelist enable` | Включить проверку whitelist |
 
 ```bash
-helix profile global edit
-helix profile create team-a
-helix profile create team-b --clean
-helix -p alice profile env --edit
-helix -p data-agent profile jail enable ~/data-agent
+holix profile global edit
+holix profile create team-a
+holix profile create team-b --clean
+holix -p alice profile env --edit
+holix -p data-agent profile jail enable ~/data-agent
 ```
 
 [CONFIGURATION.md](CONFIGURATION.md), [PROFILES.md](PROFILES.md)
 
 ---
 
-## `helix gateway`
+## `holix gateway`
 
 Привязан к **активному профилю** (`-p`). Несколько gateway на разных портах.
 
@@ -195,36 +218,36 @@ helix -p data-agent profile jail enable ~/data-agent
 | `reload` | Перезапуск |
 
 ```bash
-helix -p alice gateway start -f
+holix -p alice gateway start -f
 ```
 
 Состояние: `profiles/<имя>/gateway/state.json` · [GATEWAY.md](GATEWAY.md)
 
 ### Ключи gateway API
 
-**Нет** CLI-команды `helix` для создания ключей gateway (`hx_…`). Варианты:
+**Нет** CLI-команды `holix` для создания ключей gateway (`hx_…`). Варианты:
 
 ```bash
 # curl (нужен существующий admin hx_ key)
 curl -sS -X POST "http://127.0.0.1:8000/admin/api-keys?name=my-app&permissions=read,write" \
   -H "Authorization: Bearer hx_admin_…"
 
-# или Swagger UI после helix gateway start
-open http://127.0.0.1:8000/docs   # Authorize → HelixApiKey → вставьте hx_…
+# или Swagger UI после holix gateway start
+open http://127.0.0.1:8000/docs   # Authorize → HolixApiKey → вставьте hx_…
 ```
 
-**Ключи доступа к профилю** (`hp_…`) — другое назначение: защита переключения профиля и `/api/helix/*` management, не HTTP-поверхность gateway:
+**Ключи доступа к профилю** (`hp_…`) — другое назначение: защита переключения профиля и `/api/holix/*` management, не HTTP-поверхность gateway:
 
 ```bash
-helix -p alice profile key init    # генерирует hp_… (показывается один раз)
-helix -p alice --profile-key hp_…  # использование в CLI/TUI
+holix -p alice profile key init    # генерирует hp_… (показывается один раз)
+holix -p alice --profile-key hp_…  # использование в CLI/TUI
 ```
 
-Первый admin-ключ: временно `HELIX_REQUIRE_AUTH=false`, создайте через `POST /admin/api-keys`, затем включите auth. Полный справочник: [GATEWAY_API.md](GATEWAY_API.md).
+Первый admin-ключ: временно `HOLIX_REQUIRE_AUTH=false`, создайте через `POST /admin/api-keys`, затем включите auth. Полный справочник: [GATEWAY_API.md](GATEWAY_API.md).
 
 ---
 
-## `helix docs`
+## `holix docs`
 
 Сайт документации (лендинг + SPA, поиск, EN/RU).
 
@@ -235,36 +258,36 @@ helix -p alice --profile-key hp_…  # использование в CLI/TUI
 | `build` | Синхронизация `docs/en` + `docs/ru` → `web-docs/`, пересборка поиска и SEO |
 
 ```bash
-helix docs build
-helix docs --port 8080 --open
-helix gateway start --with-docs
+holix docs build
+holix docs --port 8080 --open
+holix gateway start --with-docs
 ```
 
 См. [DEPLOYMENT.md](DEPLOYMENT.md).
 
 ---
 
-## `helix cron`
+## `holix cron`
 
 ```bash
-helix gateway start
-helix cron add "every day at 9 :: Проверить логи"
-helix cron list
+holix gateway start
+holix cron add "every day at 9 :: Проверить логи"
+holix cron list
 ```
 
 В TUI/Telegram: `/cron`, `/cron add …`. Лог запусков: `profiles/<p>/data/cron/runs.log`.
 
 ---
 
-## `helix logs`
+## `holix logs`
 
 ```bash
-helix logs
-helix logs -s agent -l error -n 100
-helix logs -f
-helix logs list
-helix logs rotate
-helix logs debug on
+holix logs
+holix logs -s agent -l error -n 100
+holix logs -f
+holix logs list
+holix logs rotate
+holix logs debug on
 ```
 
 Источники `-s`: `all`, `agent`, `gateway`, `cron`, `subagent`, `system`.  
@@ -272,19 +295,19 @@ helix logs debug on
 
 ---
 
-## `helix doctor`
+## `holix doctor`
 
 ```bash
-helix doctor
-helix doctor --fix
-helix doctor --no-llm
+holix doctor
+holix doctor --fix
+holix doctor --no-llm
 ```
 
 [DOCTOR.md](DOCTOR.md)
 
 ---
 
-## `helix mcp`
+## `holix mcp`
 
 | Подкоманда | Описание |
 |------------|----------|
@@ -298,7 +321,7 @@ Tools: `mcp_<сервер>_<имя>`. В TUI: `/mcp`.
 
 ---
 
-## `helix hub`
+## `holix hub`
 
 | Подкоманда | Описание |
 |------------|----------|
@@ -313,7 +336,7 @@ Tools: `mcp_<сервер>_<имя>`. В TUI: `/mcp`.
 
 ---
 
-## `helix telegram`
+## `holix telegram`
 
 Токен бота хранится в `profiles/<имя>/telegram.env`.
 
@@ -328,20 +351,20 @@ Tools: `mcp_<сервер>_<имя>`. В TUI: `/mcp`.
 | `requests list` | Ожидающие запросы после `/start` |
 | `requests approve USER_ID` | Одобрить (`--create-profile`, `--profile`, `-i` или `--set-admin`) |
 | `requests reject USER_ID` | Отклонить запрос |
-| `map set USER_ID PROFILE` | Ручная привязка Telegram user id → профиль Helix |
+| `map set USER_ID PROFILE` | Ручная привязка Telegram user id → профиль Holix |
 | `map list` | Список привязок |
 | `map remove USER_ID` | Удалить привязку |
 | `map bind PROFILE` | Быстрая привязка (`--user-id` или id из allowlist) |
 | `map import "ID:prof,..."` | Импорт нескольких привязок |
 
 ```bash
-helix -p shared telegram setup
-helix -p shared telegram requests approve 123456789 --set-admin   # первый админ + профиль admin
-helix -p shared telegram requests list
-helix -p shared telegram requests approve 123456789 --create-profile ivan
-helix -p shared telegram admin show
-helix -p shared telegram map set 123456789 alice   # ручная альтернатива
-helix -p shared gateway start
+holix -p shared telegram setup
+holix -p shared telegram requests approve 123456789 --set-admin   # первый админ + профиль admin
+holix -p shared telegram requests list
+holix -p shared telegram requests approve 123456789 --create-profile ivan
+holix -p shared telegram admin show
+holix -p shared telegram map set 123456789 alice   # ручная альтернатива
+holix -p shared gateway start
 ```
 
 Один бот на несколько изолированных профилей: [TELEGRAM_MULTI_PROFILE.md](TELEGRAM_MULTI_PROFILE.md).  
@@ -353,20 +376,20 @@ helix -p shared gateway start
 
 | Путь | Содержимое |
 |------|------------|
-| `~/.helix/profiles/<имя>/.env` | Ключи API, порт gateway, флаги |
-| `~/.helix/profiles/<имя>/telegram.env` | Токен бота, allowlist, `HELIX_TELEGRAM_USER_PROFILES` |
-| `~/.helix/profiles/<имя>/telegram-users.json` | Привязки Telegram user id → профиль (общий бот) |
-| `~/.helix/profiles/<имя>/gateway/` | Состояние и лог gateway |
-| `~/.helix/profiles/<имя>/config.yaml` | Модели, MCP, workspace jail |
-| `~/.helix/profiles/<имя>/SOUL.md` | Личность агента (в каждой сессии) |
-| `~/.helix/profiles/<имя>/USER.md` | Факты и предпочтения пользователя |
-| `~/.helix/profiles/<имя>/INIT.md` | Маркер онбординга первого запуска |
+| `~/.holix/profiles/<имя>/.env` | Ключи API, порт gateway, флаги |
+| `~/.holix/profiles/<имя>/telegram.env` | Токен бота, allowlist, `HOLIX_TELEGRAM_USER_PROFILES` |
+| `~/.holix/profiles/<имя>/telegram-users.json` | Привязки Telegram user id → профиль (общий бот) |
+| `~/.holix/profiles/<имя>/gateway/` | Состояние и лог gateway |
+| `~/.holix/profiles/<имя>/config.yaml` | Модели, MCP, workspace jail |
+| `~/.holix/profiles/<имя>/SOUL.md` | Личность агента (в каждой сессии) |
+| `~/.holix/profiles/<имя>/USER.md` | Факты и предпочтения пользователя |
+| `~/.holix/profiles/<имя>/INIT.md` | Маркер онбординга первого запуска |
 | `.../data/memory/` | SQLite + ChromaDB |
 | `.../data/skills/` | Навыки |
 
 ```bash
-helix -p staging tui
-helix -p staging profile jail enable ~/staging-workspace
+holix -p staging tui
+holix -p staging profile jail enable ~/staging-workspace
 ```
 
 ---

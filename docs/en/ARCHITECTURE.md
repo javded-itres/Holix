@@ -1,11 +1,11 @@
 # Architecture
 
-Helix is a Python agent platform with a single execution path for reasoning, event-driven observability, and pluggable tools/skills/MCP.
+Holix is a Python agent platform with a single execution path for reasoning, event-driven observability, and pluggable tools/skills/MCP.
 
 ## Execution flow
 
 ```
-HelixAgent (core/agent.py)
+HolixAgent (core/agent.py)
     → run_agent_loop() / LangGraph (core/agent_execution.py)
     → yields AgentEvent (core/agent_events.py)
     → ToolRegistry, MemoryManager, SkillManager
@@ -31,7 +31,7 @@ HelixAgent (core/agent.py)
 | MCP | `core/mcp/` | MCP client and tool prefixing |
 | Hub | `core/hub/` | Catalog install, slash registry |
 | Security | `core/security/` | Auth, permissions, confirmations |
-| DI | `core/di/` | Dishka, `HelixRuntimeConfig` |
+| DI | `core/di/` | Dishka, `HolixRuntimeConfig` |
 | API | `api/gateway.py` | FastAPI, OpenAI-compatible `/v1/chat/completions` |
 | CLI | `cli/main.py` | Typer entry |
 | Gateway supervisor | `cli/services/supervisor.py` | Background `gateway start` |
@@ -42,10 +42,10 @@ HelixAgent (core/agent.py)
 ## Configuration
 
 1. **`.env`** — global `Settings` (`config.py`)
-2. **Profile** — `~/.helix/profiles/<name>/config.yaml`
+2. **Profile** — `~/.holix/profiles/<name>/config.yaml`
 3. **CLI flags** — per-command overrides
 
-Project dir may supplement `./.helix/skills`, `.helix/plan`, local MCP — merged, not replacing profile system keys.
+Project dir may supplement `./.holix/skills`, `.holix/plan`, local MCP — merged, not replacing profile system keys.
 
 ### Profile identity
 
@@ -68,11 +68,11 @@ Tools: `save_agent_soul`, `save_user_profile` in `core/tools/profile_identity.py
 
 | Interface | Entry |
 |-----------|--------|
-| TUI | `helix tui` |
-| Chat REPL | `helix chat-command` |
-| One-shot | `helix run` |
-| HTTP | `helix gateway start` → FastAPI |
-| Telegram | `helix telegram run` or gateway companion |
+| TUI | `holix tui` |
+| Chat REPL | `holix chat-command` |
+| One-shot | `holix run` |
+| HTTP | `holix gateway start` → FastAPI |
+| Telegram | `holix telegram run` or gateway companion |
 
 ## See also
 

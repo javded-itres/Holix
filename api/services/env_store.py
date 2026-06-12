@@ -1,4 +1,4 @@
-"""Read/write Helix global and profile env files."""
+"""Read/write Holix global and profile env files."""
 
 from __future__ import annotations
 

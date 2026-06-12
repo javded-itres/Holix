@@ -1,4 +1,4 @@
-"""Existing Helix /v1 agent endpoints (chat, tools, memory, permissions, plans)."""
+"""Existing Holix /v1 agent endpoints (chat, tools, memory, permissions, plans)."""
 
 from __future__ import annotations
 
@@ -24,20 +24,20 @@ router = APIRouter(prefix="/v1", tags=["agent"])
 def _ctx_from_headers(
     key_info: dict,
     model: str | None,
-    x_helix_profile: str | None,
+    x_holix_profile: str | None,
     x_hermes_profile: str | None,
-    x_helix_session_id: str | None,
+    x_holix_session_id: str | None,
     x_hermes_session_id: str | None,
 ):
     from api.deps import _header_alias
 
     host = state.host_profile or "default"
     profile = resolve_profile_name(
-        header_profile=_header_alias(x_helix_profile, x_hermes_profile),
+        header_profile=_header_alias(x_holix_profile, x_hermes_profile),
         model=model,
         host_profile=host,
     )
-    session_id = _header_alias(x_helix_session_id, x_hermes_session_id) or "default"
+    session_id = _header_alias(x_holix_session_id, x_hermes_session_id) or "default"
     return profile, session_id, key_info
 
 
@@ -46,17 +46,17 @@ async def chat_completions(
     request: ChatCompletionRequest,
     key_info: dict = Depends(verify_api_key),
     registry=Depends(get_registry),
-    x_helix_profile: str | None = Header(None),
+    x_holix_profile: str | None = Header(None),
     x_hermes_profile: str | None = Header(None),
-    x_helix_session_id: str | None = Header(None),
+    x_holix_session_id: str | None = Header(None),
     x_hermes_session_id: str | None = Header(None),
 ):
     profile, session_id, key_info = _ctx_from_headers(
         key_info,
         request.model,
-        x_helix_profile,
+        x_holix_profile,
         x_hermes_profile,
-        x_helix_session_id,
+        x_holix_session_id,
         x_hermes_session_id,
     )
     checker = PermissionChecker(key_info["permissions"])
@@ -133,11 +133,11 @@ async def get_conversation(
     limit: int = 30,
     key_info: dict = Depends(verify_api_key),
     registry=Depends(get_registry),
-    x_helix_profile: str | None = Header(None),
+    x_holix_profile: str | None = Header(None),
     x_hermes_profile: str | None = Header(None),
 ):
     profile, _, _ = _ctx_from_headers(
-        key_info, None, x_helix_profile, x_hermes_profile, None, None
+        key_info, None, x_holix_profile, x_hermes_profile, None, None
     )
     agent = await registry.get_agent(profile)
     history = await agent.get_conversation_history(conversation_id, limit)
@@ -148,11 +148,11 @@ async def get_conversation(
 async def list_tools(
     key_info: dict = Depends(verify_api_key),
     registry=Depends(get_registry),
-    x_helix_profile: str | None = Header(None),
+    x_holix_profile: str | None = Header(None),
     x_hermes_profile: str | None = Header(None),
 ):
     profile, _, _ = _ctx_from_headers(
-        key_info, None, x_helix_profile, x_hermes_profile, None, None
+        key_info, None, x_holix_profile, x_hermes_profile, None, None
     )
     agent = await registry.get_agent(profile)
     tools = agent.get_tools()
@@ -165,11 +165,11 @@ async def search_memory(
     top_k: int = 5,
     key_info: dict = Depends(verify_api_key),
     registry=Depends(get_registry),
-    x_helix_profile: str | None = Header(None),
+    x_holix_profile: str | None = Header(None),
     x_hermes_profile: str | None = Header(None),
 ):
     profile, _, _ = _ctx_from_headers(
-        key_info, None, x_helix_profile, x_hermes_profile, None, None
+        key_info, None, x_holix_profile, x_hermes_profile, None, None
     )
     agent = await registry.get_agent(profile)
     results = await agent.search_memory(query, top_k)

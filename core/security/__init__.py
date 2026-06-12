@@ -1,5 +1,5 @@
 """
-Helix Security — authentication, permissions, and dangerous action confirmation.
+Holix Security — authentication, permissions, and dangerous action confirmation.
 """
 
 from core.security.auth import APIKeyManager, RateLimiter

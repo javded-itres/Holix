@@ -12,7 +12,7 @@ from dataclasses import dataclass
 HERMES_REPO = "amanning3390/hermeshub"
 HERMES_GIT_URL = f"https://github.com/{HERMES_REPO}.git"
 GITHUB_CONTENTS_API = f"https://api.github.com/repos/{HERMES_REPO}/contents/skills"
-USER_AGENT = "Helix/1.0 (+https://github.com/javded-itres/HelixAgent)"
+USER_AGENT = "Holix/1.0 (+https://github.com/javded-itres/Holix)"
 
 
 @dataclass

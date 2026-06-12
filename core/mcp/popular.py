@@ -1,4 +1,4 @@
-"""Curated list of popular MCP servers for easy installation via `helix mcp install`."""
+"""Curated list of popular MCP servers for easy installation via `holix mcp install`."""
 
 from __future__ import annotations
 

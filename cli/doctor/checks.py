@@ -1,4 +1,4 @@
-"""Deterministic Helix doctor checks."""
+"""Deterministic Holix doctor checks."""
 
 from __future__ import annotations
 
@@ -15,12 +15,12 @@ from core.models.manager import ModelManager
 from core.platform_compat import (
     IS_WINDOWS,
     clipboard_tools_available,
-    helix_home_display,
+    holix_home_display,
     process_subagents_supported,
     psutil_available,
 )
 
-from cli.core import HELIX_HOME, LOGS_DIR, PROFILES_DIR, ProfileConfig, ProfileManager
+from cli.core import HOLIX_HOME, LOGS_DIR, PROFILES_DIR, ProfileConfig, ProfileManager
 from cli.doctor.findings import DoctorFinding, Severity
 from cli.services.gateway_daemon import _running_state
 from cli.services.gateway_state import is_process_alive, load_state
@@ -31,7 +31,7 @@ async def run_all_checks(profile: str, *, skip_llm_check: bool = False) -> list[
     findings: list[DoctorFinding] = []
     manager = ProfileManager()
 
-    findings.extend(_check_helix_home())
+    findings.extend(_check_holix_home())
     findings.extend(_check_platform())
     findings.extend(_check_profile_config(profile, manager))
     if not skip_llm_check:
@@ -55,8 +55,8 @@ def _check_security_settings() -> list[DoctorFinding]:
                 code="security.missing_api_key_pepper",
                 severity=Severity.ERROR.value,
                 title="API key pepper not set",
-                detail="HELIX_API_KEY_PEPPER is required in production",
-                recommendation="Set HELIX_API_KEY_PEPPER to a long random secret in .env",
+                detail="HOLIX_API_KEY_PEPPER is required in production",
+                recommendation="Set HOLIX_API_KEY_PEPPER to a long random secret in .env",
             )
         )
     if not settings.effective_require_auth:
@@ -65,8 +65,8 @@ def _check_security_settings() -> list[DoctorFinding]:
                 code="security.gateway_auth_disabled",
                 severity=Severity.WARNING.value,
                 title="Gateway authentication disabled",
-                detail="HELIX_REQUIRE_AUTH=false and not in production mode",
-                recommendation="Set HELIX_REQUIRE_AUTH=true before exposing gateway publicly",
+                detail="HOLIX_REQUIRE_AUTH=false and not in production mode",
+                recommendation="Set HOLIX_REQUIRE_AUTH=true before exposing gateway publicly",
             )
         )
     if settings.is_production and "*" in settings.cors_origins:
@@ -75,8 +75,8 @@ def _check_security_settings() -> list[DoctorFinding]:
                 code="security.cors_wildcard",
                 severity=Severity.ERROR.value,
                 title="CORS allows all origins in production",
-                detail="HELIX_CORS_ORIGINS must not be * in production",
-                recommendation="Set HELIX_CORS_ORIGINS to explicit origins",
+                detail="HOLIX_CORS_ORIGINS must not be * in production",
+                recommendation="Set HOLIX_CORS_ORIGINS to explicit origins",
             )
         )
     if settings.enable_code_executor and settings.is_production:
@@ -86,18 +86,18 @@ def _check_security_settings() -> list[DoctorFinding]:
                 severity=Severity.WARNING.value,
                 title="Python code executor enabled in production",
                 detail="Agent can run arbitrary Python snippets",
-                recommendation="Set HELIX_ENABLE_CODE_EXECUTOR=false in production",
+                recommendation="Set HOLIX_ENABLE_CODE_EXECUTOR=false in production",
             )
         )
-    if settings.is_production and not os.getenv("HELIX_TUI_WEB_TOKEN", "").strip():
+    if settings.is_production and not os.getenv("HOLIX_TUI_WEB_TOKEN", "").strip():
         out.append(
             DoctorFinding(
                 code="security.tui_web_token_unset",
                 severity=Severity.INFO.value,
                 title="Web TUI token not configured",
-                detail="HELIX_TUI_WEB_TOKEN is empty",
+                detail="HOLIX_TUI_WEB_TOKEN is empty",
                 recommendation=(
-                    "Before `helix tui --web`, set HELIX_TUI_WEB_TOKEN or pass --token. "
+                    "Before `holix tui --web`, set HOLIX_TUI_WEB_TOKEN or pass --token. "
                     "Never bind 0.0.0.0 without --allow-lan and a strong token."
                 ),
             )
@@ -107,18 +107,18 @@ def _check_security_settings() -> list[DoctorFinding]:
 
 def _check_platform() -> list[DoctorFinding]:
     out: list[DoctorFinding] = []
-    home = helix_home_display()
+    home = holix_home_display()
     out.append(
         DoctorFinding(
             code="platform.info",
             severity=Severity.INFO.value,
             title=f"Platform: {sys.platform}",
-            detail=f"Helix data: {home}",
+            detail=f"Holix data: {home}",
             recommendation=(
-                "Override with HELIX_HOME if needed. "
+                "Override with HOLIX_HOME if needed. "
                 "On Windows, OS-process sub-agents use async mode automatically."
                 if IS_WINDOWS
-                else "Set HELIX_HOME or XDG_DATA_HOME to relocate profile data."
+                else "Set HOLIX_HOME or XDG_DATA_HOME to relocate profile data."
             ),
         )
     )
@@ -164,7 +164,7 @@ def _check_platform() -> list[DoctorFinding]:
                 detail="Whitelist allows cmd builtins (dir, type, where); Unix commands (ls, grep) are blocked",
                 recommendation=(
                     "Use dir/type/where instead of ls/cat, or extend "
-                    "HELIX_TERMINAL_WHITELIST_EXTRA in .env"
+                    "HOLIX_TERMINAL_WHITELIST_EXTRA in .env"
                 ),
             )
         )
@@ -188,23 +188,23 @@ def _check_platform() -> list[DoctorFinding]:
     return out
 
 
-def _check_helix_home() -> list[DoctorFinding]:
+def _check_holix_home() -> list[DoctorFinding]:
     out: list[DoctorFinding] = []
     try:
-        HELIX_HOME.mkdir(parents=True, exist_ok=True)
+        HOLIX_HOME.mkdir(parents=True, exist_ok=True)
         PROFILES_DIR.mkdir(parents=True, exist_ok=True)
         LOGS_DIR.mkdir(parents=True, exist_ok=True)
-        test = HELIX_HOME / ".doctor_write_test"
+        test = HOLIX_HOME / ".doctor_write_test"
         test.write_text("ok", encoding="utf-8")
         test.unlink()
     except OSError as e:
         out.append(
             DoctorFinding(
-                code="helix_home.not_writable",
+                code="holix_home.not_writable",
                 severity=Severity.ERROR.value,
-                title="Helix home not writable",
+                title="Holix home not writable",
                 detail=str(e),
-                recommendation=f"Fix permissions on {HELIX_HOME} or set a writable HELIX data location.",
+                recommendation=f"Fix permissions on {HOLIX_HOME} or set a writable HELIX data location.",
                 fix_id=None,
             )
         )
@@ -222,7 +222,7 @@ def _check_profile_config(profile: str, manager: ProfileManager) -> list[DoctorF
                 severity=Severity.ERROR.value,
                 title=f"Profile '{profile}' not found",
                 detail=f"No config at {config_path}",
-                recommendation=f"Run: helix doctor --fix -p {profile}  (creates profile layout)",
+                recommendation=f"Run: holix doctor --fix -p {profile}  (creates profile layout)",
                 fix_id="create_profile",
                 context={"profile": profile},
             )
@@ -239,7 +239,7 @@ def _check_profile_config(profile: str, manager: ProfileManager) -> list[DoctorF
                 severity=Severity.ERROR.value,
                 title="Invalid profile YAML",
                 detail=str(e),
-                recommendation="Run: helix doctor --fix  (LLM will attempt to repair config.yaml)",
+                recommendation="Run: holix doctor --fix  (LLM will attempt to repair config.yaml)",
                 context={"path": str(config_path), "raw_error": str(e)},
             )
         )
@@ -252,7 +252,7 @@ def _check_profile_config(profile: str, manager: ProfileManager) -> list[DoctorF
                 severity=Severity.ERROR.value,
                 title="Profile config must be a YAML mapping",
                 detail=f"Got {type(raw).__name__}",
-                recommendation="Run: helix doctor --fix  to regenerate a valid config.",
+                recommendation="Run: holix doctor --fix  to regenerate a valid config.",
                 context={"path": str(config_path)},
             )
         )
@@ -267,7 +267,7 @@ def _check_profile_config(profile: str, manager: ProfileManager) -> list[DoctorF
                 severity=Severity.ERROR.value,
                 title="Profile config validation failed",
                 detail=str(e),
-                recommendation="Run: helix doctor --fix  to repair fields via LLM.",
+                recommendation="Run: holix doctor --fix  to repair fields via LLM.",
                 context={"path": str(config_path), "validation_error": str(e)},
             )
         )
@@ -306,7 +306,7 @@ def _check_hub_lockfile(cfg: ProfileConfig) -> list[DoctorFinding]:
             severity=Severity.WARNING.value,
             title="Hub lockfile references missing install paths",
             detail=", ".join(broken[:15]),
-            recommendation="Remove stale entries: `helix hub remove <id>` or reinstall: `helix hub update <id>`.",
+            recommendation="Remove stale entries: `holix hub remove <id>` or reinstall: `holix hub update <id>`.",
         )
     ]
 
@@ -338,7 +338,7 @@ def _check_mcp_env_placeholders(cfg: ProfileConfig) -> list[DoctorFinding]:
             severity=Severity.WARNING.value,
             title="MCP servers reference unset environment variables",
             detail=", ".join(unresolved[:15]),
-            recommendation="Export the variables in your shell or .env, then helix doctor again.",
+            recommendation="Export the variables in your shell or .env, then holix doctor again.",
         )
     ]
 
@@ -362,7 +362,7 @@ def _check_skill_assignments(
                 severity=Severity.WARNING.value,
                 title="skill_assignments set but skills directory missing",
                 detail=str(skills_dir),
-                recommendation="Run `helix hub install` or create skills under the profile skills dir.",
+                recommendation="Run `holix hub install` or create skills under the profile skills dir.",
             )
         )
         return out
@@ -392,7 +392,7 @@ def _check_skill_assignments(
                 severity=Severity.WARNING.value,
                 title="skill_assignments reference unknown skills",
                 detail=", ".join(sorted(set(missing))[:20]),
-                recommendation="Install skills via `helix hub install` or remove stale names from skill_assignments.",
+                recommendation="Install skills via `holix hub install` or remove stale names from skill_assignments.",
             )
         )
     return out
@@ -422,7 +422,7 @@ def _check_profile_paths(
                     severity=Severity.WARNING.value,
                     title=f"Missing {key} in config",
                     detail="Path not set in config.yaml",
-                    recommendation="Run: helix doctor --fix  to set standard profile paths.",
+                    recommendation="Run: holix doctor --fix  to set standard profile paths.",
                     fix_id="init_paths",
                     context={"profile": profile},
                 )
@@ -443,7 +443,7 @@ def _check_profile_paths(
                 severity=Severity.WARNING.value,
                 title="Profile data directories missing",
                 detail=", ".join(missing_dirs),
-                recommendation="Run: helix doctor --fix  to create directories.",
+                recommendation="Run: holix doctor --fix  to create directories.",
                 fix_id="ensure_dirs",
                 context={"profile": profile, "dirs": missing_dirs},
             )
@@ -454,8 +454,8 @@ def _check_profile_paths(
 def _check_stray_project_data(
     profile: str, manager: ProfileManager
 ) -> list[DoctorFinding]:
-    """Detect Helix runtime ``data/`` leaked into the current working directory."""
-    from core.paths import is_stray_helix_data_dir
+    """Detect Holix runtime ``data/`` leaked into the current working directory."""
+    from core.paths import is_stray_holix_data_dir
 
     out: list[DoctorFinding] = []
     cwd = Path.cwd().resolve()
@@ -463,17 +463,17 @@ def _check_stray_project_data(
     profile_data = manager.get_profile_dir(profile) / "data"
     if profile_data.resolve() == stray.resolve():
         return out
-    if not is_stray_helix_data_dir(stray):
+    if not is_stray_holix_data_dir(stray):
         return out
 
     out.append(
         DoctorFinding(
             code="project.stray_data_dir",
             severity=Severity.WARNING.value,
-            title="Helix data directory in project root",
+            title="Holix data directory in project root",
             detail=str(stray),
             recommendation=(
-                "Run: helix doctor --fix  to move files into the active profile "
+                "Run: holix doctor --fix  to move files into the active profile "
                 f"and remove {stray}."
             ),
             fix_id="migrate_stray_data",
@@ -494,7 +494,7 @@ def _check_providers(cfg: ProfileConfig, profile: str) -> list[DoctorFinding]:
                     title="default_provider not found",
                     detail=f"'{cfg.default_provider}' is not in providers",
                     recommendation=(
-                        f"Run: helix models setup -p {profile}  or  helix doctor --fix"
+                        f"Run: holix models setup -p {profile}  or  holix doctor --fix"
                     ),
                     fix_id="fix_default_provider",
                     context={
@@ -513,7 +513,7 @@ def _check_providers(cfg: ProfileConfig, profile: str) -> list[DoctorFinding]:
                         severity=Severity.ERROR.value,
                         title=f"Provider '{cfg.default_provider}' missing base_url",
                         detail="Cannot connect to LLM without base_url",
-                        recommendation="Run: helix models setup  or  helix doctor --fix",
+                        recommendation="Run: holix models setup  or  holix doctor --fix",
                         context={"profile": profile, "provider": cfg.default_provider},
                     )
                 )
@@ -524,7 +524,7 @@ def _check_providers(cfg: ProfileConfig, profile: str) -> list[DoctorFinding]:
                         severity=Severity.WARNING.value,
                         title=f"Provider '{cfg.default_provider}' missing default_model",
                         detail="Model routing may fail",
-                        recommendation="Set default_model in providers or run helix models setup",
+                        recommendation="Set default_model in providers or run holix models setup",
                         context={"profile": profile, "provider": cfg.default_provider},
                     )
                 )
@@ -538,7 +538,7 @@ def _check_providers(cfg: ProfileConfig, profile: str) -> list[DoctorFinding]:
                     severity=Severity.ERROR.value,
                     title="No LLM configuration",
                     detail="Set model/base_url or configure providers with default_provider",
-                    recommendation=f"Run: helix models setup -p {profile}",
+                    recommendation=f"Run: holix models setup -p {profile}",
                     context={"profile": profile},
                 )
             )
@@ -598,8 +598,8 @@ async def _check_llm(profile: str, manager: ProfileManager) -> list[DoctorFindin
                     title=f"Model '{model}' not available",
                     detail=f"Available: {', '.join(sorted(ids)[:8])}{'…' if len(ids) > 8 else ''}",
                     recommendation=(
-                        f"Pull/install the model or run: helix models list -p {profile}\n"
-                        "Then: helix doctor --fix  to pick a valid default model."
+                        f"Pull/install the model or run: holix models list -p {profile}\n"
+                        "Then: holix doctor --fix  to pick a valid default model."
                     ),
                     fix_id="fix_model_from_list",
                     context={
@@ -638,7 +638,7 @@ def _check_gateway(profile: str) -> list[DoctorFinding]:
                 severity=Severity.WARNING.value,
                 title="Stale gateway state file",
                 detail=f"PID {state.pid} is not running (profile={profile})",
-                recommendation=f"Run: helix doctor --fix  or  {profile_cli_prefix(profile)} gateway stop",
+                recommendation=f"Run: holix doctor --fix  or  {profile_cli_prefix(profile)} gateway stop",
                 fix_id="clear_gateway_state",
             )
         )
@@ -665,7 +665,7 @@ def _check_gateway(profile: str) -> list[DoctorFinding]:
                     severity=Severity.WARNING.value,
                     title="Gateway health check failed",
                     detail=str(e),
-                    recommendation="Run: helix gateway reload",
+                    recommendation="Run: holix gateway reload",
                 )
             )
     return out
@@ -682,7 +682,7 @@ def _check_telegram(profile: str) -> list[DoctorFinding]:
 
     from integrations.telegram.env_store import telegram_env_path
 
-    token = os.getenv("TELEGRAM_BOT_TOKEN", os.getenv("HELIX_TELEGRAM_BOT_TOKEN", ""))
+    token = os.getenv("TELEGRAM_BOT_TOKEN", os.getenv("HOLIX_TELEGRAM_BOT_TOKEN", ""))
     if not token:
         out.append(
             DoctorFinding(
@@ -690,7 +690,7 @@ def _check_telegram(profile: str) -> list[DoctorFinding]:
                 severity=Severity.INFO.value,
                 title="Telegram not configured",
                 detail=f"No bot token in environment or {telegram_env_path(profile)}",
-                recommendation="Run: helix telegram setup",
+                recommendation="Run: holix telegram setup",
             )
         )
         return out
@@ -706,11 +706,11 @@ def _check_telegram(profile: str) -> list[DoctorFinding]:
             )
         )
 
-    allowed = os.getenv("HELIX_TELEGRAM_ALLOWED_USERS", "")
-    allow_all = os.getenv("HELIX_TELEGRAM_ALLOW_ALL", "").strip().lower() in {
+    allowed = os.getenv("HOLIX_TELEGRAM_ALLOWED_USERS", "")
+    allow_all = os.getenv("HOLIX_TELEGRAM_ALLOW_ALL", "").strip().lower() in {
         "1", "true", "yes", "on",
     }
-    access_requests_raw = os.getenv("HELIX_TELEGRAM_ACCESS_REQUESTS", "").strip().lower()
+    access_requests_raw = os.getenv("HOLIX_TELEGRAM_ACCESS_REQUESTS", "").strip().lower()
     access_requests = access_requests_raw not in {"0", "false", "no", "off"}
     if not allowed.strip() and not allow_all:
         if access_requests:
@@ -721,9 +721,9 @@ def _check_telegram(profile: str) -> list[DoctorFinding]:
                     title="Telegram access-request mode",
                     detail=(
                         "Allowlist is empty; new users must send /start and be approved "
-                        "via `helix telegram requests`"
+                        "via `holix telegram requests`"
                     ),
-                    recommendation="helix telegram requests list",
+                    recommendation="holix telegram requests list",
                 )
             )
         else:
@@ -732,11 +732,11 @@ def _check_telegram(profile: str) -> list[DoctorFinding]:
                     code="telegram.no_allowlist",
                     severity=Severity.ERROR.value,
                     title="Telegram allowlist empty",
-                    detail="Bot will deny all users until HELIX_TELEGRAM_ALLOWED_USERS is set",
+                    detail="Bot will deny all users until HOLIX_TELEGRAM_ALLOWED_USERS is set",
                     recommendation=(
-                        "Enable HELIX_TELEGRAM_ACCESS_REQUESTS=true (default), "
-                        "set HELIX_TELEGRAM_ALLOWED_USERS, "
-                        "or HELIX_TELEGRAM_ALLOW_ALL=true for local development only"
+                        "Enable HOLIX_TELEGRAM_ACCESS_REQUESTS=true (default), "
+                        "set HOLIX_TELEGRAM_ALLOWED_USERS, "
+                        "or HOLIX_TELEGRAM_ALLOW_ALL=true for local development only"
                     ),
                 )
             )
@@ -746,8 +746,8 @@ def _check_telegram(profile: str) -> list[DoctorFinding]:
                 code="telegram.allow_all",
                 severity=Severity.WARNING.value,
                 title="Telegram allow-all mode enabled",
-                detail="HELIX_TELEGRAM_ALLOW_ALL=true permits any Telegram user",
-                recommendation="Disable in production; use HELIX_TELEGRAM_ALLOWED_USERS instead",
+                detail="HOLIX_TELEGRAM_ALLOW_ALL=true permits any Telegram user",
+                recommendation="Disable in production; use HOLIX_TELEGRAM_ALLOWED_USERS instead",
             )
         )
     return out
@@ -755,21 +755,21 @@ def _check_telegram(profile: str) -> list[DoctorFinding]:
 
 def _check_env_file() -> list[DoctorFinding]:
     out: list[DoctorFinding] = []
-    env_path = HELIX_HOME / ".env"
+    env_path = HOLIX_HOME / ".env"
     cwd_env = Path.cwd() / ".env"
 
     if not env_path.exists():
-        hint = f"Create {env_path} (copy from .env.example in the repo or run helix doctor --fix)"
+        hint = f"Create {env_path} (copy from .env.example in the repo or run holix doctor --fix)"
         if cwd_env.exists() and cwd_env.resolve() != env_path.resolve():
             hint = (
-                f"Project .env found at {cwd_env}, but Helix reads {env_path}. "
-                f"Copy or move settings to ~/.helix/.env"
+                f"Project .env found at {cwd_env}, but Holix reads {env_path}. "
+                f"Copy or move settings to ~/.holix/.env"
             )
         out.append(
             DoctorFinding(
                 code="env.missing",
                 severity=Severity.INFO.value,
-                title="~/.helix/.env not found",
+                title="~/.holix/.env not found",
                 detail=hint,
                 recommendation=f"cp .env.example {env_path}",
             )
@@ -783,7 +783,7 @@ def _check_env_file() -> list[DoctorFinding]:
             DoctorFinding(
                 code="env.unreadable",
                 severity=Severity.WARNING.value,
-                title="~/.helix/.env not readable",
+                title="~/.holix/.env not readable",
                 detail=str(e),
                 recommendation=f"Fix file permissions on {env_path}",
             )
