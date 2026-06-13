@@ -114,6 +114,9 @@ MESSAGES: dict[str, dict[str, str]] = {
         "tg.cmd.cron": "Cron jobs",
         "tg.cmd.message": "Admin broadcast (all or profile)",
         "tg.message_admin_only": "Only the Telegram bot admin can use /message.",
+        "tg.menu_unavailable": "This menu is not available for your account.",
+        "tg.mcp_read_only": "You can view MCP servers in your profile only. Installing or changing MCP is available to the bot admin.",
+        "tg.mcp_read_only_empty": "No MCP servers in your profile. Ask the bot admin to configure them.",
         "tg.message_help": (
             "<b>Admin broadcast</b>\n\n"
             "<code>/message all</code> — all approved users\n"
@@ -271,6 +274,9 @@ MESSAGES: dict[str, dict[str, str]] = {
         "tg.cmd.cron": "Периодические задачи",
         "tg.cmd.message": "Рассылка админа (всем или профилю)",
         "tg.message_admin_only": "Команда /message доступна только администратору бота.",
+        "tg.menu_unavailable": "Это меню недоступно для вашей учётной записи.",
+        "tg.mcp_read_only": "Доступен только просмотр MCP вашего профиля. Установка и изменение — у администратора бота.",
+        "tg.mcp_read_only_empty": "В вашем профиле нет MCP серверов. Попросите администратора бота настроить их.",
         "tg.message_help": (
             "<b>Рассылка администратора</b>\n\n"
             "<code>/message all</code> — всем одобренным пользователям\n"

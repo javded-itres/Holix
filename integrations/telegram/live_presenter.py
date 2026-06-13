@@ -34,6 +34,7 @@ class TelegramLivePresenter:
     async def start(self) -> None:
         self.session.bump_live_buffer()
         self._buffer = self.session.live_buffer
+        self._buffer.publish_answer_separately = True
         text = buffer_to_telegram_html(self._buffer)
         msg = await self._bot.send_message(
             self.session.chat_id,
@@ -64,8 +65,13 @@ class TelegramLivePresenter:
         try:
             await self._edit_html(text)
         except Exception:
-            answer = (self._buffer.answer or "").strip()
-            fallback = plain_to_telegram_html(answer or "…")
+            if self._buffer.status == "done":
+                fallback = "<i>✓ Готово</i>"
+            elif self._buffer.status == "error":
+                fallback = "<b>✗ Ошибка</b>"
+            else:
+                answer = (self._buffer.answer or "").strip()
+                fallback = plain_to_telegram_html(answer or "<i>⏳ Working…</i>")
             try:
                 await self._edit_html(truncate_telegram_html(fallback))
             except Exception:
@@ -85,6 +91,10 @@ class TelegramLivePresenter:
             plain_to_telegram_html(text),
             parse_mode="HTML",
         )
+
+    async def deliver_result(self, content: str) -> None:
+        """Post the final agent/work result as one or more new chat messages."""
+        await self.send_final_answer_split(content)
 
     async def send_final_answer_split(self, content: str) -> None:
         """Send a (potentially long) final assistant response as 1+ messages.

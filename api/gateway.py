@@ -80,10 +80,21 @@ async def lifespan(app: FastAPI):
     gateway_deps.api_key_manager = state.api_key_manager
     gateway_deps.rate_limiter = state.rate_limiter
 
-    ensure_profile_memory_dirs(host_profile)
-    await state.registry.get_agent(host_profile)
-    await state.companions.start_cron(host_profile)
-    await state.companions.start_telegram(host_profile)
+    supervised = os.getenv("HOLIX_GATEWAY_SUPERVISOR", "").strip().lower() in {
+        "1",
+        "true",
+        "yes",
+        "on",
+    }
+
+    async def _warm_gateway() -> None:
+        ensure_profile_memory_dirs(host_profile)
+        await state.registry.get_agent(host_profile)
+        if not supervised:
+            await state.companions.start_cron(host_profile)
+            await state.companions.start_telegram(host_profile)
+
+    asyncio.create_task(_warm_gateway(), name="holix-gateway-warm")
 
     yield
 

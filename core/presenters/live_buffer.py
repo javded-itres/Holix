@@ -22,6 +22,9 @@ class LiveTranscriptBuffer:
     tool_lines: list[str] = field(default_factory=list)
     answer: str = ""
     notes: list[str] = field(default_factory=list)
+    # When True (Telegram), the final answer is posted as a separate chat message.
+    publish_answer_separately: bool = False
+    result_posted_separately: bool = False
     max_tool_lines: int = 8
     max_answer_chars: int = 2800
 

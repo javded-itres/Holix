@@ -69,3 +69,14 @@ def test_done_with_tools_hides_tools_keeps_rendered_answer() -> None:
     html = buffer_to_telegram_html(buf)
     assert "<b>Done</b>" in html
     assert "read" not in html
+
+
+def test_telegram_done_posts_answer_separately_not_in_live_card() -> None:
+    buf = LiveTranscriptBuffer(profile="default", mode="react")
+    buf.publish_answer_separately = True
+    buf.result_posted_separately = True
+    buf.set_answer("**Secret final**")
+    buf.mark_done()
+    html = buffer_to_telegram_html(buf)
+    assert "<b>Secret final</b>" not in html
+    assert "отдельным сообщением" in html

@@ -5,7 +5,7 @@ from __future__ import annotations
 import asyncio
 import time
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from dishka import AsyncContainer
@@ -88,10 +88,13 @@ class ProfileAgentRegistry:
         from core.env_loader import bootstrap_profile_env
         from core.paths import ensure_profile_memory_dirs
 
-        bootstrap_profile_env(profile)
-        require_gateway_profile_unlock(profile)
-        ensure_profile_memory_dirs(profile)
-        runtime = resolve_runtime_config(init_profile(profile, prompt_key=False))
+        def _prepare_runtime() -> Any:
+            bootstrap_profile_env(profile)
+            require_gateway_profile_unlock(profile)
+            ensure_profile_memory_dirs(profile)
+            return resolve_runtime_config(init_profile(profile, prompt_key=False))
+
+        runtime = await asyncio.to_thread(_prepare_runtime)
         compat = create_compatibility_print_handler()
         agent, container = await create_agent(
             runtime,

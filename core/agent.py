@@ -301,7 +301,7 @@ class HolixAgent:
 
         from core.plan_review import init_plan_review_guard
 
-        init_plan_review_guard(
+        self._plan_review_guard = init_plan_review_guard(
             event_bus=self.events,
             interactive=interactive,
             review_timeout=self.config.plan_review_timeout,

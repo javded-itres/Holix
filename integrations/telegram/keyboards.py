@@ -325,17 +325,22 @@ def models_provider_keyboard(
     return InlineKeyboardMarkup(inline_keyboard=rows)
 
 
-def status_menu_keyboard(locale: str | None = None) -> Any:
+def status_menu_keyboard(locale: str | None = None, *, is_admin: bool = True) -> Any:
     from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
     from core.i18n.messages import t
 
     loc = locale or "en"
-    return InlineKeyboardMarkup(
-        inline_keyboard=[
-            [
-                InlineKeyboardButton(text=t("tg.menu.mode", loc), callback_data=_cb("r", "mode")),
-                InlineKeyboardButton(text=t("tg.menu.profile", loc), callback_data=_cb("r", "profile")),
-            ],
+    rows: list[list[Any]] = [
+        [
+            InlineKeyboardButton(text=t("tg.menu.mode", loc), callback_data=_cb("r", "mode")),
+        ],
+    ]
+    if is_admin:
+        rows[0].append(
+            InlineKeyboardButton(text=t("tg.menu.profile", loc), callback_data=_cb("r", "profile")),
+        )
+    rows.extend(
+        [
             [
                 InlineKeyboardButton(text=t("tg.menu.sessions", loc), callback_data=_cb("r", "sessions")),
                 InlineKeyboardButton(text=t("tg.menu.streaming", loc), callback_data=_cb("r", "stream")),
@@ -347,11 +352,12 @@ def status_menu_keyboard(locale: str | None = None) -> Any:
             [
                 InlineKeyboardButton(text=t("tg.menu.compress", loc), callback_data=_cb("r", "compress")),
             ],
-            [
-                InlineKeyboardButton(text="Cron", callback_data=_cb("r", "cron")),
-            ],
         ]
     )
+    rows.append(
+        [InlineKeyboardButton(text="Cron", callback_data=_cb("r", "cron"))],
+    )
+    return InlineKeyboardMarkup(inline_keyboard=rows)
 
 
 def access_request_admin_keyboard(user_id: int) -> Any:

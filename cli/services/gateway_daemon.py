@@ -127,8 +127,10 @@ def start_gateway_daemon(
 ) -> None:
     """Start gateway (+ companions) in background or foreground."""
     from core.env_loader import bootstrap_profile_env
+    from core.profile_admin_seed import ensure_admin_profile_from_default
 
     bootstrap_profile_env(profile)
+    ensure_admin_profile_from_default()
     existing = _running_state(profile)
     if existing is not None:
         print_error(

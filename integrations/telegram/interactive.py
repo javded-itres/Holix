@@ -75,6 +75,19 @@ class TelegramInteractive:
     def _session(self) -> Any:
         return self._host._session
 
+    async def _deny_menu_command(self, command_token: str) -> bool:
+        from integrations.telegram.command_access import is_command_allowed
+
+        if is_command_allowed(
+            command_token,
+            self._session.bot_profile,
+            self._session.user_id,
+        ):
+            return False
+        lang = host_locale(self._host)
+        await self._host._send_html(escape_html(t("tg.menu_unavailable", lang)))
+        return True
+
     async def handle_slash(self, command: str) -> bool:
         """Return True if handled (skip AgentCommands)."""
         from cli.shared.slash_input import (
@@ -88,6 +101,9 @@ class TelegramInteractive:
         lower = cmd.lower()
         parts = lower.split()
         cmd_token = slash_command_token(cmd)
+
+        if await self._deny_menu_command(cmd_token.lstrip("/").split()[0]):
+            return True
 
         if is_models_slash(cmd):
             await self.show_models()
@@ -315,23 +331,43 @@ class TelegramInteractive:
                 trans = data.get("transport", "stdio")
                 text_lines.append(f"• <code>{escape_html(name)}</code> ({trans}) [{src}]")
 
-        kb_rows = [
+        from integrations.telegram.command_access import is_mcp_management_allowed
+
+        can_manage_mcp = is_mcp_management_allowed(
+            self._session.bot_profile,
+            self._session.user_id,
+        )
+        kb_rows: list[list[InlineKeyboardButton]] = [
             [
                 InlineKeyboardButton(text="📋 List", callback_data="mcp:list"),
-                InlineKeyboardButton(text="🛠 Install popular", callback_data="mcp:install-popular"),
-            ],
-            [
-                InlineKeyboardButton(text="➕ Install from git", callback_data="mcp:install-git"),
-                InlineKeyboardButton(text="🔗 Assign to agents", callback_data="mcp:assign"),
-            ],
-            [
-                InlineKeyboardButton(text="🧪 Test server", callback_data="mcp:test"),
-                InlineKeyboardButton(text="🗑 Remove server", callback_data="mcp:remove"),
+                InlineKeyboardButton(text="🔧 Tools", callback_data="mcp:tools"),
             ],
             [
                 InlineKeyboardButton(text="🔄 Refresh", callback_data="mcp:refresh"),
             ],
         ]
+        if can_manage_mcp:
+            kb_rows = [
+                [
+                    InlineKeyboardButton(text="📋 List", callback_data="mcp:list"),
+                    InlineKeyboardButton(text="🛠 Install popular", callback_data="mcp:install-popular"),
+                ],
+                [
+                    InlineKeyboardButton(text="➕ Install from git", callback_data="mcp:install-git"),
+                    InlineKeyboardButton(text="🔗 Assign to agents", callback_data="mcp:assign"),
+                ],
+                [
+                    InlineKeyboardButton(text="🧪 Test server", callback_data="mcp:test"),
+                    InlineKeyboardButton(text="🗑 Remove server", callback_data="mcp:remove"),
+                ],
+                [
+                    InlineKeyboardButton(text="🔄 Refresh", callback_data="mcp:refresh"),
+                ],
+            ]
+        elif not servers:
+            text_lines.append(
+                f"\n<i>{escape_html(t('tg.mcp_read_only_empty', host_locale(host)))}</i>"
+            )
 
         # If specific subcommand, handle simply
         if len(parts) > 1:
@@ -345,6 +381,12 @@ class TelegramInteractive:
                 else:
                     await host._mcp_list_tools()
                 return
+            if sub in ("install", "add", "assign", "remove", "rm", "delete", "test"):
+                if not can_manage_mcp:
+                    await self._host._send_html(
+                        escape_html(t("tg.mcp_read_only", host_locale(host)))
+                    )
+                    return
             if sub in ("install", "add"):
                 arg = " ".join(parts[2:]) if len(parts) > 2 else ""
                 host.run_worker(host._mcp_install(arg))
@@ -507,6 +549,17 @@ class TelegramInteractive:
         return t("tg.unknown_action", host_locale(self._host))
 
     async def _refresh(self, kind: str) -> None:
+        from integrations.telegram.command_access import is_menu_action_allowed
+
+        if not is_menu_action_allowed(
+            kind,
+            self._session.bot_profile,
+            self._session.user_id,
+        ):
+            lang = host_locale(self._host)
+            await self._host._send_html(escape_html(t("tg.menu_unavailable", lang)))
+            return
+
         if kind == "compress":
             from cli.shared.commands.context_compress import run_context_compress
 
@@ -574,11 +627,27 @@ class TelegramInteractive:
             profile_picker_keyboard(profiles, current),
         )
 
+    async def _deny_mcp_management(self) -> None:
+        lang = host_locale(self._host)
+        await self._host._send_html(escape_html(t("tg.mcp_read_only", lang)))
+
     async def _handle_mcp_callback(self, value: str) -> None:
         """Handle mcp:* callbacks from the MCP menu."""
+        from integrations.telegram.command_access import is_mcp_management_allowed
+
         host = self._host
+        can_manage = is_mcp_management_allowed(
+            self._session.bot_profile,
+            self._session.user_id,
+        )
         if value == "list" or value == "refresh":
             await host._mcp_list()
+            return
+        if value == "tools":
+            await host._mcp_list_tools()
+            return
+        if not can_manage:
+            await self._deny_mcp_management()
             return
         if value == "install-popular":
             await self._show_mcp_popular_picker()
@@ -872,9 +941,12 @@ class TelegramInteractive:
             f"Субагенты: <code>{subagents}</code>",
             f"Сессия: <code>{escape_html(self._host.conversation_id)}</code>",
         ]
+        from integrations.telegram.access_approval import is_telegram_admin
+
+        is_admin = is_telegram_admin(self._session.bot_profile, self._session.user_id)
         await self._host._send_html_with_keyboard(
             "\n".join(lines),
-            status_menu_keyboard(host_locale(self._host)),
+            status_menu_keyboard(host_locale(self._host), is_admin=is_admin),
         )
 
 

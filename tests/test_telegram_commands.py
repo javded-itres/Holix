@@ -136,7 +136,13 @@ async def test_register_bot_commands_per_user_when_not_allow_all(
     names = await register_bot_commands(bot, locale="en", bot_profile="default")
 
     assert names == ["help"]
-    enable_mock.assert_awaited_once_with(bot, 42, locale="en")
+    enable_mock.assert_awaited_once_with(
+        bot,
+        42,
+        locale="en",
+        bot_profile="default",
+        user_id=42,
+    )
 
 
 @pytest.mark.asyncio

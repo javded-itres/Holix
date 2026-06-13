@@ -73,6 +73,9 @@ def patch_global_env(variables: dict[str, str]) -> Path:
 
     path = ensure_global_env_template()
     patch_env_file(path, variables)
+    from core.profile_admin_seed import maybe_seed_admin_on_env_change
+
+    maybe_seed_admin_on_env_change(variables)
     return path
 
 

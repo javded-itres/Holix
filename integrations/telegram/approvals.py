@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import secrets
 from typing import Any
 
 from core.plan_review.review_events import PlanReviewRequestEvent
@@ -10,6 +11,29 @@ from core.security.confirmation import ConfirmationChoice, get_action_guard
 from core.security.confirmation_events import ConfirmationRequestEvent
 
 from integrations.telegram.markdown import escape_html, plain_to_telegram_html
+
+# Telegram Bot API: callback_data must be 1–64 bytes.
+_TELEGRAM_CALLBACK_MAX_BYTES = 64
+
+
+def _register_callback_token(mapping: dict[str, str], full_id: str) -> str:
+    """Map a short opaque token to the full confirmation/review id."""
+    mapping.clear()
+    token = secrets.token_hex(4)
+    mapping[token] = full_id
+    return token
+
+
+def _lookup_callback_token(mapping: dict[str, str], token_or_id: str) -> str:
+    """Resolve short token; pass through when already a full id."""
+    return mapping.get(token_or_id, token_or_id)
+
+
+def _callback_data(*parts: str) -> str:
+    data = ":".join(parts)
+    if len(data.encode("utf-8")) > _TELEGRAM_CALLBACK_MAX_BYTES:
+        raise ValueError(f"Telegram callback_data too long ({len(data.encode('utf-8'))} bytes)")
+    return data
 
 
 class TelegramApprovals:
@@ -22,6 +46,10 @@ class TelegramApprovals:
     async def on_confirmation_request(self, event: ConfirmationRequestEvent) -> None:
         await self.dismiss_confirmation_ui()
         self._pending_confirm_id = event.confirmation_id
+        token = _register_callback_token(
+            self._session.approval_callback_tokens,
+            event.confirmation_id,
+        )
         risk = event.risk_level or "?"
         subagent = getattr(event, "subagent_name", "") or ""
         header = "<b>⚠ Confirmation required</b>"
@@ -46,12 +74,24 @@ class TelegramApprovals:
         kb = InlineKeyboardMarkup(
             inline_keyboard=[
                 [
-                    InlineKeyboardButton(text="✓ Once", callback_data=f"cfm:{event.confirmation_id}:1"),
-                    InlineKeyboardButton(text="✓ Session", callback_data=f"cfm:{event.confirmation_id}:2"),
+                    InlineKeyboardButton(
+                        text="✓ Once",
+                        callback_data=_callback_data("cfm", token, "1"),
+                    ),
+                    InlineKeyboardButton(
+                        text="✓ Session",
+                        callback_data=_callback_data("cfm", token, "2"),
+                    ),
                 ],
                 [
-                    InlineKeyboardButton(text="✓ Always", callback_data=f"cfm:{event.confirmation_id}:3"),
-                    InlineKeyboardButton(text="✗ Deny", callback_data=f"cfm:{event.confirmation_id}:4"),
+                    InlineKeyboardButton(
+                        text="✓ Always",
+                        callback_data=_callback_data("cfm", token, "3"),
+                    ),
+                    InlineKeyboardButton(
+                        text="✗ Deny",
+                        callback_data=_callback_data("cfm", token, "4"),
+                    ),
                 ],
             ]
         )
@@ -67,6 +107,10 @@ class TelegramApprovals:
         await self.dismiss_plan_review_ui()
         self._pending_review_id = event.review_id
         self._session.pending_plan_review_id = event.review_id
+        token = _register_callback_token(
+            self._session.plan_callback_tokens,
+            event.review_id,
+        )
         body = event.rendered_markdown or f"Plan with {event.step_count} steps"
         if len(body) > 3500:
             body = body[:3500] + "…"
@@ -75,12 +119,24 @@ class TelegramApprovals:
         kb = InlineKeyboardMarkup(
             inline_keyboard=[
                 [
-                    InlineKeyboardButton(text="Confirm step", callback_data=f"plan:{event.review_id}:confirm"),
-                    InlineKeyboardButton(text="Auto-run", callback_data=f"plan:{event.review_id}:auto"),
+                    InlineKeyboardButton(
+                        text="Confirm step",
+                        callback_data=_callback_data("plan", token, "confirm"),
+                    ),
+                    InlineKeyboardButton(
+                        text="Auto-run",
+                        callback_data=_callback_data("plan", token, "auto"),
+                    ),
                 ],
                 [
-                    InlineKeyboardButton(text="Refine", callback_data=f"plan:{event.review_id}:refine"),
-                    InlineKeyboardButton(text="Reject", callback_data=f"plan:{event.review_id}:reject"),
+                    InlineKeyboardButton(
+                        text="Refine",
+                        callback_data=_callback_data("plan", token, "refine"),
+                    ),
+                    InlineKeyboardButton(
+                        text="Reject",
+                        callback_data=_callback_data("plan", token, "reject"),
+                    ),
                 ],
             ]
         )
@@ -130,29 +186,85 @@ class TelegramApprovals:
         choice = choice_map.get(code)
         if choice is None:
             return False
+
+        full_id = _lookup_callback_token(
+            self._session.approval_callback_tokens,
+            confirmation_id,
+        )
+        if self._try_resolve_confirmation(full_id, choice):
+            self._pending_confirm_id = None
+            self._session.approval_callback_tokens.clear()
+            return True
+
+        # Fallback: match /yes behaviour (latest pending on this agent).
+        agent = self._session.agent
+        if agent:
+            from core.subagents.interaction import resolve_any_confirmation
+
+            if resolve_any_confirmation(agent, choice):
+                self._pending_confirm_id = None
+                self._session.approval_callback_tokens.clear()
+                return True
+
+        # Idempotent: user double-tapped after the action was already approved.
+        if self._confirmation_already_resolved(full_id):
+            self._pending_confirm_id = None
+            self._session.approval_callback_tokens.clear()
+            return True
+        return False
+
+    def _try_resolve_confirmation(
+        self,
+        confirmation_id: str,
+        choice: ConfirmationChoice,
+    ) -> bool:
         agent = self._session.agent
         if agent:
             from core.subagents.interaction import get_interaction_bridge
 
             bridge = get_interaction_bridge(agent)
             if bridge and bridge.resolve_confirmation(confirmation_id, choice):
-                self._pending_confirm_id = None
                 return True
 
         guard = self._guard()
-        if guard and guard.resolve_confirmation(confirmation_id, choice):
-            self._pending_confirm_id = None
-            return True
-        return False
+        return bool(guard and guard.resolve_confirmation(confirmation_id, choice))
+
+    def _confirmation_already_resolved(self, confirmation_id: str) -> bool:
+        """True when the request id is unknown because it was already settled."""
+        agent = self._session.agent
+        if agent:
+            from core.subagents.interaction import get_interaction_bridge
+
+            bridge = get_interaction_bridge(agent)
+            if bridge and confirmation_id in getattr(bridge, "_pending_confirmations", {}):
+                return False
+
+        guard = self._guard()
+        if guard and confirmation_id in guard._pending_confirmations:
+            return False
+        token = confirmation_id
+        if token in self._session.approval_callback_tokens:
+            return False
+        return self._pending_confirm_id in (None, confirmation_id)
 
     def _guard(self):
-        """Resolve the current ActionGuard (per-agent if present, else global)."""
+        """Resolve ActionGuard for the active Telegram session agent."""
         agent = self._session.agent
         if agent and getattr(agent, "tools", None):
             ag = getattr(agent.tools, "_action_guard", None)
             if ag:
                 return ag
-        return get_action_guard()
+        profile = getattr(self._session, "profile", None)
+        return get_action_guard(profile)
+
+    def _plan_guard(self):
+        """PlanReviewGuard tied to this chat's agent (not a stale global)."""
+        agent = self._session.agent
+        if agent:
+            guard = getattr(agent, "_plan_review_guard", None)
+            if guard:
+                return guard
+        return get_plan_review_guard()
 
     def resolve_plan_callback(self, review_id: str, action: str, *, feedback: str = "") -> bool:
         action_map = {
@@ -164,10 +276,26 @@ class TelegramApprovals:
         choice = action_map.get(action)
         if choice is None:
             return False
-        guard = get_plan_review_guard()
-        if guard.resolve_review(review_id, choice, feedback):
+
+        full_id = _lookup_callback_token(self._session.plan_callback_tokens, review_id)
+        guard = self._plan_guard()
+        if guard and guard.resolve_review(full_id, choice, feedback):
             self._pending_review_id = None
             self._session.pending_plan_review_id = None
+            self._session.plan_callback_tokens.clear()
+            return True
+
+        # Fallback: latest pending review on this agent's guard.
+        if guard and guard._pending_reviews:
+            latest_id = list(guard._pending_reviews.keys())[-1]
+            if guard.resolve_review(latest_id, choice, feedback):
+                self._pending_review_id = None
+                self._session.pending_plan_review_id = None
+                self._session.plan_callback_tokens.clear()
+                return True
+
+        if self._pending_review_id in (None, full_id, review_id):
+            self._session.plan_callback_tokens.clear()
             return True
         return False
 
