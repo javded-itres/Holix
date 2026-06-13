@@ -2,23 +2,49 @@
 
 ## Unreleased
 
+## 0.1.13 — 2026-06-13
+
 ### Added
-- **Profile deletion with Telegram notification** — `holix profile delete` (`--yes`, `--skip-notify`); `DELETE /api/holix/profiles/{id}?notify=true`; protected profiles `default`, `docs`, `global`
-- **Workspace plaintext policy** — agent `workspace/` stored unencrypted (git-friendly); secrets (`.env`, `telegram.env`, memory) remain encrypted when enabled
-- **`holix profile crypto decrypt-workspace`** — one-time migration for legacy encrypted workspace files; `deploy/scripts/holix-decrypt-workspaces.sh`
-- **Encrypted env editing** — `holix profile env --edit` works on encrypted `.env`; delivery files decrypted before Telegram send
-- **Telegram env loading** — empty `TELEGRAM_BOT_TOKEN` in shell/global no longer blocks token from encrypted `telegram.env`; gateway loads `telegram.env` after unlock
-- **Workspace path privacy** — jailed profile users see workspace-relative paths in tool output and agent replies; Telegram admin and gateway `admin` API keys still see full absolute paths ([PROFILES.md](en/PROFILES.md#path-visibility-in-responses))
+- **Profile encryption at rest** — optional AES-256-GCM for profile `.env`, `SOUL.md`, `USER.md`, `telegram.env`, SQLite memory (`memory.db`, `ltm.db`, checkpoints), and Chroma vector store; Argon2id-wrapped DEK in profile metadata
+- **`HOLIX_ENCRYPTION_MODE`** — policy `off` / `linux-production` / `on`; Linux production path auto-enables encryption on supported hosts; mode is OS-scoped, not gated only on `HOLIX_ENV`
+- **Gateway profile unlock** — `HOLIX_UNLOCK_KEY` unlocks encrypted profiles in gateway/API; invalid key treated as locked for memory access
+- **Gateway seal** — lock encrypted profiles after gateway stop; multi-profile API unlock flow (PR-6)
+- **`holix profile crypto`** — enable/disable encryption, migrate unencrypted profiles, bulk workspace migration, `decrypt-workspace` for legacy encrypted agent files
+- **Platform-managed quotas** — per-profile workspace size limits reconciled on create/profile ops
+- **Runtime cache hardening** — stale gateway/runtime cache recovery; deploy scripts for dedicated `holix` system user (`deploy/scripts/setup-holix-runtime-user.sh`, gateway seal helper)
+- **Profile deletion** — `holix profile delete` (`--yes`, `--skip-notify`); `DELETE /api/holix/profiles/{id}?notify=true`; optional Telegram notify to mapped users; protected profiles `default`, `docs`, `global`
+- **Workspace path privacy** — jailed profile users see workspace-relative paths in tool output and agent replies; Telegram admin and gateway `admin` API keys still see absolute paths
+- **Sub-agent orchestration** — `plan_and_execute` can run coordinated multi-agent waves; spawn results return reliably to the parent session
+- **Gateway lifecycle** — `holix gateway reload` (config/companion refresh) vs `holix gateway restart` (full stop/start); docs companion port preserved across reload
+- **Hermes API** — `GET /v1/models` lists configured LLM models from active profile; `/v1/runs/{id}` poll returns terminal `status` compatible with Hermes clients
+- **Production admin profile** — when `HOLIX_ENV=production`, auto-create `admin` Holix profile and copy settings from `default` (config + env overrides) on gateway start, env change, and `--set-admin` approval
+- **Telegram menu policy (isolated mode)** — per-user slash-command menu; non-admins do not see `/message` or `/init`; `/cron` and read-only `/mcp` show only the user’s own profile tasks/servers; `/status` panel hides Profile picker for non-admins
+- **Telegram UX** — agent final answer posted as a separate message (live card shows progress only); approval/plan callback tokens hardened (short `callback_data`, idempotent double-tap, `/yes` fallback); no expiry on confirmation/plan-review waits
+- **Encrypted env editing** — `holix profile env --edit` and `gateway configure` read/write encrypted profile `.env`; decrypt-aware dotenv loaders across CLI, API, and Telegram
+
+### Security
+- **Auth and IDOR** — close cross-profile access gaps in management API; stricter profile-scoped permissions; block risky shell chaining patterns in terminal tool policy
+- **Production profile policy** — implicit `default` profile blocked when `HOLIX_ENV=production`; explicit named profiles required (`holix -p <name> …`)
 
 ### Fixed
-- **Gateway Telegram on `uv tool install`** — document/require `--with aiogram`; bot no longer silently disabled when token is only in encrypted `telegram.env`
+- **Gateway startup** — defer agent warmup to background task so Telegram polling is not blocked for minutes; avoid duplicate cron/Telegram companions when supervisor manages the process; profile registry init moved off the event loop via `asyncio.to_thread`
+- **Gateway Telegram on `uv tool install`** — require `uv tool install ".[telegram]"` (or `--with aiogram`); bot no longer silently skipped when token lives only in encrypted `telegram.env`
+- **Telegram env loading** — empty `TELEGRAM_BOT_TOKEN` in shell/global no longer masks token from encrypted `telegram.env`; gateway loads `telegram.env` after unlock
 - **Telegram user mapping fallback** — gateway host profile can read bindings from `default/telegram-users.json`
+- **Workspace plaintext policy** — agent `workspace/` stays unencrypted (git-friendly); outbound Telegram attachments decrypt legacy encrypted workspace files once
+- **Crypto edge cases** — read encrypted `telegram.env` without raw UTF-8 decode; `HOLIX_UNLOCK_KEY` invalid → memory locked; Linux-only production encryption enforcement
+- **SQLite paths** — API keys DB and profile memory DBs resolve under `HOLIX_HOME` (fixes from 0.1.12 carry-over validated on multi-profile gateway)
+- **CI portability** — encryption, runtime cache, path, and locale tests isolated from developer machine env
 
 ### Documentation
-- **PROFILE_ENCRYPTION** (EN/RU) — dedicated site page: what is encrypted, OS policy table (Linux/macOS/Windows), unlock key, gateway/systemd, workspace migration
+- **PROFILE_ENCRYPTION** (EN/RU) — dedicated site page: encrypted vs plaintext assets, OS policy table, unlock key, gateway/systemd, workspace migration
+- **Path visibility** — PROFILES mermaid flow, gateway API table, Telegram/USER_GUIDE callouts, TROUBLESHOOTING FAQ (EN/RU)
+- **Profile delete, encryption, Telegram deploy** — PROFILES, CLI, GATEWAY_API, TELEGRAM, DEPLOYMENT, CONFIGURATION, SECURITY (EN/RU); web-docs rebuilt
 - **SEO** — `profile-encryption` slug in sitemap/nav; updated meta for profiles, configuration, security, deployment, telegram
-- **Profile delete, encryption, Telegram deploy** — PROFILES, CLI, GATEWAY_API, TELEGRAM, DEPLOYMENT, CONFIGURATION, SECURITY, TROUBLESHOOTING (EN/RU); web-docs rebuilt
-- **Path visibility** — mermaid flow in PROFILES; gateway API table; Telegram/USER_GUIDE callouts; TROUBLESHOOTING FAQ (EN/RU)
+
+### Changed
+- **Confirmation timeouts** — `CONFIRMATION_TIMEOUT=0` and `PLAN_REVIEW_TIMEOUT=0` disable approval waits (Telegram `/yes` / `/no` and inline buttons)
+- **Version** — package `Holix` 0.1.13 on PyPI
 
 ## 0.1.12 — 2026-06-12
 
