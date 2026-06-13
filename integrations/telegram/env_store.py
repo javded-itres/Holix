@@ -100,7 +100,9 @@ def save_telegram_env(values: dict[str, str], profile: str | None = None) -> Pat
     ensure_holix_home()
     path = telegram_env_path(name)
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(format_env_lines(values), encoding="utf-8")
+    from core.crypto.profile_files import write_profile_file_text
+
+    write_profile_file_text(path, format_env_lines(values), profile=name)
     apply_to_environ(values)
     return path
 
@@ -112,19 +114,26 @@ def apply_to_environ(values: dict[str, str]) -> None:
 
 
 def read_telegram_env_values(profile: str | None = None) -> dict[str, str]:
-    path = telegram_env_path(profile)
+    name = (profile or active_profile_name()).strip() or "default"
+    path = telegram_env_path(name)
+    legacy = False
     if not path.is_file():
         path = legacy_telegram_env_path()
+        legacy = True
     if not path.is_file():
         return {}
-    out: dict[str, str] = {}
-    for line in path.read_text(encoding="utf-8").splitlines():
-        line = line.strip()
-        if not line or line.startswith("#") or "=" not in line:
-            continue
-        key, _, val = line.partition("=")
-        out[key.strip()] = val.strip()
-    return out
+    try:
+        from core.crypto.profile_files import dotenv_values_for_path
+    except ImportError:
+        return {}
+    return {
+        key: str(value).strip()
+        for key, value in dotenv_values_for_path(
+            path,
+            profile=None if legacy else name,
+        ).items()
+        if value is not None and str(value).strip()
+    }
 
 
 def merge_project_env(project_env: Path, values: dict[str, str]) -> None:
