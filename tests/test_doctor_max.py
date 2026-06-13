@@ -15,9 +15,19 @@ def _block_max_env(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 def test_max_not_configured(monkeypatch: pytest.MonkeyPatch) -> None:
+    from integrations.max.config import MaxSettings
+
     _block_max_env(monkeypatch)
-    monkeypatch.delenv("MAX_ACCESS_TOKEN", raising=False)
-    monkeypatch.delenv("HELIX_MAX_ACCESS_TOKEN", raising=False)
+    for key in (
+        "MAX_ACCESS_TOKEN",
+        "HOLIX_MAX_ACCESS_TOKEN",
+        "HELIX_MAX_ACCESS_TOKEN",
+    ):
+        monkeypatch.delenv(key, raising=False)
+    monkeypatch.setattr(
+        "integrations.max.config.load_max_settings",
+        lambda profile: MaxSettings(access_token="", profile=profile),
+    )
 
     findings = _check_max("default")
     assert any(f.code == "max.not_configured" for f in findings)

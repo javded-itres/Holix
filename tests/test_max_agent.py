@@ -54,5 +54,5 @@ async def test_bot_warmup_initializes_agent_once() -> None:
         await bot.warmup()
         await bot.warmup()
 
-    create.assert_awaited_once_with("default")
+    create.assert_awaited_once_with("default", bot_profile="default")
     assert bot._agent is agent

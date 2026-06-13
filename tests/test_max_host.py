@@ -73,7 +73,7 @@ async def test_run_agent_calls_presenter_finish_in_finally() -> None:
 
     agent.events = _Events()
 
-    async def fake_run_helix(*_args, **_kwargs):
+    async def fake_run_holix(*_args, **_kwargs):
         if False:
             yield None
 
@@ -85,9 +85,15 @@ async def test_run_agent_calls_presenter_finish_in_finally() -> None:
         patch("integrations.max.event_handler.MaxEventHandler"),
         patch("integrations.max.approvals.MaxApprovals"),
         patch("integrations.max.config.load_max_settings") as load_settings,
-        patch("core.runtime.executor.run_helix", side_effect=fake_run_helix),
+        patch("core.runtime.executor.run_holix", side_effect=fake_run_holix),
         patch("core.session_models.ensure_session_model"),
+        patch("core.tools.execution_context.chat_delivery_scope", return_value="token"),
+        patch("core.tools.execution_context.reset_chat_delivery_scope"),
+        patch("core.workspace.agent_path_visibility_context") as vis_ctx,
+        patch("integrations.max.admin.is_max_admin", return_value=False),
     ):
+        vis_ctx.return_value.__enter__ = MagicMock(return_value=None)
+        vis_ctx.return_value.__exit__ = MagicMock(return_value=False)
         load_settings.return_value = MagicMock(
             edit_interval_ms=700,
             heartbeat_interval_s=45,

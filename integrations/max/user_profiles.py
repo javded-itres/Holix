@@ -4,6 +4,11 @@ from __future__ import annotations
 
 from integrations.messenger.platforms import MAX_PLATFORM
 from integrations.messenger.user_profiles import (
+    format_user_profiles_text,
+    parse_user_profiles_text,
+    validate_user_profiles_text,
+)
+from integrations.messenger.user_profiles import (
     load_user_profiles as _load_user_profiles,
 )
 from integrations.messenger.user_profiles import (
