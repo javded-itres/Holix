@@ -63,6 +63,34 @@ api_key: ${OPENAI_API_KEY}
 
 Never commit real keys to git.
 
+## Encryption at rest
+
+Optional per-profile encryption protects secrets and memory, not the agent workspace:
+
+| Encrypted | Plaintext |
+|-----------|-----------|
+| `.env`, `telegram.env`, `SOUL.md`, `USER.md` | `workspace/` (project files, git-friendly) |
+| Memory DBs (SQLite, Chroma) | `config.yaml` (non-secret settings) |
+
+```bash
+holix -p alice profile crypto enable
+holix profile crypto migrate --all --yes
+```
+
+**Gateway / systemd:** set `HOLIX_UNLOCK_KEY` in `global/.env` or the profile `.env`. Without it, encrypted `telegram.env` cannot be read and the bot stays disabled even if `TELEGRAM_BOT_TOKEN` appears empty in the process environment.
+
+**Telegram token pitfall:** do not set `TELEGRAM_BOT_TOKEN=` (empty) in `global/.env`. Omit the variable or store the token only in `profiles/<name>/telegram.env`.
+
+**Workspace migration:** legacy installs may have encrypted workspace files. Run once:
+
+```bash
+holix profile crypto decrypt-workspace --all --yes
+```
+
+After gateway stop, `holix-gateway-seal.sh` (systemd `ExecStopPost`) can re-seal memory with `HOLIX_UNLOCK_KEY`.
+
+Complete guide (encrypted files table, per-OS policy, step-by-step enable): [PROFILE_ENCRYPTION.md](PROFILE_ENCRYPTION.md).
+
 ## Tools
 
 - **Terminal**: whitelist, dangerous-pattern blocks, and confirmations — full guide: [TERMINAL_SECURITY.md](TERMINAL_SECURITY.md). Quick setup:

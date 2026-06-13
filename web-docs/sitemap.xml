@@ -71,6 +71,11 @@
     <priority>0.8</priority>
   </url>
   <url>
+    <loc>https://holix-agent.ru/docs/profile-encryption</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
     <loc>https://holix-agent.ru/docs/profiles</loc>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>

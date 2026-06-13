@@ -193,6 +193,8 @@ holix models fallback list
 | `whitelist add "<команды>"` | Добавить команды через запятую |
 | `whitelist list` | Статус whitelist и итоговый список |
 | `whitelist enable` | Включить проверку whitelist |
+| `delete [имя]` | Удалить профиль после уведомления в Telegram |
+| `crypto …` | Шифрование секретов профиля (см. ниже) |
 
 ```bash
 holix profile global edit
@@ -200,9 +202,37 @@ holix profile create team-a
 holix profile create team-b --clean
 holix -p alice profile env --edit
 holix -p data-agent profile jail enable ~/data-agent
+holix -p shared profile delete ivan --yes
 ```
 
-[CONFIGURATION.md](CONFIGURATION.md), [PROFILES.md](PROFILES.md)
+`profile delete`: `--yes` / `-y` (без подтверждения), `--skip-notify` (без Telegram). Защищённые: `default`, `docs`, `global`.
+
+### `holix profile crypto`
+
+Шифрует **секреты профиля** (`.env`, `telegram.env`, `SOUL.md`, БД памяти). **Workspace остаётся plaintext** (удобно для git).
+
+| Подкоманда | Описание |
+|------------|----------|
+| `enable` | Включить шифрование для активного профиля |
+| `migrate --all` | Массовое включение на незашифрованных профилях |
+| `status` | Политика шифрования и состояние unlock |
+| `unlock` | Расшифровать данные для этой CLI-сессии |
+| `lock` | Сбросить unlock в процессе |
+| `seal` / `seal --all` | Повторно зашифровать секреты после unlock |
+| `decrypt-workspace` | Разовая миграция: legacy encrypted workspace → plaintext |
+| `decrypt-workspace --all` | Миграция всех профилей |
+| `purge-cache` | Очистить устаревший runtime-кэш расшифровки |
+
+```bash
+holix -p alice profile crypto enable
+holix profile crypto migrate --all --yes
+holix -p alice profile crypto decrypt-workspace --all --yes
+holix -p alice profile crypto status
+```
+
+Для gateway/systemd задайте `HOLIX_UNLOCK_KEY` в `.env` профиля или `global/.env`.
+
+См. [CONFIGURATION.md](CONFIGURATION.md#шифрование-профиля-опционально) и [PROFILES.md](PROFILES.md).
 
 ---
 
@@ -338,7 +368,7 @@ Tools: `mcp_<сервер>_<имя>`. В TUI: `/mcp`.
 
 ## `holix telegram`
 
-Токен бота хранится в `profiles/<имя>/telegram.env`.
+Нужен `aiogram` — из исходников: `uv sync --extra telegram`; при `uv tool install`: `uv tool install . --force --with aiogram --with pypdf`. Токен в `profiles/<имя>/telegram.env` (часто зашифрован). Не оставляйте пустой `TELEGRAM_BOT_TOKEN=` в `global/.env` — ключ лучше опустить, Holix подставит токен из `telegram.env`.
 
 | Подкоманда | Описание |
 |------------|----------|

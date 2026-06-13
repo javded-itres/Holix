@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
 
 import pytest
@@ -50,6 +51,22 @@ def test_seal_existing_encrypted_profile(holix_home, monkeypatch) -> None:
     assert len(summary.migrated) == 1
     assert summary.migrated[0].secrets_encrypted >= 1
     assert is_encrypted_file(pdir / "USER.md")
+
+
+def test_bootstrap_profile_env_reads_encrypted_dotenv(holix_home, monkeypatch) -> None:
+    monkeypatch.setenv("HOLIX_HOME", str(holix_home))
+    manager = ProfileManager()
+    manager.create_profile("dana", inherit_global=False)
+    pdir = manager.get_profile_dir("dana")
+    (pdir / ".env").write_text("MY_TOKEN=secret-dana\n", encoding="utf-8")
+    enable_profile_encryption(manager, "dana", "unlock-key-dana-42")
+
+    monkeypatch.setenv("HOLIX_UNLOCK_KEY", "unlock-key-dana-42")
+    from core.env_loader import bootstrap_profile_env, read_profile_env_map
+
+    bootstrap_profile_env("dana", force=True)
+    assert os.environ.get("MY_TOKEN") == "secret-dana"
+    assert read_profile_env_map("dana") == {"MY_TOKEN": "secret-dana"}
 
 
 def test_read_secrets_after_env_unlock(holix_home, monkeypatch) -> None:

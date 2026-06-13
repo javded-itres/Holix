@@ -44,6 +44,14 @@ sudo -u holix pipx install Holix
 sudo -u holix pipx inject Holix telegram   # опционально, для Telegram
 ```
 
+Из checkout с **uv** (часто на dev-серверах):
+
+```bash
+uv tool install /opt/holix --force --with aiogram --with pypdf
+```
+
+`uv tool install` по умолчанию **не** включает extra `telegram` — без `--with aiogram` gateway стартует, но бот остаётся выключенным.
+
 ### 2. Настройка профиля
 
 Секреты и bind gateway — в **env-файле профиля**, не в `/etc/holix/`:
@@ -65,6 +73,17 @@ HOLIX_API_KEY_PEPPER=<случайный-секрет>
 ```
 
 Telegram (опционально): `sudo -u holix holix -p alice telegram setup`
+
+Токен бота — в `profiles/<имя>/telegram.env`, не пустая строка `TELEGRAM_BOT_TOKEN=` в `global/.env`.
+
+**Зашифрованные профили:** добавьте `HOLIX_UNLOCK_KEY` в `global/.env` или `.env` профиля, чтобы gateway расшифровывал `telegram.env` и память при старте. После смены секретов: `systemctl restart holix-gateway@<имя>`.
+
+**Legacy encrypted workspace:** разовая миграция в plaintext (git-friendly):
+
+```bash
+holix profile crypto decrypt-workspace --all --yes
+# или: deploy/scripts/holix-decrypt-workspaces.sh
+```
 
 ### 3. Установка unit-файлов
 

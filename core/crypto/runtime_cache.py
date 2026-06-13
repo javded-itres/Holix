@@ -7,7 +7,7 @@ import shutil
 import stat
 from pathlib import Path
 
-from core.platform_compat import resolve_holix_home
+from core.platform_compat import IS_WINDOWS, resolve_holix_home
 
 logger = logging.getLogger(__name__)
 
@@ -87,6 +87,9 @@ def wipe_all_runtime_caches() -> int:
 def cache_dir_is_private(path: Path) -> bool:
     """Return True when a cache directory is owner-only (mode & 077 == 0)."""
     if not path.is_dir():
+        return True
+    if IS_WINDOWS:
+        # chmod is best-effort on Windows; ACL semantics differ from Unix modes.
         return True
     try:
         mode = path.stat().st_mode

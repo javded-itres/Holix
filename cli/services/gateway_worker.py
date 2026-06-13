@@ -34,10 +34,16 @@ def main(argv: list[str] | None = None) -> int:
     recover_stale_runtime_caches()
     from core.env_loader import bootstrap_profile_env
 
-    bootstrap_profile_env(args.profile)
     from cli.core import bootstrap_profile_unlock_from_env
 
     bootstrap_profile_unlock_from_env(args.profile)
+    bootstrap_profile_env(args.profile)
+    try:
+        from integrations.telegram.env_store import load_telegram_env_files
+
+        load_telegram_env_files(args.profile)
+    except Exception:
+        pass
 
     def _env_bool(name: str) -> bool:
         return os.getenv(name, "").strip().lower() in {"1", "true", "yes", "on"}

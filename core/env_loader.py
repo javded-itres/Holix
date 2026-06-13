@@ -365,16 +365,53 @@ def upsert_profile_env_var(profile: str, key: str, value: str) -> Path:
 
 def remove_profile_env_vars(profile: str, *keys: str) -> Path:
     """Remove variables from the profile ``.env`` file when present."""
+    from core.crypto.profile_files import read_profile_file_text, write_profile_file_text
+
     path = ensure_profile_env_template(profile)
     if not path.is_file():
         return path
     prefixes = {f"{key}=" for key in keys}
+    text = read_profile_file_text(path, profile=profile)
     lines = [
         line
-        for line in path.read_text(encoding="utf-8").splitlines()
+        for line in text.splitlines()
         if not any(line.startswith(prefix) for prefix in prefixes)
     ]
-    path.write_text("\n".join(lines) + ("\n" if lines else ""), encoding="utf-8")
+    payload = "\n".join(lines) + ("\n" if lines else "")
+    write_profile_file_text(path, payload, profile=profile)
     for key in keys:
         os.environ.pop(key, None)
+    return path
+
+
+def edit_profile_env_file(profile: str, *, editor: str | None = None) -> Path:
+    """Open profile ``.env`` in an editor; transparently decrypt/re-encrypt when needed."""
+    import subprocess
+    import tempfile
+
+    from core.crypto.profile_files import read_profile_file_text, write_profile_file_text
+
+    path = ensure_profile_env_template(profile)
+    edit_cmd = (editor or os.environ.get("EDITOR") or "nano").strip()
+
+    text = read_profile_file_text(path, profile=profile) if path.is_file() else ""
+    with tempfile.NamedTemporaryFile(
+        "w",
+        encoding="utf-8",
+        suffix=".env",
+        prefix=f"holix-{profile}-",
+        delete=False,
+    ) as handle:
+        handle.write(text)
+        temp_path = Path(handle.name)
+
+    try:
+        subprocess.run([edit_cmd, str(temp_path)], check=False)
+        updated = temp_path.read_text(encoding="utf-8")
+        write_profile_file_text(path, updated, profile=profile)
+    finally:
+        try:
+            temp_path.unlink()
+        except OSError:
+            pass
     return path

@@ -21,6 +21,10 @@ def resolve_web_docs_dir() -> Path:
     """Locate web-docs/ in a wheel install or source checkout."""
     candidates: list[Path] = []
 
+    override = os.getenv("HOLIX_WEB_DOCS_DIR", "").strip()
+    if override:
+        candidates.append(Path(override).expanduser())
+
     try:
         import config
 

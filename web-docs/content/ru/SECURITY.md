@@ -63,6 +63,34 @@ api_key: ${OPENAI_API_KEY}
 
 Не коммитьте реальные ключи в git.
 
+## Шифрование на диске
+
+Опциональное шифрование по профилю защищает секреты и память, но не workspace агента:
+
+| Шифруется | Plaintext |
+|-----------|-----------|
+| `.env`, `telegram.env`, `SOUL.md`, `USER.md` | `workspace/` (файлы проекта, git-friendly) |
+| БД памяти (SQLite, Chroma) | `config.yaml` (несекретные настройки) |
+
+```bash
+holix -p alice profile crypto enable
+holix profile crypto migrate --all --yes
+```
+
+**Gateway / systemd:** задайте `HOLIX_UNLOCK_KEY` в `global/.env` или `.env` профиля. Без ключа зашифрованный `telegram.env` не читается, и бот не стартует, даже если в окружении процесса `TELEGRAM_BOT_TOKEN` пустой.
+
+**Ловушка с токеном Telegram:** не задавайте `TELEGRAM_BOT_TOKEN=` (пустое) в `global/.env`. Опустите переменную или храните токен только в `profiles/<имя>/telegram.env`.
+
+**Миграция workspace:** на старых установках workspace мог быть зашифрован. Один раз:
+
+```bash
+holix profile crypto decrypt-workspace --all --yes
+```
+
+После остановки gateway скрипт `holix-gateway-seal.sh` (systemd `ExecStopPost`) может повторно запечатать память при заданном `HOLIX_UNLOCK_KEY`.
+
+Полный гайд (таблица файлов, политика по ОС, пошаговое включение): [PROFILE_ENCRYPTION.md](PROFILE_ENCRYPTION.md).
+
 ## Инструменты
 
 - **Terminal**: whitelist, блокировка опасных паттернов, подтверждения — подробно: [TERMINAL_SECURITY.md](TERMINAL_SECURITY.md). Быстрая настройка:

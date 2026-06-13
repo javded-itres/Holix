@@ -13,6 +13,7 @@ Holix is a self-improving AI agent with memory, skills, tool calling, MCP, CLI, 
 3. [QUICKSTART.md](QUICKSTART.md) — minimal command list
 4. [CONFIGURATION.md](CONFIGURATION.md) — `.env`, profiles, secrets
 5. [PROFILES.md](PROFILES.md) — **isolated profiles, SOUL/USER identity, access keys, multi-user setup, workspace jail**
+6. [PROFILE_ENCRYPTION.md](PROFILE_ENCRYPTION.md) — **at-rest encryption: what is encrypted, OS policy (Linux/macOS/Windows), unlock key**
 
 ## Interfaces
 
@@ -35,7 +36,8 @@ Holix is a self-improving AI agent with memory, skills, tool calling, MCP, CLI, 
 
 - [LOGS.md](LOGS.md) — `holix logs`, rotation, debug mode
 - [DOCTOR.md](DOCTOR.md) — `holix doctor` and `--fix`
-- [SECURITY.md](SECURITY.md) — auth, tools, production checklist
+- [SECURITY.md](SECURITY.md) — auth, encryption, production checklist
+- [PROFILE_ENCRYPTION.md](PROFILE_ENCRYPTION.md) — **full encryption guide by OS**
 - [TERMINAL_SECURITY.md](TERMINAL_SECURITY.md) — terminal whitelist, blocked commands, confirmations
 - [DEPLOYMENT.md](DEPLOYMENT.md) — Docker, systemd, CI
 - [TROUBLESHOOTING.md](TROUBLESHOOTING.md) — common failures

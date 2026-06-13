@@ -659,7 +659,32 @@ Agent loaded in registry, companion status (Telegram, cron).
 
 ### `DELETE /api/holix/profiles/{profile_id}`
 
-**Auth:** Admin. Delete profile directory.
+**Auth:** Admin. Delete profile directory after optional Telegram notification.
+
+| Query | Default | Description |
+|-------|---------|-------------|
+| `notify` | `true` | Send deletion notice to Telegram users mapped to this profile |
+
+Protected profiles (`default`, `docs`, `global`) return `400`.
+
+Unloads the agent from the registry, stops cron/Telegram companions for the profile, notifies mapped users, removes `telegram-users.json` bindings, then deletes `~/.holix/profiles/{profile_id}/`.
+
+**Response:**
+
+```json
+{
+  "deleted": true,
+  "profile": "ivan",
+  "notified_users": [123456789],
+  "notify_failed": [],
+  "mappings_removed": 1
+}
+```
+
+```bash
+curl -sS -X DELETE "$HOLIX_URL/api/holix/profiles/ivan?notify=true" \
+  -H "Authorization: Bearer $ADMIN_KEY"
+```
 
 ### `POST /api/holix/profiles/{profile_id}/reload`
 

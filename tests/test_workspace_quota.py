@@ -5,7 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
-from core.crypto.encrypted_fs import is_encrypted_file
+from core.crypto.encrypted_fs import encrypt_bytes, is_encrypted_file
 from core.crypto.profile_crypto import create_profile_crypto, unlock_profile_dek
 from core.crypto.unlock_context import profile_unlock_scope, reset_profile_unlock_scope
 from core.tools.execution_context import (
@@ -86,6 +86,28 @@ def test_workspace_stays_plaintext_when_encryption_enabled(holix_home, monkeypat
     assert content == "def main():\n    pass\n"
     assert not is_encrypted_file(target)
     assert b"def main" in target.read_bytes()
+
+
+def test_read_decrypts_legacy_encrypted_workspace_file(holix_home, monkeypatch) -> None:
+    monkeypatch.setenv("HOLIX_HOME", str(holix_home))
+    profile = "legacy_read"
+    pdir = holix_home / "profiles" / profile
+    workspace = pdir / "workspace"
+    workspace.mkdir(parents=True)
+    create_profile_crypto(profile, "unlock-key-legacy-read")
+    dek = unlock_profile_dek(profile, "unlock-key-legacy-read")
+
+    target = workspace / "main.py"
+    target.write_bytes(encrypt_bytes(dek, b"def main(): pass\n"))
+
+    ws_tokens, profile_token, unlock_tokens = _tool_context(profile, workspace, dek)
+    try:
+        content = read_profile_file_text(target, profile=profile)
+    finally:
+        _reset_tool_context(ws_tokens, profile_token, unlock_tokens)
+
+    assert content == "def main(): pass\n"
+    assert not is_encrypted_file(target)
 
 
 def test_quota_blocks_large_write(holix_home, monkeypatch) -> None:

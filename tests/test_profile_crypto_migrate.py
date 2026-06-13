@@ -7,6 +7,7 @@ from pathlib import Path
 import pytest
 from cli.core import ProfileManager
 from core.crypto.bootstrap import (
+    decrypt_all_profile_workspaces,
     list_unencrypted_profiles,
     migrate_profiles_encryption,
 )
@@ -64,6 +65,37 @@ def test_migrate_all_profiles_keeps_workspace_plaintext(holix_home, monkeypatch)
         target = manager.get_profile_dir(name) / "workspace" / "notes.txt"
         assert not is_encrypted_file(target)
         assert b"secret notes" in target.read_bytes()
+
+
+def test_decrypt_all_profile_workspaces(holix_home, monkeypatch) -> None:
+    monkeypatch.setenv("HOLIX_HOME", str(holix_home))
+    from core.crypto.encrypted_fs import encrypt_bytes, is_encrypted_file
+    from core.crypto.profile_crypto import unlock_profile_dek
+
+    manager = ProfileManager()
+    _seed_profile(manager, "alice", plaintext_file=True)
+    _seed_profile(manager, "carol", plaintext_file=True)
+    migrate_profiles_encryption(manager, "shared-unlock-key-99", profiles=["alice", "carol"])
+
+    for name in ("alice", "carol"):
+        dek = unlock_profile_dek(name, "shared-unlock-key-99")
+        target = manager.get_profile_dir(name) / "workspace" / "notes.txt"
+        target.write_bytes(encrypt_bytes(dek, b"secret notes"))
+        assert is_encrypted_file(target)
+
+    summary = decrypt_all_profile_workspaces(
+        manager,
+        "shared-unlock-key-99",
+        profiles=["alice", "carol"],
+    )
+    assert len(summary.migrated) == 2
+    assert summary.failed == []
+    assert sum(r.deliverables_decrypted for r in summary.migrated) == 2
+
+    for name in ("alice", "carol"):
+        target = manager.get_profile_dir(name) / "workspace" / "notes.txt"
+        assert not is_encrypted_file(target)
+        assert target.read_text(encoding="utf-8") == "secret notes"
 
 
 def test_migrate_skips_already_encrypted(holix_home, monkeypatch) -> None:

@@ -659,7 +659,32 @@ curl -sS -X POST http://127.0.0.1:8000/api/jobs \
 
 ### `DELETE /api/holix/profiles/{profile_id}`
 
-**Аутентификация:** Admin. Удалить директорию профиля.
+**Аутентификация:** Admin. Удалить директорию профиля с опциональным уведомлением в Telegram.
+
+| Query | По умолчанию | Описание |
+|-------|--------------|----------|
+| `notify` | `true` | Отправить уведомление пользователям Telegram, привязанным к профилю |
+
+Защищённые профили (`default`, `docs`, `global`) → `400`.
+
+Выгружает агента из registry, останавливает cron/Telegram для профиля, уведомляет пользователей, удаляет привязки в `telegram-users.json`, затем удаляет `~/.holix/profiles/{profile_id}/`.
+
+**Ответ:**
+
+```json
+{
+  "deleted": true,
+  "profile": "ivan",
+  "notified_users": [123456789],
+  "notify_failed": [],
+  "mappings_removed": 1
+}
+```
+
+```bash
+curl -sS -X DELETE "$HOLIX_URL/api/holix/profiles/ivan?notify=true" \
+  -H "Authorization: Bearer $ADMIN_KEY"
+```
 
 ### `POST /api/holix/profiles/{profile_id}/reload`
 

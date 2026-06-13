@@ -65,6 +65,15 @@ class ProfileAgentRegistry:
             self._entries[name] = entry
         return {"profile": name, "status": "reloaded"}
 
+    async def unload(self, profile: str) -> dict[str, str]:
+        """Remove a profile agent from memory without recreating it."""
+        name = profile.strip()
+        async with self._init_lock:
+            existing = self._entries.pop(name, None)
+            if existing is not None:
+                await self._dispose_entry(existing)
+        return {"profile": name, "status": "unloaded"}
+
     async def shutdown(self) -> None:
         async with self._init_lock:
             for name in list(self._entries):

@@ -31,11 +31,24 @@ def ensure_holix_home() -> Path:
     return init_holix_home()
 
 
+def _env_value_missing(key: str) -> bool:
+    """True when *key* is unset or blank in ``os.environ``."""
+    if key not in os.environ:
+        return True
+    return not str(os.environ.get(key, "")).strip()
+
+
 def load_telegram_env_files(profile: str | None = None) -> None:
     """Load profile env, then profile ``telegram.env`` (legacy global as fallback)."""
     from core.env_loader import bootstrap_profile_env
 
     name = (profile or active_profile_name()).strip() or "default"
+    try:
+        from core.crypto.unlock_context import bootstrap_profile_unlock_from_env
+
+        bootstrap_profile_unlock_from_env(name)
+    except Exception:
+        pass
     bootstrap_profile_env(name)
 
     try:
@@ -46,14 +59,14 @@ def load_telegram_env_files(profile: str | None = None) -> None:
     path = telegram_env_path(name)
     if path.is_file():
         for key, value in dotenv_values_for_path(path, profile=name).items():
-            if value is not None and str(value).strip() and key not in os.environ:
+            if value is not None and str(value).strip() and _env_value_missing(key):
                 os.environ[key] = str(value)
         return
 
     legacy = legacy_telegram_env_path()
     if legacy.is_file():
         for key, value in dotenv_values_for_path(legacy).items():
-            if value is not None and str(value).strip() and key not in os.environ:
+            if value is not None and str(value).strip() and _env_value_missing(key):
                 os.environ[key] = str(value)
 
 

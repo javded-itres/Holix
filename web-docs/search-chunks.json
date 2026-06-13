@@ -6,7 +6,7 @@
     "section": "getting-started",
     "title": "Overview",
     "heading": "Getting started",
-    "body": "1. INSTALLATION.md — PyPI install, Windows , extras, updates, Docker 2. START HERE.md — first run checklist 3. QUICKSTART.md — minimal command list 4. CONFIGURATION.md — , profiles, secrets 5. PROFILES.md — isolated profiles, SOUL/USER identity, access keys, multi-user setup, workspace jail",
+    "body": "1. INSTALLATION.md — PyPI install, Windows , extras, updates, Docker 2. START HERE.md — first run checklist 3. QUICKSTART.md — minimal command list 4. CONFIGURATION.md — , profiles, secrets 5. PROFILES.md — isolated profiles, SOUL/USER identity, access keys, multi-user setup, workspace jail 6. PROFILE ENCRYPTION.md — at-rest encryption: what is encrypted, OS policy (Linux/macOS/Windows), unlock key",
     "keywords": [
       "overview",
       "обзор",
@@ -59,7 +59,7 @@
     "section": "operations",
     "title": "Overview",
     "heading": "Operations",
-    "body": "- LOGS.md — , rotation, debug mode - DOCTOR.md — and - SECURITY.md — auth, tools, production checklist - TERMINAL SECURITY.md — terminal whitelist, blocked commands, confirmations - DEPLOYMENT.md — Docker, systemd, CI - TROUBLESHOOTING.md — common failures",
+    "body": "- LOGS.md — , rotation, debug mode - DOCTOR.md — and - SECURITY.md — auth, encryption, production checklist - PROFILE ENCRYPTION.md — full encryption guide by OS - TERMINAL SECURITY.md — terminal whitelist, blocked commands, confirmations - DEPLOYMENT.md — Docker, systemd, CI - TROUBLESHOOTING.md — common failures",
     "keywords": [
       "overview",
       "обзор",
@@ -672,13 +672,32 @@
     "nav_order": 4
   },
   {
+    "id": "en/configuration#profile-encryption-optional",
+    "lang": "en",
+    "slug": "configuration",
+    "section": "profile-encryption-optional",
+    "title": "Configuration",
+    "heading": "Profile encryption (optional)",
+    "body": "Holix encrypts profile secrets at rest : , , , , memory databases. Workspace files stay plaintext (git-friendly). Legacy encrypted workspace trees are migrated once with . Variable Purpose ---------- --------- User key for gateway/systemd to unlock encrypted profiles at startup Policy label ( , etc.) Delivered files (Telegram attachments) are materialized as plaintext before send when encryption is enabled. Full guide (OS policy, threat model, gateway unlock): PROFILE ENCRYPTION.md. See also SECURITY.md and .",
+    "keywords": [
+      "config",
+      "конфигурация",
+      "env",
+      "переменные",
+      "profile",
+      "encryption",
+      "optional"
+    ],
+    "nav_order": 4
+  },
+  {
     "id": "en/configuration#profile-layout",
     "lang": "en",
     "slug": "configuration",
     "section": "profile-layout",
     "title": "Configuration",
     "heading": "Profile layout",
-    "body": "Path Content ------ --------- Overrides only (unset keys inherit from ) Bot token, allowlist, Telegram user id → Holix profile bindings Running gateway PID and bind Overrides only (inherits ) Agent personality (injected every session) User facts and preferences First-run onboarding marker (removed after ) Memory, skills, security, cron",
+    "body": "Path Content ------ --------- Overrides only (unset keys inherit from ) Bot token, allowlist, Telegram user id → Holix profile bindings Running gateway PID and bind Overrides only (inherits ) Agent personality (injected every session) User facts and preferences First-run onboarding marker (removed after ) Memory, skills, security, cron Agent workspace (plaintext; not encrypted)",
     "keywords": [
       "config",
       "конфигурация",
@@ -746,6 +765,25 @@
       "bot",
       "multiple",
       "users"
+    ],
+    "nav_order": 4
+  },
+  {
+    "id": "en/configuration#telegramenv-loading",
+    "lang": "en",
+    "slug": "configuration",
+    "section": "telegramenv-loading",
+    "title": "Configuration",
+    "heading": "`telegram.env` loading",
+    "body": "Holix loads after profile bootstrap and unlock. Values from this file override empty shell/global entries (e.g. blank ). Encrypted files require in the environment or an active session.",
+    "keywords": [
+      "config",
+      "конфигурация",
+      "env",
+      "переменные",
+      "telegramenv",
+      "loading",
+      "telegram"
     ],
     "nav_order": 4
   },
@@ -911,7 +949,7 @@
     "section": "cli-reference",
     "title": "Profiles & Isolation",
     "heading": "CLI reference",
-    "body": "Command Description --------- ------------- Select profile (omit for ) Access key for a protected profile Create profile inheriting global settings (default) Standalone profile without global inheritance Create profile with access key Show shared global config Edit Edit (Re)create global config from defaults or Show whether active profile is protected Generate key for an existing open profile Replace access key Remove key and allow free switching Show profile Edit secrets and gateway bind Enable directory isolation Disable jail Show jail settings Add comma-separated terminal commands Show whitelist status and effective commands Enable terminal whitelist enforcement List profiles ( / ) and active one In TUI/chat/Telegram: to switch into a protected profile.",
+    "body": "Command Description --------- ------------- Select profile (omit for ) Access key for a protected profile Create profile inheriting global settings (default) Standalone profile without global inheritance Create profile with access key Show shared global config Edit Edit (Re)create global config from defaults or Show whether active profile is protected Generate key for an existing open profile Replace access key Remove key and allow free switching Show profile Edit secrets and gateway bind Enable directory isolation Disable jail Show jail settings Add comma-separated terminal commands Show whitelist status and effective commands Enable terminal whitelist enforcement Notify Telegram users, then delete profile ( , ) At-rest encryption for secrets (workspace stays plaintext) List profiles ( / ) and active one In TUI/chat/Telegram: to switch into a protected profile.",
     "keywords": [
       "profile",
       "профиль",
@@ -928,6 +966,32 @@
       "restricted",
       "cli",
       "reference"
+    ],
+    "nav_order": 5
+  },
+  {
+    "id": "en/profiles#deleting-a-profile",
+    "lang": "en",
+    "slug": "profiles",
+    "section": "deleting-a-profile",
+    "title": "Profiles & Isolation",
+    "heading": "Deleting a profile",
+    "body": "Remove a user profile from the server. Holix notifies mapped Telegram users before deleting data. Protected profiles cannot be deleted: , , . What happens: 1. Holix finds Telegram users bound to the profile ( , in ) 2. Sends a deletion notice in Telegram (unless ) 3. Removes Telegram bindings for that profile 4. Wipes runtime cache and deletes Via Management API (admin gateway key): Query skips Telegram. Response fields: , , , . See GATEWAY API.md.",
+    "keywords": [
+      "profile",
+      "профиль",
+      "профили",
+      "изоляция",
+      "jail",
+      "workspace",
+      "path",
+      "paths",
+      "путь",
+      "пути",
+      "relative",
+      "относительный",
+      "restricted",
+      "deleting"
     ],
     "nav_order": 5
   },
@@ -993,7 +1057,7 @@
     "section": "holixprofilesaliceenv",
     "title": "Profiles & Isolation",
     "heading": "~/.holix/profiles/alice/.env",
-    "body": "HOLIX PROFILE KEY=hp xxxxxxxx `` ~/.holix` or gateway API keys — see SECURITY.md. Telegram guide (one bot vs multiple bots): TELEGRAM MULTI PROFILE.md.",
+    "body": "HOLIX PROFILE KEY=hp xxxxxxxx `` ~/.holix` or gateway API keys — see SECURITY.md. Telegram guide (one bot vs multiple bots): TELEGRAM MULTI PROFILE.md. Optional at-rest encryption for secrets and memory (workspace stays plaintext): PROFILE ENCRYPTION.md.",
     "keywords": [
       "profile",
       "профиль",
@@ -1436,6 +1500,211 @@
     "nav_order": 5
   },
   {
+    "id": "en/profile-encryption#daily-operations",
+    "lang": "en",
+    "slug": "profile-encryption",
+    "section": "daily-operations",
+    "title": "Profile Encryption",
+    "heading": "Daily operations",
+    "body": "Task Command ------ --------- Unlock for CLI editing Edit encrypted (temp plaintext file) Check status Re-seal after maintenance Lock CLI session Clear stale cache",
+    "keywords": [
+      "daily",
+      "operations"
+    ],
+    "nav_order": 6
+  },
+  {
+    "id": "en/profile-encryption#entire-holix_home-servers",
+    "lang": "en",
+    "slug": "profile-encryption",
+    "section": "entire-holix_home-servers",
+    "title": "Profile Encryption",
+    "heading": "Entire HOLIX_HOME (servers)",
+    "body": "holix profile crypto decrypt-workspace --all --yes `` deploy/scripts/holix-decrypt-workspaces.sh HOLIX UNLOCK KEY global/.env`).",
+    "keywords": [
+      "entire",
+      "holix_home",
+      "servers"
+    ],
+    "nav_order": 6
+  },
+  {
+    "id": "en/profile-encryption#keys-and-unlock-flow",
+    "lang": "en",
+    "slug": "profile-encryption",
+    "section": "keys-and-unlock-flow",
+    "title": "Profile Encryption",
+    "heading": "Keys and unlock flow",
+    "body": "Term Env / file Role ------ ------------ ------ Unlock key (UEK) or prompted User secret; never stored on disk DEK Wrapped in Per-profile data encryption key (random 256-bit) KEK Derived in memory via Argon2id Unwraps DEK from when unlock key is supplied CLI session: loads the DEK into an in-process session cache. Gateway / systemd: set in or so unlocks before reading and memory. After gateway stop, (systemd ) can re-seal memory with the same key.",
+    "keywords": [
+      "keys",
+      "and",
+      "unlock",
+      "flow"
+    ],
+    "nav_order": 6
+  },
+  {
+    "id": "en/profile-encryption#policy-by-operating-system-holix_encryption_mode",
+    "lang": "en",
+    "slug": "profile-encryption",
+    "section": "policy-by-operating-system-holix_encryption_mode",
+    "title": "Profile Encryption",
+    "heading": "Policy by operating system (`HOLIX_ENCRYPTION_MODE`)",
+    "body": "Holix applies encryption only when the global policy allows runtime crypto and the profile has . Mode Value Linux server macOS dev Windows dev ------ ------- -------------- ----------- ------------- Linux production (default) Active when exists Inactive — files stay readable plaintext unless you enable crypto metadata Inactive Always on Active Active Active Disabled Inactive Inactive Inactive ```bash",
+    "keywords": [
+      "policy",
+      "operating",
+      "system",
+      "holix_encryption_mode"
+    ],
+    "nav_order": 6
+  },
+  {
+    "id": "en/profile-encryption#practical-guidance-per-os",
+    "lang": "en",
+    "slug": "profile-encryption",
+    "section": "practical-guidance-per-os",
+    "title": "Profile Encryption",
+    "heading": "Practical guidance per OS",
+    "body": "Linux (VPS, systemd, Docker production) — recommended setup: 1. Set and (or omit — it is the default). 2. Run or on the server. 3. Store in (restricted permissions ). 4. Restart gateway after enabling encryption. macOS / Windows (local development) — encryption is off at runtime with the default policy, even if exists. This keeps local debugging simple. To test encrypted profiles locally, set before . Enabling crypto on non-Linux with default policy — fails with: Check effective policy: Example output: or .",
+    "keywords": [
+      "practical",
+      "guidance",
+      "per"
+    ],
+    "nav_order": 6
+  },
+  {
+    "id": "en/profile-encryption#profile-encryption-at-rest",
+    "lang": "en",
+    "slug": "profile-encryption",
+    "section": "profile-encryption-at-rest",
+    "title": "Profile Encryption",
+    "heading": "Profile encryption at rest",
+    "body": "Holix can encrypt profile secrets and memory on disk so backups, stolen disks, and host administrators cannot read API keys, Telegram tokens, agent soul, or conversation history without the user's unlock key . Workspace files stay plaintext — project code and documents under remain git-friendly and are not encrypted going forward. Legacy encrypted workspace files from older builds are migrated once with . Related: SECURITY.md · CONFIGURATION.md · CLI.md · DEPLOYMENT.md",
+    "keywords": [
+      "profile",
+      "encryption",
+      "rest"
+    ],
+    "nav_order": 6
+  },
+  {
+    "id": "en/profile-encryption#prompts-twice-for-unlock-key-store-it-safely-shown-only-at-setup",
+    "lang": "en",
+    "slug": "profile-encryption",
+    "section": "prompts-twice-for-unlock-key-store-it-safely-shown-only-at-setup",
+    "title": "Profile Encryption",
+    "heading": "prompts twice for unlock key (store it safely — shown only at setup)",
+    "body": "holix -p alice profile crypto status `` crypto.json`, encrypts existing secrets and memory, and decrypts any legacy encrypted workspace files to plaintext.",
+    "keywords": [
+      "prompts",
+      "twice",
+      "for",
+      "unlock",
+      "key",
+      "store",
+      "safely",
+      "shown",
+      "only",
+      "setup"
+    ],
+    "nav_order": 6
+  },
+  {
+    "id": "en/profile-encryption#related",
+    "lang": "en",
+    "slug": "profile-encryption",
+    "section": "related",
+    "title": "Profile Encryption",
+    "heading": "Related",
+    "body": "- PROFILES.md — isolation, delete with Telegram notify - DEPLOYMENT.md — systemd, , - SECURITY.md — production checklist - TROUBLESHOOTING.md — Telegram bot skipped, encrypted env",
+    "keywords": [
+      "related"
+    ],
+    "nav_order": 6
+  },
+  {
+    "id": "en/profile-encryption#telegram-and-empty-global-token",
+    "lang": "en",
+    "slug": "profile-encryption",
+    "section": "telegram-and-empty-global-token",
+    "title": "Profile Encryption",
+    "heading": "Telegram and empty global token",
+    "body": "When is encrypted, gateway must unlock before loading the bot token. Common pitfall: (empty) in blocks the real token from . Remove the empty line or omit the variable entirely. Holix now overwrites blank shell/global values when loading . See TELEGRAM.md and TROUBLESHOOTING.md.",
+    "keywords": [
+      "telegram",
+      "and",
+      "empty",
+      "global",
+      "token"
+    ],
+    "nav_order": 6
+  },
+  {
+    "id": "en/profile-encryption#threat-model-summary",
+    "lang": "en",
+    "slug": "profile-encryption",
+    "section": "threat-model-summary",
+    "title": "Profile Encryption",
+    "heading": "Threat model (summary)",
+    "body": "Threat Without encryption With encryption + unlock key only on client -------- ------------------- --------------------------------------------- on server Plaintext secrets ciphertext Stolen disk backup Full profile data Ciphertext without unlock key Holix admin / root before unlock Reads files Reads ciphertext + metadata only Lost unlock key — Permanent data loss (by design) Profile access keys ( ) control who may switch into a profile — they do not decrypt files. Gateway API keys ( ) authenticate HTTP — they do not replace .",
+    "keywords": [
+      "threat",
+      "model",
+      "summary"
+    ],
+    "nav_order": 6
+  },
+  {
+    "id": "en/profile-encryption#what-encryption-does-not-protect",
+    "lang": "en",
+    "slug": "profile-encryption",
+    "section": "what-encryption-does-not-protect",
+    "title": "Profile Encryption",
+    "heading": "What encryption does *not* protect",
+    "body": "While a profile is unlocked and the agent is running, a privileged process on the host could read process memory or intercept LLM traffic. Encryption targets at-rest data and offline backups , not live memory forensics or provider-side prompts. Losing the unlock key means data is unrecoverable — there is no server-side recovery of the DEK without the user key.",
+    "keywords": [
+      "what",
+      "encryption",
+      "does",
+      "not",
+      "protect"
+    ],
+    "nav_order": 6
+  },
+  {
+    "id": "en/profile-encryption#what-is-encrypted",
+    "lang": "en",
+    "slug": "profile-encryption",
+    "section": "what-is-encrypted",
+    "title": "Profile Encryption",
+    "heading": "What is encrypted",
+    "body": "Encrypted at rest Plaintext (by design) ------------------- ------------------------ — API keys, ports — models, MCP (non-secret settings) — bot token, allowlist — agent project files , , — PID, logs SQLite memory: , , — user id → profile bindings Chroma vector store (sealed as ) Most files under , Format: files use the header (AES-256-GCM). Metadata lives in (Argon2id-wrapped DEK). Telegram attachments: when encryption is enabled, files under or are sent to users as decrypted plaintext ( ) — recipients never receive ciphertext.",
+    "keywords": [
+      "what",
+      "encrypted"
+    ],
+    "nav_order": 6
+  },
+  {
+    "id": "en/profile-encryption#workspace-migration-legacy-installs",
+    "lang": "en",
+    "slug": "profile-encryption",
+    "section": "workspace-migration-legacy-installs",
+    "title": "Profile Encryption",
+    "heading": "Workspace migration (legacy installs)",
+    "body": "Older Holix builds could encrypt files inside . Current policy keeps workspace plaintext. ```bash",
+    "keywords": [
+      "workspace",
+      "migration",
+      "legacy",
+      "installs"
+    ],
+    "nav_order": 6
+  },
+  {
     "id": "en/cli#curl-requires-an-existing-admin-hx_-key",
     "lang": "en",
     "slug": "cli",
@@ -1455,7 +1724,7 @@
       "hx_",
       "key"
     ],
-    "nav_order": 6
+    "nav_order": 7
   },
   {
     "id": "en/cli#gateway-api-keys",
@@ -1474,7 +1743,7 @@
       "api",
       "keys"
     ],
-    "nav_order": 6
+    "nav_order": 7
   },
   {
     "id": "en/cli#global-options",
@@ -1492,7 +1761,7 @@
       "global",
       "options"
     ],
-    "nav_order": 6
+    "nav_order": 7
   },
   {
     "id": "en/cli#holix-bootstrap",
@@ -1510,7 +1779,7 @@
       "holix",
       "bootstrap"
     ],
-    "nav_order": 6
+    "nav_order": 7
   },
   {
     "id": "en/cli#holix-chat-command",
@@ -1528,7 +1797,7 @@
       "holix",
       "chat"
     ],
-    "nav_order": 6
+    "nav_order": 7
   },
   {
     "id": "en/cli#holix-clear",
@@ -1546,7 +1815,7 @@
       "holix",
       "clear"
     ],
-    "nav_order": 6
+    "nav_order": 7
   },
   {
     "id": "en/cli#holix-config",
@@ -1564,7 +1833,7 @@
       "holix",
       "config"
     ],
-    "nav_order": 6
+    "nav_order": 7
   },
   {
     "id": "en/cli#holix-cron",
@@ -1582,7 +1851,7 @@
       "holix",
       "cron"
     ],
-    "nav_order": 6
+    "nav_order": 7
   },
   {
     "id": "en/cli#holix-docs",
@@ -1600,7 +1869,7 @@
       "holix",
       "docs"
     ],
-    "nav_order": 6
+    "nav_order": 7
   },
   {
     "id": "en/cli#holix-doctor",
@@ -1618,7 +1887,7 @@
       "holix",
       "doctor"
     ],
-    "nav_order": 6
+    "nav_order": 7
   },
   {
     "id": "en/cli#holix-gateway",
@@ -1636,7 +1905,7 @@
       "holix",
       "gateway"
     ],
-    "nav_order": 6
+    "nav_order": 7
   },
   {
     "id": "en/cli#holix-hub",
@@ -1654,7 +1923,7 @@
       "holix",
       "hub"
     ],
-    "nav_order": 6
+    "nav_order": 7
   },
   {
     "id": "en/cli#holix-install",
@@ -1672,7 +1941,7 @@
       "holix",
       "install"
     ],
-    "nav_order": 6
+    "nav_order": 7
   },
   {
     "id": "en/cli#holix-logs",
@@ -1690,7 +1959,7 @@
       "holix",
       "logs"
     ],
-    "nav_order": 6
+    "nav_order": 7
   },
   {
     "id": "en/cli#holix-mcp-mcp",
@@ -1708,7 +1977,7 @@
       "holix",
       "mcp"
     ],
-    "nav_order": 6
+    "nav_order": 7
   },
   {
     "id": "en/cli#holix-memory",
@@ -1726,7 +1995,7 @@
       "holix",
       "memory"
     ],
-    "nav_order": 6
+    "nav_order": 7
   },
   {
     "id": "en/cli#holix-models",
@@ -1744,7 +2013,7 @@
       "holix",
       "models"
     ],
-    "nav_order": 6
+    "nav_order": 7
   },
   {
     "id": "en/cli#holix-profile",
@@ -1753,7 +2022,7 @@
     "section": "holix-profile",
     "title": "CLI Reference",
     "heading": "`holix profile`",
-    "body": "Per-profile isolation plus shared global settings inherited by default. Subcommand Description ------------ ------------- New profile ( default, for standalone) Create with access key + workspace jail Show Edit global YAML (models, MCP, behavior) Edit (Re)create global config ( ) Show profile path and contents Open profile overrides in Restrict file/terminal tools to one directory Turn off workspace jail Show jail settings Add comma-separated terminal commands Show whitelist status and effective commands Enable terminal whitelist enforcement See CONFIGURATION.md and PROFILES.md. ---",
+    "body": "Per-profile isolation plus shared global settings inherited by default. Subcommand Description ------------ ------------- New profile ( default, for standalone) Create with access key + workspace jail Show Edit global YAML (models, MCP, behavior) Edit (Re)create global config ( ) Show profile path and contents Open profile overrides in Restrict file/terminal tools to one directory Turn off workspace jail Show jail settings Add comma-separated terminal commands Show whitelist status and effective commands Enable terminal whitelist enforcement Delete profile after notifying mapped Telegram users Encrypt profile secrets at rest (see below) options: / (skip confirmation), (no Telegram message). Protected profiles: , , .",
     "keywords": [
       "command",
       "команды",
@@ -1762,7 +2031,26 @@
       "holix",
       "profile"
     ],
-    "nav_order": 6
+    "nav_order": 7
+  },
+  {
+    "id": "en/cli#holix-profile-crypto",
+    "lang": "en",
+    "slug": "cli",
+    "section": "holix-profile-crypto",
+    "title": "CLI Reference",
+    "heading": "`holix profile crypto`",
+    "body": "Encrypts profile secrets ( , , , memory DBs). Workspace stays plaintext for git-friendly project files. Subcommand Description ------------ ------------- Enable encryption for active profile Bulk-enable on unencrypted profiles Show encryption policy and unlock state Unlock encrypted data for this CLI process Clear in-process unlock / Re-encrypt plaintext secrets after unlock One-time migration: legacy encrypted workspace → plaintext Migrate all profiles Clear stale runtime decryption cache Gateway/systemd: set in profile or so the worker can read encrypted and memory on startup. See CONFIGURATION.md and PROFILES.md. ---",
+    "keywords": [
+      "command",
+      "команды",
+      "typer",
+      "terminal",
+      "holix",
+      "profile",
+      "crypto"
+    ],
+    "nav_order": 7
   },
   {
     "id": "en/cli#holix-run",
@@ -1780,7 +2068,7 @@
       "holix",
       "run"
     ],
-    "nav_order": 6
+    "nav_order": 7
   },
   {
     "id": "en/cli#holix-skills",
@@ -1798,7 +2086,7 @@
       "holix",
       "skills"
     ],
-    "nav_order": 6
+    "nav_order": 7
   },
   {
     "id": "en/cli#holix-status",
@@ -1816,7 +2104,7 @@
       "holix",
       "status"
     ],
-    "nav_order": 6
+    "nav_order": 7
   },
   {
     "id": "en/cli#holix-telegram",
@@ -1825,7 +2113,7 @@
     "section": "holix-telegram",
     "title": "CLI Reference",
     "heading": "`holix telegram`",
-    "body": "Requires . Bot token is stored per profile in . Subcommand Description ------------ ------------- Wizard: bot token only; enables access-request mode Start polling ( selects bot host profile) Saved config (token masked) and bindings Push slash menu to authorized users only (hidden until approve) Show the single Telegram admin (CLI-assigned) Clear admin before reassigning ( on approve) Pending access requests Approve user ( , , , or ) Reject a pending request Manual bind Telegram user id → Holix profile List bindings Remove a binding Quick bind ( or id from allowlist) Import multiple bindings Shared bot with isolated profiles: TELEGRAM MULTI PROFILE.md. See also TELEGRAM.md. ---",
+    "body": "Requires — from source: ; with : . Bot token is stored per profile in (often encrypted). Do not leave an empty in — omit the key or Holix loads the token from . Subcommand Description ------------ ------------- Wizard: bot token only; enables access-request mode Start polling ( selects bot host profile) Saved config (token masked) and bindings Push slash menu to authorized users only (hidden until approve) Show the single Telegram admin (CLI-assigned) Clear admin before reassigning ( on approve) Pending access requests Approve user ( , , , or ) Reject a pending request Manual bind Telegram user id → Holix profile List bindings Remove a binding Quick bind ( or id from allowlist) Import multiple bindings Shared bot with isolated profiles: TELEGRAM MULTI PROFILE.md. See also TELEGRAM.md. ---",
     "keywords": [
       "command",
       "команды",
@@ -1834,7 +2122,7 @@
       "holix",
       "telegram"
     ],
-    "nav_order": 6
+    "nav_order": 7
   },
   {
     "id": "en/cli#holix-tui",
@@ -1852,7 +2140,7 @@
       "holix",
       "tui"
     ],
-    "nav_order": 6
+    "nav_order": 7
   },
   {
     "id": "en/cli#holix-update",
@@ -1870,7 +2158,7 @@
       "holix",
       "update"
     ],
-    "nav_order": 6
+    "nav_order": 7
   },
   {
     "id": "en/cli#or-swagger-ui-after-holix-gateway-start",
@@ -1891,7 +2179,7 @@
       "gateway",
       "start"
     ],
-    "nav_order": 6
+    "nav_order": 7
   },
   {
     "id": "en/cli#other-profile-holix--p-alice-gateway-start",
@@ -1913,7 +2201,7 @@
       "gateway",
       "start"
     ],
-    "nav_order": 6
+    "nav_order": 7
   },
   {
     "id": "en/cli#profiles",
@@ -1930,7 +2218,7 @@
       "terminal",
       "profiles"
     ],
-    "nav_order": 6
+    "nav_order": 7
   },
   {
     "id": "en/cli#recommended-workflows",
@@ -1948,7 +2236,7 @@
       "recommended",
       "workflows"
     ],
-    "nav_order": 6
+    "nav_order": 7
   },
   {
     "id": "en/cli#see-also",
@@ -1966,7 +2254,7 @@
       "see",
       "also"
     ],
-    "nav_order": 6
+    "nav_order": 7
   },
   {
     "id": "en/cli#top-level-commands",
@@ -1985,7 +2273,7 @@
       "level",
       "commands"
     ],
-    "nav_order": 6
+    "nav_order": 7
   },
   {
     "id": "en/slash-commands#copy-and-transcript-tui",
@@ -2005,7 +2293,7 @@
       "transcript",
       "tui"
     ],
-    "nav_order": 7
+    "nav_order": 8
   },
   {
     "id": "en/slash-commands#dynamic-skill-slash-commands",
@@ -2024,7 +2312,7 @@
       "skill",
       "commands"
     ],
-    "nav_order": 7
+    "nav_order": 8
   },
   {
     "id": "en/slash-commands#help-and-status",
@@ -2043,7 +2331,7 @@
       "and",
       "status"
     ],
-    "nav_order": 7
+    "nav_order": 8
   },
   {
     "id": "en/slash-commands#holix-chat-command-only",
@@ -2063,7 +2351,7 @@
       "command",
       "only"
     ],
-    "nav_order": 7
+    "nav_order": 8
   },
   {
     "id": "en/slash-commands#keyboard-note-macos-ru-layout",
@@ -2083,7 +2371,7 @@
       "macos",
       "layout"
     ],
-    "nav_order": 7
+    "nav_order": 8
   },
   {
     "id": "en/slash-commands#mcp-in-session",
@@ -2100,7 +2388,7 @@
       "session",
       "mcp"
     ],
-    "nav_order": 7
+    "nav_order": 8
   },
   {
     "id": "en/slash-commands#memory-and-tools",
@@ -2119,7 +2407,7 @@
       "and",
       "tools"
     ],
-    "nav_order": 7
+    "nav_order": 8
   },
   {
     "id": "en/slash-commands#models-and-execution",
@@ -2138,7 +2426,7 @@
       "and",
       "execution"
     ],
-    "nav_order": 7
+    "nav_order": 8
   },
   {
     "id": "en/slash-commands#plan-review",
@@ -2156,7 +2444,7 @@
       "plan",
       "review"
     ],
-    "nav_order": 7
+    "nav_order": 8
   },
   {
     "id": "en/slash-commands#safety-confirmations",
@@ -2174,7 +2462,7 @@
       "safety",
       "confirmations"
     ],
-    "nav_order": 7
+    "nav_order": 8
   },
   {
     "id": "en/slash-commands#sessions-tui-telegram",
@@ -2193,7 +2481,7 @@
       "tui",
       "telegram"
     ],
-    "nav_order": 7
+    "nav_order": 8
   },
   {
     "id": "en/slash-commands#skill-hub-in-session",
@@ -2211,7 +2499,7 @@
       "skill",
       "hub"
     ],
-    "nav_order": 7
+    "nav_order": 8
   },
   {
     "id": "en/slash-commands#slash-commands",
@@ -2228,7 +2516,7 @@
       "session",
       "commands"
     ],
-    "nav_order": 7
+    "nav_order": 8
   },
   {
     "id": "en/slash-commands#where-each-interface-supports-what",
@@ -2249,7 +2537,7 @@
       "supports",
       "what"
     ],
-    "nav_order": 7
+    "nav_order": 8
   },
   {
     "id": "en/execution-modes#auto-auto",
@@ -2262,7 +2550,7 @@
     "keywords": [
       "auto"
     ],
-    "nav_order": 8
+    "nav_order": 9
   },
   {
     "id": "en/execution-modes#choosing-a-mode-cheat-sheet",
@@ -2278,7 +2566,7 @@
       "cheat",
       "sheet"
     ],
-    "nav_order": 8
+    "nav_order": 9
   },
   {
     "id": "en/execution-modes#configuration",
@@ -2291,7 +2579,7 @@
     "keywords": [
       "configuration"
     ],
-    "nav_order": 8
+    "nav_order": 9
   },
   {
     "id": "en/execution-modes#execution-modes",
@@ -2305,7 +2593,7 @@
       "execution",
       "modes"
     ],
-    "nav_order": 8
+    "nav_order": 9
   },
   {
     "id": "en/execution-modes#how-it-behaves",
@@ -2319,7 +2607,7 @@
       "how",
       "behaves"
     ],
-    "nav_order": 8
+    "nav_order": 9
   },
   {
     "id": "en/execution-modes#how-it-behaves",
@@ -2333,7 +2621,7 @@
       "how",
       "behaves"
     ],
-    "nav_order": 8
+    "nav_order": 9
   },
   {
     "id": "en/execution-modes#how-it-behaves",
@@ -2347,7 +2635,7 @@
       "how",
       "behaves"
     ],
-    "nav_order": 8
+    "nav_order": 9
   },
   {
     "id": "en/execution-modes#how-it-behaves",
@@ -2361,7 +2649,7 @@
       "how",
       "behaves"
     ],
-    "nav_order": 8
+    "nav_order": 9
   },
   {
     "id": "en/execution-modes#how-modes-differ-at-a-glance",
@@ -2377,7 +2665,7 @@
       "differ",
       "glance"
     ],
-    "nav_order": 8
+    "nav_order": 9
   },
   {
     "id": "en/execution-modes#hybrid-hybrid",
@@ -2390,7 +2678,7 @@
     "keywords": [
       "hybrid"
     ],
-    "nav_order": 8
+    "nav_order": 9
   },
   {
     "id": "en/execution-modes#plan-approval-plan-hybrid",
@@ -2405,7 +2693,7 @@
       "approval",
       "hybrid"
     ],
-    "nav_order": 8
+    "nav_order": 9
   },
   {
     "id": "en/execution-modes#plan-execute-plan_and_execute",
@@ -2420,7 +2708,7 @@
       "execute",
       "plan_and_execute"
     ],
-    "nav_order": 8
+    "nav_order": 9
   },
   {
     "id": "en/execution-modes#prompt-examples",
@@ -2434,7 +2722,7 @@
       "prompt",
       "examples"
     ],
-    "nav_order": 8
+    "nav_order": 9
   },
   {
     "id": "en/execution-modes#prompt-examples",
@@ -2448,7 +2736,7 @@
       "prompt",
       "examples"
     ],
-    "nav_order": 8
+    "nav_order": 9
   },
   {
     "id": "en/execution-modes#prompt-examples",
@@ -2462,7 +2750,7 @@
       "prompt",
       "examples"
     ],
-    "nav_order": 8
+    "nav_order": 9
   },
   {
     "id": "en/execution-modes#react-react",
@@ -2475,7 +2763,7 @@
     "keywords": [
       "react"
     ],
-    "nav_order": 8
+    "nav_order": 9
   },
   {
     "id": "en/execution-modes#related-docs",
@@ -2489,7 +2777,7 @@
       "related",
       "docs"
     ],
-    "nav_order": 8
+    "nav_order": 9
   },
   {
     "id": "en/execution-modes#risky-tool-confirmation-all-modes",
@@ -2506,7 +2794,7 @@
       "all",
       "modes"
     ],
-    "nav_order": 8
+    "nav_order": 9
   },
   {
     "id": "en/execution-modes#when-to-use",
@@ -2520,7 +2808,7 @@
       "when",
       "use"
     ],
-    "nav_order": 8
+    "nav_order": 9
   },
   {
     "id": "en/execution-modes#when-to-use",
@@ -2534,7 +2822,7 @@
       "when",
       "use"
     ],
-    "nav_order": 8
+    "nav_order": 9
   },
   {
     "id": "en/execution-modes#when-to-use",
@@ -2548,7 +2836,7 @@
       "when",
       "use"
     ],
-    "nav_order": 8
+    "nav_order": 9
   },
   {
     "id": "en/execution-modes#when-to-use",
@@ -2562,7 +2850,7 @@
       "when",
       "use"
     ],
-    "nav_order": 8
+    "nav_order": 9
   },
   {
     "id": "en/tui#copy",
@@ -2579,7 +2867,7 @@
       "web mode",
       "copy"
     ],
-    "nav_order": 9
+    "nav_order": 10
   },
   {
     "id": "en/tui#lan-full-agent-access-use-a-strong-token",
@@ -2602,7 +2890,7 @@
       "strong",
       "token"
     ],
-    "nav_order": 9
+    "nav_order": 10
   },
   {
     "id": "en/tui#skill-hub",
@@ -2620,7 +2908,7 @@
       "skill",
       "hub"
     ],
-    "nav_order": 9
+    "nav_order": 10
   },
   {
     "id": "en/hub#install-specs",
@@ -2639,7 +2927,7 @@
       "install",
       "specs"
     ],
-    "nav_order": 10
+    "nav_order": 11
   },
   {
     "id": "en/hub#mcp-env-in-plugins",
@@ -2658,7 +2946,7 @@
       "env",
       "plugins"
     ],
-    "nav_order": 10
+    "nav_order": 11
   },
   {
     "id": "en/hub#per-agent-skills",
@@ -2677,7 +2965,7 @@
       "per",
       "agent"
     ],
-    "nav_order": 10
+    "nav_order": 11
   },
   {
     "id": "en/hub#skill-hub",
@@ -2696,7 +2984,7 @@
       "skill",
       "hub"
     ],
-    "nav_order": 10
+    "nav_order": 11
   },
   {
     "id": "en/hub#tui",
@@ -2714,7 +3002,7 @@
       "mcp",
       "tui"
     ],
-    "nav_order": 10
+    "nav_order": 11
   },
   {
     "id": "en/gateway#api-gateway",
@@ -2734,7 +3022,7 @@
       "путь",
       "restricted"
     ],
-    "nav_order": 11
+    "nav_order": 12
   },
   {
     "id": "en/gateway#commands",
@@ -2755,7 +3043,7 @@
       "restricted",
       "commands"
     ],
-    "nav_order": 11
+    "nav_order": 12
   },
   {
     "id": "en/gateway#documentation-site---with-docs",
@@ -2779,7 +3067,7 @@
       "with",
       "docs"
     ],
-    "nav_order": 11
+    "nav_order": 12
   },
   {
     "id": "en/gateway#environment",
@@ -2800,7 +3088,7 @@
       "restricted",
       "environment"
     ],
-    "nav_order": 11
+    "nav_order": 12
   },
   {
     "id": "en/gateway#gateway-api-keys",
@@ -2821,7 +3109,7 @@
       "restricted",
       "keys"
     ],
-    "nav_order": 11
+    "nav_order": 12
   },
   {
     "id": "en/gateway#interactive-api-docs",
@@ -2843,7 +3131,7 @@
       "interactive",
       "docs"
     ],
-    "nav_order": 11
+    "nav_order": 12
   },
   {
     "id": "en/gateway#metrics",
@@ -2864,7 +3152,7 @@
       "restricted",
       "metrics"
     ],
-    "nav_order": 11
+    "nav_order": 12
   },
   {
     "id": "en/gateway#multi-profile-gateway-v02",
@@ -2887,7 +3175,7 @@
       "profile",
       "v02"
     ],
-    "nav_order": 11
+    "nav_order": 12
   },
   {
     "id": "en/gateway#or-holix_gateway_with_docs1-holix-gateway-start",
@@ -2911,7 +3199,7 @@
       "start",
       "holix_gateway_with_docs"
     ],
-    "nav_order": 11
+    "nav_order": 12
   },
   {
     "id": "en/gateway#profilesbobenv",
@@ -2935,7 +3223,7 @@
       "bob",
       "env"
     ],
-    "nav_order": 11
+    "nav_order": 12
   },
   {
     "id": "en/gateway#quick-endpoint-map",
@@ -2958,7 +3246,7 @@
       "endpoint",
       "map"
     ],
-    "nav_order": 11
+    "nav_order": 12
   },
   {
     "id": "en/gateway#swagger-authorize",
@@ -2980,7 +3268,7 @@
       "swagger",
       "authorize"
     ],
-    "nav_order": 11
+    "nav_order": 12
   },
   {
     "id": "en/gateway#then-set-holix_require_authtrue-and-restart",
@@ -3007,7 +3295,7 @@
       "holix_require_auth",
       "true"
     ],
-    "nav_order": 11
+    "nav_order": 12
   },
   {
     "id": "en/gateway-api#1-create-tenant-profile-admin",
@@ -3029,7 +3317,7 @@
       "tenant",
       "profile"
     ],
-    "nav_order": 12
+    "nav_order": 13
   },
   {
     "id": "en/gateway-api#2-add-llm-provider",
@@ -3051,7 +3339,7 @@
       "llm",
       "provider"
     ],
-    "nav_order": 12
+    "nav_order": 13
   },
   {
     "id": "en/gateway-api#3-reload-tenant-agent-companions",
@@ -3074,7 +3362,7 @@
       "agent",
       "companions"
     ],
-    "nav_order": 12
+    "nav_order": 13
   },
   {
     "id": "en/gateway-api#4-chat-as-tenant-openai-client-model-profile-name",
@@ -3099,7 +3387,7 @@
       "profile",
       "name"
     ],
-    "nav_order": 12
+    "nav_order": 13
   },
   {
     "id": "en/gateway-api#base-url-and-interactive-docs",
@@ -3123,7 +3411,7 @@
       "interactive",
       "docs"
     ],
-    "nav_order": 12
+    "nav_order": 13
   },
   {
     "id": "en/gateway-api#delete-adminapi-keyskey_id",
@@ -3147,7 +3435,31 @@
       "keys",
       "key_id"
     ],
-    "nav_order": 12
+    "nav_order": 13
+  },
+  {
+    "id": "en/gateway-api#delete-apiholixprofilesprofile_id",
+    "lang": "en",
+    "slug": "gateway-api",
+    "section": "delete-apiholixprofilesprofile_id",
+    "title": "Complete API Reference",
+    "heading": "`DELETE /api/holix/profiles/{profile_id}`",
+    "body": "Auth: Admin. Delete profile directory after optional Telegram notification. Query Default Description ------- --------- ------------- Send deletion notice to Telegram users mapped to this profile Protected profiles ( , , ) return . Unloads the agent from the registry, stops cron/Telegram companions for the profile, notifies mapped users, removes bindings, then deletes . Response:",
+    "keywords": [
+      "api",
+      "gateway",
+      "chat",
+      "completions",
+      "sessions",
+      "path",
+      "admin",
+      "delete",
+      "apiholixprofilesprofile_id",
+      "holix",
+      "profiles",
+      "profile_id"
+    ],
+    "nav_order": 13
   },
   {
     "id": "en/gateway-api#docs-site-chat-api",
@@ -3168,7 +3480,7 @@
       "docs",
       "site"
     ],
-    "nav_order": 12
+    "nav_order": 13
   },
   {
     "id": "en/gateway-api#errors",
@@ -3188,7 +3500,7 @@
       "admin",
       "errors"
     ],
-    "nav_order": 12
+    "nav_order": 13
   },
   {
     "id": "en/gateway-api#get-healthdetailed",
@@ -3211,7 +3523,7 @@
       "health",
       "detailed"
     ],
-    "nav_order": 12
+    "nav_order": 13
   },
   {
     "id": "en/gateway-api#get-metrics",
@@ -3232,7 +3544,7 @@
       "get",
       "metrics"
     ],
-    "nav_order": 12
+    "nav_order": 13
   },
   {
     "id": "en/gateway-api#hermes-api-v1",
@@ -3252,7 +3564,7 @@
       "admin",
       "hermes"
     ],
-    "nav_order": 12
+    "nav_order": 13
   },
   {
     "id": "en/gateway-api#hermes-compatibility-matrix",
@@ -3274,7 +3586,7 @@
       "compatibility",
       "matrix"
     ],
-    "nav_order": 12
+    "nav_order": 13
   },
   {
     "id": "en/gateway-api#holix-gateway-api-complete-reference",
@@ -3296,7 +3608,7 @@
       "complete",
       "reference"
     ],
-    "nav_order": 12
+    "nav_order": 13
   },
   {
     "id": "en/gateway-api#layer-1-gateway-api-key-hx_",
@@ -3318,7 +3630,7 @@
       "key",
       "hx_"
     ],
-    "nav_order": 12
+    "nav_order": 13
   },
   {
     "id": "en/gateway-api#layer-2-profile-access-key-hp_",
@@ -3342,7 +3654,7 @@
       "key",
       "hp_"
     ],
-    "nav_order": 12
+    "nav_order": 13
   },
   {
     "id": "en/gateway-api#layer-3-docs-chat-token-website-widget-only",
@@ -3367,7 +3679,7 @@
       "widget",
       "only"
     ],
-    "nav_order": 12
+    "nav_order": 13
   },
   {
     "id": "en/gateway-api#masked-secrets",
@@ -3388,7 +3700,7 @@
       "masked",
       "secrets"
     ],
-    "nav_order": 12
+    "nav_order": 13
   },
   {
     "id": "en/gateway-api#multi-profile-architecture",
@@ -3410,7 +3722,7 @@
       "profile",
       "architecture"
     ],
-    "nav_order": 12
+    "nav_order": 13
   },
   {
     "id": "en/gateway-api#path-visibility-in-agent-responses",
@@ -3432,7 +3744,7 @@
       "agent",
       "responses"
     ],
-    "nav_order": 12
+    "nav_order": 13
   },
   {
     "id": "en/gateway-api#post-adminapi-keys",
@@ -3454,7 +3766,7 @@
       "adminapi",
       "keys"
     ],
-    "nav_order": 12
+    "nav_order": 13
   },
   {
     "id": "en/gateway-api#post-apiholixprofiles",
@@ -3477,7 +3789,7 @@
       "holix",
       "profiles"
     ],
-    "nav_order": 12
+    "nav_order": 13
   },
   {
     "id": "en/gateway-api#post-apijobs",
@@ -3499,7 +3811,7 @@
       "apijobs",
       "jobs"
     ],
-    "nav_order": 12
+    "nav_order": 13
   },
   {
     "id": "en/gateway-api#post-v1chatcompletions",
@@ -3520,7 +3832,7 @@
       "post",
       "v1chatcompletions"
     ],
-    "nav_order": 12
+    "nav_order": 13
   },
   {
     "id": "en/gateway-api#post-v1docschat",
@@ -3542,7 +3854,7 @@
       "v1docschat",
       "docs"
     ],
-    "nav_order": 12
+    "nav_order": 13
   },
   {
     "id": "en/gateway-api#post-v1responses",
@@ -3564,7 +3876,7 @@
       "v1responses",
       "responses"
     ],
-    "nav_order": 12
+    "nav_order": 13
   },
   {
     "id": "en/gateway-api#profile-routing",
@@ -3585,7 +3897,7 @@
       "profile",
       "routing"
     ],
-    "nav_order": 12
+    "nav_order": 13
   },
   {
     "id": "en/gateway-api#reload_required",
@@ -3605,7 +3917,7 @@
       "admin",
       "reload_required"
     ],
-    "nav_order": 12
+    "nav_order": 13
   },
   {
     "id": "en/gateway-api#requires-existing-admin-key-or-bootstrap-with-holix_require_auth",
@@ -3632,7 +3944,7 @@
       "false",
       "once"
     ],
-    "nav_order": 12
+    "nav_order": 13
   },
   {
     "id": "en/gateway-api#saas-workflow-examples",
@@ -3654,7 +3966,7 @@
       "workflow",
       "examples"
     ],
-    "nav_order": 12
+    "nav_order": 13
   },
   {
     "id": "en/gateway-api#security-notes",
@@ -3675,7 +3987,7 @@
       "security",
       "notes"
     ],
-    "nav_order": 12
+    "nav_order": 13
   },
   {
     "id": "en/gateway-api#session-headers-aliases",
@@ -3697,7 +4009,7 @@
       "headers",
       "aliases"
     ],
-    "nav_order": 12
+    "nav_order": 13
   },
   {
     "id": "en/gateway-api#swagger-authorize-one-token-for-all-requests",
@@ -3723,7 +4035,7 @@
       "all",
       "requests"
     ],
-    "nav_order": 12
+    "nav_order": 13
   },
   {
     "id": "en/gateway-api#table-of-contents",
@@ -3744,7 +4056,7 @@
       "table",
       "contents"
     ],
-    "nav_order": 12
+    "nav_order": 13
   },
   {
     "id": "en/telegram#1-admin-connect-the-bot",
@@ -3766,7 +4078,7 @@
       "connect",
       "the"
     ],
-    "nav_order": 13
+    "nav_order": 14
   },
   {
     "id": "en/telegram#2-bootstrap-designate-the-telegram-admin-cli-only",
@@ -3791,7 +4103,7 @@
       "cli",
       "only"
     ],
-    "nav_order": 13
+    "nav_order": 14
   },
   {
     "id": "en/telegram#3-user-request-access",
@@ -3813,7 +4125,7 @@
       "request",
       "access"
     ],
-    "nav_order": 13
+    "nav_order": 14
   },
   {
     "id": "en/telegram#4-admin-approve-and-create-an-isolated-profile",
@@ -3838,7 +4150,7 @@
       "isolated",
       "profile"
     ],
-    "nav_order": 13
+    "nav_order": 14
   },
   {
     "id": "en/telegram#command-menu-visibility",
@@ -3860,7 +4172,7 @@
       "menu",
       "visibility"
     ],
-    "nav_order": 13
+    "nav_order": 14
   },
   {
     "id": "en/telegram#ffmpeg-required-on-path",
@@ -3882,7 +4194,7 @@
       "required",
       "path"
     ],
-    "nav_order": 13
+    "nav_order": 14
   },
   {
     "id": "en/telegram#one-bot-many-users-recommended",
@@ -3905,7 +4217,7 @@
       "users",
       "recommended"
     ],
-    "nav_order": 13
+    "nav_order": 14
   },
   {
     "id": "en/telegram#option-b-local-on-the-agent-machine-offline",
@@ -3930,7 +4242,29 @@
       "machine",
       "offline"
     ],
-    "nav_order": 13
+    "nav_order": 14
+  },
+  {
+    "id": "en/telegram#production-install-uv-tool-install",
+    "lang": "en",
+    "slug": "telegram",
+    "section": "production-install-uv-tool-install",
+    "title": "Telegram",
+    "heading": "Production install (`uv tool install`)",
+    "body": "When Holix is installed as a global tool, add aiogram explicitly: Without aiogram the gateway logs even when the token is configured.",
+    "keywords": [
+      "telegram",
+      "телеграм",
+      "бот",
+      "bot",
+      "allowlist",
+      "whisper",
+      "голосовые",
+      "production",
+      "install",
+      "tool"
+    ],
+    "nav_order": 14
   },
   {
     "id": "en/telegram#production-notes",
@@ -3951,7 +4285,29 @@
       "production",
       "notes"
     ],
-    "nav_order": 13
+    "nav_order": 14
+  },
+  {
+    "id": "en/telegram#profile-deletion-notice",
+    "lang": "en",
+    "slug": "telegram",
+    "section": "profile-deletion-notice",
+    "title": "Telegram",
+    "heading": "Profile deletion notice",
+    "body": "When an admin deletes a user profile ( or ), Holix sends a Telegram message to every user mapped to that profile before removing data. Use or to skip. See PROFILES.md.",
+    "keywords": [
+      "telegram",
+      "телеграм",
+      "бот",
+      "bot",
+      "allowlist",
+      "whisper",
+      "голосовые",
+      "profile",
+      "deletion",
+      "notice"
+    ],
+    "nav_order": 14
   },
   {
     "id": "en/telegram#telegram",
@@ -3970,7 +4326,30 @@
       "whisper",
       "голосовые"
     ],
-    "nav_order": 13
+    "nav_order": 14
+  },
+  {
+    "id": "en/telegram#token-storage-and-loading",
+    "lang": "en",
+    "slug": "telegram",
+    "section": "token-storage-and-loading",
+    "title": "Telegram",
+    "heading": "Token storage and loading",
+    "body": "- Store the bot token in . When profile encryption is enabled, this file is encrypted at rest. - Do not leave an empty in — it prevents loading the real token from . Omit the key in global entirely; Holix fills it from the profile file (including decrypted values when is set). - Gateway workers call on startup after profile unlock so encrypted tokens are available before the bot starts.",
+    "keywords": [
+      "telegram",
+      "телеграм",
+      "бот",
+      "bot",
+      "allowlist",
+      "whisper",
+      "голосовые",
+      "token",
+      "storage",
+      "and",
+      "loading"
+    ],
+    "nav_order": 14
   },
   {
     "id": "en/telegram#usage",
@@ -3990,7 +4369,7 @@
       "голосовые",
       "usage"
     ],
-    "nav_order": 13
+    "nav_order": 14
   },
   {
     "id": "en/telegram#user-id-profile-mapping-manual",
@@ -4013,7 +4392,7 @@
       "mapping",
       "manual"
     ],
-    "nav_order": 13
+    "nav_order": 14
   },
   {
     "id": "en/telegram#voice-messages",
@@ -4034,7 +4413,7 @@
       "voice",
       "messages"
     ],
-    "nav_order": 13
+    "nav_order": 14
   },
   {
     "id": "en/telegram-multi-profile#3-one-bot-per-profile",
@@ -4050,7 +4429,7 @@
       "per",
       "profile"
     ],
-    "nav_order": 14
+    "nav_order": 15
   },
   {
     "id": "en/telegram-multi-profile#5-restrict-access-in-production",
@@ -4065,7 +4444,7 @@
       "access",
       "production"
     ],
-    "nav_order": 14
+    "nav_order": 15
   },
   {
     "id": "en/telegram-multi-profile#alternative-one-bot-manual-profile-or-map",
@@ -4083,7 +4462,7 @@
       "profile",
       "map"
     ],
-    "nav_order": 14
+    "nav_order": 15
   },
   {
     "id": "en/telegram-multi-profile#common-mistakes",
@@ -4097,7 +4476,7 @@
       "common",
       "mistakes"
     ],
-    "nav_order": 14
+    "nav_order": 15
   },
   {
     "id": "en/telegram-multi-profile#comparison",
@@ -4110,7 +4489,7 @@
     "keywords": [
       "comparison"
     ],
-    "nav_order": 14
+    "nav_order": 15
   },
   {
     "id": "en/telegram-multi-profile#holixprofilesbobenv",
@@ -4127,7 +4506,7 @@
       "bob",
       "env"
     ],
-    "nav_order": 14
+    "nav_order": 15
   },
   {
     "id": "en/telegram-multi-profile#how-holix-is-designed",
@@ -4142,7 +4521,7 @@
       "holix",
       "designed"
     ],
-    "nav_order": 14
+    "nav_order": 15
   },
   {
     "id": "en/telegram-multi-profile#limits-of-a-single-bot",
@@ -4157,7 +4536,7 @@
       "single",
       "bot"
     ],
-    "nav_order": 14
+    "nav_order": 15
   },
   {
     "id": "en/telegram-multi-profile#one-bot-many-users-access-requests-recommended",
@@ -4176,7 +4555,7 @@
       "requests",
       "recommended"
     ],
-    "nav_order": 14
+    "nav_order": 15
   },
   {
     "id": "en/telegram-multi-profile#summary",
@@ -4189,7 +4568,7 @@
     "keywords": [
       "summary"
     ],
-    "nav_order": 14
+    "nav_order": 15
   },
   {
     "id": "en/telegram-multi-profile#telegram-multiple-isolated-profiles",
@@ -4205,7 +4584,7 @@
       "isolated",
       "profiles"
     ],
-    "nav_order": 14
+    "nav_order": 15
   },
   {
     "id": "en/telegram-multi-profile#user-id-profile-mapping-single-bot-manual",
@@ -4223,7 +4602,7 @@
       "bot",
       "manual"
     ],
-    "nav_order": 14
+    "nav_order": 15
   },
   {
     "id": "en/browser-tools#browser-automation-playwright",
@@ -4239,7 +4618,7 @@
       "браузер",
       "automation"
     ],
-    "nav_order": 15
+    "nav_order": 16
   },
   {
     "id": "en/browser-tools#profile-gateway",
@@ -4256,7 +4635,7 @@
       "profile",
       "gateway"
     ],
-    "nav_order": 15
+    "nav_order": 16
   },
   {
     "id": "en/browser-tools#security",
@@ -4272,7 +4651,7 @@
       "браузер",
       "security"
     ],
-    "nav_order": 15
+    "nav_order": 16
   },
   {
     "id": "en/browser-tools#tools",
@@ -4288,7 +4667,7 @@
       "браузер",
       "tools"
     ],
-    "nav_order": 15
+    "nav_order": 16
   },
   {
     "id": "en/browser-tools#when-to-use",
@@ -4305,7 +4684,7 @@
       "when",
       "use"
     ],
-    "nav_order": 15
+    "nav_order": 16
   },
   {
     "id": "en/architecture#architecture",
@@ -4321,7 +4700,7 @@
       "runtime",
       "events"
     ],
-    "nav_order": 16
+    "nav_order": 17
   },
   {
     "id": "en/architecture#component-map",
@@ -4339,7 +4718,7 @@
       "component",
       "map"
     ],
-    "nav_order": 16
+    "nav_order": 17
   },
   {
     "id": "en/architecture#configuration",
@@ -4356,7 +4735,7 @@
       "events",
       "configuration"
     ],
-    "nav_order": 16
+    "nav_order": 17
   },
   {
     "id": "en/architecture#execution-flow",
@@ -4374,7 +4753,7 @@
       "execution",
       "flow"
     ],
-    "nav_order": 16
+    "nav_order": 17
   },
   {
     "id": "en/architecture#extension-points",
@@ -4392,7 +4771,7 @@
       "extension",
       "points"
     ],
-    "nav_order": 16
+    "nav_order": 17
   },
   {
     "id": "en/architecture#interfaces",
@@ -4409,7 +4788,7 @@
       "events",
       "interfaces"
     ],
-    "nav_order": 16
+    "nav_order": 17
   },
   {
     "id": "en/architecture#profile-identity",
@@ -4427,7 +4806,7 @@
       "profile",
       "identity"
     ],
-    "nav_order": 16
+    "nav_order": 17
   },
   {
     "id": "en/security#api-keys",
@@ -4446,7 +4825,7 @@
       "api",
       "keys"
     ],
-    "nav_order": 17
+    "nav_order": 18
   },
   {
     "id": "en/security#docs-chat-token-separate-surface",
@@ -4467,7 +4846,26 @@
       "separate",
       "surface"
     ],
-    "nav_order": 17
+    "nav_order": 18
+  },
+  {
+    "id": "en/security#encryption-at-rest",
+    "lang": "en",
+    "slug": "security",
+    "section": "encryption-at-rest",
+    "title": "Security",
+    "heading": "Encryption at rest",
+    "body": "Optional per-profile encryption protects secrets and memory, not the agent workspace: Encrypted Plaintext ----------- ----------- , , , (project files, git-friendly) Memory DBs (SQLite, Chroma) (non-secret settings) Gateway / systemd: set in or the profile . Without it, encrypted cannot be read and the bot stays disabled even if appears empty in the process environment. Telegram token pitfall: do not set (empty) in . Omit the variable or store the token only in . Workspace migration: legacy installs may have encrypted workspace files. Run once: After gateway stop, (systemd ) can re-seal memory with . Complete guide (encrypted files table, per-OS policy, step-by-step enable): PROFILE ENCRYPTION.md.",
+    "keywords": [
+      "security",
+      "безопасность",
+      "auth",
+      "cors",
+      "token",
+      "encryption",
+      "rest"
+    ],
+    "nav_order": 18
   },
   {
     "id": "en/security#production-checklist",
@@ -4486,7 +4884,7 @@
       "production",
       "checklist"
     ],
-    "nav_order": 17
+    "nav_order": 18
   },
   {
     "id": "en/security#tools",
@@ -4504,7 +4902,7 @@
       "token",
       "tools"
     ],
-    "nav_order": 17
+    "nav_order": 18
   },
   {
     "id": "en/security#two-layer-gateway-auth",
@@ -4524,7 +4922,7 @@
       "layer",
       "gateway"
     ],
-    "nav_order": 17
+    "nav_order": 18
   },
   {
     "id": "en/security#web-tui-holix-tui---web",
@@ -4544,7 +4942,7 @@
       "tui",
       "holix"
     ],
-    "nav_order": 17
+    "nav_order": 18
   },
   {
     "id": "en/terminal-security#1-enable-disable-terminal-tool",
@@ -4560,7 +4958,7 @@
       "terminal",
       "tool"
     ],
-    "nav_order": 18
+    "nav_order": 19
   },
   {
     "id": "en/terminal-security#2-always-forbidden-patterns-dangerous-commands",
@@ -4577,7 +4975,7 @@
       "dangerous",
       "commands"
     ],
-    "nav_order": 18
+    "nav_order": 19
   },
   {
     "id": "en/terminal-security#3-command-whitelist-allowlist",
@@ -4592,7 +4990,7 @@
       "whitelist",
       "allowlist"
     ],
-    "nav_order": 18
+    "nav_order": 19
   },
   {
     "id": "en/terminal-security#4-user-confirmation-actionguard",
@@ -4607,7 +5005,7 @@
       "confirmation",
       "actionguard"
     ],
-    "nav_order": 18
+    "nav_order": 19
   },
   {
     "id": "en/terminal-security#5-workspace-jail-working-directory",
@@ -4623,7 +5021,7 @@
       "working",
       "directory"
     ],
-    "nav_order": 18
+    "nav_order": 19
   },
   {
     "id": "en/terminal-security#allowed-vs-forbidden-practical-guide",
@@ -4639,7 +5037,7 @@
       "practical",
       "guide"
     ],
-    "nav_order": 18
+    "nav_order": 19
   },
   {
     "id": "en/terminal-security#built-in-allowlist-unix",
@@ -4654,7 +5052,7 @@
       "allowlist",
       "unix"
     ],
-    "nav_order": 18
+    "nav_order": 19
   },
   {
     "id": "en/terminal-security#built-in-allowlist-windows",
@@ -4669,7 +5067,7 @@
       "allowlist",
       "windows"
     ],
-    "nav_order": 18
+    "nav_order": 19
   },
   {
     "id": "en/terminal-security#how-matching-works",
@@ -4684,7 +5082,7 @@
       "matching",
       "works"
     ],
-    "nav_order": 18
+    "nav_order": 19
   },
   {
     "id": "en/terminal-security#production-recommendations",
@@ -4698,7 +5096,7 @@
       "production",
       "recommendations"
     ],
-    "nav_order": 18
+    "nav_order": 19
   },
   {
     "id": "en/terminal-security#protection-layers-order-of-checks",
@@ -4714,7 +5112,7 @@
       "order",
       "checks"
     ],
-    "nav_order": 18
+    "nav_order": 19
   },
   {
     "id": "en/terminal-security#related-docs",
@@ -4728,7 +5126,7 @@
       "related",
       "docs"
     ],
-    "nav_order": 18
+    "nav_order": 19
   },
   {
     "id": "en/terminal-security#terminal-command-security",
@@ -4743,7 +5141,7 @@
       "command",
       "security"
     ],
-    "nav_order": 18
+    "nav_order": 19
   },
   {
     "id": "en/terminal-security#unix-macos-linux",
@@ -4758,7 +5156,7 @@
       "macos",
       "linux"
     ],
-    "nav_order": 18
+    "nav_order": 19
   },
   {
     "id": "en/terminal-security#when-whitelist-is-disabled",
@@ -4773,7 +5171,7 @@
       "whitelist",
       "disabled"
     ],
-    "nav_order": 18
+    "nav_order": 19
   },
   {
     "id": "en/terminal-security#windows-additional",
@@ -4787,7 +5185,28 @@
       "windows",
       "additional"
     ],
-    "nav_order": 18
+    "nav_order": 19
+  },
+  {
+    "id": "en/deployment#1-prepare-the-service-user",
+    "lang": "en",
+    "slug": "deployment",
+    "section": "1-prepare-the-service-user",
+    "title": "Deployment",
+    "heading": "1. Prepare the service user",
+    "body": "From a source checkout with uv (common on dev servers): does not include the extra by default — without the gateway starts but the bot stays disabled.",
+    "keywords": [
+      "deploy",
+      "деплой",
+      "systemd",
+      "docker",
+      "ci",
+      "prepare",
+      "the",
+      "service",
+      "user"
+    ],
+    "nav_order": 20
   },
   {
     "id": "en/deployment#2-configure-the-profile",
@@ -4807,7 +5226,7 @@
       "the",
       "profile"
     ],
-    "nav_order": 19
+    "nav_order": 20
   },
   {
     "id": "en/deployment#3-install-unit-files",
@@ -4827,7 +5246,7 @@
       "unit",
       "files"
     ],
-    "nav_order": 19
+    "nav_order": 20
   },
   {
     "id": "en/deployment#4-start-and-manage",
@@ -4847,7 +5266,7 @@
       "and",
       "manage"
     ],
-    "nav_order": 19
+    "nav_order": 20
   },
   {
     "id": "en/deployment#5-documentation-site-chat-widget",
@@ -4868,7 +5287,7 @@
       "chat",
       "widget"
     ],
-    "nav_order": 19
+    "nav_order": 20
   },
   {
     "id": "en/deployment#6-documentation-site-build-and-seo",
@@ -4890,7 +5309,7 @@
       "and",
       "seo"
     ],
-    "nav_order": 19
+    "nav_order": 20
   },
   {
     "id": "en/deployment#7-reverse-proxy-tls",
@@ -4910,7 +5329,7 @@
       "proxy",
       "tls"
     ],
-    "nav_order": 19
+    "nav_order": 20
   },
   {
     "id": "en/deployment#docker",
@@ -4927,7 +5346,7 @@
       "docker",
       "ci"
     ],
-    "nav_order": 19
+    "nav_order": 20
   },
   {
     "id": "en/deployment#edit-holix_python-and-holix_bin-to-match-pipx-paths-on-your-host",
@@ -4953,7 +5372,7 @@
       "your",
       "host"
     ],
-    "nav_order": 19
+    "nav_order": 20
   },
   {
     "id": "en/deployment#holixprofilesbobenv",
@@ -4975,7 +5394,7 @@
       "bob",
       "env"
     ],
-    "nav_order": 19
+    "nav_order": 20
   },
   {
     "id": "en/deployment#or-bind-to-an-existing-profile",
@@ -4995,7 +5414,7 @@
       "existing",
       "profile"
     ],
-    "nav_order": 19
+    "nav_order": 20
   },
   {
     "id": "en/deployment#or-for-a-named-profile",
@@ -5004,7 +5423,7 @@
     "section": "or-for-a-named-profile",
     "title": "Deployment",
     "heading": "or for a named profile:",
-    "body": "sudo -u holix holix -p alice profile env --edit bash HOLIX ENV=production HOLIX GATEWAY HOST=127.0.0.1 HOLIX GATEWAY PORT=8000 HOLIX REQUIRE AUTH=true HOLIX API KEY PEPPER=<random-secret `` sudo -u holix holix -p alice telegram setup`",
+    "body": "sudo -u holix holix -p alice profile env --edit bash HOLIX ENV=production HOLIX GATEWAY HOST=127.0.0.1 HOLIX GATEWAY PORT=8000 HOLIX REQUIRE AUTH=true HOLIX API KEY PEPPER=<random-secret bash holix profile crypto decrypt-workspace --all --yes",
     "keywords": [
       "deploy",
       "деплой",
@@ -5015,7 +5434,7 @@
       "named",
       "profile"
     ],
-    "nav_order": 19
+    "nav_order": 20
   },
   {
     "id": "en/deployment#systemd",
@@ -5032,7 +5451,7 @@
       "docker",
       "ci"
     ],
-    "nav_order": 19
+    "nav_order": 20
   },
   {
     "id": "en/doctor#checks",
@@ -5049,7 +5468,7 @@
       "repair",
       "checks"
     ],
-    "nav_order": 20
+    "nav_order": 21
   },
   {
     "id": "en/doctor#with---fix",
@@ -5066,7 +5485,7 @@
       "repair",
       "with"
     ],
-    "nav_order": 20
+    "nav_order": 21
   },
   {
     "id": "en/logs#data-directory",
@@ -5084,7 +5503,7 @@
       "data",
       "directory"
     ],
-    "nav_order": 21
+    "nav_order": 22
   },
   {
     "id": "en/logs#debug-mode",
@@ -5101,7 +5520,7 @@
       "rotation",
       "mode"
     ],
-    "nav_order": 21
+    "nav_order": 22
   },
   {
     "id": "en/logs#log-files",
@@ -5119,7 +5538,7 @@
       "log",
       "files"
     ],
-    "nav_order": 21
+    "nav_order": 22
   },
   {
     "id": "en/logs#logs-and-observability",
@@ -5137,7 +5556,7 @@
       "and",
       "observability"
     ],
-    "nav_order": 21
+    "nav_order": 22
   },
   {
     "id": "en/logs#related",
@@ -5154,7 +5573,7 @@
       "rotation",
       "related"
     ],
-    "nav_order": 21
+    "nav_order": 22
   },
   {
     "id": "en/logs#rotation-and-retention",
@@ -5172,7 +5591,7 @@
       "and",
       "retention"
     ],
-    "nav_order": 21
+    "nav_order": 22
   },
   {
     "id": "en/logs#troubleshooting",
@@ -5189,7 +5608,7 @@
       "rotation",
       "troubleshooting"
     ],
-    "nav_order": 21
+    "nav_order": 22
   },
   {
     "id": "en/logs#when-logs-are-written",
@@ -5208,7 +5627,7 @@
       "are",
       "written"
     ],
-    "nav_order": 21
+    "nav_order": 22
   },
   {
     "id": "en/pypi#checklist-before-every-release",
@@ -5228,7 +5647,7 @@
       "every",
       "release"
     ],
-    "nav_order": 22
+    "nav_order": 23
   },
   {
     "id": "en/pypi#github-actions-recommended",
@@ -5247,7 +5666,7 @@
       "actions",
       "recommended"
     ],
-    "nav_order": 22
+    "nav_order": 23
   },
   {
     "id": "en/pypi#holix-010targz",
@@ -5266,7 +5685,7 @@
       "010targz",
       "tar"
     ],
-    "nav_order": 22
+    "nav_order": 23
   },
   {
     "id": "en/pypi#known-limitations",
@@ -5284,7 +5703,7 @@
       "known",
       "limitations"
     ],
-    "nav_order": 22
+    "nav_order": 23
   },
   {
     "id": "en/pypi#local-build-check",
@@ -5303,7 +5722,7 @@
       "build",
       "check"
     ],
-    "nav_order": 22
+    "nav_order": 23
   },
   {
     "id": "en/pypi#one-time-setup",
@@ -5322,7 +5741,7 @@
       "time",
       "setup"
     ],
-    "nav_order": 22
+    "nav_order": 23
   },
   {
     "id": "en/pypi#option-b-twine-compatible",
@@ -5341,7 +5760,7 @@
       "twine",
       "compatible"
     ],
-    "nav_order": 22
+    "nav_order": 23
   },
   {
     "id": "en/pypi#or",
@@ -5357,7 +5776,7 @@
       "публикация",
       "package"
     ],
-    "nav_order": 22
+    "nav_order": 23
   },
   {
     "id": "en/pypi#or-inside-a-venv",
@@ -5375,7 +5794,7 @@
       "inside",
       "venv"
     ],
-    "nav_order": 22
+    "nav_order": 23
   },
   {
     "id": "en/pypi#package-name",
@@ -5392,7 +5811,7 @@
       "package",
       "name"
     ],
-    "nav_order": 22
+    "nav_order": 23
   },
   {
     "id": "en/pypi#prerequisites",
@@ -5409,7 +5828,7 @@
       "package",
       "prerequisites"
     ],
-    "nav_order": 22
+    "nav_order": 23
   },
   {
     "id": "en/pypi#publishing-to-pypi",
@@ -5426,7 +5845,7 @@
       "package",
       "publishing"
     ],
-    "nav_order": 22
+    "nav_order": 23
   },
   {
     "id": "en/pypi#user-facing-install-docs",
@@ -5446,7 +5865,7 @@
       "install",
       "docs"
     ],
-    "nav_order": 22
+    "nav_order": 23
   },
   {
     "id": "en/pypi#versioning",
@@ -5463,7 +5882,7 @@
       "package",
       "versioning"
     ],
-    "nav_order": 22
+    "nav_order": 23
   },
   {
     "id": "en/pypi#what-is-already-configured",
@@ -5482,7 +5901,7 @@
       "already",
       "configured"
     ],
-    "nav_order": 22
+    "nav_order": 23
   },
   {
     "id": "en/troubleshooting#admin-still-sees-relative-paths-in-telegram",
@@ -5508,7 +5927,7 @@
       "paths",
       "telegram"
     ],
-    "nav_order": 23
+    "nav_order": 24
   },
   {
     "id": "en/troubleshooting#admin-still-sees-relative-paths-via-api",
@@ -5535,7 +5954,7 @@
       "via",
       "api"
     ],
-    "nav_order": 23
+    "nav_order": 24
   },
   {
     "id": "en/troubleshooting#telegram-access-denied",
@@ -5558,7 +5977,32 @@
       "access",
       "denied"
     ],
-    "nav_order": 23
+    "nav_order": 24
+  },
+  {
+    "id": "en/troubleshooting#telegram-bot-skipped-at-gateway-start",
+    "lang": "en",
+    "slug": "troubleshooting",
+    "section": "telegram-bot-skipped-at-gateway-start",
+    "title": "Troubleshooting",
+    "heading": "Telegram bot skipped at gateway start",
+    "body": "Log shows or in companion list. Message Fix --------- ----- / token not configured Remove empty from ; store token in . Set if the file is encrypted. Restart gateway. (source) or (global tool). Restart gateway. Token set but bot still disabled Confirm shows a masked token. Check after restart.",
+    "keywords": [
+      "troubleshoot",
+      "проблемы",
+      "ошибки",
+      "restricted",
+      "путь",
+      "path",
+      "jail",
+      "fix",
+      "telegram",
+      "bot",
+      "skipped",
+      "gateway",
+      "start"
+    ],
+    "nav_order": 24
   },
   {
     "id": "en/troubleshooting#telegram-menu-visible-before-approval",
@@ -5583,7 +6027,7 @@
       "before",
       "approval"
     ],
-    "nav_order": 23
+    "nav_order": 24
   },
   {
     "id": "en/troubleshooting#windows-specific",
@@ -5605,7 +6049,7 @@
       "windows",
       "specific"
     ],
-    "nav_order": 23
+    "nav_order": 24
   },
   {
     "id": "en/troubleshooting#workspace-paths-restricted-or-relative-paths-only",
@@ -5629,7 +6073,7 @@
       "relative",
       "only"
     ],
-    "nav_order": 23
+    "nav_order": 24
   },
   {
     "id": "en/user-guide#1-what-holix-can-do",
@@ -5647,7 +6091,7 @@
       "holix",
       "can"
     ],
-    "nav_order": 24
+    "nav_order": 25
   },
   {
     "id": "en/user-guide#10-step-8-execution-modes",
@@ -5665,7 +6109,7 @@
       "execution",
       "modes"
     ],
-    "nav_order": 24
+    "nav_order": 25
   },
   {
     "id": "en/user-guide#11-step-9-how-to-write-prompts",
@@ -5684,7 +6128,7 @@
       "write",
       "prompts"
     ],
-    "nav_order": 24
+    "nav_order": 25
   },
   {
     "id": "en/user-guide#12-step-10-mcp-step-by-step",
@@ -5701,7 +6145,7 @@
       "step",
       "mcp"
     ],
-    "nav_order": 24
+    "nav_order": 25
   },
   {
     "id": "en/user-guide#122-install-mcp-easy-way",
@@ -5721,7 +6165,7 @@
       "easy",
       "way"
     ],
-    "nav_order": 24
+    "nav_order": 25
   },
   {
     "id": "en/user-guide#15-slash-commands-in-chat",
@@ -5739,7 +6183,7 @@
       "commands",
       "chat"
     ],
-    "nav_order": 24
+    "nav_order": 25
   },
   {
     "id": "en/user-guide#16-holix-features",
@@ -5756,7 +6200,7 @@
       "holix",
       "features"
     ],
-    "nav_order": 24
+    "nav_order": 25
   },
   {
     "id": "en/user-guide#17-troubleshooting",
@@ -5772,7 +6216,7 @@
       "usage",
       "troubleshooting"
     ],
-    "nav_order": 24
+    "nav_order": 25
   },
   {
     "id": "en/user-guide#2-requirements",
@@ -5788,7 +6232,7 @@
       "usage",
       "requirements"
     ],
-    "nav_order": 24
+    "nav_order": 25
   },
   {
     "id": "en/user-guide#3-step-1-install-python",
@@ -5806,7 +6250,7 @@
       "install",
       "python"
     ],
-    "nav_order": 24
+    "nav_order": 25
   },
   {
     "id": "en/user-guide#4-step-2-install-uv-recommended",
@@ -5824,7 +6268,7 @@
       "install",
       "recommended"
     ],
-    "nav_order": 24
+    "nav_order": 25
   },
   {
     "id": "en/user-guide#5-step-3-install-from-pypi",
@@ -5843,7 +6287,7 @@
       "from",
       "pypi"
     ],
-    "nav_order": 24
+    "nav_order": 25
   },
   {
     "id": "en/user-guide#51-global-install-recommended",
@@ -5861,7 +6305,7 @@
       "install",
       "recommended"
     ],
-    "nav_order": 24
+    "nav_order": 25
   },
   {
     "id": "en/user-guide#54-windows",
@@ -5877,7 +6321,7 @@
       "usage",
       "windows"
     ],
-    "nav_order": 24
+    "nav_order": 25
   },
   {
     "id": "en/user-guide#61-create-the-environment-file",
@@ -5896,7 +6340,7 @@
       "environment",
       "file"
     ],
-    "nav_order": 24
+    "nav_order": 25
   },
   {
     "id": "en/user-guide#62-profile",
@@ -5912,7 +6356,7 @@
       "usage",
       "profile"
     ],
-    "nav_order": 24
+    "nav_order": 25
   },
   {
     "id": "en/user-guide#63-diagnostics",
@@ -5928,7 +6372,7 @@
       "usage",
       "diagnostics"
     ],
-    "nav_order": 24
+    "nav_order": 25
   },
   {
     "id": "en/user-guide#7-step-5-configure-models-via-litellm",
@@ -5948,7 +6392,7 @@
       "via",
       "litellm"
     ],
-    "nav_order": 24
+    "nav_order": 25
   },
   {
     "id": "en/user-guide#71-what-to-get-from-the-litellm-administrator",
@@ -5969,7 +6413,7 @@
       "litellm",
       "administrator"
     ],
-    "nav_order": 24
+    "nav_order": 25
   },
   {
     "id": "en/user-guide#73-add-the-litellm-provider-to-the-profile-interactive",
@@ -5990,7 +6434,7 @@
       "profile",
       "interactive"
     ],
-    "nav_order": 24
+    "nav_order": 25
   },
   {
     "id": "en/user-guide#74-full-setup-wizard-recommended",
@@ -6009,7 +6453,7 @@
       "wizard",
       "recommended"
     ],
-    "nav_order": 24
+    "nav_order": 25
   },
   {
     "id": "en/user-guide#75-assigning-models-to-agents",
@@ -6027,7 +6471,7 @@
       "models",
       "agents"
     ],
-    "nav_order": 24
+    "nav_order": 25
   },
   {
     "id": "en/user-guide#8-step-6-web-search-optional",
@@ -6046,7 +6490,7 @@
       "search",
       "optional"
     ],
-    "nav_order": 24
+    "nav_order": 25
   },
   {
     "id": "en/user-guide#92-create-a-bot-in-telegram",
@@ -6064,7 +6508,7 @@
       "bot",
       "telegram"
     ],
-    "nav_order": 24
+    "nav_order": 25
   },
   {
     "id": "en/user-guide#93-connect-the-bot-admin",
@@ -6083,7 +6527,7 @@
       "bot",
       "admin"
     ],
-    "nav_order": 24
+    "nav_order": 25
   },
   {
     "id": "en/user-guide#94-designate-the-telegram-admin-once-cli-only",
@@ -6105,7 +6549,7 @@
       "cli",
       "only"
     ],
-    "nav_order": 24
+    "nav_order": 25
   },
   {
     "id": "en/user-guide#95-users-request-access",
@@ -6123,7 +6567,7 @@
       "request",
       "access"
     ],
-    "nav_order": 24
+    "nav_order": 25
   },
   {
     "id": "en/user-guide#951-admin-approves-and-creates-an-isolated-profile",
@@ -6145,7 +6589,7 @@
       "isolated",
       "profile"
     ],
-    "nav_order": 24
+    "nav_order": 25
   },
   {
     "id": "en/user-guide#97-update-the-telegram-command-menu",
@@ -6165,7 +6609,7 @@
       "command",
       "menu"
     ],
-    "nav_order": 24
+    "nav_order": 25
   },
   {
     "id": "en/user-guide#98-production",
@@ -6181,7 +6625,7 @@
       "usage",
       "production"
     ],
-    "nav_order": 24
+    "nav_order": 25
   },
   {
     "id": "en/user-guide#98-voice-messages-optional",
@@ -6199,7 +6643,7 @@
       "messages",
       "optional"
     ],
-    "nav_order": 24
+    "nav_order": 25
   },
   {
     "id": "en/user-guide#build-from-source",
@@ -6217,7 +6661,7 @@
       "from",
       "source"
     ],
-    "nav_order": 24
+    "nav_order": 25
   },
   {
     "id": "en/user-guide#holix-complete-user-guide",
@@ -6235,7 +6679,7 @@
       "complete",
       "user"
     ],
-    "nav_order": 24
+    "nav_order": 25
   },
   {
     "id": "en/user-guide#holix-config",
@@ -6252,7 +6696,7 @@
       "holix",
       "config"
     ],
-    "nav_order": 24
+    "nav_order": 25
   },
   {
     "id": "en/user-guide#holix-models",
@@ -6269,7 +6713,7 @@
       "holix",
       "models"
     ],
-    "nav_order": 24
+    "nav_order": 25
   },
   {
     "id": "en/user-guide#install",
@@ -6285,7 +6729,7 @@
       "usage",
       "install"
     ],
-    "nav_order": 24
+    "nav_order": 25
   },
   {
     "id": "en/user-guide#litellm-proxy",
@@ -6302,7 +6746,7 @@
       "litellm",
       "proxy"
     ],
-    "nav_order": 24
+    "nav_order": 25
   },
   {
     "id": "en/user-guide#main-commands",
@@ -6319,7 +6763,7 @@
       "main",
       "commands"
     ],
-    "nav_order": 24
+    "nav_order": 25
   },
   {
     "id": "en/user-guide#or-manually",
@@ -6335,7 +6779,7 @@
       "usage",
       "manually"
     ],
-    "nav_order": 24
+    "nav_order": 25
   },
   {
     "id": "en/user-guide#or-simply",
@@ -6351,7 +6795,7 @@
       "usage",
       "simply"
     ],
-    "nav_order": 24
+    "nav_order": 25
   },
   {
     "id": "en/user-guide#quick-checklist-from-zero-to-chat",
@@ -6371,7 +6815,7 @@
       "zero",
       "chat"
     ],
-    "nav_order": 24
+    "nav_order": 25
   },
   {
     "id": "en/user-guide#see-also",
@@ -6388,7 +6832,7 @@
       "see",
       "also"
     ],
-    "nav_order": 24
+    "nav_order": 25
   },
   {
     "id": "en/user-guide#table-of-contents",
@@ -6405,7 +6849,7 @@
       "table",
       "contents"
     ],
-    "nav_order": 24
+    "nav_order": 25
   },
   {
     "id": "ru/readme#документация-holix-русский",
@@ -6448,7 +6892,7 @@
     "section": "с-чего-начать",
     "title": "Обзор",
     "heading": "С чего начать",
-    "body": "1. INSTALLATION.md — установка с PyPI, Windows , extras, обновления 2. START HERE.md — первый запуск 3. QUICKSTART.md — минимум команд 4. CONFIGURATION.md — , профили 5. PROFILES.md — изолированные профили, SOUL/USER, ключи доступа, несколько пользователей, workspace jail",
+    "body": "1. INSTALLATION.md — установка с PyPI, Windows , extras, обновления 2. START HERE.md — первый запуск 3. QUICKSTART.md — минимум команд 4. CONFIGURATION.md — , профили 5. PROFILES.md — изолированные профили, SOUL/USER, ключи доступа, несколько пользователей, workspace jail 6. PROFILE ENCRYPTION.md — шифрование at-rest: что шифруется, политика по ОС (Linux/macOS/Windows), ключ разблокировки",
     "keywords": [
       "overview",
       "обзор",
@@ -6466,7 +6910,7 @@
     "section": "эксплуатация",
     "title": "Обзор",
     "heading": "Эксплуатация",
-    "body": "- LOGS.md — , ротация, debug - DOCTOR.md - SECURITY.md - TERMINAL SECURITY.md — whitelist терминала, запрещённые команды, подтверждения - DEPLOYMENT.md - TROUBLESHOOTING.md - ARCHITECTURE.md",
+    "body": "- LOGS.md — , ротация, debug - DOCTOR.md - SECURITY.md — auth, шифрование, production checklist - PROFILE ENCRYPTION.md — полный гайд по шифрованию по ОС - TERMINAL SECURITY.md — whitelist терминала, запрещённые команды, подтверждения - DEPLOYMENT.md - TROUBLESHOOTING.md - ARCHITECTURE.md",
     "keywords": [
       "overview",
       "обзор",
@@ -6965,6 +7409,25 @@
     "nav_order": 4
   },
   {
+    "id": "ru/configuration#загрузка-telegramenv",
+    "lang": "ru",
+    "slug": "configuration",
+    "section": "загрузка-telegramenv",
+    "title": "Конфигурация",
+    "heading": "Загрузка `telegram.env`",
+    "body": "Holix читает после bootstrap и unlock профиля. Значения из файла перезаписывают пустые записи в shell/global (например, пустой ). Для зашифрованных файлов нужен в окружении или сессия .",
+    "keywords": [
+      "config",
+      "конфигурация",
+      "env",
+      "переменные",
+      "загрузка",
+      "telegramenv",
+      "telegram"
+    ],
+    "nav_order": 4
+  },
+  {
     "id": "ru/configuration#каталог-данных-holix_home",
     "lang": "ru",
     "slug": "configuration",
@@ -7007,7 +7470,7 @@
     "section": "структура-профиля",
     "title": "Конфигурация",
     "heading": "Структура профиля",
-    "body": "Путь Содержимое ------ ------------ Только переопределения (остальное из ) Токен бота, allowlist, Привязки Telegram user id → профиль Holix PID и bind запущенного gateway Только переопределения (наследует ) Личность агента (вставляется в каждую сессию) Факты и предпочтения пользователя Маркер онбординга (удаляется после ) Память, навыки, security, cron",
+    "body": "Путь Содержимое ------ ------------ Только переопределения (остальное из ) Токен бота, allowlist, Привязки Telegram user id → профиль Holix PID и bind запущенного gateway Только переопределения (наследует ) Личность агента (вставляется в каждую сессию) Факты и предпочтения пользователя Маркер онбординга (удаляется после ) Память, навыки, security, cron Workspace агента (plaintext, не шифруется)",
     "keywords": [
       "config",
       "конфигурация",
@@ -7032,6 +7495,25 @@
       "env",
       "переменные",
       "уровни"
+    ],
+    "nav_order": 4
+  },
+  {
+    "id": "ru/configuration#шифрование-профиля-опционально",
+    "lang": "ru",
+    "slug": "configuration",
+    "section": "шифрование-профиля-опционально",
+    "title": "Конфигурация",
+    "heading": "Шифрование профиля (опционально)",
+    "body": "Holix шифрует секреты профиля на диске : , , , , БД памяти. Файлы workspace остаются plaintext (удобно для git). Старые зашифрованные workspace мигрируют командой . Переменная Назначение ------------ ------------ Ключ пользователя для unlock зашифрованных профилей при старте gateway Метка политики ( и т.д.) Вложения в Telegram перед отправкой материализуются в plaintext при включённом шифровании. Полный гайд (политика по ОС, модель угроз, unlock gateway): PROFILE ENCRYPTION.md. См. также SECURITY.md и .",
+    "keywords": [
+      "config",
+      "конфигурация",
+      "env",
+      "переменные",
+      "шифрование",
+      "профиля",
+      "опционально"
     ],
     "nav_order": 4
   },
@@ -7103,7 +7585,7 @@
     "section": "holixprofilesaliceenv",
     "title": "Профили и изоляция",
     "heading": "~/.holix/profiles/alice/.env",
-    "body": "HOLIX PROFILE KEY=hp xxxxxxxx `` ~/.holix` и API-ключи gateway — см. SECURITY.md. Подробная инструкция по Telegram (один бот vs несколько ботов): TELEGRAM MULTI PROFILE.md.",
+    "body": "HOLIX PROFILE KEY=hp xxxxxxxx `` ~/.holix` и API-ключи gateway — см. SECURITY.md. Подробная инструкция по Telegram (один бот vs несколько ботов): TELEGRAM MULTI PROFILE.md. Опциональное шифрование at-rest секретов и памяти (workspace остаётся plaintext): PROFILE ENCRYPTION.md.",
     "keywords": [
       "profile",
       "профиль",
@@ -7577,7 +8059,7 @@
     "section": "справочник-cli",
     "title": "Профили и изоляция",
     "heading": "Справочник CLI",
-    "body": "Команда Описание --------- ---------- Выбор профиля (для не нужен) Ключ доступа к защищённому профилю Создать профиль с наследованием global (по умолчанию) Чистый профиль без наследования global Создать профиль с ключом доступа Показать общий global config Редактировать Редактировать (Пере)создать global ( ) Защищён ли активный профиль Сгенерировать ключ для открытого профиля Сменить ключ доступа Убрать ключ и разрешить свободное переключение Показать профиля Редактировать секреты и bind gateway Включить изоляцию в директории Выключить jail Статус jail Добавить команды через запятую Статус whitelist и итоговый список Включить проверку whitelist Список профилей ( / ) и активный В TUI/чате/Telegram: для переключения в защищённый профиль.",
+    "body": "Команда Описание --------- ---------- Выбор профиля (для не нужен) Ключ доступа к защищённому профилю Создать профиль с наследованием global (по умолчанию) Чистый профиль без наследования global Создать профиль с ключом доступа Показать общий global config Редактировать Редактировать (Пере)создать global ( ) Защищён ли активный профиль Сгенерировать ключ для открытого профиля Сменить ключ доступа Убрать ключ и разрешить свободное переключение Показать профиля Редактировать секреты и bind gateway Включить изоляцию в директории Выключить jail Статус jail Добавить команды через запятую Статус whitelist и итоговый список Включить проверку whitelist Уведомить в Telegram, затем удалить профиль ( , ) Шифрование секретов профиля (workspace остаётся plaintext) Список профилей ( / ) и активный В TUI/чате/Telegram: для переключения в защищённый профиль.",
     "keywords": [
       "profile",
       "профиль",
@@ -7594,6 +8076,33 @@
       "restricted",
       "справочник",
       "cli"
+    ],
+    "nav_order": 5
+  },
+  {
+    "id": "ru/profiles#удаление-профиля",
+    "lang": "ru",
+    "slug": "profiles",
+    "section": "удаление-профиля",
+    "title": "Профили и изоляция",
+    "heading": "Удаление профиля",
+    "body": "Удаление пользовательского профиля с сервера. Holix сначала уведомляет привязанных пользователей Telegram, затем удаляет данные. Защищённые профили удалить нельзя: , , . Порядок действий: 1. Поиск пользователей Telegram, привязанных к профилю ( , в ) 2. Отправка уведомления об удалении в Telegram (если не ) 3. Удаление привязок Telegram для этого профиля 4. Очистка runtime-кэша и удаление Через Management API (admin-ключ gateway): Параметр отключает уведомление. Поля ответа: , , , . См. GATEWAY API.md.",
+    "keywords": [
+      "profile",
+      "профиль",
+      "профили",
+      "изоляция",
+      "jail",
+      "workspace",
+      "path",
+      "paths",
+      "путь",
+      "пути",
+      "relative",
+      "относительный",
+      "restricted",
+      "удаление",
+      "профиля"
     ],
     "nav_order": 5
   },
@@ -7682,6 +8191,183 @@
     "nav_order": 5
   },
   {
+    "id": "ru/profile-encryption#telegram-и-пустой-токен-в-global",
+    "lang": "ru",
+    "slug": "profile-encryption",
+    "section": "telegram-и-пустой-токен-в-global",
+    "title": "Шифрование профиля",
+    "heading": "Telegram и пустой токен в global",
+    "body": "Если зашифрован, gateway должен выполнить unlock до загрузки токена. Типичная ошибка: (пусто) в блокирует токен из . Удалите пустую строку или не задавайте переменную. Holix перезаписывает пустые значения при загрузке . См. TELEGRAM.md и TROUBLESHOOTING.md.",
+    "keywords": [
+      "telegram",
+      "пустой",
+      "токен",
+      "global"
+    ],
+    "nav_order": 6
+  },
+  {
+    "id": "ru/profile-encryption#дважды-запросит-ключ-разблокировки-сохраните-надёжно",
+    "lang": "ru",
+    "slug": "profile-encryption",
+    "section": "дважды-запросит-ключ-разблокировки-сохраните-надёжно",
+    "title": "Шифрование профиля",
+    "heading": "дважды запросит ключ разблокировки — сохраните надёжно",
+    "body": "holix -p alice profile crypto status `` crypto.json`, шифруются секреты и память, legacy encrypted workspace переводится в plaintext.",
+    "keywords": [
+      "дважды",
+      "запросит",
+      "ключ",
+      "разблокировки",
+      "сохраните",
+      "надёжно"
+    ],
+    "nav_order": 6
+  },
+  {
+    "id": "ru/profile-encryption#ключи-и-разблокировка",
+    "lang": "ru",
+    "slug": "profile-encryption",
+    "section": "ключи-и-разблокировка",
+    "title": "Шифрование профиля",
+    "heading": "Ключи и разблокировка",
+    "body": "Термин Env / файл Роль -------- ------------ ------ Ключ разблокировки (UEK) или ввод в CLI Секрет пользователя; на диск не пишется DEK Обёртка в Ключ шифрования данных профиля (256 bit) KEK Производный в памяти (Argon2id) Расшифровывает DEK из CLI: загружает DEK в кэш процесса. Gateway / systemd: задайте в или , чтобы разблокировал профиль до чтения и памяти. После остановки gateway скрипт (systemd ) может снова запечатать память.",
+    "keywords": [
+      "ключи",
+      "разблокировка"
+    ],
+    "nav_order": 6
+  },
+  {
+    "id": "ru/profile-encryption#миграция-workspace-старые-установки",
+    "lang": "ru",
+    "slug": "profile-encryption",
+    "section": "миграция-workspace-старые-установки",
+    "title": "Шифрование профиля",
+    "heading": "Миграция workspace (старые установки)",
+    "body": "В старых сборках Holix мог шифровать файлы в . Сейчас workspace — plaintext. Для systemd: .",
+    "keywords": [
+      "миграция",
+      "workspace",
+      "старые",
+      "установки"
+    ],
+    "nav_order": 6
+  },
+  {
+    "id": "ru/profile-encryption#модель-угроз-кратко",
+    "lang": "ru",
+    "slug": "profile-encryption",
+    "section": "модель-угроз-кратко",
+    "title": "Шифрование профиля",
+    "heading": "Модель угроз (кратко)",
+    "body": "Угроза Без шифрования С шифрованием, ключ только у клиента -------- ---------------- -------------------------------------- на сервере Секреты в открытом виде Ciphertext Украденный бэкап диска Все данные профиля Ciphertext без ключа Admin / root до unlock Читает файлы Ciphertext + metadata Потеря ключа разблокировки — Безвозвратная потеря данных Ключи доступа к профилю ( ) — кто может переключиться в профиль, не расшифровка файлов. API-ключи gateway ( ) — HTTP-аутентификация, не замена .",
+    "keywords": [
+      "модель",
+      "угроз",
+      "кратко"
+    ],
+    "nav_order": 6
+  },
+  {
+    "id": "ru/profile-encryption#повседневные-операции",
+    "lang": "ru",
+    "slug": "profile-encryption",
+    "section": "повседневные-операции",
+    "title": "Шифрование профиля",
+    "heading": "Повседневные операции",
+    "body": "Задача Команда -------- --------- Разблокировка для CLI Редактирование зашифрованного Статус Запечатать после обслуживания Заблокировать CLI-сессию Очистить устаревший кэш",
+    "keywords": [
+      "повседневные",
+      "операции"
+    ],
+    "nav_order": 6
+  },
+  {
+    "id": "ru/profile-encryption#политика-по-ос-holix_encryption_mode",
+    "lang": "ru",
+    "slug": "profile-encryption",
+    "section": "политика-по-ос-holix_encryption_mode",
+    "title": "Шифрование профиля",
+    "heading": "Политика по ОС (`HOLIX_ENCRYPTION_MODE`)",
+    "body": "Holix шифрует/расшифровывает прозрачно только когда глобальная политика разрешает runtime crypto и у профиля есть . Режим Значение Linux-сервер macOS (dev) Windows (dev) ------- ---------- -------------- ------------- ----------------- Linux production (по умолчанию) Активно при Неактивно — файлы plaintext, пока не включите Неактивно Всегда Активно Активно Активно Выключено Неактивно Неактивно Неактивно ```bash",
+    "keywords": [
+      "политика",
+      "holix_encryption_mode"
+    ],
+    "nav_order": 6
+  },
+  {
+    "id": "ru/profile-encryption#рекомендации-по-ос",
+    "lang": "ru",
+    "slug": "profile-encryption",
+    "section": "рекомендации-по-ос",
+    "title": "Шифрование профиля",
+    "heading": "Рекомендации по ОС",
+    "body": "Linux (VPS, systemd, Docker, production) — основной сценарий: 1. , (или не задавать — это default). 2. или на сервере. 3. в ( ). 4. Перезапуск gateway после включения шифрования. macOS / Windows (локальная разработка) — при политике по умолчанию runtime-шифрование выключено , даже если есть . Для теста шифрования локально: перед . Включение на не-Linux с default-политикой — ошибка: Проверка политики: Пример: или .",
+    "keywords": [
+      "рекомендации"
+    ],
+    "nav_order": 6
+  },
+  {
+    "id": "ru/profile-encryption#см-также",
+    "lang": "ru",
+    "slug": "profile-encryption",
+    "section": "см-также",
+    "title": "Шифрование профиля",
+    "heading": "См. также",
+    "body": "- PROFILES.md — изоляция, удаление с уведомлением в Telegram - DEPLOYMENT.md — systemd, , - SECURITY.md — production checklist - TROUBLESHOOTING.md — Telegram bot skipped, зашифрованный env",
+    "keywords": [
+      "также"
+    ],
+    "nav_order": 6
+  },
+  {
+    "id": "ru/profile-encryption#чего-шифрование-не-защищает",
+    "lang": "ru",
+    "slug": "profile-encryption",
+    "section": "чего-шифрование-не-защищает",
+    "title": "Шифрование профиля",
+    "heading": "Чего шифрование не защищает",
+    "body": "Пока профиль разблокирован и агент работает, привилегированный процесс на хосте теоретически может читать память процесса или перехватывать трафик к LLM. Шифрование закрывает at-rest и офлайн-бэкапы , а не live forensics и промпты у провайдера. Потеря ключа разблокировки = данные невосстановимы — сервер не восстанавливает DEK без пользовательского ключа.",
+    "keywords": [
+      "чего",
+      "шифрование",
+      "защищает"
+    ],
+    "nav_order": 6
+  },
+  {
+    "id": "ru/profile-encryption#что-шифруется",
+    "lang": "ru",
+    "slug": "profile-encryption",
+    "section": "что-шифруется",
+    "title": "Шифрование профиля",
+    "heading": "Что шифруется",
+    "body": "Шифруется на диске Plaintext (намеренно) -------------------- ------------------------ — API-ключи, порты — модели, MCP (несекретные настройки) — токен бота, allowlist — файлы проекта агента , , — PID, логи SQLite-память: , , — привязки user id → профиль Chroma (архив ) Большинство файлов в , Формат: файлы с заголовком (AES-256-GCM). Метаданные в (DEK обёрнут через Argon2id). Вложения Telegram: при включённом шифровании файлы из или отправляются пользователю расшифрованными ( ) — получатель не видит ciphertext.",
+    "keywords": [
+      "что",
+      "шифруется"
+    ],
+    "nav_order": 6
+  },
+  {
+    "id": "ru/profile-encryption#шифрование-профиля-на-диске",
+    "lang": "ru",
+    "slug": "profile-encryption",
+    "section": "шифрование-профиля-на-диске",
+    "title": "Шифрование профиля",
+    "heading": "Шифрование профиля на диске",
+    "body": "Holix может шифровать секреты профиля и память на диске так, чтобы бэкапы, украденные диски и администраторы хоста не могли прочитать API-ключи, токены Telegram, soul агента или историю диалогов без ключа разблокировки пользователя. Файлы workspace остаются plaintext — код проекта и документы в удобны для git и не шифруются . Старые зашифрованные файлы workspace из прежних сборок мигрируют один раз: . См. также: SECURITY.md · CONFIGURATION.md · CLI.md · DEPLOYMENT.md",
+    "keywords": [
+      "шифрование",
+      "профиля",
+      "диске"
+    ],
+    "nav_order": 6
+  },
+  {
     "id": "ru/cli#curl-нужен-существующий-admin-hx_-key",
     "lang": "ru",
     "slug": "cli",
@@ -7701,7 +8387,7 @@
       "hx_",
       "key"
     ],
-    "nav_order": 6
+    "nav_order": 7
   },
   {
     "id": "ru/cli#holix-bootstrap",
@@ -7719,7 +8405,7 @@
       "holix",
       "bootstrap"
     ],
-    "nav_order": 6
+    "nav_order": 7
   },
   {
     "id": "ru/cli#holix-docs",
@@ -7737,7 +8423,7 @@
       "holix",
       "docs"
     ],
-    "nav_order": 6
+    "nav_order": 7
   },
   {
     "id": "ru/cli#holix-gateway",
@@ -7755,7 +8441,7 @@
       "holix",
       "gateway"
     ],
-    "nav_order": 6
+    "nav_order": 7
   },
   {
     "id": "ru/cli#holix-hub",
@@ -7773,7 +8459,7 @@
       "holix",
       "hub"
     ],
-    "nav_order": 6
+    "nav_order": 7
   },
   {
     "id": "ru/cli#holix-mcp",
@@ -7791,7 +8477,7 @@
       "holix",
       "mcp"
     ],
-    "nav_order": 6
+    "nav_order": 7
   },
   {
     "id": "ru/cli#holix-models",
@@ -7809,7 +8495,7 @@
       "holix",
       "models"
     ],
-    "nav_order": 6
+    "nav_order": 7
   },
   {
     "id": "ru/cli#holix-profile",
@@ -7818,7 +8504,7 @@
     "section": "holix-profile",
     "title": "Справочник CLI",
     "heading": "`holix profile`",
-    "body": "Изоляция профиля и общие глобальные настройки (наследуются по умолчанию). Подкоманда Описание ------------ ---------- Новый профиль ( по умолчанию, — без global) С ключом доступа + workspace jail Показать Редактировать global YAML (модели, MCP, поведение) Редактировать (Пере)создать global ( ) Показать профиля (переопределения) Открыть переопределения профиля в Ограничить файловые/терминальные инструменты одной директорией Выключить jail Статус jail Добавить команды через запятую Статус whitelist и итоговый список Включить проверку whitelist CONFIGURATION.md, PROFILES.md ---",
+    "body": "Изоляция профиля и общие глобальные настройки (наследуются по умолчанию). Подкоманда Описание ------------ ---------- Новый профиль ( по умолчанию, — без global) С ключом доступа + workspace jail Показать Редактировать global YAML (модели, MCP, поведение) Редактировать (Пере)создать global ( ) Показать профиля (переопределения) Открыть переопределения профиля в Ограничить файловые/терминальные инструменты одной директорией Выключить jail Статус jail Добавить команды через запятую Статус whitelist и итоговый список Включить проверку whitelist Удалить профиль после уведомления в Telegram Шифрование секретов профиля (см. ниже) : / (без подтверждения), (без Telegram). Защищённые: , , .",
     "keywords": [
       "command",
       "команды",
@@ -7827,7 +8513,26 @@
       "holix",
       "profile"
     ],
-    "nav_order": 6
+    "nav_order": 7
+  },
+  {
+    "id": "ru/cli#holix-profile-crypto",
+    "lang": "ru",
+    "slug": "cli",
+    "section": "holix-profile-crypto",
+    "title": "Справочник CLI",
+    "heading": "`holix profile crypto`",
+    "body": "Шифрует секреты профиля ( , , , БД памяти). Workspace остаётся plaintext (удобно для git). Подкоманда Описание ------------ ---------- Включить шифрование для активного профиля Массовое включение на незашифрованных профилях Политика шифрования и состояние unlock Расшифровать данные для этой CLI-сессии Сбросить unlock в процессе / Повторно зашифровать секреты после unlock Разовая миграция: legacy encrypted workspace → plaintext Миграция всех профилей Очистить устаревший runtime-кэш расшифровки Для gateway/systemd задайте в профиля или . См. CONFIGURATION.md и PROFILES.md. ---",
+    "keywords": [
+      "command",
+      "команды",
+      "typer",
+      "terminal",
+      "holix",
+      "profile",
+      "crypto"
+    ],
+    "nav_order": 7
   },
   {
     "id": "ru/cli#holix-skills",
@@ -7845,7 +8550,7 @@
       "holix",
       "skills"
     ],
-    "nav_order": 6
+    "nav_order": 7
   },
   {
     "id": "ru/cli#holix-status-clear-version",
@@ -7865,7 +8570,7 @@
       "clear",
       "version"
     ],
-    "nav_order": 6
+    "nav_order": 7
   },
   {
     "id": "ru/cli#holix-telegram",
@@ -7874,7 +8579,7 @@
     "section": "holix-telegram",
     "title": "Справочник CLI",
     "heading": "`holix telegram`",
-    "body": "Токен бота хранится в . Подкоманда Описание ------------ ---------- Мастер: только токен бота; включает режим запросов доступа Запуск polling ( выбирает профиль бота) Сохранённая конфигурация (токен скрыт), привязки Обновить slash-меню только для одобренных (скрыто до approve) Показать Telegram-администратора (назначается только из CLI) Сбросить админа перед повторным Ожидающие запросы после Одобрить ( , , или ) Отклонить запрос Ручная привязка Telegram user id → профиль Holix Список привязок Удалить привязку Быстрая привязка ( или id из allowlist) Импорт нескольких привязок Один бот на несколько изолированных профилей: TELEGRAM MULTI PROFILE.md. Общее: TELEGRAM.md. ---",
+    "body": "Нужен — из исходников: ; при : . Токен в (часто зашифрован). Не оставляйте пустой в — ключ лучше опустить, Holix подставит токен из . Подкоманда Описание ------------ ---------- Мастер: только токен бота; включает режим запросов доступа Запуск polling ( выбирает профиль бота) Сохранённая конфигурация (токен скрыт), привязки Обновить slash-меню только для одобренных (скрыто до approve) Показать Telegram-администратора (назначается только из CLI) Сбросить админа перед повторным Ожидающие запросы после Одобрить ( , , или ) Отклонить запрос Ручная привязка Telegram user id → профиль Holix Список привязок Удалить привязку Быстрая привязка ( или id из allowlist) Импорт нескольких привязок Один бот на несколько изолированных профилей: TELEGRAM MULTI PROFILE.md. Общее: TELEGRAM.md. ---",
     "keywords": [
       "command",
       "команды",
@@ -7883,7 +8588,7 @@
       "holix",
       "telegram"
     ],
-    "nav_order": 6
+    "nav_order": 7
   },
   {
     "id": "ru/cli#глобальные-опции",
@@ -7901,7 +8606,7 @@
       "глобальные",
       "опции"
     ],
-    "nav_order": 6
+    "nav_order": 7
   },
   {
     "id": "ru/cli#или-swagger-ui-после-holix-gateway-start",
@@ -7923,7 +8628,7 @@
       "gateway",
       "start"
     ],
-    "nav_order": 6
+    "nav_order": 7
   },
   {
     "id": "ru/cli#команды-верхнего-уровня",
@@ -7941,7 +8646,7 @@
       "верхнего",
       "уровня"
     ],
-    "nav_order": 6
+    "nav_order": 7
   },
   {
     "id": "ru/cli#профили",
@@ -7958,7 +8663,7 @@
       "terminal",
       "профили"
     ],
-    "nav_order": 6
+    "nav_order": 7
   },
   {
     "id": "ru/cli#см-также",
@@ -7975,7 +8680,7 @@
       "terminal",
       "также"
     ],
-    "nav_order": 6
+    "nav_order": 7
   },
   {
     "id": "ru/slash-commands#mcp",
@@ -7992,7 +8697,7 @@
       "session",
       "mcp"
     ],
-    "nav_order": 7
+    "nav_order": 8
   },
   {
     "id": "ru/slash-commands#skill-hub",
@@ -8010,7 +8715,7 @@
       "skill",
       "hub"
     ],
-    "nav_order": 7
+    "nav_order": 8
   },
   {
     "id": "ru/slash-commands#копирование-tui",
@@ -8028,7 +8733,7 @@
       "копирование",
       "tui"
     ],
-    "nav_order": 7
+    "nav_order": 8
   },
   {
     "id": "ru/slash-commands#модели-и-выполнение",
@@ -8046,7 +8751,7 @@
       "модели",
       "выполнение"
     ],
-    "nav_order": 7
+    "nav_order": 8
   },
   {
     "id": "ru/slash-commands#память-и-инструменты",
@@ -8064,7 +8769,7 @@
       "память",
       "инструменты"
     ],
-    "nav_order": 7
+    "nav_order": 8
   },
   {
     "id": "ru/slash-commands#поддержка-по-интерфейсам",
@@ -8082,7 +8787,7 @@
       "поддержка",
       "интерфейсам"
     ],
-    "nav_order": 7
+    "nav_order": 8
   },
   {
     "id": "ru/slash-commands#подтверждение-рискованных-действий",
@@ -8101,7 +8806,7 @@
       "рискованных",
       "действий"
     ],
-    "nav_order": 7
+    "nav_order": 8
   },
   {
     "id": "ru/slash-commands#сессии-tui-telegram",
@@ -8120,7 +8825,7 @@
       "tui",
       "telegram"
     ],
-    "nav_order": 7
+    "nav_order": 8
   },
   {
     "id": "ru/slash-commands#слэш-команды",
@@ -8136,7 +8841,7 @@
       "команды",
       "session"
     ],
-    "nav_order": 7
+    "nav_order": 8
   },
   {
     "id": "ru/slash-commands#согласование-плана",
@@ -8154,7 +8859,7 @@
       "согласование",
       "плана"
     ],
-    "nav_order": 7
+    "nav_order": 8
   },
   {
     "id": "ru/slash-commands#справка-и-статус",
@@ -8172,7 +8877,7 @@
       "справка",
       "статус"
     ],
-    "nav_order": 7
+    "nav_order": 8
   },
   {
     "id": "ru/slash-commands#только-chat-command",
@@ -8191,7 +8896,7 @@
       "chat",
       "command"
     ],
-    "nav_order": 7
+    "nav_order": 8
   },
   {
     "id": "ru/execution-modes#auto-auto",
@@ -8204,7 +8909,7 @@
     "keywords": [
       "auto"
     ],
-    "nav_order": 8
+    "nav_order": 9
   },
   {
     "id": "ru/execution-modes#hybrid-hybrid",
@@ -8217,7 +8922,7 @@
     "keywords": [
       "hybrid"
     ],
-    "nav_order": 8
+    "nav_order": 9
   },
   {
     "id": "ru/execution-modes#plan-execute-plan_and_execute",
@@ -8232,7 +8937,7 @@
       "execute",
       "plan_and_execute"
     ],
-    "nav_order": 8
+    "nav_order": 9
   },
   {
     "id": "ru/execution-modes#react-react",
@@ -8245,7 +8950,7 @@
     "keywords": [
       "react"
     ],
-    "nav_order": 8
+    "nav_order": 9
   },
   {
     "id": "ru/execution-modes#как-работает",
@@ -8259,7 +8964,7 @@
       "как",
       "работает"
     ],
-    "nav_order": 8
+    "nav_order": 9
   },
   {
     "id": "ru/execution-modes#как-работает",
@@ -8273,7 +8978,7 @@
       "как",
       "работает"
     ],
-    "nav_order": 8
+    "nav_order": 9
   },
   {
     "id": "ru/execution-modes#как-работает",
@@ -8287,7 +8992,7 @@
       "как",
       "работает"
     ],
-    "nav_order": 8
+    "nav_order": 9
   },
   {
     "id": "ru/execution-modes#как-работает",
@@ -8301,7 +9006,7 @@
       "как",
       "работает"
     ],
-    "nav_order": 8
+    "nav_order": 9
   },
   {
     "id": "ru/execution-modes#когда-использовать",
@@ -8315,7 +9020,7 @@
       "когда",
       "использовать"
     ],
-    "nav_order": 8
+    "nav_order": 9
   },
   {
     "id": "ru/execution-modes#когда-использовать",
@@ -8329,7 +9034,7 @@
       "когда",
       "использовать"
     ],
-    "nav_order": 8
+    "nav_order": 9
   },
   {
     "id": "ru/execution-modes#когда-использовать",
@@ -8343,7 +9048,7 @@
       "когда",
       "использовать"
     ],
-    "nav_order": 8
+    "nav_order": 9
   },
   {
     "id": "ru/execution-modes#когда-использовать",
@@ -8357,7 +9062,7 @@
       "когда",
       "использовать"
     ],
-    "nav_order": 8
+    "nav_order": 9
   },
   {
     "id": "ru/execution-modes#настройки",
@@ -8370,7 +9075,7 @@
     "keywords": [
       "настройки"
     ],
-    "nav_order": 8
+    "nav_order": 9
   },
   {
     "id": "ru/execution-modes#план-plan-и-hybrid",
@@ -8385,7 +9090,7 @@
       "plan",
       "hybrid"
     ],
-    "nav_order": 8
+    "nav_order": 9
   },
   {
     "id": "ru/execution-modes#примеры-промптов",
@@ -8399,7 +9104,7 @@
       "примеры",
       "промптов"
     ],
-    "nav_order": 8
+    "nav_order": 9
   },
   {
     "id": "ru/execution-modes#примеры-промптов",
@@ -8413,7 +9118,7 @@
       "примеры",
       "промптов"
     ],
-    "nav_order": 8
+    "nav_order": 9
   },
   {
     "id": "ru/execution-modes#примеры-промптов",
@@ -8427,7 +9132,7 @@
       "примеры",
       "промптов"
     ],
-    "nav_order": 8
+    "nav_order": 9
   },
   {
     "id": "ru/execution-modes#режимы-работы-execution-modes",
@@ -8443,7 +9148,7 @@
       "execution",
       "modes"
     ],
-    "nav_order": 8
+    "nav_order": 9
   },
   {
     "id": "ru/execution-modes#рискованные-инструменты-все-режимы",
@@ -8459,7 +9164,7 @@
       "все",
       "режимы"
     ],
-    "nav_order": 8
+    "nav_order": 9
   },
   {
     "id": "ru/execution-modes#см-также",
@@ -8472,7 +9177,7 @@
     "keywords": [
       "также"
     ],
-    "nav_order": 8
+    "nav_order": 9
   },
   {
     "id": "ru/execution-modes#чем-режимы-отличаются",
@@ -8487,7 +9192,7 @@
       "режимы",
       "отличаются"
     ],
-    "nav_order": 8
+    "nav_order": 9
   },
   {
     "id": "ru/execution-modes#шпаргалка-по-выбору-режима",
@@ -8502,7 +9207,7 @@
       "выбору",
       "режима"
     ],
-    "nav_order": 8
+    "nav_order": 9
   },
   {
     "id": "ru/tui#lan-полный-доступ-к-агенту-задайте-надёжный-token",
@@ -8525,7 +9230,7 @@
       "надёжный",
       "token"
     ],
-    "nav_order": 9
+    "nav_order": 10
   },
   {
     "id": "ru/tui#skill-hub",
@@ -8543,7 +9248,7 @@
       "skill",
       "hub"
     ],
-    "nav_order": 9
+    "nav_order": 10
   },
   {
     "id": "ru/tui#копирование",
@@ -8560,7 +9265,7 @@
       "web mode",
       "копирование"
     ],
-    "nav_order": 9
+    "nav_order": 10
   },
   {
     "id": "ru/hub#mcp-и-переменные-окружения",
@@ -8579,7 +9284,7 @@
       "переменные",
       "окружения"
     ],
-    "nav_order": 10
+    "nav_order": 11
   },
   {
     "id": "ru/hub#skill-hub",
@@ -8598,7 +9303,7 @@
       "skill",
       "hub"
     ],
-    "nav_order": 10
+    "nav_order": 11
   },
   {
     "id": "ru/hub#tui",
@@ -8616,7 +9321,7 @@
       "mcp",
       "tui"
     ],
-    "nav_order": 10
+    "nav_order": 11
   },
   {
     "id": "ru/hub#скиллы-по-агентам",
@@ -8635,7 +9340,7 @@
       "скиллы",
       "агентам"
     ],
-    "nav_order": 10
+    "nav_order": 11
   },
   {
     "id": "ru/hub#форматы-установки",
@@ -8654,7 +9359,7 @@
       "форматы",
       "установки"
     ],
-    "nav_order": 10
+    "nav_order": 11
   },
   {
     "id": "ru/gateway#api-gateway",
@@ -8674,7 +9379,7 @@
       "путь",
       "restricted"
     ],
-    "nav_order": 11
+    "nav_order": 12
   },
   {
     "id": "ru/gateway#multi-profile-gateway-v02",
@@ -8697,7 +9402,7 @@
       "profile",
       "v02"
     ],
-    "nav_order": 11
+    "nav_order": 12
   },
   {
     "id": "ru/gateway#profilesbobenv",
@@ -8721,7 +9426,7 @@
       "bob",
       "env"
     ],
-    "nav_order": 11
+    "nav_order": 12
   },
   {
     "id": "ru/gateway#swagger-authorize",
@@ -8743,7 +9448,7 @@
       "swagger",
       "authorize"
     ],
-    "nav_order": 11
+    "nav_order": 12
   },
   {
     "id": "ru/gateway#затем-holix_require_authtrue-и-перезапуск",
@@ -8768,7 +9473,7 @@
       "holix_require_auth",
       "true"
     ],
-    "nav_order": 11
+    "nav_order": 12
   },
   {
     "id": "ru/gateway#или-holix_gateway_with_docs1-holix-gateway-start",
@@ -8793,7 +9498,7 @@
       "start",
       "holix_gateway_with_docs"
     ],
-    "nav_order": 11
+    "nav_order": 12
   },
   {
     "id": "ru/gateway#интерактивная-документация-api",
@@ -8815,7 +9520,7 @@
       "интерактивная",
       "документация"
     ],
-    "nav_order": 11
+    "nav_order": 12
   },
   {
     "id": "ru/gateway#ключи-gateway-api",
@@ -8836,7 +9541,7 @@
       "restricted",
       "ключи"
     ],
-    "nav_order": 11
+    "nav_order": 12
   },
   {
     "id": "ru/gateway#команды",
@@ -8857,7 +9562,7 @@
       "restricted",
       "команды"
     ],
-    "nav_order": 11
+    "nav_order": 12
   },
   {
     "id": "ru/gateway#краткая-карта-эндпоинтов",
@@ -8880,7 +9585,7 @@
       "карта",
       "эндпоинтов"
     ],
-    "nav_order": 11
+    "nav_order": 12
   },
   {
     "id": "ru/gateway#метрики",
@@ -8901,7 +9606,7 @@
       "restricted",
       "метрики"
     ],
-    "nav_order": 11
+    "nav_order": 12
   },
   {
     "id": "ru/gateway#переменные-окружения",
@@ -8923,7 +9628,7 @@
       "переменные",
       "окружения"
     ],
-    "nav_order": 11
+    "nav_order": 12
   },
   {
     "id": "ru/gateway#сайт-документации---with-docs",
@@ -8947,7 +9652,7 @@
       "with",
       "docs"
     ],
-    "nav_order": 11
+    "nav_order": 12
   },
   {
     "id": "ru/gateway-api#1-создать-профиль-арендатора-admin",
@@ -8969,7 +9674,7 @@
       "профиль",
       "арендатора"
     ],
-    "nav_order": 12
+    "nav_order": 13
   },
   {
     "id": "ru/gateway-api#2-добавить-llm-провайдера",
@@ -8991,7 +9696,7 @@
       "llm",
       "провайдера"
     ],
-    "nav_order": 12
+    "nav_order": 13
   },
   {
     "id": "ru/gateway-api#3-перезагрузить-агента-арендатора-companions",
@@ -9014,7 +9719,7 @@
       "арендатора",
       "companions"
     ],
-    "nav_order": 12
+    "nav_order": 13
   },
   {
     "id": "ru/gateway-api#4-чат-от-имени-арендатора-openai-client-model-имя-профиля",
@@ -9041,7 +9746,7 @@
       "имя",
       "профиля"
     ],
-    "nav_order": 12
+    "nav_order": 13
   },
   {
     "id": "ru/gateway-api#api-чата-сайта-документации",
@@ -9063,7 +9768,7 @@
       "сайта",
       "документации"
     ],
-    "nav_order": 12
+    "nav_order": 13
   },
   {
     "id": "ru/gateway-api#delete-adminapi-keyskey_id",
@@ -9087,7 +9792,31 @@
       "keys",
       "key_id"
     ],
-    "nav_order": 12
+    "nav_order": 13
+  },
+  {
+    "id": "ru/gateway-api#delete-apiholixprofilesprofile_id",
+    "lang": "ru",
+    "slug": "gateway-api",
+    "section": "delete-apiholixprofilesprofile_id",
+    "title": "Полный справочник API",
+    "heading": "`DELETE /api/holix/profiles/{profile_id}`",
+    "body": "Аутентификация: Admin. Удалить директорию профиля с опциональным уведомлением в Telegram. Query По умолчанию Описание ------- -------------- ---------- Отправить уведомление пользователям Telegram, привязанным к профилю Защищённые профили ( , , ) → . Выгружает агента из registry, останавливает cron/Telegram для профиля, уведомляет пользователей, удаляет привязки в , затем удаляет . Ответ:",
+    "keywords": [
+      "api",
+      "gateway",
+      "chat",
+      "completions",
+      "sessions",
+      "path",
+      "admin",
+      "delete",
+      "apiholixprofilesprofile_id",
+      "holix",
+      "profiles",
+      "profile_id"
+    ],
+    "nav_order": 13
   },
   {
     "id": "ru/gateway-api#get",
@@ -9107,7 +9836,7 @@
       "admin",
       "get"
     ],
-    "nav_order": 12
+    "nav_order": 13
   },
   {
     "id": "ru/gateway-api#get-healthdetailed",
@@ -9130,7 +9859,7 @@
       "health",
       "detailed"
     ],
-    "nav_order": 12
+    "nav_order": 13
   },
   {
     "id": "ru/gateway-api#get-metrics",
@@ -9151,7 +9880,7 @@
       "get",
       "metrics"
     ],
-    "nav_order": 12
+    "nav_order": 13
   },
   {
     "id": "ru/gateway-api#get-status",
@@ -9172,7 +9901,7 @@
       "get",
       "status"
     ],
-    "nav_order": 12
+    "nav_order": 13
   },
   {
     "id": "ru/gateway-api#get-v1docschatsession",
@@ -9195,7 +9924,7 @@
       "docs",
       "session"
     ],
-    "nav_order": 12
+    "nav_order": 13
   },
   {
     "id": "ru/gateway-api#hermes-api-v1",
@@ -9215,7 +9944,7 @@
       "admin",
       "hermes"
     ],
-    "nav_order": 12
+    "nav_order": 13
   },
   {
     "id": "ru/gateway-api#holix-gateway-api-полный-справочник",
@@ -9237,7 +9966,7 @@
       "полный",
       "справочник"
     ],
-    "nav_order": 12
+    "nav_order": 13
   },
   {
     "id": "ru/gateway-api#post-adminapi-keys",
@@ -9259,7 +9988,7 @@
       "adminapi",
       "keys"
     ],
-    "nav_order": 12
+    "nav_order": 13
   },
   {
     "id": "ru/gateway-api#post-apiholixprofiles",
@@ -9282,7 +10011,7 @@
       "holix",
       "profiles"
     ],
-    "nav_order": 12
+    "nav_order": 13
   },
   {
     "id": "ru/gateway-api#post-apijobs",
@@ -9304,7 +10033,7 @@
       "apijobs",
       "jobs"
     ],
-    "nav_order": 12
+    "nav_order": 13
   },
   {
     "id": "ru/gateway-api#post-v1chatcompletions",
@@ -9325,7 +10054,7 @@
       "post",
       "v1chatcompletions"
     ],
-    "nav_order": 12
+    "nav_order": 13
   },
   {
     "id": "ru/gateway-api#post-v1docschat",
@@ -9347,7 +10076,7 @@
       "v1docschat",
       "docs"
     ],
-    "nav_order": 12
+    "nav_order": 13
   },
   {
     "id": "ru/gateway-api#post-v1responses",
@@ -9369,7 +10098,7 @@
       "v1responses",
       "responses"
     ],
-    "nav_order": 12
+    "nav_order": 13
   },
   {
     "id": "ru/gateway-api#reload_required",
@@ -9389,7 +10118,7 @@
       "admin",
       "reload_required"
     ],
-    "nav_order": 12
+    "nav_order": 13
   },
   {
     "id": "ru/gateway-api#swagger-authorize-один-токен-для-всех-запросов",
@@ -9415,7 +10144,7 @@
       "всех",
       "запросов"
     ],
-    "nav_order": 12
+    "nav_order": 13
   },
   {
     "id": "ru/gateway-api#архитектура-multi-profile",
@@ -9437,7 +10166,7 @@
       "multi",
       "profile"
     ],
-    "nav_order": 12
+    "nav_order": 13
   },
   {
     "id": "ru/gateway-api#аутентификация",
@@ -9457,7 +10186,7 @@
       "admin",
       "аутентификация"
     ],
-    "nav_order": 12
+    "nav_order": 13
   },
   {
     "id": "ru/gateway-api#базовый-url-и-интерактивная-документация",
@@ -9480,7 +10209,7 @@
       "интерактивная",
       "документация"
     ],
-    "nav_order": 12
+    "nav_order": 13
   },
   {
     "id": "ru/gateway-api#видимость-путей-в-ответах-агента",
@@ -9503,7 +10232,7 @@
       "ответах",
       "агента"
     ],
-    "nav_order": 12
+    "nav_order": 13
   },
   {
     "id": "ru/gateway-api#заголовки-сессии-алиасы",
@@ -9525,7 +10254,7 @@
       "сессии",
       "алиасы"
     ],
-    "nav_order": 12
+    "nav_order": 13
   },
   {
     "id": "ru/gateway-api#замечания-по-безопасности",
@@ -9546,7 +10275,7 @@
       "замечания",
       "безопасности"
     ],
-    "nav_order": 12
+    "nav_order": 13
   },
   {
     "id": "ru/gateway-api#маршрутизация-профиля",
@@ -9567,7 +10296,7 @@
       "маршрутизация",
       "профиля"
     ],
-    "nav_order": 12
+    "nav_order": 13
   },
   {
     "id": "ru/gateway-api#маскирование-секретов",
@@ -9588,7 +10317,7 @@
       "маскирование",
       "секретов"
     ],
-    "nav_order": 12
+    "nav_order": 13
   },
   {
     "id": "ru/gateway-api#матрица-совместимости-с-hermes",
@@ -9610,7 +10339,7 @@
       "совместимости",
       "hermes"
     ],
-    "nav_order": 12
+    "nav_order": 13
   },
   {
     "id": "ru/gateway-api#нужен-существующий-admin-key-или-bootstrap-с-holix_require_authf",
@@ -9639,7 +10368,7 @@
       "один",
       "раз"
     ],
-    "nav_order": 12
+    "nav_order": 13
   },
   {
     "id": "ru/gateway-api#ошибки",
@@ -9659,7 +10388,7 @@
       "admin",
       "ошибки"
     ],
-    "nav_order": 12
+    "nav_order": 13
   },
   {
     "id": "ru/gateway-api#примеры-saas-воркфлоу",
@@ -9681,7 +10410,7 @@
       "saas",
       "воркфлоу"
     ],
-    "nav_order": 12
+    "nav_order": 13
   },
   {
     "id": "ru/gateway-api#содержание",
@@ -9701,7 +10430,7 @@
       "admin",
       "содержание"
     ],
-    "nav_order": 12
+    "nav_order": 13
   },
   {
     "id": "ru/gateway-api#уровень-1-api-key-gateway-hx_",
@@ -9723,7 +10452,7 @@
       "key",
       "hx_"
     ],
-    "nav_order": 12
+    "nav_order": 13
   },
   {
     "id": "ru/gateway-api#уровень-2-ключ-доступа-к-профилю-hp_",
@@ -9747,7 +10476,7 @@
       "профилю",
       "hp_"
     ],
-    "nav_order": 12
+    "nav_order": 13
   },
   {
     "id": "ru/gateway-api#уровень-3-токен-docs-chat-только-для-виджета-сайта",
@@ -9773,7 +10502,7 @@
       "виджета",
       "сайта"
     ],
-    "nav_order": 12
+    "nav_order": 13
   },
   {
     "id": "ru/telegram#1-админ-подключение-бота",
@@ -9795,7 +10524,7 @@
       "подключение",
       "бота"
     ],
-    "nav_order": 13
+    "nav_order": 14
   },
   {
     "id": "ru/telegram#2-первый-администратор-только-cli",
@@ -9818,7 +10547,7 @@
       "только",
       "cli"
     ],
-    "nav_order": 13
+    "nav_order": 14
   },
   {
     "id": "ru/telegram#3-пользователь-запрос-доступа",
@@ -9840,7 +10569,7 @@
       "запрос",
       "доступа"
     ],
-    "nav_order": 13
+    "nav_order": 14
   },
   {
     "id": "ru/telegram#4-админ-одобрение-и-изолированный-профиль",
@@ -9863,7 +10592,7 @@
       "изолированный",
       "профиль"
     ],
-    "nav_order": 13
+    "nav_order": 14
   },
   {
     "id": "ru/telegram#ffmpeg-должен-быть-в-path",
@@ -9886,7 +10615,7 @@
       "быть",
       "path"
     ],
-    "nav_order": 13
+    "nav_order": 14
   },
   {
     "id": "ru/telegram#production",
@@ -9906,7 +10635,29 @@
       "голосовые",
       "production"
     ],
-    "nav_order": 13
+    "nav_order": 14
+  },
+  {
+    "id": "ru/telegram#production-uv-tool-install",
+    "lang": "ru",
+    "slug": "telegram",
+    "section": "production-uv-tool-install",
+    "title": "Telegram",
+    "heading": "Production (`uv tool install`)",
+    "body": "При глобальной установке через uv явно добавьте aiogram: Без aiogram в логе будет , даже если токен настроен.",
+    "keywords": [
+      "telegram",
+      "телеграм",
+      "бот",
+      "bot",
+      "allowlist",
+      "whisper",
+      "голосовые",
+      "production",
+      "tool",
+      "install"
+    ],
+    "nav_order": 14
   },
   {
     "id": "ru/telegram#telegram",
@@ -9925,7 +10676,7 @@
       "whisper",
       "голосовые"
     ],
-    "nav_order": 13
+    "nav_order": 14
   },
   {
     "id": "ru/telegram#видимость-меню-команд",
@@ -9947,7 +10698,7 @@
       "меню",
       "команд"
     ],
-    "nav_order": 13
+    "nav_order": 14
   },
   {
     "id": "ru/telegram#голосовые-сообщения",
@@ -9967,7 +10718,7 @@
       "голосовые",
       "сообщения"
     ],
-    "nav_order": 13
+    "nav_order": 14
   },
   {
     "id": "ru/telegram#использование",
@@ -9987,7 +10738,7 @@
       "голосовые",
       "использование"
     ],
-    "nav_order": 13
+    "nav_order": 14
   },
   {
     "id": "ru/telegram#как-это-работает",
@@ -10009,7 +10760,7 @@
       "это",
       "работает"
     ],
-    "nav_order": 13
+    "nav_order": 14
   },
   {
     "id": "ru/telegram#настройка",
@@ -10029,7 +10780,7 @@
       "голосовые",
       "настройка"
     ],
-    "nav_order": 13
+    "nav_order": 14
   },
   {
     "id": "ru/telegram#привязка-user-id-профиль-вручную",
@@ -10052,7 +10803,51 @@
       "профиль",
       "вручную"
     ],
-    "nav_order": 13
+    "nav_order": 14
+  },
+  {
+    "id": "ru/telegram#уведомление-об-удалении-профиля",
+    "lang": "ru",
+    "slug": "telegram",
+    "section": "уведомление-об-удалении-профиля",
+    "title": "Telegram",
+    "heading": "Уведомление об удалении профиля",
+    "body": "При удалении профиля администратором ( или ) Holix сначала отправляет сообщение в Telegram всем пользователям, привязанным к профилю. или отключают уведомление. См. PROFILES.md.",
+    "keywords": [
+      "telegram",
+      "телеграм",
+      "бот",
+      "bot",
+      "allowlist",
+      "whisper",
+      "голосовые",
+      "уведомление",
+      "удалении",
+      "профиля"
+    ],
+    "nav_order": 14
+  },
+  {
+    "id": "ru/telegram#хранение-и-загрузка-токена",
+    "lang": "ru",
+    "slug": "telegram",
+    "section": "хранение-и-загрузка-токена",
+    "title": "Telegram",
+    "heading": "Хранение и загрузка токена",
+    "body": "- Токен бота храните в . При шифровании профиля файл шифруется на диске. - Не оставляйте пустой в — это мешает подставить реальный токен из . В global ключ лучше не указывать; Holix возьмёт значение из профиля (в т.ч. расшифрованное при заданном ). - Gateway при старте вызывает после unlock профиля, чтобы зашифрованный токен был доступен до запуска бота.",
+    "keywords": [
+      "telegram",
+      "телеграм",
+      "бот",
+      "bot",
+      "allowlist",
+      "whisper",
+      "голосовые",
+      "хранение",
+      "загрузка",
+      "токена"
+    ],
+    "nav_order": 14
   },
   {
     "id": "ru/telegram-multi-profile#3-свой-бот-у-каждого-профиля",
@@ -10068,7 +10863,7 @@
       "каждого",
       "профиля"
     ],
-    "nav_order": 14
+    "nav_order": 15
   },
   {
     "id": "ru/telegram-multi-profile#5-ограничить-доступ-в-production",
@@ -10083,7 +10878,7 @@
       "доступ",
       "production"
     ],
-    "nav_order": 14
+    "nav_order": 15
   },
   {
     "id": "ru/telegram-multi-profile#holixprofilesbobenv",
@@ -10100,7 +10895,7 @@
       "bob",
       "env"
     ],
-    "nav_order": 14
+    "nav_order": 15
   },
   {
     "id": "ru/telegram-multi-profile#telegram-несколько-изолированных-профилей",
@@ -10116,7 +10911,7 @@
       "изолированных",
       "профилей"
     ],
-    "nav_order": 14
+    "nav_order": 15
   },
   {
     "id": "ru/telegram-multi-profile#альтернатива-один-бот-ручной-profile-или-map",
@@ -10135,7 +10930,7 @@
       "или",
       "map"
     ],
-    "nav_order": 14
+    "nav_order": 15
   },
   {
     "id": "ru/telegram-multi-profile#итог",
@@ -10148,7 +10943,7 @@
     "keywords": [
       "итог"
     ],
-    "nav_order": 14
+    "nav_order": 15
   },
   {
     "id": "ru/telegram-multi-profile#как-устроено-в-holix",
@@ -10163,7 +10958,7 @@
       "устроено",
       "holix"
     ],
-    "nav_order": 14
+    "nav_order": 15
   },
   {
     "id": "ru/telegram-multi-profile#ограничения-одного-бота",
@@ -10178,7 +10973,7 @@
       "одного",
       "бота"
     ],
-    "nav_order": 14
+    "nav_order": 15
   },
   {
     "id": "ru/telegram-multi-profile#один-бот-много-пользователей-access-requests-рекомендуется",
@@ -10197,7 +10992,7 @@
       "requests",
       "рекомендуется"
     ],
-    "nav_order": 14
+    "nav_order": 15
   },
   {
     "id": "ru/telegram-multi-profile#привязка-user-id-профиль-один-бот-вручную",
@@ -10215,7 +11010,7 @@
       "бот",
       "вручную"
     ],
-    "nav_order": 14
+    "nav_order": 15
   },
   {
     "id": "ru/telegram-multi-profile#сравнение-подходов",
@@ -10229,7 +11024,7 @@
       "сравнение",
       "подходов"
     ],
-    "nav_order": 14
+    "nav_order": 15
   },
   {
     "id": "ru/telegram-multi-profile#типичные-ошибки",
@@ -10243,7 +11038,7 @@
       "типичные",
       "ошибки"
     ],
-    "nav_order": 14
+    "nav_order": 15
   },
   {
     "id": "ru/browser-tools#безопасность",
@@ -10259,7 +11054,7 @@
       "браузер",
       "безопасность"
     ],
-    "nav_order": 15
+    "nav_order": 16
   },
   {
     "id": "ru/browser-tools#браузерная-автоматизация-playwright",
@@ -10276,7 +11071,7 @@
       "браузерная",
       "автоматизация"
     ],
-    "nav_order": 15
+    "nav_order": 16
   },
   {
     "id": "ru/browser-tools#инструменты",
@@ -10292,7 +11087,7 @@
       "браузер",
       "инструменты"
     ],
-    "nav_order": 15
+    "nav_order": 16
   },
   {
     "id": "ru/architecture#архитектура",
@@ -10308,7 +11103,7 @@
       "runtime",
       "events"
     ],
-    "nav_order": 16
+    "nav_order": 17
   },
   {
     "id": "ru/security#api-keys",
@@ -10327,7 +11122,7 @@
       "api",
       "keys"
     ],
-    "nav_order": 17
+    "nav_order": 18
   },
   {
     "id": "ru/security#web-tui-holix-tui---web",
@@ -10347,7 +11142,7 @@
       "tui",
       "holix"
     ],
-    "nav_order": 17
+    "nav_order": 18
   },
   {
     "id": "ru/security#двухслойная-аутентификация-gateway",
@@ -10367,7 +11162,7 @@
       "аутентификация",
       "gateway"
     ],
-    "nav_order": 17
+    "nav_order": 18
   },
   {
     "id": "ru/security#инструменты",
@@ -10385,7 +11180,7 @@
       "token",
       "инструменты"
     ],
-    "nav_order": 17
+    "nav_order": 18
   },
   {
     "id": "ru/security#токен-docs-chat-отдельная-поверхность",
@@ -10407,7 +11202,7 @@
       "отдельная",
       "поверхность"
     ],
-    "nav_order": 17
+    "nav_order": 18
   },
   {
     "id": "ru/security#чеклист-production",
@@ -10426,7 +11221,26 @@
       "чеклист",
       "production"
     ],
-    "nav_order": 17
+    "nav_order": 18
+  },
+  {
+    "id": "ru/security#шифрование-на-диске",
+    "lang": "ru",
+    "slug": "security",
+    "section": "шифрование-на-диске",
+    "title": "Безопасность",
+    "heading": "Шифрование на диске",
+    "body": "Опциональное шифрование по профилю защищает секреты и память, но не workspace агента: Шифруется Plaintext ----------- ----------- , , , (файлы проекта, git-friendly) БД памяти (SQLite, Chroma) (несекретные настройки) Gateway / systemd: задайте в или профиля. Без ключа зашифрованный не читается, и бот не стартует, даже если в окружении процесса пустой. Ловушка с токеном Telegram: не задавайте (пустое) в . Опустите переменную или храните токен только в . Миграция workspace: на старых установках workspace мог быть зашифрован. Один раз: После остановки gateway скрипт (systemd ) может повторно запечатать память при заданном . Полный гайд (таблица файлов, политика по ОС, пошаговое включение): PROFILE ENCRYPTION.md.",
+    "keywords": [
+      "security",
+      "безопасность",
+      "auth",
+      "cors",
+      "token",
+      "шифрование",
+      "диске"
+    ],
+    "nav_order": 18
   },
   {
     "id": "ru/terminal-security#1-включение-отключение-терминала",
@@ -10441,7 +11255,7 @@
       "отключение",
       "терминала"
     ],
-    "nav_order": 18
+    "nav_order": 19
   },
   {
     "id": "ru/terminal-security#3-whitelist-команд-allowlist",
@@ -10456,7 +11270,7 @@
       "команд",
       "allowlist"
     ],
-    "nav_order": 18
+    "nav_order": 19
   },
   {
     "id": "ru/terminal-security#4-подтверждение-пользователем-actionguard",
@@ -10471,7 +11285,7 @@
       "пользователем",
       "actionguard"
     ],
-    "nav_order": 18
+    "nav_order": 19
   },
   {
     "id": "ru/terminal-security#5-workspace-jail-рабочая-директория",
@@ -10487,7 +11301,7 @@
       "рабочая",
       "директория"
     ],
-    "nav_order": 18
+    "nav_order": 19
   },
   {
     "id": "ru/terminal-security#unix-macos-linux",
@@ -10502,7 +11316,7 @@
       "macos",
       "linux"
     ],
-    "nav_order": 18
+    "nav_order": 19
   },
   {
     "id": "ru/terminal-security#windows-дополнительно",
@@ -10516,7 +11330,7 @@
       "windows",
       "дополнительно"
     ],
-    "nav_order": 18
+    "nav_order": 19
   },
   {
     "id": "ru/terminal-security#безопасность-команд-терминала",
@@ -10531,7 +11345,7 @@
       "команд",
       "терминала"
     ],
-    "nav_order": 18
+    "nav_order": 19
   },
   {
     "id": "ru/terminal-security#встроенный-whitelist-unix",
@@ -10546,7 +11360,7 @@
       "whitelist",
       "unix"
     ],
-    "nav_order": 18
+    "nav_order": 19
   },
   {
     "id": "ru/terminal-security#встроенный-whitelist-windows",
@@ -10561,7 +11375,7 @@
       "whitelist",
       "windows"
     ],
-    "nav_order": 18
+    "nav_order": 19
   },
   {
     "id": "ru/terminal-security#если-whitelist-отключён",
@@ -10576,7 +11390,7 @@
       "whitelist",
       "отключён"
     ],
-    "nav_order": 18
+    "nav_order": 19
   },
   {
     "id": "ru/terminal-security#как-работает-сопоставление",
@@ -10591,7 +11405,7 @@
       "работает",
       "сопоставление"
     ],
-    "nav_order": 18
+    "nav_order": 19
   },
   {
     "id": "ru/terminal-security#разрешено-и-запрещено-практика",
@@ -10606,7 +11420,7 @@
       "запрещено",
       "практика"
     ],
-    "nav_order": 18
+    "nav_order": 19
   },
   {
     "id": "ru/terminal-security#рекомендации-для-production",
@@ -10621,7 +11435,7 @@
       "для",
       "production"
     ],
-    "nav_order": 18
+    "nav_order": 19
   },
   {
     "id": "ru/terminal-security#слои-защиты-порядок-проверок",
@@ -10637,7 +11451,7 @@
       "порядок",
       "проверок"
     ],
-    "nav_order": 18
+    "nav_order": 19
   },
   {
     "id": "ru/terminal-security#см-также",
@@ -10650,7 +11464,26 @@
     "keywords": [
       "также"
     ],
-    "nav_order": 18
+    "nav_order": 19
+  },
+  {
+    "id": "ru/deployment#1-пользователь-сервиса",
+    "lang": "ru",
+    "slug": "deployment",
+    "section": "1-пользователь-сервиса",
+    "title": "Деплой",
+    "heading": "1. Пользователь сервиса",
+    "body": "Из checkout с uv (часто на dev-серверах): по умолчанию не включает extra — без gateway стартует, но бот остаётся выключенным.",
+    "keywords": [
+      "deploy",
+      "деплой",
+      "systemd",
+      "docker",
+      "ci",
+      "пользователь",
+      "сервиса"
+    ],
+    "nav_order": 20
   },
   {
     "id": "ru/deployment#2-настройка-профиля",
@@ -10669,7 +11502,7 @@
       "настройка",
       "профиля"
     ],
-    "nav_order": 19
+    "nav_order": 20
   },
   {
     "id": "ru/deployment#3-установка-unit-файлов",
@@ -10689,7 +11522,7 @@
       "unit",
       "файлов"
     ],
-    "nav_order": 19
+    "nav_order": 20
   },
   {
     "id": "ru/deployment#4-запуск-и-управление",
@@ -10708,7 +11541,7 @@
       "запуск",
       "управление"
     ],
-    "nav_order": 19
+    "nav_order": 20
   },
   {
     "id": "ru/deployment#5-виджет-чата-на-сайте-документации",
@@ -10729,7 +11562,7 @@
       "сайте",
       "документации"
     ],
-    "nav_order": 19
+    "nav_order": 20
   },
   {
     "id": "ru/deployment#6-сборка-сайта-документации-и-seo",
@@ -10750,7 +11583,7 @@
       "документации",
       "seo"
     ],
-    "nav_order": 19
+    "nav_order": 20
   },
   {
     "id": "ru/deployment#7-reverse-proxy-tls",
@@ -10770,7 +11603,7 @@
       "proxy",
       "tls"
     ],
-    "nav_order": 19
+    "nav_order": 20
   },
   {
     "id": "ru/deployment#docker",
@@ -10787,7 +11620,7 @@
       "docker",
       "ci"
     ],
-    "nav_order": 19
+    "nav_order": 20
   },
   {
     "id": "ru/deployment#holixprofilesbobenv",
@@ -10809,7 +11642,7 @@
       "bob",
       "env"
     ],
-    "nav_order": 19
+    "nav_order": 20
   },
   {
     "id": "ru/deployment#systemd",
@@ -10826,7 +11659,7 @@
       "docker",
       "ci"
     ],
-    "nav_order": 19
+    "nav_order": 20
   },
   {
     "id": "ru/deployment#или-для-именованного-профиля",
@@ -10835,7 +11668,7 @@
     "section": "или-для-именованного-профиля",
     "title": "Деплой",
     "heading": "или для именованного профиля:",
-    "body": "sudo -u holix holix -p alice profile env --edit bash HOLIX ENV=production HOLIX GATEWAY HOST=127.0.0.1 HOLIX GATEWAY PORT=8000 HOLIX REQUIRE AUTH=true HOLIX API KEY PEPPER=<случайный-секрет `` sudo -u holix holix -p alice telegram setup`",
+    "body": "sudo -u holix holix -p alice profile env --edit bash HOLIX ENV=production HOLIX GATEWAY HOST=127.0.0.1 HOLIX GATEWAY PORT=8000 HOLIX REQUIRE AUTH=true HOLIX API KEY PEPPER=<случайный-секрет bash holix profile crypto decrypt-workspace --all --yes",
     "keywords": [
       "deploy",
       "деплой",
@@ -10847,7 +11680,7 @@
       "именованного",
       "профиля"
     ],
-    "nav_order": 19
+    "nav_order": 20
   },
   {
     "id": "ru/deployment#или-привязка-к-существующему-профилю",
@@ -10868,7 +11701,7 @@
       "существующему",
       "профилю"
     ],
-    "nav_order": 19
+    "nav_order": 20
   },
   {
     "id": "ru/deployment#отредактируйте-holix_python-и-holix_bin-под-пути-pipx-на-вашем-х",
@@ -10893,7 +11726,7 @@
       "вашем",
       "хосте"
     ],
-    "nav_order": 19
+    "nav_order": 20
   },
   {
     "id": "ru/doctor#без---fix",
@@ -10910,7 +11743,7 @@
       "repair",
       "без"
     ],
-    "nav_order": 20
+    "nav_order": 21
   },
   {
     "id": "ru/doctor#проверки",
@@ -10927,7 +11760,7 @@
       "repair",
       "проверки"
     ],
-    "nav_order": 20
+    "nav_order": 21
   },
   {
     "id": "ru/doctor#с---fix",
@@ -10943,7 +11776,7 @@
       "fix",
       "repair"
     ],
-    "nav_order": 20
+    "nav_order": 21
   },
   {
     "id": "ru/logs#каталог-данных",
@@ -10961,7 +11794,7 @@
       "каталог",
       "данных"
     ],
-    "nav_order": 21
+    "nav_order": 22
   },
   {
     "id": "ru/logs#логи-и-наблюдаемость",
@@ -10978,7 +11811,7 @@
       "rotation",
       "наблюдаемость"
     ],
-    "nav_order": 21
+    "nav_order": 22
   },
   {
     "id": "ru/logs#режим-debug",
@@ -10995,7 +11828,7 @@
       "rotation",
       "режим"
     ],
-    "nav_order": 21
+    "nav_order": 22
   },
   {
     "id": "ru/logs#ротация",
@@ -11012,7 +11845,7 @@
       "rotation",
       "ротация"
     ],
-    "nav_order": 21
+    "nav_order": 22
   },
   {
     "id": "ru/logs#файлы-логов",
@@ -11030,7 +11863,7 @@
       "файлы",
       "логов"
     ],
-    "nav_order": 21
+    "nav_order": 22
   },
   {
     "id": "ru/pypi#1-аккаунт-и-имя",
@@ -11048,7 +11881,7 @@
       "аккаунт",
       "имя"
     ],
-    "nav_order": 22
+    "nav_order": 23
   },
   {
     "id": "ru/pypi#3-перед-каждым-релизом",
@@ -11067,7 +11900,7 @@
       "каждым",
       "релизом"
     ],
-    "nav_order": 22
+    "nav_order": 23
   },
   {
     "id": "ru/pypi#4-публикация-через-github-actions-рекомендуется",
@@ -11087,7 +11920,7 @@
       "actions",
       "рекомендуется"
     ],
-    "nav_order": 22
+    "nav_order": 23
   },
   {
     "id": "ru/pypi#имя-пакета",
@@ -11105,7 +11938,7 @@
       "имя",
       "пакета"
     ],
-    "nav_order": 22
+    "nav_order": 23
   },
   {
     "id": "ru/pypi#ограничения",
@@ -11122,7 +11955,7 @@
       "package",
       "ограничения"
     ],
-    "nav_order": 22
+    "nav_order": 23
   },
   {
     "id": "ru/troubleshooting#telegram-access-denied",
@@ -11145,7 +11978,32 @@
       "access",
       "denied"
     ],
-    "nav_order": 23
+    "nav_order": 24
+  },
+  {
+    "id": "ru/troubleshooting#telegram-бот-не-стартует-вместе-с-gateway",
+    "lang": "ru",
+    "slug": "troubleshooting",
+    "section": "telegram-бот-не-стартует-вместе-с-gateway",
+    "title": "Решение проблем",
+    "heading": "Telegram-бот не стартует вместе с gateway",
+    "body": "В логе: или в списке companions. Сообщение Решение ----------- --------- / токен не настроен Уберите пустой из ; храните токен в . Задайте , если файл зашифрован. Перезапустите gateway. (из исходников) или (глобальный tool). Перезапуск gateway. Токен есть, бот всё равно выключен — маскированный токен. Проверьте после перезапуска.",
+    "keywords": [
+      "troubleshoot",
+      "проблемы",
+      "ошибки",
+      "restricted",
+      "путь",
+      "path",
+      "jail",
+      "fix",
+      "telegram",
+      "бот",
+      "стартует",
+      "вместе",
+      "gateway"
+    ],
+    "nav_order": 24
   },
   {
     "id": "ru/troubleshooting#windows",
@@ -11166,7 +12024,7 @@
       "fix",
       "windows"
     ],
-    "nav_order": 23
+    "nav_order": 24
   },
   {
     "id": "ru/troubleshooting#админ-в-telegram-всё-ещё-видит-относительные-пути",
@@ -11193,7 +12051,7 @@
       "относительные",
       "пути"
     ],
-    "nav_order": 23
+    "nav_order": 24
   },
   {
     "id": "ru/troubleshooting#админ-через-api-всё-ещё-видит-относительные-пути",
@@ -11221,7 +12079,7 @@
       "относительные",
       "пути"
     ],
-    "nav_order": 23
+    "nav_order": 24
   },
   {
     "id": "ru/troubleshooting#меню-telegram-видно-до-одобрения",
@@ -11245,7 +12103,7 @@
       "видно",
       "одобрения"
     ],
-    "nav_order": 23
+    "nav_order": 24
   },
   {
     "id": "ru/troubleshooting#пути-workspace-restricted-или-только-относительные",
@@ -11270,7 +12128,7 @@
       "только",
       "относительные"
     ],
-    "nav_order": 23
+    "nav_order": 24
   },
   {
     "id": "ru/user-guide#1-что-умеет-holix",
@@ -11288,7 +12146,7 @@
       "умеет",
       "holix"
     ],
-    "nav_order": 24
+    "nav_order": 25
   },
   {
     "id": "ru/user-guide#10-шаг-8-режимы-выполнения",
@@ -11306,7 +12164,7 @@
       "режимы",
       "выполнения"
     ],
-    "nav_order": 24
+    "nav_order": 25
   },
   {
     "id": "ru/user-guide#11-шаг-9-как-писать-запросы",
@@ -11325,7 +12183,7 @@
       "писать",
       "запросы"
     ],
-    "nav_order": 24
+    "nav_order": 25
   },
   {
     "id": "ru/user-guide#12-шаг-10-mcp-пошагово",
@@ -11343,7 +12201,7 @@
       "mcp",
       "пошагово"
     ],
-    "nav_order": 24
+    "nav_order": 25
   },
   {
     "id": "ru/user-guide#122-установить-mcp-простой-способ",
@@ -11363,7 +12221,7 @@
       "простой",
       "способ"
     ],
-    "nav_order": 24
+    "nav_order": 25
   },
   {
     "id": "ru/user-guide#127-переменные-окружения-для-mcp",
@@ -11383,7 +12241,7 @@
       "для",
       "mcp"
     ],
-    "nav_order": 24
+    "nav_order": 25
   },
   {
     "id": "ru/user-guide#15-слэш-команды-в-чате",
@@ -11401,7 +12259,7 @@
       "команды",
       "чате"
     ],
-    "nav_order": 24
+    "nav_order": 25
   },
   {
     "id": "ru/user-guide#16-особенности-holix",
@@ -11418,7 +12276,7 @@
       "особенности",
       "holix"
     ],
-    "nav_order": 24
+    "nav_order": 25
   },
   {
     "id": "ru/user-guide#17-что-делать-если-что-то-не-работает",
@@ -11437,7 +12295,7 @@
       "если",
       "работает"
     ],
-    "nav_order": 24
+    "nav_order": 25
   },
   {
     "id": "ru/user-guide#2-требования",
@@ -11453,7 +12311,7 @@
       "usage",
       "требования"
     ],
-    "nav_order": 24
+    "nav_order": 25
   },
   {
     "id": "ru/user-guide#3-шаг-1-установить-python",
@@ -11471,7 +12329,7 @@
       "установить",
       "python"
     ],
-    "nav_order": 24
+    "nav_order": 25
   },
   {
     "id": "ru/user-guide#4-шаг-2-установить-uv-рекомендуется",
@@ -11489,7 +12347,7 @@
       "установить",
       "рекомендуется"
     ],
-    "nav_order": 24
+    "nav_order": 25
   },
   {
     "id": "ru/user-guide#5-шаг-3-установка-с-pypi",
@@ -11507,7 +12365,7 @@
       "установка",
       "pypi"
     ],
-    "nav_order": 24
+    "nav_order": 25
   },
   {
     "id": "ru/user-guide#54-windows",
@@ -11523,7 +12381,7 @@
       "usage",
       "windows"
     ],
-    "nav_order": 24
+    "nav_order": 25
   },
   {
     "id": "ru/user-guide#61-создать-файл-окружения",
@@ -11541,7 +12399,7 @@
       "файл",
       "окружения"
     ],
-    "nav_order": 24
+    "nav_order": 25
   },
   {
     "id": "ru/user-guide#62-профиль",
@@ -11557,7 +12415,7 @@
       "usage",
       "профиль"
     ],
-    "nav_order": 24
+    "nav_order": 25
   },
   {
     "id": "ru/user-guide#63-диагностика",
@@ -11573,7 +12431,7 @@
       "usage",
       "диагностика"
     ],
-    "nav_order": 24
+    "nav_order": 25
   },
   {
     "id": "ru/user-guide#7-шаг-5-настройка-моделей-через-litellm",
@@ -11593,7 +12451,7 @@
       "через",
       "litellm"
     ],
-    "nav_order": 24
+    "nav_order": 25
   },
   {
     "id": "ru/user-guide#71-что-нужно-получить-у-администратора-litellm",
@@ -11613,7 +12471,7 @@
       "администратора",
       "litellm"
     ],
-    "nav_order": 24
+    "nav_order": 25
   },
   {
     "id": "ru/user-guide#73-добавить-провайдер-litellm-в-профиль-интерактивно",
@@ -11633,7 +12491,7 @@
       "профиль",
       "интерактивно"
     ],
-    "nav_order": 24
+    "nav_order": 25
   },
   {
     "id": "ru/user-guide#74-полный-мастер-настройки-рекомендуется",
@@ -11652,7 +12510,7 @@
       "настройки",
       "рекомендуется"
     ],
-    "nav_order": 24
+    "nav_order": 25
   },
   {
     "id": "ru/user-guide#75-назначение-моделей-агентам",
@@ -11670,7 +12528,7 @@
       "моделей",
       "агентам"
     ],
-    "nav_order": 24
+    "nav_order": 25
   },
   {
     "id": "ru/user-guide#8-шаг-6-поиск-в-интернете-опционально",
@@ -11689,7 +12547,7 @@
       "интернете",
       "опционально"
     ],
-    "nav_order": 24
+    "nav_order": 25
   },
   {
     "id": "ru/user-guide#92-создать-бота-в-telegram",
@@ -11707,7 +12565,7 @@
       "бота",
       "telegram"
     ],
-    "nav_order": 24
+    "nav_order": 25
   },
   {
     "id": "ru/user-guide#93-подключить-бота-админ",
@@ -11725,7 +12583,7 @@
       "бота",
       "админ"
     ],
-    "nav_order": 24
+    "nav_order": 25
   },
   {
     "id": "ru/user-guide#94-назначение-telegram-администратора-один-раз-только-cli",
@@ -11747,7 +12605,7 @@
       "только",
       "cli"
     ],
-    "nav_order": 24
+    "nav_order": 25
   },
   {
     "id": "ru/user-guide#95-пользователи-запрашивают-доступ",
@@ -11765,7 +12623,7 @@
       "запрашивают",
       "доступ"
     ],
-    "nav_order": 24
+    "nav_order": 25
   },
   {
     "id": "ru/user-guide#951-админ-одобряет-и-создаёт-изолированный-профиль",
@@ -11786,7 +12644,7 @@
       "изолированный",
       "профиль"
     ],
-    "nav_order": 24
+    "nav_order": 25
   },
   {
     "id": "ru/user-guide#97-обновить-меню-команд-в-telegram",
@@ -11805,7 +12663,7 @@
       "команд",
       "telegram"
     ],
-    "nav_order": 24
+    "nav_order": 25
   },
   {
     "id": "ru/user-guide#98-production",
@@ -11821,7 +12679,7 @@
       "usage",
       "production"
     ],
-    "nav_order": 24
+    "nav_order": 25
   },
   {
     "id": "ru/user-guide#98-голосовые-сообщения-опционально",
@@ -11839,7 +12697,7 @@
       "сообщения",
       "опционально"
     ],
-    "nav_order": 24
+    "nav_order": 25
   },
   {
     "id": "ru/user-guide#holix-config",
@@ -11856,7 +12714,7 @@
       "holix",
       "config"
     ],
-    "nav_order": 24
+    "nav_order": 25
   },
   {
     "id": "ru/user-guide#holix-models",
@@ -11873,7 +12731,7 @@
       "holix",
       "models"
     ],
-    "nav_order": 24
+    "nav_order": 25
   },
   {
     "id": "ru/user-guide#holix-полное-руководство-пользователя",
@@ -11891,7 +12749,7 @@
       "полное",
       "пользователя"
     ],
-    "nav_order": 24
+    "nav_order": 25
   },
   {
     "id": "ru/user-guide#litellm-proxy",
@@ -11908,7 +12766,7 @@
       "litellm",
       "proxy"
     ],
-    "nav_order": 24
+    "nav_order": 25
   },
   {
     "id": "ru/user-guide#быстрый-чеклист-с-нуля-до-чата",
@@ -11927,7 +12785,7 @@
       "нуля",
       "чата"
     ],
-    "nav_order": 24
+    "nav_order": 25
   },
   {
     "id": "ru/user-guide#или-вручную",
@@ -11944,7 +12802,7 @@
       "или",
       "вручную"
     ],
-    "nav_order": 24
+    "nav_order": 25
   },
   {
     "id": "ru/user-guide#или-просто",
@@ -11961,7 +12819,7 @@
       "или",
       "просто"
     ],
-    "nav_order": 24
+    "nav_order": 25
   },
   {
     "id": "ru/user-guide#основные-команды",
@@ -11978,7 +12836,7 @@
       "основные",
       "команды"
     ],
-    "nav_order": 24
+    "nav_order": 25
   },
   {
     "id": "ru/user-guide#см-также",
@@ -11994,7 +12852,7 @@
       "usage",
       "также"
     ],
-    "nav_order": 24
+    "nav_order": 25
   },
   {
     "id": "ru/user-guide#содержание",
@@ -12010,7 +12868,7 @@
       "usage",
       "содержание"
     ],
-    "nav_order": 24
+    "nav_order": 25
   },
   {
     "id": "ru/user-guide#установка",
@@ -12026,6 +12884,6 @@
       "usage",
       "установка"
     ],
-    "nav_order": 24
+    "nav_order": 25
   }
 ]

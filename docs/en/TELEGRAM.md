@@ -12,6 +12,26 @@ holix -p shared telegram setup    # wizard: bot token only
 holix -p shared gateway start -f  # gateway + Telegram bot
 ```
 
+### Token storage and loading
+
+- Store the bot token in `profiles/<bot-host>/telegram.env`. When [profile encryption](CONFIGURATION.md#profile-encryption-optional) is enabled, this file is encrypted at rest.
+- Do **not** leave an empty `TELEGRAM_BOT_TOKEN=` in `global/.env` — it prevents loading the real token from `telegram.env`. Omit the key in global entirely; Holix fills it from the profile file (including decrypted values when `HOLIX_UNLOCK_KEY` is set).
+- Gateway workers call `load_telegram_env_files()` on startup after profile unlock so encrypted tokens are available before the bot starts.
+
+### Production install (`uv tool install`)
+
+When Holix is installed as a global tool, add aiogram explicitly:
+
+```bash
+uv tool install ~/Holix --force --with aiogram --with pypdf
+```
+
+Without aiogram the gateway logs `Telegram bot skipped: aiogram is not installed` even when the token is configured.
+
+### Profile deletion notice
+
+When an admin deletes a user profile (`holix profile delete` or `DELETE /api/holix/profiles/{id}`), Holix sends a Telegram message to every user mapped to that profile **before** removing data. Use `--skip-notify` or `?notify=false` to skip. See [PROFILES.md](PROFILES.md#deleting-a-profile).
+
 ## One bot — many users (recommended)
 
 One Telegram token can serve many people. You do **not** enter user ids during setup.

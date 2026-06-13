@@ -3,9 +3,21 @@
 ## Unreleased
 
 ### Added
+- **Profile deletion with Telegram notification** — `holix profile delete` (`--yes`, `--skip-notify`); `DELETE /api/holix/profiles/{id}?notify=true`; protected profiles `default`, `docs`, `global`
+- **Workspace plaintext policy** — agent `workspace/` stored unencrypted (git-friendly); secrets (`.env`, `telegram.env`, memory) remain encrypted when enabled
+- **`holix profile crypto decrypt-workspace`** — one-time migration for legacy encrypted workspace files; `deploy/scripts/holix-decrypt-workspaces.sh`
+- **Encrypted env editing** — `holix profile env --edit` works on encrypted `.env`; delivery files decrypted before Telegram send
+- **Telegram env loading** — empty `TELEGRAM_BOT_TOKEN` in shell/global no longer blocks token from encrypted `telegram.env`; gateway loads `telegram.env` after unlock
 - **Workspace path privacy** — jailed profile users see workspace-relative paths in tool output and agent replies; Telegram admin and gateway `admin` API keys still see full absolute paths ([PROFILES.md](en/PROFILES.md#path-visibility-in-responses))
 
+### Fixed
+- **Gateway Telegram on `uv tool install`** — document/require `--with aiogram`; bot no longer silently disabled when token is only in encrypted `telegram.env`
+- **Telegram user mapping fallback** — gateway host profile can read bindings from `default/telegram-users.json`
+
 ### Documentation
+- **PROFILE_ENCRYPTION** (EN/RU) — dedicated site page: what is encrypted, OS policy table (Linux/macOS/Windows), unlock key, gateway/systemd, workspace migration
+- **SEO** — `profile-encryption` slug in sitemap/nav; updated meta for profiles, configuration, security, deployment, telegram
+- **Profile delete, encryption, Telegram deploy** — PROFILES, CLI, GATEWAY_API, TELEGRAM, DEPLOYMENT, CONFIGURATION, SECURITY, TROUBLESHOOTING (EN/RU); web-docs rebuilt
 - **Path visibility** — mermaid flow in PROFILES; gateway API table; Telegram/USER_GUIDE callouts; TROUBLESHOOTING FAQ (EN/RU)
 
 ## 0.1.12 — 2026-06-12

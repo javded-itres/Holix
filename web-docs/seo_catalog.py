@@ -133,38 +133,74 @@ SEO_PAGES: dict[str, dict[str, dict[str, str]]] = {
     },
     "configuration": {
         "ru": {
-            "title": "Конфигурация Holix — профили, .env, модели и MCP",
+            "title": "Конфигурация Holix — профили, шифрование, .env, MCP",
             "description": (
-                "Конфигурация Holix: слои настроек, profiles/<name>/.env, config.yaml, провайдеры LLM "
-                "(Ollama, LiteLLM, OpenRouter), MCP-серверы, Hub и секреты ${ENV:VAR}."
+                "Конфигурация Holix: слои env, profiles/<name>/.env, шифрование секретов, "
+                "HOLIX_UNLOCK_KEY, config.yaml, Ollama/LiteLLM, MCP и telegram.env."
             ),
-            "keywords": "конфигурация Holix, holix profile env, Ollama LiteLLM, MCP серверы, config.yaml",
+            "keywords": (
+                "конфигурация Holix, holix profile env, шифрование профиля, HOLIX_UNLOCK_KEY, "
+                "Ollama LiteLLM, MCP серверы"
+            ),
         },
         "en": {
-            "title": "Holix Configuration — Profiles, .env, Models & MCP",
+            "title": "Holix Configuration — Profiles, Encryption, .env & MCP",
             "description": (
-                "Holix configuration: settings layers, profiles/<name>/.env, config.yaml, LLM providers "
-                "(Ollama, LiteLLM, OpenRouter), MCP servers, Hub, and ${ENV:VAR} secrets."
+                "Holix configuration: env layers, profiles/<name>/.env, optional secret encryption, "
+                "HOLIX_UNLOCK_KEY, config.yaml, Ollama/LiteLLM, MCP, and telegram.env."
             ),
-            "keywords": "Holix configuration, holix profile env, Ollama LiteLLM, MCP servers, config.yaml",
+            "keywords": (
+                "Holix configuration, holix profile env, profile encryption, HOLIX_UNLOCK_KEY, "
+                "Ollama LiteLLM, MCP servers"
+            ),
         },
     },
     "profiles": {
         "ru": {
-            "title": "Профили Holix — изоляция пользователей, ключи доступа, workspace jail",
+            "title": "Профили Holix — изоляция, удаление, workspace jail",
             "description": (
-                "Изоляция профилей Holix: отдельные .env, gateway, Telegram-бот и память на пользователя. "
-                "Workspace jail, относительные пути в ответах для пользователей, полные пути для администратора."
+                "Изоляция профилей Holix: .env, gateway, Telegram и память на пользователя. "
+                "Удаление с уведомлением в Telegram, workspace jail, ключи hp_, шифрование секретов."
             ),
-            "keywords": "Holix профили, изоляция профилей, workspace jail, относительные пути, ключ доступа профиля",
+            "keywords": (
+                "Holix профили, изоляция профилей, удаление профиля, workspace jail, "
+                "ключ доступа профиля, шифрование Holix"
+            ),
         },
         "en": {
-            "title": "Holix Profiles — User Isolation, Access Keys & Workspace Jail",
+            "title": "Holix Profiles — Isolation, Delete & Workspace Jail",
             "description": (
-                "Holix profile isolation: separate .env, gateway, Telegram bot, and memory per user. "
-                "Workspace jail, relative paths in replies for users, full paths for administrators."
+                "Holix profile isolation: per-user .env, gateway, Telegram, and memory. "
+                "Delete with Telegram notify, workspace jail, hp_ keys, optional secret encryption."
             ),
-            "keywords": "Holix profiles, profile isolation, workspace jail, relative paths, profile access key",
+            "keywords": (
+                "Holix profiles, profile isolation, delete profile, workspace jail, "
+                "profile access key, Holix encryption"
+            ),
+        },
+    },
+    "profile-encryption": {
+        "ru": {
+            "title": "Шифрование профиля Holix — Linux, macOS, Windows, HOLIX_UNLOCK_KEY",
+            "description": (
+                "Шифрование at-rest в Holix: .env, telegram.env, память SQLite/Chroma. "
+                "Workspace plaintext. Политика linux-production/on/off по ОС, gateway unlock, миграция."
+            ),
+            "keywords": (
+                "шифрование Holix, HOLIX_UNLOCK_KEY, HOLIX_ENCRYPTION_MODE, linux-production, "
+                "holix profile crypto, шифрование профиля, AES-256-GCM, at-rest encryption"
+            ),
+        },
+        "en": {
+            "title": "Holix Profile Encryption — Linux, macOS, Windows & Unlock Key",
+            "description": (
+                "Holix at-rest encryption: .env, telegram.env, SQLite/Chroma memory. "
+                "Workspace stays plaintext. OS policy linux-production/on/off, gateway unlock, migration."
+            ),
+            "keywords": (
+                "Holix encryption, HOLIX_UNLOCK_KEY, HOLIX_ENCRYPTION_MODE, linux-production, "
+                "holix profile crypto, profile encryption, AES-256-GCM, at-rest encryption"
+            ),
         },
     },
     "cli": {
@@ -307,20 +343,26 @@ SEO_PAGES: dict[str, dict[str, dict[str, str]]] = {
     },
     "telegram": {
         "ru": {
-            "title": "Telegram-бот Holix — настройка, голос, slash-команды",
+            "title": "Telegram-бот Holix — setup, зашифрованный token, голос",
             "description": (
-                "Telegram-интеграция Holix: holix telegram setup, отдельный бот на профиль, allowlist, "
-                "голосовые сообщения (Whisper), inline-подтверждения и канал @holix_agent с новостями."
+                "Telegram Holix: holix telegram setup, telegram.env и шифрование, aiogram для gateway, "
+                "голос Whisper, уведомление при удалении профиля, канал @holix_agent."
             ),
-            "keywords": "Holix Telegram, holix telegram setup, Telegram бот AI, голосовые сообщения Whisper",
+            "keywords": (
+                "Holix Telegram, holix telegram setup, зашифрованный telegram.env, aiogram, "
+                "Telegram бот AI, голосовые Whisper"
+            ),
         },
         "en": {
-            "title": "Holix Telegram Bot — Setup, Voice Notes & Slash Commands",
+            "title": "Holix Telegram — Setup, Encrypted Token & Voice Notes",
             "description": (
-                "Holix Telegram integration: holix telegram setup, per-profile bot, allowlist, "
-                "voice messages (Whisper), inline approvals, and @holix_agent channel for news."
+                "Holix Telegram: holix telegram setup, encrypted telegram.env, aiogram for gateway, "
+                "Whisper voice, profile deletion notify, and @holix_agent channel."
             ),
-            "keywords": "Holix Telegram, holix telegram setup, Telegram AI bot, voice Whisper",
+            "keywords": (
+                "Holix Telegram, holix telegram setup, encrypted telegram.env, aiogram, "
+                "Telegram AI bot, voice Whisper"
+            ),
         },
     },
     "telegram-multi-profile": {
@@ -379,20 +421,26 @@ SEO_PAGES: dict[str, dict[str, dict[str, str]]] = {
     },
     "security": {
         "ru": {
-            "title": "Безопасность Holix — auth, whitelist, production checklist",
+            "title": "Безопасность Holix — шифрование, auth, production checklist",
             "description": (
-                "Безопасность Holix: API-ключи HMAC, gateway auth, whitelist терминала, подтверждения "
-                "опасных операций, SSRF-защита браузера и чеклист для production-деплоя."
+                "Безопасность Holix: шифрование секретов at-rest, API-ключи HMAC, gateway auth, "
+                "whitelist терминала, workspace jail и чеклист production-деплоя."
             ),
-            "keywords": "Holix безопасность, API key, gateway auth, terminal whitelist, production security",
+            "keywords": (
+                "Holix безопасность, шифрование профиля, API key, gateway auth, "
+                "terminal whitelist, production security"
+            ),
         },
         "en": {
-            "title": "Holix Security — Auth, Whitelist & Production Checklist",
+            "title": "Holix Security — Encryption, Auth & Production Checklist",
             "description": (
-                "Holix security: HMAC API keys, gateway auth, terminal whitelist, risky-action confirmations, "
-                "browser SSRF checks, and production deployment checklist."
+                "Holix security: at-rest secret encryption, HMAC API keys, gateway auth, terminal whitelist, "
+                "workspace jail, and production deployment checklist."
             ),
-            "keywords": "Holix security, API key, gateway auth, terminal whitelist, production security",
+            "keywords": (
+                "Holix security, profile encryption, API key, gateway auth, "
+                "terminal whitelist, production security"
+            ),
         },
     },
     "terminal-security": {
@@ -421,20 +469,26 @@ SEO_PAGES: dict[str, dict[str, dict[str, str]]] = {
     },
     "deployment": {
         "ru": {
-            "title": "Деплой Holix — Docker, systemd, multi-profile production",
+            "title": "Деплой Holix — Docker, systemd, шифрование, Linux production",
             "description": (
-                "Деплой Holix в production: Docker, systemd holix-gateway@, несколько профилей на одном "
-                "сервере, переменные окружения, docs-сайт и CI/CD рекомендации."
+                "Деплой Holix: Docker, systemd holix-gateway@, HOLIX_UNLOCK_KEY, шифрование на Linux, "
+                "uv tool install + aiogram, multi-profile и docs-сайт."
             ),
-            "keywords": "деплой Holix, systemd holix-gateway, Docker Holix, production deployment, multi-profile",
+            "keywords": (
+                "деплой Holix, systemd holix-gateway, HOLIX_UNLOCK_KEY, шифрование Linux, "
+                "Docker Holix, production deployment"
+            ),
         },
         "en": {
-            "title": "Deploy Holix — Docker, systemd & Multi-Profile Production",
+            "title": "Deploy Holix — Docker, systemd, Encryption & Linux Production",
             "description": (
-                "Deploy Holix in production: Docker, systemd holix-gateway@, multiple profiles on one "
-                "server, environment variables, docs site, and CI/CD recommendations."
+                "Deploy Holix: Docker, systemd holix-gateway@, HOLIX_UNLOCK_KEY, Linux encryption, "
+                "uv tool install with aiogram, multi-profile, and docs site."
             ),
-            "keywords": "deploy Holix, systemd holix-gateway, Docker Holix, production deployment",
+            "keywords": (
+                "deploy Holix, systemd holix-gateway, HOLIX_UNLOCK_KEY, Linux encryption, "
+                "Docker Holix, production deployment"
+            ),
         },
     },
     "doctor": {

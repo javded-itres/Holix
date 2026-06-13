@@ -13,6 +13,7 @@
 3. [QUICKSTART.md](QUICKSTART.md) — минимум команд
 4. [CONFIGURATION.md](CONFIGURATION.md) — `.env`, профили
 5. [PROFILES.md](PROFILES.md) — **изолированные профили, SOUL/USER, ключи доступа, несколько пользователей, workspace jail**
+6. [PROFILE_ENCRYPTION.md](PROFILE_ENCRYPTION.md) — **шифрование at-rest: что шифруется, политика по ОС (Linux/macOS/Windows), ключ разблокировки**
 
 ## Интерфейсы
 
@@ -31,7 +32,8 @@
 
 - [LOGS.md](LOGS.md) — `holix logs`, ротация, debug
 - [DOCTOR.md](DOCTOR.md)
-- [SECURITY.md](SECURITY.md)
+- [SECURITY.md](SECURITY.md) — auth, шифрование, production checklist
+- [PROFILE_ENCRYPTION.md](PROFILE_ENCRYPTION.md) — **полный гайд по шифрованию по ОС**
 - [TERMINAL_SECURITY.md](TERMINAL_SECURITY.md) — whitelist терминала, запрещённые команды, подтверждения
 - [DEPLOYMENT.md](DEPLOYMENT.md)
 - [TROUBLESHOOTING.md](TROUBLESHOOTING.md)

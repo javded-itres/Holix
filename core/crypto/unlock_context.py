@@ -2,10 +2,13 @@
 
 from __future__ import annotations
 
+import logging
 import os
 from contextvars import ContextVar
 
 from core.crypto.profile_crypto import ProfileCryptoLockedError
+
+logger = logging.getLogger(__name__)
 
 _profile_dek: ContextVar[bytes | None] = ContextVar("holix_profile_dek", default=None)
 _unlocked_profile: ContextVar[str | None] = ContextVar("holix_unlocked_profile", default=None)
@@ -47,8 +50,10 @@ def require_profile_dek(profile: str) -> bytes:
     return dek
 
 
-def set_profile_session_unlock(profile: str, dek: bytes) -> None:
+def set_profile_session_unlock(profile: str, dek: bytes) -> int:
+    """Cache session DEK and decrypt any legacy encrypted workspace files."""
     _session_deks[profile] = dek
+    return _decrypt_workspace_deliverables(profile, dek)
 
 
 def get_profile_session_dek(profile: str) -> bytes | None:
@@ -94,6 +99,28 @@ def release_profile_session_unlock(profile: str) -> None:
     if _unlocked_profile.get() == name:
         _profile_dek.set(None)
         _unlocked_profile.set(None)
+
+
+def _decrypt_workspace_deliverables(profile: str, dek: bytes) -> int:
+    """Migrate legacy encrypted workspace files to plaintext (git-friendly)."""
+    try:
+        from core.crypto.profile_files import decrypt_deliverable_files
+
+        count = decrypt_deliverable_files(profile, dek)
+        if count:
+            logger.info(
+                "Decrypted %d workspace file(s) to plaintext for profile '%s'",
+                count,
+                profile,
+            )
+        return count
+    except OSError as exc:
+        logger.warning(
+            "Failed to decrypt workspace deliverables for profile '%s': %s",
+            profile,
+            exc,
+        )
+        return 0
 
 
 def bootstrap_profile_unlock_from_env(profile: str) -> bool:

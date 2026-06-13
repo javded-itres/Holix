@@ -54,6 +54,33 @@ holix profile create carol --clean     # чистый профиль, настр
 | `profiles/<имя>/USER.md` | Факты и предпочтения пользователя |
 | `profiles/<имя>/INIT.md` | Маркер онбординга (удаляется после `complete_agent_initialization`) |
 | `profiles/<имя>/data/` | Память, навыки, security, cron |
+| `profiles/<имя>/workspace/` | Workspace агента (plaintext, не шифруется) |
+
+### Загрузка `telegram.env`
+
+Holix читает `profiles/<хост-бота>/telegram.env` после bootstrap и unlock профиля. Значения из файла **перезаписывают пустые** записи в shell/global (например, пустой `TELEGRAM_BOT_TOKEN=`). Для зашифрованных файлов нужен `HOLIX_UNLOCK_KEY` в окружении или сессия `holix profile crypto unlock`.
+
+## Шифрование профиля (опционально)
+
+Holix шифрует **секреты профиля на диске**: `.env`, `telegram.env`, `SOUL.md`, `USER.md`, БД памяти. **Файлы workspace остаются plaintext** (удобно для git). Старые зашифрованные workspace мигрируют командой `holix profile crypto decrypt-workspace`.
+
+```bash
+holix -p alice profile crypto enable           # один профиль
+holix profile crypto migrate --all --yes       # массово на существующих установках
+holix -p alice profile crypto unlock         # расшифровка для CLI-сессии
+holix profile crypto decrypt-workspace --all --yes   # миграция workspace
+holix -p alice profile crypto status
+```
+
+| Переменная | Назначение |
+|------------|------------|
+| `HOLIX_UNLOCK_KEY` | Ключ пользователя для unlock зашифрованных профилей при старте gateway |
+| `HOLIX_ENCRYPTION_MODE` | Метка политики (`linux-production` и т.д.) |
+
+Вложения в Telegram перед отправкой материализуются в plaintext при включённом шифровании.
+
+Полный гайд (политика по ОС, модель угроз, unlock gateway): [PROFILE_ENCRYPTION.md](PROFILE_ENCRYPTION.md).  
+См. также [SECURITY.md](SECURITY.md#шифрование-на-диске) и `holix profile crypto --help`.
 
 ## Workspace jail (опционально)
 

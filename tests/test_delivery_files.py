@@ -9,9 +9,17 @@ from cli.core import ProfileManager
 from core.crypto.bootstrap import enable_profile_encryption, seal_profiles_secrets
 from core.crypto.delivery_files import materialize_file_for_delivery
 from core.crypto.encrypted_fs import encrypt_bytes, is_encrypted_file
-from core.crypto.profile_crypto import create_profile_crypto, unlock_profile_dek
+from core.crypto.profile_crypto import (
+    ProfileCryptoLockedError,
+    create_profile_crypto,
+    unlock_profile_dek,
+)
 from core.crypto.profile_files import decrypt_deliverable_files
-from core.crypto.unlock_context import profile_unlock_scope, reset_profile_unlock_scope
+from core.crypto.unlock_context import (
+    profile_unlock_scope,
+    reset_profile_unlock_scope,
+    set_profile_session_unlock,
+)
 from core.tools.execution_context import profile_scope, reset_profile_scope
 
 
@@ -89,6 +97,42 @@ def test_materialize_file_for_delivery_returns_plaintext_path(holix_home) -> Non
         assert send_path.read_text(encoding="utf-8") == "plain"
     finally:
         cleanup()
+
+
+def test_unlock_decrypts_legacy_encrypted_workspace(holix_home, monkeypatch) -> None:
+    monkeypatch.setenv("HOLIX_HOME", str(holix_home))
+    manager = ProfileManager()
+    manager.create_profile("henry", inherit_global=False)
+    pdir = manager.get_profile_dir("henry")
+    enable_profile_encryption(manager, "henry", "unlock-key-henry-1", encrypt_existing=False)
+    workspace = pdir / "workspace"
+    artifact = workspace / "app.py"
+    artifact.write_text("print('ok')", encoding="utf-8")
+
+    dek = unlock_profile_dek("henry", "unlock-key-henry-1")
+    artifact.write_bytes(encrypt_bytes(dek, b"print('ok')"))
+    assert is_encrypted_file(artifact)
+
+    count = set_profile_session_unlock("henry", dek)
+    assert count == 1
+    assert not is_encrypted_file(artifact)
+    assert artifact.read_text(encoding="utf-8") == "print('ok')"
+
+
+def test_materialize_file_for_delivery_rejects_locked_encrypted_file(holix_home) -> None:
+    profile = "locked-send"
+    pdir = holix_home / "profiles" / profile
+    workspace = pdir / "workspace"
+    workspace.mkdir(parents=True)
+    target = workspace / "out.pdf"
+    target.write_text("pdf", encoding="utf-8")
+
+    create_profile_crypto(profile, "unlock-key-locked-send")
+    dek = unlock_profile_dek(profile, "unlock-key-locked-send")
+    target.write_bytes(encrypt_bytes(dek, b"pdf"))
+
+    with pytest.raises(ProfileCryptoLockedError, match="locked"):
+        materialize_file_for_delivery(target, profile=profile)
 
 
 def test_seal_decrypts_legacy_encrypted_workspace(holix_home, monkeypatch) -> None:

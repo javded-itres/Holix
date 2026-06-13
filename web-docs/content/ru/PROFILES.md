@@ -279,6 +279,8 @@ HOLIX_PROFILE_KEY=hp_xxxxxxxx
 
 Подробная инструкция по Telegram (один бот vs несколько ботов): [TELEGRAM_MULTI_PROFILE.md](TELEGRAM_MULTI_PROFILE.md).
 
+Опциональное **шифрование at-rest** секретов и памяти (workspace остаётся plaintext): [PROFILE_ENCRYPTION.md](PROFILE_ENCRYPTION.md).
+
 ## Типичная настройка для нескольких пользователей
 
 ```bash
@@ -295,6 +297,33 @@ holix -p bob profile jail enable /home/bob/projects
 holix -p bob telegram setup
 holix -p bob gateway start
 ```
+
+## Удаление профиля
+
+Удаление пользовательского профиля с сервера. Holix **сначала** уведомляет привязанных пользователей Telegram, затем удаляет данные.
+
+**Защищённые профили** удалить нельзя: `default`, `docs`, `global`.
+
+```bash
+holix -p shared profile delete ivan --yes
+holix -p shared profile delete ivan --yes --skip-notify   # без сообщения в Telegram
+```
+
+Порядок действий:
+
+1. Поиск пользователей Telegram, привязанных к профилю (`telegram-users.json`, `HOLIX_TELEGRAM_USER_PROFILES` в `telegram.env`)
+2. Отправка уведомления об удалении в Telegram (если не `--skip-notify`)
+3. Удаление привязок Telegram для этого профиля
+4. Очистка runtime-кэша и удаление `~/.holix/profiles/<имя>/`
+
+Через Management API (admin-ключ gateway):
+
+```bash
+curl -X DELETE "$HOLIX_URL/api/holix/profiles/ivan?notify=true" \
+  -H "Authorization: Bearer $ADMIN_KEY"
+```
+
+Параметр `notify=false` отключает уведомление. Поля ответа: `deleted`, `notified_users`, `notify_failed`, `mappings_removed`. См. [GATEWAY_API.md](GATEWAY_API.md).
 
 ## Справочник CLI
 
@@ -321,6 +350,8 @@ holix -p bob gateway start
 | `holix profile whitelist add "<команды>"` | Добавить команды через запятую |
 | `holix profile whitelist list` | Статус whitelist и итоговый список |
 | `holix profile whitelist enable` | Включить проверку whitelist |
+| `holix profile delete <имя>` | Уведомить в Telegram, затем удалить профиль (`--yes`, `--skip-notify`) |
+| `holix profile crypto …` | Шифрование секретов профиля (workspace остаётся plaintext) |
 | `holix status` | Список профилей (`locked` / `open`) и активный |
 
 В TUI/чате/Telegram: `/profile <имя> <ключ>` для переключения в защищённый профиль.

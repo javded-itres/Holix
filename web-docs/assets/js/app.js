@@ -338,7 +338,7 @@ const NAV_SECTIONS = {
   getting_started: ["installation", "start-here", "quickstart", "configuration", "profiles"],
   api: ["gateway-api", "gateway"],
   interfaces: ["cli", "slash-commands", "execution-modes", "tui", "hub", "telegram", "telegram-multi-profile", "browser-tools"],
-  operations: ["security", "terminal-security", "deployment", "doctor", "logs", "pypi", "troubleshooting", "user-guide"],
+  operations: ["security", "profile-encryption", "terminal-security", "deployment", "doctor", "logs", "pypi", "troubleshooting", "user-guide"],
   architecture: ["architecture", "readme"],
 };
 
@@ -597,6 +597,19 @@ function renderSidebar() {
   addSection("interfaces", NAV_SECTIONS.interfaces);
   addSection("operations", NAV_SECTIONS.operations);
   addSection("architecture", NAV_SECTIONS.architecture);
+
+  const listed = new Set(
+    Object.values(NAV_SECTIONS).flatMap((slugs) => slugs),
+  );
+  const unlisted = items.filter((item) => !listed.has(item.slug));
+  if (unlisted.length) {
+    html += `<div class="sidebar-section"><div class="sidebar-label">${t("docs")}</div>`;
+    for (const item of unlisted) {
+      const active = state.activeSlug === item.slug ? " active" : "";
+      html += `<a href="${docHref(item.slug)}" class="nav-link${active}" data-slug="${item.slug}">${item.label}</a>`;
+    }
+    html += "</div>";
+  }
 
   nav.innerHTML = html;
 }

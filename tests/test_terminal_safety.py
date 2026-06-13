@@ -58,8 +58,12 @@ async def test_terminal_blocks_profile_memory_cache(
     manager.create_profile("alice", inherit_global=False)
     enable_profile_encryption(manager, "alice", "unlock-key-alice-99", encrypt_existing=False)
 
+    monkeypatch.setenv("HOLIX_TERMINAL_COMMAND_WHITELIST", "false")
     monkeypatch.setattr(settings, "enable_terminal_tool", True)
     monkeypatch.setattr(settings, "terminal_command_whitelist", False)
+    from core.tools import terminal as terminal_mod
+
+    monkeypatch.setattr(terminal_mod.settings, "terminal_command_whitelist", False)
     token = profile_scope("alice")
     try:
         tool = TerminalTool()

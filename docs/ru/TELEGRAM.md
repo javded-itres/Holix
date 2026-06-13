@@ -12,6 +12,26 @@ holix -p shared telegram setup    # мастер: только токен бот
 holix -p shared gateway start -f  # gateway + Telegram-бот
 ```
 
+### Хранение и загрузка токена
+
+- Токен бота храните в `profiles/<хост-бота>/telegram.env`. При [шифровании профиля](CONFIGURATION.md#шифрование-профиля-опционально) файл шифруется на диске.
+- **Не** оставляйте пустой `TELEGRAM_BOT_TOKEN=` в `global/.env` — это мешает подставить реальный токен из `telegram.env`. В global ключ лучше не указывать; Holix возьмёт значение из профиля (в т.ч. расшифрованное при заданном `HOLIX_UNLOCK_KEY`).
+- Gateway при старте вызывает `load_telegram_env_files()` после unlock профиля, чтобы зашифрованный токен был доступен до запуска бота.
+
+### Production (`uv tool install`)
+
+При глобальной установке через uv явно добавьте aiogram:
+
+```bash
+uv tool install ~/Holix --force --with aiogram --with pypdf
+```
+
+Без aiogram в логе будет `Telegram bot skipped: aiogram is not installed`, даже если токен настроен.
+
+### Уведомление об удалении профиля
+
+При удалении профиля администратором (`holix profile delete` или `DELETE /api/holix/profiles/{id}`) Holix **сначала** отправляет сообщение в Telegram всем пользователям, привязанным к профилю. `--skip-notify` или `?notify=false` отключают уведомление. См. [PROFILES.md](PROFILES.md#удаление-профиля).
+
 ## Один бот — много пользователей (рекомендуется)
 
 Один токен Telegram обслуживает многих людей. **User id вручную вводить не нужно.**

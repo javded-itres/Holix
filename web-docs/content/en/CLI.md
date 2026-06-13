@@ -326,6 +326,8 @@ Per-profile isolation plus **shared global settings** inherited by default.
 | `whitelist add "<cmds>"` | Add comma-separated terminal commands |
 | `whitelist list` | Show whitelist status and effective commands |
 | `whitelist enable` | Enable terminal whitelist enforcement |
+| `delete [name]` | Delete profile after notifying mapped Telegram users |
+| `crypto …` | Encrypt profile secrets at rest (see below) |
 
 ```bash
 holix profile global edit
@@ -333,9 +335,37 @@ holix profile create team-a
 holix profile create team-b --clean
 holix -p alice profile env --edit
 holix -p data-agent profile jail enable ~/data-agent
+holix -p shared profile delete ivan --yes
 ```
 
-See [CONFIGURATION.md](CONFIGURATION.md#workspace-jail-optional) and [PROFILES.md](PROFILES.md).
+`profile delete` options: `--yes` / `-y` (skip confirmation), `--skip-notify` (no Telegram message). Protected profiles: `default`, `docs`, `global`.
+
+### `holix profile crypto`
+
+Encrypts **profile secrets** (`.env`, `telegram.env`, `SOUL.md`, memory DBs). **Workspace stays plaintext** for git-friendly project files.
+
+| Subcommand | Description |
+|------------|-------------|
+| `enable` | Enable encryption for active profile |
+| `migrate --all` | Bulk-enable on unencrypted profiles |
+| `status` | Show encryption policy and unlock state |
+| `unlock` | Unlock encrypted data for this CLI process |
+| `lock` | Clear in-process unlock |
+| `seal` / `seal --all` | Re-encrypt plaintext secrets after unlock |
+| `decrypt-workspace` | One-time migration: legacy encrypted workspace → plaintext |
+| `decrypt-workspace --all` | Migrate all profiles |
+| `purge-cache` | Clear stale runtime decryption cache |
+
+```bash
+holix -p alice profile crypto enable
+holix profile crypto migrate --all --yes
+holix -p alice profile crypto decrypt-workspace --all --yes
+holix -p alice profile crypto status
+```
+
+Gateway/systemd: set `HOLIX_UNLOCK_KEY` in profile or `global/.env` so the worker can read encrypted `telegram.env` and memory on startup.
+
+See [CONFIGURATION.md](CONFIGURATION.md#profile-encryption-optional) and [PROFILES.md](PROFILES.md).
 
 ---
 
@@ -541,7 +571,7 @@ Full guide: [HUB.md](HUB.md).
 
 ## `holix telegram`
 
-Requires `uv sync --extra telegram`. Bot token is stored per profile in `profiles/<name>/telegram.env`.
+Requires `aiogram` — from source: `uv sync --extra telegram`; with `uv tool install`: `uv tool install . --force --with aiogram --with pypdf`. Bot token is stored per profile in `profiles/<name>/telegram.env` (often encrypted). Do not leave an empty `TELEGRAM_BOT_TOKEN=` in `global/.env` — omit the key or Holix loads the token from `telegram.env`.
 
 | Subcommand | Description |
 |------------|-------------|

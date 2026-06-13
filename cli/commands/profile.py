@@ -22,7 +22,7 @@ global_app = typer.Typer(help="Shared global settings inherited by profiles")
 jail_app = typer.Typer(help="Restrict agent file/terminal access to one directory")
 key_app = typer.Typer(help="Profile access keys (required to switch into protected profiles)")
 whitelist_app = typer.Typer(help="Terminal command whitelist for the active profile")
-crypto_app = typer.Typer(help="At-rest encryption for profile workspace files")
+crypto_app = typer.Typer(help="At-rest encryption for profile secrets (.env, memory); workspace stays plaintext")
 quota_app = typer.Typer(help="Workspace storage quota (platform-managed)")
 app.add_typer(global_app, name="global")
 app.add_typer(jail_app, name="jail")
@@ -34,6 +34,73 @@ app.add_typer(quota_app, name="quota")
 
 def _profile(ctx: typer.Context) -> str:
     return ctx.obj["profile"]
+
+
+@app.command("delete")
+def profile_delete(
+    ctx: typer.Context,
+    name: str | None = typer.Argument(
+        None,
+        help="Profile to delete (defaults to active profile)",
+    ),
+    yes: bool = typer.Option(False, "--yes", "-y", help="Skip confirmation prompt"),
+    skip_notify: bool = typer.Option(
+        False,
+        "--skip-notify",
+        help="Do not send Telegram notification to mapped users",
+    ),
+) -> None:
+    """Delete a profile after notifying mapped Telegram users."""
+    from core.profile.lifecycle import PROTECTED_PROFILES, delete_profile_with_notification
+
+    profile = (name or _profile(ctx)).strip()
+    if profile in PROTECTED_PROFILES:
+        print_error(f"Cannot delete protected profile '{profile}'")
+        raise typer.Exit(1)
+
+    manager = get_profile_manager()
+    if not manager.profile_exists(profile):
+        print_error(f"Profile '{profile}' does not exist")
+        raise typer.Exit(1)
+
+    from core.profile.lifecycle import find_telegram_users_for_profile
+
+    bindings = find_telegram_users_for_profile(profile)
+    if bindings:
+        uids = sorted({uid for _, uid in bindings})
+        print_info(
+            f"Telegram users mapped to '{profile}': {', '.join(str(u) for u in uids)}"
+        )
+    if not yes:
+        confirmed = typer.confirm(
+            f"Delete profile '{profile}' and notify users in Telegram?",
+            default=False,
+        )
+        if not confirmed:
+            print_info("Cancelled")
+            raise typer.Exit(0)
+
+    result = delete_profile_with_notification(
+        profile,
+        notify=not skip_notify,
+        manager=manager,
+    )
+    if result.error:
+        print_error(result.error)
+        raise typer.Exit(1)
+
+    if result.notified:
+        print_success(
+            f"Notified {len(result.notified)} user(s) in Telegram before deletion"
+        )
+    for uid, err in result.notify_failed:
+        print_warning(f"Could not notify user {uid}: {err}")
+
+    if result.deleted:
+        print_success(f"Profile '{profile}' deleted")
+    else:
+        print_error(f"Profile '{profile}' was not deleted")
+        raise typer.Exit(1)
 
 
 @app.command("create")
@@ -284,29 +351,51 @@ def profile_env(
     edit: bool = typer.Option(False, "--edit", "-e", help="Open profile .env in editor"),
 ) -> None:
     """Show or edit the active profile's ``.env`` file."""
-    from core.env_loader import ensure_profile_env_template
+    from core.crypto.profile_crypto import ProfileCryptoLockedError, is_profile_encryption_enabled
+    from core.env_loader import (
+        edit_profile_env_file,
+        ensure_profile_env_template,
+        read_profile_env_map,
+    )
 
     profile = _profile(ctx)
     path = ensure_profile_env_template(profile)
 
     if edit:
+        if is_profile_encryption_enabled(profile):
+            from core.crypto.unlock_context import get_profile_session_dek
+
+            if get_profile_session_dek(profile) is None:
+                print_warning(
+                    "Profile is encrypted — unlock first: "
+                    f"holix -p {profile} --unlock-key <key> profile env --edit"
+                )
         editor = os.environ.get("EDITOR", "nano")
-        print_info(f"Opening {path} in {editor}…")
+        print_info(f"Editing {path} (decrypted in a temporary file)…")
         try:
-            subprocess.run([editor, str(path)], check=False)
-            print_success("Profile env updated")
-            print_info("Restart gateway/Telegram or re-run CLI for changes to apply")
-        except OSError as e:
-            print_error(f"Failed to open editor: {e}")
-            raise typer.Exit(1) from e
+            edit_profile_env_file(profile, editor=editor)
+        except ProfileCryptoLockedError as exc:
+            print_error(str(exc))
+            raise typer.Exit(1) from exc
+        except OSError as exc:
+            print_error(f"Failed to open editor: {exc}")
+            raise typer.Exit(1) from exc
+        print_success("Profile env updated")
+        print_info("Restart gateway/Telegram or re-run CLI for changes to apply")
         return
 
     print_info(f"Profile: {profile}")
     print_info(f"Env file: {path}")
-    if path.is_file():
-        print_info(path.read_text(encoding="utf-8"))
+    try:
+        values = read_profile_env_map(profile)
+    except ProfileCryptoLockedError as exc:
+        print_error(str(exc))
+        raise typer.Exit(1) from exc
+    if values:
+        for key in sorted(values):
+            print_info(f"{key}={values[key]}")
     else:
-        print_warning("Env file is empty or missing")
+        print_warning("Env file is empty, missing, or locked")
 
 
 @jail_app.command("enable")
@@ -683,7 +772,7 @@ def crypto_status(ctx: typer.Context) -> None:
         is_encryption_runtime_active,
         profile_has_crypto_metadata,
     )
-    from core.crypto.profile_crypto import is_profile_encryption_enabled, load_crypto_meta
+    from core.crypto.profile_crypto import load_crypto_meta
     from core.crypto.runtime_cache import (
         iter_world_readable_runtime_caches,
         legacy_profile_cache_dir,
@@ -771,6 +860,103 @@ def crypto_unlock(
         print_error(str(exc))
         raise typer.Exit(1) from exc
     print_success(f"Profile '{profile}' unlocked for this process")
+    print_info("Workspace files are stored as plaintext (legacy encrypted files are decrypted on unlock)")
+
+
+@crypto_app.command("decrypt-workspace")
+def crypto_decrypt_workspace(
+    ctx: typer.Context,
+    all_profiles: bool = typer.Option(
+        False,
+        "--all",
+        help="Decrypt workspace for every encrypted profile",
+    ),
+    unlock_key: str | None = typer.Option(
+        None,
+        "--unlock-key",
+        help="User encryption key (uses active session if already unlocked)",
+    ),
+    yes: bool = typer.Option(False, "--yes", "-y", help="Skip confirmation prompt"),
+) -> None:
+    """Decrypt legacy encrypted workspace files to plaintext (git-friendly)."""
+    from core.crypto.bootstrap import decrypt_all_profile_workspaces, list_encrypted_profiles
+    from core.crypto.profile_crypto import (
+        ProfileCryptoError,
+        is_profile_encryption_enabled,
+        unlock_profile_dek,
+    )
+    from core.crypto.profile_files import decrypt_deliverable_files
+    from core.crypto.unlock_context import get_profile_session_dek, set_profile_session_unlock
+
+    manager = get_profile_manager()
+    active = _profile(ctx)
+
+    if all_profiles:
+        targets = list_encrypted_profiles(manager)
+        if not targets:
+            print_info("No encrypted profiles found")
+            raise typer.Exit(0)
+
+        print_info(f"Profiles to decrypt workspace ({len(targets)}): {', '.join(targets)}")
+        if not yes:
+            confirmed = typer.confirm("Decrypt legacy encrypted workspace files?", default=False)
+            if not confirmed:
+                print_info("Cancelled")
+                raise typer.Exit(0)
+
+        key = (unlock_key or "").strip()
+        if not key:
+            key = typer.prompt("Encryption unlock key", hide_input=True)
+
+        summary = decrypt_all_profile_workspaces(manager, key, profiles=targets)
+        total = sum(r.deliverables_decrypted for r in summary.migrated)
+        for result in summary.migrated:
+            if result.deliverables_decrypted:
+                print_success(
+                    f"'{result.profile}': decrypted {result.deliverables_decrypted} file(s) "
+                    f"in {result.workspace}"
+                )
+            else:
+                print_info(f"'{result.profile}': no encrypted workspace files")
+
+        for name in summary.skipped:
+            print_info(f"Skipped '{name}' (not encrypted)")
+
+        for name, error in summary.failed:
+            print_error(f"Failed '{name}': {error}")
+
+        if summary.failed:
+            raise typer.Exit(1)
+
+        if total:
+            print_success(f"Done: {total} workspace file(s) decrypted across {len(summary.migrated)} profile(s)")
+        else:
+            print_info("No encrypted workspace files found")
+        raise typer.Exit(0)
+
+    profile = active
+    if not is_profile_encryption_enabled(profile):
+        print_error(f"Profile '{profile}' is not encrypted")
+        raise typer.Exit(1)
+
+    dek = get_profile_session_dek(profile)
+    if dek is None:
+        key = (unlock_key or "").strip()
+        if not key:
+            key = typer.prompt("Encryption unlock key", hide_input=True)
+        try:
+            dek = unlock_profile_dek(profile, key)
+        except ProfileCryptoError as exc:
+            print_error(str(exc))
+            raise typer.Exit(1) from exc
+        count = set_profile_session_unlock(profile, dek)
+    else:
+        count = decrypt_deliverable_files(profile, dek)
+
+    if count:
+        print_success(f"Decrypted {count} workspace file(s) to plaintext")
+    else:
+        print_info("No encrypted workspace files found")
 
 
 @crypto_app.command("purge-cache")

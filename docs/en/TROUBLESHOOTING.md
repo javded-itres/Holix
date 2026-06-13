@@ -53,6 +53,21 @@ Slash commands are hidden until the user is approved (or on allowlist / `map`). 
 
 See [TELEGRAM.md](TELEGRAM.md).
 
+## Telegram bot skipped at gateway start
+
+Log shows `Telegram bot skipped` or `telegram (disabled)` in companion list.
+
+| Message | Fix |
+|---------|-----|
+| `set TELEGRAM_BOT_TOKEN` / token not configured | Remove empty `TELEGRAM_BOT_TOKEN=` from `global/.env`; store token in `profiles/<name>/telegram.env`. Set `HOLIX_UNLOCK_KEY` if the file is encrypted. Restart gateway. |
+| `aiogram is not installed` | `uv sync --extra telegram` (source) or `uv tool install . --force --with aiogram --with pypdf` (global tool). Restart gateway. |
+| Token set but bot still disabled | Confirm `holix -p NAME telegram status` shows a masked token. Check `profiles/NAME/gateway/gateway.log` after restart. |
+
+```bash
+holix -p shared telegram status
+holix -p shared gateway reload
+```
+
 ## Auth 401 on API
 
 Set `Authorization: Bearer <key>` or `X-API-Key`. Create admin key via `/admin/api-keys` (requires admin key when auth enabled).

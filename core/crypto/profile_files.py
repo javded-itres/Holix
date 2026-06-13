@@ -183,8 +183,8 @@ def dotenv_values_for_path(path: Path, *, profile: str | None = None) -> dict[st
             pass
 
 
-def seal_profile_secrets(profile: str, user_encryption_key: str) -> int:
-    """Encrypt plaintext secrets for a profile that already has crypto.json."""
+def seal_profile_secrets(profile: str, user_encryption_key: str) -> tuple[int, int]:
+    """Encrypt plaintext secrets; return (secrets_encrypted, deliverables_decrypted)."""
     from core.crypto.profile_crypto import unlock_profile_dek
 
     if not profile_has_crypto_metadata(profile):
@@ -192,5 +192,5 @@ def seal_profile_secrets(profile: str, user_encryption_key: str) -> int:
     dek = unlock_profile_dek(profile, user_encryption_key)
     from core.crypto.unlock_context import set_profile_session_unlock
 
-    set_profile_session_unlock(profile, dek)
-    return encrypt_profile_secrets(profile, dek)
+    deliverables_decrypted = set_profile_session_unlock(profile, dek)
+    return encrypt_profile_secrets(profile, dek), deliverables_decrypted

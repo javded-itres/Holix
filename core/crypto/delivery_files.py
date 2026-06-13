@@ -31,8 +31,11 @@ def materialize_file_for_delivery(
     if dek is None:
         try:
             dek = require_profile_dek(name)
-        except ProfileCryptoLockedError:
-            return resolved, lambda: None
+        except ProfileCryptoLockedError as exc:
+            raise ProfileCryptoLockedError(
+                f"Cannot send encrypted file '{resolved.name}': profile '{name}' is locked. "
+                "Unlock the profile before sending files."
+            ) from exc
 
     plaintext = decrypt_bytes(dek, resolved.read_bytes())
     handle = tempfile.NamedTemporaryFile(

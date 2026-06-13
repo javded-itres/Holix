@@ -36,6 +36,12 @@
     "file_key": "PROFILES"
   },
   {
+    "slug": "profile-encryption",
+    "en": "Profile Encryption",
+    "ru": "Шифрование профиля",
+    "file_key": "PROFILE_ENCRYPTION"
+  },
+  {
     "slug": "cli",
     "en": "CLI Reference",
     "ru": "Справочник CLI",

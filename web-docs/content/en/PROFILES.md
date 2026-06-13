@@ -279,6 +279,8 @@ The access key protects **switching into** a profile from Holix interfaces. It d
 
 Telegram guide (one bot vs multiple bots): [TELEGRAM_MULTI_PROFILE.md](TELEGRAM_MULTI_PROFILE.md).
 
+Optional **at-rest encryption** for secrets and memory (workspace stays plaintext): [PROFILE_ENCRYPTION.md](PROFILE_ENCRYPTION.md).
+
 ## Typical multi-user setup
 
 ```bash
@@ -295,6 +297,33 @@ holix -p bob profile jail enable /home/bob/projects
 holix -p bob telegram setup
 holix -p bob gateway start
 ```
+
+## Deleting a profile
+
+Remove a user profile from the server. Holix notifies mapped Telegram users **before** deleting data.
+
+**Protected profiles** cannot be deleted: `default`, `docs`, `global`.
+
+```bash
+holix -p shared profile delete ivan --yes
+holix -p shared profile delete ivan --yes --skip-notify   # no Telegram message
+```
+
+What happens:
+
+1. Holix finds Telegram users bound to the profile (`telegram-users.json`, `HOLIX_TELEGRAM_USER_PROFILES` in `telegram.env`)
+2. Sends a deletion notice in Telegram (unless `--skip-notify`)
+3. Removes Telegram bindings for that profile
+4. Wipes runtime cache and deletes `~/.holix/profiles/<name>/`
+
+Via Management API (admin gateway key):
+
+```bash
+curl -X DELETE "$HOLIX_URL/api/holix/profiles/ivan?notify=true" \
+  -H "Authorization: Bearer $ADMIN_KEY"
+```
+
+Query `notify=false` skips Telegram. Response fields: `deleted`, `notified_users`, `notify_failed`, `mappings_removed`. See [GATEWAY_API.md](GATEWAY_API.md).
 
 ## CLI reference
 
@@ -321,6 +350,8 @@ holix -p bob gateway start
 | `holix profile whitelist add "<cmds>"` | Add comma-separated terminal commands |
 | `holix profile whitelist list` | Show whitelist status and effective commands |
 | `holix profile whitelist enable` | Enable terminal whitelist enforcement |
+| `holix profile delete <name>` | Notify Telegram users, then delete profile (`--yes`, `--skip-notify`) |
+| `holix profile crypto …` | At-rest encryption for secrets (workspace stays plaintext) |
 | `holix status` | List profiles (`locked` / `open`) and active one |
 
 In TUI/chat/Telegram: `/profile <name> <access-key>` to switch into a protected profile.

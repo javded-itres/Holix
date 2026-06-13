@@ -54,6 +54,33 @@ Initialized on first run (seeded from `profiles/default/config.yaml` when presen
 | `profiles/<name>/USER.md` | User facts and preferences |
 | `profiles/<name>/INIT.md` | First-run onboarding marker (removed after `complete_agent_initialization`) |
 | `profiles/<name>/data/` | Memory, skills, security, cron |
+| `profiles/<name>/workspace/` | Agent workspace (plaintext; not encrypted) |
+
+### `telegram.env` loading
+
+Holix loads `profiles/<bot-host>/telegram.env` after profile bootstrap and unlock. Values from this file **override empty** shell/global entries (e.g. blank `TELEGRAM_BOT_TOKEN=`). Encrypted files require `HOLIX_UNLOCK_KEY` in the environment or an active `holix profile crypto unlock` session.
+
+## Profile encryption (optional)
+
+Holix encrypts **profile secrets at rest**: `.env`, `telegram.env`, `SOUL.md`, `USER.md`, memory databases. **Workspace files stay plaintext** (git-friendly). Legacy encrypted workspace trees are migrated once with `holix profile crypto decrypt-workspace`.
+
+```bash
+holix -p alice profile crypto enable           # one profile
+holix profile crypto migrate --all --yes       # bulk on existing installs
+holix -p alice profile crypto unlock         # decrypt for this CLI session
+holix profile crypto decrypt-workspace --all --yes   # workspace migration
+holix -p alice profile crypto status
+```
+
+| Variable | Purpose |
+|----------|---------|
+| `HOLIX_UNLOCK_KEY` | User key for gateway/systemd to unlock encrypted profiles at startup |
+| `HOLIX_ENCRYPTION_MODE` | Policy label (`linux-production`, etc.) |
+
+Delivered files (Telegram attachments) are materialized as plaintext before send when encryption is enabled.
+
+Full guide (OS policy, threat model, gateway unlock): [PROFILE_ENCRYPTION.md](PROFILE_ENCRYPTION.md).  
+See also [SECURITY.md](SECURITY.md#encryption-at-rest) and `holix profile crypto --help`.
 
 ## Workspace jail (optional)
 

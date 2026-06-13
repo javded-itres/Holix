@@ -129,22 +129,39 @@ async def delete_profile(
     key_info: dict = Depends(verify_api_key),
     x_holix_profile: str | None = Header(None),
     x_holix_profile_key: str | None = Header(None, alias="X-Holix-Profile-Key"),
+    notify: bool = True,
 ):
     ctx = profile_access(profile_id, key_info, x_holix_profile, x_holix_profile_key)
     require_admin_access(ctx)
-    if profile_id == "default":
-        raise HTTPException(status_code=400, detail="Cannot delete default profile")
+    from core.profile.lifecycle import PROTECTED_PROFILES, delete_profile_with_notification
+
+    if profile_id in PROTECTED_PROFILES:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Cannot delete protected profile '{profile_id}'",
+        )
     manager = ProfileManager()
+    if not manager.profile_exists(profile_id):
+        raise HTTPException(status_code=404, detail="Profile not found")
     if state.registry and profile_id in state.registry.list_loaded_profiles():
         entry = state.registry.entry(profile_id)
         if entry is not None:
-            await state.registry.reload(profile_id)
+            await state.registry.unload(profile_id)
     if state.companions:
         await state.companions.stop_cron(profile_id)
         await state.companions.stop_telegram(profile_id)
-    if not manager.delete_profile(profile_id):
-        raise HTTPException(status_code=404, detail="Profile not found")
-    return {"deleted": True, "profile": profile_id}
+    result = delete_profile_with_notification(profile_id, notify=notify, manager=manager)
+    if result.error:
+        raise HTTPException(status_code=400, detail=result.error)
+    return {
+        "deleted": result.deleted,
+        "profile": profile_id,
+        "notified_users": result.notified,
+        "notify_failed": [
+            {"user_id": uid, "error": err} for uid, err in result.notify_failed
+        ],
+        "mappings_removed": result.mappings_removed,
+    }
 
 
 @router.post("/{profile_id}/reload", response_model=ReloadResponse)

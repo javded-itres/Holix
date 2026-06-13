@@ -30,6 +30,7 @@ NAV = [
     ("QUICKSTART", {"en": "Quickstart", "ru": "Быстрый старт"}),
     ("CONFIGURATION", {"en": "Configuration", "ru": "Конфигурация"}),
     ("PROFILES", {"en": "Profiles & Isolation", "ru": "Профили и изоляция"}),
+    ("PROFILE_ENCRYPTION", {"en": "Profile Encryption", "ru": "Шифрование профиля"}),
     ("CLI", {"en": "CLI Reference", "ru": "Справочник CLI"}),
     ("SLASH_COMMANDS", {"en": "Slash Commands", "ru": "Слэш-команды"}),
     ("EXECUTION_MODES", {"en": "Execution Modes", "ru": "Режимы работы"}),

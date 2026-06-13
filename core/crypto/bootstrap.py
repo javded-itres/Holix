@@ -5,7 +5,6 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from core.crypto.encrypted_fs import encrypt_bytes, is_encrypted_file
 from core.crypto.memory_vault import encrypt_profile_memory, seal_profile_memory
 from core.crypto.policy import profile_has_crypto_metadata
 from core.crypto.profile_crypto import (
@@ -21,14 +20,13 @@ from core.crypto.profile_files import (
 )
 from core.crypto.unlock_context import get_profile_session_dek, set_profile_session_unlock
 from core.workspace.limits import ensure_profile_limits
-from core.workspace.quota import QUOTA_DIRNAME, reconcile_workspace_usage
+from core.workspace.quota import reconcile_workspace_usage
 
 
 @dataclass(frozen=True, slots=True)
 class EncryptionEnableResult:
     profile: str
     workspace: Path
-    files_encrypted: int = 0
     secrets_encrypted: int = 0
     memory_sealed: int = 0
     deliverables_decrypted: int = 0
@@ -48,30 +46,6 @@ def list_unencrypted_profiles(manager) -> list[str]:
         for name in manager.list_profiles()
         if not profile_has_crypto_metadata(name)
     ]
-
-
-def encrypt_workspace_tree(workspace_root: Path, dek: bytes) -> int:
-    """Encrypt plaintext files under workspace; return count of files encrypted."""
-    root = workspace_root.resolve()
-    if not root.is_dir():
-        return 0
-
-    count = 0
-    for item in root.rglob("*"):
-        if not item.is_file():
-            continue
-        try:
-            rel = item.relative_to(root)
-        except ValueError:
-            continue
-        if rel.parts and rel.parts[0] == QUOTA_DIRNAME:
-            continue
-        if is_encrypted_file(item):
-            continue
-        plaintext = item.read_bytes()
-        item.write_bytes(encrypt_bytes(dek, plaintext))
-        count += 1
-    return count
 
 
 def _prepare_workspace_for_encryption(manager, profile: str) -> Path:
@@ -147,9 +121,10 @@ def seal_profiles_secrets(
             summary.skipped.append(profile)
             continue
         try:
-            secrets_count = seal_profile_secrets(profile, user_encryption_key)
+            secrets_count, deliverables_count = seal_profile_secrets(
+                profile, user_encryption_key
+            )
             dek = get_profile_session_dek(profile)
-            deliverables_count = decrypt_deliverable_files(profile, dek) if dek else 0
             memory_count = seal_profile_memory(profile, dek) if dek else 0
             config = manager.load_profile(profile)
             if config.workspace_root and str(config.workspace_root).strip():
@@ -163,6 +138,54 @@ def seal_profiles_secrets(
                     secrets_encrypted=secrets_count,
                     memory_sealed=memory_count,
                     deliverables_decrypted=deliverables_count,
+                )
+            )
+        except (ProfileCryptoError, ValueError, OSError) as exc:
+            summary.failed.append((profile, str(exc)))
+
+    return summary
+
+
+def list_encrypted_profiles(manager) -> list[str]:
+    """Return profile names that have crypto.json (encryption enabled)."""
+    return [
+        name
+        for name in manager.list_profiles()
+        if profile_has_crypto_metadata(name)
+    ]
+
+
+def decrypt_all_profile_workspaces(
+    manager,
+    user_encryption_key: str,
+    *,
+    profiles: list[str] | None = None,
+) -> MigrationSummary:
+    """Decrypt legacy encrypted workspace/data/files for all encrypted profiles."""
+    summary = MigrationSummary()
+    targets = profiles if profiles is not None else list_encrypted_profiles(manager)
+
+    for profile in targets:
+        if not manager.profile_exists(profile):
+            summary.failed.append((profile, "profile does not exist"))
+            continue
+        if not profile_has_crypto_metadata(profile):
+            summary.skipped.append(profile)
+            continue
+        try:
+            dek = unlock_profile_dek(profile, user_encryption_key)
+            count = decrypt_deliverable_files(profile, dek)
+            config = manager.load_profile(profile)
+            if config.workspace_root and str(config.workspace_root).strip():
+                workspace = Path(config.workspace_root).expanduser().resolve()
+            else:
+                workspace = manager.get_profile_dir(profile) / "workspace"
+            reconcile_workspace_usage(workspace)
+            summary.migrated.append(
+                EncryptionEnableResult(
+                    profile=profile,
+                    workspace=workspace,
+                    deliverables_decrypted=count,
                 )
             )
         except (ProfileCryptoError, ValueError, OSError) as exc:

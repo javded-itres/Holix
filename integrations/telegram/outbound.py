@@ -101,9 +101,14 @@ def prepare_outbound_files(paths: list[str | Path]) -> tuple[list[OutboundFile],
             continue
 
         from core.crypto.delivery_files import materialize_file_for_delivery
+        from core.crypto.profile_crypto import ProfileCryptoLockedError
         from core.tools.execution_context import get_profile_name
 
-        send_path, cleanup = materialize_file_for_delivery(path, profile=get_profile_name())
+        try:
+            send_path, cleanup = materialize_file_for_delivery(path, profile=get_profile_name())
+        except ProfileCryptoLockedError as exc:
+            errors.append(f"{label}: {exc}")
+            continue
         size = send_path.stat().st_size
         if size > max_bytes:
             cleanup()
