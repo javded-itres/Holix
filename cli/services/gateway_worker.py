@@ -70,6 +70,9 @@ def main(argv: list[str] | None = None) -> int:
             docs_port=docs_port,
         )
     finally:
+        from core.crypto.unlock_context import clear_profile_unlock
+
+        clear_profile_unlock(args.profile)
         clear_state(args.profile)
     return 0
 

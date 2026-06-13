@@ -63,11 +63,34 @@ def clear_profile_session_unlock(profile: str | None = None) -> None:
 
 
 def clear_profile_unlock(profile: str | None = None) -> None:
+    targets = [profile] if profile else list(_session_deks.keys())
+    for name in targets:
+        if not name:
+            continue
+        dek = _session_deks.get(name)
+        if dek is not None:
+            try:
+                from core.crypto.memory_vault import seal_profile_memory
+
+                seal_profile_memory(name, dek)
+            except OSError as exc:
+                import logging
+
+                logging.getLogger(__name__).warning(
+                    "Failed to seal memory for profile '%s': %s", name, exc
+                )
     _profile_dek.set(None)
     _unlocked_profile.set(None)
     if profile:
+        from core.crypto.memory_vault import clear_profile_memory_cache
+
+        clear_profile_memory_cache(profile)
         clear_profile_session_unlock(profile)
     else:
+        from core.crypto.memory_vault import clear_profile_memory_cache
+
+        for name in list(_session_deks.keys()):
+            clear_profile_memory_cache(name)
         clear_profile_session_unlock()
 
 

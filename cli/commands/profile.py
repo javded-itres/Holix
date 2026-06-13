@@ -615,7 +615,7 @@ def crypto_seal(
     ),
     yes: bool = typer.Option(False, "--yes", "-y", help="Skip confirmation prompt"),
 ) -> None:
-    """Encrypt plaintext .env/SOUL/USER files for profiles that already have crypto.json."""
+    """Encrypt plaintext secrets and memory stores for encrypted profiles."""
     from core.crypto.bootstrap import seal_profiles_secrets
     from core.crypto.profile_crypto import is_profile_encryption_enabled
 
@@ -640,7 +640,7 @@ def crypto_seal(
 
     print_info(f"Profiles to seal ({len(targets)}): {', '.join(targets)}")
     if not yes:
-        confirmed = typer.confirm("Encrypt profile secret files on disk?", default=False)
+        confirmed = typer.confirm("Encrypt profile secrets and memory on disk?", default=False)
         if not confirmed:
             print_info("Seal cancelled")
             raise typer.Exit(0)
@@ -651,10 +651,15 @@ def crypto_seal(
 
     summary = seal_profiles_secrets(manager, key, profiles=targets)
     for result in summary.migrated:
+        parts: list[str] = []
         if result.secrets_encrypted:
-            print_success(f"Sealed '{result.profile}' ({result.secrets_encrypted} file(s))")
+            parts.append(f"{result.secrets_encrypted} secret(s)")
+        if result.memory_sealed:
+            parts.append(f"{result.memory_sealed} memory store(s)")
+        if parts:
+            print_success(f"Sealed '{result.profile}' ({', '.join(parts)})")
         else:
-            print_info(f"No plaintext secrets left in '{result.profile}'")
+            print_info(f"No plaintext secrets or memory left in '{result.profile}'")
 
     for name in summary.skipped:
         print_info(f"Skipped '{name}' (not encrypted)")

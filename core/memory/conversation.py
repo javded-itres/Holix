@@ -5,7 +5,6 @@ from __future__ import annotations
 import json
 import logging
 from datetime import datetime
-from pathlib import Path
 from typing import Any
 
 import aiosqlite
@@ -14,7 +13,7 @@ from chromadb.config import Settings as ChromaSettings
 
 from core.di.runtime_config import HolixRuntimeConfig
 from core.memory.chroma_embeddings import get_or_create_collection
-from core.paths import prepare_sqlite_db_file
+from core.paths import prepare_sqlite_db_file, prepare_vector_db_dir
 
 logger = logging.getLogger(__name__)
 
@@ -33,10 +32,7 @@ class ConversationStore:
         cfg = config or HolixRuntimeConfig.from_settings()
         self.config = cfg
         self.db_path = prepare_sqlite_db_file(cfg.memory_db_path)
-        self.vector_db_path = Path(cfg.vector_db_path)
-
-        self.vector_db_path.mkdir(parents=True, exist_ok=True)
-        self.vector_db_path.mkdir(parents=True, exist_ok=True)
+        self.vector_db_path = prepare_vector_db_dir(cfg.vector_db_path)
 
         self.chroma_client = chromadb.PersistentClient(
             path=str(self.vector_db_path),

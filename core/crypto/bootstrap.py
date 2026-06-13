@@ -6,14 +6,15 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from core.crypto.encrypted_fs import encrypt_bytes, is_encrypted_file
+from core.crypto.memory_vault import encrypt_profile_memory, seal_profile_memory
 from core.crypto.profile_crypto import (
     ProfileCryptoError,
     create_profile_crypto,
     is_profile_encryption_enabled,
     unlock_profile_dek,
 )
-from core.crypto.profile_files import encrypt_profile_secrets
-from core.crypto.unlock_context import set_profile_session_unlock
+from core.crypto.profile_files import encrypt_profile_secrets, seal_profile_secrets
+from core.crypto.unlock_context import get_profile_session_dek, set_profile_session_unlock
 from core.workspace.limits import ensure_profile_limits
 from core.workspace.quota import QUOTA_DIRNAME, reconcile_workspace_usage
 
@@ -24,6 +25,7 @@ class EncryptionEnableResult:
     workspace: Path
     files_encrypted: int
     secrets_encrypted: int = 0
+    memory_sealed: int = 0
 
 
 @dataclass(slots=True)
@@ -98,9 +100,11 @@ def enable_profile_encryption(
 
     files_encrypted = 0
     secrets_encrypted = 0
+    memory_sealed = 0
     if encrypt_existing:
         files_encrypted = encrypt_workspace_tree(workspace, dek)
         secrets_encrypted = encrypt_profile_secrets(profile, dek)
+        memory_sealed = encrypt_profile_memory(profile, dek)
     reconcile_workspace_usage(workspace)
 
     config = manager.load_profile(profile)
@@ -112,6 +116,7 @@ def enable_profile_encryption(
         workspace=workspace,
         files_encrypted=files_encrypted,
         secrets_encrypted=secrets_encrypted,
+        memory_sealed=memory_sealed,
     )
 
 
@@ -121,9 +126,7 @@ def seal_profiles_secrets(
     *,
     profiles: list[str] | None = None,
 ) -> MigrationSummary:
-    """Encrypt plaintext .env/SOUL/USER/etc. for profiles that already have crypto.json."""
-    from core.crypto.profile_files import seal_profile_secrets
-
+    """Encrypt plaintext secrets and memory stores for encrypted profiles."""
     summary = MigrationSummary()
     targets = profiles if profiles is not None else manager.list_profiles()
 
@@ -135,7 +138,9 @@ def seal_profiles_secrets(
             summary.skipped.append(profile)
             continue
         try:
-            count = seal_profile_secrets(profile, user_encryption_key)
+            secrets_count = seal_profile_secrets(profile, user_encryption_key)
+            dek = get_profile_session_dek(profile)
+            memory_count = seal_profile_memory(profile, dek) if dek else 0
             config = manager.load_profile(profile)
             if config.workspace_root and str(config.workspace_root).strip():
                 workspace = Path(config.workspace_root).expanduser().resolve()
@@ -146,7 +151,8 @@ def seal_profiles_secrets(
                     profile=profile,
                     workspace=workspace,
                     files_encrypted=0,
-                    secrets_encrypted=count,
+                    secrets_encrypted=secrets_count,
+                    memory_sealed=memory_count,
                 )
             )
         except (ProfileCryptoError, ValueError, OSError) as exc:

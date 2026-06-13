@@ -51,6 +51,15 @@ def resolve_holix_storage_path(path: str | None, *, default: Path) -> Path:
     return (resolve_holix_home() / expanded).resolve()
 
 
+def prepare_vector_db_dir(path: str | Path) -> Path:
+    """Ensure a Chroma vector directory exists (decrypting from vault when needed)."""
+    from core.crypto.memory_vault import resolve_memory_vector_dir
+
+    vector_dir = resolve_memory_vector_dir(path)
+    vector_dir.mkdir(parents=True, exist_ok=True)
+    return vector_dir
+
+
 def _rename_blocking_path(path: Path) -> Path | None:
     """Move a file/dir blocking SQLite creation aside; return backup path if moved."""
     if not path.exists():
@@ -71,7 +80,9 @@ def _rename_blocking_path(path: Path) -> Path | None:
 
 def prepare_sqlite_db_file(path: str | Path) -> Path:
     """Ensure a SQLite file path exists and is openable (not a directory / read-only)."""
-    db_path = Path(path).expanduser().resolve()
+    from core.crypto.memory_vault import resolve_memory_sqlite_path
+
+    db_path = resolve_memory_sqlite_path(path)
     db_path.parent.mkdir(parents=True, exist_ok=True)
 
     if db_path.exists() and db_path.is_dir():
@@ -105,7 +116,7 @@ def ensure_profile_memory_dirs(profile: str) -> None:
     prepare_sqlite_db_file(cfg.memory_db_path)
     prepare_sqlite_db_file(cfg.ltm_db_path)
     prepare_sqlite_db_file(cfg.langgraph_checkpoint_db_path)
-    Path(cfg.vector_db_path).expanduser().resolve().mkdir(parents=True, exist_ok=True)
+    prepare_vector_db_dir(cfg.vector_db_path)
 
 
 def resolve_api_keys_db_path(path: str | None = None) -> Path:
