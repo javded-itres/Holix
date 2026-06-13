@@ -35,6 +35,8 @@ def test_parse_encryption_mode_aliases() -> None:
 def test_runtime_inactive_on_mac_dev(holix_home, monkeypatch) -> None:
     monkeypatch.setenv("HOLIX_ENCRYPTION_MODE", "linux-production")
     monkeypatch.setenv("HOLIX_ENV", "development")
+    monkeypatch.setattr("core.crypto.policy.IS_LINUX", False)
+    monkeypatch.setattr("core.crypto.policy.sys.platform", "darwin")
     manager = ProfileManager()
     manager.create_profile("alice", inherit_global=False)
     create_profile_crypto("alice", "unlock-key-alice-99")
@@ -92,6 +94,8 @@ def test_enable_blocked_off(holix_home, monkeypatch) -> None:
 def test_enable_blocked_non_linux_production(holix_home, monkeypatch) -> None:
     monkeypatch.setenv("HOLIX_ENCRYPTION_MODE", "linux-production")
     monkeypatch.setenv("HOLIX_ENV", "development")
+    monkeypatch.setattr("core.crypto.policy.IS_LINUX", False)
+    monkeypatch.setattr("core.crypto.policy.sys.platform", "darwin")
     manager = ProfileManager()
     manager.create_profile("frank", inherit_global=False)
 
