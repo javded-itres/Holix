@@ -8,7 +8,6 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
-
 from integrations.max.config import MaxSettings
 from integrations.max.constants import WEBHOOK_PATH, WEBHOOK_SECRET_HEADER
 from integrations.max.gateway_routes import (

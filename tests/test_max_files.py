@@ -2,23 +2,20 @@
 
 from __future__ import annotations
 
-import json
 from pathlib import Path
-from unittest.mock import AsyncMock
 
 import pytest
 from aiohttp import web
-
 from integrations.max.file_handler import (
     PendingMaxAttachment,
     attachment_to_pending,
     build_agent_prompt,
     extract_media_attachments,
     format_files_preview_markdown,
-    profile_files_dir,
     save_max_attachment,
 )
 from integrations.max.uploads import detect_upload_type, media_attachment
+
 from tests.test_max_client import _start_mock_server
 
 

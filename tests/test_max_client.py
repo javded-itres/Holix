@@ -2,12 +2,8 @@
 
 from __future__ import annotations
 
-import json
-
-import aiohttp
 import pytest
 from aiohttp import web
-
 from integrations.max.client import MaxApiError, MaxClient
 from integrations.max.models import (
     conversation_id_for_max,

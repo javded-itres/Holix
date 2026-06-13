@@ -2,13 +2,11 @@
 
 from __future__ import annotations
 
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock
 
 import pytest
-
 from integrations.max.keyboards import (
     confirmation_keyboard,
-    inline_keyboard,
     mode_picker_keyboard,
     parse_callback,
     plan_review_keyboard,

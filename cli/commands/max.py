@@ -100,8 +100,8 @@ def max_sync_menu(ctx: typer.Context) -> None:
     """Push slash-command menu to MAX (incl. /models) without restarting the bot."""
     profile = resolve_profile(ctx)
     try:
-        from integrations.max.env_store import load_max_env_files
         from integrations.max.commands import sync_bot_menu
+        from integrations.max.env_store import load_max_env_files
 
         load_max_env_files(profile)
         names = asyncio.run(sync_bot_menu(profile))

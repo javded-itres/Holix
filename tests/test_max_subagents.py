@@ -6,10 +6,8 @@ import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-
 from core.security.confirmation import ConfirmationChoice
 from core.subagents.interaction import SubAgentInteractionBridge
-from integrations.max.approvals import MaxApprovals
 from integrations.max.bot import HelixMaxBot
 from integrations.max.config import MaxSettings
 from integrations.max.host import MaxHost
@@ -43,7 +41,6 @@ async def test_confirmation_callback_does_not_wait_on_run_lock() -> None:
     await asyncio.sleep(0.05)
     assert not gate.done()
 
-    approvals = MaxApprovals(client, session)
     request_id = "cfm-test-1"
     confirm_future = asyncio.create_task(
         bridge.handle_ipc_confirmation(

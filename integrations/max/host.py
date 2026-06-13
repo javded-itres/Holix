@@ -6,14 +6,12 @@ import asyncio
 import logging
 from typing import Any
 
-logger = logging.getLogger(__name__)
-
 from cli.shared.commands.agent_commands import AgentCommands
 from cli.shared.rich_text import content_to_plain_text
 from cli.shared.slash_input import is_slash_command, normalize_slash_input
 from core.i18n import host_locale, t
+
 from integrations.max.client import MaxClient
-from integrations.max.models import reply_kwargs_for_session
 from integrations.max.commands import help_message_markdown
 from integrations.max.event_handler import MaxEventHandler
 from integrations.max.interactive import MaxInteractive
@@ -24,6 +22,9 @@ from integrations.max.markdown import (
     split_max_html,
     truncate_max_text,
 )
+from integrations.max.models import reply_kwargs_for_session
+
+logger = logging.getLogger(__name__)
 
 
 class MaxHost:
@@ -531,7 +532,6 @@ class MaxHost:
         ensure_session_model(self)
 
         from integrations.max.approvals import MaxApprovals
-
         from integrations.max.config import load_max_settings
 
         max_settings = load_max_settings(self.profile)

@@ -7,7 +7,7 @@ import time
 from typing import Any
 
 from integrations.max.client import MaxApiError, MaxClient
-from integrations.max.models import update_type, user_id_from_update
+from integrations.max.models import user_id_from_update
 
 
 async def verify_access_token(token: str) -> dict[str, Any]:

@@ -5,6 +5,7 @@ from __future__ import annotations
 from cli.core import ProfileManager
 from fastapi import APIRouter, Depends, Header, HTTPException
 
+import api.state
 from api.deps import verify_api_key
 from api.schemas.holix import MaxApproveRequest, MaxMapSetRequest, MaxSetupRequest
 from api.services.holix_deps import profile_access
@@ -23,7 +24,6 @@ from api.services.max_ops import (
     sync_max_menu,
 )
 from api.services.profile_access import require_admin_access
-import api.state
 
 router = APIRouter(prefix="/api/holix/profiles/{profile_id}/max", tags=["holix-max"])
 

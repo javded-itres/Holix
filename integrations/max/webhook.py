@@ -9,7 +9,6 @@ from typing import Any
 from integrations.max.bot import HelixMaxBot
 from integrations.max.client import MaxClient
 from integrations.max.config import MaxSettings
-from integrations.max.constants import WEBHOOK_SECRET_HEADER
 
 logger = logging.getLogger(__name__)
 

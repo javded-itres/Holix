@@ -7,12 +7,26 @@ from integrations.messenger.access_requests import (
     STATUS_PENDING,
     STATUS_REJECTED,
     MessengerAccessRequest,
+)
+from integrations.messenger.access_requests import (
     access_requests_path as _access_requests_path,
+)
+from integrations.messenger.access_requests import (
     get_access_request as _get_access_request,
+)
+from integrations.messenger.access_requests import (
     list_pending_requests as _list_pending_requests,
+)
+from integrations.messenger.access_requests import (
     load_access_requests as _load_access_requests,
+)
+from integrations.messenger.access_requests import (
     register_access_request as _register_access_request,
+)
+from integrations.messenger.access_requests import (
     reject_access_request as _reject_access_request,
+)
+from integrations.messenger.access_requests import (
     resolve_access_request as _resolve_access_request,
 )
 from integrations.messenger.platforms import TELEGRAM_PLATFORM
@@ -20,6 +34,21 @@ from integrations.messenger.platforms import TELEGRAM_PLATFORM
 _PLATFORM = TELEGRAM_PLATFORM
 ACCESS_REQUESTS_FILE = _PLATFORM.access_requests_filename
 TelegramAccessRequest = MessengerAccessRequest
+
+__all__ = [
+    "ACCESS_REQUESTS_FILE",
+    "TelegramAccessRequest",
+    "STATUS_APPROVED",
+    "STATUS_PENDING",
+    "STATUS_REJECTED",
+    "access_requests_path",
+    "get_access_request",
+    "list_pending_requests",
+    "load_access_requests",
+    "register_access_request",
+    "reject_access_request",
+    "resolve_access_request",
+]
 
 
 def access_requests_path(bot_profile: str):

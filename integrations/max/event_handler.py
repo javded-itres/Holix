@@ -6,8 +6,6 @@ import json
 import logging
 from typing import TYPE_CHECKING
 
-logger = logging.getLogger(__name__)
-
 from core.agent_events import (
     AgentEvent,
     AssistantDeltaEvent,
@@ -25,6 +23,8 @@ from core.agent_events import (
 from core.plan_review.review_events import PlanReviewRequestEvent
 from core.security.confirmation_events import ConfirmationRequestEvent
 from core.subagents.interaction_events import SubAgentQuestionEvent
+
+logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
     from integrations.max.approvals import MaxApprovals

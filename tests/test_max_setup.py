@@ -5,7 +5,6 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
-
 from integrations.max.config import load_max_settings
 from integrations.max.env_store import (
     format_env_lines,

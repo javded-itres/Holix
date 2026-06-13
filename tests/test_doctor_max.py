@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import pytest
-
 from cli.doctor.checks import _check_max
 
 

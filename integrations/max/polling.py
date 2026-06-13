@@ -41,6 +41,7 @@ async def run_polling(settings: MaxSettings | None = None, *, profile: str = "de
 
         try:
             from core.i18n import LocaleStore
+
             from integrations.max.commands import register_bot_commands
 
             locale = LocaleStore(settings.profile).get()

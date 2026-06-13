@@ -5,7 +5,6 @@ from __future__ import annotations
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-
 from integrations.max.bot import HelixMaxBot
 from integrations.max.config import MaxSettings
 from integrations.max.markdown import split_max_text, truncate_max_text

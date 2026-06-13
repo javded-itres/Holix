@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import pytest
 from cli.services.supervisor import docs_should_start, telegram_enabled, telegram_should_start
-from integrations.max.gateway_routes import max_enabled, max_should_webhook
 from integrations.telegram.config import load_telegram_settings, telegram_aiogram_available
 
 

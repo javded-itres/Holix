@@ -825,9 +825,8 @@ def _check_telegram(profile: str) -> list[DoctorFinding]:
 def _check_max(profile: str) -> list[DoctorFinding]:
     out: list[DoctorFinding] = []
     try:
-        from integrations.max.env_store import load_max_env_files
-        from integrations.max.env_store import token_looks_valid
         from integrations.max.config import load_max_settings, max_files_extra_available
+        from integrations.max.env_store import load_max_env_files, token_looks_valid
 
         load_max_env_files(profile)
     except Exception:

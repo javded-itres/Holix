@@ -4,9 +4,8 @@ from __future__ import annotations
 
 import pytest
 from aiohttp import web
-
-from integrations.max.commands import max_bot_commands, register_bot_commands, sync_bot_menu
 from integrations.max.client import MaxClient
+from integrations.max.commands import max_bot_commands, register_bot_commands, sync_bot_menu
 from integrations.telegram.commands import command_specs, telegram_menu_commands
 
 

@@ -6,10 +6,10 @@ import json
 
 import pytest
 from aiohttp import web
-
 from integrations.max.client import MaxClient
 from integrations.max.config import MaxSettings
 from integrations.max.subscriptions import register_webhook, unregister_webhook, webhook_ready
+
 from tests.test_max_client import _start_mock_server
 
 

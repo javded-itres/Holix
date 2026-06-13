@@ -9,6 +9,7 @@ import sys
 from typing import NoReturn
 
 from core.platform_compat import popen_background
+from integrations.max.gateway_routes import max_enabled, max_should_webhook
 from integrations.telegram.config import load_telegram_settings, telegram_aiogram_available
 
 from cli.services.docs_site import docs_url, resolve_web_docs_dir

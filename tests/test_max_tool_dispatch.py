@@ -5,7 +5,6 @@ from __future__ import annotations
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
-
 from integrations.max.tool_dispatch import (
     _extract_search_topic,
     _extract_web_search_query,

@@ -6,6 +6,7 @@ from integrations.messenger.platforms import MAX_PLATFORM
 from integrations.messenger.user_profiles import (
     format_user_profiles_text,
     parse_user_profiles_text,
+    users_mapping_path,
     validate_user_profiles_text,
 )
 from integrations.messenger.user_profiles import (
@@ -23,13 +24,24 @@ from integrations.messenger.user_profiles import (
 from integrations.messenger.user_profiles import (
     set_user_profile as _set_user_profile,
 )
-from integrations.messenger.user_profiles import (
-    users_mapping_path,
-)
 
 _PLATFORM = MAX_PLATFORM
 ENV_KEY = _PLATFORM.user_profiles_key
 MAX_USERS_FILE = _PLATFORM.users_filename
+
+__all__ = [
+    "ENV_KEY",
+    "MAX_USERS_FILE",
+    "format_user_profiles_text",
+    "load_user_profiles",
+    "max_users_path",
+    "parse_user_profiles_text",
+    "remove_user_profile",
+    "resolve_user_profile",
+    "save_user_profiles",
+    "set_user_profile",
+    "validate_user_profiles_text",
+]
 
 
 def max_users_path(bot_profile: str):

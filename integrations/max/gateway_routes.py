@@ -14,7 +14,7 @@ from integrations.max.client import MaxClient
 from integrations.max.config import MaxSettings, load_max_settings
 from integrations.max.constants import WEBHOOK_PATH, WEBHOOK_SECRET_HEADER
 from integrations.max.env_store import load_max_env_files
-from integrations.max.subscriptions import register_webhook, unregister_webhook, webhook_ready
+from integrations.max.subscriptions import register_webhook, unregister_webhook
 from integrations.max.webhook import MaxWebhookHandler
 
 logger = logging.getLogger(__name__)
@@ -83,6 +83,7 @@ async def init_max_webhook(profile: str | None = None) -> MaxGatewayState | None
 
     try:
         from core.i18n import LocaleStore
+
         from integrations.max.commands import register_bot_commands
 
         locale = LocaleStore(profile).get()
