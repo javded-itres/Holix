@@ -548,26 +548,50 @@ class MaxHost:
             handler.handle(event)
 
         self.agent.events.subscribe(on_event)
+
+        from core.tools.execution_context import (
+            chat_delivery_scope,
+            reset_chat_delivery_scope,
+        )
+        from core.workspace import agent_path_visibility_context
+
+        from integrations.max.admin import is_max_admin
+        from integrations.max.delivery_bridge import MaxDeliveryBridge
+
+        target = self._reply_kwargs()
+        delivery_bridge = MaxDeliveryBridge(
+            self._client,
+            user_id=target.get("user_id"),
+            chat_id=target.get("chat_id"),
+        )
+        delivery_token = chat_delivery_scope(delivery_bridge)
+        agent_cfg = getattr(self.agent, "config", None)
+        visibility_ctx = agent_path_visibility_context(
+            is_admin=is_max_admin(self._session.bot_profile, self._session.user_id),
+            workspace_jail_enabled=bool(getattr(agent_cfg, "workspace_jail_enabled", False)),
+        )
+
         try:
             await presenter.start()
             mode = self._session.execution_mode
-            if self._session.streaming_enabled:
-                from core.runtime.executor import run_helix
+            with visibility_ctx:
+                if self._session.streaming_enabled:
+                    from core.runtime.executor import run_helix
 
-                async for event in run_helix(
-                    self.agent,
-                    user_input,
-                    self.conversation_id,
-                    stream=True,
-                    execution_mode=mode,
-                ):
-                    self.agent.emit(event)
-            else:
-                await self.agent.run(
-                    user_input=user_input,
-                    conversation_id=self.conversation_id,
-                    execution_mode=mode,
-                )
+                    async for event in run_helix(
+                        self.agent,
+                        user_input,
+                        self.conversation_id,
+                        stream=True,
+                        execution_mode=mode,
+                    ):
+                        self.agent.emit(event)
+                else:
+                    await self.agent.run(
+                        user_input=user_input,
+                        conversation_id=self.conversation_id,
+                        execution_mode=mode,
+                    )
         except asyncio.CancelledError:
             buf = self._session.live_buffer
             if buf:
@@ -579,6 +603,7 @@ class MaxHost:
             logger.exception("MAX agent run failed")
         finally:
             self.agent.events.unsubscribe(on_event)
+            reset_chat_delivery_scope(delivery_token)
             try:
                 await presenter.finish()
             except Exception:
