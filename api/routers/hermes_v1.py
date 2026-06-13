@@ -283,41 +283,93 @@ async def delete_response(
     return {"deleted": True, "id": response_id}
 
 
+def _set_run_status(
+    runs,
+    run_id: str,
+    status: RunStatus,
+    *,
+    last_event: str | None = None,
+    **fields: object,
+) -> None:
+    payload = dict(fields)
+    if last_event is not None:
+        payload["last_event"] = last_event
+    runs.update(run_id, status=status, **payload)
+
+
 async def _execute_run(record, registry, *, is_admin: bool = False) -> None:
     runs = state.runs_store
     if runs is None:
         return
+
+    run_id = record.run_id
     try:
-        runs.update(record.run_id, status=RunStatus.RUNNING)
+        _set_run_status(runs, run_id, RunStatus.RUNNING, last_event="run.running")
         agent = await registry.get_agent(record.profile)
         async with state._agent_request_lock:  # type: ignore[attr-defined]
             if record._cancel.is_set():
-                runs.update(record.run_id, status=RunStatus.CANCELLED)
+                _set_run_status(
+                    runs, run_id, RunStatus.CANCELLED, last_event="run.cancelled"
+                )
                 return
             with gateway_agent_path_visibility_for_admin(agent, is_admin=is_admin):
                 output = await agent.run(
                     user_input=record.input_text,
                     conversation_id=record.session_id or "default",
                 )
-        runs.update(
-            record.run_id,
-            status=RunStatus.COMPLETED,
+        if record._cancel.is_set():
+            _set_run_status(
+                runs, run_id, RunStatus.CANCELLED, last_event="run.cancelled"
+            )
+            return
+        _set_run_status(
+            runs,
+            run_id,
+            RunStatus.COMPLETED,
+            last_event="run.completed",
             output=output,
             usage={"input_tokens": 0, "output_tokens": 0, "total_tokens": 0},
         )
-        runs.append_event(record.run_id, {"type": "run.completed", "output": output})
+        runs.append_event(run_id, {"type": "run.completed", "output": output})
     except Exception as exc:
-        runs.update(record.run_id, status=RunStatus.FAILED, error=str(exc))
-        runs.append_event(record.run_id, {"type": "run.failed", "error": str(exc)})
+        if record._cancel.is_set():
+            _set_run_status(
+                runs, run_id, RunStatus.CANCELLED, last_event="run.cancelled"
+            )
+            return
+        _set_run_status(
+            runs,
+            run_id,
+            RunStatus.FAILED,
+            last_event="run.failed",
+            error=str(exc),
+        )
+        runs.append_event(run_id, {"type": "run.failed", "error": str(exc)})
 
 
-@router.post("/runs")
+@router.post("/runs", status_code=202)
 async def create_run(
     body: RunsCreateRequest,
     key_info: dict = Depends(verify_api_key),
     registry=Depends(get_registry),
+    x_holix_profile: str | None = Header(None),
+    x_hermes_profile: str | None = Header(None),
+    x_holix_session_id: str | None = Header(None),
+    x_hermes_session_id: str | None = Header(None),
 ):
-    ctx = _resolve_ctx(key_info, body.model, None, None, None, None, None, None)
+    if not body.input.strip():
+        raise HTTPException(status_code=400, detail="input is required")
+
+    ctx = _resolve_ctx(
+        key_info,
+        body.model,
+        x_holix_profile,
+        x_hermes_profile,
+        x_holix_session_id,
+        x_hermes_session_id,
+        None,
+        None,
+    )
     checker = PermissionChecker(key_info["permissions"])
     if not checker.can_execute() and not checker.can_read():
         raise HTTPException(status_code=403, detail="Execute permission required")
@@ -333,6 +385,7 @@ async def create_run(
         session_id=body.session_id or ctx.conversation_id,
         instructions=body.instructions,
     )
+    runs.update(record.run_id, last_event="run.started")
     asyncio.create_task(_execute_run(record, registry, is_admin=checker.is_admin()))
     return {"run_id": record.run_id, "status": record.status.value}
 

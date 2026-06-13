@@ -11,6 +11,7 @@ from typing import Any
 
 
 class RunStatus(StrEnum):
+    QUEUED = "queued"
     STARTED = "started"
     RUNNING = "running"
     COMPLETED = "completed"
@@ -31,6 +32,7 @@ class RunRecord:
     output: str | None = None
     error: str | None = None
     usage: dict[str, int] | None = None
+    last_event: str | None = None
     created_at: float = field(default_factory=time.time)
     updated_at: float = field(default_factory=time.time)
     events: list[dict[str, Any]] = field(default_factory=list)
@@ -48,6 +50,8 @@ class RunRecord:
             "output": self.output,
             "error": self.error,
             "usage": self.usage,
+            "last_event": self.last_event,
+            "completed": self.status == RunStatus.COMPLETED,
             "created_at": self.created_at,
             "updated_at": self.updated_at,
         }
@@ -56,7 +60,7 @@ class RunRecord:
 class RunsStore:
     def __init__(self) -> None:
         self._runs: dict[str, RunRecord] = {}
-        self._retention_s = 600.0
+        self._retention_s = 3600.0
 
     def create(
         self,
@@ -109,8 +113,14 @@ class RunsStore:
         if run is None:
             return False
         run._cancel.set()
-        if run.status in {RunStatus.STARTED, RunStatus.RUNNING}:
+        if run.status in {
+            RunStatus.QUEUED,
+            RunStatus.STARTED,
+            RunStatus.RUNNING,
+            RunStatus.WAITING_APPROVAL,
+        }:
             run.status = RunStatus.CANCELLED
+            run.last_event = "run.cancelled"
         run.updated_at = time.time()
         return True
 

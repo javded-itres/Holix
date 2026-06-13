@@ -92,15 +92,19 @@ def test_runs_lifecycle(gateway_client: TestClient, gateway_auth_headers: dict) 
         headers=gateway_auth_headers,
         json={"input": "ping", "model": "default"},
     )
-    assert created.status_code == 200
+    assert created.status_code == 202
     run_id = created.json()["run_id"]
 
-    import time
+    from core.gateway.run_poll import poll_run
 
-    for _ in range(20):
-        status = gateway_client.get(f"/v1/runs/{run_id}", headers=gateway_auth_headers)
-        if status.json().get("status") == "completed":
-            break
-        time.sleep(0.1)
-    assert status.status_code == 200
-    assert status.json()["status"] == "completed"
+    result = poll_run(
+        lambda rid: gateway_client.get(
+            f"/v1/runs/{rid}",
+            headers=gateway_auth_headers,
+        ).json(),
+        run_id,
+        timeout=5.0,
+        interval=0.05,
+    )
+    assert result["status"] == "completed"
+    assert result["last_event"] == "run.completed"
