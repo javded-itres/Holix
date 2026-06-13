@@ -32,6 +32,9 @@ def main(argv: list[str] | None = None) -> int:
     from core.env_loader import bootstrap_profile_env
 
     bootstrap_profile_env(args.profile)
+    from cli.core import bootstrap_profile_unlock_from_env
+
+    bootstrap_profile_unlock_from_env(args.profile)
 
     def _env_bool(name: str) -> bool:
         return os.getenv(name, "").strip().lower() in {"1", "true", "yes", "on"}

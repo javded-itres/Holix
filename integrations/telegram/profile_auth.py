@@ -57,8 +57,12 @@ def init_profile_for_telegram(
     from cli.core import init_profile
 
     authorize_telegram_profile_access(bot_profile, telegram_user_id, holix_profile)
+    import os
+
+    unlock_key = os.getenv("HOLIX_UNLOCK_KEY", "").strip() or None
     return init_profile(
         holix_profile,
         profile_key=profile_key,
+        unlock_key=unlock_key,
         prompt_key=False,
     )

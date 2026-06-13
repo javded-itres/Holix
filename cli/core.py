@@ -541,6 +541,19 @@ def unlock_profile_encryption(profile: str, unlock_key: str) -> None:
     set_profile_session_unlock(profile, dek)
 
 
+def bootstrap_profile_unlock_from_env(profile: str) -> bool:
+    """Unlock encrypted profile using HOLIX_UNLOCK_KEY from the environment."""
+    key = os.getenv("HOLIX_UNLOCK_KEY", "").strip()
+    if not key:
+        return False
+    from core.crypto.profile_crypto import is_profile_encryption_enabled
+
+    if not is_profile_encryption_enabled(profile):
+        return False
+    unlock_profile_encryption(profile, key)
+    return True
+
+
 def init_profile(
     profile: str | None = None,
     *,
@@ -573,8 +586,10 @@ def init_profile(
     if unlock_key and unlock_key.strip():
         from core.crypto.profile_crypto import is_profile_encryption_enabled
 
+        key = unlock_key.strip()
+        os.environ["HOLIX_UNLOCK_KEY"] = key
         if is_profile_encryption_enabled(profile) or getattr(_current_config, "encryption_enabled", False):
-            unlock_profile_encryption(profile, unlock_key.strip())
+            unlock_profile_encryption(profile, key)
 
     created_key = _profile_manager.pop_last_created_access_key()
     if created_key:

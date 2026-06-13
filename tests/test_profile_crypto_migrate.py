@@ -80,3 +80,22 @@ def test_migrate_skips_already_encrypted(holix_home, monkeypatch) -> None:
 
     assert summary.migrated == []
     assert summary.skipped == ["alice"]
+
+
+def test_bootstrap_profile_unlock_from_env(holix_home, monkeypatch) -> None:
+    from cli.core import bootstrap_profile_unlock_from_env
+    from core.crypto.unlock_context import get_profile_session_dek
+
+    monkeypatch.setenv("HOLIX_HOME", str(holix_home))
+    manager = ProfileManager()
+    _seed_profile(manager, "alice")
+    migrate_profiles_encryption(manager, "env-unlock-key-42", profiles=["alice"])
+    from core.crypto.unlock_context import clear_profile_session_unlock
+
+    clear_profile_session_unlock("alice")
+    monkeypatch.delenv("HOLIX_UNLOCK_KEY", raising=False)
+    assert get_profile_session_dek("alice") is None
+
+    monkeypatch.setenv("HOLIX_UNLOCK_KEY", "env-unlock-key-42")
+    assert bootstrap_profile_unlock_from_env("alice") is True
+    assert get_profile_session_dek("alice") is not None

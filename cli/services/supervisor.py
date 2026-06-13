@@ -281,6 +281,9 @@ def run_gateway_supervisor(
     from core.env_loader import bootstrap_profile_env
 
     bootstrap_profile_env(profile)
+    from cli.core import bootstrap_profile_unlock_from_env
+
+    bootstrap_profile_unlock_from_env(profile)
     if reload:
         _start_with_reload(
             host,
