@@ -1,5 +1,5 @@
 /**
- * Helix documentation chat widget — docs-only assistant via same-origin proxy.
+ * Holix documentation chat widget — docs-only assistant via same-origin proxy.
  */
 
 const CHAT_DISMISSED_KEY = "helix-chat-user-closed";
@@ -11,12 +11,12 @@ const CHAT_SIZE_MIN = { width: 320, height: 400 };
 const CHAT_SIZE_MAX = { width: 560, height: 780 };
 const CHAT_I18N = {
   en: {
-    title: "Helix Docs Assistant",
+    title: "Holix Docs Assistant",
     subtitle: "Docs, navigation, and friendly chat",
-    placeholder: "Ask about Helix, say hi, or ask what I can do…",
+    placeholder: "Ask about Holix, say hi, or ask what I can do…",
     send: "Send",
     welcome:
-      "Hi! I'm the Helix docs assistant. I can explain documentation, open relevant pages, and chat about what I can help with. I don't run commands or access files — ask me anything about Helix or just say hello.",
+      "Hi! I'm the Holix docs assistant. I can explain documentation, open relevant pages, and chat about what I can help with. I don't run commands or access files — ask me anything about Holix or just say hello.",
     thinking: "Thinking…",
     error: "Could not get a reply. Try again later.",
     offline: "Chat is not available on this server.",
@@ -28,10 +28,10 @@ const CHAT_I18N = {
   ru: {
     title: "Ассистент документации",
     subtitle: "Документация, навигация и диалог",
-    placeholder: "Спросите про Helix, поздоровайтесь или узнайте, чем могу помочь…",
+    placeholder: "Спросите про Holix, поздоровайтесь или узнайте, чем могу помочь…",
     send: "Отправить",
     welcome:
-      "Привет! Я ассистент документации Helix. Могу объяснить разделы, открыть нужные страницы и рассказать, чем помогаю. Команды не выполняю и к файлам не обращаюсь — спрашивайте про Helix или просто поздоровайтесь.",
+      "Привет! Я ассистент документации Holix. Могу объяснить разделы, открыть нужные страницы и рассказать, чем помогаю. Команды не выполняю и к файлам не обращаюсь — спрашивайте про Holix или просто поздоровайтесь.",
     thinking: "Думаю…",
     error: "Не удалось получить ответ. Попробуйте позже.",
     offline: "Чат недоступен на этом сервере.",
@@ -393,25 +393,25 @@ export async function initChatWidget({ getLang }) {
   const root = document.createElement("div");
   root.className = "helix-chat-root";
   root.innerHTML = `
-    <div class="helix-chat-panel" id="helix-chat-panel" role="dialog" aria-label="Documentation chat">
-      <button type="button" class="helix-chat-resize" id="helix-chat-resize" aria-label="Resize chat"></button>
+    <div class="helix-chat-panel" id="holix-chat-panel" role="dialog" aria-label="Documentation chat">
+      <button type="button" class="helix-chat-resize" id="holix-chat-resize" aria-label="Resize chat"></button>
       <div class="helix-chat-header">
         <div>
-          <p class="helix-chat-title" id="helix-chat-title"></p>
-          <p class="helix-chat-subtitle" id="helix-chat-subtitle"></p>
+          <p class="helix-chat-title" id="holix-chat-title"></p>
+          <p class="helix-chat-subtitle" id="holix-chat-subtitle"></p>
         </div>
         <div class="helix-chat-header-actions">
-          <button type="button" class="helix-chat-new" id="helix-chat-new"></button>
-          <button type="button" class="helix-chat-close" id="helix-chat-close" aria-label="Close">×</button>
+          <button type="button" class="helix-chat-new" id="holix-chat-new"></button>
+          <button type="button" class="helix-chat-close" id="holix-chat-close" aria-label="Close">×</button>
         </div>
       </div>
-      <div class="helix-chat-messages" id="helix-chat-messages"></div>
-      <form class="helix-chat-form" id="helix-chat-form">
-        <textarea class="helix-chat-input" id="helix-chat-input" rows="1" required></textarea>
-        <button type="submit" class="helix-chat-send" id="helix-chat-send"></button>
+      <div class="helix-chat-messages" id="holix-chat-messages"></div>
+      <form class="helix-chat-form" id="holix-chat-form">
+        <textarea class="helix-chat-input" id="holix-chat-input" rows="1" required></textarea>
+        <button type="submit" class="helix-chat-send" id="holix-chat-send"></button>
       </form>
     </div>
-    <button type="button" class="helix-chat-toggle" id="helix-chat-toggle" aria-expanded="false" aria-controls="helix-chat-panel">
+    <button type="button" class="helix-chat-toggle" id="holix-chat-toggle" aria-expanded="false" aria-controls="holix-chat-panel">
       <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8">
         <path d="M4 5.5h16a1.5 1.5 0 0 1 1.5 1.5v8a1.5 1.5 0 0 1-1.5 1.5H9l-4.5 3v-3H4a1.5 1.5 0 0 1-1.5-1.5V7a1.5 1.5 0 0 1 1.5-1.5z"/>
       </svg>
@@ -419,17 +419,17 @@ export async function initChatWidget({ getLang }) {
   `;
   document.body.appendChild(root);
 
-  const panel = root.querySelector("#helix-chat-panel");
-  const resizeHandle = root.querySelector("#helix-chat-resize");
-  const toggle = root.querySelector("#helix-chat-toggle");
-  const closeBtn = root.querySelector("#helix-chat-close");
-  const newBtn = root.querySelector("#helix-chat-new");
-  const messages = root.querySelector("#helix-chat-messages");
-  const form = root.querySelector("#helix-chat-form");
-  const input = root.querySelector("#helix-chat-input");
-  const sendBtn = root.querySelector("#helix-chat-send");
-  const titleEl = root.querySelector("#helix-chat-title");
-  const subtitleEl = root.querySelector("#helix-chat-subtitle");
+  const panel = root.querySelector("#holix-chat-panel");
+  const resizeHandle = root.querySelector("#holix-chat-resize");
+  const toggle = root.querySelector("#holix-chat-toggle");
+  const closeBtn = root.querySelector("#holix-chat-close");
+  const newBtn = root.querySelector("#holix-chat-new");
+  const messages = root.querySelector("#holix-chat-messages");
+  const form = root.querySelector("#holix-chat-form");
+  const input = root.querySelector("#holix-chat-input");
+  const sendBtn = root.querySelector("#holix-chat-send");
+  const titleEl = root.querySelector("#holix-chat-title");
+  const subtitleEl = root.querySelector("#holix-chat-subtitle");
 
   let busy = false;
   let sessionMessages = [];

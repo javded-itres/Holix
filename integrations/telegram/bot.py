@@ -1,4 +1,4 @@
-"""Aiogram bot wiring for Helix."""
+"""Aiogram bot wiring for Holix."""
 
 from __future__ import annotations
 
@@ -8,7 +8,9 @@ from typing import Any
 from integrations.telegram.approvals import TelegramApprovals
 from integrations.telegram.commands import (
     command_specs,
+    enable_chat_menu,
     help_message_html,
+    hide_chat_menu,
     register_bot_commands,
 )
 from integrations.telegram.config import TelegramSettings, load_telegram_settings
@@ -19,7 +21,16 @@ from integrations.telegram.session import ChatSession
 from integrations.telegram.user_profiles import resolve_user_profile
 
 
-class HelixTelegramBot:
+def _seed_admin_profile_background() -> None:
+    try:
+        from core.profile_admin_seed import ensure_admin_profile_from_default
+
+        ensure_admin_profile_from_default()
+    except Exception:
+        pass
+
+
+class HolixTelegramBot:
     def __init__(self, settings: TelegramSettings | None = None, *, profile: str = "default") -> None:
         self.settings = settings or load_telegram_settings(profile)
         self._sessions: dict[int, ChatSession] = {}
@@ -29,9 +40,96 @@ class HelixTelegramBot:
 
         delay = max(200, int(app_settings.telegram_media_group_delay_ms or 800)) / 1000.0
         self._media_groups = MediaGroupBuffer(delay_sec=delay)
+        self._menu_enabled_chats: set[int] = set()
 
     def _allowed(self, user_id: int) -> bool:
-        return self.settings.is_user_allowed(user_id)
+        """Check access with hot reload so CLI approve works without bot restart."""
+        if self.settings.allow_all:
+            return True
+        from integrations.telegram.allowlist import load_allowed_user_ids
+
+        uid = int(user_id)
+        if uid in load_allowed_user_ids(self.settings.profile):
+            return True
+        return resolve_user_profile(self.settings.profile, uid) is not None
+
+    async def _handle_unauthorized(
+        self,
+        bot: Any,
+        message: Any,
+        *,
+        is_start: bool = False,
+    ) -> None:
+        from integrations.telegram.access_requests import register_access_request
+
+        user = message.from_user
+        if user is None:
+            await message.answer("Access denied.")
+            return
+
+        if not self.settings.access_requests:
+            await message.answer("Access denied.")
+            return
+
+        req, created = register_access_request(
+            self.settings.profile,
+            user_id=int(user.id),
+            username=getattr(user, "username", None),
+            first_name=getattr(user, "first_name", None),
+            last_name=getattr(user, "last_name", None),
+        )
+        if is_start:
+            if created:
+                text = (
+                    "👋 <b>Запрос на доступ отправлен</b>\n\n"
+                    f"Ваш Telegram ID: <code>{user.id}</code>\n\n"
+                    "Администратор получит уведомление в Telegram.\n"
+                    "Ожидайте одобрения доступа."
+                )
+            else:
+                text = (
+                    "⏳ <b>Ожидание одобрения</b>\n\n"
+                    f"Ваш запрос уже в очереди (ID: <code>{user.id}</code>).\n"
+                    "Администратор получит уведомление после проверки."
+                )
+        else:
+            text = (
+                "⏳ <b>Доступ ещё не одобрен</b>\n\n"
+                f"Ваш Telegram ID: <code>{user.id}</code>.\n"
+                "Отправьте /start, если вы ещё не подавали запрос."
+            )
+        await message.answer(text, parse_mode="HTML")
+        if not self.settings.allow_all:
+            await hide_chat_menu(bot, message.chat.id)
+            self._menu_enabled_chats.discard(message.chat.id)
+        if created:
+            asyncio.create_task(
+                self._notify_admin_new_request(req),
+                name=f"tg-admin-notify-{req.user_id}",
+            )
+
+    async def _notify_admin_new_request(self, req: Any) -> None:
+        try:
+            from integrations.telegram.notify import notify_admin_access_request
+
+            await notify_admin_access_request(self.settings.profile, req)
+        except Exception:
+            pass
+
+    async def _ensure_authorized_menu(self, bot: Any, chat_id: int, user_id: int) -> None:
+        if self.settings.allow_all or chat_id in self._menu_enabled_chats:
+            return
+        from core.i18n import LocaleStore
+
+        locale = LocaleStore(self.settings.profile).get()
+        await enable_chat_menu(
+            bot,
+            chat_id,
+            locale=locale,
+            bot_profile=self.settings.profile,
+            user_id=user_id,
+        )
+        self._menu_enabled_chats.add(chat_id)
 
     def _default_profile_for_user(self, user_id: int) -> str:
         mapped = resolve_user_profile(self.settings.profile, user_id)
@@ -42,11 +140,17 @@ class HelixTelegramBot:
 
         session.profile = profile
         session.conversation_id = f"tg_{profile}_{session.chat_id}"
-        session.agent = await create_agent(profile)
+        session.agent = await create_agent(
+            profile,
+            bot_profile=self.settings.profile,
+            telegram_user_id=session.user_id,
+        )
         session.pending_files.clear()
         session.pending_plan_review_id = None
         session.pending_confirmation_message_id = None
         session.pending_plan_message_ids.clear()
+        session.approval_callback_tokens.clear()
+        session.plan_callback_tokens.clear()
         session._recent_tool_results.clear()
         session._memory_search_query = ""
         session._memory_search_results.clear()
@@ -59,6 +163,7 @@ class HelixTelegramBot:
                 user_id=user_id,
                 profile=profile,
                 conversation_id=f"tg_{profile}_{chat_id}",
+                bot_profile=self.settings.profile,
             )
         session = self._sessions[chat_id]
         if not session.profile_manual_override:
@@ -90,18 +195,19 @@ class HelixTelegramBot:
         if not app_settings.telegram_voice_enabled:
             await message.answer(
                 "🎙️ Распознавание голоса отключено. "
-                "Установите HELIX_TELEGRAM_VOICE_ENABLED=true в .env.",
+                "Установите HOLIX_TELEGRAM_VOICE_ENABLED=true в .env.",
             )
             return
 
         await bot.send_chat_action(message.chat.id, action=ChatAction.TYPING)
 
+        session = await self._get_session(message.chat.id, message.from_user.id)
         try:
             transcribed = await process_voice_message(
                 bot,
                 file_id,
                 suffix=suffix,
-                profile=settings.profile,
+                profile=session.profile,
             )
         except RuntimeError as exc:
             await message.answer(
@@ -132,7 +238,6 @@ class HelixTelegramBot:
             parse_mode="HTML",
         )
 
-        session = await self._get_session(message.chat.id, message.from_user.id)
         host = TelegramHost(bot, session, edit_interval_ms=settings.edit_interval_ms)
         await host.handle_user_text(transcribed)
 
@@ -148,7 +253,7 @@ class HelixTelegramBot:
 
         if not app_settings.telegram_files_enabled:
             await message.answer(
-                "📎 Приём файлов отключён. Установите HELIX_TELEGRAM_FILES_ENABLED=true.",
+                "📎 Приём файлов отключён. Установите HOLIX_TELEGRAM_FILES_ENABLED=true.",
             )
             return
 
@@ -207,6 +312,7 @@ class HelixTelegramBot:
 
         await bot.send_chat_action(chat_id, action=ChatAction.TYPING)
 
+        session = await self._get_session(chat_id, user_id)
         saved_files: list[SavedTelegramFile] = []
         errors: list[str] = []
 
@@ -215,11 +321,13 @@ class HelixTelegramBot:
                 saved = await save_telegram_attachment(
                     bot,
                     item.file_id,
-                    profile=settings.profile,
+                    profile=session.profile,
                     chat_id=chat_id,
                     file_name=item.file_name,
                     mime_type=item.mime_type,
                     file_size=item.file_size,
+                    bot_profile=session.bot_profile,
+                    telegram_user_id=session.user_id,
                 )
                 saved_files.append(saved)
             except Exception as exc:
@@ -233,7 +341,6 @@ class HelixTelegramBot:
             )
             return
 
-        session = await self._get_session(chat_id, user_id)
         host = TelegramHost(bot, session, edit_interval_ms=settings.edit_interval_ms)
         preview = format_files_preview(saved_files, errors=errors)
 
@@ -293,12 +400,24 @@ class HelixTelegramBot:
 
         @dp.startup()
         async def _on_startup() -> None:
+            import asyncio
+
             from core.i18n import LocaleStore
 
+            asyncio.create_task(
+                asyncio.to_thread(_seed_admin_profile_background),
+                name="tg-admin-profile-seed",
+            )
             locale = LocaleStore(settings.profile).get()
-            registered = await register_bot_commands(bot, locale=locale)
+            registered = await register_bot_commands(
+                bot,
+                locale=locale,
+                bot_profile=settings.profile,
+            )
             if registered:
                 print(f"Telegram menu: {len(registered)} commands", flush=True)
+            elif not settings.allow_all:
+                print("Telegram menu: hidden until users are approved", flush=True)
             from integrations.telegram.voice_handler import warm_local_whisper_model_async
 
             asyncio.create_task(
@@ -308,18 +427,41 @@ class HelixTelegramBot:
 
         @dp.message(CommandStart())
         async def cmd_start(message: Message) -> None:
-            if not self._allowed(message.from_user.id):
-                await message.answer("Access denied.")
+            if message.from_user is None:
                 return
-            await message.answer(help_message_html(), parse_mode="HTML")
+            if not self._allowed(message.from_user.id):
+                await self._handle_unauthorized(bot, message, is_start=True)
+                return
+            await self._ensure_authorized_menu(bot, message.chat.id, message.from_user.id)
+            await message.answer(
+                help_message_html(
+                    bot_profile=settings.profile,
+                    user_id=message.from_user.id,
+                ),
+                parse_mode="HTML",
+            )
 
         @dp.message(Command(*menu_commands))
         async def on_menu_command(message: Message) -> None:
             if message.from_user is None or not message.text:
                 return
             if not self._allowed(message.from_user.id):
-                await message.answer("Access denied.")
+                await self._handle_unauthorized(bot, message)
                 return
+            from core.i18n import LocaleStore, t
+
+            from integrations.telegram.command_access import is_command_allowed
+            from integrations.telegram.markdown import escape_html
+
+            cmd_token = message.text.strip().split()[0].lstrip("/").lower()
+            if not is_command_allowed(cmd_token, settings.profile, message.from_user.id):
+                lang = LocaleStore(settings.profile).get()
+                await message.answer(
+                    escape_html(t("tg.menu_unavailable", lang)),
+                    parse_mode="HTML",
+                )
+                return
+            await self._ensure_authorized_menu(bot, message.chat.id, message.from_user.id)
             session = await self._get_session(message.chat.id, message.from_user.id)
             host = TelegramHost(bot, session, edit_interval_ms=settings.edit_interval_ms)
             await host.handle_user_text(message.text.strip())
@@ -329,8 +471,9 @@ class HelixTelegramBot:
             if message.from_user is None or message.text is None:
                 return
             if not self._allowed(message.from_user.id):
-                await message.answer("Access denied.")
+                await self._handle_unauthorized(bot, message)
                 return
+            await self._ensure_authorized_menu(bot, message.chat.id, message.from_user.id)
             if message.text.strip().startswith("/"):
                 return
             if await self._flush_pending_files(
@@ -350,7 +493,7 @@ class HelixTelegramBot:
             if message.from_user is None or message.voice is None:
                 return
             if not self._allowed(message.from_user.id):
-                await message.answer("Access denied.")
+                await self._handle_unauthorized(bot, message)
                 return
             await self._handle_transcribed_audio(
                 bot,
@@ -366,7 +509,7 @@ class HelixTelegramBot:
             if message.from_user is None or message.audio is None:
                 return
             if not self._allowed(message.from_user.id):
-                await message.answer("Access denied.")
+                await self._handle_unauthorized(bot, message)
                 return
             suffix = suffix_for_audio(mime_type=message.audio.mime_type)
             await self._handle_transcribed_audio(
@@ -382,7 +525,7 @@ class HelixTelegramBot:
             if message.from_user is None or not message.photo:
                 return
             if not self._allowed(message.from_user.id):
-                await message.answer("Access denied.")
+                await self._handle_unauthorized(bot, message)
                 return
             photo = message.photo[-1]
             await self._enqueue_file_attachment(
@@ -402,7 +545,7 @@ class HelixTelegramBot:
             if message.from_user is None or message.document is None:
                 return
             if not self._allowed(message.from_user.id):
-                await message.answer("Access denied.")
+                await self._handle_unauthorized(bot, message)
                 return
             doc = message.document
             file_name = doc.file_name or f"document_{doc.file_unique_id}"
@@ -423,7 +566,7 @@ class HelixTelegramBot:
             if query.from_user is None or not query.data:
                 return
             if not self._allowed(query.from_user.id):
-                await query.answer("Access denied.", show_alert=True)
+                await query.answer("Access pending approval.", show_alert=True)
                 return
             parts = query.data.split(":")
             if len(parts) != 3:
@@ -436,7 +579,10 @@ class HelixTelegramBot:
                 await approvals.dismiss_confirmation_ui()
                 await query.answer("Applied.")
             else:
-                await query.answer("Failed or expired.", show_alert=True)
+                await query.answer(
+                    "Could not apply. Tap the latest confirmation message or send /yes.",
+                    show_alert=True,
+                )
 
         @dp.callback_query(F.data.startswith("mcp:"))
         async def on_mcp_cb(query: CallbackQuery) -> None:
@@ -456,9 +602,38 @@ class HelixTelegramBot:
             except Exception as exc:
                 await query.answer(f"Error: {exc}"[:200], show_alert=True)
 
-        @dp.callback_query(F.data.startswith("hx:"))
-        async def on_helix_ui_cb(query: CallbackQuery) -> None:
+        @dp.callback_query(F.data.startswith("hx:ar"))
+        async def on_access_admin_cb(query: CallbackQuery) -> None:
             if query.from_user is None or not query.data or query.message is None:
+                return
+            from integrations.telegram.access_approval import handle_access_admin_callback
+            from integrations.telegram.keyboards import parse_callback
+
+            parsed = parse_callback(query.data)
+            if not parsed:
+                await query.answer("Неверная кнопка.", show_alert=True)
+                return
+            action, value = parsed
+            try:
+                msg = await handle_access_admin_callback(
+                    self.settings.profile,
+                    actor_user_id=int(query.from_user.id),
+                    action=action,
+                    value=value,
+                    message=query.message,
+                    bot=bot,
+                )
+                await query.answer(msg[:200] if msg else "OK")
+            except ValueError as exc:
+                await query.answer(str(exc)[:200], show_alert=True)
+            except Exception as exc:
+                await query.answer(f"Ошибка: {exc}"[:200], show_alert=True)
+
+        @dp.callback_query(F.data.startswith("hx:"))
+        async def on_holix_ui_cb(query: CallbackQuery) -> None:
+            if query.from_user is None or not query.data or query.message is None:
+                return
+            if query.data.startswith("hx:ar"):
                 return
             if not self._allowed(query.from_user.id):
                 await query.answer("Access denied.", show_alert=True)
@@ -489,7 +664,10 @@ class HelixTelegramBot:
                 await approvals.dismiss_plan_review_ui()
                 await query.answer("Plan updated.")
             else:
-                await query.answer("Failed or expired.", show_alert=True)
+                await query.answer(
+                    "Could not apply. Use the latest plan message or reply in chat.",
+                    show_alert=True,
+                )
 
         self._bot = bot
         self._dp = dp
@@ -498,14 +676,19 @@ class HelixTelegramBot:
     async def run_polling(self) -> None:
         from config import settings
 
-        if not self.settings.allow_all and not self.settings.allowed_ids():
+        if (
+            not self.settings.allow_all
+            and not self.settings.allowed_ids()
+            and not self.settings.can_start_without_allowlist()
+        ):
             if settings.is_production and settings.telegram_require_allowlist_in_production:
                 raise RuntimeError(
-                    "HELIX_TELEGRAM_ALLOWED_USERS is required when HELIX_ENV=production"
+                    "HOLIX_TELEGRAM_ALLOWED_USERS is required when HOLIX_ENV=production "
+                    "(or enable HOLIX_TELEGRAM_ACCESS_REQUESTS=true)"
                 )
             raise RuntimeError(
-                "HELIX_TELEGRAM_ALLOWED_USERS is required "
-                "(or set HELIX_TELEGRAM_ALLOW_ALL=true for local development)"
+                "HOLIX_TELEGRAM_ALLOWED_USERS is required "
+                "(or HOLIX_TELEGRAM_ACCESS_REQUESTS=true / HOLIX_TELEGRAM_ALLOW_ALL=true)"
             )
         if not self.settings.bot_token:
             raise RuntimeError("Set TELEGRAM_BOT_TOKEN in environment or .env")

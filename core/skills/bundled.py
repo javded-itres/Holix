@@ -1,4 +1,4 @@
-"""Ship default skills with Helix and seed them into new profiles."""
+"""Ship default skills with Holix and seed them into new profiles."""
 
 from __future__ import annotations
 

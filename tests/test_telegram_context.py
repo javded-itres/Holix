@@ -103,6 +103,7 @@ async def test_prepare_session_auto_compress_persists_for_telegram_conversation(
 
     messages, was_compressed = await prepare_session(agent, "new question", conversation_id)
     assert was_compressed is True
-    assert len(messages) == 2
+    assert len(messages) == 3
+    assert messages[0]["metadata"]["type"] == "agent_soul"
     stored = await agent.memory.get_conversation(conversation_id)
     assert any("summary" in (m.get("content") or "") for m in stored)

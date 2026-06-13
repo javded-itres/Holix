@@ -108,7 +108,7 @@ class MetricsCollector:
 def format_metrics_message(summary: dict) -> str:
     """Human-readable metrics for Telegram, CLI, and shared slash commands."""
     lines = [
-        "**Helix metrics**",
+        "**Holix metrics**",
         "",
         f"• Requests: {summary.get('total_requests', 0)}",
         f"• Tool calls: {summary.get('total_tool_calls', 0)}",

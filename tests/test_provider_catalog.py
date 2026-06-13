@@ -78,9 +78,9 @@ def test_openrouter_preset_metadata():
 
 def test_openrouter_headers_from_env(monkeypatch: pytest.MonkeyPatch):
     monkeypatch.setenv("OPENROUTER_HTTP_REFERER", "https://example.com")
-    headers = build_default_headers({"auth_type": "openrouter", "x_title": "Helix"})
+    headers = build_default_headers({"auth_type": "openrouter", "x_title": "Holix"})
     assert headers.get("HTTP-Referer") == "https://example.com"
-    assert headers.get("X-Title") == "Helix"
+    assert headers.get("X-Title") == "Holix"
 
 
 def test_resolve_api_key_placeholder():

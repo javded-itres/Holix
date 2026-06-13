@@ -1,22 +1,22 @@
 # TUI
 
 ```bash
-helix tui
-helix tui -p myprofile
+holix tui
+holix tui -p myprofile
 
 # Browser (textual-serve; one session per tab; token required)
 uv sync --extra tui-web
-helix tui --web
+holix tui --web
 # Opens http://127.0.0.1:8787/?token=... (ephemeral token printed if omitted)
 
 # LAN (full agent access — use a strong token)
-helix tui --web --allow-lan --host 0.0.0.0 --port 8787 --token "$(openssl rand -hex 32)"
-export HELIX_TUI_WEB_TOKEN="..."   # alternative to --token
+holix tui --web --allow-lan --host 0.0.0.0 --port 8787 --token "$(openssl rand -hex 32)"
+export HOLIX_TUI_WEB_TOKEN="..."   # alternative to --token
 ```
 
 Default: **code-style** UI (`cli/tui/code/`).
 
-Legacy dashboard: `HELIX_TUI_LEGACY=1 helix tui`
+Legacy dashboard: `HOLIX_TUI_LEGACY=1 holix tui`
 
 ## Copy
 

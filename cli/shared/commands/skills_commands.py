@@ -64,7 +64,7 @@ def format_skills_message(
             "",
         ]
         if not all_names:
-            lines.append("<i>No skills on disk. Use /hub or <code>helix hub install</code>.</i>")
+            lines.append("<i>No skills on disk. Use /hub or <code>holix hub install</code>.</i>")
             return "\n".join(lines)
 
         for name in allowed_names[:limit]:
@@ -84,13 +84,13 @@ def format_skills_message(
             lines.append(
                 f"<i>Profile allowlist for '{escape_html(slot)}': "
                 f"{len(assigns[slot])} skill(s). "
-                f"<code>helix skills assign</code> to change.</i>"
+                f"<code>holix skills assign</code> to change.</i>"
             )
         elif slot == "main":
             lines.append("")
             lines.append(
                 "<i>Main agent uses all profile skills. "
-                "Sub-agents: <code>helix skills assign</code>.</i>"
+                "Sub-agents: <code>holix skills assign</code>.</i>"
             )
 
         return "\n".join(lines)
@@ -101,7 +101,7 @@ def format_skills_message(
         "",
     ]
     if not all_names:
-        lines.append("[dim]No skills found. Try /hub or `helix hub install`.[/dim]")
+        lines.append("[dim]No skills found. Try /hub or `holix hub install`.[/dim]")
         return "\n".join(lines)
 
     for name in allowed_names[:limit]:
@@ -121,12 +121,12 @@ def format_skills_message(
     if slot != "main" and assigns.get(slot):
         lines.append(
             f"[dim]Allowlist for '{slot}': {len(assigns[slot])} skill(s). "
-            f"`helix skills assign` to change.[/dim]"
+            f"`holix skills assign` to change.[/dim]"
         )
     elif slot == "main":
         lines.append(
             "[dim]Main agent: all profile skills. "
-            "Sub-agents: `helix skills assign`.[/dim]"
+            "Sub-agents: `holix skills assign`.[/dim]"
         )
 
     return "\n".join(lines)

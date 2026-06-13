@@ -1,5 +1,5 @@
 """
-Context Manager for Helix.
+Context Manager for Holix.
 
 Monitors token usage relative to the model's context window,
 emits warnings as usage increases, and automatically compresses
@@ -160,8 +160,11 @@ class ContextManager:
 
         tokens_before = self.token_counter.count_message_tokens(messages)
 
+        from core.profile.soul import strip_soul_messages
+
+        to_compress = strip_soul_messages(messages)
         compressed, summary = await self.compressor.compress(
-            messages, keep_recent=keep_recent
+            to_compress, keep_recent=keep_recent
         )
 
         tokens_after = self.token_counter.count_message_tokens(compressed)

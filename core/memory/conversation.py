@@ -5,15 +5,15 @@ from __future__ import annotations
 import json
 import logging
 from datetime import datetime
-from pathlib import Path
 from typing import Any
 
 import aiosqlite
 import chromadb
 from chromadb.config import Settings as ChromaSettings
 
-from core.di.runtime_config import HelixRuntimeConfig
+from core.di.runtime_config import HolixRuntimeConfig
 from core.memory.chroma_embeddings import get_or_create_collection
+from core.paths import prepare_sqlite_db_file, prepare_vector_db_dir
 
 logger = logging.getLogger(__name__)
 
@@ -28,14 +28,11 @@ class ConversationStore:
     ``search`` returns results ordered by relevance (ChromaDB distance).
     """
 
-    def __init__(self, config: HelixRuntimeConfig | None = None):
-        cfg = config or HelixRuntimeConfig.from_settings()
+    def __init__(self, config: HolixRuntimeConfig | None = None):
+        cfg = config or HolixRuntimeConfig.from_settings()
         self.config = cfg
-        self.db_path = Path(cfg.memory_db_path)
-        self.vector_db_path = Path(cfg.vector_db_path)
-
-        self.db_path.parent.mkdir(parents=True, exist_ok=True)
-        self.vector_db_path.mkdir(parents=True, exist_ok=True)
+        self.db_path = prepare_sqlite_db_file(cfg.memory_db_path)
+        self.vector_db_path = prepare_vector_db_dir(cfg.vector_db_path)
 
         self.chroma_client = chromadb.PersistentClient(
             path=str(self.vector_db_path),
@@ -49,7 +46,7 @@ class ConversationStore:
         )
 
     async def initialize_db(self) -> None:
-        async with aiosqlite.connect(self.db_path) as db:
+        async with aiosqlite.connect(str(self.db_path)) as db:
             await db.execute("""
                 CREATE TABLE IF NOT EXISTS conversations (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -77,7 +74,7 @@ class ConversationStore:
         content: str,
         metadata: dict[str, Any] | None = None,
     ) -> int:
-        async with aiosqlite.connect(self.db_path) as db:
+        async with aiosqlite.connect(str(self.db_path)) as db:
             cursor = await db.execute(
                 """INSERT INTO conversations (conversation_id, role, content, metadata)
                    VALUES (?, ?, ?, ?)""",
@@ -114,7 +111,7 @@ class ConversationStore:
         conversation_id: str,
         limit: int = 30,
     ) -> list[dict[str, Any]]:
-        async with aiosqlite.connect(self.db_path) as db:
+        async with aiosqlite.connect(str(self.db_path)) as db:
             db.row_factory = aiosqlite.Row
             cursor = await db.execute(
                 """SELECT role, content, timestamp, metadata
@@ -177,7 +174,7 @@ class ConversationStore:
         conversation_id: str,
         new_messages: list[dict[str, Any]],
     ) -> int:
-        async with aiosqlite.connect(self.db_path) as db:
+        async with aiosqlite.connect(str(self.db_path)) as db:
             await db.execute(
                 "DELETE FROM conversations WHERE conversation_id = ?",
                 (conversation_id,),
@@ -232,7 +229,7 @@ class ConversationStore:
 
     async def delete_conversation(self, conversation_id: str) -> bool:
         try:
-            async with aiosqlite.connect(self.db_path) as db:
+            async with aiosqlite.connect(str(self.db_path)) as db:
                 await db.execute(
                     "DELETE FROM conversations WHERE conversation_id = ?",
                     (conversation_id,),
@@ -248,7 +245,7 @@ class ConversationStore:
 
     async def list_recent_conversations(self, limit: int = 10) -> list[dict]:
         try:
-            async with aiosqlite.connect(self.db_path) as db:
+            async with aiosqlite.connect(str(self.db_path)) as db:
                 db.row_factory = aiosqlite.Row
                 cursor = await db.execute(
                     """

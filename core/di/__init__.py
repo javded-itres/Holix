@@ -1,9 +1,9 @@
 """Dependency injection layer (Dishka)."""
 
-from core.di.runtime_config import HelixRuntimeConfig
+from core.di.runtime_config import HolixRuntimeConfig
 
 __all__ = [
-    "HelixRuntimeConfig",
+    "HolixRuntimeConfig",
     "create_async_container",
     "create_agent",
     "get_agent_from_container",

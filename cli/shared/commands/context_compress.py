@@ -36,6 +36,11 @@ async def run_context_compress(host: Any) -> None:
         write("[dim]Not enough messages to compress.[/dim]")
         return
 
+    from core.profile.soul import inject_soul_into_messages, profile_name_from_agent
+
+    profile = profile_name_from_agent(agent)
+    compressed = inject_soul_into_messages(compressed, profile)
+
     usage_before = agent.token_counter.count_message_tokens(messages)
     usage_after = agent.token_counter.count_message_tokens(compressed)
     write(

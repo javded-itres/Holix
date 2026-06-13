@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
 
 import pytest
 from integrations.telegram.env_store import (
     format_env_lines,
+    load_telegram_env_files,
     mask_token,
     merge_project_env,
     save_telegram_env,
@@ -26,19 +28,29 @@ def test_mask_token() -> None:
     assert "ABCDEF" not in masked
 
 
+def test_load_telegram_env_overrides_empty_shell_token(
+    tmp_path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("HOLIX_HOME", str(tmp_path))
+    monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "")
+    save_telegram_env({"TELEGRAM_BOT_TOKEN": "1:from_profile_env"}, profile="default")
+    load_telegram_env_files("default")
+    assert os.environ["TELEGRAM_BOT_TOKEN"] == "1:from_profile_env"
+
+
 def test_save_telegram_env(tmp_path, monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("HELIX_HOME", str(tmp_path))
+    monkeypatch.setenv("HOLIX_HOME", str(tmp_path))
 
     path = save_telegram_env(
         {
             "TELEGRAM_BOT_TOKEN": "1:abc",
-            "HELIX_TELEGRAM_ALLOWED_USERS": "42",
+            "HOLIX_TELEGRAM_ALLOWED_USERS": "42",
         },
         profile="default",
     )
     text = path.read_text(encoding="utf-8")
     assert "TELEGRAM_BOT_TOKEN=1:abc" in text
-    assert "HELIX_TELEGRAM_ALLOWED_USERS=42" in text
+    assert "HOLIX_TELEGRAM_ALLOWED_USERS=42" in text
 
 
 def test_merge_project_env(tmp_path: Path) -> None:
@@ -48,7 +60,7 @@ def test_merge_project_env(tmp_path: Path) -> None:
         env,
         {
             "TELEGRAM_BOT_TOKEN": "2:newtoken",
-            "HELIX_TELEGRAM_ALLOWED_USERS": "99",
+            "HOLIX_TELEGRAM_ALLOWED_USERS": "99",
         },
     )
     text = env.read_text(encoding="utf-8")
@@ -65,5 +77,5 @@ def test_user_id_from_update() -> None:
 
 
 def test_format_env_lines() -> None:
-    body = format_env_lines({"TELEGRAM_BOT_TOKEN": "1:x", "HELIX_TELEGRAM_PROFILE": "work"})
-    assert "helix telegram setup" in body.lower() or "Helix Telegram" in body
+    body = format_env_lines({"TELEGRAM_BOT_TOKEN": "1:x", "HOLIX_TELEGRAM_PROFILE": "work"})
+    assert "holix telegram setup" in body.lower() or "Holix Telegram" in body

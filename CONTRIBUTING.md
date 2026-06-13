@@ -1,16 +1,16 @@
-# Contributing to Helix
+# Contributing to Holix
 
 Thank you for contributing. This document covers local setup, conventions, and how to submit changes.
 
 ## Development setup
 
 ```bash
-git clone https://github.com/javded-itres/HelixAgent.git
-cd HelixAgent
+git clone https://github.com/javded-itres/Holix.git
+cd Holix
 uv sync --all-extras
 uv pip install -e ".[all]"
 cp .env.example .env
-helix doctor
+holix doctor
 ```
 
 Run tests:
@@ -42,7 +42,7 @@ Architecture overview: [docs/en/ARCHITECTURE.md](docs/en/ARCHITECTURE.md).
 ## Conventions
 
 - Python **3.12+**, async-first for agent code
-- Profiles and user data under `~/.helix/profiles/`, not in the repo
+- Profiles and user data under `~/.holix/profiles/`, not in the repo
 - New tools extend `BaseTool` in `core/tools/`
 - Agent behavior changes should go through `core/agent_execution.py` and events in `core/agent_events.py`
 - Document user-facing CLI changes in `docs/en/CLI.md` and `docs/ru/CLI.md`
@@ -60,7 +60,7 @@ Architecture overview: [docs/en/ARCHITECTURE.md](docs/en/ARCHITECTURE.md).
 Include:
 
 - OS and Python version (`python --version`)
-- `helix version` and `helix doctor` output (redact secrets)
+- `holix version` and `holix doctor` output (redact secrets)
 - Steps to reproduce
 - Expected vs actual behavior
 

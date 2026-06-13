@@ -1,5 +1,5 @@
 """
-Persistence — wraps LangGraph checkpointing for Helix.
+Persistence — wraps LangGraph checkpointing for Holix.
 
 Uses InMemorySaver for in-process checkpointing. Profile-aware
 path resolution for file-based checkpointers.
@@ -35,9 +35,12 @@ def create_checkpointer(
 
             from langgraph.checkpoint.sqlite import SqliteSaver
 
-            conn = sqlite3.connect(db_path, check_same_thread=False)
+            from core.paths import prepare_sqlite_db_file
+
+            resolved = prepare_sqlite_db_file(db_path)
+            conn = sqlite3.connect(str(resolved), check_same_thread=False)
             checkpointer = SqliteSaver(conn)
-            logger.info(f"Using SQLite checkpointer at {db_path}")
+            logger.info(f"Using SQLite checkpointer at {resolved}")
             return checkpointer
         except ImportError:
             logger.warning(

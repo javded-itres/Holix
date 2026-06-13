@@ -11,7 +11,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
 REPO = ROOT.parent
-SITE_URL = "https://helix-agent.ru"
+SITE_URL = "https://holix-agent.ru"
 sys.path.insert(0, str(REPO))
 
 from core.docs_chat.build_index import make_page_entry, write_chunk_index  # noqa: E402
@@ -30,12 +30,14 @@ NAV = [
     ("QUICKSTART", {"en": "Quickstart", "ru": "Быстрый старт"}),
     ("CONFIGURATION", {"en": "Configuration", "ru": "Конфигурация"}),
     ("PROFILES", {"en": "Profiles & Isolation", "ru": "Профили и изоляция"}),
+    ("PROFILE_ENCRYPTION", {"en": "Profile Encryption", "ru": "Шифрование профиля"}),
     ("CLI", {"en": "CLI Reference", "ru": "Справочник CLI"}),
     ("SLASH_COMMANDS", {"en": "Slash Commands", "ru": "Слэш-команды"}),
     ("EXECUTION_MODES", {"en": "Execution Modes", "ru": "Режимы работы"}),
     ("TUI", {"en": "TUI", "ru": "TUI"}),
     ("HUB", {"en": "Hub & Skills", "ru": "Hub и навыки"}),
     ("GATEWAY", {"en": "API Gateway", "ru": "API Gateway"}),
+    ("GATEWAY_API", {"en": "Complete API Reference", "ru": "Полный справочник API"}),
     ("TELEGRAM", {"en": "Telegram", "ru": "Telegram"}),
     ("TELEGRAM_MULTI_PROFILE", {"en": "Telegram Multi-Profile", "ru": "Telegram: несколько профилей"}),
     ("BROWSER_TOOLS", {"en": "Browser Tools", "ru": "Браузер"}),
@@ -160,7 +162,7 @@ def write_seo_artifacts(entries: list[dict]) -> None:
     (ROOT / "sitemap.xml").write_text(sitemap, encoding="utf-8")
 
     crawl_links = [
-        f'<a href="{SITE_URL}/">Helix</a>',
+        f'<a href="{SITE_URL}/">Holix</a>',
         f'<a href="{SITE_URL}/docs">Documentation</a>',
     ]
     for slug in slugs:
@@ -197,7 +199,7 @@ def main() -> None:
     )
     write_seo_artifacts(entries)
     print(
-        f"Built {len(entries)} pages, {len(chunks)} chunks → "
+        f"Built {len(entries)} pages, {len(chunks)} chunks -> "
         f"{SEARCH_INDEX.name}, search-chunks.json, search-vectors.npz, sitemap.xml"
     )
 

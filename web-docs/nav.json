@@ -36,6 +36,12 @@
     "file_key": "PROFILES"
   },
   {
+    "slug": "profile-encryption",
+    "en": "Profile Encryption",
+    "ru": "Шифрование профиля",
+    "file_key": "PROFILE_ENCRYPTION"
+  },
+  {
     "slug": "cli",
     "en": "CLI Reference",
     "ru": "Справочник CLI",
@@ -70,6 +76,12 @@
     "en": "API Gateway",
     "ru": "API Gateway",
     "file_key": "GATEWAY"
+  },
+  {
+    "slug": "gateway-api",
+    "en": "Complete API Reference",
+    "ru": "Полный справочник API",
+    "file_key": "GATEWAY_API"
   },
   {
     "slug": "telegram",

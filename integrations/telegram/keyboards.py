@@ -1,4 +1,4 @@
-"""Inline keyboards for Telegram Helix UX."""
+"""Inline keyboards for Telegram Holix UX."""
 
 from __future__ import annotations
 
@@ -325,17 +325,22 @@ def models_provider_keyboard(
     return InlineKeyboardMarkup(inline_keyboard=rows)
 
 
-def status_menu_keyboard(locale: str | None = None) -> Any:
+def status_menu_keyboard(locale: str | None = None, *, is_admin: bool = True) -> Any:
     from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
     from core.i18n.messages import t
 
     loc = locale or "en"
-    return InlineKeyboardMarkup(
-        inline_keyboard=[
-            [
-                InlineKeyboardButton(text=t("tg.menu.mode", loc), callback_data=_cb("r", "mode")),
-                InlineKeyboardButton(text=t("tg.menu.profile", loc), callback_data=_cb("r", "profile")),
-            ],
+    rows: list[list[Any]] = [
+        [
+            InlineKeyboardButton(text=t("tg.menu.mode", loc), callback_data=_cb("r", "mode")),
+        ],
+    ]
+    if is_admin:
+        rows[0].append(
+            InlineKeyboardButton(text=t("tg.menu.profile", loc), callback_data=_cb("r", "profile")),
+        )
+    rows.extend(
+        [
             [
                 InlineKeyboardButton(text=t("tg.menu.sessions", loc), callback_data=_cb("r", "sessions")),
                 InlineKeyboardButton(text=t("tg.menu.streaming", loc), callback_data=_cb("r", "stream")),
@@ -347,11 +352,95 @@ def status_menu_keyboard(locale: str | None = None) -> Any:
             [
                 InlineKeyboardButton(text=t("tg.menu.compress", loc), callback_data=_cb("r", "compress")),
             ],
+        ]
+    )
+    rows.append(
+        [InlineKeyboardButton(text="Cron", callback_data=_cb("r", "cron"))],
+    )
+    return InlineKeyboardMarkup(inline_keyboard=rows)
+
+
+def access_request_admin_keyboard(user_id: int) -> Any:
+    from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
+
+    uid = str(int(user_id))
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
             [
-                InlineKeyboardButton(text="Cron", callback_data=_cb("r", "cron")),
+                InlineKeyboardButton(
+                    text="✅ Одобрить",
+                    callback_data=_cb("ara", uid),
+                ),
+                InlineKeyboardButton(
+                    text="❌ Отклонить",
+                    callback_data=_cb("arr", uid),
+                ),
+            ],
+            [
+                InlineKeyboardButton(
+                    text="📁 Выбрать профиль",
+                    callback_data=_cb("arl", uid),
+                ),
             ],
         ]
     )
+
+
+def access_request_profile_keyboard(
+    user_id: int,
+    profiles: list[str],
+    *,
+    suggested: str,
+) -> Any:
+    from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
+
+    uid = str(int(user_id))
+    rows: list[list[Any]] = []
+    row: list[Any] = []
+    for i, name in enumerate(profiles[:10]):
+        short = name if len(name) <= 18 else name[:16] + "…"
+        row.append(
+            InlineKeyboardButton(
+                text=short,
+                callback_data=_cb("arp", f"{uid}:{i}"),
+            )
+        )
+        if len(row) == 2:
+            rows.append(row)
+            row = []
+    if row:
+        rows.append(row)
+    rows.append(
+        [
+            InlineKeyboardButton(
+                text=f"＋ Создать «{suggested[:14]}»",
+                callback_data=_cb("arp", f"{uid}:{len(profiles[:10])}"),
+            )
+        ]
+    )
+    rows.append(
+        [
+            InlineKeyboardButton(
+                text="← Назад",
+                callback_data=_cb("arb", uid),
+            )
+        ]
+    )
+    return InlineKeyboardMarkup(inline_keyboard=rows)
+
+
+def format_access_resolved_admin_text(result: Any, *, approved: bool) -> str:
+    from integrations.telegram.access_approval import AccessApprovalResult
+    from integrations.telegram.markdown import escape_html
+
+    if not isinstance(result, AccessApprovalResult):
+        return "Готово."
+    status = "одобрен" if approved else "отклонён"
+    name = escape_html(result.user_display or "пользователь")
+    lines = [f"✅ <b>Запрос {status}</b>", "", f"<b>Пользователь:</b> {name}"]
+    if approved and result.holix_profile:
+        lines.append(f"<b>Профиль Holix:</b> <code>{escape_html(result.holix_profile)}</code>")
+    return "\n".join(lines)
 
 
 def mode_picker_html(current: str) -> str:

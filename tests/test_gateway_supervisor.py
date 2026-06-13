@@ -8,7 +8,7 @@ from integrations.telegram.config import load_telegram_settings, telegram_aiogra
 
 
 def _block_telegram_env_files(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Avoid loading the developer's real ~/.helix/telegram.env during tests."""
+    """Avoid loading the developer's real ~/.holix/telegram.env during tests."""
     monkeypatch.setattr(
         "integrations.telegram.env_store.load_telegram_env_files",
         lambda profile=None: None,
@@ -18,7 +18,7 @@ def _block_telegram_env_files(monkeypatch: pytest.MonkeyPatch) -> None:
 def test_telegram_enabled_without_token(monkeypatch: pytest.MonkeyPatch) -> None:
     _block_telegram_env_files(monkeypatch)
     monkeypatch.delenv("TELEGRAM_BOT_TOKEN", raising=False)
-    monkeypatch.delenv("HELIX_TELEGRAM_BOT_TOKEN", raising=False)
+    monkeypatch.delenv("HOLIX_TELEGRAM_BOT_TOKEN", raising=False)
     assert telegram_enabled() is False
 
 

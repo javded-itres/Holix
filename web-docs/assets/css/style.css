@@ -1,4 +1,4 @@
-/* Helix Docs — dark theme */
+/* Holix Docs — dark theme */
 
 :root {
   --bg: #080c10;
@@ -525,6 +525,33 @@ a:hover { color: var(--accent-2); }
 }
 
 .telegram-callout-body p {
+  margin: 0 0 1rem;
+  color: var(--text-muted);
+  font-size: 0.98rem;
+  line-height: 1.6;
+  max-width: 52rem;
+}
+
+.api-callout {
+  display: flex;
+  gap: 1.25rem;
+  align-items: flex-start;
+  padding: 1.65rem 1.85rem;
+  margin-bottom: 2rem;
+  background: linear-gradient(135deg, rgba(0, 229, 192, 0.1), rgba(99, 179, 237, 0.06));
+  border: 1px solid rgba(0, 229, 192, 0.32);
+  border-radius: var(--radius);
+  box-shadow: 0 10px 40px rgba(0, 229, 192, 0.06);
+}
+
+.api-callout-body h2 {
+  margin: 0 0 0.45rem;
+  font-size: 1.35rem;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.api-callout-body p {
   margin: 0 0 1rem;
   color: var(--text-muted);
   font-size: 0.98rem;

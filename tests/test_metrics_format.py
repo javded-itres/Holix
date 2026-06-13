@@ -18,7 +18,7 @@ def test_format_metrics_message_renders_counts() -> None:
             "max_response_time": 2.0,
         }
     )
-    assert "**Helix metrics**" in text
+    assert "**Holix metrics**" in text
     assert "Requests: 3" in text
     assert "Tool calls: 7" in text
     assert "1.25s" in text

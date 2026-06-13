@@ -1,16 +1,16 @@
-"""Entry point: helix telegram."""
+"""Entry point: holix telegram."""
 
 from __future__ import annotations
 
 import asyncio
 
-from integrations.telegram.bot import HelixTelegramBot
+from integrations.telegram.bot import HolixTelegramBot
 from integrations.telegram.config import load_telegram_settings
 
 
 async def run_bot(profile: str = "default") -> None:
     settings = load_telegram_settings(profile)
-    bot = HelixTelegramBot(settings, profile=profile)
+    bot = HolixTelegramBot(settings, profile=profile)
     await bot.run_polling()
 
 

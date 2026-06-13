@@ -1,4 +1,4 @@
-"""Helix Doctor — configuration diagnostics and repair."""
+"""Holix Doctor — configuration diagnostics and repair."""
 
 from cli.doctor.runner import run_doctor
 

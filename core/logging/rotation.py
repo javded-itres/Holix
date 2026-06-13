@@ -45,7 +45,7 @@ def rotate_file(
 
 
 def rotate_all_known(profile: str = "default") -> list[Path]:
-    """Rotate all standard Helix log files that exceed size limits."""
+    """Rotate all standard Holix log files that exceed size limits."""
     from core.logging.paths import discover_log_files
 
     rotated: list[Path] = []

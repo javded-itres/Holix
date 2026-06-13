@@ -1,4 +1,4 @@
-"""UI locale persistence (per Helix profile)."""
+"""UI locale persistence (per Holix profile)."""
 
 from __future__ import annotations
 

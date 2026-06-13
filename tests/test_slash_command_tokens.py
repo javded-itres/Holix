@@ -12,4 +12,4 @@ def test_models_not_treated_as_mode() -> None:
     assert is_models_slash("/model")
     assert not is_mode_slash("/model")
     assert is_mode_slash("/mode hybrid")
-    assert is_models_slash("/models@MyHelixBot")
+    assert is_models_slash("/models@MyHolixBot")

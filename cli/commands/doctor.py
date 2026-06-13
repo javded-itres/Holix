@@ -1,4 +1,4 @@
-"""helix doctor — diagnose and optionally fix Helix configuration."""
+"""holix doctor — diagnose and optionally fix Holix configuration."""
 
 from __future__ import annotations
 
@@ -10,7 +10,7 @@ from cli.doctor.runner import run_doctor
 from cli.utils.rich_console import print_error
 
 app = typer.Typer(
-    help="Diagnose Helix setup; repair with --fix (uses default LLM for config.yaml)",
+    help="Diagnose Holix setup; repair with --fix (uses default LLM for config.yaml)",
     invoke_without_command=True,
 )
 
@@ -42,9 +42,9 @@ def doctor_main(
     broken config.yaml is repaired by the default LLM.
 
     Examples:
-        helix doctor
-        helix doctor --fix
-        helix doctor --fix -p work
+        holix doctor
+        holix doctor --fix
+        holix doctor --fix -p work
     """
     profile = ctx.obj["profile"]
     try:
@@ -54,6 +54,7 @@ def doctor_main(
                 fix=fix,
                 use_llm=not no_llm,
                 llm_advice=not no_advice,
+                skip_llm_check=no_llm,
             )
         )
     except Exception as e:

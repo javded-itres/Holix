@@ -114,7 +114,7 @@ async def docs_chat(
     authorization: str | None = Header(None),
     x_docs_chat_token: str | None = Header(None, alias="X-Docs-Chat-Token"),
 ):
-    """Answer questions about Helix documentation — no tools, no commands."""
+    """Answer questions about Holix documentation — no tools, no commands."""
     if not settings.docs_chat_enabled:
         raise HTTPException(status_code=404, detail="Docs chat disabled")
     _verify_docs_chat_token(authorization, x_docs_chat_token)

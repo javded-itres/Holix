@@ -1,15 +1,15 @@
-"""Conditional edge routers for Helix LangGraph modes."""
+"""Conditional edge routers for Holix LangGraph modes."""
 
 from __future__ import annotations
 
 import logging
 
-from core.graph.state import HelixGraphState
+from core.graph.state import HolixGraphState
 
 logger = logging.getLogger(__name__)
 
 
-def route_after_react(state: HelixGraphState) -> str:
+def route_after_react(state: HolixGraphState) -> str:
     tool_calls = state.get("tool_calls", [])
     is_final = state.get("is_final", False)
     step_count = state.get("step_count", 0)
@@ -22,7 +22,7 @@ def route_after_react(state: HelixGraphState) -> str:
     return "finalize"
 
 
-def route_after_plan_execute(state: HelixGraphState) -> str:
+def route_after_plan_execute(state: HolixGraphState) -> str:
     if state.get("is_final", False):
         return "finalize"
     plan_steps = state.get("plan_steps", [])
@@ -30,7 +30,7 @@ def route_after_plan_execute(state: HelixGraphState) -> str:
     return "execute_step" if current_step < len(plan_steps) else "finalize"
 
 
-def route_after_plan_review(state: HelixGraphState) -> str:
+def route_after_plan_review(state: HolixGraphState) -> str:
     plan_status = state.get("plan_status", "pending_review")
     if plan_status == "refine":
         return "plan"
@@ -39,7 +39,7 @@ def route_after_plan_review(state: HelixGraphState) -> str:
     return "execute_step"
 
 
-def route_after_plan_review_hybrid(state: HelixGraphState) -> str:
+def route_after_plan_review_hybrid(state: HolixGraphState) -> str:
     plan_status = state.get("plan_status", "pending_review")
     if plan_status == "refine":
         return "plan"
@@ -48,7 +48,7 @@ def route_after_plan_review_hybrid(state: HelixGraphState) -> str:
     return "react"
 
 
-def route_after_react_plan(state: HelixGraphState) -> str:
+def route_after_react_plan(state: HolixGraphState) -> str:
     """Router after react_node in plan_and_execute mode."""
     tool_calls = state.get("tool_calls", [])
     is_final = state.get("is_final", False)
@@ -82,16 +82,27 @@ def route_after_react_plan(state: HelixGraphState) -> str:
     return "react"
 
 
-def route_after_step_orchestrate(state: HelixGraphState) -> str:
+def route_after_step_orchestrate(state: HolixGraphState) -> str:
     plan_steps = state.get("plan_steps", [])
     current_step_idx = state.get("current_plan_step", 0)
     if state.get("is_final", False):
         return "finalize"
+    if state.get("subagent_delegate_next"):
+        return "delegate_subagent"
+    if not state.get("subagent_awaiting_synthesis"):
+        orch = state.get("subagent_orchestration")
+        if orch:
+            from core.subagents.orchestrator import OrchestrationPlan
+
+            plan = OrchestrationPlan.from_dict(orch)
+            wave_idx = int(state.get("current_subagent_wave", 0))
+            if wave_idx < len(plan.waves):
+                return "delegate_subagent"
     if current_step_idx < len(plan_steps):
         return "react"
     return "finalize"
 
 
-def route_after_delegate_subagent(state: HelixGraphState) -> str:
+def route_after_delegate_subagent(state: HolixGraphState) -> str:
     """After sub-agent delegation, continue to react for the step."""
     return "react"

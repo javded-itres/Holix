@@ -1,4 +1,4 @@
-"""Helix Long-term Memory System."""
+"""Holix Long-term Memory System."""
 
 from core.memory.conversation import ConversationStore
 from core.memory.facade import MemoryFacade

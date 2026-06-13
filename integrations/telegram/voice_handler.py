@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import Any
 
 import aiohttp
-from core.platform_compat import resolve_helix_home
+from core.platform_compat import resolve_holix_home
 
 from integrations.telegram.markdown import escape_html
 
@@ -47,7 +47,7 @@ def local_whisper_download_root() -> str:
     if raw:
         root = Path(raw).expanduser()
     else:
-        root = resolve_helix_home() / "models" / "whisper"
+        root = resolve_holix_home() / "models" / "whisper"
     root.mkdir(parents=True, exist_ok=True)
     return str(root)
 
@@ -110,10 +110,10 @@ def resolve_whisper_config(*, profile: str | None = None) -> WhisperConfig:
     - ``api`` / ``litellm`` / ``openai`` — HTTP ``/v1/audio/transcriptions``
 
     Priority (when backend is ``api`` or ``auto``):
-    1. HELIX_WHISPER_API_KEY + HELIX_WHISPER_BASE_URL
+    1. HOLIX_WHISPER_API_KEY + HOLIX_WHISPER_BASE_URL
     2. OPENAI_API_KEY + OPENAI_BASE_URL
     3. LITELLM_API_KEY + LITELLM_API_BASE
-    4. Profile ``litellm`` provider (when HELIX_WHISPER_USE_PROFILE_LITELLM=true)
+    4. Profile ``litellm`` provider (when HOLIX_WHISPER_USE_PROFILE_LITELLM=true)
     5. Local faster-whisper (``auto`` only, if installed)
     """
     from config import settings
@@ -131,8 +131,8 @@ def resolve_whisper_config(*, profile: str | None = None) -> WhisperConfig:
         return _local_whisper_config(language, local_model)
 
     # 1. Explicit whisper override (recommended for LiteLLM)
-    w_key = (settings.whisper_api_key or os.environ.get("HELIX_WHISPER_API_KEY", "")).strip()
-    w_base = (settings.whisper_base_url or os.environ.get("HELIX_WHISPER_BASE_URL", "")).strip()
+    w_key = (settings.whisper_api_key or os.environ.get("HOLIX_WHISPER_API_KEY", "")).strip()
+    w_base = (settings.whisper_base_url or os.environ.get("HOLIX_WHISPER_BASE_URL", "")).strip()
     if w_key and w_base:
         return WhisperConfig(
             api_key=w_key,
@@ -190,10 +190,10 @@ def resolve_whisper_config(*, profile: str | None = None) -> WhisperConfig:
 
     raise RuntimeError(
         "Whisper not configured. Options:\n"
-        "• Local: HELIX_WHISPER_BACKEND=local + uv sync --extra voice\n"
-        "• LiteLLM: HELIX_WHISPER_BASE_URL + HELIX_WHISPER_API_KEY\n"
+        "• Local: HOLIX_WHISPER_BACKEND=local + uv sync --extra voice\n"
+        "• LiteLLM: HOLIX_WHISPER_BASE_URL + HOLIX_WHISPER_API_KEY\n"
         "• OpenAI: OPENAI_API_KEY\n"
-        "• Auto: HELIX_WHISPER_BACKEND=auto (local if faster-whisper installed, else API)"
+        "• Auto: HOLIX_WHISPER_BACKEND=auto (local if faster-whisper installed, else API)"
     )
 
 

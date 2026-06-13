@@ -1,5 +1,5 @@
 """
-Helix Graph State — defines the state schema for the LangGraph execution graph.
+Holix Graph State — defines the state schema for the LangGraph execution graph.
 """
 
 from typing import Any
@@ -8,13 +8,13 @@ from langchain_core.runnables import RunnableConfig
 from typing_extensions import TypedDict
 
 
-class HelixGraphState(TypedDict, total=False):
-    """State schema for the Helix LangGraph execution graph.
+class HolixGraphState(TypedDict, total=False):
+    """State schema for the Holix LangGraph execution graph.
 
     This state flows through all graph nodes and accumulates
     partial updates at each step.
 
-    IMPORTANT: The HelixAgent instance is NOT stored in state because
+    IMPORTANT: The HolixAgent instance is NOT stored in state because
     it cannot be serialized by msgpack-based checkpointers. Instead, it
     is passed via config["configurable"]["_agent"] and accessed through
     the get_agent_from_config() helper.
@@ -57,7 +57,15 @@ class HelixGraphState(TypedDict, total=False):
     # Sub-agent state (Phase 4b)
     sub_agent_tasks: list[dict[str, Any]]    # Sub-tasks for sub-agents
     sub_agent_results: dict[str, Any]        # {agent_name: result}
-    pending_subagent: str | None          # Job id awaiting collect_subagent_node
+    pending_subagent: str | None          # Legacy single job id (use pending_subagents)
+    pending_subagents: list[str]          # Active wave job ids
+    subagent_orchestration: dict[str, Any] | None  # Serialized OrchestrationPlan
+    current_subagent_wave: int            # Next wave index to run
+    subagent_wave_results: dict[str, Any]  # {wave_id: {job_id: result}}
+    subagent_task_meta: dict[str, Any]     # {job_id: task metadata}
+    subagent_wave_step_indices: list[int] | None  # Plan indices finished in last wave
+    subagent_awaiting_synthesis: bool     # True after collect, before react synthesis
+    subagent_delegate_next: bool           # Router hint to spawn the next wave
 
     # Plan state (for plan_and_execute and hybrid modes)
     plan_steps: list[dict[str, Any]]         # Ordered list of plan steps
@@ -78,7 +86,7 @@ class HelixGraphState(TypedDict, total=False):
 
 
 def get_agent_from_config(config: RunnableConfig) -> Any:
-    """Retrieve the HelixAgent instance from LangGraph RunnableConfig.
+    """Retrieve the HolixAgent instance from LangGraph RunnableConfig.
 
     The agent is passed via config["configurable"]["_agent"] to avoid
     msgpack serialization errors with checkpointers. This helper
@@ -88,7 +96,7 @@ def get_agent_from_config(config: RunnableConfig) -> Any:
         config: The RunnableConfig passed to graph nodes by LangGraph.
 
     Returns:
-        The HelixAgent instance, or None if not available.
+        The HolixAgent instance, or None if not available.
     """
     configurable = config.get("configurable", {})
     return configurable.get("_agent")

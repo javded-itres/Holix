@@ -1,9 +1,40 @@
 import asyncio
+import re
+import shlex
 
 from config import settings
-from core.platform_compat import subprocess_shell_kwargs
+from core.platform_compat import IS_WINDOWS, subprocess_shell_kwargs
 from core.security.safety import command_whitelist
 from core.tools.base import BaseTool
+from core.workspace import sanitize_paths_in_text
+
+_PROFILE_PATH_RE = re.compile(
+    r"(?:~/?\.holix/profiles/|\.holix/profiles/|/profiles/[a-zA-Z0-9][a-zA-Z0-9_.-]{0,63}/)"
+)
+
+
+def _blocked_profile_path_access(command: str) -> tuple[bool, str]:
+    """Block shell commands that read Holix profile secrets outside workspace jail."""
+    from core.crypto.profile_crypto import is_profile_encryption_enabled
+    from core.tools.execution_context import get_profile_name
+
+    profile = get_profile_name()
+    if not is_profile_encryption_enabled(profile):
+        return False, ""
+
+    normalized = command.replace("\\", "/")
+    if _PROFILE_PATH_RE.search(normalized):
+        return True, "Direct access to Holix profile directories is disabled for encrypted profiles."
+    if (
+        ".holix/memory-cache" in normalized
+        or "/memory-cache/" in normalized
+        or ".runtime-cache" in normalized
+        or "/.runtime-cache/" in normalized
+    ):
+        return True, "Direct access to decrypted memory cache is disabled for encrypted profiles."
+    if ".holix/profiles" in normalized or "/profiles/" in normalized and ".env" in normalized:
+        return True, "Direct access to profile secrets is disabled for encrypted profiles."
+    return False, ""
 
 
 class TerminalTool(BaseTool):
@@ -41,13 +72,17 @@ class TerminalTool(BaseTool):
             Command output or error message
         """
         if not settings.enable_terminal_tool:
-            return "Error: Terminal tool is disabled (HELIX_ENABLE_TERMINAL_TOOL=false)"
+            return "Error: Terminal tool is disabled (HOLIX_ENABLE_TERMINAL_TOOL=false)"
 
         if settings.terminal_command_whitelist:
             command_whitelist.apply_extra(settings.terminal_whitelist_extra)
             allowed, reason = command_whitelist.is_command_allowed(command)
             if not allowed:
                 return f"Error: Command blocked by safety policy. {reason}"
+
+        blocked, reason = _blocked_profile_path_access(command)
+        if blocked:
+            return f"Error: Command blocked. {reason}"
 
         try:
             from core.workspace import get_effective_workspace_root
@@ -57,8 +92,16 @@ class TerminalTool(BaseTool):
             if root is not None:
                 cwd = str(root)
 
-            process = await asyncio.create_subprocess_shell(
-                command,
+            try:
+                argv = shlex.split(command, posix=not IS_WINDOWS)
+            except ValueError as exc:
+                return f"Error: Invalid command syntax: {exc}"
+
+            if not argv:
+                return "Error: Empty command"
+
+            process = await asyncio.create_subprocess_exec(
+                *argv,
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
                 cwd=cwd,
@@ -74,6 +117,8 @@ class TerminalTool(BaseTool):
                 output = stdout.decode('utf-8', errors='replace')
                 error = stderr.decode('utf-8', errors='replace')
 
+                output = sanitize_paths_in_text(output)
+                error = sanitize_paths_in_text(error)
                 if process.returncode == 0:
                     return f"Success (exit code 0):\n{output}" if output else "Success (no output)"
                 else:

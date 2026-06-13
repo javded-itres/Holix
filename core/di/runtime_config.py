@@ -1,4 +1,4 @@
-"""Immutable runtime configuration for Helix (replaces global settings mutation)."""
+"""Immutable runtime configuration for Holix (replaces global settings mutation)."""
 
 from __future__ import annotations
 
@@ -18,7 +18,7 @@ if TYPE_CHECKING:
 
 
 @dataclass(frozen=True, slots=True)
-class HelixRuntimeConfig:
+class HolixRuntimeConfig:
     """Resolved configuration for a single agent / session."""
 
     # LLM
@@ -94,13 +94,14 @@ class HelixRuntimeConfig:
     # Web search (DuckDuckGo / SearXNG / Firecrawl)
     search: dict[str, Any] = field(default_factory=dict)
 
-    # Local project supplement dir (CWD/.helix) — used for skills, plans, extra mcp; NEVER for model/system keys.
-    local_project_dir: str = ".helix"
+    # Local project supplement dir (CWD/.holix) — used for skills, plans, extra mcp; NEVER for model/system keys.
+    local_project_dir: str = ".holix"
     local_skills_dir: str | None = None  # resolved at use site if None
 
     # Workspace jail (optional per-profile directory isolation)
     workspace_jail_enabled: bool = False
     workspace_root: str | None = None
+    encryption_enabled: bool = False
 
     @classmethod
     def from_settings(cls, source: Settings | None = None) -> Self:
@@ -153,10 +154,11 @@ class HelixRuntimeConfig:
             mcp_enabled=True,
             skill_assignments={},
             search={},
-            local_project_dir=".helix",
+            local_project_dir=".holix",
             local_skills_dir=None,
             workspace_jail_enabled=False,
             workspace_root=None,
+            encryption_enabled=False,
         )
 
     @classmethod
@@ -216,6 +218,8 @@ class HelixRuntimeConfig:
             overrides["workspace_jail_enabled"] = profile.workspace_jail_enabled
         if getattr(profile, "workspace_root", None):
             overrides["workspace_root"] = profile.workspace_root
+        if getattr(profile, "encryption_enabled", False):
+            overrides["encryption_enabled"] = profile.encryption_enabled
 
         if profile.default_provider and profile.providers:
             pdata = profile.providers.get(profile.default_provider) or {}

@@ -16,7 +16,7 @@ from cli.installer.system import (
 def test_detect_repo_root() -> None:
     root = detect_repo_root()
     assert (root / "pyproject.toml").is_file()
-    assert "helix" in (root / "pyproject.toml").read_text(encoding="utf-8")
+    assert "holix" in (root / "pyproject.toml").read_text(encoding="utf-8")
 
 
 def test_scripts_bin_dir_user() -> None:
@@ -29,6 +29,7 @@ def test_ensure_path_in_shell_idempotent(tmp_path: Path, monkeypatch: pytest.Mon
     home.mkdir()
     rc = home / ".zshrc"
     rc.write_text("# shell\n", encoding="utf-8")
+    monkeypatch.setattr("cli.installer.system.platform.system", lambda: "Linux")
     monkeypatch.setattr("cli.installer.system.Path.home", lambda: home)
 
     bin_dir = tmp_path / "bin"
@@ -37,7 +38,7 @@ def test_ensure_path_in_shell_idempotent(tmp_path: Path, monkeypatch: pytest.Mon
     updated2, msg2 = ensure_path_in_shell(bin_dir)
     assert updated1 is True
     assert "updated" in msg2 or "already" in msg2
-    assert "# helix" in rc.read_text(encoding="utf-8")
+    assert "# holix" in rc.read_text(encoding="utf-8")
 
 
 def test_min_python_version_tuple() -> None:

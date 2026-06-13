@@ -1,5 +1,5 @@
 """
-Context management system for Helix.
+Context management system for Holix.
 
 Provides token counting, context compression, and usage monitoring
 to keep conversations within model context window limits.

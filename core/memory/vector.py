@@ -1,5 +1,5 @@
 """
-Vector Memory Store for Helix Long-term Memory.
+Vector Memory Store for Holix Long-term Memory.
 
 Thin wrapper around ChromaDB managing multiple collections for typed memory:
 - ltm_episodic: episode summaries from past conversations
@@ -10,7 +10,6 @@ Provides a unified search API across all collections.
 """
 
 import logging
-from pathlib import Path
 from typing import Any
 
 import chromadb
@@ -31,10 +30,11 @@ class VectorMemoryStore:
 
     def __init__(self, vector_db_path: str | None = None):
         if vector_db_path is None:
-            from core.di.runtime_config import HelixRuntimeConfig
-            vector_db_path = HelixRuntimeConfig.from_settings().vector_db_path
-        self._vector_db_path = Path(vector_db_path)
-        self._vector_db_path.mkdir(parents=True, exist_ok=True)
+            from core.di.runtime_config import HolixRuntimeConfig
+            vector_db_path = HolixRuntimeConfig.from_settings().vector_db_path
+        from core.paths import prepare_vector_db_dir
+
+        self._vector_db_path = prepare_vector_db_dir(vector_db_path)
 
         self._chroma_client = chromadb.PersistentClient(
             path=str(self._vector_db_path),

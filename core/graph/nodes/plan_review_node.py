@@ -17,12 +17,12 @@ import logging
 
 from langchain_core.runnables import RunnableConfig
 
-from core.graph.state import HelixGraphState, get_agent_from_config
+from core.graph.state import HolixGraphState, get_agent_from_config
 
 logger = logging.getLogger(__name__)
 
 
-async def plan_review_node(state: HelixGraphState, config: RunnableConfig) -> dict:
+async def plan_review_node(state: HolixGraphState, config: RunnableConfig) -> dict:
     """Review the generated plan before execution.
 
     Emits a PlanReviewRequestEvent and awaits user decision via Future.

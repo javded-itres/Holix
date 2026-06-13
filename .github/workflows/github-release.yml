@@ -4,10 +4,10 @@
 # Tag must match pyproject.toml (same rule as publish-pypi.yml).
 #
 # Typical flow:
-#   1. Commit release: Helix X.Y.Z (bump version + CHANGELOG)
+#   1. Commit release: Holix X.Y.Z (bump version + CHANGELOG)
 #   2. git tag vX.Y.Z && git push origin vX.Y.Z
 #   3. This workflow creates https://github.com/.../releases/tag/vX.Y.Z
-#   4. publish-pypi.yml publishes HelixAgentAi to PyPI
+#   4. publish-pypi.yml publishes Holix to PyPI
 name: GitHub Release
 
 on:
@@ -57,7 +57,7 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.ver.outputs.tag }}
-          name: Helix ${{ steps.ver.outputs.version }}
+          name: Holix ${{ steps.ver.outputs.version }}
           body_path: release-notes.md
           draft: false
           prerelease: false

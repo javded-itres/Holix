@@ -43,7 +43,9 @@ class SubAgentManager:
         self._parent = parent_agent
         self._comm_bus = AgentCommunicationBus()
         cfg = getattr(parent_agent, "config", None)
-        timeout = int(getattr(cfg, "confirmation_timeout", 300) or 300)
+        from core.security.confirmation import normalize_confirmation_timeout
+
+        timeout = normalize_confirmation_timeout(getattr(cfg, "confirmation_timeout", None))
         self.interactions = SubAgentInteractionBridge(
             parent_agent,
             confirmation_timeout=timeout,
@@ -51,6 +53,7 @@ class SubAgentManager:
         self._async_runner = AsyncSubAgentRunner(parent_agent, self._comm_bus.async_bus)
         self._process_manager = SubAgentProcessManager(parent_agent, self._comm_bus.process_bus)
         self._handles: dict[str, SubAgentHandle] = {}
+        self._pending_done: set[str] = set()
 
     def _max_concurrent(self) -> int:
         cfg = getattr(self._parent, "config", None)
@@ -139,9 +142,16 @@ class SubAgentManager:
 
         handle.task_preview = (task or "")[:240]
         handle.agent_type = agent_type or config.name
-        self._ensure_done_event(handle)
-        self._handles[config.name] = handle
+        self._register_handle(config.name, handle)
         return handle
+
+    def _register_handle(self, name: str, handle: SubAgentHandle) -> None:
+        """Track a handle and reconcile completion notifications."""
+        self._ensure_done_event(handle)
+        self._handles[name] = handle
+        if name in self._pending_done or handle.is_done:
+            self._pending_done.discard(name)
+            self._mark_done(handle)
 
     async def spawn_typed(
         self,
@@ -337,7 +347,12 @@ class SubAgentManager:
             except asyncio.CancelledError:
                 pass
             return
-        await event.wait()
+        while not handle.is_done:
+            try:
+                await asyncio.wait_for(event.wait(), timeout=0.25)
+            except TimeoutError:
+                if handle.is_done:
+                    break
 
     def format_status_text(self, *, html: bool = False) -> str:
         """Human-readable list of sub-agents for UI / slash commands."""
@@ -402,3 +417,5 @@ class SubAgentManager:
         handle = self._handles.get(name)
         if handle:
             self._mark_done(handle)
+        else:
+            self._pending_done.add(name)

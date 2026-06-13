@@ -2,14 +2,14 @@
 
 from __future__ import annotations
 
-from cli.tui.legacy.widgets.chat_log import HelixChatLog
-from cli.tui.legacy.widgets.input_area import HelixInputArea
+from cli.tui.legacy.widgets.chat_log import HolixChatLog
+from cli.tui.legacy.widgets.input_area import HolixInputArea
 from textual.app import ComposeResult
 from textual.containers import Vertical
 from textual.widgets import Button, ListView, Static
 
 
-class HelixMainContent(Vertical):
+class HolixMainContent(Vertical):
     """Chat log, context bar, and input."""
 
     def __init__(self, **kwargs) -> None:
@@ -17,7 +17,7 @@ class HelixMainContent(Vertical):
         super().__init__(**kwargs)
 
     def compose(self) -> ComposeResult:
-        yield HelixChatLog()
+        yield HolixChatLog()
         yield Button(
             "↓ New messages below — click or Ctrl+End",
             id="scroll-indicator",
@@ -25,4 +25,4 @@ class HelixMainContent(Vertical):
         )
         yield ListView(id="command-suggestions", classes="command-suggestions")
         yield Static("", id="context-bar")
-        yield HelixInputArea()
+        yield HolixInputArea()

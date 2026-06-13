@@ -12,7 +12,7 @@ from core.graph.nodes.memory_retrieval_node import memory_retrieval_node
 from core.graph.nodes.react_node import react_node
 from core.graph.nodes.tool_execution_node import tool_execution_node
 from core.graph.routers import route_after_react
-from core.graph.state import HelixGraphState
+from core.graph.state import HolixGraphState
 
 
 def build_react_graph(
@@ -20,7 +20,7 @@ def build_react_graph(
     checkpointer: Any = None,
     stream: bool = False,
 ):
-    graph = StateGraph(HelixGraphState)
+    graph = StateGraph(HolixGraphState)
     graph.add_node("memory_retrieval", memory_retrieval_node)
     graph.add_node("react", react_node)
     graph.add_node("tool_execution", tool_execution_node)

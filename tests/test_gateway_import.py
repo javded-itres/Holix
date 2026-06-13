@@ -1,6 +1,6 @@
 """Ensure api.gateway module loads and critical endpoints behave."""
 
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 from fastapi.testclient import TestClient
@@ -12,20 +12,25 @@ def test_gateway_module_imports() -> None:
     assert api.gateway.app is not None
 
 
-def test_permissions_endpoints_use_shared_manager() -> None:
-    import api.gateway
-    from core.security.confirmation import permission_manager
+def test_permissions_endpoints_use_profile_scoped_manager(
+    gateway_client: TestClient,
+    gateway_auth_headers: dict,
+) -> None:
+    from core.security.confirmation import get_permission_manager_for_profile
 
+    permission_manager = get_permission_manager_for_profile("default")
     permission_manager.clear_session()
-    client = TestClient(api.gateway.app)
+    client = gateway_client
+    headers = gateway_auth_headers
     tool_name = "test_gateway_permission_tool"
 
-    response = client.get("/v1/permissions")
+    response = client.get("/v1/permissions", headers=headers)
     assert response.status_code == 200
     assert response.json()["session"] == []
 
     response = client.post(
         "/v1/permissions/grant",
+        headers=headers,
         params={
             "tool_name": tool_name,
             "risk_level": "high",
@@ -41,6 +46,7 @@ def test_permissions_endpoints_use_shared_manager() -> None:
 
     response = client.delete(
         f"/v1/permissions/{tool_name}:high",
+        headers=headers,
         params={"scope": "session"},
     )
     assert response.status_code == 200
@@ -48,13 +54,14 @@ def test_permissions_endpoints_use_shared_manager() -> None:
     assert tool_name not in session_tools
 
 
-def test_prometheus_metrics_uses_global_collector() -> None:
-    import api.gateway
-
-    client = TestClient(api.gateway.app)
-    response = client.get("/metrics")
+def test_prometheus_metrics_uses_global_collector(
+    gateway_client: TestClient,
+    gateway_auth_headers: dict,
+) -> None:
+    client = gateway_client
+    response = client.get("/metrics", headers=gateway_auth_headers)
     assert response.status_code == 200
-    assert "helix_" in response.text
+    assert "holix_" in response.text
 
 
 def test_per_key_rate_limit_applied(monkeypatch) -> None:
@@ -76,8 +83,10 @@ def test_per_key_rate_limit_applied(monkeypatch) -> None:
             return True
 
     limiter = FakeLimiter()
-    monkeypatch.setattr(deps, "api_key_manager", FakeManager())
-    monkeypatch.setattr(deps, "rate_limiter", limiter)
+    import api.state
+
+    monkeypatch.setattr(api.state, "api_key_manager", FakeManager())
+    monkeypatch.setattr(api.state, "rate_limiter", limiter)
     monkeypatch.setattr("api.deps.settings.rate_limit_rpm", 100)
 
     import asyncio
@@ -88,8 +97,11 @@ def test_per_key_rate_limit_applied(monkeypatch) -> None:
 
 @pytest.mark.asyncio
 async def test_chat_completions_serializes_agent_access() -> None:
-    import api.gateway
+    import asyncio
+
+    import api.state
     from api.models import ChatCompletionRequest, Message
+    from api.routers.legacy_v1 import chat_completions
 
     mock_agent = AsyncMock()
     mock_agent._initialized = True
@@ -101,8 +113,19 @@ async def test_chat_completions_serializes_agent_access() -> None:
         conversation_id="c1",
     )
 
-    with patch.object(api.gateway, "agent", mock_agent):
-        response = await api.gateway.chat_completions(request, key_info=None)
+    api.state._agent_request_lock = asyncio.Lock()
+    key_info = {"permissions": ["read", "write", "execute"]}
+    mock_registry = MagicMock()
+    mock_registry.get_agent = AsyncMock(return_value=mock_agent)
+    response = await chat_completions(
+        request,
+        key_info=key_info,
+        registry=mock_registry,
+        x_holix_profile=None,
+        x_hermes_profile=None,
+        x_holix_session_id=None,
+        x_hermes_session_id=None,
+    )
 
     assert response.choices[0]["message"]["content"] == "ok"
     mock_agent.run.assert_awaited_once()

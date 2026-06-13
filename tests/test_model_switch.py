@@ -5,7 +5,7 @@ from __future__ import annotations
 from unittest.mock import MagicMock
 
 import pytest
-from core.di.runtime_config import HelixRuntimeConfig
+from core.di.runtime_config import HolixRuntimeConfig
 from core.models.manager import ModelConfig
 from integrations.telegram.keyboards import _cb, models_provider_keyboard
 from integrations.telegram.model_switch import (
@@ -55,10 +55,10 @@ def test_provider_keyboard_callback_length():
 
 
 def test_agent_set_active_model_config():
-    from core.agent import HelixAgent
+    from core.agent import HolixAgent
 
-    cfg = HelixRuntimeConfig.from_settings()
-    agent = HelixAgent(config=cfg, enable_monitoring=False)
+    cfg = HolixRuntimeConfig.from_settings()
+    agent = HolixAgent(config=cfg, enable_monitoring=False)
     new_mc = ModelConfig(
         provider="test",
         model="other-model",

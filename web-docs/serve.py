@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Serve Helix documentation site locally (with docs-chat API proxy)."""
+"""Serve Holix documentation site locally (with docs-chat API proxy)."""
 
 from __future__ import annotations
 
@@ -13,7 +13,7 @@ if str(ROOT) not in sys.path:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Serve Helix web-docs")
+    parser = argparse.ArgumentParser(description="Serve Holix web-docs")
     parser.add_argument("--port", "-p", type=int, default=8080)
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--profile", default="default")

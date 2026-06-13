@@ -102,7 +102,7 @@ def _interactive_popular_install(profile: str, manager, config) -> None:
 
     name = pop.key
     _save_mcp_server(profile, manager, config, name, data)
-    print_success(f"Added '{name}' to profile {profile}. Use `helix mcp assign` to enable it for agents/subs.")
+    print_success(f"Added '{name}' to profile {profile}. Use `holix mcp assign` to enable it for agents/subs.")
 
 
 def _interactive_git_install(profile: str, manager, config) -> None:
@@ -155,7 +155,7 @@ def _interactive_git_install(profile: str, manager, config) -> None:
                 return
 
     _save_mcp_server(profile, manager, config, name, data)
-    print_success(f"Saved git-based MCP '{name}' (cloned into ~/.helix/mcp-servers/{name}).")
+    print_success(f"Saved git-based MCP '{name}' (cloned into ~/.holix/mcp-servers/{name}).")
     print_info("You may need to run additional setup steps inside the cloned directory (see _notes if present).")
 
 
@@ -167,7 +167,7 @@ def mcp_list(ctx: typer.Context):
     assignments = getattr(config, "mcp_assignments", {}) or {}
 
     if not servers:
-        print_info("No MCP servers configured for this profile. Use `helix mcp add`.")
+        print_info("No MCP servers configured for this profile. Use `holix mcp add`.")
         return
 
     table = Table(title=f"MCP Servers — profile: {profile}")
@@ -200,7 +200,7 @@ def mcp_add(ctx: typer.Context, name: str | None = typer.Argument(None, help="Se
     """Advanced: manually configure an MCP server (stdio/sse).
 
     For popular ready-made servers (context7, filesystem, github, etc.) or git repos,
-    prefer the much easier `helix mcp install` command.
+    prefer the much easier `holix mcp install` command.
     """
     profile, config, manager = _get_config_and_manager(ctx)
     servers = dict(getattr(config, "mcp_servers", {}) or {})
@@ -279,7 +279,7 @@ async def _test_mcp_server(name: str, data: dict) -> None:
                 hint = (
                     "\n[dim]Filesystem MCP needs existing directories. "
                     "Re-run install and set allowed_paths to your project folder "
-                    "(e.g. /Users/you/Develop/ITRES/Helix).[/dim]"
+                    "(e.g. /Users/you/Develop/ITRES/Holix).[/dim]"
                 )
             print_error(f"Server error for {name}: {errs[name]}{hint}")
             raise RuntimeError(errs[name])
@@ -346,7 +346,7 @@ def mcp_assign(ctx: typer.Context):
     profile, config, manager = _get_config_and_manager(ctx)
     servers = list((getattr(config, "mcp_servers", {}) or {}).keys())
     if not servers:
-        print_error("No MCP servers defined. Use `helix mcp add` first.")
+        print_error("No MCP servers defined. Use `holix mcp add` first.")
         return
 
     assigns = dict(getattr(config, "mcp_assignments", {}) or {})
@@ -379,7 +379,7 @@ def mcp_assign(ctx: typer.Context):
 @app.command("setup")
 def mcp_setup(ctx: typer.Context):
     """Interactive wizard: add servers + assign to roles."""
-    print_info("MCP Setup — servers will be saved to your profile in ~/.helix only.")
+    print_info("MCP Setup — servers will be saved to your profile in ~/.holix only.")
     # delegate to add + assign
     # simple loop
     while Confirm.ask("Add another MCP server?", default=True):
@@ -394,7 +394,7 @@ def mcp_list_popular():
     """Show the curated list of popular MCP servers that can be installed easily."""
     popular = get_popular_list()
     console = Console()
-    table = Table(title="Popular MCP Servers (install with `helix mcp install`)")
+    table = Table(title="Popular MCP Servers (install with `holix mcp install`)")
     table.add_column("Key", style="cyan")
     table.add_column("Name")
     table.add_column("Category")
@@ -410,7 +410,7 @@ def mcp_list_popular():
         table.add_row(p.key, p.display_name, p.category, p.description[:50], install_hint, repo)
 
     console.print(table)
-    console.print("\n[dim]Run `helix mcp install` (no arguments) for an interactive picker.[/dim]")
+    console.print("\n[dim]Run `holix mcp install` (no arguments) for an interactive picker.[/dim]")
 
 
 @app.command("install")
@@ -424,9 +424,9 @@ def mcp_install(
     """Install a ready-made MCP server from the popular list or from a git repository.
 
     Examples:
-      helix mcp install                 # interactive picker
-      helix mcp install context7
-      helix mcp install https://github.com/upstash/context7
+      holix mcp install                 # interactive picker
+      holix mcp install context7
+      holix mcp install https://github.com/upstash/context7
     """
     profile, config, manager = _get_config_and_manager(ctx)
 
@@ -467,7 +467,7 @@ def mcp_install(
     # Popular key
     pop = get_popular_by_key(what)
     if not pop:
-        print_error(f"Unknown popular server '{what}'. See `helix mcp list-popular` or use a git URL.")
+        print_error(f"Unknown popular server '{what}'. See `holix mcp list-popular` or use a git URL.")
         return
 
     # Reuse the interactive param logic but non-interactive as much as possible

@@ -14,9 +14,9 @@ from core.search.providers import search_duckduckgo, search_firecrawl, search_se
 @pytest.mark.asyncio
 async def test_duckduckgo_parses_related_topics() -> None:
     payload = {
-        "Abstract": "Helix is an agent.",
+        "Abstract": "Holix is an agent.",
         "AbstractURL": "https://example.com",
-        "Heading": "Helix",
+        "Heading": "Holix",
         "RelatedTopics": [
             {"Text": "Topic one", "FirstURL": "https://a.example"},
         ],
@@ -45,7 +45,7 @@ async def test_duckduckgo_parses_related_topics() -> None:
             return FakeResp()
 
     with patch("core.search.providers.aiohttp.ClientSession", return_value=FakeSession()):
-        hits = await search_duckduckgo("helix", max_results=3)
+        hits = await search_duckduckgo("holix", max_results=3)
     assert len(hits) >= 2
     assert hits[0].source == "duckduckgo"
 

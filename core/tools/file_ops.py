@@ -1,8 +1,14 @@
-from pathlib import Path
-
+from core.crypto.profile_crypto import ProfileCryptoLockedError
 from core.tools.base import BaseTool
+from core.tools.execution_context import get_profile_name
 from core.tools.file_diff import format_write_file_result, read_file_text
-from core.workspace import WorkspaceJailError, resolve_tool_path
+from core.workspace import WorkspaceJailError, display_path_for_user, resolve_tool_path
+from core.workspace.quota import WorkspaceQuotaExceeded
+from core.workspace.storage import (
+    format_quota_error,
+    read_profile_file_text,
+    write_profile_file_text,
+)
 
 
 class ReadFileTool(BaseTool):
@@ -42,12 +48,15 @@ class ReadFileTool(BaseTool):
             if not file_path.is_file():
                 return f"Error: '{path}' is not a file"
 
-            with open(file_path, encoding='utf-8') as f:
-                content = f.read()
+            profile = get_profile_name()
+            content = read_profile_file_text(file_path, profile=profile)
 
-            return f"Content of {path}:\n{content}"
+            display_path = display_path_for_user(file_path, input_path=path)
+            return f"Content of {display_path}:\n{content}"
 
         except WorkspaceJailError as e:
+            return f"Error: {e}"
+        except ProfileCryptoLockedError as e:
             return f"Error: {e}"
         except Exception as e:
             return f"Error reading file: {str(e)}"
@@ -88,22 +97,19 @@ class WriteFileTool(BaseTool):
         """
         try:
             file_path = resolve_tool_path(path)
-            old_text = read_file_text(file_path)
+            profile = get_profile_name()
+            old_text = read_file_text(file_path, profile=profile)
 
-            file_path.parent.mkdir(parents=True, exist_ok=True)
+            write_profile_file_text(file_path, content, profile=profile)
 
-            with open(file_path, "w", encoding="utf-8") as f:
-                f.write(content)
-
-            display_path = str(file_path)
-            try:
-                display_path = str(file_path.resolve().relative_to(Path.cwd()))
-            except ValueError:
-                display_path = str(file_path)
-
+            display_path = display_path_for_user(file_path, input_path=path)
             return format_write_file_result(display_path, old_text, content)
 
+        except WorkspaceQuotaExceeded as e:
+            return format_quota_error(e)
         except WorkspaceJailError as e:
+            return f"Error: {e}"
+        except ProfileCryptoLockedError as e:
             return f"Error: {e}"
         except Exception as e:
             return f"Error writing file: {str(e)}"
@@ -148,7 +154,8 @@ class ListDirectoryTool(BaseTool):
 
             items = sorted(dir_path.iterdir(), key=lambda x: (not x.is_dir(), x.name))
 
-            output_lines = [f"Contents of {path}:"]
+            display_path = display_path_for_user(dir_path, input_path=path)
+            output_lines = [f"Contents of {display_path}:"]
             for item in items:
                 prefix = "[DIR] " if item.is_dir() else "[FILE]"
                 output_lines.append(f"{prefix} {item.name}")

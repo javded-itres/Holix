@@ -1,15 +1,15 @@
-# Helix — Complete User Guide
+# Holix — Complete User Guide
 
 Step-by-step instructions: install from `.whl`, initial setup, LiteLLM connection, MCP, skills, Telegram, and execution modes.
 
-> All commands and paths are taken from the Helix repository (`cli/`, `docs/`, `config.py`, `pyproject.toml`).  
-> The package is named **`HelixAgentAi`**; the terminal command is **`helix`**.
+> All commands and paths are taken from the Holix repository (`cli/`, `docs/`, `config.py`, `pyproject.toml`).  
+> The package is named **`Holix`**; the terminal command is **`holix`**.
 
 ---
 
 ## Table of Contents
 
-1. [What Helix Can Do](#1-what-helix-can-do)
+1. [What Holix Can Do](#1-what-holix-can-do)
 2. [Requirements](#2-requirements)
 3. [Step 1 — Install Python](#3-step-1--install-python)
 4. [Step 2 — Install UV (recommended)](#4-step-2--install-uv-recommended)
@@ -24,25 +24,25 @@ Step-by-step instructions: install from `.whl`, initial setup, LiteLLM connectio
 13. [Step 11 — Skills and Hub Plugins](#13-step-11--skills-and-hub-plugins)
 14. [CLI Reference](#14-cli-reference)
 15. [Slash Commands `/` in Chat](#15-slash-commands--in-chat)
-16. [Helix Features](#16-helix-features)
+16. [Holix Features](#16-holix-features)
 17. [Troubleshooting](#17-troubleshooting)
 
 ---
 
-## 1. What Helix Can Do
+## 1. What Holix Can Do
 
-Helix is an AI agent with:
+Holix is an AI agent with:
 
 - **tool calling** — files, terminal, web, code, optional browser (Playwright);
 - **memory** — SQLite + semantic search (ChromaDB);
 - **skills** — markdown instructions, Hub catalogs (ClawHub, Hermes, Claude plugins);
 - **MCP** — connect external Model Context Protocol servers;
-- **multiple interfaces** — TUI (`helix tui`), chat (`helix chat-command`), single request (`helix run`), API (`helix gateway`), Telegram;
+- **multiple interfaces** — TUI (`holix tui`), chat (`holix chat-command`), single request (`holix run`), API (`holix gateway`), Telegram;
 - **security** — confirmation for dangerous actions, command whitelist, API keys;
 - **subagents** — background tasks in separate processes;
 - **planning** — modes with plan review and step approval.
 
-Data is stored in **`~/.helix/`** (Linux/macOS) or **`%LOCALAPPDATA%\Helix\`** (Windows).
+Data is stored in **`~/.holix/`** (Linux/macOS) or **`%LOCALAPPDATA%\Holix\`** (Windows).
 
 ---
 
@@ -53,7 +53,7 @@ Data is stored in **`~/.helix/`** (Linux/macOS) or **`%LOCALAPPDATA%\Helix\`** (
 | **Python** | **3.12+** (`requires-python` in `pyproject.toml`) |
 | **uv** | recommended for installing dependencies |
 | **LLM** | OpenAI-compatible API (this guide uses **LiteLLM**) |
-| **Node.js / npx** | required for many MCP servers (`helix doctor` will check) |
+| **Node.js / npx** | required for many MCP servers (`holix doctor` will check) |
 | **Docker** | optional (e.g., MCP GitHub) |
 
 ---
@@ -77,7 +77,7 @@ You should see **3.12.x** or higher.
 
 ## 4. Step 2 — Install UV (recommended)
 
-UV is a fast Python package manager. Helix documentation recommends it for development and installation.
+UV is a fast Python package manager. Holix documentation recommends it for development and installation.
 
 **macOS / Linux:**
 
@@ -97,51 +97,51 @@ Alternative without UV: plain `pip` (see step 5).
 
 ## 5. Step 3 — Install from PyPI
 
-Package **[HelixAgentAi](https://pypi.org/project/HelixAgentAi/)** on PyPI; terminal command **`helix`**.
+Package **[Holix](https://pypi.org/project/Holix/)** on PyPI; terminal command **`holix`**.
 
 > Do not use `pip install helix` — on PyPI that is a **different** project.
 
 ### 5.1. Global install (recommended)
 
 ```bash
-pipx install HelixAgentAi
-helix version
+pipx install Holix
+holix version
 ```
 
 With optional extras (Telegram, browser, web TUI, voice):
 
 ```bash
-pipx install "HelixAgentAi[all]"
-# or: pipx install "HelixAgentAi[telegram,browser,tui-web]"
+pipx install "Holix[all]"
+# or: pipx install "Holix[telegram,browser,tui-web]"
 ```
 
-Alternative: `uv tool install HelixAgentAi`
+Alternative: `uv tool install Holix`
 
 ### 5.2. Virtual environment
 
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate          # Windows: .venv\Scripts\activate
-pip install HelixAgentAi
-pip install "HelixAgentAi[telegram]"
-helix version
+pip install Holix
+pip install "Holix[telegram]"
+holix version
 ```
 
 ### 5.3. User install (`~/.local/bin`)
 
 ```bash
-pip install --user HelixAgentAi
+pip install --user Holix
 export PATH="$HOME/.local/bin:$PATH"
-helix version
+holix version
 ```
 
 ### 5.4. Windows
 
-PowerShell install, `%LOCALAPPDATA%\Helix\` paths, and troubleshooting: [INSTALLATION.md — Windows](INSTALLATION.md#windows).
+PowerShell install, `%LOCALAPPDATA%\Holix\` paths, and troubleshooting: [INSTALLATION.md — Windows](INSTALLATION.md#windows).
 
 ```powershell
-pipx install HelixAgentAi
-helix version
+pipx install Holix
+holix version
 # or from git clone:
 .\scripts\install.ps1
 ```
@@ -152,17 +152,17 @@ For offline machines or CI artifacts, build or download a wheel:
 
 ```bash
 # build from source:
-uv build && ls dist/helixagentai-*.whl
+uv build && ls dist/holix-*.whl
 
-pipx install /path/to/helixagentai-0.1.3-py3-none-any.whl
-# or: uv tool install /path/to/helixagentai-*.whl
+pipx install /path/to/holix-0.1.3-py3-none-any.whl
+# or: uv tool install /path/to/holix-*.whl
 ```
 
 ### 5.6. Post-install verification
 
 ```bash
-helix --help
-helix doctor
+holix --help
+holix doctor
 ```
 
 ---
@@ -171,45 +171,50 @@ helix doctor
 
 ### 6.1. Create the environment file
 
-On first profile creation, Helix seeds **`~/.helix/profiles/<name>/.env`** from `.env.example` (or copies legacy `~/.helix/.env` if present).
+On first profile creation, Holix seeds **`~/.holix/profiles/<name>/.env`** from `.env.example` (or copies legacy `~/.holix/.env` if present).
 
 ```bash
-helix profile env --edit
+holix profile env --edit
 # or manually:
-cp .env.example ~/.helix/profiles/default/.env
+cp .env.example ~/.holix/profiles/default/.env
 ```
 
-API keys, gateway port, and feature flags belong in the **profile** `.env`, not the global `~/.helix/.env` (legacy fallback only).
+API keys, gateway port, and feature flags belong in the **profile** `.env`, not the global `~/.holix/.env` (legacy fallback only).
 
 ### 6.2. Profile
 
 Each profile is an isolated environment:
 
 ```
-~/.helix/profiles/<name>/.env           # secrets and gateway bind
-~/.helix/profiles/<name>/telegram.env  # Telegram bot (optional)
-~/.helix/profiles/<name>/gateway/        # gateway state and log
-~/.helix/profiles/<name>/config.yaml
-~/.helix/profiles/<name>/data/
+~/.holix/profiles/<name>/.env           # secrets and gateway bind
+~/.holix/profiles/<name>/telegram.env  # Telegram bot (optional)
+~/.holix/profiles/<name>/gateway/        # gateway state and log
+~/.holix/profiles/<name>/config.yaml
+~/.holix/profiles/<name>/SOUL.md        # agent personality (every session)
+~/.holix/profiles/<name>/USER.md        # facts about you
+~/.holix/profiles/<name>/INIT.md        # first-run onboarding (temporary)
+~/.holix/profiles/<name>/data/
 ```
 
-The **`default`** profile is used by default. On first run, Helix creates the required directories.
+The **`default`** profile is used by default. On first run, Holix creates the required directories.
 
-**Workspace jail** (optional): restrict file/terminal tools to one folder — `helix profile jail enable /path/to/dir`. See [CONFIGURATION.md](CONFIGURATION.md).
+**First chat:** if `INIT.md` is present, the agent introduces itself, learns your name and preferences, and saves them to `USER.md` / `SOUL.md` via built-in tools. Say “save your personality” or “remember my name is …” when ready. Details: [PROFILES.md](PROFILES.md#agent-identity-soul-init-user).
 
-**Terminal whitelist** (optional): `helix profile whitelist enable`, `whitelist add "docker, make"`, `whitelist list` — see [PROFILES.md](PROFILES.md).
+**Workspace jail** (optional): restrict file/terminal tools to one folder — `holix profile jail enable /path/to/dir`. See [CONFIGURATION.md](CONFIGURATION.md).
+
+**Terminal whitelist** (optional): `holix profile whitelist enable`, `whitelist add "docker, make"`, `whitelist list` — see [PROFILES.md](PROFILES.md).
 
 View settings:
 
 ```bash
-helix status
-helix config show
+holix status
+holix config show
 ```
 
 Switch profile:
 
 ```bash
-helix -p work tui
+holix -p work tui
 ```
 
 In chat: `/profile work` or `/profile` (list).
@@ -217,8 +222,8 @@ In chat: `/profile work` or `/profile` (list).
 ### 6.3. Diagnostics
 
 ```bash
-helix doctor
-helix doctor --fix
+holix doctor
+holix doctor --fix
 ```
 
 Doctor checks: directories, YAML, LLM, gateway, Telegram, MCP env, platform (node/npx/git).
@@ -231,17 +236,17 @@ When running LiteLLM locally, the default endpoint is:
 
 **`http://localhost:4000`**
 
-Helix talks to LiteLLM through the **OpenAI-compatible API** (`/v1/chat/completions`, `/v1/models`).
+Holix talks to LiteLLM through the **OpenAI-compatible API** (`/v1/chat/completions`, `/v1/models`).
 
 ### 7.1. What to get from the LiteLLM administrator
 
 1. **Virtual API key** (client key) — stored as `LITELLM_API_KEY`.
 2. A list of **model names** (`model_name` in the LiteLLM config) that you are allowed to use.  
-   The Helix catalog for the `litellm` preset lists examples: `smart`, `fast`, `heavy` — **actual names on your server may differ**; Helix will show the list on successful connection.
+   The Holix catalog for the `litellm` preset lists examples: `smart`, `fast`, `heavy` — **actual names on your server may differ**; Holix will show the list on successful connection.
 
 ### 7.2. Save the key in the profile `.env`
 
-Open `~/.helix/profiles/default/.env` (`helix profile env --edit`) and add:
+Open `~/.holix/profiles/default/.env` (`holix profile env --edit`) and add:
 
 ```bash
 # LiteLLM proxy
@@ -249,7 +254,7 @@ LITELLM_API_BASE=http://localhost:4000/v1
 LITELLM_API_KEY=sk-your-virtual-key-from-litellm
 ```
 
-> Helix substitutes `${LITELLM_API_KEY}` and the host from `LITELLM_API_BASE` into the profile `config.yaml`.
+> Holix substitutes `${LITELLM_API_KEY}` and the host from `LITELLM_API_BASE` into the profile `config.yaml`.
 
 Optional API availability check (from the user's machine):
 
@@ -263,21 +268,21 @@ The response should be JSON with a list of models.
 ### 7.3. Add the LiteLLM provider to the profile (interactive)
 
 ```bash
-helix models add litellm --host http://localhost:4000
+holix models add litellm --host http://localhost:4000
 ```
 
 What happens:
 
-1. Helix prompts for the API key (if `LITELLM_API_KEY` is already in `.env` — it uses that).
+1. Holix prompts for the API key (if `LITELLM_API_KEY` is already in `.env` — it uses that).
 2. Connects to `http://localhost:4000/v1`.
 3. Loads the model list from `/v1/models`.
 4. Asks you to choose the **default model** for this provider.
-5. Saves settings to `~/.helix/profiles/default/config.yaml`.
+5. Saves settings to `~/.holix/profiles/default/config.yaml`.
 
 ### 7.4. Full setup wizard (recommended)
 
 ```bash
-helix models setup
+holix models setup
 ```
 
 In the menu:
@@ -292,7 +297,7 @@ In the menu:
 
 ### 7.5. Assigning models to agents
 
-In `helix models setup` → option **5** (Configure agent models):
+In `holix models setup` → option **5** (Configure agent models):
 
 - **`main`** — primary agent in chat;
 - you can assign different models to subagents (`researcher`, `coder`, …).
@@ -300,7 +305,7 @@ In `helix models setup` → option **5** (Configure agent models):
 View assignments:
 
 ```bash
-helix models agents
+holix models agents
 ```
 
 ### 7.6. Example `config.yaml` fragment after setup
@@ -327,7 +332,7 @@ agent_models:
 If gateway or Telegram is running:
 
 ```bash
-helix gateway reload
+holix gateway reload
 ```
 
 In TUI, switch models on the fly: `/models` or `/model`.
@@ -336,17 +341,17 @@ In TUI, switch models on the fly: `/models` or `/model`.
 
 ## 8. Step 6 — Web Search (optional)
 
-Helix supports providers: **DuckDuckGo** (default), **SearXNG**, **Firecrawl**.
+Holix supports providers: **DuckDuckGo** (default), **SearXNG**, **Firecrawl**.
 
 ```bash
-helix search configure   # interactive provider selection and order
-helix search list
-helix search test "test query"
+holix search configure   # interactive provider selection and order
+holix search list
+holix search test "test query"
 ```
 
 In chat: `/search`, `/search configure`, `/search test query`.
 
-After configuration: `helix gateway reload`.
+After configuration: `holix gateway reload`.
 
 Secrets in `.env`: `FIRECRAWL_API_KEY`, `SEARXNG_BASE_URL` (see `.env.example`).
 
@@ -359,7 +364,7 @@ Secrets in `.env`: `FIRECRAWL_API_KEY`, `SEARXNG_BASE_URL` (see `.env.example`).
 ```bash
 uv sync --extra telegram
 # or when installing the wheel:
-pip install "HelixAgentAi[telegram]"
+pip install "Holix[telegram]"
 ```
 
 ### 9.2. Create a bot in Telegram
@@ -367,94 +372,109 @@ pip install "HelixAgentAi[telegram]"
 1. Open Telegram and find **[@BotFather](https://t.me/BotFather)**.
 2. Send the **`/newbot`** command.
 3. Enter the bot **display name**.
-4. Enter the bot **username** (must end with `bot`, e.g. `my_company_helix_bot`).
+4. Enter the bot **username** (must end with `bot`, e.g. `my_company_holix_bot`).
 5. BotFather will send a **token** like `123456789:AAHxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx` — save it.
 
-### 9.3. Find your Telegram user id
-
-Required to restrict access (who can message the bot):
-
-- message [@userinfobot](https://t.me/userinfobot), or
-- the `helix telegram setup` wizard can detect the id automatically.
-
-### 9.4. Interactive Helix setup
+### 9.3. Connect the bot (admin)
 
 ```bash
-helix telegram setup
+holix -p shared telegram setup
 ```
 
-The wizard:
+The wizard validates the token via the Telegram API (`getMe`), saves it to **`~/.holix/profiles/<name>/telegram.env`**, and enables **access-request mode** (`HOLIX_TELEGRAM_ACCESS_REQUESTS=true`). You do **not** enter user ids during setup.
 
-1. Validates the token via the Telegram API (`getMe`).
-2. Asks for the user **allowlist** (`HELIX_TELEGRAM_ALLOWED_USERS`).
-3. Saves settings to **`~/.helix/profiles/<name>/telegram.env`**.
-4. When multiple Helix profiles exist, offers **user id → profile** bindings (one bot, many users).
+Use a **named** profile (`-p shared`) for production multi-user bots — profile `default` is dev-only when `HOLIX_ENV=production`.
 
-### 9.4.1. User id → profile mapping (shared bot)
+### 9.4. Designate the Telegram admin (once, CLI only)
 
 ```bash
-helix -p shared telegram map set 123456789 alice
-helix -p shared telegram map bind bob --user-id 987654321
-helix -p shared telegram map list
+holix -p shared telegram requests approve USER_ID --set-admin
 ```
 
-Details: [TELEGRAM_MULTI_PROFILE.md](TELEGRAM_MULTI_PROFILE.md).
+Creates Holix profile **`admin`**, stores the single admin in `telegram.env`, and enables the command menu for that user. Cannot be done from Telegram. Check: `holix telegram admin show`.
 
-### 9.5. Start the bot
+### 9.5. Users request access
+
+1. User opens the bot in Telegram and sends **`/start`**.
+2. Bot replies that access is pending (slash menu hidden).
+3. The Telegram admin receives a notification with CLI approve/reject commands.
+
+### 9.5.1. Admin approves and creates an isolated profile
+
+```bash
+holix -p shared telegram requests list
+holix -p shared telegram requests approve USER_ID -i
+holix -p shared telegram requests approve USER_ID --create-profile ivan
+```
+
+Holix creates a **protected** profile (with `--create-profile`), enables **workspace jail**, binds the user, **sends the access key in Telegram**, and enables the slash menu. No bot restart required.
+
+> **What users see:** when the agent mentions files, replies show paths **relative to the user's workspace folder** (for example `notes.txt` or `docs/report.pdf`), not the full server path under `~/.holix/profiles/…`. This is intentional privacy for multi-user hosts. Platform admins see full paths — [PROFILES.md](PROFILES.md#path-visibility-in-responses).
+
+Other options: `requests approve … --profile existing`, `requests reject USER_ID`.  
+Manual bindings: `holix telegram map set …` — see [TELEGRAM_MULTI_PROFILE.md](TELEGRAM_MULTI_PROFILE.md).
+
+### 9.6. Start the bot
 
 **Standalone:**
 
 ```bash
-helix telegram run
+holix telegram run
 # or simply:
-helix telegram
+holix telegram
 ```
 
 **Together with the API gateway** (recommended for always-on use):
 
 ```bash
-helix gateway start
+HOLIX_ENV=production holix -p shared gateway start -f
 ```
 
 The gateway supervisor also starts Telegram if it is configured.
 
-### 9.6. Update the Telegram command menu
+### 9.7. Update the Telegram command menu
 
 ```bash
-helix telegram sync-menu
+holix telegram sync-menu
 ```
 
-After changing skills, MCP, or slash commands.
+Refreshes menus for **authorized** users only (hidden until approve). Run after changing skills, MCP, or slash commands.
 
-### 9.7. Voice messages (optional)
+### 9.8. Voice messages (optional)
 
 If chat already goes through LiteLLM, configure the transcription model **in the LiteLLM config** and in the profile `.env`:
 
 ```bash
-HELIX_WHISPER_BASE_URL=http://localhost:4000/v1
-HELIX_WHISPER_API_KEY=sk-...          # LiteLLM virtual key
-HELIX_WHISPER_MODEL=whisper           # model_name from LiteLLM (not whisper-1)
-HELIX_TELEGRAM_VOICE_LANGUAGE=en
+HOLIX_WHISPER_BASE_URL=http://localhost:4000/v1
+HOLIX_WHISPER_API_KEY=sk-...          # LiteLLM virtual key
+HOLIX_WHISPER_MODEL=whisper           # model_name from LiteLLM (not whisper-1)
+HOLIX_TELEGRAM_VOICE_LANGUAGE=en
 ```
 
 More details: [TELEGRAM.md](TELEGRAM.md).
 
 ### 9.8. Production
 
-When `HELIX_ENV=production`, `HELIX_TELEGRAM_ALLOWED_USERS` is required.
+When `HOLIX_ENV=production`:
+
+- use a **named** bot profile (`-p shared`), not `default`;
+- prefer **access requests** (`telegram setup` + `telegram requests approve --create-profile`);
+- or set `HOLIX_TELEGRAM_ALLOWED_USERS` for a personal single-user bot.
+
+Full guide: [TELEGRAM.md](TELEGRAM.md).
 
 ---
 
 ## 10. Step 8 — Execution Modes
 
-Helix supports four execution modes in TUI and Telegram:
+Holix supports four execution modes in TUI and Telegram:
 
 | Mode | Name | When to use |
 |------|------|-------------|
 | **ReAct** | `react` | Quick questions, tools, exploration (default) |
 | **Plan** | `plan_and_execute` | Multi-step tasks with clear subgoals |
 | **Hybrid** | `hybrid` | Large tasks: plan first, flexible work per step |
-| **Auto** | `auto` | Helix picks the best mode via a classifier |
+| **Auto** | `auto` | Holix picks the best mode via a classifier |
 
 Switch with **`/mode`**, **`/mode <name>`**, or **Shift+Tab** (legacy TUI). Plan modes use `/plan-confirm`, `/plan-auto`, `/plan-refine`, `/plan-reject`. Risky tools use `/yes`, `/1`–`/4`.
 
@@ -478,7 +498,7 @@ MCP (Model Context Protocol) adds external tools (GitHub, filesystem, documentat
 ### 12.1. Browse popular servers
 
 ```bash
-helix mcp list-popular
+holix mcp list-popular
 ```
 
 Examples from the catalog: `filesystem`, `github`, `context7`, `compass`, `postgres`, …
@@ -486,7 +506,7 @@ Examples from the catalog: `filesystem`, `github`, `context7`, `compass`, `postg
 ### 12.2. Install MCP (easy way)
 
 ```bash
-helix mcp install
+holix mcp install
 ```
 
 Interactive: pick from the list → enter parameters (paths, API keys) → test → save to profile.
@@ -494,20 +514,20 @@ Interactive: pick from the list → enter parameters (paths, API keys) → test 
 Or by name:
 
 ```bash
-helix mcp install context7
-helix mcp install filesystem
+holix mcp install context7
+holix mcp install filesystem
 ```
 
 From git:
 
 ```bash
-helix mcp install https://github.com/upstash/context7
+holix mcp install https://github.com/upstash/context7
 ```
 
 ### 12.3. Assign MCP to agents
 
 ```bash
-helix mcp assign
+holix mcp assign
 ```
 
 For example: `main` sees `filesystem` and `context7`, subagent `researcher` — only `context7`.
@@ -515,15 +535,15 @@ For example: `main` sees `filesystem` and `context7`, subagent `researcher` — 
 Verify:
 
 ```bash
-helix mcp list
-helix mcp test <server-name>
-helix mcp tools
+holix mcp list
+holix mcp test <server-name>
+holix mcp tools
 ```
 
 ### 12.4. Full wizard
 
 ```bash
-helix mcp setup
+holix mcp setup
 ```
 
 Add servers + assign to roles.
@@ -543,7 +563,7 @@ Add servers + assign to roles.
 ### 12.6. Apply
 
 ```bash
-helix gateway reload
+holix gateway reload
 ```
 
 MCP tools in the agent are named **`mcp_<server>_<tool>`**.
@@ -551,8 +571,8 @@ MCP tools in the agent are named **`mcp_<server>_<tool>`**.
 ### 12.7. Environment variables for MCP
 
 Secrets in MCP config: `${GITHUB_TOKEN}`, `${CONTEXT7_API_KEY}`, etc.  
-Values go in `~/.helix/.env`.  
-`helix doctor` warns about unresolved `${VAR}`.
+Values go in `~/.holix/.env`.  
+`holix doctor` warns about unresolved `${VAR}`.
 
 ---
 
@@ -561,21 +581,21 @@ Values go in `~/.helix/.env`.
 ### 13.1. What are skills
 
 A **skill** is a `SKILL.md` file with instructions for the agent.  
-Stored in: `~/.helix/profiles/<profile>/data/skills/`
+Stored in: `~/.holix/profiles/<profile>/data/skills/`
 
 ### 13.2. Install from Hub (CLI)
 
 ```bash
 # search
-helix hub search "docker" -s clawhub
-helix hub search "git" -s clawhub
+holix hub search "docker" -s clawhub
+holix hub search "git" -s clawhub
 
 # interactive browse
-helix hub browse
+holix hub browse
 
 # install
-helix hub install <spec>
-helix hub install <spec> --agents main,coder
+holix hub install <spec>
+holix hub install <spec> --agents main,coder
 ```
 
 Spec formats (from Hub documentation):
@@ -605,26 +625,26 @@ By default **`main`** sees all skills in the profile.
 Restrict via `skill_assignments` in `config.yaml`:
 
 ```bash
-helix skills list --agent main
-helix skills assign docker-manager --agents main,coder
-helix skills unassign docker-manager --agent coder
-helix skills assign-wizard    # interactive
+holix skills list --agent main
+holix skills assign docker-manager --agents main,coder
+holix skills unassign docker-manager --agent coder
+holix skills assign-wizard    # interactive
 ```
 
 ### 13.5. Hub updates
 
 ```bash
-helix hub list
-helix hub check-updates
-helix hub update
-helix hub autoupdate --enable
-helix hub slash-sync          # refresh skill-slash.json
+holix hub list
+holix hub check-updates
+holix hub update
+holix hub autoupdate --enable
+holix hub slash-sync          # refresh skill-slash.json
 ```
 
 ### 13.6. Apply
 
 ```bash
-helix gateway reload
+holix gateway reload
 ```
 
 ---
@@ -637,17 +657,17 @@ Global options: **`--profile` / `-p`**, **`--verbose` / `-v`**.
 
 | Command | Purpose |
 |---------|---------|
-| `helix tui` | Full-screen interface (recommended) |
-| `helix chat-command` | Terminal chat |
-| `helix run "query"` | Single request without entering chat |
-| `helix status` | Profile status |
-| `helix version` | Version |
-| `helix clear` | Clear profile data |
-| `helix doctor` | Diagnostics |
-| `helix install` | Install helix to PATH (from source) |
-| `helix update` | Update |
+| `holix tui` | Full-screen interface (recommended) |
+| `holix chat-command` | Terminal chat |
+| `holix run "query"` | Single request without entering chat |
+| `holix status` | Profile status |
+| `holix version` | Version |
+| `holix clear` | Clear profile data |
+| `holix doctor` | Diagnostics |
+| `holix install` | Install holix to PATH (from source) |
+| `holix update` | Update |
 
-### `helix models`
+### `holix models`
 
 | Subcommand | Description |
 |------------|-------------|
@@ -657,7 +677,7 @@ Global options: **`--profile` / `-p`**, **`--verbose` / `-v`**.
 | `list` | Providers in profile |
 | `agents` | Model assignments per agent |
 
-### `helix config`
+### `holix config`
 
 | Subcommand | Description |
 |------------|-------------|
@@ -665,49 +685,49 @@ Global options: **`--profile` / `-p`**, **`--verbose` / `-v`**.
 | `edit` | Editor |
 | `set key value` | Change a field |
 
-### `helix mcp`
+### `holix mcp`
 
 `list`, `add`, `remove`, `test`, `assign`, `setup`, `list-popular`, `install`
 
-### `helix hub`
+### `holix hub`
 
 `search`, `browse`, `install`, `list`, `remove`, `check-updates`, `update`, `autoupdate`, `slash-sync`
 
-### `helix skills`
+### `holix skills`
 
 `list`, `search`, `show`, `assign`, `unassign`, `agents`, `assign-wizard`
 
-### `helix memory`
+### `holix memory`
 
 `search "<query>"`
 
-### `helix search`
+### `holix search`
 
 `configure`, `list`, `test`
 
-### `helix gateway`
+### `holix gateway`
 
 `start`, `stop`, `status`, `reload`  
 Endpoints: `/health`, `/v1/chat/completions`, … — see [GATEWAY.md](GATEWAY.md).
 
-### `helix cron`
+### `holix cron`
 
 Requires a running gateway.  
 `add`, `list`, `enable`, `disable`, `remove`
 
-### `helix logs`
+### `holix logs`
 
-`helix logs`, `helix logs -f`, `helix logs -s agent`, `helix logs list`, `helix logs rotate`, `helix logs debug on`
+`holix logs`, `holix logs -f`, `holix logs -s agent`, `holix logs list`, `holix logs rotate`, `holix logs debug on`
 
-### `helix telegram`
+### `holix telegram`
 
-`setup`, `run`, `status`, `sync-menu`, `map set|list|remove|bind|import` — see [TELEGRAM_MULTI_PROFILE.md](TELEGRAM_MULTI_PROFILE.md)
+`setup`, `admin show|clear`, `requests list|approve|reject` (`--set-admin`, `-i`), `run`, `status`, `sync-menu`, `map set|list|remove|bind|import` — see [TELEGRAM.md](TELEGRAM.md) and [TELEGRAM_MULTI_PROFILE.md](TELEGRAM_MULTI_PROFILE.md)
 
 ---
 
 ## 15. Slash Commands `/` in Chat
 
-Work in **TUI**, **Telegram**, and partially in **`helix chat-command`**.
+Work in **TUI**, **Telegram**, and partially in **`holix chat-command`**.
 
 Full list: [SLASH_COMMANDS.md](SLASH_COMMANDS.md).
 
@@ -731,16 +751,16 @@ On macOS with a non-US keyboard layout, `/` may be **Shift+7**.
 
 ---
 
-## 16. Helix Features
+## 16. Holix Features
 
-1. **Profiles** — multiple isolated configurations (`helix -p name`).
+1. **Profiles** — multiple isolated configurations (`holix -p name`).
 2. **Memory** — conversations + long-term memory + semantic search (`/memory`).
 3. **Confirmations** — dangerous tool calls require explicit approval.
 4. **Plan review** — multi-step tasks are not run silently without your OK (when enabled).
 5. **Subagents** — background worker processes; main chat is not blocked (`/subagent-spawn`).
 6. **MCP and Hub** — extend without editing agent code.
 7. **Multi-interface** — one profile for TUI, Telegram, and API gateway.
-8. **Logs** — structured logs for agent/gateway/cron/subagent (`helix logs`).
+8. **Logs** — structured logs for agent/gateway/cron/subagent (`holix logs`).
 9. **Doctor** — self-diagnostics for the environment.
 10. **OpenAI-compatible API** — gateway for integration with other clients.
 11. **Voice in Telegram** — Whisper via LiteLLM, OpenAI, or locally (`faster-whisper`).
@@ -751,18 +771,18 @@ On macOS with a non-US keyboard layout, `/` may be **Shift+7**.
 ## 17. Troubleshooting
 
 ```bash
-helix doctor
-helix doctor --fix
-helix logs -l error -n 50
+holix doctor
+holix doctor --fix
+holix logs -l error -n 50
 ```
 
 | Problem | What to check |
 |---------|---------------|
-| `helix: command not found` | PATH, venv, `pipx` / `uv tool` |
-| No response from model | `LITELLM_API_KEY`, URL, `helix models list`, curl `/v1/models` |
-| MCP not showing up | `helix mcp test`, `helix gateway reload`, `helix doctor` |
-| Telegram silent | `helix telegram status`, token, allowlist, `helix gateway status` |
-| Stale slash commands | `helix telegram sync-menu`, `helix gateway reload` |
+| `holix: command not found` | PATH, venv, `pipx` / `uv tool` |
+| No response from model | `LITELLM_API_KEY`, URL, `holix models list`, curl `/v1/models` |
+| MCP not showing up | `holix mcp test`, `holix gateway reload`, `holix doctor` |
+| Telegram silent | `holix telegram status`, token, `telegram requests list`, `holix gateway status` |
+| Stale slash commands | `holix telegram sync-menu`, `holix gateway reload` |
 
 More: [TROUBLESHOOTING.md](TROUBLESHOOTING.md), [DOCTOR.md](DOCTOR.md).
 
@@ -772,13 +792,13 @@ More: [TROUBLESHOOTING.md](TROUBLESHOOTING.md), [DOCTOR.md](DOCTOR.md).
 
 1. Python 3.12+  
 2. `uv` or `pip`  
-3. `uv pip install helixagentai-….whl` (or `pipx install …`)  
-4. `~/.helix/.env` with `LITELLM_API_BASE` and `LITELLM_API_KEY`  
-5. `helix models add litellm --host http://localhost:4000`  
-6. `helix models setup` → assign a model for `main`  
-7. `helix doctor`  
-8. `helix tui` or `helix telegram setup` + `helix gateway start`  
-9. As needed: `helix mcp install`, `helix hub browse`, `helix search configure`  
+3. `uv pip install holix-….whl` (or `pipx install …`)  
+4. `~/.holix/.env` with `LITELLM_API_BASE` and `LITELLM_API_KEY`  
+5. `holix models add litellm --host http://localhost:4000`  
+6. `holix models setup` → assign a model for `main`  
+7. `holix doctor`  
+8. `holix tui` or `holix telegram setup` + `holix gateway start`  
+9. As needed: `holix mcp install`, `holix hub browse`, `holix search configure`  
 
 ---
 

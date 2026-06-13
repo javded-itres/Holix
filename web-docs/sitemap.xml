@@ -1,132 +1,142 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
-    <loc>https://helix-agent.ru/</loc>
+    <loc>https://holix-agent.ru/</loc>
     <changefreq>weekly</changefreq>
     <priority>1.0</priority>
   </url>
   <url>
-    <loc>https://helix-agent.ru/docs</loc>
+    <loc>https://holix-agent.ru/docs</loc>
     <changefreq>weekly</changefreq>
     <priority>0.9</priority>
   </url>
   <url>
-    <loc>https://helix-agent.ru/docs/architecture</loc>
+    <loc>https://holix-agent.ru/docs/architecture</loc>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://helix-agent.ru/docs/browser-tools</loc>
+    <loc>https://holix-agent.ru/docs/browser-tools</loc>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://helix-agent.ru/docs/cli</loc>
+    <loc>https://holix-agent.ru/docs/cli</loc>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://helix-agent.ru/docs/configuration</loc>
+    <loc>https://holix-agent.ru/docs/configuration</loc>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://helix-agent.ru/docs/deployment</loc>
+    <loc>https://holix-agent.ru/docs/deployment</loc>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://helix-agent.ru/docs/doctor</loc>
+    <loc>https://holix-agent.ru/docs/doctor</loc>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://helix-agent.ru/docs/execution-modes</loc>
+    <loc>https://holix-agent.ru/docs/execution-modes</loc>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://helix-agent.ru/docs/gateway</loc>
+    <loc>https://holix-agent.ru/docs/gateway</loc>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://helix-agent.ru/docs/hub</loc>
+    <loc>https://holix-agent.ru/docs/gateway-api</loc>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://helix-agent.ru/docs/installation</loc>
+    <loc>https://holix-agent.ru/docs/hub</loc>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://helix-agent.ru/docs/logs</loc>
+    <loc>https://holix-agent.ru/docs/installation</loc>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://helix-agent.ru/docs/profiles</loc>
+    <loc>https://holix-agent.ru/docs/logs</loc>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://helix-agent.ru/docs/pypi</loc>
+    <loc>https://holix-agent.ru/docs/profile-encryption</loc>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://helix-agent.ru/docs/quickstart</loc>
+    <loc>https://holix-agent.ru/docs/profiles</loc>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://helix-agent.ru/docs/readme</loc>
+    <loc>https://holix-agent.ru/docs/pypi</loc>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://helix-agent.ru/docs/security</loc>
+    <loc>https://holix-agent.ru/docs/quickstart</loc>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://helix-agent.ru/docs/slash-commands</loc>
+    <loc>https://holix-agent.ru/docs/readme</loc>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://helix-agent.ru/docs/start-here</loc>
+    <loc>https://holix-agent.ru/docs/security</loc>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://helix-agent.ru/docs/telegram</loc>
+    <loc>https://holix-agent.ru/docs/slash-commands</loc>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://helix-agent.ru/docs/telegram-multi-profile</loc>
+    <loc>https://holix-agent.ru/docs/start-here</loc>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://helix-agent.ru/docs/terminal-security</loc>
+    <loc>https://holix-agent.ru/docs/telegram</loc>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://helix-agent.ru/docs/troubleshooting</loc>
+    <loc>https://holix-agent.ru/docs/telegram-multi-profile</loc>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://helix-agent.ru/docs/tui</loc>
+    <loc>https://holix-agent.ru/docs/terminal-security</loc>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://helix-agent.ru/docs/user-guide</loc>
+    <loc>https://holix-agent.ru/docs/troubleshooting</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://holix-agent.ru/docs/tui</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://holix-agent.ru/docs/user-guide</loc>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
   </url>

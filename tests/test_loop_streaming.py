@@ -23,7 +23,7 @@ async def test_streaming_hides_exception_details_by_default(monkeypatch):
         raise RuntimeError("secret traceback path")
         yield  # pragma: no cover
 
-    monkeypatch.setattr("core.loop_streaming.run_helix", broken_run)
+    monkeypatch.setattr("core.loop_streaming.run_holix", broken_run)
 
     chunks = [chunk async for chunk in loop.run_conversation_stream("hi")]
     assert len(chunks) == 1
@@ -49,7 +49,7 @@ async def test_streaming_shows_exception_details_in_debug(monkeypatch):
         raise RuntimeError("debug-visible error")
         yield  # pragma: no cover
 
-    monkeypatch.setattr("core.loop_streaming.run_helix", broken_run)
+    monkeypatch.setattr("core.loop_streaming.run_holix", broken_run)
 
     chunks = [chunk async for chunk in loop.run_conversation_stream("hi")]
     payload = json.loads(chunks[0].removeprefix("data: ").strip())

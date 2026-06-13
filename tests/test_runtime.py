@@ -1,6 +1,7 @@
 """Tests for unified runtime (session + executor)."""
 
 import pytest
+from core.profile.soul import is_soul_message
 from core.runtime.session import prepare_session
 
 
@@ -16,10 +17,11 @@ async def test_prepare_session_appends_user_message(memory_manager):
     messages, compressed = await prepare_session(agent, "New question", "conv1")
 
     assert compressed is False
-    assert len(messages) == 2
-    assert messages[0]["role"] == "assistant"
-    assert messages[1]["role"] == "user"
-    assert messages[1]["content"] == "New question"
+    assert len(messages) == 3
+    assert is_soul_message(messages[0])
+    assert messages[1]["role"] == "assistant"
+    assert messages[2]["role"] == "user"
+    assert messages[2]["content"] == "New question"
 
 
 @pytest.mark.asyncio

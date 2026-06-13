@@ -261,12 +261,16 @@ class TelegramHost:
         self.transcript_write(f"session name: {name.strip()}")
 
     def _get_available_profiles(self) -> list[str]:
-        from cli.core import ProfileManager
+        from integrations.telegram.profile_visibility import list_visible_profiles
 
         try:
-            return ProfileManager().list_profiles()
+            return list_visible_profiles(
+                self._session.bot_profile,
+                self._session.user_id,
+                current=self._session.profile,
+            )
         except Exception:
-            return ["default"]
+            return [self._session.profile or "default"]
 
     async def _switch_profile(self, new_profile: str, *, profile_key: str | None = None) -> None:
         from cli.core import init_profile
@@ -288,7 +292,11 @@ class TelegramHost:
         self._session.profile_manual_override = True
         self._session.profile = new_profile
         self._session.conversation_id = f"tg_{new_profile}_{self._session.chat_id}"
-        self._session.agent = await create_agent(new_profile)
+        self._session.agent = await create_agent(
+            new_profile,
+            bot_profile=self._session.bot_profile,
+            telegram_user_id=self._session.user_id,
+        )
         self._session.active_model_slot = "main"
         self._session.active_model_label = "main"
         await self._create_new_session()
@@ -331,6 +339,14 @@ class TelegramHost:
             preview = (e["full_result"] or "").split("\n")[0][:60]
             self.transcript_write(f"{i}. {e['name']} — {preview}")
 
+    def _mcp_management_allowed(self) -> bool:
+        from integrations.telegram.command_access import is_mcp_management_allowed
+
+        return is_mcp_management_allowed(
+            self._session.bot_profile,
+            self._session.user_id,
+        )
+
     async def _mcp_list(self) -> None:
         """List MCP servers from current profile config."""
         try:
@@ -340,7 +356,7 @@ class TelegramHost:
             servers = getattr(cfg, "mcp_servers", {}) or {}
             assignments = getattr(cfg, "mcp_assignments", {}) or {}
             if not servers:
-                self.transcript_write("No MCP servers in this profile.\nUse /mcp install or `helix mcp install` in terminal.")
+                self.transcript_write("No MCP servers in this profile.\nUse /mcp install or `holix mcp install` in terminal.")
                 return
             lines = ["MCP servers:"]
             for name, data in servers.items():
@@ -354,6 +370,9 @@ class TelegramHost:
 
     async def _mcp_install(self, what: str = "") -> None:
         """Install popular or from git. For interactive use Telegram menus or CLI."""
+        if not self._mcp_management_allowed():
+            await self._send_html(t("tg.mcp_read_only", host_locale(self)))
+            return
         if not what:
             self.transcript_write("Usage: /mcp install <popular-key|git-url>\nPopular: context7, filesystem, github, ... \nOr use the /mcp menu buttons.")
             return
@@ -434,6 +453,9 @@ class TelegramHost:
 
     async def _mcp_assign(self, rest: str = "") -> None:
         """Basic assign: /mcp assign server main,researcher"""
+        if not self._mcp_management_allowed():
+            await self._send_html(t("tg.mcp_read_only", host_locale(self)))
+            return
         if not rest:
             self.transcript_write("Usage: /mcp assign <server-name> <role1,role2>\nExample: /mcp assign context7 main")
             return
@@ -467,6 +489,9 @@ class TelegramHost:
             self.transcript_write(f"Assign error: {e}")
 
     async def _mcp_test(self, name: str = "") -> None:
+        if not self._mcp_management_allowed():
+            await self._send_html(t("tg.mcp_read_only", host_locale(self)))
+            return
         if not name:
             self.transcript_write("Usage: /mcp test <server-name>")
             return
@@ -496,13 +521,16 @@ class TelegramHost:
                 return
             mcp_tools = [n for n in agent.tools.get_tool_names() if str(n).startswith("mcp_")]
             if not mcp_tools:
-                self.transcript_write("No MCP tools registered yet. Assign servers with /mcp assign or helix mcp assign.")
+                self.transcript_write("No MCP tools registered yet. Assign servers with /mcp assign or holix mcp assign.")
             else:
                 self.transcript_write("MCP tools:\n" + "\n".join(f"  • {t}" for t in mcp_tools))
         except Exception as e:
             self.transcript_write(f"Error listing MCP tools: {e}")
 
     async def _mcp_remove(self, name: str = "") -> None:
+        if not self._mcp_management_allowed():
+            await self._send_html(t("tg.mcp_read_only", host_locale(self)))
+            return
         if not name:
             self.transcript_write("Usage: /mcp remove <server-name>")
             return
@@ -582,6 +610,11 @@ class TelegramHost:
         if not message:
             return
 
+        from integrations.telegram.admin_broadcast import try_compose_admin_broadcast
+
+        if await try_compose_admin_broadcast(self, message):
+            return
+
         if self._session.pending_plan_review_id:
             from integrations.telegram.approvals import TelegramApprovals
 
@@ -625,6 +658,10 @@ class TelegramHost:
         if not self.agent:
             await self._send_plain("agent not ready")
             return
+        async with self._session.run_lock:
+            await self._run_agent_locked(user_input)
+
+    async def _run_agent_locked(self, user_input: str) -> None:
         from core.session_models import ensure_session_model
 
         ensure_session_model(self)
@@ -649,34 +686,42 @@ class TelegramHost:
             chat_delivery_scope,
             reset_chat_delivery_scope,
         )
+        from core.workspace import agent_path_visibility_context
 
+        from integrations.telegram.access_approval import is_telegram_admin
         from integrations.telegram.delivery_bridge import TelegramDeliveryBridge
 
         delivery_bridge = TelegramDeliveryBridge(self._bot, self._session.chat_id)
         delivery_token = chat_delivery_scope(delivery_bridge)
+        agent_cfg = getattr(self.agent, "config", None)
+        visibility_ctx = agent_path_visibility_context(
+            is_admin=is_telegram_admin(self._session.bot_profile, self._session.user_id),
+            workspace_jail_enabled=bool(getattr(agent_cfg, "workspace_jail_enabled", False)),
+        )
 
         async with TypingIndicator(self._bot, self._session.chat_id):
             await presenter.start()
 
             mode = self._session.execution_mode
             try:
-                if self._session.streaming_enabled:
-                    from core.runtime.executor import run_helix
+                with visibility_ctx:
+                    if self._session.streaming_enabled:
+                        from core.runtime.executor import run_holix
 
-                    async for event in run_helix(
-                        self.agent,
-                        user_input,
-                        self.conversation_id,
-                        stream=True,
-                        execution_mode=mode,
-                    ):
-                        self.agent.emit(event)
-                else:
-                    await self.agent.run(
-                        user_input=user_input,
-                        conversation_id=self.conversation_id,
-                        execution_mode=mode,
-                    )
+                        async for event in run_holix(
+                            self.agent,
+                            user_input,
+                            self.conversation_id,
+                            stream=True,
+                            execution_mode=mode,
+                        ):
+                            self.agent.emit(event)
+                    else:
+                        await self.agent.run(
+                            user_input=user_input,
+                            conversation_id=self.conversation_id,
+                            execution_mode=mode,
+                        )
             except asyncio.CancelledError:
                 buf = self._session.live_buffer
                 if buf:

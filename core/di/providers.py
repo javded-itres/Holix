@@ -1,22 +1,21 @@
-"""Dishka providers for Helix dependency injection."""
+"""Dishka providers for Holix dependency injection."""
 
 from dishka import Provider, Scope, from_context, provide
 from openai import AsyncOpenAI
 
 from core.agent_events import AgentEventBus
-from core.di.factories import create_helix_agent
-from core.di.runtime_config import HelixRuntimeConfig
+from core.di.runtime_config import HolixRuntimeConfig
 
 
 class ConfigProvider(Provider):
-    """Provides HelixRuntimeConfig (APP scope, overridable via context)."""
+    """Provides HolixRuntimeConfig (APP scope, overridable via context)."""
 
     scope = Scope.APP
-    config = from_context(HelixRuntimeConfig)
+    config = from_context(HolixRuntimeConfig)
 
     @provide(scope=Scope.APP)
-    def default_config(self) -> HelixRuntimeConfig:
-        return HelixRuntimeConfig.from_settings()
+    def default_config(self) -> HolixRuntimeConfig:
+        return HolixRuntimeConfig.from_settings()
 
 
 class InfrastructureProvider(Provider):
@@ -25,7 +24,7 @@ class InfrastructureProvider(Provider):
     scope = Scope.APP
 
     @provide(scope=Scope.APP)
-    def llm_client(self, config: HelixRuntimeConfig) -> AsyncOpenAI:
+    def llm_client(self, config: HolixRuntimeConfig) -> AsyncOpenAI:
         return AsyncOpenAI(base_url=config.base_url, api_key=config.api_key)
 
 
@@ -36,18 +35,17 @@ class AgentDepsProvider(Provider):
 
     @provide(scope=Scope.APP)
     def event_bus(self) -> AgentEventBus:
-        return AgentEventBus(name="HelixAgentAi")
-
-
-# Standalone provider for agent factory (avoid binding `self` on class methods)
-AgentFactoryProvider = Provider(scope=Scope.APP)
-AgentFactoryProvider.provide(create_helix_agent)
+        return AgentEventBus(name="Holix")
 
 
 def get_all_providers() -> list[Provider]:
+    from core.di.factories import create_holix_agent
+
+    agent_factory_provider = Provider(scope=Scope.APP)
+    agent_factory_provider.provide(create_holix_agent)
     return [
         ConfigProvider(),
         InfrastructureProvider(),
         AgentDepsProvider(),
-        AgentFactoryProvider,
+        agent_factory_provider,
     ]

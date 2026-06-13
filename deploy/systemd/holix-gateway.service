@@ -1,0 +1,23 @@
+[Unit]
+Description=Holix API Gateway (profile default)
+Documentation=https://github.com/javded-itres/Holix/blob/master/docs/en/DEPLOYMENT.md
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=holix
+Group=holix
+WorkingDirectory=/opt/holix
+Environment=HOME=/var/lib/holix
+Environment=HOLIX_HOME=/var/lib/holix
+EnvironmentFile=-/etc/holix/holix.conf
+ExecStart=${HOLIX_PYTHON} -m cli.services.gateway_worker --profile default
+ExecStop=${HOLIX_BIN} gateway stop
+ExecStopPost=/usr/local/bin/holix-gateway-seal.sh
+Restart=on-failure
+RestartSec=5
+TimeoutStopSec=60
+
+[Install]
+WantedBy=multi-user.target

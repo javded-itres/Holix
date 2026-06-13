@@ -1,5 +1,5 @@
 """
-Plan Storage — save and load execution plans to .helix/plan/.
+Plan Storage — save and load execution plans to .holix/plan/.
 
 Plans are saved as both Markdown (human-readable) and JSON (machine-readable)
 after the user confirms them. This allows for plan history, resumption,
@@ -14,23 +14,23 @@ from pathlib import Path
 from typing import Any
 
 from core.config_utils import get_local_plan_dir
-from core.di.runtime_config import HelixRuntimeConfig
+from core.di.runtime_config import HolixRuntimeConfig
 
 logger = logging.getLogger(__name__)
 
 _PLAN_ID_RE = re.compile(r"^[a-zA-Z0-9][a-zA-Z0-9_.-]*\.json$")
 
-# Default (CWD/.helix/plan) — can be overridden by get_plan_dir(config)
-PLAN_DIR = Path(".helix/plan")
+# Default (CWD/.holix/plan) — can be overridden by get_plan_dir(config)
+PLAN_DIR = Path(".holix/plan")
 
 # Test hook: tests can set _TEST_PLAN_DIR to a temp Path
 _TEST_PLAN_DIR: Path | None = None
 
 
-def get_plan_dir(config: HelixRuntimeConfig | None = None) -> Path:
+def get_plan_dir(config: HolixRuntimeConfig | None = None) -> Path:
     """Resolve the plan storage dir.
 
-    Prefers local project .helix/plan (already the convention). If runtime config
+    Prefers local project .holix/plan (already the convention). If runtime config
     provides local_project_dir we respect it, else fall back to CWD.
     """
     if _TEST_PLAN_DIR is not None:
@@ -74,7 +74,7 @@ def save_plan(
     analysis: dict[str, Any] | None = None,
     architecture: dict[str, Any] | None = None,
 ) -> Path:
-    """Save a plan to .helix/plan/ as both .md and .json.
+    """Save a plan to .holix/plan/ as both .md and .json.
 
     Args:
         plan_steps: List of plan step dicts.

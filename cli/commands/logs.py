@@ -1,4 +1,4 @@
-"""``helix logs`` — view, filter, rotate, and toggle debug logging."""
+"""``holix logs`` — view, filter, rotate, and toggle debug logging."""
 
 from __future__ import annotations
 
@@ -13,7 +13,7 @@ from rich.table import Table
 
 from cli.utils.rich_console import print_info, print_success, print_warning
 
-app = typer.Typer(help="View and manage Helix logs", no_args_is_help=True)
+app = typer.Typer(help="View and manage Holix logs", no_args_is_help=True)
 console = Console()
 
 
@@ -35,7 +35,7 @@ def _parse_source(value: str) -> LogSource:
 def logs_list(ctx: typer.Context) -> None:
     """List log files and sizes."""
     profile = _profile(ctx)
-    table = Table(title=f"Helix logs (profile={profile})")
+    table = Table(title=f"Holix logs (profile={profile})")
     table.add_column("Source", style="cyan")
     table.add_column("File")
     table.add_column("Size", justify="right")
@@ -63,7 +63,7 @@ def logs_show(
     debug: bool = typer.Option(False, "--debug", help="Include agent.debug.jsonl"),
     verbose: bool = typer.Option(False, "--verbose", "-v", help="Show extra JSON fields"),
 ) -> None:
-    """Show recent log entries from all Helix sources."""
+    """Show recent log entries from all Holix sources."""
     profile = _profile(ctx)
     src = _parse_source(source)
     level_filter = level or None
@@ -93,7 +93,7 @@ def logs_show(
         include_debug=debug or is_debug_enabled(),
     )
     if not entries:
-        print_warning("No log entries found. Run an agent or `helix gateway start` first.")
+        print_warning("No log entries found. Run an agent or `holix gateway start` first.")
         return
 
     for entry in entries:
@@ -119,7 +119,7 @@ def logs_default(
     debug: bool = typer.Option(False, "--debug"),
     verbose: bool = typer.Option(False, "--verbose", "-v"),
 ) -> None:
-    """Default: show recent logs (same as ``helix logs show``)."""
+    """Default: show recent logs (same as ``holix logs show``)."""
     if ctx.invoked_subcommand is not None:
         return
     logs_show(
@@ -179,7 +179,7 @@ def debug_status() -> None:
     on = is_debug_enabled()
     print_info(f"Debug mode: {'ON' if on else 'OFF'}")
     print_info(f"Persisted level: {state.level}")
-    print_info(f"HELIX_LOG_DEBUG env: {__import__('config').settings.log_debug_enabled}")
+    print_info(f"HOLIX_LOG_DEBUG env: {__import__('config').settings.log_debug_enabled}")
 
 
 app.add_typer(debug_app, name="debug")

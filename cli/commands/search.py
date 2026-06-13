@@ -115,7 +115,7 @@ def search_configure(ctx: typer.Context) -> None:
     current = SearchConfig.from_dict(_load_search(profile))
 
     console.print("\n[bold]Web search setup[/bold]")
-    console.print("Pick one or more providers. Helix tries them in the order you set.\n")
+    console.print("Pick one or more providers. Holix tries them in the order you set.\n")
 
     table = Table()
     table.add_column("#", style="dim")
@@ -213,11 +213,11 @@ def search_configure(ctx: typer.Context) -> None:
 
     _save_search(profile, result)
     print_success(f"Search configuration saved to profile '{profile}'.")
-    print_info("Run `helix gateway reload` if the agent is already running.")
+    print_info("Run `holix gateway reload` if the agent is already running.")
 
 
 @app.callback(invoke_without_command=True)
 def search_group(ctx: typer.Context) -> None:
-    """Search provider management (use `helix search configure` for interactive setup)."""
+    """Search provider management (use `holix search configure` for interactive setup)."""
     if ctx.invoked_subcommand is None:
         search_list(ctx)

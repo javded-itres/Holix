@@ -24,5 +24,5 @@ def test_hash_key_requires_pepper(tmp_path, monkeypatch: pytest.MonkeyPatch) -> 
     monkeypatch.setattr("core.security.auth.settings", updated)
 
     mgr = APIKeyManager(str(tmp_path / "keys.db"))
-    with pytest.raises(RuntimeError, match="HELIX_API_KEY_PEPPER"):
+    with pytest.raises(RuntimeError, match="HOLIX_API_KEY_PEPPER"):
         mgr.hash_key("hx_test")

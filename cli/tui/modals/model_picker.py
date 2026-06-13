@@ -98,7 +98,7 @@ class ModelPickerScreen(ModalScreen[None]):
                 lv.mount(
                     ListItem(
                         Static(
-                            "[dim]No models in profile. Run: helix models setup[/dim]"
+                            "[dim]No models in profile. Run: holix models setup[/dim]"
                         )
                     )
                 )

@@ -11,7 +11,7 @@ from cli.services.supervisor import run_gateway_supervisor
 
 
 def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Helix gateway background worker")
+    parser = argparse.ArgumentParser(description="Holix gateway background worker")
     from config import settings
 
     parser.add_argument("--host", default=settings.gateway_host)
@@ -25,24 +25,36 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
 
 
 def main(argv: list[str] | None = None) -> int:
-    from core.logging.setup import configure_helix_logging
+    from core.logging.setup import configure_holix_logging
 
-    configure_helix_logging()
+    configure_holix_logging()
     args = _parse_args(argv)
+    from core.crypto.runtime_cache import recover_stale_runtime_caches
+
+    recover_stale_runtime_caches()
     from core.env_loader import bootstrap_profile_env
 
+    from cli.core import bootstrap_profile_unlock_from_env
+
+    bootstrap_profile_unlock_from_env(args.profile)
     bootstrap_profile_env(args.profile)
+    try:
+        from integrations.telegram.env_store import load_telegram_env_files
+
+        load_telegram_env_files(args.profile)
+    except Exception:
+        pass
 
     def _env_bool(name: str) -> bool:
         return os.getenv(name, "").strip().lower() in {"1", "true", "yes", "on"}
 
-    with_docs = args.with_docs or _env_bool("HELIX_GATEWAY_WITH_DOCS") or _env_bool(
-        "HELIX_GATEWAY_DOCS"
+    with_docs = args.with_docs or _env_bool("HOLIX_GATEWAY_WITH_DOCS") or _env_bool(
+        "HOLIX_GATEWAY_DOCS"
     )
-    docs_host = args.docs_host or os.getenv("HELIX_DOCS_HOST", "127.0.0.1")
+    docs_host = args.docs_host or os.getenv("HOLIX_DOCS_HOST", "127.0.0.1")
     docs_port = args.docs_port
     if not args.with_docs:
-        raw_port = os.getenv("HELIX_DOCS_PORT", "").strip()
+        raw_port = os.getenv("HOLIX_DOCS_PORT", "").strip()
         if raw_port.isdigit():
             docs_port = int(raw_port)
 
@@ -67,6 +79,9 @@ def main(argv: list[str] | None = None) -> int:
             docs_port=docs_port,
         )
     finally:
+        from core.crypto.unlock_context import clear_profile_unlock
+
+        clear_profile_unlock(args.profile)
         clear_state(args.profile)
     return 0
 

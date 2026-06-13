@@ -14,8 +14,8 @@ async def build_page_snapshot(page: Any) -> tuple[str, dict[str, str]]:
 
     await page.evaluate(
         """() => {
-            document.querySelectorAll('[data-helix-ref]').forEach(el => {
-                el.removeAttribute('data-helix-ref');
+            document.querySelectorAll('[data-holix-ref]').forEach(el => {
+                el.removeAttribute('data-holix-ref');
             });
         }"""
     )
@@ -41,11 +41,11 @@ async def build_page_snapshot(page: Any) -> tuple[str, dict[str, str]]:
 
         index += 1
         ref = f"e{index}"
-        selector = f'[data-helix-ref="{ref}"]'
+        selector = f'[data-holix-ref="{ref}"]'
 
         try:
             await el.evaluate(
-                "(el, ref) => el.setAttribute('data-helix-ref', ref)",
+                "(el, ref) => el.setAttribute('data-holix-ref', ref)",
                 ref,
             )
         except Exception:

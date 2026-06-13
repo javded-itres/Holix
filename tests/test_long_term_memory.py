@@ -19,10 +19,10 @@ async def ltm_temp_dir():
 @pytest.fixture
 async def ltm(ltm_temp_dir):
     """Create a MemoryFacade with temp databases."""
-    from core.di.runtime_config import HelixRuntimeConfig
+    from core.di.runtime_config import HolixRuntimeConfig
     from core.memory.facade import MemoryFacade
 
-    cfg = HelixRuntimeConfig.from_settings().with_overrides(
+    cfg = HolixRuntimeConfig.from_settings().with_overrides(
         memory_db_path=f"{ltm_temp_dir}/memory.db",
         vector_db_path=f"{ltm_temp_dir}/vector_db",
         ltm_db_path=f"{ltm_temp_dir}/ltm.db",

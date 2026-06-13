@@ -1,4 +1,4 @@
-"""Persist cron jobs under ~/.helix/profiles/<profile>/data/cron/."""
+"""Persist cron jobs under ~/.holix/profiles/<profile>/data/cron/."""
 
 from __future__ import annotations
 
@@ -77,6 +77,8 @@ class CronStore:
         enabled: bool = True,
         notify_chat_id: int | None = None,
         session_id: str | None = None,
+        skills: list[str] | None = None,
+        model_override: str | None = None,
     ) -> CronJob:
         task = (task or "").strip()
         if not task:
@@ -91,6 +93,8 @@ class CronStore:
             profile=self.profile,
             notify_chat_id=notify_chat_id,
             session_id=(session_id or "").strip() or None,
+            skills=list(skills or []),
+            model_override=(model_override or "").strip() or None,
         )
         self._touch_next_run(job)
         store.jobs.append(job)

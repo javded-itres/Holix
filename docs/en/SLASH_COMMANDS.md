@@ -1,6 +1,6 @@
 # Slash commands (`/`)
 
-Slash commands control the session without sending text to the LLM. They work in **TUI** (`helix tui`), **Telegram** (when synced), and partially in **`helix chat-command`**.
+Slash commands control the session without sending text to the LLM. They work in **TUI** (`holix tui`), **Telegram** (when synced), and partially in **`holix chat-command`**.
 
 Source of truth for TUI/Telegram: `cli/shared/commands/registry.py` and `cli/shared/commands/agent_commands.py`.
 
@@ -122,7 +122,7 @@ When a plan step requires approval:
 | `/mcp tools` | List available MCP tools now |
 | `/mcp remove <name>` | Remove server config |
 
-CLI equivalent: `helix mcp …` — see [CLI.md](CLI.md#mcp).
+CLI equivalent: `holix mcp …` — see [CLI.md](CLI.md#mcp).
 
 ---
 
@@ -138,9 +138,9 @@ CLI equivalent: `helix mcp …` — see [CLI.md](CLI.md#mcp).
 | `/hub claude` | Claude official plugins |
 | `/hub skills-sh` | skills.sh (query in browser) |
 | `/plugins`, `/marketplace` | Alias for hub flow |
-| `/skills` | Hint: `helix skills list --agent <role>` |
+| `/skills` | Hint: `holix skills list --agent <role>` |
 
-CLI equivalent: `helix hub …` — see [HUB.md](HUB.md).
+CLI equivalent: `holix hub …` — see [HUB.md](HUB.md).
 
 ---
 
@@ -153,14 +153,14 @@ Hub-installed skills can register extra commands in:
 Rebuild after install:
 
 ```bash
-helix hub slash-sync
+holix hub slash-sync
 ```
 
 In TUI, type `/` to see tab-completion; skill commands run the skill workflow for the active agent slot.
 
 ---
 
-## `helix chat-command` only
+## `holix chat-command` only
 
 | Command | Description |
 |---------|-------------|
@@ -182,7 +182,7 @@ In TUI, type `/` to see tab-completion; skill commands run the skill workflow fo
 Register the bot menu after adding commands:
 
 ```bash
-helix telegram sync-menu
+holix telegram sync-menu
 ```
 
 Setup: [TELEGRAM.md](TELEGRAM.md).

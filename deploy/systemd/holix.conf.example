@@ -1,0 +1,15 @@
+# Copy to /etc/holix/holix.conf and adjust paths for your install.
+# API keys, gateway port, Telegram — in $HOLIX_HOME/profiles/<name>/.env, not here.
+
+HOLIX_HOME=/var/lib/holix
+
+# Python from source checkout (recommended for holix system user):
+HOLIX_PYTHON=/opt/holix/.venv/bin/python
+HOLIX_BIN=/opt/holix/.venv/bin/holix
+
+# Or pipx install under holix home:
+# HOLIX_PYTHON=/var/lib/holix/.local/share/pipx/venvs/holix/bin/python
+# HOLIX_BIN=/var/lib/holix/.local/bin/holix
+
+# Unlock key for ExecStopPost seal (optional if set in $HOLIX_HOME/global/.env):
+# HOLIX_UNLOCK_KEY=

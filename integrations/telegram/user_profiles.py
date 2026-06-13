@@ -1,4 +1,4 @@
-"""Telegram user id → Helix profile bindings (shared bot)."""
+"""Telegram user id → Holix profile bindings (shared bot)."""
 
 from __future__ import annotations
 
@@ -10,7 +10,7 @@ from pathlib import Path
 from core.env_loader import profile_dir_path
 
 TELEGRAM_USERS_FILE = "telegram-users.json"
-ENV_KEY = "HELIX_TELEGRAM_USER_PROFILES"
+ENV_KEY = "HOLIX_TELEGRAM_USER_PROFILES"
 _PAIR_RE = re.compile(r"^\d+:[\w.-]+$")
 
 
@@ -56,14 +56,26 @@ def _load_json_mapping(path: Path) -> dict[int, str]:
 
 
 def load_user_profiles(bot_profile: str) -> dict[int, str]:
-    """Load bindings from ``telegram-users.json`` and ``HELIX_TELEGRAM_USER_PROFILES`` env."""
+    """Load bindings from ``telegram-users.json`` and profile ``telegram.env``."""
     name = (bot_profile or "default").strip() or "default"
     merged = _load_json_mapping(telegram_users_path(name))
-    env_raw = os.getenv(ENV_KEY, "").strip()
+    env_raw = _profile_env_user_profiles(name)
     if env_raw:
         for uid, profile in parse_user_profiles_text(env_raw).items():
             merged[uid] = profile
+    if not merged and name != "default":
+        # Gateway host profile may differ from legacy bot data directory.
+        fallback = _load_json_mapping(telegram_users_path("default"))
+        if fallback:
+            merged.update(fallback)
     return merged
+
+
+def _profile_env_user_profiles(bot_profile: str) -> str:
+    """Read ``HOLIX_TELEGRAM_USER_PROFILES`` from the bot profile ``telegram.env`` file."""
+    from integrations.telegram.env_store import read_telegram_env_values
+
+    return read_telegram_env_values(bot_profile).get(ENV_KEY, "").strip()
 
 
 def save_user_profiles(bot_profile: str, mapping: dict[int, str]) -> Path:
@@ -81,7 +93,11 @@ def save_user_profiles(bot_profile: str, mapping: dict[int, str]) -> Path:
 
 
 def _sync_env_user_profiles(bot_profile: str, mapping: dict[int, str]) -> None:
-    from integrations.telegram.env_store import read_telegram_env_values, save_telegram_env
+    from integrations.telegram.env_store import (
+        read_telegram_env_values,
+        save_telegram_env,
+        telegram_env_path,
+    )
 
     values = read_telegram_env_values(bot_profile)
     text = format_user_profiles_text(mapping)
@@ -89,7 +105,11 @@ def _sync_env_user_profiles(bot_profile: str, mapping: dict[int, str]) -> None:
         values[ENV_KEY] = text
     else:
         values.pop(ENV_KEY, None)
-    if values.get("TELEGRAM_BOT_TOKEN") or values.get(ENV_KEY):
+    if (
+        values.get("TELEGRAM_BOT_TOKEN")
+        or values.get(ENV_KEY)
+        or telegram_env_path(bot_profile).is_file()
+    ):
         save_telegram_env(values, profile=bot_profile)
     elif ENV_KEY in os.environ:
         os.environ.pop(ENV_KEY, None)

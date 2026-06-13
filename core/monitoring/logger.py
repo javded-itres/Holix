@@ -6,14 +6,14 @@ from datetime import UTC, datetime
 from typing import Any
 
 from core.logging.events import append_agent_event
-from core.logging.setup import configure_helix_logging
+from core.logging.setup import configure_holix_logging
 
 
 class StructuredLogger:
     """Structured JSON logger for agent/sub-agent observability."""
 
-    def __init__(self, name: str = "helix.agent"):
-        configure_helix_logging()
+    def __init__(self, name: str = "holix.agent"):
+        configure_holix_logging()
         self.logger = logging.getLogger(name)
         self.logger.setLevel(logging.INFO)
 

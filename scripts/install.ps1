@@ -1,4 +1,4 @@
-# Install Helix CLI for the current user (Windows).
+# Install Holix CLI for the current user (Windows).
 $ErrorActionPreference = "Stop"
 $Root = Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Path)
 Set-Location $Root

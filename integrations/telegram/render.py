@@ -20,7 +20,14 @@ def buffer_to_telegram_html(buf: LiveTranscriptBuffer) -> str:
     done = buf.status == "done"
     show_tools = bool(buf.tool_lines) and not done
 
-    if done and answer and not show_tools and not buf.thinking and not buf.notes:
+    if (
+        done
+        and answer
+        and not buf.publish_answer_separately
+        and not show_tools
+        and not buf.thinking
+        and not buf.notes
+    ):
         body = markdown_to_telegram_html(answer)
         footer = (
             f"<i>🤖 {escape_html(buf.profile)} · {escape_html(buf.mode)} · ✓</i>"
@@ -29,7 +36,7 @@ def buffer_to_telegram_html(buf: LiveTranscriptBuffer) -> str:
 
     parts: list[str] = [
         (
-            f"<b>🤖 Helix</b> · {escape_html(buf.profile)} · "
+            f"<b>🤖 Holix</b> · {escape_html(buf.profile)} · "
             f"{escape_html(buf.mode)} · {escape_html(buf.session_label)}"
         ),
     ]
@@ -43,7 +50,7 @@ def buffer_to_telegram_html(buf: LiveTranscriptBuffer) -> str:
             tool_html.append(_format_tool_line(line))
         parts.append("\n".join(tool_html))
 
-    if answer:
+    if answer and not (done and buf.publish_answer_separately):
         rendered = markdown_to_telegram_html(answer)
         parts.append(rendered if rendered else escape_html(answer))
 
@@ -53,10 +60,12 @@ def buffer_to_telegram_html(buf: LiveTranscriptBuffer) -> str:
 
     if running and not answer and not buf.tool_lines:
         parts.append("<i>⏳ Working…</i>")
-    elif done and answer:
+    elif done:
         parts.append(
             f"<i>🤖 {escape_html(buf.profile)} · {escape_html(buf.mode)} · ✓</i>"
         )
+        if buf.publish_answer_separately and buf.result_posted_separately:
+            parts.append("<i>Ответ отправлен отдельным сообщением ↓</i>")
     elif buf.status == "error":
         parts.append("<b>✗ Error</b>")
 

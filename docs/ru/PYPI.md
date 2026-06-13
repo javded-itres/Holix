@@ -1,34 +1,34 @@
 # Публикация на PyPI
 
-Руководство по выпуску пакета **Helix** на [PyPI](https://pypi.org).
+Руководство по выпуску пакета **Holix** на [PyPI](https://pypi.org).
 
-> **Опубликовано:** [HelixAgentAi 0.1.8](https://pypi.org/project/HelixAgentAi/) — `pipx install HelixAgentAi`.
+> **Опубликовано:** [Holix 0.1.8](https://pypi.org/project/Holix/) — `pipx install Holix`.
 
 ## Имя пакета
 
-На PyPI проект публикуется как **`HelixAgentAi`** (не `helix` — это другой пакет на PyPI).
+На PyPI проект публикуется как **`Holix`** (не `holix` — это другой пакет на PyPI).
 
 ```bash
-pip install HelixAgentAi
-pip install "HelixAgentAi[telegram,browser]"
-pip install "HelixAgentAi[all]"
+pip install Holix
+pip install "Holix[telegram,browser]"
+pip install "Holix[all]"
 ```
 
-Команда в терминале по-прежнему: **`helix`**.
+Команда в терминале по-прежнему: **`holix`**.
 
 ## Что нужно сделать
 
 ### 1. Аккаунт и имя
 
 - Регистрация на [pypi.org](https://pypi.org/account/register/)
-- Проверить, что `HelixAgentAi` свободен
+- Проверить, что `Holix` свободен
 - API-токен или Trusted Publishing с GitHub
 
 ### 2. Метаданные (уже в репозитории)
 
-- `pyproject.toml` — `name = "HelixAgentAi"`, зависимости, extras, `license-files`
+- `pyproject.toml` — `name = "Holix"`, зависимости, extras, `license-files`
 - `config.py` включён в wheel (обязательно для `from config import settings`)
-- `[project.scripts]` → `helix`
+- `[project.scripts]` → `holix`
 
 ### 3. Перед каждым релизом
 
@@ -50,9 +50,9 @@ Workflow: `.github/workflows/publish-pypi.yml`
 
 | Поле | Значение |
 |------|----------|
-| Project | `HelixAgentAi` |
+| Project | `Holix` |
 | Owner | `javded-itres` |
-| Repository | `HelixAgent` |
+| Repository | `HolixAgent` |
 | Workflow | `publish-pypi.yml` |
 | Environment | `pypi` |
 
@@ -75,13 +75,13 @@ PyPI **не принимает пароль аккаунта** — нужен **
 
 ```bash
 export UV_PUBLISH_TOKEN='pypi-AgENdXNlcm5hbWU6...'
-HELIX_NO_VERSION_BUMP=1 uv build --no-sources
+HOLIX_NO_VERSION_BUMP=1 uv build --no-sources
 uv publish dist/*
 ```
 
 ### 6. Документация для пользователей
 
-После публикации обновить [INSTALLATION.md](INSTALLATION.md) и README: `pip install HelixAgentAi`.
+После публикации обновить [INSTALLATION.md](INSTALLATION.md) и README: `pip install Holix`.
 
 ## Ограничения
 

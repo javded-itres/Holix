@@ -1,4 +1,4 @@
-"""MCPManager — manages connections to one or more MCP servers and exposes Helix tools."""
+"""MCPManager — manages connections to one or more MCP servers and exposes Holix tools."""
 
 from __future__ import annotations
 

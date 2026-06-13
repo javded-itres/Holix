@@ -1,5 +1,5 @@
 """
-SubAgent Management Widget for Helix TUI.
+SubAgent Management Widget for Holix TUI.
 
 Provides a sidebar section for managing sub-agents:
 - List active sub-agents with status
@@ -9,7 +9,7 @@ Provides a sidebar section for managing sub-agents:
 
 Also includes memory stats display and execution mode selector.
 
-This module is designed to be integrated into the main HelixTUI app
+This module is designed to be integrated into the main HolixTUI app
 by adding the widget to the sidebar in compose() and connecting
 the action methods.
 """
@@ -189,12 +189,12 @@ def compose_memory_section() -> Vertical:
     # This will be returned as part of the sidebar
 
 
-# ─── TUI Action Methods (to be mixed into HelixTUI) ───────────────────────
+# ─── TUI Action Methods (to be mixed into HolixTUI) ───────────────────────
 
 class SubAgentActions:
     """Mixin class with TUI action methods for sub-agent management.
 
-    To integrate into HelixTUI, add these methods to the HelixTUI class
+    To integrate into HolixTUI, add these methods to the HolixTUI class
     and connect the button presses to them in on_button_pressed().
     """
 

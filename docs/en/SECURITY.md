@@ -2,24 +2,24 @@
 
 ## Production checklist
 
-1. `HELIX_ENV=production`
-2. `HELIX_REQUIRE_AUTH=true` (forced in production)
-3. `HELIX_API_KEY_PEPPER` — long random secret
-4. `HELIX_CORS_ORIGINS` — explicit origins (no `*`)
-5. `HELIX_GATEWAY_HOST=127.0.0.1` behind reverse proxy with TLS
-6. `HELIX_TELEGRAM_ALLOWED_USERS` set when using Telegram
-7. `HELIX_ENABLE_CODE_EXECUTOR=false` if not required
-8. `HELIX_TERMINAL_COMMAND_WHITELIST=true`
+1. `HOLIX_ENV=production`
+2. `HOLIX_REQUIRE_AUTH=true` (forced in production)
+3. `HOLIX_API_KEY_PEPPER` — long random secret
+4. `HOLIX_CORS_ORIGINS` — explicit origins (no `*`)
+5. `HOLIX_GATEWAY_HOST=127.0.0.1` behind reverse proxy with TLS
+6. Telegram: `HOLIX_TELEGRAM_ACCESS_REQUESTS=true` (default after `telegram setup`) or `HOLIX_TELEGRAM_ALLOWED_USERS` for a personal bot; use named profiles (`-p shared`), not `default`, in production
+7. `HOLIX_ENABLE_CODE_EXECUTOR=false` if not required
+8. `HOLIX_TERMINAL_COMMAND_WHITELIST=true`
 
-## Web TUI (`helix tui --web`)
+## Web TUI (`holix tui --web`)
 
-The browser UI runs a full Helix agent (terminal tool, files, MCP). Treat it like root on your machine.
+The browser UI runs a full Holix agent (terminal tool, files, MCP). Treat it like root on your machine.
 
 | Bind | Requirements |
 |------|----------------|
-| `127.0.0.1` (default) | Token via `--token`, `HELIX_TUI_WEB_TOKEN`, or ephemeral `--generate-token` (default) |
+| `127.0.0.1` (default) | Token via `--token`, `HOLIX_TUI_WEB_TOKEN`, or ephemeral `--generate-token` (default) |
 | `0.0.0.0` / LAN | `--allow-lan` **and** explicit `--token` / env (no auto-generated token) |
-| `HELIX_ENV=production` | Explicit token always |
+| `HOLIX_ENV=production` | Explicit token always |
 
 - Do not expose port 8787 to the internet without TLS and a reverse proxy.
 - Rotate tokens after sharing a LAN URL.
@@ -28,11 +28,34 @@ The browser UI runs a full Helix agent (terminal tool, files, MCP). Treat it lik
 
 - Stored as HMAC-SHA256 with pepper
 - Admin endpoints always require `admin` permission
-- Create keys via `POST /admin/api-keys` with admin key
+- Create keys via `POST /admin/api-keys` with admin key (no `holix` CLI command for `hx_` keys yet — use curl or Swagger `/docs`)
+
+### Two-layer gateway auth
+
+The gateway uses **two independent credentials**:
+
+| Layer | Key | Prefix | Purpose |
+|-------|-----|--------|---------|
+| 1 — Gateway API key | `Authorization: Bearer …` or `X-API-Key` | `hx_…` | Authenticates every protected HTTP route (chat, Hermes, management) |
+| 2 — Profile access key | `X-Holix-Profile-Key` | `hp_…` | Authorizes `/api/holix/*` management for a specific profile |
+
+**Layer 1** is always required when `HOLIX_REQUIRE_AUTH=true` (except `/health`, `/v1/health`). Create `hx_` keys via `POST /admin/api-keys`.
+
+**Layer 2** applies to `/api/holix/*` only. A profile owner sends their `hp_…` key to manage their own profile. Gateway admins bypass layer 2 with an API key that has `admin` permission, or with the master key of the admin profile (`HOLIX_TELEGRAM_ADMIN_PROFILE`, default `admin`). Create `hp_` keys via `holix profile key init` — not via the gateway admin API.
+
+Chat and Hermes routes (`/v1/chat/completions`, `/v1/models`, etc.) need **layer 1 only**. Profile routing uses `X-Holix-Profile` or the `model` field — not `hp_`.
+
+Full tables: [GATEWAY_API.md](GATEWAY_API.md#authentication).
+
+### Docs-chat token (separate surface)
+
+When the documentation site runs with `--with-docs` and `HOLIX_DOCS_CHAT_ENABLED=1`, the embedded docs assistant uses **`HOLIX_DOCS_CHAT_TOKEN`** — a dedicated secret for `/v1/docs/chat` and the docs-server proxy (`/api/docs-chat`).
+
+This token is **not** a gateway API key (`hx_`) and **not** a profile key (`hp_`). It is server-side only (proxy holds the token; the browser never sees it). Rotate independently from gateway keys.
 
 ## Profile secrets
 
-In `~/.helix/profiles/<name>/config.yaml`:
+In `~/.holix/profiles/<name>/config.yaml`:
 
 ```yaml
 api_key: ${OPENAI_API_KEY}
@@ -40,19 +63,48 @@ api_key: ${OPENAI_API_KEY}
 
 Never commit real keys to git.
 
+## Encryption at rest
+
+Optional per-profile encryption protects secrets and memory, not the agent workspace:
+
+| Encrypted | Plaintext |
+|-----------|-----------|
+| `.env`, `telegram.env`, `SOUL.md`, `USER.md` | `workspace/` (project files, git-friendly) |
+| Memory DBs (SQLite, Chroma) | `config.yaml` (non-secret settings) |
+
+```bash
+holix -p alice profile crypto enable
+holix profile crypto migrate --all --yes
+```
+
+**Gateway / systemd:** set `HOLIX_UNLOCK_KEY` in `global/.env` or the profile `.env`. Without it, encrypted `telegram.env` cannot be read and the bot stays disabled even if `TELEGRAM_BOT_TOKEN` appears empty in the process environment.
+
+**Telegram token pitfall:** do not set `TELEGRAM_BOT_TOKEN=` (empty) in `global/.env`. Omit the variable or store the token only in `profiles/<name>/telegram.env`.
+
+**Workspace migration:** legacy installs may have encrypted workspace files. Run once:
+
+```bash
+holix profile crypto decrypt-workspace --all --yes
+```
+
+After gateway stop, `holix-gateway-seal.sh` (systemd `ExecStopPost`) can re-seal memory with `HOLIX_UNLOCK_KEY`.
+
+Complete guide (encrypted files table, per-OS policy, step-by-step enable): [PROFILE_ENCRYPTION.md](PROFILE_ENCRYPTION.md).
+
 ## Tools
 
 - **Terminal**: whitelist, dangerous-pattern blocks, and confirmations — full guide: [TERMINAL_SECURITY.md](TERMINAL_SECURITY.md). Quick setup:
   ```bash
-  helix -p dev profile whitelist enable
-  helix -p dev profile whitelist add "docker, make"
-  helix -p dev profile whitelist list
+  holix -p dev profile whitelist enable
+  holix -p dev profile whitelist add "docker, make"
+  holix -p dev profile whitelist list
   ```
-- **Python executor**: disable in production via `HELIX_ENABLE_CODE_EXECUTOR=false`
+- **Python executor**: disable in production via `HOLIX_ENABLE_CODE_EXECUTOR=false`
+- **Workspace path privacy**: when [workspace jail](PROFILES.md#path-visibility-in-responses) is on, profile users see relative paths only; gateway `admin` keys and the Telegram bot admin see full paths
 
 ## Run audit
 
 ```bash
-helix doctor
-helix doctor --fix
+holix doctor
+holix doctor --fix
 ```

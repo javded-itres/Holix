@@ -2,24 +2,24 @@
 
 ## Чеклист production
 
-1. `HELIX_ENV=production`
-2. `HELIX_REQUIRE_AUTH=true` (в production принудительно)
-3. `HELIX_API_KEY_PEPPER` — длинный случайный секрет
-4. `HELIX_CORS_ORIGINS` — явные origin (не `*`)
-5. `HELIX_GATEWAY_HOST=127.0.0.1` за reverse proxy с TLS
-6. `HELIX_TELEGRAM_ALLOWED_USERS` при использовании Telegram
-7. `HELIX_ENABLE_CODE_EXECUTOR=false` если не нужен
-8. `HELIX_TERMINAL_COMMAND_WHITELIST=true`
+1. `HOLIX_ENV=production`
+2. `HOLIX_REQUIRE_AUTH=true` (в production принудительно)
+3. `HOLIX_API_KEY_PEPPER` — длинный случайный секрет
+4. `HOLIX_CORS_ORIGINS` — явные origin (не `*`)
+5. `HOLIX_GATEWAY_HOST=127.0.0.1` за reverse proxy с TLS
+6. Telegram: `HOLIX_TELEGRAM_ACCESS_REQUESTS=true` (по умолчанию после `telegram setup`) или `HOLIX_TELEGRAM_ALLOWED_USERS` для личного бота; в production — именованные профили (`-p shared`), не `default`
+7. `HOLIX_ENABLE_CODE_EXECUTOR=false` если не нужен
+8. `HOLIX_TERMINAL_COMMAND_WHITELIST=true`
 
-## Web TUI (`helix tui --web`)
+## Web TUI (`holix tui --web`)
 
 Браузерный UI — полноценный агент (терминал, файлы, MCP). Считайте это root на вашей машине.
 
 | Bind | Требования |
 |------|------------|
-| `127.0.0.1` (по умолчанию) | `--token`, `HELIX_TUI_WEB_TOKEN` или эфемерный `--generate-token` (по умолчанию) |
+| `127.0.0.1` (по умолчанию) | `--token`, `HOLIX_TUI_WEB_TOKEN` или эфемерный `--generate-token` (по умолчанию) |
 | `0.0.0.0` / LAN | `--allow-lan` **и** явный `--token` / env (автотокен не создаётся) |
-| `HELIX_ENV=production` | Явный token всегда |
+| `HOLIX_ENV=production` | Явный token всегда |
 
 - Не выставляйте порт 8787 в интернет без TLS и reverse proxy.
 - Меняйте token после передачи LAN-URL.
@@ -28,11 +28,34 @@
 
 - Хранение: HMAC-SHA256 с pepper
 - `/admin/*` всегда требуют permission `admin`
-- Создание: `POST /admin/api-keys` с admin key
+- Создание: `POST /admin/api-keys` с admin key (нет CLI-команды `holix` для `hx_` — используйте curl или Swagger `/docs`)
+
+### Двухслойная аутентификация gateway
+
+Gateway использует **два независимых credential**:
+
+| Слой | Ключ | Префикс | Назначение |
+|------|------|---------|------------|
+| 1 — API key gateway | `Authorization: Bearer …` или `X-API-Key` | `hx_…` | Аутентификация всех защищённых HTTP-маршрутов (chat, Hermes, management) |
+| 2 — Ключ доступа к профилю | `X-Holix-Profile-Key` | `hp_…` | Авторизация `/api/holix/*` management для конкретного профиля |
+
+**Слой 1** обязателен при `HOLIX_REQUIRE_AUTH=true` (кроме `/health`, `/v1/health`). Ключи `hx_` создаются через `POST /admin/api-keys`.
+
+**Слой 2** только для `/api/holix/*`. Владелец профиля отправляет свой `hp_…` для управления своим профилем. Админы gateway обходят слой 2 ключом API с правом `admin` или master-ключом admin-профиля (`HOLIX_TELEGRAM_ADMIN_PROFILE`, по умолчанию `admin`). Ключи `hp_` — через `holix profile key init`, не через admin API gateway.
+
+Chat и Hermes (`/v1/chat/completions`, `/v1/models` и т.д.) требуют **только слой 1**. Роутинг профиля — `X-Holix-Profile` или поле `model`, не `hp_`.
+
+Таблицы: [GATEWAY_API.md](GATEWAY_API.md#authentication).
+
+### Токен docs-chat (отдельная поверхность)
+
+При запуске сайта документации с `--with-docs` и `HOLIX_DOCS_CHAT_ENABLED=1` встроенный ассистент использует **`HOLIX_DOCS_CHAT_TOKEN`** — отдельный секрет для `/v1/docs/chat` и прокси docs-server (`/api/docs-chat`).
+
+Это **не** API key gateway (`hx_`) и **не** ключ профиля (`hp_`). Токен только на стороне сервера (прокси хранит его; браузер не видит). Ротируйте независимо от ключей gateway.
 
 ## Секреты в профиле
 
-В `~/.helix/profiles/<name>/config.yaml`:
+В `~/.holix/profiles/<name>/config.yaml`:
 
 ```yaml
 api_key: ${OPENAI_API_KEY}
@@ -40,19 +63,48 @@ api_key: ${OPENAI_API_KEY}
 
 Не коммитьте реальные ключи в git.
 
+## Шифрование на диске
+
+Опциональное шифрование по профилю защищает секреты и память, но не workspace агента:
+
+| Шифруется | Plaintext |
+|-----------|-----------|
+| `.env`, `telegram.env`, `SOUL.md`, `USER.md` | `workspace/` (файлы проекта, git-friendly) |
+| БД памяти (SQLite, Chroma) | `config.yaml` (несекретные настройки) |
+
+```bash
+holix -p alice profile crypto enable
+holix profile crypto migrate --all --yes
+```
+
+**Gateway / systemd:** задайте `HOLIX_UNLOCK_KEY` в `global/.env` или `.env` профиля. Без ключа зашифрованный `telegram.env` не читается, и бот не стартует, даже если в окружении процесса `TELEGRAM_BOT_TOKEN` пустой.
+
+**Ловушка с токеном Telegram:** не задавайте `TELEGRAM_BOT_TOKEN=` (пустое) в `global/.env`. Опустите переменную или храните токен только в `profiles/<имя>/telegram.env`.
+
+**Миграция workspace:** на старых установках workspace мог быть зашифрован. Один раз:
+
+```bash
+holix profile crypto decrypt-workspace --all --yes
+```
+
+После остановки gateway скрипт `holix-gateway-seal.sh` (systemd `ExecStopPost`) может повторно запечатать память при заданном `HOLIX_UNLOCK_KEY`.
+
+Полный гайд (таблица файлов, политика по ОС, пошаговое включение): [PROFILE_ENCRYPTION.md](PROFILE_ENCRYPTION.md).
+
 ## Инструменты
 
 - **Terminal**: whitelist, блокировка опасных паттернов, подтверждения — подробно: [TERMINAL_SECURITY.md](TERMINAL_SECURITY.md). Быстрая настройка:
   ```bash
-  helix -p dev profile whitelist enable
-  helix -p dev profile whitelist add "docker, make"
-  helix -p dev profile whitelist list
+  holix -p dev profile whitelist enable
+  holix -p dev profile whitelist add "docker, make"
+  holix -p dev profile whitelist list
   ```
-- **Python executor**: `HELIX_ENABLE_CODE_EXECUTOR=false` в production
+- **Python executor**: `HOLIX_ENABLE_CODE_EXECUTOR=false` в production
+- **Приватность путей workspace**: при [workspace jail](PROFILES.md#видимость-путей-в-ответах) пользователи профиля видят только относительные пути; ключи gateway с `admin` и админ Telegram-бота — полные
 
 ## Аудит
 
 ```bash
-helix doctor
-helix doctor --fix
+holix doctor
+holix doctor --fix
 ```

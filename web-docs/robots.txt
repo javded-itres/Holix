@@ -1,11 +1,11 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://helix-agent.ru/sitemap.xml
+Sitemap: https://holix-agent.ru/sitemap.xml
 
 User-agent: Yandex
 Allow: /
-Host: helix-agent.ru
+Host: holix-agent.ru
 
 User-agent: Googlebot
 Allow: /

@@ -35,7 +35,7 @@ def test_append_and_load_session(sessions_dir) -> None:
     append_exchange(
         cid,
         user_message="How to install?",
-        assistant_message="Use pipx install HelixAgentAi",
+        assistant_message="Use pipx install Holix",
         pages=[{"slug": "installation", "title": "Installation"}],
     )
     session = load_session(cid)

@@ -1,4 +1,4 @@
-"""Persisted state for per-profile Helix gateway instances."""
+"""Persisted state for per-profile Holix gateway instances."""
 
 from __future__ import annotations
 
@@ -8,11 +8,11 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, Self
 
-from core.platform_compat import is_process_alive, resolve_helix_home
+from core.platform_compat import is_process_alive, resolve_holix_home
 
 
 def gateway_dir(profile: str = "default") -> Path:
-    return (resolve_helix_home() / "profiles" / profile / "gateway").resolve()
+    return (resolve_holix_home() / "profiles" / profile / "gateway").resolve()
 
 
 def state_path(profile: str = "default") -> Path:
@@ -72,7 +72,7 @@ def ensure_gateway_dir(profile: str = "default") -> Path:
 
 
 def _legacy_state_path() -> Path:
-    return resolve_helix_home() / "gateway" / "state.json"
+    return resolve_holix_home() / "gateway" / "state.json"
 
 
 def _read_state_file(path: Path) -> GatewayState | None:

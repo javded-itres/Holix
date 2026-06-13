@@ -1,4 +1,4 @@
-"""Security policy for `helix tui --web` (textual-serve)."""
+"""Security policy for `holix tui --web` (textual-serve)."""
 
 from __future__ import annotations
 
@@ -82,24 +82,24 @@ def build_web_tui_policy(
         raise WebTuiSecurityError(
             f"Refusing to bind web TUI to {bind!r} without --allow-lan. "
             "LAN exposure grants full agent access (shell, files, MCP). "
-            "Use: helix tui --web --allow-lan --host 0.0.0.0 --token <secret>"
+            "Use: holix tui --web --allow-lan --host 0.0.0.0 --token <secret>"
         )
 
     loopback = is_loopback_host(bind)
-    explicit = (cli_token or "").strip() or os.getenv("HELIX_TUI_WEB_TOKEN", "").strip()
+    explicit = (cli_token or "").strip() or os.getenv("HOLIX_TUI_WEB_TOKEN", "").strip()
 
     if explicit:
         token, generated = explicit, False
     elif not loopback or is_production:
         raise WebTuiSecurityError(
             "Web TUI on LAN or in production requires --token <secret> "
-            "or HELIX_TUI_WEB_TOKEN in the environment."
+            "or HOLIX_TUI_WEB_TOKEN in the environment."
         )
     elif generate_token:
         token, generated = generate_web_token(), True
     else:
         raise WebTuiSecurityError(
-            "Pass --token <secret>, set HELIX_TUI_WEB_TOKEN, or allow "
+            "Pass --token <secret>, set HOLIX_TUI_WEB_TOKEN, or allow "
             "--generate-token (default on 127.0.0.1)."
         )
 
@@ -128,7 +128,7 @@ def make_auth_middleware(expected_token: str):
             return await handler(request)
         raise web.HTTPUnauthorized(
             text=(
-                "Helix Web TUI: missing or invalid token. "
+                "Holix Web TUI: missing or invalid token. "
                 "Open the URL printed at startup (?token=...) or send "
                 "Authorization: Bearer <token>."
             ),

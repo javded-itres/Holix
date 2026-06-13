@@ -6,13 +6,13 @@ from pydantic import BaseModel
 class Message(BaseModel):
     """Chat message model."""
     role: str
-    content: str
+    content: str | list[dict[str, Any]]
     name: str | None = None
 
 
 class ChatCompletionRequest(BaseModel):
     """OpenAI-compatible chat completion request."""
-    model: str = "helix"
+    model: str = "holix"
     messages: list[Message]
     temperature: float | None = 0.7
     max_tokens: int | None = None

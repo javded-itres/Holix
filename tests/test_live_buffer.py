@@ -10,7 +10,7 @@ def test_render_includes_tools_and_answer():
     buf.set_answer("Hello **world**")
     buf.mark_done()
     text = buf.render_plain()
-    assert "Helix" in text
+    assert "Holix" in text
     assert "Read" in text
     assert "Hello" in text
 

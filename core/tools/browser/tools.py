@@ -1,4 +1,4 @@
-"""Playwright browser tools for Helix agent."""
+"""Playwright browser tools for Holix agent."""
 
 from __future__ import annotations
 

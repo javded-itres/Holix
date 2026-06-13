@@ -8,7 +8,7 @@ import urllib.request
 from dataclasses import dataclass
 from pathlib import Path
 
-USER_AGENT = "Helix/1.0"
+USER_AGENT = "Holix/1.0"
 DEFAULT_REPOS = (
     "vercel-labs/agent-skills",
     "vercel-labs/skills",

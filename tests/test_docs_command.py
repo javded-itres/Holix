@@ -1,4 +1,4 @@
-"""Tests for helix docs command."""
+"""Tests for holix docs command."""
 
 from __future__ import annotations
 

@@ -8,14 +8,18 @@ from pathlib import Path
 DIFF_SEPARATOR = "--- diff ---"
 
 
-def read_file_text(path: Path) -> str | None:
+def read_file_text(path: Path, *, profile: str | None = None) -> str | None:
     """Return file text if readable, else None."""
     try:
-        if path.is_file():
-            return path.read_text(encoding="utf-8")
+        if not path.is_file():
+            return None
+        if profile:
+            from core.workspace.storage import read_profile_file_text
+
+            return read_profile_file_text(path, profile=profile)
+        return path.read_text(encoding="utf-8")
     except (OSError, UnicodeDecodeError):
         return None
-    return None
 
 
 def unified_diff_text(path: str, old: str, new: str, *, context: int = 3) -> str:

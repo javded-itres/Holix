@@ -1,6 +1,6 @@
 ---
 name: Bug report
-about: Report a problem with Helix
+about: Report a problem with Holix
 title: ''
 labels: bug
 assignees: ''
@@ -9,7 +9,7 @@ assignees: ''
 **Environment**
 - OS:
 - Python version:
-- Helix version (`helix version`):
+- Holix version (`holix version`):
 
 **Steps to reproduce**
 1.
@@ -23,5 +23,5 @@ assignees: ''
 
 **Logs (redact secrets)**
 ```
-Paste helix doctor output or relevant log lines
+Paste holix doctor output or relevant log lines
 ```

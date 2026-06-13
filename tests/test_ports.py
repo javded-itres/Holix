@@ -3,9 +3,15 @@
 from __future__ import annotations
 
 import socket
+import threading
+import time
 
 import pytest
-from cli.utils.ports import is_port_available, resolve_listen_port
+from cli.utils.ports import (
+    is_port_available,
+    resolve_listen_port,
+    wait_for_port_available,
+)
 
 
 def test_is_port_available_detects_busy_port() -> None:
@@ -29,6 +35,50 @@ def test_resolve_listen_port_returns_preferred_when_free() -> None:
         probe.bind(("127.0.0.1", 0))
         free_port = probe.getsockname()[1]
     assert resolve_listen_port("127.0.0.1", free_port) == free_port
+
+
+def test_wait_for_port_available_returns_when_socket_released() -> None:
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+        sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        sock.bind(("127.0.0.1", 0))
+        port = sock.getsockname()[1]
+
+    assert wait_for_port_available("127.0.0.1", port, timeout=1.0) is True
+
+
+def test_wait_for_port_available_waits_for_release() -> None:
+    holder = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    holder.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    holder.bind(("127.0.0.1", 0))
+    port = holder.getsockname()[1]
+
+    def _release() -> None:
+        time.sleep(0.3)
+        holder.close()
+
+    threading.Thread(target=_release, daemon=True).start()
+    try:
+        assert wait_for_port_available("127.0.0.1", port, timeout=2.0) is True
+    finally:
+        holder.close()
+
+
+def test_resolve_listen_port_waits_before_bumping() -> None:
+    holder = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    holder.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    holder.bind(("127.0.0.1", 0))
+    port = holder.getsockname()[1]
+
+    def _release() -> None:
+        time.sleep(0.25)
+        holder.close()
+
+    threading.Thread(target=_release, daemon=True).start()
+    try:
+        resolved = resolve_listen_port("127.0.0.1", port, wait_timeout=2.0, max_offset=3)
+        assert resolved == port
+    finally:
+        holder.close()
 
 
 def test_resolve_listen_port_raises_when_exhausted() -> None:

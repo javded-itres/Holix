@@ -1,426 +1,458 @@
 {
-  "siteUrl": "https://helix-agent.ru",
+  "siteUrl": "https://holix-agent.ru",
   "views": {
     "home": {
       "ru": {
-        "title": "Helix — AI-агент с памятью, MCP и Telegram · Российская разработка",
-        "description": "Helix — российский самообучающийся AI-агент: долговременная память, навыки, MCP, CLI, TUI, API gateway и Telegram. Open source, деплой на своей инфраструктуре с Ollama и LiteLLM.",
-        "keywords": "Helix AI агент, самообучающийся агент, российское ПО, LLM агент, Ollama, LiteLLM, MCP, Telegram бот, API gateway, open source AI"
+        "title": "Holix — AI-агент с памятью, MCP и Telegram · Российская разработка",
+        "description": "Holix — российский самообучающийся AI-агент: долговременная память, навыки, MCP, CLI, TUI, API gateway и Telegram. Open source, деплой на своей инфраструктуре с Ollama и LiteLLM.",
+        "keywords": "Holix AI агент, самообучающийся агент, российское ПО, LLM агент, Ollama, LiteLLM, MCP, Telegram бот, API gateway, open source AI"
       },
       "en": {
-        "title": "Helix — Self-Improving AI Agent with Memory, MCP & Telegram",
-        "description": "Helix is an open-source self-improving AI agent: persistent memory, skills, MCP, CLI, TUI, API gateway, and Telegram. Deploy on-prem with Ollama, LiteLLM, or cloud LLMs.",
-        "keywords": "Helix AI agent, self-improving agent, LLM agent, Ollama, LiteLLM, MCP, Telegram bot, API gateway, open source AI, Russian software"
+        "title": "Holix — Self-Improving AI Agent with Memory, MCP & Telegram",
+        "description": "Holix is an open-source self-improving AI agent: persistent memory, skills, MCP, CLI, TUI, API gateway, and Telegram. Deploy on-prem with Ollama, LiteLLM, or cloud LLMs.",
+        "keywords": "Holix AI agent, self-improving agent, LLM agent, Ollama, LiteLLM, MCP, Telegram bot, API gateway, open source AI, Russian software"
       }
     },
     "docs-hub": {
       "ru": {
-        "title": "Документация Helix — установка, CLI, профили, gateway, Telegram",
-        "description": "Полная документация Helix: установка с PyPI, первый запуск, конфигурация профилей, справочник CLI, TUI, API gateway, Telegram-бот, деплой в Docker и systemd.",
-        "keywords": "документация Helix, Helix установка, Helix CLI, профили Helix, gateway API, Telegram бот Helix, руководство пользователя"
+        "title": "Документация Holix — установка, CLI, профили, gateway, Telegram",
+        "description": "Полная документация Holix: установка с PyPI, первый запуск, конфигурация профилей, справочник CLI, TUI, API gateway, Telegram-бот, деплой в Docker и systemd.",
+        "keywords": "документация Holix, Holix установка, Holix CLI, профили Holix, gateway API, Telegram бот Holix, руководство пользователя"
       },
       "en": {
-        "title": "Helix Documentation — Install, CLI, Profiles, Gateway, Telegram",
-        "description": "Complete Helix docs: PyPI install, quickstart, profile configuration, CLI reference, TUI, API gateway, Telegram bot, Docker and systemd deployment guides.",
-        "keywords": "Helix documentation, Helix install guide, Helix CLI, Helix profiles, API gateway, Telegram bot, user guide"
+        "title": "Holix Documentation — Install, CLI, Profiles, Gateway, Telegram",
+        "description": "Complete Holix docs: PyPI install, quickstart, profile configuration, CLI reference, TUI, API gateway, Telegram bot, Docker and systemd deployment guides.",
+        "keywords": "Holix documentation, Holix install guide, Holix CLI, Holix profiles, API gateway, Telegram bot, user guide"
       }
     }
   },
   "defaults": {
     "ru": {
-      "title": "Helix — AI-агент с памятью, MCP и Telegram · Российская разработка",
-      "description": "Helix — российский самообучающийся AI-агент: долговременная память, навыки, MCP, CLI, TUI, API gateway и Telegram. Open source, деплой на своей инфраструктуре с Ollama и LiteLLM.",
-      "keywords": "Helix AI агент, самообучающийся агент, российское ПО, LLM агент, Ollama, LiteLLM, MCP, Telegram бот, API gateway, open source AI"
+      "title": "Holix — AI-агент с памятью, MCP и Telegram · Российская разработка",
+      "description": "Holix — российский самообучающийся AI-агент: долговременная память, навыки, MCP, CLI, TUI, API gateway и Telegram. Open source, деплой на своей инфраструктуре с Ollama и LiteLLM.",
+      "keywords": "Holix AI агент, самообучающийся агент, российское ПО, LLM агент, Ollama, LiteLLM, MCP, Telegram бот, API gateway, open source AI"
     },
     "en": {
-      "title": "Helix — Self-Improving AI Agent with Memory, MCP & Telegram",
-      "description": "Helix is an open-source self-improving AI agent: persistent memory, skills, MCP, CLI, TUI, API gateway, and Telegram. Deploy on-prem with Ollama, LiteLLM, or cloud LLMs.",
-      "keywords": "Helix AI agent, self-improving agent, LLM agent, Ollama, LiteLLM, MCP, Telegram bot, API gateway, open source AI, Russian software"
+      "title": "Holix — Self-Improving AI Agent with Memory, MCP & Telegram",
+      "description": "Holix is an open-source self-improving AI agent: persistent memory, skills, MCP, CLI, TUI, API gateway, and Telegram. Deploy on-prem with Ollama, LiteLLM, or cloud LLMs.",
+      "keywords": "Holix AI agent, self-improving agent, LLM agent, Ollama, LiteLLM, MCP, Telegram bot, API gateway, open source AI, Russian software"
     }
   },
   "pages": {
     "readme": {
       "en": {
         "navTitle": "Overview",
-        "heading": "Helix Documentation (English)",
-        "title": "Helix Overview — AI Agent Features & Documentation Map",
-        "description": "Overview of Helix: self-improving AI agent with memory, skills, MCP, CLI, TUI, gateway, and Telegram. Documentation map for quickstart and advanced setup.",
-        "keywords": "Helix overview, AI agent features, Helix documentation, HelixAgentAi, PyPI"
+        "heading": "Holix Documentation (English)",
+        "title": "Holix Overview — AI Agent Features & Documentation Map",
+        "description": "Overview of Holix: self-improving AI agent with memory, skills, MCP, CLI, TUI, gateway, and Telegram. Documentation map for quickstart and advanced setup.",
+        "keywords": "Holix overview, AI agent features, Holix documentation, Holix, PyPI"
       },
       "ru": {
         "navTitle": "Обзор",
-        "heading": "Документация Helix (русский)",
-        "title": "Обзор Helix — возможности AI-агента и структура документации",
-        "description": "Обзор Helix: самообучающийся AI-агент с памятью, навыками, MCP, CLI, TUI, gateway и Telegram. Карта документации для быстрого старта и углублённой настройки.",
-        "keywords": "Helix обзор, AI агент возможности, документация Helix, HelixAgentAi, PyPI"
+        "heading": "Документация Holix (русский)",
+        "title": "Обзор Holix — возможности AI-агента и структура документации",
+        "description": "Обзор Holix: самообучающийся AI-агент с памятью, навыками, MCP, CLI, TUI, gateway и Telegram. Карта документации для быстрого старта и углублённой настройки.",
+        "keywords": "Holix обзор, AI агент возможности, документация Holix, Holix, PyPI"
       }
     },
     "installation": {
       "en": {
         "navTitle": "Installation",
         "heading": "Installation",
-        "title": "Install Helix — PyPI, pipx, Python 3.12, Docker",
-        "description": "How to install Helix from PyPI (HelixAgentAi): pipx, venv, Python 3.12+, optional extras (Telegram, browser, voice). Updates, uninstall, and install troubleshooting.",
-        "keywords": "install Helix, pipx install HelixAgentAi, PyPI, Python 3.12, Helix Docker"
+        "title": "Install Holix — curl, PyPI, bootstrap, Python 3.12",
+        "description": "Install Holix with one curl command: OS language detection (RU/EN), full or minimal install, holix bootstrap (LLM, Telegram, profile locale). PyPI, pipx, Docker, updates, and troubleshooting.",
+        "keywords": "install Holix, curl install Holix, holix bootstrap, pipx install Holix, PyPI"
       },
       "ru": {
         "navTitle": "Установка",
         "heading": "Установка",
-        "title": "Установка Helix — PyPI, pipx, Python 3.12, Docker",
-        "description": "Как установить Helix с PyPI (HelixAgentAi): pipx, venv, Python 3.12+, опциональные extras (Telegram, браузер, голос). Обновление, удаление и решение проблем установки.",
-        "keywords": "установка Helix, pipx install HelixAgentAi, PyPI, Python 3.12, Helix Docker"
+        "title": "Установка Holix — curl, PyPI, bootstrap, Python 3.12",
+        "description": "Установка Holix одной командой curl: определение языка (RU/EN), полная или минимальная установка, holix bootstrap (LLM, Telegram, локаль профилей). PyPI, pipx, Docker, обновление и решение проблем.",
+        "keywords": "установка Holix, curl install Holix, holix bootstrap, pipx install Holix, PyPI"
       }
     },
     "start-here": {
       "en": {
         "navTitle": "Start Here",
         "heading": "Start Here",
-        "title": "Start Here — Helix First-Run Checklist in 5 Steps",
-        "description": "Helix first-run checklist: install, helix doctor, configure models, pick an interface (TUI, chat, gateway), and optional Telegram and browser features.",
-        "keywords": "Helix start here, helix doctor, configure models, helix tui, first run"
+        "title": "Start Here — Holix First-Run Checklist in 5 Steps",
+        "description": "Holix first-run checklist: install, holix doctor, configure models, pick an interface (TUI, chat, gateway), and optional Telegram and browser features.",
+        "keywords": "Holix start here, holix doctor, configure models, holix tui, first run"
       },
       "ru": {
         "navTitle": "Первый запуск",
         "heading": "С чего начать",
-        "title": "Первый запуск Helix — чеклист настройки за 5 шагов",
-        "description": "Чеклист первого запуска Helix: установка, helix doctor, настройка моделей, выбор интерфейса (TUI, chat, gateway) и опциональные функции Telegram и браузера.",
-        "keywords": "первый запуск Helix, helix doctor, настройка моделей, helix tui, быстрый старт"
+        "title": "Первый запуск Holix — чеклист настройки за 5 шагов",
+        "description": "Чеклист первого запуска Holix: установка, holix doctor, настройка моделей, выбор интерфейса (TUI, chat, gateway) и опциональные функции Telegram и браузера.",
+        "keywords": "первый запуск Holix, holix doctor, настройка моделей, holix tui, быстрый старт"
       }
     },
     "quickstart": {
       "en": {
         "navTitle": "Quickstart",
         "heading": "Quickstart",
-        "title": "Helix Quickstart — Minimal Commands to Run the Agent",
-        "description": "Minimal Helix quickstart: pipx install HelixAgentAi, helix doctor, helix models setup, helix tui. Short command list to start using the agent immediately.",
-        "keywords": "Helix quickstart, helix tui, helix models setup, minimal commands"
+        "title": "Holix Quickstart — Minimal Commands to Run the Agent",
+        "description": "Minimal Holix quickstart: curl install.sh, holix bootstrap, holix doctor, holix tui. Short command list to start using the agent immediately.",
+        "keywords": "Holix quickstart, holix tui, holix models setup, minimal commands"
       },
       "ru": {
         "navTitle": "Быстрый старт",
         "heading": "Быстрый старт",
-        "title": "Быстрый старт Helix — минимальные команды для запуска",
-        "description": "Минимальный быстрый старт Helix: pipx install HelixAgentAi, helix doctor, helix models setup, helix tui. Краткий список команд для немедленного начала работы с агентом.",
-        "keywords": "Helix быстрый старт, helix tui, helix models setup, минимальные команды"
+        "title": "Быстрый старт Holix — минимальные команды для запуска",
+        "description": "Минимальный быстрый старт Holix: curl install.sh, holix bootstrap, holix doctor, holix tui. Краткий список команд для немедленного начала работы с агентом.",
+        "keywords": "Holix быстрый старт, holix tui, holix models setup, минимальные команды"
       }
     },
     "configuration": {
       "en": {
         "navTitle": "Configuration",
         "heading": "Configuration",
-        "title": "Helix Configuration — Profiles, .env, Models & MCP",
-        "description": "Helix configuration: settings layers, profiles/<name>/.env, config.yaml, LLM providers (Ollama, LiteLLM, OpenRouter), MCP servers, Hub, and ${ENV:VAR} secrets.",
-        "keywords": "Helix configuration, helix profile env, Ollama LiteLLM, MCP servers, config.yaml"
+        "title": "Holix Configuration — Profiles, Encryption, .env & MCP",
+        "description": "Holix configuration: env layers, profiles/<name>/.env, optional secret encryption, HOLIX_UNLOCK_KEY, config.yaml, Ollama/LiteLLM, MCP, and telegram.env.",
+        "keywords": "Holix configuration, holix profile env, profile encryption, HOLIX_UNLOCK_KEY, Ollama LiteLLM, MCP servers"
       },
       "ru": {
         "navTitle": "Конфигурация",
         "heading": "Конфигурация",
-        "title": "Конфигурация Helix — профили, .env, модели и MCP",
-        "description": "Конфигурация Helix: слои настроек, profiles/<name>/.env, config.yaml, провайдеры LLM (Ollama, LiteLLM, OpenRouter), MCP-серверы, Hub и секреты ${ENV:VAR}.",
-        "keywords": "конфигурация Helix, helix profile env, Ollama LiteLLM, MCP серверы, config.yaml"
+        "title": "Конфигурация Holix — профили, шифрование, .env, MCP",
+        "description": "Конфигурация Holix: слои env, profiles/<name>/.env, шифрование секретов, HOLIX_UNLOCK_KEY, config.yaml, Ollama/LiteLLM, MCP и telegram.env.",
+        "keywords": "конфигурация Holix, holix profile env, шифрование профиля, HOLIX_UNLOCK_KEY, Ollama LiteLLM, MCP серверы"
       }
     },
     "profiles": {
       "en": {
         "navTitle": "Profiles & Isolation",
         "heading": "Profiles & isolation",
-        "title": "Helix Profiles — User Isolation, Access Keys & Workspace Jail",
-        "description": "Helix profile isolation: separate .env, gateway, Telegram bot, and memory per user. Optional access keys and workspace jail to restrict file and terminal tools.",
-        "keywords": "Helix profiles, profile isolation, workspace jail, profile access key, multi-user"
+        "title": "Holix Profiles — Isolation, Delete & Workspace Jail",
+        "description": "Holix profile isolation: per-user .env, gateway, Telegram, and memory. Delete with Telegram notify, workspace jail, hp_ keys, optional secret encryption.",
+        "keywords": "Holix profiles, profile isolation, delete profile, workspace jail, profile access key, Holix encryption"
       },
       "ru": {
         "navTitle": "Профили и изоляция",
         "heading": "Профили и изоляция",
-        "title": "Профили Helix — изоляция пользователей, ключи доступа, workspace jail",
-        "description": "Изоляция профилей Helix: отдельные .env, gateway, Telegram-бот и память на пользователя. Опциональные ключи доступа и workspace jail для ограничения файловых операций.",
-        "keywords": "Helix профили, изоляция профилей, workspace jail, ключ доступа профиля, multi-user"
+        "title": "Профили Holix — изоляция, удаление, workspace jail",
+        "description": "Изоляция профилей Holix: .env, gateway, Telegram и память на пользователя. Удаление с уведомлением в Telegram, workspace jail, ключи hp_, шифрование секретов.",
+        "keywords": "Holix профили, изоляция профилей, удаление профиля, workspace jail, ключ доступа профиля, шифрование Holix"
+      }
+    },
+    "profile-encryption": {
+      "en": {
+        "navTitle": "Profile Encryption",
+        "heading": "Profile encryption at rest",
+        "title": "Holix Profile Encryption — Linux, macOS, Windows & Unlock Key",
+        "description": "Holix at-rest encryption: .env, telegram.env, SQLite/Chroma memory. Workspace stays plaintext. OS policy linux-production/on/off, gateway unlock, migration.",
+        "keywords": "Holix encryption, HOLIX_UNLOCK_KEY, HOLIX_ENCRYPTION_MODE, linux-production, holix profile crypto, profile encryption, AES-256-GCM, at-rest encryption"
+      },
+      "ru": {
+        "navTitle": "Шифрование профиля",
+        "heading": "Шифрование профиля на диске",
+        "title": "Шифрование профиля Holix — Linux, macOS, Windows, HOLIX_UNLOCK_KEY",
+        "description": "Шифрование at-rest в Holix: .env, telegram.env, память SQLite/Chroma. Workspace plaintext. Политика linux-production/on/off по ОС, gateway unlock, миграция.",
+        "keywords": "шифрование Holix, HOLIX_UNLOCK_KEY, HOLIX_ENCRYPTION_MODE, linux-production, holix profile crypto, шифрование профиля, AES-256-GCM, at-rest encryption"
       }
     },
     "cli": {
       "en": {
         "navTitle": "CLI Reference",
         "heading": "CLI reference",
-        "title": "Helix CLI Reference — All helix Commands",
-        "description": "Complete Helix CLI reference: chat, tui, gateway, models, telegram, profile, mcp, hub, cron, logs, doctor. -p profile option, examples, and common workflows.",
-        "keywords": "Helix CLI, helix commands, helix gateway, helix models, helix telegram, reference"
+        "title": "Holix CLI Reference — All holix Commands",
+        "description": "Complete Holix CLI reference: chat, tui, gateway, models, telegram, profile, mcp, hub, cron, logs, doctor. -p profile option, examples, and common workflows.",
+        "keywords": "Holix CLI, holix commands, holix gateway, holix models, holix telegram, reference"
       },
       "ru": {
         "navTitle": "Справочник CLI",
         "heading": "Справочник CLI",
-        "title": "Справочник CLI Helix — все команды helix",
-        "description": "Полный справочник CLI Helix: chat, tui, gateway, models, telegram, profile, mcp, hub, cron, logs, doctor. Опции -p profile, примеры и типовые сценарии использования.",
-        "keywords": "Helix CLI, helix команды, helix gateway, helix models, helix telegram, справочник"
+        "title": "Справочник CLI Holix — все команды holix",
+        "description": "Полный справочник CLI Holix: chat, tui, gateway, models, telegram, profile, mcp, hub, cron, logs, doctor. Опции -p profile, примеры и типовые сценарии использования.",
+        "keywords": "Holix CLI, holix команды, holix gateway, holix models, holix telegram, справочник"
       }
     },
     "slash-commands": {
       "en": {
         "navTitle": "Slash Commands",
         "heading": "Slash commands (`/`)",
-        "title": "Helix Slash Commands — /models, /skills, /mcp in TUI & Telegram",
-        "description": "Helix slash commands in TUI and Telegram: /models, /profile, /skills, /mcp, /hub, /compress, /sessions. Control session, models, and tools without prompting the LLM.",
-        "keywords": "Helix slash commands, /models, /skills, TUI commands, Telegram commands"
+        "title": "Holix Slash Commands — /models, /skills, /mcp in TUI & Telegram",
+        "description": "Holix slash commands in TUI and Telegram: /models, /profile, /skills, /mcp, /hub, /compress, /sessions. Control session, models, and tools without prompting the LLM.",
+        "keywords": "Holix slash commands, /models, /skills, TUI commands, Telegram commands"
       },
       "ru": {
         "navTitle": "Слэш-команды",
         "heading": "Слэш-команды (`/`)",
-        "title": "Слэш-команды Helix — /models, /skills, /mcp в TUI и Telegram",
-        "description": "Слэш-команды Helix в TUI и Telegram: /models, /profile, /skills, /mcp, /hub, /compress, /sessions. Управление сессией, моделями и инструментами без обращения к LLM.",
-        "keywords": "Helix слэш-команды, /models, /skills, TUI команды, Telegram команды Helix"
+        "title": "Слэш-команды Holix — /models, /skills, /mcp в TUI и Telegram",
+        "description": "Слэш-команды Holix в TUI и Telegram: /models, /profile, /skills, /mcp, /hub, /compress, /sessions. Управление сессией, моделями и инструментами без обращения к LLM.",
+        "keywords": "Holix слэш-команды, /models, /skills, TUI команды, Telegram команды Holix"
       }
     },
     "execution-modes": {
       "en": {
         "navTitle": "Execution Modes",
         "heading": "Execution Modes",
-        "title": "Helix Execution Modes — ReAct, Plan, Hybrid, Auto with Prompts",
-        "description": "Helix execution modes: ReAct, Plan & Execute, Hybrid, and Auto. How to switch with /mode, plan approval, tool confirmations, and prompt examples for each mode.",
-        "keywords": "Helix execution modes, ReAct, plan_and_execute, hybrid, auto mode, /mode, Helix prompts, plan review"
+        "title": "Holix Execution Modes — ReAct, Plan, Hybrid, Auto with Prompts",
+        "description": "Holix execution modes: ReAct, Plan & Execute, Hybrid, and Auto. How to switch with /mode, plan approval, tool confirmations, and prompt examples for each mode.",
+        "keywords": "Holix execution modes, ReAct, plan_and_execute, hybrid, auto mode, /mode, Holix prompts, plan review"
       },
       "ru": {
         "navTitle": "Режимы работы",
         "heading": "Режимы работы (execution modes)",
-        "title": "Режимы работы Helix — ReAct, Plan, Hybrid, Auto с примерами",
-        "description": "Режимы Helix: ReAct, Plan & Execute, Hybrid и Auto. Как переключать /mode, согласование плана, подтверждения инструментов и примеры промптов для каждого режима.",
-        "keywords": "Helix режимы, ReAct, plan_and_execute, hybrid, auto mode, /mode, промпты Helix, согласование плана"
+        "title": "Режимы работы Holix — ReAct, Plan, Hybrid, Auto с примерами",
+        "description": "Режимы Holix: ReAct, Plan & Execute, Hybrid и Auto. Как переключать /mode, согласование плана, подтверждения инструментов и примеры промптов для каждого режима.",
+        "keywords": "Holix режимы, ReAct, plan_and_execute, hybrid, auto mode, /mode, промпты Holix, согласование плана"
       }
     },
     "tui": {
       "en": {
         "navTitle": "TUI",
         "heading": "TUI",
-        "title": "Helix TUI — Terminal UI, Tools, Hub & Web Mode",
-        "description": "Helix TUI: full-screen terminal interface with tools, Hub, MCP, copy support, and web mode (helix tui --web). Daily agent workflow in the console.",
-        "keywords": "Helix TUI, helix tui --web, terminal AI agent, textual UI, console agent"
+        "title": "Holix TUI — Terminal UI, Tools, Hub & Web Mode",
+        "description": "Holix TUI: full-screen terminal interface with tools, Hub, MCP, copy support, and web mode (holix tui --web). Daily agent workflow in the console.",
+        "keywords": "Holix TUI, holix tui --web, terminal AI agent, textual UI, console agent"
       },
       "ru": {
         "navTitle": "TUI",
         "heading": "TUI",
-        "title": "TUI Helix — терминальный интерфейс агента и веб-режим",
-        "description": "Helix TUI: полноэкранный терминальный интерфейс с инструментами, Hub, MCP, копированием и веб-режимом (helix tui --web). Ежедневная работа с агентом в консоли.",
-        "keywords": "Helix TUI, helix tui --web, терминальный AI агент, textual UI, консольный агент"
+        "title": "TUI Holix — терминальный интерфейс агента и веб-режим",
+        "description": "Holix TUI: полноэкранный терминальный интерфейс с инструментами, Hub, MCP, копированием и веб-режимом (holix tui --web). Ежедневная работа с агентом в консоли.",
+        "keywords": "Holix TUI, holix tui --web, терминальный AI агент, textual UI, консольный агент"
       }
     },
     "hub": {
       "en": {
         "navTitle": "Hub & Skills",
         "heading": "Skill Hub",
-        "title": "Helix Hub & Skills — Skill Catalogs, MCP & ClawHub",
-        "description": "Helix Hub: install skills and MCP from ClawHub, HermesHub, Claude plugins. helix hub search/install, skill assignments, and catalog auto-updates.",
-        "keywords": "Helix Hub, helix skills, ClawHub, MCP install, agent skills, helix hub install"
+        "title": "Holix Hub & Skills — Skill Catalogs, MCP & ClawHub",
+        "description": "Holix Hub: install skills and MCP from ClawHub, HermesHub, Claude plugins. holix hub search/install, skill assignments, and catalog auto-updates.",
+        "keywords": "Holix Hub, holix skills, ClawHub, MCP install, agent skills, holix hub install"
       },
       "ru": {
         "navTitle": "Hub и навыки",
         "heading": "Skill Hub",
-        "title": "Hub и навыки Helix — каталоги skills, MCP и ClawHub",
-        "description": "Helix Hub: установка навыков и MCP из ClawHub, HermesHub, Claude plugins. helix hub search/install, skill assignments и автообновление каталогов.",
-        "keywords": "Helix Hub, helix skills, ClawHub, MCP install, навыки агента, helix hub install"
+        "title": "Hub и навыки Holix — каталоги skills, MCP и ClawHub",
+        "description": "Holix Hub: установка навыков и MCP из ClawHub, HermesHub, Claude plugins. holix hub search/install, skill assignments и автообновление каталогов.",
+        "keywords": "Holix Hub, holix skills, ClawHub, MCP install, навыки агента, holix hub install"
       }
     },
     "gateway": {
       "en": {
         "navTitle": "API Gateway",
         "heading": "API Gateway",
-        "title": "Helix API Gateway — OpenAI-Compatible HTTP API",
-        "description": "Helix API Gateway: OpenAI-compatible REST API, helix gateway start/stop, authentication, Prometheus metrics, cron and Telegram companions. Per-profile ports and setup.",
-        "keywords": "Helix gateway, API gateway, OpenAI compatible API, helix gateway start, Prometheus"
+        "title": "Holix API Gateway — OpenAI-Compatible HTTP API",
+        "description": "Holix API Gateway: OpenAI-compatible REST API, holix gateway start/stop, authentication, Prometheus metrics, cron and Telegram companions. Per-profile ports and setup.",
+        "keywords": "Holix gateway, API gateway, OpenAI compatible API, holix gateway start, Prometheus"
       },
       "ru": {
         "navTitle": "API Gateway",
         "heading": "API Gateway",
-        "title": "API Gateway Helix — OpenAI-совместимый HTTP API",
-        "description": "Helix API Gateway: OpenAI-совместимый REST API, helix gateway start/stop, аутентификация, Prometheus metrics, cron и Telegram как companion-процессы. Настройка портов и профилей.",
-        "keywords": "Helix gateway, API gateway, OpenAI compatible API, helix gateway start, Prometheus"
+        "title": "API Gateway Holix — OpenAI-совместимый HTTP API",
+        "description": "Holix API Gateway: OpenAI-совместимый REST API, holix gateway start/stop, аутентификация, Prometheus metrics, cron и Telegram как companion-процессы. Настройка портов и профилей.",
+        "keywords": "Holix gateway, API gateway, OpenAI compatible API, holix gateway start, Prometheus"
+      }
+    },
+    "gateway-api": {
+      "en": {
+        "navTitle": "Complete API Reference",
+        "heading": "Holix Gateway API — Complete Reference",
+        "title": "Complete Holix Gateway API Reference — Every Endpoint",
+        "description": "Full Holix Gateway API docs: 110+ endpoints for Hermes, chat, sessions, jobs, /api/holix/ management, admin, metrics, docs-chat. Auth, Swagger Authorize, curl examples.",
+        "keywords": "Holix Gateway API, complete API reference, Hermes API, Holix Management API, /api/helix, OpenAPI Swagger, Telegram admin API, REST API documentation"
+      },
+      "ru": {
+        "navTitle": "Полный справочник API",
+        "heading": "Holix Gateway API — полный справочник",
+        "title": "Полный справочник Holix Gateway API — все эндпоинты",
+        "description": "Полное описание Holix Gateway API: 110+ эндпоинтов Hermes, chat, sessions, jobs, /api/holix/ management, admin, metrics, docs-chat. Аутентификация, Swagger Authorize, curl-примеры.",
+        "keywords": "Holix Gateway API, справочник API, Hermes API, Holix Management API, /api/helix, OpenAPI Swagger, Telegram admin API, REST API документация"
       }
     },
     "telegram": {
       "en": {
         "navTitle": "Telegram",
         "heading": "Telegram",
-        "title": "Helix Telegram Bot — Setup, Voice Notes & Slash Commands",
-        "description": "Helix Telegram integration: helix telegram setup, per-profile bot, allowlist, voice messages (Whisper), inline approvals, and @helix_agent channel for news.",
-        "keywords": "Helix Telegram, helix telegram setup, Telegram AI bot, voice Whisper"
+        "title": "Holix Telegram — Setup, Encrypted Token & Voice Notes",
+        "description": "Holix Telegram: holix telegram setup, encrypted telegram.env, aiogram for gateway, Whisper voice, profile deletion notify, and @holix_agent channel.",
+        "keywords": "Holix Telegram, holix telegram setup, encrypted telegram.env, aiogram, Telegram AI bot, voice Whisper"
       },
       "ru": {
         "navTitle": "Telegram",
         "heading": "Telegram",
-        "title": "Telegram-бот Helix — настройка, голос, slash-команды",
-        "description": "Telegram-интеграция Helix: helix telegram setup, отдельный бот на профиль, allowlist, голосовые сообщения (Whisper), inline-подтверждения и канал @helix_agent с новостями.",
-        "keywords": "Helix Telegram, helix telegram setup, Telegram бот AI, голосовые сообщения Whisper"
+        "title": "Telegram-бот Holix — setup, зашифрованный token, голос",
+        "description": "Telegram Holix: holix telegram setup, telegram.env и шифрование, aiogram для gateway, голос Whisper, уведомление при удалении профиля, канал @holix_agent.",
+        "keywords": "Holix Telegram, holix telegram setup, зашифрованный telegram.env, aiogram, Telegram бот AI, голосовые Whisper"
       }
     },
     "telegram-multi-profile": {
       "en": {
         "navTitle": "Telegram Multi-Profile",
         "heading": "Telegram: multiple isolated profiles",
-        "title": "Helix Telegram — One Bot, Multiple Isolated Profiles",
-        "description": "Run Helix in Telegram for multiple users: one bot per profile or a shared bot with helix telegram map user id bindings, workspace jail, and security checklist.",
-        "keywords": "Helix Telegram profiles, helix telegram map, profile isolation, shared bot"
+        "title": "Holix Telegram — One Bot, Multiple Isolated Profiles",
+        "description": "Run Holix in Telegram for multiple users: one bot per profile or a shared bot with holix telegram map user id bindings, workspace jail, and security checklist.",
+        "keywords": "Holix Telegram profiles, holix telegram map, profile isolation, shared bot"
       },
       "ru": {
         "navTitle": "Telegram: несколько профилей",
         "heading": "Telegram: несколько изолированных профилей",
-        "title": "Telegram Helix — один бот, несколько изолированных профилей",
-        "description": "Как настроить Helix в Telegram для нескольких пользователей: отдельный бот на профиль или один бот с helix telegram map — привязка user id к профилю, jail и безопасность.",
-        "keywords": "Helix Telegram профили, helix telegram map, изоляция профилей, общий бот"
+        "title": "Telegram Holix — один бот, несколько изолированных профилей",
+        "description": "Как настроить Holix в Telegram для нескольких пользователей: отдельный бот на профиль или один бот с holix telegram map — привязка user id к профилю, jail и безопасность.",
+        "keywords": "Holix Telegram профили, holix telegram map, изоляция профилей, общий бот"
       }
     },
     "browser-tools": {
       "en": {
         "navTitle": "Browser Tools",
         "heading": "Browser automation (Playwright)",
-        "title": "Helix Browser Tools — Playwright Web Automation",
-        "description": "Helix browser tools with Playwright: open pages, click, type, screenshots. URL security policy, confirmations, and browser extra installation.",
-        "keywords": "Helix browser tools, Playwright, web automation, helix browser extra"
+        "title": "Holix Browser Tools — Playwright Web Automation",
+        "description": "Holix browser tools with Playwright: open pages, click, type, screenshots. URL security policy, confirmations, and browser extra installation.",
+        "keywords": "Holix browser tools, Playwright, web automation, holix browser extra"
       },
       "ru": {
         "navTitle": "Браузер",
         "heading": "Браузерная автоматизация (Playwright)",
-        "title": "Браузерные инструменты Helix — Playwright автоматизация",
-        "description": "Браузерные инструменты Helix на Playwright: открытие страниц, клики, ввод текста, скриншоты. Безопасность URL, подтверждения и установка extra browser.",
-        "keywords": "Helix browser tools, Playwright, автоматизация браузера, helix browser extra"
+        "title": "Браузерные инструменты Holix — Playwright автоматизация",
+        "description": "Браузерные инструменты Holix на Playwright: открытие страниц, клики, ввод текста, скриншоты. Безопасность URL, подтверждения и установка extra browser.",
+        "keywords": "Holix browser tools, Playwright, автоматизация браузера, holix browser extra"
       }
     },
     "architecture": {
       "en": {
         "navTitle": "Architecture",
         "heading": "Architecture",
-        "title": "Helix Architecture — Runtime, DI, LangGraph & Memory",
-        "description": "Helix architecture: DI container, LangGraph execution, events, subagents, SQLite + ChromaDB memory, MCP, and modular CLI, gateway, and integration layout.",
-        "keywords": "Helix architecture, LangGraph, ChromaDB memory, DI container, AI agent architecture"
+        "title": "Holix Architecture — Runtime, DI, LangGraph & Memory",
+        "description": "Holix architecture: DI container, LangGraph execution, events, subagents, SQLite + ChromaDB memory, MCP, and modular CLI, gateway, and integration layout.",
+        "keywords": "Holix architecture, LangGraph, ChromaDB memory, DI container, AI agent architecture"
       },
       "ru": {
         "navTitle": "Архитектура",
         "heading": "Архитектура",
-        "title": "Архитектура Helix — runtime, DI, LangGraph, память",
-        "description": "Архитектура Helix: DI-контейнер, LangGraph execution, события, подагенты, SQLite + ChromaDB память, MCP и модульная структура CLI, gateway и интеграций.",
-        "keywords": "архитектура Helix, LangGraph, ChromaDB память, DI container, AI agent architecture"
+        "title": "Архитектура Holix — runtime, DI, LangGraph, память",
+        "description": "Архитектура Holix: DI-контейнер, LangGraph execution, события, подагенты, SQLite + ChromaDB память, MCP и модульная структура CLI, gateway и интеграций.",
+        "keywords": "архитектура Holix, LangGraph, ChromaDB память, DI container, AI agent architecture"
       }
     },
     "security": {
       "en": {
         "navTitle": "Security",
         "heading": "Security",
-        "title": "Helix Security — Auth, Whitelist & Production Checklist",
-        "description": "Helix security: HMAC API keys, gateway auth, terminal whitelist, risky-action confirmations, browser SSRF checks, and production deployment checklist.",
-        "keywords": "Helix security, API key, gateway auth, terminal whitelist, production security"
+        "title": "Holix Security — Encryption, Auth & Production Checklist",
+        "description": "Holix security: at-rest secret encryption, HMAC API keys, gateway auth, terminal whitelist, workspace jail, and production deployment checklist.",
+        "keywords": "Holix security, profile encryption, API key, gateway auth, terminal whitelist, production security"
       },
       "ru": {
         "navTitle": "Безопасность",
         "heading": "Безопасность",
-        "title": "Безопасность Helix — auth, whitelist, production checklist",
-        "description": "Безопасность Helix: API-ключи HMAC, gateway auth, whitelist терминала, подтверждения опасных операций, SSRF-защита браузера и чеклист для production-деплоя.",
-        "keywords": "Helix безопасность, API key, gateway auth, terminal whitelist, production security"
+        "title": "Безопасность Holix — шифрование, auth, production checklist",
+        "description": "Безопасность Holix: шифрование секретов at-rest, API-ключи HMAC, gateway auth, whitelist терминала, workspace jail и чеклист production-деплоя.",
+        "keywords": "Holix безопасность, шифрование профиля, API key, gateway auth, terminal whitelist, production security"
       }
     },
     "terminal-security": {
       "en": {
         "navTitle": "Terminal Security",
         "heading": "Terminal Command Security",
-        "title": "Helix Terminal Security — Whitelist, Blocks & Confirmations",
-        "description": "How Helix protects run_terminal_command: per-profile whitelist, dangerous pattern blocks, /yes confirmations, workspace jail, and allowed vs forbidden command examples.",
-        "keywords": "Helix terminal whitelist, command safety, run_terminal_command, HELIX_TERMINAL_WHITELIST_EXTRA, shell confirmation"
+        "title": "Holix Terminal Security — Whitelist, Blocks & Confirmations",
+        "description": "How Holix protects run_terminal_command: per-profile whitelist, dangerous pattern blocks, /yes confirmations, workspace jail, and allowed vs forbidden command examples.",
+        "keywords": "Holix terminal whitelist, command safety, run_terminal_command, HOLIX_TERMINAL_WHITELIST_EXTRA, shell confirmation"
       },
       "ru": {
         "navTitle": "Безопасность команд",
         "heading": "Безопасность команд терминала",
-        "title": "Безопасность команд Helix — whitelist, запреты и подтверждения",
-        "description": "Как Helix защищает run_terminal_command: whitelist по профилю, блокировка опасных паттернов, подтверждение /yes, workspace jail и примеры разрешённых и запрещённых команд.",
-        "keywords": "Helix whitelist, безопасность терминала, run_terminal_command, HELIX_TERMINAL_WHITELIST_EXTRA, подтверждение команд"
+        "title": "Безопасность команд Holix — whitelist, запреты и подтверждения",
+        "description": "Как Holix защищает run_terminal_command: whitelist по профилю, блокировка опасных паттернов, подтверждение /yes, workspace jail и примеры разрешённых и запрещённых команд.",
+        "keywords": "Holix whitelist, безопасность терминала, run_terminal_command, HOLIX_TERMINAL_WHITELIST_EXTRA, подтверждение команд"
       }
     },
     "deployment": {
       "en": {
         "navTitle": "Deployment",
         "heading": "Deployment",
-        "title": "Deploy Helix — Docker, systemd & Multi-Profile Production",
-        "description": "Deploy Helix in production: Docker, systemd helix-gateway@, multiple profiles on one server, environment variables, docs site, and CI/CD recommendations.",
-        "keywords": "deploy Helix, systemd helix-gateway, Docker Helix, production deployment"
+        "title": "Deploy Holix — Docker, systemd, Encryption & Linux Production",
+        "description": "Deploy Holix: Docker, systemd holix-gateway@, HOLIX_UNLOCK_KEY, Linux encryption, uv tool install with aiogram, multi-profile, and docs site.",
+        "keywords": "deploy Holix, systemd holix-gateway, HOLIX_UNLOCK_KEY, Linux encryption, Docker Holix, production deployment"
       },
       "ru": {
         "navTitle": "Деплой",
         "heading": "Развёртывание",
-        "title": "Деплой Helix — Docker, systemd, multi-profile production",
-        "description": "Деплой Helix в production: Docker, systemd helix-gateway@, несколько профилей на одном сервере, переменные окружения, docs-сайт и CI/CD рекомендации.",
-        "keywords": "деплой Helix, systemd helix-gateway, Docker Helix, production deployment, multi-profile"
+        "title": "Деплой Holix — Docker, systemd, шифрование, Linux production",
+        "description": "Деплой Holix: Docker, systemd holix-gateway@, HOLIX_UNLOCK_KEY, шифрование на Linux, uv tool install + aiogram, multi-profile и docs-сайт.",
+        "keywords": "деплой Holix, systemd holix-gateway, HOLIX_UNLOCK_KEY, шифрование Linux, Docker Holix, production deployment"
       }
     },
     "doctor": {
       "en": {
         "navTitle": "Doctor",
-        "heading": "Helix Doctor",
-        "title": "Helix Doctor — Diagnostics & Config Auto-Repair",
-        "description": "helix doctor: check Python, profile, LLM providers, gateway, Telegram, MCP, and platform. --fix mode for safe repairs and LLM-assisted config.yaml remediation.",
-        "keywords": "helix doctor, Helix diagnostics, helix doctor --fix, config repair"
+        "heading": "Holix Doctor",
+        "title": "Holix Doctor — Diagnostics & Config Auto-Repair",
+        "description": "holix doctor: check Python, profile, LLM providers, gateway, Telegram, MCP, and platform. --fix mode for safe repairs and LLM-assisted config.yaml remediation.",
+        "keywords": "holix doctor, Holix diagnostics, holix doctor --fix, config repair"
       },
       "ru": {
         "navTitle": "Доктор",
-        "heading": "Helix Doctor",
-        "title": "Helix Doctor — диагностика и автоисправление конфигурации",
-        "description": "helix doctor: проверка Python, профиля, провайдеров LLM, gateway, Telegram, MCP и платформы. Режим --fix для безопасных исправлений и LLM-ремонта config.yaml.",
-        "keywords": "helix doctor, диагностика Helix, helix doctor --fix, проверка конфигурации"
+        "heading": "Holix Doctor",
+        "title": "Holix Doctor — диагностика и автоисправление конфигурации",
+        "description": "holix doctor: проверка Python, профиля, провайдеров LLM, gateway, Telegram, MCP и платформы. Режим --fix для безопасных исправлений и LLM-ремонта config.yaml.",
+        "keywords": "holix doctor, диагностика Holix, holix doctor --fix, проверка конфигурации"
       }
     },
     "logs": {
       "en": {
         "navTitle": "Logs",
         "heading": "Logs and observability",
-        "title": "Helix Logs — helix logs, Rotation & Debug Mode",
-        "description": "Helix logging: helix logs, agent.jsonl, gateway.log, level and source filters, follow mode, file rotation, and helix logs debug on/off.",
-        "keywords": "Helix logs, helix logs, debug mode, log rotation, gateway log"
+        "title": "Holix Logs — holix logs, Rotation & Debug Mode",
+        "description": "Holix logging: holix logs, agent.jsonl, gateway.log, level and source filters, follow mode, file rotation, and holix logs debug on/off.",
+        "keywords": "Holix logs, holix logs, debug mode, log rotation, gateway log"
       },
       "ru": {
         "navTitle": "Логи",
         "heading": "Логи и наблюдаемость",
-        "title": "Логи Helix — helix logs, ротация и debug-режим",
-        "description": "Логирование Helix: helix logs, agent.jsonl, gateway.log, фильтры по уровню и источнику, follow-режим, ротация файлов и helix logs debug on/off.",
-        "keywords": "Helix логи, helix logs, debug mode, ротация логов, gateway log"
+        "title": "Логи Holix — holix logs, ротация и debug-режим",
+        "description": "Логирование Holix: holix logs, agent.jsonl, gateway.log, фильтры по уровню и источнику, follow-режим, ротация файлов и holix logs debug on/off.",
+        "keywords": "Holix логи, holix logs, debug mode, ротация логов, gateway log"
       }
     },
     "pypi": {
       "en": {
         "navTitle": "PyPI",
         "heading": "Publishing to PyPI",
-        "title": "HelixAgentAi on PyPI — Package Publishing & Versioning",
-        "description": "HelixAgentAi PyPI package: pipx install, Trusted Publishing via GitHub Actions, versioning, extras, and open-source Helix release checklist.",
-        "keywords": "HelixAgentAi PyPI, pip install Helix, PyPI publish, Helix version, open source"
+        "title": "Holix on PyPI — Package Publishing & Versioning",
+        "description": "Holix PyPI package: pipx install, Trusted Publishing via GitHub Actions, versioning, extras, and open-source Holix release checklist.",
+        "keywords": "Holix PyPI, pip install Holix, PyPI publish, Holix version, open source"
       },
       "ru": {
         "navTitle": "PyPI",
         "heading": "Публикация на PyPI",
-        "title": "PyPI HelixAgentAi — публикация и версионирование пакета",
-        "description": "Пакет HelixAgentAi на PyPI: pipx install, Trusted Publishing через GitHub Actions, версионирование, extras и чеклист релиза open-source дистрибутива Helix.",
-        "keywords": "HelixAgentAi PyPI, pip install Helix, публикация PyPI, Helix версия, open source"
+        "title": "PyPI Holix — публикация и версионирование пакета",
+        "description": "Пакет Holix на PyPI: pipx install, Trusted Publishing через GitHub Actions, версионирование, extras и чеклист релиза open-source дистрибутива Holix.",
+        "keywords": "Holix PyPI, pip install Holix, публикация PyPI, Holix версия, open source"
       }
     },
     "troubleshooting": {
       "en": {
         "navTitle": "Troubleshooting",
         "heading": "Troubleshooting",
-        "title": "Helix Troubleshooting — Common Errors & Fixes",
-        "description": "Troubleshoot Helix: models not responding, gateway unreachable, silent Telegram, MCP and profile errors. Step-by-step fixes with doctor and logs.",
-        "keywords": "Helix troubleshooting, Helix errors, gateway not working, Telegram silent"
+        "title": "Holix Troubleshooting — Common Errors & Fixes",
+        "description": "Troubleshoot Holix: models not responding, gateway unreachable, silent Telegram, MCP and profile errors. Step-by-step fixes with doctor and logs.",
+        "keywords": "Holix troubleshooting, Holix errors, gateway not working, Telegram silent"
       },
       "ru": {
         "navTitle": "Решение проблем",
         "heading": "Решение проблем",
-        "title": "Решение проблем Helix — типичные ошибки и исправления",
-        "description": "Troubleshooting Helix: модели не отвечают, gateway недоступен, Telegram молчит, ошибки MCP и профилей. Пошаговые решения и ссылки на doctor и логи.",
-        "keywords": "Helix troubleshooting, ошибки Helix, gateway не работает, Telegram не отвечает"
+        "title": "Решение проблем Holix — типичные ошибки и исправления",
+        "description": "Troubleshooting Holix: модели не отвечают, gateway недоступен, Telegram молчит, ошибки MCP и профилей. Пошаговые решения и ссылки на doctor и логи.",
+        "keywords": "Holix troubleshooting, ошибки Holix, gateway не работает, Telegram не отвечает"
       }
     },
     "user-guide": {
       "en": {
         "navTitle": "User Guide",
-        "heading": "Helix — Complete User Guide",
-        "title": "Helix User Guide — Full Tutorial from Install to Production",
-        "description": "Complete Helix user guide: install, models, TUI, Telegram, gateway, skills, security, and production. Step-by-step tutorial for users and admins.",
-        "keywords": "Helix user guide, Helix tutorial, agent setup, production guide"
+        "heading": "Holix — Complete User Guide",
+        "title": "Holix User Guide — Full Tutorial from Install to Production",
+        "description": "Complete Holix user guide: install, models, TUI, Telegram, gateway, skills, security, and production. Step-by-step tutorial for users and admins.",
+        "keywords": "Holix user guide, Holix tutorial, agent setup, production guide"
       },
       "ru": {
         "navTitle": "Руководство",
-        "heading": "Helix — полное руководство пользователя",
-        "title": "Руководство пользователя Helix — полный гайд от установки до production",
-        "description": "Полное руководство по Helix: установка, модели, TUI, Telegram, gateway, навыки, безопасность и production. Пошаговый гайд для новых пользователей и администраторов.",
-        "keywords": "руководство Helix, user guide, Helix tutorial, настройка агента, production гайд"
+        "heading": "Holix — полное руководство пользователя",
+        "title": "Руководство пользователя Holix — полный гайд от установки до production",
+        "description": "Полное руководство по Holix: установка, модели, TUI, Telegram, gateway, навыки, безопасность и production. Пошаговый гайд для новых пользователей и администраторов.",
+        "keywords": "руководство Holix, user guide, Holix tutorial, настройка агента, production гайд"
       }
     }
   }

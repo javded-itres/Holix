@@ -109,10 +109,11 @@ def run_hub_autoupdate(
 
 
 def suggested_cron_line(profile: str = "default") -> str:
-    from core.platform_compat import IS_WINDOWS, helix_home_display
+    from core.platform_compat import IS_WINDOWS, holix_home_display
 
-    log_file = str(Path(helix_home_display()) / "logs" / "hub-autoupdate.log")
-    cmd = f"helix hub autoupdate -p {profile} --force >> {log_file} 2>&1"
+    log_path = Path(holix_home_display()) / "logs" / "hub-autoupdate.log"
+    log_file = log_path.as_posix() if not IS_WINDOWS else str(log_path)
+    cmd = f"holix hub autoupdate -p {profile} --force >> {log_file} 2>&1"
     if IS_WINDOWS:
         return f"Task Scheduler (daily 04:00): {cmd}"
     return f"0 4 * * * {cmd}"

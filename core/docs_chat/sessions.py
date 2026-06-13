@@ -8,7 +8,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-from core.env_loader import helix_home
+from core.env_loader import holix_home
 
 _CLIENT_ID_RE = re.compile(r"^[a-f0-9-]{8,64}$", re.I)
 _MAX_MESSAGES = 40
@@ -16,7 +16,7 @@ _MAX_CONTENT_LEN = 8000
 
 
 def _sessions_dir() -> Path:
-    path = helix_home() / "data" / "docs_chat"
+    path = holix_home() / "data" / "docs_chat"
     path.mkdir(parents=True, exist_ok=True)
     return path
 

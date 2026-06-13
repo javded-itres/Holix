@@ -1,11 +1,11 @@
-"""`/init` — deep project scan and `.helix/HELIX.md` generation."""
+"""`/init` — deep project scan and `.holix/HOLIX.md` generation."""
 
 from __future__ import annotations
 
 import asyncio
 from typing import Any
 
-from core.project.helix_md import HELIX_MD_REL_PATH
+from core.project.holix_md import HOLIX_MD_REL_PATH
 from core.project.init_prompt import build_init_user_message
 
 
@@ -52,16 +52,16 @@ def prefer_plan_mode(host: Any) -> None:
 
 
 async def run_project_init(host: Any) -> None:
-    """Execute /init: analyze repo and write HELIX.md."""
+    """Execute /init: analyze repo and write HOLIX.md."""
     if not getattr(host, "agent", None):
         host.transcript_write(
-            "[yellow]Agent not ready. Configure a model first (helix models add).[/yellow]"
+            "[yellow]Agent not ready. Configure a model first (holix models add).[/yellow]"
         )
         return
 
     prefer_plan_mode(host)
     host.transcript_write(
-        f"[dim]▸ /init — analyzing project → {HELIX_MD_REL_PATH} "
+        f"[dim]▸ /init — analyzing project → {HOLIX_MD_REL_PATH} "
         f"(mode: plan_and_execute)[/dim]"
     )
     await dispatch_agent_message(host, build_init_user_message())

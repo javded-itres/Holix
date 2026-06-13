@@ -9,7 +9,7 @@ from pathlib import Path
 _VERSION_RE = re.compile(r'^version\s*=\s*["\']([^"\']+)["\']', re.MULTILINE)
 _INIT_VERSION_RE = re.compile(r'^__version__\s*=\s*["\']([^"\']+)["\']', re.MULTILINE)
 
-_BUILD_VERSION_ENV = "HELIX_BUILD_VERSION"
+_BUILD_VERSION_ENV = "HOLIX_BUILD_VERSION"
 
 
 def project_root(start: Path | None = None) -> Path:
@@ -58,7 +58,7 @@ def bump_project_version(root: Path | None = None) -> str:
 
 def resolve_build_version(current: str, *, bump: bool = True, root: Path | None = None) -> str:
     """Return version for this build; bump at most once per process (sdist + wheel)."""
-    if os.environ.get("HELIX_NO_VERSION_BUMP"):
+    if os.environ.get("HOLIX_NO_VERSION_BUMP"):
         return current
 
     cached = os.environ.get(_BUILD_VERSION_ENV)

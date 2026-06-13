@@ -479,6 +479,39 @@ class TestActionGuard:
         result = guard.resolve_confirmation("nonexistent_id", ConfirmationChoice.ALLOW_ONCE)
         assert result is False
 
+    @pytest.mark.asyncio
+    async def test_default_confirmation_has_no_timeout(self):
+        """Default confirmation_timeout=0 waits until the user responds."""
+        guard = ActionGuard(
+            event_bus=None,
+            permission_manager=self.pm,
+            risk_classifier=self.classifier,
+            auto_allow_threshold=RiskLevel.NO,
+            interactive=True,
+        )
+        assert guard._confirmation_timeout == 0
+
+        async def fake_execute(**kwargs):
+            return "late approval ok"
+
+        class FakeTool:
+            risk_level = "high"
+
+        task = asyncio.create_task(
+            guard.check_and_execute(
+                tool_name="run_terminal_command",
+                tool_instance=FakeTool(),
+                arguments={"command": "ls"},
+                execute_fn=fake_execute,
+            )
+        )
+        await asyncio.sleep(0.1)
+        confirmation_id = list(guard._pending_confirmations.keys())[0]
+        guard.resolve_confirmation(confirmation_id, ConfirmationChoice.ALLOW_ONCE)
+        result = await asyncio.wait_for(task, timeout=2.0)
+        assert result == "late approval ok"
+
+
 class TestPlanExecutionAutoApprove:
     """Tests for auto-approve flag during plan execution."""
 
@@ -526,7 +559,7 @@ class TestSharedPermissionManager:
 
         assert isinstance(pm, PermissionManager)
 
-    def test_init_action_guard_uses_shared_instance(self):
+    def test_init_action_guard_uses_shared_instance_without_profile(self):
         from unittest.mock import MagicMock
 
         from core.security.confirmation import get_action_guard, init_action_guard
@@ -535,3 +568,25 @@ class TestSharedPermissionManager:
         guard = init_action_guard(event_bus=bus, interactive=True)
         assert guard._permission_manager is permission_manager
         assert get_action_guard() is guard
+
+    def test_init_action_guard_uses_profile_scoped_manager(self, tmp_path):
+        from unittest.mock import MagicMock
+
+        from core.security.confirmation import (
+            get_action_guard,
+            get_permission_manager_for_profile,
+            init_action_guard,
+        )
+
+        bus = MagicMock()
+        data_dir = tmp_path / "alice" / "data"
+        guard = init_action_guard(
+            event_bus=bus,
+            interactive=True,
+            data_dir=data_dir,
+            profile_name="alice",
+        )
+        pm = get_permission_manager_for_profile("alice")
+        assert guard._permission_manager is pm
+        assert pm is not permission_manager
+        assert get_action_guard("alice") is guard

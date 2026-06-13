@@ -1,4 +1,4 @@
-"""Helix doctor checks and helpers."""
+"""Holix doctor checks and helpers."""
 
 from __future__ import annotations
 
@@ -24,9 +24,9 @@ def test_extract_yaml_from_fence() -> None:
 
 
 def test_check_missing_profile(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr("cli.doctor.checks.HELIX_HOME", tmp_path)
+    monkeypatch.setattr("cli.doctor.checks.HOLIX_HOME", tmp_path)
     monkeypatch.setattr("cli.doctor.checks.PROFILES_DIR", tmp_path / "profiles")
-    monkeypatch.setattr("cli.core.HELIX_HOME", tmp_path)
+    monkeypatch.setattr("cli.core.HOLIX_HOME", tmp_path)
     monkeypatch.setattr("cli.core.PROFILES_DIR", tmp_path / "profiles")
 
     manager = ProfileManager()
@@ -45,7 +45,7 @@ def test_check_invalid_default_provider(tmp_path: Path, monkeypatch: pytest.Monk
 
 
 def test_fix_create_profile(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr("cli.core.HELIX_HOME", tmp_path)
+    monkeypatch.setattr("cli.core.HOLIX_HOME", tmp_path)
     monkeypatch.setattr("cli.core.PROFILES_DIR", tmp_path / "profiles")
 
     finding = DoctorFinding(
@@ -84,9 +84,9 @@ def test_check_hub_missing_bundle(tmp_path: Path) -> None:
 
 
 def test_invalid_yaml_finding(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr("cli.doctor.checks.HELIX_HOME", tmp_path)
+    monkeypatch.setattr("cli.doctor.checks.HOLIX_HOME", tmp_path)
     monkeypatch.setattr("cli.doctor.checks.PROFILES_DIR", tmp_path / "profiles")
-    monkeypatch.setattr("cli.core.HELIX_HOME", tmp_path)
+    monkeypatch.setattr("cli.core.HOLIX_HOME", tmp_path)
     monkeypatch.setattr("cli.core.PROFILES_DIR", tmp_path / "profiles")
 
     manager = ProfileManager()
@@ -100,7 +100,7 @@ def test_invalid_yaml_finding(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -
 
 
 def test_check_platform_info(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr("cli.doctor.checks.helix_home_display", lambda: "/tmp/helix-test")
+    monkeypatch.setattr("cli.doctor.checks.holix_home_display", lambda: "/tmp/helix-test")
     monkeypatch.setattr("cli.doctor.checks.IS_WINDOWS", False)
     monkeypatch.setattr("cli.doctor.checks.psutil_available", lambda: True)
     monkeypatch.setattr("cli.doctor.checks.clipboard_tools_available", lambda: True)
@@ -111,7 +111,7 @@ def test_check_platform_info(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 def test_check_platform_windows_hints(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr("cli.doctor.checks.helix_home_display", lambda: r"C:\Helix")
+    monkeypatch.setattr("cli.doctor.checks.holix_home_display", lambda: r"C:\Holix")
     monkeypatch.setattr("cli.doctor.checks.IS_WINDOWS", True)
     monkeypatch.setattr("cli.doctor.checks.process_subagents_supported", lambda: False)
     monkeypatch.setattr("cli.doctor.checks.psutil_available", lambda: False)

@@ -24,7 +24,7 @@ MESSAGES: dict[str, dict[str, str]] = {
         "profiles_title": "Profiles",
         "invalid_profile_num": "invalid profile number",
         "unknown_profile": "unknown profile: {name}",
-        "models_hint": "Models: configure agent_models in profile (helix models)",
+        "models_hint": "Models: configure agent_models in profile (holix models)",
         "memory_cleared": "memory search cleared",
         "copy_nothing": "nothing to copy",
         "copy_label": "copied",
@@ -39,6 +39,9 @@ MESSAGES: dict[str, dict[str, str]] = {
         "tg.profile": "Profile: {name}",
         "tg.profile_same": "Already on profile {name}",
         "tg.profile_invalid": "Invalid profile",
+        "tg.profile_current": "Current: {name}",
+        "tg.profile_switch_by_key": "To switch to another profile send: /profile name access-key",
+        "tg.profile_requires_key": "Profile '{name}' requires an access key: /profile name access-key",
         "tg.session": "Session: {title}{model}",
         "tg.session_switched": "Session switched",
         "tg.session_invalid": "Invalid session",
@@ -68,7 +71,7 @@ MESSAGES: dict[str, dict[str, str]] = {
         "tg.menu.compress": "Compress context",
         "tg.menu.prev": "Prev",
         "tg.menu.next": "Next",
-        "tg.help.title": "Helix — commands",
+        "tg.help.title": "Holix — commands",
         "tg.help.chat": "Chat",
         "tg.help.chat_body": "Send text — the agent replies in one live message.",
         "tg.help.commands": "Commands (menu left of the input field):",
@@ -78,7 +81,7 @@ MESSAGES: dict[str, dict[str, str]] = {
         "tg.help.extra_body": (
             "• /memory query — semantic search\n"
             "• /compress — compress chat history\n"
-            "• /init — project analysis → .helix/HELIX.md\n"
+            "• /init — project analysis → .holix/HOLIX.md\n"
             "• /profile name — switch profile\n"
             "• /plan-confirm · /plan-reject — plan review\n"
             "• /cron — scheduled jobs\n"
@@ -92,7 +95,7 @@ MESSAGES: dict[str, dict[str, str]] = {
         "tg.cmd.models": "Switch LLM model",
         "tg.cmd.menu": "Control panel",
         "tg.cmd.mode": "Execution mode",
-        "tg.cmd.profile": "Helix profile",
+        "tg.cmd.profile": "Holix profile",
         "tg.cmd.stream": "Streaming on/off",
         "tg.cmd.sessions": "Session list",
         "tg.cmd.switch": "Session by number",
@@ -107,12 +110,37 @@ MESSAGES: dict[str, dict[str, str]] = {
         "tg.cmd.last": "Last tool result",
         "tg.cmd.metrics": "Agent metrics",
         "tg.cmd.compress": "Compress context",
-        "tg.cmd.init": "Project analysis → HELIX.md",
+        "tg.cmd.init": "Project analysis → HOLIX.md",
         "tg.cmd.cron": "Cron jobs",
+        "tg.cmd.message": "Admin broadcast (all or profile)",
+        "tg.message_admin_only": "Only the Telegram bot admin can use /message.",
+        "tg.menu_unavailable": "This menu is not available for your account.",
+        "tg.mcp_read_only": "You can view MCP servers in your profile only. Installing or changing MCP is available to the bot admin.",
+        "tg.mcp_read_only_empty": "No MCP servers in your profile. Ask the bot admin to configure them.",
+        "tg.message_help": (
+            "<b>Admin broadcast</b>\n\n"
+            "<code>/message all</code> — all approved users\n"
+            "<code>/message PROFILE</code> — users mapped to a Holix profile\n"
+            "<code>/message cancel</code> — cancel draft\n\n"
+            "After <code>/message …</code> send the post text in the next message."
+        ),
+        "tg.message_cancelled": "Broadcast draft cancelled.",
+        "tg.message_unknown_profile": "Unknown profile or no recipients: {name}",
+        "tg.message_no_recipients": "No recipients for this broadcast.",
+        "tg.message_compose_all": (
+            "📝 <b>Broadcast to all</b> ({count} users)\n\n"
+            "Send the post text in your next message.\n"
+            "Cancel: <code>/message cancel</code>"
+        ),
+        "tg.message_compose_profile": (
+            "📝 <b>Broadcast</b> → profile <code>{profile}</code> ({count} users)\n\n"
+            "Send the post text in your next message.\n"
+            "Cancel: <code>/message cancel</code>"
+        ),
         "tg.cmd.yes": "Confirm action",
         "tg.cmd.no": "Deny action",
         "tg.cmd.lang": "Interface language (en / ru)",
-        "tui.help.title": "Helix code UI",
+        "tui.help.title": "Holix code UI",
         "tui.help.keys1": "  Enter — send    Shift+Enter — newline",
         "tui.help.keys2": "  {quit} — quit  {clear} — clear  {end} — bottom  Shift+Tab — mode",
         "tui.help.keys3": "  F2 or /open — copy window ({copy} copies there)",
@@ -156,7 +184,7 @@ MESSAGES: dict[str, dict[str, str]] = {
         "profiles_title": "Профили",
         "invalid_profile_num": "неверный номер профиля",
         "unknown_profile": "неизвестный профиль: {name}",
-        "models_hint": "Модели: настройте agent_models в профиле (helix models)",
+        "models_hint": "Модели: настройте agent_models в профиле (holix models)",
         "memory_cleared": "поиск в памяти сброшен",
         "copy_nothing": "нечего копировать",
         "copy_label": "скопировано",
@@ -171,6 +199,9 @@ MESSAGES: dict[str, dict[str, str]] = {
         "tg.profile": "Профиль: {name}",
         "tg.profile_same": "Уже профиль {name}",
         "tg.profile_invalid": "Неверный профиль",
+        "tg.profile_current": "Сейчас: {name}",
+        "tg.profile_switch_by_key": "Для переключения на другой профиль: /profile имя ключ",
+        "tg.profile_requires_key": "Профиль «{name}» требует ключ: /profile имя ключ",
         "tg.session": "Сессия: {title}{model}",
         "tg.session_switched": "Сессия переключена",
         "tg.session_invalid": "Неверная сессия",
@@ -200,7 +231,7 @@ MESSAGES: dict[str, dict[str, str]] = {
         "tg.menu.compress": "Сжать контекст",
         "tg.menu.prev": "Пред.",
         "tg.menu.next": "След.",
-        "tg.help.title": "Helix — команды",
+        "tg.help.title": "Holix — команды",
         "tg.help.chat": "Чат",
         "tg.help.chat_body": "Отправьте текст — агент ответит одним живым сообщением.",
         "tg.help.commands": "Команды (меню слева от поля ввода):",
@@ -210,7 +241,7 @@ MESSAGES: dict[str, dict[str, str]] = {
         "tg.help.extra_body": (
             "• /memory запрос — семантический поиск\n"
             "• /compress — сжать историю диалога\n"
-            "• /init — анализ проекта в .helix/HELIX.md\n"
+            "• /init — анализ проекта в .holix/HOLIX.md\n"
             "• /profile имя — смена профиля\n"
             "• /plan-confirm · /plan-reject — план\n"
             "• /cron — периодические задачи\n"
@@ -224,7 +255,7 @@ MESSAGES: dict[str, dict[str, str]] = {
         "tg.cmd.models": "Сменить LLM модель",
         "tg.cmd.menu": "Панель управления",
         "tg.cmd.mode": "Режим выполнения",
-        "tg.cmd.profile": "Профиль Helix",
+        "tg.cmd.profile": "Профиль Holix",
         "tg.cmd.stream": "Стриминг вкл/выкл",
         "tg.cmd.sessions": "Список сессий",
         "tg.cmd.switch": "Сессия по номеру",
@@ -239,12 +270,37 @@ MESSAGES: dict[str, dict[str, str]] = {
         "tg.cmd.last": "Последний результат tool",
         "tg.cmd.metrics": "Метрики агента",
         "tg.cmd.compress": "Сжать контекст",
-        "tg.cmd.init": "Анализ проекта → HELIX.md",
+        "tg.cmd.init": "Анализ проекта → HOLIX.md",
         "tg.cmd.cron": "Периодические задачи",
+        "tg.cmd.message": "Рассылка админа (всем или профилю)",
+        "tg.message_admin_only": "Команда /message доступна только администратору бота.",
+        "tg.menu_unavailable": "Это меню недоступно для вашей учётной записи.",
+        "tg.mcp_read_only": "Доступен только просмотр MCP вашего профиля. Установка и изменение — у администратора бота.",
+        "tg.mcp_read_only_empty": "В вашем профиле нет MCP серверов. Попросите администратора бота настроить их.",
+        "tg.message_help": (
+            "<b>Рассылка администратора</b>\n\n"
+            "<code>/message all</code> — всем одобренным пользователям\n"
+            "<code>/message ПРОФИЛЬ</code> — пользователям Holix-профиля\n"
+            "<code>/message cancel</code> — отменить черновик\n\n"
+            "После <code>/message …</code> отправьте текст поста следующим сообщением."
+        ),
+        "tg.message_cancelled": "Черновик рассылки отменён.",
+        "tg.message_unknown_profile": "Профиль не найден или нет получателей: {name}",
+        "tg.message_no_recipients": "Нет получателей для рассылки.",
+        "tg.message_compose_all": (
+            "📝 <b>Рассылка всем</b> ({count} чел.)\n\n"
+            "Отправьте текст поста следующим сообщением.\n"
+            "Отмена: <code>/message cancel</code>"
+        ),
+        "tg.message_compose_profile": (
+            "📝 <b>Рассылка</b> → профиль <code>{profile}</code> ({count} чел.)\n\n"
+            "Отправьте текст поста следующим сообщением.\n"
+            "Отмена: <code>/message cancel</code>"
+        ),
         "tg.cmd.yes": "Подтвердить действие",
         "tg.cmd.no": "Отклонить действие",
         "tg.cmd.lang": "Язык интерфейса (en / ru)",
-        "tui.help.title": "Helix code UI",
+        "tui.help.title": "Holix code UI",
         "tui.help.keys1": "  Enter — отправить    Shift+Enter — новая строка",
         "tui.help.keys2": "  {quit} — выход  {clear} — очистить  {end} — вниз  Shift+Tab — режим",
         "tui.help.keys3": "  F2 или /open — окно копирования ({copy})",

@@ -1,29 +1,35 @@
-"""Cross-platform Helix installation helpers."""
+"""Cross-platform Holix installation helpers."""
 
+from cli.installer.bootstrap import BootstrapOptions, run_bootstrap_setup_sync
 from cli.installer.manifest import InstallManifest, load_manifest, save_manifest
+from cli.installer.pypi import PyPIInstallResult, install_from_pypi
 from cli.installer.system import (
     InstallOptions,
     InstallResult,
     detect_repo_root,
-    install_helix,
+    install_holix,
     record_install,
     scripts_bin_dir,
-    verify_helix_on_path,
+    verify_holix_on_path,
 )
-from cli.installer.update import UpdateOptions, UpdateResult, update_helix
+from cli.installer.update import UpdateOptions, UpdateResult, update_holix
 
 __all__ = [
+    "BootstrapOptions",
+    "PyPIInstallResult",
+    "install_from_pypi",
+    "run_bootstrap_setup_sync",
     "InstallManifest",
     "InstallOptions",
     "InstallResult",
     "UpdateOptions",
     "UpdateResult",
     "detect_repo_root",
-    "install_helix",
+    "install_holix",
     "load_manifest",
     "record_install",
     "save_manifest",
     "scripts_bin_dir",
-    "update_helix",
-    "verify_helix_on_path",
+    "update_holix",
+    "verify_holix_on_path",
 ]

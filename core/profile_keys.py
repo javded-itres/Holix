@@ -10,7 +10,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-from core.platform_compat import resolve_helix_home
+from core.platform_compat import resolve_holix_home
 
 PROFILE_KEY_FILENAME = "profile.key"
 _KEY_PREFIX = "hp_"
@@ -37,7 +37,7 @@ class ProfileKeyRecord:
 
 
 def profiles_root() -> Path:
-    return resolve_helix_home() / "profiles"
+    return resolve_holix_home() / "profiles"
 
 
 def profile_dir(profile: str) -> Path:
@@ -135,5 +135,5 @@ def require_profile_access_key(profile: str, key: str | None) -> None:
         return
     raise ProfileKeyError(
         f"Profile '{profile}' requires an access key. "
-        "Use --profile-key, HELIX_PROFILE_KEY, or helix profile key init."
+        "Use --profile-key, HOLIX_PROFILE_KEY, or holix profile key init."
     )

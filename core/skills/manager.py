@@ -5,7 +5,7 @@ from typing import Any
 import chromadb
 import yaml
 
-from core.di.runtime_config import HelixRuntimeConfig
+from core.di.runtime_config import HolixRuntimeConfig
 from core.memory.chroma_embeddings import get_or_create_collection
 from core.skills.assignments import is_skill_allowed_for_agent
 
@@ -13,15 +13,15 @@ from core.skills.assignments import is_skill_allowed_for_agent
 class SkillsManager:
     """Manages agent skills - reusable patterns learned from successful tasks."""
 
-    def __init__(self, config: HelixRuntimeConfig | None = None):
-        cfg = config or HelixRuntimeConfig.from_settings()
+    def __init__(self, config: HolixRuntimeConfig | None = None):
+        cfg = config or HolixRuntimeConfig.from_settings()
         self._config = cfg
         self.skills_dir = Path(cfg.skills_dir)
         self.skills_dir.mkdir(parents=True, exist_ok=True)
         self.active_skills: list[dict[str, Any]] = []
         self.all_skills: dict[str, dict[str, Any]] = {}
 
-        # Local project supplement (./.helix/skills) — loaded in addition to profile skills_dir
+        # Local project supplement (./.holix/skills) — loaded in addition to profile skills_dir
         from core.config_utils import get_local_skills_dir
         self._local_skills_dir: Path | None = get_local_skills_dir()
         if self._local_skills_dir:
@@ -61,7 +61,7 @@ class SkillsManager:
         )
 
     def load_all_skills(self) -> None:
-        """Load skills from profile dir, hub bundles (SKILL.md), and local .helix/skills."""
+        """Load skills from profile dir, hub bundles (SKILL.md), and local .holix/skills."""
         from core.hub.normalize import discover_skill_files, parse_skill_file
 
         self.all_skills = {}

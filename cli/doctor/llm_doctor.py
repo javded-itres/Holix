@@ -14,9 +14,9 @@ from cli.core import ProfileConfig, ProfileManager
 from cli.doctor.findings import DoctorFinding
 from cli.doctor.fixes import backup_config
 
-DOCTOR_SYSTEM = """You are Helix Doctor, a configuration repair assistant.
+DOCTOR_SYSTEM = """You are Holix Doctor, a configuration repair assistant.
 
-You receive diagnostics about a broken Helix profile config.yaml and must output a CORRECTED
+You receive diagnostics about a broken Holix profile config.yaml and must output a CORRECTED
 full YAML document only (no markdown fences, no commentary).
 
 Required top-level fields (use sensible values from context):
@@ -62,7 +62,7 @@ async def llm_repair_profile(
     )
     mc = mm.get_default_model_config()
     if mc is None or not mc.base_url:
-        return False, "Cannot reach LLM: configure model/base_url first (helix models setup)"
+        return False, "Cannot reach LLM: configure model/base_url first (holix models setup)"
 
     client = AsyncOpenAI(base_url=mc.base_url, api_key=mc.api_key or "dummy")
     model = mc.model or "gpt-4o-mini"
@@ -163,8 +163,8 @@ async def llm_remediation_advice(
                 {
                     "role": "system",
                     "content": (
-                        "You are Helix Doctor. Give a short numbered action plan (max 8 steps) "
-                        "to fix Helix setup issues. Be concrete with CLI commands. Do not modify files."
+                        "You are Holix Doctor. Give a short numbered action plan (max 8 steps) "
+                        "to fix Holix setup issues. Be concrete with CLI commands. Do not modify files."
                     ),
                 },
                 {

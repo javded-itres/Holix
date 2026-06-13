@@ -1,6 +1,6 @@
-"""Helix TUI stylesheet fragments (composed by HelixTUI)."""
+"""Holix TUI stylesheet fragments (composed by HolixTUI)."""
 
-HELIX_TUI_CSS = """
+HOLIX_TUI_CSS = """
 
     Screen {
         layout: horizontal;   /* Sidebar + Main content */

@@ -1,6 +1,6 @@
 # Browser automation (Playwright)
 
-Helix can control local Chromium via **Playwright**: open pages, snapshot interactive elements, click and type. **Disabled by default**; requires the `browser` extra.
+Holix can control local Chromium via **Playwright**: open pages, snapshot interactive elements, click and type. **Disabled by default**; requires the `browser` extra.
 
 ## When to use
 
@@ -27,7 +27,7 @@ BROWSER_VIEWPORT_HEIGHT=720
 BROWSER_ALLOWED_HOSTS=example.com,.mycompany.org
 ```
 
-Or: `helix install --extra browser`
+Or: `holix install --extra browser`
 
 ## Tools
 
@@ -64,4 +64,4 @@ Production: set `ENABLE_BROWSER_TOOLS=false` unless required; use allowlists.
 
 ## Profile / gateway
 
-Restart the agent session or run `helix gateway reload` after changing `.env`. Doctor warns if browser extra is missing but tools are enabled.
+Restart the agent session or run `holix gateway reload` after changing `.env`. Doctor warns if browser extra is missing but tools are enabled.

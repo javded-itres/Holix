@@ -12,9 +12,9 @@ from typing import Any
 from core.hub.claude_convert import convert_command_file
 from core.hub.claude_mcp import parse_claude_mcp_json
 from core.mcp.installer import _run, clone_or_update_git
-from core.platform_compat import resolve_helix_home
+from core.platform_compat import resolve_holix_home
 
-HUB_CACHE = resolve_helix_home() / "hub-cache"
+HUB_CACHE = resolve_holix_home() / "hub-cache"
 
 MARKETPLACES: dict[str, dict[str, str]] = {
     "claude-official": {
@@ -176,7 +176,7 @@ def materialize_plugin(
 
     commands_dir = dest_root / "commands"
     if commands_dir.is_dir():
-        out_commands = dest_root / "_helix_commands"
+        out_commands = dest_root / "_holix_commands"
         out_commands.mkdir(exist_ok=True)
         for cmd_file in commands_dir.glob("*.md"):
             skill_name = re.sub(r"[^a-z0-9]+", "-", f"{plugin.name}-{cmd_file.stem}".lower()).strip("-")

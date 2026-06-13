@@ -5,13 +5,15 @@ from __future__ import annotations
 from contextvars import ContextVar
 from typing import Any
 
-_conversation_id: ContextVar[str] = ContextVar("helix_conversation_id", default="default")
-_subagent_name: ContextVar[str] = ContextVar("helix_subagent_name", default="")
-_interaction_bridge: ContextVar[Any] = ContextVar("helix_interaction_bridge", default=None)
-_chat_delivery_bridge: ContextVar[Any] = ContextVar("helix_chat_delivery_bridge", default=None)
-_memory_facade: ContextVar[Any] = ContextVar("helix_memory_facade", default=None)
-_workspace_root: ContextVar[str | None] = ContextVar("helix_workspace_root", default=None)
-_workspace_jail_enabled: ContextVar[bool] = ContextVar("helix_workspace_jail_enabled", default=False)
+_conversation_id: ContextVar[str] = ContextVar("holix_conversation_id", default="default")
+_subagent_name: ContextVar[str] = ContextVar("holix_subagent_name", default="")
+_interaction_bridge: ContextVar[Any] = ContextVar("holix_interaction_bridge", default=None)
+_chat_delivery_bridge: ContextVar[Any] = ContextVar("holix_chat_delivery_bridge", default=None)
+_memory_facade: ContextVar[Any] = ContextVar("holix_memory_facade", default=None)
+_workspace_root: ContextVar[str | None] = ContextVar("holix_workspace_root", default=None)
+_workspace_jail_enabled: ContextVar[bool] = ContextVar("holix_workspace_jail_enabled", default=False)
+_full_paths_visible: ContextVar[bool] = ContextVar("holix_full_paths_visible", default=True)
+_profile_name: ContextVar[str] = ContextVar("holix_profile_name", default="default")
 
 
 def get_conversation_id() -> str:
@@ -40,6 +42,32 @@ def get_workspace_root() -> str | None:
 
 def is_workspace_jail_enabled() -> bool:
     return _workspace_jail_enabled.get()
+
+
+def is_full_paths_visible() -> bool:
+    return _full_paths_visible.get()
+
+
+def get_profile_name() -> str:
+    return _profile_name.get()
+
+
+def profile_scope(profile_name: str):
+    """Return token from ContextVar.set for use with reset_profile_scope."""
+    return _profile_name.set(profile_name)
+
+
+def reset_profile_scope(token) -> None:
+    _profile_name.reset(token)
+
+
+def paths_visibility_scope(*, full_paths_visible: bool):
+    """Return token from ContextVar.set for use with reset_paths_visibility_scope."""
+    return _full_paths_visible.set(full_paths_visible)
+
+
+def reset_paths_visibility_scope(token) -> None:
+    _full_paths_visible.reset(token)
 
 
 def conversation_scope(conversation_id: str):

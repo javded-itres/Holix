@@ -1,17 +1,20 @@
-"""Interactive chat command for Helix CLI."""
+"""Interactive chat command for Holix CLI."""
+
+from __future__ import annotations
 
 import asyncio
 
 # Import agent
 import sys
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from prompt_toolkit import PromptSession
 from prompt_toolkit.auto_suggest import AutoSuggestFromHistory
 from prompt_toolkit.history import FileHistory
 from prompt_toolkit.styles import Style
 
-from cli.core import HELIX_HOME, ProfileConfig, get_profile_manager, switch_profile
+from cli.core import HOLIX_HOME, ProfileConfig, get_profile_manager, switch_profile
 from cli.utils.banner import show_banner, show_welcome_message
 from cli.utils.rich_console import (
     console,
@@ -27,7 +30,9 @@ from cli.utils.rich_console import (
 )
 
 sys.path.append(str(Path(__file__).parent.parent.parent))
-from core.agent import HelixAgent
+
+if TYPE_CHECKING:
+    from core.agent import HolixAgent
 
 # Prompt style
 prompt_style = Style.from_dict({
@@ -36,7 +41,7 @@ prompt_style = Style.from_dict({
 
 
 class ChatSession:
-    """Interactive chat session with Helix."""
+    """Interactive chat session with Holix."""
 
     def __init__(self, profile: str, config: ProfileConfig):
         """Initialize chat session.
@@ -47,7 +52,7 @@ class ChatSession:
         """
         self.profile = profile
         self.config = config
-        self.agent: HelixAgent | None = None
+        self.agent: HolixAgent | None = None
         self.conversation_id = f"cli_chat_{profile}"
 
         # Event history for the current session (for /debug events)
@@ -58,7 +63,7 @@ class ChatSession:
         self.streaming_enabled: bool = False
 
         # Create prompt session with history
-        history_file = HELIX_HOME / "logs" / f"history_{profile}.txt"
+        history_file = HOLIX_HOME / "logs" / f"history_{profile}.txt"
         history_file.parent.mkdir(parents=True, exist_ok=True)
 
         self.session = PromptSession(
@@ -68,8 +73,8 @@ class ChatSession:
         )
 
     async def initialize_agent(self):
-        """Initialize the Helix agent."""
-        with console.status("[bold cyan]Initializing Helix...", spinner="dots"):
+        """Initialize the Holix agent."""
+        with console.status("[bold cyan]Initializing Holix...", spinner="dots"):
             from core.agent_events import (
                 create_compatibility_print_handler,
                 create_rich_cli_handler,
@@ -102,7 +107,9 @@ class ChatSession:
             except Exception:
                 listeners = [create_compatibility_print_handler()]
 
-            self.agent = HelixAgent(
+            from core.agent import HolixAgent
+
+            self.agent = HolixAgent(
                 config=runtime_config,
                 event_listeners=listeners,
             )
@@ -303,7 +310,7 @@ class ChatSession:
                 if 'avg_response_time' in summary:
                     lines.append(f"[cyan]Avg Response Time:[/cyan] {summary['avg_response_time']:.2f}s")
 
-                print_panel("\n".join(lines), title="Helix Metrics (via Event System)", border_style="magenta")
+                print_panel("\n".join(lines), title="Holix Metrics (via Event System)", border_style="magenta")
             except Exception as e:
                 print_error(f"Could not load metrics: {e}")
             return True
@@ -475,16 +482,16 @@ class ChatSession:
                 # Run agent with spinner whose description is updated live by events
                 with create_spinner() as progress:
                     self._progress = progress
-                    self._spinner_task = progress.add_task("Helix is thinking...", total=None)
+                    self._spinner_task = progress.add_task("Holix is thinking...", total=None)
 
                     try:
                         if self.streaming_enabled:
                             # Streaming path - use unified generator directly
                             from core.agent_events import AssistantDeltaEvent, FinalResponseEvent
-                            from core.runtime.executor import run_helix
+                            from core.runtime.executor import run_holix
 
                             full_response = ""
-                            async for event in run_helix(
+                            async for event in run_holix(
                                 self.agent,
                                 user_input,
                                 self.conversation_id,

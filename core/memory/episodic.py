@@ -1,5 +1,5 @@
 """
-Episodic Memory Store for Helix Long-term Memory.
+Episodic Memory Store for Holix Long-term Memory.
 
 Stores compact narrative summaries of past conversations and tasks.
 Each episode captures: what happened, what the outcome was, and what was learned.

@@ -1,5 +1,5 @@
 """
-ReAct Node — core reasoning node for the Helix LangGraph.
+ReAct Node — core reasoning node for the Holix LangGraph.
 
 Calls the LLM, processes the response, and either sets tool_calls
 or sets is_final + final_response. Emits AgentEvent objects to
@@ -18,13 +18,13 @@ from core.agent_events import (
     ThinkingEvent,
     ToolCallStartEvent,
 )
-from core.graph.state import HelixGraphState, get_agent_from_config
+from core.graph.state import HolixGraphState, get_agent_from_config
 from core.prompt_builder import build_system_prompt, format_tools_description
 
 logger = logging.getLogger(__name__)
 
 
-async def react_node(state: HelixGraphState, config: RunnableConfig) -> dict:
+async def react_node(state: HolixGraphState, config: RunnableConfig) -> dict:
     """ReAct reasoning node: call LLM, decide next action.
 
     This is a direct translation of the reasoning step from
@@ -85,11 +85,42 @@ async def react_node(state: HelixGraphState, config: RunnableConfig) -> dict:
             "final_response": "Error: No LLM client available",
         }
 
+    agent_slot = getattr(agent, "agent_slot", "main") if agent else "main"
+    model_manager = getattr(agent, "model_manager", None) if agent else None
+
+    def _on_fallback_switch(cfg) -> None:
+        if agent and hasattr(agent, "set_active_model_config"):
+            agent.set_active_model_config(cfg)
+
     try:
         if stream:
-            return await _react_streaming(state, agent, api_messages, step_count, client, model, tools, temperature)
+            return await _react_streaming(
+                state,
+                agent,
+                api_messages,
+                step_count,
+                client,
+                model,
+                tools,
+                temperature,
+                model_manager=model_manager,
+                agent_slot=agent_slot,
+                on_switch=_on_fallback_switch,
+            )
         else:
-            return await _react_non_streaming(state, agent, api_messages, step_count, client, model, tools, temperature)
+            return await _react_non_streaming(
+                state,
+                agent,
+                api_messages,
+                step_count,
+                client,
+                model,
+                tools,
+                temperature,
+                model_manager=model_manager,
+                agent_slot=agent_slot,
+                on_switch=_on_fallback_switch,
+            )
 
     except Exception as e:
         logger.error(f"Error in react_node: {e}")
@@ -101,18 +132,42 @@ async def react_node(state: HelixGraphState, config: RunnableConfig) -> dict:
 
 
 async def _react_non_streaming(
-    state, agent, api_messages, step_count, client, model, tools, temperature
+    state,
+    agent,
+    api_messages,
+    step_count,
+    client,
+    model,
+    tools,
+    temperature,
+    *,
+    model_manager=None,
+    agent_slot: str = "main",
+    on_switch=None,
 ) -> dict:
     """Non-streaming ReAct step."""
     conversation_id = state.get("conversation_id", "default")
 
-    response = await client.chat.completions.create(
-        model=model,
-        messages=api_messages,
-        tools=tools,
-        tool_choice="auto",
-        temperature=temperature,
-    )
+    if model_manager:
+        from core.models.fallback import chat_completions_with_fallback
+
+        response = await chat_completions_with_fallback(
+            model_manager,
+            agent_name=agent_slot,
+            on_switch=on_switch,
+            messages=api_messages,
+            tools=tools,
+            tool_choice="auto",
+            temperature=temperature,
+        )
+    else:
+        response = await client.chat.completions.create(
+            model=model,
+            messages=api_messages,
+            tools=tools,
+            tool_choice="auto",
+            temperature=temperature,
+        )
 
     message = response.choices[0].message
     messages = list(state.get("messages", []))
@@ -194,19 +249,47 @@ async def _react_non_streaming(
 
 
 async def _react_streaming(
-    state, agent, api_messages, step_count, client, model, tools, temperature
+    state,
+    agent,
+    api_messages,
+    step_count,
+    client,
+    model,
+    tools,
+    temperature,
+    *,
+    model_manager=None,
+    agent_slot: str = "main",
+    on_switch=None,
 ) -> dict:
     """Streaming ReAct step."""
     conversation_id = state.get("conversation_id", "default")
 
-    stream_response = await client.chat.completions.create(
-        model=model,
-        messages=api_messages,
-        tools=tools,
-        tool_choice="auto",
-        temperature=temperature,
-        stream=True,
-    )
+    if model_manager:
+        from core.models.fallback import run_with_provider_fallback
+
+        stream_response = await run_with_provider_fallback(
+            model_manager,
+            agent_name=agent_slot,
+            on_switch=on_switch,
+            factory=lambda cfg, llm_client: llm_client.chat.completions.create(
+                model=cfg.model,
+                messages=api_messages,
+                tools=tools,
+                tool_choice="auto",
+                temperature=temperature,
+                stream=True,
+            ),
+        )
+    else:
+        stream_response = await client.chat.completions.create(
+            model=model,
+            messages=api_messages,
+            tools=tools,
+            tool_choice="auto",
+            temperature=temperature,
+            stream=True,
+        )
 
     current_content = ""
     tool_calls_dict: dict[int, dict[str, Any]] = {}
@@ -324,7 +407,7 @@ async def _react_streaming(
     }
 
 
-def _build_system_prompt_from_state(state: HelixGraphState, agent=None) -> str:
+def _build_system_prompt_from_state(state: HolixGraphState, agent=None) -> str:
     """Build the system prompt using state's memory/skills/strategies."""
     # Format tools
     tools_desc = ""

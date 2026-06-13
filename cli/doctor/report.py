@@ -14,7 +14,7 @@ _SEVERITY_STYLE = {
 
 def print_findings(findings: list[DoctorFinding]) -> None:
     if not findings:
-        print_success("No issues found — Helix looks healthy.")
+        print_success("No issues found — Holix looks healthy.")
         return
 
     errors = [f for f in findings if f.severity == Severity.ERROR.value]

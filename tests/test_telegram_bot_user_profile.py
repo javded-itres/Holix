@@ -5,25 +5,25 @@ from __future__ import annotations
 from unittest.mock import AsyncMock, patch
 
 import pytest
-from integrations.telegram.bot import HelixTelegramBot
+from integrations.telegram.bot import HolixTelegramBot
 from integrations.telegram.config import TelegramSettings
 
 
 @pytest.fixture
-def helix_home(tmp_path, monkeypatch: pytest.MonkeyPatch):
+def holix_home(tmp_path, monkeypatch: pytest.MonkeyPatch):
     import cli.core as cli_core
 
-    root = tmp_path / "helix"
+    root = tmp_path / "holix"
     profiles = root / "profiles"
     profiles.mkdir(parents=True)
-    monkeypatch.setenv("HELIX_HOME", str(root))
-    monkeypatch.setattr(cli_core, "HELIX_HOME", root)
+    monkeypatch.setenv("HOLIX_HOME", str(root))
+    monkeypatch.setattr(cli_core, "HOLIX_HOME", root)
     monkeypatch.setattr(cli_core, "PROFILES_DIR", profiles)
     return root
 
 
 @pytest.mark.asyncio
-async def test_get_session_uses_mapped_profile(helix_home, monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_get_session_uses_mapped_profile(holix_home, monkeypatch: pytest.MonkeyPatch) -> None:
     from integrations.telegram.env_store import save_telegram_env
     from integrations.telegram.user_profiles import set_user_profile
 
@@ -36,7 +36,7 @@ async def test_get_session_uses_mapped_profile(helix_home, monkeypatch: pytest.M
         profile="shared",
         allow_all=False,
     )
-    bot = HelixTelegramBot(settings=settings)
+    bot = HolixTelegramBot(settings=settings)
 
     fake_agent = object()
     with patch(
@@ -51,15 +51,15 @@ async def test_get_session_uses_mapped_profile(helix_home, monkeypatch: pytest.M
 
 
 @pytest.mark.asyncio
-async def test_get_session_falls_back_to_bot_profile(helix_home, monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.delenv("HELIX_TELEGRAM_USER_PROFILES", raising=False)
+async def test_get_session_falls_back_to_bot_profile(holix_home, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("HOLIX_TELEGRAM_USER_PROFILES", raising=False)
     settings = TelegramSettings(
         bot_token="1:abc",
         allowed_user_ids="999",
         profile="shared",
         allow_all=False,
     )
-    bot = HelixTelegramBot(settings=settings)
+    bot = HolixTelegramBot(settings=settings)
 
     fake_agent = object()
     with patch(

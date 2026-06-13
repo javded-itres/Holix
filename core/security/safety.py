@@ -14,7 +14,7 @@ _UNIX_SAFE: set[str] = {
     "python", "python3", "node", "npm",
     "pip list", "pip show",
     "pytest", "npm test", "make test",
-    "helix", "uv",
+    "holix", "uv",
 }
 
 _WINDOWS_SAFE: set[str] = {
@@ -26,7 +26,7 @@ _WINDOWS_SAFE: set[str] = {
     "python", "python3", "py", "node", "npm",
     "pip list", "pip show",
     "pytest", "npm test",
-    "helix", "uv",
+    "holix", "uv",
 }
 
 _COMMON_DANGEROUS: list[str] = [
@@ -53,6 +53,11 @@ _WINDOWS_DANGEROUS: list[str] = [
 ]
 
 
+_SHELL_CHAINING = re.compile(
+    r"(?:&&|\|\||[;|&`$<>]|\$\(|\n|\r)"
+)
+
+
 class CommandWhitelist:
     """Manage allowed commands for terminal execution."""
 
@@ -73,6 +78,9 @@ class CommandWhitelist:
         """
         command_lower = command.lower().strip()
 
+        if _SHELL_CHAINING.search(command):
+            return False, "Blocked shell chaining or redirection"
+
         for pattern in self.dangerous_patterns:
             if re.search(pattern, command_lower):
                 return False, f"Blocked dangerous pattern: {pattern}"
@@ -83,7 +91,7 @@ class CommandWhitelist:
             return True, None
 
         for safe_cmd in self.safe_commands:
-            if command_lower.startswith(safe_cmd):
+            if command_lower == safe_cmd or command_lower.startswith(f"{safe_cmd} "):
                 return True, None
 
         return False, f"Command '{base_cmd}' not in whitelist"
@@ -97,7 +105,7 @@ class CommandWhitelist:
         self.safe_commands.discard(command.lower())
 
     def apply_extra(self, extra: str | None) -> None:
-        """Add comma-separated commands from HELIX_TERMINAL_WHITELIST_EXTRA."""
+        """Add comma-separated commands from HOLIX_TERMINAL_WHITELIST_EXTRA."""
         if not extra:
             return
         for part in extra.split(","):

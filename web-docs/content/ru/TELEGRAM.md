@@ -1,42 +1,142 @@
 # Telegram
 
-**Telegram-канал:** [t.me/helix_agent](https://t.me/helix_agent) — новости и обновления проекта (это не бот, который вы настраиваете ниже).
+**Telegram-канал:** [t.me/holix_agent](https://t.me/holix_agent) — новости и обновления проекта (это не бот, который вы настраиваете ниже).
 
-У каждого профиля свой бот и allowlist. Секреты хранятся в:
+У каждого профиля может быть свой бот. Секреты хранятся в:
 
-`~/.helix/profiles/<имя>/telegram.env`
+`~/.holix/profiles/<имя>/telegram.env`
 
 ```bash
 uv sync --extra telegram
-helix telegram setup    # мастер: токен, allowlist, сохранение в профиль
-helix telegram run
-# или вместе с gateway того же профиля:
-helix gateway start
+holix -p shared telegram setup    # мастер: только токен бота
+holix -p shared gateway start -f  # gateway + Telegram-бот
 ```
 
-В production (`HELIX_ENV=production`) обязателен `HELIX_TELEGRAM_ALLOWED_USERS`.
+### Хранение и загрузка токена
+
+- Токен бота храните в `profiles/<хост-бота>/telegram.env`. При [шифровании профиля](CONFIGURATION.md#шифрование-профиля-опционально) файл шифруется на диске.
+- **Не** оставляйте пустой `TELEGRAM_BOT_TOKEN=` в `global/.env` — это мешает подставить реальный токен из `telegram.env`. В global ключ лучше не указывать; Holix возьмёт значение из профиля (в т.ч. расшифрованное при заданном `HOLIX_UNLOCK_KEY`).
+- Gateway при старте вызывает `load_telegram_env_files()` после unlock профиля, чтобы зашифрованный токен был доступен до запуска бота.
+
+### Production (`uv tool install`)
+
+При глобальной установке через uv явно добавьте aiogram:
+
+```bash
+uv tool install ~/Holix --force --with aiogram --with pypdf
+```
+
+Без aiogram в логе будет `Telegram bot skipped: aiogram is not installed`, даже если токен настроен.
+
+### Уведомление об удалении профиля
+
+При удалении профиля администратором (`holix profile delete` или `DELETE /api/holix/profiles/{id}`) Holix **сначала** отправляет сообщение в Telegram всем пользователям, привязанным к профилю. `--skip-notify` или `?notify=false` отключают уведомление. См. [PROFILES.md](PROFILES.md#удаление-профиля).
+
+## Один бот — много пользователей (рекомендуется)
+
+Один токен Telegram обслуживает многих людей. **User id вручную вводить не нужно.**
+
+### 1. Админ: подключение бота
+
+```bash
+holix -p shared telegram setup
+HOLIX_ENV=production holix -p shared gateway start -f
+```
+
+Мастер сохраняет только **токен бота** и включает **режим запросов доступа** (`HOLIX_TELEGRAM_ACCESS_REQUESTS=true` по умолчанию).
+
+### 2. Первый администратор (только CLI)
+
+Первого одобренного пользователя можно назначить **единственным** Telegram-администратором. Из Telegram это сделать нельзя — только через CLI:
+
+```bash
+holix -p shared telegram requests approve USER_ID --set-admin
+```
+
+Holix:
+
+- создаёт профиль Holix **`admin`** (если его нет) и привязывает пользователя
+- сохраняет `HOLIX_TELEGRAM_ADMIN_USER_ID` в `telegram.env`
+- включает меню команд для этого пользователя
+
+Проверка и сброс:
+
+```bash
+holix -p shared telegram admin show
+holix -p shared telegram admin clear   # перед назначением другого админа
+```
+
+### 3. Пользователь: запрос доступа
+
+1. Открывает бота в Telegram.
+2. Отправляет `/start`.
+3. Бот отвечает, что доступ ожидает одобрения (меню команд скрыто до approve).
+4. Telegram-администратор получает **уведомление в Telegram** с командами CLI для одобрения или отклонения.
+
+### 4. Админ: одобрение и изолированный профиль
+
+```bash
+holix -p shared telegram requests list
+holix -p shared telegram requests approve USER_ID -i              # выбор или создание профиля
+holix -p shared telegram requests approve USER_ID --create-profile ivan
+```
+
+При одобрении Holix:
+
+- создаёт **защищённый** профиль `ivan` с ключом `hp_…`
+- включает **workspace jail** в `~/.holix/profiles/ivan/workspace/`
+- привязывает Telegram-пользователя к профилю
+- **отправляет ключ доступа пользователю в Telegram** (показывается один раз)
+
+Пользователь сразу может писать боту — перезапуск не нужен.
+
+> **Пути в ответах бота:** одобренные пользователи с workspace jail видят **только относительные пути** (`docs/report.pdf`, а не `~/.holix/profiles/ivan/workspace/…`). **Админ Telegram** (`HOLIX_TELEGRAM_ADMIN_USER_ID`) по-прежнему видит полные абсолютные пути. Подробнее: [Видимость путей в ответах](PROFILES.md#видимость-путей-в-ответах).
+
+Другие команды:
+
+```bash
+holix -p shared telegram requests approve USER_ID --profile existing   # существующий открытый профиль
+holix -p shared telegram requests reject USER_ID
+holix -p shared telegram status
+holix -p shared telegram sync-menu   # обновить меню только для одобренных
+```
+
+### Видимость меню команд
+
+Меню slash-команд **скрыто** для неавторизованных пользователей. После approve (или allowlist / `map`) Holix включает меню **для каждого приватного чата**. `holix telegram sync-menu` обновляет меню всех авторизованных пользователей без перезапуска бота.
+
+### Production
+
+- Используйте **именованный профиль бота** (`-p shared`), не `default` — профиль `default` доступен **только в dev** при `HOLIX_ENV=production`.
+- Для изоляции лучше `--create-profile` на каждого пользователя.
+- Ручной allowlist (`HOLIX_TELEGRAM_ALLOWED_USERS`) не обязателен при включённых access requests.
+- Telegram-администратор **только один** (`HOLIX_TELEGRAM_ADMIN_USER_ID`); назначение — `requests approve --set-admin`.
+
+Подробно: [TELEGRAM_MULTI_PROFILE.md](TELEGRAM_MULTI_PROFILE.md).
+
+---
+
+## Несколько ботов (полная изоляция)
 
 Разные люди → разные профили → разные боты:
 
 ```bash
-helix -p alice telegram setup
-helix -p bob telegram setup
+holix -p alice telegram setup
+holix -p bob telegram setup
+holix -p alice gateway start
+holix -p bob gateway start
 ```
 
-Подробно: [TELEGRAM_MULTI_PROFILE.md](TELEGRAM_MULTI_PROFILE.md).
-
-### Один бот — несколько профилей (привязка user id)
+## Привязка user id → профиль (вручную)
 
 ```bash
-helix -p shared telegram setup              # мастер предложит привязки
-helix -p shared telegram map set 123456789 alice
-helix -p shared telegram map bind bob --user-id 987654321
-helix -p shared telegram map list
-helix -p shared gateway start
+holix -p shared telegram map set 123456789 alice
+holix -p shared telegram map bind bob --user-id 987654321
+holix -p shared telegram map list
 ```
 
-Файлы: `profiles/shared/telegram-users.json`, `HELIX_TELEGRAM_USER_PROFILES` в `telegram.env`.  
-Пользователь автоматически попадает в свой профиль; `/profile` вручную отключает автопривязку для чата.
+Файлы: `profiles/shared/telegram-users.json`, опционально `HOLIX_TELEGRAM_USER_PROFILES` в `telegram.env`.  
+Пользователь попадает в профиль автоматически; ручной `/profile` отключает автопривязку для чата.
 
 Одно live-сообщение на задачу; slash-команды как в TUI; inline-подтверждения.
 
@@ -44,7 +144,7 @@ helix -p shared gateway start
 
 ## 🎙️ Голосовые сообщения
 
-Helix умеет распознавать голосовые сообщения из Telegram и обрабатывать их как текст.
+Holix умеет распознавать голосовые сообщения из Telegram и обрабатывать их как текст.
 
 ### Как это работает
 
@@ -52,7 +152,7 @@ Helix умеет распознавать голосовые сообщения 
 2. Бот скачивает аудиофайл
 3. Отправляет его в OpenAI Whisper API для транскрибации
 4. Показывает распознанный текст
-5. Обрабатывает его через агента Helix как обычное текстовое сообщение
+5. Обрабатывает его через агента Holix как обычное текстовое сообщение
 
 ### Настройка
 
@@ -70,76 +170,48 @@ model_list:
       mode: audio_transcription
 ```
 
-В `.env` Helix:
+В `.env` Holix:
 
 ```bash
-HELIX_WHISPER_BASE_URL=http://192.168.88.252:4000/v1
-HELIX_WHISPER_API_KEY=sk-...     # virtual key LiteLLM
-HELIX_WHISPER_MODEL=whisper      # model_name из LiteLLM, не whisper-1
-HELIX_TELEGRAM_VOICE_LANGUAGE=ru
+HOLIX_WHISPER_BASE_URL=http://192.168.88.252:4000/v1
+HOLIX_WHISPER_API_KEY=sk-...     # virtual key LiteLLM
+HOLIX_WHISPER_MODEL=whisper      # model_name из LiteLLM, не whisper-1
+HOLIX_TELEGRAM_VOICE_LANGUAGE=ru
 ```
 
 Или автоматически из профиля `litellm` (тот же ключ/URL, что для chat):
 
 ```bash
-HELIX_WHISPER_USE_PROFILE_LITELLM=true
-HELIX_WHISPER_MODEL=whisper
+HOLIX_WHISPER_USE_PROFILE_LITELLM=true
+HOLIX_WHISPER_MODEL=whisper
 ```
 
 #### Вариант 2: Локально на машине с агентом (offline)
 
-Без OpenAI и без LiteLLM — модель Whisper крутится прямо на хосте, где запущен Helix:
-
 ```bash
 uv sync --extra telegram --extra voice
-# ffmpeg должен быть в PATH (brew install ffmpeg / apt install ffmpeg)
+# ffmpeg должен быть в PATH
 
-# .env
-HELIX_WHISPER_BACKEND=local
-HELIX_WHISPER_LOCAL_MODEL=base     # tiny быстрее, small точнее
-HELIX_WHISPER_LOCAL_DEVICE=cpu     # cuda + float16 на GPU
-HELIX_TELEGRAM_VOICE_LANGUAGE=ru
+HOLIX_WHISPER_BACKEND=local
+HOLIX_WHISPER_LOCAL_MODEL=base
+HOLIX_TELEGRAM_VOICE_LANGUAGE=ru
 ```
 
-Или `HELIX_WHISPER_BACKEND=auto` — локально, если `faster-whisper` установлен и нет API-ключей.
-
-| Модель | RAM (≈) | Качество |
-|--------|---------|----------|
-| `tiny` | ~1 GB | базовое |
-| `base` | ~1.5 GB | хорошее для команд |
-| `small` | ~2.5 GB | лучше для русского |
-| `medium` | ~5 GB | высокое |
-
-**Ollama** не подходит для Whisper-транскрибации (нет OpenAI `/audio/transcriptions`).
+**Ollama** не подходит для Whisper-транскрибации.
 
 #### Вариант 3: OpenAI напрямую
 
 ```bash
 OPENAI_API_KEY=sk-...
-HELIX_WHISPER_MODEL=whisper-1
+HOLIX_WHISPER_MODEL=whisper-1
 ```
-
-**Важно:** Ollama **не** поддерживает Whisper. LiteLLM — да, но модель `whisper` должна быть в его конфиге (проверка: `curl …/v1/models` — в списке есть `whisper`).
 
 ### Использование
 
-Отправьте **голосовое сообщение** или **аудиофайл** (mp3/m4a) в чат с ботом — Helix автоматически:
-- 🎙️ Покажет "Распознано: ..."
-- 🤖 Обработает текст через агента
-- 💬 Ответит на ваш запрос
-
-### Ограничения
-
-- Максимальная длительность: ~25 МБ (лимит Telegram)
-- Язык: Whisper автоопределяет язык, но можно задать явно (через код)
-- Требуется интернет-соединение для API Whisper
-
-### Безопасность
-
-Аудиофайлы временно сохраняются во временной директории и удаляются сразу после транскрибации. Никакие голосовые данные не хранятся постоянно.
+Отправьте голосовое сообщение или аудиофайл — Holix распознает текст и ответит как на обычное сообщение.
 
 После изменения `.env` или настроек голоса:
 
 ```bash
-helix gateway reload
+holix gateway reload
 ```

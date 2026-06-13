@@ -8,47 +8,47 @@ from dishka import AsyncContainer, make_async_container
 
 from core.agent_events import EventHandler
 from core.di.providers import get_all_providers
-from core.di.runtime_config import HelixRuntimeConfig
+from core.di.runtime_config import HolixRuntimeConfig
 
 if TYPE_CHECKING:
     from cli.core import ProfileConfig
 
 
 def create_async_container(
-    config: HelixRuntimeConfig | None = None,
+    config: HolixRuntimeConfig | None = None,
 ) -> AsyncContainer:
     """Create the application async DI container.
 
     Args:
         config: Optional runtime config injected into APP scope context.
-            When omitted, uses :meth:`HelixRuntimeConfig.from_settings`.
+            When omitted, uses :meth:`HolixRuntimeConfig.from_settings`.
     """
-    resolved = config or HelixRuntimeConfig.from_settings()
+    resolved = config or HolixRuntimeConfig.from_settings()
     return make_async_container(
         *get_all_providers(),
-        context={HelixRuntimeConfig: resolved},
+        context={HolixRuntimeConfig: resolved},
     )
 
 
-def resolve_gateway_runtime_config() -> HelixRuntimeConfig:
-    """Runtime config for API gateway (HELIX_PROFILE or default)."""
+def resolve_gateway_runtime_config() -> HolixRuntimeConfig:
+    """Runtime config for API gateway (HOLIX_PROFILE or default)."""
     import os
 
     from cli.core import init_profile
 
     from core.env_loader import bootstrap_profile_env
 
-    profile = os.getenv("HELIX_PROFILE", "default")
+    profile = os.getenv("HOLIX_PROFILE", "default")
     bootstrap_profile_env(profile)
     return resolve_runtime_config(init_profile(profile))
 
 
-def resolve_runtime_config(profile: ProfileConfig | None = None) -> HelixRuntimeConfig:
+def resolve_runtime_config(profile: ProfileConfig | None = None) -> HolixRuntimeConfig:
     """Build runtime config from env settings and optional CLI profile."""
     if profile is None:
-        return HelixRuntimeConfig.from_settings()
+        return HolixRuntimeConfig.from_settings()
 
-    base = HelixRuntimeConfig.from_profile(profile)
+    base = HolixRuntimeConfig.from_profile(profile)
 
     try:
         from core.models.manager import ModelManager
@@ -69,24 +69,24 @@ def resolve_runtime_config(profile: ProfileConfig | None = None) -> HelixRuntime
 
 
 async def create_agent(
-    config: HelixRuntimeConfig,
+    config: HolixRuntimeConfig,
     *,
     event_listeners: list[EventHandler] | None = None,
     enable_monitoring: bool = True,
     container: AsyncContainer | None = None,
 ):
-    """Create and initialize a HelixAgent using Dishka.
+    """Create and initialize a HolixAgent using Dishka.
 
     Returns:
         (agent, container) — caller should ``await container.close()`` when done.
     """
-    from core.agent import HelixAgent
+    from core.agent import HolixAgent
 
     owns_container = container is None
     if owns_container:
         container = create_async_container(config)
 
-    agent = await container.get(HelixAgent)
+    agent = await container.get(HolixAgent)
 
     if event_listeners:
         for listener in event_listeners:
@@ -100,9 +100,9 @@ async def create_agent(
 
 async def get_agent_from_container(container: AsyncContainer):
     """Get agent from container, initializing if needed."""
-    from core.agent import HelixAgent
+    from core.agent import HolixAgent
 
-    agent = await container.get(HelixAgent)
+    agent = await container.get(HolixAgent)
     if not agent._initialized:
         await agent.initialize()
     return agent

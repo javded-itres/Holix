@@ -193,13 +193,13 @@ def resolve_vision_config(*, profile: str) -> VisionConfig:
     model = _pick_model(*model_candidates)
     if not model:
         raise RuntimeError(
-            "Vision: не задана модель. Укажите HELIX_TELEGRAM_VISION_MODEL "
-            "или назначьте модель для main в helix models setup."
+            "Vision: не задана модель. Укажите HOLIX_TELEGRAM_VISION_MODEL "
+            "или назначьте модель для main в holix models setup."
         )
     if not api_key or not base_url:
         raise RuntimeError(
-            "Vision: не настроен API (ключ/URL). Проверьте ~/.helix/.env "
-            "(LITELLM_API_KEY, LITELLM_API_BASE), helix models setup, "
+            "Vision: не настроен API (ключ/URL). Проверьте ~/.holix/.env "
+            "(LITELLM_API_KEY, LITELLM_API_BASE), holix models setup, "
             "или OPENAI_API_KEY."
         )
 
@@ -211,12 +211,30 @@ def resolve_vision_config(*, profile: str) -> VisionConfig:
     )
 
 
-def profile_files_dir(profile: str, chat_id: int) -> Path:
-    from cli.core import ProfileManager, init_profile, resolve_profile_storage_paths
+def profile_files_dir(
+    profile: str,
+    chat_id: int,
+    *,
+    bot_profile: str | None = None,
+    telegram_user_id: int | None = None,
+) -> Path:
+    from cli.core import ProfileManager, resolve_profile_storage_paths
+
+    from integrations.telegram.profile_auth import init_profile_for_telegram
 
     mgr = ProfileManager()
     pdir = mgr.get_profile_dir(profile)
-    cfg = resolve_profile_storage_paths(profile, init_profile(profile), profile_dir=pdir)
+    if bot_profile is not None and telegram_user_id is not None:
+        cfg_source = init_profile_for_telegram(
+            profile,
+            bot_profile=bot_profile,
+            telegram_user_id=telegram_user_id,
+        )
+    else:
+        from cli.core import init_profile
+
+        cfg_source = init_profile(profile, prompt_key=False)
+    cfg = resolve_profile_storage_paths(profile, cfg_source, profile_dir=pdir)
     dest = Path(cfg.data_dir) / "files" / "telegram" / str(chat_id)
     dest.mkdir(parents=True, exist_ok=True)
     return dest
@@ -304,14 +322,16 @@ def _extract_docx_text(path: Path, *, max_chars: int = 12000) -> str:
         return ""
 
 
-async def describe_image(path: Path, *, profile: str) -> str:
-    vision = resolve_vision_config(profile=profile)
-    mime, _ = mimetypes.guess_type(str(path))
-    mime = mime or "image/jpeg"
-    image_b64 = base64.standard_b64encode(path.read_bytes()).decode("ascii")
-
+async def _vision_describe_bytes(
+    image_bytes: bytes,
+    *,
+    profile: str,
+    mime: str = "image/jpeg",
+) -> str:
+    image_b64 = base64.standard_b64encode(image_bytes).decode("ascii")
     from core.models.client_factory import create_openai_client
 
+    vision = resolve_vision_config(profile=profile)
     client = create_openai_client(
         base_url=vision.base_url,
         api_key=vision.api_key,
@@ -326,9 +346,8 @@ async def describe_image(path: Path, *, profile: str) -> str:
                     {
                         "type": "text",
                         "text": (
-                            "Опиши изображение подробно на русском: видимый текст (OCR), "
-                            "объекты, таблицы, диаграммы, контекст. "
-                            "Если есть текст — процитируй его дословно."
+                            "Describe this image in detail. Transcribe visible text (OCR), "
+                            "objects, tables, and diagrams."
                         ),
                     },
                     {
@@ -342,6 +361,35 @@ async def describe_image(path: Path, *, profile: str) -> str:
         temperature=0.2,
     )
     return (response.choices[0].message.content or "").strip()
+
+
+async def describe_image_from_url(url: str, *, profile: str) -> str:
+    """Describe an inline or remote image URL (Hermes multimodal gateway path)."""
+    raw = (url or "").strip()
+    if raw.startswith("data:"):
+        header, _, payload = raw.partition(",")
+        mime = "image/jpeg"
+        if header.startswith("data:") and ";" in header:
+            mime = header[5:].split(";", 1)[0] or mime
+        image_bytes = base64.standard_b64decode(payload)
+        return await _vision_describe_bytes(image_bytes, profile=profile, mime=mime)
+
+    if raw.startswith(("http://", "https://")):
+        import httpx
+
+        async with httpx.AsyncClient(timeout=30.0, follow_redirects=True) as client:
+            response = await client.get(raw)
+            response.raise_for_status()
+            mime = response.headers.get("content-type", "image/jpeg").split(";", 1)[0]
+            return await _vision_describe_bytes(response.content, profile=profile, mime=mime)
+
+    raise ValueError(f"Unsupported image URL: {raw[:80]}")
+
+
+async def describe_image(path: Path, *, profile: str) -> str:
+    mime, _ = mimetypes.guess_type(str(path))
+    mime = mime or "image/jpeg"
+    return await _vision_describe_bytes(path.read_bytes(), profile=profile, mime=mime)
 
 
 async def enrich_saved_file(saved: SavedTelegramFile, *, profile: str) -> SavedTelegramFile:
@@ -383,6 +431,8 @@ async def save_telegram_attachment(
     file_name: str,
     mime_type: str = "",
     file_size: int = 0,
+    bot_profile: str | None = None,
+    telegram_user_id: int | None = None,
 ) -> SavedTelegramFile:
     max_bytes = int(settings.telegram_max_file_mb or 20) * 1024 * 1024
     if file_size and file_size > max_bytes:
@@ -391,7 +441,12 @@ async def save_telegram_attachment(
             f"Лимит: {settings.telegram_max_file_mb} MB."
         )
 
-    dest_dir = profile_files_dir(profile, chat_id)
+    dest_dir = profile_files_dir(
+        profile,
+        chat_id,
+        bot_profile=bot_profile,
+        telegram_user_id=telegram_user_id,
+    )
     dest = _unique_dest(dest_dir, file_name)
     size = await download_telegram_file_to_path(bot, file_id, dest)
 

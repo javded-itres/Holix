@@ -1,13 +1,13 @@
-# Helix — Self-Improving AI Agent
+# Holix — Self-Improving AI Agent
 
-**Helix** is a self-improving AI agent with persistent memory, a skills system, tool calling, MCP integration, and multiple interfaces: CLI, TUI, API gateway, and Telegram.
+**Holix** is a self-improving AI agent with persistent memory, a skills system, tool calling, MCP integration, and multiple interfaces: CLI, TUI, API gateway, and Telegram.
 
-[![PyPI](https://img.shields.io/pypi/v/HelixAgentAi.svg)](https://pypi.org/project/HelixAgentAi/)
+[![PyPI](https://img.shields.io/pypi/v/Holix.svg)](https://pypi.org/project/Holix/)
 [![Python](https://img.shields.io/badge/python-3.12%2B-blue.svg)](https://python.org)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![Docs](https://img.shields.io/badge/docs-en%20%7C%20ru-blue)](docs/README.md)
 
-**Website:** [helix-agent.ru](https://helix-agent.ru) · **PyPI:** [HelixAgentAi](https://pypi.org/project/HelixAgentAi/) · **GitHub:** [javded-itres/HelixAgent](https://github.com/javded-itres/HelixAgent) · **Telegram:** [@helix_agent](https://t.me/helix_agent) · **Docs:** [EN](docs/en/README.md) · [RU](docs/ru/README.md) · **Donate:** [Boosty](https://boosty.to/javded/single-payment/donation/805721/target?share=target_link)
+**Website:** [holix-agent.ru](https://holix-agent.ru) · **PyPI:** [Holix](https://pypi.org/project/Holix/) · **GitHub:** [javded-itres/Holix](https://github.com/javded-itres/Holix) · **Telegram:** [@holix_agent](https://t.me/holix_agent) · **Docs:** [EN](docs/en/README.md) · [RU](docs/ru/README.md) · **Donate:** [Boosty](https://boosty.to/javded/single-payment/donation/805721/target?share=target_link)
 
 ---
 
@@ -18,9 +18,9 @@
 - **Skills** — markdown skills with auto-generation and hub catalogs (ClawHub, Hermes, Claude plugins)
 - **MCP** — configure and assign Model Context Protocol servers per agent
 - **Multi-provider** — Ollama, LiteLLM, OpenAI, Groq, and any OpenAI-compatible API
-- **Interfaces** — `helix tui`, `helix chat-command`, `helix run`, `helix gateway`
+- **Interfaces** — `holix tui`, `holix chat-command`, `holix run`, `holix gateway`
 - **Security** — API keys, rate limits, command whitelist, confirmation prompts
-- **Operations** — `helix doctor`, `helix logs`, background gateway supervisor, Docker
+- **Operations** — `holix doctor`, `holix logs`, background gateway supervisor, Docker
 
 ---
 
@@ -28,31 +28,39 @@
 
 ### Install
 
-**Install from PyPI** (Python 3.12+). Package: [`HelixAgentAi`](https://pypi.org/project/HelixAgentAi/), CLI command: `helix`:
+**One-line install** (detects OS language, asks full vs minimal, runs `holix bootstrap` for LLM + Telegram):
 
 ```bash
-pipx install HelixAgentAi              # global CLI (recommended)
-pipx install "HelixAgentAi[all]"       # + telegram, browser, tui-web, voice
+curl -fsSL https://raw.githubusercontent.com/javded-itres/Holix/main/scripts/install.sh | bash
+```
+
+Russian systems use Russian prompts automatically; English systems choose EN/RU. See [docs/en/INSTALLATION.md](docs/en/INSTALLATION.md).
+
+**Install from PyPI** (Python 3.12+). Package: [`Holix`](https://pypi.org/project/Holix/), CLI command: `holix`:
+
+```bash
+pipx install Holix              # global CLI (recommended)
+pipx install "Holix[all]"       # + telegram, browser, tui-web, voice
 
 # or in a virtualenv:
-pip install HelixAgentAi
-pip install "HelixAgentAi[telegram,browser]"
+pip install Holix
+pip install "Holix[telegram,browser]"
 ```
 
 Do not use `pip install helix` — that is a **different** package on PyPI.
 
-Update later: `helix update --channel pypi`
+Update later: `holix update --channel pypi`
 
 **From source (developers):**
 
 ```bash
-git clone https://github.com/javded-itres/HelixAgent.git
-cd HelixAgent
+git clone https://github.com/javded-itres/Holix.git
+cd Holix
 ./scripts/install.sh          # macOS / Linux
 # Windows: .\scripts\install.ps1
 
-helix version
-helix doctor
+holix version
+holix doctor
 ```
 
 Publishing: [docs/en/PYPI.md](docs/en/PYPI.md)
@@ -69,12 +77,12 @@ Full guide: [docs/en/INSTALLATION.md](docs/en/INSTALLATION.md)
 ### Configure and run
 
 ```bash
-helix models setup
-helix tui                    # recommended UI
+holix models setup
+holix tui                    # recommended UI
 # or:
-helix chat-command
-helix run "What is in this repo?"
-helix gateway start
+holix chat-command
+holix run "What is in this repo?"
+holix gateway start
 ```
 
 ---
@@ -111,15 +119,15 @@ helix gateway start
 ## CLI at a glance
 
 ```bash
-helix tui                          # main UI
-helix run "query"                  # one-shot
-helix models setup                 # providers
-helix hub browse                   # external skills
-helix mcp setup                    # MCP servers
-helix gateway start|status|stop|reload
-helix logs [-s agent] [-f]
-helix doctor [--fix]
-helix install | helix update
+holix tui                          # main UI
+holix run "query"                  # one-shot
+holix models setup                 # providers
+holix hub browse                   # external skills
+holix mcp setup                    # MCP servers
+holix gateway start|status|stop|reload
+holix logs [-s agent] [-f]
+holix doctor [--fix]
+holix install | holix update
 ```
 
 In TUI/Telegram, type `/help` for slash commands. See [docs/en/SLASH_COMMANDS.md](docs/en/SLASH_COMMANDS.md).
@@ -129,7 +137,7 @@ In TUI/Telegram, type `/help` for slash commands. See [docs/en/SLASH_COMMANDS.md
 ## Architecture
 
 ```
-HelixAgent → run_agent_loop() (core/agent_execution.py)
+HolixAgent → run_agent_loop() (core/agent_execution.py)
            → LangGraph / AgentLoop
 ```
 

@@ -10,7 +10,7 @@ sys.path.append(str(Path(__file__).parent.parent.parent))
 
 from cli.utils.rich_console import console, print_info
 
-app = typer.Typer(help="Search and manage Helix memory")
+app = typer.Typer(help="Search and manage Holix memory")
 
 
 @app.command("search")

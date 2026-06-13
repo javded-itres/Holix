@@ -5,7 +5,7 @@ from __future__ import annotations
 from textual.widgets import TextArea
 
 
-class HelixInputArea(TextArea):
+class HolixInputArea(TextArea):
     """Markdown input for user messages."""
 
     def __init__(self, **kwargs) -> None:

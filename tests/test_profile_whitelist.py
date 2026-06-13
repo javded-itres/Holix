@@ -25,7 +25,7 @@ def profile_env(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> str:
     profile_dir.mkdir(parents=True)
     (profile_dir / ".env").write_text("# test profile env\n", encoding="utf-8")
     monkeypatch.setattr("cli.core.PROFILES_DIR", profiles_root)
-    monkeypatch.setattr("core.env_loader.helix_home", lambda: tmp_path)
+    monkeypatch.setattr("core.env_loader.holix_home", lambda: tmp_path)
     return profile
 
 
@@ -58,9 +58,9 @@ def test_set_whitelist_enabled_writes_profile_env(profile_env: str) -> None:
     assert f"{WHITELIST_ENABLED_KEY}=false" in path.read_text(encoding="utf-8")
 
 
-def test_settings_read_helix_whitelist_env(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("HELIX_TERMINAL_COMMAND_WHITELIST", "false")
-    monkeypatch.setenv("HELIX_TERMINAL_WHITELIST_EXTRA", "docker,make")
+def test_settings_read_holix_whitelist_env(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("HOLIX_TERMINAL_COMMAND_WHITELIST", "false")
+    monkeypatch.setenv("HOLIX_TERMINAL_WHITELIST_EXTRA", "docker,make")
     from importlib import reload
 
     import config

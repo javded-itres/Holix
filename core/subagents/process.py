@@ -20,6 +20,7 @@ import json
 import logging
 import multiprocessing
 import os
+import queue
 import threading
 import time
 import uuid
@@ -47,8 +48,8 @@ HEARTBEAT_INTERVAL = 5.0
 GRACE_PERIOD = 5.0
 
 # Child reads credentials from env (not Process args — avoids pickle/log exposure).
-_SUBAGENT_API_KEY_ENV = "HELIX_SUBAGENT_API_KEY"
-_SUBAGENT_BASE_URL_ENV = "HELIX_SUBAGENT_BASE_URL"
+_SUBAGENT_API_KEY_ENV = "HOLIX_SUBAGENT_API_KEY"
+_SUBAGENT_BASE_URL_ENV = "HOLIX_SUBAGENT_BASE_URL"
 _subagent_spawn_lock = threading.Lock()
 
 
@@ -103,7 +104,7 @@ def run_sub_agent_in_process(
     skills_dir: str = "",
     skill_assignments: dict[str, list[str]] | None = None,
     auto_allow_threshold: str = "low",
-    confirmation_timeout: float = 300.0,
+    confirmation_timeout: float = 0.0,
     interactive: bool = True,
     search_config: dict[str, Any] | None = None,
 ) -> None:
@@ -122,7 +123,7 @@ def run_sub_agent_in_process(
         input_queue: Queue for parent → child messages.
         output_queue: Queue for child → parent messages.
         parent_model: Default model name.
-        Credentials are read from HELIX_SUBAGENT_API_KEY / HELIX_SUBAGENT_BASE_URL in the child env.
+        Credentials are read from HOLIX_SUBAGENT_API_KEY / HOLIX_SUBAGENT_BASE_URL in the child env.
         ltm_db_path: Path to LTM SQLite database (empty = no memory).
         vector_db_path: Path to ChromaDB vector database.
         mcp_servers: dict | None = None  # MCP server defs filtered for sub
@@ -188,10 +189,10 @@ def run_sub_agent_in_process(
     skills_block = ""
     if skills_dir:
         try:
-            from core.di.runtime_config import HelixRuntimeConfig
+            from core.di.runtime_config import HolixRuntimeConfig
             from core.skills.manager import SkillsManager
 
-            sk_cfg = HelixRuntimeConfig.from_settings().with_overrides(
+            sk_cfg = HolixRuntimeConfig.from_settings().with_overrides(
                 skills_dir=skills_dir,
                 skill_assignments=skill_assignments or {},
             )
@@ -614,8 +615,8 @@ def _send_result(
     )
     try:
         output_queue.put(msg.serialize(), timeout=5)
-    except Exception:
-        pass
+    except Exception as exc:
+        logger.error("Sub-agent '%s' failed to send result: %s", agent_name, exc)
 
 
 def _build_process_system_prompt(
@@ -644,9 +645,9 @@ Remember: You are {config.name}. Stay focused on your specialized role.
 """
     if skills_block:
         prompt += f"\n\n{skills_block}"
-    from core.project.helix_md import append_helix_project_context
+    from core.project.holix_md import append_holix_project_context
 
-    return append_helix_project_context(prompt)
+    return append_holix_project_context(prompt)
 
 
 class SubAgentProcessManager:
@@ -713,8 +714,10 @@ class SubAgentProcessManager:
         auto_allow_threshold = str(
             getattr(parent_cfg, "auto_allow_threshold", "low") or "low"
         )
+        from core.security.confirmation import normalize_confirmation_timeout
+
         confirmation_timeout = float(
-            getattr(parent_cfg, "confirmation_timeout", 300) or 300
+            normalize_confirmation_timeout(getattr(parent_cfg, "confirmation_timeout", None))
         )
         interactive = not bool(getattr(parent_cfg, "non_interactive", False))
         search_config = dict(getattr(parent_cfg, "search", None) or {})
@@ -788,11 +791,30 @@ class SubAgentProcessManager:
         """
         while not handle.is_done:
             try:
-                # Non-blocking check with timeout
-                data = output_queue.get(timeout=1.0)
-                msg = AgentMessage.deserialize(data)
+                data = await asyncio.to_thread(output_queue.get, True, 1.0)
+            except queue.Empty:
+                if handle.task and not handle.task.is_alive():
+                    handle.result = SubAgentResult(
+                        name=agent_name,
+                        success=False,
+                        error="Sub-agent process terminated unexpectedly",
+                        duration_ms=(time.monotonic() - (handle.started_at or time.monotonic())) * 1000,
+                    )
+                    handle.status = SubAgentStatus.FAILED
+                    self._notify_parent_done(agent_name)
+                    return
+                continue
+            except Exception as exc:
+                logger.warning("Sub-agent '%s' IPC read failed: %s", agent_name, exc)
+                continue
 
-                if msg.msg_type == "result":
+            try:
+                msg = AgentMessage.deserialize(data)
+            except Exception as exc:
+                logger.warning("Sub-agent '%s' IPC deserialize failed: %s", agent_name, exc)
+                continue
+
+            if msg.msg_type == "result":
                     # Final result received
                     meta = msg.metadata
                     handle.result = SubAgentResult(
@@ -808,39 +830,25 @@ class SubAgentProcessManager:
                     self._notify_parent_done(agent_name)
                     return
 
-                elif msg.msg_type == "heartbeat":
-                    pass
+            elif msg.msg_type == "heartbeat":
+                pass
 
-                elif msg.msg_type == "confirmation_request":
-                    await self._handle_ipc_confirmation(agent_name, msg)
+            elif msg.msg_type == "confirmation_request":
+                await self._handle_ipc_confirmation(agent_name, msg)
 
-                elif msg.msg_type == "question":
-                    await self._handle_ipc_question(agent_name, msg)
+            elif msg.msg_type == "question":
+                await self._handle_ipc_question(agent_name, msg)
 
-                elif msg.msg_type == "error":
-                    handle.result = SubAgentResult(
-                        name=agent_name,
-                        success=False,
-                        error=msg.content,
-                        duration_ms=(time.monotonic() - (handle.started_at or time.monotonic())) * 1000,
-                    )
-                    handle.status = SubAgentStatus.FAILED
-                    self._notify_parent_done(agent_name)
-                    return
-
-            except Exception:
-                # Queue.get timeout — check if process is still alive
-                if handle.task and not handle.task.is_alive():
-                    # Process died without sending result
-                    handle.result = SubAgentResult(
-                        name=agent_name,
-                        success=False,
-                        error="Sub-agent process terminated unexpectedly",
-                        duration_ms=(time.monotonic() - (handle.started_at or time.monotonic())) * 1000,
-                    )
-                    handle.status = SubAgentStatus.FAILED
-                    self._notify_parent_done(agent_name)
-                    return
+            elif msg.msg_type == "error":
+                handle.result = SubAgentResult(
+                    name=agent_name,
+                    success=False,
+                    error=msg.content,
+                    duration_ms=(time.monotonic() - (handle.started_at or time.monotonic())) * 1000,
+                )
+                handle.status = SubAgentStatus.FAILED
+                self._notify_parent_done(agent_name)
+                return
 
     async def _handle_ipc_confirmation(self, agent_name: str, msg: AgentMessage) -> None:
         bridge = getattr(getattr(self._parent, "subagents", None), "interactions", None)
@@ -922,6 +930,13 @@ class SubAgentProcessManager:
             process.join(timeout=1)
 
         handle.status = SubAgentStatus.CANCELLED
+        handle.result = SubAgentResult(
+            name=name,
+            success=False,
+            error="Cancelled by parent",
+            duration_ms=(time.monotonic() - (handle.started_at or time.monotonic())) * 1000,
+        )
+        self._notify_parent_done(name)
         return True
 
     async def terminate_all(self) -> None:

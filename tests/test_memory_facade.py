@@ -1,14 +1,14 @@
 """Tests for MemoryFacade and memory layer separation."""
 
 import pytest
-from core.di.runtime_config import HelixRuntimeConfig
+from core.di.runtime_config import HolixRuntimeConfig
 from core.memory.conversation import ConversationStore
 from core.memory.facade import MemoryFacade
 
 
 @pytest.fixture
 async def memory_facade(temp_dir):
-    cfg = HelixRuntimeConfig.from_settings().with_overrides(
+    cfg = HolixRuntimeConfig.from_settings().with_overrides(
         memory_db_path=f"{temp_dir}/memory.db",
         vector_db_path=f"{temp_dir}/vector_db",
         ltm_db_path=f"{temp_dir}/ltm.db",
@@ -45,7 +45,7 @@ async def test_facade_ltm_store_fact(memory_facade):
 async def test_facade_get_relevant_context(memory_facade):
     await memory_facade.store_fact(
         "api_framework",
-        "Helix uses FastAPI for the gateway",
+        "Holix uses FastAPI for the gateway",
         source="test",
     )
 
@@ -57,7 +57,7 @@ async def test_facade_get_relevant_context(memory_facade):
 
 @pytest.mark.asyncio
 async def test_facade_ltm_disabled(temp_dir):
-    cfg = HelixRuntimeConfig.from_settings().with_overrides(
+    cfg = HolixRuntimeConfig.from_settings().with_overrides(
         memory_db_path=f"{temp_dir}/memory.db",
         vector_db_path=f"{temp_dir}/vector_db",
         enable_long_term_memory=False,
@@ -75,7 +75,7 @@ async def test_facade_ltm_disabled(temp_dir):
 
 @pytest.mark.asyncio
 async def test_conversation_store_contract(temp_dir):
-    cfg = HelixRuntimeConfig.from_settings().with_overrides(
+    cfg = HolixRuntimeConfig.from_settings().with_overrides(
         memory_db_path=f"{temp_dir}/conv.db",
         vector_db_path=f"{temp_dir}/vec",
     )

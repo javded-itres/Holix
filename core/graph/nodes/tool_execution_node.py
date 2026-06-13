@@ -8,12 +8,12 @@ import time
 from langchain_core.runnables import RunnableConfig
 
 from core.agent_events import ToolCallErrorEvent, ToolCallResultEvent
-from core.graph.state import HelixGraphState, get_agent_from_config
+from core.graph.state import HolixGraphState, get_agent_from_config
 
 logger = logging.getLogger(__name__)
 
 
-async def tool_execution_node(state: HelixGraphState, config: RunnableConfig) -> dict:
+async def tool_execution_node(state: HolixGraphState, config: RunnableConfig) -> dict:
     """Execute pending tool calls and store results.
 
     Reads tool_calls from state, executes each via the agent's

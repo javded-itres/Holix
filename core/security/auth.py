@@ -2,23 +2,23 @@ import hashlib
 import hmac
 import secrets
 from datetime import datetime, timedelta
-from pathlib import Path
 from typing import Any
 
 import aiosqlite
 
 from config import settings
+from core.paths import resolve_api_keys_db_path
 
 
 class APIKeyManager:
     """Manages API keys for authentication."""
 
     def __init__(self, db_path: str | None = None):
-        self.db_path = Path(db_path or settings.api_keys_db_path)
+        self.db_path = resolve_api_keys_db_path(db_path)
         self.db_path.parent.mkdir(parents=True, exist_ok=True)
 
     async def initialize_db(self) -> None:
-        async with aiosqlite.connect(self.db_path) as db:
+        async with aiosqlite.connect(str(self.db_path)) as db:
             await db.execute(
                 """
                 CREATE TABLE IF NOT EXISTS api_keys (
@@ -45,7 +45,7 @@ class APIKeyManager:
         pepper = settings.api_key_pepper.strip()
         if not pepper:
             raise RuntimeError(
-                "HELIX_API_KEY_PEPPER must be set for API key hashing"
+                "HOLIX_API_KEY_PEPPER must be set for API key hashing"
             )
         return pepper
 
@@ -67,7 +67,7 @@ class APIKeyManager:
         key_hash = self.hash_key(api_key)
         limit = rate_limit if rate_limit is not None else settings.rate_limit_rpm
 
-        async with aiosqlite.connect(self.db_path) as db:
+        async with aiosqlite.connect(str(self.db_path)) as db:
             await db.execute(
                 """
                 INSERT INTO api_keys (key_hash, name, permissions, rate_limit)
@@ -85,7 +85,7 @@ class APIKeyManager:
 
         key_hash = self.hash_key(api_key)
 
-        async with aiosqlite.connect(self.db_path) as db:
+        async with aiosqlite.connect(str(self.db_path)) as db:
             db.row_factory = aiosqlite.Row
             cursor = await db.execute(
                 """
@@ -113,7 +113,7 @@ class APIKeyManager:
 
     async def revoke_api_key(self, api_key: str) -> bool:
         key_hash = self.hash_key(api_key)
-        async with aiosqlite.connect(self.db_path) as db:
+        async with aiosqlite.connect(str(self.db_path)) as db:
             cursor = await db.execute(
                 "UPDATE api_keys SET is_active = 0 WHERE key_hash = ?",
                 (key_hash,),
@@ -122,7 +122,7 @@ class APIKeyManager:
             return cursor.rowcount > 0
 
     async def list_api_keys(self) -> list:
-        async with aiosqlite.connect(self.db_path) as db:
+        async with aiosqlite.connect(str(self.db_path)) as db:
             db.row_factory = aiosqlite.Row
             cursor = await db.execute(
                 """

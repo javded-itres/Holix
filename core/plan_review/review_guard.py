@@ -184,7 +184,7 @@ def init_plan_review_guard(
 ) -> PlanReviewGuard:
     """Initialize the global PlanReviewGuard instance.
 
-    Called by HelixAgent after the event bus is ready.
+    Called by HolixAgent after the event bus is ready.
     """
     global _plan_review_guard
     _plan_review_guard = PlanReviewGuard(

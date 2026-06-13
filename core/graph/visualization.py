@@ -1,5 +1,5 @@
 """
-Graph Visualization — renders Helix LangGraph execution graphs.
+Graph Visualization — renders Holix LangGraph execution graphs.
 
 Provides multiple rendering formats:
 - ASCII: Simple text representation for terminal display
@@ -41,7 +41,7 @@ class GraphVisualizer:
     }
 
     def render_ascii(self, graph_description: str | None = None) -> str:
-        """Render the default Helix graph as ASCII art.
+        """Render the default Holix graph as ASCII art.
 
         Args:
             graph_description: Optional description to include in the output.
@@ -52,7 +52,7 @@ class GraphVisualizer:
         """
         lines = []
         lines.append("╔══════════════════════════════════════╗")
-        lines.append("║       Helix Agent Execution Graph     ║")
+        lines.append("║       Holix Agent Execution Graph     ║")
         lines.append("╚══════════════════════════════════════╝")
         lines.append("")
         lines.append("  ┌─────────┐")
@@ -184,7 +184,7 @@ class GraphVisualizer:
             console = Console(width=80, force_terminal=True)
 
             # Create a table of nodes
-            table = Table(title="Helix Graph Nodes", show_header=True)
+            table = Table(title="Holix Graph Nodes", show_header=True)
             table.add_column("Node", style="cyan")
             table.add_column("Type", style="green")
             table.add_column("Description", style="white")
@@ -241,7 +241,7 @@ class GraphVisualizer:
         """
         lines = []
         lines.append("═" * 50)
-        lines.append(f"  Helix Graph Execution Trace ({graph_type})")
+        lines.append(f"  Holix Graph Execution Trace ({graph_type})")
         lines.append("═" * 50)
         lines.append("")
 

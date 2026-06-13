@@ -1,31 +1,31 @@
 # Publishing to PyPI
 
-This guide covers packaging, naming, and releasing **Helix** on [PyPI](https://pypi.org).
+This guide covers packaging, naming, and releasing **Holix** on [PyPI](https://pypi.org).
 
-> **Published:** [HelixAgentAi 0.1.8](https://pypi.org/project/HelixAgentAi/) — install with `pipx install HelixAgentAi`.
+> **Published:** [Holix 0.1.8](https://pypi.org/project/Holix/) — install with `pipx install Holix`.
 
 ## Package name
 
-The PyPI distribution name is **`HelixAgentAi`** (not `helix` — that name is used by another project).
+The PyPI distribution name is **`Holix`** (not `holix` — that name is used by another project).
 
 | Name on PyPI | Status |
 |--------------|--------|
-| `helix` | Taken (MIT LL mutation framework) |
+| `holix` | Taken (MIT LL mutation framework) |
 | `helix-ai` | Taken (ML toolkit) |
-| `helix-agent` | Available (not used) |
-| **`HelixAgentAi`** | **Published** — [pypi.org/project/HelixAgentAi](https://pypi.org/project/HelixAgentAi/) |
+| `holix-agent` | Available (not used) |
+| **`Holix`** | **Published** — [pypi.org/project/Holix](https://pypi.org/project/Holix/) |
 
 Install:
 
 ```bash
-pipx install HelixAgentAi
+pipx install Holix
 # or inside a venv:
-pip install HelixAgentAi
-pip install "HelixAgentAi[telegram,browser,tui-web]"
+pip install Holix
+pip install "Holix[telegram,browser,tui-web]"
 ```
 
-The console command is **`helix`** (registered via `[project.scripts]` → `cli.main:main`).  
-It is placed in the environment’s `bin` directory (`venv/bin`, `~/.local/bin`, or pipx’s path). Activate the venv or use **pipx** / **uv tool** so `helix` is on your PATH from any directory.
+The console command is **`holix`** (registered via `[project.scripts]` → `cli.main:main`).  
+It is placed in the environment’s `bin` directory (`venv/bin`, `~/.local/bin`, or pipx’s path). Activate the venv or use **pipx** / **uv tool** so `holix` is on your PATH from any directory.
 
 Do not run `pip install helix` — that installs an unrelated package on PyPI.
 
@@ -35,8 +35,8 @@ Update `PYPI_PACKAGE` in `cli/installer/update.py` if the distribution name chan
 
 1. **PyPI account** — register at [pypi.org](https://pypi.org/account/register/)
 2. **Trusted publishing** (recommended) or **API token**
-   - Token: Account → API tokens → scope `HelixAgentAi` (after first upload) or entire account for first release
-3. **Unique name** — confirm `HelixAgentAi` is free: `curl -s https://pypi.org/pypi/HelixAgentAi/json | head`
+   - Token: Account → API tokens → scope `Holix` (after first upload) or entire account for first release
+3. **Unique name** — confirm `Holix` is free: `curl -s https://pypi.org/pypi/Holix/json | head`
 4. **Version** — bump in `pyproject.toml` and `cli/__init__.py` together
 5. **Python 3.12+** — reflected in `requires-python`
 
@@ -47,7 +47,7 @@ Update `PYPI_PACKAGE` in `cli/installer/update.py` if the distribution name chan
 | Build backend | `hatchling` in `pyproject.toml` |
 | Packages | `cli`, `core`, `api`, `integrations` |
 | Root settings module | `config.py` (force-included in wheel) |
-| Console script | `helix = cli.main:main` |
+| Console script | `holix = cli.main:main` |
 | Extras | `browser`, `telegram`, `voice`, `tui-web`, `windows`, `all` |
 | License | `LICENSE` + `license-files` |
 
@@ -56,19 +56,19 @@ Update `PYPI_PACKAGE` in `cli/installer/update.py` if the distribution name chan
 ```bash
 uv sync --group dev
 rm -rf dist
-HELIX_NO_VERSION_BUMP=1 uv build --no-sources
+HOLIX_NO_VERSION_BUMP=1 uv build --no-sources
 ls -la dist/
-# helixagentai-0.1.0-py3-none-any.whl
-# helixagentai-0.1.0.tar.gz
+# holix-0.1.0-py3-none-any.whl
+# holix-0.1.0.tar.gz
 ```
 
 Verify install in a clean venv:
 
 ```bash
-uv venv /tmp/helix-test --python 3.12
-uv pip install --python /tmp/helix-test/bin/python dist/helixagentai-*.whl
-/tmp/helix-test/bin/helix version
-/tmp/helix-test/bin/python -c "from config import settings; print('ok')"
+uv venv /tmp/holix-test --python 3.12
+uv pip install --python /tmp/holix-test/bin/python dist/holix-*.whl
+/tmp/holix-test/bin/holix version
+/tmp/holix-test/bin/python -c "from config import settings; print('ok')"
 ```
 
 Run tests before release:
@@ -91,7 +91,7 @@ python -m twine upload --repository testpypi dist/*
 Test install:
 
 ```bash
-pip install -i https://test.pypi.org/simple/ HelixAgentAi
+pip install -i https://test.pypi.org/simple/ Holix
 ```
 
 ### 2. Production PyPI
@@ -105,7 +105,7 @@ python -m twine upload dist/*
 
 PyPI **no longer accepts account passwords**. Use an **API token** (or Trusted Publishing in CI).
 
-1. [pypi.org](https://pypi.org) → Account settings → **API tokens** → Add token (scope: project `HelixAgentAi` or entire account for first upload).
+1. [pypi.org](https://pypi.org) → Account settings → **API tokens** → Add token (scope: project `Holix` or entire account for first upload).
 2. Publish locally:
 
 ```bash
@@ -158,13 +158,13 @@ Add protection rules (required reviewers) if you want approval before publish.
 
 **2. PyPI Trusted Publishing**
 
-On [pypi.org](https://pypi.org) → account → **Publishing** (or project **HelixAgentAi** after first upload) → **Add a new publisher**:
+On [pypi.org](https://pypi.org) → account → **Publishing** (or project **Holix** after first upload) → **Add a new publisher**:
 
 | Field | Value |
 |-------|-------|
-| PyPI project name | `HelixAgentAi` |
+| PyPI project name | `Holix` |
 | Owner | `javded-itres` |
-| Repository name | `HelixAgent` |
+| Repository name | `HolixAgent` |
 | Workflow filename | `publish-pypi.yml` |
 | Environment name | `pypi` |
 
@@ -196,15 +196,15 @@ The workflow checks that tag `v0.1.3` matches `version = "0.1.3"` in `pyproject.
 After publish:
 
 ```bash
-pipx install HelixAgentAi
-helix version
+pipx install Holix
+holix version
 ```
 
 ## Checklist before every release
 
 - [ ] Version bumped in `pyproject.toml` and `cli/__init__.py`
 - [ ] `uv build` succeeds
-- [ ] Wheel installs in clean 3.12 venv; `helix --help` works
+- [ ] Wheel installs in clean 3.12 venv; `holix --help` works
 - [ ] `from config import settings` works (packaged `config.py`)
 - [x] README and repository URLs updated
 - [ ] Tests pass (`pytest -m "not llm"`)
@@ -216,16 +216,16 @@ helix version
 
 After publish, update:
 
-- [INSTALLATION.md](INSTALLATION.md) — `pip install HelixAgentAi`
+- [INSTALLATION.md](INSTALLATION.md) — `pip install Holix`
 - Root [README.md](../../README.md)
-- `helix update --channel pypi` (uses `HelixAgentAi` package name)
+- `holix update --channel pypi` (uses `Holix` package name)
 
 ## Known limitations
 
 - **Heavy core dependencies** — ChromaDB, LangGraph; first install may be slow
-- **Optional extras** — Telegram, browser, voice, and web TUI require `pip install "HelixAgentAi[all]"` (or specific extras)
+- **Optional extras** — Telegram, browser, voice, and web TUI require `pip install "Holix[all]"` (or specific extras)
 - **Playwright** — `browser` extra requires `playwright install chromium` after pip install
-- **No bundled `.env.example` in wheel** — document copying from GitHub or `helix doctor`
+- **No bundled `.env.example` in wheel** — document copying from GitHub or `holix doctor`
 
 ## Related
 

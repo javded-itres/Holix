@@ -1,73 +1,160 @@
-"""FastAPI dependencies for Helix gateway."""
+"""FastAPI dependencies for Holix gateway."""
 
 from __future__ import annotations
 
-from fastapi import Header, HTTPException
+import re
+from dataclasses import dataclass
+
+from fastapi import Depends, HTTPException, Request
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from config import settings
 
-# Set by gateway lifespan
+# Legacy re-export for tests patching api.deps.api_key_manager
 api_key_manager = None
 rate_limiter = None
 
+_SESSION_KEY_MAX = 256
+_CONTROL_CHARS = re.compile(r"[\r\n\x00]")
 
-def _extract_api_key(
-    authorization: str | None,
-    x_api_key: str | None,
+_bearer_scheme = HTTPBearer(
+    auto_error=False,
+    scheme_name="HolixApiKey",
+    bearerFormat="API key",
+    description="Holix gateway API key (hx_…). Also accepted via X-API-Key header.",
+)
+
+
+def _api_key_from_request(
+    request: Request,
+    credentials: HTTPAuthorizationCredentials | None,
 ) -> str | None:
-    if authorization and authorization.startswith("Bearer "):
-        return authorization[7:]
-    if x_api_key:
-        return x_api_key
+    if credentials is not None:
+        token = credentials.credentials.strip()
+        return token or None
+    header = request.headers.get("X-API-Key") or request.headers.get("x-api-key")
+    if header:
+        return header.strip() or None
     return None
 
 
 async def _validate_key(api_key: str, *, default_limit: int) -> dict:
-    if api_key_manager is None:
+    from api import state
+
+    manager = state.api_key_manager
+    limiter = state.rate_limiter
+    if manager is None:
         raise HTTPException(status_code=503, detail="API key manager not initialized")
 
-    key_info = await api_key_manager.validate_api_key(api_key)
+    key_info = await manager.validate_api_key(api_key)
     if not key_info:
         raise HTTPException(status_code=401, detail="Invalid API key")
 
     limit = int(key_info.get("rate_limit") or default_limit)
-    key_hash = api_key_manager.hash_key(api_key)
-    if rate_limiter and not rate_limiter.check_rate_limit(key_hash, limit):
+    key_hash = manager.hash_key(api_key)
+    if limiter and not limiter.check_rate_limit(key_hash, limit):
         raise HTTPException(status_code=429, detail="Rate limit exceeded")
 
     return key_info
 
 
-async def verify_api_key(
-    authorization: str | None = Header(None),
-    x_api_key: str | None = Header(None),
-) -> dict | None:
-    """Optional auth for public /v1 routes when require_auth is disabled."""
-    if not settings.effective_require_auth:
-        api_key = _extract_api_key(authorization, x_api_key)
-        if not api_key:
-            return None
-        return await _validate_key(api_key, default_limit=settings.rate_limit_rpm)
+_BOOTSTRAP_KEY_INFO: dict = {
+    "permissions": ["read", "write", "execute", "admin"],
+    "rate_limit": 0,
+    "bootstrap": True,
+}
 
-    api_key = _extract_api_key(authorization, x_api_key)
+
+async def verify_api_key(
+    request: Request,
+    credentials: HTTPAuthorizationCredentials | None = Depends(_bearer_scheme),
+) -> dict:
+    """Require a valid API key when HOLIX_REQUIRE_AUTH is enabled."""
+    api_key = _api_key_from_request(request, credentials)
     if not api_key:
+        if not settings.effective_require_auth:
+            return dict(_BOOTSTRAP_KEY_INFO)
         raise HTTPException(status_code=401, detail="API key required")
     return await _validate_key(api_key, default_limit=settings.rate_limit_rpm)
 
 
-async def verify_admin_key(
-    authorization: str | None = Header(None),
-    x_api_key: str | None = Header(None),
-) -> dict:
-    """Admin routes always require a valid admin API key."""
+async def verify_optional_api_key(
+    request: Request,
+    credentials: HTTPAuthorizationCredentials | None = Depends(_bearer_scheme),
+) -> dict | None:
+    """Health endpoints: validate key when provided, else None."""
+    api_key = _api_key_from_request(request, credentials)
+    if not api_key:
+        return None
+    return await _validate_key(api_key, default_limit=settings.rate_limit_rpm)
+
+
+async def verify_admin_key(key_info: dict = Depends(verify_api_key)) -> dict:
+    """Admin routes require a valid key with admin permission."""
     from core.security.permissions import PermissionChecker
 
-    api_key = _extract_api_key(authorization, x_api_key)
-    if not api_key:
-        raise HTTPException(status_code=401, detail="Admin API key required")
-
-    key_info = await _validate_key(api_key, default_limit=settings.admin_rate_limit_rpm)
     checker = PermissionChecker(key_info["permissions"])
     if not checker.is_admin():
         raise HTTPException(status_code=403, detail="Admin permission required")
     return key_info
+
+
+def _header_alias(
+    helix: str | None,
+    hermes: str | None,
+) -> str | None:
+    value = (helix or hermes or "").strip()
+    return value or None
+
+
+def _validate_session_key(value: str | None) -> str | None:
+    if not value:
+        return None
+    if len(value) > _SESSION_KEY_MAX or _CONTROL_CHARS.search(value):
+        raise HTTPException(status_code=400, detail="Invalid session key header")
+    return value
+
+
+@dataclass(frozen=True, slots=True)
+class RequestContext:
+    profile: str
+    conversation_id: str
+    session_key: str | None
+    api_key_info: dict
+
+
+def _sanitize_profile_name(name: str) -> str:
+    from cli.core import ProfileNotFoundError, validate_profile_name_for_env
+
+    try:
+        return validate_profile_name_for_env(name)
+    except ProfileNotFoundError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+def resolve_profile_name(
+    *,
+    header_profile: str | None,
+    model: str | None,
+    host_profile: str,
+) -> str:
+    """Profile routing: X-Holix-Profile > model field > gateway host profile."""
+    if header_profile and header_profile.strip():
+        return _sanitize_profile_name(header_profile.strip())
+    if model and model.strip() and model.strip() not in {"holix", "holix-agent", "hermes-agent"}:
+        return _sanitize_profile_name(model.strip())
+    return _sanitize_profile_name(host_profile)
+
+
+def ensure_resource_profile(resource_profile: str, expected_profile: str) -> None:
+    """Reject cross-profile access (returns 404 to avoid resource enumeration)."""
+    if resource_profile != expected_profile:
+        raise HTTPException(status_code=404, detail="Not found")
+
+
+async def get_registry():
+    from api import state
+
+    if state.registry is None:
+        raise HTTPException(status_code=503, detail="Gateway registry not initialized")
+    return state.registry

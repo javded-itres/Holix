@@ -84,3 +84,6 @@ MCP_REGISTRY_SYSTEM_REPORT.md
 .helix/
 .langgraph_api/
 .pid
+
+# Local design plans (not versioned)
+plans/

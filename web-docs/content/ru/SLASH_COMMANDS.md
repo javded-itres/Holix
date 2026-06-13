@@ -1,6 +1,6 @@
 # Слэш-команды (`/`)
 
-Команды с `/` управляют сессией без отправки текста в LLM. Работают в **TUI** (`helix tui`), **Telegram** и частично в **`helix chat-command`**.
+Команды с `/` управляют сессией без отправки текста в LLM. Работают в **TUI** (`holix tui`), **Telegram** и частично в **`holix chat-command`**.
 
 Источник: `cli/shared/commands/registry.py`, `cli/shared/commands/agent_commands.py`.
 
@@ -116,7 +116,7 @@
 | `/mcp tools` | Доступные tools |
 | `/mcp remove` | Удалить |
 
-CLI: `helix mcp …` — [CLI.md](CLI.md).
+CLI: `holix mcp …` — [CLI.md](CLI.md).
 
 ---
 
@@ -129,7 +129,7 @@ CLI: `helix mcp …` — [CLI.md](CLI.md).
 | `/hub browse` | Обзор и установка |
 | `/hub clawhub`, `/hub hermes`, `/hub claude` | Каталоги |
 | `/plugins`, `/marketplace` | Алиасы hub |
-| `/skills` | Подсказка: `helix skills list --agent …` |
+| `/skills` | Подсказка: `holix skills list --agent …` |
 
 CLI: [HUB.md](HUB.md).
 
@@ -138,7 +138,7 @@ CLI: [HUB.md](HUB.md).
 ## Динамические команды навыков
 
 Файл: `{profile}/data/skills/skill-slash.json`  
-Обновление: `helix hub slash-sync`
+Обновление: `holix hub slash-sync`
 
 ---
 
@@ -155,7 +155,7 @@ CLI: [HUB.md](HUB.md).
 ## Telegram
 
 ```bash
-helix telegram sync-menu
+holix telegram sync-menu
 ```
 
 [TELEGRAM.md](TELEGRAM.md)

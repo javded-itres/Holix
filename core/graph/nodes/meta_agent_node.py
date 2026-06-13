@@ -11,13 +11,13 @@ import logging
 
 from langchain_core.runnables import RunnableConfig
 
-from core.graph.state import HelixGraphState, get_agent_from_config
+from core.graph.state import HolixGraphState, get_agent_from_config
 from core.meta_agent import MetaAgent
 
 logger = logging.getLogger(__name__)
 
 
-async def meta_agent_node(state: HelixGraphState, config: RunnableConfig) -> dict:
+async def meta_agent_node(state: HolixGraphState, config: RunnableConfig) -> dict:
     """Meta-agent advisory node for pre-thinking analysis.
 
     Reviews the user's input and retrieved context, then provides

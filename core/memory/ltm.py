@@ -3,17 +3,17 @@
 from __future__ import annotations
 
 import logging
-from pathlib import Path
 from typing import Any
 
 import aiosqlite
 
-from core.di.runtime_config import HelixRuntimeConfig
+from core.di.runtime_config import HolixRuntimeConfig
 from core.memory.episodic import EpisodicMemoryStore
 from core.memory.procedural import ProceduralMemoryStore
 from core.memory.semantic import SemanticMemoryStore
 from core.memory.strategic import StrategicMemoryStore
 from core.memory.vector import VectorMemoryStore
+from core.paths import prepare_sqlite_db_file
 
 logger = logging.getLogger(__name__)
 
@@ -21,11 +21,10 @@ logger = logging.getLogger(__name__)
 class LongTermMemoryStore:
     """Typed long-term memory backed by SQLite + shared ChromaDB collections."""
 
-    def __init__(self, config: HelixRuntimeConfig | None = None):
-        cfg = config or HelixRuntimeConfig.from_settings()
+    def __init__(self, config: HolixRuntimeConfig | None = None):
+        cfg = config or HolixRuntimeConfig.from_settings()
         self.config = cfg
-        self._ltm_db_path = Path(cfg.ltm_db_path)
-        self._ltm_db_path.parent.mkdir(parents=True, exist_ok=True)
+        self._ltm_db_path = prepare_sqlite_db_file(cfg.ltm_db_path)
 
         self._vector_store = VectorMemoryStore(vector_db_path=cfg.vector_db_path)
 
@@ -47,7 +46,7 @@ class LongTermMemoryStore:
         )
 
     async def initialize_db(self) -> None:
-        async with aiosqlite.connect(self._ltm_db_path) as db:
+        async with aiosqlite.connect(str(self._ltm_db_path)) as db:
             await db.execute("""
                 CREATE TABLE IF NOT EXISTS ltm_entries (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,

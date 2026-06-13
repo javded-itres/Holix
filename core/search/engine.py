@@ -38,7 +38,7 @@ class SearchEngine:
         if not enabled:
             return (
                 "Error: no search providers enabled. "
-                "Run `helix search configure` to set up DuckDuckGo, SearXNG, or Firecrawl."
+                "Run `holix search configure` to set up DuckDuckGo, SearXNG, or Firecrawl."
             )
 
         errors: list[str] = []

@@ -59,7 +59,7 @@ def run_interactive_hub(
     importer = SkillImporter(skills_dir)
     console = Console()
 
-    console.print("\n[bold]Helix Hub — interactive install[/bold]")
+    console.print("\n[bold]Holix Hub — interactive install[/bold]")
     console.print("[dim]Find a skill or Claude plugin, then install into the active profile.[/dim]\n")
 
     for key, sid, label in SOURCES:

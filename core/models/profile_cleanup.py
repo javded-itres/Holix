@@ -68,8 +68,8 @@ def profile_has_llm_config(config: Any) -> bool:
 
 
 MISSING_LLM_HINT = (
-    "No LLM configured. Run: [bold]helix models setup[/bold] "
-    "or [bold]helix models add <preset>[/bold]"
+    "No LLM configured. Run: [bold]holix models setup[/bold] "
+    "or [bold]holix models add <preset>[/bold]"
 )
 
 

@@ -1,7 +1,7 @@
 """Helpers to 'install' (prepare) MCP servers from popular list or git repositories.
 
 For git repos:
-- Clones into ~/.helix/mcp-servers/<name>/
+- Clones into ~/.holix/mcp-servers/<name>/
 - Attempts to detect the best stdio command (node, uv, python, etc.)
 - Can run npm install / uv sync automatically.
 - Returns a suggested MCPServerConfig dict ready for profile.
@@ -17,11 +17,11 @@ from pathlib import Path
 from typing import Any
 
 from core.mcp.popular import PopularMCPServer
-from core.platform_compat import resolve_helix_home
+from core.platform_compat import resolve_holix_home
 
 logger = logging.getLogger(__name__)
 
-MCP_SERVERS_ROOT = resolve_helix_home() / "mcp-servers"
+MCP_SERVERS_ROOT = resolve_holix_home() / "mcp-servers"
 
 
 def ensure_mcp_servers_root() -> Path:
@@ -38,7 +38,7 @@ def _run(cmd: list[str], cwd: Path | None = None, check: bool = True, capture: b
 
 
 def clone_or_update_git(url: str, target_name: str, depth: int = 1) -> Path:
-    """Clone a git repo into ~/.helix/mcp-servers/<target_name>."""
+    """Clone a git repo into ~/.holix/mcp-servers/<target_name>."""
     root = ensure_mcp_servers_root()
     dest = root / target_name
     if dest.exists():

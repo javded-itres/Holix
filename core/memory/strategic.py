@@ -1,5 +1,5 @@
 """
-Strategic Memory Store for Helix Long-term Memory.
+Strategic Memory Store for Holix Long-term Memory.
 
 Stores high-level patterns, preferences, and strategies.
 This is the smallest but highest-impact memory type:

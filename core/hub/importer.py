@@ -331,7 +331,7 @@ class SkillImporter:
         flat: bool,
         install_spec: str,
     ) -> InstallResult:
-        req = urllib.request.Request(url, headers={"User-Agent": "Helix/1.0"})
+        req = urllib.request.Request(url, headers={"User-Agent": "Holix/1.0"})
         with urllib.request.urlopen(req, timeout=30) as resp:
             text = resp.read().decode("utf-8")
         slug = as_name or _safe_dir_name(url)

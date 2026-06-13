@@ -8,7 +8,7 @@ from typing import Any
 from core.agent_events import AgentEvent
 
 
-async def run_helix(
+async def run_holix(
     agent: Any,
     user_input: str,
     conversation_id: str = "default",

@@ -1,10 +1,10 @@
-"""Beautiful ASCII art banner for Helix CLI."""
+"""Beautiful ASCII art banner for Holix CLI."""
 
 from rich.console import Console
 from rich.panel import Panel
 from rich.text import Text
 
-HELIX_BANNER = """
+HOLIX_BANNER = """
 ██╗  ██╗███████╗██╗     ██╗██╗  ██╗
 ██║  ██║██╔════╝██║     ██║╚██╗██╔╝
 ███████║█████╗  ██║     ██║ ╚███╔╝
@@ -14,13 +14,13 @@ HELIX_BANNER = """
 """
 
 def show_banner(console: Console, profile: str = "default"):
-    """Display the Helix welcome banner.
+    """Display the Holix welcome banner.
 
     Args:
         console: Rich console instance
         profile: Active profile name
     """
-    banner_text = Text(HELIX_BANNER, style="bold cyan")
+    banner_text = Text(HOLIX_BANNER, style="bold cyan")
 
     subtitle = Text()
     subtitle.append("Self-Improving AI Agent", style="italic bright_white")
@@ -45,7 +45,7 @@ def show_welcome_message(console: Console):
     Args:
         console: Rich console instance
     """
-    console.print("Welcome to Helix! 🚀\n", style="bold green")
+    console.print("Welcome to Holix! 🚀\n", style="bold green")
     console.print("Special commands:", style="cyan")
     console.print("  /clear            - Clear current conversation", style="dim")
     console.print("  /model            - Switch LLM model", style="dim")

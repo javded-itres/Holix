@@ -69,7 +69,7 @@ def known_agent_slots(
     assignments: dict[str, list[str]] | None = None,
     agent_models: dict[str, Any] | None = None,
 ) -> list[str]:
-    """Roles used in `helix skills assign` (main + profile agents + predefined subagents)."""
+    """Roles used in `holix skills assign` (main + profile agents + predefined subagents)."""
     slots: set[str] = {"main"}
     if agent_models:
         slots.update(agent_models.keys())

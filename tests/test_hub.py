@@ -265,10 +265,10 @@ def test_suggested_cron_line_unix(monkeypatch: pytest.MonkeyPatch) -> None:
     from core.hub.autoupdate import suggested_cron_line
 
     monkeypatch.setattr("core.platform_compat.IS_WINDOWS", False)
-    monkeypatch.setattr("core.platform_compat.helix_home_display", lambda: "/data/helix")
+    monkeypatch.setattr("core.platform_compat.holix_home_display", lambda: "/data/helix")
     line = suggested_cron_line("work")
     assert line.startswith("0 4 * * *")
-    assert "helix hub autoupdate -p work" in line
+    assert "holix hub autoupdate -p work" in line
     assert "/data/helix/logs/hub-autoupdate.log" in line
 
 
@@ -277,14 +277,14 @@ def test_suggested_cron_line_windows(monkeypatch: pytest.MonkeyPatch) -> None:
 
     monkeypatch.setattr("core.platform_compat.IS_WINDOWS", True)
     monkeypatch.setattr(
-        "core.platform_compat.helix_home_display",
-        lambda: r"C:\Users\me\AppData\Local\Helix",
+        "core.platform_compat.holix_home_display",
+        lambda: r"C:\Users\me\AppData\Local\Holix",
     )
     line = suggested_cron_line("default")
     assert "Task Scheduler" in line
-    assert "helix hub autoupdate -p default" in line
+    assert "holix hub autoupdate -p default" in line
     assert "hub-autoupdate.log" in line
-    assert r"C:\Users\me\AppData\Local\Helix" in line
+    assert r"C:\Users\me\AppData\Local\Holix" in line
 
 
 def test_hub_agent_slot_options():
@@ -339,8 +339,15 @@ def test_importer_remove(tmp_path: Path):
 
 @pytest.mark.integration
 def test_clawhub_search_live():
+    from urllib.error import HTTPError
+
     from core.hub.clawhub import ClawHubClient
 
-    hits = ClawHubClient().search("git", limit=3)
+    try:
+        hits = ClawHubClient().search("git", limit=3)
+    except HTTPError as exc:
+        if 500 <= exc.code < 600:
+            pytest.skip(f"ClawHub temporarily unavailable: HTTP {exc.code}")
+        raise
     assert hits
     assert hits[0].slug

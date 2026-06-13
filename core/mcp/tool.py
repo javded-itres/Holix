@@ -12,7 +12,7 @@ if TYPE_CHECKING:
 
 
 class MCPTool(BaseTool):
-    """Adapter that turns an MCP tool definition into a Helix BaseTool.
+    """Adapter that turns an MCP tool definition into a Holix BaseTool.
 
     The actual invocation is delegated to MCPManager (which owns the live
     ClientSession(s)). This keeps the tool stateless from the registry POV.

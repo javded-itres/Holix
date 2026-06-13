@@ -3,8 +3,8 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "HelixAgentAi"
-version = "0.1.8"
+name = "Holix"
+version = "0.1.13"
 description = "Self-improving AI agent with memory, skills, MCP, CLI, and TUI"
 readme = "README.md"
 license = "MIT"
@@ -31,6 +31,7 @@ dependencies = [
     "pydantic>=2.0",
     "pydantic-settings>=2.0",
     "chromadb>=0.4.0",
+    "numpy>=2.0,<2.4",
     "aiosqlite>=0.19.0",
     "pyyaml>=6.0",
     "python-dotenv>=1.0.0",
@@ -46,6 +47,8 @@ dependencies = [
     "dishka>=1.10.1",
     "mcp>=1.2.0",
     "croniter>=2.0.0",
+    "cryptography>=48.0.0",
+    "argon2-cffi>=25.1.0",
 ]
 
 [project.optional-dependencies]
@@ -64,14 +67,14 @@ all = [
 ]
 
 [project.scripts]
-helix = "cli.main:main"
+holix = "cli.main:main"
 
 [project.urls]
-Homepage = "https://helix-agent.ru"
-Documentation = "https://helix-agent.ru"
-Repository = "https://github.com/javded-itres/HelixAgent"
-Issues = "https://github.com/javded-itres/HelixAgent/issues"
-Changelog = "https://github.com/javded-itres/HelixAgent/blob/master/docs/CHANGELOG.md"
+Homepage = "https://holix-agent.ru"
+Documentation = "https://holix-agent.ru"
+Repository = "https://github.com/javded-itres/Holix"
+Issues = "https://github.com/javded-itres/Holix/issues"
+Changelog = "https://github.com/javded-itres/Holix/blob/master/docs/CHANGELOG.md"
 
 [dependency-groups]
 dev = [
@@ -86,8 +89,8 @@ dev = [
 [tool.uv]
 package = true
 default-groups = ["dev"]
-# Editable installs may skip console scripts; force reinstall so `uv run helix` works.
-reinstall-package = ["HelixAgentAi"]
+# Editable installs may skip console scripts; force reinstall so `uv run holix` works.
+reinstall-package = ["Holix"]
 
 [tool.hatch.build.hooks.custom]
 path = "scripts/hatch_bump_version.py"

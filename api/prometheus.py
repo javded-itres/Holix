@@ -14,10 +14,10 @@ def format_prometheus(metrics: MetricsCollector) -> str:
     for name, value in summary.items():
         if isinstance(value, (int, float)):
             safe = str(name).replace("-", "_")
-            lines.append(f"helix_{safe} {value}")
+            lines.append(f"holix_{safe} {value}")
     for name, count in metrics.counters.items():
         safe = str(name).replace("-", "_").replace(" ", "_")
-        lines.append(f'helix_{safe}_total {count}')
+        lines.append(f'holix_{safe}_total {count}')
     if not lines:
-        lines.append("helix_up 1")
+        lines.append("holix_up 1")
     return "\n".join(lines) + "\n"

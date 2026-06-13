@@ -1,4 +1,4 @@
-"""Helix update system."""
+"""Holix update system."""
 
 from __future__ import annotations
 
@@ -30,7 +30,7 @@ def test_read_project_version() -> None:
 
 
 def test_manifest_roundtrip(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr("cli.installer.manifest.HELIX_HOME", tmp_path)
+    monkeypatch.setattr("cli.installer.manifest.HOLIX_HOME", tmp_path)
     monkeypatch.setattr("cli.installer.manifest.MANIFEST_PATH", tmp_path / "install.json")
 
     manifest = InstallManifest(
@@ -40,7 +40,7 @@ def test_manifest_roundtrip(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> 
         source="git",
         extras=["telegram"],
         installed_at="2026-01-01T00:00:00Z",
-        repo_root="/tmp/Helix",
+        repo_root="/tmp/Holix",
     )
     save_manifest(manifest)
     loaded = load_manifest()
@@ -52,7 +52,7 @@ def test_manifest_roundtrip(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> 
 def test_resolve_update_context_from_manifest(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     repo = Path(__file__).resolve().parents[1]
     manifest_path = tmp_path / "install.json"
-    monkeypatch.setattr("cli.installer.manifest.HELIX_HOME", tmp_path)
+    monkeypatch.setattr("cli.installer.manifest.HOLIX_HOME", tmp_path)
     monkeypatch.setattr("cli.installer.manifest.MANIFEST_PATH", manifest_path)
     manifest_path.write_text(
         json.dumps(

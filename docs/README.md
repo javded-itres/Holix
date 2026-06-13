@@ -1,8 +1,8 @@
-# Helix Documentation
+# Holix Documentation
 
 Bilingual documentation. **English is the primary language** for accuracy and GitHub discovery.
 
-**Telegram channel:** [t.me/helix_agent](https://t.me/helix_agent)
+**Telegram channel:** [t.me/holix_agent](https://t.me/holix_agent)
 
 | Language | Index |
 |----------|--------|
@@ -29,6 +29,7 @@ Bilingual documentation. **English is the primary language** for accuracy and Gi
 | TUI | [en/TUI.md](en/TUI.md) | [ru/TUI.md](ru/TUI.md) |
 | Skill Hub | [en/HUB.md](en/HUB.md) | [ru/HUB.md](ru/HUB.md) |
 | API Gateway | [en/GATEWAY.md](en/GATEWAY.md) | [ru/GATEWAY.md](ru/GATEWAY.md) |
+| Gateway API reference | [en/GATEWAY_API.md](en/GATEWAY_API.md) | [ru/GATEWAY_API.md](ru/GATEWAY_API.md) |
 | Telegram | [en/TELEGRAM.md](en/TELEGRAM.md) | [ru/TELEGRAM.md](ru/TELEGRAM.md) |
 | Browser tools | [en/BROWSER_TOOLS.md](en/BROWSER_TOOLS.md) | [ru/BROWSER_TOOLS.md](ru/BROWSER_TOOLS.md) |
 
