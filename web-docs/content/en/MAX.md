@@ -1,6 +1,6 @@
 # MAX Messenger
 
-Helix integrates with [MAX](https://max.ru) — the Russian messenger platform — so you can run the same self-improving agent in personal and group chats.
+Holix integrates with [MAX](https://max.ru) — the Russian messenger platform — so you can run the same self-improving agent in personal and group chats.
 
 Official API reference: [dev.max.ru/docs-api](https://dev.max.ru/docs-api)
 
@@ -40,7 +40,7 @@ One MAX token serves many people. **You do not need to type user ids manually.**
 ### 1. Admin: connect the bot
 
 ```bash
-helix -p shared max setup
+holix -p shared max setup
 HOLIX_ENV=production holix -p shared gateway start -f
 ```
 
@@ -53,7 +53,7 @@ Create the bot at [business.max.ru](https://business.max.ru/self) → **Chat bot
 The first approved user can be designated the **sole** MAX administrator. This cannot be done from MAX chat — only via CLI:
 
 ```bash
-helix -p shared max requests approve USER_ID --set-admin
+holix -p shared max requests approve USER_ID --set-admin
 ```
 
 Holix will:
@@ -65,8 +65,8 @@ Holix will:
 Check and reset:
 
 ```bash
-helix -p shared max admin show
-helix -p shared max admin clear   # before assigning another admin
+holix -p shared max admin show
+holix -p shared max admin clear   # before assigning another admin
 ```
 
 ### 3. User: request access
@@ -79,9 +79,9 @@ helix -p shared max admin clear   # before assigning another admin
 ### 4. Admin: approve and isolated profile
 
 ```bash
-helix -p shared max requests list
-helix -p shared max requests approve USER_ID -i              # pick or create a profile
-helix -p shared max requests approve USER_ID --create-profile ivan
+holix -p shared max requests list
+holix -p shared max requests approve USER_ID -i              # pick or create a profile
+holix -p shared max requests approve USER_ID --create-profile ivan
 ```
 
 On approval, Holix:
@@ -98,9 +98,9 @@ The user can message the bot immediately — no restart required.
 Other commands:
 
 ```bash
-helix -p shared max requests approve USER_ID --profile existing   # existing open profile
-helix -p shared max requests reject USER_ID
-helix -p shared max status
+holix -p shared max requests approve USER_ID --profile existing   # existing open profile
+holix -p shared max requests reject USER_ID
+holix -p shared max status
 ```
 
 ### Production notes
@@ -119,9 +119,9 @@ Details: [MAX_MULTI_PROFILE.md](MAX_MULTI_PROFILE.md).
 Different people → different profiles → different bots:
 
 ```bash
-helix -p alice max setup
-helix -p bob max setup
-helix -p alice gateway start
+holix -p alice max setup
+holix -p bob max setup
+holix -p alice gateway start
 holix -p bob gateway start
 ```
 
@@ -130,9 +130,9 @@ Each profile has its own `max.env`, webhook URL, and gateway port.
 ## Manual user id → profile mapping
 
 ```bash
-helix -p shared max map set 123456789 alice
-helix -p shared max map bind bob --user-id 987654321
-helix -p shared max map list
+holix -p shared max map set 123456789 alice
+holix -p shared max map bind bob --user-id 987654321
+holix -p shared max map list
 ```
 
 Files: `profiles/shared/max-users.json`, optional `HOLIX_MAX_USER_PROFILES` in `max.env`.
@@ -145,17 +145,17 @@ One live message per task; slash commands like TUI; inline approvals for risky t
 
 MAX supports **one** mode at a time:
 
-| Mode | When to use | Helix command |
+| Mode | When to use | Holix command |
 |------|-------------|---------------|
-| **Webhook** | Production | `helix gateway start` |
-| **Long Polling** | Local development | `helix max` |
+| **Webhook** | Production | `holix gateway start` |
+| **Long Polling** | Local development | `holix max` |
 
 ```bash
 # Development (Long Polling — dev/test only):
-helix max
+holix max
 
 # Production (webhook via gateway):
-helix gateway start
+holix gateway start
 ```
 
 The gateway registers the webhook with MAX (`POST /subscriptions`) and serves `POST /max/webhook`.
@@ -165,7 +165,7 @@ Long Polling (`GET /updates`) is rate-limited and not suitable for production. M
 After changing `max.env` or user maps with the gateway running:
 
 ```bash
-helix gateway reload
+holix gateway reload
 ```
 
 ## Environment variables
@@ -180,7 +180,7 @@ helix gateway reload
 | `HOLIX_MAX_WEBHOOK_URL` | Webhook | Public HTTPS URL for events |
 | `HOLIX_MAX_WEBHOOK_SECRET` | Webhook | Secret for `X-Max-Bot-Api-Secret` header |
 | `HOLIX_MAX_ADMIN_USER_ID` | No | Sole MAX administrator |
-| `HOLIX_MAX_PROFILE` | No | Helix host-bot profile |
+| `HOLIX_MAX_PROFILE` | No | Holix host-bot profile |
 
 \* With `HOLIX_MAX_ACCESS_REQUESTS=true`, a manual allowlist is optional.
 
@@ -190,18 +190,18 @@ The token is sent in the `Authorization` header — query-string tokens are **no
 
 | Command | Description |
 |---------|-------------|
-| `helix max setup` | Wizard: token, allowlist, mode, save to `profiles/{p}/max.env` |
-| `helix max` | Start bot (Long Polling — dev/test only) |
-| `helix max status` | Token, admin, user map, pending requests, subscriptions |
-| `helix max map` | User → profile bindings |
-| `helix max requests` | List/approve/reject access requests |
-| `helix max admin` | Show/clear MAX administrator |
-| `helix gateway start` | Gateway + MAX webhook companion |
-| `helix gateway status` | Gateway health + MAX env/admin/map summary |
+| `holix max setup` | Wizard: token, allowlist, mode, save to `profiles/{p}/max.env` |
+| `holix max` | Start bot (Long Polling — dev/test only) |
+| `holix max status` | Token, admin, user map, pending requests, subscriptions |
+| `holix max map` | User → profile bindings |
+| `holix max requests` | List/approve/reject access requests |
+| `holix max admin` | Show/clear MAX administrator |
+| `holix gateway start` | Gateway + MAX webhook companion |
+| `holix gateway status` | Gateway health + MAX env/admin/map summary |
 
 Management API: `GET /api/holix/profiles/{id}/max/status`, `…/requests`, `…/map`, `…/admin`.
 
-See [CLI.md](CLI.md#helix-max).
+See [CLI.md](CLI.md#holix-max).
 
 ## Features
 
@@ -213,7 +213,7 @@ See [CLI.md](CLI.md#helix-max).
 
 ### Inline approvals
 
-When the agent requests confirmation for a risky tool, Helix sends an inline keyboard. Button press → `message_callback` event → answer via `POST /answers`.
+When the agent requests confirmation for a risky tool, Holix sends an inline keyboard. Button press → `message_callback` event → answer via `POST /answers`.
 
 ### Files
 
@@ -233,7 +233,7 @@ integrations/max/
 ├── webhook.py        # FastAPI route POST /max/webhook
 ├── polling.py        # GET /updates loop (dev)
 ├── env_store.py      # profiles/<p>/max.env (messenger/env_store)
-└── main.py           # helix max entry point
+└── main.py           # holix max entry point
 ```
 
 The pattern mirrors `integrations/telegram/` but uses a lightweight HTTP client (`aiohttp`) instead of aiogram.
@@ -251,14 +251,14 @@ See [DEPLOYMENT.md](DEPLOYMENT.md) and [SECURITY.md](SECURITY.md).
 
 | Symptom | Fix |
 |---------|-----|
-| `401` from MAX API | Check `MAX_ACCESS_TOKEN`; re-run `helix max setup` |
+| `401` from MAX API | Check `MAX_ACCESS_TOKEN`; re-run `holix max setup` |
 | No webhook events | Verify HTTPS URL, `POST /subscriptions`, gateway logs |
 | Polling stopped after webhook | Only one mode is active — remove webhook subscription first |
-| User ignored | Approve via `helix max requests approve` or add to allowlist |
+| User ignored | Approve via `holix max requests approve` or add to allowlist |
 | Agent cannot send files | `uv sync --extra max`; use `send_chat_files` in MAX chat |
-| `429` errors | Reduce send rate; Helix client limits to ≤30 rps |
+| `429` errors | Reduce send rate; Holix client limits to ≤30 rps |
 
-Run `helix doctor` to check token, webhook, and allowlist.
+Run `holix doctor` to check token, webhook, and allowlist.
 
 ## See also
 

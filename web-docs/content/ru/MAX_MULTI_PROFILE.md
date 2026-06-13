@@ -94,13 +94,13 @@ HOLIX_ENV=production holix -p shared gateway start -f
 Поток:
 
 1. Пользователь → `/start` в MAX
-2. Админ → `helix -p shared max requests approve USER_ID --create-profile ivan`
+2. Админ → `holix -p shared max requests approve USER_ID --create-profile ivan`
 3. Пользователь `ivan` пишет боту; агент работает в `~/.holix/profiles/ivan/`
 
 Привязки хранятся в `profiles/shared/max-users.json` и Management API:
 
 ```bash
-helix -p shared max map list
+holix -p shared max map list
 curl -H "Authorization: Bearer hx_…" \
   http://127.0.0.1:8000/api/holix/profiles/shared/max/map
 ```
@@ -108,7 +108,7 @@ curl -H "Authorization: Bearer hx_…" \
 После изменений:
 
 ```bash
-helix -p shared gateway reload
+holix -p shared gateway reload
 ```
 
 ### Когда выбрать общий бот
@@ -124,7 +124,7 @@ helix -p shared gateway reload
 ## Безопасность
 
 - В production не используйте `HOLIX_MAX_ALLOW_ALL=true`.
-- Назначайте **одного** MAX-админа: `helix max requests approve … --set-admin`.
+- Назначайте **одного** MAX-админа: `holix max requests approve … --set-admin`.
 - Для пользовательских данных включайте `--create-profile` и workspace jail.
 - Шифруйте `max.env` через [шифрование профиля](PROFILE_ENCRYPTION.md).
 - Webhook secret (`HOLIX_MAX_WEBHOOK_SECRET`) обязателен на публичном endpoint.

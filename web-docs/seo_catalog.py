@@ -325,7 +325,7 @@ SEO_PAGES: dict[str, dict[str, dict[str, str]]] = {
                 "/api/holix/ management, admin, metrics, docs-chat. Аутентификация, Swagger Authorize, curl-примеры."
             ),
             "keywords": (
-                "Holix Gateway API, справочник API, Hermes API, Holix Management API, /api/helix, "
+                "Holix Gateway API, справочник API, Hermes API, Holix Management API, /api/holix, "
                 "OpenAPI Swagger, Telegram admin API, REST API документация"
             ),
         },
@@ -336,7 +336,7 @@ SEO_PAGES: dict[str, dict[str, dict[str, str]]] = {
                 "/api/holix/ management, admin, metrics, docs-chat. Auth, Swagger Authorize, curl examples."
             ),
             "keywords": (
-                "Holix Gateway API, complete API reference, Hermes API, Holix Management API, /api/helix, "
+                "Holix Gateway API, complete API reference, Hermes API, Holix Management API, /api/holix, "
                 "OpenAPI Swagger, Telegram admin API, REST API documentation"
             ),
         },
@@ -387,22 +387,22 @@ SEO_PAGES: dict[str, dict[str, dict[str, str]]] = {
         "ru": {
             "title": "MAX-бот Holix — setup, webhook, мультипользовательский доступ",
             "description": (
-                "Интеграция Holix с мессенджером MAX: helix max setup, max.env и шифрование, "
+                "Интеграция Holix с мессенджером MAX: holix max setup, max.env и шифрование, "
                 "webhook через gateway, access requests, inline-подтверждения и файлы."
             ),
             "keywords": (
-                "Holix MAX, helix max setup, MAX мессенджер бот, max.env, webhook MAX, "
+                "Holix MAX, holix max setup, MAX мессенджер бот, max.env, webhook MAX, "
                 "российский мессенджер AI, business.max.ru"
             ),
         },
         "en": {
             "title": "Holix MAX — Setup, Webhook & Multi-User Access",
             "description": (
-                "Holix MAX messenger integration: helix max setup, encrypted max.env, "
+                "Holix MAX messenger integration: holix max setup, encrypted max.env, "
                 "gateway webhook, access requests, inline approvals, and file attachments."
             ),
             "keywords": (
-                "Holix MAX, helix max setup, MAX messenger bot, max.env, MAX webhook, "
+                "Holix MAX, holix max setup, MAX messenger bot, max.env, MAX webhook, "
                 "Russian messenger AI, business.max.ru"
             ),
         },
@@ -412,17 +412,17 @@ SEO_PAGES: dict[str, dict[str, dict[str, str]]] = {
             "title": "MAX Holix — один бот, несколько изолированных профилей",
             "description": (
                 "Как настроить Holix в MAX для нескольких пользователей: отдельный бот на профиль "
-                "или один бот с helix max map — привязка user id, workspace jail и Management API."
+                "или один бот с holix max map — привязка user id, workspace jail и Management API."
             ),
-            "keywords": "Holix MAX профили, helix max map, изоляция профилей MAX, общий бот MAX",
+            "keywords": "Holix MAX профили, holix max map, изоляция профилей MAX, общий бот MAX",
         },
         "en": {
             "title": "Holix MAX — One Bot, Multiple Isolated Profiles",
             "description": (
                 "Run Holix on MAX for multiple users: one bot per profile or a shared bot with "
-                "helix max map bindings, workspace jail, and Management API."
+                "holix max map bindings, workspace jail, and Management API."
             ),
-            "keywords": "Holix MAX profiles, helix max map, MAX profile isolation, shared MAX bot",
+            "keywords": "Holix MAX profiles, holix max map, MAX profile isolation, shared MAX bot",
         },
     },
     "browser-tools": {

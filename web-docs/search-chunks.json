@@ -42,7 +42,7 @@
     "section": "interfaces",
     "title": "Overview",
     "heading": "Interfaces",
-    "body": "- CLI.md — complete command reference - SLASH COMMANDS.md — all commands (TUI, Telegram, chat) - EXECUTION MODES.md — ReAct, Plan, Hybrid, Auto — how modes work and prompt examples - TUI.md — , web mode, copy, hub UI - HUB.md — , catalogs, - GATEWAY.md — - GATEWAY API.md — Complete API reference — every endpoint documented (auth, , SaaS curl) - TELEGRAM.md — Telegram - TELEGRAM MULTI PROFILE.md — one bot / multiple bots, access requests, manual - MAX.md — MAX messenger - MAX MULTI PROFILE.md — one bot / multiple MAX bots, access requests, - BROWSER TOOLS.md — Playwright tools",
+    "body": "- CLI.md — complete command reference - SLASH COMMANDS.md — all commands (TUI, Telegram, chat) - EXECUTION MODES.md — ReAct, Plan, Hybrid, Auto — how modes work and prompt examples - TUI.md — , web mode, copy, hub UI - HUB.md — , catalogs, - GATEWAY.md — - GATEWAY API.md — Complete API reference — every endpoint documented (auth, , SaaS curl) - TELEGRAM.md — Telegram - MAX.md — MAX messenger - TELEGRAM MULTI PROFILE.md — one bot / multiple bots, access requests, manual - MAX MULTI PROFILE.md — one bot / multiple MAX bots, access requests, - BROWSER TOOLS.md — Playwright tools",
     "keywords": [
       "overview",
       "обзор",
@@ -418,12 +418,12 @@
     "nav_order": 2
   },
   {
-    "id": "en/start-here#max-in-production-helix--p-shared-gateway-start-webhook-see-maxm",
+    "id": "en/start-here#max-in-production-holix--p-shared-gateway-start-webhook-see-maxm",
     "lang": "en",
     "slug": "start-here",
-    "section": "max-in-production-helix--p-shared-gateway-start-webhook-see-maxm",
+    "section": "max-in-production-holix--p-shared-gateway-start-webhook-see-maxm",
     "title": "Start Here",
-    "heading": "MAX in production: helix -p shared gateway start (webhook) — see MAX.md",
+    "heading": "MAX in production: holix -p shared gateway start (webhook) — see MAX.md",
     "body": "pipx install \"Holix[browser]\" playwright install chromium after browser extra pipx install \"Holix[tui-web]\" holix tui --web holix hub browse holix mcp setup ```",
     "keywords": [
       "start",
@@ -432,7 +432,7 @@
       "checklist",
       "max",
       "production",
-      "helix",
+      "holix",
       "shared",
       "gateway",
       "webhook",
@@ -1761,24 +1761,6 @@
     "nav_order": 7
   },
   {
-    "id": "en/cli#helix-max",
-    "lang": "en",
-    "slug": "cli",
-    "section": "helix-max",
-    "title": "CLI Reference",
-    "heading": "`helix max`",
-    "body": "Requires and . Subcommand Description ------------ ------------- Token, allowlist, webhook/polling mode, save config (default) Start Long Polling (dev/test) , webhook subscriptions Production: (webhook via ). See MAX.md. ---",
-    "keywords": [
-      "command",
-      "команды",
-      "typer",
-      "terminal",
-      "helix",
-      "max"
-    ],
-    "nav_order": 7
-  },
-  {
     "id": "en/cli#holix-bootstrap",
     "lang": "en",
     "slug": "cli",
@@ -1973,6 +1955,24 @@
       "terminal",
       "holix",
       "logs"
+    ],
+    "nav_order": 7
+  },
+  {
+    "id": "en/cli#holix-max",
+    "lang": "en",
+    "slug": "cli",
+    "section": "holix-max",
+    "title": "CLI Reference",
+    "heading": "`holix max`",
+    "body": "Requires and . Subcommand Description ------------ ------------- Token, allowlist, webhook/polling mode, save config (default) Start Long Polling (dev/test) , webhook subscriptions Production: (webhook via ). See MAX.md. ---",
+    "keywords": [
+      "command",
+      "команды",
+      "typer",
+      "terminal",
+      "holix",
+      "max"
     ],
     "nav_order": 7
   },
@@ -4431,6 +4431,300 @@
     "nav_order": 14
   },
   {
+    "id": "en/max#1-admin-connect-the-bot",
+    "lang": "en",
+    "slug": "max",
+    "section": "1-admin-connect-the-bot",
+    "title": "MAX Messenger",
+    "heading": "1. Admin: connect the bot",
+    "body": "The wizard saves the bot token and enables access requests by default ( ). Create the bot at business.max.ru → Chat bots → Integration , then copy the access token.",
+    "keywords": [
+      "admin",
+      "connect",
+      "the",
+      "bot"
+    ],
+    "nav_order": 15
+  },
+  {
+    "id": "en/max#2-first-administrator-cli-only",
+    "lang": "en",
+    "slug": "max",
+    "section": "2-first-administrator-cli-only",
+    "title": "MAX Messenger",
+    "heading": "2. First administrator (CLI only)",
+    "body": "The first approved user can be designated the sole MAX administrator. This cannot be done from MAX chat — only via CLI: Holix will: - create the Holix profile (if missing) and bind the user - save in - enable extended commands for that user ( , , MCP install) Check and reset:",
+    "keywords": [
+      "first",
+      "administrator",
+      "cli",
+      "only"
+    ],
+    "nav_order": 15
+  },
+  {
+    "id": "en/max#3-user-request-access",
+    "lang": "en",
+    "slug": "max",
+    "section": "3-user-request-access",
+    "title": "MAX Messenger",
+    "heading": "3. User: request access",
+    "body": "1. Open the bot in MAX. 2. Send . 3. The bot replies that access is pending approval. 4. The MAX administrator receives a notification in MAX with CLI commands to approve or reject.",
+    "keywords": [
+      "user",
+      "request",
+      "access"
+    ],
+    "nav_order": 15
+  },
+  {
+    "id": "en/max#4-admin-approve-and-isolated-profile",
+    "lang": "en",
+    "slug": "max",
+    "section": "4-admin-approve-and-isolated-profile",
+    "title": "MAX Messenger",
+    "heading": "4. Admin: approve and isolated profile",
+    "body": "On approval, Holix: - creates a protected profile with an access key - enables workspace jail under - binds the MAX user to the profile - sends the access key to the user in MAX (shown once) The user can message the bot immediately — no restart required. Paths in bot replies: approved users with workspace jail see relative paths only ( , not ). The MAX admin ( ) still sees full absolute paths. See Path visibility in replies. Other commands:",
+    "keywords": [
+      "admin",
+      "approve",
+      "and",
+      "isolated",
+      "profile"
+    ],
+    "nav_order": 15
+  },
+  {
+    "id": "en/max#agent-conversations",
+    "lang": "en",
+    "slug": "max",
+    "section": "agent-conversations",
+    "title": "MAX Messenger",
+    "heading": "Agent conversations",
+    "body": "- One live message per task (edited via while streaming) - Session id: - Shared slash commands with TUI: , , , , — see SLASH COMMANDS.md",
+    "keywords": [
+      "agent",
+      "conversations"
+    ],
+    "nav_order": 15
+  },
+  {
+    "id": "en/max#cli-commands",
+    "lang": "en",
+    "slug": "max",
+    "section": "cli-commands",
+    "title": "MAX Messenger",
+    "heading": "CLI commands",
+    "body": "Command Description --------- ------------- Wizard: token, allowlist, mode, save to Start bot (Long Polling — dev/test only) Token, admin, user map, pending requests, subscriptions User → profile bindings List/approve/reject access requests Show/clear MAX administrator Gateway + MAX webhook companion Gateway health + MAX env/admin/map summary Management API: , , , . See CLI.md.",
+    "keywords": [
+      "cli",
+      "commands"
+    ],
+    "nav_order": 15
+  },
+  {
+    "id": "en/max#environment-variables",
+    "lang": "en",
+    "slug": "max",
+    "section": "environment-variables",
+    "title": "MAX Messenger",
+    "heading": "Environment variables",
+    "body": "Variable Required Description ---------- ---------- ------------- Yes Bot token from business.max.ru Prod Comma-separated allowlist No Access requests via (default in setup) No Allow everyone (dev only) No (prod) or (dev/test) Webhook Public HTTPS URL for events Webhook Secret for header No Sole MAX administrator No Holix host-bot profile \\ With , a manual allowlist is optional. The token is sent in the header — query-string tokens are not supported by the MAX API.",
+    "keywords": [
+      "environment",
+      "variables"
+    ],
+    "nav_order": 15
+  },
+  {
+    "id": "en/max#event-delivery-modes",
+    "lang": "en",
+    "slug": "max",
+    "section": "event-delivery-modes",
+    "title": "MAX Messenger",
+    "heading": "Event delivery modes",
+    "body": "MAX supports one mode at a time: Mode When to use Holix command ------ ------------- --------------- Webhook Production Long Polling Local development ```bash",
+    "keywords": [
+      "event",
+      "delivery",
+      "modes"
+    ],
+    "nav_order": 15
+  },
+  {
+    "id": "en/max#files",
+    "lang": "en",
+    "slug": "max",
+    "section": "files",
+    "title": "MAX Messenger",
+    "heading": "Files",
+    "body": "Send and receive attachments via . Text extraction uses the same pipeline as Telegram. The tool is available in MAX chat.",
+    "keywords": [
+      "files"
+    ],
+    "nav_order": 15
+  },
+  {
+    "id": "en/max#inline-approvals",
+    "lang": "en",
+    "slug": "max",
+    "section": "inline-approvals",
+    "title": "MAX Messenger",
+    "heading": "Inline approvals",
+    "body": "When the agent requests confirmation for a risky tool, Holix sends an inline keyboard. Button press → event → answer via .",
+    "keywords": [
+      "inline",
+      "approvals"
+    ],
+    "nav_order": 15
+  },
+  {
+    "id": "en/max#manual-user-id-profile-mapping",
+    "lang": "en",
+    "slug": "max",
+    "section": "manual-user-id-profile-mapping",
+    "title": "MAX Messenger",
+    "heading": "Manual user id → profile mapping",
+    "body": "Files: , optional in . One live message per task; slash commands like TUI; inline approvals for risky tools. ---",
+    "keywords": [
+      "manual",
+      "user",
+      "profile",
+      "mapping"
+    ],
+    "nav_order": 15
+  },
+  {
+    "id": "en/max#markdown-in-replies",
+    "lang": "en",
+    "slug": "max",
+    "section": "markdown-in-replies",
+    "title": "MAX Messenger",
+    "heading": "Markdown in replies",
+    "body": "Agent output uses MAX markdown ( , , ` code `, links). Long answers are split into chunks.",
+    "keywords": [
+      "markdown",
+      "replies"
+    ],
+    "nav_order": 15
+  },
+  {
+    "id": "en/max#max-messenger",
+    "lang": "en",
+    "slug": "max",
+    "section": "max-messenger",
+    "title": "MAX Messenger",
+    "heading": "MAX Messenger",
+    "body": "Holix integrates with MAX — the Russian messenger platform — so you can run the same self-improving agent in personal and group chats. Official API reference: dev.max.ru/docs-api Each host profile can have its own bot token. Secrets are stored at: In production ( ), you need an allowlist or access-request mode.",
+    "keywords": [
+      "max",
+      "messenger"
+    ],
+    "nav_order": 15
+  },
+  {
+    "id": "en/max#multiple-bots-full-isolation",
+    "lang": "en",
+    "slug": "max",
+    "section": "multiple-bots-full-isolation",
+    "title": "MAX Messenger",
+    "heading": "Multiple bots (full isolation)",
+    "body": "Different people → different profiles → different bots: Each profile has its own , webhook URL, and gateway port.",
+    "keywords": [
+      "multiple",
+      "bots",
+      "full",
+      "isolation"
+    ],
+    "nav_order": 15
+  },
+  {
+    "id": "en/max#production-checklist",
+    "lang": "en",
+    "slug": "max",
+    "section": "production-checklist",
+    "title": "MAX Messenger",
+    "heading": "Production checklist",
+    "body": "1. Public HTTPS endpoint on port 443 (reverse proxy → gateway) 2. and a valid 3. Allowlist or access requests; 4. MAX rate limit: 30 rps on See DEPLOYMENT.md and SECURITY.md.",
+    "keywords": [
+      "production",
+      "checklist"
+    ],
+    "nav_order": 15
+  },
+  {
+    "id": "en/max#production-notes",
+    "lang": "en",
+    "slug": "max",
+    "section": "production-notes",
+    "title": "MAX Messenger",
+    "heading": "Production notes",
+    "body": "- Use a named host profile ( ), not — is dev-only when . - Prefer per user for isolation. - Manual allowlist ( ) is optional when access requests are enabled. - There is only one MAX administrator ( ); assign via . Details: MAX MULTI PROFILE.md. ---",
+    "keywords": [
+      "production",
+      "notes"
+    ],
+    "nav_order": 15
+  },
+  {
+    "id": "en/max#production-uv-tool-install",
+    "lang": "en",
+    "slug": "max",
+    "section": "production-uv-tool-install",
+    "title": "MAX Messenger",
+    "heading": "Production (`uv tool install`)",
+    "body": "When installing globally with uv, explicitly include the extra: Without MAX dependencies, the companion process is skipped in logs even when a token is configured.",
+    "keywords": [
+      "production",
+      "tool",
+      "install"
+    ],
+    "nav_order": 15
+  },
+  {
+    "id": "en/max#see-also",
+    "lang": "en",
+    "slug": "max",
+    "section": "see-also",
+    "title": "MAX Messenger",
+    "heading": "See also",
+    "body": "- MAX MULTI PROFILE.md — one bot / multiple bots, isolation - TELEGRAM.md — parallel Telegram integration - GATEWAY.md — HTTP gateway and companions - SLASH COMMANDS.md — commands in MAX chats",
+    "keywords": [
+      "see",
+      "also"
+    ],
+    "nav_order": 15
+  },
+  {
+    "id": "en/max#token-storage-and-loading",
+    "lang": "en",
+    "slug": "max",
+    "section": "token-storage-and-loading",
+    "title": "MAX Messenger",
+    "heading": "Token storage and loading",
+    "body": "- Store the bot token in . With profile encryption enabled, the file is encrypted on disk (via shared , same as Telegram). - Canonical keys are ; legacy keys are supported on read and migration. - Do not leave an empty in — it blocks the real token from . Omit the key in global; Holix loads from the profile (including decrypted values when is set). - On startup, the gateway calls after profile unlock so the encrypted token is available before webhook registration.",
+    "keywords": [
+      "token",
+      "storage",
+      "and",
+      "loading"
+    ],
+    "nav_order": 15
+  },
+  {
+    "id": "en/max#troubleshooting",
+    "lang": "en",
+    "slug": "max",
+    "section": "troubleshooting",
+    "title": "MAX Messenger",
+    "heading": "Troubleshooting",
+    "body": "Symptom Fix --------- ----- from MAX API Check ; re-run No webhook events Verify HTTPS URL, , gateway logs Polling stopped after webhook Only one mode is active — remove webhook subscription first User ignored Approve via or add to allowlist Agent cannot send files ; use in MAX chat errors Reduce send rate; Holix client limits to ≤30 rps Run to check token, webhook, and allowlist.",
+    "keywords": [
+      "troubleshooting"
+    ],
+    "nav_order": 15
+  },
+  {
     "id": "en/telegram-multi-profile#3-one-bot-per-profile",
     "lang": "en",
     "slug": "telegram-multi-profile",
@@ -4444,7 +4738,7 @@
       "per",
       "profile"
     ],
-    "nav_order": 15
+    "nav_order": 16
   },
   {
     "id": "en/telegram-multi-profile#5-restrict-access-in-production",
@@ -4459,7 +4753,7 @@
       "access",
       "production"
     ],
-    "nav_order": 15
+    "nav_order": 16
   },
   {
     "id": "en/telegram-multi-profile#alternative-one-bot-manual-profile-or-map",
@@ -4477,7 +4771,7 @@
       "profile",
       "map"
     ],
-    "nav_order": 15
+    "nav_order": 16
   },
   {
     "id": "en/telegram-multi-profile#common-mistakes",
@@ -4491,7 +4785,7 @@
       "common",
       "mistakes"
     ],
-    "nav_order": 15
+    "nav_order": 16
   },
   {
     "id": "en/telegram-multi-profile#comparison",
@@ -4504,7 +4798,7 @@
     "keywords": [
       "comparison"
     ],
-    "nav_order": 15
+    "nav_order": 16
   },
   {
     "id": "en/telegram-multi-profile#holixprofilesbobenv",
@@ -4521,7 +4815,7 @@
       "bob",
       "env"
     ],
-    "nav_order": 15
+    "nav_order": 16
   },
   {
     "id": "en/telegram-multi-profile#how-holix-is-designed",
@@ -4536,7 +4830,7 @@
       "holix",
       "designed"
     ],
-    "nav_order": 15
+    "nav_order": 16
   },
   {
     "id": "en/telegram-multi-profile#limits-of-a-single-bot",
@@ -4551,7 +4845,7 @@
       "single",
       "bot"
     ],
-    "nav_order": 15
+    "nav_order": 16
   },
   {
     "id": "en/telegram-multi-profile#one-bot-many-users-access-requests-recommended",
@@ -4570,7 +4864,7 @@
       "requests",
       "recommended"
     ],
-    "nav_order": 15
+    "nav_order": 16
   },
   {
     "id": "en/telegram-multi-profile#summary",
@@ -4583,7 +4877,7 @@
     "keywords": [
       "summary"
     ],
-    "nav_order": 15
+    "nav_order": 16
   },
   {
     "id": "en/telegram-multi-profile#telegram-multiple-isolated-profiles",
@@ -4599,7 +4893,7 @@
       "isolated",
       "profiles"
     ],
-    "nav_order": 15
+    "nav_order": 16
   },
   {
     "id": "en/telegram-multi-profile#user-id-profile-mapping-single-bot-manual",
@@ -4616,300 +4910,6 @@
       "single",
       "bot",
       "manual"
-    ],
-    "nav_order": 15
-  },
-  {
-    "id": "en/max#1-admin-connect-the-bot",
-    "lang": "en",
-    "slug": "max",
-    "section": "1-admin-connect-the-bot",
-    "title": "MAX Messenger",
-    "heading": "1. Admin: connect the bot",
-    "body": "The wizard saves the bot token and enables access requests by default ( ). Create the bot at business.max.ru → Chat bots → Integration , then copy the access token.",
-    "keywords": [
-      "admin",
-      "connect",
-      "the",
-      "bot"
-    ],
-    "nav_order": 16
-  },
-  {
-    "id": "en/max#2-first-administrator-cli-only",
-    "lang": "en",
-    "slug": "max",
-    "section": "2-first-administrator-cli-only",
-    "title": "MAX Messenger",
-    "heading": "2. First administrator (CLI only)",
-    "body": "The first approved user can be designated the sole MAX administrator. This cannot be done from MAX chat — only via CLI: Holix will: - create the Holix profile (if missing) and bind the user - save in - enable extended commands for that user ( , , MCP install) Check and reset:",
-    "keywords": [
-      "first",
-      "administrator",
-      "cli",
-      "only"
-    ],
-    "nav_order": 16
-  },
-  {
-    "id": "en/max#3-user-request-access",
-    "lang": "en",
-    "slug": "max",
-    "section": "3-user-request-access",
-    "title": "MAX Messenger",
-    "heading": "3. User: request access",
-    "body": "1. Open the bot in MAX. 2. Send . 3. The bot replies that access is pending approval. 4. The MAX administrator receives a notification in MAX with CLI commands to approve or reject.",
-    "keywords": [
-      "user",
-      "request",
-      "access"
-    ],
-    "nav_order": 16
-  },
-  {
-    "id": "en/max#4-admin-approve-and-isolated-profile",
-    "lang": "en",
-    "slug": "max",
-    "section": "4-admin-approve-and-isolated-profile",
-    "title": "MAX Messenger",
-    "heading": "4. Admin: approve and isolated profile",
-    "body": "On approval, Holix: - creates a protected profile with an access key - enables workspace jail under - binds the MAX user to the profile - sends the access key to the user in MAX (shown once) The user can message the bot immediately — no restart required. Paths in bot replies: approved users with workspace jail see relative paths only ( , not ). The MAX admin ( ) still sees full absolute paths. See Path visibility in replies. Other commands:",
-    "keywords": [
-      "admin",
-      "approve",
-      "and",
-      "isolated",
-      "profile"
-    ],
-    "nav_order": 16
-  },
-  {
-    "id": "en/max#agent-conversations",
-    "lang": "en",
-    "slug": "max",
-    "section": "agent-conversations",
-    "title": "MAX Messenger",
-    "heading": "Agent conversations",
-    "body": "- One live message per task (edited via while streaming) - Session id: - Shared slash commands with TUI: , , , , — see SLASH COMMANDS.md",
-    "keywords": [
-      "agent",
-      "conversations"
-    ],
-    "nav_order": 16
-  },
-  {
-    "id": "en/max#cli-commands",
-    "lang": "en",
-    "slug": "max",
-    "section": "cli-commands",
-    "title": "MAX Messenger",
-    "heading": "CLI commands",
-    "body": "Command Description --------- ------------- Wizard: token, allowlist, mode, save to Start bot (Long Polling — dev/test only) Token, admin, user map, pending requests, subscriptions User → profile bindings List/approve/reject access requests Show/clear MAX administrator Gateway + MAX webhook companion Gateway health + MAX env/admin/map summary Management API: , , , . See CLI.md.",
-    "keywords": [
-      "cli",
-      "commands"
-    ],
-    "nav_order": 16
-  },
-  {
-    "id": "en/max#environment-variables",
-    "lang": "en",
-    "slug": "max",
-    "section": "environment-variables",
-    "title": "MAX Messenger",
-    "heading": "Environment variables",
-    "body": "Variable Required Description ---------- ---------- ------------- Yes Bot token from business.max.ru Prod Comma-separated allowlist No Access requests via (default in setup) No Allow everyone (dev only) No (prod) or (dev/test) Webhook Public HTTPS URL for events Webhook Secret for header No Sole MAX administrator No Helix host-bot profile \\ With , a manual allowlist is optional. The token is sent in the header — query-string tokens are not supported by the MAX API.",
-    "keywords": [
-      "environment",
-      "variables"
-    ],
-    "nav_order": 16
-  },
-  {
-    "id": "en/max#event-delivery-modes",
-    "lang": "en",
-    "slug": "max",
-    "section": "event-delivery-modes",
-    "title": "MAX Messenger",
-    "heading": "Event delivery modes",
-    "body": "MAX supports one mode at a time: Mode When to use Helix command ------ ------------- --------------- Webhook Production Long Polling Local development ```bash",
-    "keywords": [
-      "event",
-      "delivery",
-      "modes"
-    ],
-    "nav_order": 16
-  },
-  {
-    "id": "en/max#files",
-    "lang": "en",
-    "slug": "max",
-    "section": "files",
-    "title": "MAX Messenger",
-    "heading": "Files",
-    "body": "Send and receive attachments via . Text extraction uses the same pipeline as Telegram. The tool is available in MAX chat.",
-    "keywords": [
-      "files"
-    ],
-    "nav_order": 16
-  },
-  {
-    "id": "en/max#inline-approvals",
-    "lang": "en",
-    "slug": "max",
-    "section": "inline-approvals",
-    "title": "MAX Messenger",
-    "heading": "Inline approvals",
-    "body": "When the agent requests confirmation for a risky tool, Helix sends an inline keyboard. Button press → event → answer via .",
-    "keywords": [
-      "inline",
-      "approvals"
-    ],
-    "nav_order": 16
-  },
-  {
-    "id": "en/max#manual-user-id-profile-mapping",
-    "lang": "en",
-    "slug": "max",
-    "section": "manual-user-id-profile-mapping",
-    "title": "MAX Messenger",
-    "heading": "Manual user id → profile mapping",
-    "body": "Files: , optional in . One live message per task; slash commands like TUI; inline approvals for risky tools. ---",
-    "keywords": [
-      "manual",
-      "user",
-      "profile",
-      "mapping"
-    ],
-    "nav_order": 16
-  },
-  {
-    "id": "en/max#markdown-in-replies",
-    "lang": "en",
-    "slug": "max",
-    "section": "markdown-in-replies",
-    "title": "MAX Messenger",
-    "heading": "Markdown in replies",
-    "body": "Agent output uses MAX markdown ( , , ` code `, links). Long answers are split into chunks.",
-    "keywords": [
-      "markdown",
-      "replies"
-    ],
-    "nav_order": 16
-  },
-  {
-    "id": "en/max#max-messenger",
-    "lang": "en",
-    "slug": "max",
-    "section": "max-messenger",
-    "title": "MAX Messenger",
-    "heading": "MAX Messenger",
-    "body": "Helix integrates with MAX — the Russian messenger platform — so you can run the same self-improving agent in personal and group chats. Official API reference: dev.max.ru/docs-api Each host profile can have its own bot token. Secrets are stored at: In production ( ), you need an allowlist or access-request mode.",
-    "keywords": [
-      "max",
-      "messenger"
-    ],
-    "nav_order": 16
-  },
-  {
-    "id": "en/max#multiple-bots-full-isolation",
-    "lang": "en",
-    "slug": "max",
-    "section": "multiple-bots-full-isolation",
-    "title": "MAX Messenger",
-    "heading": "Multiple bots (full isolation)",
-    "body": "Different people → different profiles → different bots: Each profile has its own , webhook URL, and gateway port.",
-    "keywords": [
-      "multiple",
-      "bots",
-      "full",
-      "isolation"
-    ],
-    "nav_order": 16
-  },
-  {
-    "id": "en/max#production-checklist",
-    "lang": "en",
-    "slug": "max",
-    "section": "production-checklist",
-    "title": "MAX Messenger",
-    "heading": "Production checklist",
-    "body": "1. Public HTTPS endpoint on port 443 (reverse proxy → gateway) 2. and a valid 3. Allowlist or access requests; 4. MAX rate limit: 30 rps on See DEPLOYMENT.md and SECURITY.md.",
-    "keywords": [
-      "production",
-      "checklist"
-    ],
-    "nav_order": 16
-  },
-  {
-    "id": "en/max#production-notes",
-    "lang": "en",
-    "slug": "max",
-    "section": "production-notes",
-    "title": "MAX Messenger",
-    "heading": "Production notes",
-    "body": "- Use a named host profile ( ), not — is dev-only when . - Prefer per user for isolation. - Manual allowlist ( ) is optional when access requests are enabled. - There is only one MAX administrator ( ); assign via . Details: MAX MULTI PROFILE.md. ---",
-    "keywords": [
-      "production",
-      "notes"
-    ],
-    "nav_order": 16
-  },
-  {
-    "id": "en/max#production-uv-tool-install",
-    "lang": "en",
-    "slug": "max",
-    "section": "production-uv-tool-install",
-    "title": "MAX Messenger",
-    "heading": "Production (`uv tool install`)",
-    "body": "When installing globally with uv, explicitly include the extra: Without MAX dependencies, the companion process is skipped in logs even when a token is configured.",
-    "keywords": [
-      "production",
-      "tool",
-      "install"
-    ],
-    "nav_order": 16
-  },
-  {
-    "id": "en/max#see-also",
-    "lang": "en",
-    "slug": "max",
-    "section": "see-also",
-    "title": "MAX Messenger",
-    "heading": "See also",
-    "body": "- MAX MULTI PROFILE.md — one bot / multiple bots, isolation - TELEGRAM.md — parallel Telegram integration - GATEWAY.md — HTTP gateway and companions - SLASH COMMANDS.md — commands in MAX chats",
-    "keywords": [
-      "see",
-      "also"
-    ],
-    "nav_order": 16
-  },
-  {
-    "id": "en/max#token-storage-and-loading",
-    "lang": "en",
-    "slug": "max",
-    "section": "token-storage-and-loading",
-    "title": "MAX Messenger",
-    "heading": "Token storage and loading",
-    "body": "- Store the bot token in . With profile encryption enabled, the file is encrypted on disk (via shared , same as Telegram). - Canonical keys are ; legacy keys are supported on read and migration. - Do not leave an empty in — it blocks the real token from . Omit the key in global; Holix loads from the profile (including decrypted values when is set). - On startup, the gateway calls after profile unlock so the encrypted token is available before webhook registration.",
-    "keywords": [
-      "token",
-      "storage",
-      "and",
-      "loading"
-    ],
-    "nav_order": 16
-  },
-  {
-    "id": "en/max#troubleshooting",
-    "lang": "en",
-    "slug": "max",
-    "section": "troubleshooting",
-    "title": "MAX Messenger",
-    "heading": "Troubleshooting",
-    "body": "Symptom Fix --------- ----- from MAX API Check ; re-run No webhook events Verify HTTPS URL, , gateway logs Polling stopped after webhook Only one mode is active — remove webhook subscription first User ignored Approve via or add to allowlist Agent cannot send files ; use in MAX chat errors Reduce send rate; Helix client limits to ≤30 rps Run to check token, webhook, and allowlist.",
-    "keywords": [
-      "troubleshooting"
     ],
     "nav_order": 16
   },
@@ -7310,7 +7310,7 @@
     "section": "интерфейсы",
     "title": "Обзор",
     "heading": "Интерфейсы",
-    "body": "- CLI.md — справочник команд - SLASH COMMANDS.md — слэш-команды - EXECUTION MODES.md — ReAct, Plan, Hybrid, Auto — как работают режимы и примеры промптов - TUI.md — - HUB.md — каталоги навыков - GATEWAY.md — API gateway - GATEWAY API.md — полный справочник API — каждый эндпоинт задокументирован (auth, , SaaS curl) - TELEGRAM.md — Telegram - TELEGRAM MULTI PROFILE.md — один бот / несколько ботов, access requests, ручной - MAX.md — мессенджер MAX - MAX MULTI PROFILE.md — один бот / несколько ботов MAX, access requests, - BROWSER TOOLS.md — Playwright",
+    "body": "- CLI.md — справочник команд - SLASH COMMANDS.md — слэш-команды - EXECUTION MODES.md — ReAct, Plan, Hybrid, Auto — как работают режимы и примеры промптов - TUI.md — - HUB.md — каталоги навыков - GATEWAY.md — API gateway - GATEWAY API.md — полный справочник API — каждый эндпоинт задокументирован (auth, , SaaS curl) - TELEGRAM.md — Telegram - MAX.md — мессенджер MAX - TELEGRAM MULTI PROFILE.md — один бот / несколько ботов, access requests, ручной - MAX MULTI PROFILE.md — один бот / несколько ботов MAX, access requests, - BROWSER TOOLS.md — Playwright",
     "keywords": [
       "overview",
       "обзор",
@@ -7624,12 +7624,12 @@
     "nav_order": 2
   },
   {
-    "id": "ru/start-here#max-в-production-helix--p-shared-gateway-start-webhook-см-maxmd",
+    "id": "ru/start-here#max-в-production-holix--p-shared-gateway-start-webhook-см-maxmd",
     "lang": "ru",
     "slug": "start-here",
-    "section": "max-в-production-helix--p-shared-gateway-start-webhook-см-maxmd",
+    "section": "max-в-production-holix--p-shared-gateway-start-webhook-см-maxmd",
     "title": "Первый запуск",
-    "heading": "MAX в production: helix -p shared gateway start (webhook) — см. MAX.md",
+    "heading": "MAX в production: holix -p shared gateway start (webhook) — см. MAX.md",
     "body": "pipx install \"Holix[browser]\" playwright install chromium holix hub browse holix mcp setup ```",
     "keywords": [
       "start",
@@ -7638,7 +7638,7 @@
       "checklist",
       "max",
       "production",
-      "helix",
+      "holix",
       "shared",
       "gateway",
       "webhook",
@@ -8841,24 +8841,6 @@
     "nav_order": 7
   },
   {
-    "id": "ru/cli#helix-max",
-    "lang": "ru",
-    "slug": "cli",
-    "section": "helix-max",
-    "title": "Справочник CLI",
-    "heading": "`helix max`",
-    "body": "Требует и . Подкоманда Описание ------------ ---------- Токен, allowlist, режим webhook/polling, сохранение (по умолчанию) Long Polling (dev/test) , подписки webhook Продакшен: (webhook через ). См. MAX.md. ---",
-    "keywords": [
-      "command",
-      "команды",
-      "typer",
-      "terminal",
-      "helix",
-      "max"
-    ],
-    "nav_order": 7
-  },
-  {
     "id": "ru/cli#holix-bootstrap",
     "lang": "ru",
     "slug": "cli",
@@ -8927,6 +8909,24 @@
       "terminal",
       "holix",
       "hub"
+    ],
+    "nav_order": 7
+  },
+  {
+    "id": "ru/cli#holix-max",
+    "lang": "ru",
+    "slug": "cli",
+    "section": "holix-max",
+    "title": "Справочник CLI",
+    "heading": "`holix max`",
+    "body": "Требует и . Подкоманда Описание ------------ ---------- Токен, allowlist, режим webhook/polling, сохранение (по умолчанию) Long Polling (dev/test) , подписки webhook Продакшен: (webhook через ). См. MAX.md. ---",
+    "keywords": [
+      "command",
+      "команды",
+      "typer",
+      "terminal",
+      "holix",
+      "max"
     ],
     "nav_order": 7
   },
@@ -11319,6 +11319,297 @@
     "nav_order": 14
   },
   {
+    "id": "ru/max#1-админ-подключение-бота",
+    "lang": "ru",
+    "slug": "max",
+    "section": "1-админ-подключение-бота",
+    "title": "MAX — мессенджер",
+    "heading": "1. Админ: подключение бота",
+    "body": "Мастер сохраняет токен бота и по умолчанию включает режим запросов доступа ( ). Создайте бота в business.max.ru → Чат-боты → Интеграция , скопируйте access token.",
+    "keywords": [
+      "админ",
+      "подключение",
+      "бота"
+    ],
+    "nav_order": 15
+  },
+  {
+    "id": "ru/max#2-первый-администратор-только-cli",
+    "lang": "ru",
+    "slug": "max",
+    "section": "2-первый-администратор-только-cli",
+    "title": "MAX — мессенджер",
+    "heading": "2. Первый администратор (только CLI)",
+    "body": "Первого одобренного пользователя можно назначить единственным MAX-администратором. Из MAX это сделать нельзя — только через CLI: Holix: - создаёт профиль Holix (если его нет) и привязывает пользователя - сохраняет в - включает расширенные команды для этого пользователя ( , , установка MCP) Проверка и сброс:",
+    "keywords": [
+      "первый",
+      "администратор",
+      "только",
+      "cli"
+    ],
+    "nav_order": 15
+  },
+  {
+    "id": "ru/max#3-пользователь-запрос-доступа",
+    "lang": "ru",
+    "slug": "max",
+    "section": "3-пользователь-запрос-доступа",
+    "title": "MAX — мессенджер",
+    "heading": "3. Пользователь: запрос доступа",
+    "body": "1. Открывает бота в MAX. 2. Отправляет . 3. Бот отвечает, что доступ ожидает одобрения. 4. MAX-администратор получает уведомление в MAX с командами CLI для одобрения или отклонения.",
+    "keywords": [
+      "пользователь",
+      "запрос",
+      "доступа"
+    ],
+    "nav_order": 15
+  },
+  {
+    "id": "ru/max#4-админ-одобрение-и-изолированный-профиль",
+    "lang": "ru",
+    "slug": "max",
+    "section": "4-админ-одобрение-и-изолированный-профиль",
+    "title": "MAX — мессенджер",
+    "heading": "4. Админ: одобрение и изолированный профиль",
+    "body": "При одобрении Holix: - создаёт защищённый профиль с ключом - включает workspace jail в - привязывает MAX-пользователя к профилю - отправляет ключ доступа пользователю в MAX (показывается один раз) Пользователь сразу может писать боту — перезапуск не нужен. Пути в ответах бота: одобренные пользователи с workspace jail видят только относительные пути ( , а не ). Админ MAX ( ) по-прежнему видит полные абсолютные пути. Подробнее: Видимость путей в ответах. Другие команды:",
+    "keywords": [
+      "админ",
+      "одобрение",
+      "изолированный",
+      "профиль"
+    ],
+    "nav_order": 15
+  },
+  {
+    "id": "ru/max#inline-подтверждения",
+    "lang": "ru",
+    "slug": "max",
+    "section": "inline-подтверждения",
+    "title": "MAX — мессенджер",
+    "heading": "Inline-подтверждения",
+    "body": "Когда агент запрашивает подтверждение опасного инструмента, Holix отправляет inline-клавиатуру. Нажатие кнопки → событие → ответ через .",
+    "keywords": [
+      "inline",
+      "подтверждения"
+    ],
+    "nav_order": 15
+  },
+  {
+    "id": "ru/max#markdown-в-ответах",
+    "lang": "ru",
+    "slug": "max",
+    "section": "markdown-в-ответах",
+    "title": "MAX — мессенджер",
+    "heading": "Markdown в ответах",
+    "body": "Форматирование ответов агента в markdown MAX ( , , ` код `, ссылки). Длинные ответы разбиваются на части.",
+    "keywords": [
+      "markdown",
+      "ответах"
+    ],
+    "nav_order": 15
+  },
+  {
+    "id": "ru/max#max-мессенджер",
+    "lang": "ru",
+    "slug": "max",
+    "section": "max-мессенджер",
+    "title": "MAX — мессенджер",
+    "heading": "MAX — мессенджер",
+    "body": "Holix интегрируется с MAX — российской платформой мессенджера — чтобы запускать того же самообучающегося агента в личных и групповых чатах. Официальная документация API: dev.max.ru/docs-api У каждого host-профиля бота может быть свой токен. Секреты хранятся в: В production ( ) нужен allowlist или режим запросов доступа.",
+    "keywords": [
+      "max",
+      "мессенджер"
+    ],
+    "nav_order": 15
+  },
+  {
+    "id": "ru/max#production",
+    "lang": "ru",
+    "slug": "max",
+    "section": "production",
+    "title": "MAX — мессенджер",
+    "heading": "Production",
+    "body": "- Используйте именованный host-профиль ( ), не — профиль доступен только в dev при . - Для изоляции лучше на каждого пользователя. - Ручной allowlist ( ) не обязателен при включённых access requests. - MAX-администратор только один ( ); назначение — . Подробно: MAX MULTI PROFILE.md. ---",
+    "keywords": [
+      "production"
+    ],
+    "nav_order": 15
+  },
+  {
+    "id": "ru/max#production-uv-tool-install",
+    "lang": "ru",
+    "slug": "max",
+    "section": "production-uv-tool-install",
+    "title": "MAX — мессенджер",
+    "heading": "Production (`uv tool install`)",
+    "body": "При глобальной установке через uv явно добавьте extra : Без зависимостей MAX в логе будет пропуск companion-процесса, даже если токен настроен.",
+    "keywords": [
+      "production",
+      "tool",
+      "install"
+    ],
+    "nav_order": 15
+  },
+  {
+    "id": "ru/max#диалоги-с-агентом",
+    "lang": "ru",
+    "slug": "max",
+    "section": "диалоги-с-агентом",
+    "title": "MAX — мессенджер",
+    "heading": "Диалоги с агентом",
+    "body": "- Одно live-сообщение на задачу (редактирование через при стриминге) - ID сессии: - Общие слэш-команды с TUI: , , , , — см. SLASH COMMANDS.md",
+    "keywords": [
+      "диалоги",
+      "агентом"
+    ],
+    "nav_order": 15
+  },
+  {
+    "id": "ru/max#команды-cli",
+    "lang": "ru",
+    "slug": "max",
+    "section": "команды-cli",
+    "title": "MAX — мессенджер",
+    "heading": "Команды CLI",
+    "body": "Команда Описание --------- ---------- Мастер: токен, allowlist, режим, Запуск бота (Long Polling — только dev/test) Токен, админ, карта пользователей, ожидающие заявки, подписки Привязки user → profile Список/одобрение/отклонение заявок Показать/сбросить администратора MAX Gateway + MAX webhook companion Health gateway + сводка MAX (env/admin/map) Management API: , , , . См. CLI.md.",
+    "keywords": [
+      "команды",
+      "cli"
+    ],
+    "nav_order": 15
+  },
+  {
+    "id": "ru/max#несколько-ботов-полная-изоляция",
+    "lang": "ru",
+    "slug": "max",
+    "section": "несколько-ботов-полная-изоляция",
+    "title": "MAX — мессенджер",
+    "heading": "Несколько ботов (полная изоляция)",
+    "body": "Разные люди → разные профили → разные боты: У каждого профиля свой , свой webhook URL и порт gateway.",
+    "keywords": [
+      "несколько",
+      "ботов",
+      "полная",
+      "изоляция"
+    ],
+    "nav_order": 15
+  },
+  {
+    "id": "ru/max#переменные-окружения",
+    "lang": "ru",
+    "slug": "max",
+    "section": "переменные-окружения",
+    "title": "MAX — мессенджер",
+    "heading": "Переменные окружения",
+    "body": "Переменная Обязательно Описание ------------ ------------- ---------- Да Токен бота с business.max.ru Prod Allowlist через запятую Нет Запросы доступа через (по умолчанию в setup) Нет Разрешить всех (только dev) Нет (prod) или (dev/test) Webhook Публичный HTTPS URL для событий Webhook Секрет для заголовка Нет Единственный администратор MAX Нет Профиль Holix host-бота \\ При ручной allowlist не обязателен. Токен передаётся в заголовке — query-параметры не поддерживаются API MAX.",
+    "keywords": [
+      "переменные",
+      "окружения"
+    ],
+    "nav_order": 15
+  },
+  {
+    "id": "ru/max#привязка-user-id-профиль-вручную",
+    "lang": "ru",
+    "slug": "max",
+    "section": "привязка-user-id-профиль-вручную",
+    "title": "MAX — мессенджер",
+    "heading": "Привязка user id → профиль (вручную)",
+    "body": "Файлы: , опционально в . Одно live-сообщение на задачу; slash-команды как в TUI; inline-подтверждения опасных инструментов. ---",
+    "keywords": [
+      "привязка",
+      "user",
+      "профиль",
+      "вручную"
+    ],
+    "nav_order": 15
+  },
+  {
+    "id": "ru/max#режимы-доставки-событий",
+    "lang": "ru",
+    "slug": "max",
+    "section": "режимы-доставки-событий",
+    "title": "MAX — мессенджер",
+    "heading": "Режимы доставки событий",
+    "body": "MAX поддерживает один режим одновременно: Режим Когда использовать Команда Holix ------- ------------------- --------------- Webhook Продакшен Long Polling Локальная разработка ```bash",
+    "keywords": [
+      "режимы",
+      "доставки",
+      "событий"
+    ],
+    "nav_order": 15
+  },
+  {
+    "id": "ru/max#решение-проблем",
+    "lang": "ru",
+    "slug": "max",
+    "section": "решение-проблем",
+    "title": "MAX — мессенджер",
+    "heading": "Решение проблем",
+    "body": "Симптом Решение --------- --------- от MAX API Проверьте ; перезапустите Нет событий webhook Проверьте HTTPS URL, , логи gateway Polling перестал работать после webhook Активен только один режим — сначала удалите подписку webhook Пользователь игнорируется Одобрите через или добавьте в allowlist Агент не отправляет файлы ; в чате MAX доступен Ошибки Снизьте частоту отправки; клиент Holix ограничивает ≤30 rps Запустите для проверки токена, webhook и allowlist.",
+    "keywords": [
+      "решение",
+      "проблем"
+    ],
+    "nav_order": 15
+  },
+  {
+    "id": "ru/max#см-также",
+    "lang": "ru",
+    "slug": "max",
+    "section": "см-также",
+    "title": "MAX — мессенджер",
+    "heading": "См. также",
+    "body": "- MAX MULTI PROFILE.md — один бот / несколько ботов, изоляция - TELEGRAM.md — параллельная интеграция с Telegram - GATEWAY.md — HTTP gateway и companions - SLASH COMMANDS.md — команды в чатах MAX",
+    "keywords": [
+      "также"
+    ],
+    "nav_order": 15
+  },
+  {
+    "id": "ru/max#файлы",
+    "lang": "ru",
+    "slug": "max",
+    "section": "файлы",
+    "title": "MAX — мессенджер",
+    "heading": "Файлы",
+    "body": "Отправка и приём вложений через . Извлечение текста из файлов — общий пайплайн с Telegram. В чате доступен инструмент .",
+    "keywords": [
+      "файлы"
+    ],
+    "nav_order": 15
+  },
+  {
+    "id": "ru/max#хранение-и-загрузка-токена",
+    "lang": "ru",
+    "slug": "max",
+    "section": "хранение-и-загрузка-токена",
+    "title": "MAX — мессенджер",
+    "heading": "Хранение и загрузка токена",
+    "body": "- Токен бота храните в . При шифровании профиля файл шифруется на диске (через общий , как у Telegram). - Канонические ключи — ; legacy поддерживаются при чтении и миграции. - Не оставляйте пустой в — это мешает подставить реальный токен из . В global ключ лучше не указывать; Holix возьмёт значение из профиля (в т.ч. расшифрованное при заданном ). - Gateway при старте вызывает после unlock профиля, чтобы зашифрованный токен был доступен до регистрации webhook.",
+    "keywords": [
+      "хранение",
+      "загрузка",
+      "токена"
+    ],
+    "nav_order": 15
+  },
+  {
+    "id": "ru/max#чеклист-для-продакшена",
+    "lang": "ru",
+    "slug": "max",
+    "section": "чеклист-для-продакшена",
+    "title": "MAX — мессенджер",
+    "heading": "Чеклист для продакшена",
+    "body": "1. Публичный HTTPS endpoint на порту 443 (reverse proxy → gateway) 2. и корректный 3. Allowlist или access requests; 4. Лимит MAX: 30 rps на См. DEPLOYMENT.md и SECURITY.md.",
+    "keywords": [
+      "чеклист",
+      "для",
+      "продакшена"
+    ],
+    "nav_order": 15
+  },
+  {
     "id": "ru/telegram-multi-profile#3-свой-бот-у-каждого-профиля",
     "lang": "ru",
     "slug": "telegram-multi-profile",
@@ -11332,7 +11623,7 @@
       "каждого",
       "профиля"
     ],
-    "nav_order": 15
+    "nav_order": 16
   },
   {
     "id": "ru/telegram-multi-profile#5-ограничить-доступ-в-production",
@@ -11347,7 +11638,7 @@
       "доступ",
       "production"
     ],
-    "nav_order": 15
+    "nav_order": 16
   },
   {
     "id": "ru/telegram-multi-profile#holixprofilesbobenv",
@@ -11364,7 +11655,7 @@
       "bob",
       "env"
     ],
-    "nav_order": 15
+    "nav_order": 16
   },
   {
     "id": "ru/telegram-multi-profile#telegram-несколько-изолированных-профилей",
@@ -11380,7 +11671,7 @@
       "изолированных",
       "профилей"
     ],
-    "nav_order": 15
+    "nav_order": 16
   },
   {
     "id": "ru/telegram-multi-profile#альтернатива-один-бот-ручной-profile-или-map",
@@ -11399,7 +11690,7 @@
       "или",
       "map"
     ],
-    "nav_order": 15
+    "nav_order": 16
   },
   {
     "id": "ru/telegram-multi-profile#итог",
@@ -11412,7 +11703,7 @@
     "keywords": [
       "итог"
     ],
-    "nav_order": 15
+    "nav_order": 16
   },
   {
     "id": "ru/telegram-multi-profile#как-устроено-в-holix",
@@ -11427,7 +11718,7 @@
       "устроено",
       "holix"
     ],
-    "nav_order": 15
+    "nav_order": 16
   },
   {
     "id": "ru/telegram-multi-profile#ограничения-одного-бота",
@@ -11442,7 +11733,7 @@
       "одного",
       "бота"
     ],
-    "nav_order": 15
+    "nav_order": 16
   },
   {
     "id": "ru/telegram-multi-profile#один-бот-много-пользователей-access-requests-рекомендуется",
@@ -11461,7 +11752,7 @@
       "requests",
       "рекомендуется"
     ],
-    "nav_order": 15
+    "nav_order": 16
   },
   {
     "id": "ru/telegram-multi-profile#привязка-user-id-профиль-один-бот-вручную",
@@ -11479,7 +11770,7 @@
       "бот",
       "вручную"
     ],
-    "nav_order": 15
+    "nav_order": 16
   },
   {
     "id": "ru/telegram-multi-profile#сравнение-подходов",
@@ -11493,7 +11784,7 @@
       "сравнение",
       "подходов"
     ],
-    "nav_order": 15
+    "nav_order": 16
   },
   {
     "id": "ru/telegram-multi-profile#типичные-ошибки",
@@ -11506,297 +11797,6 @@
     "keywords": [
       "типичные",
       "ошибки"
-    ],
-    "nav_order": 15
-  },
-  {
-    "id": "ru/max#1-админ-подключение-бота",
-    "lang": "ru",
-    "slug": "max",
-    "section": "1-админ-подключение-бота",
-    "title": "MAX — мессенджер",
-    "heading": "1. Админ: подключение бота",
-    "body": "Мастер сохраняет токен бота и по умолчанию включает режим запросов доступа ( ). Создайте бота в business.max.ru → Чат-боты → Интеграция , скопируйте access token.",
-    "keywords": [
-      "админ",
-      "подключение",
-      "бота"
-    ],
-    "nav_order": 16
-  },
-  {
-    "id": "ru/max#2-первый-администратор-только-cli",
-    "lang": "ru",
-    "slug": "max",
-    "section": "2-первый-администратор-только-cli",
-    "title": "MAX — мессенджер",
-    "heading": "2. Первый администратор (только CLI)",
-    "body": "Первого одобренного пользователя можно назначить единственным MAX-администратором. Из MAX это сделать нельзя — только через CLI: Holix: - создаёт профиль Holix (если его нет) и привязывает пользователя - сохраняет в - включает расширенные команды для этого пользователя ( , , установка MCP) Проверка и сброс:",
-    "keywords": [
-      "первый",
-      "администратор",
-      "только",
-      "cli"
-    ],
-    "nav_order": 16
-  },
-  {
-    "id": "ru/max#3-пользователь-запрос-доступа",
-    "lang": "ru",
-    "slug": "max",
-    "section": "3-пользователь-запрос-доступа",
-    "title": "MAX — мессенджер",
-    "heading": "3. Пользователь: запрос доступа",
-    "body": "1. Открывает бота в MAX. 2. Отправляет . 3. Бот отвечает, что доступ ожидает одобрения. 4. MAX-администратор получает уведомление в MAX с командами CLI для одобрения или отклонения.",
-    "keywords": [
-      "пользователь",
-      "запрос",
-      "доступа"
-    ],
-    "nav_order": 16
-  },
-  {
-    "id": "ru/max#4-админ-одобрение-и-изолированный-профиль",
-    "lang": "ru",
-    "slug": "max",
-    "section": "4-админ-одобрение-и-изолированный-профиль",
-    "title": "MAX — мессенджер",
-    "heading": "4. Админ: одобрение и изолированный профиль",
-    "body": "При одобрении Holix: - создаёт защищённый профиль с ключом - включает workspace jail в - привязывает MAX-пользователя к профилю - отправляет ключ доступа пользователю в MAX (показывается один раз) Пользователь сразу может писать боту — перезапуск не нужен. Пути в ответах бота: одобренные пользователи с workspace jail видят только относительные пути ( , а не ). Админ MAX ( ) по-прежнему видит полные абсолютные пути. Подробнее: Видимость путей в ответах. Другие команды:",
-    "keywords": [
-      "админ",
-      "одобрение",
-      "изолированный",
-      "профиль"
-    ],
-    "nav_order": 16
-  },
-  {
-    "id": "ru/max#inline-подтверждения",
-    "lang": "ru",
-    "slug": "max",
-    "section": "inline-подтверждения",
-    "title": "MAX — мессенджер",
-    "heading": "Inline-подтверждения",
-    "body": "Когда агент запрашивает подтверждение опасного инструмента, Helix отправляет inline-клавиатуру. Нажатие кнопки → событие → ответ через .",
-    "keywords": [
-      "inline",
-      "подтверждения"
-    ],
-    "nav_order": 16
-  },
-  {
-    "id": "ru/max#markdown-в-ответах",
-    "lang": "ru",
-    "slug": "max",
-    "section": "markdown-в-ответах",
-    "title": "MAX — мессенджер",
-    "heading": "Markdown в ответах",
-    "body": "Форматирование ответов агента в markdown MAX ( , , ` код `, ссылки). Длинные ответы разбиваются на части.",
-    "keywords": [
-      "markdown",
-      "ответах"
-    ],
-    "nav_order": 16
-  },
-  {
-    "id": "ru/max#max-мессенджер",
-    "lang": "ru",
-    "slug": "max",
-    "section": "max-мессенджер",
-    "title": "MAX — мессенджер",
-    "heading": "MAX — мессенджер",
-    "body": "Helix интегрируется с MAX — российской платформой мессенджера — чтобы запускать того же самообучающегося агента в личных и групповых чатах. Официальная документация API: dev.max.ru/docs-api У каждого host-профиля бота может быть свой токен. Секреты хранятся в: В production ( ) нужен allowlist или режим запросов доступа.",
-    "keywords": [
-      "max",
-      "мессенджер"
-    ],
-    "nav_order": 16
-  },
-  {
-    "id": "ru/max#production",
-    "lang": "ru",
-    "slug": "max",
-    "section": "production",
-    "title": "MAX — мессенджер",
-    "heading": "Production",
-    "body": "- Используйте именованный host-профиль ( ), не — профиль доступен только в dev при . - Для изоляции лучше на каждого пользователя. - Ручной allowlist ( ) не обязателен при включённых access requests. - MAX-администратор только один ( ); назначение — . Подробно: MAX MULTI PROFILE.md. ---",
-    "keywords": [
-      "production"
-    ],
-    "nav_order": 16
-  },
-  {
-    "id": "ru/max#production-uv-tool-install",
-    "lang": "ru",
-    "slug": "max",
-    "section": "production-uv-tool-install",
-    "title": "MAX — мессенджер",
-    "heading": "Production (`uv tool install`)",
-    "body": "При глобальной установке через uv явно добавьте extra : Без зависимостей MAX в логе будет пропуск companion-процесса, даже если токен настроен.",
-    "keywords": [
-      "production",
-      "tool",
-      "install"
-    ],
-    "nav_order": 16
-  },
-  {
-    "id": "ru/max#диалоги-с-агентом",
-    "lang": "ru",
-    "slug": "max",
-    "section": "диалоги-с-агентом",
-    "title": "MAX — мессенджер",
-    "heading": "Диалоги с агентом",
-    "body": "- Одно live-сообщение на задачу (редактирование через при стриминге) - ID сессии: - Общие слэш-команды с TUI: , , , , — см. SLASH COMMANDS.md",
-    "keywords": [
-      "диалоги",
-      "агентом"
-    ],
-    "nav_order": 16
-  },
-  {
-    "id": "ru/max#команды-cli",
-    "lang": "ru",
-    "slug": "max",
-    "section": "команды-cli",
-    "title": "MAX — мессенджер",
-    "heading": "Команды CLI",
-    "body": "Команда Описание --------- ---------- Мастер: токен, allowlist, режим, Запуск бота (Long Polling — только dev/test) Токен, админ, карта пользователей, ожидающие заявки, подписки Привязки user → profile Список/одобрение/отклонение заявок Показать/сбросить администратора MAX Gateway + MAX webhook companion Health gateway + сводка MAX (env/admin/map) Management API: , , , . См. CLI.md.",
-    "keywords": [
-      "команды",
-      "cli"
-    ],
-    "nav_order": 16
-  },
-  {
-    "id": "ru/max#несколько-ботов-полная-изоляция",
-    "lang": "ru",
-    "slug": "max",
-    "section": "несколько-ботов-полная-изоляция",
-    "title": "MAX — мессенджер",
-    "heading": "Несколько ботов (полная изоляция)",
-    "body": "Разные люди → разные профили → разные боты: У каждого профиля свой , свой webhook URL и порт gateway.",
-    "keywords": [
-      "несколько",
-      "ботов",
-      "полная",
-      "изоляция"
-    ],
-    "nav_order": 16
-  },
-  {
-    "id": "ru/max#переменные-окружения",
-    "lang": "ru",
-    "slug": "max",
-    "section": "переменные-окружения",
-    "title": "MAX — мессенджер",
-    "heading": "Переменные окружения",
-    "body": "Переменная Обязательно Описание ------------ ------------- ---------- Да Токен бота с business.max.ru Prod Allowlist через запятую Нет Запросы доступа через (по умолчанию в setup) Нет Разрешить всех (только dev) Нет (prod) или (dev/test) Webhook Публичный HTTPS URL для событий Webhook Секрет для заголовка Нет Единственный администратор MAX Нет Профиль Helix host-бота \\ При ручной allowlist не обязателен. Токен передаётся в заголовке — query-параметры не поддерживаются API MAX.",
-    "keywords": [
-      "переменные",
-      "окружения"
-    ],
-    "nav_order": 16
-  },
-  {
-    "id": "ru/max#привязка-user-id-профиль-вручную",
-    "lang": "ru",
-    "slug": "max",
-    "section": "привязка-user-id-профиль-вручную",
-    "title": "MAX — мессенджер",
-    "heading": "Привязка user id → профиль (вручную)",
-    "body": "Файлы: , опционально в . Одно live-сообщение на задачу; slash-команды как в TUI; inline-подтверждения опасных инструментов. ---",
-    "keywords": [
-      "привязка",
-      "user",
-      "профиль",
-      "вручную"
-    ],
-    "nav_order": 16
-  },
-  {
-    "id": "ru/max#режимы-доставки-событий",
-    "lang": "ru",
-    "slug": "max",
-    "section": "режимы-доставки-событий",
-    "title": "MAX — мессенджер",
-    "heading": "Режимы доставки событий",
-    "body": "MAX поддерживает один режим одновременно: Режим Когда использовать Команда Helix ------- ------------------- --------------- Webhook Продакшен Long Polling Локальная разработка ```bash",
-    "keywords": [
-      "режимы",
-      "доставки",
-      "событий"
-    ],
-    "nav_order": 16
-  },
-  {
-    "id": "ru/max#решение-проблем",
-    "lang": "ru",
-    "slug": "max",
-    "section": "решение-проблем",
-    "title": "MAX — мессенджер",
-    "heading": "Решение проблем",
-    "body": "Симптом Решение --------- --------- от MAX API Проверьте ; перезапустите Нет событий webhook Проверьте HTTPS URL, , логи gateway Polling перестал работать после webhook Активен только один режим — сначала удалите подписку webhook Пользователь игнорируется Одобрите через или добавьте в allowlist Агент не отправляет файлы ; в чате MAX доступен Ошибки Снизьте частоту отправки; клиент Helix ограничивает ≤30 rps Запустите для проверки токена, webhook и allowlist.",
-    "keywords": [
-      "решение",
-      "проблем"
-    ],
-    "nav_order": 16
-  },
-  {
-    "id": "ru/max#см-также",
-    "lang": "ru",
-    "slug": "max",
-    "section": "см-также",
-    "title": "MAX — мессенджер",
-    "heading": "См. также",
-    "body": "- MAX MULTI PROFILE.md — один бот / несколько ботов, изоляция - TELEGRAM.md — параллельная интеграция с Telegram - GATEWAY.md — HTTP gateway и companions - SLASH COMMANDS.md — команды в чатах MAX",
-    "keywords": [
-      "также"
-    ],
-    "nav_order": 16
-  },
-  {
-    "id": "ru/max#файлы",
-    "lang": "ru",
-    "slug": "max",
-    "section": "файлы",
-    "title": "MAX — мессенджер",
-    "heading": "Файлы",
-    "body": "Отправка и приём вложений через . Извлечение текста из файлов — общий пайплайн с Telegram. В чате доступен инструмент .",
-    "keywords": [
-      "файлы"
-    ],
-    "nav_order": 16
-  },
-  {
-    "id": "ru/max#хранение-и-загрузка-токена",
-    "lang": "ru",
-    "slug": "max",
-    "section": "хранение-и-загрузка-токена",
-    "title": "MAX — мессенджер",
-    "heading": "Хранение и загрузка токена",
-    "body": "- Токен бота храните в . При шифровании профиля файл шифруется на диске (через общий , как у Telegram). - Канонические ключи — ; legacy поддерживаются при чтении и миграции. - Не оставляйте пустой в — это мешает подставить реальный токен из . В global ключ лучше не указывать; Holix возьмёт значение из профиля (в т.ч. расшифрованное при заданном ). - Gateway при старте вызывает после unlock профиля, чтобы зашифрованный токен был доступен до регистрации webhook.",
-    "keywords": [
-      "хранение",
-      "загрузка",
-      "токена"
-    ],
-    "nav_order": 16
-  },
-  {
-    "id": "ru/max#чеклист-для-продакшена",
-    "lang": "ru",
-    "slug": "max",
-    "section": "чеклист-для-продакшена",
-    "title": "MAX — мессенджер",
-    "heading": "Чеклист для продакшена",
-    "body": "1. Публичный HTTPS endpoint на порту 443 (reverse proxy → gateway) 2. и корректный 3. Allowlist или access requests; 4. Лимит MAX: 30 rps на См. DEPLOYMENT.md и SECURITY.md.",
-    "keywords": [
-      "чеклист",
-      "для",
-      "продакшена"
     ],
     "nav_order": 16
   },

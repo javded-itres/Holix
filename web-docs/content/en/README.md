@@ -25,8 +25,8 @@ Holix is a self-improving AI agent with memory, skills, tool calling, MCP, CLI, 
 - [GATEWAY.md](GATEWAY.md) — `holix gateway start|stop|status|reload`
 - [GATEWAY_API.md](GATEWAY_API.md) — **Complete API reference — every endpoint documented** (auth, `/api/holix/`, SaaS curl)
 - [TELEGRAM.md](TELEGRAM.md) — Telegram
-- [TELEGRAM_MULTI_PROFILE.md](TELEGRAM_MULTI_PROFILE.md) — one bot / multiple bots, access requests, manual `map`
 - [MAX.md](MAX.md) — MAX messenger
+- [TELEGRAM_MULTI_PROFILE.md](TELEGRAM_MULTI_PROFILE.md) — one bot / multiple bots, access requests, manual `map`
 - [MAX_MULTI_PROFILE.md](MAX_MULTI_PROFILE.md) — one bot / multiple MAX bots, access requests, `map`
 - [BROWSER_TOOLS.md](BROWSER_TOOLS.md) — Playwright `browser_*` tools
 

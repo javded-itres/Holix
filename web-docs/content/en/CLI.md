@@ -149,7 +149,7 @@ holix install
 holix install --extra telegram --extra browser
 holix install --system
 holix install --no-path
-holix install --repo /path/to/helix
+holix install --repo /path/to/Holix
 ```
 
 | Option | Description |
@@ -606,7 +606,7 @@ See also [TELEGRAM.md](TELEGRAM.md).
 
 ---
 
-## `helix max`
+## `holix max`
 
 Requires `uv sync --extra max` and `MAX_ACCESS_TOKEN`.
 
@@ -617,12 +617,12 @@ Requires `uv sync --extra max` and `MAX_ACCESS_TOKEN`.
 | `status` | `GET /me`, webhook subscriptions |
 
 ```bash
-helix max setup
-helix max
-helix max status
+holix max setup
+holix max
+holix max status
 ```
 
-Production: `helix gateway start` (webhook via `POST /subscriptions`).  
+Production: `holix gateway start` (webhook via `POST /subscriptions`).  
 See [MAX.md](MAX.md).
 
 ---

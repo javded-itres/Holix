@@ -403,7 +403,7 @@ holix -p shared gateway start
 
 ---
 
-## `helix max`
+## `holix max`
 
 Требует `uv sync --extra max` и `MAX_ACCESS_TOKEN`.
 
@@ -414,12 +414,12 @@ holix -p shared gateway start
 | `status` | `GET /me`, подписки webhook |
 
 ```bash
-helix max setup
-helix max
-helix max status
+holix max setup
+holix max
+holix max status
 ```
 
-Продакшен: `helix gateway start` (webhook через `POST /subscriptions`).  
+Продакшен: `holix gateway start` (webhook через `POST /subscriptions`).  
 См. [MAX.md](MAX.md).
 
 ---

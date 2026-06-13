@@ -24,14 +24,14 @@ Recommended pattern for full isolation:
 > **Different people → different profiles → different bots**
 
 ```bash
-helix -p alice max setup   # own token from business.max.ru
+holix -p alice max setup   # own token from business.max.ru
 holix -p bob max setup     # another token
 ```
 
 Each gateway starts **its own** bot and webhook:
 
 ```bash
-helix -p alice gateway start   # Alice bot + gateway :8001
+holix -p alice gateway start   # Alice bot + gateway :8001
 holix -p bob gateway start       # Bob bot + gateway :8002
 ```
 
@@ -67,14 +67,14 @@ holix profile create bob --protect   # optional: hp_… access key
 ### 2. Configure the bot in each profile
 
 ```bash
-helix -p alice max setup
+holix -p alice max setup
 holix -p bob max setup
 ```
 
 ### 3. Start gateways
 
 ```bash
-helix -p alice gateway start
+holix -p alice gateway start
 holix -p bob gateway start
 ```
 
@@ -87,20 +87,20 @@ Each user messages **their own** bot in MAX.
 One MAX token on host profile `shared`; each user gets **their own** Holix profile via access requests or `map`.
 
 ```bash
-helix -p shared max setup
+holix -p shared max setup
 HOLIX_ENV=production holix -p shared gateway start -f
 ```
 
 Flow:
 
 1. User sends `/start` in MAX
-2. Admin runs `helix -p shared max requests approve USER_ID --create-profile ivan`
+2. Admin runs `holix -p shared max requests approve USER_ID --create-profile ivan`
 3. User `ivan` messages the bot; the agent runs in `~/.holix/profiles/ivan/`
 
 Bindings live in `profiles/shared/max-users.json` and the Management API:
 
 ```bash
-helix -p shared max map list
+holix -p shared max map list
 curl -H "Authorization: Bearer hx_…" \
   http://127.0.0.1:8000/api/holix/profiles/shared/max/map
 ```
@@ -108,7 +108,7 @@ curl -H "Authorization: Bearer hx_…" \
 After changes:
 
 ```bash
-helix -p shared gateway reload
+holix -p shared gateway reload
 ```
 
 ### When to use a shared bot
@@ -124,7 +124,7 @@ helix -p shared gateway reload
 ## Security
 
 - Do not use `HOLIX_MAX_ALLOW_ALL=true` in production.
-- Assign **one** MAX admin: `helix max requests approve … --set-admin`.
+- Assign **one** MAX admin: `holix max requests approve … --set-admin`.
 - Use `--create-profile` and workspace jail for user data.
 - Encrypt `max.env` via [profile encryption](PROFILE_ENCRYPTION.md).
 - Set webhook secret (`HOLIX_MAX_WEBHOOK_SECRET`) on public endpoints.

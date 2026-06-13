@@ -253,14 +253,14 @@
         "heading": "Holix Gateway API — Complete Reference",
         "title": "Complete Holix Gateway API Reference — Every Endpoint",
         "description": "Full Holix Gateway API docs: 110+ endpoints for Hermes, chat, sessions, jobs, /api/holix/ management, admin, metrics, docs-chat. Auth, Swagger Authorize, curl examples.",
-        "keywords": "Holix Gateway API, complete API reference, Hermes API, Holix Management API, /api/helix, OpenAPI Swagger, Telegram admin API, REST API documentation"
+        "keywords": "Holix Gateway API, complete API reference, Hermes API, Holix Management API, /api/holix, OpenAPI Swagger, Telegram admin API, REST API documentation"
       },
       "ru": {
         "navTitle": "Полный справочник API",
         "heading": "Holix Gateway API — полный справочник",
         "title": "Полный справочник Holix Gateway API — все эндпоинты",
         "description": "Полное описание Holix Gateway API: 110+ эндпоинтов Hermes, chat, sessions, jobs, /api/holix/ management, admin, metrics, docs-chat. Аутентификация, Swagger Authorize, curl-примеры.",
-        "keywords": "Holix Gateway API, справочник API, Hermes API, Holix Management API, /api/helix, OpenAPI Swagger, Telegram admin API, REST API документация"
+        "keywords": "Holix Gateway API, справочник API, Hermes API, Holix Management API, /api/holix, OpenAPI Swagger, Telegram admin API, REST API документация"
       }
     },
     "telegram": {
@@ -279,6 +279,22 @@
         "keywords": "Holix Telegram, holix telegram setup, зашифрованный telegram.env, aiogram, Telegram бот AI, голосовые Whisper"
       }
     },
+    "max": {
+      "en": {
+        "navTitle": "MAX Messenger",
+        "heading": "MAX Messenger",
+        "title": "Holix MAX — Setup, Webhook & Multi-User Access",
+        "description": "Holix MAX messenger integration: holix max setup, encrypted max.env, gateway webhook, access requests, inline approvals, and file attachments.",
+        "keywords": "Holix MAX, holix max setup, MAX messenger bot, max.env, MAX webhook, Russian messenger AI, business.max.ru"
+      },
+      "ru": {
+        "navTitle": "MAX — мессенджер",
+        "heading": "MAX — мессенджер",
+        "title": "MAX-бот Holix — setup, webhook, мультипользовательский доступ",
+        "description": "Интеграция Holix с мессенджером MAX: holix max setup, max.env и шифрование, webhook через gateway, access requests, inline-подтверждения и файлы.",
+        "keywords": "Holix MAX, holix max setup, MAX мессенджер бот, max.env, webhook MAX, российский мессенджер AI, business.max.ru"
+      }
+    },
     "telegram-multi-profile": {
       "en": {
         "navTitle": "Telegram Multi-Profile",
@@ -295,36 +311,20 @@
         "keywords": "Holix Telegram профили, holix telegram map, изоляция профилей, общий бот"
       }
     },
-    "max": {
-      "en": {
-        "navTitle": "MAX Messenger",
-        "heading": "MAX Messenger",
-        "title": "Holix MAX — Setup, Webhook & Multi-User Access",
-        "description": "Holix MAX messenger integration: helix max setup, encrypted max.env, gateway webhook, access requests, inline approvals, and file attachments.",
-        "keywords": "Holix MAX, helix max setup, MAX messenger bot, max.env, MAX webhook, Russian messenger AI, business.max.ru"
-      },
-      "ru": {
-        "navTitle": "MAX — мессенджер",
-        "heading": "MAX — мессенджер",
-        "title": "MAX-бот Holix — setup, webhook, мультипользовательский доступ",
-        "description": "Интеграция Holix с мессенджером MAX: helix max setup, max.env и шифрование, webhook через gateway, access requests, inline-подтверждения и файлы.",
-        "keywords": "Holix MAX, helix max setup, MAX мессенджер бот, max.env, webhook MAX, российский мессенджер AI, business.max.ru"
-      }
-    },
     "max-multi-profile": {
       "en": {
         "navTitle": "MAX Multi-Profile",
         "heading": "MAX: Multiple Isolated Profiles",
         "title": "Holix MAX — One Bot, Multiple Isolated Profiles",
-        "description": "Run Holix on MAX for multiple users: one bot per profile or a shared bot with helix max map bindings, workspace jail, and Management API.",
-        "keywords": "Holix MAX profiles, helix max map, MAX profile isolation, shared MAX bot"
+        "description": "Run Holix on MAX for multiple users: one bot per profile or a shared bot with holix max map bindings, workspace jail, and Management API.",
+        "keywords": "Holix MAX profiles, holix max map, MAX profile isolation, shared MAX bot"
       },
       "ru": {
         "navTitle": "MAX: несколько профилей",
         "heading": "MAX: несколько изолированных профилей",
         "title": "MAX Holix — один бот, несколько изолированных профилей",
-        "description": "Как настроить Holix в MAX для нескольких пользователей: отдельный бот на профиль или один бот с helix max map — привязка user id, workspace jail и Management API.",
-        "keywords": "Holix MAX профили, helix max map, изоляция профилей MAX, общий бот MAX"
+        "description": "Как настроить Holix в MAX для нескольких пользователей: отдельный бот на профиль или один бот с holix max map — привязка user id, workspace jail и Management API.",
+        "keywords": "Holix MAX профили, holix max map, изоляция профилей MAX, общий бот MAX"
       }
     },
     "browser-tools": {
