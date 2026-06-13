@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import asyncio
 import json
-import time
 import uuid
 
 from core.gateway.runs_store import RunStatus
@@ -73,25 +72,20 @@ def _resolve_ctx(
 async def list_models(
     key_info: dict = Depends(verify_api_key),
     registry=Depends(get_registry),
+    x_holix_profile: str | None = Header(None),
+    x_hermes_profile: str | None = Header(None),
+    refresh: bool = False,
 ):
-    from cli.core import ProfileManager
+    from api.deps import _header_alias
+    from api.services.model_catalog import list_profile_models
 
-    profiles = ProfileManager().list_profiles() or [state.host_profile]
-    data = []
-    for name in profiles:
-        data.append({
-            "id": name,
-            "object": "model",
-            "created": int(time.time()),
-            "owned_by": "holix",
-        })
-    if not data:
-        data.append({
-            "id": state.host_profile,
-            "object": "model",
-            "created": int(time.time()),
-            "owned_by": "holix",
-        })
+    host = state.host_profile or "default"
+    profile = resolve_profile_name(
+        header_profile=_header_alias(x_holix_profile, x_hermes_profile),
+        model=None,
+        host_profile=host,
+    )
+    data = await list_profile_models(profile, refresh=refresh)
     return {"object": "list", "data": data}
 
 
