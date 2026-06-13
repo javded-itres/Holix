@@ -143,6 +143,16 @@ def approve_access_request(
     if set_admin and not manager.profile_exists(target_profile):
         manager.create_profile(target_profile, inherit_global=True)
 
+    if set_admin:
+        from core.profile_admin_seed import copy_profile_settings_from_source
+
+        if manager.profile_exists("default"):
+            copy_profile_settings_from_source(
+                manager,
+                source_profile="default",
+                target_profile=target_profile,
+            )
+
     access_key, key_already_set = _prepare_profile_for_user(
         manager,
         target_profile,

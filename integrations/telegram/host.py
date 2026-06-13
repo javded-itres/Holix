@@ -339,6 +339,14 @@ class TelegramHost:
             preview = (e["full_result"] or "").split("\n")[0][:60]
             self.transcript_write(f"{i}. {e['name']} — {preview}")
 
+    def _mcp_management_allowed(self) -> bool:
+        from integrations.telegram.command_access import is_mcp_management_allowed
+
+        return is_mcp_management_allowed(
+            self._session.bot_profile,
+            self._session.user_id,
+        )
+
     async def _mcp_list(self) -> None:
         """List MCP servers from current profile config."""
         try:
@@ -362,6 +370,9 @@ class TelegramHost:
 
     async def _mcp_install(self, what: str = "") -> None:
         """Install popular or from git. For interactive use Telegram menus or CLI."""
+        if not self._mcp_management_allowed():
+            await self._send_html(t("tg.mcp_read_only", host_locale(self)))
+            return
         if not what:
             self.transcript_write("Usage: /mcp install <popular-key|git-url>\nPopular: context7, filesystem, github, ... \nOr use the /mcp menu buttons.")
             return
@@ -442,6 +453,9 @@ class TelegramHost:
 
     async def _mcp_assign(self, rest: str = "") -> None:
         """Basic assign: /mcp assign server main,researcher"""
+        if not self._mcp_management_allowed():
+            await self._send_html(t("tg.mcp_read_only", host_locale(self)))
+            return
         if not rest:
             self.transcript_write("Usage: /mcp assign <server-name> <role1,role2>\nExample: /mcp assign context7 main")
             return
@@ -475,6 +489,9 @@ class TelegramHost:
             self.transcript_write(f"Assign error: {e}")
 
     async def _mcp_test(self, name: str = "") -> None:
+        if not self._mcp_management_allowed():
+            await self._send_html(t("tg.mcp_read_only", host_locale(self)))
+            return
         if not name:
             self.transcript_write("Usage: /mcp test <server-name>")
             return
@@ -511,6 +528,9 @@ class TelegramHost:
             self.transcript_write(f"Error listing MCP tools: {e}")
 
     async def _mcp_remove(self, name: str = "") -> None:
+        if not self._mcp_management_allowed():
+            await self._send_html(t("tg.mcp_read_only", host_locale(self)))
+            return
         if not name:
             self.transcript_write("Usage: /mcp remove <server-name>")
             return
@@ -638,6 +658,10 @@ class TelegramHost:
         if not self.agent:
             await self._send_plain("agent not ready")
             return
+        async with self._session.run_lock:
+            await self._run_agent_locked(user_input)
+
+    async def _run_agent_locked(self, user_input: str) -> None:
         from core.session_models import ensure_session_model
 
         ensure_session_model(self)

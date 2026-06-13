@@ -21,6 +21,15 @@ from integrations.telegram.session import ChatSession
 from integrations.telegram.user_profiles import resolve_user_profile
 
 
+def _seed_admin_profile_background() -> None:
+    try:
+        from core.profile_admin_seed import ensure_admin_profile_from_default
+
+        ensure_admin_profile_from_default()
+    except Exception:
+        pass
+
+
 class HolixTelegramBot:
     def __init__(self, settings: TelegramSettings | None = None, *, profile: str = "default") -> None:
         self.settings = settings or load_telegram_settings(profile)
@@ -107,13 +116,19 @@ class HolixTelegramBot:
         except Exception:
             pass
 
-    async def _ensure_authorized_menu(self, bot: Any, chat_id: int) -> None:
+    async def _ensure_authorized_menu(self, bot: Any, chat_id: int, user_id: int) -> None:
         if self.settings.allow_all or chat_id in self._menu_enabled_chats:
             return
         from core.i18n import LocaleStore
 
         locale = LocaleStore(self.settings.profile).get()
-        await enable_chat_menu(bot, chat_id, locale=locale)
+        await enable_chat_menu(
+            bot,
+            chat_id,
+            locale=locale,
+            bot_profile=self.settings.profile,
+            user_id=user_id,
+        )
         self._menu_enabled_chats.add(chat_id)
 
     def _default_profile_for_user(self, user_id: int) -> str:
@@ -134,6 +149,8 @@ class HolixTelegramBot:
         session.pending_plan_review_id = None
         session.pending_confirmation_message_id = None
         session.pending_plan_message_ids.clear()
+        session.approval_callback_tokens.clear()
+        session.plan_callback_tokens.clear()
         session._recent_tool_results.clear()
         session._memory_search_query = ""
         session._memory_search_results.clear()
@@ -383,8 +400,14 @@ class HolixTelegramBot:
 
         @dp.startup()
         async def _on_startup() -> None:
+            import asyncio
+
             from core.i18n import LocaleStore
 
+            asyncio.create_task(
+                asyncio.to_thread(_seed_admin_profile_background),
+                name="tg-admin-profile-seed",
+            )
             locale = LocaleStore(settings.profile).get()
             registered = await register_bot_commands(
                 bot,
@@ -409,8 +432,14 @@ class HolixTelegramBot:
             if not self._allowed(message.from_user.id):
                 await self._handle_unauthorized(bot, message, is_start=True)
                 return
-            await self._ensure_authorized_menu(bot, message.chat.id)
-            await message.answer(help_message_html(), parse_mode="HTML")
+            await self._ensure_authorized_menu(bot, message.chat.id, message.from_user.id)
+            await message.answer(
+                help_message_html(
+                    bot_profile=settings.profile,
+                    user_id=message.from_user.id,
+                ),
+                parse_mode="HTML",
+            )
 
         @dp.message(Command(*menu_commands))
         async def on_menu_command(message: Message) -> None:
@@ -419,7 +448,20 @@ class HolixTelegramBot:
             if not self._allowed(message.from_user.id):
                 await self._handle_unauthorized(bot, message)
                 return
-            await self._ensure_authorized_menu(bot, message.chat.id)
+            from core.i18n import LocaleStore, t
+
+            from integrations.telegram.command_access import is_command_allowed
+            from integrations.telegram.markdown import escape_html
+
+            cmd_token = message.text.strip().split()[0].lstrip("/").lower()
+            if not is_command_allowed(cmd_token, settings.profile, message.from_user.id):
+                lang = LocaleStore(settings.profile).get()
+                await message.answer(
+                    escape_html(t("tg.menu_unavailable", lang)),
+                    parse_mode="HTML",
+                )
+                return
+            await self._ensure_authorized_menu(bot, message.chat.id, message.from_user.id)
             session = await self._get_session(message.chat.id, message.from_user.id)
             host = TelegramHost(bot, session, edit_interval_ms=settings.edit_interval_ms)
             await host.handle_user_text(message.text.strip())
@@ -431,7 +473,7 @@ class HolixTelegramBot:
             if not self._allowed(message.from_user.id):
                 await self._handle_unauthorized(bot, message)
                 return
-            await self._ensure_authorized_menu(bot, message.chat.id)
+            await self._ensure_authorized_menu(bot, message.chat.id, message.from_user.id)
             if message.text.strip().startswith("/"):
                 return
             if await self._flush_pending_files(
@@ -537,7 +579,10 @@ class HolixTelegramBot:
                 await approvals.dismiss_confirmation_ui()
                 await query.answer("Applied.")
             else:
-                await query.answer("Failed or expired.", show_alert=True)
+                await query.answer(
+                    "Could not apply. Tap the latest confirmation message or send /yes.",
+                    show_alert=True,
+                )
 
         @dp.callback_query(F.data.startswith("mcp:"))
         async def on_mcp_cb(query: CallbackQuery) -> None:
@@ -619,7 +664,10 @@ class HolixTelegramBot:
                 await approvals.dismiss_plan_review_ui()
                 await query.answer("Plan updated.")
             else:
-                await query.answer("Failed or expired.", show_alert=True)
+                await query.answer(
+                    "Could not apply. Use the latest plan message or reply in chat.",
+                    show_alert=True,
+                )
 
         self._bot = bot
         self._dp = dp

@@ -158,6 +158,8 @@ async def _run_supervisor_async(
         companions.append("telegram (disabled)")
     print_info(f"Companion services: {', '.join(companions)}")
 
+    os.environ["HOLIX_GATEWAY_SUPERVISOR"] = "1"
+
     docs_proc = (
         _docs_subprocess(
             docs_host,
