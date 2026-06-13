@@ -1,40 +1,51 @@
-"""Telegram access requests — users apply via /start, admins approve in Telegram or CLI."""
+"""MAX access requests — users apply via /start, admins approve in MAX or CLI."""
 
 from __future__ import annotations
 
 from integrations.messenger.access_requests import (
-    STATUS_APPROVED,
-    STATUS_PENDING,
-    STATUS_REJECTED,
     MessengerAccessRequest,
+)
+from integrations.messenger.access_requests import (
     access_requests_path as _access_requests_path,
+)
+from integrations.messenger.access_requests import (
     get_access_request as _get_access_request,
+)
+from integrations.messenger.access_requests import (
     list_pending_requests as _list_pending_requests,
+)
+from integrations.messenger.access_requests import (
     load_access_requests as _load_access_requests,
+)
+from integrations.messenger.access_requests import (
     register_access_request as _register_access_request,
+)
+from integrations.messenger.access_requests import (
     reject_access_request as _reject_access_request,
+)
+from integrations.messenger.access_requests import (
     resolve_access_request as _resolve_access_request,
 )
-from integrations.messenger.platforms import TELEGRAM_PLATFORM
+from integrations.messenger.platforms import MAX_PLATFORM
 
-_PLATFORM = TELEGRAM_PLATFORM
+_PLATFORM = MAX_PLATFORM
 ACCESS_REQUESTS_FILE = _PLATFORM.access_requests_filename
-TelegramAccessRequest = MessengerAccessRequest
+MaxAccessRequest = MessengerAccessRequest
 
 
 def access_requests_path(bot_profile: str):
     return _access_requests_path(_PLATFORM, bot_profile)
 
 
-def load_access_requests(bot_profile: str) -> dict[int, TelegramAccessRequest]:
+def load_access_requests(bot_profile: str) -> dict[int, MaxAccessRequest]:
     return _load_access_requests(_PLATFORM, bot_profile)
 
 
-def list_pending_requests(bot_profile: str) -> list[TelegramAccessRequest]:
+def list_pending_requests(bot_profile: str) -> list[MaxAccessRequest]:
     return _list_pending_requests(_PLATFORM, bot_profile)
 
 
-def get_access_request(bot_profile: str, user_id: int) -> TelegramAccessRequest | None:
+def get_access_request(bot_profile: str, user_id: int) -> MaxAccessRequest | None:
     return _get_access_request(_PLATFORM, bot_profile, user_id)
 
 
@@ -45,7 +56,7 @@ def register_access_request(
     username: str | None = None,
     first_name: str | None = None,
     last_name: str | None = None,
-) -> tuple[TelegramAccessRequest, bool]:
+) -> tuple[MaxAccessRequest, bool]:
     return _register_access_request(
         _PLATFORM,
         bot_profile,
@@ -62,7 +73,7 @@ def resolve_access_request(
     *,
     status: str,
     holix_profile: str | None = None,
-) -> TelegramAccessRequest | None:
+) -> MaxAccessRequest | None:
     return _resolve_access_request(
         _PLATFORM,
         bot_profile,
@@ -72,5 +83,5 @@ def resolve_access_request(
     )
 
 
-def reject_access_request(bot_profile: str, user_id: int) -> TelegramAccessRequest | None:
+def reject_access_request(bot_profile: str, user_id: int) -> MaxAccessRequest | None:
     return _reject_access_request(_PLATFORM, bot_profile, user_id)

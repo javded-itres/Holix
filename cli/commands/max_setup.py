@@ -11,7 +11,6 @@ from rich.prompt import Confirm, Prompt
 from cli.core import ProfileManager
 from cli.utils.rich_console import console, print_error, print_info, print_success, print_warning
 from integrations.max.env_store import (
-    MAX_ENV_PATH,
     apply_to_environ,
     load_max_env_files,
     mask_token,
@@ -35,12 +34,13 @@ async def run_max_setup(
             "[bold cyan]MAX — подключение бота[/bold cyan]\n\n"
             "1. [business.max.ru](https://business.max.ru/self) → Чат-боты → Интеграция → токен\n"
             "2. Узнайте user id (авто-определение ниже или вручную)\n"
-            "3. Настройки сохраняются в [dim]~/.helix/max.env[/dim]",
+            "3. Настройки сохраняются в [dim]~/.holix/profiles/PROFILE/max.env[/dim]",
             border_style="cyan",
         )
     )
 
-    existing = read_max_env_values()
+    profile_name = (profile or "default").strip() or "default"
+    existing = read_max_env_values(profile_name)
     default_token = existing.get("MAX_ACCESS_TOKEN", "")
     if default_token and Confirm.ask("Использовать сохранённый токен?", default=True):
         token = default_token
@@ -65,7 +65,10 @@ async def run_max_setup(
     username = me.get("username") or me.get("name") or "bot"
     print_success(f"Бот подключён: @{username} (user_id={me.get('user_id')})")
 
-    allowed_default = existing.get("HELIX_MAX_ALLOWED_USERS", "")
+    allowed_default = existing.get(
+        "HOLIX_MAX_ALLOWED_USERS",
+        existing.get("HELIX_MAX_ALLOWED_USERS", ""),
+    )
     allowed = Prompt.ask(
         "Ваш MAX user id (число, можно несколько через запятую)",
         default=allowed_default,
@@ -95,11 +98,17 @@ async def run_max_setup(
             profile = profiles[0]
         else:
             console.print("[dim]Профили Helix:[/dim] " + ", ".join(profiles))
-            profile = Prompt.ask("Профиль Helix для бота", default=existing.get("HELIX_MAX_PROFILE", "default"))
+            profile = Prompt.ask(
+                "Профиль Holix для бота",
+                default=existing.get(
+                    "HOLIX_MAX_PROFILE",
+                    existing.get("HELIX_MAX_PROFILE", "default"),
+                ),
+            )
     if profile not in profiles:
         print_warning(f"Профиль '{profile}' не найден — будет создан при первом запуске.")
 
-    mode_default = existing.get("HELIX_MAX_MODE", "polling")
+    mode_default = existing.get("HOLIX_MAX_MODE", existing.get("HELIX_MAX_MODE", "polling"))
     mode = Prompt.ask("Режим (polling / webhook)", default=mode_default).strip().lower()
     if mode not in {"polling", "webhook"}:
         print_error("Режим должен быть polling или webhook.")
@@ -107,21 +116,28 @@ async def run_max_setup(
 
     values: dict[str, str] = {
         "MAX_ACCESS_TOKEN": token,
-        "HELIX_MAX_ALLOWED_USERS": allowed.replace(" ", ""),
-        "HELIX_MAX_PROFILE": profile,
-        "HELIX_MAX_MODE": mode,
+        "HOLIX_MAX_ALLOWED_USERS": allowed.replace(" ", ""),
+        "HOLIX_MAX_PROFILE": profile,
+        "HOLIX_MAX_MODE": mode,
+        "HOLIX_MAX_ACCESS_REQUESTS": "true",
     }
     if mode == "webhook":
-        webhook_url = existing.get("HELIX_MAX_WEBHOOK_URL", "")
+        webhook_url = existing.get(
+            "HOLIX_MAX_WEBHOOK_URL",
+            existing.get("HELIX_MAX_WEBHOOK_URL", ""),
+        )
         webhook_url = Prompt.ask("Webhook URL (HTTPS)", default=webhook_url).strip()
         if webhook_url:
-            values["HELIX_MAX_WEBHOOK_URL"] = webhook_url
-        secret = existing.get("HELIX_MAX_WEBHOOK_SECRET", "")
+            values["HOLIX_MAX_WEBHOOK_URL"] = webhook_url
+        secret = existing.get(
+            "HOLIX_MAX_WEBHOOK_SECRET",
+            existing.get("HELIX_MAX_WEBHOOK_SECRET", ""),
+        )
         secret = Prompt.ask("Webhook secret (X-Max-Bot-Api-Secret)", default=secret).strip()
         if secret:
-            values["HELIX_MAX_WEBHOOK_SECRET"] = secret
+            values["HOLIX_MAX_WEBHOOK_SECRET"] = secret
 
-    path = save_max_env(values)
+    path = save_max_env(values, profile=profile)
     print_success(f"Сохранено: {path}")
 
     if also_project_env or Confirm.ask("Также записать в .env текущего проекта?", default=False):
@@ -130,7 +146,7 @@ async def run_max_setup(
         print_success(f"Обновлено: {proj_env.resolve()}")
 
     apply_to_environ(values)
-    load_max_env_files()
+    load_max_env_files(profile)
 
     console.print()
     console.print(
@@ -139,7 +155,7 @@ async def run_max_setup(
             f"[cyan]Allowlist:[/cyan] {allowed}\n"
             f"[cyan]Профиль:[/cyan] {profile}\n"
             f"[cyan]Режим:[/cyan] {mode}\n"
-            f"[cyan]Файл:[/cyan] {MAX_ENV_PATH}",
+            f"[cyan]Файл:[/cyan] {path}",
             title="Готово",
             border_style="green",
         )
@@ -178,12 +194,13 @@ async def _fetch_subscription_lines(token: str) -> list[str]:
     return out
 
 
-def show_max_status() -> None:
-    load_max_env_files()
+def show_max_status(profile: str = "default") -> None:
+    load_max_env_files(profile)
     from integrations.max.config import load_max_settings
+    from integrations.max.env_store import max_env_path
 
-    settings = load_max_settings()
-    path = MAX_ENV_PATH if MAX_ENV_PATH.is_file() else None
+    settings = load_max_settings(profile)
+    path = max_env_path(profile) if max_env_path(profile).is_file() else None
     console.print()
     if not settings.access_token.strip():
         print_warning("MAX не настроен. Запустите: helix max setup")
