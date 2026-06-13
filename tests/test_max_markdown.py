@@ -54,7 +54,7 @@ def test_looks_like_markdown() -> None:
     assert looks_like_markdown("**Жирный** текст")
     assert looks_like_markdown("- пункт списка")
     assert not looks_like_markdown("Простой ответ без разметки")
-    assert not looks_like_markdown("⏳ Helix обрабатывает запрос…")
+    assert not looks_like_markdown("⏳ Holix обрабатывает запрос…")
 
 
 def test_escape_html() -> None:

@@ -94,6 +94,24 @@ async def test_progress_snapshot_edits_live_message() -> None:
 
 
 @pytest.mark.asyncio
+async def test_finish_reports_agent_error_message() -> None:
+    client = MagicMock()
+    client.send_message = AsyncMock(return_value={"message": {"body": {"mid": "m1"}}})
+    session = MaxChatSession(user_id=1, profile="default", conversation_id="max_default_1")
+    session.bump_live_buffer()
+    session.live_buffer.mark_error("LLM connection refused")
+
+    presenter = MaxLivePresenter(client, session, heartbeat_interval_s=60)
+    await presenter.finish()
+
+    assert client.send_message.await_count == 1
+    sent = client.send_message.await_args_list[0].args[0]
+    assert "LLM connection refused" in sent
+    assert "unknown error" not in sent.lower()
+    assert presenter.final_delivered is True
+
+
+@pytest.mark.asyncio
 async def test_finish_skips_placeholder_when_no_final_content() -> None:
     client = MagicMock()
     client.edit_message = AsyncMock()

@@ -35,7 +35,7 @@ def buffer_to_max_html(buf: LiveTranscriptBuffer) -> str:
 
     parts: list[str] = [
         (
-            f"<b>🤖 Helix</b> · {escape_html(buf.profile)} · "
+            f"<b>🤖 Holix</b> · {escape_html(buf.profile)} · "
             f"{escape_html(buf.mode)} · {escape_html(buf.session_label)}"
         ),
     ]
@@ -98,7 +98,7 @@ def buffer_to_max_text(buf: LiveTranscriptBuffer) -> str:
         return truncate_max_text(f"{answer}{footer}")
 
     parts: list[str] = [
-        f"**🤖 Helix** · {buf.profile} · {buf.mode} · {buf.session_label}",
+        f"**🤖 Holix** · {buf.profile} · {buf.mode} · {buf.session_label}",
     ]
     if buf.thinking:
         parts.append(f"_💭 {buf.thinking}_")
@@ -129,10 +129,10 @@ def buffer_to_max_plain(buf: LiveTranscriptBuffer) -> str:
     show_tools = bool(buf.tool_lines) and not done
 
     if done and answer and not show_tools and not buf.thinking and not buf.notes:
-        return truncate_max_text(f"{answer}\n\n— Helix · {buf.profile} · {buf.mode}")
+        return truncate_max_text(f"{answer}\n\n— Holix · {buf.profile} · {buf.mode}")
 
     parts: list[str] = [
-        f"Helix · {buf.profile} · {buf.mode} · {buf.session_label}",
+        f"Holix · {buf.profile} · {buf.mode} · {buf.session_label}",
     ]
     if buf.thinking:
         parts.append(f"… {buf.thinking}")
@@ -146,7 +146,7 @@ def buffer_to_max_plain(buf: LiveTranscriptBuffer) -> str:
     if running and not answer and not buf.tool_lines:
         parts.append("⏳ Working…")
     elif done and answer:
-        parts.append(f"— Helix · {buf.profile} · {buf.mode}")
+        parts.append(f"— Holix · {buf.profile} · {buf.mode}")
     elif buf.status == "error":
         parts.append("✗ Error")
 

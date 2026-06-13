@@ -100,7 +100,7 @@ class MaxLivePresenter:
         self._progress_message_id = None
         self._outbound_queue = asyncio.Queue()
         self._outbound_worker = asyncio.create_task(self._outbound_worker_loop())
-        payload = await self._send_outbound("⏳ Helix обрабатывает запрос…")
+        payload = await self._send_outbound("⏳ Holix обрабатывает запрос…")
         self._progress_message_id = message_id_from_response(payload)
         self.session.live_message_id = self._progress_message_id
         logger.info(
@@ -127,7 +127,7 @@ class MaxLivePresenter:
                 if buf is None or buf.status != "running":
                     break
                 elapsed = int(time.monotonic() - self._started_at)
-                await self._send_outbound(f"⏳ Helix всё ещё работает… ({elapsed}s)")
+                await self._send_outbound(f"⏳ Holix всё ещё работает… ({elapsed}s)")
         except asyncio.CancelledError:
             pass
 
@@ -339,12 +339,25 @@ class MaxLivePresenter:
         )
         buf = self._buffer
         if buf is not None and buf.status == "error":
-            err = (buf.answer or "unknown error").strip()
+            err = self._error_message(buf)
             try:
-                await self.send_notice(f"✗ Error: {err}")
+                await self.send_notice(f"✗ Ошибка: {err}")
                 self._final_delivered = True
             except Exception:
                 logger.exception("MAX error notice failed")
+
+    @staticmethod
+    def _error_message(buf) -> str:
+        answer = (buf.answer or "").strip()
+        if answer:
+            return answer
+        for note in reversed(buf.notes):
+            text = (note or "").strip()
+            if text.lower().startswith("error:"):
+                return text.split(":", 1)[1].strip() or "неизвестная ошибка"
+        if buf.notes:
+            return str(buf.notes[-1]).strip()
+        return "неизвестная ошибка"
 
     async def finish(self) -> None:
         logger.info(

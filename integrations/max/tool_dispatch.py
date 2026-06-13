@@ -270,7 +270,7 @@ async def _synthesize_analysis(
         evidence = evidence[:11800] + "\n…"
 
     system = (
-        "You are Helix, a research analyst. Use ONLY the web search evidence below. "
+        "You are Holix, a research analyst. Use ONLY the web search evidence below. "
         "Respond in Russian with a structured Markdown analysis: section titles in **bold**, "
         "bullet lists with -, key terms in **bold**. Cover key findings, pros/cons, risks, "
         "and a clear recommendation. Do NOT output only a list of links — synthesize insights. "

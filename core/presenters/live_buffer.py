@@ -88,7 +88,9 @@ class LiveTranscriptBuffer:
     def mark_error(self, message: str) -> None:
         self.status = "error"
         self.thinking = None
-        self.notes.append(f"Error: {message}")
+        msg = (message or "unknown error").strip()
+        self.answer = msg[: self.max_answer_chars]
+        self.notes.append(f"Error: {msg}")
 
     def _trim_tools(self) -> None:
         if len(self.tool_lines) > self.max_tool_lines:

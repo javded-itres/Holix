@@ -671,7 +671,7 @@ class MaxInteractive:
 
         headline, rows = profile_model_summary(self._host.profile)
         lines = [
-            "**Helix — статус**",
+            "**Holix — статус**",
             f"Профиль: `{self._host.profile}`",
             f"Модель: `{model_line}`",
             f"Режим: `{mode}` ({mode_title})",

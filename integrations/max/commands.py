@@ -73,7 +73,7 @@ def help_message_markdown(
     else:
         specs = command_specs(locale)
     lines = [
-        "**Helix в MAX**",
+        "**Holix в MAX**",
         "",
         "Пишите задачи обычным текстом — агент использует инструменты, память и навыки.",
         "",
