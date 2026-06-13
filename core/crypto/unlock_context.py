@@ -63,35 +63,37 @@ def clear_profile_session_unlock(profile: str | None = None) -> None:
 
 
 def clear_profile_unlock(profile: str | None = None) -> None:
-    targets = [profile] if profile else list(_session_deks.keys())
-    for name in targets:
-        if not name:
-            continue
-        dek = _session_deks.get(name)
-        if dek is not None:
-            try:
-                from core.crypto.memory_vault import seal_profile_memory
-
-                seal_profile_memory(name, dek)
-            except OSError as exc:
-                import logging
-
-                logging.getLogger(__name__).warning(
-                    "Failed to seal memory for profile '%s': %s", name, exc
-                )
+    if profile:
+        release_profile_session_unlock(profile)
+        return
+    for name in list(_session_deks.keys()):
+        release_profile_session_unlock(name)
     _profile_dek.set(None)
     _unlocked_profile.set(None)
-    if profile:
-        from core.crypto.memory_vault import clear_profile_memory_cache
 
-        clear_profile_memory_cache(profile)
-        clear_profile_session_unlock(profile)
-    else:
-        from core.crypto.memory_vault import clear_profile_memory_cache
 
-        for name in list(_session_deks.keys()):
-            clear_profile_memory_cache(name)
-        clear_profile_session_unlock()
+def release_profile_session_unlock(profile: str) -> None:
+    """Seal memory and clear one profile's session DEK without disturbing others."""
+    name = profile.strip()
+    dek = _session_deks.get(name)
+    if dek is not None:
+        try:
+            from core.crypto.memory_vault import seal_profile_memory
+
+            seal_profile_memory(name, dek)
+        except OSError as exc:
+            import logging
+
+            logging.getLogger(__name__).warning(
+                "Failed to seal memory for profile '%s': %s", name, exc
+            )
+    from core.crypto.memory_vault import clear_profile_memory_cache
+
+    clear_profile_memory_cache(name)
+    clear_profile_session_unlock(name)
+    if _unlocked_profile.get() == name:
+        _profile_dek.set(None)
+        _unlocked_profile.set(None)
 
 
 def bootstrap_profile_unlock_from_env(profile: str) -> bool:
@@ -99,10 +101,17 @@ def bootstrap_profile_unlock_from_env(profile: str) -> bool:
     key = os.getenv("HOLIX_UNLOCK_KEY", "").strip()
     if not key:
         return False
-    from core.crypto.profile_crypto import is_profile_encryption_enabled, unlock_profile_dek
+    from core.crypto.profile_crypto import (
+        ProfileCryptoError,
+        is_profile_encryption_enabled,
+        unlock_profile_dek,
+    )
 
     if not is_profile_encryption_enabled(profile):
         return False
-    dek = unlock_profile_dek(profile, key)
+    try:
+        dek = unlock_profile_dek(profile, key)
+    except ProfileCryptoError:
+        return False
     set_profile_session_unlock(profile, dek)
     return True

@@ -74,11 +74,15 @@ class ProfileAgentRegistry:
         from cli.core import init_profile
 
         from core.agent_events import create_compatibility_print_handler
+        from core.crypto.gateway_crypto import require_gateway_profile_unlock
         from core.di.container import create_agent, resolve_runtime_config
         from core.env_loader import bootstrap_profile_env
+        from core.paths import ensure_profile_memory_dirs
 
         bootstrap_profile_env(profile)
-        runtime = resolve_runtime_config(init_profile(profile))
+        require_gateway_profile_unlock(profile)
+        ensure_profile_memory_dirs(profile)
+        runtime = resolve_runtime_config(init_profile(profile, prompt_key=False))
         compat = create_compatibility_print_handler()
         agent, container = await create_agent(
             runtime,
@@ -88,7 +92,10 @@ class ProfileAgentRegistry:
         return ProfileEntry(profile=profile, agent=agent, container=container)
 
     async def _dispose_entry(self, entry: ProfileEntry) -> None:
+        from core.crypto.gateway_crypto import release_gateway_profile_unlock
+
         try:
             await entry.container.close()
         except Exception:
             pass
+        release_gateway_profile_unlock(entry.profile)
