@@ -211,3 +211,23 @@ def reject_access_request(
         user_id,
         status=STATUS_REJECTED,
     )
+
+
+def delete_access_request(
+    platform: MessengerPlatform,
+    bot_profile: str,
+    user_id: int,
+) -> bool:
+    """Remove access-request record so the user can apply again via /start."""
+    data = _load_raw(platform, bot_profile)
+    key = str(int(user_id))
+    if key not in data:
+        return False
+    del data[key]
+    if data:
+        _save_raw(platform, bot_profile, data)
+    else:
+        path = access_requests_path(platform, bot_profile)
+        if path.is_file():
+            path.unlink()
+    return True

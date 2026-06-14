@@ -36,6 +36,7 @@ def holix_client(monkeypatch: pytest.MonkeyPatch) -> TestClient:
     mock_companions.status = MagicMock(return_value={"telegram": "stopped", "cron": "stopped"})
     mock_companions.stop_cron = AsyncMock()
     mock_companions.stop_telegram = AsyncMock()
+    mock_companions.stop_max = AsyncMock()
     mock_companions.reload = AsyncMock(return_value={"telegram": "started", "cron": "started"})
 
     mock_registry = MagicMock()
@@ -103,7 +104,11 @@ def test_profile_reload(
     ProfileManager().create_profile("reload-me")
     monkeypatch.setattr(
         "cli.services.gateway_companions.reload_os_companions",
-        lambda _profile: {"docs": "not_configured", "telegram_subprocess": "in_process"},
+            lambda _profile: {
+                "docs": "not_configured",
+                "telegram_subprocess": "in_process",
+                "max_subprocess": "in_process",
+            },
     )
 
     response = holix_client.post(

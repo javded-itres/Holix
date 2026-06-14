@@ -8,6 +8,9 @@ import time
 from collections.abc import Coroutine
 from typing import TYPE_CHECKING, Any
 
+from core.i18n.live_ui import live_processing_label, live_still_working_label
+from core.presenters.final_content import is_placeholder_final
+
 from integrations.max.client import MaxApiError
 from integrations.max.markdown import (
     plain_to_max_html,
@@ -100,7 +103,9 @@ class MaxLivePresenter:
         self._progress_message_id = None
         self._outbound_queue = asyncio.Queue()
         self._outbound_worker = asyncio.create_task(self._outbound_worker_loop())
-        payload = await self._send_outbound("⏳ Holix обрабатывает запрос…")
+        payload = await self._send_outbound(
+            f"⏳ {live_processing_label(self.session.profile)}"
+        )
         self._progress_message_id = message_id_from_response(payload)
         self.session.live_message_id = self._progress_message_id
         logger.info(
@@ -127,7 +132,13 @@ class MaxLivePresenter:
                 if buf is None or buf.status != "running":
                     break
                 elapsed = int(time.monotonic() - self._started_at)
-                await self._send_outbound(f"⏳ Holix всё ещё работает… ({elapsed}s)")
+                thinking = (buf.thinking or "").strip()
+                if thinking and thinking.lower() not in {"thinking…", "thinking..."}:
+                    await self._send_outbound(f"⏳ {thinking} ({elapsed}s)")
+                else:
+                    await self._send_outbound(
+                        f"⏳ {live_still_working_label(self.session.profile)} ({elapsed}s)"
+                    )
         except asyncio.CancelledError:
             pass
 
@@ -231,7 +242,7 @@ class MaxLivePresenter:
 
     def note_final_content(self, content: str) -> None:
         text = (content or "").strip()
-        if text:
+        if text and not is_placeholder_final(text):
             self._final_content = text
             logger.info("MAX final answer noted (%d chars)", len(text))
 
@@ -306,13 +317,13 @@ class MaxLivePresenter:
         return False
 
     def _content_for_final_delivery(self) -> str:
-        if self._final_content:
+        if self._final_content and not is_placeholder_final(self._final_content):
             return self._final_content
         buf = self._buffer
         if buf is None or buf.status != "done":
             return ""
         answer = (buf.answer or "").strip()
-        if answer in {"", "✓ Done — full answer below."}:
+        if answer in {"", "✓ Done — full answer below."} or is_placeholder_final(answer):
             return ""
         return answer
 
@@ -345,6 +356,17 @@ class MaxLivePresenter:
                 self._final_delivered = True
             except Exception:
                 logger.exception("MAX error notice failed")
+            return
+        if buf is not None and buf.status == "running":
+            buf.mark_error("агент завершился без ответа")
+            try:
+                await self.send_notice(
+                    "✗ Агент завершился без ответа. "
+                    "Проверьте модель (/models) или повторите запрос."
+                )
+                self._final_delivered = True
+            except Exception:
+                logger.exception("MAX incomplete-run notice failed")
 
     @staticmethod
     def _error_message(buf) -> str:

@@ -388,6 +388,7 @@ class SubAgentWaveCompletedEvent(AgentEvent):
     total_waves: int = 0
     completed: int = 0
     total: int = 0
+    summary: str = ""
 
     def __post_init__(self):
         super().__post_init__()
@@ -399,6 +400,7 @@ class SubAgentWaveCompletedEvent(AgentEvent):
             "total_waves": self.total_waves,
             "completed": self.completed,
             "total": self.total,
+            "summary": self.summary,
         }
 
 

@@ -27,10 +27,11 @@ def project_env_path() -> Path:
 
 def profile_dir_path(profile: str | None = None) -> Path:
     """Return ``{HOLIX_HOME}/profiles/<profile>`` (honours HOLIX_HOME at call time)."""
-    from cli.core import profiles_dir
+    from core.profile.names import profile_dir_for_name
 
-    name = (profile or active_profile_name()).strip() or "default"
-    return (profiles_dir() / name).resolve()
+    if profile is None:
+        return profile_dir_for_name(active_profile_name())
+    return profile_dir_for_name(profile)
 
 
 def profile_env_path(profile: str | None = None) -> Path:

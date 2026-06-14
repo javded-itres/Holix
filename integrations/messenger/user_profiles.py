@@ -8,6 +8,7 @@ import re
 from pathlib import Path
 
 from core.env_loader import profile_dir_path
+from core.profile.names import ProfileNameError, validate_profile_name
 
 from integrations.messenger.env_store import (
     messenger_env_path,
@@ -20,8 +21,7 @@ _PAIR_RE = re.compile(r"^\d+:[\w.-]+$")
 
 
 def users_mapping_path(platform: MessengerPlatform, bot_profile: str) -> Path:
-    name = (bot_profile or "default").strip() or "default"
-    return profile_dir_path(name) / platform.users_filename
+    return profile_dir_path(validate_profile_name(bot_profile)) / platform.users_filename
 
 
 def parse_user_profiles_text(raw: str) -> dict[int, str]:
@@ -32,8 +32,12 @@ def parse_user_profiles_text(raw: str) -> dict[int, str]:
             continue
         uid_s, _, profile = part.partition(":")
         profile = profile.strip()
-        if uid_s.isdigit() and profile:
-            out[int(uid_s)] = profile
+        if not uid_s.isdigit() or not profile:
+            continue
+        try:
+            out[int(uid_s)] = validate_profile_name(profile)
+        except ProfileNameError:
+            continue
     return out
 
 
@@ -54,13 +58,17 @@ def _load_json_mapping(path: Path) -> dict[int, str]:
     for key, val in data.items():
         uid_s = str(key).strip()
         profile = str(val).strip()
-        if uid_s.isdigit() and profile:
-            out[int(uid_s)] = profile
+        if not uid_s.isdigit() or not profile:
+            continue
+        try:
+            out[int(uid_s)] = validate_profile_name(profile)
+        except ProfileNameError:
+            continue
     return out
 
 
 def load_user_profiles(platform: MessengerPlatform, bot_profile: str) -> dict[int, str]:
-    name = (bot_profile or "default").strip() or "default"
+    name = validate_profile_name(bot_profile)
     merged = _load_json_mapping(users_mapping_path(platform, name))
     env_raw = _profile_env_user_profiles(platform, name)
     if env_raw:
@@ -85,15 +93,16 @@ def save_user_profiles(
     bot_profile: str,
     mapping: dict[int, str],
 ) -> Path:
-    name = (bot_profile or "default").strip() or "default"
+    name = validate_profile_name(bot_profile)
+    safe_mapping = {uid: validate_profile_name(profile) for uid, profile in mapping.items()}
     path = users_mapping_path(platform, name)
     path.parent.mkdir(parents=True, exist_ok=True)
-    serializable = {str(uid): profile for uid, profile in sorted(mapping.items())}
+    serializable = {str(uid): profile for uid, profile in sorted(safe_mapping.items())}
     path.write_text(
         json.dumps(serializable, ensure_ascii=False, indent=2) + "\n",
         encoding="utf-8",
     )
-    _sync_env_user_profiles(platform, name, mapping)
+    _sync_env_user_profiles(platform, name, safe_mapping)
     return path
 
 
@@ -134,7 +143,7 @@ def set_user_profile(
     profile: str,
 ) -> Path:
     mapping = load_user_profiles(platform, bot_profile)
-    mapping[int(user_id)] = profile.strip()
+    mapping[int(user_id)] = validate_profile_name(profile)
     return save_user_profiles(platform, bot_profile, mapping)
 
 

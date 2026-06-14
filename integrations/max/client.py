@@ -230,6 +230,20 @@ class MaxClient:
     async def delete_message(self, message_id: str) -> None:
         await self._request("DELETE", "/messages", params={"message_id": message_id})
 
+    async def send_chat_action(
+        self,
+        chat_id: int,
+        *,
+        action: str = "typing_on",
+    ) -> dict[str, Any]:
+        """Send bot action to a chat (e.g. typing_on while the agent is working)."""
+        result = await self._request(
+            "POST",
+            f"/chats/{chat_id}/actions",
+            json_body={"action": action},
+        )
+        return result if isinstance(result, dict) else {}
+
     async def edit_message(
         self,
         message_id: str,

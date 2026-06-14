@@ -297,6 +297,12 @@ def gateway_status(profile: str = "default") -> None:
             f"[cyan]Telegram PID:[/cyan] {state.telegram_pid} "
             f"({'running' if tg_alive else 'stopped'})"
         )
+    if state.max_pid:
+        max_alive = is_process_alive(state.max_pid)
+        lines.append(
+            f"[cyan]MAX PID:[/cyan] {state.max_pid} "
+            f"({'running' if max_alive else 'stopped'})"
+        )
     from cli.services.gateway_state import docs_url
 
     docs = docs_url(state)
@@ -392,8 +398,12 @@ def reload_gateway_daemon(profile: str = "default") -> None:
         print_info(f"Companions: cron={cron}, telegram={telegram}")
         if companions.get("max_webhook"):
             print_info("MAX webhook: subscribed")
+        elif companions.get("max_polling_running"):
+            print_info("MAX polling: running")
+        elif companions.get("max_polling"):
+            print_info("MAX polling: configured")
         elif companions.get("max_configured"):
-            print_info("MAX: configured (webhook not active)")
+            print_info("MAX: configured")
     os_companions = body.get("os_companions") or {}
     if os_companions.get("docs") == "restarted":
         print_info("Docs companion restarted with updated configuration")

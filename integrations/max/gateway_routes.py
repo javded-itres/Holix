@@ -42,6 +42,13 @@ def max_should_webhook(profile: str = "default") -> bool:
     return max_enabled(profile) and settings.is_webhook_mode
 
 
+def max_should_poll(profile: str = "default") -> bool:
+    """True when MAX token is set and mode is polling (default outside production)."""
+    load_max_env_files()
+    settings = load_max_settings(profile)
+    return max_enabled(profile) and not settings.is_webhook_mode
+
+
 def max_gateway_state() -> MaxGatewayState | None:
     return _state
 
@@ -59,7 +66,7 @@ async def init_max_webhook(profile: str | None = None) -> MaxGatewayState | None
 
     if not settings.is_webhook_mode:
         logger.info(
-            "MAX webhook disabled (mode=%s). Use `holix max` for Long Polling.",
+            "MAX webhook disabled (mode=%s). Long Polling runs as a gateway companion.",
             settings.mode,
         )
         return None
@@ -119,12 +126,16 @@ async def shutdown_max_webhook() -> None:
 
 async def reload_max_webhook(profile: str | None = None) -> dict[str, Any]:
     """Re-read MAX env and re-register webhook subscription (gateway host profile)."""
+    load_max_env_files()
+    profile = profile or os.getenv("HELIX_PROFILE", "default")
+    settings = load_max_settings(profile)
     await shutdown_max_webhook()
     state = await init_max_webhook(profile)
     return {
-        "max_configured": state is not None,
+        "max_configured": max_enabled(profile),
         "max_webhook": bool(state and state.subscribed),
-        "max_mode": state.settings.mode if state else None,
+        "max_polling": max_should_poll(profile),
+        "max_mode": settings.mode,
     }
 
 

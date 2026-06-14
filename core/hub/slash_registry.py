@@ -22,7 +22,10 @@ def _lookup_skill(skills_dir: Path, name: str) -> dict[str, Any] | None:
 
 
 def slash_registry_path(skills_dir: Path) -> Path:
-    return Path(skills_dir).parent / "skill-slash.json"
+    from core.profile.names import assert_under_profiles_root
+
+    root = assert_under_profiles_root(Path(skills_dir))
+    return root.parent / "skill-slash.json"
 
 
 def load_skill_slash_commands(
@@ -103,6 +106,9 @@ def rebuild_slash_registry(skills_dir: Path) -> None:
         if name:
             _add(name, skill.get("description", "Skill"))
 
+    from core.profile.names import assert_under_profiles_root
+
     path = slash_registry_path(skills_dir)
+    assert_under_profiles_root(path.parent)
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps({"version": 1, "commands": commands}, indent=2), encoding="utf-8")

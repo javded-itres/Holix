@@ -2,6 +2,27 @@
 
 ## Unreleased
 
+## 0.1.36 — 2026-06-14
+
+### Added
+- **MAX messenger integration** — multi-user bot parity with Telegram: per-profile `max.env`, allowlist, user map, admin CLI (`holix max map`, `max requests`, `max admin`), access requests, profile auth/seed, `holix_max` gateway API
+- **MAX UX** — live presenter, separate final answer, approval short tokens, outbound file delivery, typing indicator, user removal helpers
+- **Shared messenger layer** — `integrations/messenger/` for access requests, user profiles, final content normalization, user removal
+- **Gateway companions** — MAX webhook reload on `gateway reload`, `gateway status` / `max status` summaries, doctor parity
+- **Profile name validation** — path-injection guard for profile names and paths under `~/.holix/profiles`
+- **Live UI i18n** — localized messenger progress labels per profile locale
+- **LLM response helpers** — `core/llm/` utilities for extracting agent text from provider responses
+- **Docs site decoupling** — remove bundled `web-docs/`; gateway worker sets `HOLIX_WEB_DOCS_DIR` when unset (external holix-docs repo)
+
+### Fixed
+- **Messenger final answers** — stream accumulated text when LLM returns placeholder final; prefer tool/subagent results over preamble
+- **Gateway startup** — skip invalid profile names in runtime cache; auto-detect web-docs directory
+- **Tests** — hub slash registry under profiles root, whitelist env via `HOLIX_HOME`, mock agent profile name coercion
+- **CI** — ruff import fixes across MAX/Telegram modules
+
+### Changed
+- **Version** — package `Holix` 0.1.36 on PyPI
+
 ## 0.1.13 — 2026-06-13
 
 ### Added

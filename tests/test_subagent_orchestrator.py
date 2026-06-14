@@ -126,6 +126,16 @@ def test_explicit_subagent_type() -> None:
     assert infer_subagent_type(step) == "reviewer"
 
 
+def test_infer_subagent_type_russian_description() -> None:
+    step = _step(1, "Исследовать рынок SaaS и собрать конкурентов")
+    assert infer_subagent_type(step) == "web_researcher"
+
+
+def test_infer_subagent_type_from_tools() -> None:
+    step = _step(1, "Шаг 1", tools=["web_search"])
+    assert infer_subagent_type(step) == "web_researcher"
+
+
 def test_format_wave_aggregate() -> None:
     from core.subagents.orchestrator import SubagentTask
 

@@ -59,9 +59,9 @@ def _register_base_commands() -> None:
     from cli.commands.hub import app as hub_app
     from cli.commands.install_cmd import app as install_app
     from cli.commands.logs import app as logs_app
+    from cli.commands.max import register_max_command
     from cli.commands.mcp import app as mcp_app
     from cli.commands.search import app as search_app
-    from cli.commands.max import register_max_command
     from cli.commands.telegram import register_telegram_command
     from cli.commands.update_cmd import app as update_app
 

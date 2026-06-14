@@ -1,4 +1,4 @@
-"""Send cron job results to Telegram chat."""
+"""Send cron job results to Telegram and MAX chats."""
 
 from __future__ import annotations
 
@@ -41,6 +41,47 @@ async def send_telegram_notification(
     finally:
         try:
             await bot.session.close()
+        except Exception:
+            pass
+
+
+async def send_max_notification(
+    message: str,
+    *,
+    user_id: int | None = None,
+    chat_id: int | None = None,
+    profile: str = "default",
+) -> bool:
+    """Send a cron notification to a MAX user or chat."""
+    if user_id is None and chat_id is None:
+        return False
+    try:
+        from integrations.max.client import MaxClient
+        from integrations.max.config import load_max_settings
+        from integrations.max.markdown import prepare_max_markdown
+    except ImportError:
+        logger.warning("MAX integration unavailable for cron notification")
+        return False
+
+    settings = load_max_settings(profile)
+    if not settings.bot_token:
+        logger.warning("MAX bot token not configured")
+        return False
+
+    client = MaxClient(settings.bot_token)
+    try:
+        text = prepare_max_markdown(message)
+        if chat_id is not None:
+            await client.send_message(text, fmt="markdown", chat_id=chat_id)
+        else:
+            await client.send_message(text, fmt="markdown", user_id=user_id)
+        return True
+    except Exception as exc:
+        logger.warning("Failed to send MAX cron notification: %s", exc)
+        return False
+    finally:
+        try:
+            await client.close()
         except Exception:
             pass
 

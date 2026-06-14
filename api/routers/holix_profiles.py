@@ -184,6 +184,7 @@ async def reload_profile(
 
     await state.companions.stop_cron(profile_id)
     await state.companions.stop_telegram(profile_id)
+    await state.companions.stop_max(profile_id)
     agent_result = await state.registry.reload(profile_id)
     companion_result = await state.companions.reload(profile_id)
 

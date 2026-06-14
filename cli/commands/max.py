@@ -20,6 +20,7 @@ from cli.commands.max_requests import (
     max_requests_reject,
 )
 from cli.commands.max_setup import run_max_setup, show_max_status
+from cli.commands.max_users import max_users_list, max_users_remove
 from cli.utils.profile import resolve_profile
 from cli.utils.rich_console import print_error, print_info, print_success
 
@@ -31,9 +32,11 @@ max_app = typer.Typer(
 map_app = typer.Typer(help="Привязка MAX user id → профиль Holix (один бот, несколько профилей)")
 requests_app = typer.Typer(help="Запросы доступа: пользователи подают через /start, админ одобряет здесь")
 admin_app = typer.Typer(help="MAX-администратор (один, назначается только через CLI)")
+users_app = typer.Typer(help="Пользователи бота: список и полное удаление доступа")
 max_app.add_typer(map_app, name="map")
 max_app.add_typer(requests_app, name="requests")
 max_app.add_typer(admin_app, name="admin")
+max_app.add_typer(users_app, name="users")
 
 
 @max_app.callback()
@@ -161,6 +164,35 @@ def max_map_import_cmd(
     ),
 ) -> None:
     run_max_map_import(resolve_profile(ctx), pairs)
+
+
+@users_app.command("list")
+def max_users_list_cmd(ctx: typer.Context) -> None:
+    """Все известные user id: allowlist, привязки, запросы, админ."""
+    max_users_list(resolve_profile(ctx))
+
+
+@users_app.command("remove")
+def max_users_remove_cmd(
+    ctx: typer.Context,
+    user_id: int = typer.Argument(..., help="MAX user id"),
+    no_notify: bool = typer.Option(False, "--no-notify", help="Не отправлять уведомление пользователю"),
+    force_admin: bool = typer.Option(
+        False,
+        "--force-admin",
+        help="Удалить даже если user id — администратор бота (снимает admin)",
+    ),
+) -> None:
+    """Полностью удалить пользователя: allowlist, привязку, запрос доступа."""
+    try:
+        max_users_remove(
+            resolve_profile(ctx),
+            user_id,
+            notify=not no_notify,
+            force_admin=force_admin,
+        )
+    except SystemExit as exc:
+        raise typer.Exit(exc.code if exc.code is not None else 1) from exc
 
 
 @requests_app.command("list")

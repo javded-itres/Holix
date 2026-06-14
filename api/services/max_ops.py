@@ -36,6 +36,7 @@ from integrations.max.user_profiles import (
     remove_user_profile,
     set_user_profile,
 )
+from integrations.max.user_removal import list_known_user_ids, remove_max_user
 
 
 class MaxOpError(Exception):
@@ -227,6 +228,48 @@ def remove_user_map(profile_id: str, user_id: int) -> dict[str, Any]:
     if path is None:
         raise MaxOpError(f"No mapping for user id {user_id}", status_code=404)
     return {"user_id": user_id, "removed": True, "reload_required": True}
+
+
+def list_bot_users(profile_id: str) -> dict[str, Any]:
+    load_max_env_files(profile_id)
+    users = list_known_user_ids(profile_id)
+    return {
+        "users": {str(uid): meta for uid, meta in sorted(users.items())},
+        "count": len(users),
+    }
+
+
+def remove_bot_user(
+    profile_id: str,
+    user_id: int,
+    *,
+    notify: bool = True,
+    force_admin: bool = False,
+) -> dict[str, Any]:
+    load_max_env_files(profile_id)
+    try:
+        result = remove_max_user(
+            profile_id,
+            user_id,
+            notify=notify,
+            force_admin=force_admin,
+        )
+    except ValueError as exc:
+        msg = str(exc)
+        status = 409 if "administrator" in msg.lower() else 404
+        raise MaxOpError(msg, status_code=status) from exc
+    return {
+        "user_id": result.user_id,
+        "removed": True,
+        "holix_profile": result.holix_profile,
+        "removed_allowlist": result.removed_allowlist,
+        "removed_mapping": result.removed_mapping,
+        "removed_access_request": result.removed_access_request,
+        "cleared_admin": result.cleared_admin,
+        "notified": result.notified,
+        "notify_error": result.notify_error,
+        "reload_required": True,
+    }
 
 
 async def sync_max_menu(profile_id: str) -> dict[str, Any]:

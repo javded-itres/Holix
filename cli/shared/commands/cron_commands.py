@@ -137,8 +137,15 @@ async def run_cron_command(host: Any, command: str) -> None:
             expr, task = parse_add_arguments(rest)
             
             notify_chat_id = None
-            if hasattr(host, "_session") and hasattr(host._session, "chat_id"):
-                notify_chat_id = host._session.chat_id
+            notify_max_user_id = None
+            notify_max_chat_id = None
+            if hasattr(host, "_session"):
+                sess = host._session
+                if hasattr(sess, "chat_id"):
+                    notify_chat_id = sess.chat_id
+                elif hasattr(sess, "user_id"):
+                    notify_max_user_id = sess.user_id
+                    notify_max_chat_id = getattr(sess, "reply_chat_id", None)
 
             session_id = getattr(host, "conversation_id", None)
             if not session_id and hasattr(host, "_session"):
@@ -148,13 +155,17 @@ async def run_cron_command(host: Any, command: str) -> None:
                 task=task,
                 cron_expression=expr,
                 notify_chat_id=notify_chat_id,
+                notify_max_user_id=notify_max_user_id,
+                notify_max_chat_id=notify_max_chat_id,
                 session_id=str(session_id) if session_id else None,
             )
-            
-            # Add notification hint if chat_id was captured
+
             notify_hint = ""
             if notify_chat_id:
-                notify_hint = f"\n  📬 Уведомления в чат: {notify_chat_id}"
+                notify_hint = f"\n  📬 Уведомления Telegram: {notify_chat_id}"
+            elif notify_max_user_id or notify_max_chat_id:
+                target = notify_max_chat_id or notify_max_user_id
+                notify_hint = f"\n  📬 Уведомления MAX: {target}"
             
             session_hint = ""
             if job.session_id:

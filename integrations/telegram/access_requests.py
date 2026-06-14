@@ -12,6 +12,9 @@ from integrations.messenger.access_requests import (
     access_requests_path as _access_requests_path,
 )
 from integrations.messenger.access_requests import (
+    delete_access_request as _delete_access_request,
+)
+from integrations.messenger.access_requests import (
     get_access_request as _get_access_request,
 )
 from integrations.messenger.access_requests import (
@@ -46,6 +49,7 @@ __all__ = [
     "list_pending_requests",
     "load_access_requests",
     "register_access_request",
+    "delete_access_request",
     "reject_access_request",
     "resolve_access_request",
 ]
@@ -103,3 +107,7 @@ def resolve_access_request(
 
 def reject_access_request(bot_profile: str, user_id: int) -> TelegramAccessRequest | None:
     return _reject_access_request(_PLATFORM, bot_profile, user_id)
+
+
+def delete_access_request(bot_profile: str, user_id: int) -> bool:
+    return _delete_access_request(_PLATFORM, bot_profile, user_id)

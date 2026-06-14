@@ -41,6 +41,8 @@ class LiveTranscriptBuffer:
         self.thinking = (message or "").strip() or None
 
     def add_tool_start(self, name: str, args: object) -> None:
+        # Partial assistant text before a tool call is preamble, not the final answer.
+        self.answer = ""
         line = format_tool_header(name, running=True)
         if not self.compact_tools:
             args_text = format_tool_args(args)
@@ -102,14 +104,18 @@ class LiveTranscriptBuffer:
             "─" * 32,
         ]
         if self.thinking:
-            parts.append(f"💭 {self.thinking}")
+            from core.i18n.live_ui import live_thinking_label
+
+            parts.append(f"💭 {live_thinking_label(self.profile, fallback=self.thinking)}")
         if self.tool_lines:
             parts.extend(self.tool_lines)
-        if self.answer.strip():
+        if self.answer.strip() and not self.publish_answer_separately:
             parts.append(self.answer.strip())
         for note in self.notes[-3:]:
             parts.append(f"· {note}")
         if self.status == "running" and not self.answer.strip() and not self.tool_lines:
-            parts.append("⏳ Working…")
+            from core.i18n.live_ui import live_working_label
+
+            parts.append(f"⏳ {live_working_label(self.profile)}")
         text = "\n\n".join(parts)
         return text[:4090]

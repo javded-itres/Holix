@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "Holix"
-version = "0.1.13"
+version = "0.1.36"
 description = "Self-improving AI agent with memory, skills, MCP, CLI, and TUI"
 readme = "README.md"
 license = "MIT"
@@ -102,7 +102,6 @@ packages = ["cli", "core", "api", "integrations"]
 [tool.hatch.build.targets.wheel.force-include]
 "config.py" = "config.py"
 ".env.example" = ".env.example"
-"web-docs" = "web-docs"
 
 [tool.hatch.build.targets.sdist]
 include = [
@@ -110,7 +109,6 @@ include = [
     "/core",
     "/api",
     "/integrations",
-    "/web-docs",
     "/scripts",
     "/config.py",
     "/README.md",

@@ -2,11 +2,9 @@
 
 from __future__ import annotations
 
-import asyncio
-
 from integrations.max.access_requests import MaxAccessRequest
 from integrations.max.client import MaxClient
-from integrations.max.markdown import escape_html, plain_to_max_html
+from integrations.max.markdown import escape_html, truncate_max_html
 
 
 def format_access_approved_message(
@@ -59,7 +57,7 @@ async def send_user_message(
     attachments: list[dict] | None = None,
 ) -> dict:
     return await client.send_message(
-        plain_to_max_html(text),
+        truncate_max_html(text),
         user_id=int(user_id),
         fmt="html",
         attachments=attachments,
@@ -182,8 +180,35 @@ async def notify_access_rejected(bot_profile: str, user_id: int) -> None:
         await send_user_message(client, int(user_id), text)
 
 
+async def notify_access_revoked(bot_profile: str, user_id: int) -> None:
+    from integrations.max.config import load_max_settings
+    from integrations.max.env_store import load_max_env_files
+
+    load_max_env_files(bot_profile)
+    settings = load_max_settings(bot_profile)
+    token = settings.access_token.strip()
+    if not token:
+        raise RuntimeError("MAX_ACCESS_TOKEN is not configured")
+
+    text = (
+        "❌ <b>Доступ отозван</b>\n\n"
+        "Администратор удалил ваш доступ к боту Holix.\n"
+        "Чтобы снова запросить доступ — отправьте /start."
+    )
+    async with MaxClient(token) as client:
+        await send_user_message(client, int(user_id), text)
+
+
+def notify_access_revoked_sync(bot_profile: str, user_id: int) -> None:
+    from core.asyncio_sync import run_coroutine_sync
+
+    run_coroutine_sync(notify_access_revoked(bot_profile, user_id))
+
+
 def notify_access_rejected_sync(bot_profile: str, user_id: int) -> None:
-    asyncio.run(notify_access_rejected(bot_profile, user_id))
+    from core.asyncio_sync import run_coroutine_sync
+
+    run_coroutine_sync(notify_access_rejected(bot_profile, user_id))
 
 
 def notify_access_approved_sync(
@@ -194,7 +219,9 @@ def notify_access_approved_sync(
     access_key: str | None = None,
     key_already_set: bool = False,
 ) -> None:
-    asyncio.run(
+    from core.asyncio_sync import run_coroutine_sync
+
+    run_coroutine_sync(
         notify_access_approved(
             bot_profile,
             user_id,

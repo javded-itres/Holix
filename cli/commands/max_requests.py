@@ -139,7 +139,7 @@ def max_requests_approve(
             f"профиль '{load_admin_holix_profile(bot_profile)}')"
         )
     if result.access_key:
-        print_info("Ключ профиля создан (уведомление в MAX — в следующих фазах).")
+        print_info("Ключ профиля отправлен пользователю в MAX.")
 
 
 def max_requests_reject(bot_profile: str, user_id: int) -> None:

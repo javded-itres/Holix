@@ -98,8 +98,12 @@ class MaxApprovals:
             attachments=[plan_review_keyboard(token)],
             **reply,
         )
+        from core.i18n.locale import LocaleStore
+        from core.i18n.messages import t
+
+        lang = LocaleStore(self._session.profile).get()
         hint_payload = await self._client.send_message(
-            plain_to_max_html("_Or reply with text to refine the plan._"),
+            plain_to_max_html(t("plan.refine_hint", lang)),
             fmt="html",
             **reply,
         )

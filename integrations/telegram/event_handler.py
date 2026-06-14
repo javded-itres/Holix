@@ -21,7 +21,9 @@ from core.agent_events import (
     ToolCallResultEvent,
     ToolCallStartEvent,
 )
+from core.i18n.live_ui import live_plan_review_label, live_thinking_label
 from core.plan_review.review_events import PlanReviewRequestEvent
+from core.presenters.final_content import resolve_messenger_final_content
 from core.security.confirmation_events import ConfirmationRequestEvent
 from core.subagents.interaction_events import SubAgentQuestionEvent
 
@@ -56,7 +58,9 @@ class TelegramEventHandler:
 
         try:
             if isinstance(event, ThinkingEvent):
-                buf.set_thinking(event.message or "thinking…")
+                buf.set_thinking(
+                    live_thinking_label(buf.profile, fallback=event.message or "thinking…")
+                )
                 self._presenter.schedule_edit()
 
             elif isinstance(event, ToolCallStartEvent):
@@ -91,16 +95,25 @@ class TelegramEventHandler:
                 self._presenter.schedule_edit()
 
             elif isinstance(event, AssistantDeltaEvent):
-                # Final text is always delivered in a separate chat message.
-                pass
+                accumulated = (getattr(event, "accumulated", None) or "").strip()
+                if accumulated:
+                    buf.set_answer(accumulated)
+                elif event.content:
+                    buf.append_answer_delta(event.content)
+                self._presenter.schedule_edit()
 
             elif isinstance(event, FinalResponseEvent):
                 buf.set_thinking(None)
-                content = (event.content or "").strip()
-                if not content:
-                    recent = self._presenter.session._recent_tool_results
-                    if recent:
-                        content = str(recent[-1].get("full_result") or "").strip()
+                recent = self._presenter.session._recent_tool_results
+                last_tool = (
+                    str(recent[-1].get("full_result") or "").strip() if recent else ""
+                )
+                content = resolve_messenger_final_content(
+                    event.content,
+                    streamed_answer=buf.answer,
+                    last_tool_result=last_tool,
+                    recent_tool_results=recent,
+                )
                 if content:
                     self._presenter.session._transcript_store.append(
                         "assistant",
@@ -108,7 +121,10 @@ class TelegramEventHandler:
                         markdown=content,
                     )
                     buf.result_posted_separately = True
-                    self._schedule_task(self._presenter.deliver_result(content))
+                    self._presenter.note_final_content(content)
+                    self._presenter.enqueue_outbound(
+                        self._presenter.deliver_final_answer(content)
+                    )
                 buf.set_answer("")
                 buf.mark_done()
                 self._presenter.schedule_edit(force=True)
@@ -132,7 +148,9 @@ class TelegramEventHandler:
 
             elif isinstance(event, PlanReviewRequestEvent):
                 buf.set_thinking(None)
-                buf.add_note(f"⏸ Plan review ({event.step_count} steps)")
+                buf.add_note(
+                    live_plan_review_label(buf.profile, step_count=event.step_count)
+                )
                 self._presenter.schedule_edit(force=True)
                 asyncio.create_task(self._approvals.on_plan_review_request(event))
 
@@ -168,8 +186,8 @@ class TelegramEventHandler:
             elif isinstance(event, ErrorEvent):
                 err = str(event.error or "unknown")
                 buf.mark_error(err)
-                self._schedule_task(
-                    self._presenter.deliver_result(f"✗ **Ошибка:** {err}")
+                self._presenter.enqueue_outbound(
+                    self._presenter.deliver_final_answer(f"✗ **Ошибка:** {err}")
                 )
                 self._presenter.schedule_edit(force=True)
 

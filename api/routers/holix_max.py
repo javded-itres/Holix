@@ -16,8 +16,10 @@ from api.services.max_ops import (
     get_max_admin,
     get_max_status,
     list_access_requests,
+    list_bot_users,
     list_user_map,
     reject_access_request_op,
+    remove_bot_user,
     remove_user_map,
     set_user_map,
     setup_max,
@@ -183,6 +185,41 @@ async def max_map_set(
     profile_access(profile_id, key_info, x_holix_profile, x_holix_profile_key)
     _require_profile(profile_id)
     return set_user_map(profile_id, body.user_id, body.profile)
+
+
+@router.get("/users")
+async def max_users_list(
+    profile_id: str,
+    key_info: dict = Depends(verify_api_key),
+    x_holix_profile: str | None = Header(None),
+    x_holix_profile_key: str | None = Header(None, alias="X-Holix-Profile-Key"),
+):
+    profile_access(profile_id, key_info, x_holix_profile, x_holix_profile_key)
+    _require_profile(profile_id)
+    return list_bot_users(profile_id)
+
+
+@router.delete("/users/{user_id}")
+async def max_users_remove(
+    profile_id: str,
+    user_id: int,
+    notify: bool = True,
+    force_admin: bool = False,
+    key_info: dict = Depends(verify_api_key),
+    x_holix_profile: str | None = Header(None),
+    x_holix_profile_key: str | None = Header(None, alias="X-Holix-Profile-Key"),
+):
+    profile_access(profile_id, key_info, x_holix_profile, x_holix_profile_key)
+    _require_profile(profile_id)
+    try:
+        return remove_bot_user(
+            profile_id,
+            user_id,
+            notify=notify,
+            force_admin=force_admin,
+        )
+    except MaxOpError as exc:
+        raise _map_op_error(exc) from exc
 
 
 @router.delete("/map/{user_id}")

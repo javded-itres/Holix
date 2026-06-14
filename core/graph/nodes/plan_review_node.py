@@ -88,6 +88,12 @@ async def plan_review_node(state: HolixGraphState, config: RunnableConfig) -> di
             ),
         }
 
+    from core.i18n.locale import LocaleStore
+    from core.profile.soul import profile_name_from_agent
+
+    profile_name = profile_name_from_agent(agent) if agent else "default"
+    ui_locale = LocaleStore(profile_name).get()
+
     # Build rendered Markdown for in-chat display
     rendered_markdown = build_plan_markdown(
         plan_steps=plan_steps,
@@ -96,6 +102,7 @@ async def plan_review_node(state: HolixGraphState, config: RunnableConfig) -> di
         user_input=user_input,
         analysis=state.get("plan_analysis"),
         architecture=state.get("plan_architecture"),
+        locale=ui_locale,
     )
 
     # Request review — this blocks until the user responds

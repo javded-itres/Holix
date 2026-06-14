@@ -11,10 +11,231 @@ Each **host profile** can have its own bot token. Secrets are stored at:
 ```bash
 uv sync --extra max
 holix -p shared max setup          # wizard: token, mode, allowlist
-holix -p shared gateway start -f   # gateway + MAX webhook (production)
+holix -p shared gateway start        # gateway + MAX (polling in dev, webhook in prod)
 ```
 
 In production (`HELIX_ENV=production`), you need an allowlist or access-request mode.
+
+---
+
+## Complete guide: bot registration and environment variables
+
+Step-by-step from creating a bot in the MAX business console to a working agent in chat.
+
+### Prerequisites
+
+| Requirement | Why |
+|-------------|-----|
+| Organization account at [business.max.ru](https://business.max.ru/self) | Required to issue a bot access token |
+| Holix installed with the `max` extra | HTTP client, polling, webhook |
+| A Holix **host profile** for the bot | Usually `shared` or `admin` — not `default` in production |
+| LLM configured in that profile | `holix models setup` or keys in `profiles/<name>/.env` |
+
+Secrets file:
+
+`~/.holix/profiles/<host-profile>/max.env`
+
+Example for host profile `shared`: `~/.holix/profiles/shared/max.env`.
+
+### Step 1. Create the bot in the MAX console
+
+1. Open [business.max.ru/self](https://business.max.ru/self) and sign in with your organization account.
+2. Go to **Chat bots** (or **Bots** / **Integration** — labels may vary).
+3. Click **Create bot** / **Add bot**.
+4. Fill in the bot card:
+   - **Name** — how users see the bot in MAX.
+   - **Description** — short purpose (optional).
+   - **Avatar** — optional.
+5. Open the **Integration** tab (or **API** / **Access token**).
+6. Copy the **Access token**.  
+   Treat it like a password — do not commit it to git or paste in public chats.
+7. Ensure the bot is **published** / **enabled** if the console has an activity toggle.
+
+Official API docs: [dev.max.ru/docs-api](https://dev.max.ru/docs-api).
+
+> **Note:** the token is sent in the `Authorization` header to `platform-api.max.ru`. The MAX API does **not** accept tokens in query strings.
+
+### Step 2. Find your MAX user id
+
+The user id is a numeric MAX account identifier. You need it for the allowlist and admin assignment.
+
+**Option A — Holix wizard (recommended):**
+
+```bash
+holix -p shared max setup
+```
+
+When asked for your MAX user id, choose auto-detection: send any message to the bot in MAX — Holix will capture the id from the event stream.
+
+**Option B — manually:**
+
+- Read the id from a notification after `/start` if the bot already runs with access requests.
+- Or use `holix max requests list` after a user applies — entries include `user_id`.
+
+Config format: a single number or comma-separated list: `123456789` or `111,222,333`.
+
+### Step 3. Install dependencies and run the wizard
+
+```bash
+# from the Holix repo
+uv sync --extra max
+
+# global install (production)
+uv tool install ~/Holix --force --with "Holix[max]"
+```
+
+Interactive setup:
+
+```bash
+holix -p shared max setup
+```
+
+The wizard:
+
+1. Verifies the token (`GET /me` against the MAX API).
+2. Asks for an allowlist (your user id) or detects it automatically.
+3. Chooses the Holix host profile (`HOLIX_MAX_PROFILE`).
+4. Chooses mode: `polling` (development) or `webhook` (production).
+5. For webhook — asks for a public HTTPS URL and secret.
+6. Saves everything to `~/.holix/profiles/shared/max.env`.
+7. Enables **access requests** by default (`HOLIX_MAX_ACCESS_REQUESTS=true`).
+
+Verify:
+
+```bash
+holix -p shared max status
+holix doctor
+```
+
+### Step 4. Start the bot
+
+| Environment | `HOLIX_MAX_MODE` | Command |
+|-------------|------------------|---------|
+| Development (`HOLIX_ENV` ≠ `production`) | `polling` (default) | `holix -p shared gateway start` |
+| Production | `webhook` (forced) | `holix -p shared gateway start -f` |
+
+In **development**, the gateway starts MAX Long Polling as a companion — a separate `holix max` process is optional.
+
+In **production**, you need public HTTPS and `HOLIX_MAX_WEBHOOK_URL` (see example below).
+
+```bash
+# local development
+holix -p shared gateway start
+
+# production (named profile + production env)
+HOLIX_ENV=production holix -p shared gateway start -f
+```
+
+Check status:
+
+```bash
+holix -p shared gateway status
+```
+
+### Step 5. Manual `max.env` configuration
+
+If you prefer not to use the wizard, create or edit the file manually.
+
+**Development (polling, access requests):**
+
+```env
+# ~/.holix/profiles/shared/max.env
+# Holix MAX — manual configuration
+
+MAX_ACCESS_TOKEN=your_token_from_business_max_ru
+
+# Delivery mode: polling in dev (gateway starts the companion)
+HOLIX_MAX_MODE=polling
+
+# Holix profile for the host bot (token, user map)
+HOLIX_MAX_PROFILE=shared
+
+# New users request access via /start (recommended)
+HOLIX_MAX_ACCESS_REQUESTS=true
+
+# Your user id (optional with access requests — approve via CLI)
+HOLIX_MAX_ALLOWED_USERS=123456789
+
+# Local testing only — NOT for production:
+# HOLIX_MAX_ALLOW_ALL=true
+```
+
+**Production (webhook):**
+
+```env
+# ~/.holix/profiles/shared/max.env
+
+MAX_ACCESS_TOKEN=your_token_from_business_max_ru
+
+HOLIX_MAX_MODE=webhook
+HOLIX_MAX_PROFILE=shared
+HOLIX_MAX_ACCESS_REQUESTS=true
+
+# Public URL where MAX sends events (HTTPS, port 443)
+# Typically: https://your-domain/max/webhook
+HOLIX_MAX_WEBHOOK_URL=https://agent.example.com/max/webhook
+
+# Secret for X-Max-Bot-Api-Secret header (use a long random string)
+HOLIX_MAX_WEBHOOK_SECRET=random_string_at_least_32_chars
+
+# Admin is assigned via CLI; leave empty until first approve --set-admin
+# HOLIX_MAX_ADMIN_USER_ID=123456789
+# HOLIX_MAX_ADMIN_PROFILE=admin
+```
+
+After editing `max.env` while the gateway is running:
+
+```bash
+holix -p shared gateway reload
+```
+
+### Full variable reference
+
+| Variable | Required | Example | Description |
+|----------|----------|---------|-------------|
+| `MAX_ACCESS_TOKEN` | **Yes** | `AbCdEf…` | Bot token from business.max.ru → Integration. Canonical key; legacy: `HOLIX_MAX_ACCESS_TOKEN`. |
+| `HOLIX_MAX_PROFILE` | No | `shared` | Holix host-bot profile (where `max.env` and user map live). Defaults to active `-p` profile. |
+| `HOLIX_MAX_MODE` | No | `polling` / `webhook` | Event delivery mode. Forced to `webhook` when `HOLIX_ENV=production`. |
+| `HOLIX_MAX_WEBHOOK_URL` | Webhook | `https://host/max/webhook` | Public HTTPS endpoint on the Holix gateway (`POST /max/webhook`). |
+| `HOLIX_MAX_WEBHOOK_SECRET` | Webhook* | `my-secret-…` | Secret for `X-Max-Bot-Api-Secret`. Recommended in production. |
+| `HOLIX_MAX_ACCESS_REQUESTS` | No | `true` | Users send `/start`; admin approves via CLI. Default `true` in `max setup`. |
+| `HOLIX_MAX_ALLOWED_USERS` | Prod** | `123,456` | Allowlist: only these `user_id` values may use the bot (without access requests). |
+| `HOLIX_MAX_ALLOW_ALL` | No | `true` | Allow everyone without checks. **Dev only.** |
+| `HOLIX_MAX_ADMIN_USER_ID` | No | `123456789` | Sole MAX administrator. Set via `max requests approve ID --set-admin`. |
+| `HOLIX_MAX_ADMIN_PROFILE` | No | `admin` | Holix profile for the admin (usually `admin`). |
+| `HOLIX_MAX_USER_PROFILES` | No | `111:alice,222:bob` | Static `user_id` → profile map (alternative to `max-users.json`). |
+| `HOLIX_MAX_POLL_TIMEOUT` | No | `5` | Long-poll timeout in seconds (0–90). |
+| `HOLIX_MAX_EDIT_INTERVAL_MS` | No | `1500` | Live message edit interval (ms). |
+| `HOLIX_MAX_HEARTBEAT_INTERVAL` | No | `45` | Heartbeat interval for long-running tasks (s). |
+
+\* Webhook may work without a secret, but production should set one.  
+\*\* With `HOLIX_MAX_ACCESS_REQUESTS=true`, a manual allowlist is optional.
+
+**Related files (not in `max.env`):**
+
+| File | Purpose |
+|------|---------|
+| `profiles/<host>/max-users.json` | MAX user id → Holix profile bindings |
+| `profiles/<host>/max-access-requests.json` | Pending access request queue |
+| `profiles/<host>/.env` | LLM, gateway, encryption — separate from the bot token |
+
+**Do not:**
+
+- Leave an empty `MAX_ACCESS_TOKEN=` in `global/.env` — it overrides the real token from `max.env`.
+- Use `HOLIX_MAX_ALLOW_ALL=true` in production.
+- Store the token in git; with profile encryption, `max.env` is encrypted on disk automatically.
+
+### Common configuration mistakes
+
+| Mistake | Fix |
+|---------|-----|
+| `401` from MAX API | Check token; re-issue in console; run `holix max setup` |
+| Bot silent in dev | Run `holix gateway start`; check `holix max status` → Mode: polling |
+| No webhook events | HTTPS on 443, correct URL, `holix gateway status`, gateway logs |
+| “Access denied” | `holix max requests approve` or add id to allowlist |
+| Both modes active | Only polling **or** webhook — remove webhook subscription before polling |
+
+---
 
 ### Token storage and loading
 
@@ -145,20 +366,25 @@ One live message per task; slash commands like TUI; inline approvals for risky t
 
 MAX supports **one** mode at a time:
 
-| Mode | When to use | Holix command |
-|------|-------------|---------------|
-| **Webhook** | Production | `holix gateway start` |
-| **Long Polling** | Local development | `holix max` |
+| Mode | When to use | How Holix starts it |
+|------|-------------|---------------------|
+| **Webhook** | Production (`HOLIX_ENV=production`) | `holix gateway start` — registered inside gateway |
+| **Long Polling** | Local development | `holix gateway start` — polling companion in gateway |
 
 ```bash
-# Development (Long Polling — dev/test only):
-holix max
+# Development (polling via gateway — recommended):
+holix -p shared gateway start
+
+# Alternative: bot only, without API gateway
+holix -p shared max
 
 # Production (webhook via gateway):
-holix gateway start
+HOLIX_ENV=production holix -p shared gateway start -f
 ```
 
-The gateway registers the webhook with MAX (`POST /subscriptions`) and serves `POST /max/webhook`.
+In development the gateway **automatically** starts MAX Long Polling (like the Telegram companion). Run `holix max` separately only if the API gateway is not running.
+
+In production the gateway registers the webhook with MAX (`POST /subscriptions`) and serves `POST /max/webhook`.
 
 Long Polling (`GET /updates`) is rate-limited and not suitable for production. MAX recommends HTTPS webhook on port 443 with a trusted TLS certificate.
 
@@ -170,17 +396,21 @@ holix gateway reload
 
 ## Environment variables
 
+Short reference. Full guide with examples: [Complete guide](#complete-guide-bot-registration-and-environment-variables) above.
+
 | Variable | Required | Description |
 |----------|----------|-------------|
 | `MAX_ACCESS_TOKEN` | Yes | Bot token from business.max.ru |
-| `HOLIX_MAX_ALLOWED_USERS` | Prod* | Comma-separated `user_id` allowlist |
-| `HOLIX_MAX_ACCESS_REQUESTS` | No | Access requests via `/start` (default `true` in setup) |
-| `HOLIX_MAX_ALLOW_ALL` | No | Allow everyone (dev only) |
-| `HOLIX_MAX_MODE` | No | `webhook` (prod) or `polling` (dev/test) |
-| `HOLIX_MAX_WEBHOOK_URL` | Webhook | Public HTTPS URL for events |
-| `HOLIX_MAX_WEBHOOK_SECRET` | Webhook | Secret for `X-Max-Bot-Api-Secret` header |
-| `HOLIX_MAX_ADMIN_USER_ID` | No | Sole MAX administrator |
 | `HOLIX_MAX_PROFILE` | No | Holix host-bot profile |
+| `HOLIX_MAX_MODE` | No | `polling` (dev) or `webhook` (prod) |
+| `HOLIX_MAX_WEBHOOK_URL` | Webhook | Public HTTPS URL (`/max/webhook`) |
+| `HOLIX_MAX_WEBHOOK_SECRET` | Webhook | `X-Max-Bot-Api-Secret` value |
+| `HOLIX_MAX_ACCESS_REQUESTS` | No | Access via `/start` (default `true`) |
+| `HOLIX_MAX_ALLOWED_USERS` | Prod* | Comma-separated `user_id` allowlist |
+| `HOLIX_MAX_ALLOW_ALL` | No | Allow everyone (dev only) |
+| `HOLIX_MAX_ADMIN_USER_ID` | No | Sole MAX administrator |
+| `HOLIX_MAX_ADMIN_PROFILE` | No | Holix admin profile (usually `admin`) |
+| `HOLIX_MAX_USER_PROFILES` | No | Inline `user_id:profile` map |
 
 \* With `HOLIX_MAX_ACCESS_REQUESTS=true`, a manual allowlist is optional.
 
@@ -191,12 +421,12 @@ The token is sent in the `Authorization` header — query-string tokens are **no
 | Command | Description |
 |---------|-------------|
 | `holix max setup` | Wizard: token, allowlist, mode, save to `profiles/{p}/max.env` |
-| `holix max` | Start bot (Long Polling — dev/test only) |
+| `holix max` | Bot only (polling), without API gateway |
 | `holix max status` | Token, admin, user map, pending requests, subscriptions |
 | `holix max map` | User → profile bindings |
 | `holix max requests` | List/approve/reject access requests |
 | `holix max admin` | Show/clear MAX administrator |
-| `holix gateway start` | Gateway + MAX webhook companion |
+| `holix gateway start` | Gateway + MAX (polling in dev, webhook in prod) |
 | `holix gateway status` | Gateway health + MAX env/admin/map summary |
 
 Management API: `GET /api/holix/profiles/{id}/max/status`, `…/requests`, `…/map`, `…/admin`.

@@ -522,6 +522,10 @@ class MaxHost:
         if not self.agent:
             await self._send_text("agent not ready")
             return
+        async with self._session.run_lock:
+            await self._run_agent_locked(user_input)
+
+    async def _run_agent_locked(self, user_input: str) -> None:
         logger.info(
             "MAX agent run start (conversation=%s, preview=%r)",
             self.conversation_id,
@@ -571,49 +575,57 @@ class MaxHost:
             workspace_jail_enabled=bool(getattr(agent_cfg, "workspace_jail_enabled", False)),
         )
 
-        try:
-            await presenter.start()
-            mode = self._session.execution_mode
-            with visibility_ctx:
-                if self._session.streaming_enabled:
-                    from core.runtime.executor import run_holix
+        from integrations.max.typing_indicator import TypingIndicator
 
-                    async for event in run_holix(
-                        self.agent,
-                        user_input,
-                        self.conversation_id,
-                        stream=True,
-                        execution_mode=mode,
-                    ):
-                        self.agent.emit(event)
-                else:
-                    await self.agent.run(
-                        user_input=user_input,
-                        conversation_id=self.conversation_id,
-                        execution_mode=mode,
-                    )
-        except asyncio.CancelledError:
-            buf = self._session.live_buffer
-            if buf:
-                buf.add_note("stopped")
-        except Exception as exc:
-            buf = self._session.live_buffer
-            if buf:
-                buf.mark_error(str(exc))
-            logger.exception("MAX agent run failed")
-        finally:
-            self.agent.events.unsubscribe(on_event)
-            reset_chat_delivery_scope(delivery_token)
+        async with TypingIndicator(self._client, self._session.reply_chat_id):
             try:
-                await presenter.finish()
-            except Exception:
-                logger.exception("MAX presenter finish failed; retrying final delivery")
+                await presenter.start()
+                mode = self._session.execution_mode
+                with visibility_ctx:
+                    if self._session.streaming_enabled:
+                        from core.runtime.executor import run_holix
+
+                        async for event in run_holix(
+                            self.agent,
+                            user_input,
+                            self.conversation_id,
+                            stream=True,
+                            execution_mode=mode,
+                        ):
+                            self.agent.emit(event)
+                    else:
+                        await self.agent.run(
+                            user_input=user_input,
+                            conversation_id=self.conversation_id,
+                            execution_mode=mode,
+                        )
+            except asyncio.CancelledError:
+                buf = self._session.live_buffer
+                if buf:
+                    buf.add_note("stopped")
+            except Exception as exc:
+                buf = self._session.live_buffer
+                if buf:
+                    buf.mark_error(str(exc))
+                logger.exception("MAX agent run failed")
+            finally:
+                self.agent.events.unsubscribe(on_event)
+                reset_chat_delivery_scope(delivery_token)
                 try:
-                    await presenter.ensure_final_delivered()
+                    await presenter.finish()
                 except Exception:
-                    logger.exception("MAX final delivery retry failed")
-            logger.info(
-                "MAX agent run finished (conversation=%s, final_delivered=%s)",
-                self.conversation_id,
-                presenter.final_delivered,
-            )
+                    logger.exception("MAX presenter finish failed; retrying final delivery")
+                    try:
+                        await presenter.ensure_final_delivered()
+                    except Exception:
+                        logger.exception("MAX final delivery retry failed")
+                if not presenter.final_delivered:
+                    try:
+                        await presenter.ensure_final_delivered()
+                    except Exception:
+                        logger.exception("MAX post-run final delivery failed")
+                logger.info(
+                    "MAX agent run finished (conversation=%s, final_delivered=%s)",
+                    self.conversation_id,
+                    presenter.final_delivered,
+                )

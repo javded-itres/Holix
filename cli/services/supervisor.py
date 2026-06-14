@@ -9,11 +9,11 @@ import sys
 from typing import NoReturn
 
 from core.platform_compat import popen_background
-from integrations.max.gateway_routes import max_enabled, max_should_webhook
+from integrations.max.gateway_routes import max_enabled, max_should_poll, max_should_webhook
 from integrations.telegram.config import load_telegram_settings, telegram_aiogram_available
 
 from cli.services.docs_site import docs_url, resolve_web_docs_dir
-from cli.services.gateway_state import update_docs_info, update_telegram_pid
+from cli.services.gateway_state import update_docs_info, update_max_pid, update_telegram_pid
 from cli.utils.ports import resolve_listen_port
 from cli.utils.rich_console import print_info, print_success, print_warning
 
@@ -29,7 +29,7 @@ def telegram_should_start(profile: str = "default") -> bool:
 
 
 def docs_should_start() -> bool:
-    """True when web-docs/ is available in this install."""
+    """True when holix-docs (or legacy web-docs/) is available."""
     try:
         resolve_web_docs_dir()
         return True
@@ -88,6 +88,28 @@ async def _run_cron_scheduler(profile: str) -> None:
     await CronScheduler(profile).run_forever()
 
 
+async def _run_max(profile: str) -> None:
+    if not max_should_poll(profile):
+        if max_enabled(profile) and max_should_webhook(profile):
+            print_info("MAX webhook handled inside gateway process")
+        elif not max_enabled(profile):
+            print_warning(
+                "MAX bot skipped (set MAX_ACCESS_TOKEN or HOLIX_MAX_ACCESS_TOKEN to enable)"
+            )
+        return
+
+    from integrations.max.config import load_max_settings
+    from integrations.max.polling import run_polling
+
+    print_success(f"MAX bot starting (polling, profile={profile})")
+    try:
+        await run_polling(load_max_settings(profile), profile=profile)
+    except RuntimeError as exc:
+        print_warning(f"MAX bot stopped: {exc}")
+    except asyncio.CancelledError:
+        raise
+
+
 def _terminate_proc(proc: subprocess.Popen[bytes] | None) -> None:
     if proc is None or proc.poll() is not None:
         return
@@ -107,7 +129,7 @@ def _docs_subprocess(
     gateway_port: int,
 ) -> subprocess.Popen[bytes] | None:
     if not docs_should_start():
-        print_warning("Documentation site skipped (web-docs/ not found)")
+        print_warning("Documentation site skipped (holix-docs not found; set HOLIX_WEB_DOCS_DIR)")
         return None
 
     listen_port = resolve_listen_port(host, port, wait_timeout=8.0)
@@ -159,8 +181,10 @@ async def _run_supervisor_async(
         companions.append("telegram (disabled)")
     if max_should_webhook(profile):
         companions.append("max (webhook)")
+    elif max_should_poll(profile):
+        companions.append("max (polling)")
     elif max_enabled(profile):
-        companions.append("max (polling — use holix max)")
+        companions.append("max (disabled)")
     else:
         companions.append("max (disabled)")
     print_info(f"Companion services: {', '.join(companions)}")
@@ -180,8 +204,9 @@ async def _run_supervisor_async(
     )
     gateway_task = asyncio.create_task(_run_gateway_uvicorn(host, port), name="gateway")
     telegram_task = asyncio.create_task(_run_telegram(profile), name="telegram")
+    max_task = asyncio.create_task(_run_max(profile), name="max")
     cron_task = asyncio.create_task(_run_cron_scheduler(profile), name="cron")
-    tasks = (gateway_task, telegram_task, cron_task)
+    tasks = (gateway_task, telegram_task, max_task, cron_task)
 
     try:
         results = await asyncio.gather(*tasks, return_exceptions=True)
@@ -207,6 +232,30 @@ def _cron_subprocess(profile: str) -> subprocess.Popen[bytes] | None:
         [sys.executable, "-m", "cli.services.cron_worker", "--profile", profile],
         env=env,
     )
+
+
+def _max_subprocess(profile: str) -> subprocess.Popen[bytes] | None:
+    if max_should_webhook(profile):
+        return None
+    if not max_should_poll(profile):
+        if max_enabled(profile):
+            print_warning("MAX bot skipped (webhook mode requires gateway)")
+        else:
+            print_warning(
+                "MAX bot skipped (set MAX_ACCESS_TOKEN or HOLIX_MAX_ACCESS_TOKEN to enable)"
+            )
+        return None
+
+    env = os.environ.copy()
+    env["HOLIX_PROFILE"] = profile
+    print_success(f"MAX bot starting in subprocess (polling, profile={profile})")
+    proc = popen_background(
+        [sys.executable, "-m", "integrations.max.main", "--profile", profile],
+        env=env,
+    )
+    if proc.pid:
+        update_max_pid(proc.pid, profile=profile)
+    return proc
 
 
 def _telegram_subprocess(profile: str) -> subprocess.Popen[bytes] | None:
@@ -248,6 +297,7 @@ def _start_with_reload(
     print_info("Auto-reload enabled (companions run in separate processes)")
 
     tg_proc = _telegram_subprocess(profile)
+    max_proc = _max_subprocess(profile)
     cron_proc = _cron_subprocess(profile)
     docs_proc = (
         _docs_subprocess(
@@ -272,7 +322,7 @@ def _start_with_reload(
     except KeyboardInterrupt:
         print_info("\nShutting down gateway...")
     finally:
-        for proc in (tg_proc, cron_proc, docs_proc):
+        for proc in (tg_proc, max_proc, cron_proc, docs_proc):
             _terminate_proc(proc)
 
 

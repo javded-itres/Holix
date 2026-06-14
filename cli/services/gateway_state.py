@@ -39,6 +39,7 @@ class GatewayState:
     started_at: str
     log_file: str
     telegram_pid: int | None = None
+    max_pid: int | None = None
     docs_pid: int | None = None
     docs_host: str | None = None
     docs_port: int | None = None
@@ -56,6 +57,7 @@ class GatewayState:
             telegram_pid=(
                 int(data["telegram_pid"]) if data.get("telegram_pid") is not None else None
             ),
+            max_pid=int(data["max_pid"]) if data.get("max_pid") is not None else None,
             docs_pid=int(data["docs_pid"]) if data.get("docs_pid") is not None else None,
             docs_host=str(data["docs_host"]) if data.get("docs_host") is not None else None,
             docs_port=int(data["docs_port"]) if data.get("docs_port") is not None else None,
@@ -165,6 +167,10 @@ def update_telegram_pid(pid: int, *, profile: str = "default") -> None:
     _with_state(profile, telegram_pid=pid)
 
 
+def update_max_pid(pid: int, *, profile: str = "default") -> None:
+    _with_state(profile, max_pid=pid)
+
+
 def update_docs_info(*, pid: int, host: str, port: int, profile: str = "default") -> None:
     _with_state(profile, docs_pid=pid, docs_host=host, docs_port=port)
 
@@ -177,6 +183,7 @@ def new_state(
     profile: str,
     reload: bool,
     telegram_pid: int | None = None,
+    max_pid: int | None = None,
     docs_pid: int | None = None,
     docs_host: str | None = None,
     docs_port: int | None = None,
@@ -191,6 +198,7 @@ def new_state(
         started_at=datetime.now(UTC).isoformat(),
         log_file=str(log_path(profile)),
         telegram_pid=telegram_pid,
+        max_pid=max_pid,
         docs_pid=docs_pid,
         docs_host=docs_host,
         docs_port=docs_port,

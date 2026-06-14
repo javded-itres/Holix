@@ -158,12 +158,49 @@ MESSAGES: dict[str, dict[str, str]] = {
         "prompt.lang_block": (
             "## Language\n"
             "The user set the interface language to English (`/lang en`).\n"
-            "**You MUST write ALL responses to the user only in English** — explanations, "
-            "summaries, clarifying questions, and tool-result commentary — even if the user "
-            "writes in another language.\n"
+            "**You MUST write ALL user-visible text only in English** — final answers, "
+            "intermediate plans, step lists, analysis, summaries, clarifying questions, "
+            "and commentary before/after tool calls — even if the user writes in another "
+            "language.\n"
             "Exception: switch language only if the user explicitly asks for a different "
             "language in that specific message."
         ),
+        "live.thinking": "Thinking…",
+        "live.working": "Working…",
+        "live.reasoning": "Model is reasoning…",
+        "live.thinking_step": "Thinking (step {step})…",
+        "live.holix_thinking": "Holix is thinking… (mode: {mode})",
+        "live.processing": "Holix is processing your request…",
+        "live.still_working": "Holix is still working…",
+        "live.generating_plan": "Generating execution plan (timeout: {timeout}s)…",
+        "live.plan_review": "⏸ Plan review ({count} steps)",
+        "live.answer_sent": "Answer sent as a separate message ↓",
+        "plan.title": "📋 Execution Plan — {count} steps",
+        "plan.task_label": "Task:",
+        "plan.analysis": "📊 Analysis",
+        "plan.summary": "Summary:",
+        "plan.complexity": "Complexity:",
+        "plan.questions": "❓ Clarifying Questions",
+        "plan.questions_hint": "Describe what you'd like to change to answer these questions.",
+        "plan.constraints": "🔒 Constraints",
+        "plan.architecture": "🏗️ Architecture",
+        "plan.approach": "Approach:",
+        "plan.tech_stack": "Tech Stack:",
+        "plan.structure": "Structure:",
+        "plan.risks": "⚡ Risks & Mitigations",
+        "plan.risk_col": "Risk",
+        "plan.mitigation_col": "Mitigation",
+        "plan.steps": "📝 Execution Steps",
+        "plan.step": "Step {num}",
+        "plan.tools": "Tools:",
+        "plan.subagent": "Sub-agent:",
+        "plan.parallel": "Parallel group:",
+        "plan.depends": "Depends on:",
+        "plan.expected": "Expected output:",
+        "plan.success": "Success criteria:",
+        "plan.reasoning": "💭 Reasoning",
+        "plan.no_description": "No description",
+        "plan.refine_hint": "_Or reply with text to refine the plan._",
     },
     "ru": {
         "lang.current": "Язык интерфейса: {code}",
@@ -318,12 +355,48 @@ MESSAGES: dict[str, dict[str, str]] = {
         "prompt.lang_block": (
             "## Язык\n"
             "Пользователь выбрал язык интерфейса русский (`/lang ru`).\n"
-            "**Все ответы пользователю пиши ТОЛЬКО на русском** — пояснения, итоги, "
-            "уточняющие вопросы и комментарии к результатам tools — даже если пользователь "
-            "пишет на другом языке.\n"
+            "**Весь видимый пользователю текст пиши ТОЛЬКО на русском** — финальные ответы, "
+            "промежуточные планы, списки шагов, анализ, итоги, уточняющие вопросы и "
+            "комментарии до/после вызова tools — даже если пользователь пишет на другом языке.\n"
             "Исключение: другой язык только если пользователь явно попросит ответить на нём "
             "в конкретном сообщении."
         ),
+        "live.thinking": "Думаю…",
+        "live.working": "Работаю…",
+        "live.reasoning": "Модель размышляет…",
+        "live.thinking_step": "Шаг {step}: размышление…",
+        "live.holix_thinking": "Holix думает… (режим: {mode})",
+        "live.processing": "Holix обрабатывает запрос…",
+        "live.still_working": "Holix всё ещё работает…",
+        "live.generating_plan": "Формирую план выполнения (таймаут: {timeout} с)…",
+        "live.plan_review": "⏸ Проверка плана ({count} шагов)",
+        "live.answer_sent": "Ответ отправлен отдельным сообщением ↓",
+        "plan.title": "📋 План выполнения — {count} шагов",
+        "plan.task_label": "Задача:",
+        "plan.analysis": "📊 Анализ",
+        "plan.summary": "Кратко:",
+        "plan.complexity": "Сложность:",
+        "plan.questions": "❓ Уточняющие вопросы",
+        "plan.questions_hint": "Опишите, что изменить, чтобы ответить на эти вопросы.",
+        "plan.constraints": "🔒 Ограничения",
+        "plan.architecture": "🏗️ Архитектура",
+        "plan.approach": "Подход:",
+        "plan.tech_stack": "Стек:",
+        "plan.structure": "Структура:",
+        "plan.risks": "⚡ Риски и меры",
+        "plan.risk_col": "Риск",
+        "plan.mitigation_col": "Мера",
+        "plan.steps": "📝 Шаги выполнения",
+        "plan.step": "Шаг {num}",
+        "plan.tools": "Инструменты:",
+        "plan.subagent": "Субагент:",
+        "plan.parallel": "Параллельная группа:",
+        "plan.depends": "Зависит от:",
+        "plan.expected": "Ожидаемый результат:",
+        "plan.success": "Критерий успеха:",
+        "plan.reasoning": "💭 Обоснование",
+        "plan.no_description": "Без описания",
+        "plan.refine_hint": "_Или напишите текстом, что изменить в плане._",
     },
 }
 

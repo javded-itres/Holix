@@ -6,6 +6,7 @@ or sets is_final + final_response. Emits AgentEvent objects to
 the event bus as side effects.
 """
 
+import asyncio
 import logging
 from typing import Any
 
@@ -19,9 +20,32 @@ from core.agent_events import (
     ToolCallStartEvent,
 )
 from core.graph.state import HolixGraphState, get_agent_from_config
+from core.i18n.live_ui import live_reasoning_label, live_thinking_step_label
+from core.llm.response_text import (
+    assistant_message_parts,
+    resolve_assistant_text,
+    stream_delta_parts,
+)
+from core.profile.soul import profile_name_from_agent
 from core.prompt_builder import build_system_prompt, format_tools_description
 
 logger = logging.getLogger(__name__)
+
+_DEFAULT_LLM_STEP_TIMEOUT_S = 120.0
+
+
+def _llm_step_timeout_s(agent) -> float:
+    cfg = getattr(agent, "config", None) if agent else None
+    for attr in ("llm_step_timeout", "subagent_process_timeout"):
+        raw = getattr(cfg, attr, None) if cfg else None
+        if raw is not None:
+            try:
+                value = float(raw)
+            except (TypeError, ValueError):
+                continue
+            if value > 0:
+                return value
+    return _DEFAULT_LLM_STEP_TIMEOUT_S
 
 
 def _emit_final_response(
@@ -64,12 +88,14 @@ async def react_node(state: HolixGraphState, config: RunnableConfig) -> dict:
     conversation_id = state.get("conversation_id", "default")
     stream = state.get("stream", False)
 
-    # Emit thinking event
+    profile_name = profile_name_from_agent(agent) if agent else "default"
     if agent and hasattr(agent, "emit"):
-        agent.emit(ThinkingEvent(
-            message=f"Thinking (step {step_count})...",
-            conversation_id=conversation_id,
-        ))
+        agent.emit(
+            ThinkingEvent(
+                message=live_thinking_step_label(profile_name, step_count),
+                conversation_id=conversation_id,
+            )
+        )
 
     # Build system prompt from state
     system_prompt = _build_system_prompt_from_state(state, agent=agent)
@@ -118,6 +144,7 @@ async def react_node(state: HolixGraphState, config: RunnableConfig) -> dict:
 
     agent_slot = getattr(agent, "agent_slot", "main") if agent else "main"
     model_manager = getattr(agent, "model_manager", None) if agent else None
+    llm_timeout_s = _llm_step_timeout_s(agent)
 
     def _on_fallback_switch(cfg) -> None:
         if agent and hasattr(agent, "set_active_model_config"):
@@ -137,6 +164,7 @@ async def react_node(state: HolixGraphState, config: RunnableConfig) -> dict:
                 model_manager=model_manager,
                 agent_slot=agent_slot,
                 on_switch=_on_fallback_switch,
+                llm_timeout_s=llm_timeout_s,
             )
         else:
             return await _react_non_streaming(
@@ -151,8 +179,27 @@ async def react_node(state: HolixGraphState, config: RunnableConfig) -> dict:
                 model_manager=model_manager,
                 agent_slot=agent_slot,
                 on_switch=_on_fallback_switch,
+                llm_timeout_s=llm_timeout_s,
             )
 
+    except TimeoutError:
+        timeout_s = llm_timeout_s
+        err = (
+            f"Модель не ответила за {int(timeout_s)} с. "
+            "Попробуйте ещё раз или выберите другую модель (/models)."
+        )
+        logger.warning("LLM step timeout (model=%s, step=%s)", model, step_count)
+        _emit_final_response(
+            agent,
+            content=err,
+            steps_taken=step_count,
+            conversation_id=conversation_id,
+        )
+        return {
+            "step_count": step_count,
+            "is_final": True,
+            "final_response": err,
+        }
     except Exception as e:
         logger.error(f"Error in react_node: {e}")
         err = f"Error during agent step: {str(e)}"
@@ -182,30 +229,34 @@ async def _react_non_streaming(
     model_manager=None,
     agent_slot: str = "main",
     on_switch=None,
+    llm_timeout_s: float = _DEFAULT_LLM_STEP_TIMEOUT_S,
 ) -> dict:
     """Non-streaming ReAct step."""
     conversation_id = state.get("conversation_id", "default")
 
-    if model_manager:
-        from core.models.fallback import chat_completions_with_fallback
+    async def _call_llm():
+        if model_manager:
+            from core.models.fallback import chat_completions_with_fallback
 
-        response = await chat_completions_with_fallback(
-            model_manager,
-            agent_name=agent_slot,
-            on_switch=on_switch,
-            messages=api_messages,
-            tools=tools,
-            tool_choice="auto",
-            temperature=temperature,
-        )
-    else:
-        response = await client.chat.completions.create(
+            return await chat_completions_with_fallback(
+                model_manager,
+                agent_name=agent_slot,
+                on_switch=on_switch,
+                messages=api_messages,
+                tools=tools,
+                tool_choice="auto",
+                temperature=temperature,
+            )
+        return await client.chat.completions.create(
             model=model,
             messages=api_messages,
             tools=tools,
             tool_choice="auto",
             temperature=temperature,
         )
+
+    async with asyncio.timeout(llm_timeout_s):
+        response = await _call_llm()
 
     message = response.choices[0].message
     messages = list(state.get("messages", []))
@@ -246,7 +297,15 @@ async def _react_non_streaming(
         }
     else:
         # Final answer
-        final_response = message.content or "No response generated"
+        msg_content, msg_reasoning = assistant_message_parts(message)
+        finish_reason = response.choices[0].finish_reason if response.choices else None
+        final_response = resolve_assistant_text(
+            content=msg_content,
+            reasoning_content=msg_reasoning,
+            finish_reason=finish_reason,
+            model=model,
+        )
+        msg_dict["content"] = final_response
         messages.append(msg_dict)
 
         # Save to memory
@@ -298,28 +357,29 @@ async def _react_streaming(
     model_manager=None,
     agent_slot: str = "main",
     on_switch=None,
+    llm_timeout_s: float = _DEFAULT_LLM_STEP_TIMEOUT_S,
 ) -> dict:
     """Streaming ReAct step."""
     conversation_id = state.get("conversation_id", "default")
 
-    if model_manager:
-        from core.models.fallback import run_with_provider_fallback
+    async def _open_stream():
+        if model_manager:
+            from core.models.fallback import run_with_provider_fallback
 
-        stream_response = await run_with_provider_fallback(
-            model_manager,
-            agent_name=agent_slot,
-            on_switch=on_switch,
-            factory=lambda cfg, llm_client: llm_client.chat.completions.create(
-                model=cfg.model,
-                messages=api_messages,
-                tools=tools,
-                tool_choice="auto",
-                temperature=temperature,
-                stream=True,
-            ),
-        )
-    else:
-        stream_response = await client.chat.completions.create(
+            return await run_with_provider_fallback(
+                model_manager,
+                agent_name=agent_slot,
+                on_switch=on_switch,
+                factory=lambda cfg, llm_client: llm_client.chat.completions.create(
+                    model=cfg.model,
+                    messages=api_messages,
+                    tools=tools,
+                    tool_choice="auto",
+                    temperature=temperature,
+                    stream=True,
+                ),
+            )
+        return await client.chat.completions.create(
             model=model,
             messages=api_messages,
             tools=tools,
@@ -329,109 +389,183 @@ async def _react_streaming(
         )
 
     current_content = ""
+    current_reasoning = ""
     tool_calls_dict: dict[int, dict[str, Any]] = {}
+    last_finish_reason: str | None = None
+    reasoning_status_emitted = False
 
-    async for chunk in stream_response:
-        delta = chunk.choices[0].delta
+    async with asyncio.timeout(llm_timeout_s):
+        stream_response = await _open_stream()
 
-        # Content streaming
-        if delta.content:
-            current_content += delta.content
-            if agent and hasattr(agent, "emit"):
-                agent.emit(AssistantDeltaEvent(
-                    content=delta.content,
-                    accumulated=current_content,
-                    conversation_id=conversation_id,
-                ))
+        async for chunk in stream_response:
+            delta = chunk.choices[0].delta
+            content_delta, reasoning_delta = stream_delta_parts(delta)
 
-        # Tool call streaming (accumulate deltas)
-        if delta.tool_calls:
-            for tc_delta in delta.tool_calls:
-                idx = tc_delta.index
-                if idx not in tool_calls_dict:
-                    tool_calls_dict[idx] = {
-                        "id": "",
-                        "type": "function",
-                        "function": {"name": "", "arguments": ""},
+            # Content / reasoning streaming (reasoning models may only fill reasoning_*)
+            if content_delta:
+                current_content += content_delta
+                if agent and hasattr(agent, "emit"):
+                    agent.emit(AssistantDeltaEvent(
+                        content=content_delta,
+                        accumulated=current_content,
+                        conversation_id=conversation_id,
+                    ))
+            if reasoning_delta:
+                # Reasoning is internal; do not stream it to messenger progress UIs.
+                current_reasoning += reasoning_delta
+                if (
+                    not current_content.strip()
+                    and agent
+                    and hasattr(agent, "emit")
+                    and not reasoning_status_emitted
+                ):
+                    agent.emit(
+                        ThinkingEvent(
+                            message=live_reasoning_label(profile_name_from_agent(agent)),
+                            conversation_id=conversation_id,
+                        )
+                    )
+                    reasoning_status_emitted = True
+
+            # Tool call streaming (accumulate deltas)
+            if delta.tool_calls:
+                for tc_delta in delta.tool_calls:
+                    idx = tc_delta.index
+                    if idx not in tool_calls_dict:
+                        tool_calls_dict[idx] = {
+                            "id": "",
+                            "type": "function",
+                            "function": {"name": "", "arguments": ""},
+                        }
+                    if tc_delta.id:
+                        tool_calls_dict[idx]["id"] = tc_delta.id
+                    if tc_delta.function:
+                        if tc_delta.function.name:
+                            tool_calls_dict[idx]["function"]["name"] = tc_delta.function.name
+                        if tc_delta.function.arguments:
+                            tool_calls_dict[idx]["function"]["arguments"] += tc_delta.function.arguments
+
+            finish_reason = chunk.choices[0].finish_reason
+            if finish_reason:
+                last_finish_reason = finish_reason
+
+            if finish_reason == "stop":
+                final_response = resolve_assistant_text(
+                    content=current_content,
+                    reasoning_content=current_reasoning,
+                    finish_reason=finish_reason,
+                    model=model,
+                )
+                if not final_response:
+                    logger.warning(
+                        "Empty streaming LLM response (model=%s); retrying non-streaming",
+                        model,
+                    )
+                    return await _react_non_streaming(
+                        state,
+                        agent,
+                        api_messages,
+                        step_count,
+                        client,
+                        model,
+                        tools,
+                        temperature,
+                        model_manager=model_manager,
+                        agent_slot=agent_slot,
+                        on_switch=on_switch,
+                        llm_timeout_s=llm_timeout_s,
+                    )
+                messages = list(state.get("messages", []))
+                messages.append({"role": "assistant", "content": final_response})
+
+                if agent and hasattr(agent, "memory"):
+                    await agent.memory.save_message(conversation_id, "assistant", final_response)
+
+                # Check if we're in plan_and_execute mode with active steps
+                plan_steps = state.get("plan_steps", [])
+                current_plan_step = state.get("current_plan_step", 0)
+                has_active_plan = bool(plan_steps) and current_plan_step < len(plan_steps)
+
+                if has_active_plan:
+                    # In plan mode: the step is complete, not the entire conversation
+                    return {
+                        "messages": messages,
+                        "step_count": step_count,
+                        "is_final": False,
+                        "final_response": final_response,
+                        "tool_calls": [],
+                        "is_step_complete": True,
                     }
-                if tc_delta.id:
-                    tool_calls_dict[idx]["id"] = tc_delta.id
-                if tc_delta.function:
-                    if tc_delta.function.name:
-                        tool_calls_dict[idx]["function"]["name"] = tc_delta.function.name
-                    if tc_delta.function.arguments:
-                        tool_calls_dict[idx]["function"]["arguments"] += tc_delta.function.arguments
 
-        finish_reason = chunk.choices[0].finish_reason
+                _emit_final_response(
+                    agent,
+                    content=final_response,
+                    steps_taken=step_count,
+                    conversation_id=conversation_id,
+                )
 
-        if finish_reason == "stop":
-            # Final answer via streaming
-            final_response = current_content or "No response generated"
-            messages = list(state.get("messages", []))
-            messages.append({"role": "assistant", "content": final_response})
-
-            if agent and hasattr(agent, "memory"):
-                await agent.memory.save_message(conversation_id, "assistant", final_response)
-
-            # Check if we're in plan_and_execute mode with active steps
-            plan_steps = state.get("plan_steps", [])
-            current_plan_step = state.get("current_plan_step", 0)
-            has_active_plan = bool(plan_steps) and current_plan_step < len(plan_steps)
-
-            if has_active_plan:
-                # In plan mode: the step is complete, not the entire conversation
                 return {
                     "messages": messages,
                     "step_count": step_count,
-                    "is_final": False,
+                    "is_final": True,
                     "final_response": final_response,
                     "tool_calls": [],
-                    "is_step_complete": True,
                 }
 
-            _emit_final_response(
-                agent,
-                content=final_response,
-                steps_taken=step_count,
-                conversation_id=conversation_id,
-            )
+            elif finish_reason == "tool_calls":
+                # Tool calls via streaming
+                tool_calls = list(tool_calls_dict.values())
+                messages = list(state.get("messages", []))
+                messages.append({
+                    "role": "assistant",
+                    "content": current_content,
+                    "tool_calls": tool_calls,
+                })
 
-            return {
-                "messages": messages,
-                "step_count": step_count,
-                "is_final": True,
-                "final_response": final_response,
-                "tool_calls": [],
-            }
+                for tc_data in tool_calls:
+                    if agent and hasattr(agent, "emit"):
+                        agent.emit(ToolCallStartEvent(
+                            tool_name=tc_data["function"]["name"],
+                            tool_id=tc_data["id"],
+                            arguments_raw=tc_data["function"]["arguments"],
+                            conversation_id=conversation_id,
+                        ))
 
-        elif finish_reason == "tool_calls":
-            # Tool calls via streaming
-            tool_calls = list(tool_calls_dict.values())
-            messages = list(state.get("messages", []))
-            messages.append({
-                "role": "assistant",
-                "content": current_content,
-                "tool_calls": tool_calls,
-            })
+                return {
+                    "messages": messages,
+                    "tool_calls": tool_calls,
+                    "step_count": step_count,
+                    "is_final": False,
+                }
 
-            for tc_data in tool_calls:
-                if agent and hasattr(agent, "emit"):
-                    agent.emit(ToolCallStartEvent(
-                        tool_name=tc_data["function"]["name"],
-                        tool_id=tc_data["id"],
-                        arguments_raw=tc_data["function"]["arguments"],
-                        conversation_id=conversation_id,
-                    ))
-
-            return {
-                "messages": messages,
-                "tool_calls": tool_calls,
-                "step_count": step_count,
-                "is_final": False,
-            }
-
-    # If we got here without a finish_reason, treat as final
-    final_response = current_content or "No response generated"
+    # Stream ended without an explicit finish_reason — treat as final
+    final_response = resolve_assistant_text(
+        content=current_content,
+        reasoning_content=current_reasoning,
+        finish_reason=last_finish_reason,
+        model=model,
+    )
+    if not final_response:
+        logger.warning(
+            "Stream ended without assistant text (model=%s, finish_reason=%s); "
+            "retrying non-streaming",
+            model,
+            last_finish_reason,
+        )
+        return await _react_non_streaming(
+            state,
+            agent,
+            api_messages,
+            step_count,
+            client,
+            model,
+            tools,
+            temperature,
+            model_manager=model_manager,
+            agent_slot=agent_slot,
+            on_switch=on_switch,
+            llm_timeout_s=llm_timeout_s,
+        )
     messages = list(state.get("messages", []))
     messages.append({"role": "assistant", "content": final_response})
 
@@ -516,7 +650,7 @@ def _build_system_prompt_from_state(state: HolixGraphState, agent=None) -> str:
     if plan_context:
         combined_memories = f"{combined_memories}\n{plan_context}" if combined_memories else plan_context
 
-    profile_name = getattr(getattr(agent, "config", None), "profile_name", None)
+    profile_name = profile_name_from_agent(agent) if agent else "default"
     return build_system_prompt(
         tools_description=tools_desc,
         active_skills=relevant_skills,

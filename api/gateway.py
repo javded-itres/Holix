@@ -99,6 +99,7 @@ async def lifespan(app: FastAPI):
         if not supervised:
             await state.companions.start_cron(host_profile)
             await state.companions.start_telegram(host_profile)
+            await state.companions.start_max(host_profile)
 
     asyncio.create_task(_warm_gateway(), name="holix-gateway-warm")
 

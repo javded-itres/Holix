@@ -66,10 +66,9 @@ def _prepare_profile_for_user(
 
     if create_new:
         if manager.profile_exists(target_profile):
-            if profile_has_access_key(target_profile):
-                key_already_set = True
-            else:
-                access_key = store_profile_access_key(target_profile)
+            had_key = profile_has_access_key(target_profile)
+            access_key = store_profile_access_key(target_profile)
+            if not had_key:
                 enable_profile_workspace_isolation(manager, target_profile)
         else:
             manager.create_profile(target_profile, with_access_key=True)

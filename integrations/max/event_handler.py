@@ -15,12 +15,17 @@ from core.agent_events import (
     FinalResponseEvent,
     PlanCompletedEvent,
     PlanStepCompletedEvent,
+    SubAgentWaveCompletedEvent,
+    SubAgentWaveStartedEvent,
     ThinkingEvent,
     ToolCallErrorEvent,
     ToolCallResultEvent,
     ToolCallStartEvent,
 )
+from core.i18n.live_ui import live_thinking_label
 from core.plan_review.review_events import PlanReviewRequestEvent
+from core.presenters.final_content import resolve_messenger_final_content
+from core.presenters.subagent_tool_text import format_subagent_tool_notice
 from core.security.confirmation_events import ConfirmationRequestEvent
 from core.subagents.interaction_events import SubAgentQuestionEvent
 
@@ -42,10 +47,15 @@ _PROGRESS_TOOLS = frozenset(
 
 
 def _tool_result_notice_text(tool_name: str, body: str) -> str:
-    from integrations.max.subagent_format import format_list_subagents_result
-
-    if tool_name == "list_subagents":
-        return format_list_subagents_result(body)
+    name = (tool_name or "").strip()
+    if name in _PROGRESS_TOOLS or name in {
+        "delegate_to_subagent",
+        "list_subagents",
+        "terminate_subagent",
+    }:
+        formatted = format_subagent_tool_notice(name, body)
+        if formatted:
+            return formatted
     return body
 
 
@@ -60,7 +70,9 @@ class MaxEventHandler:
             return
         try:
             if isinstance(event, ThinkingEvent):
-                buf.set_thinking(event.message or "thinking…")
+                buf.set_thinking(
+                    live_thinking_label(buf.profile, fallback=event.message or "thinking…")
+                )
                 self._presenter.schedule_edit()
 
             elif isinstance(event, ToolCallStartEvent):
@@ -74,9 +86,12 @@ class MaxEventHandler:
                 name = (event.tool_name or "").strip()
                 detail = self._tool_detail(name, args)
                 logger.info("MAX tool started (%s)", name)
-                self._presenter.enqueue_outbound(
-                    self._presenter.send_tool_progress(name, detail)
-                )
+                if name == "delegate_to_subagent" and self._has_active_subagents():
+                    logger.info("MAX tool progress skipped (%s): sub-agents already active", name)
+                else:
+                    self._presenter.enqueue_outbound(
+                        self._presenter.send_tool_progress(name, detail)
+                    )
 
             elif isinstance(event, ToolCallResultEvent):
                 duration = getattr(event, "duration_ms", None)
@@ -90,9 +105,12 @@ class MaxEventHandler:
                 name = (event.tool_name or "").strip()
                 if (body or "").strip():
                     notice = _tool_result_notice_text(name, body)
-                    self._presenter.enqueue_outbound(
-                        self._presenter.send_tool_result_notice(name, notice)
-                    )
+                    if name == "delegate_to_subagent" and "already_running" in body:
+                        logger.info("MAX tool result skipped (%s): duplicate delegation", name)
+                    else:
+                        self._presenter.enqueue_outbound(
+                            self._presenter.send_tool_result_notice(name, notice)
+                        )
 
             elif isinstance(event, ToolCallErrorEvent):
                 duration = getattr(event, "duration_ms", None)
@@ -115,15 +133,25 @@ class MaxEventHandler:
                     )
 
             elif isinstance(event, AssistantDeltaEvent):
-                pass
+                accumulated = (getattr(event, "accumulated", None) or "").strip()
+                if accumulated:
+                    buf.set_answer(accumulated)
+                elif event.content:
+                    buf.append_answer_delta(event.content)
+                self._presenter.schedule_edit()
 
             elif isinstance(event, FinalResponseEvent):
                 buf.set_thinking(None)
-                content = (event.content or "").strip()
-                if not content:
-                    recent = self._presenter.session._recent_tool_results
-                    if recent:
-                        content = str(recent[-1].get("full_result") or "").strip()
+                recent = self._presenter.session._recent_tool_results
+                last_tool = (
+                    str(recent[-1].get("full_result") or "").strip() if recent else ""
+                )
+                content = resolve_messenger_final_content(
+                    event.content,
+                    streamed_answer=buf.answer,
+                    last_tool_result=last_tool,
+                    recent_tool_results=recent,
+                )
                 if content:
                     self._presenter.session._transcript_store.append(
                         "assistant",
@@ -150,6 +178,42 @@ class MaxEventHandler:
                 self._presenter.enqueue_outbound(
                     self._approvals.on_confirmation_request(event)
                 )
+
+            elif isinstance(event, SubAgentWaveStartedEvent):
+                buf.set_thinking(None)
+                wave = int(getattr(event, "wave_id", 0)) + 1
+                total = int(getattr(event, "total_waves", 0)) or 1
+                jobs = ", ".join(getattr(event, "job_ids", []) or []) or "—"
+                buf.add_note(f"🚀 subagents wave {wave}/{total}: {jobs[:240]}")
+                self._presenter.schedule_edit(force=True)
+                self._presenter.enqueue_outbound(
+                    self._presenter.send_notice(
+                        f"🚀 Запущена волна субагентов {wave}/{total}: {jobs}"
+                    )
+                )
+
+            elif isinstance(event, SubAgentWaveCompletedEvent):
+                buf.set_thinking(None)
+                summary = (getattr(event, "summary", None) or "").strip()
+                wave = int(getattr(event, "wave_id", 0)) + 1
+                total = int(getattr(event, "total_waves", 0)) or 1
+                completed = int(getattr(event, "completed", 0))
+                total_jobs = int(getattr(event, "total", 0))
+                buf.add_note(
+                    f"✓ subagents wave {wave}/{total}: {completed}/{total_jobs}"
+                )
+                self._presenter.schedule_edit(force=True)
+                if summary:
+                    self._presenter.enqueue_outbound(
+                        self._presenter.send_notice(summary)
+                    )
+                else:
+                    self._presenter.enqueue_outbound(
+                        self._presenter.send_notice(
+                            f"✓ Субагенты: волна {wave}/{total} — "
+                            f"{completed}/{total_jobs} готово"
+                        )
+                    )
 
             elif isinstance(event, SubAgentQuestionEvent):
                 buf.set_thinking(None)
@@ -193,6 +257,13 @@ class MaxEventHandler:
             buf.add_note(f"UI error: {exc}")
             self._presenter.schedule_edit()
             logger.exception("MAX event handler failed for %s", type(event).__name__)
+
+    def _has_active_subagents(self) -> bool:
+        session = self._presenter.session
+        agent = getattr(session, "agent", None)
+        if not agent or not hasattr(agent, "subagents"):
+            return False
+        return bool(agent.subagents.list_active())
 
     async def _send_subagent_question(self, event: SubAgentQuestionEvent) -> None:
         name = event.subagent_name or "sub-agent"

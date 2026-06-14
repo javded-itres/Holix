@@ -140,7 +140,9 @@ Now create a plan for the task above. Respond with ONLY valid JSON:
 
 SUBAGENT_PLAN_APPENDIX = """
 ## Sub-agent delegation (enabled)
-When complexity is medium or complex, assign `subagent_type` on steps that specialists should run:
+When complexity is medium or complex, you MUST assign `subagent_type` on steps that specialists should run.
+At least one step in medium/complex plans should use a sub-agent.
+Mapping:
 - research / web search → `web_researcher` or `researcher`
 - coding / implementation → `coder`
 - data / SQL analysis → `analyst`
@@ -148,7 +150,7 @@ When complexity is medium or complex, assign `subagent_type` on steps that speci
 - documentation → `writer`
 For complex tasks, use `parallel_group` (same integer) for independent steps that can run in parallel.
 Use `depends_on` so downstream steps wait for prerequisites.
-Leave `subagent_type` null only for steps the main agent must handle directly.
+Leave `subagent_type` null only for short coordination steps the main agent must handle directly.
 """
 
 FALLBACK_PLAN_PROMPT = """You are a task planner. Break down the following task into clear, ordered sub-tasks.
@@ -279,6 +281,12 @@ async def plan_node(state: HolixGraphState, config: RunnableConfig) -> dict:
     # Build tools description
     tools_desc = _get_tools_description(agent)
 
+    from core.profile.soul import profile_name_from_agent
+    from core.prompt_builder import language_instruction_block
+
+    profile_name = profile_name_from_agent(agent)
+    lang_block = language_instruction_block(profile_name=profile_name)
+
     # Choose prompt: detailed if tools available, fallback otherwise
     if tools_desc:
         prompt = DETAILED_PLAN_PROMPT.format(
@@ -292,6 +300,8 @@ async def plan_node(state: HolixGraphState, config: RunnableConfig) -> dict:
         if project_handbook:
             prompt += f"\n\n## PROJECT HANDBOOK\n{project_handbook}\n"
 
+    prompt = f"{lang_block}\n\n{prompt}"
+
     if getattr(agent.config, "enable_subagents", False):
         prompt += SUBAGENT_PLAN_APPENDIX
 
@@ -304,27 +314,28 @@ async def plan_node(state: HolixGraphState, config: RunnableConfig) -> dict:
             "Please generate an improved plan addressing this feedback."
         )
 
-    # Emit thinking event so the UI shows "Generating plan..."
     if hasattr(agent, "emit"):
         from core.agent_events import ThinkingEvent
-        agent.emit(ThinkingEvent(
-            message=f"Generating execution plan (timeout: {plan_timeout}s)...",
-            conversation_id=conversation_id,
-        ))
+        from core.i18n.live_ui import live_generating_plan_label
+
+        agent.emit(
+            ThinkingEvent(
+                message=live_generating_plan_label(profile_name, timeout=plan_timeout),
+                conversation_id=conversation_id,
+            )
+        )
 
     # Call LLM with timeout + retry
     client = agent.client
     model = agent.model
-    profile_name = getattr(getattr(agent, "config", None), "profile_name", None)
-    from core.prompt_builder import language_instruction_block
-
     plan_system = (
         "You are a senior software architect and task planner. "
         "Create comprehensive, detailed execution plans. "
         "Respond with ONLY valid JSON. "
-        "Write all human-readable text fields in the plan (descriptions, analysis, questions) "
-        "in the language required below; keep JSON keys in English.\n\n"
-        f"{language_instruction_block(profile_name=profile_name)}"
+        "Write ALL human-readable text fields in the plan (task_summary, descriptions, "
+        "analysis, architecture, questions, reasoning) in the language required below; "
+        "keep JSON keys in English.\n\n"
+        f"{lang_block}"
     )
 
     api_kwargs = {
