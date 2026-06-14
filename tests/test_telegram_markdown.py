@@ -5,6 +5,7 @@ from integrations.telegram.markdown import (
     escape_html,
     markdown_to_telegram_html,
     plain_to_telegram_html,
+    split_telegram_html,
     truncate_telegram_html,
 )
 from integrations.telegram.render import buffer_to_telegram_html
@@ -61,6 +62,23 @@ def test_long_final_answer_stays_html_not_raw_markdown() -> None:
     assert len(html) <= 4090
 
 
+def test_split_telegram_html_multiple_chunks() -> None:
+    html = "<p>" + "word " * 2500 + "</p>"
+    chunks = split_telegram_html(html, max_len=500)
+    assert len(chunks) >= 2
+    assert all(len(c) <= 500 for c in chunks)
+
+
+def test_compact_tools_show_header_only() -> None:
+    buf = LiveTranscriptBuffer(profile="default", mode="react", compact_tools=True)
+    buf.add_tool_start("read_file", {"path": "/very/long/path/file.py"})
+    buf.add_tool_result("read_file", "x" * 500, duration_s=0.5)
+    html = buffer_to_telegram_html(buf)
+    assert "read_file" in html
+    assert "/very/long/path" not in html
+    assert "<code>" not in html
+
+
 def test_done_with_tools_hides_tools_keeps_rendered_answer() -> None:
     buf = LiveTranscriptBuffer(profile="default", mode="react")
     buf.add_tool_start("read", {"path": "a.py"})
@@ -79,4 +97,6 @@ def test_telegram_done_posts_answer_separately_not_in_live_card() -> None:
     buf.mark_done()
     html = buffer_to_telegram_html(buf)
     assert "<b>Secret final</b>" not in html
-    assert "отдельным сообщением" in html
+    from core.i18n.live_ui import live_answer_sent_label
+
+    assert live_answer_sent_label("default") in html

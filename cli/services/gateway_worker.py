@@ -44,9 +44,23 @@ def main(argv: list[str] | None = None) -> int:
         load_telegram_env_files(args.profile)
     except Exception:
         pass
+    try:
+        from integrations.max.env_store import load_max_env_files
+
+        load_max_env_files(args.profile)
+    except Exception:
+        pass
 
     def _env_bool(name: str) -> bool:
         return os.getenv(name, "").strip().lower() in {"1", "true", "yes", "on"}
+
+    if not os.getenv("HOLIX_WEB_DOCS_DIR", "").strip():
+        try:
+            from cli.services.docs_site import resolve_web_docs_dir
+
+            os.environ["HOLIX_WEB_DOCS_DIR"] = str(resolve_web_docs_dir())
+        except FileNotFoundError:
+            pass
 
     with_docs = args.with_docs or _env_bool("HOLIX_GATEWAY_WITH_DOCS") or _env_bool(
         "HOLIX_GATEWAY_DOCS"

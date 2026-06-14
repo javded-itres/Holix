@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Any
 
 from core.crypto.encrypted_fs import ENCRYPTION_MAGIC, is_encrypted_file
+from core.profile.names import validate_profile_name
 from core.workspace.limits import ProfileLimits, ensure_profile_limits, load_profile_limits
 
 QUOTA_DIRNAME = ".holix"
@@ -45,13 +46,18 @@ class QuotaUsage:
         )
 
 
+def _resolve_workspace_root(workspace_root: Path) -> Path:
+    return workspace_root.expanduser().resolve()
+
+
 def quota_state_path(workspace_root: Path) -> Path:
-    return workspace_root / QUOTA_DIRNAME / QUOTA_FILENAME
+    return _resolve_workspace_root(workspace_root) / QUOTA_DIRNAME / QUOTA_FILENAME
 
 
 def _is_quota_excluded(path: Path, workspace_root: Path) -> bool:
+    root = _resolve_workspace_root(workspace_root)
     try:
-        rel = path.resolve().relative_to(workspace_root.resolve())
+        rel = path.resolve().relative_to(root)
     except ValueError:
         return True
     parts = rel.parts
@@ -76,7 +82,7 @@ def _file_size_on_disk(path: Path) -> int:
 
 
 def reconcile_workspace_usage(workspace_root: Path) -> QuotaUsage:
-    root = workspace_root.resolve()
+    root = _resolve_workspace_root(workspace_root)
     used_bytes = 0
     file_count = 0
     if root.is_dir():
@@ -100,18 +106,20 @@ def reconcile_workspace_usage(workspace_root: Path) -> QuotaUsage:
 
 
 def load_quota_usage(workspace_root: Path) -> QuotaUsage:
-    path = quota_state_path(workspace_root)
+    root = _resolve_workspace_root(workspace_root)
+    path = quota_state_path(root)
     if not path.is_file():
-        return reconcile_workspace_usage(workspace_root)
+        return reconcile_workspace_usage(root)
     try:
         data = json.loads(path.read_text(encoding="utf-8"))
         return QuotaUsage.from_dict(data)
     except (OSError, json.JSONDecodeError, TypeError, ValueError):
-        return reconcile_workspace_usage(workspace_root)
+        return reconcile_workspace_usage(root)
 
 
 def save_quota_usage(workspace_root: Path, usage: QuotaUsage) -> None:
-    path = quota_state_path(workspace_root)
+    root = _resolve_workspace_root(workspace_root)
+    path = quota_state_path(root)
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(usage.to_dict(), indent=2) + "\n", encoding="utf-8")
 
@@ -124,16 +132,18 @@ def check_workspace_write(
     new_payload_bytes: int,
     previous_size: int = 0,
 ) -> None:
-    if _is_quota_excluded(target, workspace_root.resolve()):
+    safe_profile = validate_profile_name(profile)
+    root = _resolve_workspace_root(workspace_root)
+    if _is_quota_excluded(target, root):
         return
 
-    limits = load_profile_limits(profile) or ensure_profile_limits(profile)
-    usage = load_quota_usage(workspace_root)
+    limits = load_profile_limits(safe_profile) or ensure_profile_limits(safe_profile)
+    usage = load_quota_usage(root)
 
     projected_bytes = usage.used_bytes - max(0, previous_size) + new_payload_bytes
     if projected_bytes > limits.workspace_max_bytes:
         raise WorkspaceQuotaExceeded(
-            f"Workspace quota exceeded for profile '{profile}': "
+            f"Workspace quota exceeded for profile '{safe_profile}': "
             f"{projected_bytes} bytes > {limits.workspace_max_bytes} bytes "
             f"(tariff: {limits.tariff_id})"
         )
@@ -142,7 +152,7 @@ def check_workspace_write(
     projected_files = usage.file_count + (1 if is_new_file else 0)
     if projected_files > limits.workspace_max_files:
         raise WorkspaceQuotaExceeded(
-            f"Workspace file count limit exceeded for profile '{profile}': "
+            f"Workspace file count limit exceeded for profile '{safe_profile}': "
             f"{projected_files} > {limits.workspace_max_files} (tariff: {limits.tariff_id})"
         )
 
@@ -154,7 +164,8 @@ def apply_workspace_write_delta(
     new_size: int,
     created: bool,
 ) -> QuotaUsage:
-    usage = load_quota_usage(workspace_root)
+    root = _resolve_workspace_root(workspace_root)
+    usage = load_quota_usage(root)
     used = usage.used_bytes - max(0, old_size) + max(0, new_size)
     count = usage.file_count + (1 if created else 0)
     updated = QuotaUsage(
@@ -163,13 +174,15 @@ def apply_workspace_write_delta(
         file_count=max(0, count),
         last_reconciled_at=datetime.now(UTC).isoformat(),
     )
-    save_quota_usage(workspace_root, updated)
+    save_quota_usage(root, updated)
     return updated
 
 
 def quota_status(profile: str, workspace_root: Path) -> tuple[ProfileLimits, QuotaUsage]:
-    limits = load_profile_limits(profile) or ensure_profile_limits(profile)
-    usage = load_quota_usage(workspace_root)
+    safe_profile = validate_profile_name(profile)
+    root = _resolve_workspace_root(workspace_root)
+    limits = load_profile_limits(safe_profile) or ensure_profile_limits(safe_profile)
+    usage = load_quota_usage(root)
     return limits, usage
 
 

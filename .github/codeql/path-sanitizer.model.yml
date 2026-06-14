@@ -1,0 +1,10 @@
+extensions:
+  - addsTo:
+      pack: codeql/python-all
+      extensible: sanitizerModel
+    data:
+      - ["core.profile.names", "Function", "validate_profile_name", "", "manual", "path-injection"]
+      - ["core.profile.names", "Function", "profile_dir_for_name", "", "manual", "path-injection"]
+      - ["core.profile.names", "Function", "assert_under_profiles_root", "", "manual", "path-injection"]
+      - ["core.profile.names", "Function", "trusted_profile_workspace", "", "manual", "path-injection"]
+      - ["cli.core", "Function", "validate_profile_name_for_env", "", "manual", "path-injection"]

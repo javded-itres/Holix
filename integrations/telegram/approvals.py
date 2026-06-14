@@ -52,13 +52,16 @@ class TelegramApprovals:
         )
         risk = event.risk_level or "?"
         subagent = getattr(event, "subagent_name", "") or ""
-        header = "<b>⚠ Confirmation required</b>"
+        header = "<b>⚠ Требуется подтверждение</b>"
         if subagent:
-            header = f"<b>⚠ Sub-agent <code>{escape_html(subagent)}</code> needs approval</b>"
+            header = (
+                f"<b>⚠ Субагент <code>{escape_html(subagent)}</code> "
+                f"запрашивает подтверждение</b>"
+            )
         text = (
             f"{header}\n"
             f"Tool: <code>{escape_html(event.tool_name)}</code>\n"
-            f"Risk: {escape_html(risk)}\n"
+            f"Риск: {escape_html(risk)}\n"
             f"{escape_html(event.reason)}"
         )
         args_block = _format_confirmation_args(event.tool_name, event.arguments or {})
@@ -344,7 +347,7 @@ def _format_confirmation_args(tool_name: str, args: dict) -> str:
             cmd = args.get("command") or args.get("cmd") or ""
             if cmd:
                 cmd = str(cmd)[:1600]
-                return f"<b>Command:</b>\n<pre>{escape_html(cmd)}</pre>"
+                return f"<b>Команда:</b>\n<pre>{escape_html(cmd)}</pre>"
         elif tool_name == "write_file":
             path = args.get("path", "")
             content = str(args.get("content", "") or "")[:700]

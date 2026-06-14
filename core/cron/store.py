@@ -13,7 +13,9 @@ from core.cron.models import CronJob, CronJobStore
 
 
 def cron_dir(profile: str) -> Path:
-    d = ProfileManager().get_profile_dir(profile) / "data" / "cron"
+    from core.profile.names import validate_profile_name
+
+    d = ProfileManager().get_profile_dir(validate_profile_name(profile)) / "data" / "cron"
     d.mkdir(parents=True, exist_ok=True)
     return d
 
@@ -76,6 +78,8 @@ class CronStore:
         name: str = "",
         enabled: bool = True,
         notify_chat_id: int | None = None,
+        notify_max_user_id: int | None = None,
+        notify_max_chat_id: int | None = None,
         session_id: str | None = None,
         skills: list[str] | None = None,
         model_override: str | None = None,
@@ -92,6 +96,8 @@ class CronStore:
             enabled=enabled,
             profile=self.profile,
             notify_chat_id=notify_chat_id,
+            notify_max_user_id=notify_max_user_id,
+            notify_max_chat_id=notify_max_chat_id,
             session_id=(session_id or "").strip() or None,
             skills=list(skills or []),
             model_override=(model_override or "").strip() or None,

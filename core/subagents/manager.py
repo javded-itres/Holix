@@ -279,6 +279,24 @@ class SubAgentManager:
         """
         return [h for h in self._handles.values() if h.is_running]
 
+    def find_running_duplicate(
+        self,
+        agent_type: str,
+        task: str,
+    ) -> SubAgentHandle | None:
+        """Return an active handle with the same type and task, if any."""
+        want_type = (agent_type or "").strip()
+        want_task = (task or "").strip()
+        if not want_type or not want_task:
+            return None
+        for handle in self.list_active():
+            if (handle.agent_type or "").strip() != want_type:
+                continue
+            preview = (handle.task_preview or "").strip()
+            if preview == want_task or want_task in preview or preview in want_task:
+                return handle
+        return None
+
     def list_all(self) -> list[SubAgentHandle]:
         """List all sub-agents (running and completed).
 

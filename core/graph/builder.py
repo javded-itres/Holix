@@ -91,8 +91,14 @@ async def run_graph_loop(
     execution_mode: str = "react",
 ):
     """Run the Holix graph and translate state transitions to AgentEvents."""
-    from core.agent_events import ErrorEvent, MaxStepsReachedEvent, ThinkingEvent
+    from core.agent_events import (
+        ErrorEvent,
+        FinalResponseEvent,
+        MaxStepsReachedEvent,
+        ThinkingEvent,
+    )
     from core.graph.modes.router import ModeRouter
+    from core.presenters.final_content import is_placeholder_final
     from core.runtime.session import prepare_session
 
     if execution_mode == "auto":
@@ -122,14 +128,18 @@ async def run_graph_loop(
         stream=stream,
     )
 
+    from core.i18n.live_ui import live_holix_thinking_label
+    from core.profile.soul import profile_name_from_agent
+
     mode_label = {
         "react": "ReAct",
         "plan_and_execute": "Plan & Execute",
         "hybrid": "Hybrid",
     }.get(execution_mode, execution_mode)
 
+    profile_name = profile_name_from_agent(agent) if agent else "default"
     yield ThinkingEvent(
-        message=f"Holix is thinking... (mode: {mode_label})",
+        message=live_holix_thinking_label(profile_name, mode_label),
         conversation_id=conversation_id,
     )
 
@@ -142,6 +152,14 @@ async def run_graph_loop(
 
     try:
         final_state = await compiled_graph.ainvoke(initial_state, config)
+
+        final_text = (final_state.get("final_response") or "").strip()
+        if final_text and not is_placeholder_final(final_text):
+            yield FinalResponseEvent(
+                content=final_text,
+                steps_taken=final_state.get("step_count", 0),
+                conversation_id=conversation_id,
+            )
 
         step_count = final_state.get("step_count", 0)
         max_steps = final_state.get("max_steps", 15)

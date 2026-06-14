@@ -25,7 +25,9 @@
 - [GATEWAY.md](GATEWAY.md) — API gateway
 - [GATEWAY_API.md](GATEWAY_API.md) — **полный справочник API — каждый эндпоинт задокументирован** (auth, `/api/holix/`, SaaS curl)
 - [TELEGRAM.md](TELEGRAM.md) — Telegram
+- [MAX.md](MAX.md) — мессенджер MAX
 - [TELEGRAM_MULTI_PROFILE.md](TELEGRAM_MULTI_PROFILE.md) — один бот / несколько ботов, access requests, ручной `map`
+- [MAX_MULTI_PROFILE.md](MAX_MULTI_PROFILE.md) — один бот / несколько ботов MAX, access requests, `map`
 - [BROWSER_TOOLS.md](BROWSER_TOOLS.md) — Playwright
 
 ## Эксплуатация

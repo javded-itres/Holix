@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import asyncio
 from typing import Any
 
 from integrations.telegram.access_requests import TelegramAccessRequest
@@ -206,8 +205,34 @@ async def notify_access_rejected(
     await send_user_message(token, int(user_id), text)
 
 
+async def notify_access_revoked(bot_profile: str, user_id: int) -> None:
+    from integrations.telegram.config import load_telegram_settings
+    from integrations.telegram.env_store import load_telegram_env_files
+
+    load_telegram_env_files(bot_profile)
+    settings = load_telegram_settings(bot_profile)
+    token = settings.bot_token.strip()
+    if not token:
+        raise TelegramApiError("TELEGRAM_BOT_TOKEN is not configured")
+
+    text = (
+        "❌ <b>Доступ отозван</b>\n\n"
+        "Администратор удалил ваш доступ к боту Holix.\n"
+        "Чтобы снова запросить доступ — отправьте /start."
+    )
+    await send_user_message(token, int(user_id), text)
+
+
+def notify_access_revoked_sync(bot_profile: str, user_id: int) -> None:
+    from core.asyncio_sync import run_coroutine_sync
+
+    run_coroutine_sync(notify_access_revoked(bot_profile, user_id))
+
+
 def notify_access_rejected_sync(bot_profile: str, user_id: int) -> None:
-    asyncio.run(notify_access_rejected(bot_profile, user_id))
+    from core.asyncio_sync import run_coroutine_sync
+
+    run_coroutine_sync(notify_access_rejected(bot_profile, user_id))
 
 
 def notify_access_approved_sync(
@@ -218,7 +243,9 @@ def notify_access_approved_sync(
     access_key: str | None = None,
     key_already_set: bool = False,
 ) -> None:
-    asyncio.run(
+    from core.asyncio_sync import run_coroutine_sync
+
+    run_coroutine_sync(
         notify_access_approved(
             bot_profile,
             user_id,

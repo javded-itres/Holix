@@ -75,6 +75,9 @@ holix config show
 pipx install "Holix[telegram]"
 holix -p shared telegram setup
 # мультипользовательский бот: /start → holix -p shared telegram requests approve …
+pipx install "Holix[max]"
+holix -p shared max setup
+# MAX в production: holix -p shared gateway start (webhook) — см. MAX.md
 pipx install "Holix[browser]"
 playwright install chromium
 holix hub browse
@@ -94,6 +97,7 @@ holix gateway start
 
 ## Дальше
 
+- [MAX.md](MAX.md) — бот в мессенджере MAX
 - [CLI.md](CLI.md)
 - [CONFIGURATION.md](CONFIGURATION.md)
 - Логи: `holix logs` — [LOGS.md](LOGS.md)

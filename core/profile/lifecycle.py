@@ -82,9 +82,9 @@ def notify_profile_deletion_sync(
     *,
     deleted_profile: str,
 ) -> None:
-    import asyncio
+    from core.asyncio_sync import run_coroutine_sync
 
-    asyncio.run(
+    run_coroutine_sync(
         notify_profile_deletion(
             bot_profile,
             user_id,

@@ -356,7 +356,7 @@ class TestBuildPlanMarkdown:
             step_count=1,
             user_input="Build a REST API",
         )
-        assert "📋 Execution Plan" in md
+        assert "Execution Plan" in md
         assert "Build a REST API" in md
         assert "Step 1: Create project" in md
         assert "`terminal`" in md
@@ -380,6 +380,18 @@ class TestBuildPlanMarkdown:
         assert "FastAPI" in md
         assert "⚡ Risks" in md
         assert "Migration issues" in md
+
+    def test_russian_locale_labels(self):
+        from core.plan_review.markdown_builder import build_plan_markdown
+
+        md = build_plan_markdown(
+            plan_steps=[{"step": 1, "description": "Создать API"}],
+            step_count=1,
+            locale="ru",
+        )
+        assert "План выполнения" in md
+        assert "Шаг 1" in md
+        assert "Создать API" in md
 
     def test_empty_analysis(self):
         from core.plan_review.markdown_builder import build_plan_markdown

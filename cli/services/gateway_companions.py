@@ -15,7 +15,11 @@ def reload_os_companions(profile: str) -> dict[str, Any]:
 
     state = load_state(profile)
     if state is None:
-        return {"docs": "not_running", "telegram_subprocess": "not_running"}
+        return {
+            "docs": "not_running",
+            "telegram_subprocess": "not_running",
+            "max_subprocess": "not_running",
+        }
 
     result: dict[str, Any] = {}
 
@@ -49,5 +53,15 @@ def reload_os_companions(profile: str) -> dict[str, Any]:
         result["telegram_subprocess"] = "restarted" if proc is not None else "stopped"
     else:
         result["telegram_subprocess"] = "in_process"
+
+    if state.max_pid:
+        if is_process_alive(state.max_pid):
+            terminate_process(state.max_pid, grace=5.0)
+        from cli.services.supervisor import _max_subprocess
+
+        proc = _max_subprocess(profile)
+        result["max_subprocess"] = "restarted" if proc is not None else "stopped"
+    else:
+        result["max_subprocess"] = "in_process"
 
     return result

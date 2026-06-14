@@ -2,11 +2,41 @@
 
 from __future__ import annotations
 
+import asyncio
+import logging
 from typing import Any
+
+logger = logging.getLogger(__name__)
 
 
 def _agent(host: Any) -> Any:
     return getattr(host, "agent", None)
+
+
+async def _deliver_subagent_result_when_ready(host: Any, job_id: str) -> None:
+    """Push background sub-agent output to the messenger when the job finishes."""
+    agent = _agent(host)
+    if not agent or not hasattr(agent, "subagents"):
+        return
+    mgr = agent.subagents
+    handle = mgr.get_handle(job_id)
+    if not handle:
+        return
+    try:
+        timeout = handle.config.timeout
+        result = await mgr.wait_for(job_id, timeout=timeout)
+        text = (result.response or result.error or "").strip()
+        if not text:
+            return
+        body = f"**Субагент `{job_id}` завершил работу:**\n\n{text}"
+        if hasattr(host, "_send_text"):
+            await host._send_text(body)
+        elif hasattr(host, "_send_split_plain"):
+            await host._send_split_plain(f"{job_id}:\n{text}")
+        else:
+            host.transcript_write(text[:4000])
+    except Exception:
+        logger.exception("Failed to deliver background sub-agent result for %s", job_id)
 
 
 async def run_subagents_command(host: Any, command: str) -> None:
@@ -49,6 +79,12 @@ async def run_subagents_command(host: Any, command: str) -> None:
                 f"spawned {handle.name} ({handle.config.process_mode.value}) "
                 f"pid={handle.process_id or '—'}"
             )
+            try:
+                asyncio.get_running_loop().create_task(
+                    _deliver_subagent_result_when_ready(host, handle.name)
+                )
+            except RuntimeError:
+                pass
         except Exception as e:
             host.transcript_write(f"spawn failed: {e}")
         return

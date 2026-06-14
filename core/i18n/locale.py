@@ -45,7 +45,11 @@ class LocaleStore:
 
     def get(self) -> str:
         loc = self.load().locale.strip().lower()
-        return loc if loc in SUPPORTED_LOCALES else DEFAULT_LOCALE
+        if loc in SUPPORTED_LOCALES:
+            return loc
+        from core.i18n.system_locale import detect_system_locale
+
+        return detect_system_locale()
 
     def set(self, locale: str) -> str:
         loc = locale.strip().lower()

@@ -1,7 +1,6 @@
 """Core profile management and initialization for Holix CLI."""
 
 import os
-import re
 from pathlib import Path
 from typing import Any
 
@@ -105,17 +104,14 @@ def default_profile_allowed() -> bool:
     return _holix_env_name() != "production"
 
 
-_PROFILE_NAME_RE = re.compile(r"^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,63}$")
-
-
 def validate_profile_name_for_env(profile: str) -> str:
     """Reject invalid, path-traversal, and reserved ``default`` profile names."""
-    name = (profile or "").strip() or "default"
+    from core.profile.names import ProfileNameError, validate_profile_name
 
-    if ".." in name or "/" in name or "\\" in name or name in {".", ".."}:
-        raise ProfileNotFoundError(f"Invalid profile name: {profile!r}")
-    if not _PROFILE_NAME_RE.fullmatch(name):
-        raise ProfileNotFoundError(f"Invalid profile name: {profile!r}")
+    try:
+        name = validate_profile_name(profile)
+    except ProfileNameError as exc:
+        raise ProfileNotFoundError(str(exc)) from exc
 
     if _holix_env_name() == "production" and name == "default":
         raise ProfileNotFoundError(
@@ -266,7 +262,9 @@ class ProfileManager:
         Returns:
             Path to profile directory
         """
-        return profiles_dir() / profile
+        from core.profile.names import validate_profile_name
+
+        return profiles_dir() / validate_profile_name(profile)
 
     def profile_exists(self, profile: str) -> bool:
         """Check if profile exists.

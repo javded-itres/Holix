@@ -25,7 +25,7 @@ def profile_env(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> str:
     profile_dir.mkdir(parents=True)
     (profile_dir / ".env").write_text("# test profile env\n", encoding="utf-8")
     monkeypatch.setattr("cli.core.PROFILES_DIR", profiles_root)
-    monkeypatch.setattr("core.env_loader.holix_home", lambda: tmp_path)
+    monkeypatch.setenv("HOLIX_HOME", str(tmp_path))
     return profile
 
 

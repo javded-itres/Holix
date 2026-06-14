@@ -2,120 +2,73 @@
 
 from __future__ import annotations
 
-import json
-from dataclasses import asdict, dataclass
-from datetime import UTC, datetime
-from pathlib import Path
-from typing import Any
+from integrations.messenger.access_requests import (
+    STATUS_APPROVED,
+    STATUS_PENDING,
+    STATUS_REJECTED,
+    MessengerAccessRequest,
+)
+from integrations.messenger.access_requests import (
+    access_requests_path as _access_requests_path,
+)
+from integrations.messenger.access_requests import (
+    delete_access_request as _delete_access_request,
+)
+from integrations.messenger.access_requests import (
+    get_access_request as _get_access_request,
+)
+from integrations.messenger.access_requests import (
+    list_pending_requests as _list_pending_requests,
+)
+from integrations.messenger.access_requests import (
+    load_access_requests as _load_access_requests,
+)
+from integrations.messenger.access_requests import (
+    register_access_request as _register_access_request,
+)
+from integrations.messenger.access_requests import (
+    reject_access_request as _reject_access_request,
+)
+from integrations.messenger.access_requests import (
+    resolve_access_request as _resolve_access_request,
+)
+from integrations.messenger.platforms import TELEGRAM_PLATFORM
 
-from core.env_loader import profile_dir_path
+_PLATFORM = TELEGRAM_PLATFORM
+ACCESS_REQUESTS_FILE = _PLATFORM.access_requests_filename
+TelegramAccessRequest = MessengerAccessRequest
 
-ACCESS_REQUESTS_FILE = "telegram-access-requests.json"
-STATUS_PENDING = "pending"
-STATUS_APPROVED = "approved"
-STATUS_REJECTED = "rejected"
-
-
-@dataclass
-class TelegramAccessRequest:
-    user_id: int
-    username: str | None = None
-    first_name: str | None = None
-    last_name: str | None = None
-    status: str = STATUS_PENDING
-    requested_at: str = ""
-    resolved_at: str | None = None
-    holix_profile: str | None = None
-
-    @property
-    def display_name(self) -> str:
-        parts = [self.first_name or "", self.last_name or ""]
-        name = " ".join(p for p in parts if p).strip()
-        if self.username:
-            handle = f"@{self.username}"
-            return f"{name} ({handle})" if name else handle
-        return name or str(self.user_id)
-
-
-def access_requests_path(bot_profile: str) -> Path:
-    name = (bot_profile or "default").strip() or "default"
-    return profile_dir_path(name) / ACCESS_REQUESTS_FILE
-
-
-def _utc_now() -> str:
-    return datetime.now(UTC).replace(microsecond=0).isoformat()
-
-
-def _load_raw(bot_profile: str) -> dict[str, dict[str, Any]]:
-    path = access_requests_path(bot_profile)
-    if not path.is_file():
-        return {}
-    try:
-        data = json.loads(path.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError):
-        return {}
-    if not isinstance(data, dict):
-        return {}
-    out: dict[str, dict[str, Any]] = {}
-    for key, val in data.items():
-        if isinstance(val, dict):
-            out[str(key)] = val
-    return out
+__all__ = [
+    "ACCESS_REQUESTS_FILE",
+    "TelegramAccessRequest",
+    "STATUS_APPROVED",
+    "STATUS_PENDING",
+    "STATUS_REJECTED",
+    "access_requests_path",
+    "get_access_request",
+    "list_pending_requests",
+    "load_access_requests",
+    "register_access_request",
+    "delete_access_request",
+    "reject_access_request",
+    "resolve_access_request",
+]
 
 
-def _save_raw(bot_profile: str, data: dict[str, dict[str, Any]]) -> Path:
-    path = access_requests_path(bot_profile)
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(
-        json.dumps(data, ensure_ascii=False, indent=2) + "\n",
-        encoding="utf-8",
-    )
-    return path
-
-
-def _from_dict(payload: dict[str, Any]) -> TelegramAccessRequest | None:
-    uid = payload.get("user_id")
-    if not isinstance(uid, int):
-        uid_s = str(payload.get("user_id", "")).strip()
-        if not uid_s.isdigit():
-            return None
-        uid = int(uid_s)
-    return TelegramAccessRequest(
-        user_id=int(uid),
-        username=payload.get("username") or None,
-        first_name=payload.get("first_name") or None,
-        last_name=payload.get("last_name") or None,
-        status=str(payload.get("status") or STATUS_PENDING),
-        requested_at=str(payload.get("requested_at") or ""),
-        resolved_at=payload.get("resolved_at"),
-        holix_profile=payload.get("holix_profile"),
-    )
+def access_requests_path(bot_profile: str):
+    return _access_requests_path(_PLATFORM, bot_profile)
 
 
 def load_access_requests(bot_profile: str) -> dict[int, TelegramAccessRequest]:
-    out: dict[int, TelegramAccessRequest] = {}
-    for key, val in _load_raw(bot_profile).items():
-        if not isinstance(val, dict):
-            continue
-        req = _from_dict(val)
-        if req is not None:
-            out[req.user_id] = req
-        elif key.isdigit():
-            req = _from_dict({"user_id": int(key), **val})
-            if req is not None:
-                out[req.user_id] = req
-    return out
+    return _load_access_requests(_PLATFORM, bot_profile)
 
 
 def list_pending_requests(bot_profile: str) -> list[TelegramAccessRequest]:
-    return sorted(
-        (r for r in load_access_requests(bot_profile).values() if r.status == STATUS_PENDING),
-        key=lambda r: r.requested_at or "",
-    )
+    return _list_pending_requests(_PLATFORM, bot_profile)
 
 
 def get_access_request(bot_profile: str, user_id: int) -> TelegramAccessRequest | None:
-    return load_access_requests(bot_profile).get(int(user_id))
+    return _get_access_request(_PLATFORM, bot_profile, user_id)
 
 
 def register_access_request(
@@ -126,34 +79,14 @@ def register_access_request(
     first_name: str | None = None,
     last_name: str | None = None,
 ) -> tuple[TelegramAccessRequest, bool]:
-    """Create or refresh a pending request. Returns (request, created_new)."""
-    data = _load_raw(bot_profile)
-    key = str(int(user_id))
-    existing = _from_dict(data.get(key, {})) if key in data else None
-
-    if existing and existing.status == STATUS_APPROVED:
-        return existing, False
-
-    now = _utc_now()
-    if existing and existing.status == STATUS_PENDING:
-        existing.username = username or existing.username
-        existing.first_name = first_name or existing.first_name
-        existing.last_name = last_name or existing.last_name
-        data[key] = asdict(existing)
-        _save_raw(bot_profile, data)
-        return existing, False
-
-    req = TelegramAccessRequest(
-        user_id=int(user_id),
+    return _register_access_request(
+        _PLATFORM,
+        bot_profile,
+        user_id=user_id,
         username=username,
         first_name=first_name,
         last_name=last_name,
-        status=STATUS_PENDING,
-        requested_at=now,
     )
-    data[key] = asdict(req)
-    _save_raw(bot_profile, data)
-    return req, True
 
 
 def resolve_access_request(
@@ -163,22 +96,18 @@ def resolve_access_request(
     status: str,
     holix_profile: str | None = None,
 ) -> TelegramAccessRequest | None:
-    data = _load_raw(bot_profile)
-    key = str(int(user_id))
-    existing = _from_dict(data.get(key, {})) if key in data else None
-    if existing is None:
-        return None
-    existing.status = status
-    existing.resolved_at = _utc_now()
-    if holix_profile:
-        existing.holix_profile = holix_profile.strip()
-    data[key] = asdict(existing)
-    _save_raw(bot_profile, data)
-    return existing
+    return _resolve_access_request(
+        _PLATFORM,
+        bot_profile,
+        user_id,
+        status=status,
+        holix_profile=holix_profile,
+    )
 
 
 def reject_access_request(bot_profile: str, user_id: int) -> TelegramAccessRequest | None:
-    req = get_access_request(bot_profile, user_id)
-    if req is None or req.status != STATUS_PENDING:
-        return None
-    return resolve_access_request(bot_profile, user_id, status=STATUS_REJECTED)
+    return _reject_access_request(_PLATFORM, bot_profile, user_id)
+
+
+def delete_access_request(bot_profile: str, user_id: int) -> bool:
+    return _delete_access_request(_PLATFORM, bot_profile, user_id)

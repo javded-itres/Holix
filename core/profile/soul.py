@@ -6,8 +6,6 @@ import re
 from pathlib import Path
 from typing import Any
 
-from core.env_loader import profile_dir_path
-
 SOUL_MD_FILENAME = "SOUL.md"
 SOUL_MESSAGE_TYPE = "agent_soul"
 DEFAULT_MAX_CHARS = 12_000
@@ -50,8 +48,9 @@ description. If SOUL.md is still empty or placeholder, the tool writes the full 
 
 
 def soul_path(profile: str | None = None) -> Path:
-    name = (profile or "default").strip() or "default"
-    return profile_dir_path(name) / SOUL_MD_FILENAME
+    from core.profile.names import profile_dir_for_name
+
+    return profile_dir_for_name(profile) / SOUL_MD_FILENAME
 
 
 def _write_soul_text(path: Path, content: str) -> None:
@@ -222,4 +221,6 @@ def inject_soul_into_messages(
 def profile_name_from_agent(agent: Any) -> str:
     config = getattr(agent, "config", None)
     name = getattr(config, "profile_name", None) if config else None
-    return (name or "default").strip() or "default"
+    if not isinstance(name, str):
+        return "default"
+    return name.strip() or "default"

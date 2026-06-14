@@ -84,21 +84,66 @@ def infer_subagent_type(step: dict[str, Any]) -> str | None:
     description = (step.get("description") or "").lower()
     tools = [str(t).lower() for t in (step.get("tools_needed") or [])]
 
-    if (
-        any(t in tools for t in ("web_search", "web_fetch"))
-        or any(kw in description for kw in ("research", "search", "investigate", "look up"))
+    if any(t in tools for t in ("web_search", "web_fetch")):
+        return "web_researcher"
+    if any(t in tools for t in ("sql_query", "sql_schema", "database")):
+        return "analyst"
+    if any(t in tools for t in ("write_file", "run_terminal_command", "terminal", "code_executor")):
+        return "coder"
+
+    if any(
+        kw in description
+        for kw in (
+            "research",
+            "search",
+            "investigate",
+            "look up",
+            "исслед",
+            "поиск",
+            "найти",
+            "изучить",
+            "собрать информацию",
+            "проанализировать рынок",
+        )
     ):
         return "web_researcher"
-    if (
-        any(t in tools for t in ("write_file", "terminal", "code_executor"))
-        or any(kw in description for kw in ("implement", "code", "build", "debug", "fix", "refactor"))
+    if any(
+        kw in description
+        for kw in (
+            "implement",
+            "code",
+            "build",
+            "debug",
+            "fix",
+            "refactor",
+            "код",
+            "реализ",
+            "написать",
+            "исправ",
+            "отлад",
+            "разработ",
+            "создать скрипт",
+            "программ",
+        )
     ):
         return "coder"
-    if any(t in tools for t in ("sql_query", "sql_schema", "database")) or "analy" in description:
+    if any(kw in description for kw in ("analy", "анализ данных", "sql", "база данных", "метрик")):
         return "analyst"
-    if "review" in description:
+    if any(kw in description for kw in ("review", "ревью", "проверить код", "код-ревью")):
         return "reviewer"
-    if any(kw in description for kw in ("document", "readme", "documentation", "write doc")):
+    if any(
+        kw in description
+        for kw in (
+            "document",
+            "readme",
+            "documentation",
+            "write doc",
+            "документ",
+            "документац",
+            "описание api",
+            "readme",
+        )
+    ):
         return "writer"
     return None
 
@@ -283,6 +328,33 @@ def current_wave(plan: OrchestrationPlan, wave_index: int) -> OrchestrationWave 
     if not plan.enabled or wave_index < 0 or wave_index >= len(plan.waves):
         return None
     return plan.waves[wave_index]
+
+
+def format_wave_user_summary(
+    *,
+    wave_id: int,
+    total_waves: int,
+    results: dict[str, dict[str, Any]],
+    task_meta: dict[str, SubagentTask],
+) -> str:
+    """Short user-visible summary for messenger delivery."""
+    completed = sum(1 for r in results.values() if r.get("success"))
+    total = len(results)
+    lines = [
+        f"**Субагенты** (волна {wave_id + 1}/{total_waves}): {completed}/{total} готово",
+        "",
+    ]
+    for job_id, payload in results.items():
+        meta = task_meta.get(job_id)
+        agent_type = meta.agent_type if meta else "?"
+        status = "✓" if payload.get("success") else "✗"
+        body = (payload.get("response") or payload.get("error") or "").strip()
+        preview = body[:1800] + ("…" if len(body) > 1800 else "")
+        lines.append(f"{status} `{job_id}` ({agent_type})")
+        if preview:
+            lines.append(preview)
+        lines.append("")
+    return "\n".join(lines).strip()
 
 
 def format_wave_aggregate(

@@ -41,7 +41,9 @@ def profiles_root() -> Path:
 
 
 def profile_dir(profile: str) -> Path:
-    return profiles_root() / profile
+    from core.profile.names import profile_dir_for_name
+
+    return profile_dir_for_name(profile)
 
 
 def profile_key_path(profile: str) -> Path:

@@ -81,6 +81,24 @@ def host_profile(host: Any) -> str:
     )
 
 
+def host_user_id(host: Any) -> int | None:
+    session = getattr(host, "_session", None)
+    if session is not None:
+        uid = getattr(session, "user_id", None)
+        if isinstance(uid, int):
+            return uid
+    uid = getattr(host, "user_id", None)
+    return uid if isinstance(uid, int) else None
+
+
+def max_legacy_conversation_key(conversation_id: str, user_id: int) -> str | None:
+    """Map max_{profile}_chat_{id} → max_{profile}_{user_id} for older saves."""
+    if not conversation_id.startswith("max_") or "_chat_" not in conversation_id:
+        return None
+    base = conversation_id.split("_chat_", 1)[0]
+    return f"{base}_{user_id}"
+
+
 def persist_session_model(host: Any, choice: Any) -> None:
     """Save model pick for the host's current conversation."""
     from integrations.telegram.model_switch import ModelChoice
@@ -131,6 +149,12 @@ def restore_session_model(host: Any, *, profile: str | None = None) -> str | Non
 
     store = SessionModelStore(prof)
     saved = store.get(cid)
+    if not saved and cid.startswith("max_"):
+        uid = host_user_id(host)
+        if uid is not None:
+            legacy = max_legacy_conversation_key(cid, uid)
+            if legacy and legacy != cid:
+                saved = store.get(legacy)
     if saved:
         choice = ModelChoice(
             slot_id=saved.slot_id,

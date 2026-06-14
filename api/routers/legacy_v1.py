@@ -121,7 +121,7 @@ async def chat_completions(
                 "prompt_tokens": 0,
                 "completion_tokens": 0,
                 "total_tokens": 0,
-                "elapsed_seconds": round(elapsed_time, 2),
+                "elapsed_seconds": max(0, int(round(elapsed_time))),
             },
         )
     except Exception as e:

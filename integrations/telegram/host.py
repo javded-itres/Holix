@@ -726,13 +726,17 @@ class TelegramHost:
                 buf = self._session.live_buffer
                 if buf:
                     buf.add_note("stopped")
-                    await presenter._do_edit()
             except Exception as exc:
                 buf = self._session.live_buffer
                 if buf:
                     buf.mark_error(str(exc))
-                    await presenter._do_edit()
             finally:
                 self.agent.events.unsubscribe(on_event)
-                await presenter._do_edit()
                 reset_chat_delivery_scope(delivery_token)
+                try:
+                    await presenter.finish()
+                except Exception:
+                    try:
+                        await presenter.ensure_final_delivered()
+                    except Exception:
+                        pass

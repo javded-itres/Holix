@@ -14,6 +14,7 @@ from core.subagents.orchestrator import (
     OrchestrationPlan,
     SubagentTask,
     format_wave_aggregate,
+    format_wave_user_summary,
 )
 
 logger = logging.getLogger(__name__)
@@ -87,6 +88,12 @@ async def collect_subagent_node(
             results=results,
             task_meta=task_meta,
         )
+        user_summary = format_wave_user_summary(
+            wave_id=wave_idx,
+            total_waves=total_waves,
+            results=results,
+            task_meta=task_meta,
+        )
 
         sub_results = dict(state.get("sub_agent_results", {}))
         for job_id, payload in results.items():
@@ -113,6 +120,7 @@ async def collect_subagent_node(
                     total_waves=total_waves,
                     completed=completed,
                     total=len(results),
+                    summary=user_summary,
                     conversation_id=state.get("conversation_id", "default"),
                 )
             )

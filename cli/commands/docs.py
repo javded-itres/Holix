@@ -1,4 +1,4 @@
-"""Documentation website commands (web-docs/)."""
+"""Documentation website commands (holix-docs / HOLIX_WEB_DOCS_DIR)."""
 
 from __future__ import annotations
 
@@ -48,7 +48,7 @@ def docs_serve(
 
 @app.command("build")
 def docs_build():
-    """Rebuild search index and sync content from docs/en and docs/ru."""
+    """Sync Helix docs/en+ru into holix-docs/content and rebuild search index."""
     try:
         build_docs_site()
     except Exception as e:

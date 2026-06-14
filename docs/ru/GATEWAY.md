@@ -1,6 +1,6 @@
 # API Gateway
 
-HTTP API (OpenAI-совместимый), Hermes-compatible surface, Holix Management API и companion-сервисы (Telegram + cron при настройке).
+HTTP API (OpenAI-совместимый), Hermes-compatible surface, Holix Management API и companion-сервисы (Telegram, MAX, cron при настройке).
 
 **Полный справочник API:** [GATEWAY_API.md](GATEWAY_API.md) — Hermes mapping, `/api/holix/` management, auth, SaaS curl-примеры.
 
@@ -37,15 +37,15 @@ holix -p alice gateway start
 holix -p bob gateway start
 ```
 
-Supervisor также запускает **cron** и **Telegram** (если настроены для этого профиля) как companion-процессы.
+Supervisor также запускает **cron**, **Telegram** и **MAX** (если настроены для этого профиля) как companion-процессы. MAX в production работает через webhook (`POST /max/webhook`) — см. [MAX.md](MAX.md).
 
 ## Multi-profile gateway (v0.2+)
 
 Один процесс uvicorn обслуживает **несколько профилей Holix**:
 
 - Роутинг: `X-Holix-Profile` → поле `model` → host profile
-- Per-profile reload: `POST /api/holix/profiles/{id}/reload` (agent + Telegram + cron)
-- Management API: `/api/holix/` — профили, модели, MCP, навыки, Telegram admin
+- Per-profile reload: `POST /api/holix/profiles/{id}/reload` (agent + Telegram + MAX + cron)
+- Management API: `/api/holix/` — профили, модели, MCP, навыки, Telegram/MAX admin
 
 Таблицы эндпоинтов и аутентификация: [GATEWAY_API.md](GATEWAY_API.md).
 
@@ -69,7 +69,7 @@ Supervisor также запускает **cron** и **Telegram** (если на
 | Health | `GET /health`, `GET /v1/health`, `GET /health/detailed` |
 | Chat | `POST /v1/chat/completions` |
 | Hermes | `GET /v1/models`, `/v1/capabilities`, `/v1/runs`, `/api/sessions`, `/api/jobs` |
-| Management | `GET/POST /api/holix/profiles`, `…/models`, `…/telegram`, `…/reload` |
+| Management | `GET/POST /api/holix/profiles`, `…/models`, `…/telegram`, `…/max`, `…/reload` |
 | Admin | `POST /admin/api-keys`, `GET /admin/metrics`, `GET /metrics` (Prometheus) |
 
 ## Ключи gateway API
