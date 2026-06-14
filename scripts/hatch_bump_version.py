@@ -15,6 +15,13 @@ from scripts.versioning import apply_metadata_version, resolve_build_version
 
 
 def _should_bump(root: str, target_name: str, build_variant: str) -> bool:
+    """Bump only when HOLIX_AUTO_VERSION_BUMP=1 (off by default — version follows CHANGELOG)."""
+    import os
+
+    if os.environ.get("HOLIX_NO_VERSION_BUMP"):
+        return False
+    if os.environ.get("HOLIX_AUTO_VERSION_BUMP", "").strip() not in {"1", "true", "yes"}:
+        return False
     if build_variant == "editable":
         return False
     # uv builds the wheel from the sdist in a fresh env (no .git) — version is already bumped.
