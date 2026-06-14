@@ -70,7 +70,9 @@ def test_done_posts_answer_separately_not_in_live_card() -> None:
     buf.mark_done()
     html = buffer_to_max_html(buf)
     assert "<b>Secret final</b>" not in html
-    assert "отдельным сообщением" in html
+    from core.i18n.live_ui import live_answer_sent_label
+
+    assert live_answer_sent_label("default") in html
 
 
 @pytest.mark.asyncio

@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+
 import pytest
 from cli.services.supervisor import docs_should_start, telegram_enabled, telegram_should_start
 from integrations.max.gateway_routes import max_enabled, max_should_poll, max_should_webhook
@@ -38,7 +40,13 @@ def test_telegram_should_start_requires_aiogram(monkeypatch: pytest.MonkeyPatch)
         assert telegram_should_start() is False
 
 
-def test_docs_should_start_in_repo() -> None:
+def test_docs_should_start_when_site_configured(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    site = tmp_path / "holix-docs"
+    site.mkdir()
+    (site / "index.html").write_text("<html></html>", encoding="utf-8")
+    monkeypatch.setenv("HOLIX_WEB_DOCS_DIR", str(site))
     assert docs_should_start() is True
 
 

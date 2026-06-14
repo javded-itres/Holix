@@ -51,8 +51,10 @@ async def test_tool_events_enqueue_outbound_in_order() -> None:
     await presenter.drain_outbound()
 
     texts = [call.args[0] for call in client.send_message.await_args_list]
+    from core.i18n.live_ui import live_processing_label
+
     # start() sends progress line first
-    assert any("обрабатывает" in t for t in texts)
+    assert any(live_processing_label("default") in t for t in texts)
     assert any("🔧 web_search" in t for t in texts)
     assert any("📋 web_search" in t and "found 3 articles" in t for t in texts)
     assert any("Here is the summary." in t for t in texts)
