@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from core.i18n.live_ui import live_answer_sent_label, live_thinking_label, live_working_label
 from core.presenters.live_buffer import LiveTranscriptBuffer
 
 from integrations.telegram.markdown import (
@@ -42,7 +43,8 @@ def buffer_to_telegram_html(buf: LiveTranscriptBuffer) -> str:
     ]
 
     if buf.thinking:
-        parts.append(f"<i>💭 {escape_html(buf.thinking)}</i>")
+        label = live_thinking_label(buf.profile, fallback=buf.thinking)
+        parts.append(f"<i>💭 {escape_html(label)}</i>")
 
     if show_tools:
         tool_html: list[str] = []
@@ -50,7 +52,7 @@ def buffer_to_telegram_html(buf: LiveTranscriptBuffer) -> str:
             tool_html.append(_format_tool_line(line))
         parts.append("\n".join(tool_html))
 
-    if answer and not (done and buf.publish_answer_separately):
+    if answer and not buf.publish_answer_separately:
         rendered = markdown_to_telegram_html(answer)
         parts.append(rendered if rendered else escape_html(answer))
 
@@ -59,13 +61,15 @@ def buffer_to_telegram_html(buf: LiveTranscriptBuffer) -> str:
             parts.append(f"<i>· {escape_html(note)}</i>")
 
     if running and not answer and not buf.tool_lines:
-        parts.append("<i>⏳ Working…</i>")
+        parts.append(f"<i>⏳ {escape_html(live_working_label(buf.profile))}</i>")
     elif done:
         parts.append(
             f"<i>🤖 {escape_html(buf.profile)} · {escape_html(buf.mode)} · ✓</i>"
         )
         if buf.publish_answer_separately and buf.result_posted_separately:
-            parts.append("<i>Ответ отправлен отдельным сообщением ↓</i>")
+            parts.append(
+                f"<i>{escape_html(live_answer_sent_label(buf.profile))}</i>"
+            )
     elif buf.status == "error":
         parts.append("<b>✗ Error</b>")
 
@@ -73,14 +77,10 @@ def buffer_to_telegram_html(buf: LiveTranscriptBuffer) -> str:
 
 
 def _format_tool_line(line: str) -> str:
-    """Plain tool line from LiveTranscriptBuffer → compact HTML."""
+    """Tool call line — header only (no result/args body in live message)."""
     raw = line.strip()
     if not raw:
         return ""
-    lines = raw.split("\n", 1)
-    header = escape_html(lines[0])
+    header = escape_html(raw.split("\n", 1)[0])
     header = header.replace("⎿", "▸", 1)
-    if len(lines) > 1:
-        detail = escape_html(lines[1].strip())
-        return f"<b>{header}</b>\n<code>{detail}</code>"
     return f"<b>{header}</b>"

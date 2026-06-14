@@ -297,6 +297,12 @@ def gateway_status(profile: str = "default") -> None:
             f"[cyan]Telegram PID:[/cyan] {state.telegram_pid} "
             f"({'running' if tg_alive else 'stopped'})"
         )
+    if state.max_pid:
+        max_alive = is_process_alive(state.max_pid)
+        lines.append(
+            f"[cyan]MAX PID:[/cyan] {state.max_pid} "
+            f"({'running' if max_alive else 'stopped'})"
+        )
     from cli.services.gateway_state import docs_url
 
     docs = docs_url(state)
@@ -310,11 +316,25 @@ def gateway_status(profile: str = "default") -> None:
     try:
         resp = httpx.get(health_url(state), timeout=2.0)
         if resp.status_code == 200:
-            lines.append(f"[cyan]Health:[/cyan] {resp.json().get('status', 'ok')}")
+            body = resp.json()
+            lines.append(f"[cyan]Health:[/cyan] {body.get('status', 'ok')}")
+            if body.get("max_webhook"):
+                lines.append("[cyan]MAX webhook:[/cyan] subscribed")
         else:
             lines.append(f"[yellow]Health:[/yellow] HTTP {resp.status_code}")
     except Exception as e:
         lines.append(f"[yellow]Health:[/yellow] unreachable ({e})")
+
+    try:
+        from cli.commands.max_setup import max_status_lines
+
+        max_lines = max_status_lines(profile, include_subscriptions=False)
+        if max_lines and "not configured" not in max_lines[0]:
+            lines.append("")
+            lines.append("[bold]MAX[/bold]")
+            lines.extend(max_lines)
+    except Exception:
+        pass
 
     print_panel("\n".join(lines), title="Gateway Status", border_style="green")
 
@@ -376,6 +396,14 @@ def reload_gateway_daemon(profile: str = "default") -> None:
         cron = "running" if companions.get("cron_running") else "stopped"
         telegram = "running" if companions.get("telegram_running") else "stopped"
         print_info(f"Companions: cron={cron}, telegram={telegram}")
+        if companions.get("max_webhook"):
+            print_info("MAX webhook: subscribed")
+        elif companions.get("max_polling_running"):
+            print_info("MAX polling: running")
+        elif companions.get("max_polling"):
+            print_info("MAX polling: configured")
+        elif companions.get("max_configured"):
+            print_info("MAX: configured")
     os_companions = body.get("os_companions") or {}
     if os_companions.get("docs") == "restarted":
         print_info("Docs companion restarted with updated configuration")

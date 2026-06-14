@@ -51,7 +51,26 @@ class DelegateToSubAgentTool(BaseTool):
                 "config.yaml or HOLIX_ENABLE_SUBAGENTS=true in ~/.holix/.env"
             )
         try:
-            handle = await agent.subagents.spawn_typed(agent_type.strip(), task.strip())
+            agent_type = agent_type.strip()
+            task = task.strip()
+            existing = agent.subagents.find_running_duplicate(agent_type, task)
+            if existing is not None:
+                return json.dumps(
+                    {
+                        "status": "already_running",
+                        "job_id": existing.name,
+                        "agent_type": agent_type,
+                        "process_mode": existing.config.process_mode.value,
+                        "process_id": existing.process_id,
+                        "message": (
+                            f"Sub-agent '{existing.name}' is already running this task. "
+                            f"Call wait_subagent_result(job_id='{existing.name}') "
+                            "instead of spawning a duplicate."
+                        ),
+                    },
+                    ensure_ascii=False,
+                )
+            handle = await agent.subagents.spawn_typed(agent_type, task)
             h, _ = handle
             return json.dumps(
                 {

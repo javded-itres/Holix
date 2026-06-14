@@ -31,6 +31,9 @@ Bilingual documentation. **English is the primary language** for accuracy and Gi
 | API Gateway | [en/GATEWAY.md](en/GATEWAY.md) | [ru/GATEWAY.md](ru/GATEWAY.md) |
 | Gateway API reference | [en/GATEWAY_API.md](en/GATEWAY_API.md) | [ru/GATEWAY_API.md](ru/GATEWAY_API.md) |
 | Telegram | [en/TELEGRAM.md](en/TELEGRAM.md) | [ru/TELEGRAM.md](ru/TELEGRAM.md) |
+| **MAX messenger** | [en/MAX.md](en/MAX.md) | [ru/MAX.md](ru/MAX.md) |
+| Telegram multi-profile | [en/TELEGRAM_MULTI_PROFILE.md](en/TELEGRAM_MULTI_PROFILE.md) | [ru/TELEGRAM_MULTI_PROFILE.md](ru/TELEGRAM_MULTI_PROFILE.md) |
+| MAX multi-profile | [en/MAX_MULTI_PROFILE.md](en/MAX_MULTI_PROFILE.md) | [ru/MAX_MULTI_PROFILE.md](ru/MAX_MULTI_PROFILE.md) |
 | Browser tools | [en/BROWSER_TOOLS.md](en/BROWSER_TOOLS.md) | [ru/BROWSER_TOOLS.md](ru/BROWSER_TOOLS.md) |
 
 ### Operations

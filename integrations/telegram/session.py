@@ -68,6 +68,7 @@ class ChatSession:
             profile=self.profile,
             mode=self.execution_mode,
             session_label=self.session_display_name,
+            compact_tools=True,
         )
         self.live_buffer = buf
         return buf

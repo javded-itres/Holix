@@ -27,6 +27,7 @@ class LiveTranscriptBuffer:
     result_posted_separately: bool = False
     max_tool_lines: int = 8
     max_answer_chars: int = 2800
+    compact_tools: bool = False
 
     def set_header(self, *, profile: str | None = None, mode: str | None = None, session: str | None = None) -> None:
         if profile is not None:
@@ -40,10 +41,13 @@ class LiveTranscriptBuffer:
         self.thinking = (message or "").strip() or None
 
     def add_tool_start(self, name: str, args: object) -> None:
+        # Partial assistant text before a tool call is preamble, not the final answer.
+        self.answer = ""
         line = format_tool_header(name, running=True)
-        args_text = format_tool_args(args)
-        if args_text:
-            line += f"\n  {args_text}"
+        if not self.compact_tools:
+            args_text = format_tool_args(args)
+            if args_text:
+                line += f"\n  {args_text}"
         self.tool_lines.append(line)
         self._trim_tools()
 
@@ -86,7 +90,9 @@ class LiveTranscriptBuffer:
     def mark_error(self, message: str) -> None:
         self.status = "error"
         self.thinking = None
-        self.notes.append(f"Error: {message}")
+        msg = (message or "unknown error").strip()
+        self.answer = msg[: self.max_answer_chars]
+        self.notes.append(f"Error: {msg}")
 
     def _trim_tools(self) -> None:
         if len(self.tool_lines) > self.max_tool_lines:
@@ -98,14 +104,18 @@ class LiveTranscriptBuffer:
             "─" * 32,
         ]
         if self.thinking:
-            parts.append(f"💭 {self.thinking}")
+            from core.i18n.live_ui import live_thinking_label
+
+            parts.append(f"💭 {live_thinking_label(self.profile, fallback=self.thinking)}")
         if self.tool_lines:
             parts.extend(self.tool_lines)
-        if self.answer.strip():
+        if self.answer.strip() and not self.publish_answer_separately:
             parts.append(self.answer.strip())
         for note in self.notes[-3:]:
             parts.append(f"· {note}")
         if self.status == "running" and not self.answer.strip() and not self.tool_lines:
-            parts.append("⏳ Working…")
+            from core.i18n.live_ui import live_working_label
+
+            parts.append(f"⏳ {live_working_label(self.profile)}")
         text = "\n\n".join(parts)
         return text[:4090]

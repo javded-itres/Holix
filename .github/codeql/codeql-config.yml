@@ -1,0 +1,5 @@
+name: Holix CodeQL
+paths-ignore:
+  - tests
+  - web-docs
+  - docs

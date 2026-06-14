@@ -6,6 +6,10 @@ instead of a modal dialog. This module is the single source of truth
 for plan rendering format.
 """
 
+from __future__ import annotations
+
+from core.i18n.locale import normalize_locale
+from core.i18n.messages import t
 
 
 def build_plan_markdown(
@@ -15,35 +19,22 @@ def build_plan_markdown(
     user_input: str = "",
     analysis: dict | None = None,
     architecture: dict | None = None,
+    *,
+    locale: str | None = None,
 ) -> str:
-    """Build a rich Markdown document from the plan data.
-
-    Produces a single, well-structured Markdown string suitable for
-    rendering in RichLog via rich.markdown.Markdown.
-
-    Args:
-        plan_steps: List of step dicts from plan_node.
-        step_count: Number of steps.
-        reasoning: Brief explanation of the plan order.
-        user_input: The original user query.
-        analysis: Task analysis dict.
-        architecture: Architecture dict.
-
-    Returns:
-        Markdown string.
-    """
+    """Build a rich Markdown document from the plan data."""
+    loc = normalize_locale(locale)
     sections = []
+    count = step_count or len(plan_steps)
 
-    # ── Title ────────────────────────────────────────────────────────
-    sections.append(f"# 📋 Execution Plan — {step_count or len(plan_steps)} steps")
+    sections.append(f"# {t('plan.title', loc, count=count)}")
     if user_input:
         display_input = user_input[:300] + ("…" if len(user_input) > 300 else "")
-        sections.append(f"\n> **Task:** {display_input}\n")
+        sections.append(f"\n> **{t('plan.task_label', loc)}** {display_input}\n")
 
-    # ── Analysis ─────────────────────────────────────────────────────
     if analysis:
         sections.append("\n---\n")
-        sections.append("## 📊 Analysis")
+        sections.append(f"## {t('plan.analysis', loc)}")
 
         task_summary = analysis.get("task_summary", "")
         complexity = analysis.get("complexity", "medium")
@@ -51,45 +42,46 @@ def build_plan_markdown(
         constraints = analysis.get("constraints", [])
 
         if task_summary:
-            sections.append(f"\n**Summary:** {task_summary}\n")
+            sections.append(f"\n**{t('plan.summary', loc)}** {task_summary}\n")
 
-        # Complexity badge
         comp_emoji = {"simple": "🟢", "medium": "🟡", "complex": "🔴"}.get(complexity, "🟡")
-        sections.append(f"\n**Complexity:** {comp_emoji} {complexity.capitalize()}\n")
+        sections.append(
+            f"\n**{t('plan.complexity', loc)}** {comp_emoji} {complexity.capitalize()}\n"
+        )
 
         if questions:
-            sections.append("\n### ❓ Clarifying Questions\n")
+            sections.append(f"\n### {t('plan.questions', loc)}\n")
             for i, q in enumerate(questions[:5], 1):
                 sections.append(f"{i}. {q}")
-            sections.append("\n*Describe what you'd like to change to answer these questions.*\n")
+            sections.append(f"\n*{t('plan.questions_hint', loc)}*\n")
 
         if constraints:
-            sections.append("\n### 🔒 Constraints\n")
+            sections.append(f"\n### {t('plan.constraints', loc)}\n")
             for c in constraints[:5]:
                 sections.append(f"- {c}")
             sections.append("")
 
-    # ── Architecture ─────────────────────────────────────────────────
     if architecture:
         sections.append("\n---\n")
-        sections.append("## 🏗️ Architecture")
+        sections.append(f"## {t('plan.architecture', loc)}")
 
         approach = architecture.get("approach", "")
         tech_stack = architecture.get("tech_stack", [])
         structure = architecture.get("structure", "")
 
         if approach:
-            sections.append(f"\n**Approach:** {approach}\n")
+            sections.append(f"\n**{t('plan.approach', loc)}** {approach}\n")
         if tech_stack:
-            sections.append("\n**Tech Stack:** " + " · ".join(tech_stack[:10]) + "\n")
+            sections.append(
+                f"\n**{t('plan.tech_stack', loc)}** " + " · ".join(tech_stack[:10]) + "\n"
+            )
         if structure:
-            sections.append(f"\n**Structure:** {structure}\n")
+            sections.append(f"\n**{t('plan.structure', loc)}** {structure}\n")
 
-        # Risks
         risks = architecture.get("risks", [])
         if risks:
-            sections.append("\n### ⚡ Risks & Mitigations\n")
-            sections.append("| Risk | Mitigation |")
+            sections.append(f"\n### {t('plan.risks', loc)}\n")
+            sections.append(f"| {t('plan.risk_col', loc)} | {t('plan.mitigation_col', loc)} |")
             sections.append("|------|-----------|")
             for r in risks[:6]:
                 if isinstance(r, dict):
@@ -101,43 +93,45 @@ def build_plan_markdown(
                 sections.append(f"| {risk_text[:80]} | {mitigation[:80]} |")
             sections.append("")
 
-    # ── Plan Steps ───────────────────────────────────────────────────
     sections.append("\n---\n")
-    sections.append("## 📝 Execution Steps\n")
+    sections.append(f"## {t('plan.steps', loc)}\n")
 
     for step in plan_steps:
         num = step.get("step", "?")
-        desc = step.get("description", "No description")
+        desc = step.get("description", t("plan.no_description", loc))
         tools = step.get("tools_needed", [])
         expected = step.get("expected_output", "")
         criteria = step.get("success_criteria", "")
         depends_on = step.get("depends_on", [])
         parallel = step.get("parallel_group")
+        subagent = (step.get("subagent_type") or "").strip()
 
-        sections.append(f"### Step {num}: {desc}\n")
+        sections.append(f"### {t('plan.step', loc, num=num)}: {desc}\n")
 
-        # Metadata line
         meta_parts = []
         if tools:
-            meta_parts.append("**Tools:** " + ", ".join(f"`{t}`" for t in tools))
+            meta_parts.append(
+                f"**{t('plan.tools', loc)}** " + ", ".join(f"`{tool}`" for tool in tools)
+            )
+        if subagent:
+            meta_parts.append(f"**{t('plan.subagent', loc)}** `{subagent}`")
         if parallel is not None:
-            meta_parts.append(f"**Parallel group:** {parallel}")
+            meta_parts.append(f"**{t('plan.parallel', loc)}** {parallel}")
         if depends_on:
             deps = ", ".join(str(d) for d in depends_on)
-            meta_parts.append(f"**Depends on:** step {deps}")
+            meta_parts.append(f"**{t('plan.depends', loc)}** {deps}")
         if meta_parts:
             sections.append("\n" + " · ".join(meta_parts) + "\n")
 
         if expected:
-            sections.append(f"- **Expected output:** {expected}")
+            sections.append(f"- **{t('plan.expected', loc)}** {expected}")
         if criteria:
-            sections.append(f"- **Success criteria:** {criteria}")
+            sections.append(f"- **{t('plan.success', loc)}** {criteria}")
 
         sections.append("")
 
-    # ── Reasoning ────────────────────────────────────────────────────
     if reasoning:
         sections.append("\n---\n")
-        sections.append(f"## 💭 Reasoning\n\n{reasoning}\n")
+        sections.append(f"## {t('plan.reasoning', loc)}\n\n{reasoning}\n")
 
     return "\n".join(sections)

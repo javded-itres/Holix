@@ -100,3 +100,19 @@ class TelegramApproveRequest(BaseModel):
 class TelegramMapSetRequest(BaseModel):
     user_id: int
     profile: str
+
+
+class MaxSetupRequest(BaseModel):
+    access_token: str
+    also_project_env: bool = False
+
+
+class MaxApproveRequest(BaseModel):
+    profile: str | None = None
+    create_profile: str | None = None
+    set_admin: bool = False
+
+
+class MaxMapSetRequest(BaseModel):
+    user_id: int
+    profile: str

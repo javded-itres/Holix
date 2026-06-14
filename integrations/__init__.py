@@ -1,1 +1,1 @@
-"""External channel integrations (Telegram, etc.)."""
+"""External channel integrations (Telegram, MAX, etc.)."""

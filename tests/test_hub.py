@@ -130,9 +130,10 @@ def test_claude_mcp_http():
     assert out["github"]["url"] == "https://example.com/mcp"
 
 
-def test_slash_registry(tmp_path: Path):
-    skills = tmp_path / "skills"
-    skills.mkdir()
+def test_slash_registry(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+    monkeypatch.setenv("HOLIX_HOME", str(tmp_path))
+    skills = tmp_path / "profiles" / "default" / "data" / "skills"
+    skills.mkdir(parents=True)
     (skills / "demo.md").write_text(
         "---\nname: demo\ndescription: Test skill\nuser-invocable: true\n---\n\nDo demo.\n",
         encoding="utf-8",
@@ -189,7 +190,8 @@ def test_remove_hub_install(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
     from core.hub.installed import remove_hub_install
     from core.hub.lockfile import HubEntry, HubLockfile
 
-    skills = tmp_path / "skills"
+    monkeypatch.setenv("HOLIX_HOME", str(tmp_path))
+    skills = tmp_path / "profiles" / "default" / "data" / "skills"
     bundle = skills / "_hub" / "demo"
     bundle.mkdir(parents=True)
     (bundle / "demo.md").write_text(
@@ -302,12 +304,13 @@ def test_hub_agent_slot_options():
     assert next(o for o in opts if o[1] == "main")[2] is True
 
 
-def test_importer_remove(tmp_path: Path):
+def test_importer_remove(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
     from core.hub.importer import SkillImporter
     from core.hub.lockfile import HubEntry, HubLockfile
 
-    skills = tmp_path / "skills"
-    skills.mkdir()
+    monkeypatch.setenv("HOLIX_HOME", str(tmp_path))
+    skills = tmp_path / "profiles" / "default" / "data" / "skills"
+    skills.mkdir(parents=True)
     bundle = skills / "_hub" / "demo"
     bundle.mkdir(parents=True)
     (bundle / "demo.md").write_text(

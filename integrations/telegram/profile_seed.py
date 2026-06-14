@@ -90,6 +90,10 @@ def _collect_bot_shared_overrides(
 
 def _seed_profile_env_from_bot(bot_profile: str, user_profile: str) -> None:
     from core.env_loader import holix_env_path, profile_env_path
+    from core.profile.names import validate_profile_name
+
+    bot_profile = validate_profile_name(bot_profile)
+    user_profile = validate_profile_name(user_profile)
 
     try:
         from core.crypto.profile_files import dotenv_values_for_path
@@ -152,9 +156,14 @@ def seed_telegram_user_profile_from_bot(
     user_profile: str,
 ) -> bool:
     """Copy LLM/runtime settings from the bot profile into a Telegram user profile."""
-    bot_profile = (bot_profile or "default").strip() or "default"
-    user_profile = (user_profile or "").strip()
-    if not user_profile or bot_profile == user_profile:
+    from core.profile.names import ProfileNameError, validate_profile_name
+
+    try:
+        bot_profile = validate_profile_name(bot_profile)
+        user_profile = validate_profile_name(user_profile)
+    except ProfileNameError:
+        return False
+    if bot_profile == user_profile:
         return False
     if not manager.profile_exists(bot_profile) or not manager.profile_exists(user_profile):
         return False

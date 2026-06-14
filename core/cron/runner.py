@@ -13,12 +13,47 @@ from cli.core import ProfileManager
 from core.cron import active_runs
 from core.cron.expressions import format_next_run_iso
 from core.cron.models import CronJob
-from core.cron.notifier import format_status_message, send_telegram_notification
+from core.cron.notifier import (
+    format_status_message,
+    send_max_notification,
+    send_telegram_notification,
+)
 from core.cron.session_sync import format_cron_summary, persist_cron_result
 from core.cron.store import CronStore, runs_log_path
 from core.di import create_agent, resolve_runtime_config
 
 logger = logging.getLogger(__name__)
+
+
+async def _notify_job_result(job: CronJob, message: str, *, html: bool = False) -> None:
+    """Deliver cron output to configured Telegram and/or MAX targets."""
+    text = (message or "").strip()
+    if not text:
+        return
+    if job.notify_chat_id:
+        tg_text = text if html else text.replace("\n", "<br>")
+        await send_telegram_notification(
+            chat_id=job.notify_chat_id,
+            message=tg_text,
+            parse_mode="HTML",
+        )
+    if job.notify_max_user_id or job.notify_max_chat_id:
+        max_text = text
+        if html:
+            max_text = (
+                text.replace("<b>", "**")
+                .replace("</b>", "**")
+                .replace("<code>", "`")
+                .replace("</code>", "`")
+                .replace("<i>", "_")
+                .replace("</i>", "_")
+            )
+        await send_max_notification(
+            max_text,
+            user_id=job.notify_max_user_id,
+            chat_id=job.notify_max_chat_id,
+            profile=job.profile,
+        )
 
 
 def _append_run_log(profile: str, line: str) -> None:
@@ -154,10 +189,7 @@ async def run_cron_job(job: CronJob) -> None:
                 active_tasks=status["active_tasks"] or None,
                 timestamp=ts,
             )
-            await send_telegram_notification(
-                chat_id=job.notify_chat_id,
-                message=message,
-            )
+            await _notify_job_result(job, message, html=True)
             response_text = message
             job.last_result = await persist_cron_result(
                 agent, job, response=response_text, run_conversation_id=run_conv
@@ -184,12 +216,11 @@ async def run_cron_job(job: CronJob) -> None:
             job.last_status = "success"
             job.last_error = None
 
-            if job.notify_chat_id and response_text.strip():
+            if response_text.strip() and (
+                job.notify_chat_id or job.notify_max_user_id or job.notify_max_chat_id
+            ):
                 preview = format_cron_summary(job, response_text)
-                await send_telegram_notification(
-                    chat_id=job.notify_chat_id,
-                    message=preview.replace("\n", "<br>"),
-                )
+                await _notify_job_result(job, preview)
 
         if response_text.strip():
             preview = response_text.strip().replace("\n", " ")[:240]
@@ -210,17 +241,14 @@ async def run_cron_job(job: CronJob) -> None:
             job.last_error = str(e)[:2000]
         _append_run_log(job.profile, f"ERROR {job.id}: {e}")
 
-        if job.notify_chat_id:
+        if job.notify_chat_id or job.notify_max_user_id or job.notify_max_chat_id:
             try:
                 error_msg = (
-                    f"❌ <b>Cron Job Failed</b>\n\n"
-                    f"Job: <code>{job.id}</code>\n"
-                    f"Error: <code>{str(e)[:200]}</code>"
+                    f"❌ **Cron Job Failed**\n\n"
+                    f"Job: `{job.id}`\n"
+                    f"Error: `{str(e)[:200]}`"
                 )
-                await send_telegram_notification(
-                    chat_id=job.notify_chat_id,
-                    message=error_msg,
-                )
+                await _notify_job_result(job, error_msg)
             except Exception:
                 pass
     finally:

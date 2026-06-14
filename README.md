@@ -98,6 +98,7 @@ holix gateway start
 | Configuration | [CONFIGURATION.md](docs/en/CONFIGURATION.md) |
 | Skill Hub | [HUB.md](docs/en/HUB.md) |
 | API Gateway | [GATEWAY.md](docs/en/GATEWAY.md) |
+| **MAX messenger** | [MAX.md](docs/en/MAX.md) |
 | Logs | [LOGS.md](docs/en/LOGS.md) |
 | Doctor | [DOCTOR.md](docs/en/DOCTOR.md) |
 | Security | [SECURITY.md](docs/en/SECURITY.md) |
@@ -113,6 +114,7 @@ holix gateway start
 | CLI | [CLI.md](docs/ru/CLI.md) |
 | Слэш-команды | [SLASH_COMMANDS.md](docs/ru/SLASH_COMMANDS.md) |
 | Начало | [START_HERE.md](docs/ru/START_HERE.md) |
+| **MAX** | [MAX.md](docs/ru/MAX.md) |
 
 ---
 

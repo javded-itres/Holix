@@ -2,48 +2,42 @@
 
 from __future__ import annotations
 
-import os
+from integrations.messenger.admin import (
+    clear_admin_user as _clear_admin_user,
+)
+from integrations.messenger.admin import (
+    load_admin_holix_profile as _load_admin_holix_profile,
+)
+from integrations.messenger.admin import (
+    load_admin_user_id as _load_admin_user_id,
+)
+from integrations.messenger.admin import (
+    set_admin_user as _set_admin_user,
+)
+from integrations.messenger.platforms import TELEGRAM_PLATFORM
 
-from integrations.telegram.env_store import read_telegram_env_values, save_telegram_env
-
-ENV_ADMIN_USER_ID = "HOLIX_TELEGRAM_ADMIN_USER_ID"
-ENV_ADMIN_PROFILE = "HOLIX_TELEGRAM_ADMIN_PROFILE"
-DEFAULT_ADMIN_PROFILE = "admin"
+_PLATFORM = TELEGRAM_PLATFORM
+ENV_ADMIN_USER_ID = _PLATFORM.admin_user_id_key
+ENV_ADMIN_PROFILE = _PLATFORM.admin_profile_key
+DEFAULT_ADMIN_PROFILE = _PLATFORM.default_admin_profile
 
 
 def load_admin_user_id(bot_profile: str) -> int | None:
-    from integrations.telegram.env_store import load_telegram_env_files
-
-    load_telegram_env_files(bot_profile)
-    raw = read_telegram_env_values(bot_profile).get(ENV_ADMIN_USER_ID, "").strip()
-    if raw.isdigit():
-        return int(raw)
-    return None
+    return _load_admin_user_id(_PLATFORM, bot_profile)
 
 
 def load_admin_holix_profile(bot_profile: str) -> str:
-    from integrations.telegram.env_store import load_telegram_env_files
-
-    load_telegram_env_files(bot_profile)
-    raw = read_telegram_env_values(bot_profile).get(ENV_ADMIN_PROFILE, "").strip()
-    return raw or DEFAULT_ADMIN_PROFILE
+    return _load_admin_holix_profile(_PLATFORM, bot_profile)
 
 
-def set_admin_user(bot_profile: str, user_id: int, *, holix_profile: str | None = None) -> None:
-    """Persist the single Telegram admin (CLI only — never call from bot handlers)."""
-    values = read_telegram_env_values(bot_profile)
-    values[ENV_ADMIN_USER_ID] = str(int(user_id))
-    values[ENV_ADMIN_PROFILE] = (holix_profile or DEFAULT_ADMIN_PROFILE).strip() or DEFAULT_ADMIN_PROFILE
-    save_telegram_env(values, profile=bot_profile)
+def set_admin_user(
+    bot_profile: str,
+    user_id: int,
+    *,
+    holix_profile: str | None = None,
+) -> None:
+    _set_admin_user(_PLATFORM, bot_profile, user_id, holix_profile=holix_profile)
 
 
 def clear_admin_user(bot_profile: str) -> bool:
-    values = read_telegram_env_values(bot_profile)
-    if ENV_ADMIN_USER_ID not in values and ENV_ADMIN_PROFILE not in values:
-        return False
-    values.pop(ENV_ADMIN_USER_ID, None)
-    values.pop(ENV_ADMIN_PROFILE, None)
-    save_telegram_env(values, profile=bot_profile)
-    os.environ.pop(ENV_ADMIN_USER_ID, None)
-    os.environ.pop(ENV_ADMIN_PROFILE, None)
-    return True
+    return _clear_admin_user(_PLATFORM, bot_profile)

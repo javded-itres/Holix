@@ -134,4 +134,4 @@ async def test_send_chat_files_tool_without_bridge() -> None:
 
     tool = SendChatFilesTool()
     result = await tool.execute(paths=["/tmp/x.txt"])
-    assert "only available in Telegram" in result
+    assert "only available in Telegram or MAX" in result

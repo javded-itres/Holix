@@ -38,6 +38,7 @@ async def run_all_checks(profile: str, *, skip_llm_check: bool = False) -> list[
         findings.extend(await _check_llm(profile, manager))
     findings.extend(_check_gateway(profile))
     findings.extend(_check_telegram(profile))
+    findings.extend(_check_max(profile))
     findings.extend(_check_env_file())
     findings.extend(_check_security_settings())
     findings.extend(_check_crypto_runtime_cache())
@@ -818,6 +819,135 @@ def _check_telegram(profile: str) -> list[DoctorFinding]:
                 recommendation="Disable in production; use HOLIX_TELEGRAM_ALLOWED_USERS instead",
             )
         )
+    return out
+
+
+def _check_max(profile: str) -> list[DoctorFinding]:
+    out: list[DoctorFinding] = []
+    try:
+        from integrations.max.config import load_max_settings, max_files_extra_available
+        from integrations.max.env_store import load_max_env_files, token_looks_valid
+
+        load_max_env_files(profile)
+    except Exception:
+        return out
+
+    from integrations.max.env_store import max_env_path
+
+    settings = load_max_settings(profile)
+    token = settings.access_token.strip()
+    if not token:
+        out.append(
+            DoctorFinding(
+                code="max.not_configured",
+                severity=Severity.INFO.value,
+                title="MAX not configured",
+                detail=f"No access token in environment or {max_env_path(profile)}",
+                recommendation="Run: holix max setup",
+            )
+        )
+        return out
+
+    if not token_looks_valid(token):
+        out.append(
+            DoctorFinding(
+                code="max.invalid_token",
+                severity=Severity.ERROR.value,
+                title="MAX access token looks invalid",
+                detail="Expected non-empty token (≥16 characters, no spaces)",
+                recommendation="Run: holix max setup",
+            )
+        )
+
+    allowed = settings.allowed_user_ids.strip()
+    if not allowed and not settings.allow_all:
+        if settings.access_requests:
+            out.append(
+                DoctorFinding(
+                    code="max.access_requests",
+                    severity=Severity.INFO.value,
+                    title="MAX access-request mode",
+                    detail=(
+                        "Allowlist is empty; new users must send /start and be approved "
+                        "via `holix max requests`"
+                    ),
+                    recommendation="holix max requests list",
+                )
+            )
+        else:
+            out.append(
+                DoctorFinding(
+                    code="max.no_allowlist",
+                    severity=Severity.ERROR.value,
+                    title="MAX allowlist empty",
+                    detail="Bot will deny all users until HELIX_MAX_ALLOWED_USERS is set",
+                    recommendation=(
+                        "Enable HOLIX_MAX_ACCESS_REQUESTS=true (default), "
+                        "set HELIX_MAX_ALLOWED_USERS, "
+                        "or HELIX_MAX_ALLOW_ALL=true for local development only"
+                    ),
+                )
+            )
+    elif settings.allow_all:
+        out.append(
+            DoctorFinding(
+                code="max.allow_all",
+                severity=Severity.WARNING.value,
+                title="MAX allow-all mode enabled",
+                detail="HELIX_MAX_ALLOW_ALL=true permits any MAX user",
+                recommendation="Disable in production; use HELIX_MAX_ALLOWED_USERS instead",
+            )
+        )
+
+    if settings.is_webhook_mode:
+        webhook_url = settings.webhook_url.strip()
+        if not webhook_url:
+            out.append(
+                DoctorFinding(
+                    code="max.webhook_url_missing",
+                    severity=Severity.ERROR.value,
+                    title="MAX webhook URL not set",
+                    detail="HELIX_MAX_MODE=webhook requires HELIX_MAX_WEBHOOK_URL",
+                    recommendation=(
+                        "Set HELIX_MAX_WEBHOOK_URL=https://your-host.example/max/webhook "
+                        "and run: holix gateway start"
+                    ),
+                )
+            )
+        elif not webhook_url.lower().startswith("https://"):
+            out.append(
+                DoctorFinding(
+                    code="max.webhook_not_https",
+                    severity=Severity.WARNING.value,
+                    title="MAX webhook URL is not HTTPS",
+                    detail="MAX requires HTTPS on port 443 for production webhooks",
+                    recommendation="Use an HTTPS URL with a trusted TLS certificate",
+                )
+            )
+        if not settings.webhook_secret.strip():
+            out.append(
+                DoctorFinding(
+                    code="max.webhook_secret_missing",
+                    severity=Severity.WARNING.value,
+                    title="MAX webhook secret not set",
+                    detail="X-Max-Bot-Api-Secret validation is disabled",
+                    recommendation="Set HELIX_MAX_WEBHOOK_SECRET in holix max setup",
+                )
+            )
+
+    from config import settings as app_settings
+
+    if app_settings.max_files_enabled and not max_files_extra_available():
+        out.append(
+            DoctorFinding(
+                code="max.files_extra_missing",
+                severity=Severity.WARNING.value,
+                title="MAX file extras not installed",
+                detail="PDF extraction requires the optional max extra (pypdf)",
+                recommendation="Install: uv sync --extra max",
+            )
+        )
+
     return out
 
 

@@ -1,0 +1,1 @@
+"""MAX messenger integration for Helix."""

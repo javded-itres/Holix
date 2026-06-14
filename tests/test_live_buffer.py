@@ -19,3 +19,10 @@ def test_truncate_answer():
     buf = LiveTranscriptBuffer(max_answer_chars=10)
     buf.set_answer("x" * 100)
     assert len(buf.answer) <= 11
+
+
+def test_tool_start_clears_partial_answer():
+    buf = LiveTranscriptBuffer()
+    buf.set_answer("Давайте посмотрю, есть ли активные задачи.")
+    buf.add_tool_start("list_subagents", {})
+    assert buf.answer == ""

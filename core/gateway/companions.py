@@ -12,6 +12,7 @@ class CompanionState:
     profile: str
     cron_task: asyncio.Task[Any] | None = None
     telegram_task: asyncio.Task[Any] | None = None
+    max_task: asyncio.Task[Any] | None = None
 
 
 class CompanionManager:
@@ -27,6 +28,9 @@ class CompanionManager:
             "cron_running": bool(state and state.cron_task and not state.cron_task.done()),
             "telegram_running": bool(
                 state and state.telegram_task and not state.telegram_task.done()
+            ),
+            "max_polling_running": bool(
+                state and state.max_task and not state.max_task.done()
             ),
         }
 
@@ -82,14 +86,44 @@ class CompanionManager:
             pass
         state.telegram_task = None
 
+    async def start_max(self, profile: str) -> None:
+        await self.stop_max(profile)
+        from integrations.max.gateway_routes import max_should_poll
+
+        if not max_should_poll(profile):
+            return
+        from integrations.max.config import load_max_settings
+        from integrations.max.polling import run_polling
+
+        state = self._states.setdefault(profile, CompanionState(profile=profile))
+
+        async def _run() -> None:
+            await run_polling(load_max_settings(profile), profile=profile)
+
+        state.max_task = asyncio.create_task(_run(), name=f"holix-max-{profile}")
+
+    async def stop_max(self, profile: str) -> None:
+        state = self._states.get(profile)
+        if state is None or state.max_task is None:
+            return
+        state.max_task.cancel()
+        try:
+            await state.max_task
+        except asyncio.CancelledError:
+            pass
+        state.max_task = None
+
     async def reload(self, profile: str) -> dict[str, Any]:
         await self.stop_cron(profile)
         await self.stop_telegram(profile)
+        await self.stop_max(profile)
         await self.start_cron(profile)
         await self.start_telegram(profile)
+        await self.start_max(profile)
         return self.status(profile)
 
     async def shutdown_all(self) -> None:
         for profile in list(self._states):
             await self.stop_cron(profile)
             await self.stop_telegram(profile)
+            await self.stop_max(profile)

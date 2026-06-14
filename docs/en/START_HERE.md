@@ -78,6 +78,9 @@ In TUI or Telegram, type **`/help`** for slash commands: [SLASH_COMMANDS.md](SLA
 pipx install "Holix[telegram]"   # or reinstall with [all]
 holix -p shared telegram setup
 # multi-user: users send /start, then holix -p shared telegram requests approve …
+pipx install "Holix[max]"
+holix -p shared max setup
+# MAX in production: holix -p shared gateway start (webhook) — see MAX.md
 pipx install "Holix[browser]"
 playwright install chromium            # after browser extra
 pipx install "Holix[tui-web]"   # holix tui --web
@@ -98,6 +101,7 @@ Read [SECURITY.md](SECURITY.md) and [DEPLOYMENT.md](DEPLOYMENT.md).
 
 ## Next steps
 
+- [MAX.md](MAX.md) — MAX messenger bot
 - Full CLI: [CLI.md](CLI.md)
 - Config reference: [CONFIGURATION.md](CONFIGURATION.md)
 - Logs: `holix logs` — [LOGS.md](LOGS.md)

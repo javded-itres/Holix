@@ -1,6 +1,6 @@
 # API Gateway
 
-OpenAI-compatible HTTP API, Hermes-compatible surface, Holix Management API, and companion services (Telegram + cron when configured).
+OpenAI-compatible HTTP API, Hermes-compatible surface, Holix Management API, and companion services (Telegram, MAX, cron when configured).
 
 **Full API reference:** [GATEWAY_API.md](GATEWAY_API.md) — Hermes mapping, `/api/holix/` management, auth, SaaS curl examples.
 
@@ -37,15 +37,15 @@ holix -p alice gateway start
 holix -p bob gateway start
 ```
 
-The supervisor also runs **cron** and **Telegram** (when configured for that profile) as companion processes.
+The supervisor also runs **cron**, **Telegram**, and **MAX** (when configured for that profile) as companion processes. MAX uses webhook delivery in production (`POST /max/webhook`) — see [MAX.md](MAX.md).
 
 ## Multi-profile gateway (v0.2+)
 
 A single uvicorn process can serve **multiple Holix profiles**:
 
 - Profile routing: `X-Holix-Profile` → `model` field → host profile
-- Per-profile reload: `POST /api/holix/profiles/{id}/reload` (agent + Telegram + cron)
-- Management API: `/api/holix/` for profiles, models, MCP, skills, Telegram admin
+- Per-profile reload: `POST /api/holix/profiles/{id}/reload` (agent + Telegram + MAX + cron)
+- Management API: `/api/holix/` for profiles, models, MCP, skills, Telegram/MAX admin
 
 See [GATEWAY_API.md](GATEWAY_API.md) for endpoint tables and authentication.
 
@@ -69,7 +69,7 @@ Admin routes (`/admin/*`) **always** require an admin API key.
 | Health | `GET /health`, `GET /v1/health`, `GET /health/detailed` |
 | Chat | `POST /v1/chat/completions` |
 | Hermes | `GET /v1/models`, `/v1/capabilities`, `/v1/runs`, `/api/sessions`, `/api/jobs` |
-| Management | `GET/POST /api/holix/profiles`, `…/models`, `…/telegram`, `…/reload` |
+| Management | `GET/POST /api/holix/profiles`, `…/models`, `…/telegram`, `…/max`, `…/reload` |
 | Admin | `POST /admin/api-keys`, `GET /admin/metrics`, `GET /metrics` (Prometheus) |
 
 ## Gateway API keys

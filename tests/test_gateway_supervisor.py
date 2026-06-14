@@ -2,8 +2,11 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+
 import pytest
 from cli.services.supervisor import docs_should_start, telegram_enabled, telegram_should_start
+from integrations.max.gateway_routes import max_enabled, max_should_poll, max_should_webhook
 from integrations.telegram.config import load_telegram_settings, telegram_aiogram_available
 
 
@@ -37,7 +40,13 @@ def test_telegram_should_start_requires_aiogram(monkeypatch: pytest.MonkeyPatch)
         assert telegram_should_start() is False
 
 
-def test_docs_should_start_in_repo() -> None:
+def test_docs_should_start_when_site_configured(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    site = tmp_path / "holix-docs"
+    site.mkdir()
+    (site / "index.html").write_text("<html></html>", encoding="utf-8")
+    monkeypatch.setenv("HOLIX_WEB_DOCS_DIR", str(site))
     assert docs_should_start() is True
 
 
@@ -45,3 +54,50 @@ def test_load_telegram_settings_profile(monkeypatch: pytest.MonkeyPatch) -> None
     _block_telegram_env_files(monkeypatch)
     settings = load_telegram_settings("work")
     assert settings.profile == "work"
+
+
+def _block_max_env_files(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(
+        "integrations.max.env_store.load_max_env_files",
+        lambda profile=None: None,
+    )
+
+
+def test_max_enabled_without_token(monkeypatch: pytest.MonkeyPatch) -> None:
+    from integrations.max.config import MaxSettings
+
+    _block_max_env_files(monkeypatch)
+    monkeypatch.delenv("MAX_ACCESS_TOKEN", raising=False)
+    monkeypatch.delenv("HOLIX_MAX_ACCESS_TOKEN", raising=False)
+    monkeypatch.setattr(
+        "integrations.max.gateway_routes.load_max_settings",
+        lambda profile="default": MaxSettings(access_token="", profile=profile),
+    )
+    assert max_enabled() is False
+
+
+def test_max_should_webhook_requires_mode_and_token(monkeypatch: pytest.MonkeyPatch) -> None:
+    _block_max_env_files(monkeypatch)
+    monkeypatch.setenv("HOLIX_MAX_ACCESS_TOKEN", "test-token")
+    monkeypatch.setenv("HOLIX_MAX_MODE", "webhook")
+    monkeypatch.delenv("HOLIX_ENV", raising=False)
+    assert max_should_webhook() is True
+    assert max_should_poll() is False
+
+
+def test_max_should_poll_in_development(monkeypatch: pytest.MonkeyPatch) -> None:
+    _block_max_env_files(monkeypatch)
+    monkeypatch.setenv("HOLIX_MAX_ACCESS_TOKEN", "test-token")
+    monkeypatch.setenv("HOLIX_MAX_MODE", "polling")
+    monkeypatch.setenv("HOLIX_ENV", "development")
+    assert max_should_poll() is True
+    assert max_should_webhook() is False
+
+
+def test_max_forces_webhook_in_production(monkeypatch: pytest.MonkeyPatch) -> None:
+    _block_max_env_files(monkeypatch)
+    monkeypatch.setenv("HOLIX_MAX_ACCESS_TOKEN", "test-token")
+    monkeypatch.setenv("HOLIX_MAX_MODE", "polling")
+    monkeypatch.setenv("HOLIX_ENV", "production")
+    assert max_should_webhook() is True
+    assert max_should_poll() is False

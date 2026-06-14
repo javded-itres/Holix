@@ -50,9 +50,15 @@ async def test_admin_callback_approve(holix_home, monkeypatch: pytest.MonkeyPatc
     set_admin_user("default", 900)
     register_access_request("default", user_id=77, username="newbie")
 
+    captured: dict = {}
+
+    async def _fake_send(token, chat_id, text, **kwargs):
+        captured["chat_id"] = chat_id
+        captured["text"] = text
+
     monkeypatch.setattr(
-        "integrations.telegram.notify.notify_access_approved_sync",
-        lambda *args, **kwargs: None,
+        "integrations.telegram.notify.send_user_message",
+        _fake_send,
     )
 
     message = MagicMock()
@@ -66,8 +72,11 @@ async def test_admin_callback_approve(holix_home, monkeypatch: pytest.MonkeyPatc
         bot=MagicMock(),
     )
     assert "одобрен" in msg.lower()
+    assert "(уведомление:" not in msg.lower()
     assert load_allowed_user_ids("default") == {77}
     assert resolve_user_profile("default", 77) == "newbie"
+    assert captured.get("chat_id") == 77
+    assert "newbie" in captured.get("text", "")
     message.edit_text.assert_awaited_once()
 
 

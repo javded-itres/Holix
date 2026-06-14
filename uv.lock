@@ -1035,7 +1035,7 @@ wheels = [
 
 [[package]]
 name = "holix"
-version = "0.1.12"
+version = "0.1.36"
 source = { editable = "." }
 dependencies = [
     { name = "aiohttp" },
@@ -1075,6 +1075,9 @@ all = [
 ]
 browser = [
     { name = "playwright" },
+]
+max = [
+    { name = "pypdf" },
 ]
 telegram = [
     { name = "aiogram" },
@@ -1128,6 +1131,7 @@ requires-dist = [
     { name = "pydantic", specifier = ">=2.0" },
     { name = "pydantic-settings", specifier = ">=2.0" },
     { name = "pypdf", marker = "extra == 'all'", specifier = ">=4.0.0" },
+    { name = "pypdf", marker = "extra == 'max'", specifier = ">=4.0.0" },
     { name = "pypdf", marker = "extra == 'telegram'", specifier = ">=4.0.0" },
     { name = "python-dotenv", specifier = ">=1.0.0" },
     { name = "pyyaml", specifier = ">=6.0" },
@@ -1139,7 +1143,7 @@ requires-dist = [
     { name = "typer", specifier = ">=0.9.0" },
     { name = "uvicorn", specifier = ">=0.48.0" },
 ]
-provides-extras = ["browser", "telegram", "voice", "tui-web", "windows", "all"]
+provides-extras = ["browser", "telegram", "max", "voice", "tui-web", "windows", "all"]
 
 [package.metadata.requires-dev]
 dev = [

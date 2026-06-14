@@ -217,6 +217,16 @@ class Settings(BaseSettings):
         description="Wait for all items in a Telegram album before processing",
     )
 
+    # MAX messenger
+    max_files_enabled: bool = Field(
+        default=True,
+        validation_alias="HELIX_MAX_FILES_ENABLED",
+    )
+    max_max_file_mb: int = Field(
+        default=20,
+        validation_alias="HELIX_MAX_MAX_FILE_MB",
+    )
+
     # Whisper / voice transcription (Telegram)
     openai_api_key: str = Field(
         default="",

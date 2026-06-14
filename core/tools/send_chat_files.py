@@ -1,4 +1,4 @@
-"""Send generated files back to the user in the active chat (Telegram)."""
+"""Send generated files back to the user in the active chat (Telegram or MAX)."""
 
 from __future__ import annotations
 
@@ -9,16 +9,16 @@ from core.tools.execution_context import get_chat_delivery_bridge
 
 
 class SendChatFilesTool(BaseTool):
-    """Deliver local files to the user in Telegram (single file or album)."""
+    """Deliver local files to the user in Telegram or MAX chat."""
 
     def __init__(self) -> None:
         super().__init__()
         self.name = "send_chat_files"
         self.description = (
-            "Send files to the user in chat (Telegram). Use after creating or "
-            "generating documents, images, or videos. Pass one path or 2–10 paths "
-            "to send as an album (photos/videos together; documents as a separate "
-            "album). Optional caption applies to the first item."
+            "Send files to the user in chat (Telegram or MAX). Use after creating or "
+            "generating documents, images, or videos. Pass one path or 2–10 paths. "
+            "On Telegram, compatible files are sent as albums; on MAX, each file is "
+            "sent as a separate message. Optional caption applies to the first item."
         )
         self.risk_level = "low"
         self.parameters = {
@@ -48,7 +48,7 @@ class SendChatFilesTool(BaseTool):
         bridge = get_chat_delivery_bridge()
         if bridge is None:
             return (
-                "Error: send_chat_files is only available in Telegram chat. "
+                "Error: send_chat_files is only available in Telegram or MAX chat. "
                 "Tell the user the file paths instead."
             )
 

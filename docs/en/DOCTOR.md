@@ -1,6 +1,6 @@
 # Holix Doctor
 
-Diagnostics for profiles, LLM, gateway, Telegram, and security settings.
+Diagnostics for profiles, LLM, gateway, Telegram, MAX, and security settings.
 
 ## Usage
 

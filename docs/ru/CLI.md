@@ -34,6 +34,7 @@ HOLIX_ENV=production holix -p shared gateway start
 | `profile` | `.env` профиля и workspace jail |
 | `models` | Провайдеры и маршрутизация |
 | `telegram` | Telegram-бот |
+| `max` | Бот для мессенджера MAX |
 | `gateway` | API gateway |
 | `cron` | Планировщик задач (в gateway) |
 | `logs` | Просмотр логов, ротация, debug |
@@ -399,6 +400,27 @@ holix -p shared gateway start
 
 Один бот на несколько изолированных профилей: [TELEGRAM_MULTI_PROFILE.md](TELEGRAM_MULTI_PROFILE.md).  
 Общее: [TELEGRAM.md](TELEGRAM.md).
+
+---
+
+## `holix max`
+
+Требует `uv sync --extra max` и `MAX_ACCESS_TOKEN`.
+
+| Подкоманда | Описание |
+|------------|----------|
+| `setup` | Токен, allowlist, режим webhook/polling, сохранение |
+| *(по умолчанию)* | Long Polling (dev/test) |
+| `status` | `GET /me`, подписки webhook |
+
+```bash
+holix max setup
+holix max
+holix max status
+```
+
+Продакшен: `holix gateway start` (webhook через `POST /subscriptions`).  
+См. [MAX.md](MAX.md).
 
 ---
 

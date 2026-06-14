@@ -22,8 +22,9 @@ def runtime_cache_root() -> Path:
 
 
 def profile_runtime_cache_dir(profile: str) -> Path:
-    name = profile.strip()
-    return runtime_cache_root() / name
+    from core.profile.names import validate_profile_name
+
+    return runtime_cache_root() / validate_profile_name(profile)
 
 
 def legacy_profile_cache_dir(profile: str) -> Path:
@@ -106,9 +107,15 @@ def recover_stale_runtime_caches() -> dict[str, int]:
     root.mkdir(parents=True, exist_ok=True)
     harden_cache_tree(root)
 
+    from core.profile.names import ProfileNameError, validate_profile_name
+
     manager = ProfileManager()
     legacy_removed = 0
     for profile in manager.list_profiles():
+        try:
+            validate_profile_name(profile)
+        except ProfileNameError:
+            continue
         if wipe_legacy_profile_cache(profile):
             legacy_removed += 1
 

@@ -30,6 +30,8 @@ class CronJob(BaseModel):
     next_run_at: str | None = None
     run_count: int = 0
     notify_chat_id: int | None = None  # Telegram chat ID for notifications
+    notify_max_user_id: int | None = None
+    notify_max_chat_id: int | None = None
     session_id: str | None = None  # Session that receives run summaries (e.g. tui_default)
     last_result: str | None = None  # Truncated assistant output from the last run
     skills: list[str] = Field(default_factory=list)

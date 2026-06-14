@@ -37,6 +37,7 @@ holix --help
 | `profile` | Profile `.env` and workspace jail |
 | `models` | Providers and `agent_models` routing |
 | `telegram` | Telegram bot setup and run |
+| `max` | MAX messenger bot setup and run |
 | `gateway` | API gateway supervisor |
 | `cron` | Scheduled agent tasks (gateway scheduler) |
 | `logs` | View, filter, rotate logs; debug mode |
@@ -148,7 +149,7 @@ holix install
 holix install --extra telegram --extra browser
 holix install --system
 holix install --no-path
-holix install --repo /path/to/helix
+holix install --repo /path/to/Holix
 ```
 
 | Option | Description |
@@ -602,6 +603,27 @@ holix -p shared gateway start
 
 Shared bot with isolated profiles: [TELEGRAM_MULTI_PROFILE.md](TELEGRAM_MULTI_PROFILE.md).  
 See also [TELEGRAM.md](TELEGRAM.md).
+
+---
+
+## `holix max`
+
+Requires `uv sync --extra max` and `MAX_ACCESS_TOKEN`.
+
+| Subcommand | Description |
+|------------|-------------|
+| `setup` | Token, allowlist, webhook/polling mode, save config |
+| *(default)* | Start Long Polling (dev/test) |
+| `status` | `GET /me`, webhook subscriptions |
+
+```bash
+holix max setup
+holix max
+holix max status
+```
+
+Production: `holix gateway start` (webhook via `POST /subscriptions`).  
+See [MAX.md](MAX.md).
 
 ---
 
