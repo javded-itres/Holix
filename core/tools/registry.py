@@ -64,6 +64,12 @@ class ToolRegistry:
 
         # System
         self.register(TerminalTool())
+        from core.external_cli.platform import launch_supported
+
+        if launch_supported():
+            from core.tools.external_cli import ExternalCliTool
+
+            self.register(ExternalCliTool())
 
         # Web
         self.register(WebSearchTool())
