@@ -27,6 +27,8 @@ def test_binary_installed_checks_binary_paths(tmp_path: Path, monkeypatch: pytes
     binary = install_dir / "opencode"
     binary.write_text("#!/bin/sh\necho ok\n", encoding="utf-8")
     binary.chmod(0o755)
+    monkeypatch.setenv("HOME", str(tmp_path))
+    monkeypatch.setenv("USERPROFILE", str(tmp_path))
     monkeypatch.setattr(setup_wizard.Path, "home", staticmethod(lambda: tmp_path))
     monkeypatch.setattr(
         setup_wizard,
