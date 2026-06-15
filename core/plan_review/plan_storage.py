@@ -1,5 +1,5 @@
 """
-Plan Storage — save and load execution plans to .holix/plan/.
+Plan Storage — save and load execution plans to .holix/plans/.
 
 Plans are saved as both Markdown (human-readable) and JSON (machine-readable)
 after the user confirms them. This allows for plan history, resumption,
@@ -19,20 +19,22 @@ from core.di.runtime_config import HolixRuntimeConfig
 logger = logging.getLogger(__name__)
 
 _PLAN_ID_RE = re.compile(r"^[a-zA-Z0-9][a-zA-Z0-9_.-]*\.json$")
+_LEGACY_PLAN_SUBDIR = "plan"
+_PLANS_SUBDIR = "plans"
 
-# Default (CWD/.holix/plan) — can be overridden by get_plan_dir(config)
-PLAN_DIR = Path(".holix/plan")
+# Default (CWD/.holix/plans) — can be overridden by get_plan_dir(config)
+PLAN_DIR = Path(".holix") / _PLANS_SUBDIR
 
 # Test hook: tests can set _TEST_PLAN_DIR to a temp Path
 _TEST_PLAN_DIR: Path | None = None
 
 
-def get_plan_dir(config: HolixRuntimeConfig | None = None) -> Path:
-    """Resolve the plan storage dir.
-
-    Prefers local project .holix/plan (already the convention). If runtime config
-    provides local_project_dir we respect it, else fall back to CWD.
-    """
+def get_plan_dir(
+    config: HolixRuntimeConfig | None = None,
+    *,
+    cwd: str | None = None,
+) -> Path:
+    """Resolve the plan storage dir under the current project (.holix/plans/)."""
     if _TEST_PLAN_DIR is not None:
         _TEST_PLAN_DIR.mkdir(parents=True, exist_ok=True)
         return _TEST_PLAN_DIR
@@ -40,13 +42,33 @@ def get_plan_dir(config: HolixRuntimeConfig | None = None) -> Path:
         base = Path(config.local_project_dir)
         if not base.is_absolute():
             base = Path.cwd() / base
-        d = base / "plan"
-        d.mkdir(parents=True, exist_ok=True)
-        return d
-    # default behavior (CWD)
-    d = get_local_plan_dir()
+        d = base / _PLANS_SUBDIR
+    else:
+        d = get_local_plan_dir(cwd)
     d.mkdir(parents=True, exist_ok=True)
     return d
+
+
+def _legacy_plan_dir(
+    config: HolixRuntimeConfig | None = None,
+    *,
+    cwd: str | None = None,
+) -> Path:
+    primary = get_plan_dir(config, cwd=cwd)
+    return primary.parent / _LEGACY_PLAN_SUBDIR
+
+
+def _plan_search_dirs(
+    config: HolixRuntimeConfig | None = None,
+    *,
+    cwd: str | None = None,
+) -> list[Path]:
+    """Primary `.holix/plans/` first, then legacy `.holix/plan/` if present."""
+    dirs = [get_plan_dir(config, cwd=cwd)]
+    legacy = _legacy_plan_dir(config, cwd=cwd)
+    if legacy.is_dir() and legacy not in dirs:
+        dirs.append(legacy)
+    return dirs
 
 
 class InvalidPlanIdError(ValueError):
@@ -73,68 +95,85 @@ def save_plan(
     plan_status: str = "confirmed",
     analysis: dict[str, Any] | None = None,
     architecture: dict[str, Any] | None = None,
+    plan_report: dict[str, Any] | None = None,
+    plan_reasoning: str = "",
+    user_input: str = "",
+    plan_id: str = "",
+    rendered_markdown: str = "",
+    config: HolixRuntimeConfig | None = None,
 ) -> Path:
-    """Save a plan to .holix/plan/ as both .md and .json.
-
-    Args:
-        plan_steps: List of plan step dicts.
-        conversation_id: Conversation identifier.
-        metadata: Additional metadata.
-        plan_status: Status string ("confirmed", "auto_execute", etc.).
-        analysis: Task analysis dict (task_summary, complexity, etc.).
-        architecture: Architecture dict (approach, tech_stack, risks, etc.).
-
-    Returns:
-        Path to the saved .md file.
-    """
-    plan_dir = get_plan_dir()
+    """Save a confirmed plan to .holix/plans/ as both .md and .json."""
+    plan_dir = get_plan_dir(config)
     plan_dir.mkdir(parents=True, exist_ok=True)
 
-    # Enrich metadata with analysis and architecture
     enriched_metadata = dict(metadata or {})
     if analysis:
         enriched_metadata["analysis"] = analysis
     if architecture:
         enriched_metadata["architecture"] = architecture
+    if plan_report:
+        enriched_metadata["plan_report"] = plan_report
+    if plan_reasoning:
+        enriched_metadata["plan_reasoning"] = plan_reasoning
+    if user_input:
+        enriched_metadata["user_input"] = user_input
+    if plan_id:
+        enriched_metadata["plan_id"] = plan_id
 
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    # Sanitize conversation_id for use as filename
     safe_id = "".join(c if c.isalnum() or c in "-_" else "_" for c in conversation_id[:8])
     base_name = f"{timestamp}_{safe_id}"
 
-    # Save Markdown version
-    plan_dir = get_plan_dir()
+    if rendered_markdown.strip():
+        md_content = rendered_markdown.strip() + "\n"
+    else:
+        try:
+            from core.plan_review.markdown_builder import build_plan_markdown
+
+            md_content = build_plan_markdown(
+                plan_steps=plan_steps,
+                step_count=len(plan_steps),
+                reasoning=plan_reasoning,
+                user_input=user_input,
+                analysis=analysis,
+                architecture=architecture,
+                plan_report=plan_report,
+            )
+        except Exception:
+            md_content = _format_plan_markdown(
+                plan_steps, conversation_id, enriched_metadata, plan_status
+            )
+
     md_path = plan_dir / f"{base_name}.md"
-    md_content = _format_plan_markdown(plan_steps, conversation_id, enriched_metadata, plan_status)
     md_path.write_text(md_content, encoding="utf-8")
 
-    # Save JSON version
     json_path = plan_dir / f"{base_name}.json"
     json_data = {
+        "plan_id": plan_id,
         "conversation_id": conversation_id,
         "timestamp": timestamp,
         "status": plan_status,
+        "user_input": user_input,
         "steps": plan_steps,
+        "analysis": analysis,
+        "architecture": architecture,
+        "plan_report": plan_report,
+        "plan_reasoning": plan_reasoning,
         "metadata": metadata or {},
+        "markdown_path": str(md_path),
     }
     json_path.write_text(json.dumps(json_data, indent=2, ensure_ascii=False), encoding="utf-8")
 
-    logger.info(f"Plan saved to {md_path} ({len(plan_steps)} steps, status={plan_status})")
+    logger.info(
+        f"Plan saved to {md_path} ({len(plan_steps)} steps, status={plan_status})"
+    )
     return md_path
 
 
 def load_plan(path: str) -> dict[str, Any]:
-    """Load a plan from a JSON file.
-
-    Args:
-        path: Path to the .json plan file (or .md — will look for .json counterpart).
-
-    Returns:
-        Dict with conversation_id, timestamp, status, steps, metadata.
-    """
+    """Load a plan from a JSON file."""
     plan_path = Path(path)
 
-    # If .md given, look for .json counterpart
     if plan_path.suffix == ".md":
         plan_path = plan_path.with_suffix(".json")
 
@@ -144,43 +183,105 @@ def load_plan(path: str) -> dict[str, Any]:
     return json.loads(plan_path.read_text(encoding="utf-8"))
 
 
-def list_plans(limit: int = 20) -> list[dict[str, Any]]:
-    """List all saved plans, newest first.
+def list_plans(
+    limit: int = 20,
+    config: HolixRuntimeConfig | None = None,
+) -> list[dict[str, Any]]:
+    """List saved plans from `.holix/plans/` (and legacy `.holix/plan/`), newest first."""
+    plans: list[dict[str, Any]] = []
+    seen_paths: set[str] = set()
 
-    Args:
-        limit: Maximum number of plans to return.
-
-    Returns:
-        List of dicts with path, timestamp, status, step_count.
-    """
-    plan_dir = get_plan_dir()
-    if not plan_dir.exists():
-        return []
-
-    plans = []
-    for json_file in sorted(plan_dir.glob("*.json"), reverse=True)[:limit]:
-        try:
-            data = json.loads(json_file.read_text(encoding="utf-8"))
-            plans.append({
-                "path": str(json_file),
-                "timestamp": data.get("timestamp", ""),
-                "status": data.get("status", ""),
-                "step_count": len(data.get("steps", [])),
-                "conversation_id": data.get("conversation_id", ""),
-            })
-        except Exception:
+    for plan_dir in _plan_search_dirs(config):
+        if not plan_dir.exists():
             continue
+        for json_file in sorted(plan_dir.glob("*.json"), reverse=True):
+            path_key = str(json_file.resolve())
+            if path_key in seen_paths:
+                continue
+            seen_paths.add(path_key)
+            try:
+                data = json.loads(json_file.read_text(encoding="utf-8"))
+                summary = _plan_summary_from_data(data)
+                plans.append({
+                    "path": str(json_file),
+                    "timestamp": data.get("timestamp", ""),
+                    "status": data.get("status", ""),
+                    "step_count": len(data.get("steps", [])),
+                    "conversation_id": data.get("conversation_id", ""),
+                    "plan_id": data.get("plan_id", ""),
+                    "title": summary,
+                    "user_input": (data.get("user_input") or "")[:200],
+                })
+            except Exception:
+                continue
 
-    return plans
+    plans.sort(key=lambda item: item.get("timestamp", ""), reverse=True)
+    return plans[:limit]
+
+
+def load_latest_plan(
+    config: HolixRuntimeConfig | None = None,
+) -> dict[str, Any] | None:
+    """Load the most recent saved plan from the project plans directory."""
+    entries = list_plans(limit=1, config=config)
+    if not entries:
+        return None
+    try:
+        return load_plan(entries[0]["path"])
+    except Exception as exc:
+        logger.warning(f"Failed to load latest plan: {exc}")
+        return None
+
+
+def format_saved_plans_context(
+    config: HolixRuntimeConfig | None = None,
+    *,
+    limit: int = 5,
+) -> str:
+    """Summarize saved project plans for plan_node / agent prompts."""
+    plan_dir = get_plan_dir(config)
+    entries = list_plans(limit=limit, config=config)
+    if not entries:
+        return (
+            f"No saved plans in `{plan_dir}` yet. "
+            "Confirmed plans are stored there after user approval."
+        )
+
+    lines = [
+        f"Saved plans directory: `{plan_dir}`",
+        "When the user refers to an existing plan, load it from this directory "
+        "(newest JSON + matching Markdown). Prefer updating an approved plan "
+        "over creating a duplicate unless the task changed significantly.",
+        "",
+    ]
+    for entry in entries:
+        title = entry.get("title") or entry.get("user_input") or "Untitled plan"
+        lines.append(
+            f"- `{Path(entry['path']).name}` — {title} "
+            f"({entry.get('step_count', 0)} steps, status={entry.get('status', '?')}, "
+            f"ts={entry.get('timestamp', '?')})"
+        )
+    return "\n".join(lines)
+
+
+def _plan_summary_from_data(data: dict[str, Any]) -> str:
+    report = data.get("plan_report") or {}
+    if isinstance(report, dict) and report.get("title"):
+        return str(report["title"])
+    analysis = data.get("analysis") or {}
+    if isinstance(analysis, dict) and analysis.get("task_summary"):
+        return str(analysis["task_summary"])
+    user_input = data.get("user_input") or ""
+    if user_input:
+        return user_input[:120]
+    steps = data.get("steps") or []
+    if steps and isinstance(steps[0], dict):
+        return str(steps[0].get("description", ""))[:120]
+    return "Saved plan"
 
 
 def update_plan_progress(path: str, completed_steps: list[int]) -> None:
-    """Update the progress of a plan.
-
-    Args:
-        path: Path to the .json plan file.
-        completed_steps: List of step indices that are done.
-    """
+    """Update the progress of a plan."""
     plan_path = Path(path)
     if plan_path.suffix == ".md":
         plan_path = plan_path.with_suffix(".json")
@@ -214,10 +315,11 @@ def _format_plan_markdown(
 
     if metadata:
         for k, v in metadata.items():
+            if k in {"analysis", "architecture", "plan_report"}:
+                continue
             lines.append(f"**{k}**: {v}")
         lines.append("")
 
-    # Analysis section
     analysis = metadata.get("analysis") if metadata else None
     if analysis:
         lines.append("## Analysis")
@@ -236,7 +338,6 @@ def _format_plan_markdown(
                 lines.append(f"- {c}")
         lines.append("")
 
-    # Architecture section
     architecture = metadata.get("architecture") if metadata else None
     if architecture:
         lines.append("## Architecture")
@@ -257,7 +358,6 @@ def _format_plan_markdown(
                     lines.append(f"- {r}")
         lines.append("")
 
-    # Steps section
     lines.append("## Steps")
     lines.append("")
 

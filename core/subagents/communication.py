@@ -19,6 +19,22 @@ from typing import Any, Protocol
 
 logger = logging.getLogger(__name__)
 
+_MP_CTX: multiprocessing.context.BaseContext | None = None
+
+
+def subagent_mp_context() -> multiprocessing.context.BaseContext:
+    """Shared spawn context for sub-agent Process + Queue (POSIX)."""
+    global _MP_CTX
+    if _MP_CTX is None:
+        _MP_CTX = multiprocessing.get_context("spawn")
+    return _MP_CTX
+
+
+def reset_subagent_mp_context() -> None:
+    """Drop cached spawn context after a failed Process start (stale queue fds)."""
+    global _MP_CTX
+    _MP_CTX = None
+
 
 @dataclass
 class AgentMessage:
@@ -181,6 +197,7 @@ class ProcessCommunicationBus:
     """
 
     def __init__(self):
+        self._ctx = subagent_mp_context()
         self._input_queues: dict[str, multiprocessing.Queue] = {}
         self._output_queues: dict[str, multiprocessing.Queue] = {}
 
@@ -190,13 +207,31 @@ class ProcessCommunicationBus:
         Args:
             agent_name: Unique agent name.
         """
-        self._input_queues[agent_name] = multiprocessing.Queue()
-        self._output_queues[agent_name] = multiprocessing.Queue()
+        self.unregister(agent_name)
+        self._input_queues[agent_name] = self._ctx.Queue()
+        self._output_queues[agent_name] = self._ctx.Queue()
 
     def unregister(self, agent_name: str) -> None:
-        """Unregister an agent."""
-        self._input_queues.pop(agent_name, None)
-        self._output_queues.pop(agent_name, None)
+        """Unregister an agent and close stale IPC queues."""
+        for store in (self._input_queues, self._output_queues):
+            queue = store.pop(agent_name, None)
+            if queue is None:
+                continue
+            try:
+                queue.close()
+            except Exception:
+                pass
+            try:
+                queue.join_thread()
+            except Exception:
+                pass
+
+    def reset(self) -> None:
+        """Close all IPC queues and obtain a fresh multiprocessing spawn context."""
+        for name in list(self._input_queues):
+            self.unregister(name)
+        reset_subagent_mp_context()
+        self._ctx = subagent_mp_context()
 
     def send_to_sub_agent(self, message: AgentMessage) -> None:
         """Send a message from main agent to a sub-agent process.

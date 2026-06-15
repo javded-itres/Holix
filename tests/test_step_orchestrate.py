@@ -83,6 +83,7 @@ class TestStepOrchestrateNode:
             plan_steps=[
                 {"step": 1, "description": "Create project", "tools_needed": ["terminal"], "expected_output": "project created", "success_criteria": "directory exists"},
             ],
+            plan_analysis={"complexity": "simple"},
             current_plan_step=0,
             is_step_complete=False,
             step_count=0,
@@ -239,7 +240,7 @@ class TestPlanNodeParsing:
             "reasoning": "Standard project setup"
         }'''
 
-        plan, analysis, architecture = _parse_detailed_plan(json_text)
+        plan, analysis, architecture, report, reasoning = _parse_detailed_plan(json_text)
         assert len(plan) == 1
         assert plan[0]["description"] == "Set up project structure"
         assert plan[0]["success_criteria"] == "Directory exists"
@@ -248,21 +249,71 @@ class TestPlanNodeParsing:
         assert architecture is not None
         assert "FastAPI" in architecture["tech_stack"]
         assert len(architecture["risks"]) == 1
+        assert report is None
+        assert reasoning == "Standard project setup"
+
+    def test_parse_development_report(self):
+        from core.plan_review.parser import parse_detailed_plan as _parse_detailed_plan
+
+        json_text = '''{
+            "development_report": {
+                "title": "Development Plan: RAG service",
+                "summary": {
+                    "goal": "Build rag-agent microservice",
+                    "key_decisions": ["FastAPI + Celery"],
+                    "critical_risks": ["SQLite locking"]
+                },
+                "development_stages": [
+                    {"stage": 0, "title": "Infrastructure", "items": ["docker-compose"], "duration_hours": "4-6"}
+                ],
+                "priorities": {"mvp": ["Stage 0"], "important_later": [], "optional": []},
+                "dependencies": [{"task": "Stage 0", "depends_on": "—", "unblocks": "All stages"}],
+                "blockers": [{"risk": "SQLite lock", "probability": "high", "impact": "high", "mitigation": "Use Redis"}],
+                "manual_actions": [{"action": "Check TEI", "when": "Before stage 5", "who": "DevOps"}],
+                "estimates": {
+                    "stages": [{"stage": 0, "title": "Infrastructure", "hours": 5, "story_points": 5}],
+                    "total_hours": 78,
+                    "total_story_points": 78,
+                    "calendar_time": "2 weeks",
+                    "buffer_note": "+20%"
+                },
+                "stack": {
+                    "technologies": [{"component": "Framework", "choice": "FastAPI"}],
+                    "patterns": ["API + task queue"],
+                    "critical_fixes": ["Replace SQLite with Redis"]
+                }
+            },
+            "plan": [{"step": 1, "description": "Bootstrap project", "tools_needed": ["terminal"],
+                       "expected_output": "done", "success_criteria": "ok",
+                       "depends_on": [], "parallel_group": null, "subagent_type": null}],
+            "reasoning": "infra first"
+        }'''
+
+        plan, analysis, architecture, report, reasoning = _parse_detailed_plan(json_text)
+        assert len(plan) == 1
+        assert report is not None
+        assert report["title"] == "Development Plan: RAG service"
+        assert report["summary"]["goal"] == "Build rag-agent microservice"
+        assert len(report["development_stages"]) == 1
+        assert report["estimates"]["total_hours"] == 78
+        assert reasoning == "infra first"
 
     def test_parse_fallback_on_error(self):
         from core.plan_review.parser import parse_detailed_plan as _parse_detailed_plan
 
         # Invalid JSON returns empty
-        plan, analysis, architecture = _parse_detailed_plan("not json at all")
+        plan, analysis, architecture, report, reasoning = _parse_detailed_plan("not json at all")
         assert plan == []
         assert analysis is None
         assert architecture is None
+        assert report is None
+        assert reasoning == ""
 
     def test_parse_with_markdown_wrapping(self):
         from core.plan_review.parser import parse_detailed_plan as _parse_detailed_plan
 
         json_text = '```json\n{"plan": [{"step": 1, "description": "test", "tools_needed": [], "expected_output": "done", "success_criteria": "ok", "depends_on": [], "parallel_group": null, "subagent_type": null}], "reasoning": "test"}\n```'
-        plan, analysis, architecture = _parse_detailed_plan(json_text)
+        plan, analysis, architecture, report, reasoning = _parse_detailed_plan(json_text)
         assert len(plan) == 1
         assert plan[0]["description"] == "test"
 
@@ -306,7 +357,7 @@ class TestPlanGenerationConfig:
     def test_plan_generation_timeout_default(self):
         from config import Settings
         s = Settings()
-        assert s.plan_generation_timeout == 300.0
+        assert s.plan_generation_timeout == 600.0
 
     def test_plan_generation_retries_default(self):
         from config import Settings
@@ -386,7 +437,7 @@ class TestEnhancedPlanParsing:
         from core.plan_review.parser import parse_detailed_plan as _parse_detailed_plan
 
         text = 'Here is my plan:\n{"analysis": {"task_summary": "Build API", "complexity": "medium"}, "plan": [{"step": 1, "description": "Create app", "tools_needed": ["terminal"], "expected_output": "done", "success_criteria": "ok"}]}\nLet me know if this works.'
-        plan, analysis, arch = _parse_detailed_plan(text)
+        plan, analysis, arch, report, reasoning = _parse_detailed_plan(text)
         assert len(plan) == 1
         assert plan[0]["description"] == "Create app"
         assert analysis is not None
@@ -397,7 +448,7 @@ class TestEnhancedPlanParsing:
         from core.plan_review.parser import parse_detailed_plan as _parse_detailed_plan
 
         text = '{"plan": [{"step": 1, "description": "test", "tools_needed": ["terminal",], "expected_output": "done", "success_criteria": "ok",},], "analysis": {"task_summary": "test", "complexity": "simple",}}'
-        plan, analysis, arch = _parse_detailed_plan(text)
+        plan, analysis, arch, report, reasoning = _parse_detailed_plan(text)
         assert len(plan) == 1
 
     def test_parse_numbered_text_list(self):
@@ -405,7 +456,7 @@ class TestEnhancedPlanParsing:
         from core.plan_review.parser import parse_detailed_plan as _parse_detailed_plan
 
         text = "1. Create project structure\n2. Set up database\n3. Implement API\n4. Write tests\n5. Deploy"
-        plan, analysis, arch = _parse_detailed_plan(text)
+        plan, analysis, arch, report, reasoning = _parse_detailed_plan(text)
         assert len(plan) == 5
         assert plan[0]["step"] == 1
         assert "project" in plan[0]["description"].lower()
@@ -417,7 +468,7 @@ class TestEnhancedPlanParsing:
         from core.plan_review.parser import parse_detailed_plan as _parse_detailed_plan
 
         text = "Step 1: Initialize the project\nStep 2: Add routes\nStep 3: Test"
-        plan, analysis, arch = _parse_detailed_plan(text)
+        plan, analysis, arch, report, reasoning = _parse_detailed_plan(text)
         assert len(plan) == 3
         assert "Initialize" in plan[0]["description"]
 
@@ -426,16 +477,17 @@ class TestEnhancedPlanParsing:
         from core.plan_review.parser import parse_detailed_plan as _parse_detailed_plan
 
         text = "- Create project\n- Set up database\n- Build API"
-        plan, analysis, arch = _parse_detailed_plan(text)
+        plan, analysis, arch, report, reasoning = _parse_detailed_plan(text)
         assert len(plan) == 3
 
     def test_parse_empty_returns_empty(self):
         """Empty input returns empty results."""
         from core.plan_review.parser import parse_detailed_plan as _parse_detailed_plan
 
-        plan, analysis, arch = _parse_detailed_plan("")
+        plan, analysis, arch, report, reasoning = _parse_detailed_plan("")
         assert plan == []
         assert analysis is None
+        assert report is None
 
     def test_infer_tools_from_text(self):
         """Tool inference from step descriptions."""

@@ -79,7 +79,9 @@ async def test_process_spawn_passes_search_config() -> None:
     mgr = SubAgentProcessManager(parent)
     config = SubAgentConfig(name="web_researcher", process_mode=ProcessMode.PROCESS)
 
-    with patch("core.subagents.process.multiprocessing.Process", FakeProcess):
+    fake_ctx = MagicMock()
+    fake_ctx.Process = FakeProcess
+    with patch("core.subagents.process.subagent_mp_context", return_value=fake_ctx):
         with patch("core.subagents.process.asyncio.create_task"):
             await mgr.run(config, "find docs")
 

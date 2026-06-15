@@ -75,6 +75,7 @@ class HolixGraphState(TypedDict, total=False):
     plan_status: str                         # "pending_review" | "confirmed" | "auto_execute" | "refine" | "rejected"
     plan_review_id: str                       # Correlation ID for review request/response
     plan_refinement_feedback: str             # User feedback when refining the plan
+    plan_clarification_rounds: int            # How many clarification Q&A rounds occurred
 
     # Plan orchestration state (step execution within plan_and_execute)
     is_step_complete: bool                   # True when current plan step is finished (react produced no tool_calls)
@@ -83,6 +84,8 @@ class HolixGraphState(TypedDict, total=False):
     # Enriched plan data (from detailed plan_node)
     plan_analysis: dict[str, Any] | None  # Analysis: task_summary, complexity, clarifying_questions
     plan_architecture: dict[str, Any] | None  # Architecture: approach, tech_stack, structure, risks
+    plan_report: dict[str, Any] | None  # BA-style development report for approval
+    plan_reasoning: str  # LLM reasoning for plan ordering
 
 
 def get_agent_from_config(config: RunnableConfig) -> Any:

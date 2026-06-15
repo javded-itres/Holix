@@ -45,7 +45,7 @@ HolixAgent (core/agent.py)
 2. **Profile** — `~/.holix/profiles/<name>/config.yaml`
 3. **CLI flags** — per-command overrides
 
-Project dir may supplement `./.holix/skills`, `.holix/plan`, local MCP — merged, not replacing profile system keys.
+Project dir may supplement `./.holix/skills`, `.holix/plans`, local MCP — merged, not replacing profile system keys.
 
 ### Profile identity
 

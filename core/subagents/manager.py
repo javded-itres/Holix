@@ -22,9 +22,23 @@ from core.subagents.base import (
 )
 from core.subagents.communication import AgentCommunicationBus
 from core.subagents.interaction import SubAgentInteractionBridge
-from core.subagents.process import SubAgentProcessManager
+from core.subagents.process import SubAgentProcessManager, SubAgentProcessSpawnError
 
 logger = logging.getLogger(__name__)
+
+_PROCESS_SPAWN_FALLBACK_MARKERS = (
+    "fds_to_keep",
+    "bad file descriptor",
+    "no such file or directory",
+)
+
+
+def _process_spawn_should_fallback(exc: BaseException) -> bool:
+    """Return True when OS-process spawn failed and async mode is a safe fallback."""
+    if isinstance(exc, SubAgentProcessSpawnError):
+        return True
+    text = str(exc).lower()
+    return any(marker in text for marker in _PROCESS_SPAWN_FALLBACK_MARKERS)
 
 
 class SubAgentManager:
@@ -54,6 +68,7 @@ class SubAgentManager:
         self._process_manager = SubAgentProcessManager(parent_agent, self._comm_bus.process_bus)
         self._handles: dict[str, SubAgentHandle] = {}
         self._pending_done: set[str] = set()
+        self._process_spawn_unreliable = False
 
     def _max_concurrent(self) -> int:
         cfg = getattr(self._parent, "config", None)
@@ -126,15 +141,50 @@ class SubAgentManager:
         )
 
         mode = config.process_mode
+        fallback_reason = ""
         if mode == ProcessMode.PROCESS and not process_subagents_supported():
+            fallback_reason = "OS process mode is not supported on this platform"
             logger.warning(
-                "Sub-agent '%s': OS process mode is not supported on Windows; using async",
+                "Sub-agent '%s': %s; using async",
+                config.name,
+                fallback_reason,
+            )
+            mode = ProcessMode.ASYNC
+            config.process_mode = ProcessMode.ASYNC
+
+        if mode == ProcessMode.PROCESS and self._process_spawn_unreliable:
+            logger.info(
+                "Sub-agent '%s': skipping OS process mode (spawn unreliable in this session)",
                 config.name,
             )
             mode = ProcessMode.ASYNC
 
         if mode == ProcessMode.PROCESS:
-            handle = await self._process_manager.run(config, task)
+            try:
+                handle = await self._process_manager.run(config, task)
+            except Exception as exc:
+                if not _process_spawn_should_fallback(exc):
+                    raise
+                fallback_reason = str(exc).strip()
+                self._process_spawn_unreliable = True
+                self._comm_bus.process_bus.reset()
+                self._process_manager = SubAgentProcessManager(
+                    self._parent,
+                    self._comm_bus.process_bus,
+                )
+                logger.warning(
+                    "Sub-agent '%s': OS process spawn failed (%s); using async mode",
+                    config.name,
+                    exc,
+                )
+                log_subagent_event(
+                    "WARNING",
+                    f"process spawn failed; async fallback: {exc}",
+                    subagent=config.name,
+                )
+                config.process_mode = ProcessMode.ASYNC
+                await self._comm_bus.register_async(config.name)
+                handle = await self._async_runner.run(config, task)
         else:
             # Register with async bus first
             await self._comm_bus.register_async(config.name)
@@ -142,6 +192,7 @@ class SubAgentManager:
 
         handle.task_preview = (task or "")[:240]
         handle.agent_type = agent_type or config.name
+        handle.spawn_fallback_reason = fallback_reason
         self._register_handle(config.name, handle)
         return handle
 

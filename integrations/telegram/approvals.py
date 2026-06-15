@@ -110,6 +110,7 @@ class TelegramApprovals:
         await self.dismiss_plan_review_ui()
         self._pending_review_id = event.review_id
         self._session.pending_plan_review_id = event.review_id
+        self._session.pending_plan_phase = getattr(event, "phase", "approval") or "approval"
         token = _register_callback_token(
             self._session.plan_callback_tokens,
             event.review_id,
@@ -149,9 +150,13 @@ class TelegramApprovals:
             parse_mode="HTML",
             reply_markup=kb,
         )
+        if self._session.pending_plan_phase == "clarification":
+            hint = "<i>Reply with answers to the questions, or /no to cancel.</i>"
+        else:
+            hint = "<i>Or reply with text to refine the plan.</i>"
         hint_msg = await self._bot.send_message(
             self._session.chat_id,
-            "<i>Or reply with text to refine the plan.</i>",
+            hint,
             parse_mode="HTML",
         )
         self._session.pending_plan_message_ids = [
@@ -275,6 +280,7 @@ class TelegramApprovals:
             "auto": PlanReviewChoice.AUTO_EXECUTE,
             "refine": PlanReviewChoice.REFINE,
             "reject": PlanReviewChoice.REJECT,
+            "proceed": PlanReviewChoice.PROCEED_ASSUMPTIONS,
         }
         choice = action_map.get(action)
         if choice is None:
@@ -305,12 +311,16 @@ class TelegramApprovals:
     def resolve_plan_text(self, message: str) -> bool:
         if not self._session.pending_plan_review_id:
             return False
-        choice, feedback = _parse_plan_text(message)
+        choice, feedback = _parse_plan_text(
+            message,
+            phase=getattr(self._session, "pending_plan_phase", "approval"),
+        )
         action = {
             PlanReviewChoice.CONFIRM_STEP: "confirm",
             PlanReviewChoice.AUTO_EXECUTE: "auto",
             PlanReviewChoice.REFINE: "refine",
             PlanReviewChoice.REJECT: "reject",
+            PlanReviewChoice.PROCEED_ASSUMPTIONS: "proceed",
         }[choice]
         return self.resolve_plan_callback(
             self._session.pending_plan_review_id,
@@ -319,19 +329,11 @@ class TelegramApprovals:
         )
 
 
-def _parse_plan_text(text: str) -> tuple[PlanReviewChoice, str]:
-    text_stripped = text.strip()
-    text_clean = text_stripped.lower().rstrip("!.,;:?!")
-    confirm_words = {
-        "да", "yes", "ок", "ok", "confirm", "выполняй", "давай",
-        "согласен", "подтверждаю", "запускай", "go", "поехали",
-    }
-    reject_words = {"нет", "no", "отмена", "cancel", "reject", "стоп", "stop"}
-    if text_clean in confirm_words:
-        return PlanReviewChoice.AUTO_EXECUTE, ""
-    if text_clean in reject_words:
-        return PlanReviewChoice.REJECT, ""
-    return PlanReviewChoice.REFINE, text_stripped
+def _parse_plan_text(text: str, *, phase: str = "approval") -> tuple[PlanReviewChoice, str]:
+    from core.plan_review.clarification import parse_plan_review_response
+
+    choice_value, feedback = parse_plan_review_response(text, phase=phase)
+    return PlanReviewChoice(choice_value), feedback
 
 
 def _format_confirmation_args(tool_name: str, args: dict) -> str:

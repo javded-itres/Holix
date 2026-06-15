@@ -246,6 +246,16 @@ class HolixCodeApp(App):
         """Alias for ModalStack / confirmation presenters."""
         self.transcript_write(content)
 
+    def schedule_transcript_write(self, content: Any) -> None:
+        """Write to transcript from async workers (falls back to UI-thread marshal)."""
+        try:
+            self.transcript_write(content)
+        except Exception:
+            try:
+                self.call_from_thread(self.transcript_write, content)
+            except Exception:
+                self.call_later(0, self.transcript_write, content)
+
     def transcript_scroll_bottom(self) -> None:
         try:
             log = self.query_one("#transcript", CodeTranscript)
@@ -532,7 +542,14 @@ class HolixCodeApp(App):
             pass
 
     def _on_agent_event(self, event: AgentEvent) -> None:
-        self._event_handler.handle(event)
+        # Only defer sub-agent IPC prompts — deferring all events breaks init/streaming.
+        from core.security.confirmation_events import ConfirmationRequestEvent
+        from core.subagents.interaction_events import SubAgentQuestionEvent
+
+        if isinstance(event, (ConfirmationRequestEvent, SubAgentQuestionEvent)):
+            self.call_later(0, self._event_handler.handle, event)
+        else:
+            self._event_handler.handle(event)
 
     async def _run_agent_task(self, user_input: str) -> None:
         if not self.agent:
@@ -646,6 +663,7 @@ class HolixCodeApp(App):
 
         message = normalize_slash_input(message)
         if is_slash_command(message):
+            self.transcript_write(f"\n[bold]❯[/bold] {message}\n")
             await self._slash.handle(message)
             return
 
@@ -1686,6 +1704,9 @@ class HolixCodeApp(App):
 
 def run_tui(profile: str = "default") -> None:
     """Launch the Holix code-style TUI (`holix tui`)."""
+    from core.platform_compat import ensure_multiprocessing_support
+
+    ensure_multiprocessing_support()
     config = init_profile(profile)
     HolixCodeApp(profile=profile, config=config).run()
 

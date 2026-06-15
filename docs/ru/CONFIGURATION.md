@@ -216,3 +216,25 @@ holix models list
 Подробнее: [../en/CONFIGURATION.md](../en/CONFIGURATION.md#provider-catalog).
 
 Поля `model` / `base_url` в корне YAML поддерживаются; предпочтительны `providers` + `default_provider`.
+
+## Генерация плана (режимы Plan и Hybrid)
+
+`.env` профиля / `config.yaml` (см. [EXECUTION_MODES.md](EXECUTION_MODES.md#настройки)):
+
+| Переменная | По умолчанию | Эффект |
+|------------|--------------|--------|
+| `plan_review_enabled` | `true` | Показывать план на согласование до выполнения |
+| `plan_review_timeout` | `600` | Секунд ожидания решения по плану |
+| `plan_generation_timeout` | `600` | Секунд ожидания генерации плана LLM |
+| `plan_generation_max_tokens` | `12000` | Макс. токенов для JSON плана (большие отчёты) |
+| `plan_generation_retries` | `2` | Повторы при таймауте или обрезанном JSON |
+| `max_steps_per_plan_step` | `5` | Итераций инструментов на шаг плана |
+| `max_steps` | `15` | Общий лимит шагов графа |
+
+## Локальные дополнения проекта
+
+В каталоге проекта Holix может подмешивать (не перезаписывая системные ключи профиля):
+
+- `./.holix/skills/` — дополнительные навыки
+- `./.holix/plans/` — согласованные планы (`.md` для чтения, `.json` для машины); устаревший `./.holix/plan/` по-прежнему читается
+- `./config.yaml` — доп. MCP/навыки (не полная замена профиля)

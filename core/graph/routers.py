@@ -30,6 +30,15 @@ def route_after_plan_execute(state: HolixGraphState) -> str:
     return "execute_step" if current_step < len(plan_steps) else "finalize"
 
 
+def route_after_plan_clarify(state: HolixGraphState) -> str:
+    plan_status = state.get("plan_status", "pending_review")
+    if plan_status == "refine":
+        return "plan"
+    if plan_status == "rejected":
+        return "finalize"
+    return "plan_review"
+
+
 def route_after_plan_review(state: HolixGraphState) -> str:
     plan_status = state.get("plan_status", "pending_review")
     if plan_status == "refine":

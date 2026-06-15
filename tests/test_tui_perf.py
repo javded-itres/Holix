@@ -21,6 +21,12 @@ class FakeTranscriptStore:
     def has_stream_buffer(self) -> bool:
         return bool(self._stream_plain.strip())
 
+    def stream_plain(self) -> str:
+        return self._stream_plain
+
+    def last_tool(self) -> str | None:
+        return None
+
     def flush_stream_to_assistant(self, *, markdown: str | None = None) -> None:
         self._stream_plain = ""
 
@@ -89,17 +95,16 @@ class TestStreamHandler:
         assert app._stream_buffer == "hello world"
         assert app.stream_deltas == ["hello ", "world"]
 
-    def test_final_response_skips_markdown_when_streamed(self):
+    def test_final_response_renders_markdown_when_streamed(self):
         from rich.markdown import Markdown
 
         app = FakeApp()
         handler = CodeEventHandler(app)
         app._is_streaming = True
-        app._transcript_store._stream_plain = "Hello world"
-        handler.handle(FinalResponseEvent(content="Hello world"))
-        assert not any(isinstance(w, Markdown) for w in app.writes)
-        assert len(app.writes) == 1
-        assert "Hello world" in str(app.writes[0])
+        app._transcript_store._stream_plain = "**Hello** world"
+        handler.handle(FinalResponseEvent(content="**Hello** world"))
+        assert any(isinstance(w, Markdown) for w in app.writes)
+        assert len(app.writes) == 2
         assert app.stream_cleared >= 1
         assert app.scroll_hint_scheduled == 1
 
@@ -110,6 +115,18 @@ class TestStreamHandler:
         handler = CodeEventHandler(app)
         handler.handle(FinalResponseEvent(content="**bold**"))
         assert any(isinstance(w, Markdown) for w in app.writes)
+
+    def test_final_response_uses_stream_buffer_when_final_empty(self):
+        from rich.markdown import Markdown
+
+        app = FakeApp()
+        handler = CodeEventHandler(app)
+        app._is_streaming = True
+        app._transcript_store._stream_plain = "Итоговый ответ из стрима"
+        handler.handle(FinalResponseEvent(content="No response generated"))
+        assert any(isinstance(w, Markdown) for w in app.writes)
+        rendered = [w for w in app.writes if isinstance(w, Markdown)][0]
+        assert "Итоговый ответ из стрима" in rendered.markup
 
 
 @pytest.mark.asyncio

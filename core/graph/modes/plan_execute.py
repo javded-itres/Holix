@@ -11,12 +11,14 @@ from core.graph.nodes.collect_subagent_node import collect_subagent_node
 from core.graph.nodes.delegate_subagent_node import delegate_subagent_node
 from core.graph.nodes.finalize_node import finalize_node
 from core.graph.nodes.memory_retrieval_node import memory_retrieval_node
+from core.graph.nodes.plan_clarify_node import plan_clarify_node
 from core.graph.nodes.plan_node import plan_node
 from core.graph.nodes.plan_review_node import plan_review_node
 from core.graph.nodes.react_node import react_node
 from core.graph.nodes.step_orchestrate_node import step_orchestrate_node
 from core.graph.nodes.tool_execution_node import tool_execution_node
 from core.graph.routers import (
+    route_after_plan_clarify,
     route_after_plan_review,
     route_after_react_plan,
     route_after_step_orchestrate,
@@ -32,6 +34,7 @@ def build_plan_and_execute_graph(
     graph = StateGraph(HolixGraphState)
     graph.add_node("memory_retrieval", memory_retrieval_node)
     graph.add_node("plan", plan_node)
+    graph.add_node("plan_clarify", plan_clarify_node)
     graph.add_node("plan_review", plan_review_node)
     graph.add_node("step_orchestrate", step_orchestrate_node)
     graph.add_node("delegate_subagent", delegate_subagent_node)
@@ -42,7 +45,12 @@ def build_plan_and_execute_graph(
 
     graph.add_edge(START, "memory_retrieval")
     graph.add_edge("memory_retrieval", "plan")
-    graph.add_edge("plan", "plan_review")
+    graph.add_edge("plan", "plan_clarify")
+    graph.add_conditional_edges(
+        "plan_clarify",
+        route_after_plan_clarify,
+        {"plan": "plan", "plan_review": "plan_review", "finalize": "finalize"},
+    )
     graph.add_conditional_edges(
         "plan_review",
         route_after_plan_review,

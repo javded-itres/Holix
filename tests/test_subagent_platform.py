@@ -73,14 +73,17 @@ async def test_process_spawn_reads_parent_config_not_runtime_config() -> None:
         def start(self):
             return None
 
-    def fake_start(process, *, api_key: str, base_url: str) -> None:
+    def fake_start(process, *, api_key: str, base_url: str, preset_id: str = "") -> None:
         env_captured["api_key"] = api_key
         env_captured["base_url"] = base_url
+        env_captured["preset_id"] = preset_id
 
     mgr = SubAgentProcessManager(parent)
     config = SubAgentConfig(name="researcher", process_mode=ProcessMode.PROCESS)
 
-    with patch("core.subagents.process.multiprocessing.Process", FakeProcess):
+    fake_ctx = MagicMock()
+    fake_ctx.Process = FakeProcess
+    with patch("core.subagents.process.subagent_mp_context", return_value=fake_ctx):
         with patch("core.subagents.process._start_subagent_process", side_effect=fake_start):
             with patch("core.subagents.process.asyncio.create_task"):
                 await mgr.run(config, "find docs")
@@ -89,5 +92,59 @@ async def test_process_spawn_reads_parent_config_not_runtime_config() -> None:
     assert env_captured == {
         "api_key": "sk-test",
         "base_url": "http://localhost:4000/v1",
+        "preset_id": "",
     }
     assert "sk-test" not in " ".join(str(a) for a in captured_args)
+
+
+@pytest.mark.asyncio
+async def test_process_spawn_serializes_agent_type() -> None:
+    parent = MagicMock()
+    parent.model = "coder"
+    parent.config = MagicMock(
+        base_url="http://localhost:4000/v1",
+        api_key="sk-test",
+        auto_allow_threshold="low",
+        confirmation_timeout=300,
+        non_interactive=False,
+        mcp_servers={},
+        skills_dir="/tmp/skills",
+        skill_assignments={},
+        search={},
+        profile_name="default",
+        data_dir="/tmp/data",
+        ltm_db_path="",
+        vector_db_path="",
+    )
+    parent.memory = None
+
+    captured_args: list = []
+
+    class FakeProcess:
+        pid = 4243
+
+        def __init__(self, target, args, daemon):
+            captured_args.extend(args)
+
+        def start(self) -> None:
+            return None
+
+    mgr = SubAgentProcessManager(parent)
+    config = SubAgentConfig(
+        name="coder",
+        agent_type="coder",
+        process_mode=ProcessMode.PROCESS,
+        tools=["external_cli"],
+    )
+
+    fake_ctx = MagicMock()
+    fake_ctx.Process = FakeProcess
+    with patch("core.subagents.process.subagent_mp_context", return_value=fake_ctx):
+        with patch("core.subagents.process._start_subagent_process"):
+            with patch("core.subagents.process.asyncio.create_task"):
+                await mgr.run(config, "launch external cli")
+
+    config_dict = captured_args[0]
+    assert config_dict["agent_type"] == "coder"
+    rebuilt = SubAgentConfig(**config_dict)
+    assert rebuilt.agent_type == "coder"

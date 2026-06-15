@@ -191,15 +191,55 @@ class TestPlanStorage:
             {"step": 2, "description": "Add tests", "tools_needed": ["write_file"], "expected_output": "Tests passing"},
         ]
 
-        md_path = save_plan(plan_steps, conversation_id="test_conv", metadata={"mode": "auto_execute"})
+        md_path = save_plan(
+            plan_steps,
+            conversation_id="test_conv",
+            metadata={"mode": "auto_execute"},
+            plan_report={"title": "Dev plan", "summary": {"goal": "Build API"}},
+            user_input="Build API",
+            plan_id="plan_test123",
+        )
         assert md_path.exists()
         assert md_path.suffix == ".md"
+        assert "plans" in str(PLAN_DIR) or md_path.parent == Path(self._tmpdir)
 
-        # Load the JSON version
         data = load_plan(str(md_path))
         assert data["conversation_id"] == "test_conv"
         assert len(data["steps"]) == 2
         assert data["steps"][0]["description"] == "Create project"
+        assert data["plan_id"] == "plan_test123"
+        assert data["plan_report"]["title"] == "Dev plan"
+
+    def test_plans_dir_under_holix(self):
+        from core.config_utils import get_local_holix_dir, get_local_plan_dir
+
+        plan_dir = get_local_plan_dir()
+        assert plan_dir.name == "plans"
+        assert plan_dir.parent == get_local_holix_dir()
+
+    def test_load_latest_plan(self):
+        import core.plan_review.plan_storage as ps
+        ps._TEST_PLAN_DIR = Path(self._tmpdir)
+
+        save_plan([{"step": 1, "description": "older"}], conversation_id="conv1")
+        save_plan([{"step": 1, "description": "newer"}], conversation_id="conv2")
+
+        latest = ps.load_latest_plan()
+        assert latest is not None
+        assert latest["steps"][0]["description"] == "newer"
+
+    def test_format_saved_plans_context(self):
+        import core.plan_review.plan_storage as ps
+        ps._TEST_PLAN_DIR = Path(self._tmpdir)
+
+        save_plan(
+            [{"step": 1, "description": "Do thing"}],
+            conversation_id="conv1",
+            plan_report={"title": "RAG service plan"},
+        )
+        context = ps.format_saved_plans_context()
+        assert "RAG service plan" in context
+        assert "plans" in context
 
     def test_list_plans_empty(self):
         """list_plans returns empty when no plans exist."""
@@ -416,3 +456,124 @@ class TestBuildPlanMarkdown:
         assert event.rendered_markdown == "# Test Markdown"
         d = event.to_dict()
         assert d["rendered_markdown"] == "# Test Markdown"
+
+    def test_development_report_markdown_russian(self):
+        from core.plan_review.markdown_builder import build_plan_markdown
+
+        md = build_plan_markdown(
+            plan_steps=[
+                {
+                    "step": 1,
+                    "description": "Инициализировать проект",
+                    "tools_needed": ["terminal"],
+                    "expected_output": "Структура создана",
+                    "success_criteria": "Проект запускается",
+                }
+            ],
+            step_count=1,
+            user_input="Сервис RAG",
+            plan_report={
+                "title": "План разработки: Сервис RAG (rag-agent)",
+                "summary": {
+                    "goal": "Разработать микросервис rag-agent",
+                    "key_decisions": ["FastAPI + Celery + Redis"],
+                    "critical_risks": ["SQLite database is locked"],
+                },
+                "development_stages": [
+                    {
+                        "stage": 0,
+                        "title": "Подготовка инфраструктуры",
+                        "items": ["docker-compose.yml", "pyproject.toml"],
+                        "duration_hours": "4-6",
+                    }
+                ],
+                "priorities": {
+                    "mvp": ["Этап 0: инфраструктура"],
+                    "important_later": ["Alias swap"],
+                    "optional": ["Prometheus метрики"],
+                },
+                "dependencies": [
+                    {"task": "Этап 0", "depends_on": "—", "unblocks": "Все остальные этапы"}
+                ],
+                "blockers": [
+                    {
+                        "risk": "SQLite + Celery",
+                        "probability": "Высокая",
+                        "impact": "Высокое",
+                        "mitigation": "Redis result backend",
+                    }
+                ],
+                "manual_actions": [
+                    {"action": "Проверить TEI", "when": "Перед этапом 5", "who": "DevOps"}
+                ],
+                "estimates": {
+                    "stages": [{"stage": 0, "title": "Инфраструктура", "hours": 5, "story_points": 5}],
+                    "total_hours": 78,
+                    "total_story_points": 78,
+                    "calendar_time": "2-2.5 недели",
+                    "buffer_note": "+20%",
+                },
+                "stack": {
+                    "technologies": [{"component": "Фреймворк", "choice": "FastAPI"}],
+                    "patterns": ["API Gateway + Async Task Queue"],
+                    "critical_fixes": ["SQLite → Celery result backend"],
+                },
+            },
+            locale="ru",
+        )
+        assert "План разработки: Сервис RAG (rag-agent)" in md
+        assert "1. Общее резюме" in md
+        assert "Цель:" in md
+        assert "2. Этапы разработки" in md
+        assert "Этап 0" in md
+        assert "3. Приоритеты" in md
+        assert "4. Зависимости между задачами" in md
+        assert "5. Блокеры и риски" in md
+        assert "6. Ручные действия" in md
+        assert "7. Оценка стоимости/времени" in md
+        assert "8. Рекомендуемый стек и архитектура" in md
+        assert "Шаги выполнения" in md
+        assert "Инициализировать проект" in md
+        assert "да** для запуска разработки" in md
+
+    def test_truncated_json_detection(self):
+        from core.plan_review.parser import is_truncated_json
+
+        assert is_truncated_json('{"plan": [{"step": 1') is True
+        assert is_truncated_json('{"plan": [{"step": 1}]}') is False
+
+    def test_development_report_completeness(self):
+        from core.plan_review.parser import is_development_report_complete
+
+        assert is_development_report_complete(None) is False
+        assert is_development_report_complete({
+            "summary": {"goal": "Build API"},
+            "development_stages": [{"stage": 0, "title": "Setup"}],
+            "priorities": {"mvp": ["Stage 0"]},
+            "dependencies": [{"task": "Stage 0", "depends_on": "—", "unblocks": "All"}],
+            "blockers": [{"risk": "X", "mitigation": "Y"}],
+            "estimates": {"stages": [{"stage": 0, "hours": 5}]},
+        }) is True
+
+    def test_development_report_markdown_english(self):
+        from core.plan_review.markdown_builder import build_plan_markdown
+
+        md = build_plan_markdown(
+            plan_steps=[{"step": 1, "description": "Bootstrap"}],
+            step_count=1,
+            plan_report={
+                "title": "Development Plan: API",
+                "summary": {"goal": "Build API", "key_decisions": ["FastAPI"], "critical_risks": []},
+                "development_stages": [],
+                "priorities": {"mvp": [], "important_later": [], "optional": []},
+                "dependencies": [],
+                "blockers": [],
+                "manual_actions": [],
+                "estimates": {"stages": [], "total_hours": 10, "total_story_points": 10},
+                "stack": {"technologies": [], "patterns": [], "critical_fixes": []},
+            },
+            locale="en",
+        )
+        assert "Development Plan: API" in md
+        assert "1. Executive Summary" in md
+        assert "Execution Steps" in md

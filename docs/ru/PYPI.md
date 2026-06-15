@@ -75,7 +75,7 @@ PyPI **не принимает пароль аккаунта** — нужен **
 
 ```bash
 export UV_PUBLISH_TOKEN='pypi-AgENdXNlcm5hbWU6...'
-HOLIX_NO_VERSION_BUMP=1 uv build --no-sources
+uv build --no-sources
 uv publish dist/*
 ```
 

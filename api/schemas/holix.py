@@ -116,3 +116,19 @@ class MaxApproveRequest(BaseModel):
 class MaxMapSetRequest(BaseModel):
     user_id: int
     profile: str
+
+
+class LaunchCliRequest(BaseModel):
+    task: str = ""
+    cwd: str | None = None
+    model_slot: str | None = None
+    restart: bool = False
+
+
+class LaunchSendRequest(BaseModel):
+    message: str
+    enter: bool = True
+
+
+class LaunchAssignRequest(BaseModel):
+    agent_slot: str

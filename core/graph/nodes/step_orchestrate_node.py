@@ -177,9 +177,10 @@ async def step_orchestrate_node(state: HolixGraphState, config: RunnableConfig) 
         }
 
     cfg = getattr(agent, "config", None) if agent else None
+    from core.config_utils import is_subagents_enabled
+
     if (
-        cfg
-        and getattr(cfg, "enable_subagents", False)
+        is_subagents_enabled(cfg)
         and not state.get("subagent_orchestration")
         and not state.get("subagent_awaiting_synthesis")
     ):

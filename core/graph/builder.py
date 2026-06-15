@@ -72,10 +72,13 @@ def prepare_initial_state(
         "plan_review_id": "",
         "plan_id": "",
         "plan_refinement_feedback": "",
+        "plan_clarification_rounds": 0,
         "is_step_complete": False,
         "current_step_start_count": 0,
         "plan_analysis": None,
         "plan_architecture": None,
+        "plan_report": None,
+        "plan_reasoning": "",
         "sub_agent_tasks": [],
         "sub_agent_results": {},
         "pending_subagent": None,
@@ -154,7 +157,11 @@ async def run_graph_loop(
         final_state = await compiled_graph.ainvoke(initial_state, config)
 
         final_text = (final_state.get("final_response") or "").strip()
-        if final_text and not is_placeholder_final(final_text):
+        if (
+            final_text
+            and not is_placeholder_final(final_text)
+            and not getattr(agent, "_final_response_emitted", False)
+        ):
             yield FinalResponseEvent(
                 content=final_text,
                 steps_taken=final_state.get("step_count", 0),
@@ -192,6 +199,7 @@ def build_plan_execute_graph_for_studio():
 
 # Re-export routers for backward compatibility
 from core.graph.routers import (  # noqa: E402
+    route_after_plan_clarify,
     route_after_plan_execute,
     route_after_plan_review,
     route_after_plan_review_hybrid,
@@ -209,6 +217,7 @@ __all__ = [
     "run_graph_loop",
     "route_after_react",
     "route_after_plan_execute",
+    "route_after_plan_clarify",
     "route_after_plan_review",
     "route_after_plan_review_hybrid",
     "route_after_react_plan",

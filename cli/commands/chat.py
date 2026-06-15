@@ -440,11 +440,11 @@ class ChatSession:
             session = self
 
             class _ChatSubagentHost:
-                agent = session.agent
-                profile = session.profile
+                def __init__(self, chat_session: ChatSession) -> None:
+                    self.agent = chat_session.agent
+                    self.profile = chat_session.profile
 
-                @staticmethod
-                def transcript_write(content: object) -> None:
+                def transcript_write(self, content: object) -> None:
                     text = content_to_plain_text(content)
                     if not text:
                         return
@@ -456,7 +456,7 @@ class ChatSession:
                     else:
                         print_info(text)
 
-            host = _ChatSubagentHost()
+            host = _ChatSubagentHost(session)
             if cmd_lower.startswith("/subagent-types"):
                 await run_subagent_types_command(host, command)
             else:
@@ -638,6 +638,15 @@ class ChatSession:
                 print_error(f"Unexpected error: {e}")
                 if self.config.__dict__.get("verbose"):
                     console.print_exception()
+
+
+async def run_one_command(profile: str, config: ProfileConfig, command: str) -> bool:
+    """Initialize agent and run a single slash command."""
+    session = ChatSession(profile, config)
+    await session.initialize_agent()
+    if not command.strip().startswith("/"):
+        command = f"/{command.lstrip('/')}"
+    return await session.handle_special_command(command)
 
 
 async def run_interactive_chat(profile: str, config: ProfileConfig):

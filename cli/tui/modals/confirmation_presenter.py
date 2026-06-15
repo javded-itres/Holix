@@ -46,7 +46,19 @@ class ConfirmationPresenter:
 
         self._stack.set_active("confirmation")
         modal = ConfirmationModal.from_confirmation_event(event)
-        self.app.push_screen(modal, self.on_dismissed)
+
+        def _open() -> None:
+            try:
+                self.app.push_screen(modal, self.on_dismissed)
+            except Exception:
+                self.app._append_to_log(
+                    "[yellow]Confirmation modal unavailable — use /1 /2 /3 /4 in the prompt[/yellow]"
+                )
+
+        if hasattr(self.app, "call_later"):
+            self.app.call_later(0, _open)
+        else:
+            _open()
 
     def on_dismissed(self, result: str) -> None:
         self._stack.set_active(None)

@@ -37,6 +37,7 @@ from api.routers import (
     hermes_v1,
     holix_config,
     holix_global,
+    holix_launch,
     holix_max,
     holix_mcp,
     holix_models,
@@ -146,6 +147,7 @@ app.include_router(holix_skills.router)
 app.include_router(holix_mcp.router)
 app.include_router(holix_config.router)
 app.include_router(holix_global.router)
+app.include_router(holix_launch.router)
 app.include_router(holix_telegram.router)
 app.include_router(holix_max.router)
 app.include_router(docs_chat_router)

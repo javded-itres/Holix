@@ -1,7 +1,7 @@
 """MAX sub-agent message formatting."""
 
+from core.direct_dispatch import is_status_request, is_subagent_list_request
 from integrations.max.subagent_format import format_list_subagents_result
-from integrations.max.tool_dispatch import _SUBAGENT_LIST_RE, _is_status_request
 
 
 def test_format_empty_subagents_list() -> None:
@@ -14,12 +14,12 @@ def test_format_empty_subagents_list() -> None:
 
 
 def test_status_request_does_not_hijack_subagent_actions() -> None:
-    assert not _is_status_request("Запусти субагента researcher для анализа рынка")
-    assert not _is_status_request("Делегируй задачу субагенту")
-    assert _is_status_request("Покажи полный статус системы")
-    assert _is_status_request("Какой статус задачи?")
+    assert not is_status_request("Запусти субагента researcher для анализа рынка")
+    assert not is_status_request("Делегируй задачу субагенту")
+    assert is_status_request("Покажи полный статус системы")
+    assert is_status_request("Какой статус задачи?")
 
 
 def test_subagent_list_patterns() -> None:
-    assert _SUBAGENT_LIST_RE.match("/subagents")
-    assert _SUBAGENT_LIST_RE.match("список субагентов")
+    assert is_subagent_list_request("/subagents")
+    assert is_subagent_list_request("список субагентов")

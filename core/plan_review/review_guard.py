@@ -21,6 +21,7 @@ class PlanReviewChoice(StrEnum):
     AUTO_EXECUTE = "auto_execute"       # Execute all steps without further confirmation
     REFINE = "refine"                   # Send back to LLM with feedback
     REJECT = "reject"                   # Abort the plan entirely
+    PROCEED_ASSUMPTIONS = "proceed_assumptions"  # Skip open questions, show plan anyway
 
 
 class PlanReviewGuard:
@@ -60,6 +61,8 @@ class PlanReviewGuard:
         analysis: dict[str, Any] | None = None,
         architecture: dict[str, Any] | None = None,
         rendered_markdown: str = "",
+        phase: str = "approval",
+        clarifying_questions: list[str] | None = None,
     ) -> tuple[PlanReviewChoice, str]:
         """Emit a PlanReviewRequestEvent and await user decision.
 
@@ -108,6 +111,8 @@ class PlanReviewGuard:
                     architecture=architecture,
                     rendered_markdown=rendered_markdown,
                     conversation_id=conversation_id,
+                    phase=phase,
+                    clarifying_questions=clarifying_questions or [],
                 )
                 self._event_bus.emit(event)
                 logger.info(f"PlanReviewGuard: emitted PlanReviewRequestEvent (id={review_id})")

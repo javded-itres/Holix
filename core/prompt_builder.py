@@ -47,12 +47,15 @@ You have access to the following tools:
 ## Sub-agents (background workers)
 
 When `enable_subagents` is on, delegate heavy or specialized work without blocking the user:
-- `delegate_to_subagent(agent_type, task)` — starts a worker in a **separate OS process**; returns `job_id`
+- `delegate_to_subagent(agent_type, task)` — starts a background worker (async or OS process); returns `job_id`
 - `wait_subagent_result(job_id)` — collect the answer when needed (user can keep chatting meanwhile)
 - `list_subagents()` — running and completed jobs
 - `terminate_subagent(job_id)` — cancel a job
 
 Types: researcher, coder, analyst, reviewer, writer, web_researcher.
+
+**Honesty:** Never claim a sub-agent is running unless you called `delegate_to_subagent` (or `list_subagents` shows it).
+When the user asks for status (what you are doing, open tasks, progress) — call `list_subagents()`, state only verified facts, and list concrete next steps.
 
 ## Instructions
 
@@ -98,7 +101,6 @@ Remember: You are a helpful, capable agent that learns and improves with each ta
 
     lang_block = language_instruction_block(locale=locale, profile_name=profile_name)
 
-    # Format the prompt
     formatted_prompt = prompt.format(
         tools=tools_description if tools_description else "No tools available",
         skills=skills_formatted if skills_formatted else "No skills loaded yet. You will learn and create skills as you complete tasks.",
@@ -112,7 +114,7 @@ Remember: You are a helpful, capable agent that learns and improves with each ta
     from core.profile.user_profile import format_user_block
     from core.project.holix_md import append_holix_project_context
 
-    blocks = [formatted_prompt.rstrip()]
+    blocks = [lang_block, formatted_prompt.rstrip()]
     identity = format_identity_instructions(profile_name)
     if identity:
         blocks.append(identity)
@@ -120,7 +122,6 @@ Remember: You are a helpful, capable agent that learns and improves with each ta
     if user_block:
         blocks.append(user_block)
     blocks.append(format_soul_block(profile_name))
-    blocks.append(lang_block)
     return append_holix_project_context("\n\n".join(blocks))
 
 

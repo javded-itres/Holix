@@ -53,6 +53,8 @@ class PlanReviewRequestEvent(AgentEvent):
     analysis: dict[str, Any] | None = None
     architecture: dict[str, Any] | None = None
     rendered_markdown: str = ""
+    phase: str = "approval"  # "clarification" | "approval"
+    clarifying_questions: list[str] = field(default_factory=list)
 
     def __post_init__(self):
         super().__post_init__()
@@ -68,6 +70,8 @@ class PlanReviewRequestEvent(AgentEvent):
             "analysis": self.analysis,
             "architecture": self.architecture,
             "rendered_markdown": self.rendered_markdown,
+            "phase": self.phase,
+            "clarifying_questions": self.clarifying_questions,
             "event_type": PlanReviewEventType.PLAN_REVIEW_REQUEST,
         }
 
