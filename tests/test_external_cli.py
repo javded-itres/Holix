@@ -409,6 +409,7 @@ async def test_external_cli_tool_launch_allowed_for_assigned_subagent(
     )
 
     monkeypatch.setattr("core.tools.external_cli.launch_supported", lambda: True)
+    monkeypatch.setattr("core.external_cli.launch_service.ensure_launch_platform", lambda: None)
     monkeypatch.setattr("core.tools.external_cli.get_profile_name", lambda: "default")
     monkeypatch.setattr("core.tools.external_cli.get_subagent_type", lambda: "coder")
     monkeypatch.setattr(

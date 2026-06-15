@@ -143,11 +143,14 @@ class SubAgentManager:
         mode = config.process_mode
         fallback_reason = ""
         if mode == ProcessMode.PROCESS and not process_subagents_supported():
+            fallback_reason = "OS process mode is not supported on this platform"
             logger.warning(
-                "Sub-agent '%s': OS process mode is not supported on Windows; using async",
+                "Sub-agent '%s': %s; using async",
                 config.name,
+                fallback_reason,
             )
             mode = ProcessMode.ASYNC
+            config.process_mode = ProcessMode.ASYNC
 
         if mode == ProcessMode.PROCESS and self._process_spawn_unreliable:
             logger.info(

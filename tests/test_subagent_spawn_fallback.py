@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from core.subagents.base import ProcessMode, SubAgentConfig
@@ -26,7 +26,8 @@ async def test_process_spawn_fds_error_falls_back_to_async() -> None:
     )
 
     config = SubAgentConfig(name="coder", process_mode=ProcessMode.PROCESS)
-    handle = await manager.spawn_sub_agent(config, "build frontend")
+    with patch("core.subagents.manager.process_subagents_supported", return_value=True):
+        handle = await manager.spawn_sub_agent(config, "build frontend")
 
     process_manager.run.assert_awaited_once()
     manager._async_runner.run.assert_awaited_once()

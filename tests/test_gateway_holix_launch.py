@@ -26,6 +26,15 @@ def test_launch_clis_and_sessions_list(
 
     ProfileManager().create_profile("launch-api")
 
+    with patch("api.routers.holix_launch.launch_supported", return_value=True):
+        _assert_launch_clis_and_sessions(gateway_client, gateway_auth_headers)
+
+
+def _assert_launch_clis_and_sessions(
+    gateway_client: TestClient,
+    gateway_auth_headers: dict,
+) -> None:
+
     clis = gateway_client.get(
         "/api/holix/profiles/launch-api/launch/clis",
         headers=gateway_auth_headers,

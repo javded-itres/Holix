@@ -26,9 +26,12 @@ async def test_launch_claude_command_starts_cli() -> None:
         "cli_id": "claude",
         "model_name": "coder",
     }
-    with patch(
-        "cli.shared.commands.launch_commands.launch_external_cli",
-        return_value=fake_session,
+    with (
+        patch("cli.shared.commands.launch_commands.launch_supported", return_value=True),
+        patch(
+            "cli.shared.commands.launch_commands.launch_external_cli",
+            return_value=fake_session,
+        ),
     ):
         await run_launch_command(host, '/launch claude -t "frontend"')
 
@@ -40,7 +43,9 @@ async def test_launch_claude_command_starts_cli() -> None:
 @pytest.mark.asyncio
 async def test_launch_sessions_lists_active() -> None:
     host = FakeHost()
-    with patch(
+    with (
+        patch("cli.shared.commands.launch_commands.launch_supported", return_value=True),
+        patch(
         "cli.shared.commands.launch_commands.list_sessions",
         return_value=[
             {
@@ -52,6 +57,7 @@ async def test_launch_sessions_lists_active() -> None:
                 "model_slot": "coder",
             }
         ],
+        ),
     ):
         await run_launch_command(host, "/launch sessions")
 

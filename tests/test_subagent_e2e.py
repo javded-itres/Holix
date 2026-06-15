@@ -123,7 +123,10 @@ async def test_process_spawn_fallback_still_returns_result(monkeypatch: pytest.M
         side_effect=SubAgentProcessSpawnError("bad value(s) in fds_to_keep")
     )
 
-    handle = await mgr.spawn_sub_agent(cfg, "build api", agent_type="coder")
+    from unittest.mock import patch
+
+    with patch("core.subagents.manager.process_subagents_supported", return_value=True):
+        handle = await mgr.spawn_sub_agent(cfg, "build api", agent_type="coder")
     assert handle.config.process_mode == ProcessMode.ASYNC
     assert handle.spawn_fallback_reason == "bad value(s) in fds_to_keep"
 
