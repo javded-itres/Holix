@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 from typing import Literal
 
@@ -92,3 +93,76 @@ def list_cli_specs() -> list[ExternalCliSpec]:
 
 def get_cli_spec(cli_id: str) -> ExternalCliSpec | None:
     return EXTERNAL_CLI_REGISTRY.get(cli_id.strip().lower())
+
+
+def _normalize_cli_token(token: str) -> str:
+    return re.sub(r"[^a-z0-9]", "", token.lower())
+
+
+def resolve_cli_token(token: str) -> str | None:
+    """Map user input (id, display name, or alias) to a registry cli_id."""
+    raw = (token or "").strip()
+    if not raw:
+        return None
+
+    lower = raw.lower()
+    if lower in EXTERNAL_CLI_REGISTRY:
+        return lower
+
+    for spec in list_cli_specs():
+        if spec.display_name.lower() == lower:
+            return spec.cli_id
+
+    slug = _normalize_cli_token(raw)
+    if not slug:
+        return None
+
+    for spec in list_cli_specs():
+        if _normalize_cli_token(spec.cli_id) == slug:
+            return spec.cli_id
+        if _normalize_cli_token(spec.display_name) == slug:
+            return spec.cli_id
+
+    matches: list[str] = []
+    for spec in list_cli_specs():
+        name_lower = spec.display_name.lower()
+        if lower in name_lower or slug in _normalize_cli_token(spec.display_name):
+            matches.append(spec.cli_id)
+
+    if len(matches) == 1:
+        return matches[0]
+    return None
+
+
+def resolve_cli_selection(raw: str) -> tuple[list[str], list[str]]:
+    """Parse setup input into resolved cli_ids and unknown tokens.
+
+    Accepts ``all``, comma-separated ids (``claude,aider``), or display names
+    (``Claude Code``, ``OpenAI Codex CLI``).
+    """
+    text = (raw or "").strip()
+    if not text or text.lower() == "all":
+        return [s.cli_id for s in list_cli_specs()], []
+
+    resolved: list[str] = []
+    unknown: list[str] = []
+    seen: set[str] = set()
+
+    for part in text.split(","):
+        token = part.strip()
+        if not token:
+            continue
+        cli_id = resolve_cli_token(token)
+        if cli_id is None:
+            unknown.append(token)
+            continue
+        if cli_id not in seen:
+            resolved.append(cli_id)
+            seen.add(cli_id)
+
+    return resolved, unknown
+
+
+def format_cli_id_choices() -> str:
+    """Compact id list for setup prompts."""
+    return ", ".join(spec.cli_id for spec in list_cli_specs())

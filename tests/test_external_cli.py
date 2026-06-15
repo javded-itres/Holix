@@ -8,7 +8,7 @@ from types import SimpleNamespace
 import pytest
 from core.external_cli.env import build_cli_env, resolve_model_for_slot
 from core.external_cli.platform import launch_supported
-from core.external_cli.registry import get_cli_spec
+from core.external_cli.registry import get_cli_spec, resolve_cli_selection, resolve_cli_token
 from core.external_cli.store import ExternalCliBinding, ExternalCliStore
 from core.models.manager import ModelConfig
 
@@ -19,6 +19,28 @@ def holix_home(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     home.mkdir()
     monkeypatch.setenv("HOLIX_HOME", str(home))
     return home
+
+
+def test_resolve_cli_token_by_id_and_display_name() -> None:
+    assert resolve_cli_token("claude") == "claude"
+    assert resolve_cli_token("Claude Code") == "claude"
+    assert resolve_cli_token("OpenAI Codex CLI") == "codex"
+    assert resolve_cli_token("aider") == "aider"
+    assert resolve_cli_token("unknown tool") is None
+
+
+def test_resolve_cli_selection_mixed_input() -> None:
+    ids, unknown = resolve_cli_selection("Claude Code, aider")
+    assert ids == ["claude", "aider"]
+    assert unknown == []
+
+    ids2, unknown2 = resolve_cli_selection("claude, bad-name")
+    assert ids2 == ["claude"]
+    assert unknown2 == ["bad-name"]
+
+    ids3, _ = resolve_cli_selection("all")
+    assert "claude" in ids3
+    assert "opencode" in ids3
 
 
 def test_launch_supported_on_posix() -> None:

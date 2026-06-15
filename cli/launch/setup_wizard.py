@@ -7,7 +7,12 @@ import subprocess
 from typing import Any
 
 from core.external_cli.platform import ensure_launch_platform, tmux_available
-from core.external_cli.registry import EXTERNAL_CLI_REGISTRY, list_cli_specs
+from core.external_cli.registry import (
+    EXTERNAL_CLI_REGISTRY,
+    format_cli_id_choices,
+    list_cli_specs,
+    resolve_cli_selection,
+)
 from core.external_cli.store import ExternalCliBinding, ExternalCliStore
 from rich.panel import Panel
 from rich.prompt import Confirm, Prompt
@@ -65,7 +70,8 @@ def run_launch_setup(profile: str, profile_config: Any, *, yes: bool = False) ->
     agent_slots = _agent_slots(profile_config)
 
     table = Table(title=f"Profile: {profile}", show_header=True)
-    table.add_column("CLI", style="cyan")
+    table.add_column("ID", style="cyan")
+    table.add_column("CLI")
     table.add_column("Status")
     table.add_column("Binary")
     table.add_column("Model slot")
@@ -73,12 +79,14 @@ def run_launch_setup(profile: str, profile_config: Any, *, yes: bool = False) ->
     for spec in list_cli_specs():
         path = _binary_installed(spec.binary_names)
         binding = bindings.get(spec.cli_id)
+        if binding and binding.command:
+            path = binding.command
         enabled = binding.enabled if binding else False
         slot = binding.model_slot if binding else spec.default_model_slot
         status = "[green]enabled[/green]" if enabled else "[dim]disabled[/dim]"
         if not path:
             status = "[yellow]not installed[/yellow]"
-        table.add_row(spec.display_name, status, path or "—", slot)
+        table.add_row(spec.cli_id, spec.display_name, status, path or "—", slot)
 
     console.print(table)
     console.print()
@@ -86,19 +94,23 @@ def run_launch_setup(profile: str, profile_config: Any, *, yes: bool = False) ->
     if yes:
         to_configure = [s.cli_id for s in list_cli_specs()]
     else:
+        id_hint = format_cli_id_choices()
         raw = Prompt.ask(
-            "Configure which CLI? (comma-separated ids or 'all')",
+            f"Configure which CLI? (id, name, or 'all'; e.g. {id_hint})",
             default="all",
         )
-        if raw.strip().lower() == "all":
-            to_configure = [s.cli_id for s in list_cli_specs()]
-        else:
-            to_configure = [p.strip().lower() for p in raw.split(",") if p.strip()]
+        to_configure, unknown = resolve_cli_selection(raw)
+        for token in unknown:
+            print_warning(
+                f"Unknown CLI: {token!r}. Use id ({id_hint}) or display name (e.g. Claude Code)."
+            )
+        if not to_configure:
+            print_error("Nothing to configure. Try: claude  or  Claude Code  or  all")
+            raise SystemExit(1)
 
     for cli_id in to_configure:
         spec = EXTERNAL_CLI_REGISTRY.get(cli_id)
         if spec is None:
-            print_warning(f"Unknown CLI id: {cli_id}")
             continue
 
         console.print(f"\n[bold]{spec.display_name}[/bold] — {spec.description}")
