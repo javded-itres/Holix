@@ -1,6 +1,5 @@
 """Tests for plan clarification flow."""
 
-import pytest
 from core.plan_review.clarification import (
     build_clarification_markdown,
     needs_plan_clarification,

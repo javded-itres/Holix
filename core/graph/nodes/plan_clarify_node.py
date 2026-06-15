@@ -18,7 +18,6 @@ from core.plan_review.clarification import (
     build_clarification_markdown,
     extract_clarifying_questions,
     format_clarification_feedback,
-    is_proceed_with_assumptions,
     needs_plan_clarification,
 )
 from core.plan_review.review_guard import PlanReviewChoice, get_plan_review_guard
@@ -110,8 +109,8 @@ async def plan_clarify_node(state: HolixGraphState, config: RunnableConfig) -> d
 
 def t_fallback(agent, key: str) -> str:
     from core.i18n.locale import LocaleStore
-    from core.profile.soul import profile_name_from_agent
     from core.i18n.messages import t
+    from core.profile.soul import profile_name_from_agent
 
     profile_name = profile_name_from_agent(agent) if agent else "default"
     return t(key, LocaleStore(profile_name).get())

@@ -8,6 +8,13 @@ import re
 import time
 from typing import Any
 
+from core.direct_dispatch.intent import (
+    is_status_request as _is_status_request,
+)
+from core.direct_dispatch.intent import (
+    is_subagent_list_request,
+)
+
 logger = logging.getLogger(__name__)
 
 _REPEAT_SEARCH_RE = re.compile(
@@ -46,10 +53,6 @@ _ANALYSIS_TRIGGER_RE = re.compile(
     r"analyze|summarize"
     r")\b",
     re.IGNORECASE,
-)
-from core.direct_dispatch.intent import (
-    is_status_request as _is_status_request,
-    is_subagent_list_request,
 )
 
 

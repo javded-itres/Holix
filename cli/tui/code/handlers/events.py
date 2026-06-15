@@ -19,8 +19,8 @@ from core.agent_events import (
     ToolCallStartEvent,
 )
 from core.plan_review.review_events import PlanReviewRequestEvent
-from core.security.confirmation_events import ConfirmationRequestEvent
 from core.presenters.final_content import resolve_messenger_final_content
+from core.security.confirmation_events import ConfirmationRequestEvent
 from core.subagents.interaction_events import SubAgentQuestionEvent
 from rich.markdown import Markdown
 
@@ -56,7 +56,6 @@ class CodeEventHandler:
                 self.app.append_stream_delta(event.content)
 
             elif isinstance(event, FinalResponseEvent):
-                had_stream = self.app._is_streaming
                 streamed_answer = self.app._transcript_store.stream_plain()
                 content = resolve_messenger_final_content(
                     event.content or "",

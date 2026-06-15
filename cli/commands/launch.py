@@ -26,8 +26,8 @@ from cli.services.tmux_launcher import (
     kill_session,
     launch_cli_by_id,
     list_all_tmux_sessions,
-    restart_cli_by_id,
     prune_dead_sessions,
+    restart_cli_by_id,
     send_text,
     tmux_session_alive,
 )

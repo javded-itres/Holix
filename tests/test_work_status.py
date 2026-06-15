@@ -8,7 +8,6 @@ from unittest.mock import MagicMock
 
 import cli.core as cli_core
 import pytest
-
 from core.direct_dispatch import (
     build_work_status_reply,
     is_work_activity_request,

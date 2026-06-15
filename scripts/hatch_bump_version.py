@@ -11,7 +11,7 @@ _ROOT = Path(__file__).resolve().parents[1]
 if str(_ROOT) not in sys.path:
     sys.path.insert(0, str(_ROOT))
 
-from scripts.versioning import apply_metadata_version, resolve_build_version
+from scripts.versioning import apply_metadata_version, resolve_build_version  # noqa: E402
 
 
 def _should_bump(root: str, target_name: str, build_variant: str) -> bool:

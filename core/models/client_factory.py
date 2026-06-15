@@ -10,7 +10,6 @@ from openai import AsyncOpenAI
 
 from core.config_utils import resolve_env_refs
 
-
 _LOCAL_PRESET_PLACEHOLDER_KEYS = {
     "ollama": "ollama",
     "vllm": "EMPTY",

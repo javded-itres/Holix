@@ -199,8 +199,8 @@ def build_plan_execute_graph_for_studio():
 
 # Re-export routers for backward compatibility
 from core.graph.routers import (  # noqa: E402
-    route_after_plan_execute,
     route_after_plan_clarify,
+    route_after_plan_execute,
     route_after_plan_review,
     route_after_plan_review_hybrid,
     route_after_react,

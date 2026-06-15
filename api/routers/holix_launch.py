@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-from pathlib import Path
-
 from cli.core import ProfileManager
 from core.external_cli.launch_service import (
     LaunchServiceError,

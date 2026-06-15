@@ -1,7 +1,7 @@
 """MAX sub-agent message formatting."""
 
-from integrations.max.subagent_format import format_list_subagents_result
 from core.direct_dispatch import is_status_request, is_subagent_list_request
+from integrations.max.subagent_format import format_list_subagents_result
 
 
 def test_format_empty_subagents_list() -> None:

@@ -8,8 +8,6 @@ for plan rendering format.
 
 from __future__ import annotations
 
-from typing import Any
-
 from core.i18n.locale import normalize_locale
 from core.i18n.messages import t
 
