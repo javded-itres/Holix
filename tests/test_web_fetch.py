@@ -61,6 +61,7 @@ async def test_process_spawn_passes_search_config() -> None:
         skills_dir="",
         skill_assignments={},
         search={"strategy": "first_success", "providers": ["firecrawl"]},
+        profile_name="default",
     )
     parent.memory = None
 
@@ -78,14 +79,17 @@ async def test_process_spawn_passes_search_config() -> None:
     mgr = SubAgentProcessManager(parent)
     config = SubAgentConfig(name="web_researcher", process_mode=ProcessMode.PROCESS)
 
-    with patch("core.subagents.process.multiprocessing.Process", FakeProcess):
+    fake_ctx = MagicMock()
+    fake_ctx.Process = FakeProcess
+    with patch("core.subagents.process.subagent_mp_context", return_value=fake_ctx):
         with patch("core.subagents.process.asyncio.create_task"):
             await mgr.run(config, "find docs")
 
-    assert captured_args[-1] == {
+    assert captured_args[-2] == {
         "strategy": "first_success",
         "providers": ["firecrawl"],
     }
+    assert captured_args[-1] == "default"
     flattened = " ".join(str(a) for a in captured_args)
     assert "sk-test" not in flattened
 

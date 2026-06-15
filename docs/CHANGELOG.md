@@ -2,6 +2,37 @@
 
 ## Unreleased
 
+## 0.1.15 — 2026-06-15
+
+### Added
+- **Development plan report (Plan & Hybrid)** — before execution, the agent shows an 8-section BA-style approval document: summary, stages, priorities, dependencies, risks, manual actions, estimates, recommended stack; plus execution steps
+- **Plan clarification step** — when the task is ambiguous (`needs_clarification`, `clarifying_questions`), the agent asks questions **before** plan approval; answers regenerate the plan; reply `продолжай с допущениями` / `proceed with assumptions` to skip
+- **Project plan storage** — confirmed plans saved to `./.holix/plans/` (`.md` + `.json`); planner reads existing plans from this directory by default
+- **Plan generation tuning** — `plan_generation_timeout` default 600s, `plan_generation_max_tokens` 12000; timeout retries increase time instead of cutting tokens; truncated JSON triggers retry
+- **`holix launch`** — external coding CLIs in tmux (Linux/macOS): setup wizard, per-profile bindings, session management (`attach`, `send`, `chat`, `output`, `kill`)
+- **Supported agents** — Claude Code, OpenCode, Grok Build, GigaCode, Aider; per-agent `holix launch <id>` and `holix launch <id> status`
+- **Holix profile models in external CLIs** — Claude gateway/LiteLLM env; OpenCode via generated `opencode.json` + `OPENCODE_CONFIG` (`holix/<model>`); Grok Build via `config.toml` + `GROK_HOME` and positional initial task
+- **Auto-install** in `holix launch setup` for curl/npm/uv installers (OpenCode, Grok Build, Claude, Aider); binary detection in `~/.opencode/bin`, `~/.grok/bin`, …
+- **Interactive relay** — `holix launch chat` forwards text and terminal keys (arrows, Tab, Esc, digits 1–9) to tmux panes
+- **Agent tool** — `external_cli` for launch/send/output/list_sessions (assigned sub-agents only)
+- **Sub-agent CLI assignment** — `holix launch setup` field **Assign to sub-agent** (`agent_slot` in bindings); tool injected only for matching sub-agent types
+- **TUI `/launch`** — modal to assign or unassign sub-agents per external CLI; `/launch list` in transcript
+- **Sub-agent types** — profile `subagents/types.json`, TUI `/subagent-types` (prompt, skills, MCP, model, external CLI)
+- **Docs** — [SUBAGENTS.md](en/SUBAGENTS.md) (EN/RU): sub-agent types, spawn, slash commands, limits, custom type wizard
+- **Docs** — [LAUNCH.md](en/LAUNCH.md), [LAUNCH_SUBAGENTS.md](en/LAUNCH_SUBAGENTS.md) (EN/RU), CLI reference sections
+
+### Changed
+- **Versioning** — package version is fixed manually in `pyproject.toml` and `cli/__init__.py`; Hatch auto-bump on `uv build` removed
+- **`holix tui`** — always launches the code-style TUI; legacy dashboard removed (`HOLIX_TUI_LEGACY` no longer supported)
+- **`external_cli` access** — main agent no longer has the tool; launch/send/output require an enabled binding whose `agent_slot` matches the calling sub-agent type
+- **Codex CLI and Codex App** — temporarily removed from `holix launch` registry
+- **Plan directory** — `./.holix/plan/` renamed to `./.holix/plans/` (legacy `plan/` still listed when reading)
+- **Sub-agent default mode** — `subagent_default_process_mode` default `async` (with process spawn fallback on macOS)
+
+### Documentation
+- **EXECUTION_MODES** (EN/RU) — clarification flow, development report, plan storage
+- **CONFIGURATION** (EN/RU) — plan generation env vars, `.holix/plans/`
+
 ## 0.1.14 — 2026-06-14
 
 ### Added

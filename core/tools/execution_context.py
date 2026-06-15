@@ -7,6 +7,7 @@ from typing import Any
 
 _conversation_id: ContextVar[str] = ContextVar("holix_conversation_id", default="default")
 _subagent_name: ContextVar[str] = ContextVar("holix_subagent_name", default="")
+_subagent_type: ContextVar[str] = ContextVar("holix_subagent_type", default="")
 _interaction_bridge: ContextVar[Any] = ContextVar("holix_interaction_bridge", default=None)
 _chat_delivery_bridge: ContextVar[Any] = ContextVar("holix_chat_delivery_bridge", default=None)
 _memory_facade: ContextVar[Any] = ContextVar("holix_memory_facade", default=None)
@@ -22,6 +23,10 @@ def get_conversation_id() -> str:
 
 def get_subagent_name() -> str:
     return _subagent_name.get()
+
+
+def get_subagent_type() -> str:
+    return _subagent_type.get()
 
 
 def get_interaction_bridge() -> Any | None:
@@ -120,11 +125,13 @@ def reset_workspace_scope(tokens) -> None:
 def subagent_scope(
     subagent_name: str,
     *,
+    subagent_type: str = "",
     interaction_bridge: Any = None,
 ):
     """Context manager tokens for sub-agent tool execution."""
     tokens = []
     tokens.append(("subagent", _subagent_name.set(subagent_name)))
+    tokens.append(("subagent_type", _subagent_type.set(subagent_type or "")))
     if interaction_bridge is not None:
         tokens.append(("bridge", _interaction_bridge.set(interaction_bridge)))
     return tokens
@@ -134,5 +141,7 @@ def reset_subagent_scope(tokens) -> None:
     for key, token in reversed(tokens):
         if key == "subagent":
             _subagent_name.reset(token)
+        elif key == "subagent_type":
+            _subagent_type.reset(token)
         elif key == "bridge":
             _interaction_bridge.reset(token)

@@ -205,11 +205,13 @@ class HolixAgent:
             conversation_id=conversation_id,
             run_id=run_id,
         )
+        self._final_response_emitted = False
         return run_id
 
     def end_run(self) -> None:
         """Clear run correlation context."""
         self._event_context = None
+        self._final_response_emitted = False
 
     def set_plan_id(self, plan_id: str) -> None:
         """Attach plan_id to subsequent events in the current run."""
@@ -234,7 +236,12 @@ class HolixAgent:
         self.stamp_event(event)
         self.events.emit(sanitize_agent_event(event))
 
-    async def initialize(self):
+    async def initialize(
+        self,
+        *,
+        mcp_ready_timeout: float = 10.0,
+        defer_skill_index: bool = False,
+    ):
         """Initialize the agent (async setup)."""
         if self._initialized:
             return
@@ -244,7 +251,9 @@ class HolixAgent:
         await self.memory.initialize_db()
 
         self.tools.register_all()
-        if getattr(self.config, "enable_subagents", False):
+        from core.config_utils import is_subagents_enabled
+
+        if is_subagents_enabled(self.config):
             from core.tools.subagents import register_subagent_tools
 
             register_subagent_tools(self.tools, self)
@@ -256,6 +265,7 @@ class HolixAgent:
                     self.config.mcp_servers,
                     getattr(self.config, "mcp_assignments", None),
                     slot="main",
+                    ready_timeout=mcp_ready_timeout,
                 )
             except Exception as e:
                 self.emit(ThinkingEvent(message=f"MCP init warning: {e}"))
@@ -264,7 +274,7 @@ class HolixAgent:
             + (f" (+{mcp_count} MCP)" if mcp_count else "")
         ))
 
-        self.skills.load_all_skills()
+        self.skills.load_all_skills(defer_index=defer_skill_index)
         self.emit(ThinkingEvent(
             message=f"Loaded {len(self.skills.all_skills)} skills"
         ))
@@ -309,6 +319,25 @@ class HolixAgent:
 
         self._initialized = True
         self.emit(ThinkingEvent(message="Holix Agent ready!"))
+
+    async def finish_deferred_init(self, *, mcp_timeout: float = 30.0) -> dict[str, int]:
+        """Background completion: remaining MCP tools and deferred skill vector index."""
+        if not self._initialized:
+            return {"mcp_tools": 0, "skills_indexed": 0}
+
+        mcp_tools = 0
+        try:
+            mcp_tools = await self.tools.finish_mcp_registration(timeout=mcp_timeout)
+        except Exception:
+            pass
+
+        skills_indexed = 0
+        try:
+            skills_indexed = self.skills.index_all_skills()
+        except Exception:
+            pass
+
+        return {"mcp_tools": mcp_tools, "skills_indexed": skills_indexed}
 
     async def close(self) -> None:
         """Cleanup (MCP sessions etc.). Safe to call multiple times."""

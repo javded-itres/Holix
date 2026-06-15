@@ -237,6 +237,17 @@ def _check_platform() -> list[DoctorFinding]:
                 ),
             )
         )
+    if not IS_WINDOWS:
+        if shutil.which("tmux") is None:
+            out.append(
+                DoctorFinding(
+                    code="platform.missing_tmux",
+                    severity=Severity.INFO.value,
+                    title="tmux not found (holix launch)",
+                    detail="External coding CLIs (Claude Code, OpenCode, …) run in tmux via `holix launch`",
+                    recommendation="Install tmux (brew install tmux / apt install tmux) and run: holix launch setup",
+                )
+            )
     for tool, label in (
         ("node", "Node.js (MCP npx servers)"),
         ("npx", "npx (MCP package runner)"),

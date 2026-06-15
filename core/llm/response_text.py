@@ -39,32 +39,45 @@ def assistant_message_parts(message: Any) -> tuple[str, str]:
     return content, reasoning
 
 
+def _ui_locale(profile_name: str | None) -> str:
+    from core.i18n.locale import LocaleStore
+
+    if profile_name:
+        return LocaleStore(profile_name).get()
+    return "en"
+
+
 def resolve_assistant_text(
     *,
     content: str = "",
     reasoning_content: str = "",
     finish_reason: str | None = None,
     model: str | None = None,
+    profile_name: str | None = None,
 ) -> str:
     """Pick user-visible assistant text; empty string means nothing to show."""
+    from core.i18n.messages import t
+
+    locale = _ui_locale(profile_name)
     text = (content or "").strip()
     if text.lower() in _PLACEHOLDER_FINALS:
         text = ""
 
     reasoning = (reasoning_content or "").strip()
     if not text and reasoning:
-        text = reasoning
+        logger.warning(
+            "LLM returned reasoning-only text (model=%s); not exposing to user",
+            model,
+        )
+        return t("llm.reasoning_only", locale)
 
     if text:
         return text
 
     if finish_reason == "length":
-        return (
-            "Ответ обрезан лимитом токенов модели. "
-            "Сократите запрос или выберите модель с большим контекстом."
-        )
+        return t("llm.truncated", locale)
     if finish_reason == "content_filter":
-        return "Модель отклонила запрос (content filter)."
+        return t("llm.content_filter", locale)
 
     if model:
         logger.warning(

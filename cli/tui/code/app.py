@@ -9,6 +9,7 @@ from __future__ import annotations
 import json
 import os
 import time
+from collections import deque
 from pathlib import Path
 from typing import Any
 
@@ -31,8 +32,10 @@ from cli.tui.code.widgets import (
     CodeContextBar,
     CodePrompt,
     CodeStatusBar,
+    CodeStreamLine,
     CodeTranscript,
     CopySelectionBar,
+    PromptHistorySuggestions,
     SlashCommandSuggestions,
     TranscriptPanel,
 )
@@ -49,8 +52,17 @@ from cli.tui.shared.keyboard_layout import (
     slash_command_prefix,
     terminal_copy_hint,
 )
-from cli.tui.shared.slash_suggestions import match_slash_commands
+from cli.tui.shared.prompt_history import PromptHistoryStore
+from cli.tui.shared.slash_suggestions import (
+    is_skill_invoke_line,
+    match_skill_invoke_commands,
+    match_slash_commands,
+)
 from cli.tui.shared.transcript_store import TranscriptStore, plain_from_rich_write
+
+_TRANSCRIPT_DISPLAY_MAX = 400
+_TRANSCRIPT_REBUILD_EVERY = 40
+_STREAM_DISPLAY_INTERVAL_S = 0.05
 
 
 class HolixCodeApp(App):
@@ -106,11 +118,21 @@ class HolixCodeApp(App):
         self._tab_matches: list[str] = []
         self._tab_index = -1
         self._slash_suggestion_navigated = False
+        self._prompt_history_store = PromptHistoryStore()
+        self._history_navigated = False
         self._transcript_store = TranscriptStore()
         self._last_assistant_plain: str | None = None
+        self._agent_init_state = "pending"  # pending | initializing | ready | error
+        self._scroll_hint_timer = None
+        self._transcript_display_chunks: deque = deque(maxlen=_TRANSCRIPT_DISPLAY_MAX)
+        self._transcript_display_trimmed = False
+        self._transcript_writes_since_rebuild = 0
+        self._stream_update_timer = None
 
     def compose(self) -> ComposeResult:
         yield TranscriptPanel()
+        stream = CodeStreamLine()
+        yield stream
         thinking = Static("", id="thinking-line")
         thinking.display = False
         yield thinking
@@ -119,6 +141,7 @@ class HolixCodeApp(App):
         yield CodeContextBar()
         yield CopySelectionBar(id=COPY_BAR_ID)
         yield SlashCommandSuggestions()
+        yield PromptHistorySuggestions()
         yield CodePrompt()
 
     async def on_mount(self) -> None:
@@ -126,7 +149,8 @@ class HolixCodeApp(App):
         self._load_ui_state()
         self.transcript_write("[bold]Holix[/bold]  [dim]code ui[/dim]")
         hints = (
-            "[dim]Enter send · Shift+Enter newline · / — command menu (↑↓ pick) · "
+            "[dim]Enter send · Shift+Enter newline · ↑ — recent prompts (↑↓ pick) · "
+            "/ — command menu (↑↓ pick) · "
             "/models — switch LLM · /hub — skill catalog · F2 /open — copy window · "
             "click chat then select + Copy"
         )
@@ -138,7 +162,8 @@ class HolixCodeApp(App):
         hints += "[/dim]\n"
         self.transcript_write(hints)
         self._refresh_status_bar()
-        await self._initialize_agent()
+        self._set_prompt_enabled(False)
+        self.run_worker(self._initialize_agent(), exclusive=True, group="agent_init")
         self._restore_prompt_focus(delay=0.1, force=True)
 
     async def on_unmount(self) -> None:
@@ -150,6 +175,24 @@ class HolixCodeApp(App):
 
     # --- Transcript API (TuiHost + modals) ---
 
+    def _reset_transcript_display_buffer(self) -> None:
+        self._transcript_display_chunks.clear()
+        self._transcript_display_trimmed = False
+        self._transcript_writes_since_rebuild = 0
+
+    def _rebuild_transcript_display(self, log: CodeTranscript) -> None:
+        log.clear()
+        if len(self._transcript_display_chunks) >= _TRANSCRIPT_DISPLAY_MAX:
+            log.write(
+                "[dim]… earlier messages hidden — /open or /copy for full transcript[/dim]\n"
+            )
+        for chunk in self._transcript_display_chunks:
+            log.write(chunk)
+        if self._auto_scroll:
+            log.scroll_end(animate=False)
+        self._transcript_writes_since_rebuild = 0
+        self._transcript_display_trimmed = True
+
     def transcript_write(
         self,
         content: Any,
@@ -158,13 +201,27 @@ class HolixCodeApp(App):
         store_plain: str | None = None,
         store_markdown: str | None = None,
         store_title: str | None = None,
+        update_scroll_hint: bool = True,
     ) -> None:
         try:
             log = self.query_one("#transcript", CodeTranscript)
-            log.write(content)
+            was_full = len(self._transcript_display_chunks) >= _TRANSCRIPT_DISPLAY_MAX
+            self._transcript_display_chunks.append(content)
+            if was_full:
+                self._transcript_writes_since_rebuild += 1
+                if (
+                    not self._transcript_display_trimmed
+                    or self._transcript_writes_since_rebuild >= _TRANSCRIPT_REBUILD_EVERY
+                ):
+                    self._rebuild_transcript_display(log)
+                else:
+                    log.write(content)
+            else:
+                log.write(content)
             if self._auto_scroll:
                 log.scroll_end(animate=False)
-            self._update_scroll_hint()
+            if update_scroll_hint:
+                self._schedule_scroll_hint_update()
         except Exception:
             pass
 
@@ -189,6 +246,16 @@ class HolixCodeApp(App):
         """Alias for ModalStack / confirmation presenters."""
         self.transcript_write(content)
 
+    def schedule_transcript_write(self, content: Any) -> None:
+        """Write to transcript from async workers (falls back to UI-thread marshal)."""
+        try:
+            self.transcript_write(content)
+        except Exception:
+            try:
+                self.call_from_thread(self.transcript_write, content)
+            except Exception:
+                self.call_later(0, self.transcript_write, content)
+
     def transcript_scroll_bottom(self) -> None:
         try:
             log = self.query_one("#transcript", CodeTranscript)
@@ -209,6 +276,61 @@ class HolixCodeApp(App):
                 line.display = False
         except Exception:
             pass
+
+    def append_stream_delta(self, text: str) -> None:
+        if not text:
+            return
+        self._stream_buffer += text
+        self._transcript_store.append_stream_delta(text)
+        self._is_streaming = True
+        self._schedule_stream_display_update()
+
+    def _schedule_stream_display_update(self) -> None:
+        if self._stream_update_timer is not None:
+            return
+        self._stream_update_timer = self.set_timer(
+            _STREAM_DISPLAY_INTERVAL_S,
+            self._flush_stream_display,
+        )
+
+    def _flush_stream_display(self) -> None:
+        self._stream_update_timer = None
+        try:
+            self.query_one("#stream-line", CodeStreamLine).show_text(self._stream_buffer)
+        except Exception:
+            pass
+
+    def clear_stream_display(self) -> None:
+        if self._stream_update_timer is not None:
+            try:
+                self._stream_update_timer.stop()
+            except Exception:
+                pass
+            self._stream_update_timer = None
+        self._stream_buffer = ""
+        try:
+            self.query_one("#stream-line", CodeStreamLine).show_text("")
+        except Exception:
+            pass
+
+    def flush_partial_stream_to_transcript(self) -> None:
+        """Commit in-progress stream to the log (e.g. before a tool call)."""
+        if self._stream_update_timer is not None:
+            try:
+                self._stream_update_timer.stop()
+            except Exception:
+                pass
+            self._stream_update_timer = None
+        if not self._stream_buffer:
+            self.clear_stream_display()
+            return
+        body = self._stream_buffer
+        self._stream_buffer = ""
+        try:
+            self.query_one("#stream-line", CodeStreamLine).show_text("")
+        except Exception:
+            pass
+        self.transcript_write(f"\n{body}\n")
 
     def set_status_line(self, text: str) -> None:
         try:
@@ -248,6 +370,8 @@ class HolixCodeApp(App):
             modes = self._execution_modes
             if (m := data.get("execution_mode")) in modes:
                 self._execution_mode_index = modes.index(m)
+            if isinstance(data.get("prompt_history"), list):
+                self._prompt_history_store.load(data["prompt_history"])
         except Exception:
             pass
 
@@ -258,6 +382,7 @@ class HolixCodeApp(App):
                 "conversation_id": self.conversation_id,
                 "streaming_enabled": self.streaming_enabled,
                 "execution_mode": self._execution_modes[self._execution_mode_index],
+                "prompt_history": self._prompt_history_store.dump(),
             }
             self._state_path().write_text(json.dumps(payload, indent=2), encoding="utf-8")
         except Exception:
@@ -265,7 +390,14 @@ class HolixCodeApp(App):
 
     # --- Agent ---
 
+    def _set_prompt_enabled(self, enabled: bool) -> None:
+        try:
+            self.query_one("#input-area", CodePrompt).disabled = not enabled
+        except Exception:
+            pass
+
     async def _initialize_agent(self) -> None:
+        self._agent_init_state = "initializing"
         self.transcript_write("[dim]initializing…[/dim]")
         self.set_status_line("initializing")
 
@@ -278,6 +410,8 @@ class HolixCodeApp(App):
             self.set_status_line("no llm")
             self.agent = None
             self._resolved_model = "—"
+            self._agent_init_state = "error"
+            self._set_prompt_enabled(True)
             return
 
         runtime_config = resolve_runtime_config(self.config)
@@ -297,23 +431,41 @@ class HolixCodeApp(App):
             self.set_status_line("no llm")
             self.agent = None
             self._resolved_model = "—"
+            self._agent_init_state = "error"
+            self._set_prompt_enabled(True)
             return
 
         self.agent = HolixAgent(config=runtime_config)
         self.agent.events.subscribe(self._on_agent_event)
-        await self.agent.initialize()
+        await self.agent.initialize(mcp_ready_timeout=2.0, defer_skill_index=True)
         await self._load_conversation_history()
-        await self._ensure_session_context()
-        await self._load_known_sessions()
         self.transcript_write("[dim]ready — type a message or /help[/dim]\n")
         self.set_status_line("ready")
+        self._agent_init_state = "ready"
+        self._set_prompt_enabled(True)
         from core.session_models import restore_session_model
 
         restored = restore_session_model(self)
         if restored:
             self.transcript_write(f"[dim]model (session): {restored}[/dim]\n")
-        await self._update_context_display_async()
         self._maybe_hub_autoupdate()
+        self.run_worker(self._deferred_startup_tasks(), group="deferred_init")
+
+    async def _deferred_startup_tasks(self) -> None:
+        """Heavy startup work that must not block the first prompt."""
+        if not self.agent:
+            return
+        try:
+            result = await self.agent.finish_deferred_init()
+            if result.get("mcp_tools"):
+                self.transcript_write(
+                    f"[dim]MCP: +{result['mcp_tools']} tools loaded[/dim]"
+                )
+        except Exception:
+            pass
+        await self._ensure_session_context()
+        await self._load_known_sessions()
+        await self._update_context_display_async()
 
     @work(thread=True, group="hub_autoupdate", exclusive=True)
     def _maybe_hub_autoupdate(self) -> None:
@@ -390,7 +542,14 @@ class HolixCodeApp(App):
             pass
 
     def _on_agent_event(self, event: AgentEvent) -> None:
-        self._event_handler.handle(event)
+        # Only defer sub-agent IPC prompts — deferring all events breaks init/streaming.
+        from core.security.confirmation_events import ConfirmationRequestEvent
+        from core.subagents.interaction_events import SubAgentQuestionEvent
+
+        if isinstance(event, (ConfirmationRequestEvent, SubAgentQuestionEvent)):
+            self.call_later(0, self._event_handler.handle, event)
+        else:
+            self._event_handler.handle(event)
 
     async def _run_agent_task(self, user_input: str) -> None:
         if not self.agent:
@@ -430,18 +589,61 @@ class HolixCodeApp(App):
     # --- Input / send ---
 
     def action_send_message(self) -> None:
+        self._handle_prompt_enter(shift=False)
+
+    def _handle_prompt_enter(self, *, shift: bool) -> None:
         try:
+            if shift:
+                try:
+                    self.query_one("#input-area", CodePrompt).insert("\n")
+                except Exception:
+                    pass
+                return
+            if self._accept_prompt_history_selection():
+                return
+            if self._accept_slash_command_selection():
+                return
             prompt = self.query_one("#input-area", CodePrompt)
             message = prompt.text.strip()
             if not message:
                 return
+            self._record_prompt_history(message)
             prompt.clear()
             self._tab_matches = []
             self._hide_slash_suggestions()
+            self._hide_prompt_history()
             self.run_worker(self._send_message(message))
             self._restore_prompt_focus(delay=0.05)
         except Exception:
             pass
+
+    def _accept_prompt_history_selection(self) -> bool:
+        try:
+            history = self.query_one("#prompt-history", PromptHistorySuggestions)
+            if not history.is_open or not self._history_navigated or not history.entries:
+                if history.is_open:
+                    self._hide_prompt_history()
+                return False
+            self._insert_selected_prompt_history()
+            return True
+        except Exception:
+            return False
+
+    def _accept_slash_command_selection(self) -> bool:
+        try:
+            suggestions = self.query_one("#command-suggestions", SlashCommandSuggestions)
+            if not (
+                suggestions.is_open
+                and self._slash_suggestion_navigated
+                and suggestions.matches
+            ):
+                if suggestions.is_open:
+                    self._hide_slash_suggestions()
+                return False
+            self._insert_selected_slash_command()
+            return True
+        except Exception:
+            return False
 
     async def _send_message(self, message: str) -> None:
         if self._modals.plan_review.is_awaiting:
@@ -461,7 +663,12 @@ class HolixCodeApp(App):
 
         message = normalize_slash_input(message)
         if is_slash_command(message):
+            self.transcript_write(f"\n[bold]❯[/bold] {message}\n")
             await self._slash.handle(message)
+            return
+
+        if self._agent_init_state == "initializing":
+            self.transcript_write("[dim]still initializing — one moment…[/dim]")
             return
 
         self._last_user_message = message
@@ -491,35 +698,46 @@ class HolixCodeApp(App):
     def on_text_area_changed(self, event: TextArea.Changed) -> None:
         if event.text_area.id == "input-area":
             self._update_slash_suggestions(event.text_area.text)
+            self._hide_prompt_history()
 
     def on_text_area_key(self, event: events.Key) -> None:
         if event.key != "enter":
             return
         event.prevent_default()
         event.stop()
-        if event.shift:
-            try:
-                self.query_one("#input-area", CodePrompt).insert("\n")
-            except Exception:
-                pass
-            return
-        try:
-            suggestions = self.query_one("#command-suggestions", SlashCommandSuggestions)
-            if suggestions.is_open and (
-                self._slash_suggestion_navigated
-                and suggestions.highlighted_child is not None
-            ):
-                self._insert_selected_slash_command()
-                return
-            if suggestions.is_open:
-                self._hide_slash_suggestions()
-        except Exception:
-            pass
-        self.action_send_message()
+        self._handle_prompt_enter(shift=event.shift)
 
     def on_key(self, event: events.Key) -> None:
         if getattr(self.focused, "id", None) != "input-area":
             return
+
+        try:
+            history = self.query_one("#prompt-history", PromptHistorySuggestions)
+            if history.is_open:
+                if event.key == "up":
+                    history.action_cursor_up()
+                    self._history_navigated = True
+                    event.prevent_default()
+                    event.stop()
+                    return
+                if event.key == "down":
+                    history.action_cursor_down()
+                    self._history_navigated = True
+                    event.prevent_default()
+                    event.stop()
+                    return
+                if event.key == "escape":
+                    self._hide_prompt_history()
+                    event.prevent_default()
+                    event.stop()
+                    return
+                if event.key == "enter" and self._history_navigated:
+                    if self._accept_prompt_history_selection():
+                        event.prevent_default()
+                        event.stop()
+                        return
+        except Exception:
+            pass
 
         try:
             suggestions = self.query_one("#command-suggestions", SlashCommandSuggestions)
@@ -544,34 +762,55 @@ class HolixCodeApp(App):
         except Exception:
             pass
 
+        if event.key == "up":
+            try:
+                prompt = self.query_one("#input-area", CodePrompt)
+                if not prompt.text.strip():
+                    if self._show_prompt_history():
+                        event.prevent_default()
+                        event.stop()
+                        return
+            except Exception:
+                pass
+
         if event.key == "tab":
             self._tab_complete_slash()
             event.prevent_default()
             event.stop()
 
     def _slash_commands_pool(self) -> list[tuple[str, str]]:
-        from cli.shared.commands.registry import all_slash_commands
+        from core.i18n import LocaleStore
 
-        if self.config and getattr(self.config, "skills_dir", None):
-            slot = "main"
-            if self.agent and hasattr(self.agent, "agent_slot"):
-                slot = self.agent.agent_slot
-            assigns = getattr(self.config, "skill_assignments", None)
-            return all_slash_commands(
-                Path(self.config.skills_dir),
-                agent_slot=slot,
-                skill_assignments=assigns,
-            )
-        from cli.tui.code.handlers.slash import SLASH_COMMANDS
+        from cli.shared.commands.registry import slash_commands_for_locale
 
-        return SLASH_COMMANDS
+        return slash_commands_for_locale(LocaleStore(self.profile).get())
+
+    def _skill_invoke_pool(self) -> list[tuple[str, str]]:
+        if not self.config or not getattr(self.config, "skills_dir", None):
+            return []
+        from core.hub.slash_registry import skill_invoke_autocomplete_commands
+
+        slot = "main"
+        if self.agent and hasattr(self.agent, "agent_slot"):
+            slot = self.agent.agent_slot
+        assigns = getattr(self.config, "skill_assignments", None)
+        return skill_invoke_autocomplete_commands(
+            Path(self.config.skills_dir),
+            agent_slot=slot,
+            skill_assignments=assigns,
+        )
+
+    def _slash_matches_for_line(self, current_line: str) -> list[tuple[str, str]]:
+        if is_skill_invoke_line(current_line):
+            return match_skill_invoke_commands(current_line, self._skill_invoke_pool())
+        return match_slash_commands(current_line, self._slash_commands_pool())
 
     def _update_slash_suggestions(self, text: str) -> None:
         try:
             suggestions = self.query_one("#command-suggestions", SlashCommandSuggestions)
             lines = text.splitlines()
             current_line = lines[-1] if lines else ""
-            matches = match_slash_commands(current_line, self._slash_commands_pool())
+            matches = self._slash_matches_for_line(current_line)
             if not matches:
                 self._hide_slash_suggestions()
                 return
@@ -585,6 +824,57 @@ class HolixCodeApp(App):
         try:
             self.query_one("#command-suggestions", SlashCommandSuggestions).hide_dropdown()
             self._slash_suggestion_navigated = False
+        except Exception:
+            pass
+
+    def _record_prompt_history(self, message: str) -> None:
+        self._prompt_history_store.record(message)
+        self._save_ui_state()
+
+    def _show_prompt_history(self) -> bool:
+        entries = self._prompt_history_store.recent()
+        if not entries:
+            return False
+        try:
+            self._hide_slash_suggestions()
+            history = self.query_one("#prompt-history", PromptHistorySuggestions)
+            history.set_entries(entries)
+            history.show_dropdown()
+            self._history_navigated = True
+            if history.children:
+                history.index = 0
+            return True
+        except Exception:
+            return False
+
+    def _hide_prompt_history(self) -> None:
+        try:
+            self.query_one("#prompt-history", PromptHistorySuggestions).hide_dropdown()
+            self._history_navigated = False
+        except Exception:
+            pass
+
+    def _insert_selected_prompt_history(self) -> None:
+        try:
+            history = self.query_one("#prompt-history", PromptHistorySuggestions)
+            if not history.is_open or not history.entries:
+                return
+
+            index = history.index
+            if index is None or index < 0 or index >= len(history.entries):
+                highlighted = history.highlighted_child
+                if highlighted is not None:
+                    index = history.children.index(highlighted)
+                else:
+                    index = 0
+            text = history.entries[index]
+
+            prompt = self.query_one("#input-area", CodePrompt)
+            prompt.text = text
+            row = len(prompt.text.splitlines()) - 1
+            prompt.cursor_location = (max(0, row), len(prompt.text.splitlines()[-1]))
+            self._hide_prompt_history()
+            prompt.focus()
         except Exception:
             pass
 
@@ -625,8 +915,10 @@ class HolixCodeApp(App):
             from cli.tui.shared.slash_suggestions import match_slash_commands as _match
 
             line = prompt.text.splitlines()[-1] if prompt.text else ""
-            pool = self._slash_commands_pool()
-            matches = [c for c, _ in _match(line, commands=pool, limit=20)]
+            matches = [c for c, _ in self._slash_matches_for_line(line)]
+            if not matches:
+                pool = self._slash_commands_pool()
+                matches = [c for c, _ in _match(line, commands=pool, limit=20)]
             if not matches:
                 matches = [c for c, _ in pool if c.startswith(prefix)]
             if not matches:
@@ -682,7 +974,11 @@ class HolixCodeApp(App):
         try:
             hide_copy_bar(self)
             self.query_one("#transcript", CodeTranscript).clear()
+            self._reset_transcript_display_buffer()
+            self.clear_stream_display()
             self._transcript_store.clear()
+            if self.agent and getattr(self.agent, "context_manager", None):
+                self.agent.context_manager.invalidate_usage_cache(self.conversation_id)
             self._last_assistant_plain = None
             self._recent_tool_results.clear()
             self._active_tools.clear()
@@ -854,7 +1150,7 @@ class HolixCodeApp(App):
             self.workers.cancel_all()
         except Exception:
             pass
-        self._stream_buffer = ""
+        self.clear_stream_display()
         self._is_streaming = False
         self.set_thinking(None)
         self.transcript_write("[dim]stopped[/dim]")
@@ -909,8 +1205,13 @@ class HolixCodeApp(App):
                     0.0, "green", {"used": 0, "total": total, "percent": 0.0}
                 )
             else:
-                usage = agent.context_manager.get_usage(messages)
-                level = agent.context_manager.get_usage_level(messages)
+                conv_id = self.conversation_id
+                usage = agent.context_manager.get_usage(
+                    messages, conversation_id=conv_id
+                )
+                level = agent.context_manager.get_usage_level(
+                    messages, conversation_id=conv_id, usage=usage
+                )
                 color = color_map.get(level, "white")
                 used_str = TokenCounter.format_token_count(usage["used"])
                 total_str = TokenCounter.format_token_count(usage["total"])
@@ -1250,9 +1551,12 @@ class HolixCodeApp(App):
         self.conversation_id = new_id
         self.session_display_name = self._short_name(new_id)
         self.query_one("#transcript", CodeTranscript).clear()
+        self._reset_transcript_display_buffer()
         self._transcript_store.clear()
         self._last_assistant_plain = None
         self._recent_tool_results.clear()
+        if self.agent and getattr(self.agent, "context_manager", None):
+            self.agent.context_manager.invalidate_usage_cache()
         self.transcript_write(f"[dim]switched → {new_id}[/dim]\n")
         await self._load_conversation_history()
         await self._ensure_session_context()
@@ -1344,6 +1648,15 @@ class HolixCodeApp(App):
 
     # --- Scroll / focus ---
 
+    def _schedule_scroll_hint_update(self, *, delay_s: float = 0.15) -> None:
+        if self._scroll_hint_timer is not None:
+            return
+        self._scroll_hint_timer = self.set_timer(delay_s, self._flush_scroll_hint)
+
+    def _flush_scroll_hint(self) -> None:
+        self._scroll_hint_timer = None
+        self._update_scroll_hint()
+
     def _update_scroll_hint(self) -> None:
         try:
             log = self.query_one("#transcript", CodeTranscript)
@@ -1390,15 +1703,10 @@ class HolixCodeApp(App):
 
 
 def run_tui(profile: str = "default") -> None:
-    """Launch strict code-style TUI (default for holix tui)."""
-    import os
+    """Launch the Holix code-style TUI (`holix tui`)."""
+    from core.platform_compat import ensure_multiprocessing_support
 
-    if os.environ.get("HOLIX_TUI_LEGACY", "").strip() in ("1", "true", "yes"):
-        from cli.tui.legacy.app import run_tui_legacy
-
-        run_tui_legacy(profile=profile)
-        return
-
+    ensure_multiprocessing_support()
     config = init_profile(profile)
     HolixCodeApp(profile=profile, config=config).run()
 

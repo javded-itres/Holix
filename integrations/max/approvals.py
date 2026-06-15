@@ -78,6 +78,7 @@ class MaxApprovals:
         await self.dismiss_plan_review_ui()
         self._pending_review_id = event.review_id
         self._session.pending_plan_review_id = event.review_id
+        self._session.pending_plan_phase = getattr(event, "phase", "approval") or "approval"
         token = _register_callback_token(
             self._session.plan_callback_tokens,
             event.review_id,
@@ -102,8 +103,13 @@ class MaxApprovals:
         from core.i18n.messages import t
 
         lang = LocaleStore(self._session.profile).get()
+        hint_key = (
+            "plan.clarify.hint"
+            if self._session.pending_plan_phase == "clarification"
+            else "plan.refine_hint"
+        )
         hint_payload = await self._client.send_message(
-            plain_to_max_html(t("plan.refine_hint", lang)),
+            plain_to_max_html(t(hint_key, lang)),
             fmt="html",
             **reply,
         )
@@ -223,6 +229,7 @@ class MaxApprovals:
             "auto": PlanReviewChoice.AUTO_EXECUTE,
             "refine": PlanReviewChoice.REFINE,
             "reject": PlanReviewChoice.REJECT,
+            "proceed": PlanReviewChoice.PROCEED_ASSUMPTIONS,
         }
         choice = action_map.get(action)
         if choice is None:
@@ -252,12 +259,16 @@ class MaxApprovals:
     def resolve_plan_text(self, message: str) -> bool:
         if not self._session.pending_plan_review_id:
             return False
-        choice, feedback = _parse_plan_text(message)
+        choice, feedback = _parse_plan_text(
+            message,
+            phase=getattr(self._session, "pending_plan_phase", "approval"),
+        )
         action = {
             PlanReviewChoice.CONFIRM_STEP: "confirm",
             PlanReviewChoice.AUTO_EXECUTE: "auto",
             PlanReviewChoice.REFINE: "refine",
             PlanReviewChoice.REJECT: "reject",
+            PlanReviewChoice.PROCEED_ASSUMPTIONS: "proceed",
         }[choice]
         return self.resolve_plan_callback(
             self._session.pending_plan_review_id,
@@ -266,19 +277,11 @@ class MaxApprovals:
         )
 
 
-def _parse_plan_text(text: str) -> tuple[PlanReviewChoice, str]:
-    text_stripped = text.strip()
-    text_clean = text_stripped.lower().rstrip("!.,;:?!")
-    confirm_words = {
-        "да", "yes", "ок", "ok", "confirm", "выполняй", "давай",
-        "согласен", "подтверждаю", "запускай", "go", "поехали",
-    }
-    reject_words = {"нет", "no", "отмена", "cancel", "reject", "стоп", "stop"}
-    if text_clean in confirm_words:
-        return PlanReviewChoice.AUTO_EXECUTE, ""
-    if text_clean in reject_words:
-        return PlanReviewChoice.REJECT, ""
-    return PlanReviewChoice.REFINE, text_stripped
+def _parse_plan_text(text: str, *, phase: str = "approval") -> tuple[PlanReviewChoice, str]:
+    from core.plan_review.clarification import parse_plan_review_response
+
+    choice_value, feedback = parse_plan_review_response(text, phase=phase)
+    return PlanReviewChoice(choice_value), feedback
 
 
 def _format_confirmation_args(tool_name: str, args: dict) -> str:

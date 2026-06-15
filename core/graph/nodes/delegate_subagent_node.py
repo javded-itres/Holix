@@ -51,7 +51,9 @@ async def delegate_subagent_node(
         return {}
 
     cfg = getattr(agent, "config", None)
-    if not cfg or not getattr(cfg, "enable_subagents", False):
+    from core.config_utils import is_subagents_enabled
+
+    if not is_subagents_enabled(cfg):
         return {}
 
     orchestration = _resolve_orchestration(

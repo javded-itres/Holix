@@ -40,6 +40,7 @@ class SubAgentConfig:
     """
 
     name: str                                    # Unique name (e.g., "researcher")
+    agent_type: str = ""                         # Registry type (researcher, coder, …)
     system_prompt: str = ""                      # Specialized system prompt
     model: str = ""                              # Model override (empty = inherit from parent)
     tools: list[str] = field(default_factory=list)  # Subset of tool names
@@ -108,6 +109,7 @@ class SubAgentHandle:
     process_id: int | None = None             # OS PID for process-mode agents
     task_preview: str = ""                       # Short task description for UI
     agent_type: str = ""                         # Registry type (researcher, coder, …)
+    spawn_fallback_reason: str = ""              # Set when OS-process spawn fell back to async
     done_event: Any = field(default=None, repr=False)  # asyncio.Event set on completion
 
     @property

@@ -90,21 +90,24 @@ class MCPManager:
         This helps with slow first-time npx/uvx downloads and auth for servers like context7.
         """
         names = list(server_names) if server_names is not None else list(self._configs.keys())
-        results: dict[str, bool] = {}
-        for name in names:
+        if not names:
+            return {}
+
+        async def _wait_one(name: str) -> tuple[str, bool]:
             ev = self._ready_events.get(name)
             if ev is None:
                 ev = asyncio.Event()
                 self._ready_events[name] = ev
             if ev.is_set():
-                results[name] = name not in self._last_errors
-                continue
+                return name, name not in self._last_errors
             try:
                 await asyncio.wait_for(ev.wait(), timeout=timeout)
-                results[name] = name not in self._last_errors
+                return name, name not in self._last_errors
             except TimeoutError:
-                results[name] = False
-        return results
+                return name, False
+
+        pairs = await asyncio.gather(*(_wait_one(name) for name in names))
+        return dict(pairs)
 
     async def _keep_server(self, name: str, cfg: MCPServerConfig) -> None:
         """Dedicated task that owns the lifetime of one MCP connection."""

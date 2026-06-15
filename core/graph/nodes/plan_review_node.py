@@ -95,13 +95,16 @@ async def plan_review_node(state: HolixGraphState, config: RunnableConfig) -> di
     ui_locale = LocaleStore(profile_name).get()
 
     # Build rendered Markdown for in-chat display
+    plan_reasoning = state.get("plan_reasoning") or _extract_reasoning(plan_steps)
+
     rendered_markdown = build_plan_markdown(
         plan_steps=plan_steps,
         step_count=len(plan_steps),
-        reasoning=_extract_reasoning(plan_steps),
+        reasoning=plan_reasoning,
         user_input=user_input,
         analysis=state.get("plan_analysis"),
         architecture=state.get("plan_architecture"),
+        plan_report=state.get("plan_report"),
         locale=ui_locale,
     )
 
@@ -109,7 +112,7 @@ async def plan_review_node(state: HolixGraphState, config: RunnableConfig) -> di
     choice, feedback = await guard.request_review(
         plan_steps=plan_steps,
         conversation_id=conversation_id,
-        reasoning=_extract_reasoning(plan_steps),
+        reasoning=plan_reasoning,
         user_input=user_input,
         analysis=state.get("plan_analysis"),
         architecture=state.get("plan_architecture"),
@@ -125,19 +128,28 @@ async def plan_review_node(state: HolixGraphState, config: RunnableConfig) -> di
         ))
 
     # Route based on choice
+    save_kwargs = {
+        "plan_steps": plan_steps,
+        "conversation_id": conversation_id,
+        "analysis": state.get("plan_analysis"),
+        "architecture": state.get("plan_architecture"),
+        "plan_report": state.get("plan_report"),
+        "plan_reasoning": plan_reasoning,
+        "user_input": user_input,
+        "plan_id": state.get("plan_id", ""),
+        "rendered_markdown": rendered_markdown,
+        "config": getattr(agent, "config", None) if agent else None,
+    }
+
     if choice == PlanReviewChoice.CONFIRM_STEP:
         # Save the plan, proceed step-by-step
-        _save_plan_if_possible(plan_steps, conversation_id, "confirmed",
-                               analysis=state.get("plan_analysis"),
-                               architecture=state.get("plan_architecture"))
+        _save_plan_if_possible(status="confirmed", **save_kwargs)
         logger.info(f"Plan review: confirmed (step-by-step), {len(plan_steps)} steps")
         return {"plan_status": "confirmed"}
 
     elif choice == PlanReviewChoice.AUTO_EXECUTE:
         # Save the plan, execute all steps automatically
-        _save_plan_if_possible(plan_steps, conversation_id, "auto_execute",
-                               analysis=state.get("plan_analysis"),
-                               architecture=state.get("plan_architecture"))
+        _save_plan_if_possible(status="auto_execute", **save_kwargs)
         logger.info(f"Plan review: auto-execute, {len(plan_steps)} steps")
         return {"plan_status": "auto_execute"}
 
@@ -170,15 +182,37 @@ def _extract_reasoning(plan_steps: list) -> str:
     return "; ".join(descriptions) if descriptions else ""
 
 
-def _save_plan_if_possible(plan_steps: list, conversation_id: str, status: str,
-                            analysis: dict = None, architecture: dict = None) -> None:
-    """Save the plan to disk if plan_storage is available."""
+def _save_plan_if_possible(
+    *,
+    plan_steps: list,
+    conversation_id: str,
+    status: str,
+    analysis: dict | None = None,
+    architecture: dict | None = None,
+    plan_report: dict | None = None,
+    plan_reasoning: str = "",
+    user_input: str = "",
+    plan_id: str = "",
+    rendered_markdown: str = "",
+    config=None,
+) -> None:
+    """Save the confirmed plan to `.holix/plans/` in the current project."""
     try:
         from core.plan_review.plan_storage import save_plan
-        save_plan(plan_steps, conversation_id,
-                  metadata={"review_status": status},
-                  plan_status=status,
-                  analysis=analysis,
-                  architecture=architecture)
+
+        save_plan(
+            plan_steps,
+            conversation_id,
+            metadata={"review_status": status},
+            plan_status=status,
+            analysis=analysis,
+            architecture=architecture,
+            plan_report=plan_report,
+            plan_reasoning=plan_reasoning,
+            user_input=user_input,
+            plan_id=plan_id,
+            rendered_markdown=rendered_markdown,
+            config=config,
+        )
     except Exception as e:
         logger.warning(f"Failed to save plan: {e}")

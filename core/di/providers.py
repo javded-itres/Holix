@@ -5,6 +5,7 @@ from openai import AsyncOpenAI
 
 from core.agent_events import AgentEventBus
 from core.di.runtime_config import HolixRuntimeConfig
+from core.models.client_factory import create_openai_client
 
 
 class ConfigProvider(Provider):
@@ -25,7 +26,11 @@ class InfrastructureProvider(Provider):
 
     @provide(scope=Scope.APP)
     def llm_client(self, config: HolixRuntimeConfig) -> AsyncOpenAI:
-        return AsyncOpenAI(base_url=config.base_url, api_key=config.api_key)
+        return create_openai_client(
+            base_url=config.base_url,
+            api_key=config.api_key,
+            metadata=config.provider_metadata or None,
+        )
 
 
 class AgentDepsProvider(Provider):

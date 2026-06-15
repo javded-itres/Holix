@@ -27,7 +27,7 @@ _BASE_COMMANDS_REGISTERED = False
 _HEAVY_COMMANDS_REGISTERED = False
 
 # Commands that pull chromadb/numpy via HolixAgent or SkillsManager.
-_HEAVY_ROOT_COMMANDS = frozenset({"chat", "run", "tui", "skills", "memory"})
+_HEAVY_ROOT_COMMANDS = frozenset({"chat", "run", "tui", "skills", "memory", "subagent"})
 
 
 def _needs_heavy_commands(argv: list[str]) -> bool:
@@ -58,6 +58,7 @@ def _register_base_commands() -> None:
     from cli.commands.docs import app as docs_app
     from cli.commands.hub import app as hub_app
     from cli.commands.install_cmd import app as install_app
+    from cli.commands.launch import app as launch_app
     from cli.commands.logs import app as logs_app
     from cli.commands.max import register_max_command
     from cli.commands.mcp import app as mcp_app
@@ -81,6 +82,7 @@ def _register_base_commands() -> None:
     app.add_typer(bootstrap_app, name="bootstrap")
     app.add_typer(update_app, name="update")
     app.add_typer(docs_app, name="docs")
+    app.add_typer(launch_app, name="launch")
     _BASE_COMMANDS_REGISTERED = True
 
 
@@ -91,9 +93,11 @@ def _register_heavy_commands() -> None:
         return
 
     from cli.commands import memory, skills
+    from cli.commands.subagent import app as subagent_app
 
     app.add_typer(skills.app, name="skills")
     app.add_typer(memory.app, name="memory")
+    app.add_typer(subagent_app, name="subagent")
     _HEAVY_COMMANDS_REGISTERED = True
 
 
@@ -176,6 +180,12 @@ def chat_command(
     model: str | None = typer.Option(None, "--model", "-m", help="Override model"),
     temperature: float | None = typer.Option(None, "--temperature", "-t", help="Override temperature"),
     max_steps: int | None = typer.Option(None, "--max-steps", help="Override max steps"),
+    exec_command: str | None = typer.Option(
+        None,
+        "--exec",
+        "-e",
+        help="Run one slash command and exit (e.g. /subagent-spawn writer hello)",
+    ),
 ):
     """Start interactive chat session.
 
@@ -186,6 +196,11 @@ def chat_command(
     - /profile <name> - Switch profile
     - /skills - Show skills
     - /memory <query> - Search memory
+    - /subagent-spawn <type> <task> - Spawn background sub-agent
+    - /subagents - List running sub-agents and pending questions
+    - /subagent-result <job_id> - Show sub-agent result
+    - /subagent-reply <job_id> <answer> - Answer sub-agent ask_user prompt
+    - /1-/4 - Approve or deny sub-agent tool confirmations
     - /exit - Exit chat
     """
     import asyncio
@@ -202,6 +217,14 @@ def chat_command(
         config.max_steps = max_steps
 
     from cli.commands import chat
+    from cli.utils.rich_console import print_error
+
+    if exec_command:
+        handled = asyncio.run(chat.run_one_command(profile, config, exec_command))
+        if not handled:
+            print_error(f"Unknown or unsupported command: {exec_command}")
+            raise typer.Exit(1)
+        return
 
     asyncio.run(chat.run_interactive_chat(profile, config))
 

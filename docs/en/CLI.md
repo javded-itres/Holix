@@ -44,6 +44,7 @@ holix --help
 | `doctor` | Diagnostics and `--fix` |
 | `mcp` | Model Context Protocol servers |
 | `hub` | External skill catalogs |
+| `launch` | External coding CLIs in tmux (Claude Code, OpenCode, Grok Build, …) |
 | `install` | Put `holix` on PATH (from repo) |
 | `update` | Update installation |
 
@@ -90,7 +91,7 @@ holix run "Fix the test" -m smart -c my_conversation_id
 
 ## `holix tui`
 
-Code-style terminal UI (default). Legacy dashboard: `HOLIX_TUI_LEGACY=1 holix tui`.
+Code-style terminal UI.
 
 ```bash
 holix tui
@@ -222,7 +223,7 @@ holix config edit
 holix config set max_steps 25
 ```
 
-Project supplements: `./.holix/skills`, `./.holix/plan`, local `config.yaml` merge (system keys ignored). See [CONFIGURATION.md](CONFIGURATION.md).
+Project supplements: `./.holix/skills`, `./.holix/plans`, local `config.yaml` merge (system keys ignored). See [CONFIGURATION.md](CONFIGURATION.md).
 
 ---
 
@@ -627,6 +628,40 @@ See [MAX.md](MAX.md).
 
 ---
 
+## `holix launch`
+
+Launch external coding agents in **tmux** with models from the active Holix profile. **Linux and macOS only.**
+
+Full guide: **[LAUNCH.md](LAUNCH.md)**.
+
+| Subcommand | Description |
+|------------|-------------|
+| `setup` | Interactive install and per-profile CLI bindings |
+| `list` | Supported CLIs and binding status |
+| `sessions` | Holix-managed tmux sessions |
+| `tmux` | All tmux sessions on the host |
+| `attach` | Attach to session by id or tmux name |
+| `send` | Send prompt to running session |
+| `chat` | Interactive relay (text + arrow keys) |
+| `output` | Capture pane output |
+| `kill` | Stop session |
+| `<cli_id>` | Open agent (`claude`, `opencode`, `grok-build`, `gigacode`, `aider`) |
+| `<cli_id> status` | Binding, model, env, active sessions |
+
+```bash
+holix launch setup
+holix launch claude
+holix launch opencode -t "fix tests" --detach
+holix launch grok-build status
+holix launch chat <session_id>
+```
+
+Per-agent options: `--cwd`, `--task` / `-t`, `--model-slot`, `--detach`, `--new`, `--window`, `--session`.
+
+Supported CLIs and model mapping (OpenCode `OPENCODE_CONFIG`, Grok `GROK_HOME`, Claude gateway env): see [LAUNCH.md](LAUNCH.md).
+
+---
+
 ## Profiles
 
 | Path | Content |
@@ -642,6 +677,9 @@ See [MAX.md](MAX.md).
 | `.../data/memory/` | SQLite + ChromaDB |
 | `.../data/skills/` | Skill files and hub bundles |
 | `.../data/security/` | API keys DB (if used) |
+| `.../external_clis/` | External CLI bindings and launch sessions |
+| `.../opencode/opencode.json` | Generated OpenCode provider config |
+| `.../grok/config.toml` | Generated Grok Build model config |
 
 Switch per invocation:
 
@@ -666,6 +704,7 @@ In TUI: `/profile <name>` or `/profile N`.
 | New machine | `holix install` → `holix doctor` → `holix models setup` |
 | Skills from web | `holix hub browse` |
 | MCP tools | `holix mcp setup` |
+| External coding CLI | `holix launch setup` → `holix launch claude` |
 
 ---
 
@@ -677,3 +716,4 @@ In TUI: `/profile <name>` or `/profile N`.
 - [LOGS.md](LOGS.md) — logging and `holix logs`
 - [TUI.md](TUI.md) — terminal UI
 - [HUB.md](HUB.md) — skill catalogs
+- [LAUNCH.md](LAUNCH.md) — external coding CLIs in tmux

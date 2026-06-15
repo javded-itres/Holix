@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
+from core.plan_review.clarification import parse_plan_review_response
 from core.plan_review.review_events import PlanReviewRequestEvent
 from core.plan_review.review_guard import PlanReviewChoice, get_plan_review_guard
 
@@ -19,12 +20,14 @@ class PlanReviewPresenter:
         self._stack = stack
         self._guard_reference: Any | None = None
         self._pending_review_id: str | None = None
+        self._phase: str = "approval"
 
     @property
     def is_awaiting(self) -> bool:
         return self._stack.active_kind == "plan_review"
 
     def show(self, event: PlanReviewRequestEvent) -> None:
+        self._phase = getattr(event, "phase", "approval") or "approval"
         try:
             from rich.markdown import Markdown
 
@@ -41,52 +44,51 @@ class PlanReviewPresenter:
                 f"{event.step_count} steps proposed.\n"
             )
 
-        complexity = ""
-        analysis = getattr(event, "analysis", None) or {}
-        if analysis:
-            complexity = f" (complexity: {analysis.get('complexity', '?')})"
+        if self._phase == "clarification":
+            self.app._append_to_log(
+                "\n[bold yellow]❓ Нужны уточнения перед планом[/bold yellow]\n"
+                "[dim]Ответьте на вопросы выше. Можно «продолжай с допущениями», "
+                "если хотите план без ответов, или «нет» для отмены.[/dim]\n"
+            )
+        else:
+            complexity = ""
+            analysis = getattr(event, "analysis", None) or {}
+            if analysis:
+                complexity = f" (complexity: {analysis.get('complexity', '?')})"
 
-        self.app._append_to_log(
-            f"\n[bold yellow]⚠ Подтверждаешь план?{complexity}[/bold yellow]\n"
-            "[dim]Напиши '[bold]да[/bold]' для выполнения, '[bold]нет[/bold]' для отмены, "
-            "или опиши что нужно изменить.[/dim]\n"
-        )
+            self.app._append_to_log(
+                f"\n[bold yellow]⚠ Подтверждаешь план?{complexity}[/bold yellow]\n"
+                "[dim]Напиши '[bold]да[/bold]' для выполнения, '[bold]нет[/bold]' для отмены, "
+                "или опиши что нужно изменить.[/dim]\n"
+            )
 
         self._stack.set_active("plan_review")
         self._pending_review_id = event.review_id
         self._guard_reference = get_plan_review_guard()
+        status = "Awaiting clarification" if self._phase == "clarification" else "Awaiting plan review"
         if hasattr(self.app, "set_status_line"):
-            self.app.set_status_line("Awaiting plan review")
+            self.app.set_status_line(status)
         elif hasattr(self.app, "_set_status"):
-            self.app._set_status("Awaiting plan review", "yellow")
+            self.app._set_status(status, "yellow")
 
     def parse_response(self, text: str) -> tuple[PlanReviewChoice, str]:
-        text_stripped = text.strip()
-        text_clean = text_stripped.lower().rstrip("!.,;:?!")
-
-        confirm_words = {
-            "да", "yes", "ок", "ok", "confirm", "выполняй", "давай",
-            "согласен", "подтверждаю", "запускай", "окей", "ладно",
-            "хорошо", "угу", "ага", "go", "exec", "поехали",
-        }
-        reject_words = {
-            "нет", "no", "отмена", "cancel", "reject", "отклоняю",
-            "стоп", "stop", "abort",
-        }
-
-        if text_clean in confirm_words:
-            return PlanReviewChoice.AUTO_EXECUTE, ""
-        if text_clean in reject_words:
-            return PlanReviewChoice.REJECT, ""
-        return PlanReviewChoice.REFINE, text_stripped
+        choice_value, feedback = parse_plan_review_response(text, phase=self._phase)
+        return PlanReviewChoice(choice_value), feedback
 
     def handle_text_response(self, message: str) -> None:
         choice, feedback = self.parse_response(message)
-        labels = {
-            PlanReviewChoice.AUTO_EXECUTE: "✅ Подтверждено — выполняю план",
-            PlanReviewChoice.REJECT: "❌ План отклонён",
-            PlanReviewChoice.REFINE: "✏️ Уточняю план",
-        }
+        if self._phase == "clarification":
+            labels = {
+                PlanReviewChoice.REFINE: "📝 Ответы приняты — обновляю план",
+                PlanReviewChoice.REJECT: "❌ Планирование отменено",
+                PlanReviewChoice.PROCEED_ASSUMPTIONS: "⏭ Продолжаю с допущениями",
+            }
+        else:
+            labels = {
+                PlanReviewChoice.AUTO_EXECUTE: "✅ Подтверждено — выполняю план",
+                PlanReviewChoice.REJECT: "❌ План отклонён",
+                PlanReviewChoice.REFINE: "✏️ Уточняю план",
+            }
         self.app._append_to_log(f"\n[bold]{labels.get(choice, 'Resolved')}[/bold]\n")
         if feedback and choice == PlanReviewChoice.REFINE:
             self.app._append_to_log(f"[dim]Feedback: {feedback[:200]}[/dim]\n")
@@ -110,6 +112,7 @@ class PlanReviewPresenter:
             PlanReviewChoice.AUTO_EXECUTE: "auto-execute",
             PlanReviewChoice.REFINE: "refine plan",
             PlanReviewChoice.REJECT: "rejected",
+            PlanReviewChoice.PROCEED_ASSUMPTIONS: "proceed with assumptions",
         }
 
         if success:
@@ -133,3 +136,4 @@ class PlanReviewPresenter:
     def clear_awaiting(self) -> None:
         self._stack.set_active(None)
         self._pending_review_id = None
+        self._phase = "approval"

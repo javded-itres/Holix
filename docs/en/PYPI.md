@@ -37,7 +37,7 @@ Update `PYPI_PACKAGE` in `cli/installer/update.py` if the distribution name chan
 2. **Trusted publishing** (recommended) or **API token**
    - Token: Account → API tokens → scope `Holix` (after first upload) or entire account for first release
 3. **Unique name** — confirm `Holix` is free: `curl -s https://pypi.org/pypi/Holix/json | head`
-4. **Version** — bump in `pyproject.toml` and `cli/__init__.py` together
+4. **Version** — set manually in `pyproject.toml` and `cli/__init__.py` together (no automatic bump on `uv build`)
 5. **Python 3.12+** — reflected in `requires-python`
 
 ## What is already configured
@@ -56,7 +56,7 @@ Update `PYPI_PACKAGE` in `cli/installer/update.py` if the distribution name chan
 ```bash
 uv sync --group dev
 rm -rf dist
-HOLIX_NO_VERSION_BUMP=1 uv build --no-sources
+uv build --no-sources
 ls -la dist/
 # holix-0.1.0-py3-none-any.whl
 # holix-0.1.0.tar.gz

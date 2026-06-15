@@ -927,7 +927,9 @@ class TelegramInteractive:
         subagents = "—"
         if self._host.agent:
             cfg = getattr(self._host.agent, "config", None)
-            if cfg and getattr(cfg, "enable_subagents", False):
+            from core.config_utils import is_subagents_enabled
+
+            if is_subagents_enabled(cfg):
                 subagents = "вкл"
             else:
                 subagents = "выкл"

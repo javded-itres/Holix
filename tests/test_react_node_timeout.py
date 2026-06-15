@@ -8,6 +8,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 from core.graph.nodes.react_node import _DEFAULT_LLM_STEP_TIMEOUT_S, _llm_step_timeout_s, react_node
+from core.llm.step_timeout import LLMStepTimeoutError, llm_step_timeout_message
 
 
 @pytest.mark.asyncio
@@ -25,7 +26,7 @@ async def test_react_node_streaming_timeout_emits_final_error() -> None:
     agent.model = "slow-model"
     agent.tools.get_schemas.return_value = []
     agent.config = SimpleNamespace(
-        subagent_process_timeout=0.05,
+        llm_step_timeout=0.05,
         profile_name="default",
     )
     agent.model_manager = None
@@ -55,3 +56,50 @@ async def test_react_node_streaming_timeout_emits_final_error() -> None:
 
 def test_llm_step_timeout_default() -> None:
     assert _llm_step_timeout_s(None) == _DEFAULT_LLM_STEP_TIMEOUT_S
+
+
+@pytest.mark.asyncio
+async def test_react_node_reasoning_only_abort_emits_final_error() -> None:
+    from core.graph.nodes import react_node as rn
+
+    agent = MagicMock()
+    agent.client = MagicMock()
+    agent.model = "coder"
+    agent.tools.get_schemas.return_value = []
+    agent.config = SimpleNamespace(
+        llm_step_timeout=300,
+        profile_name="default",
+    )
+    agent.model_manager = None
+    agent.context_manager = None
+    agent.emit = MagicMock()
+
+    async def _boom(*_args, **_kwargs):
+        raise LLMStepTimeoutError(
+            llm_step_timeout_message(90, model="coder", reasoning_only=True)
+        )
+
+    orig = rn._react_streaming
+    rn._react_streaming = _boom
+    try:
+        result = await react_node(
+            {
+                "step_count": 0,
+                "conversation_id": "test",
+                "stream": True,
+                "messages": [],
+            },
+            {"configurable": {"_agent": agent}},
+        )
+    finally:
+        rn._react_streaming = orig
+
+    assert result is not None
+    assert result["is_final"] is True
+    assert "внутренние рассуждения" in result["final_response"]
+    final_events = [
+        call.args[0]
+        for call in agent.emit.call_args_list
+        if call.args and call.args[0].__class__.__name__ == "FinalResponseEvent"
+    ]
+    assert final_events

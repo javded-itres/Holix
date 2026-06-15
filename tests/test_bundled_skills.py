@@ -1,4 +1,4 @@
-"""Bundled default skills (holix-cron)."""
+"""Bundled default skills (holix-cron, holix-subagents)."""
 
 from __future__ import annotations
 
@@ -22,11 +22,24 @@ def test_bundled_holix_cron_skill_exists():
     assert "/cron add" in parsed["content"]
 
 
+def test_bundled_holix_subagents_skill_exists():
+    skill_md = bundled_skills_root() / "holix-subagents" / "SKILL.md"
+    assert skill_md.is_file()
+    parsed = parse_skill_file(skill_md)
+    assert parsed is not None
+    assert parsed["name"] == "holix-subagents"
+    assert "delegate_to_subagent" in parsed["content"]
+    assert "/subagent-reply" in parsed["content"]
+    assert "holix launch" in parsed["content"]
+
+
 def test_seed_bundled_skills(tmp_path: Path):
     dest = tmp_path / "skills"
     first = seed_bundled_skills(dest)
     assert "holix-cron" in first
+    assert "holix-subagents" in first
     assert (dest / "holix-cron.md").is_file()
+    assert (dest / "holix-subagents.md").is_file()
 
     second = seed_bundled_skills(dest)
     assert second == []
@@ -38,5 +51,7 @@ def test_seed_bundled_skills(tmp_path: Path):
 def test_ensure_bundled_assigned_to_main():
     assigns, added = ensure_bundled_assigned_to_main({"main": ["docker-manager"]})
     assert "holix-cron" in added
+    assert "holix-subagents" in added
     assert "holix-cron" in assigns["main"]
+    assert "holix-subagents" in assigns["main"]
     assert "docker-manager" in assigns["main"]

@@ -71,6 +71,19 @@ def test_process_subagents_not_supported_on_windows(monkeypatch: pytest.MonkeyPa
     assert pc.process_subagents_supported() is False
 
 
+def test_prefer_async_subagents_when_piped(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(pc.sys.stdin, "isatty", lambda: False)
+    monkeypatch.setattr(pc.sys.stdout, "isatty", lambda: True)
+    assert pc.prefer_async_subagents() is True
+
+
+def test_prefer_async_subagents_env_override(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("HOLIX_SUBAGENT_PROCESS", "1")
+    monkeypatch.setattr(pc.sys.stdin, "isatty", lambda: False)
+    monkeypatch.setattr(pc.sys.stdout, "isatty", lambda: False)
+    assert pc.prefer_async_subagents() is False
+
+
 def test_ensure_multiprocessing_support_calls_freeze_support() -> None:
     with patch("multiprocessing.freeze_support") as mock_fs:
         pc.ensure_multiprocessing_support()

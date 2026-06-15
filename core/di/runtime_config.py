@@ -29,6 +29,7 @@ class HolixRuntimeConfig:
 
     # Agent
     max_steps: int
+    llm_step_timeout: float
     data_dir: str
     context_window: int
 
@@ -63,6 +64,7 @@ class HolixRuntimeConfig:
     max_steps_per_plan_step: int
     plan_generation_timeout: float
     plan_generation_retries: int
+    plan_generation_max_tokens: int
 
     # Memory / skills paths
     memory_db_path: str
@@ -113,6 +115,7 @@ class HolixRuntimeConfig:
             api_key=s.api_key,
             temperature=s.temperature,
             max_steps=s.max_steps,
+            llm_step_timeout=s.llm_step_timeout,
             data_dir=s.data_dir,
             context_window=s.context_window,
             use_langgraph=s.use_langgraph,
@@ -137,6 +140,7 @@ class HolixRuntimeConfig:
             max_steps_per_plan_step=s.max_steps_per_plan_step,
             plan_generation_timeout=s.plan_generation_timeout,
             plan_generation_retries=s.plan_generation_retries,
+            plan_generation_max_tokens=s.plan_generation_max_tokens,
             memory_db_path=s.memory_db_path,
             vector_db_path=s.vector_db_path,
             memory_chroma_collection="memory",

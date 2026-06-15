@@ -476,7 +476,7 @@ Holix supports four execution modes in TUI and Telegram:
 | **Hybrid** | `hybrid` | Large tasks: plan first, flexible work per step |
 | **Auto** | `auto` | Holix picks the best mode via a classifier |
 
-Switch with **`/mode`**, **`/mode <name>`**, or **Shift+Tab** (legacy TUI). Plan modes use `/plan-confirm`, `/plan-auto`, `/plan-refine`, `/plan-reject`. Risky tools use `/yes`, `/1`–`/4`.
+Switch with **`/mode`** or **`/mode <name>`**. Plan modes use `/plan-confirm`, `/plan-auto`, `/plan-refine`, `/plan-reject`. Risky tools use `/yes`, `/1`–`/4`.
 
 **Full guide with diagrams, behaviour, settings, and prompt examples:** [EXECUTION_MODES.md](EXECUTION_MODES.md).
 

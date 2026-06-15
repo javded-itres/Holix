@@ -97,6 +97,15 @@ def test_resolve_api_key_from_env(monkeypatch: pytest.MonkeyPatch):
     assert resolve_provider_api_key("${DEEPSEEK_API_KEY}") == "sk-test"
 
 
+def test_litellm_empty_key_does_not_fallback_to_ollama() -> None:
+    assert resolve_provider_api_key("", preset_id="litellm") == ""
+    assert resolve_provider_api_key("dummy", preset_id="litellm") == ""
+
+
+def test_ollama_empty_key_still_uses_local_placeholder() -> None:
+    assert resolve_provider_api_key("", preset_id="ollama") == "ollama"
+
+
 def test_resolve_ssl_metadata_extra_no_verify():
     assert resolve_ssl_metadata_extra(no_verify_ssl=True) == {"verify_ssl": False}
     assert resolve_ssl_metadata_extra(

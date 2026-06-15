@@ -70,3 +70,4 @@ def test_prompt_includes_russian_instruction(tmp_path: Path, monkeypatch: pytest
     )
     assert "только на русском" in prompt.lower()
     assert "/lang ru" in prompt.lower()
+    assert prompt.strip().startswith("## Язык")

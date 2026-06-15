@@ -5,10 +5,10 @@ from __future__ import annotations
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
+from core.direct_dispatch import is_status_request
 from integrations.max.tool_dispatch import (
     _extract_search_topic,
     _extract_web_search_query,
-    _is_status_request,
     _needs_analysis,
     _split_search_and_analysis,
     try_direct_tool_dispatch,
@@ -37,8 +37,8 @@ def test_repeat_search_marker() -> None:
 
 
 def test_status_request_detected() -> None:
-    assert _is_status_request("Покажи полный статус системы")
-    assert _is_status_request("Какой статус задачи?")
+    assert is_status_request("Покажи полный статус системы")
+    assert is_status_request("Какой статус задачи?")
 
 
 def test_analysis_request_splits_search_topic() -> None:

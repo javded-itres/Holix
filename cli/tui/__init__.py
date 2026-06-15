@@ -1,8 +1,7 @@
 """
 Holix Textual TUI package.
 
-Default: strict code-style UI (`holix tui`).
-Legacy dashboard: `HOLIX_TUI_LEGACY=1 holix tui`.
+Entry: code-style UI (`holix tui`).
 """
 
 from __future__ import annotations

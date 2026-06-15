@@ -11,6 +11,8 @@ Provides ready-to-use sub-agent types for common tasks:
 
 from core.subagents.base import SubAgentConfig
 
+_BUILTIN_NAMES: frozenset[str] | None = None
+
 PREDEFINED_SUBAGENTS = {
     "researcher": SubAgentConfig(
         name="researcher",
@@ -43,7 +45,6 @@ PREDEFINED_SUBAGENTS = {
             "- ALWAYS generate multiple query variants before searching.\n"
             "- Cite sources with URLs in your final answer.\n"
             "- If results conflict, present different viewpoints.\n"
-            "- Return the synthesis in Russian unless the query is in English.\n"
             "- Do NOT delegate further — you are the final research node."
         ),
         tools=["web_search", "web_fetch"],
@@ -122,27 +123,21 @@ PREDEFINED_SUBAGENTS = {
 }
 
 
-def get_subagent_config(name: str) -> SubAgentConfig:
-    """Get a predefined sub-agent configuration by name.
+def builtin_subagent_names() -> frozenset[str]:
+    global _BUILTIN_NAMES
+    if _BUILTIN_NAMES is None:
+        _BUILTIN_NAMES = frozenset(PREDEFINED_SUBAGENTS.keys())
+    return _BUILTIN_NAMES
 
-    Args:
-        name: Sub-agent type name.
 
-    Returns:
-        A copy of the SubAgentConfig.
+def is_builtin_subagent(name: str) -> bool:
+    return (name or "").strip().lower() in builtin_subagent_names()
 
-    Raises:
-        KeyError: If no predefined sub-agent with this name exists.
-    """
-    if name not in PREDEFINED_SUBAGENTS:
-        available = ", ".join(PREDEFINED_SUBAGENTS.keys())
-        raise KeyError(
-            f"No predefined sub-agent '{name}'. Available: {available}"
-        )
-    # Return a copy so modifications don't affect the original
-    original = PREDEFINED_SUBAGENTS[name]
+
+def _copy_config(original: SubAgentConfig) -> SubAgentConfig:
     return SubAgentConfig(
         name=original.name,
+        agent_type=original.agent_type or original.name,
         system_prompt=original.system_prompt,
         model=original.model,
         tools=list(original.tools),
@@ -154,21 +149,65 @@ def get_subagent_config(name: str) -> SubAgentConfig:
         temperature=original.temperature,
         description=original.description,
         tags=list(original.tags),
+        mcp_servers=list(original.mcp_servers),
     )
 
 
-def list_available_subagents() -> list[dict]:
-    """List all available predefined sub-agents.
+def get_subagent_config(name: str, *, profile: str | None = None) -> SubAgentConfig:
+    """Get a sub-agent configuration by type name (built-in or custom).
+
+    Args:
+        name: Sub-agent type name.
+        profile: Active profile for custom type lookup.
 
     Returns:
-        List of dicts with name, description, and tags.
+        A copy of the SubAgentConfig.
+
+    Raises:
+        KeyError: If no sub-agent with this name exists.
     """
-    return [
+    slug = (name or "").strip().lower()
+    if slug in PREDEFINED_SUBAGENTS:
+        return _copy_config(PREDEFINED_SUBAGENTS[slug])
+
+    if profile:
+        from core.subagents.store import SubAgentTypeStore
+
+        custom = SubAgentTypeStore(profile).get(slug)
+        if custom is not None:
+            return _copy_config(custom.to_subagent_config())
+
+    available = ", ".join(n["name"] for n in list_available_subagents(profile=profile))
+    raise KeyError(f"No sub-agent '{name}'. Available: {available}")
+
+
+def list_available_subagents(*, profile: str | None = None) -> list[dict]:
+    """List built-in and profile custom sub-agent types."""
+    items = [
         {
             "name": config.name,
             "description": config.description,
             "tools": config.tools,
-            "tags": config.tags,
+            "tags": list(config.tags),
+            "builtin": True,
         }
         for config in PREDEFINED_SUBAGENTS.values()
     ]
+    if profile:
+        from core.subagents.store import SubAgentTypeStore
+
+        for custom in SubAgentTypeStore(profile).load_types().values():
+            items.append(
+                {
+                    "name": custom.name,
+                    "description": custom.description,
+                    "tools": custom.tools,
+                    "tags": ["custom"],
+                    "builtin": False,
+                }
+            )
+    return items
+
+
+def subagent_type_names(*, profile: str | None = None) -> frozenset[str]:
+    return frozenset(item["name"] for item in list_available_subagents(profile=profile))

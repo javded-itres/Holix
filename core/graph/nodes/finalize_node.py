@@ -8,6 +8,7 @@ import logging
 from langchain_core.runnables import RunnableConfig
 
 from core.graph.state import HolixGraphState, get_agent_from_config
+from core.presenters.final_content import is_aborted_final_response
 
 logger = logging.getLogger(__name__)
 
@@ -35,6 +36,13 @@ async def finalize_node(state: HolixGraphState, config: RunnableConfig) -> dict:
     plan_status = state.get("plan_status", "")
 
     if not agent:
+        return {}
+
+    if is_aborted_final_response(final_response):
+        logger.info(
+            "Skipping post-finalize work for aborted run (conversation=%s)",
+            conversation_id,
+        )
         return {}
 
     # Disable plan execution auto-approve since we're finalizing

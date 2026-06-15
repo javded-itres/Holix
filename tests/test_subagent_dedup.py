@@ -24,6 +24,7 @@ def _running_handle(name: str, *, agent_type: str, task: str) -> SubAgentHandle:
 async def test_delegate_tool_reuses_running_duplicate() -> None:
     parent = MagicMock()
     parent.config.enable_subagents = True
+    parent.config.profile_name = "default"
     existing = _running_handle("researcher", agent_type="researcher", task="Find SaaS competitors")
     parent.subagents.find_running_duplicate.return_value = existing
     parent.subagents.spawn_typed = AsyncMock()

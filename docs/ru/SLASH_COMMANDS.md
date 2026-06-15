@@ -15,7 +15,7 @@
 | Hub / MCP | Да | Частично | Нет |
 | `/model`, `/skills`, `/memory` | Да | Да | Да (часть) |
 | `/compress` | Да | Да | Да |
-| `/debug` | Только legacy TUI | Нет | Да (`chat-command`) |
+| `/debug` | Нет | Нет | Да (`chat-command`) |
 
 ### Раскладка macOS (RU)
 

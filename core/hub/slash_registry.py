@@ -28,6 +28,23 @@ def slash_registry_path(skills_dir: Path) -> Path:
     return root.parent / "skill-slash.json"
 
 
+def skill_invoke_autocomplete_commands(
+    skills_dir: Path,
+    *,
+    agent_slot: str = "main",
+    skill_assignments: dict | None = None,
+) -> list[tuple[str, str]]:
+    """Autocomplete entries as `/skill <name>` (not bare `/<name>`)."""
+    return [
+        (f"/skill {cmd.lstrip('/')}", desc)
+        for cmd, desc in load_skill_slash_commands(
+            skills_dir,
+            agent_slot=agent_slot,
+            skill_assignments=skill_assignments,
+        )
+    ]
+
+
 def load_skill_slash_commands(
     skills_dir: Path,
     *,
