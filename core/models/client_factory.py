@@ -11,14 +11,24 @@ from openai import AsyncOpenAI
 from core.config_utils import resolve_env_refs
 
 
+_LOCAL_PRESET_PLACEHOLDER_KEYS = {
+    "ollama": "ollama",
+    "vllm": "EMPTY",
+}
+
+
 def resolve_provider_api_key(api_key: str, *, preset_id: str | None = None) -> str:
     """Resolve ${ENV:VAR} placeholders and apply preset defaults."""
     resolved = resolve_env_refs(api_key)
-    if isinstance(resolved, str) and resolved.strip():
-        return resolved.strip()
-    if preset_id in ("ollama", "vllm") or api_key in ("", "dummy", "ollama", "EMPTY"):
-        return "EMPTY" if preset_id == "vllm" or api_key == "EMPTY" else "ollama"
-    return resolved if isinstance(resolved, str) else "dummy"
+    if isinstance(resolved, str):
+        stripped = resolved.strip()
+        if stripped and stripped not in ("dummy",):
+            return stripped
+    if preset_id in _LOCAL_PRESET_PLACEHOLDER_KEYS:
+        return _LOCAL_PRESET_PLACEHOLDER_KEYS[preset_id]
+    if api_key in ("ollama", "EMPTY"):
+        return api_key
+    return ""
 
 
 def build_default_headers(metadata: dict[str, Any] | None) -> dict[str, str]:

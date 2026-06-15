@@ -115,7 +115,17 @@ class AsyncSubAgentRunner:
             except Exception as e:
                 logger.debug(f"Skill injection failed for sub-agent: {e}")
 
-        system_prompt = self._build_system_prompt(config, task, skills_block=skills_block)
+        profile_name = str(
+            getattr(getattr(self._parent, "config", None), "profile_name", None) or "default"
+        )
+        from core.subagents.prompt import build_subagent_system_prompt
+
+        system_prompt = build_subagent_system_prompt(
+            config,
+            task,
+            skills_block=skills_block,
+            profile_name=profile_name,
+        )
 
         # Build messages
         messages = [
@@ -340,42 +350,3 @@ class AsyncSubAgentRunner:
         finally:
             reset_subagent_scope(tokens)
 
-    def _build_system_prompt(
-        self,
-        config: SubAgentConfig,
-        task: str,
-        *,
-        skills_block: str = "",
-    ) -> str:
-        """Build the system prompt for the sub-agent.
-
-        Args:
-            config: Sub-agent configuration.
-            task: The task description.
-
-        Returns:
-            System prompt string.
-        """
-        base = config.system_prompt or f"You are {config.name}, a specialized AI assistant."
-
-        prompt = f"""{base}
-
-## Your Task
-{task}
-
-## Available Tools
-{', '.join(config.tools) if config.tools else 'No tools available'}
-
-## Instructions
-1. Focus on your specific task
-2. Use tools when needed to gather information or take action
-3. Provide a clear, concise final answer
-4. If you cannot complete the task, explain why
-
-Remember: You are {config.name}. Stay focused on your specialized role.
-"""
-        if skills_block:
-            prompt += f"\n\n{skills_block}"
-        from core.project.holix_md import append_holix_project_context
-
-        return append_holix_project_context(prompt)

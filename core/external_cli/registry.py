@@ -35,6 +35,7 @@ EXTERNAL_CLI_REGISTRY: dict[str, ExternalCliSpec] = {
         default_model_slot="coder",
         env_style="anthropic",
         launch_args=(),
+        task_positional=True,
         install_hint="npm install -g @anthropic-ai/claude-code",
         install_commands=(("npm", "install", "-g", "@anthropic-ai/claude-code"),),
         docs_url="https://docs.anthropic.com/en/docs/claude-code",

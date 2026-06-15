@@ -67,6 +67,7 @@ def test_launch_claude_attaches_existing_session(
         "cli.commands.launch.find_active_sessions_for_cli",
         lambda *_: [existing],
     )
+    monkeypatch.setattr("cli.commands.launch._should_detach", lambda *, detach: detach)
     attached: list[str] = []
     monkeypatch.setattr(
         "cli.commands.launch.attach_session",
@@ -78,6 +79,70 @@ def test_launch_claude_attaches_existing_session(
     assert result.exit_code == 0
     assert attached == ["holix-default-claude-dead"]
     assert "Attaching to holix-default-claude-dead" in result.stdout
+
+
+def test_launch_claude_non_tty_starts_detached(
+    holix_home, launch_runner: CliRunner, monkeypatch
+) -> None:
+    launched = LaunchedSession(
+        session_id="det1",
+        tmux_session="holix-default-claude-det1",
+        cli_id="claude",
+        profile="default",
+        cwd="/tmp",
+        model_slot="coder",
+        model_name="coder",
+        window_index=0,
+        task_preview="",
+        created_at="2026-01-01T00:00:00+00:00",
+    )
+    monkeypatch.setattr("cli.commands.launch.find_active_sessions_for_cli", lambda *_: [])
+    monkeypatch.setattr("cli.commands.launch.launch_cli_by_id", lambda **_kwargs: launched)
+    monkeypatch.setattr("cli.commands.launch._should_detach", lambda *, detach: True)
+    attached: list[str] = []
+    monkeypatch.setattr(
+        "cli.commands.launch.attach_session",
+        lambda name: attached.append(name) or 0,
+    )
+
+    result = launch_runner.invoke(launch_app, ["claude", "-t", "hello"])
+
+    assert result.exit_code == 0
+    assert not attached
+    assert "Started claude in tmux" in result.stdout
+    assert "holix-default-claude-det1" in result.stdout
+
+
+def test_launch_claude_restart(
+    holix_home, launch_runner: CliRunner, monkeypatch
+) -> None:
+    launched = LaunchedSession(
+        session_id="rst1",
+        tmux_session="holix-default-claude-rst1",
+        cli_id="claude",
+        profile="default",
+        cwd="/tmp",
+        model_slot="coder",
+        model_name="coder",
+        window_index=0,
+        task_preview="frontend",
+        created_at="2026-01-01T00:00:00+00:00",
+    )
+    killed: list[str] = []
+    monkeypatch.setattr(
+        "cli.commands.launch.restart_cli_by_id",
+        lambda **_kwargs: launched,
+    )
+    monkeypatch.setattr(
+        "cli.services.tmux_launcher.kill_active_sessions_for_cli",
+        lambda *_args, **_kwargs: killed.append("ok") or ["old-session"],
+    )
+
+    result = launch_runner.invoke(launch_app, ["claude", "restart", "-t", "frontend"])
+
+    assert result.exit_code == 0
+    assert "Restarted claude in tmux" in result.stdout
+    assert "holix-default-claude-rst1" in result.stdout
 
 
 def test_launch_claude_new_session_starts_and_attaches(
@@ -97,6 +162,7 @@ def test_launch_claude_new_session_starts_and_attaches(
     )
     monkeypatch.setattr("cli.commands.launch.find_active_sessions_for_cli", lambda *_: [])
     monkeypatch.setattr("cli.commands.launch.launch_cli_by_id", lambda **_kwargs: launched)
+    monkeypatch.setattr("cli.commands.launch._should_detach", lambda *, detach: detach)
     attached: list[str] = []
     monkeypatch.setattr(
         "cli.commands.launch.attach_session",
@@ -157,4 +223,5 @@ def test_launch_claude_detach_skips_attach(
     result = launch_runner.invoke(launch_app, ["claude", "--detach"])
 
     assert result.exit_code == 0
-    assert "Active session: holix-default-claude-dead" in result.stdout
+    assert "already running in tmux" in result.stdout
+    assert "holix-default-claude-dead" in result.stdout

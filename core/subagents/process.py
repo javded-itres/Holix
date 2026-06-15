@@ -26,8 +26,6 @@ import time
 import uuid
 from typing import Any
 
-from openai import AsyncOpenAI
-
 from core.platform_compat import terminate_process
 from core.subagents.base import (
     MemoryAccess,
@@ -36,7 +34,12 @@ from core.subagents.base import (
     SubAgentResult,
     SubAgentStatus,
 )
-from core.subagents.communication import AgentMessage, ProcessCommunicationBus
+from core.subagents.communication import (
+    AgentMessage,
+    ProcessCommunicationBus,
+    reset_subagent_mp_context,
+    subagent_mp_context,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -50,7 +53,12 @@ GRACE_PERIOD = 5.0
 # Child reads credentials from env (not Process args — avoids pickle/log exposure).
 _SUBAGENT_API_KEY_ENV = "HOLIX_SUBAGENT_API_KEY"
 _SUBAGENT_BASE_URL_ENV = "HOLIX_SUBAGENT_BASE_URL"
+_SUBAGENT_PRESET_ENV = "HOLIX_SUBAGENT_PRESET_ID"
 _subagent_spawn_lock = threading.Lock()
+
+
+class SubAgentProcessSpawnError(RuntimeError):
+    """Failed to start a sub-agent OS process (IPC / stdio descriptor issue)."""
 
 
 def _ensure_event_loop() -> asyncio.AbstractEventLoop:
@@ -72,17 +80,25 @@ def _start_subagent_process(
     *,
     api_key: str,
     base_url: str,
+    preset_id: str = "",
 ) -> None:
     """Start a sub-agent process with credentials in the child environment only."""
     with _subagent_spawn_lock:
         prev = {
             _SUBAGENT_API_KEY_ENV: os.environ.get(_SUBAGENT_API_KEY_ENV),
             _SUBAGENT_BASE_URL_ENV: os.environ.get(_SUBAGENT_BASE_URL_ENV),
+            _SUBAGENT_PRESET_ENV: os.environ.get(_SUBAGENT_PRESET_ENV),
         }
         os.environ[_SUBAGENT_API_KEY_ENV] = api_key
         os.environ[_SUBAGENT_BASE_URL_ENV] = base_url
+        os.environ[_SUBAGENT_PRESET_ENV] = preset_id
         try:
-            process.start()
+            try:
+                process.start()
+            except ValueError as exc:
+                if "fds_to_keep" in str(exc):
+                    raise SubAgentProcessSpawnError(str(exc)) from exc
+                raise
         finally:
             for name, value in prev.items():
                 if value is None:
@@ -143,10 +159,16 @@ def run_sub_agent_in_process(
     model = config.model or parent_model
 
     parent_base_url = os.environ.get(_SUBAGENT_BASE_URL_ENV, "http://localhost:11434/v1")
-    parent_api_key = os.environ.get(_SUBAGENT_API_KEY_ENV, "ollama")
+    parent_api_key = os.environ.get(_SUBAGENT_API_KEY_ENV, "")
 
-    # Create own LLM client
-    client = AsyncOpenAI(base_url=parent_base_url, api_key=parent_api_key)
+    from core.models.client_factory import create_openai_client
+
+    preset_id = (os.environ.get(_SUBAGENT_PRESET_ENV) or "").strip() or None
+    client = create_openai_client(
+        base_url=parent_base_url,
+        api_key=parent_api_key,
+        metadata={"preset_id": preset_id} if preset_id else None,
+    )
 
     # Create own tool registry (subset)
     from core.tools.registry import ToolRegistry
@@ -207,7 +229,14 @@ def run_sub_agent_in_process(
         except Exception:
             pass
 
-    system_prompt = _build_process_system_prompt(config, task, skills_block=skills_block)
+    from core.subagents.prompt import build_subagent_system_prompt
+
+    system_prompt = build_subagent_system_prompt(
+        config,
+        task,
+        skills_block=skills_block,
+        profile_name=profile_name,
+    )
 
     # Build messages
     messages = [
@@ -637,37 +666,6 @@ def _send_result(
         logger.error("Sub-agent '%s' failed to send result: %s", agent_name, exc)
 
 
-def _build_process_system_prompt(
-    config: SubAgentConfig,
-    task: str,
-    *,
-    skills_block: str = "",
-) -> str:
-    """Build system prompt for a process-mode sub-agent."""
-    base = config.system_prompt or f"You are {config.name}, a specialized AI assistant."
-    prompt = f"""{base}
-
-## Your Task
-{task}
-
-## Available Tools
-{', '.join(config.tools) if config.tools else 'No tools available'}
-
-## Instructions
-1. Focus on your specific task
-2. Use tools when needed
-3. Provide a clear, concise final answer
-4. If you cannot complete the task, explain why
-
-Remember: You are {config.name}. Stay focused on your specialized role.
-"""
-    if skills_block:
-        prompt += f"\n\n{skills_block}"
-    from core.project.holix_md import append_holix_project_context
-
-    return append_holix_project_context(prompt)
-
-
 class SubAgentProcessManager:
     """Manages sub-agents running in separate OS processes.
 
@@ -702,16 +700,10 @@ class SubAgentProcessManager:
         Returns:
             SubAgentHandle for tracking.
         """
-        # Register communication queues
-        self._comm_bus.register(config.name)
-
-        # Get queues for this sub-agent
-        input_queue = self._comm_bus.get_input_queue(config.name)
-        output_queue = self._comm_bus.get_output_queue(config.name)
-
         # Prepare config dict (must be serializable for multiprocessing)
         config_dict = {
             "name": config.name,
+            "agent_type": config.agent_type or config.name,
             "system_prompt": config.system_prompt,
             "model": config.model,
             "tools": config.tools,
@@ -723,12 +715,22 @@ class SubAgentProcessManager:
             "temperature": config.temperature,
             "description": config.description,
             "tags": config.tags,
+            "mcp_servers": list(config.mcp_servers or []),
         }
 
         # Get parent config for subprocess
         parent_cfg = getattr(self._parent, "config", None)
         parent_base_url = getattr(parent_cfg, "base_url", "http://localhost:11434/v1")
-        parent_api_key = getattr(parent_cfg, "api_key", "ollama")
+        parent_api_key = (getattr(parent_cfg, "api_key", None) or "").strip()
+        if not parent_api_key and hasattr(self._parent, "model_manager"):
+            try:
+                mc = self._parent.model_manager.get_default_model_config()
+            except Exception:
+                mc = None
+            if mc and mc.api_key:
+                parent_api_key = mc.api_key
+                if mc.base_url:
+                    parent_base_url = mc.base_url
         auto_allow_threshold = str(
             getattr(parent_cfg, "auto_allow_threshold", "low") or "low"
         )
@@ -756,34 +758,74 @@ class SubAgentProcessManager:
             started_at=time.monotonic(),
         )
 
-        # Spawn the process
-        process = multiprocessing.Process(
-            target=run_sub_agent_in_process,
-            args=(
-                config_dict,
-                task,
+        process_args = (
+            config_dict,
+            task,
+            None,  # input_queue — filled per attempt
+            None,  # output_queue
+            self._parent.model,
+            ltm_db_path,
+            vector_db_path,
+            data_dir,
+            getattr(self._parent.config, "mcp_servers", None) if hasattr(self._parent, "config") else None,
+            str(getattr(self._parent.config, "skills_dir", "") or ""),
+            dict(getattr(self._parent.config, "skill_assignments", None) or {}),
+            auto_allow_threshold,
+            confirmation_timeout,
+            interactive,
+            search_config,
+            str(getattr(parent_cfg, "profile_name", None) or "default"),
+        )
+        parent_metadata = dict(getattr(parent_cfg, "provider_metadata", None) or {})
+        mp_ctx = subagent_mp_context()
+        process: multiprocessing.Process | None = None
+        output_queue = None
+        last_spawn_error: Exception | None = None
+
+        for attempt in range(2):
+            self._comm_bus.register(config.name)
+            input_queue = self._comm_bus.get_input_queue(config.name)
+            output_queue = self._comm_bus.get_output_queue(config.name)
+            if input_queue is None or output_queue is None:
+                raise SubAgentProcessSpawnError(
+                    f"IPC queues were not created for sub-agent '{config.name}'"
+                )
+            spawn_args = (
+                *process_args[:2],
                 input_queue,
                 output_queue,
-                self._parent.model,
-                ltm_db_path,
-                vector_db_path,
-                data_dir,
-                getattr(self._parent.config, "mcp_servers", None) if hasattr(self._parent, "config") else None,
-                str(getattr(self._parent.config, "skills_dir", "") or ""),
-                dict(getattr(self._parent.config, "skill_assignments", None) or {}),
-                auto_allow_threshold,
-                confirmation_timeout,
-                interactive,
-                search_config,
-                str(getattr(parent_cfg, "profile_name", None) or "default"),
-            ),
-            daemon=True,  # Die with parent
-        )
-        _start_subagent_process(
-            process,
-            api_key=parent_api_key,
-            base_url=parent_base_url,
-        )
+                *process_args[4:],
+            )
+            process = mp_ctx.Process(
+                target=run_sub_agent_in_process,
+                args=spawn_args,
+                daemon=True,
+            )
+            try:
+                _start_subagent_process(
+                    process,
+                    api_key=parent_api_key,
+                    base_url=parent_base_url,
+                    preset_id=str(parent_metadata.get("preset_id") or ""),
+                )
+                break
+            except SubAgentProcessSpawnError as exc:
+                last_spawn_error = exc
+                logger.warning(
+                    "Sub-agent '%s' process spawn failed (attempt %s/2): %s",
+                    config.name,
+                    attempt + 1,
+                    exc,
+                )
+                self._comm_bus.unregister(config.name)
+                reset_subagent_mp_context()
+                if process.is_alive():
+                    process.terminate()
+                    process.join(timeout=1)
+        else:
+            raise last_spawn_error or SubAgentProcessSpawnError(
+                f"Failed to spawn sub-agent '{config.name}'"
+            )
 
         handle.task = process
         handle.process_id = process.pid
@@ -821,6 +863,7 @@ class SubAgentProcessManager:
                     )
                     handle.status = SubAgentStatus.FAILED
                     self._notify_parent_done(agent_name)
+                    self._cleanup_ipc(agent_name)
                     return
                 continue
             except Exception as exc:
@@ -847,6 +890,7 @@ class SubAgentProcessManager:
                     )
                     handle.status = SubAgentStatus.COMPLETED if handle.result.success else SubAgentStatus.FAILED
                     self._notify_parent_done(agent_name)
+                    self._cleanup_ipc(agent_name)
                     return
 
             elif msg.msg_type == "heartbeat":
@@ -867,7 +911,11 @@ class SubAgentProcessManager:
                 )
                 handle.status = SubAgentStatus.FAILED
                 self._notify_parent_done(agent_name)
+                self._cleanup_ipc(agent_name)
                 return
+
+    def _cleanup_ipc(self, agent_name: str) -> None:
+        self._comm_bus.unregister(agent_name)
 
     async def _handle_ipc_confirmation(self, agent_name: str, msg: AgentMessage) -> None:
         bridge = getattr(getattr(self._parent, "subagents", None), "interactions", None)

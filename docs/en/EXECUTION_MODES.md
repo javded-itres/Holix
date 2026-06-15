@@ -117,14 +117,17 @@ The agent **writes a step-by-step plan first**, shows it for approval, then exec
 
 ### How it behaves
 
-1. **Plan** — LLM produces numbered steps.
-2. **Review** — if `plan_review_enabled=true` (default), you approve, refine, or reject:
+1. **Plan** — LLM produces a **development report** (8 sections: summary, stages, priorities, dependencies, risks, manual actions, estimates, stack) and numbered **execution steps**.
+2. **Clarification** (if the task is ambiguous) — the agent asks **clarifying questions** before showing the full plan for approval. Answer in chat, or reply `proceed with assumptions` to skip, or `no` to cancel. Up to 3 clarification rounds.
+3. **Review** — if `plan_review_enabled=true` (default), you approve, refine, or reject:
    - `/plan-confirm` — run the current step
    - `/plan-auto` — run the rest without asking per step
    - `/plan-refine` — ask to change the plan (you can add text)
    - `/plan-reject` — cancel
-3. **Execute** — each step runs with tools; after a step completes, orchestration moves to the next.
-4. **Finalize** — summary when all steps are done.
+4. **Execute** — each step runs with tools; after a step completes, orchestration moves to the next.
+5. **Finalize** — summary when all steps are done.
+
+**Confirmed plans** are saved under `./.holix/plans/` in the current project (Markdown + JSON). The planner lists saved plans when generating a new one.
 
 Inside a step, the agent uses a ReAct-style loop (limited by `max_steps_per_plan_step`, default **5**).
 
@@ -183,7 +186,7 @@ Like Plan & Execute for the **planning phase**, but each approved step runs as a
 
 ### How it behaves
 
-1. Plan and review (same slash commands as Plan mode).
+1. Plan, clarification (if needed), and review (same slash commands as Plan mode).
 2. After approval, the graph enters **ReAct** for the current step instead of a short fixed loop.
 3. When the step is marked complete, orchestration advances to the next step.
 
@@ -316,6 +319,9 @@ Profile `.env` / settings (see [.env.example](../../.env.example)):
 |----------|---------|--------|
 | `plan_review_enabled` | `true` | Show plan for approval |
 | `plan_review_timeout` | `600` | Seconds to wait for plan decision |
+| `plan_generation_timeout` | `600` | Seconds to wait for LLM plan generation |
+| `plan_generation_max_tokens` | `12000` | Max tokens for plan JSON (large reports) |
+| `plan_generation_retries` | `2` | Retries on timeout or truncated JSON |
 | `max_steps_per_plan_step` | `5` | Tool iterations per step in Plan mode |
 | `max_steps` | `15` | Global graph step limit |
 

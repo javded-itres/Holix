@@ -24,6 +24,16 @@ def substitute_env_in_string(text: str, *, leave_missing: bool = True) -> str:
     return _INLINE_ENV_REF.sub(_repl, text)
 
 
+def is_subagents_enabled(cfg: Any, *, default: bool = True) -> bool:
+    """Return whether sub-agents are enabled (default on when unset)."""
+    if cfg is None:
+        return default
+    value = getattr(cfg, "enable_subagents", None)
+    if value is None:
+        return default
+    return bool(value)
+
+
 def resolve_env_refs(value: Any) -> Any:
     """Resolve ${VAR} and ${ENV:VAR} placeholders in YAML-loaded values."""
     if isinstance(value, str):
@@ -125,4 +135,4 @@ def get_local_skills_dir(cwd: str | None = None) -> Path | None:
 
 
 def get_local_plan_dir(cwd: str | None = None) -> Path:
-    return get_local_holix_dir(cwd) / "plan"
+    return get_local_holix_dir(cwd) / "plans"

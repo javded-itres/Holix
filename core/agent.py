@@ -205,11 +205,13 @@ class HolixAgent:
             conversation_id=conversation_id,
             run_id=run_id,
         )
+        self._final_response_emitted = False
         return run_id
 
     def end_run(self) -> None:
         """Clear run correlation context."""
         self._event_context = None
+        self._final_response_emitted = False
 
     def set_plan_id(self, plan_id: str) -> None:
         """Attach plan_id to subsequent events in the current run."""
@@ -249,7 +251,9 @@ class HolixAgent:
         await self.memory.initialize_db()
 
         self.tools.register_all()
-        if getattr(self.config, "enable_subagents", False):
+        from core.config_utils import is_subagents_enabled
+
+        if is_subagents_enabled(self.config):
             from core.tools.subagents import register_subagent_tools
 
             register_subagent_tools(self.tools, self)

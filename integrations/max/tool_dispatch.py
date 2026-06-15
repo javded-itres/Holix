@@ -47,25 +47,9 @@ _ANALYSIS_TRIGGER_RE = re.compile(
     r")\b",
     re.IGNORECASE,
 )
-_SUBAGENT_LIST_RE = re.compile(
-    r"(?:"
-    r"^/subagents?$|"
-    r"^list_subagents\s*\(\s*\)$|"
-    r"^список\s+субагентов|"
-    r"^покажи\s+субагентов|"
-    r"^list\s+subagents$"
-    r")",
-    re.IGNORECASE,
-)
-_STATUS_RE = re.compile(
-    r"(?:"
-    r"^/status$|^статус$|^status$|"
-    r"полный\s+статус|"
-    r"какой\s+статус|какие\s+задачи|"
-    r"что\s+выполняется|"
-    r"^покажи\s+статус"
-    r")",
-    re.IGNORECASE,
+from core.direct_dispatch.intent import (
+    is_status_request as _is_status_request,
+    is_subagent_list_request,
 )
 
 
@@ -111,10 +95,6 @@ def _split_search_and_analysis(text: str) -> tuple[str, str]:
     return search_part or stripped, analysis_part or stripped
 
 
-def _is_status_request(text: str) -> bool:
-    return bool(_STATUS_RE.search(text.strip()))
-
-
 async def _last_search_query(host: Any, agent: Any, conversation_id: str) -> str | None:
     store = getattr(getattr(host, "_session", None), "_transcript_store", None)
     if store is not None:
@@ -153,20 +133,21 @@ async def try_direct_tool_dispatch(host: Any, message: str) -> tuple[bool, str]:
 
     conversation_id = getattr(host, "conversation_id", "default")
 
-    if _SUBAGENT_LIST_RE.match(text):
+    if is_subagent_list_request(text):
         logger.info("MAX direct dispatch: list_subagents")
         return await _run_tool(host, agent, conversation_id, "list_subagents", {})
 
     if _is_status_request(text):
-        logger.info("MAX direct dispatch: status")
-        await host._interactive.show_status()
-        cfg = getattr(agent, "config", None)
-        if cfg and getattr(cfg, "enable_subagents", True):
-            _, sub_body = await _run_tool(
-                host, agent, conversation_id, "list_subagents", {}
-            )
-            return True, sub_body
-        return True, ""
+        from core.direct_dispatch.work_status import build_work_status_reply
+
+        logger.info("MAX direct dispatch: work status")
+        profile = str(getattr(host, "profile", None) or getattr(agent, "profile", None) or "default")
+        body = build_work_status_reply(
+            agent,
+            profile_name=profile,
+            last_assistant_message=getattr(host, "_last_assistant_plain", None),
+        )
+        return True, body
 
     if _needs_analysis(text):
         search_part, analysis_part = _split_search_and_analysis(text)

@@ -1,6 +1,12 @@
 """Plan Review System — interactive plan review before execution."""
 
-from core.plan_review.plan_storage import list_plans, load_plan, save_plan
+from core.plan_review.plan_storage import (
+    format_saved_plans_context,
+    list_plans,
+    load_latest_plan,
+    load_plan,
+    save_plan,
+)
 from core.plan_review.review_events import (
     PlanReviewEventType,
     PlanReviewRequestEvent,
@@ -24,4 +30,6 @@ __all__ = [
     "save_plan",
     "list_plans",
     "load_plan",
+    "load_latest_plan",
+    "format_saved_plans_context",
 ]

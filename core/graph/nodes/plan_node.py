@@ -22,7 +22,11 @@ import logging
 from langchain_core.runnables import RunnableConfig
 
 from core.graph.state import HolixGraphState, get_agent_from_config
-from core.plan_review.parser import parse_detailed_plan
+from core.plan_review.parser import (
+    is_development_report_complete,
+    is_truncated_json,
+    parse_detailed_plan,
+)
 
 # Backward-compatible re-exports for tests
 _parse_detailed_plan = parse_detailed_plan
@@ -54,11 +58,18 @@ DETAILED_PLAN_PROMPT = """You are a senior software architect and task planner. 
 
 ### Phase 1: Analysis & Clarification
 - Read the task carefully and identify what exactly needs to be done
-- If the task is ambiguous, incomplete, or could be interpreted multiple ways, you MUST list clarifying questions in the "clarifying_questions" field
+- If the task is ambiguous, incomplete, or could be interpreted multiple ways:
+  * Set `needs_clarification` to true
+  * Set `ambiguity_level` to "high" or "medium"
+  * Explain why in `clarification_reason`
+  * List concrete questions in `clarifying_questions` (at least 1, at most 5)
+  * Do NOT pretend the task is clear — the user will be asked these questions BEFORE plan approval
+- Only set `needs_clarification` to false when the task is truly unambiguous
 - Examples of when to ask questions:
   * The task doesn't specify which technology/framework to use
   * The scope is unclear (e.g., "build an app" — what features?)
   * Requirements are contradictory or missing
+  * Multiple valid architectures exist and the choice materially affects the plan
 - Identify constraints and dependencies
 - Assess complexity: simple / medium / complex
 
@@ -84,12 +95,31 @@ For each step, provide:
 - Identify which steps can run in parallel
 - Mark parallel steps with the same parallel_group number
 
+### Phase 6: Development Report (for user approval before execution)
+Produce a structured `development_report` that the user reviews before development starts.
+For non-trivial tasks this report MUST be complete — empty sections are not acceptable.
+
+The report must include:
+1. **Summary** — goal, key architectural decisions, critical risks
+2. **Development stages** — numbered stages (Этап 0, 1, 2…) with bullet items and duration estimates
+3. **Priorities** — MVP blockers, important-but-later, optional/future
+4. **Dependencies** — table: task → depends on → what it unblocks
+5. **Blockers & risks** — probability, impact, mitigation for each risk
+6. **Manual actions** — action, when, who (developer/DevOps/architect)
+7. **Estimates** — per-stage hours + story points, total, calendar time, buffer note
+8. **Stack & architecture** — technology choices, patterns, critical fixes vs original spec
+
+Align `development_stages` with high-level milestones; keep `plan` as concrete agent execution steps.
+
 ## EXAMPLE OUTPUT
 For a task like "Create a REST API for a blog", a good plan would look like:
 {{
     "analysis": {{
         "task_summary": "Build a REST API for a blog with CRUD endpoints",
         "complexity": "medium",
+        "needs_clarification": true,
+        "ambiguity_level": "medium",
+        "clarification_reason": "Framework not specified",
         "clarifying_questions": ["Which framework?"],
         "constraints": ["Must use Python"]
     }},
@@ -106,7 +136,54 @@ For a task like "Create a REST API for a blog", a good plan would look like:
         {{"step": 4, "description": "Add JWT authentication middleware", "tools_needed": ["write_file"], "expected_output": "Auth middleware in app/auth.py", "success_criteria": "Protected endpoints require token", "depends_on": [3], "parallel_group": null, "subagent_type": null}},
         {{"step": 5, "description": "Write unit tests for all endpoints", "tools_needed": ["write_file", "terminal"], "expected_output": "Tests in tests/", "success_criteria": "All tests pass", "depends_on": [4], "parallel_group": null, "subagent_type": null}}
     ],
-    "reasoning": "Sequential: project setup → models → routes → auth → tests"
+    "reasoning": "Sequential: project setup → models → routes → auth → tests",
+    "development_report": {{
+        "title": "Development Plan: Blog REST API",
+        "summary": {{
+            "goal": "Build a REST API for a blog with CRUD endpoints",
+            "key_decisions": ["FastAPI + SQLAlchemy + PostgreSQL", "JWT auth"],
+            "critical_risks": ["Schema migration conflicts without versioning"]
+        }},
+        "development_stages": [
+            {{
+                "stage": 0,
+                "title": "Project setup",
+                "items": ["Initialize FastAPI project", "Configure PostgreSQL"],
+                "duration_hours": "2-4",
+                "story_points": 3
+            }}
+        ],
+        "priorities": {{
+            "mvp": ["Stage 0: project setup", "Stage 1: models and routes"],
+            "important_later": ["Load testing"],
+            "optional": ["Admin dashboard"]
+        }},
+        "dependencies": [
+            {{"task": "Stage 0", "depends_on": "—", "unblocks": "All other stages"}}
+        ],
+        "blockers": [
+            {{"risk": "Migration conflicts", "probability": "medium", "impact": "high", "mitigation": "Use Alembic"}}
+        ],
+        "manual_actions": [
+            {{"action": "Provision PostgreSQL", "when": "Before Stage 0", "who": "DevOps"}}
+        ],
+        "estimates": {{
+            "stages": [{{"stage": 0, "title": "Project setup", "hours": 3, "story_points": 3}}],
+            "total_hours": 20,
+            "total_story_points": 20,
+            "calendar_time": "3-4 days",
+            "buffer_note": "+20% for integration issues"
+        }},
+        "stack": {{
+            "technologies": [
+                {{"component": "Framework", "choice": "FastAPI"}},
+                {{"component": "ORM", "choice": "SQLAlchemy"}}
+            ],
+            "patterns": ["Layered API + repository pattern"],
+            "critical_fixes": ["Add Alembic migrations from day one"]
+        }},
+        "parallel_work_notes": ["Models and routes can be developed in parallel after setup"]
+    }}
 }}
 
 Now create a plan for the task above. Respond with ONLY valid JSON:
@@ -114,6 +191,9 @@ Now create a plan for the task above. Respond with ONLY valid JSON:
     "analysis": {{
         "task_summary": "...",
         "complexity": "simple|medium|complex",
+        "needs_clarification": true,
+        "ambiguity_level": "low|medium|high",
+        "clarification_reason": "...",
         "clarifying_questions": ["..."],
         "constraints": ["..."]
     }},
@@ -122,6 +202,50 @@ Now create a plan for the task above. Respond with ONLY valid JSON:
         "tech_stack": ["..."],
         "structure": "...",
         "risks": [{{"risk": "...", "mitigation": "..."}}]
+    }},
+    "development_report": {{
+        "title": "Development Plan: ...",
+        "summary": {{
+            "goal": "...",
+            "key_decisions": ["..."],
+            "critical_risks": ["..."]
+        }},
+        "development_stages": [
+            {{
+                "stage": 0,
+                "title": "...",
+                "items": ["..."],
+                "duration_hours": "4-6",
+                "story_points": 5
+            }}
+        ],
+        "priorities": {{
+            "mvp": ["..."],
+            "important_later": ["..."],
+            "optional": ["..."]
+        }},
+        "dependencies": [
+            {{"task": "...", "depends_on": "...", "unblocks": "..."}}
+        ],
+        "blockers": [
+            {{"risk": "...", "probability": "high|medium|low", "impact": "high|medium|low", "mitigation": "..."}}
+        ],
+        "manual_actions": [
+            {{"action": "...", "when": "...", "who": "..."}}
+        ],
+        "estimates": {{
+            "stages": [{{"stage": 0, "title": "...", "hours": 5, "story_points": 5}}],
+            "total_hours": 0,
+            "total_story_points": 0,
+            "calendar_time": "...",
+            "buffer_note": "..."
+        }},
+        "stack": {{
+            "technologies": [{{"component": "...", "choice": "..."}}],
+            "patterns": ["..."],
+            "critical_fixes": ["..."]
+        }},
+        "parallel_work_notes": ["..."]
     }},
     "plan": [
         {{
@@ -210,7 +334,7 @@ async def plan_node(state: HolixGraphState, config: RunnableConfig) -> dict:
 
     Returns:
         Partial state update with plan_steps, plan_analysis, plan_architecture,
-        and reset plan_review fields.
+        plan_report, plan_reasoning, and reset plan_review fields.
     """
     agent = get_agent_from_config(config)
     user_input = state.get("user_input", "")
@@ -235,21 +359,31 @@ async def plan_node(state: HolixGraphState, config: RunnableConfig) -> dict:
             "plan_refinement_feedback": "",
             "plan_analysis": {"task_summary": user_input[:200], "complexity": "medium", "clarifying_questions": [], "constraints": []},
             "plan_architecture": {"approach": "Direct execution", "tech_stack": [], "structure": "", "risks": []},
+            "plan_report": None,
+            "plan_reasoning": "",
         }
 
     # Load timeout and retry settings
     cfg = getattr(agent, "config", None)
-    if cfg is not None and hasattr(cfg, "plan_generation_timeout"):
-        plan_timeout = float(cfg.plan_generation_timeout)
-        plan_retries = int(cfg.plan_generation_retries)
+    try:
+        from config import settings as app_settings
+
+        default_timeout = float(app_settings.plan_generation_timeout)
+        default_retries = int(app_settings.plan_generation_retries)
+        default_max_tokens = int(app_settings.plan_generation_max_tokens)
+    except Exception:
+        default_timeout = 600.0
+        default_retries = 2
+        default_max_tokens = 12000
+
+    if cfg is not None:
+        plan_timeout = float(getattr(cfg, "plan_generation_timeout", default_timeout))
+        plan_retries = int(getattr(cfg, "plan_generation_retries", default_retries))
+        plan_max_tokens = int(getattr(cfg, "plan_generation_max_tokens", default_max_tokens))
     else:
-        try:
-            from config import settings
-            plan_timeout = settings.plan_generation_timeout
-            plan_retries = settings.plan_generation_retries
-        except Exception:
-            plan_timeout = 120.0
-            plan_retries = 2
+        plan_timeout = default_timeout
+        plan_retries = default_retries
+        plan_max_tokens = default_max_tokens
 
     # Build context from memory
     context_parts = []
@@ -287,6 +421,10 @@ async def plan_node(state: HolixGraphState, config: RunnableConfig) -> dict:
     profile_name = profile_name_from_agent(agent)
     lang_block = language_instruction_block(profile_name=profile_name)
 
+    from core.plan_review.plan_storage import format_saved_plans_context
+
+    saved_plans_context = format_saved_plans_context(getattr(agent, "config", None))
+
     # Choose prompt: detailed if tools available, fallback otherwise
     if tools_desc:
         prompt = DETAILED_PLAN_PROMPT.format(
@@ -301,8 +439,11 @@ async def plan_node(state: HolixGraphState, config: RunnableConfig) -> dict:
             prompt += f"\n\n## PROJECT HANDBOOK\n{project_handbook}\n"
 
     prompt = f"{lang_block}\n\n{prompt}"
+    prompt += f"\n\n## SAVED PROJECT PLANS\n{saved_plans_context}\n"
 
-    if getattr(agent.config, "enable_subagents", False):
+    from core.config_utils import is_subagents_enabled
+
+    if is_subagents_enabled(agent.config):
         prompt += SUBAGENT_PLAN_APPENDIX
 
     # Append refinement feedback if the user requested changes to a previous plan
@@ -320,7 +461,7 @@ async def plan_node(state: HolixGraphState, config: RunnableConfig) -> dict:
 
         agent.emit(
             ThinkingEvent(
-                message=live_generating_plan_label(profile_name, timeout=plan_timeout),
+                message=live_generating_plan_label(profile_name, timeout=int(plan_timeout)),
                 conversation_id=conversation_id,
             )
         )
@@ -333,7 +474,8 @@ async def plan_node(state: HolixGraphState, config: RunnableConfig) -> dict:
         "Create comprehensive, detailed execution plans. "
         "Respond with ONLY valid JSON. "
         "Write ALL human-readable text fields in the plan (task_summary, descriptions, "
-        "analysis, architecture, questions, reasoning) in the language required below; "
+        "development_report, analysis, architecture, questions, reasoning) in the language "
+        "required below; "
         "keep JSON keys in English.\n\n"
         f"{lang_block}"
     )
@@ -348,18 +490,20 @@ async def plan_node(state: HolixGraphState, config: RunnableConfig) -> dict:
             {"role": "user", "content": prompt},
         ],
         "temperature": 0.3,
-        "max_tokens": 4000,
+        "max_tokens": plan_max_tokens,
     }
 
     result_text = None
     last_error = None
     use_json_mode = True
+    attempt_timeout = plan_timeout
 
     for attempt in range(1 + plan_retries):
         try:
             logger.info(
                 f"Plan generation attempt {attempt + 1}/{1 + plan_retries} "
-                f"(model={model}, timeout={plan_timeout}s, json_mode={use_json_mode})"
+                f"(model={model}, timeout={attempt_timeout}s, "
+                f"max_tokens={api_kwargs['max_tokens']}, json_mode={use_json_mode})"
             )
 
             # Try with response_format first, fallback without
@@ -368,7 +512,7 @@ async def plan_node(state: HolixGraphState, config: RunnableConfig) -> dict:
                     kwargs = {**api_kwargs, "response_format": {"type": "json_object"}}
                     response = await asyncio.wait_for(
                         client.chat.completions.create(**kwargs),
-                        timeout=plan_timeout,
+                        timeout=attempt_timeout,
                     )
                 except (TypeError, ValueError, NotImplementedError) as fmt_err:
                     # response_format not supported by this provider
@@ -376,14 +520,14 @@ async def plan_node(state: HolixGraphState, config: RunnableConfig) -> dict:
                     use_json_mode = False
                     response = await asyncio.wait_for(
                         client.chat.completions.create(**api_kwargs),
-                        timeout=plan_timeout,
+                        timeout=attempt_timeout,
                     )
                 except TimeoutError:
                     raise  # Let outer handler catch it
             else:
                 response = await asyncio.wait_for(
                     client.chat.completions.create(**api_kwargs),
-                    timeout=plan_timeout,
+                    timeout=attempt_timeout,
                 )
 
             result_text = response.choices[0].message.content or ""
@@ -392,22 +536,56 @@ async def plan_node(state: HolixGraphState, config: RunnableConfig) -> dict:
                 f"(first 200: {result_text[:200]})"
             )
 
-            # If we got a non-empty response, break out of retry loop
-            if result_text.strip():
+            if not result_text.strip():
+                logger.warning("Plan LLM returned empty response, retrying...")
+                continue
+
+            if is_truncated_json(result_text):
+                last_error = "Truncated JSON response (likely max_tokens or timeout)"
+                logger.warning(
+                    f"Plan generation produced truncated JSON on attempt "
+                    f"{attempt + 1}/{1 + plan_retries}"
+                )
+                result_text = None
+                if attempt < plan_retries:
+                    continue
                 break
 
-            logger.warning("Plan LLM returned empty response, retrying...")
+            parsed_plan, parsed_analysis, _, parsed_report, _ = parse_detailed_plan(result_text)
+            complexity = (parsed_analysis or {}).get("complexity", "medium")
+            needs_full_report = complexity in ("medium", "complex") or len(parsed_plan) >= 3
+            if needs_full_report and not is_development_report_complete(parsed_report):
+                last_error = "Incomplete development_report"
+                logger.warning(
+                    f"Plan generation missing required development_report sections on attempt "
+                    f"{attempt + 1}/{1 + plan_retries}"
+                )
+                result_text = None
+                if attempt < plan_retries:
+                    prompt += (
+                        "\n\n## IMPORTANT\n"
+                        "Your previous response was incomplete. Return the FULL JSON with a "
+                        "complete `development_report` (all 8 sections) and at least 3 plan steps."
+                    )
+                    api_kwargs["messages"] = [
+                        api_kwargs["messages"][0],
+                        {"role": "user", "content": prompt},
+                    ]
+                    continue
+                break
+
+            break
 
         except TimeoutError:
-            last_error = f"Timeout after {plan_timeout}s"
+            last_error = f"Timeout after {attempt_timeout}s"
             logger.warning(
                 f"Plan generation timed out on attempt {attempt + 1}/{1 + plan_retries} "
-                f"(timeout={plan_timeout}s)"
+                f"(timeout={attempt_timeout}s)"
             )
-            # On timeout, reduce max_tokens for next attempt to get faster response
+            result_text = None
             if attempt < plan_retries:
-                api_kwargs["max_tokens"] = max(1000, api_kwargs["max_tokens"] // 2)
-                logger.info(f"Reducing max_tokens to {api_kwargs['max_tokens']} for next attempt")
+                attempt_timeout = min(attempt_timeout * 1.5, 900.0)
+                logger.info(f"Increasing timeout to {attempt_timeout}s for next attempt")
             continue
 
         except Exception as e:
@@ -425,7 +603,7 @@ async def plan_node(state: HolixGraphState, config: RunnableConfig) -> dict:
 
     # Parse the LLM response
     if result_text and result_text.strip():
-        plan, analysis, architecture = parse_detailed_plan(result_text)
+        plan, analysis, architecture, plan_report, plan_reasoning = parse_detailed_plan(result_text)
 
         if not plan:
             logger.warning(
@@ -463,6 +641,8 @@ async def plan_node(state: HolixGraphState, config: RunnableConfig) -> dict:
         }]
         analysis = {"task_summary": user_input[:200], "complexity": "medium", "clarifying_questions": [], "constraints": []}
         architecture = {"approach": "Direct execution", "tech_stack": [], "structure": "", "risks": []}
+        plan_report = None
+        plan_reasoning = ""
 
     logger.info(f"Plan generated with {len(plan)} steps for: {user_input[:80]}...")
 
@@ -482,7 +662,7 @@ async def plan_node(state: HolixGraphState, config: RunnableConfig) -> dict:
             plan_id=plan_id,
         ))
 
-    return {
+    update: dict = {
         "plan_id": plan_id,
         "plan_steps": plan,
         "current_plan_step": 0,
@@ -490,7 +670,12 @@ async def plan_node(state: HolixGraphState, config: RunnableConfig) -> dict:
         "plan_refinement_feedback": "",
         "plan_analysis": analysis,
         "plan_architecture": architecture,
+        "plan_report": plan_report,
+        "plan_reasoning": plan_reasoning,
     }
+    if not refinement_feedback:
+        update["plan_clarification_rounds"] = 0
+    return update
 
 
 def _get_tools_description(agent) -> str:

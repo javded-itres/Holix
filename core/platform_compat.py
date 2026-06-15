@@ -56,6 +56,18 @@ def process_subagents_supported() -> bool:
     return not IS_WINDOWS
 
 
+def prefer_async_subagents() -> bool:
+    """Use in-process async sub-agents when OS-process spawn is unreliable."""
+    if os.environ.get("HOLIX_SUBAGENT_ASYNC", "").strip().lower() in {"1", "true", "yes"}:
+        return True
+    if os.environ.get("HOLIX_SUBAGENT_PROCESS", "").strip().lower() in {"1", "true", "yes"}:
+        return False
+    # Piped / detached hosts (TUI web, IDE runners, tmux wrappers) often hit fds_to_keep.
+    if not sys.stdin.isatty() or not sys.stdout.isatty():
+        return True
+    return False
+
+
 def is_process_alive(pid: int) -> bool:
     if pid <= 0:
         return False

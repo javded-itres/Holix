@@ -27,6 +27,7 @@ class Settings(BaseSettings):
 
     # Agent Configuration
     max_steps: int = 90
+    llm_step_timeout: float = 300.0
     data_dir: str = "data"
     context_window: int = 131072
 
@@ -37,7 +38,7 @@ class Settings(BaseSettings):
 
     # Sub-Agent Configuration
     enable_subagents: bool = True
-    subagent_default_process_mode: str = "process"
+    subagent_default_process_mode: str = "async"
     subagent_max_concurrent: int = 4
     subagent_process_timeout: float = 120.0
     subagent_heartbeat_interval: float = 5.0
@@ -65,8 +66,9 @@ class Settings(BaseSettings):
 
     # Plan Execution Configuration
     max_steps_per_plan_step: int = 5
-    plan_generation_timeout: float = 300.0
+    plan_generation_timeout: float = 600.0
     plan_generation_retries: int = 2
+    plan_generation_max_tokens: int = 12000
 
     # Memory Configuration
     memory_db_path: str = "data/memory/memory.db"

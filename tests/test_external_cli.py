@@ -167,6 +167,71 @@ def test_build_launch_args_grok_task_positional() -> None:
     )
 
 
+def test_send_text_combines_literal_and_enter(monkeypatch: pytest.MonkeyPatch) -> None:
+    from cli.services import tmux_launcher
+
+    calls: list[list[str]] = []
+
+    def fake_run(args: list[str], *, check: bool = True):
+        calls.append(args)
+        return SimpleNamespace(returncode=0, stdout="", stderr="")
+
+    monkeypatch.setattr(tmux_launcher, "_run_tmux", fake_run)
+    tmux_launcher.send_text("holix-test", "hello world", window_index=1)
+
+    assert calls == [
+        ["send-keys", "-t", "holix-test:1", "-l", "hello world"],
+        ["send-keys", "-t", "holix-test:1", "Enter"],
+    ]
+
+
+def test_send_text_when_ready_waits_for_prompt(monkeypatch: pytest.MonkeyPatch) -> None:
+    from cli.services import tmux_launcher
+
+    panes = [
+        "booting…",
+        "booting…",
+        "Welcome\n❯ ",
+        "Welcome\n❯ ",
+        "Welcome\n❯ ",
+    ]
+    calls: list[list[str]] = []
+
+    def fake_capture(_session: str, *, window_index: int = 0, lines: int = 40) -> str:
+        return panes[min(len(calls), len(panes) - 1)]
+
+    def fake_run(args: list[str], *, check: bool = True):
+        calls.append(args)
+        return SimpleNamespace(returncode=0, stdout="", stderr="")
+
+    monkeypatch.setattr(tmux_launcher, "capture_pane", fake_capture)
+    monkeypatch.setattr(tmux_launcher, "_run_tmux", fake_run)
+    monkeypatch.setattr(tmux_launcher.time, "sleep", lambda _s: None)
+
+    tmux_launcher.send_text_when_ready("holix-test", "run tests", window_index=0, timeout_s=2.0)
+
+    assert calls == [
+        ["send-keys", "-t", "holix-test:0", "-l", "run tests"],
+        ["send-keys", "-t", "holix-test:0", "Enter"],
+    ]
+
+
+def test_build_launch_args_claude_task_positional() -> None:
+    from core.external_cli.env import task_passed_in_launch_args
+
+    spec = get_cli_spec("claude")
+    assert spec is not None
+    model = ModelConfig(
+        provider="litellm",
+        model="coder",
+        base_url="http://proxy:4000/v1",
+        api_key="sk-test",
+    )
+    task = "fix the auth test"
+    assert build_launch_args(spec, model, task) == (task,)
+    assert task_passed_in_launch_args(spec, task) is True
+
+
 def test_build_cli_env_anthropic_first_party_skips_gateway() -> None:
     spec = get_cli_spec("claude")
     assert spec is not None
@@ -331,11 +396,16 @@ async def test_external_cli_tool_launch_allowed_for_assigned_subagent(
             agent_slot="coder",
         )
     )
-    launched = SimpleNamespace(
-        tmux_session="holix-default-claude-abc",
+    from core.external_cli.store import LaunchedSession
+
+    launched = LaunchedSession(
         session_id="sess-1",
-        model_name="coder",
+        tmux_session="holix-default-claude-abc",
+        cli_id="claude",
+        profile="default",
         cwd="/tmp",
+        model_slot="coder",
+        model_name="coder",
     )
 
     monkeypatch.setattr("core.tools.external_cli.launch_supported", lambda: True)
@@ -345,10 +415,14 @@ async def test_external_cli_tool_launch_allowed_for_assigned_subagent(
         "cli.services.tmux_launcher.launch_cli_by_id",
         lambda **kwargs: launched,
     )
-    monkeypatch.setattr(
-        "cli.core.get_profile_manager",
-        lambda: SimpleNamespace(load_profile=lambda _p: SimpleNamespace()),
-    )
+    class _FakeProfileManager:
+        def profile_exists(self, _name: str) -> bool:
+            return True
+
+        def load_profile(self, _name: str):
+            return SimpleNamespace()
+
+    monkeypatch.setattr("cli.core.ProfileManager", _FakeProfileManager)
 
     tool = ExternalCliTool()
     result = await tool.execute(action="launch", cli_id="claude", task="fix tests")

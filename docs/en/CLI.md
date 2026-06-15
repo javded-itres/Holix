@@ -223,7 +223,7 @@ holix config edit
 holix config set max_steps 25
 ```
 
-Project supplements: `./.holix/skills`, `./.holix/plan`, local `config.yaml` merge (system keys ignored). See [CONFIGURATION.md](CONFIGURATION.md).
+Project supplements: `./.holix/skills`, `./.holix/plans`, local `config.yaml` merge (system keys ignored). See [CONFIGURATION.md](CONFIGURATION.md).
 
 ---
 

@@ -28,12 +28,18 @@ from core.llm.response_text import (
     resolve_assistant_text,
     stream_delta_parts,
 )
+from core.llm.step_timeout import (
+    LLMStepTimeoutError,
+    llm_step_timeout_message,
+    reasoning_only_abort_s,
+)
+from core.presenters.final_content import MESSENGER_EMPTY_FINAL_RU
 from core.profile.soul import profile_name_from_agent
 from core.prompt_builder import build_system_prompt, format_tools_description
 
 logger = logging.getLogger(__name__)
 
-_DEFAULT_LLM_STEP_TIMEOUT_S = 120.0
+_DEFAULT_LLM_STEP_TIMEOUT_S = 300.0
 
 
 async def _close_async_stream(stream: Any) -> None:
@@ -68,17 +74,21 @@ async def _iter_stream_chunks(stream: Any, timeout_s: float) -> AsyncIterator[An
         await _close_async_stream(stream)
 
 
+def _non_empty_final(text: str) -> str:
+    """Ensure the user always sees something when a react step ends."""
+    return (text or "").strip() or MESSENGER_EMPTY_FINAL_RU
+
+
 def _llm_step_timeout_s(agent) -> float:
     cfg = getattr(agent, "config", None) if agent else None
-    for attr in ("llm_step_timeout", "subagent_process_timeout"):
-        raw = getattr(cfg, attr, None) if cfg else None
-        if raw is not None:
-            try:
-                value = float(raw)
-            except (TypeError, ValueError):
-                continue
-            if value > 0:
-                return value
+    raw = getattr(cfg, "llm_step_timeout", None) if cfg else None
+    if raw is not None:
+        try:
+            value = float(raw)
+        except (TypeError, ValueError):
+            value = 0.0
+        if value > 0:
+            return value
     return _DEFAULT_LLM_STEP_TIMEOUT_S
 
 
@@ -90,6 +100,7 @@ def _emit_final_response(
     conversation_id: str,
 ) -> None:
     if agent and hasattr(agent, "emit"):
+        agent._final_response_emitted = True
         agent.emit(
             FinalResponseEvent(
                 content=content,
@@ -216,12 +227,27 @@ async def react_node(state: HolixGraphState, config: RunnableConfig) -> dict:
                 llm_timeout_s=llm_timeout_s,
             )
 
+    except LLMStepTimeoutError as exc:
+        err = exc.user_message
+        logger.warning(
+            "LLM reasoning-only abort (model=%s, step=%s)",
+            model,
+            step_count,
+        )
+        _emit_final_response(
+            agent,
+            content=err,
+            steps_taken=step_count,
+            conversation_id=conversation_id,
+        )
+        return {
+            "step_count": step_count,
+            "is_final": True,
+            "final_response": err,
+        }
     except TimeoutError:
         timeout_s = llm_timeout_s
-        err = (
-            f"Модель не ответила за {int(timeout_s)} с. "
-            "Попробуйте ещё раз или выберите другую модель (/models)."
-        )
+        err = llm_step_timeout_message(timeout_s, model=model)
         logger.warning("LLM step timeout (model=%s, step=%s)", model, step_count)
         _emit_final_response(
             agent,
@@ -333,11 +359,14 @@ async def _react_non_streaming(
         # Final answer
         msg_content, msg_reasoning = assistant_message_parts(message)
         finish_reason = response.choices[0].finish_reason if response.choices else None
-        final_response = resolve_assistant_text(
-            content=msg_content,
-            reasoning_content=msg_reasoning,
-            finish_reason=finish_reason,
-            model=model,
+        final_response = _non_empty_final(
+            resolve_assistant_text(
+                content=msg_content,
+                reasoning_content=msg_reasoning,
+                finish_reason=finish_reason,
+                model=model,
+                profile_name=profile_name_from_agent(agent) if agent else None,
+            )
         )
         msg_dict["content"] = final_response
         messages.append(msg_dict)
@@ -427,6 +456,7 @@ async def _react_streaming(
     tool_calls_dict: dict[int, dict[str, Any]] = {}
     last_finish_reason: str | None = None
     reasoning_status_emitted = False
+    reasoning_only_deadline: float | None = None
 
     stream_response = await _open_stream()
     async for chunk in _iter_stream_chunks(stream_response, llm_timeout_s):
@@ -445,6 +475,23 @@ async def _react_streaming(
             if reasoning_delta:
                 # Reasoning is internal; do not stream it to messenger progress UIs.
                 current_reasoning += reasoning_delta
+                if reasoning_only_deadline is None:
+                    reasoning_only_deadline = (
+                        time.monotonic() + reasoning_only_abort_s(llm_timeout_s)
+                    )
+                if (
+                    not current_content.strip()
+                    and not tool_calls_dict
+                    and reasoning_only_deadline is not None
+                    and time.monotonic() > reasoning_only_deadline
+                ):
+                    raise LLMStepTimeoutError(
+                        llm_step_timeout_message(
+                            reasoning_only_abort_s(llm_timeout_s),
+                            model=model,
+                            reasoning_only=True,
+                        )
+                    )
                 if (
                     not current_content.strip()
                     and agent
@@ -487,8 +534,9 @@ async def _react_streaming(
                     reasoning_content=current_reasoning,
                     finish_reason=finish_reason,
                     model=model,
+                    profile_name=profile_name_from_agent(agent) if agent else None,
                 )
-                if not final_response:
+                if not (final_response or "").strip():
                     logger.warning(
                         "Empty streaming LLM response (model=%s); retrying non-streaming",
                         model,
@@ -576,8 +624,9 @@ async def _react_streaming(
         reasoning_content=current_reasoning,
         finish_reason=last_finish_reason,
         model=model,
+        profile_name=profile_name_from_agent(agent) if agent else None,
     )
-    if not final_response:
+    if not (final_response or "").strip():
         logger.warning(
             "Stream ended without assistant text (model=%s, finish_reason=%s); "
             "retrying non-streaming",
@@ -598,6 +647,7 @@ async def _react_streaming(
             on_switch=on_switch,
             llm_timeout_s=llm_timeout_s,
         )
+    final_response = _non_empty_final(final_response)
     messages = list(state.get("messages", []))
     messages.append({"role": "assistant", "content": final_response})
 

@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 from typing import Any
 
+from core.config_utils import is_subagents_enabled
 from core.subagents.registry import list_available_subagents
 from core.tools.base import BaseTool
 
@@ -55,7 +56,7 @@ class DelegateToSubAgentTool(BaseTool):
     async def execute(self, agent_type: str, task: str) -> str:
         agent = _agent(self._parent)
         cfg = getattr(agent, "config", None)
-        if not cfg or not getattr(cfg, "enable_subagents", False):
+        if not is_subagents_enabled(cfg):
             return (
                 "Error: sub-agents are disabled. Set enable_subagents: true in profile "
                 "config.yaml or HOLIX_ENABLE_SUBAGENTS=true in ~/.holix/.env"
@@ -82,20 +83,27 @@ class DelegateToSubAgentTool(BaseTool):
                 )
             handle = await agent.subagents.spawn_typed(agent_type, task)
             h, _ = handle
-            return json.dumps(
-                {
-                    "status": "spawned",
-                    "job_id": h.name,
-                    "agent_type": agent_type,
-                    "process_mode": h.config.process_mode.value,
-                    "process_id": h.process_id,
-                    "message": (
-                        f"Sub-agent '{h.name}' started in {h.config.process_mode.value} mode. "
-                        f"Call wait_subagent_result(job_id='{h.name}') when you need the answer."
-                    ),
-                },
-                ensure_ascii=False,
-            )
+            fallback = (h.spawn_fallback_reason or "").strip()
+            payload: dict[str, Any] = {
+                "status": "spawned",
+                "job_id": h.name,
+                "agent_type": agent_type,
+                "process_mode": h.config.process_mode.value,
+                "process_id": h.process_id,
+                "message": (
+                    f"Sub-agent '{h.name}' started in {h.config.process_mode.value} mode. "
+                    f"Call wait_subagent_result(job_id='{h.name}') when you need the answer."
+                ),
+            }
+            if fallback:
+                payload["fallback_from_process"] = True
+                payload["fallback_reason"] = fallback
+                payload["message"] = (
+                    f"Sub-agent '{h.name}' is running in {h.config.process_mode.value} mode "
+                    f"(OS-process spawn was unavailable: {fallback}). "
+                    f"Call wait_subagent_result(job_id='{h.name}') when you need the answer."
+                )
+            return json.dumps(payload, ensure_ascii=False)
         except Exception as e:
             return f"Error spawning sub-agent: {e}"
 

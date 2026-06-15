@@ -176,7 +176,24 @@ MESSAGES: dict[str, dict[str, str]] = {
         "tui.launch.error": "Launch manager: {error}",
         "tui.launch.cli_hint": "Use: holix launch setup (terminal) or /launch in TUI on Linux/macOS",
         "tui.launch.list_footer": "Change assignments: /launch",
-        "tui.launch.usage": "Usage: /launch · /launch list",
+        "tui.launch.usage": (
+            "Usage: /launch · /launch list · /launch sessions · "
+            "/launch claude [-t task] · /launch claude restart · "
+            "/launch send <id> <text> · /launch output <id>"
+        ),
+        "tui.launch.start": "Launch",
+        "tui.launch.restart_btn": "Restart",
+        "tui.launch.started": "Launched {cli} in tmux {session} (id={sid})",
+        "tui.launch.restarted": "Restarted {cli} in tmux {session} (id={sid})",
+        "tui.launch.no_sessions": "No active external CLI sessions.",
+        "tui.launch.sessions_title": "Active launch sessions",
+        "tui.launch.sessions_footer": "Send: /launch send <id> <prompt> · Output: /launch output <id>",
+        "tui.launch.sent": "Sent prompt to session {session}",
+        "tui.launch.killed": "Stopped session {session}",
+        "tui.launch.output_empty": "(empty pane)",
+        "tui.launch.task": "Task",
+        "tui.launch.followup": "Follow-up: /launch send {id} … · output: /launch output {id}",
+        "tui.launch.parse_error": "Could not parse /launch command: {error}",
         "tui.subagent_types.title": "Sub-agent types",
         "tui.subagent_types.create": "Create type",
         "tui.subagent_types.edit": "Edit",
@@ -213,9 +230,37 @@ MESSAGES: dict[str, dict[str, str]] = {
             "intermediate plans, step lists, analysis, summaries, clarifying questions, "
             "and commentary before/after tool calls — even if the user writes in another "
             "language.\n"
+            "Never expose internal chain-of-thought or reasoning traces as your only reply; "
+            "always provide a proper user-facing answer in English.\n"
+            "For status questions (what you are doing, open tasks, progress): call "
+            "`list_subagents()` when needed, then answer in plain language what you are doing "
+            "now and which tasks are pending.\n"
             "Exception: switch language only if the user explicitly asks for a different "
             "language in that specific message."
         ),
+        "llm.truncated": (
+            "Response truncated by the model token limit. "
+            "Shorten your request or choose a model with a larger context window."
+        ),
+        "llm.content_filter": "The model rejected the request (content filter).",
+        "llm.reasoning_only": (
+            "The model finished reasoning without a visible answer. Please try again."
+        ),
+        "work_status.title": "**Work status**",
+        "work_status.main_label": "**Main agent:** {state}",
+        "work_status.main_idle": "idle — ready for your request",
+        "work_status.main_busy": "processing a request",
+        "work_status.tasks_label": "**Open tasks:**",
+        "work_status.tasks_unknown": "- (no task recorded in this session yet)",
+        "work_status.last_action_label": "**Last action:**",
+        "work_status.action_unknown": "(no recent assistant reply)",
+        "work_status.subagents_disabled": "**Sub-agents:** disabled in profile",
+        "work_status.subagents_empty": (
+            "**Sub-agents:** none running.\n"
+            "To start one: `/subagent-spawn coder <task>`"
+        ),
+        "work_status.subagents_header": "**Sub-agents:** {total} total (running: {running})",
+        "work_status.subagent_line": "• `{name}` — {status}{preview}",
         "live.thinking": "Thinking…",
         "live.working": "Working…",
         "live.reasoning": "Model is reasoning…",
@@ -252,6 +297,51 @@ MESSAGES: dict[str, dict[str, str]] = {
         "plan.reasoning": "💭 Reasoning",
         "plan.no_description": "No description",
         "plan.refine_hint": "_Or reply with text to refine the plan._",
+        "plan.approval_hint": "_Reply **yes** to start development, **no** to cancel, or describe changes to refine the plan._",
+        "plan.clarify.title": "❓ Clarification needed before planning",
+        "plan.clarify.reason": "Why clarification is needed:",
+        "plan.clarify.questions": "Questions",
+        "plan.clarify.hint": "_Answer the questions above. Reply **proceed with assumptions** to skip, or **no** to cancel._",
+        "plan.clarify.default_question": "Please clarify the requirements for this task.",
+        "plan.clarify.rejected": "Planning cancelled. Ask again when you're ready to provide more detail.",
+        "plan.report.default_title": "Development Plan",
+        "plan.report.section_summary": "1. Executive Summary",
+        "plan.report.goal": "Goal:",
+        "plan.report.key_decisions": "Key decisions:",
+        "plan.report.critical_risks": "Critical risks:",
+        "plan.report.section_stages": "2. Development Stages",
+        "plan.report.stage": "Stage {num}",
+        "plan.report.duration": "Estimated duration:",
+        "plan.report.section_priorities": "3. Priorities",
+        "plan.report.priority_mvp": "Critical for MVP (blocks launch)",
+        "plan.report.priority_later": "Important, can defer 1–2 iterations",
+        "plan.report.priority_optional": "Optional / future",
+        "plan.report.section_dependencies": "4. Task Dependencies",
+        "plan.report.dep_task": "Task",
+        "plan.report.dep_depends": "Depends on",
+        "plan.report.dep_unblocks": "Unblocks",
+        "plan.report.parallel_work": "Parallel work possible:",
+        "plan.report.section_blockers": "5. Blockers & Risks",
+        "plan.report.blocker_risk": "Risk",
+        "plan.report.blocker_probability": "Probability",
+        "plan.report.blocker_impact": "Impact",
+        "plan.report.blocker_mitigation": "Mitigation",
+        "plan.report.section_manual": "6. Manual Actions",
+        "plan.report.manual_action": "Action",
+        "plan.report.manual_when": "When",
+        "plan.report.manual_who": "Who",
+        "plan.report.section_estimates": "7. Time & Cost Estimate",
+        "plan.report.estimate_stage": "Stage",
+        "plan.report.estimate_hours": "Hours",
+        "plan.report.estimate_sp": "Story Points",
+        "plan.report.total": "Total:",
+        "plan.report.hours_unit": "hours",
+        "plan.report.calendar": "Calendar time:",
+        "plan.report.buffer": "Buffer:",
+        "plan.report.section_stack": "8. Recommended Stack & Architecture",
+        "plan.report.stack_tech": "Technology stack",
+        "plan.report.stack_patterns": "Architectural patterns",
+        "plan.report.stack_fixes": "Critical architectural fixes (vs original spec)",
     },
     "ru": {
         "lang.current": "Язык интерфейса: {code}",
@@ -424,7 +514,24 @@ MESSAGES: dict[str, dict[str, str]] = {
         "tui.launch.error": "Менеджер launch: {error}",
         "tui.launch.cli_hint": "Терминал: holix launch setup · TUI (Linux/macOS): /launch",
         "tui.launch.list_footer": "Изменить назначения: /launch",
-        "tui.launch.usage": "Использование: /launch · /launch list",
+        "tui.launch.usage": (
+            "Использование: /launch · /launch list · /launch sessions · "
+            "/launch claude [-t задача] · /launch claude restart · "
+            "/launch send <id> <текст> · /launch output <id>"
+        ),
+        "tui.launch.start": "Запустить",
+        "tui.launch.restart_btn": "Перезапуск",
+        "tui.launch.started": "Запущен {cli} в tmux {session} (id={sid})",
+        "tui.launch.restarted": "Перезапущен {cli} в tmux {session} (id={sid})",
+        "tui.launch.no_sessions": "Нет активных сессий внешних CLI.",
+        "tui.launch.sessions_title": "Активные launch-сессии",
+        "tui.launch.sessions_footer": "Отправить: /launch send <id> <запрос> · Вывод: /launch output <id>",
+        "tui.launch.sent": "Запрос отправлен в сессию {session}",
+        "tui.launch.killed": "Сессия остановлена: {session}",
+        "tui.launch.output_empty": "(пустая панель)",
+        "tui.launch.task": "Задача",
+        "tui.launch.followup": "Дальше: /launch send {id} … · вывод: /launch output {id}",
+        "tui.launch.parse_error": "Не удалось разобрать /launch: {error}",
         "tui.subagent_types.title": "Типы субагентов",
         "tui.subagent_types.create": "Создать тип",
         "tui.subagent_types.edit": "Изменить",
@@ -460,9 +567,37 @@ MESSAGES: dict[str, dict[str, str]] = {
             "**Весь видимый пользователю текст пиши ТОЛЬКО на русском** — финальные ответы, "
             "промежуточные планы, списки шагов, анализ, итоги, уточняющие вопросы и "
             "комментарии до/после вызова tools — даже если пользователь пишет на другом языке.\n"
+            "Никогда не отдавай внутренние рассуждения (chain-of-thought) как единственный ответ — "
+            "всегда формулируй нормальный ответ пользователю на русском.\n"
+            "На вопросы о статусе («что делаешь», «какой статус», «какие задачи»): при необходимости "
+            "вызови `list_subagents()`, затем ответь по-русски — что делаешь сейчас и какие задачи "
+            "в работе.\n"
             "Исключение: другой язык только если пользователь явно попросит ответить на нём "
             "в конкретном сообщении."
         ),
+        "llm.truncated": (
+            "Ответ обрезан лимитом токенов модели. "
+            "Сократите запрос или выберите модель с большим контекстом."
+        ),
+        "llm.content_filter": "Модель отклонила запрос (content filter).",
+        "llm.reasoning_only": (
+            "Модель завершила размышление без видимого ответа. Попробуйте ещё раз."
+        ),
+        "work_status.title": "**Статус работы**",
+        "work_status.main_label": "**Главный агент:** {state}",
+        "work_status.main_idle": "свободен — жду ваш запрос",
+        "work_status.main_busy": "обрабатываю запрос",
+        "work_status.tasks_label": "**Текущие задачи:**",
+        "work_status.tasks_unknown": "- (в этой сессии задача ещё не зафиксирована)",
+        "work_status.last_action_label": "**Последнее действие:**",
+        "work_status.action_unknown": "(не было недавнего ответа ассистента)",
+        "work_status.subagents_disabled": "**Субагенты:** отключены в профиле",
+        "work_status.subagents_empty": (
+            "**Субагенты:** сейчас нет запущенных.\n"
+            "Запуск: `/subagent-spawn coder <задача>`"
+        ),
+        "work_status.subagents_header": "**Субагенты:** всего {total} (в работе: {running})",
+        "work_status.subagent_line": "• `{name}` — {status}{preview}",
         "live.thinking": "Думаю…",
         "live.working": "Работаю…",
         "live.reasoning": "Модель размышляет…",
@@ -499,6 +634,51 @@ MESSAGES: dict[str, dict[str, str]] = {
         "plan.reasoning": "💭 Обоснование",
         "plan.no_description": "Без описания",
         "plan.refine_hint": "_Или напишите текстом, что изменить в плане._",
+        "plan.approval_hint": "_Ответьте **да** для запуска разработки, **нет** для отмены или опишите правки для доработки плана._",
+        "plan.clarify.title": "❓ Нужны уточнения перед планированием",
+        "plan.clarify.reason": "Почему нужны уточнения:",
+        "plan.clarify.questions": "Вопросы",
+        "plan.clarify.hint": "_Ответьте на вопросы выше. Напишите **продолжай с допущениями**, чтобы пропустить, или **нет** для отмены._",
+        "plan.clarify.default_question": "Уточните требования к задаче.",
+        "plan.clarify.rejected": "Планирование отменено. Напишите снова, когда будете готовы уточнить детали.",
+        "plan.report.default_title": "План разработки",
+        "plan.report.section_summary": "1. Общее резюме",
+        "plan.report.goal": "Цель:",
+        "plan.report.key_decisions": "Ключевые решения:",
+        "plan.report.critical_risks": "Критические риски:",
+        "plan.report.section_stages": "2. Этапы разработки",
+        "plan.report.stage": "Этап {num}",
+        "plan.report.duration": "Ориентировочная длительность:",
+        "plan.report.section_priorities": "3. Приоритеты",
+        "plan.report.priority_mvp": "Критично для MVP (блокирует запуск)",
+        "plan.report.priority_later": "Важно, но можно отложить на 1–2 итерации",
+        "plan.report.priority_optional": "Опционально / на будущее",
+        "plan.report.section_dependencies": "4. Зависимости между задачами",
+        "plan.report.dep_task": "Задача",
+        "plan.report.dep_depends": "Зависит от",
+        "plan.report.dep_unblocks": "Что разблокирует",
+        "plan.report.parallel_work": "Параллельная работа возможна:",
+        "plan.report.section_blockers": "5. Блокеры и риски",
+        "plan.report.blocker_risk": "Риск",
+        "plan.report.blocker_probability": "Вероятность",
+        "plan.report.blocker_impact": "Влияние",
+        "plan.report.blocker_mitigation": "Mitigation",
+        "plan.report.section_manual": "6. Ручные действия",
+        "plan.report.manual_action": "Действие",
+        "plan.report.manual_when": "Когда",
+        "plan.report.manual_who": "Кто",
+        "plan.report.section_estimates": "7. Оценка стоимости/времени",
+        "plan.report.estimate_stage": "Этап",
+        "plan.report.estimate_hours": "Часы",
+        "plan.report.estimate_sp": "Story Points",
+        "plan.report.total": "ИТОГО:",
+        "plan.report.hours_unit": "часов",
+        "plan.report.calendar": "В календарном времени:",
+        "plan.report.buffer": "Буфер на непредвиденное:",
+        "plan.report.section_stack": "8. Рекомендуемый стек и архитектура",
+        "plan.report.stack_tech": "Стек технологий",
+        "plan.report.stack_patterns": "Архитектурные паттерны",
+        "plan.report.stack_fixes": "Критические архитектурные исправления (по сравнению с ТЗ)",
     },
 }
 

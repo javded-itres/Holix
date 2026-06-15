@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "Holix"
-version = "0.1.60"
+version = "0.1.15"
 description = "Self-improving AI agent with memory, skills, MCP, CLI, and TUI"
 readme = "README.md"
 license = "MIT"
@@ -92,9 +92,6 @@ package = true
 default-groups = ["dev"]
 # Editable installs may skip console scripts; force reinstall so `uv run holix` works.
 reinstall-package = ["Holix"]
-
-[tool.hatch.build.hooks.custom]
-path = "scripts/hatch_bump_version.py"
 
 [tool.hatch.build.targets.wheel]
 packages = ["cli", "core", "api", "integrations"]

@@ -6,6 +6,7 @@ import re
 import secrets
 import shlex
 import subprocess
+import time
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -173,7 +174,7 @@ def create_cli_session(
         window_index = 0
 
     if task.strip() and not task_passed_in_launch_args(spec, task):
-        send_text(target, task.strip(), window_index=window_index)
+        send_text_when_ready(target, task.strip(), window_index=window_index)
 
     session_id = secrets.token_hex(4)
     launched = LaunchedSession(
@@ -215,6 +216,43 @@ def send_keys(
         return
     target = f"{tmux_session}:{window_index}"
     _run_tmux(["send-keys", "-t", target, *keys])
+
+
+_PROMPT_MARKERS = ("❯", ">", "λ", "»")
+
+
+def _pane_looks_ready(pane: str) -> bool:
+    """Heuristic: interactive CLI prompt is visible and pane output has settled."""
+    if not pane.strip():
+        return False
+    tail = pane.rstrip().splitlines()[-1] if pane.strip() else ""
+    return any(marker in tail for marker in _PROMPT_MARKERS)
+
+
+def send_text_when_ready(
+    tmux_session: str,
+    text: str,
+    *,
+    window_index: int = 0,
+    enter: bool = True,
+    timeout_s: float = 20.0,
+    poll_interval_s: float = 0.25,
+) -> None:
+    """Wait for the tmux pane to settle, then send literal text and Enter."""
+    deadline = time.monotonic() + max(0.5, timeout_s)
+    previous = ""
+    stable_reads = 0
+    while time.monotonic() < deadline:
+        pane = capture_pane(tmux_session, window_index=window_index, lines=30)
+        if pane == previous:
+            stable_reads += 1
+        else:
+            stable_reads = 0
+            previous = pane
+        if stable_reads >= 2 and _pane_looks_ready(pane):
+            break
+        time.sleep(poll_interval_s)
+    send_text(tmux_session, text, window_index=window_index, enter=enter)
 
 
 def send_text(
@@ -281,6 +319,43 @@ def prune_dead_sessions(profile: str) -> list[LaunchedSession]:
             alive.append(session)
     store.save_sessions(alive)
     return alive
+
+
+def kill_active_sessions_for_cli(profile: str, cli_id: str) -> list[str]:
+    """Stop all alive Holix tmux sessions for a CLI; return killed tmux names."""
+    store = ExternalCliStore(profile)
+    killed: list[str] = []
+    for session in list(store.load_sessions()):
+        if session.cli_id != cli_id.strip().lower():
+            continue
+        if not tmux_session_alive(session.tmux_session):
+            store.remove_session(session.session_id)
+            continue
+        kill_session(session.tmux_session)
+        store.remove_session(session.session_id)
+        killed.append(session.tmux_session)
+    return killed
+
+
+def restart_cli_by_id(
+    *,
+    profile: str,
+    cli_id: str,
+    profile_config: Any,
+    cwd: Path | None = None,
+    task: str = "",
+    model_slot: str | None = None,
+) -> LaunchedSession:
+    """Kill existing tmux sessions for this CLI and start a fresh one."""
+    kill_active_sessions_for_cli(profile, cli_id)
+    return launch_cli_by_id(
+        profile=profile,
+        cli_id=cli_id,
+        profile_config=profile_config,
+        cwd=cwd,
+        task=task,
+        model_slot=model_slot,
+    )
 
 
 def launch_cli_by_id(

@@ -20,7 +20,8 @@ TASK_CONTEXT_NOTE = (
 PLANNING_CONTEXT_NOTE = (
     "Before planning, check whether `.holix/HOLIX.md` exists. If it does, base architecture, "
     "module boundaries, REST/API layout, and conventions on that document. Cite specific "
-    "sections when reasoning about the plan."
+    "sections when reasoning about the plan. Also check `.holix/plans/` for previously "
+    "approved plans (JSON + Markdown) and reuse or extend them when the task matches."
 )
 
 

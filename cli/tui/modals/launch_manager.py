@@ -12,7 +12,7 @@ from core.external_cli.assignment import (
 )
 from core.external_cli.platform import launch_supported
 from core.i18n import host_locale, t
-from textual import on
+from textual import on, work
 from textual.app import ComposeResult
 from textual.binding import Binding
 from textual.containers import Horizontal, Vertical
@@ -80,6 +80,8 @@ class LaunchManagerScreen(ModalScreen[None]):
             yield ListView(id="launch-list")
             yield Static("", id="launch-detail")
             with Horizontal(id="launch-actions"):
+                yield Button("", id="btn-launch-start", variant="primary")
+                yield Button("", id="btn-launch-restart")
                 yield Button("", id="btn-launch-assign", variant="success")
                 yield Button("", id="btn-launch-unassign")
                 yield Button("", id="btn-launch-refresh")
@@ -92,6 +94,12 @@ class LaunchManagerScreen(ModalScreen[None]):
         self._render_list()
 
     def _apply_labels(self) -> None:
+        self.query_one("#btn-launch-start", Button).label = t(
+            "tui.launch.start", self._lang
+        )
+        self.query_one("#btn-launch-restart", Button).label = t(
+            "tui.launch.restart_btn", self._lang
+        )
         self.query_one("#btn-launch-assign", Button).label = t(
             "tui.launch.assign", self._lang
         )
@@ -206,11 +214,49 @@ class LaunchManagerScreen(ModalScreen[None]):
         )
 
     def _sync_action_buttons(self, *, assigning: bool) -> None:
+        start_btn = self.query_one("#btn-launch-start", Button)
+        restart_btn = self.query_one("#btn-launch-restart", Button)
         assign_btn = self.query_one("#btn-launch-assign", Button)
         unassign_btn = self.query_one("#btn-launch-unassign", Button)
-        assign_btn.disabled = assigning
         row = self._row_for(self._selected_cli_id)
+        has_cli = bool(self._selected_cli_id) and row is not None
+        start_btn.disabled = assigning or not has_cli or not row.binary
+        restart_btn.disabled = assigning or not has_cli or not row.binary
+        assign_btn.disabled = assigning
         unassign_btn.disabled = assigning or not (row and row.assigned)
+
+    def _run_launch(self, *, restart: bool) -> None:
+        if not self._selected_cli_id:
+            self.app.notify(t("tui.launch.select_cli", self._lang))
+            return
+        row = self._row_for(self._selected_cli_id)
+        if not row or not row.binary:
+            self.app.notify(t("tui.launch.binary_missing", self._lang))
+            return
+        self._run_launch_worker(self._selected_cli_id, restart)
+
+    @work(thread=True, exclusive=True, group="launch")
+    def _run_launch_worker(self, cli_id: str, restart: bool) -> None:
+        from core.external_cli.launch_service import LaunchServiceError, launch_external_cli
+
+        try:
+            session = launch_external_cli(
+                self._profile,
+                cli_id,
+                restart=restart,
+            )
+        except LaunchServiceError as exc:
+            self.app.call_from_thread(self.app.notify, str(exc)[:200])
+            return
+        key = "tui.launch.restarted" if restart else "tui.launch.started"
+        msg = t(
+            key,
+            self._lang,
+            cli=cli_id,
+            session=session["tmux_session"],
+            sid=session["session_id"],
+        )
+        self.app.call_from_thread(self._notify_host, msg)
 
     def _notify_host(self, message: str) -> None:
         if hasattr(self._host, "transcript_write"):
@@ -254,6 +300,14 @@ class LaunchManagerScreen(ModalScreen[None]):
             self._render_list()
             return
         self.dismiss(None)
+
+    @on(Button.Pressed, "#btn-launch-start")
+    def _on_start(self) -> None:
+        self._run_launch(restart=False)
+
+    @on(Button.Pressed, "#btn-launch-restart")
+    def _on_restart(self) -> None:
+        self._run_launch(restart=True)
 
     @on(Button.Pressed, "#btn-launch-assign")
     def _on_assign(self) -> None:

@@ -58,6 +58,9 @@ class TranscriptStore:
     def has_stream_buffer(self) -> bool:
         return bool(self._stream_plain.strip())
 
+    def stream_plain(self) -> str:
+        return self._stream_plain
+
     def flush_stream_to_assistant(self, *, markdown: str | None = None) -> None:
         body = self._stream_plain.strip()
         if not body:

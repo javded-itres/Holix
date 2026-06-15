@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from core.platform_compat import process_subagents_supported
+from core.platform_compat import prefer_async_subagents, process_subagents_supported
 from core.subagents.base import ProcessMode, SubAgentConfig
 from core.subagents.registry import get_subagent_config
 
@@ -30,9 +30,13 @@ def _inject_external_cli_tools(
 def resolve_process_mode(parent_config: Any) -> ProcessMode:
     """Pick async vs OS-process mode from parent runtime config."""
     raw = str(
-        getattr(parent_config, "subagent_default_process_mode", "process") or "process"
+        getattr(parent_config, "subagent_default_process_mode", "async") or "async"
     ).lower()
-    if raw == "process" and process_subagents_supported():
+    if (
+        raw == "process"
+        and process_subagents_supported()
+        and not prefer_async_subagents()
+    ):
         return ProcessMode.PROCESS
     return ProcessMode.ASYNC
 

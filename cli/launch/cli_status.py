@@ -116,4 +116,5 @@ def show_cli_status(profile: str, cli_id: str, profile_config: Any) -> None:
         print_info(f"Open CLI: holix launch {cli_id}")
         print_info(f"Attach:   holix launch attach {sessions[-1].tmux_session}")
     else:
-        print_info(f"No running session. Open CLI: holix launch {cli_id}")
+        print_info(f"No running session. Start: holix launch {cli_id} --detach")
+        print_info(f"Status does not start the CLI — use launch or restart.")

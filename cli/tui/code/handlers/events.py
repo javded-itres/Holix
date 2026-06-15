@@ -20,6 +20,7 @@ from core.agent_events import (
 )
 from core.plan_review.review_events import PlanReviewRequestEvent
 from core.security.confirmation_events import ConfirmationRequestEvent
+from core.presenters.final_content import resolve_messenger_final_content
 from core.subagents.interaction_events import SubAgentQuestionEvent
 from rich.markdown import Markdown
 
@@ -56,28 +57,29 @@ class CodeEventHandler:
 
             elif isinstance(event, FinalResponseEvent):
                 had_stream = self.app._is_streaming
+                streamed_answer = self.app._transcript_store.stream_plain()
+                content = resolve_messenger_final_content(
+                    event.content or "",
+                    streamed_answer=streamed_answer,
+                    last_tool_result=self.app._transcript_store.last_tool() or "",
+                )
                 self.app.clear_stream_display()
                 self.app.set_thinking(None)
-                content = event.content or ""
-                if not had_stream:
+                self.app._transcript_store.clear_stream()
+                if content.strip():
                     self.app.transcript_write("")
                     try:
                         self.app.transcript_write(Markdown(content))
                     except Exception:
                         self.app.transcript_write(content)
-                elif content.strip():
-                    self.app.transcript_write(f"\n{content}\n")
-                else:
-                    self.app.transcript_write("")
-                self.app._schedule_scroll_hint_update()
-                if self.app._transcript_store.has_stream_buffer():
-                    self.app._transcript_store.flush_stream_to_assistant(markdown=content or None)
-                elif content.strip() and not had_stream:
                     self.app._transcript_store.append(
                         "assistant",
                         content,
                         markdown=content,
                     )
+                else:
+                    self.app.transcript_write("")
+                self.app._schedule_scroll_hint_update()
                 self.app._last_assistant_plain = content
                 self.app._is_streaming = False
                 self.app.set_status_line("ready")
@@ -86,6 +88,18 @@ class CodeEventHandler:
 
             elif isinstance(event, ConfirmationRequestEvent):
                 self.app.set_thinking(None)
+                sub = getattr(event, "subagent_name", "") or ""
+                if sub:
+                    self.app.transcript_write(
+                        f"\n[yellow]Sub-agent [cyan]{sub}[/cyan] needs approval:[/yellow] "
+                        f"{event.tool_name} — {event.reason}\n"
+                        f"[dim]/1 once · /2 session · /3 always · /4 deny[/dim]\n"
+                    )
+                else:
+                    self.app.transcript_write(
+                        f"\n[yellow]Confirmation:[/yellow] {event.tool_name} — {event.reason}\n"
+                        f"[dim]/1 once · /2 session · /3 always · /4 deny[/dim]\n"
+                    )
                 self.app._handle_confirmation_request(event)
 
             elif isinstance(event, SubAgentQuestionEvent):

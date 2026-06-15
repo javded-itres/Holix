@@ -45,7 +45,6 @@ PREDEFINED_SUBAGENTS = {
             "- ALWAYS generate multiple query variants before searching.\n"
             "- Cite sources with URLs in your final answer.\n"
             "- If results conflict, present different viewpoints.\n"
-            "- Return the synthesis in Russian unless the query is in English.\n"
             "- Do NOT delegate further — you are the final research node."
         ),
         tools=["web_search", "web_fetch"],

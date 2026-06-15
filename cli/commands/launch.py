@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import sys
 from pathlib import Path
 from typing import Any
 
@@ -25,6 +26,7 @@ from cli.services.tmux_launcher import (
     kill_session,
     launch_cli_by_id,
     list_all_tmux_sessions,
+    restart_cli_by_id,
     prune_dead_sessions,
     send_text,
     tmux_session_alive,
@@ -266,6 +268,11 @@ def launch_kill(
     print_success(f"Killed {target}")
 
 
+def _should_detach(*, detach: bool) -> bool:
+    """Non-interactive hosts (TUI tool, CI) cannot tmux-attach — start in background."""
+    return detach or not sys.stdout.isatty()
+
+
 def _open_cli(
     ctx: typer.Context,
     cli_id: str,
@@ -281,6 +288,7 @@ def _open_cli(
     """Open external CLI: attach to an existing session or start a new one."""
     _require_platform()
     profile, config = _profile_config(ctx)
+    detach = _should_detach(detach=detach)
 
     reuse_existing = not new_session and not new_window and not target_session
     if reuse_existing:
@@ -288,8 +296,14 @@ def _open_cli(
         if active:
             session = active[-1]
             if detach:
-                print_info(f"Active session: {session.tmux_session}")
+                print_success(
+                    f"{cli_id} already running in tmux [bold]{session.tmux_session}[/bold]"
+                )
+                print_info(f"Model: {session.model_name or session.model_slot}")
+                print_info(f"CWD:   {session.cwd}")
                 print_info(f"Attach: holix launch attach {session.tmux_session}")
+                print_info(f"Relay:  holix launch chat {session.session_id}")
+                print_info(f"Restart: holix launch {cli_id} restart")
                 return
             print_info(f"Attaching to {session.tmux_session} (detach: Ctrl+b d)")
             raise typer.Exit(attach_session(session.tmux_session))
@@ -371,6 +385,36 @@ def _register_cli_apps() -> None:
                 _require_platform()
                 profile, config = _profile_config(ctx)
                 show_cli_status(profile, name, config)
+
+            @cli_app.command("restart")
+            def _restart(
+                ctx: typer.Context,
+                cwd: Path | None = typer.Option(None, "--cwd", "-C", help="Working directory"),
+                task: str = typer.Option("", "--task", "-t", help="Initial prompt"),
+                model_slot: str | None = typer.Option(
+                    None, "--model-slot", "-m", help="Profile model slot"
+                ),
+            ) -> None:
+                """Kill running sessions for this CLI and start a new tmux session."""
+                _require_platform()
+                profile, config = _profile_config(ctx)
+                try:
+                    launched = restart_cli_by_id(
+                        profile=profile,
+                        cli_id=name,
+                        profile_config=config,
+                        cwd=cwd,
+                        task=task,
+                        model_slot=model_slot,
+                    )
+                except TmuxError as exc:
+                    print_error(str(exc))
+                    raise typer.Exit(1) from exc
+                print_success(f"Restarted {name} in tmux [bold]{launched.tmux_session}[/bold]")
+                print_info(f"Model: {launched.model_name} (slot: {launched.model_slot})")
+                print_info(f"CWD:   {launched.cwd}")
+                print_info(f"Attach: holix launch attach {launched.tmux_session}")
+                print_info(f"Relay:  holix launch chat {launched.session_id}")
 
             _open.__doc__ = description
             return cli_app

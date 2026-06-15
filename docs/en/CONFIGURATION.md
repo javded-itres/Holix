@@ -283,12 +283,26 @@ Each fallback uses that provider's `default_model`. Inherited from `global/confi
 - Hub lockfile: `{profile}/data/hub-lock.json` — [HUB.md](HUB.md)
 - `skill_assignments` — per-agent skill allowlists: `holix skills assign`
 
+## Plan generation (Plan & Hybrid modes)
+
+Profile `.env` / `config.yaml` (see also [EXECUTION_MODES.md](EXECUTION_MODES.md#settings)):
+
+| Variable | Default | Effect |
+|----------|---------|--------|
+| `plan_review_enabled` | `true` | Show plan for approval before execution |
+| `plan_review_timeout` | `600` | Seconds to wait for plan approval |
+| `plan_generation_timeout` | `600` | Seconds to wait for LLM plan generation |
+| `plan_generation_max_tokens` | `12000` | Max tokens for plan JSON (large development reports) |
+| `plan_generation_retries` | `2` | Retries on timeout or truncated JSON |
+| `max_steps_per_plan_step` | `5` | Tool iterations per plan step |
+| `max_steps` | `15` | Overall graph step limit |
+
 ## Local project supplements
 
 In a project directory, Holix may merge (without overwriting profile system keys):
 
 - `./.holix/skills/` — extra skills
-- `./.holix/plan/` — plan files
+- `./.holix/plans/` — approved execution plans (`.md` human-readable, `.json` machine-readable); legacy `./.holix/plan/` is still read if present
 - `./config.yaml` — supplemental MCP/skills (not full profile replacement)
 
 ## Related
