@@ -3,10 +3,15 @@
 from __future__ import annotations
 
 import sys
-import termios
 import time
-import tty
 from collections.abc import Callable
+
+try:
+    import termios
+    import tty
+except ImportError:  # Windows — relay is Unix-only
+    termios = None  # type: ignore[assignment,misc]
+    tty = None  # type: ignore[assignment,misc]
 from contextlib import contextmanager
 
 from rich.panel import Panel
@@ -40,6 +45,9 @@ def pane_ready_to_emit(
 
 @contextmanager
 def _cbreak_stdin():
+    if termios is None or tty is None:
+        yield
+        return
     if not sys.stdin.isatty():
         yield
         return
@@ -80,6 +88,10 @@ def run_cli_relay(
     on_user_send: Callable[[str], None] | None = None,
 ) -> None:
     """Poll tmux pane and forward prompts/keys to the external CLI."""
+    if termios is None or tty is None:
+        print_info("Relay is available only on Linux and macOS.")
+        return
+
     console.print(
         Panel.fit(
             f"[bold]Relay → {tmux_session}:{window_index}[/bold]\n{_RELAY_HELP}",
