@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -32,6 +33,7 @@ def test_binary_installed_checks_binary_paths(tmp_path: Path, monkeypatch: pytes
         "_install_path_dirs",
         lambda: str(install_dir),
     )
+    monkeypatch.setattr(os, "access", lambda _path, _mode: True)
 
     assert setup_wizard._binary_installed(spec) == str(binary)
 

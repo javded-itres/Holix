@@ -42,7 +42,13 @@ def test_assign_rejects_unknown_subagent(holix_home) -> None:
         assign_cli_to_subagent("default", "claude", "unknown-type")
 
 
-def test_prepare_subagent_injects_external_cli_after_assign(holix_home) -> None:
+def test_prepare_subagent_injects_external_cli_after_assign(
+    holix_home, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        "core.external_cli.platform.launch_supported",
+        lambda: True,
+    )
     from types import SimpleNamespace
 
     assign_cli_to_subagent("default", "opencode", "coder")
@@ -73,7 +79,7 @@ async def test_slash_launch_list(holix_home, monkeypatch: pytest.MonkeyPatch) ->
 
     assign_cli_to_subagent("default", "claude", "coder")
     monkeypatch.setattr(
-        "core.external_cli.platform.launch_supported",
+        "cli.shared.commands.launch_commands.launch_supported",
         lambda: True,
     )
 

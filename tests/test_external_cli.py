@@ -267,7 +267,13 @@ def test_external_cli_launch_requires_assigned_subagent(holix_home) -> None:
     assert "disabled" in (external_cli_launch_error("default", "claude", caller_agent_type="coder") or "")
 
 
-def test_prepare_subagent_config_injects_external_cli_for_assigned_subagent(holix_home) -> None:
+def test_prepare_subagent_config_injects_external_cli_for_assigned_subagent(
+    holix_home, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        "core.external_cli.platform.launch_supported",
+        lambda: True,
+    )
     ExternalCliStore("default").upsert_binding(
         ExternalCliBinding(
             cli_id="claude",
