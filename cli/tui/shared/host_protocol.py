@@ -1,4 +1,4 @@
-"""Protocol for TUI hosts (code UI + legacy adapter)."""
+"""Protocol for TUI hosts (code UI)."""
 
 from __future__ import annotations
 

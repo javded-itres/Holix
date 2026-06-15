@@ -400,6 +400,24 @@ class SubAgentManager:
                 lines.append(
                     f"  {h.name} [{h.status.value}] {mode}{pid} {elapsed}ms — {preview}"
                 )
+
+        pending = self.interactions.list_pending_questions()
+        if pending:
+            if html:
+                lines.append("")
+                lines.append("<b>Pending questions</b>")
+                for item in pending:
+                    q = (item.get("question") or "")[:120]
+                    name = item.get("subagent_name") or "sub-agent"
+                    lines.append(f"• <code>{name}</code>: {q}")
+            else:
+                lines.append("")
+                lines.append("Pending questions")
+                for item in pending:
+                    q = (item.get("question") or "")[:120]
+                    name = item.get("subagent_name") or "sub-agent"
+                    lines.append(f"  ? {name}: {q}")
+
         return "\n".join(lines)
 
     def get_status_summary(self) -> dict[str, Any]:

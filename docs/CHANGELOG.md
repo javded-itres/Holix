@@ -2,6 +2,24 @@
 
 ## Unreleased
 
+### Added
+- **`holix launch`** — external coding CLIs in tmux (Linux/macOS): setup wizard, per-profile bindings, session management (`attach`, `send`, `chat`, `output`, `kill`)
+- **Supported agents** — Claude Code, OpenCode, Grok Build, GigaCode, Aider; per-agent `holix launch <id>` and `holix launch <id> status`
+- **Holix profile models in external CLIs** — Claude gateway/LiteLLM env; OpenCode via generated `opencode.json` + `OPENCODE_CONFIG` (`holix/<model>`); Grok Build via `config.toml` + `GROK_HOME` and positional initial task
+- **Auto-install** in `holix launch setup` for curl/npm/uv installers (OpenCode, Grok Build, Claude, Aider); binary detection in `~/.opencode/bin`, `~/.grok/bin`, …
+- **Interactive relay** — `holix launch chat` forwards text and terminal keys (arrows, Tab, Esc, digits 1–9) to tmux panes
+- **Agent tool** — `external_cli` for launch/send/output/list_sessions (assigned sub-agents only)
+- **Sub-agent CLI assignment** — `holix launch setup` field **Assign to sub-agent** (`agent_slot` in bindings); tool injected only for matching sub-agent types
+- **TUI `/launch`** — modal to assign or unassign sub-agents per external CLI; `/launch list` in transcript
+- **Sub-agent types** — profile `subagents/types.json`, TUI `/subagent-types` (prompt, skills, MCP, model, external CLI)
+- **Docs** — [SUBAGENTS.md](en/SUBAGENTS.md) (EN/RU): sub-agent types, spawn, slash commands, limits, custom type wizard
+- **Docs** — [LAUNCH.md](en/LAUNCH.md), [LAUNCH_SUBAGENTS.md](en/LAUNCH_SUBAGENTS.md) (EN/RU), CLI reference sections
+
+### Changed
+- **`holix tui`** — always launches the code-style TUI; legacy dashboard removed (`HOLIX_TUI_LEGACY` no longer supported)
+- **`external_cli` access** — main agent no longer has the tool; launch/send/output require an enabled binding whose `agent_slot` matches the calling sub-agent type
+- **Codex CLI and Codex App** — temporarily removed from `holix launch` registry
+
 ## 0.1.36 — 2026-06-14
 
 ### Added

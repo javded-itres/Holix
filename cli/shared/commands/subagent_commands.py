@@ -6,6 +6,8 @@ import asyncio
 import logging
 from typing import Any
 
+from core.subagents.registry import list_available_subagents
+
 logger = logging.getLogger(__name__)
 
 
@@ -68,9 +70,14 @@ async def run_subagents_command(host: Any, command: str) -> None:
         agent_type = parts[1]
         task = command.split(maxsplit=2)[2] if len(parts) >= 3 else ""
         if not task.strip():
+            profile = str(getattr(host, "profile", None) or "default")
+            types = ", ".join(
+                item["name"] for item in list_available_subagents(profile=profile)
+            )
             host.transcript_write(
                 "Usage: /subagent-spawn <type> <task>\n"
-                "Types: researcher, coder, analyst, reviewer, writer, web_researcher"
+                f"Types: {types}\n"
+                "Custom types: /subagent-types"
             )
             return
         try:
@@ -120,7 +127,9 @@ async def run_subagents_command(host: Any, command: str) -> None:
 
     host.transcript_write(
         "Sub-agents:\n"
-        "  /subagents — list\n"
+        "  /subagents — list running\n"
+        "  /subagent-types — manage custom types (TUI)\n"
+        "  /subagent-types list — all types\n"
         "  /subagent-spawn <type> <task>\n"
         "  /subagent-result <job_id>\n"
         "  /subagent-reply <job_id> <answer>\n"

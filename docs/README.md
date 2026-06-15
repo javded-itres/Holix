@@ -25,6 +25,9 @@ Bilingual documentation. **English is the primary language** for accuracy and Gi
 | Topic | EN | RU |
 |-------|----|----|
 | **CLI (all commands)** | [en/CLI.md](en/CLI.md) | [ru/CLI.md](ru/CLI.md) |
+| **External CLI launch** | [en/LAUNCH.md](en/LAUNCH.md) | [ru/LAUNCH.md](ru/LAUNCH.md) |
+| **Sub-agents** | [en/SUBAGENTS.md](en/SUBAGENTS.md) | [ru/SUBAGENTS.md](ru/SUBAGENTS.md) |
+| **Launch + sub-agents** | [en/LAUNCH_SUBAGENTS.md](en/LAUNCH_SUBAGENTS.md) | [ru/LAUNCH_SUBAGENTS.md](ru/LAUNCH_SUBAGENTS.md) |
 | **Slash commands `/`** | [en/SLASH_COMMANDS.md](en/SLASH_COMMANDS.md) | [ru/SLASH_COMMANDS.md](ru/SLASH_COMMANDS.md) |
 | TUI | [en/TUI.md](en/TUI.md) | [ru/TUI.md](ru/TUI.md) |
 | Skill Hub | [en/HUB.md](en/HUB.md) | [ru/HUB.md](ru/HUB.md) |

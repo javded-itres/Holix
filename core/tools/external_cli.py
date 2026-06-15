@@ -4,9 +4,10 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from core.external_cli.access import external_cli_launch_error
 from core.external_cli.platform import launch_supported
 from core.tools.base import BaseTool
-from core.tools.execution_context import get_profile_name
+from core.tools.execution_context import get_profile_name, get_subagent_type
 
 
 class ExternalCliTool(BaseTool):
@@ -16,7 +17,8 @@ class ExternalCliTool(BaseTool):
         super().__init__()
         self.name = "external_cli"
         self.description = (
-            "Launch or send tasks to external coding CLIs in tmux (claude, opencode, gigacode, …). "
+            "Launch or send tasks to external coding CLIs in tmux (claude, opencode, grok-build, …). "
+            "Only available to sub-agents explicitly assigned in holix launch setup. "
             "Uses LLM credentials from the active Holix profile. Linux/macOS only."
         )
         self.risk_level = "medium"
@@ -30,7 +32,7 @@ class ExternalCliTool(BaseTool):
                 },
                 "cli_id": {
                     "type": "string",
-                    "description": "CLI id: claude, opencode, gigacode, codex, aider",
+                    "description": "CLI id: claude, opencode, grok-build, gigacode, aider",
                 },
                 "task": {
                     "type": "string",
@@ -91,7 +93,14 @@ class ExternalCliTool(BaseTool):
         if action == "launch":
             cli_id = (kwargs.get("cli_id") or "").strip().lower()
             if not cli_id or not get_cli_spec(cli_id):
-                return "Error: cli_id required (claude, opencode, gigacode, codex, aider)."
+                return "Error: cli_id required (claude, opencode, grok-build, gigacode, aider)."
+            denied = external_cli_launch_error(
+                profile,
+                cli_id,
+                caller_agent_type=get_subagent_type(),
+            )
+            if denied:
+                return denied
             cwd_raw = (kwargs.get("cwd") or "").strip()
             cwd = Path(cwd_raw) if cwd_raw else None
             task = (kwargs.get("task") or "").strip()
@@ -115,6 +124,14 @@ class ExternalCliTool(BaseTool):
             if not session_ref:
                 return "Error: session required for send/output."
             found = find_launched_session(profile, session_ref)
+            if found:
+                denied = external_cli_launch_error(
+                    profile,
+                    found.cli_id,
+                    caller_agent_type=get_subagent_type(),
+                )
+                if denied:
+                    return denied
             target = found.tmux_session if found else session_ref
             if not tmux_session_alive(target):
                 return f"Error: tmux session not found: {session_ref}"

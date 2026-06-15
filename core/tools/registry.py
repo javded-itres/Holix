@@ -106,7 +106,14 @@ class ToolRegistry:
 
             register_browser_tools(self)
 
-    async def register_mcp(self, mcp_servers: dict[str, Any], assignments: dict[str, list[str]] | None = None, slot: str = "main") -> int:
+    async def register_mcp(
+        self,
+        mcp_servers: dict[str, Any],
+        assignments: dict[str, list[str]] | None = None,
+        slot: str = "main",
+        *,
+        ready_timeout: float = 10.0,
+    ) -> int:
         """Dynamically register MCP tools for this registry (called from agent init).
 
         Returns number of tools registered.
@@ -124,9 +131,10 @@ class ToolRegistry:
                 enabled = list(assignments.get("main", mcp_servers.keys()))
             else:
                 enabled = list(mcp_servers.keys())
+            self._mcp_enabled_servers = list(enabled or mcp_servers.keys())  # type: ignore[attr-defined]
             # Give slow stdio servers (npx/uvx downloads, Context7 auth, etc.) time to initialize + list_tools
             try:
-                await mgr.wait_ready(enabled or None, timeout=10.0)
+                await mgr.wait_ready(enabled or None, timeout=ready_timeout)
             except Exception:
                 pass
             tools = mgr.get_tool_adapters(enabled or None)
@@ -140,13 +148,37 @@ class ToolRegistry:
             print(f"Warning: MCP registration skipped: {exc}")
             return 0
 
-    def get_schemas(self) -> list[dict[str, Any]]:
+    async def finish_mcp_registration(self, *, timeout: float = 30.0) -> int:
+        """Wait for slow MCP servers and register any tools not yet available."""
+        mgr = getattr(self, "_mcp_manager", None)
+        if not mgr:
+            return 0
+        enabled = getattr(self, "_mcp_enabled_servers", None) or list(mgr.available_servers)
+        try:
+            await mgr.wait_ready(enabled, timeout=timeout)
+        except Exception:
+            pass
+        added = 0
+        for tool in mgr.get_tool_adapters(enabled):
+            if tool.name not in self.tools:
+                self.register(tool)
+                added += 1
+        return added
+
+    def get_schemas(self, *, for_agent_slot: str = "main") -> list[dict[str, Any]]:
         """Get OpenAI-compatible schemas for all registered tools.
 
         Returns:
             List of tool schemas
         """
-        return [tool.to_openai_schema() for tool in self.tools.values()]
+        schemas = [tool.to_openai_schema() for tool in self.tools.values()]
+        if (for_agent_slot or "main").strip().lower() == "main":
+            schemas = [
+                schema
+                for schema in schemas
+                if schema.get("function", {}).get("name") != "external_cli"
+            ]
+        return schemas
 
     async def execute(
         self,

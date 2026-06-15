@@ -15,7 +15,7 @@ Source of truth for TUI/Telegram: `cli/shared/commands/registry.py` and `cli/sha
 | Hub / MCP menus | Yes | Partial | No |
 | `/model`, `/skills`, `/memory` | Yes | Yes | Yes (subset) |
 | `/compress` | Yes | Yes | Yes |
-| `/debug` | Legacy TUI only | No | Yes (`chat-command` only) |
+| `/debug` | No | No | Yes (`chat-command` only) |
 
 ## Keyboard note (macOS RU layout)
 

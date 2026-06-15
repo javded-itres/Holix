@@ -76,9 +76,13 @@ def known_agent_slots(
     if assignments:
         slots.update(assignments.keys())
     try:
+        from core.env_loader import active_profile_name
         from core.subagents.registry import list_available_subagents
 
-        slots.update(s["name"] for s in list_available_subagents())
+        profile = active_profile_name()
+        slots.update(
+            s["name"] for s in list_available_subagents(profile=profile or None)
+        )
     except Exception:
         pass
     return sorted(slots)

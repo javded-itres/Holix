@@ -10,7 +10,13 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from core.external_cli.env import build_cli_env, env_export_shell, resolve_model_for_slot
+from core.external_cli.env import (
+    build_cli_env,
+    build_launch_args,
+    env_export_shell,
+    resolve_model_for_slot,
+    task_passed_in_launch_args,
+)
 from core.external_cli.platform import ensure_launch_platform
 from core.external_cli.registry import ExternalCliSpec, get_cli_spec
 from core.external_cli.store import ExternalCliBinding, ExternalCliStore, LaunchedSession
@@ -78,6 +84,7 @@ def build_tmux_session_name(profile: str, cli_id: str) -> str:
 
 
 def resolve_binary(binding: ExternalCliBinding, spec: ExternalCliSpec) -> str:
+    import os
     import shutil
 
     if binding.command.strip():
@@ -86,6 +93,10 @@ def resolve_binary(binding: ExternalCliBinding, spec: ExternalCliSpec) -> str:
         path = shutil.which(name)
         if path:
             return path
+    for raw in spec.binary_paths:
+        path = Path(raw).expanduser()
+        if path.is_file() and os.access(path, os.X_OK):
+            return str(path)
     return spec.binary_names[0]
 
 
@@ -118,9 +129,10 @@ def create_cli_session(
             f"Run: holix models setup -p {profile}"
         )
 
-    env = build_cli_env(spec, model, extra_env=binding.extra_env)
+    env = build_cli_env(spec, model, profile=profile, extra_env=binding.extra_env)
     binary = resolve_binary(binding, spec)
-    launch_cmd = _shell_launch_command(env, binary, spec.launch_args)
+    launch_args = build_launch_args(spec, model, task)
+    launch_cmd = _shell_launch_command(env, binary, launch_args)
     session_name = tmux_session or build_tmux_session_name(profile, spec.cli_id)
     cwd_str = str(cwd.expanduser().resolve())
 
@@ -160,7 +172,7 @@ def create_cli_session(
         target = session_name
         window_index = 0
 
-    if task.strip():
+    if task.strip() and not task_passed_in_launch_args(spec, task):
         send_text(target, task.strip(), window_index=window_index)
 
     session_id = secrets.token_hex(4)
@@ -190,6 +202,19 @@ def _utc_now() -> str:
     from datetime import UTC, datetime
 
     return datetime.now(UTC).isoformat()
+
+
+def send_keys(
+    tmux_session: str,
+    keys: list[str] | tuple[str, ...],
+    *,
+    window_index: int = 0,
+) -> None:
+    """Send tmux key names (Up, Down, Enter, Escape, …) to a pane."""
+    if not keys:
+        return
+    target = f"{tmux_session}:{window_index}"
+    _run_tmux(["send-keys", "-t", target, *keys])
 
 
 def send_text(
@@ -240,6 +265,12 @@ def find_launched_session(profile: str, ref: str) -> LaunchedSession | None:
         if session.session_id == ref or session.tmux_session == ref:
             return session
     return None
+
+
+def find_active_sessions_for_cli(profile: str, cli_id: str) -> list[LaunchedSession]:
+    """Return alive Holix tmux sessions for a given external CLI."""
+    needle = cli_id.strip().lower()
+    return [s for s in prune_dead_sessions(profile) if s.cli_id == needle]
 
 
 def prune_dead_sessions(profile: str) -> list[LaunchedSession]:

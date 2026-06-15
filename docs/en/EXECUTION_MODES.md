@@ -2,7 +2,7 @@
 
 Holix runs the agent through a **LangGraph** workflow. The **execution mode** decides how the graph plans, calls tools, and asks for your approval.
 
-Modes are available in **TUI** (`holix tui`), **Telegram**, and **web TUI** (`holix tui --web`). Switch with **`/mode`**, **`/mode <name>`**, or **Shift+Tab** (legacy TUI).
+Modes are available in **TUI** (`holix tui`), **Telegram**, and **web TUI** (`holix tui --web`). Switch with **`/mode`** or **`/mode <name>`**.
 
 | Mode | System name | Best for |
 |------|-------------|----------|

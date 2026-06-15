@@ -107,6 +107,7 @@ def run_sub_agent_in_process(
     confirmation_timeout: float = 0.0,
     interactive: bool = True,
     search_config: dict[str, Any] | None = None,
+    profile_name: str = "default",
 ) -> None:
     """Entry point for a sub-agent running in a separate process.
 
@@ -149,7 +150,7 @@ def run_sub_agent_in_process(
 
     # Create own tool registry (subset)
     from core.tools.registry import ToolRegistry
-    registry = ToolRegistry()
+    registry = ToolRegistry(profile_name=profile_name)
     registry.register_all()
 
     # MCP for this sub (if any servers listed in its config and defs passed)
@@ -198,7 +199,9 @@ def run_sub_agent_in_process(
             )
             sk_mgr = SkillsManager(sk_cfg)
             relevant = sk_mgr.get_relevant_skills(
-                task, top_k=3, agent_slot=config.name
+                task,
+                top_k=3,
+                agent_slot=config.agent_type or config.name,
             )
             skills_block = sk_mgr.format_skills_for_prompt(relevant)
         except Exception:
@@ -347,6 +350,7 @@ def run_sub_agent_in_process(
                             registry,
                             tc,
                             config=config,
+                            profile_name=profile_name,
                             output_queue=output_queue,
                             input_queue=input_queue,
                             auto_allow_threshold=auto_allow_threshold,
@@ -407,6 +411,7 @@ def _execute_tool_guarded(
     tool_call,
     *,
     config: SubAgentConfig,
+    profile_name: str,
     output_queue: multiprocessing.Queue,
     input_queue: multiprocessing.Queue,
     auto_allow_threshold: str,
@@ -455,51 +460,64 @@ def _execute_tool_guarded(
 
     run_loop = loop or _ensure_event_loop()
 
-    if risk_order.get(assessment.risk_level, 0) <= risk_order.get(threshold, 1):
-        return run_loop.run_until_complete(tool.execute(**args))
-
-    permissions = PermissionManager(data_dir=data_dir or None)
-    if permissions.is_allowed(
-        resolved, assessment.risk_level, assessment.pattern_matched
-    ):
-        return run_loop.run_until_complete(tool.execute(**args))
-
-    if not interactive:
-        return (
-            f"Error: Tool '{tool_name}' requires confirmation but sub-agent is non-interactive. "
-            f"Reason: {assessment.reason}"
-        )
-
-    choice_value = _ipc_request_confirmation(
-        config.name,
-        assessment,
-        output_queue,
-        input_queue,
-        confirmation_timeout,
+    from core.tools.execution_context import (
+        profile_scope,
+        reset_profile_scope,
+        reset_subagent_scope,
+        subagent_scope,
     )
-    if choice_value == ConfirmationChoice.DENY.value:
-        return f"Error: Tool call '{tool_name}' denied by user. Reason: {assessment.reason}"
 
-    if choice_value == ConfirmationChoice.ALLOW_SESSION.value:
-        from core.security.confirmation import PermissionScope
+    scope_tokens = subagent_scope(config.name, subagent_type=config.agent_type)
+    profile_token = profile_scope(profile_name)
+    try:
+        if risk_order.get(assessment.risk_level, 0) <= risk_order.get(threshold, 1):
+            return run_loop.run_until_complete(tool.execute(**args))
 
-        permissions.grant(
-            tool_name,
-            PermissionScope.SESSION,
-            assessment.risk_level,
-            assessment.pattern_matched,
+        permissions = PermissionManager(data_dir=data_dir or None)
+        if permissions.is_allowed(
+            resolved, assessment.risk_level, assessment.pattern_matched
+        ):
+            return run_loop.run_until_complete(tool.execute(**args))
+
+        if not interactive:
+            return (
+                f"Error: Tool '{tool_name}' requires confirmation but sub-agent is non-interactive. "
+                f"Reason: {assessment.reason}"
+            )
+
+        choice_value = _ipc_request_confirmation(
+            config.name,
+            assessment,
+            output_queue,
+            input_queue,
+            confirmation_timeout,
         )
-    elif choice_value == ConfirmationChoice.ALLOW_ALWAYS.value:
-        from core.security.confirmation import PermissionScope
+        if choice_value == ConfirmationChoice.DENY.value:
+            return f"Error: Tool call '{tool_name}' denied by user. Reason: {assessment.reason}"
 
-        permissions.grant(
-            tool_name,
-            PermissionScope.ALWAYS,
-            assessment.risk_level,
-            assessment.pattern_matched,
-        )
+        if choice_value == ConfirmationChoice.ALLOW_SESSION.value:
+            from core.security.confirmation import PermissionScope
 
-    return run_loop.run_until_complete(tool.execute(**args))
+            permissions.grant(
+                tool_name,
+                PermissionScope.SESSION,
+                assessment.risk_level,
+                assessment.pattern_matched,
+            )
+        elif choice_value == ConfirmationChoice.ALLOW_ALWAYS.value:
+            from core.security.confirmation import PermissionScope
+
+            permissions.grant(
+                tool_name,
+                PermissionScope.ALWAYS,
+                assessment.risk_level,
+                assessment.pattern_matched,
+            )
+
+        return run_loop.run_until_complete(tool.execute(**args))
+    finally:
+        reset_profile_scope(profile_token)
+        reset_subagent_scope(scope_tokens)
 
 
 def _ipc_request_confirmation(
@@ -757,6 +775,7 @@ class SubAgentProcessManager:
                 confirmation_timeout,
                 interactive,
                 search_config,
+                str(getattr(parent_cfg, "profile_name", None) or "default"),
             ),
             daemon=True,  # Die with parent
         )

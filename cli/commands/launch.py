@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import sys
-import time
 from pathlib import Path
 from typing import Any
 
@@ -12,15 +10,17 @@ from core.external_cli.platform import ensure_launch_platform
 from core.external_cli.registry import EXTERNAL_CLI_REGISTRY, list_cli_specs
 from core.external_cli.store import ExternalCliStore
 from rich.panel import Panel
-from rich.prompt import Prompt
 from rich.table import Table
 
 from cli.core import get_current_config, get_current_profile
+from cli.launch.cli_status import show_cli_status
+from cli.launch.relay import run_cli_relay
 from cli.launch.setup_wizard import run_launch_setup
 from cli.services.tmux_launcher import (
     TmuxError,
     attach_session,
     capture_pane,
+    find_active_sessions_for_cli,
     find_launched_session,
     kill_session,
     launch_cli_by_id,
@@ -101,7 +101,7 @@ def launch_list(ctx: typer.Context) -> None:
 
     console.print(table)
     console.print()
-    print_info("Setup: holix launch setup  |  Launch: holix launch <cli_id>")
+    print_info("Setup: holix launch setup  |  Open CLI: holix launch <cli_id>  |  Status: holix launch <cli_id> status")
 
 
 @app.command("sessions")
@@ -113,7 +113,7 @@ def launch_sessions(ctx: typer.Context) -> None:
 
     if not sessions:
         print_info("No active Holix launch sessions for this profile.")
-        print_info("Start one: holix launch claude --task \"implement feature X\"")
+        print_info("Start one: holix launch claude")
         return
 
     table = Table(title=f"Holix sessions ({profile})", show_header=True)
@@ -231,7 +231,7 @@ def launch_chat(
     session: str = typer.Argument(..., help="Session id or tmux name"),
     ctx: typer.Context = None,
 ) -> None:
-    """Interactive relay: type prompts, see CLI output (Ctrl+C to exit)."""
+    """Interactive relay: text + arrow keys for CLI choice menus (Ctrl+C to exit)."""
     _require_platform()
     profile, _ = _profile_config(ctx)
     found = find_launched_session(profile, session)
@@ -241,33 +241,13 @@ def launch_chat(
         raise typer.Exit(1)
     window = found.window_index if found else 0
 
-    console.print(Panel.fit(
-        f"[bold]Relay → {target}:{window}[/bold]\n"
-        "Type a prompt and press Enter. Empty line shows output. Ctrl+C to quit.",
-        border_style="cyan",
-    ))
-
     store = ExternalCliStore(profile)
-    try:
-        while True:
-            try:
-                user_input = Prompt.ask("[bold cyan]holix[/bold cyan]")
-            except (EOFError, KeyboardInterrupt):
-                console.print()
-                break
-            if not user_input.strip():
-                text = capture_pane(target, window_index=window, lines=30)
-                console.print(Panel(text or "(empty)", border_style="dim"))
-                continue
-            send_text(target, user_input.strip(), window_index=window)
-            time.sleep(0.8)
-            text = capture_pane(target, window_index=window, lines=35)
-            console.print(Panel(text, title="CLI output", border_style="green"))
-            if found:
-                store.touch_session_output(found.session_id)
-    except KeyboardInterrupt:
-        console.print()
-    print_info("Relay ended.")
+    on_send = (
+        (lambda _text: store.touch_session_output(found.session_id))
+        if found
+        else None
+    )
+    run_cli_relay(target, window, on_user_send=on_send)
 
 
 @app.command("kill")
@@ -286,7 +266,7 @@ def launch_kill(
     print_success(f"Killed {target}")
 
 
-def _launch_cli(
+def _open_cli(
     ctx: typer.Context,
     cli_id: str,
     *,
@@ -294,11 +274,25 @@ def _launch_cli(
     task: str,
     model_slot: str | None,
     detach: bool,
+    new_session: bool,
     new_window: bool,
-    session: str | None,
+    target_session: str | None,
 ) -> None:
+    """Open external CLI: attach to an existing session or start a new one."""
     _require_platform()
     profile, config = _profile_config(ctx)
+
+    reuse_existing = not new_session and not new_window and not target_session
+    if reuse_existing:
+        active = find_active_sessions_for_cli(profile, cli_id)
+        if active:
+            session = active[-1]
+            if detach:
+                print_info(f"Active session: {session.tmux_session}")
+                print_info(f"Attach: holix launch attach {session.tmux_session}")
+                return
+            print_info(f"Attaching to {session.tmux_session} (detach: Ctrl+b d)")
+            raise typer.Exit(attach_session(session.tmux_session))
 
     try:
         launched = launch_cli_by_id(
@@ -309,54 +303,82 @@ def _launch_cli(
             task=task,
             model_slot=model_slot,
             new_window=new_window,
-            target_session=session,
+            target_session=target_session,
         )
     except TmuxError as exc:
         print_error(str(exc))
         raise typer.Exit(1) from exc
 
-    print_success(f"Started {cli_id} in tmux [bold]{launched.tmux_session}[/bold]")
-    print_info(f"Model: {launched.model_name} (slot: {launched.model_slot})")
-    print_info(f"CWD:   {launched.cwd}")
-    print_info(f"Attach: holix launch attach {launched.tmux_session}")
-    print_info(f"Relay:  holix launch chat {launched.session_id}")
+    if detach:
+        print_success(f"Started {cli_id} in tmux [bold]{launched.tmux_session}[/bold]")
+        print_info(f"Model: {launched.model_name} (slot: {launched.model_slot})")
+        print_info(f"CWD:   {launched.cwd}")
+        print_info(f"Attach: holix launch attach {launched.tmux_session}")
+        print_info(f"Relay:  holix launch chat {launched.session_id}")
+        return
 
-    if not detach:
-        print_info("Attach now? (y/n)")
-        if sys.stdin.isatty():
-            answer = Prompt.ask("Attach", default="y")
-            if answer.strip().lower() in {"y", "yes", ""}:
-                raise typer.Exit(attach_session(launched.tmux_session))
+    print_info(f"Attaching to {launched.tmux_session} (detach: Ctrl+b d)")
+    raise typer.Exit(attach_session(launched.tmux_session))
 
 
-def _register_cli_launch_commands() -> None:
-    for cli_name, spec in EXTERNAL_CLI_REGISTRY.items():
-        def _make_cmd(name: str, label: str):
-            def _cmd(
+def _register_cli_apps() -> None:
+    for cli_id, spec in EXTERNAL_CLI_REGISTRY.items():
+
+        def _make_app(name: str, label: str, description: str) -> typer.Typer:
+            cli_app = typer.Typer(
+                help=f"Open {label} in tmux with Holix profile models.",
+                invoke_without_command=True,
+            )
+
+            @cli_app.callback(invoke_without_command=True)
+            def _open(
                 ctx: typer.Context,
                 cwd: Path | None = typer.Option(None, "--cwd", "-C", help="Working directory"),
                 task: str = typer.Option("", "--task", "-t", help="Initial prompt"),
-                model_slot: str | None = typer.Option(None, "--model-slot", "-m", help="Profile model slot"),
-                detach: bool = typer.Option(True, "--detach/--attach", help="Detach after launch"),
-                new_window: bool = typer.Option(False, "--window", "-w", help="New window in session"),
-                session: str | None = typer.Option(None, "--session", "-s", help="Target tmux session"),
+                model_slot: str | None = typer.Option(
+                    None, "--model-slot", "-m", help="Profile model slot"
+                ),
+                detach: bool = typer.Option(
+                    False, "--detach", help="Start in background without attaching"
+                ),
+                new_session: bool = typer.Option(
+                    False, "--new", "-n", help="Always start a new tmux session"
+                ),
+                new_window: bool = typer.Option(
+                    False, "--window", "-w", help="New window in an existing session"
+                ),
+                target_session: str | None = typer.Option(
+                    None, "--session", "-s", help="Target tmux session for --window"
+                ),
             ) -> None:
-                _launch_cli(
+                if ctx.invoked_subcommand is not None:
+                    return
+                _open_cli(
                     ctx,
                     name,
                     cwd=cwd,
                     task=task,
                     model_slot=model_slot,
                     detach=detach,
+                    new_session=new_session,
                     new_window=new_window,
-                    session=session,
+                    target_session=target_session,
                 )
-            _cmd.__doc__ = f"Launch {label} in tmux with Holix profile models."
-            return _cmd
 
-        app.command(cli_name, help=f"Launch {spec.display_name} in tmux")(
-            _make_cmd(cli_name, spec.display_name)
+            @cli_app.command("status")
+            def _status(ctx: typer.Context) -> None:
+                """Show binding, model config, and active sessions."""
+                _require_platform()
+                profile, config = _profile_config(ctx)
+                show_cli_status(profile, name, config)
+
+            _open.__doc__ = description
+            return cli_app
+
+        app.add_typer(
+            _make_app(cli_id, spec.display_name, spec.description),
+            name=cli_id,
         )
 
 
-_register_cli_launch_commands()
+_register_cli_apps()

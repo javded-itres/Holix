@@ -107,7 +107,9 @@ class AsyncSubAgentRunner:
         if hasattr(self._parent, "skills"):
             try:
                 relevant = self._parent.skills.get_relevant_skills(
-                    task, top_k=3, agent_slot=config.name
+                    task,
+                    top_k=3,
+                    agent_slot=config.agent_type or config.name,
                 )
                 skills_block = self._parent.skills.format_skills_for_prompt(relevant)
             except Exception as e:
@@ -193,7 +195,7 @@ class AsyncSubAgentRunner:
                             "name": tc.function.name,
                             "arguments": tc.function.arguments,
                         })
-                        result = await self._execute_tool(tc, config.name)
+                        result = await self._execute_tool(tc, config)
                         messages.append({
                             "role": "tool",
                             "tool_call_id": tc.id,
@@ -306,12 +308,12 @@ class AsyncSubAgentRunner:
 
         return schemas
 
-    async def _execute_tool(self, tool_call, subagent_name: str) -> str:
+    async def _execute_tool(self, tool_call, config: SubAgentConfig) -> str:
         """Execute a tool call using the parent's ToolRegistry.
 
         Args:
             tool_call: OpenAI tool call object.
-            subagent_name: Running sub-agent job id (for confirmations / ask_user).
+            config: Running sub-agent configuration.
 
         Returns:
             Tool execution result string.
@@ -323,7 +325,11 @@ class AsyncSubAgentRunner:
         if hasattr(self._parent, "subagents"):
             bridge = getattr(self._parent.subagents, "interactions", None)
 
-        tokens = subagent_scope(subagent_name, interaction_bridge=bridge)
+        tokens = subagent_scope(
+            config.name,
+            subagent_type=config.agent_type,
+            interaction_bridge=bridge,
+        )
         try:
             return await self._parent.tools.execute(
                 tool_call,

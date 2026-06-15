@@ -20,6 +20,14 @@ Screen {
     text-style: dim;
 }
 
+#stream-line {
+    height: auto;
+    max-height: 10;
+    padding: 0 1;
+    overflow-y: auto;
+    border-top: solid $primary 15%;
+}
+
 #status-bar {
     height: 1;
     padding: 0 1;
@@ -80,6 +88,32 @@ Screen {
 
 #command-suggestions ListItem.-highlighted {
     background: $accent 45%;
+}
+
+#prompt-history {
+    display: none;
+    height: auto;
+    max-height: 6;
+    border: tall $primary 25%;
+    background: $panel;
+    margin: 0 1;
+}
+
+#prompt-history.-visible {
+    display: block;
+}
+
+#prompt-history ListItem {
+    padding: 0 1;
+    height: 1;
+}
+
+#prompt-history ListItem:hover {
+    background: $primary 20%;
+}
+
+#prompt-history ListItem.-highlighted {
+    background: $primary 40%;
 }
 
 """

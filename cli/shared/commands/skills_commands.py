@@ -147,6 +147,105 @@ async def _send_telegram_skills_html(host: Any, html: str) -> None:
     host.transcript_write(html)
 
 
+async def invoke_skill_by_name(host: Any, skill_name: str, args: str = "") -> bool:
+    """Run a user-invocable skill by name. Returns True if the skill was found and started."""
+    from pathlib import Path
+
+    from core.hub.normalize import discover_skill_files, parse_skill_file
+    from core.hub.slash_registry import load_skill_slash_commands
+    from core.i18n import host_locale, t
+
+    config = getattr(host, "config", None)
+    if not config or not getattr(config, "skills_dir", None):
+        return False
+
+    skill_name = skill_name.strip()
+    if not skill_name:
+        return False
+
+    agent_slot = _agent_slot(host)
+    assignments = getattr(config, "skill_assignments", None) or {}
+    skills_dir = Path(config.skills_dir)
+
+    registered = {
+        c.lstrip("/").lower()
+        for c, _ in load_skill_slash_commands(
+            skills_dir,
+            agent_slot=agent_slot,
+            skill_assignments=assignments,
+        )
+    }
+    if skill_name.lower() not in registered:
+        flat = skills_dir / f"{skill_name}.md"
+        if not flat.exists():
+            return False
+
+    skill = None
+    flat = skills_dir / f"{skill_name}.md"
+    if flat.exists():
+        skill = parse_skill_file(flat)
+    if not skill:
+        for sf in discover_skill_files(skills_dir):
+            parsed = parse_skill_file(sf)
+            if parsed and parsed.get("name") == skill_name:
+                skill = parsed
+                break
+    if not skill:
+        return False
+
+    from core.skills.assignments import is_skill_allowed_for_agent
+
+    lang = host_locale(host)
+    if not is_skill_allowed_for_agent(skill, agent_slot, assignments):
+        host.transcript_write(
+            f"[yellow]{t('skill_not_assigned', lang, name=skill_name, slot=agent_slot)}[/yellow]"
+        )
+        return True
+
+    body = skill.get("content", "")
+    prompt = f"## Skill: {skill_name}\n\n{body}\n\n"
+    if args.strip():
+        prompt += f"## User request\n{args.strip()}"
+    else:
+        prompt += "## User request\nApply this skill to the current task."
+
+    host.transcript_write(f"[dim]▸ skill /skill {skill_name}[/dim]")
+    await host._send_message(prompt)
+    return True
+
+
+async def run_skill_invoke_command(host: Any, command: str) -> None:
+    """Run `/skill <name> [args]` with optional autocomplete elsewhere in the UI."""
+    from cli.shared.slash_input import normalize_slash_input
+
+    normalized = normalize_slash_input(command).strip()
+    lower = normalized.lower()
+    if not (lower == "/skill" or lower.startswith("/skill ")):
+        return
+
+    rest = normalized[6:].strip() if len(normalized) > 6 else ""
+    if not rest:
+        host.transcript_write(
+            "[dim]Usage: /skill <name> [args] — type /skill and pick from the list[/dim]"
+        )
+        return
+
+    parts = rest.split(maxsplit=1)
+    skill_name = parts[0]
+    args = parts[1] if len(parts) > 1 else ""
+
+    if not await invoke_skill_by_name(host, skill_name, args):
+        from core.i18n import host_locale, t
+
+        lang = host_locale(host)
+        host.transcript_write(
+            f"[yellow]{t('unknown_cmd', lang, cmd=f'/skill {skill_name}')}[/yellow]"
+        )
+        host.transcript_write(
+            "[dim]Use /skills to list available skills, or /hub to install more.[/dim]"
+        )
+
+
 async def run_skills_command(host: Any, command: str = "/skills") -> None:
     """Show loaded skills for the current profile and agent slot."""
     parts = command.strip().split(maxsplit=1)

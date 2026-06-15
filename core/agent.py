@@ -234,7 +234,12 @@ class HolixAgent:
         self.stamp_event(event)
         self.events.emit(sanitize_agent_event(event))
 
-    async def initialize(self):
+    async def initialize(
+        self,
+        *,
+        mcp_ready_timeout: float = 10.0,
+        defer_skill_index: bool = False,
+    ):
         """Initialize the agent (async setup)."""
         if self._initialized:
             return
@@ -256,6 +261,7 @@ class HolixAgent:
                     self.config.mcp_servers,
                     getattr(self.config, "mcp_assignments", None),
                     slot="main",
+                    ready_timeout=mcp_ready_timeout,
                 )
             except Exception as e:
                 self.emit(ThinkingEvent(message=f"MCP init warning: {e}"))
@@ -264,7 +270,7 @@ class HolixAgent:
             + (f" (+{mcp_count} MCP)" if mcp_count else "")
         ))
 
-        self.skills.load_all_skills()
+        self.skills.load_all_skills(defer_index=defer_skill_index)
         self.emit(ThinkingEvent(
             message=f"Loaded {len(self.skills.all_skills)} skills"
         ))
@@ -309,6 +315,25 @@ class HolixAgent:
 
         self._initialized = True
         self.emit(ThinkingEvent(message="Holix Agent ready!"))
+
+    async def finish_deferred_init(self, *, mcp_timeout: float = 30.0) -> dict[str, int]:
+        """Background completion: remaining MCP tools and deferred skill vector index."""
+        if not self._initialized:
+            return {"mcp_tools": 0, "skills_indexed": 0}
+
+        mcp_tools = 0
+        try:
+            mcp_tools = await self.tools.finish_mcp_registration(timeout=mcp_timeout)
+        except Exception:
+            pass
+
+        skills_indexed = 0
+        try:
+            skills_indexed = self.skills.index_all_skills()
+        except Exception:
+            pass
+
+        return {"mcp_tools": mcp_tools, "skills_indexed": skills_indexed}
 
     async def close(self) -> None:
         """Cleanup (MCP sessions etc.). Safe to call multiple times."""

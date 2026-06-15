@@ -5,9 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
 
-from core.subagents.registry import PREDEFINED_SUBAGENTS
-
-_VALID_TYPES = frozenset(PREDEFINED_SUBAGENTS.keys())
+from core.subagents.registry import subagent_type_names
 
 
 @dataclass(slots=True)
@@ -75,10 +73,14 @@ class OrchestrationPlan:
         )
 
 
-def infer_subagent_type(step: dict[str, Any]) -> str | None:
+def infer_subagent_type(
+    step: dict[str, Any],
+    *,
+    profile: str | None = None,
+) -> str | None:
     """Resolve sub-agent type from plan step metadata or heuristics."""
     explicit = (step.get("subagent_type") or "").strip()
-    if explicit in _VALID_TYPES:
+    if explicit in subagent_type_names(profile=profile):
         return explicit
 
     description = (step.get("description") or "").lower()
@@ -167,6 +169,7 @@ def _eligible_steps(
     plan_steps: list[dict[str, Any]],
     *,
     current_step_index: int,
+    profile: str | None = None,
 ) -> list[tuple[int, dict[str, Any], str]]:
     """Return (index, step, agent_type) for steps ready to delegate."""
     completed = _completed_step_numbers(plan_steps, current_step_index)
@@ -175,7 +178,7 @@ def _eligible_steps(
         step = plan_steps[idx]
         if not _deps_satisfied(step, completed):
             continue
-        agent_type = infer_subagent_type(step)
+        agent_type = infer_subagent_type(step, profile=profile)
         if not agent_type:
             continue
         task = (step.get("description") or "").strip()
@@ -212,6 +215,7 @@ def _build_complex_waves(
     plan_steps: list[dict[str, Any]],
     *,
     current_step_index: int,
+    profile: str | None = None,
 ) -> list[OrchestrationWave]:
     """Build multiple waves respecting depends_on and parallel_group."""
     completed = _completed_step_numbers(plan_steps, current_step_index)
@@ -227,7 +231,7 @@ def _build_complex_waves(
             step = plan_steps[idx]
             if not _deps_satisfied(step, completed):
                 continue
-            agent_type = infer_subagent_type(step)
+            agent_type = infer_subagent_type(step, profile=profile)
             if not agent_type:
                 continue
             task = (step.get("description") or "").strip()
@@ -275,6 +279,7 @@ def build_orchestration_plan(
     current_step_index: int = 0,
     enable_subagents: bool = False,
     max_concurrent: int = 4,
+    profile: str | None = None,
 ) -> OrchestrationPlan:
     """Decide whether and how to run sub-agents for the remaining plan."""
     analysis = plan_analysis or {}
@@ -287,7 +292,11 @@ def build_orchestration_plan(
             reasoning="sub-agents disabled or task complexity is simple",
         )
 
-    eligible = _eligible_steps(plan_steps, current_step_index=current_step_index)
+    eligible = _eligible_steps(
+        plan_steps,
+        current_step_index=current_step_index,
+        profile=profile,
+    )
     if not eligible:
         return OrchestrationPlan(
             complexity=complexity,
@@ -302,6 +311,7 @@ def build_orchestration_plan(
         waves = _build_complex_waves(
             plan_steps,
             current_step_index=current_step_index,
+            profile=profile,
         )
         reasoning = "complex: waves by parallel_group and dependencies"
 

@@ -14,9 +14,7 @@ holix tui --web --allow-lan --host 0.0.0.0 --port 8787 --token "$(openssl rand -
 export HOLIX_TUI_WEB_TOKEN="..."   # alternative to --token
 ```
 
-Default: **code-style** UI (`cli/tui/code/`).
-
-Legacy dashboard: `HOLIX_TUI_LEGACY=1 holix tui`
+Terminal UI: **code-style** interface (`cli/tui/code/`).
 
 ## Copy
 
