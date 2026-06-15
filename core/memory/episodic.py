@@ -6,6 +6,7 @@ Each episode captures: what happened, what the outcome was, and what was learned
 Automatically generated when conversations end or are compressed.
 """
 
+import asyncio
 import json
 import logging
 from datetime import datetime
@@ -200,18 +201,19 @@ KEY_LEARNING: (one key takeaway, if any)"""
                 logger.warning("Episodic summary skipped: no model provided")
                 return None
 
-            response = await llm_client.chat.completions.create(
-                model=effective_model,
-                messages=[
-                    {
-                        "role": "system",
-                        "content": "You are an expert at creating compact episodic memory summaries from conversations. Be concise and factual.",
-                    },
-                    {"role": "user", "content": prompt},
-                ],
-                temperature=0.1,
-                max_tokens=300,
-            )
+            async with asyncio.timeout(60.0):
+                response = await llm_client.chat.completions.create(
+                    model=effective_model,
+                    messages=[
+                        {
+                            "role": "system",
+                            "content": "You are an expert at creating compact episodic memory summaries from conversations. Be concise and factual.",
+                        },
+                        {"role": "user", "content": prompt},
+                    ],
+                    temperature=0.1,
+                    max_tokens=300,
+                )
 
             result_text = response.choices[0].message.content or ""
 

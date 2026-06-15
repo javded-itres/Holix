@@ -583,16 +583,16 @@ class MaxHost:
                 mode = self._session.execution_mode
                 with visibility_ctx:
                     if self._session.streaming_enabled:
-                        from core.runtime.executor import run_holix
+                        from core.runtime.run_consumer import consume_run_holix
 
-                        async for event in run_holix(
+                        await consume_run_holix(
                             self.agent,
                             user_input,
                             self.conversation_id,
                             stream=True,
                             execution_mode=mode,
-                        ):
-                            self.agent.emit(event)
+                            emit=self.agent.emit,
+                        )
                     else:
                         await self.agent.run(
                             user_input=user_input,
@@ -603,6 +603,12 @@ class MaxHost:
                 buf = self._session.live_buffer
                 if buf:
                     buf.add_note("stopped")
+            except TimeoutError:
+                buf = self._session.live_buffer
+                if buf:
+                    buf.mark_error(
+                        "Превышено время выполнения. Попробуйте ещё раз или выберите другую модель (/models)."
+                    )
             except Exception as exc:
                 buf = self._session.live_buffer
                 if buf:

@@ -13,6 +13,16 @@ _PLACEHOLDER_FINALS = frozenset(
     }
 )
 
+_ABORTED_FINAL_MARKERS = (
+    "не ответила за",
+    "error:",
+    "error during agent step",
+    "no llm model configured",
+    "no llm client available",
+    "agent reached maximum steps",
+    "превышено время выполнения",
+)
+
 MESSENGER_EMPTY_FINAL_RU = (
     "Агент завершил работу без текстового ответа.\n"
     "Проверьте модель (/models) или повторите запрос."
@@ -21,6 +31,14 @@ MESSENGER_EMPTY_FINAL_RU = (
 
 def is_placeholder_final(content: str | None) -> bool:
     return (content or "").strip().lower() in _PLACEHOLDER_FINALS
+
+
+def is_aborted_final_response(content: str | None) -> bool:
+    """True when the run ended with timeout/error rather than a real answer."""
+    text = (content or "").strip().lower()
+    if not text:
+        return False
+    return any(marker in text for marker in _ABORTED_FINAL_MARKERS)
 
 
 def resolve_messenger_final_content(
