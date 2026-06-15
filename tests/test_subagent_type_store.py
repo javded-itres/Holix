@@ -52,7 +52,6 @@ def test_store_upsert_and_registry_lookup(holix_home) -> None:
 
 
 def test_sync_profile_bindings(holix_home, monkeypatch: pytest.MonkeyPatch) -> None:
-    from types import SimpleNamespace
 
     from cli.core import ProfileManager
 

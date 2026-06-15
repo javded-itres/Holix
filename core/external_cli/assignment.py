@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from core.external_cli.access import normalize_agent_slot
-from core.external_cli.registry import ExternalCliSpec, get_cli_spec, list_cli_specs
+from core.external_cli.registry import get_cli_spec, list_cli_specs
 from core.external_cli.store import ExternalCliBinding, ExternalCliStore
 from core.subagents.registry import list_available_subagents
 

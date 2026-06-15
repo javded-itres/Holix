@@ -13,10 +13,6 @@ from collections import deque
 from pathlib import Path
 from typing import Any
 
-_TRANSCRIPT_DISPLAY_MAX = 400
-_TRANSCRIPT_REBUILD_EVERY = 40
-_STREAM_DISPLAY_INTERVAL_S = 0.05
-
 from core.agent import HolixAgent
 from core.agent_events import AgentEvent
 from core.plan_review.review_events import PlanReviewRequestEvent
@@ -43,7 +39,6 @@ from cli.tui.code.widgets import (
     SlashCommandSuggestions,
     TranscriptPanel,
 )
-from cli.tui.shared.prompt_history import PromptHistoryStore
 from cli.tui.modals import ModalStack, TranscriptViewerScreen
 from cli.tui.shared.clipboard import copy_text_best_effort
 from cli.tui.shared.copy_bar import COPY_BAR_ID, hide_copy_bar, show_copy_bar
@@ -57,12 +52,17 @@ from cli.tui.shared.keyboard_layout import (
     slash_command_prefix,
     terminal_copy_hint,
 )
+from cli.tui.shared.prompt_history import PromptHistoryStore
 from cli.tui.shared.slash_suggestions import (
     is_skill_invoke_line,
     match_skill_invoke_commands,
     match_slash_commands,
 )
 from cli.tui.shared.transcript_store import TranscriptStore, plain_from_rich_write
+
+_TRANSCRIPT_DISPLAY_MAX = 400
+_TRANSCRIPT_REBUILD_EVERY = 40
+_STREAM_DISPLAY_INTERVAL_S = 0.05
 
 
 class HolixCodeApp(App):
@@ -761,8 +761,9 @@ class HolixCodeApp(App):
             event.stop()
 
     def _slash_commands_pool(self) -> list[tuple[str, str]]:
-        from cli.shared.commands.registry import slash_commands_for_locale
         from core.i18n import LocaleStore
+
+        from cli.shared.commands.registry import slash_commands_for_locale
 
         return slash_commands_for_locale(LocaleStore(self.profile).get())
 

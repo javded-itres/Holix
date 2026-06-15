@@ -7,9 +7,8 @@ import time
 from unittest.mock import MagicMock
 
 import pytest
-from core.agent_events import AssistantDeltaEvent, FinalResponseEvent
-
 from cli.tui.code.handlers.events import CodeEventHandler
+from core.agent_events import AssistantDeltaEvent, FinalResponseEvent
 
 
 class FakeTranscriptStore:

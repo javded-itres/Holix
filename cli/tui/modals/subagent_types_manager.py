@@ -4,13 +4,6 @@ from __future__ import annotations
 
 from typing import Any, Literal
 
-from textual import on
-from textual.app import ComposeResult
-from textual.binding import Binding
-from textual.containers import Horizontal, ScrollableContainer, Vertical
-from textual.screen import ModalScreen
-from textual.widgets import Button, Footer, Header, Input, ListItem, ListView, Select, SelectionList, Static, TextArea
-
 from core.external_cli.registry import list_cli_specs
 from core.i18n import host_locale, t
 from core.subagents.registry import is_builtin_subagent, list_available_subagents
@@ -22,6 +15,23 @@ from core.subagents.store import (
     cleanup_custom_type_profile_bindings,
     sync_custom_type_profile_bindings,
     validate_custom_type_name,
+)
+from textual import on
+from textual.app import ComposeResult
+from textual.binding import Binding
+from textual.containers import Horizontal, ScrollableContainer, Vertical
+from textual.screen import ModalScreen
+from textual.widgets import (
+    Button,
+    Footer,
+    Header,
+    Input,
+    ListItem,
+    ListView,
+    Select,
+    SelectionList,
+    Static,
+    TextArea,
 )
 
 _INHERIT_MODEL = "__inherit__"

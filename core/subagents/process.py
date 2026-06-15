@@ -460,7 +460,12 @@ def _execute_tool_guarded(
 
     run_loop = loop or _ensure_event_loop()
 
-    from core.tools.execution_context import profile_scope, reset_profile_scope, reset_subagent_scope, subagent_scope
+    from core.tools.execution_context import (
+        profile_scope,
+        reset_profile_scope,
+        reset_subagent_scope,
+        subagent_scope,
+    )
 
     scope_tokens = subagent_scope(config.name, subagent_type=config.agent_type)
     profile_token = profile_scope(profile_name)

@@ -11,9 +11,9 @@ from core.external_cli.env import build_cli_env, build_launch_args, resolve_mode
 from core.external_cli.platform import launch_supported
 from core.external_cli.registry import get_cli_spec, resolve_cli_selection, resolve_cli_token
 from core.external_cli.store import ExternalCliBinding, ExternalCliStore
+from core.models.manager import ModelConfig
 from core.subagents.spawn import prepare_subagent_config
 from core.tools.registry import ToolRegistry
-from core.models.manager import ModelConfig
 
 
 @pytest.fixture

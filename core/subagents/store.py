@@ -10,7 +10,7 @@ from typing import Any, Self
 
 from core.platform_compat import resolve_holix_home
 from core.subagents.base import SubAgentConfig
-from core.subagents.registry import PREDEFINED_SUBAGENTS, builtin_subagent_names
+from core.subagents.registry import builtin_subagent_names
 
 _NAME_RE = re.compile(r"^[a-z][a-z0-9_-]{1,47}$")
 
@@ -159,6 +159,7 @@ def sync_custom_type_profile_bindings(
 ) -> None:
     """Persist skills, MCP, model slot, and external CLI links for a custom type."""
     from cli.core import get_profile_manager
+
     from core.external_cli.assignment import assign_cli_to_subagent, unassign_cli_subagent
     from core.external_cli.store import ExternalCliStore
     manager = get_profile_manager()

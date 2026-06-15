@@ -4,13 +4,6 @@ from __future__ import annotations
 
 from typing import Any, Literal
 
-from textual import on
-from textual.app import ComposeResult
-from textual.binding import Binding
-from textual.containers import Horizontal, Vertical
-from textual.screen import ModalScreen
-from textual.widgets import Button, Footer, Header, ListItem, ListView, Static
-
 from core.external_cli.assignment import (
     assign_cli_to_subagent,
     list_cli_assignment_rows,
@@ -19,6 +12,12 @@ from core.external_cli.assignment import (
 )
 from core.external_cli.platform import launch_supported
 from core.i18n import host_locale, t
+from textual import on
+from textual.app import ComposeResult
+from textual.binding import Binding
+from textual.containers import Horizontal, Vertical
+from textual.screen import ModalScreen
+from textual.widgets import Button, Footer, Header, ListItem, ListView, Static
 
 
 def _resolve_binary(spec) -> str | None:

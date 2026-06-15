@@ -11,7 +11,7 @@ from contextlib import contextmanager
 
 from rich.panel import Panel
 
-from cli.launch.terminal_keys import KeyEvent, read_key_event
+from cli.launch.terminal_keys import read_key_event
 from cli.services.tmux_launcher import capture_pane, send_keys, send_text
 from cli.utils.rich_console import console, print_info
 

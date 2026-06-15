@@ -6,6 +6,7 @@ import json
 from typing import Any
 
 from core.subagents.registry import list_available_subagents
+from core.tools.base import BaseTool
 
 
 def _profile_name(parent: Any) -> str | None:
@@ -13,7 +14,6 @@ def _profile_name(parent: Any) -> str | None:
     if cfg is None:
         return None
     return str(getattr(cfg, "profile_name", None) or "default")
-from core.tools.base import BaseTool
 
 
 def _agent(parent: Any):
