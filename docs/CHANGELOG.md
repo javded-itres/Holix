@@ -33,7 +33,7 @@
 - **EXECUTION_MODES** (EN/RU) — clarification flow, development report, plan storage
 - **CONFIGURATION** (EN/RU) — plan generation env vars, `.holix/plans/`
 
-## 0.1.36 — 2026-06-14
+## 0.1.14 — 2026-06-14
 
 ### Added
 - **MAX messenger integration** — multi-user bot parity with Telegram: per-profile `max.env`, allowlist, user map, admin CLI (`holix max map`, `max requests`, `max admin`), access requests, profile auth/seed, `holix_max` gateway API
@@ -52,7 +52,7 @@
 - **CI** — ruff import fixes across MAX/Telegram modules
 
 ### Changed
-- **Version** — package `Holix` 0.1.36 on PyPI
+- **Version** — package `Holix` 0.1.14 on PyPI
 
 ## 0.1.13 — 2026-06-13
 
