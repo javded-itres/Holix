@@ -165,7 +165,7 @@ def run_launch_setup(profile: str, profile_config: Any, *, yes: bool = False) ->
         print_success(f"Saved binding for {spec.display_name}")
 
     console.print()
-    print_info("Launch: holix launch claude --task \"…\"  |  holix launch sessions  |  holix launch attach <name>")
+    print_info("Open CLI: holix launch claude  |  Status: holix launch claude status  |  Sessions: holix launch sessions")
 
 
 def _agent_slots(profile_config: Any) -> list[str]:

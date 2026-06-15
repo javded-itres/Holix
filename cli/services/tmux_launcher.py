@@ -242,6 +242,12 @@ def find_launched_session(profile: str, ref: str) -> LaunchedSession | None:
     return None
 
 
+def find_active_sessions_for_cli(profile: str, cli_id: str) -> list[LaunchedSession]:
+    """Return alive Holix tmux sessions for a given external CLI."""
+    needle = cli_id.strip().lower()
+    return [s for s in prune_dead_sessions(profile) if s.cli_id == needle]
+
+
 def prune_dead_sessions(profile: str) -> list[LaunchedSession]:
     store = ExternalCliStore(profile)
     alive: list[LaunchedSession] = []
