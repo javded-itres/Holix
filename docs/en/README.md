@@ -18,6 +18,9 @@ Holix is a self-improving AI agent with memory, skills, tool calling, MCP, CLI, 
 ## Interfaces
 
 - [CLI.md](CLI.md) — **complete `holix` command reference**
+- [LAUNCH.md](LAUNCH.md) — **`holix launch`** — external coding CLIs in tmux (Claude Code, OpenCode, Grok Build)
+- [SUBAGENTS.md](SUBAGENTS.md) — **sub-agents** — types, custom types (`/subagent-types`), spawn, delegate, limits
+- [LAUNCH_SUBAGENTS.md](LAUNCH_SUBAGENTS.md) — sub-agents vs `holix launch` and `external_cli` assignment
 - [SLASH_COMMANDS.md](SLASH_COMMANDS.md) — **all `/` commands** (TUI, Telegram, chat)
 - [EXECUTION_MODES.md](EXECUTION_MODES.md) — **ReAct, Plan, Hybrid, Auto** — how modes work and prompt examples
 - [TUI.md](TUI.md) — `holix tui`, web mode, copy, hub UI

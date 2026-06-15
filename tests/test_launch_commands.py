@@ -7,6 +7,7 @@ from types import SimpleNamespace
 
 import pytest
 from cli.commands.launch import app as launch_app
+from cli.launch.relay import pane_ready_to_emit
 from core.external_cli.store import LaunchedSession
 from typer.testing import CliRunner
 
@@ -106,6 +107,27 @@ def test_launch_claude_new_session_starts_and_attaches(
 
     assert result.exit_code == 0
     assert attached == ["holix-default-claude-new1"]
+
+
+def test_pane_ready_to_emit_when_stable() -> None:
+    assert pane_ready_to_emit(
+        pending="❯ Continue?",
+        last_printed="",
+        stable_since=0.0,
+        now=0.4,
+    )
+    assert not pane_ready_to_emit(
+        pending="❯ Continue?",
+        last_printed="❯ Continue?",
+        stable_since=0.0,
+        now=0.4,
+    )
+    assert not pane_ready_to_emit(
+        pending="thinking...",
+        last_printed="",
+        stable_since=0.3,
+        now=0.5,
+    )
 
 
 def test_launch_claude_detach_skips_attach(

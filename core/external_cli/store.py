@@ -40,7 +40,11 @@ class ExternalCliBinding:
             enabled=bool(data.get("enabled", True)),
             command=str(data.get("command") or ""),
             model_slot=str(data.get("model_slot") or "coder"),
-            agent_slot=str(data.get("agent_slot") or "coder"),
+            agent_slot=(
+                str(data["agent_slot"])
+                if "agent_slot" in data
+                else str(data.get("agent_slot") or "coder")
+            ),
             default_cwd=str(data.get("default_cwd") or ""),
             extra_env=dict(data.get("extra_env") or {}),
         )

@@ -41,6 +41,7 @@ HOLIX_ENV=production holix -p shared gateway start
 | `doctor` | Диагностика |
 | `mcp` | MCP-серверы |
 | `hub` | Каталоги навыков |
+| `launch` | Внешние coding CLI в tmux (Claude Code, OpenCode, Grok Build, …) |
 | `install` | Установка в PATH |
 | `update` | Обновление |
 
@@ -78,7 +79,7 @@ holix tui --web
 holix tui --web --allow-lan --token "$(openssl rand -hex 32)"
 ```
 
-Legacy: `HOLIX_TUI_LEGACY=1 holix tui`.  
+
 Подробнее: [TUI.md](TUI.md).
 
 ---
@@ -424,6 +425,40 @@ holix max status
 
 ---
 
+## `holix launch`
+
+Запуск внешних coding-агентов в **tmux** с моделями из профиля Holix. **Только Linux и macOS.**
+
+Полный гайд: **[LAUNCH.md](LAUNCH.md)**.
+
+| Подкоманда | Описание |
+|------------|----------|
+| `setup` | Установка и привязка CLI к профилю |
+| `list` | Поддерживаемые CLI и статус |
+| `sessions` | Сессии Holix в tmux |
+| `tmux` | Все tmux-сессии на хосте |
+| `attach` | Подключиться по id или имени tmux |
+| `send` | Отправить промпт в сессию |
+| `chat` | Интерактивный relay (текст + стрелки) |
+| `output` | Вывод панели |
+| `kill` | Остановить сессию |
+| `<cli_id>` | Открыть агента (`claude`, `opencode`, `grok-build`, `gigacode`, `aider`) |
+| `<cli_id> status` | Привязка, модель, env, сессии |
+
+```bash
+holix launch setup
+holix launch claude
+holix launch opencode -t "почини тесты" --detach
+holix launch grok-build status
+holix launch chat <session_id>
+```
+
+Опции агента: `--cwd`, `--task` / `-t`, `--model-slot`, `--detach`, `--new`, `--window`, `--session`.
+
+Подключение моделей (OpenCode `OPENCODE_CONFIG`, Grok `GROK_HOME`, Claude gateway): [LAUNCH.md](LAUNCH.md).
+
+---
+
 ## Профили
 
 | Путь | Содержимое |
@@ -438,6 +473,9 @@ holix max status
 | `~/.holix/profiles/<имя>/INIT.md` | Маркер онбординга первого запуска |
 | `.../data/memory/` | SQLite + ChromaDB |
 | `.../data/skills/` | Навыки |
+| `.../external_clis/` | Привязки внешних CLI и сессии launch |
+| `.../opencode/opencode.json` | Сгенерированный конфиг OpenCode |
+| `.../grok/config.toml` | Сгенерированный конфиг Grok Build |
 
 ```bash
 holix -p staging tui
@@ -452,4 +490,5 @@ holix -p staging profile jail enable ~/staging-workspace
 - [INSTALLATION.md](INSTALLATION.md)
 - [CONFIGURATION.md](CONFIGURATION.md)
 - [LOGS.md](LOGS.md)
+- [LAUNCH.md](LAUNCH.md) — внешние coding CLI в tmux
 - Полная английская версия: [../en/CLI.md](../en/CLI.md)

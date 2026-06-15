@@ -174,6 +174,46 @@ class ChatSession:
         """
         cmd_lower = command.lower().strip()
 
+        if cmd_lower in ("/yes", "/1"):
+            from core.security.confirmation import ConfirmationChoice
+            from core.subagents.interaction import resolve_any_confirmation
+
+            if self.agent and resolve_any_confirmation(self.agent, ConfirmationChoice.ALLOW_ONCE):
+                print_success("Allowed once")
+            else:
+                print_info("No pending confirmation")
+            return True
+
+        if cmd_lower == "/2":
+            from core.security.confirmation import ConfirmationChoice
+            from core.subagents.interaction import resolve_any_confirmation
+
+            if self.agent and resolve_any_confirmation(self.agent, ConfirmationChoice.ALLOW_SESSION):
+                print_success("Allowed for this session")
+            else:
+                print_info("No pending confirmation")
+            return True
+
+        if cmd_lower == "/3":
+            from core.security.confirmation import ConfirmationChoice
+            from core.subagents.interaction import resolve_any_confirmation
+
+            if self.agent and resolve_any_confirmation(self.agent, ConfirmationChoice.ALLOW_ALWAYS):
+                print_success("Allowed always")
+            else:
+                print_info("No pending confirmation")
+            return True
+
+        if cmd_lower in ("/no", "/4"):
+            from core.security.confirmation import ConfirmationChoice
+            from core.subagents.interaction import resolve_any_confirmation
+
+            if self.agent and resolve_any_confirmation(self.agent, ConfirmationChoice.DENY):
+                print_success("Denied")
+            else:
+                print_info("No pending confirmation")
+            return True
+
         # /exit or /quit
         if cmd_lower in ["/exit", "/quit", "/q"]:
             print_info("Goodbye! 👋")
@@ -392,6 +432,37 @@ class ChatSession:
             await run_context_compress(_ChatCompressHost())
             return True
 
+        elif cmd_lower.startswith("/subagent"):
+            from cli.shared.commands.subagent_commands import run_subagents_command
+            from cli.shared.commands.subagent_types_commands import run_subagent_types_command
+            from cli.shared.rich_text import content_to_plain_text
+
+            session = self
+
+            class _ChatSubagentHost:
+                agent = session.agent
+                profile = session.profile
+
+                @staticmethod
+                def transcript_write(content: object) -> None:
+                    text = content_to_plain_text(content)
+                    if not text:
+                        return
+                    low = text.lower()
+                    if "failed" in low or low.startswith("unknown") or "disabled" in low:
+                        print_error(text)
+                    elif low.startswith("spawned"):
+                        print_success(text)
+                    else:
+                        print_info(text)
+
+            host = _ChatSubagentHost()
+            if cmd_lower.startswith("/subagent-types"):
+                await run_subagent_types_command(host, command)
+            else:
+                await run_subagents_command(host, command)
+            return True
+
         return False
 
     async def chat_loop(self):
@@ -414,6 +485,8 @@ class ChatSession:
                 ToolCallResultEvent,
                 ToolCallStartEvent,
             )
+            from core.security.confirmation_events import ConfirmationRequestEvent
+            from core.subagents.interaction_events import SubAgentQuestionEvent
 
             def handler(event):
                 try:
@@ -441,6 +514,22 @@ class ChatSession:
                     elif isinstance(event, FinalResponseEvent):
                         if self._progress and self._spinner_task is not None:
                             self._progress.update(self._spinner_task, description="Finalizing response...")
+
+                    elif isinstance(event, SubAgentQuestionEvent):
+                        name = event.subagent_name or "sub-agent"
+                        q = (event.question or "").strip()
+                        print_info(
+                            f"❓ {name} asks: {q}\n"
+                            f"Reply: /subagent-reply {name} …, @{name} …, "
+                            "or plain text if only one question is pending"
+                        )
+
+                    elif isinstance(event, ConfirmationRequestEvent):
+                        sub = f" (sub-agent {event.subagent_name})" if event.subagent_name else ""
+                        print_info(
+                            f"Confirmation required{sub}: {event.tool_name} — "
+                            "/1 once, /2 session, /3 always, /4 deny"
+                        )
 
                 except Exception:
                     pass  # Never break the agent because of UI
@@ -475,6 +564,16 @@ class ChatSession:
                     if result == "exit":
                         break
                     continue
+
+                if self.agent:
+                    from core.subagents.interaction import try_route_subagent_reply
+
+                    handled, feedback = try_route_subagent_reply(self.agent, user_input)
+                    if handled:
+                        print_user_message(user_input)
+                        if feedback:
+                            print_info(feedback)
+                        continue
 
                 # Print user message
                 print_user_message(user_input)

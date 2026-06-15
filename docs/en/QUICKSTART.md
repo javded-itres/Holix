@@ -27,6 +27,8 @@ holix run "Hello"
 holix tui              # primary UI; /help for slash commands
 holix gateway start
 holix gateway status
+holix launch setup      # external coding CLIs in tmux (Linux/macOS)
+holix launch claude
 holix logs -l error
 ```
 
@@ -54,4 +56,4 @@ Update from PyPI:
 holix update --channel pypi
 ```
 
-See [CLI.md](CLI.md) and [SLASH_COMMANDS.md](SLASH_COMMANDS.md).
+See [CLI.md](CLI.md), [LAUNCH.md](LAUNCH.md), and [SLASH_COMMANDS.md](SLASH_COMMANDS.md).

@@ -52,27 +52,27 @@ class CodeEventHandler:
                 self._tool_result(event, error=True)
 
             elif isinstance(event, AssistantDeltaEvent):
-                self.app._stream_buffer += event.content
-                self.app._transcript_store.append_stream_delta(event.content)
-                if len(self.app._stream_buffer) > 80:
-                    self.app.transcript_write(self.app._stream_buffer)
-                    self.app._stream_buffer = ""
-                self.app._is_streaming = True
+                self.app.append_stream_delta(event.content)
 
             elif isinstance(event, FinalResponseEvent):
-                if self.app._stream_buffer:
-                    self.app.transcript_write(self.app._stream_buffer)
-                    self.app._stream_buffer = ""
+                had_stream = self.app._is_streaming
+                self.app.clear_stream_display()
                 self.app.set_thinking(None)
-                self.app.transcript_write("")
-                try:
-                    self.app.transcript_write(Markdown(event.content))
-                except Exception:
-                    self.app.transcript_write(event.content)
                 content = event.content or ""
+                if not had_stream:
+                    self.app.transcript_write("")
+                    try:
+                        self.app.transcript_write(Markdown(content))
+                    except Exception:
+                        self.app.transcript_write(content)
+                elif content.strip():
+                    self.app.transcript_write(f"\n{content}\n")
+                else:
+                    self.app.transcript_write("")
+                self.app._schedule_scroll_hint_update()
                 if self.app._transcript_store.has_stream_buffer():
                     self.app._transcript_store.flush_stream_to_assistant(markdown=content or None)
-                elif content.strip():
+                elif content.strip() and not had_stream:
                     self.app._transcript_store.append(
                         "assistant",
                         content,
@@ -110,13 +110,18 @@ class CodeEventHandler:
                 msg = getattr(event, "message", "") or ""
                 if msg:
                     self.app.transcript_write(f"[dim]· context: {msg}[/dim]")
+                agent = getattr(self.app, "agent", None)
+                cm = getattr(agent, "context_manager", None) if agent else None
+                if cm:
+                    cm.invalidate_usage_cache(getattr(self.app, "conversation_id", None))
                 self.app.run_worker(self.app._update_context_display_async())
 
             elif isinstance(event, ErrorEvent):
-                if self.app._stream_buffer:
-                    self.app.transcript_write(self.app._stream_buffer)
-                    self.app._stream_buffer = ""
-                    self.app._transcript_store.clear_stream()
+                if self.app._is_streaming and self.app._stream_buffer:
+                    self.app.flush_partial_stream_to_transcript()
+                else:
+                    self.app.clear_stream_display()
+                self.app._transcript_store.clear_stream()
                 self.app.set_thinking(None)
                 err = str(event.error or "")
                 self.app.transcript_write(
@@ -139,6 +144,10 @@ class CodeEventHandler:
         self.app.set_status_line(f"thinking — {short}")
 
     def _tool_start(self, event: ToolCallStartEvent) -> None:
+        if self.app._is_streaming and self.app._stream_buffer:
+            self.app.flush_partial_stream_to_transcript()
+        else:
+            self.app.clear_stream_display()
         self.app.set_thinking(None)
         try:
             args = json.loads(event.arguments_raw) if event.arguments_raw else {}

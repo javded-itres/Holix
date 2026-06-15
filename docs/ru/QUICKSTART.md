@@ -27,6 +27,8 @@ holix run "Привет"
 holix tui
 holix gateway start
 holix gateway status
+holix launch setup      # внешние coding CLI в tmux (Linux/macOS)
+holix launch claude
 holix logs -l error
 holix doctor --fix
 ```
@@ -49,4 +51,4 @@ holix mcp setup
 holix update --channel pypi
 ```
 
-См. [CLI.md](CLI.md) и [SLASH_COMMANDS.md](SLASH_COMMANDS.md).
+См. [CLI.md](CLI.md), [LAUNCH.md](LAUNCH.md) и [SLASH_COMMANDS.md](SLASH_COMMANDS.md).

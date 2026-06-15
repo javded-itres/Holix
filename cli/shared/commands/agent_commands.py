@@ -177,6 +177,11 @@ class AgentCommands:
             elif lower.startswith("/mcp"):
                 await self._mcp(cmd)
 
+            elif lower.startswith("/launch"):
+                from cli.shared.commands.launch_commands import run_launch_command
+
+                await run_launch_command(h, cmd)
+
             elif lower.startswith("/cron"):
                 from cli.shared.commands.cron_commands import run_cron_command
 
@@ -189,6 +194,18 @@ class AgentCommands:
                 from cli.shared.commands.skills_commands import run_skills_command
 
                 await run_skills_command(h, cmd)
+
+            elif lower == "/skill" or lower.startswith("/skill "):
+                from cli.shared.commands.skills_commands import run_skill_invoke_command
+
+                await run_skill_invoke_command(h, cmd)
+
+            elif lower.startswith("/subagent-types"):
+                from cli.shared.commands.subagent_types_commands import (
+                    run_subagent_types_command,
+                )
+
+                await run_subagent_types_command(h, cmd)
 
             elif lower.startswith("/subagent") or lower == "/subagents":
                 from cli.shared.commands.subagent_commands import run_subagents_command
@@ -312,10 +329,7 @@ class AgentCommands:
         return is_profile_list_hidden(bot_profile, int(user_id))
 
     async def _try_skill_slash(self, h: Any, command: str) -> bool:
-        """Run a hub-registered skill via /skill-name [args]."""
-        from pathlib import Path
-
-        from core.hub.normalize import discover_skill_files, parse_skill_file
+        """Legacy: run a skill via /skill-name [args] (prefer /skill <name>)."""
         from core.hub.slash_registry import load_skill_slash_commands
 
         config = getattr(h, "config", None)
@@ -332,49 +346,22 @@ class AgentCommands:
         )
         assignments = getattr(config, "skill_assignments", None) or {}
 
-        skills_dir = Path(config.skills_dir)
+        from pathlib import Path
+
         registered = {
             c.lower()
             for c, _ in load_skill_slash_commands(
-                skills_dir,
+                Path(config.skills_dir),
                 agent_slot=agent_slot,
                 skill_assignments=assignments,
             )
         }
-        flat = skills_dir / f"{skill_name}.md"
-        if cmd_token not in registered and not flat.exists():
+        if cmd_token not in registered:
             return False
 
-        skill = None
-        if flat.exists():
-            skill = parse_skill_file(flat)
-        if not skill:
-            for sf in discover_skill_files(skills_dir):
-                parsed = parse_skill_file(sf)
-                if parsed and parsed.get("name") == skill_name:
-                    skill = parsed
-                    break
-        if not skill:
-            return False
+        from cli.shared.commands.skills_commands import invoke_skill_by_name
 
-        from core.skills.assignments import is_skill_allowed_for_agent
-
-        if not is_skill_allowed_for_agent(skill, agent_slot, assignments):
-            h.transcript_write(
-                f"[yellow]{t('skill_not_assigned', host_locale(h), name=skill_name, slot=agent_slot)}[/yellow]"
-            )
-            return True
-
-        body = skill.get("content", "")
-        prompt = f"## Skill: {skill_name}\n\n{body}\n\n"
-        if args:
-            prompt += f"## User request\n{args}"
-        else:
-            prompt += "## User request\nApply this skill to the current task."
-
-        h.transcript_write(f"[dim]▸ skill /{skill_name}[/dim]")
-        await h._send_message(prompt)
-        return True
+        return await invoke_skill_by_name(h, skill_name, args)
 
     async def _hub(self, command: str) -> None:
         """Skill hub: pick catalog in TUI or open a specific source."""

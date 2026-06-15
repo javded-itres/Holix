@@ -188,6 +188,11 @@ def chat_command(
     - /profile <name> - Switch profile
     - /skills - Show skills
     - /memory <query> - Search memory
+    - /subagent-spawn <type> <task> - Spawn background sub-agent
+    - /subagents - List running sub-agents and pending questions
+    - /subagent-result <job_id> - Show sub-agent result
+    - /subagent-reply <job_id> <answer> - Answer sub-agent ask_user prompt
+    - /1-/4 - Approve or deny sub-agent tool confirmations
     - /exit - Exit chat
     """
     import asyncio

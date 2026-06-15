@@ -47,7 +47,16 @@ def show_cli_status(profile: str, cli_id: str, profile_config: Any) -> None:
         binding.model_slot if binding else spec.default_model_slot
     )
     model = resolve_model_for_slot(profile_config, model_slot)
-    env_preview = build_cli_env(spec, model, extra_env=binding.extra_env if binding else None) if model else {}
+    env_preview = (
+        build_cli_env(
+            spec,
+            model,
+            profile=profile,
+            extra_env=binding.extra_env if binding else None,
+        )
+        if model
+        else {}
+    )
 
     lines = [
         f"[bold]{spec.display_name}[/bold] [dim]({spec.cli_id})[/dim]",

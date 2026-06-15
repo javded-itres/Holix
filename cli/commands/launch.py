@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import time
 from pathlib import Path
 from typing import Any
 
@@ -11,11 +10,11 @@ from core.external_cli.platform import ensure_launch_platform
 from core.external_cli.registry import EXTERNAL_CLI_REGISTRY, list_cli_specs
 from core.external_cli.store import ExternalCliStore
 from rich.panel import Panel
-from rich.prompt import Prompt
 from rich.table import Table
 
 from cli.core import get_current_config, get_current_profile
 from cli.launch.cli_status import show_cli_status
+from cli.launch.relay import run_cli_relay
 from cli.launch.setup_wizard import run_launch_setup
 from cli.services.tmux_launcher import (
     TmuxError,
@@ -232,7 +231,7 @@ def launch_chat(
     session: str = typer.Argument(..., help="Session id or tmux name"),
     ctx: typer.Context = None,
 ) -> None:
-    """Interactive relay: type prompts, see CLI output (Ctrl+C to exit)."""
+    """Interactive relay: text + arrow keys for CLI choice menus (Ctrl+C to exit)."""
     _require_platform()
     profile, _ = _profile_config(ctx)
     found = find_launched_session(profile, session)
@@ -242,33 +241,13 @@ def launch_chat(
         raise typer.Exit(1)
     window = found.window_index if found else 0
 
-    console.print(Panel.fit(
-        f"[bold]Relay → {target}:{window}[/bold]\n"
-        "Type a prompt and press Enter. Empty line shows output. Ctrl+C to quit.",
-        border_style="cyan",
-    ))
-
     store = ExternalCliStore(profile)
-    try:
-        while True:
-            try:
-                user_input = Prompt.ask("[bold cyan]holix[/bold cyan]")
-            except (EOFError, KeyboardInterrupt):
-                console.print()
-                break
-            if not user_input.strip():
-                text = capture_pane(target, window_index=window, lines=30)
-                console.print(Panel(text or "(empty)", border_style="dim"))
-                continue
-            send_text(target, user_input.strip(), window_index=window)
-            time.sleep(0.8)
-            text = capture_pane(target, window_index=window, lines=35)
-            console.print(Panel(text, title="CLI output", border_style="green"))
-            if found:
-                store.touch_session_output(found.session_id)
-    except KeyboardInterrupt:
-        console.print()
-    print_info("Relay ended.")
+    on_send = (
+        (lambda _text: store.touch_session_output(found.session_id))
+        if found
+        else None
+    )
+    run_cli_relay(target, window, on_user_send=on_send)
 
 
 @app.command("kill")

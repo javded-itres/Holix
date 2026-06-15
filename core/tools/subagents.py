@@ -6,6 +6,13 @@ import json
 from typing import Any
 
 from core.subagents.registry import list_available_subagents
+
+
+def _profile_name(parent: Any) -> str | None:
+    cfg = getattr(parent, "config", None)
+    if cfg is None:
+        return None
+    return str(getattr(cfg, "profile_name", None) or "default")
 from core.tools.base import BaseTool
 
 
@@ -24,7 +31,10 @@ class DelegateToSubAgentTool(BaseTool):
             "Delegate a task to a specialized sub-agent that runs in a separate process "
             "without blocking the main model. Returns a job id — use wait_subagent_result "
             "to collect the answer. Available types: "
-            + ", ".join(a["name"] for a in list_available_subagents())
+            + ", ".join(
+                a["name"]
+                for a in list_available_subagents(profile=_profile_name(parent_agent))
+            )
         )
         self.risk_level = "low"
         self.parameters = {

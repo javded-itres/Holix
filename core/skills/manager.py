@@ -1,3 +1,4 @@
+import hashlib
 from datetime import datetime
 from pathlib import Path
 from typing import Any
@@ -36,6 +37,7 @@ class SkillsManager:
             name="skills",
             metadata={"hnsw:space": "cosine"},
         )
+        self._index_hashes: dict[str, str] = {}
 
     @property
     def skill_assignments(self) -> dict[str, list[str]]:
@@ -60,11 +62,12 @@ class SkillsManager:
             if self.is_allowed_for_agent(skill, agent_slot)
         )
 
-    def load_all_skills(self) -> None:
+    def load_all_skills(self, *, defer_index: bool = False) -> None:
         """Load skills from profile dir, hub bundles (SKILL.md), and local .holix/skills."""
         from core.hub.normalize import discover_skill_files, parse_skill_file
 
         self.all_skills = {}
+        self._defer_index = defer_index
 
         def _register(skill: dict[str, Any], source: str) -> None:
             name = skill.get("name")
@@ -75,11 +78,13 @@ class SkillsManager:
                 if source == "local":
                     skill["_source"] = "local"
                     self.all_skills[name] = skill
-                    self._index_skill(skill)
+                    if not defer_index:
+                        self._index_skill(skill)
                 return
             skill["_source"] = source
             self.all_skills[name] = skill
-            self._index_skill(skill)
+            if not defer_index:
+                self._index_skill(skill)
 
         def _load_tree(d: Path, source: str) -> None:
             for skill_file in discover_skill_files(d):
@@ -103,16 +108,40 @@ class SkillsManager:
 
         print(f"Loaded {len(self.all_skills)} skills (profile + local supplements if any)")
 
-    def _index_skill(self, skill: dict[str, Any]) -> None:
+    def _skill_searchable_text(self, skill: dict[str, Any]) -> str:
+        searchable_text = f"{skill.get('name', '')} {skill.get('description', '')} "
+        searchable_text += f"{' '.join(skill.get('tags', []))} {skill.get('content', '')}"
+        return searchable_text
+
+    def _skill_index_hash(self, skill: dict[str, Any]) -> str:
+        return hashlib.sha256(self._skill_searchable_text(skill).encode()).hexdigest()[:16]
+
+    def index_all_skills(self) -> int:
+        """Index all loaded skills in Chroma (skips unchanged entries)."""
+        indexed = 0
+        for skill in self.all_skills.values():
+            if self._index_skill(skill):
+                indexed += 1
+        self._defer_index = False
+        return indexed
+
+    def _index_skill(self, skill: dict[str, Any]) -> bool:
         """Index a skill in the vector database for semantic search.
 
         Args:
             skill: Skill dictionary
+
+        Returns:
+            True if the skill was upserted, False if skipped (unchanged).
         """
+        name = skill.get("name", "")
+        if not name:
+            return False
+        content_hash = self._skill_index_hash(skill)
+        if self._index_hashes.get(name) == content_hash:
+            return False
         try:
-            # Create searchable text from skill
-            searchable_text = f"{skill.get('name', '')} {skill.get('description', '')} "
-            searchable_text += f"{' '.join(skill.get('tags', []))} {skill.get('content', '')}"
+            searchable_text = self._skill_searchable_text(skill)
 
             # Add to collection
             self.skills_collection.upsert(
@@ -124,10 +153,13 @@ class SkillsManager:
                     "success_count": skill.get("success_count", 0),
                     "failure_count": skill.get("failure_count", 0),
                 }],
-                ids=[skill.get("name", "")]
+                ids=[name]
             )
+            self._index_hashes[name] = content_hash
+            return True
         except Exception as e:
-            print(f"Warning: Failed to index skill {skill.get('name')}: {e}")
+            print(f"Warning: Failed to index skill {name}: {e}")
+            return False
 
     def _load_skill_file(self, filepath: Path) -> dict[str, Any] | None:
         """Load a single skill file.

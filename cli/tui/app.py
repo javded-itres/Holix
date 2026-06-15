@@ -1,4 +1,4 @@
-"""Holix TUI entry — strict code UI by default, legacy via HOLIX_TUI_LEGACY=1."""
+"""Holix TUI entry — code-style UI (`holix tui`)."""
 
 from cli.tui.code.app import HolixCodeApp, run_tui
 

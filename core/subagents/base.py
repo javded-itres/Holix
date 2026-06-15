@@ -40,6 +40,7 @@ class SubAgentConfig:
     """
 
     name: str                                    # Unique name (e.g., "researcher")
+    agent_type: str = ""                         # Registry type (researcher, coder, …)
     system_prompt: str = ""                      # Specialized system prompt
     model: str = ""                              # Model override (empty = inherit from parent)
     tools: list[str] = field(default_factory=list)  # Subset of tool names

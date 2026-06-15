@@ -18,6 +18,9 @@
 ## Интерфейсы
 
 - [CLI.md](CLI.md) — **справочник команд `holix`**
+- [LAUNCH.md](LAUNCH.md) — **`holix launch`** — внешние coding CLI в tmux (Claude Code, OpenCode, Grok Build)
+- [SUBAGENTS.md](SUBAGENTS.md) — **субагенты** — типы, свои типы (`/subagent-types`), запуск, делегирование, лимиты
+- [LAUNCH_SUBAGENTS.md](LAUNCH_SUBAGENTS.md) — субагенты и `holix launch`, назначение `external_cli`
 - [SLASH_COMMANDS.md](SLASH_COMMANDS.md) — **слэш-команды `/`**
 - [EXECUTION_MODES.md](EXECUTION_MODES.md) — **ReAct, Plan, Hybrid, Auto** — как работают режимы и примеры промптов
 - [TUI.md](TUI.md) — `holix tui`
@@ -29,6 +32,10 @@
 - [TELEGRAM_MULTI_PROFILE.md](TELEGRAM_MULTI_PROFILE.md) — один бот / несколько ботов, access requests, ручной `map`
 - [MAX_MULTI_PROFILE.md](MAX_MULTI_PROFILE.md) — один бот / несколько ботов MAX, access requests, `map`
 - [BROWSER_TOOLS.md](BROWSER_TOOLS.md) — Playwright
+
+## Лицензирование
+
+- [LICENSING_STRATEGY.md](LICENSING_STRATEGY.md) — стратегия лицензирования (Open Core / commercial)
 
 ## Эксплуатация
 

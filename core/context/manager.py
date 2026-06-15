@@ -58,6 +58,9 @@ class ContextManager:
         self._last_compression_tokens_before: int = 0
         self._last_compression_tokens_after: int = 0
 
+        # Per-conversation token usage cache (incremental append, full recount on compress)
+        self._usage_cache: dict[str, dict[str, Any]] = {}
+
     def update_context_window(self, context_window: int) -> None:
         """Update the context window size (e.g., when switching models).
 
@@ -66,26 +69,84 @@ class ContextManager:
         """
         self.context_window = context_window
 
-    def get_usage(self, messages: list[dict[str, Any]]) -> dict[str, Any]:
-        """Get current context usage information.
+    def invalidate_usage_cache(self, conversation_id: str | None = None) -> None:
+        """Drop cached token counts (e.g. after compression or session switch)."""
+        if conversation_id is None:
+            self._usage_cache.clear()
+        else:
+            self._usage_cache.pop(conversation_id, None)
 
-        Args:
-            messages: Current conversation messages.
+    def _resolve_used_tokens(
+        self,
+        messages: list[dict[str, Any]],
+        *,
+        conversation_id: str | None = None,
+    ) -> int:
+        if not messages:
+            return 0
+        if not conversation_id:
+            return self.token_counter.count_message_tokens(messages)
 
-        Returns:
-            Dict with keys: used (int), total (int), percent (float),
-            messages_count (int), context_window (int).
-        """
-        used = self.token_counter.count_message_tokens(messages)
+        cached = self._usage_cache.get(conversation_id)
+        count = len(messages)
+        if cached and cached.get("count") == count:
+            return int(cached["used"])
+
+        if cached and cached.get("count", 0) < count:
+            prefix_count = int(cached["count"])
+            prefix = messages[:prefix_count]
+            prefix_used = self.token_counter.count_message_tokens(prefix)
+            if prefix_used == int(cached.get("prefix_used", -1)):
+                tail = messages[prefix_count:]
+                tail_used = self.token_counter.count_message_tokens(tail)
+                # count_message_tokens adds list priming (+3); skip when appending to a prefix.
+                if tail:
+                    tail_used = max(0, tail_used - 3)
+                return prefix_used + tail_used
+
+        return self.token_counter.count_message_tokens(messages)
+
+    def _build_usage(
+        self,
+        messages: list[dict[str, Any]],
+        *,
+        conversation_id: str | None = None,
+    ) -> dict[str, Any]:
+        used = self._resolve_used_tokens(messages, conversation_id=conversation_id)
         percent = (used / self.context_window * 100) if self.context_window > 0 else 0
-
-        return {
+        usage = {
             "used": used,
             "total": self.context_window,
             "percent": round(percent, 1),
             "messages_count": len(messages),
             "context_window": self.context_window,
         }
+        if conversation_id is not None:
+            self._usage_cache[conversation_id] = {
+                "count": len(messages),
+                "used": used,
+                "prefix_used": used,
+                "usage": usage,
+            }
+        return usage
+
+    def get_usage(
+        self,
+        messages: list[dict[str, Any]],
+        *,
+        conversation_id: str | None = None,
+    ) -> dict[str, Any]:
+        """Get current context usage information.
+
+        Args:
+            messages: Current conversation messages.
+            conversation_id: When set, enables incremental token counting cache.
+
+        Returns:
+            Dict with keys: used (int), total (int), percent (float),
+            messages_count (int), context_window (int).
+        """
+        return self._build_usage(messages, conversation_id=conversation_id)
 
     def is_near_limit(
         self,
@@ -104,16 +165,25 @@ class ContextManager:
         usage = self.get_usage(messages)
         return usage["percent"] >= threshold * 100
 
-    def get_usage_level(self, messages: list[dict[str, Any]]) -> str:
+    def get_usage_level(
+        self,
+        messages: list[dict[str, Any]],
+        *,
+        conversation_id: str | None = None,
+        usage: dict[str, Any] | None = None,
+    ) -> str:
         """Get usage level for color-coding display.
 
         Args:
             messages: Current conversation messages.
+            conversation_id: Optional cache key (see get_usage).
+            usage: Precomputed usage dict to avoid duplicate work.
 
         Returns:
             "green" if below warning threshold, "yellow" if warning–compress band, "red" if >= compress threshold.
         """
-        usage = self.get_usage(messages)
+        if usage is None:
+            usage = self.get_usage(messages, conversation_id=conversation_id)
         percent = usage["percent"]
 
         if percent >= self.compression_threshold * 100:
@@ -187,6 +257,8 @@ class ContextManager:
             f"Context compressed: {tokens_before} → {tokens_after} tokens "
             f"({len(messages)} → {len(compressed)} messages)"
         )
+
+        self.invalidate_usage_cache()
 
         return compressed, True
 

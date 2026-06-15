@@ -6,7 +6,7 @@ import re
 from dataclasses import dataclass
 from typing import Literal
 
-EnvStyle = Literal["openai_compat", "anthropic", "gigacode"]
+EnvStyle = Literal["openai_compat", "anthropic", "gigacode", "grok", "opencode"]
 
 
 @dataclass(frozen=True, slots=True)
@@ -17,6 +17,10 @@ class ExternalCliSpec:
     default_model_slot: str
     env_style: EnvStyle
     launch_args: tuple[str, ...] = ()
+    model_cli_flag: str | None = None
+    task_cli_flag: str | None = None
+    task_positional: bool = False
+    binary_paths: tuple[str, ...] = ()
     install_hint: str = ""
     install_commands: tuple[tuple[str, ...], ...] = ()
     docs_url: str = ""
@@ -41,11 +45,15 @@ EXTERNAL_CLI_REGISTRY: dict[str, ExternalCliSpec] = {
         display_name="OpenCode",
         binary_names=("opencode",),
         default_model_slot="coder",
-        env_style="openai_compat",
+        env_style="opencode",
         launch_args=(),
+        model_cli_flag="-m",
+        binary_paths=("~/.opencode/bin/opencode",),
         install_hint="curl -fsSL https://opencode.ai/install | bash",
-        install_commands=(),
-        docs_url="https://opencode.ai",
+        install_commands=(
+            ("bash", "-c", "curl -fsSL https://opencode.ai/install | bash"),
+        ),
+        docs_url="https://opencode.ai/docs/cli/",
         description="Open-source terminal coding agent (OpenAI-compatible providers)",
     ),
     "gigacode": ExternalCliSpec(
@@ -60,17 +68,22 @@ EXTERNAL_CLI_REGISTRY: dict[str, ExternalCliSpec] = {
         docs_url="https://gitverse.ru/gigacode",
         description="GigaCode CLI (maps Holix profile LLM to GigaCode env)",
     ),
-    "codex": ExternalCliSpec(
-        cli_id="codex",
-        display_name="OpenAI Codex CLI",
-        binary_names=("codex",),
+    "grok-build": ExternalCliSpec(
+        cli_id="grok-build",
+        display_name="Grok Build",
+        binary_names=("grok", "grok-build"),
         default_model_slot="coder",
-        env_style="openai_compat",
+        env_style="grok",
         launch_args=(),
-        install_hint="npm install -g @openai/codex",
-        install_commands=(("npm", "install", "-g", "@openai/codex"),),
-        docs_url="https://github.com/openai/codex",
-        description="OpenAI Codex terminal agent",
+        model_cli_flag="-m",
+        task_positional=True,
+        binary_paths=("~/.grok/bin/grok",),
+        install_hint="curl -fsSL https://x.ai/cli/install.sh | bash",
+        install_commands=(
+            ("bash", "-c", "curl -fsSL https://x.ai/cli/install.sh | bash"),
+        ),
+        docs_url="https://docs.x.ai/build/overview",
+        description="xAI Grok Build coding agent (TUI, headless, ACP)",
     ),
     "aider": ExternalCliSpec(
         cli_id="aider",
