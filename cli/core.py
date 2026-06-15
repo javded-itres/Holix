@@ -45,7 +45,7 @@ class ProfileConfig(BaseModel):
     base_url: str = "http://localhost:11434/v1"
     api_key: str = "ollama"
     temperature: float = 0.7
-    max_steps: int = 15
+    max_steps: int = 90
 
     # Profile settings
     profile_name: str = "default"

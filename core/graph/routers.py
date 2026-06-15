@@ -13,7 +13,7 @@ def route_after_react(state: HolixGraphState) -> str:
     tool_calls = state.get("tool_calls", [])
     is_final = state.get("is_final", False)
     step_count = state.get("step_count", 0)
-    max_steps = state.get("max_steps", 15)
+    max_steps = state.get("max_steps", 90)
 
     if is_final or step_count >= max_steps:
         return "finalize"
@@ -54,7 +54,7 @@ def route_after_react_plan(state: HolixGraphState) -> str:
     is_final = state.get("is_final", False)
     is_step_complete = state.get("is_step_complete", False)
     step_count = state.get("step_count", 0)
-    max_steps = state.get("max_steps", 15)
+    max_steps = state.get("max_steps", 90)
     plan_steps = state.get("plan_steps", [])
     current_step_idx = state.get("current_plan_step", 0)
     current_step_start_count = state.get("current_step_start_count", 0)

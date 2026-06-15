@@ -41,7 +41,7 @@ def prepare_initial_state(
 ) -> dict:
     """Prepare initial HolixGraphState for a graph invocation."""
     cfg = getattr(agent, "config", None)
-    max_steps = cfg.max_steps if cfg else 15
+    max_steps = cfg.max_steps if cfg else 90
     max_per_step = cfg.max_steps_per_plan_step if cfg else 5
     max_refinement = cfg.max_refinement_iterations if cfg else 2
 
@@ -162,7 +162,7 @@ async def run_graph_loop(
             )
 
         step_count = final_state.get("step_count", 0)
-        max_steps = final_state.get("max_steps", 15)
+        max_steps = final_state.get("max_steps", 90)
         if step_count >= max_steps and not final_state.get("is_final", False):
             yield MaxStepsReachedEvent(
                 max_steps=max_steps,

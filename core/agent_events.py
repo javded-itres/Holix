@@ -225,7 +225,7 @@ class ToolCallErrorEvent(AgentEvent):
 @dataclass
 class MaxStepsReachedEvent(AgentEvent):
     """Agent reached the configured max_steps limit."""
-    max_steps: int = 15
+    max_steps: int = 90
 
 
 @dataclass

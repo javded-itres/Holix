@@ -26,7 +26,7 @@ class Settings(BaseSettings):
     temperature: float = 0.7
 
     # Agent Configuration
-    max_steps: int = 15
+    max_steps: int = 90
     data_dir: str = "data"
     context_window: int = 131072
 

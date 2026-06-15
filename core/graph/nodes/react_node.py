@@ -8,6 +8,8 @@ the event bus as side effects.
 
 import asyncio
 import logging
+import time
+from collections.abc import AsyncIterator
 from typing import Any
 
 from langchain_core.runnables import RunnableConfig
@@ -32,6 +34,38 @@ from core.prompt_builder import build_system_prompt, format_tools_description
 logger = logging.getLogger(__name__)
 
 _DEFAULT_LLM_STEP_TIMEOUT_S = 120.0
+
+
+async def _close_async_stream(stream: Any) -> None:
+    """Best-effort close of an OpenAI/httpx streaming response."""
+    for method_name in ("close", "aclose"):
+        method = getattr(stream, method_name, None)
+        if not callable(method):
+            continue
+        try:
+            result = method()
+            if asyncio.iscoroutine(result):
+                await result
+        except Exception:
+            logger.debug("Failed to close LLM stream via %s", method_name, exc_info=True)
+        return
+
+
+async def _iter_stream_chunks(stream: Any, timeout_s: float) -> AsyncIterator[Any]:
+    """Iterate stream chunks with a hard deadline and guaranteed stream cleanup."""
+    deadline = time.monotonic() + timeout_s
+    try:
+        while True:
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                raise TimeoutError
+            try:
+                chunk = await asyncio.wait_for(anext(stream), timeout=remaining)
+            except StopAsyncIteration:
+                break
+            yield chunk
+    finally:
+        await _close_async_stream(stream)
 
 
 def _llm_step_timeout_s(agent) -> float:
@@ -394,10 +428,8 @@ async def _react_streaming(
     last_finish_reason: str | None = None
     reasoning_status_emitted = False
 
-    async with asyncio.timeout(llm_timeout_s):
-        stream_response = await _open_stream()
-
-        async for chunk in stream_response:
+    stream_response = await _open_stream()
+    async for chunk in _iter_stream_chunks(stream_response, llm_timeout_s):
             delta = chunk.choices[0].delta
             content_delta, reasoning_delta = stream_delta_parts(delta)
 
