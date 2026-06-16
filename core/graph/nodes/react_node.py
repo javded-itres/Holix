@@ -33,6 +33,12 @@ from core.llm.step_timeout import (
     llm_step_timeout_message,
     reasoning_only_abort_s,
 )
+from core.graph.plan_step import (
+    plan_step_active,
+    plan_step_complete,
+    plan_step_retry_update,
+    prefer_non_streaming_for_plan,
+)
 from core.presenters.final_content import MESSENGER_EMPTY_FINAL_RU
 from core.profile.soul import profile_name_from_agent
 from core.prompt_builder import build_system_prompt, format_tools_description
@@ -77,6 +83,36 @@ async def _iter_stream_chunks(stream: Any, timeout_s: float) -> AsyncIterator[An
 def _non_empty_final(text: str) -> str:
     """Ensure the user always sees something when a react step ends."""
     return (text or "").strip() or MESSENGER_EMPTY_FINAL_RU
+
+
+async def _plan_step_result(
+    state: HolixGraphState,
+    *,
+    agent,
+    conversation_id: str,
+    messages: list[dict[str, Any]],
+    step_count: int,
+    final_response: str,
+    assistant_already_appended: bool,
+) -> dict[str, Any]:
+    """Return react state for an active plan step (complete or retry)."""
+    if plan_step_complete(state, final_response=final_response):
+        if agent and hasattr(agent, "memory"):
+            await agent.memory.save_message(conversation_id, "assistant", final_response)
+        return {
+            "messages": messages,
+            "step_count": step_count,
+            "is_final": False,
+            "final_response": final_response,
+            "tool_calls": [],
+            "is_step_complete": True,
+        }
+    return plan_step_retry_update(
+        messages=messages,
+        step_count=step_count,
+        final_response=final_response,
+        include_assistant=not assistant_already_appended,
+    )
 
 
 def _llm_step_timeout_s(agent) -> float:
@@ -132,6 +168,8 @@ async def react_node(state: HolixGraphState, config: RunnableConfig) -> dict:
     step_count = state.get("step_count", 0) + 1
     conversation_id = state.get("conversation_id", "default")
     stream = state.get("stream", False)
+    if prefer_non_streaming_for_plan(state):
+        stream = False
 
     profile_name = profile_name_from_agent(agent) if agent else "default"
     if agent and hasattr(agent, "emit"):
@@ -371,25 +409,19 @@ async def _react_non_streaming(
         msg_dict["content"] = final_response
         messages.append(msg_dict)
 
-        # Save to memory
+        if plan_step_active(state):
+            return await _plan_step_result(
+                state,
+                agent=agent,
+                conversation_id=conversation_id,
+                messages=messages,
+                step_count=step_count,
+                final_response=final_response,
+                assistant_already_appended=True,
+            )
+
         if agent and hasattr(agent, "memory"):
             await agent.memory.save_message(conversation_id, "assistant", final_response)
-
-        # Check if we're in plan_and_execute mode with active steps
-        plan_steps = state.get("plan_steps", [])
-        current_plan_step = state.get("current_plan_step", 0)
-        has_active_plan = bool(plan_steps) and current_plan_step < len(plan_steps)
-
-        if has_active_plan:
-            # In plan mode: the step is complete, not the entire conversation
-            return {
-                "messages": messages,
-                "step_count": step_count,
-                "is_final": False,
-                "final_response": final_response,
-                "tool_calls": [],
-                "is_step_complete": True,
-            }
 
         _emit_final_response(
             agent,
@@ -561,21 +593,19 @@ async def _react_streaming(
                 if agent and hasattr(agent, "memory"):
                     await agent.memory.save_message(conversation_id, "assistant", final_response)
 
-                # Check if we're in plan_and_execute mode with active steps
-                plan_steps = state.get("plan_steps", [])
-                current_plan_step = state.get("current_plan_step", 0)
-                has_active_plan = bool(plan_steps) and current_plan_step < len(plan_steps)
+                if plan_step_active(state):
+                    return await _plan_step_result(
+                        state,
+                        agent=agent,
+                        conversation_id=conversation_id,
+                        messages=messages,
+                        step_count=step_count,
+                        final_response=final_response,
+                        assistant_already_appended=True,
+                    )
 
-                if has_active_plan:
-                    # In plan mode: the step is complete, not the entire conversation
-                    return {
-                        "messages": messages,
-                        "step_count": step_count,
-                        "is_final": False,
-                        "final_response": final_response,
-                        "tool_calls": [],
-                        "is_step_complete": True,
-                    }
+                if agent and hasattr(agent, "memory"):
+                    await agent.memory.save_message(conversation_id, "assistant", final_response)
 
                 _emit_final_response(
                     agent,
@@ -650,6 +680,20 @@ async def _react_streaming(
     final_response = _non_empty_final(final_response)
     messages = list(state.get("messages", []))
     messages.append({"role": "assistant", "content": final_response})
+
+    if plan_step_active(state):
+        return await _plan_step_result(
+            state,
+            agent=agent,
+            conversation_id=conversation_id,
+            messages=messages,
+            step_count=step_count,
+            final_response=final_response,
+            assistant_already_appended=True,
+        )
+
+    if agent and hasattr(agent, "memory"):
+        await agent.memory.save_message(conversation_id, "assistant", final_response)
 
     _emit_final_response(
         agent,
