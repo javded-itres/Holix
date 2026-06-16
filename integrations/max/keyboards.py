@@ -226,7 +226,9 @@ def models_provider_keyboard(
 def status_menu_keyboard(locale: str | None = None, *, is_admin: bool = True) -> dict[str, Any]:
     from core.i18n.messages import t
 
-    loc = locale or "en"
+    from integrations.messenger.locale import MESSENGER_DEFAULT_LOCALE
+
+    loc = locale or MESSENGER_DEFAULT_LOCALE
     row0: list[dict[str, str]] = [
         _callback_btn(t("tg.menu.mode", loc), _cb("r", "mode")),
     ]

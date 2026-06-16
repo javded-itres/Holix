@@ -99,10 +99,10 @@ class MaxApprovals:
             attachments=[plan_review_keyboard(token)],
             **reply,
         )
-        from core.i18n.locale import LocaleStore
+        from integrations.messenger.locale import messenger_locale
         from core.i18n.messages import t
 
-        lang = LocaleStore(self._session.profile).get()
+        lang = messenger_locale(self._session.profile)
         hint_key = (
             "plan.clarify.hint"
             if self._session.pending_plan_phase == "clarification"

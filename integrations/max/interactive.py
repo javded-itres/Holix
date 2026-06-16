@@ -10,7 +10,8 @@ from cli.shared.slash_input import (
     normalize_slash_input,
     slash_command_token,
 )
-from core.i18n import host_locale, t
+from core.i18n import t
+from integrations.messenger.locale import messenger_host_locale
 
 from integrations.max.keyboards import (
     MODE_LABELS,
@@ -59,7 +60,7 @@ class MaxInteractive:
             self._session.user_id,
         ):
             return False
-        await self._host._send_text(t("tg.menu_unavailable", host_locale(self._host)))
+        await self._host._send_text(t("tg.menu_unavailable", messenger_host_locale(self._host)))
         return True
 
     async def handle_slash(self, command: str) -> bool:
@@ -78,7 +79,7 @@ class MaxInteractive:
         if is_mode_slash(cmd):
             if len(parts) > 1 and parts[1] in self._host._execution_modes:
                 self._host._execution_mode_index = self._host._execution_modes.index(parts[1])
-                await self._host._send_text(t("mode_set", host_locale(self._host), mode=parts[1]))
+                await self._host._send_text(t("mode_set", messenger_host_locale(self._host), mode=parts[1]))
             else:
                 await self.show_mode_picker()
             return True
@@ -87,7 +88,7 @@ class MaxInteractive:
             if len(parts) > 1:
                 self._host.streaming_enabled = parts[1] in ("on", "true", "1")
                 state = "on" if self._host.streaming_enabled else "off"
-                await self._host._send_text(t("streaming", host_locale(self._host), state=state))
+                await self._host._send_text(t("streaming", messenger_host_locale(self._host), state=state))
             else:
                 await self.show_stream_picker()
             return True
@@ -150,16 +151,16 @@ class MaxInteractive:
         if action == "m" and value in self._host._execution_modes:
             self._host._execution_mode_index = self._host._execution_modes.index(value)
             await self.show_mode_picker()
-            return t("tg.mode", host_locale(self._host), mode=value)
+            return t("tg.mode", messenger_host_locale(self._host), mode=value)
 
         if action == "st":
             self._host.streaming_enabled = value == "1"
             await self.show_stream_picker()
             state = "on" if self._host.streaming_enabled else "off"
-            return t("tg.streaming", host_locale(self._host), state=state)
+            return t("tg.streaming", messenger_host_locale(self._host), state=state)
 
         if action == "pi":
-            lang = host_locale(self._host)
+            lang = messenger_host_locale(self._host)
             profiles = self._session.ui_profiles
             idx = int(value)
             if 0 <= idx < len(profiles):
@@ -187,10 +188,10 @@ class MaxInteractive:
 
                 restored = restore_session_model(self._host)
                 title = sessions[idx].get("title") or cid
-                model_line = f"\n{t('tg.model', host_locale(self._host), label=restored)}" if restored else ""
+                model_line = f"\n{t('tg.model', messenger_host_locale(self._host), label=restored)}" if restored else ""
                 await self._host._send_text(f"**Сессия:** `{title}`{model_line}")
-                return t("tg.session_switched", host_locale(self._host))
-            return t("tg.session_invalid", host_locale(self._host))
+                return t("tg.session_switched", messenger_host_locale(self._host))
+            return t("tg.session_invalid", messenger_host_locale(self._host))
 
         if action == "sp":
             await self.show_sessions_picker(page=int(value))
@@ -199,11 +200,11 @@ class MaxInteractive:
         if action == "sn":
             await self._host._create_new_session()
             await self.show_sessions_picker()
-            return t("tg.new_session", host_locale(self._host))
+            return t("tg.new_session", messenger_host_locale(self._host))
 
         if action == "t":
             self._host._show_full_tool_result(int(value))
-            return t("tg.tool_result", host_locale(self._host))
+            return t("tg.tool_result", messenger_host_locale(self._host))
 
         if action == "mp":
             label = await apply_preset_index(self._host, int(value))
@@ -212,7 +213,7 @@ class MaxInteractive:
                 await self.show_provider_models(idx, page=self._session.ui_models_page)
             else:
                 await self.show_models(page=self._session.ui_providers_page)
-            return t("tg.model", host_locale(self._host), label=label)
+            return t("tg.model", messenger_host_locale(self._host), label=label)
 
         if action == "mg":
             await self.show_provider_models(int(value), page=0)
@@ -231,11 +232,11 @@ class MaxInteractive:
         if action == "mm":
             parts = value.split(":", 1)
             if len(parts) != 2:
-                return t("tg.error", host_locale(self._host))
+                return t("tg.error", messenger_host_locale(self._host))
             pi, mi = int(parts[0]), int(parts[1])
             label = await apply_provider_model_index(self._host, pi, mi)
             await self.show_provider_models(pi, page=self._session.ui_models_page)
-            return t("tg.model", host_locale(self._host), label=label)
+            return t("tg.model", messenger_host_locale(self._host), label=label)
 
         if action == "mb":
             await self.show_models()
@@ -253,7 +254,7 @@ class MaxInteractive:
             await self._handle_cron_callback(value)
             return ""
 
-        return t("tg.unknown_action", host_locale(self._host))
+        return t("tg.unknown_action", messenger_host_locale(self._host))
 
     async def _refresh(self, kind: str) -> None:
         from integrations.max.command_access import is_menu_action_allowed
@@ -263,7 +264,7 @@ class MaxInteractive:
             self._session.bot_profile,
             self._session.user_id,
         ):
-            await self._host._send_text(t("tg.menu_unavailable", host_locale(self._host)))
+            await self._host._send_text(t("tg.menu_unavailable", messenger_host_locale(self._host)))
             return
 
         if kind == "compress":
@@ -308,7 +309,7 @@ class MaxInteractive:
 
         profiles = self._host._get_available_profiles()
         self._session.ui_profiles = profiles
-        lang = host_locale(self._host)
+        lang = messenger_host_locale(self._host)
         current = self._host.profile
 
         if is_profile_list_hidden(self._session.bot_profile, self._session.user_id):
@@ -359,7 +360,7 @@ class MaxInteractive:
     async def show_tools_picker(self) -> None:
         tools = self._host._recent_tool_results
         if not tools:
-            await self._host._send_text(t("tg.no_tools", host_locale(self._host)))
+            await self._host._send_text(t("tg.no_tools", messenger_host_locale(self._host)))
             return
         lines = ["**Последние tools**", "_Нажмите, чтобы получить полный вывод_"]
         await self._host._send_text_with_keyboard(
@@ -505,7 +506,7 @@ class MaxInteractive:
                 ],
             ]
             if not servers:
-                text_lines.append(f"\n_{t('tg.mcp_read_only_empty', host_locale(host))}_")
+                text_lines.append(f"\n_{t('tg.mcp_read_only_empty', messenger_host_locale(host))}_")
 
         if len(parts) > 1:
             sub = parts[1]
@@ -518,7 +519,7 @@ class MaxInteractive:
                 return
             if sub in ("install", "add", "assign", "remove", "rm", "delete", "test"):
                 if not can_manage_mcp:
-                    await host._send_text(t("tg.mcp_read_only", host_locale(host)))
+                    await host._send_text(t("tg.mcp_read_only", messenger_host_locale(host)))
                     return
             if sub in ("install", "add"):
                 arg = " ".join(parts[2:]) if len(parts) > 2 else ""
@@ -532,7 +533,7 @@ class MaxInteractive:
         await host._send_text_with_keyboard("\n".join(text_lines), inline_keyboard(rows))
 
     async def _deny_mcp_management(self) -> None:
-        await self._host._send_text(t("tg.mcp_read_only", host_locale(self._host)))
+        await self._host._send_text(t("tg.mcp_read_only", messenger_host_locale(self._host)))
 
     async def _handle_mcp_callback(self, value: str) -> None:
         from integrations.max.command_access import is_mcp_management_allowed
@@ -689,7 +690,7 @@ class MaxInteractive:
         is_admin = is_max_admin(self._session.bot_profile, self._session.user_id)
         await self._host._send_text_with_keyboard(
             "\n".join(lines),
-            status_menu_keyboard(host_locale(self._host), is_admin=is_admin),
+            status_menu_keyboard(messenger_host_locale(self._host), is_admin=is_admin),
         )
 
 

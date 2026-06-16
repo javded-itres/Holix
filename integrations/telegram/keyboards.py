@@ -329,7 +329,9 @@ def status_menu_keyboard(locale: str | None = None, *, is_admin: bool = True) ->
     from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
     from core.i18n.messages import t
 
-    loc = locale or "en"
+    from integrations.messenger.locale import MESSENGER_DEFAULT_LOCALE
+
+    loc = locale or MESSENGER_DEFAULT_LOCALE
     rows: list[list[Any]] = [
         [
             InlineKeyboardButton(text=t("tg.menu.mode", loc), callback_data=_cb("r", "mode")),
