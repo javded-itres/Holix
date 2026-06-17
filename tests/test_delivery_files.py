@@ -37,7 +37,7 @@ def test_decrypt_deliverable_files_restores_workspace_plaintext(holix_home, monk
     manager.create_profile("dave", inherit_global=False)
     pdir = manager.get_profile_dir("dave")
     workspace = pdir / "workspace"
-    workspace.mkdir(parents=True)
+    workspace.mkdir(parents=True, exist_ok=True)
     artifact = workspace / "report.txt"
     artifact.write_text("agent output", encoding="utf-8")
 
