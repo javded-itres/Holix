@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 from typing import Any
 
+from core.i18n import host_locale, host_profile_name, t
 from core.project.holix_md import HOLIX_MD_REL_PATH
 from core.project.init_prompt import build_init_user_message
 
@@ -69,9 +70,8 @@ def choose_init_execution_mode(host: Any) -> str:
 
 
 async def _ack_init_start(host: Any, mode_label: str) -> None:
-    text = (
-        f"▸ /init — анализ проекта → {HOLIX_MD_REL_PATH} (режим: {mode_label})"
-    )
+    lang = host_locale(host)
+    text = t("init.ack", lang, path=HOLIX_MD_REL_PATH, mode=mode_label)
     send_plain = getattr(host, "_send_plain", None)
     if send_plain is not None:
         await send_plain(text)
@@ -101,19 +101,20 @@ async def dispatch_agent_message(host: Any, message: str) -> None:
 
 async def run_project_init(host: Any) -> None:
     """Execute /init: analyze repo and write HOLIX.md."""
+    lang = host_locale(host)
+    profile = host_profile_name(host)
+
     if not getattr(host, "agent", None):
-        host.transcript_write(
-            "[yellow]Agent not ready. Configure a model first (holix models add).[/yellow]"
-        )
+        host.transcript_write(f"[yellow]{t('init.not_ready', lang)}[/yellow]")
         return
 
     if _agent_busy(host):
-        host.transcript_write(
-            "[yellow]Агент занят предыдущим запросом. "
-            "Дождитесь ответа или отправьте /stop.[/yellow]"
-        )
+        host.transcript_write(f"[yellow]{t('init.busy', lang)}[/yellow]")
         return
 
     mode_label = choose_init_execution_mode(host)
     await _ack_init_start(host, mode_label)
-    await dispatch_agent_message(host, build_init_user_message())
+    await dispatch_agent_message(
+        host,
+        build_init_user_message(locale=lang, profile_name=profile),
+    )
