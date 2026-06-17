@@ -401,6 +401,38 @@ class TelegramInteractive:
 
     async def apply_callback(self, action: str, value: str) -> str:
         """Apply UI callback; return short answer for query.answer()."""
+        if action == "ps":
+            from core.runtime.background_process import get_background_process_registry
+
+            from integrations.telegram.approvals import _lookup_callback_token
+
+            process_id = _lookup_callback_token(
+                self._session.process_callback_tokens,
+                value,
+            )
+            registry = get_background_process_registry()
+            record = await registry.stop(process_id)
+            if record is None:
+                return "Процесс не найден"
+            buf = self._session.live_buffer
+            if buf is not None:
+                buf.clear_background_process()
+                buf.add_note(f"⏹ Process stopped: {record.label}")
+                if self._session.live_message_id is not None:
+                    from integrations.telegram.render import buffer_to_telegram_html
+
+                    try:
+                        await self._host._bot.edit_message_text(
+                            buffer_to_telegram_html(buf),
+                            chat_id=self._session.chat_id,
+                            message_id=self._session.live_message_id,
+                            parse_mode="HTML",
+                            reply_markup=None,
+                        )
+                    except Exception:
+                        pass
+            return f"Остановлен: {record.label}"
+
         if action == "m" and value in self._host._execution_modes:
             self._host._execution_mode_index = self._host._execution_modes.index(value)
             await self.show_mode_picker()

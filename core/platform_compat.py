@@ -187,6 +187,7 @@ def popen_background(
     stdout=None,
     stderr=None,
     stdin=None,
+    cwd: str | None = None,
 ) -> subprocess.Popen:
     """Spawn a detached background child process."""
     kwargs: dict = {
@@ -195,6 +196,8 @@ def popen_background(
         "stderr": stderr,
         "stdin": stdin if stdin is not None else subprocess.DEVNULL,
     }
+    if cwd is not None:
+        kwargs["cwd"] = cwd
     if IS_POSIX:
         kwargs["start_new_session"] = True
         kwargs["close_fds"] = True

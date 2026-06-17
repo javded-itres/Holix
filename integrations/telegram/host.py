@@ -684,7 +684,9 @@ class TelegramHost:
         self.agent.events.subscribe(on_event)
 
         from core.tools.execution_context import (
+            agent_emit_scope,
             chat_delivery_scope,
+            reset_agent_emit_scope,
             reset_chat_delivery_scope,
         )
         from core.workspace import agent_path_visibility_context
@@ -694,6 +696,7 @@ class TelegramHost:
 
         delivery_bridge = TelegramDeliveryBridge(self._bot, self._session.chat_id)
         delivery_token = chat_delivery_scope(delivery_bridge)
+        emit_token = agent_emit_scope(self.agent.emit)
         agent_cfg = getattr(self.agent, "config", None)
         visibility_ctx = agent_path_visibility_context(
             is_admin=is_telegram_admin(self._session.bot_profile, self._session.user_id),
@@ -740,6 +743,7 @@ class TelegramHost:
             finally:
                 self.agent.events.unsubscribe(on_event)
                 reset_chat_delivery_scope(delivery_token)
+                reset_agent_emit_scope(emit_token)
                 try:
                     await presenter.finish()
                 except Exception:

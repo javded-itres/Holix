@@ -64,6 +64,11 @@ class EventType(StrEnum):
     SUBAGENT_WAVE_STARTED = "subagent_wave_started"
     SUBAGENT_WAVE_COMPLETED = "subagent_wave_completed"
 
+    # Background project processes
+    BACKGROUND_PROCESS_STARTED = "background_process_started"
+    BACKGROUND_PROCESS_STOPPED = "background_process_stopped"
+    BACKGROUND_PROCESS_ERROR = "background_process_error"
+
 
 @dataclass
 class EventContext:
@@ -401,6 +406,73 @@ class SubAgentWaveCompletedEvent(AgentEvent):
             "completed": self.completed,
             "total": self.total,
             "summary": self.summary,
+        }
+
+
+@dataclass
+class BackgroundProcessStartedEvent(AgentEvent):
+    """A long-running project process was started in the background."""
+    process_id: str = ""
+    label: str = ""
+    command: str = ""
+    pid: int = 0
+    log_path: str = ""
+
+    def __post_init__(self):
+        super().__post_init__()
+        object.__setattr__(self, "type", EventType.BACKGROUND_PROCESS_STARTED)
+
+    def _extra_fields(self) -> dict[str, Any]:
+        return {
+            "process_id": self.process_id,
+            "label": self.label,
+            "command": self.command,
+            "pid": self.pid,
+            "log_path": self.log_path,
+        }
+
+
+@dataclass
+class BackgroundProcessStoppedEvent(AgentEvent):
+    """A background project process was stopped."""
+    process_id: str = ""
+    label: str = ""
+    pid: int = 0
+
+    def __post_init__(self):
+        super().__post_init__()
+        object.__setattr__(self, "type", EventType.BACKGROUND_PROCESS_STOPPED)
+
+    def _extra_fields(self) -> dict[str, Any]:
+        return {
+            "process_id": self.process_id,
+            "label": self.label,
+            "pid": self.pid,
+        }
+
+
+@dataclass
+class BackgroundProcessErrorEvent(AgentEvent):
+    """Background process failed health check (crashed or errors in log)."""
+    process_id: str = ""
+    label: str = ""
+    pid: int = 0
+    status: str = ""
+    error_summary: str = ""
+    log_path: str = ""
+
+    def __post_init__(self):
+        super().__post_init__()
+        object.__setattr__(self, "type", EventType.BACKGROUND_PROCESS_ERROR)
+
+    def _extra_fields(self) -> dict[str, Any]:
+        return {
+            "process_id": self.process_id,
+            "label": self.label,
+            "pid": self.pid,
+            "status": self.status,
+            "error_summary": self.error_summary,
+            "log_path": self.log_path,
         }
 
 

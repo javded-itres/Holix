@@ -6,6 +6,22 @@ Screen {
     background: $surface;
 }
 
+#process-bar {
+    height: 1;
+    display: none;
+    padding: 0 1;
+    background: $success 12%;
+    color: $text;
+}
+
+#process-bar.visible {
+    display: block;
+}
+
+#process-bar.error {
+    background: $error 15%;
+}
+
 #transcript {
     height: 1fr;
     border: none;

@@ -40,6 +40,7 @@ class TelegramLivePresenter:
         self._buffer = session.live_buffer
         self._final_delivered = False
         self._final_content: str | None = None
+        self._reply_markup: Any | None = None
         self._outbound_queue: asyncio.Queue[Coroutine[Any, Any, Any] | None] | None = None
         self._outbound_worker: asyncio.Task | None = None
 
@@ -57,6 +58,7 @@ class TelegramLivePresenter:
         self._buffer.publish_answer_separately = True
         self._final_delivered = False
         self._final_content = None
+        self._reply_markup = None
         self._outbound_queue = asyncio.Queue()
         self._outbound_worker = asyncio.create_task(self._outbound_worker_loop())
         text = buffer_to_telegram_html(self._buffer)
@@ -107,12 +109,16 @@ class TelegramLivePresenter:
                 if not _is_not_modified(retry_exc):
                     logger.debug("Telegram live edit fallback failed: %s", retry_exc)
 
+    def set_reply_markup(self, markup: Any | None) -> None:
+        self._reply_markup = markup
+
     async def _edit_html(self, text: str) -> None:
         await self._bot.edit_message_text(
             text,
             chat_id=self.session.chat_id,
             message_id=self.session.live_message_id,
             parse_mode="HTML",
+            reply_markup=self._reply_markup,
         )
 
     async def _outbound_worker_loop(self) -> None:

@@ -8,7 +8,13 @@ from unittest.mock import MagicMock
 
 import pytest
 from cli.tui.code.handlers.events import CodeEventHandler
-from core.agent_events import AssistantDeltaEvent, FinalResponseEvent
+from core.agent_events import (
+    AssistantDeltaEvent,
+    BackgroundProcessErrorEvent,
+    BackgroundProcessStartedEvent,
+    BackgroundProcessStoppedEvent,
+    FinalResponseEvent,
+)
 
 
 class FakeTranscriptStore:
@@ -47,6 +53,25 @@ class FakeApp:
         self.scroll_hint_scheduled = 0
         self.stream_deltas: list[str] = []
         self.stream_cleared = 0
+        self.background_process: str | None = None
+        self.background_process_id: str | None = None
+        self.background_process_healthy = True
+
+    def set_background_process(
+        self,
+        *,
+        label: str,
+        process_id: str = "",
+        healthy: bool = True,
+    ) -> None:
+        self.background_process = label
+        self.background_process_id = process_id or None
+        self.background_process_healthy = healthy
+
+    def clear_background_process(self) -> None:
+        self.background_process = None
+        self.background_process_id = None
+        self.background_process_healthy = True
 
     def transcript_write(self, content, **kwargs) -> None:
         self.writes.append(content)
@@ -127,6 +152,55 @@ class TestStreamHandler:
         assert any(isinstance(w, Markdown) for w in app.writes)
         rendered = [w for w in app.writes if isinstance(w, Markdown)][0]
         assert "Итоговый ответ из стрима" in rendered.markup
+
+
+class TestBackgroundProcessEvents:
+    def test_started_sets_process_bar_and_writes_hint(self):
+        app = FakeApp()
+        handler = CodeEventHandler(app)
+        handler.handle(
+            BackgroundProcessStartedEvent(
+                process_id="proc_abc",
+                label="uvicorn",
+                command="uvicorn main:app",
+                pid=8000,
+                log_path="/tmp/proc.log",
+            )
+        )
+        assert app.background_process == "uvicorn · pid 8000"
+        assert app.background_process_id == "proc_abc"
+        joined = " ".join(str(w) for w in app.writes)
+        assert "/process-stop" in joined
+        assert "/tmp/proc.log" in joined
+
+    def test_error_marks_unhealthy(self):
+        app = FakeApp()
+        handler = CodeEventHandler(app)
+        handler.handle(
+            BackgroundProcessErrorEvent(
+                process_id="proc_bad",
+                label="api",
+                pid=9,
+                status="crashed",
+                error_summary="ModuleNotFoundError: x",
+            )
+        )
+        assert app.background_process_healthy is False
+        assert "error" in " ".join(str(w) for w in app.writes).lower()
+
+    def test_stopped_clears_process_bar(self):
+        app = FakeApp()
+        app.set_background_process(label="srv · pid 1", process_id="proc_x")
+        handler = CodeEventHandler(app)
+        handler.handle(
+            BackgroundProcessStoppedEvent(
+                process_id="proc_x",
+                label="srv",
+                pid=1,
+            )
+        )
+        assert app.background_process is None
+        assert any("stopped" in str(w).lower() for w in app.writes)
 
 
 @pytest.mark.asyncio

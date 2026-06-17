@@ -7,6 +7,9 @@ import json
 from core.agent_events import (
     AgentEvent,
     AssistantDeltaEvent,
+    BackgroundProcessErrorEvent,
+    BackgroundProcessStartedEvent,
+    BackgroundProcessStoppedEvent,
     ContextCompressedEvent,
     ContextWarningEvent,
     ErrorEvent,
@@ -129,6 +132,34 @@ class CodeEventHandler:
                     cm.invalidate_usage_cache(getattr(self.app, "conversation_id", None))
                 self.app.run_worker(self.app._update_context_display_async())
 
+            elif isinstance(event, BackgroundProcessStartedEvent):
+                label = f"{event.label} · pid {event.pid}"
+                self.app.set_background_process(label=label, process_id=event.process_id)
+                log_hint = f" · log: {event.log_path}" if event.log_path else ""
+                self.app.transcript_write(
+                    f"[green]▶ Background process:[/green] {label}{log_hint}\n"
+                    f"[dim]  /process-stop — halt · log in .holix/process-logs/[/dim]"
+                )
+
+            elif isinstance(event, BackgroundProcessStoppedEvent):
+                self.app.clear_background_process()
+                self.app.transcript_write(
+                    f"[dim]⏹ Process stopped: {event.label} (pid {event.pid})[/dim]"
+                )
+
+            elif isinstance(event, BackgroundProcessErrorEvent):
+                label = f"{event.label} · pid {event.pid} · {event.status}"
+                self.app.set_background_process(
+                    label=label,
+                    process_id=event.process_id,
+                    healthy=False,
+                )
+                summary = (event.error_summary or event.status or "error")[:300]
+                self.app.transcript_write(
+                    f"[red]⚠ Background process error ({event.status}):[/red] {summary}\n"
+                    f"[dim]  Fix the issue, restart, then check_background_process[/dim]"
+                )
+
             elif isinstance(event, ErrorEvent):
                 if self.app._is_streaming and self.app._stream_buffer:
                     self.app.flush_partial_stream_to_transcript()
@@ -150,6 +181,22 @@ class CodeEventHandler:
             self.app.transcript_write(
                 f"[red]Event error ({type(exc).__name__}): {exc}[/red]"
             )
+
+    def _sync_process_bar_from_tool_result(self, body: str) -> None:
+        from core.tools.background_process import parse_start_tool_result
+
+        parsed = parse_start_tool_result(body)
+        if not parsed:
+            return
+        status = str(parsed.get("status") or "")
+        label = f"{parsed['label']} · pid {parsed['pid']}"
+        if status and status not in ("healthy", "starting"):
+            label = f"{label} · {status}"
+        self.app.set_background_process(
+            label=label,
+            process_id=str(parsed["process_id"]),
+            healthy=bool(parsed.get("healthy", True)),
+        )
 
     def _thinking(self, message: str) -> None:
         short = message[:60] + ("…" if len(message) > 60 else "")
@@ -229,6 +276,8 @@ class CodeEventHandler:
             if body.strip():
                 self.app._transcript_store.append("tool", body, title=name)
             self.app._store_tool_result(name, body, duration_s)
+            if name in ("start_background_process", "run_project"):
+                self._sync_process_bar_from_tool_result(body)
 
         self.app._maybe_refresh_context_display()
         self.app.transcript_scroll_bottom()

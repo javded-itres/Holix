@@ -10,7 +10,7 @@ from typing import Any
 from core.graph.modes.hybrid import build_hybrid_graph
 from core.graph.modes.plan_execute import build_plan_and_execute_graph
 from core.graph.modes.react import build_react_graph
-from core.persistence import create_checkpointer
+from core.persistence import async_checkpointer, create_checkpointer
 
 logger = logging.getLogger(__name__)
 
@@ -119,17 +119,12 @@ async def run_graph_loop(
     initial_state["messages"] = messages
 
     cfg = getattr(agent, "config", None)
-    checkpointer = create_checkpointer(
-        use_persistent=bool(cfg and cfg.use_langgraph),
-        db_path=cfg.langgraph_checkpoint_db_path if cfg else None,
+    use_persistent = bool(
+        cfg
+        and getattr(cfg, "use_langgraph", True)
+        and getattr(cfg, "langgraph_checkpoint_db_path", None)
     )
-
-    compiled_graph = build_holix_graph(
-        agent=agent,
-        execution_mode=execution_mode,
-        checkpointer=checkpointer,
-        stream=stream,
-    )
+    db_path = cfg.langgraph_checkpoint_db_path if cfg else None
 
     from core.i18n.live_ui import live_holix_thinking_label
     from core.profile.soul import profile_name_from_agent
@@ -154,7 +149,17 @@ async def run_graph_loop(
     }
 
     try:
-        final_state = await compiled_graph.ainvoke(initial_state, config)
+        async with async_checkpointer(
+            use_persistent=use_persistent,
+            db_path=db_path,
+        ) as checkpointer:
+            compiled_graph = build_holix_graph(
+                agent=agent,
+                execution_mode=execution_mode,
+                checkpointer=checkpointer,
+                stream=stream,
+            )
+            final_state = await compiled_graph.ainvoke(initial_state, config)
 
         final_text = (final_state.get("final_response") or "").strip()
         if (

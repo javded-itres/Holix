@@ -18,6 +18,16 @@ def _cb(action: str, value: str) -> str:
     return f"{PREFIX}:{action}:{value}"
 
 
+def background_process_stop_keyboard(process_token: str) -> dict[str, Any]:
+    return inline_keyboard(
+        [
+            [
+                _callback_btn("⏹ Остановить процесс", _cb("ps", process_token)),
+            ],
+        ]
+    )
+
+
 def parse_callback(payload: str) -> tuple[str, str] | None:
     if not payload or not payload.startswith(f"{PREFIX}:"):
         return None

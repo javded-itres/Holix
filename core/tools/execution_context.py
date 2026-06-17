@@ -15,6 +15,7 @@ _workspace_root: ContextVar[str | None] = ContextVar("holix_workspace_root", def
 _workspace_jail_enabled: ContextVar[bool] = ContextVar("holix_workspace_jail_enabled", default=False)
 _full_paths_visible: ContextVar[bool] = ContextVar("holix_full_paths_visible", default=True)
 _profile_name: ContextVar[str] = ContextVar("holix_profile_name", default="default")
+_agent_emit: ContextVar[Any] = ContextVar("holix_agent_emit", default=None)
 
 
 def get_conversation_id() -> str:
@@ -91,6 +92,19 @@ def chat_delivery_scope(bridge: Any):
 
 def reset_chat_delivery_scope(token) -> None:
     _chat_delivery_bridge.reset(token)
+
+
+def get_agent_emit() -> Any | None:
+    return _agent_emit.get()
+
+
+def agent_emit_scope(emit_fn: Any):
+    """Return token for use with reset_agent_emit_scope."""
+    return _agent_emit.set(emit_fn)
+
+
+def reset_agent_emit_scope(token) -> None:
+    _agent_emit.reset(token)
 
 
 def memory_facade_scope(facade: Any):

@@ -30,6 +30,7 @@ from cli.tui.code.handlers import CodeEventHandler, SlashCommandsCore
 from cli.tui.code.styles import CODE_TUI_CSS
 from cli.tui.code.widgets import (
     CodeContextBar,
+    CodeProcessBar,
     CodePrompt,
     CodeStatusBar,
     CodeStreamLine,
@@ -128,8 +129,11 @@ class HolixCodeApp(App):
         self._transcript_display_trimmed = False
         self._transcript_writes_since_rebuild = 0
         self._stream_update_timer = None
+        self._background_process_id: str | None = None
 
     def compose(self) -> ComposeResult:
+        process_bar = CodeProcessBar()
+        yield process_bar
         yield TranscriptPanel()
         stream = CodeStreamLine()
         yield stream
@@ -338,6 +342,58 @@ class HolixCodeApp(App):
         except Exception:
             pass
 
+    def set_background_process(
+        self,
+        *,
+        label: str,
+        process_id: str = "",
+        healthy: bool = True,
+    ) -> None:
+        try:
+            self.query_one("#process-bar", CodeProcessBar).set_process(
+                label,
+                healthy=healthy,
+            )
+        except Exception:
+            pass
+        pid = (process_id or "").strip()
+        self._background_process_id = pid or None
+
+    def clear_background_process(self) -> None:
+        try:
+            self.query_one("#process-bar", CodeProcessBar).clear_process()
+        except Exception:
+            pass
+        self._background_process_id = None
+
+    def sync_background_process_bar(self) -> None:
+        """Show the active session process bar from the in-memory registry."""
+        from core.runtime.background_process import get_background_process_registry
+
+        registry = get_background_process_registry()
+        rec = registry.active_for_scope(
+            profile=self.profile,
+            conversation_id=self.conversation_id,
+        )
+        if rec is None:
+            records = registry.list_for_scope(
+                profile=self.profile,
+                conversation_id=self.conversation_id,
+            )
+            rec = records[0] if records else None
+        if rec is None:
+            self.clear_background_process()
+            return
+
+        healthy = rec.is_running()
+        status = "running" if healthy else "stopped"
+        label = f"{rec.label} · pid {rec.pid} · {status}"
+        self.set_background_process(
+            label=label,
+            process_id=rec.process_id,
+            healthy=healthy,
+        )
+
     def _refresh_status_bar(self) -> None:
         cwd = os.path.basename(os.getcwd()) or "."
         mode = self._execution_modes[self._execution_mode_index]
@@ -443,6 +499,7 @@ class HolixCodeApp(App):
         self.set_status_line("ready")
         self._agent_init_state = "ready"
         self._set_prompt_enabled(True)
+        self.sync_background_process_bar()
         from core.session_models import restore_session_model
 
         restored = restore_session_model(self)
@@ -542,11 +599,25 @@ class HolixCodeApp(App):
             pass
 
     def _on_agent_event(self, event: AgentEvent) -> None:
-        # Only defer sub-agent IPC prompts — deferring all events breaks init/streaming.
+        # Defer UI mutations that touch widgets from agent workers (Textual main thread).
+        from core.agent_events import (
+            BackgroundProcessErrorEvent,
+            BackgroundProcessStartedEvent,
+            BackgroundProcessStoppedEvent,
+        )
         from core.security.confirmation_events import ConfirmationRequestEvent
         from core.subagents.interaction_events import SubAgentQuestionEvent
 
-        if isinstance(event, (ConfirmationRequestEvent, SubAgentQuestionEvent)):
+        if isinstance(
+            event,
+            (
+                ConfirmationRequestEvent,
+                SubAgentQuestionEvent,
+                BackgroundProcessStartedEvent,
+                BackgroundProcessStoppedEvent,
+                BackgroundProcessErrorEvent,
+            ),
+        ):
             self.call_later(0, self._event_handler.handle, event)
         else:
             self._event_handler.handle(event)
@@ -555,6 +626,9 @@ class HolixCodeApp(App):
         if not self.agent:
             return
         mode = self._execution_modes[self._execution_mode_index]
+        from core.tools.execution_context import agent_emit_scope, reset_agent_emit_scope
+
+        emit_token = agent_emit_scope(self.agent.emit)
         try:
             await self.agent.run(
                 user_input=user_input,
@@ -565,11 +639,16 @@ class HolixCodeApp(App):
             self.transcript_write(f"[red]agent error: {exc}[/red]")
             self.set_status_line("error")
             self._restore_prompt_focus()
+        finally:
+            reset_agent_emit_scope(emit_token)
 
     async def _run_agent_streaming(self, user_input: str) -> None:
         if not self.agent:
             return
         mode = self._execution_modes[self._execution_mode_index]
+        from core.tools.execution_context import agent_emit_scope, reset_agent_emit_scope
+
+        emit_token = agent_emit_scope(self.agent.emit)
         try:
             from core.runtime.executor import run_holix
 
@@ -585,6 +664,8 @@ class HolixCodeApp(App):
             self.transcript_write(f"[red]stream error: {exc}[/red]")
             self.set_status_line("error")
             self._restore_prompt_focus()
+        finally:
+            reset_agent_emit_scope(emit_token)
 
     # --- Input / send ---
 
@@ -1156,6 +1237,52 @@ class HolixCodeApp(App):
         self.transcript_write("[dim]stopped[/dim]")
         self.set_status_line("ready")
         self._restore_prompt_focus()
+
+    async def _stop_background_process(self, process_id: str = "") -> None:
+        from core.runtime.background_process import get_background_process_registry
+        from core.runtime.port_utils import parse_listen_ports, ports_in_use
+
+        registry = get_background_process_registry()
+        target = (process_id or self._background_process_id or "").strip()
+        record = None
+        if target:
+            record = await registry.stop(target)
+        if record is None:
+            record = await registry.stop_for_scope(
+                profile=self.profile,
+                conversation_id=self.conversation_id,
+            )
+        record = await registry.stop_for_profile(profile=self.profile) or record
+        if record is None:
+            self.transcript_write("[dim]no background process for this session[/dim]")
+            return
+
+        self.clear_background_process()
+        ports = parse_listen_ports(record.command)
+        still_busy = ports_in_use(ports) if ports else []
+        line = f"[dim]⏹ stopped: {record.label} (pid {record.pid})[/dim]"
+        if still_busy:
+            busy = ", ".join(str(p) for p in still_busy)
+            line += f"\n[yellow]port(s) {busy} still in use — check with lsof -i :{still_busy[0]}[/yellow]"
+        self.transcript_write(line)
+
+    async def _list_background_processes(self) -> None:
+        from core.runtime.background_process import get_background_process_registry
+
+        registry = get_background_process_registry()
+        records = registry.list_for_scope(
+            profile=self.profile,
+            conversation_id=self.conversation_id,
+        )
+        if not records:
+            self.transcript_write("[dim]no background processes for this session[/dim]")
+            return
+        self.transcript_write("[dim]background processes:[/dim]")
+        for rec in records:
+            status = "running" if rec.is_running() else "stopped"
+            self.transcript_write(
+                f"[dim]  · {rec.process_id}: {rec.label} pid={rec.pid} ({status})[/dim]"
+            )
 
     # --- Context ---
 

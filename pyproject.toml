@@ -43,6 +43,7 @@ dependencies = [
     "tiktoken>=0.7.0",
     "langgraph>=1.2.0",
     "langgraph-checkpoint>=4.0.0",
+    "langgraph-checkpoint-sqlite>=3.0.0",
     "langchain-core>=0.3.0",
     "dishka>=1.10.1",
     "mcp>=1.2.0",

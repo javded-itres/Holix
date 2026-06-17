@@ -18,6 +18,8 @@ _STATIC_SLASH_COMMANDS: list[tuple[str, str]] = [
     ("/models", "Switch LLM model (runtime)"),
     ("/model", "Switch LLM model (alias)"),
     ("/stop", "Stop running tasks"),
+    ("/process-stop", "Stop background dev server / long-running process"),
+    ("/process", "List background processes for this session"),
     ("/new", "New session"),
     ("/sessions", "List sessions"),
     ("/switch", "Switch session by number"),

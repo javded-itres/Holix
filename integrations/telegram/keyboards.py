@@ -21,6 +21,21 @@ def _cb(action: str, value: str) -> str:
     return data
 
 
+def background_process_stop_keyboard(process_token: str) -> Any:
+    from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
+
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(
+                    text="⏹ Остановить процесс",
+                    callback_data=_cb("ps", process_token),
+                )
+            ],
+        ]
+    )
+
+
 def parse_callback(data: str) -> tuple[str, str] | None:
     if not data or not data.startswith(f"{PREFIX}:"):
         return None

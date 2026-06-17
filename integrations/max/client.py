@@ -250,10 +250,13 @@ class MaxClient:
         text: str,
         *,
         fmt: str | None = None,
+        attachments: list[dict[str, Any]] | None = None,
     ) -> dict[str, Any]:
         body: dict[str, Any] = {"text": text}
         if fmt:
             body["format"] = fmt
+        if attachments:
+            body["attachments"] = attachments
         result = await self._request(
             "PUT",
             "/messages",

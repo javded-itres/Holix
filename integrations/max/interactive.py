@@ -147,6 +147,38 @@ class MaxInteractive:
         return False
 
     async def apply_callback(self, action: str, value: str) -> str:
+        if action == "ps":
+            from core.runtime.background_process import get_background_process_registry
+
+            from integrations.max.approvals import _lookup_callback_token
+
+            process_id = _lookup_callback_token(
+                self._session.process_callback_tokens,
+                value,
+            )
+            registry = get_background_process_registry()
+            record = await registry.stop(process_id)
+            if record is None:
+                return "Процесс не найден"
+            buf = self._session.live_buffer
+            if buf is not None:
+                buf.clear_background_process()
+                buf.add_note(f"⏹ Process stopped: {record.label}")
+                message_id = self._session.live_message_id
+                if message_id:
+                    from integrations.max.render import buffer_to_max_html
+
+                    try:
+                        await self._host._client.edit_message(
+                            message_id,
+                            buffer_to_max_html(buf),
+                            fmt="html",
+                            attachments=None,
+                        )
+                    except Exception:
+                        pass
+            return f"Остановлен: {record.label}"
+
         if action == "m" and value in self._host._execution_modes:
             self._host._execution_mode_index = self._host._execution_modes.index(value)
             await self.show_mode_picker()

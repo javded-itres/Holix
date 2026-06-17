@@ -275,6 +275,31 @@ class TestActionGuard:
         Path(self._perm_path).unlink(missing_ok=True)
 
     @pytest.mark.asyncio
+    async def test_start_background_process_auto_allowed(self):
+        """Dev-server launcher should not block on confirmation (risk=low)."""
+        guard = ActionGuard(
+            event_bus=None,
+            permission_manager=self.pm,
+            risk_classifier=self.classifier,
+            auto_allow_threshold=RiskLevel.LOW,
+            interactive=True,
+        )
+
+        class FakeTool:
+            risk_level = "low"
+
+        async def fake_execute(command=""):
+            return f"started: {command}"
+
+        result = await guard.check_and_execute(
+            tool_name="start_background_process",
+            tool_instance=FakeTool(),
+            arguments={"command": "npm run dev"},
+            execute_fn=fake_execute,
+        )
+        assert "started: npm run dev" in result
+
+    @pytest.mark.asyncio
     async def test_auto_allow_below_threshold(self):
         """Tools at or below the threshold should execute without confirmation."""
         guard = ActionGuard(

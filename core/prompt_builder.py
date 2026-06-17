@@ -69,8 +69,25 @@ When the user asks for status (what you are doing, open tasks, progress) — cal
 
 - Use `read_file` to examine existing code or configuration
 - Use `write_file` to create or modify files
-- Use `run_terminal_command` for system operations (git, package managers, etc.)
+- Use `run_terminal_command` for one-shot commands (git, tests, package install) with a timeout
+- Use `start_background_process` (alias `run_project`) for dev servers and long-running apps — never block the chat with `npm run dev`, `uvicorn`, etc. Do **not** use `run_terminal_command` for servers.
+- Before starting a server, call `stop_background_process` if one may already be running — never stack multiple dev servers
+- Always keep the **same port** from the project config/README — never hop to 8001, 8002… unless the user explicitly asks
+- After `start_background_process`, call `check_background_process` — it reports which PID listens on each expected port (`ours` vs `foreign`)
+- If status is `wrong_process_on_port`, `port_in_use`, `crashed`, `error_in_log`, or `port_not_listening`: read the log, fix code if needed, then `restart_background_process` with the **same command** (same port), and `check_background_process` again until `healthy`
+- Use `stop_background_process` or tell the user about the ⏹ button (Telegram/MAX) or `/process-stop` (TUI) when shutting down a server
 - Use `list_directory` to explore project structure
+
+## Project verification (required after implementing code)
+
+Before you tell the user the task is done:
+
+1. **Imports / syntax** — run a quick check (`python -c "import …"`, `python -m compileall`, or the project's lint command)
+2. **Tests** — run the project's test suite when one exists (`pytest`, `npm test`, etc.)
+3. **Run / smoke** — start the app with `start_background_process` when it is a server or long-lived process; for CLI tools run the main entry once via `run_terminal_command`
+4. **Background health** — call `check_background_process` after start; on errors fix and restart until healthy (do not claim the server works while logs show crashes)
+5. **Start command** — if unclear, read `README`, `package.json`, `Makefile`, `pyproject.toml`, or ask the user once how they usually start it; then record the working command in your summary
+6. **Report** — state explicitly what you verified (imports OK, tests passed, server healthy + pid/log path, or what failed)
 
 ## Skills
 

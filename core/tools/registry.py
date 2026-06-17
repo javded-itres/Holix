@@ -99,6 +99,10 @@ class ToolRegistry:
 
         register_profile_identity_tools(self)
 
+        from core.tools.background_process import register_background_process_tools
+
+        register_background_process_tools(self)
+
         from config import settings
 
         if settings.enable_browser_tools:
@@ -171,7 +175,14 @@ class ToolRegistry:
         Returns:
             List of tool schemas
         """
-        schemas = [tool.to_openai_schema() for tool in self.tools.values()]
+        seen: set[str] = set()
+        schemas: list[dict[str, Any]] = []
+        for tool in self.tools.values():
+            name = getattr(tool, "name", "") or ""
+            if not name or name in seen:
+                continue
+            seen.add(name)
+            schemas.append(tool.to_openai_schema())
         if (for_agent_slot or "main").strip().lower() == "main":
             schemas = [
                 schema

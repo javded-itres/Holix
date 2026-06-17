@@ -128,6 +128,18 @@ class RiskClassifier:
         Returns:
             Tuple of (escalated_risk_level, reason, matched_pattern).
         """
+        if tool_name in ("start_background_process", "run_project", "restart_background_process"):
+            return RiskLevel.LOW, "Controlled background dev-server launcher", None
+
+        if tool_name in (
+            "check_background_process",
+            "list_background_processes",
+        ):
+            return RiskLevel.LOW, "Background process status check", None
+
+        if tool_name == "stop_background_process":
+            return RiskLevel.LOW, "Stop background dev server", None
+
         # TerminalTool: always HIGH, but check for blocked patterns
         if tool_name == "run_terminal_command":
             command = arguments.get("command", "")
