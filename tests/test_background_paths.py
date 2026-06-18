@@ -2,9 +2,12 @@
 
 from __future__ import annotations
 
+import os
+from pathlib import Path
 from unittest.mock import patch
 
 import pytest
+from core.platform_compat import IS_WINDOWS
 from core.runtime.background_paths import (
     background_log_dir,
     build_background_spawn_env,
@@ -66,21 +69,26 @@ def test_background_log_dir(tmp_path) -> None:
     assert root == tmp_path / "project" / ".holix" / "process-logs"
 
 
+def _project_venv_dir(project: Path) -> Path:
+    rel = ".venv/Scripts" if IS_WINDOWS else ".venv/bin"
+    return project / rel
+
+
 def test_build_background_spawn_env_prefers_venv(tmp_path) -> None:
     project = tmp_path / "project"
-    venv_bin = project / ".venv" / "bin"
+    venv_bin = _project_venv_dir(project)
     venv_bin.mkdir(parents=True)
     (venv_bin / "uvicorn").write_text("", encoding="utf-8")
 
     env = build_background_spawn_env(project)
     assert env["PYTHONUNBUFFERED"] == "1"
-    assert str(venv_bin) in env["PATH"].split(":")
-    assert str(project) in env["PYTHONPATH"].split(":")
+    assert str(venv_bin) in env["PATH"].split(os.pathsep)
+    assert str(project) in env["PYTHONPATH"].split(os.pathsep)
 
 
 def test_resolve_argv_executable_uses_venv(tmp_path) -> None:
     project = tmp_path / "project"
-    venv_bin = project / ".venv" / "bin"
+    venv_bin = _project_venv_dir(project)
     venv_bin.mkdir(parents=True)
     tool = venv_bin / "uvicorn"
     tool.write_text("", encoding="utf-8")

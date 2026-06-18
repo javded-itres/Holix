@@ -44,13 +44,22 @@ def background_log_dir(project_root: Path) -> Path:
     return project_root / ".holix" / "process-logs"
 
 
+def project_venv_bin(project_root: Path) -> Path | None:
+    """Return the project venv executable directory (Scripts on Windows, else bin)."""
+    for rel in (".venv/Scripts", ".venv/bin"):
+        candidate = project_root / rel
+        if candidate.is_dir():
+            return candidate
+    return None
+
+
 def build_background_spawn_env(project_root: Path) -> dict[str, str]:
     """Environment for detached dev servers: unbuffered logs + project venv on PATH."""
     env = dict(os.environ)
     env["PYTHONUNBUFFERED"] = "1"
 
-    venv_bin = project_root / ".venv" / "bin"
-    if venv_bin.is_dir():
+    venv_bin = project_venv_bin(project_root)
+    if venv_bin is not None:
         prefix = str(venv_bin)
         path = env.get("PATH", "")
         if prefix not in path.split(os.pathsep):
@@ -68,8 +77,8 @@ def resolve_argv_executable(argv: list[str], project_root: Path) -> list[str]:
     """Prefer project ``.venv/bin/<name>`` when the command uses a bare tool name."""
     if not argv:
         return argv
-    venv_bin = project_root / ".venv" / "bin"
-    if not venv_bin.is_dir():
+    venv_bin = project_venv_bin(project_root)
+    if venv_bin is None:
         return argv
 
     first = argv[0]
