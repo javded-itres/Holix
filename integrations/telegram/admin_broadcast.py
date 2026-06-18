@@ -167,26 +167,27 @@ async def deliver_broadcast(
 
 async def handle_admin_message_command(host: Any, command: str) -> None:
     """Parse ``/message`` and start compose mode or show help."""
-    from core.i18n import host_locale, t
+    from core.i18n import t
+    from integrations.messenger.locale import messenger_host_locale
 
     session = host._session
     bot_profile = getattr(session, "bot_profile", "default")
     user_id = int(getattr(session, "user_id", 0))
 
     if not is_telegram_admin(bot_profile, user_id):
-        await host._send_html(escape_html(t("tg.message_admin_only", host_locale(host))))
+        await host._send_html(escape_html(t("tg.message_admin_only", messenger_host_locale(host))))
         return
 
     parts = command.strip().split()
     sub = parts[1].lower() if len(parts) > 1 else ""
 
     if sub in {"", "help"}:
-        await host._send_html(t("tg.message_help", host_locale(host)))
+        await host._send_html(t("tg.message_help", messenger_host_locale(host)))
         return
 
     if sub == "cancel":
         session.pending_admin_broadcast = None
-        await host._send_html(escape_html(t("tg.message_cancelled", host_locale(host))))
+        await host._send_html(escape_html(t("tg.message_cancelled", messenger_host_locale(host))))
         return
 
     target = parts[1]
@@ -204,7 +205,7 @@ async def handle_admin_message_command(host: Any, command: str) -> None:
             )
             if not recipients:
                 await host._send_html(
-                    escape_html(t("tg.message_unknown_profile", host_locale(host), name=target))
+                    escape_html(t("tg.message_unknown_profile", messenger_host_locale(host), name=target))
                 )
                 return
         draft_target = target
@@ -215,16 +216,16 @@ async def handle_admin_message_command(host: Any, command: str) -> None:
         exclude_user_id=user_id,
     )
     if not recipients:
-        await host._send_html(escape_html(t("tg.message_no_recipients", host_locale(host))))
+        await host._send_html(escape_html(t("tg.message_no_recipients", messenger_host_locale(host))))
         return
 
     session.pending_admin_broadcast = AdminBroadcastDraft(target=draft_target)
     if draft_target.lower() == "all":
-        hint = t("tg.message_compose_all", host_locale(host), count=len(recipients))
+        hint = t("tg.message_compose_all", messenger_host_locale(host), count=len(recipients))
     else:
         hint = t(
             "tg.message_compose_profile",
-            host_locale(host),
+            messenger_host_locale(host),
             profile=escape_html(draft_target),
             count=len(recipients),
         )

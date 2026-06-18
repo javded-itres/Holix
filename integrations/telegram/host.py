@@ -8,7 +8,8 @@ from typing import Any
 from cli.shared.commands.agent_commands import AgentCommands
 from cli.shared.rich_text import content_to_plain_text
 from cli.shared.slash_input import is_slash_command, normalize_slash_input
-from core.i18n import host_locale, t
+from core.i18n import t
+from integrations.messenger.locale import messenger_host_locale
 
 from integrations.telegram.commands import help_message_html, sync_bot_menu
 from integrations.telegram.interactive import TelegramInteractive
@@ -141,10 +142,10 @@ class TelegramHost:
     def action_clear_chat(self) -> None:
         self._session._transcript_store.clear()
         self._session._recent_tool_results.clear()
-        self.transcript_write(t("cleared", host_locale(self)))
+        self.transcript_write(t("cleared", messenger_host_locale(self)))
 
     def action_help(self) -> None:
-        asyncio.create_task(self._send_html(help_message_html(host_locale(self))))
+        asyncio.create_task(self._send_html(help_message_html(messenger_host_locale(self))))
 
     async def _sync_telegram_menu(self) -> None:
         try:
@@ -180,7 +181,7 @@ class TelegramHost:
         )
 
     def action_copy_output(self) -> None:
-        lang = host_locale(self)
+        lang = messenger_host_locale(self)
         text = self._session._transcript_store.last_assistant()
         if text:
             self.copy_text(text, label=t("copy_label", lang))
@@ -188,12 +189,12 @@ class TelegramHost:
             self.transcript_write(t("copy_nothing", lang))
 
     def action_open_transcript(self) -> None:
-        lang = host_locale(self)
+        lang = messenger_host_locale(self)
         body = self._session._transcript_store.format_all()
         self.copy_text(body or t("transcript_empty", lang), label="transcript")
 
     def copy_text(self, text: str, *, label: str = "copied") -> None:
-        lang = host_locale(self)
+        lang = messenger_host_locale(self)
         if not text or not text.strip():
             self.transcript_write(t("copy_nothing", lang))
             return
@@ -372,7 +373,7 @@ class TelegramHost:
     async def _mcp_install(self, what: str = "") -> None:
         """Install popular or from git. For interactive use Telegram menus or CLI."""
         if not self._mcp_management_allowed():
-            await self._send_html(t("tg.mcp_read_only", host_locale(self)))
+            await self._send_html(t("tg.mcp_read_only", messenger_host_locale(self)))
             return
         if not what:
             self.transcript_write("Usage: /mcp install <popular-key|git-url>\nPopular: context7, filesystem, github, ... \nOr use the /mcp menu buttons.")
@@ -455,7 +456,7 @@ class TelegramHost:
     async def _mcp_assign(self, rest: str = "") -> None:
         """Basic assign: /mcp assign server main,researcher"""
         if not self._mcp_management_allowed():
-            await self._send_html(t("tg.mcp_read_only", host_locale(self)))
+            await self._send_html(t("tg.mcp_read_only", messenger_host_locale(self)))
             return
         if not rest:
             self.transcript_write("Usage: /mcp assign <server-name> <role1,role2>\nExample: /mcp assign context7 main")
@@ -491,7 +492,7 @@ class TelegramHost:
 
     async def _mcp_test(self, name: str = "") -> None:
         if not self._mcp_management_allowed():
-            await self._send_html(t("tg.mcp_read_only", host_locale(self)))
+            await self._send_html(t("tg.mcp_read_only", messenger_host_locale(self)))
             return
         if not name:
             self.transcript_write("Usage: /mcp test <server-name>")
@@ -530,7 +531,7 @@ class TelegramHost:
 
     async def _mcp_remove(self, name: str = "") -> None:
         if not self._mcp_management_allowed():
-            await self._send_html(t("tg.mcp_read_only", host_locale(self)))
+            await self._send_html(t("tg.mcp_read_only", messenger_host_locale(self)))
             return
         if not name:
             self.transcript_write("Usage: /mcp remove <server-name>")

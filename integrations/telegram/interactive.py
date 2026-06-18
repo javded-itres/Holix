@@ -4,7 +4,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
-from core.i18n import host_locale, t
+from core.i18n import t
+from integrations.messenger.locale import messenger_host_locale
 
 from integrations.telegram.keyboards import (
     MODE_LABELS,
@@ -84,7 +85,7 @@ class TelegramInteractive:
             self._session.user_id,
         ):
             return False
-        lang = host_locale(self._host)
+        lang = messenger_host_locale(self._host)
         await self._host._send_html(escape_html(t("tg.menu_unavailable", lang)))
         return True
 
@@ -112,7 +113,7 @@ class TelegramInteractive:
         if is_mode_slash(cmd):
             if len(parts) > 1 and parts[1] in self._host._execution_modes:
                 self._host._execution_mode_index = self._host._execution_modes.index(parts[1])
-                lang = host_locale(self._host)
+                lang = messenger_host_locale(self._host)
                 await self._host._send_html(
                     f"{escape_html(t('tg.mode', lang, mode=''))}<code>{escape_html(parts[1])}</code>"
                 )
@@ -125,7 +126,7 @@ class TelegramInteractive:
                 self._host.streaming_enabled = parts[1] in ("on", "true", "1")
                 state = "on" if self._host.streaming_enabled else "off"
                 await self._host._send_html(
-                    escape_html(t("tg.streaming", host_locale(self._host), state=state))
+                    escape_html(t("tg.streaming", messenger_host_locale(self._host), state=state))
                 )
             else:
                 await self.show_stream_picker()
@@ -366,7 +367,7 @@ class TelegramInteractive:
             ]
         elif not servers:
             text_lines.append(
-                f"\n<i>{escape_html(t('tg.mcp_read_only_empty', host_locale(host)))}</i>"
+                f"\n<i>{escape_html(t('tg.mcp_read_only_empty', messenger_host_locale(host)))}</i>"
             )
 
         # If specific subcommand, handle simply
@@ -384,7 +385,7 @@ class TelegramInteractive:
             if sub in ("install", "add", "assign", "remove", "rm", "delete", "test"):
                 if not can_manage_mcp:
                     await self._host._send_html(
-                        escape_html(t("tg.mcp_read_only", host_locale(host)))
+                        escape_html(t("tg.mcp_read_only", messenger_host_locale(host)))
                     )
                     return
             if sub in ("install", "add"):
@@ -436,18 +437,18 @@ class TelegramInteractive:
         if action == "m" and value in self._host._execution_modes:
             self._host._execution_mode_index = self._host._execution_modes.index(value)
             await self.show_mode_picker()
-            lang = host_locale(self._host)
+            lang = messenger_host_locale(self._host)
             return t("tg.mode", lang, mode=value)
 
         if action == "st":
             self._host.streaming_enabled = value == "1"
             await self.show_stream_picker()
-            lang = host_locale(self._host)
+            lang = messenger_host_locale(self._host)
             state = "on" if self._host.streaming_enabled else "off"
             return t("tg.streaming", lang, state=state)
 
         if action == "pi":
-            lang = host_locale(self._host)
+            lang = messenger_host_locale(self._host)
             profiles = self._session.ui_profiles
             idx = int(value)
             if 0 <= idx < len(profiles):
@@ -475,7 +476,7 @@ class TelegramInteractive:
 
                 restored = restore_session_model(self._host)
                 title = sessions[idx].get("title") or cid
-                lang = host_locale(self._host)
+                lang = messenger_host_locale(self._host)
                 model_line = (
                     f"\n{escape_html(t('tg.model', lang, label=restored))}"
                     if restored
@@ -486,7 +487,7 @@ class TelegramInteractive:
                     f"<code>{escape_html(title)}</code>{model_line}"
                 )
                 return t("tg.session_switched", lang)
-            return t("tg.session_invalid", host_locale(self._host))
+            return t("tg.session_invalid", messenger_host_locale(self._host))
 
         if action == "sp":
             await self.show_sessions_picker(page=int(value))
@@ -495,11 +496,11 @@ class TelegramInteractive:
         if action == "sn":
             await self._host._create_new_session()
             await self.show_sessions_picker()
-            return t("tg.new_session", host_locale(self._host))
+            return t("tg.new_session", messenger_host_locale(self._host))
 
         if action == "t":
             self._host._show_full_tool_result(int(value))
-            return t("tg.tool_result", host_locale(self._host))
+            return t("tg.tool_result", messenger_host_locale(self._host))
 
         if action == "sk":
             names = self._session.ui_skills
@@ -537,7 +538,7 @@ class TelegramInteractive:
                 await self.show_provider_models(idx, page=self._session.ui_models_page)
             else:
                 await self.show_models(page=self._session.ui_providers_page)
-            return t("tg.model", host_locale(self._host), label=label)
+            return t("tg.model", messenger_host_locale(self._host), label=label)
 
         if action == "mg":
             await self.show_provider_models(int(value), page=0)
@@ -556,11 +557,11 @@ class TelegramInteractive:
         if action == "mm":
             parts = value.split(":", 1)
             if len(parts) != 2:
-                return t("tg.error", host_locale(self._host))
+                return t("tg.error", messenger_host_locale(self._host))
             pi, mi = int(parts[0]), int(parts[1])
             label = await apply_provider_model_index(self._host, pi, mi)
             await self.show_provider_models(pi, page=self._session.ui_models_page)
-            return t("tg.model", host_locale(self._host), label=label)
+            return t("tg.model", messenger_host_locale(self._host), label=label)
 
         if action == "mb":
             await self.show_models()
@@ -578,7 +579,7 @@ class TelegramInteractive:
             await self._handle_cron_callback(value)
             return ""
 
-        return t("tg.unknown_action", host_locale(self._host))
+        return t("tg.unknown_action", messenger_host_locale(self._host))
 
     async def _refresh(self, kind: str) -> None:
         from integrations.telegram.command_access import is_menu_action_allowed
@@ -588,7 +589,7 @@ class TelegramInteractive:
             self._session.bot_profile,
             self._session.user_id,
         ):
-            lang = host_locale(self._host)
+            lang = messenger_host_locale(self._host)
             await self._host._send_html(escape_html(t("tg.menu_unavailable", lang)))
             return
 
@@ -635,7 +636,7 @@ class TelegramInteractive:
 
         profiles = self._host._get_available_profiles()
         self._session.ui_profiles = profiles
-        lang = host_locale(self._host)
+        lang = messenger_host_locale(self._host)
         current = self._host.profile
 
         if is_profile_list_hidden(self._session.bot_profile, self._session.user_id):
@@ -660,7 +661,7 @@ class TelegramInteractive:
         )
 
     async def _deny_mcp_management(self) -> None:
-        lang = host_locale(self._host)
+        lang = messenger_host_locale(self._host)
         await self._host._send_html(escape_html(t("tg.mcp_read_only", lang)))
 
     async def _handle_mcp_callback(self, value: str) -> None:
@@ -821,7 +822,7 @@ class TelegramInteractive:
     async def show_tools_picker(self) -> None:
         tools = self._host._recent_tool_results
         if not tools:
-            await self._host._send_plain(t("tg.no_tools", host_locale(self._host)))
+            await self._host._send_plain(t("tg.no_tools", messenger_host_locale(self._host)))
             return
         lines = ["<b>Последние tools</b>", "<i>Нажмите, чтобы получить полный вывод</i>"]
         await self._host._send_html_with_keyboard(
@@ -980,7 +981,7 @@ class TelegramInteractive:
         is_admin = is_telegram_admin(self._session.bot_profile, self._session.user_id)
         await self._host._send_html_with_keyboard(
             "\n".join(lines),
-            status_menu_keyboard(host_locale(self._host), is_admin=is_admin),
+            status_menu_keyboard(messenger_host_locale(self._host), is_admin=is_admin),
         )
 
 

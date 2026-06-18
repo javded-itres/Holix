@@ -235,17 +235,19 @@ async def apply_model_choice(host: TelegramHost, choice: ModelChoice) -> str:
     try:
         return apply_model_choice_sync(host, choice)
     except RuntimeError:
-        from core.i18n import host_locale, t
+        from core.i18n import t
+        from integrations.messenger.locale import messenger_host_locale
 
-        return t("tg.agent_not_ready", host_locale(host))
+        return t("tg.agent_not_ready", messenger_host_locale(host))
 
 
 async def apply_preset_index(host: TelegramHost, index: int) -> str:
     presets = host._session.ui_model_presets
     if index < 0 or index >= len(presets):
-        from core.i18n import host_locale, t
+        from core.i18n import t
+        from integrations.messenger.locale import messenger_host_locale
 
-        return t("tg.invalid_preset", host_locale(host))
+        return t("tg.invalid_preset", messenger_host_locale(host))
     return await apply_model_choice(host, presets[index])
 
 
@@ -254,14 +256,16 @@ async def apply_provider_model_index(
 ) -> str:
     providers = host._session.ui_providers
     if provider_idx < 0 or provider_idx >= len(providers):
-        from core.i18n import host_locale, t
+        from core.i18n import t
+        from integrations.messenger.locale import messenger_host_locale
 
-        return t("tg.invalid_provider", host_locale(host))
+        return t("tg.invalid_provider", messenger_host_locale(host))
     prov = providers[provider_idx]
     if model_idx < 0 or model_idx >= len(prov.models):
-        from core.i18n import host_locale, t
+        from core.i18n import t
+        from integrations.messenger.locale import messenger_host_locale
 
-        return t("tg.invalid_model", host_locale(host))
+        return t("tg.invalid_model", messenger_host_locale(host))
     model_id = prov.models[model_idx]
     choice = choice_for_provider_model(prov.name, model_id)
     return await apply_model_choice(host, choice)
