@@ -18,7 +18,7 @@ Bilingual docs. **English** is the primary language for accuracy.
 | **Install** | [INSTALLATION](en/INSTALLATION.md) (uv + Docker) → [START_HERE](en/START_HERE.md) |
 | **Configure** | [CONFIGURATION](en/CONFIGURATION.md), [PROFILES](en/PROFILES.md), [PROFILE_ENCRYPTION](en/PROFILE_ENCRYPTION.md) |
 | **Use** | [TUI](en/TUI.md), [SLASH_COMMANDS](en/SLASH_COMMANDS.md), [EXECUTION_MODES](en/EXECUTION_MODES.md), [CLI](en/CLI.md) |
-| **Skills & tools** | [HUB](en/HUB.md), [BROWSER_TOOLS](en/BROWSER_TOOLS.md) |
+| **Skills & tools** | [HUB](en/HUB.md), [BROWSER_TOOLS](en/BROWSER_TOOLS.md), [MCP](en/MCP.md), [MODELS](en/MODELS.md), [MEMORY](en/MEMORY.md) |
 | **Agents** | [SUBAGENTS](en/SUBAGENTS.md), [LAUNCH](en/LAUNCH.md), [CRON](en/CRON.md) |
 | **Integrations** | [TELEGRAM](en/TELEGRAM.md), [MAX](en/MAX.md), [GATEWAY](en/GATEWAY.md), [GATEWAY_API](en/GATEWAY_API.md) |
 | **Security & ops** | [SECURITY](en/SECURITY.md), [TERMINAL_SECURITY](en/TERMINAL_SECURITY.md), [DEPLOYMENT](en/DEPLOYMENT.md), [LOGS](en/LOGS.md), [TROUBLESHOOTING](en/TROUBLESHOOTING.md) |

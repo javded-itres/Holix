@@ -22,7 +22,9 @@ Curated route through the documentation. Each topic has **one canonical page** â
 
 | Topic | Doc |
 |-------|-----|
-| `.env`, YAML layers, models overview | [CONFIGURATION.md](CONFIGURATION.md) |
+| `.env`, YAML layers | [CONFIGURATION.md](CONFIGURATION.md) |
+| Models and providers | [MODELS.md](MODELS.md) |
+| Long-term memory | [MEMORY.md](MEMORY.md) |
 | Isolated profiles, SOUL/USER, jail, keys | [PROFILES.md](PROFILES.md) |
 | Encryption at rest | [PROFILE_ENCRYPTION.md](PROFILE_ENCRYPTION.md) |
 | Execution modes (ReAct, Plan, Hybrid) | [EXECUTION_MODES.md](EXECUTION_MODES.md) |
@@ -37,7 +39,7 @@ Curated route through the documentation. Each topic has **one canonical page** â
 | Slash commands `/` | [SLASH_COMMANDS.md](SLASH_COMMANDS.md) |
 | Full CLI reference | [CLI.md](CLI.md) |
 | Skill Hub | [HUB.md](HUB.md) |
-| MCP servers | [CONFIGURATION.md](CONFIGURATION.md) + `holix mcp` in [CLI.md](CLI.md) |
+| MCP servers | [MCP.md](MCP.md) |
 
 ---
 

@@ -486,6 +486,22 @@ holix -p staging profile jail enable ~/staging-workspace
 
 ---
 
+## Рекомендуемые сценарии
+
+| Цель | Команды |
+|------|---------|
+| Ежедневная работа | `holix tui` |
+| Скрипты / CI | `holix run "…"` |
+| Удалённый API | `holix gateway start` |
+| Периодические задачи | `holix gateway start` → `holix cron add "…"` |
+| Отладка | `holix logs -l error -f` |
+| Новая машина | `holix install` → `holix doctor` → `holix models setup` |
+| Навыки из каталогов | `holix hub browse` |
+| MCP-инструменты | `holix mcp setup` |
+| Внешний coding CLI | `holix launch setup` → `holix launch claude` |
+
+---
+
 ## См. также
 
 - [SLASH_COMMANDS.md](SLASH_COMMANDS.md)

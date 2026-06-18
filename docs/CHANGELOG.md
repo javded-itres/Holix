@@ -7,6 +7,9 @@
 - **INSTALLATION** (EN/RU) — unified Path A (uv/pipx) and Path B (Docker); QUICKSTART → START_HERE cheat sheet
 - **USER_GUIDE** — learning path with links only (removed from site nav)
 - **Site /docs** — regrouped sidebar (install, daily use, agents, integrations, reference); CLI moved to end
+- **MCP, MODELS, MEMORY** (EN/RU) — dedicated canonical pages; CONFIGURATION links instead of duplicating
+- **RU parity** — ARCHITECTURE and LOGS full translations; LICENSING_STRATEGY (RU) + EN stub
+- **holix-docs** — nav/SEO for mcp, models, memory; client redirects (quickstart→start-here, merged stubs); marketing links to subagents
 
 ## 0.1.16 — 2026-06-18
 

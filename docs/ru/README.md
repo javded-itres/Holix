@@ -24,12 +24,13 @@
 
 - [INSTALLATION.md](INSTALLATION.md) — путь A: uv · путь B: Docker
 - [START_HERE.md](START_HERE.md) — чеклист + шпаргалка
-- [CONFIGURATION.md](CONFIGURATION.md) · [PROFILES.md](PROFILES.md) · [PROFILE_ENCRYPTION.md](PROFILE_ENCRYPTION.md)
+- [CONFIGURATION.md](CONFIGURATION.md) · [MODELS.md](MODELS.md) · [PROFILES.md](PROFILES.md) · [PROFILE_ENCRYPTION.md](PROFILE_ENCRYPTION.md)
 
 ### Работа с агентом
 
 - [TUI.md](TUI.md) · [SLASH_COMMANDS.md](SLASH_COMMANDS.md) · [EXECUTION_MODES.md](EXECUTION_MODES.md)
 - [CLI.md](CLI.md) · [HUB.md](HUB.md) · [BROWSER_TOOLS.md](BROWSER_TOOLS.md)
+- [MCP.md](MCP.md) · [MEMORY.md](MEMORY.md)
 
 ### Агенты и автоматизация
 
@@ -47,7 +48,7 @@
 
 ### Внутренности
 
-- [ARCHITECTURE.md](ARCHITECTURE.md) · [CHANGELOG.md](../CHANGELOG.md)
+- [ARCHITECTURE.md](ARCHITECTURE.md) · [CHANGELOG.md](../CHANGELOG.md) · [LICENSING_STRATEGY.md](LICENSING_STRATEGY.md)
 
 ---
 

@@ -22,7 +22,9 @@
 
 | Тема | Документ |
 |------|----------|
-| `.env`, слои YAML, модели | [CONFIGURATION.md](CONFIGURATION.md) |
+| `.env`, слои YAML | [CONFIGURATION.md](CONFIGURATION.md) |
+| Модели и провайдеры | [MODELS.md](MODELS.md) |
+| Долговременная память | [MEMORY.md](MEMORY.md) |
 | Профили, SOUL/USER, jail, ключи | [PROFILES.md](PROFILES.md) |
 | Шифрование | [PROFILE_ENCRYPTION.md](PROFILE_ENCRYPTION.md) |
 | Режимы (ReAct, Plan, Hybrid) | [EXECUTION_MODES.md](EXECUTION_MODES.md) |
@@ -37,7 +39,7 @@
 | Слэш-команды | [SLASH_COMMANDS.md](SLASH_COMMANDS.md) |
 | Справочник CLI | [CLI.md](CLI.md) |
 | Hub | [HUB.md](HUB.md) |
-| MCP | [CONFIGURATION.md](CONFIGURATION.md) + [CLI.md](CLI.md) |
+| MCP | [MCP.md](MCP.md) |
 
 ---
 

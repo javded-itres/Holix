@@ -24,7 +24,8 @@ Holix is a self-improving AI agent: memory, skills, MCP, CLI, TUI, API gateway, 
 
 - [INSTALLATION.md](INSTALLATION.md) — Path A: uv / pipx · Path B: Docker
 - [START_HERE.md](START_HERE.md) — checklist + command cheat sheet
-- [CONFIGURATION.md](CONFIGURATION.md) — `.env`, YAML, models
+- [CONFIGURATION.md](CONFIGURATION.md) — `.env`, YAML layers
+- [MODELS.md](MODELS.md) — providers, `agent_models`, fallbacks
 - [PROFILES.md](PROFILES.md) — isolation, SOUL/USER, jail, keys
 - [PROFILE_ENCRYPTION.md](PROFILE_ENCRYPTION.md) — at-rest encryption
 
@@ -33,6 +34,7 @@ Holix is a self-improving AI agent: memory, skills, MCP, CLI, TUI, API gateway, 
 - [TUI.md](TUI.md) · [SLASH_COMMANDS.md](SLASH_COMMANDS.md) · [EXECUTION_MODES.md](EXECUTION_MODES.md)
 - [CLI.md](CLI.md) — complete command reference
 - [HUB.md](HUB.md) · [BROWSER_TOOLS.md](BROWSER_TOOLS.md)
+- [MCP.md](MCP.md) · [MEMORY.md](MEMORY.md)
 
 ### Agents & automation
 
