@@ -4,7 +4,7 @@
 
 **Установка:** `uv tool install Holix` или [INSTALLATION.md](INSTALLATION.md) (путь **uv** / **Docker**).
 
-> **Канал:** [Telegram @holix_agent](https://t.me/holix_agent)
+> **Канал:** [Telegram @helix_agent](https://t.me/helix_agent)
 
 ---
 

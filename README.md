@@ -7,7 +7,7 @@
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![Docs](https://img.shields.io/badge/docs-en%20%7C%20ru-blue)](docs/README.md)
 
-**Website:** [holix-agent.ru](https://holix-agent.ru) · **PyPI:** [Holix](https://pypi.org/project/Holix/) · **GitHub:** [javded-itres/Holix](https://github.com/javded-itres/Holix) · **Telegram:** [@holix_agent](https://t.me/holix_agent) · **Docs:** [EN](docs/en/README.md) · [RU](docs/ru/README.md) · **Donate:** [Boosty](https://boosty.to/javded/single-payment/donation/805721/target?share=target_link)
+**Website:** [holix-agent.ru](https://holix-agent.ru) · **PyPI:** [Holix](https://pypi.org/project/Holix/) · **GitHub:** [javded-itres/Holix](https://github.com/javded-itres/Holix) · **Telegram:** [@helix_agent](https://t.me/helix_agent) · **Docs:** [EN](docs/en/README.md) · [RU](docs/ru/README.md) · **Donate:** [Boosty](https://boosty.to/javded/single-payment/donation/805721/target?share=target_link)
 
 ---
 

@@ -224,7 +224,7 @@
 ### Documentation
 - **Profiles & Isolation** (EN/RU) — per-profile `.env`, gateway, Telegram, workspace jail
 - **Profile access keys** — optional protection for profile switching (`profile key`, `--protect`, `HOLIX_PROFILE_KEY`)
-- **Telegram channel** [@holix_agent](https://t.me/holix_agent) linked in README and TELEGRAM guides
+- **Telegram channel** [@helix_agent](https://t.me/helix_agent) linked in README and TELEGRAM guides
 - **DEPLOYMENT** — per-profile gateway, systemd `holix-gateway@`, docs-server env vars
 - **CONFIGURATION**, **CLI**, **GATEWAY**, **USER_GUIDE** updated for profiles and multi-gateway setup
 - Donation link updated to Boosty

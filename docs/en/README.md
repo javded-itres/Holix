@@ -4,7 +4,7 @@ Holix is a self-improving AI agent: memory, skills, MCP, CLI, TUI, API gateway, 
 
 **Install:** `uv tool install Holix` or see [INSTALLATION.md](INSTALLATION.md) (local **uv** path vs **Docker**).
 
-> **Follow development:** [Telegram @holix_agent](https://t.me/holix_agent)
+> **Follow development:** [Telegram @helix_agent](https://t.me/helix_agent)
 
 ---
 
