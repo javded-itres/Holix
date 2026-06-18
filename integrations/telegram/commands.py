@@ -5,7 +5,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
-from core.i18n import LocaleStore, t
+from core.i18n import t
+
 from integrations.messenger.locale import MESSENGER_DEFAULT_LOCALE, messenger_locale
 
 # (command without /, description key in messages catalog)

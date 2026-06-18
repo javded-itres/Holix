@@ -11,7 +11,6 @@ from cli.shared.slash_input import (
     slash_command_token,
 )
 from core.i18n import t
-from integrations.messenger.locale import messenger_host_locale
 
 from integrations.max.keyboards import (
     MODE_LABELS,
@@ -29,6 +28,7 @@ from integrations.max.keyboards import (
     stream_picker_keyboard,
     tools_picker_keyboard,
 )
+from integrations.messenger.locale import messenger_host_locale
 from integrations.telegram.interactive import profile_model_summary
 from integrations.telegram.model_switch import (
     MODELS_PAGE_SIZE,

@@ -89,9 +89,8 @@ async def init_max_webhook(profile: str | None = None) -> MaxGatewayState | None
         raise
 
     try:
-        from integrations.messenger.locale import messenger_locale
-
         from integrations.max.commands import register_bot_commands
+        from integrations.messenger.locale import messenger_locale
 
         locale = messenger_locale(profile)
         registered = await register_bot_commands(client, locale=locale)

@@ -5,8 +5,8 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 
 from core.i18n import t
-from integrations.messenger.locale import messenger_host_locale
 
+from integrations.messenger.locale import messenger_host_locale
 from integrations.telegram.keyboards import (
     MODE_LABELS,
     SKILLS_PAGE_SIZE,

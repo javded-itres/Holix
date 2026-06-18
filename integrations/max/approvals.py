@@ -99,8 +99,9 @@ class MaxApprovals:
             attachments=[plan_review_keyboard(token)],
             **reply,
         )
-        from integrations.messenger.locale import messenger_locale
         from core.i18n.messages import t
+
+        from integrations.messenger.locale import messenger_locale
 
         lang = messenger_locale(self._session.profile)
         hint_key = (

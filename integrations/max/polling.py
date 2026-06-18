@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import asyncio
 import logging
 
 from integrations.max.bot import HelixMaxBot
@@ -42,13 +41,12 @@ async def run_polling(settings: MaxSettings | None = None, *, profile: str = "de
         try:
             import asyncio
 
+            from integrations.max.commands import register_bot_commands
             from integrations.messenger.locale import (
                 bootstrap_messenger_locales,
                 messenger_locale,
             )
             from integrations.messenger.platforms import MAX_PLATFORM
-
-            from integrations.max.commands import register_bot_commands
 
             await asyncio.to_thread(
                 bootstrap_messenger_locales,

@@ -6,7 +6,6 @@ from pathlib import Path
 from unittest.mock import MagicMock
 
 import pytest
-
 from core.cron.auto_create import try_auto_create_cron
 from core.cron.nl_intent import detect_cron_intent
 from core.cron.schedule_parse import parse_schedule_to_cron

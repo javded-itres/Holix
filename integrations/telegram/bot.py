@@ -461,8 +461,8 @@ class HolixTelegramBot:
                 await self._handle_unauthorized(bot, message)
                 return
             from core.i18n import t
-            from integrations.messenger.locale import messenger_locale
 
+            from integrations.messenger.locale import messenger_locale
             from integrations.telegram.command_access import is_command_allowed
             from integrations.telegram.markdown import escape_html
 

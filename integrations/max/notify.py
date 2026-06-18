@@ -89,9 +89,8 @@ async def notify_access_approved(
     async with MaxClient(token) as client:
         await send_user_message(client, int(user_id), text)
         try:
-            from integrations.messenger.locale import messenger_locale
-
             from integrations.max.commands import register_bot_commands
+            from integrations.messenger.locale import messenger_locale
 
             locale = messenger_locale(bot_profile)
             await register_bot_commands(client, locale=locale)

@@ -84,12 +84,15 @@ async def test_terminal_blocks_profile_memory_cache(
 
 @pytest.mark.asyncio
 async def test_terminal_tool_blocks_dangerous(monkeypatch: pytest.MonkeyPatch) -> None:
+    from core.tools import terminal as terminal_mod
     from core.tools.terminal import TerminalTool
 
     from config import settings
 
     monkeypatch.setattr(settings, "enable_terminal_tool", True)
     monkeypatch.setattr(settings, "terminal_command_whitelist", True)
+    monkeypatch.setattr(terminal_mod.settings, "enable_terminal_tool", True)
+    monkeypatch.setattr(terminal_mod.settings, "terminal_command_whitelist", True)
     tool = TerminalTool()
     out = await tool.execute("rm -rf /tmp/test")
     assert "blocked" in out.lower() or "Error" in out

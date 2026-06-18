@@ -168,6 +168,7 @@ async def deliver_broadcast(
 async def handle_admin_message_command(host: Any, command: str) -> None:
     """Parse ``/message`` and start compose mode or show help."""
     from core.i18n import t
+
     from integrations.messenger.locale import messenger_host_locale
 
     session = host._session

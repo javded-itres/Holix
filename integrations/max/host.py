@@ -10,7 +10,6 @@ from cli.shared.commands.agent_commands import AgentCommands
 from cli.shared.rich_text import content_to_plain_text
 from cli.shared.slash_input import is_slash_command, normalize_slash_input
 from core.i18n import t
-from integrations.messenger.locale import messenger_host_locale
 
 from integrations.max.client import MaxClient
 from integrations.max.commands import help_message_markdown
@@ -24,6 +23,7 @@ from integrations.max.markdown import (
     truncate_max_text,
 )
 from integrations.max.models import reply_kwargs_for_session
+from integrations.messenger.locale import messenger_host_locale
 
 logger = logging.getLogger(__name__)
 

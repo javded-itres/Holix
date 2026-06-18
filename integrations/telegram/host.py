@@ -9,8 +9,8 @@ from cli.shared.commands.agent_commands import AgentCommands
 from cli.shared.rich_text import content_to_plain_text
 from cli.shared.slash_input import is_slash_command, normalize_slash_input
 from core.i18n import t
-from integrations.messenger.locale import messenger_host_locale
 
+from integrations.messenger.locale import messenger_host_locale
 from integrations.telegram.commands import help_message_html, sync_bot_menu
 from integrations.telegram.interactive import TelegramInteractive
 from integrations.telegram.live_presenter import TelegramLivePresenter
