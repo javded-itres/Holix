@@ -41,7 +41,9 @@ On Russian macOS layout, `,help` and `.help` are normalized to `/help`. Type `/`
 | `/models`, `/model` | Open model picker (TUI) or show current model (`chat-command`) |
 | `/mode` | Cycle execution mode, or `/mode <name>` if valid — see [EXECUTION_MODES.md](EXECUTION_MODES.md) |
 | `/stream` | Toggle streaming; `/stream on\|off` |
-| `/stop` | Cancel running agent tasks |
+| `/stop` | Cancel running agent, sub-agents, pending confirmations, and plan reviews (TUI, Telegram, MAX) |
+| `/process` | List background processes for this session (**TUI only**) |
+| `/process-stop` | Stop a background dev server / long-running process (**TUI only**) |
 
 ---
 
@@ -174,6 +176,24 @@ In TUI, type `/` to see tab-completion; skill commands run the skill workflow fo
 | `/debug events [N]` | Last *N* agent events (default 20) |
 | `/stream [on\|off]` | Toggle streaming |
 | `/compress` | Compress conversation context in DB |
+
+---
+
+## Cron (scheduled tasks)
+
+Gateway must be running. Full guide: [CRON.md](CRON.md).
+
+| Command | Description |
+|---------|-------------|
+| `/cron` | List jobs (TUI modal / Telegram inline menu) |
+| `/cron list` | Same as `/cron` |
+| `/cron add <schedule> :: <task>` | Add job |
+| `/cron enable <id>` | Enable job |
+| `/cron disable <id>` | Disable job |
+| `/cron remove <id>` | Delete job |
+| `/cron bind <id>` | Bind job to current chat session |
+
+**Auto-create (0.1.16+):** recurring requests in natural language (e.g. «every day at 10 am send news») create a job without `/cron add`. CLI: `holix cron …` — [CLI.md](CLI.md#holix-cron).
 
 ---
 

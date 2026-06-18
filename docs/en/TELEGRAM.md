@@ -213,6 +213,19 @@ Audio files (mp3/m4a) sent as attachments are supported too.
 
 Temporary audio files are deleted immediately after transcription.
 
+## Scheduled tasks (cron)
+
+Gateway must be running (`holix gateway start`). Manage jobs with `/cron` (inline menu) or CLI `holix cron list`.
+
+**Auto-create (0.1.16+):** write a recurring request in plain language — for example:
+
+- `Присылай новости каждый день в 10 утра`
+- `Send me a disk usage summary every Monday at 9`
+
+Holix creates the job and replies with id and next run time. Results can be delivered back to the same Telegram chat. Full guide: [CRON.md](CRON.md).
+
+`/stop` cancels the running agent, sub-agents, and pending confirmations without deleting cron jobs.
+
 After changing `.env` or voice settings, apply them with:
 
 ```bash

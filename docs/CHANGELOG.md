@@ -22,6 +22,11 @@
 ### Changed
 - **Version** — package `Holix` 0.1.16
 
+### Documentation
+- **CRON** (EN/RU) — dedicated page: auto-create from chat, schedule formats (RU/EN), `/cron`, `holix cron`, `schedule_cron`
+- **SLASH_COMMANDS, CLI, TUI, USER_GUIDE, TELEGRAM, TERMINAL_SECURITY** (EN/RU) — `/stop`, `/process`, cron auto-create, Holix path blocking without jail
+- **holix-docs** — version 0.1.16, `cron` nav slug, SEO, synced content
+
 ## 0.1.15 — 2026-06-15
 
 ### Added

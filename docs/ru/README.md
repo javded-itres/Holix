@@ -26,6 +26,7 @@
 - [TUI.md](TUI.md) — `holix tui`
 - [HUB.md](HUB.md) — каталоги навыков
 - [GATEWAY.md](GATEWAY.md) — API gateway
+- [CRON.md](CRON.md) — **периодические задачи** — автосоздание из чата, `/cron`, `holix cron`
 - [GATEWAY_API.md](GATEWAY_API.md) — **полный справочник API — каждый эндпоинт задокументирован** (auth, `/api/holix/`, SaaS curl)
 - [TELEGRAM.md](TELEGRAM.md) — Telegram
 - [MAX.md](MAX.md) — мессенджер MAX

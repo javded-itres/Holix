@@ -32,6 +32,7 @@ Bilingual documentation. **English is the primary language** for accuracy and Gi
 | TUI | [en/TUI.md](en/TUI.md) | [ru/TUI.md](ru/TUI.md) |
 | Skill Hub | [en/HUB.md](en/HUB.md) | [ru/HUB.md](ru/HUB.md) |
 | API Gateway | [en/GATEWAY.md](en/GATEWAY.md) | [ru/GATEWAY.md](ru/GATEWAY.md) |
+| **Scheduled tasks (cron)** | [en/CRON.md](en/CRON.md) | [ru/CRON.md](ru/CRON.md) |
 | Gateway API reference | [en/GATEWAY_API.md](en/GATEWAY_API.md) | [ru/GATEWAY_API.md](ru/GATEWAY_API.md) |
 | Telegram | [en/TELEGRAM.md](en/TELEGRAM.md) | [ru/TELEGRAM.md](ru/TELEGRAM.md) |
 | **MAX messenger** | [en/MAX.md](en/MAX.md) | [ru/MAX.md](ru/MAX.md) |

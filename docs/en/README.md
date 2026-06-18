@@ -26,6 +26,7 @@ Holix is a self-improving AI agent with memory, skills, tool calling, MCP, CLI, 
 - [TUI.md](TUI.md) — `holix tui`, web mode, copy, hub UI
 - [HUB.md](HUB.md) — `holix hub`, catalogs, `skill_assignments`
 - [GATEWAY.md](GATEWAY.md) — `holix gateway start|stop|status|reload`
+- [CRON.md](CRON.md) — **scheduled tasks** — auto-create from chat, `/cron`, `holix cron`
 - [GATEWAY_API.md](GATEWAY_API.md) — **Complete API reference — every endpoint documented** (auth, `/api/holix/`, SaaS curl)
 - [TELEGRAM.md](TELEGRAM.md) — Telegram
 - [MAX.md](MAX.md) — MAX messenger

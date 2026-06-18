@@ -715,6 +715,8 @@ Endpoints: `/health`, `/v1/chat/completions`, … — see [GATEWAY.md](GATEWAY.m
 Requires a running gateway.  
 `add`, `list`, `enable`, `disable`, `remove`
 
+Recurring requests in chat (Telegram, MAX, TUI) can **auto-create** jobs in 0.1.16+ — see [CRON.md](CRON.md).
+
 ### `holix logs`
 
 `holix logs`, `holix logs -f`, `holix logs -s agent`, `holix logs list`, `holix logs rotate`, `holix logs debug on`
@@ -736,7 +738,8 @@ Summary:
 | Group | Examples |
 |-------|----------|
 | Help | `/help`, `/status`, `/clear` |
-| Models and mode | `/models`, `/mode`, `/stream`, `/stop` |
+| Models and mode | `/models`, `/mode`, `/stream`, `/stop` (cancels agent, sub-agents, confirmations) |
+| Background (TUI) | `/process`, `/process-stop` |
 | Sessions | `/new`, `/sessions`, `/switch N`, `/profile` |
 | Memory | `/memory query`, `/memory-clear` |
 | Plan | `/plan-confirm`, `/plan-auto`, `/plan-refine`, `/plan-reject` |
@@ -745,7 +748,7 @@ Summary:
 | Hub | `/hub`, `/hub browse`, `/hub installed` |
 | Subagents | `/subagents`, `/subagent-spawn`, `/subagent-result` |
 | Search | `/search`, `/search configure`, `/search test` |
-| Cron | `/cron`, `/cron add …` |
+| Cron | `/cron`, `/cron add …` — or auto-create from natural language ([CRON.md](CRON.md)) |
 
 On macOS with a non-US keyboard layout, `/` may be **Shift+7**.
 

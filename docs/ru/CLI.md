@@ -307,7 +307,9 @@ holix cron add "every day at 9 :: Проверить логи"
 holix cron list
 ```
 
-В TUI/Telegram: `/cron`, `/cron add …`. Лог запусков: `profiles/<p>/data/cron/runs.log`.
+TUI/Telegram/MAX: `/cron`, `/cron add …`, `/cron bind <id>`.  
+**Автосоздание (0.1.16+):** повторяющиеся запросы на RU/EN в чате создают задачи без `/cron add` — см. [CRON.md](CRON.md).  
+Лог запусков: `profiles/<p>/data/cron/runs.log` · навык: `holix-cron`.
 
 ---
 

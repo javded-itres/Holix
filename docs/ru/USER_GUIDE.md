@@ -711,6 +711,8 @@ holix gateway reload
 Требует запущенный gateway.  
 `add`, `list`, `enable`, `disable`, `remove`
 
+Повторяющиеся запросы в чате (Telegram, MAX, TUI) с **0.1.16** могут **автоматически создавать** задачи — см. [CRON.md](CRON.md).
+
 ### `holix logs`
 
 `holix logs`, `holix logs -f`, `holix logs -s agent`, `holix logs list`, `holix logs rotate`, `holix logs debug on`
@@ -732,7 +734,8 @@ holix gateway reload
 | Группа | Примеры |
 |--------|---------|
 | Справка | `/help`, `/status`, `/clear` |
-| Модели и режим | `/models`, `/mode`, `/stream`, `/stop` |
+| Модели и режим | `/models`, `/mode`, `/stream`, `/stop` (агент, субагенты, подтверждения) |
+| Фон (TUI) | `/process`, `/process-stop` |
 | Сессии | `/new`, `/sessions`, `/switch N`, `/profile` |
 | Память | `/memory запрос`, `/memory-clear` |
 | План | `/plan-confirm`, `/plan-auto`, `/plan-refine`, `/plan-reject` |
@@ -741,7 +744,7 @@ holix gateway reload
 | Hub | `/hub`, `/hub browse`, `/hub installed` |
 | Субагенты | `/subagents`, `/subagent-spawn`, `/subagent-result` |
 | Поиск | `/search`, `/search configure`, `/search test` |
-| Cron | `/cron`, `/cron add …` |
+| Cron | `/cron`, `/cron add …` — или автосоздание из обычного языка ([CRON.md](CRON.md)) |
 
 На macOS с русской раскладкой `/` — **Shift+7**.
 

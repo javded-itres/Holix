@@ -458,7 +458,8 @@ holix cron list
 holix cron disable job-id
 ```
 
-TUI/Telegram: `/cron`, `/cron add …`, `/cron bind <id>`.  
+TUI/Telegram/MAX: `/cron`, `/cron add …`, `/cron bind <id>`.  
+**Auto-create (0.1.16+):** recurring natural-language chat (RU/EN) creates jobs without `/cron add` — see [CRON.md](CRON.md).  
 Run log: `~/.holix/profiles/<profile>/data/cron/runs.log` · Skill: bundled `holix-cron`.
 
 ---
