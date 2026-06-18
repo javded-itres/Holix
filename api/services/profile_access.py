@@ -52,7 +52,7 @@ def verify_profile_management(
         )
 
     admin_profile = resolve_admin_holix_profile()
-    if verify_profile_access_key(admin_profile, key):
+    if profile_has_access_key(admin_profile) and verify_profile_access_key(admin_profile, key):
         return ProfileAccessContext(target_profile=target, is_admin=True, is_owner=False)
 
     if header_profile and header_profile != target:

@@ -1,39 +1,30 @@
 import asyncio
-import re
 import shlex
 
 from config import settings
 from core.platform_compat import IS_WINDOWS, subprocess_shell_kwargs
 from core.security.safety import command_whitelist
+from core.security.workspace_command_guard import (
+    references_holix_profiles,
+    validate_workspace_command,
+)
 from core.tools.base import BaseTool
 from core.workspace import sanitize_paths_in_text
 
-_PROFILE_PATH_RE = re.compile(
-    r"(?:~/?\.holix/profiles/|\.holix/profiles/|/profiles/[a-zA-Z0-9][a-zA-Z0-9_.-]{0,63}/)"
-)
 
-
-def _blocked_profile_path_access(command: str) -> tuple[bool, str]:
-    """Block shell commands that read Holix profile secrets outside workspace jail."""
-    from core.crypto.profile_crypto import is_profile_encryption_enabled
-    from core.tools.execution_context import get_profile_name
-
-    profile = get_profile_name()
-    if not is_profile_encryption_enabled(profile):
-        return False, ""
-
-    normalized = command.replace("\\", "/")
-    if _PROFILE_PATH_RE.search(normalized):
-        return True, "Direct access to Holix profile directories is disabled for encrypted profiles."
+def _blocked_sensitive_path_access(command: str, *, jail_enabled: bool) -> tuple[bool, str]:
+    """Block shell commands that reach Holix profile secrets or runtime caches."""
+    _ = jail_enabled  # workspace jail uses validate_workspace_command; secrets always blocked
+    normalized = command.replace("\\", "/").lower()
+    if references_holix_profiles(command):
+        return True, "Access to Holix profile directories and secrets is not allowed."
     if (
         ".holix/memory-cache" in normalized
         or "/memory-cache/" in normalized
         or ".runtime-cache" in normalized
         or "/.runtime-cache/" in normalized
     ):
-        return True, "Direct access to decrypted memory cache is disabled for encrypted profiles."
-    if ".holix/profiles" in normalized or "/profiles/" in normalized and ".env" in normalized:
-        return True, "Direct access to profile secrets is disabled for encrypted profiles."
+        return True, "Direct access to decrypted memory cache is not allowed."
     return False, ""
 
 
@@ -80,17 +71,29 @@ class TerminalTool(BaseTool):
             if not allowed:
                 return f"Error: Command blocked by safety policy. {reason}"
 
-        blocked, reason = _blocked_profile_path_access(command)
-        if blocked:
-            return f"Error: Command blocked. {reason}"
-
         try:
+            from core.tools.execution_context import is_workspace_jail_enabled
             from core.workspace import get_effective_workspace_root
 
-            cwd: str | None = None
+            jail = is_workspace_jail_enabled()
             root = get_effective_workspace_root()
-            if root is not None:
-                cwd = str(root)
+
+            blocked, reason = _blocked_sensitive_path_access(command, jail_enabled=jail)
+            if blocked:
+                return f"Error: Command blocked. {reason}"
+
+            allowed, jail_reason = validate_workspace_command(
+                command,
+                str(root) if root is not None else None,
+                jail_enabled=jail,
+            )
+            if not allowed:
+                return f"Error: Command blocked. {jail_reason}"
+
+            if jail and root is None:
+                return "Error: Workspace jail is enabled but no workspace root is configured."
+
+            cwd: str | None = str(root) if root is not None else None
 
             try:
                 argv = shlex.split(command, posix=not IS_WINDOWS)

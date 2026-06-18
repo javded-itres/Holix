@@ -307,7 +307,9 @@ holix cron add "every day at 9 :: Проверить логи"
 holix cron list
 ```
 
-В TUI/Telegram: `/cron`, `/cron add …`. Лог запусков: `profiles/<p>/data/cron/runs.log`.
+TUI/Telegram/MAX: `/cron`, `/cron add …`, `/cron bind <id>`.  
+**Автосоздание (0.1.16+):** повторяющиеся запросы на RU/EN в чате создают задачи без `/cron add` — см. [CRON.md](CRON.md).  
+Лог запусков: `profiles/<p>/data/cron/runs.log` · навык: `holix-cron`.
 
 ---
 
@@ -399,7 +401,7 @@ holix -p shared telegram map set 123456789 alice   # ручная альтерн
 holix -p shared gateway start
 ```
 
-Один бот на несколько изолированных профилей: [TELEGRAM_MULTI_PROFILE.md](TELEGRAM_MULTI_PROFILE.md).  
+Один бот на несколько изолированных профилей: [TELEGRAM.md](TELEGRAM.md).  
 Общее: [TELEGRAM.md](TELEGRAM.md).
 
 ---
@@ -481,6 +483,22 @@ holix launch chat <session_id>
 holix -p staging tui
 holix -p staging profile jail enable ~/staging-workspace
 ```
+
+---
+
+## Рекомендуемые сценарии
+
+| Цель | Команды |
+|------|---------|
+| Ежедневная работа | `holix tui` |
+| Скрипты / CI | `holix run "…"` |
+| Удалённый API | `holix gateway start` |
+| Периодические задачи | `holix gateway start` → `holix cron add "…"` |
+| Отладка | `holix logs -l error -f` |
+| Новая машина | `holix install` → `holix doctor` → `holix models setup` |
+| Навыки из каталогов | `holix hub browse` |
+| MCP-инструменты | `holix mcp setup` |
+| Внешний coding CLI | `holix launch setup` → `holix launch claude` |
 
 ---
 

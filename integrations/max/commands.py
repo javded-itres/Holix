@@ -46,16 +46,15 @@ async def register_bot_commands(
 
 async def sync_bot_menu(profile: str = "default") -> list[str]:
     """Push command menu to MAX API without starting polling."""
-    from core.i18n import LocaleStore
-
     from integrations.max.config import load_max_settings
+    from integrations.messenger.locale import messenger_locale
 
     settings = load_max_settings(profile)
     token = settings.access_token.strip()
     if not token:
         raise RuntimeError("MAX_ACCESS_TOKEN is not set. Run: holix max setup")
 
-    locale = LocaleStore(profile).get()
+    locale = messenger_locale(profile)
     async with MaxClient(token) as client:
         return await register_bot_commands(client, locale=locale)
 

@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import asyncio
 import logging
 
 from integrations.max.bot import HelixMaxBot
@@ -40,11 +39,21 @@ async def run_polling(settings: MaxSettings | None = None, *, profile: str = "de
             raise
 
         try:
-            from core.i18n import LocaleStore
+            import asyncio
 
             from integrations.max.commands import register_bot_commands
+            from integrations.messenger.locale import (
+                bootstrap_messenger_locales,
+                messenger_locale,
+            )
+            from integrations.messenger.platforms import MAX_PLATFORM
 
-            locale = LocaleStore(settings.profile).get()
+            await asyncio.to_thread(
+                bootstrap_messenger_locales,
+                MAX_PLATFORM,
+                settings.profile,
+            )
+            locale = messenger_locale(settings.profile)
             registered = await register_bot_commands(api_client, locale=locale)
             if registered:
                 logger.info("MAX menu: %d commands", len(registered))

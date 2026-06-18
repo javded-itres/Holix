@@ -119,9 +119,9 @@ class HolixTelegramBot:
     async def _ensure_authorized_menu(self, bot: Any, chat_id: int, user_id: int) -> None:
         if self.settings.allow_all or chat_id in self._menu_enabled_chats:
             return
-        from core.i18n import LocaleStore
+        from integrations.messenger.locale import messenger_locale
 
-        locale = LocaleStore(self.settings.profile).get()
+        locale = messenger_locale(self.settings.profile)
         await enable_chat_menu(
             bot,
             chat_id,
@@ -402,13 +402,25 @@ class HolixTelegramBot:
         async def _on_startup() -> None:
             import asyncio
 
-            from core.i18n import LocaleStore
+            from integrations.messenger.locale import (
+                bootstrap_messenger_locales,
+                messenger_locale,
+            )
+            from integrations.messenger.platforms import TELEGRAM_PLATFORM
 
             asyncio.create_task(
                 asyncio.to_thread(_seed_admin_profile_background),
                 name="tg-admin-profile-seed",
             )
-            locale = LocaleStore(settings.profile).get()
+            asyncio.create_task(
+                asyncio.to_thread(
+                    bootstrap_messenger_locales,
+                    TELEGRAM_PLATFORM,
+                    settings.profile,
+                ),
+                name="tg-locale-bootstrap",
+            )
+            locale = messenger_locale(settings.profile)
             registered = await register_bot_commands(
                 bot,
                 locale=locale,
@@ -448,14 +460,15 @@ class HolixTelegramBot:
             if not self._allowed(message.from_user.id):
                 await self._handle_unauthorized(bot, message)
                 return
-            from core.i18n import LocaleStore, t
+            from core.i18n import t
 
+            from integrations.messenger.locale import messenger_locale
             from integrations.telegram.command_access import is_command_allowed
             from integrations.telegram.markdown import escape_html
 
             cmd_token = message.text.strip().split()[0].lstrip("/").lower()
             if not is_command_allowed(cmd_token, settings.profile, message.from_user.id):
-                lang = LocaleStore(settings.profile).get()
+                lang = messenger_locale(settings.profile)
                 await message.answer(
                     escape_html(t("tg.menu_unavailable", lang)),
                     parse_mode="HTML",

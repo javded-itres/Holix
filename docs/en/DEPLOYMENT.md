@@ -2,27 +2,9 @@
 
 ## Docker
 
-Minimal start (only Telegram bot token required):
+First-time container install (token, volumes, user approval): **[INSTALLATION.md § Path B](INSTALLATION.md#path-b--docker)**.
 
-```bash
-export TELEGRAM_BOT_TOKEN="123456789:AAH..."
-docker compose up -d
-```
-
-The image includes all optional extras (Telegram, voice, browser). On first run it bootstraps `HOLIX_HOME` and saves the bot token. Users send `/start` in Telegram; you approve them from the container:
-
-```bash
-docker compose exec holix holix -p shared telegram requests list
-docker compose exec holix holix -p shared telegram requests approve USER_ID --create-profile alice
-# or bind to an existing profile:
-docker compose exec holix holix -p shared telegram requests approve USER_ID --profile existing
-```
-
-Use a **named** bot profile (`-p shared` or your bootstrap profile). Profile `default` is dev-only when `HOLIX_ENV=production`.
-
-Optional: set `HOLIX_API_KEY_PEPPER`, `MODEL`, `BASE_URL` (e.g. cloud LLM instead of bundled Ollama).
-
-Uses `holix gateway start -f` with gateway, Telegram bot, and cron in one process.
+This section covers **production operations** for an already-running Docker deployment: env hardening, persistence, upgrades, and pairing with reverse proxy / monitoring below.
 
 ## systemd
 

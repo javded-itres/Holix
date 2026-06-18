@@ -18,6 +18,9 @@ class LiveTranscriptBuffer:
     mode: str = "react"
     session_label: str = "main"
     status: str = "running"
+    background_process: str | None = None
+    background_process_id: str | None = None
+    background_process_healthy: bool = True
     thinking: str | None = None
     tool_lines: list[str] = field(default_factory=list)
     answer: str = ""
@@ -39,6 +42,22 @@ class LiveTranscriptBuffer:
 
     def set_thinking(self, message: str | None) -> None:
         self.thinking = (message or "").strip() or None
+
+    def set_background_process(
+        self,
+        *,
+        label: str | None = None,
+        process_id: str | None = None,
+        healthy: bool = True,
+    ) -> None:
+        self.background_process = (label or "").strip() or None
+        self.background_process_id = (process_id or "").strip() or None
+        self.background_process_healthy = healthy
+
+    def clear_background_process(self) -> None:
+        self.background_process = None
+        self.background_process_id = None
+        self.background_process_healthy = True
 
     def add_tool_start(self, name: str, args: object) -> None:
         # Partial assistant text before a tool call is preamble, not the final answer.
@@ -103,6 +122,9 @@ class LiveTranscriptBuffer:
             f"🤖 Holix · {self.profile} · {self.mode} · {self.session_label}",
             "─" * 32,
         ]
+        if self.background_process:
+            icon = "🟢" if self.background_process_healthy else "🔴"
+            parts.append(f"{icon} Process: {self.background_process}")
         if self.thinking:
             from core.i18n.live_ui import live_thinking_label
 

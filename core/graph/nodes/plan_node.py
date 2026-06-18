@@ -264,6 +264,9 @@ Now create a plan for the task above. Respond with ONLY valid JSON:
 
 SUBAGENT_PLAN_APPENDIX = """
 ## Sub-agent delegation (enabled)
+When the user assigns work to specific agents, copy those exact type names into `subagent_type`
+on the matching plan steps (built-in: coder, web_researcher, researcher, analyst, reviewer, writer;
+plus any custom types defined in the profile).
 When complexity is medium or complex, you MUST assign `subagent_type` on steps that specialists should run.
 At least one step in medium/complex plans should use a sub-agent.
 Mapping:

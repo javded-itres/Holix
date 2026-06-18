@@ -31,3 +31,20 @@ Terminal UI: **code-style** interface (`cli/tui/code/`).
 | `/hub installed` | Installed hub skills, plugins, MCP |
 
 See [HUB.md](HUB.md).
+
+## Background processes
+
+When the agent starts a long-running command (dev server, watch task), a **process bar** appears at the bottom of the chat.
+
+| Action | How |
+|--------|-----|
+| View log | Click the process bar |
+| List processes | `/process` or `/process list` |
+| Stop process | `/process-stop` or click ⏹ on the bar |
+| Stop agent only | `/stop` (does not kill background servers unless you use `/process-stop`) |
+
+Process cwd follows `working_directory` → workspace jail → profile workspace. Venv is added to `PATH`; `PYTHONUNBUFFERED=1`.
+
+## Cron from chat
+
+Recurring natural-language requests (e.g. «send news every day at 10 am») auto-create gateway cron jobs in TUI — see [CRON.md](CRON.md). Manage with `/cron` or `holix cron list`.

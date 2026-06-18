@@ -2,10 +2,37 @@
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass, field
 from typing import Any
 
 from core.subagents.registry import subagent_type_names
+
+_SUBAGENT_TYPE_ALIASES: dict[str, str] = {
+    "coder": "coder",
+    "кодер": "coder",
+    "разработчик": "coder",
+    "developer": "coder",
+    "researcher": "researcher",
+    "исследователь": "researcher",
+    "web_researcher": "web_researcher",
+    "web-researcher": "web_researcher",
+    "analyst": "analyst",
+    "аналитик": "analyst",
+    "reviewer": "reviewer",
+    "ревьюер": "reviewer",
+    "writer": "writer",
+    "писатель": "writer",
+}
+
+_DESCRIPTION_AGENT_PATTERNS = (
+    re.compile(r"@([A-Za-z][\w-]*)", re.IGNORECASE),
+    re.compile(
+        r"(?:субагент|sub-?agent|агент|agent)\s*[:—-]\s*([A-Za-z][\w-]*)",
+        re.IGNORECASE,
+    ),
+    re.compile(r"\[([A-Za-z][\w-]*)\]"),
+)
 
 
 @dataclass(slots=True)
@@ -73,6 +100,66 @@ class OrchestrationPlan:
         )
 
 
+def _resolve_subagent_type_name(
+    raw: str,
+    *,
+    profile: str | None = None,
+) -> str | None:
+    token = (raw or "").strip().lstrip("@")
+    if not token:
+        return None
+
+    known = subagent_type_names(profile=profile)
+    lowered = token.lower()
+    base = re.sub(r"[-_]\d+$", "", lowered)
+
+    if token in known:
+        return token
+    if base in known:
+        return base
+
+    alias = _SUBAGENT_TYPE_ALIASES.get(base) or _SUBAGENT_TYPE_ALIASES.get(lowered)
+    if alias and alias in known:
+        return alias
+
+    for candidate in (base, lowered, alias or ""):
+        if not candidate:
+            continue
+        for known_name in known:
+            if known_name.lower() == candidate:
+                return known_name
+    return None
+
+
+def _subagent_type_from_description(
+    description: str,
+    *,
+    profile: str | None = None,
+) -> str | None:
+    for pattern in _DESCRIPTION_AGENT_PATTERNS:
+        match = pattern.search(description or "")
+        if not match:
+            continue
+        resolved = _resolve_subagent_type_name(match.group(1), profile=profile)
+        if resolved:
+            return resolved
+    return None
+
+
+def _plan_has_explicit_subagent_assignments(
+    plan_steps: list[dict[str, Any]],
+    *,
+    profile: str | None = None,
+) -> bool:
+    for step in plan_steps:
+        explicit = (step.get("subagent_type") or "").strip()
+        if explicit and _resolve_subagent_type_name(explicit, profile=profile):
+            return True
+        if _subagent_type_from_description(step.get("description") or "", profile=profile):
+            return True
+    return False
+
+
 def infer_subagent_type(
     step: dict[str, Any],
     *,
@@ -80,8 +167,17 @@ def infer_subagent_type(
 ) -> str | None:
     """Resolve sub-agent type from plan step metadata or heuristics."""
     explicit = (step.get("subagent_type") or "").strip()
-    if explicit in subagent_type_names(profile=profile):
-        return explicit
+    if explicit:
+        resolved = _resolve_subagent_type_name(explicit, profile=profile)
+        if resolved:
+            return resolved
+
+    from_description = _subagent_type_from_description(
+        step.get("description") or "",
+        profile=profile,
+    )
+    if from_description:
+        return from_description
 
     description = (step.get("description") or "").lower()
     tools = [str(t).lower() for t in (step.get("tools_needed") or [])]
@@ -285,11 +381,23 @@ def build_orchestration_plan(
     analysis = plan_analysis or {}
     complexity = str(analysis.get("complexity", "medium")).strip().lower()
 
-    if not enable_subagents or complexity == "simple":
+    has_explicit_assignments = _plan_has_explicit_subagent_assignments(
+        plan_steps,
+        profile=profile,
+    )
+
+    if not enable_subagents:
         return OrchestrationPlan(
             complexity=complexity,
             enabled=False,
-            reasoning="sub-agents disabled or task complexity is simple",
+            reasoning="sub-agents disabled",
+        )
+
+    if complexity == "simple" and not has_explicit_assignments:
+        return OrchestrationPlan(
+            complexity=complexity,
+            enabled=False,
+            reasoning="task complexity is simple and no explicit sub-agent assignments",
         )
 
     eligible = _eligible_steps(

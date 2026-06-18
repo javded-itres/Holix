@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "Holix"
-version = "0.1.15"
+version = "0.1.16"
 description = "Self-improving AI agent with memory, skills, MCP, CLI, and TUI"
 readme = "README.md"
 license = "MIT"
@@ -43,6 +43,7 @@ dependencies = [
     "tiktoken>=0.7.0",
     "langgraph>=1.2.0",
     "langgraph-checkpoint>=4.0.0",
+    "langgraph-checkpoint-sqlite>=3.0.0",
     "langchain-core>=0.3.0",
     "dishka>=1.10.1",
     "mcp>=1.2.0",

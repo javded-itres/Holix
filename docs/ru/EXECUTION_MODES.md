@@ -345,5 +345,5 @@ flowchart LR
 
 - [SLASH_COMMANDS.md](SLASH_COMMANDS.md) — `/mode`, `/plan-*`, `/status`
 - [TUI.md](TUI.md) — Shift+Tab, веб-интерфейс
-- [USER_GUIDE.md](USER_GUIDE.md) — полное руководство
+- [USER_GUIDE.md](USER_GUIDE.md) — маршрут обучения (ссылки на все темы)
 - [ARCHITECTURE.md](ARCHITECTURE.md) — LangGraph и runtime

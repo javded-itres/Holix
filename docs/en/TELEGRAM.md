@@ -1,6 +1,6 @@
 # Telegram
 
-**Community channel:** [t.me/holix_agent](https://t.me/holix_agent) — project news and updates (not the bot you configure below).
+**Community channel:** [t.me/helix_agent](https://t.me/helix_agent) — project news and updates (not the bot you configure below).
 
 Each profile can use its **own bot**. Secrets are stored in:
 
@@ -112,35 +112,60 @@ The slash-command menu is **hidden by default** for unauthorized users. After ap
 - Manual allowlist (`HOLIX_TELEGRAM_ALLOWED_USERS`) is optional when access requests are enabled.
 - Exactly **one** Telegram admin (`HOLIX_TELEGRAM_ADMIN_USER_ID`); assign with `requests approve --set-admin` only.
 
-Full guide: [TELEGRAM_MULTI_PROFILE.md](TELEGRAM_MULTI_PROFILE.md).
-
 ---
 
-## Multiple bots (full isolation)
+## Multi-profile topologies
 
-Different people → different profiles → different bots:
+Each **profile** has isolated `.env`, `telegram.env`, gateway, memory, and cron under `~/.holix/profiles/<name>/`. See [PROFILES.md](PROFILES.md).
+
+**Rule:** one Telegram bot token = one polling process. You cannot run two fully isolated bots on the **same** token.
+
+| Approach | Isolation | Setup |
+|----------|-----------|-------|
+| **One bot per profile** (full isolation) | Complete | Separate @BotFather token + gateway per profile |
+| **One bot + access requests** (recommended shared) | Per-user profile + jail | This guide § One bot — many users |
+| **One bot + `map` / `/profile`** | After manual binding | § Manual mapping below |
+
+### One bot per profile (full isolation)
 
 ```bash
 holix -p alice telegram setup
 holix -p bob telegram setup
+# different ports in each profile .env:
+# HOLIX_GATEWAY_PORT=8001 / 8002
 holix -p alice gateway start
 holix -p bob gateway start
 ```
 
-## User id → profile mapping (manual)
+Or systemd: `holix-gateway@alice`, `holix-gateway@bob` — [DEPLOYMENT.md](DEPLOYMENT.md).
 
-For teams that manage bindings explicitly:
+### Manual user → profile mapping
+
+For trusted teams without access requests:
 
 ```bash
 holix -p shared telegram map set 123456789 alice
 holix -p shared telegram map bind bob --user-id 987654321
+holix -p shared telegram map import "111:alice,222:bob"
 holix -p shared telegram map list
 ```
 
-Files: `profiles/shared/telegram-users.json`, optional `HOLIX_TELEGRAM_USER_PROFILES` in `telegram.env`.  
+- File: `profiles/<bot-host>/telegram-users.json`
+- Env: `HOLIX_TELEGRAM_USER_PROFILES=123456789:alice` in `telegram.env`
+
 Users are routed automatically; manual `/profile` disables auto-routing for that chat.
 
-One live message per task; slash commands shared with TUI; inline approvals.
+### Common mistakes
+
+- **Same token in multiple `telegram.env` files** — only one poller wins.
+- **Same `HOLIX_GATEWAY_PORT`** across profiles — second gateway fails to bind.
+- **Production without access path** — use access requests, allowlist, or `map`.
+
+```bash
+holix doctor
+holix -p shared gateway status
+holix logs -s gateway -n 50
+```
 
 ## Voice messages
 
@@ -212,6 +237,19 @@ Send a voice message to the bot. Holix will:
 Audio files (mp3/m4a) sent as attachments are supported too.
 
 Temporary audio files are deleted immediately after transcription.
+
+## Scheduled tasks (cron)
+
+Gateway must be running (`holix gateway start`). Manage jobs with `/cron` (inline menu) or CLI `holix cron list`.
+
+**Auto-create (0.1.16+):** write a recurring request in plain language — for example:
+
+- `Присылай новости каждый день в 10 утра`
+- `Send me a disk usage summary every Monday at 9`
+
+Holix creates the job and replies with id and next run time. Results can be delivered back to the same Telegram chat. Full guide: [CRON.md](CRON.md).
+
+`/stop` cancels the running agent, sub-agents, and pending confirmations without deleting cron jobs.
 
 After changing `.env` or voice settings, apply them with:
 

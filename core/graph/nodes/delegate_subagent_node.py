@@ -24,6 +24,7 @@ def _resolve_orchestration(
     *,
     enable_subagents: bool,
     max_concurrent: int,
+    profile: str | None = None,
 ) -> OrchestrationPlan | None:
     raw = state.get("subagent_orchestration")
     if raw:
@@ -35,6 +36,7 @@ def _resolve_orchestration(
         current_step_index=state.get("current_plan_step", 0),
         enable_subagents=enable_subagents,
         max_concurrent=max_concurrent,
+        profile=profile,
     )
     if not plan.enabled:
         return None
@@ -56,10 +58,13 @@ async def delegate_subagent_node(
     if not is_subagents_enabled(cfg):
         return {}
 
+    from core.profile.soul import profile_name_from_agent
+
     orchestration = _resolve_orchestration(
         state,
         enable_subagents=True,
         max_concurrent=int(getattr(cfg, "subagent_max_concurrent", 4) or 4),
+        profile=profile_name_from_agent(agent),
     )
     if orchestration is None:
         return {"subagent_delegate_next": False}

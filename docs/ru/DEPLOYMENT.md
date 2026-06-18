@@ -2,27 +2,9 @@
 
 ## Docker
 
-Минимальный запуск (достаточно токена Telegram-бота):
+Первая установка в контейнере (токен, тома, одобрение пользователей): **[INSTALLATION.md § Путь B](INSTALLATION.md#путь-b--docker)**.
 
-```bash
-export TELEGRAM_BOT_TOKEN="123456789:AAH..."
-docker compose up -d
-```
-
-Образ включает все опциональные extras (Telegram, voice, browser). При первом запуске создаётся `HOLIX_HOME` и сохраняется токен бота. Пользователи отправляют `/start` в Telegram; вы одобряете из контейнера:
-
-```bash
-docker compose exec holix holix -p shared telegram requests list
-docker compose exec holix holix -p shared telegram requests approve USER_ID --create-profile alice
-# или привязка к существующему профилю:
-docker compose exec holix holix -p shared telegram requests approve USER_ID --profile existing
-```
-
-Используйте **именованный** профиль бота (`-p shared` или профиль из bootstrap). Профиль `default` в production (`HOLIX_ENV=production`) недоступен.
-
-Опционально: `HOLIX_API_KEY_PEPPER`, `MODEL`, `BASE_URL` (облачная LLM вместо встроенного Ollama).
-
-В контейнере: `holix gateway start -f` — gateway, Telegram-бот и cron в одном процессе.
+Здесь — **эксплуатация** уже запущенного Docker: hardening, обновления, связка с reverse proxy ниже.
 
 ## systemd
 

@@ -94,11 +94,11 @@ async def notify_access_approved(
     await send_user_message(token, int(user_id), text)
     try:
         from aiogram import Bot
-        from core.i18n import LocaleStore
 
+        from integrations.messenger.locale import messenger_locale
         from integrations.telegram.commands import enable_chat_menu
 
-        locale = LocaleStore(bot_profile).get()
+        locale = messenger_locale(bot_profile)
         bot = Bot(token=token)
         try:
             await enable_chat_menu(bot, int(user_id), locale=locale)

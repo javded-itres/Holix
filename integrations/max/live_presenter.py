@@ -60,6 +60,7 @@ class MaxLivePresenter:
         self._final_delivered = False
         self._final_content: str | None = None
         self._progress_message_id: str | None = None
+        self._attachments: list[dict[str, Any]] | None = None
         self._outbound_queue: asyncio.Queue[Coroutine[Any, Any, Any] | None] | None = None
         self._outbound_worker: asyncio.Task | None = None
 
@@ -101,6 +102,7 @@ class MaxLivePresenter:
         self._final_delivered = False
         self._final_content = None
         self._progress_message_id = None
+        self._attachments = None
         self._outbound_queue = asyncio.Queue()
         self._outbound_worker = asyncio.create_task(self._outbound_worker_loop())
         payload = await self._send_outbound(
@@ -142,6 +144,9 @@ class MaxLivePresenter:
         except asyncio.CancelledError:
             pass
 
+    def set_attachments(self, attachment: dict[str, Any] | None) -> None:
+        self._attachments = [attachment] if attachment else None
+
     def schedule_edit(self, *, force: bool = False) -> None:
         if self._edit_task and not self._edit_task.done():
             if not force:
@@ -167,7 +172,12 @@ class MaxLivePresenter:
         message_id = self._progress_message_id or self.session.live_message_id
         if message_id:
             try:
-                await self._client.edit_message(message_id, html, fmt="html")
+                await self._client.edit_message(
+                    message_id,
+                    html,
+                    fmt="html",
+                    attachments=self._attachments,
+                )
                 return
             except Exception:
                 logger.exception("MAX progress edit failed; sending snapshot")

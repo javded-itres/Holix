@@ -1,6 +1,6 @@
 # Telegram
 
-**Telegram-канал:** [t.me/holix_agent](https://t.me/holix_agent) — новости и обновления проекта (это не бот, который вы настраиваете ниже).
+**Telegram-канал:** [t.me/helix_agent](https://t.me/helix_agent) — новости и обновления проекта (это не бот, который вы настраиваете ниже).
 
 У каждого профиля может быть свой бот. Секреты хранятся в:
 
@@ -112,31 +112,49 @@ holix -p shared telegram sync-menu   # обновить меню только д
 - Ручной allowlist (`HOLIX_TELEGRAM_ALLOWED_USERS`) не обязателен при включённых access requests.
 - Telegram-администратор **только один** (`HOLIX_TELEGRAM_ADMIN_USER_ID`); назначение — `requests approve --set-admin`.
 
-Подробно: [TELEGRAM_MULTI_PROFILE.md](TELEGRAM_MULTI_PROFILE.md).
-
 ---
 
-## Несколько ботов (полная изоляция)
+## Топологии с несколькими профилями
 
-Разные люди → разные профили → разные боты:
+Каждый **профиль** — свой `.env`, `telegram.env`, gateway, память, cron в `~/.holix/profiles/<имя>/`. См. [PROFILES.md](PROFILES.md).
+
+**Правило:** один токен бота = один polling-процесс. Два изолированных бота на **одном** токене невозможны.
+
+| Подход | Изоляция | Настройка |
+|--------|----------|-----------|
+| **Один бот на профиль** | Полная | Отдельный токен @BotFather + gateway на профиль |
+| **Один бот + access requests** | Профиль и jail на пользователя | § Один бот — много пользователей выше |
+| **Один бот + `map` / `/profile`** | После ручной привязки | § Ручная привязка ниже |
+
+### Один бот на профиль
 
 ```bash
 holix -p alice telegram setup
 holix -p bob telegram setup
+# разные HOLIX_GATEWAY_PORT в .env каждого профиля
 holix -p alice gateway start
 holix -p bob gateway start
 ```
 
-## Привязка user id → профиль (вручную)
+### Ручная привязка user → профиль
 
 ```bash
 holix -p shared telegram map set 123456789 alice
 holix -p shared telegram map bind bob --user-id 987654321
+holix -p shared telegram map import "111:alice,222:bob"
 holix -p shared telegram map list
 ```
 
-Файлы: `profiles/shared/telegram-users.json`, опционально `HOLIX_TELEGRAM_USER_PROFILES` в `telegram.env`.  
-Пользователь попадает в профиль автоматически; ручной `/profile` отключает автопривязку для чата.
+- Файл: `profiles/<host>/telegram-users.json`
+- Env: `HOLIX_TELEGRAM_USER_PROFILES` в `telegram.env`
+
+Ручной `/profile` отключает автопривязку для чата.
+
+### Типичные ошибки
+
+- Один токен в нескольких `telegram.env` — работает только один poller.
+- Одинаковый `HOLIX_GATEWAY_PORT` — второй gateway не стартует.
+- Production без access requests / allowlist / `map`.
 
 Одно live-сообщение на задачу; slash-команды как в TUI; inline-подтверждения.
 
@@ -209,6 +227,19 @@ HOLIX_WHISPER_MODEL=whisper-1
 ### Использование
 
 Отправьте голосовое сообщение или аудиофайл — Holix распознает текст и ответит как на обычное сообщение.
+
+## Периодические задачи (cron)
+
+Нужен запущенный gateway (`holix gateway start`). Управление: `/cron` (inline-меню) или `holix cron list`.
+
+**Автосоздание (0.1.16+):** напишите повторяющийся запрос обычным языком, например:
+
+- `Присылай новости каждый день в 10 утра`
+- `Send me a disk usage summary every Monday at 9`
+
+Holix создаст задачу и ответит id и временем следующего запуска. Результаты могут приходить в тот же чат Telegram. Подробнее: [CRON.md](CRON.md).
+
+`/stop` останавливает агента, субагентов и ожидающие подтверждения, не удаляя cron-задачи.
 
 После изменения `.env` или настроек голоса:
 

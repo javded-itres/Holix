@@ -21,6 +21,21 @@ def _cb(action: str, value: str) -> str:
     return data
 
 
+def background_process_stop_keyboard(process_token: str) -> Any:
+    from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
+
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(
+                    text="⏹ Остановить процесс",
+                    callback_data=_cb("ps", process_token),
+                )
+            ],
+        ]
+    )
+
+
 def parse_callback(data: str) -> tuple[str, str] | None:
     if not data or not data.startswith(f"{PREFIX}:"):
         return None
@@ -329,7 +344,9 @@ def status_menu_keyboard(locale: str | None = None, *, is_admin: bool = True) ->
     from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
     from core.i18n.messages import t
 
-    loc = locale or "en"
+    from integrations.messenger.locale import MESSENGER_DEFAULT_LOCALE
+
+    loc = locale or MESSENGER_DEFAULT_LOCALE
     rows: list[list[Any]] = [
         [
             InlineKeyboardButton(text=t("tg.menu.mode", loc), callback_data=_cb("r", "mode")),

@@ -167,7 +167,25 @@ Git (только «читающие» подкоманды):
 
 ---
 
-## 5. Workspace jail (рабочая директория)
+## 5. Пути профилей Holix (всегда запрещены)
+
+Независимо от whitelist и workspace jail блокируются команды, обращающиеся к **каталогам профилей и секретам Holix**:
+
+- `~/.holix/profiles/…`, `.holix/profiles/…`, `$HOLIX_HOME`, `$HOME/.holix`
+- `.holix/memory-cache`, `.runtime-cache` (расшифрованный кэш памяти)
+
+Пример:
+
+```text
+cat ~/.holix/profiles/default/.env
+→ Access to Holix profile directories and secrets is not allowed.
+```
+
+Действует даже при **выключенном** workspace jail — агент не может читать `.env`, `telegram.env` или cron-файлы через терминал.
+
+---
+
+## 6. Workspace jail (рабочая директория)
 
 При [workspace jail](PROFILES.md#workspace-jail-изоляция-в-директории) `run_terminal_command` запускается с `cwd` в корне jail. Whitelist **не заменяет** jail — действуют оба ограничения.
 

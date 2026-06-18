@@ -5,7 +5,9 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
-from core.i18n import DEFAULT_LOCALE, LocaleStore, t
+from core.i18n import t
+
+from integrations.messenger.locale import MESSENGER_DEFAULT_LOCALE, messenger_locale
 
 # (command without /, description key in messages catalog)
 _TELEGRAM_COMMAND_KEYS: list[tuple[str, str]] = [
@@ -50,7 +52,7 @@ class TelegramCommandSpec:
 
 
 def telegram_menu_commands(locale: str | None = None) -> list[tuple[str, str]]:
-    loc = locale or DEFAULT_LOCALE
+    loc = locale or MESSENGER_DEFAULT_LOCALE
     return [(cmd, t(key, loc)) for cmd, key in _TELEGRAM_COMMAND_KEYS]
 
 
@@ -236,7 +238,7 @@ async def sync_bot_menu(profile: str = "default") -> list[str]:
     except ImportError as e:
         raise ImportError("uv sync --extra telegram") from e
 
-    locale = LocaleStore(profile).get()
+    locale = messenger_locale(profile)
     bot = Bot(token=settings.bot_token)
     try:
         return await register_bot_commands(bot, locale=locale, bot_profile=profile)
@@ -251,7 +253,7 @@ def help_message_html(
     user_id: int | None = None,
 ) -> str:
     """HTML help for /help and /start."""
-    loc = locale or DEFAULT_LOCALE
+    loc = locale or MESSENGER_DEFAULT_LOCALE
     if bot_profile is not None and user_id is not None:
         from integrations.telegram.command_access import commands_for_user
 

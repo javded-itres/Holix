@@ -85,14 +85,26 @@ def test_workspace_jail_disabled_allows_anywhere(tmp_path: Path) -> None:
 
 def test_profile_config_workspace_fields(holix_home: Path) -> None:
     manager = ProfileManager()
+    manager.create_profile("jailed")
     cfg = ProfileConfig(
         profile_name="jailed",
         workspace_jail_enabled=True,
-        workspace_root="/tmp/data-agent",
+        workspace_root="data-agent",
     )
     cfg = resolve_profile_storage_paths("jailed", cfg, profile_dir=manager.get_profile_dir("jailed"))
     assert cfg.workspace_jail_enabled is True
     assert cfg.workspace_root.endswith("data-agent")
+
+    outside = ProfileConfig(
+        profile_name="jailed",
+        workspace_root="/tmp/outside-agent",
+    )
+    outside = resolve_profile_storage_paths(
+        "jailed",
+        outside,
+        profile_dir=manager.get_profile_dir("jailed"),
+    )
+    assert outside.workspace_root.endswith("workspace")
 
 
 def test_init_profile_loads_profile_env(holix_home: Path, monkeypatch: pytest.MonkeyPatch) -> None:

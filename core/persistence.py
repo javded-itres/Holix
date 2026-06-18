@@ -1,11 +1,16 @@
 """
 Persistence — wraps LangGraph checkpointing for Holix.
 
-Uses InMemorySaver for in-process checkpointing. Profile-aware
-path resolution for file-based checkpointers.
+Uses InMemorySaver for sync/studio entry points. Async graph runs use
+AsyncSqliteSaver via async_checkpointer() (required for graph.ainvoke).
 """
 
+from __future__ import annotations
+
 import logging
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
+from typing import Any
 
 from langgraph.checkpoint.memory import InMemorySaver
 
@@ -16,39 +21,50 @@ def create_checkpointer(
     use_persistent: bool = False,
     db_path: str | None = None,
 ):
-    """Create a checkpointer for the LangGraph.
+    """Create an in-memory checkpointer (sync-safe, for Studio / tests).
 
-    Args:
-        use_persistent: If True, use SQLite-based checkpointing.
-                       If False (default), use in-memory checkpointing.
-        db_path: Path for persistent checkpoint DB. Only used
-                 when use_persistent=True.
-
-    Returns:
-        A checkpointer instance compatible with LangGraph's compile().
+    Do not use sync SqliteSaver with graph.ainvoke() — use async_checkpointer()
+    for persistent SQLite checkpointing.
     """
     if use_persistent and db_path:
-        try:
-            # Try SQLite-based checkpointing
-            # Requires: pip install langgraph-checkpoint-sqlite
-            import sqlite3
+        logger.debug(
+            "create_checkpointer(use_persistent=True) ignored — "
+            "use async_checkpointer() for SQLite with ainvoke"
+        )
+    checkpointer = InMemorySaver()
+    logger.info("Using InMemorySaver for checkpointing")
+    return checkpointer
 
-            from langgraph.checkpoint.sqlite import SqliteSaver
+
+@asynccontextmanager
+async def async_checkpointer(
+    *,
+    use_persistent: bool = False,
+    db_path: str | None = None,
+) -> AsyncIterator[Any]:
+    """Yield a checkpointer suitable for async graph.ainvoke()."""
+    if use_persistent and db_path:
+        try:
+            from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
 
             from core.paths import prepare_sqlite_db_file
 
             resolved = prepare_sqlite_db_file(db_path)
-            conn = sqlite3.connect(str(resolved), check_same_thread=False)
-            checkpointer = SqliteSaver(conn)
-            logger.info(f"Using SQLite checkpointer at {resolved}")
-            return checkpointer
+            conn_string = str(resolved)
+            async with AsyncSqliteSaver.from_conn_string(conn_string) as checkpointer:
+                logger.info("Using AsyncSqliteSaver at %s", resolved)
+                yield checkpointer
+                return
         except ImportError:
             logger.warning(
-                "langgraph-checkpoint-sqlite not installed, "
+                "langgraph-checkpoint-sqlite or aiosqlite not installed, "
                 "falling back to InMemorySaver"
             )
+        except Exception as exc:
+            logger.warning(
+                "AsyncSqliteSaver failed (%s), falling back to InMemorySaver",
+                exc,
+            )
 
-    # Default: in-memory checkpointing
-    checkpointer = InMemorySaver()
+    yield InMemorySaver()
     logger.info("Using InMemorySaver for checkpointing")
-    return checkpointer

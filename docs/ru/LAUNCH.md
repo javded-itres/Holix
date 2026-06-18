@@ -211,7 +211,7 @@ Holix создаёт:
 /launch list   # список назначений в транскрипте
 ```
 
-См. [LAUNCH_SUBAGENTS.md](LAUNCH_SUBAGENTS.md).
+См. [SUBAGENTS.md](SUBAGENTS.md).
 
 ---
 
@@ -229,7 +229,7 @@ Holix создаёт:
 
 ## См. также
 
-- [LAUNCH_SUBAGENTS.md](LAUNCH_SUBAGENTS.md) — субагенты Holix и `holix launch`
+- [SUBAGENTS.md](SUBAGENTS.md) — субагенты Holix и `holix launch`
 - [CLI.md](CLI.md) — справочник `holix`
 - [PROFILES.md](PROFILES.md) — профили и слоты моделей
 - [CONFIGURATION.md](CONFIGURATION.md) — провайдеры и `agent_models`

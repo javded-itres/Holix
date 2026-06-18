@@ -28,6 +28,9 @@ async def create_agent(
                 bot_profile=bot_profile,
                 user_profile=profile,
             )
+    from integrations.messenger.locale import ensure_messenger_locale
+
+    ensure_messenger_locale(profile)
     config = config or init_profile(profile, profile_key=profile_key, prompt_key=False)
     from core.paths import ensure_profile_memory_dirs
 

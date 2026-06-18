@@ -168,20 +168,25 @@ def seed_telegram_user_profile_from_bot(
     if not manager.profile_exists(bot_profile) or not manager.profile_exists(user_profile):
         return False
 
+    from integrations.messenger.locale import ensure_messenger_locale
+
     if not _bot_has_meaningful_llm_config(manager, bot_profile):
         return False
 
     user_cfg = manager.load_profile(user_profile)
     if not _is_placeholder_model_config(user_cfg):
         _seed_profile_env_from_bot(bot_profile, user_profile)
+        ensure_messenger_locale(user_profile)
         return False
 
     shared = _collect_bot_shared_overrides(manager, bot_profile)
     if not shared:
+        ensure_messenger_locale(user_profile)
         return False
 
     for key, value in shared.items():
         setattr(user_cfg, key, value)
     manager.save_profile(user_profile, user_cfg, storage_mode="sparse")
     _seed_profile_env_from_bot(bot_profile, user_profile)
+    ensure_messenger_locale(user_profile)
     return True

@@ -28,6 +28,14 @@ MESSENGER_EMPTY_FINAL_RU = (
     "Проверьте модель (/models) или повторите запрос."
 )
 
+_UNSUCCESSFUL_FINAL_MARKERS = (
+    "без текстового ответа",
+    "без видимого ответа",
+    "visible answer",
+    "finished reasoning without",
+    "no response generated",
+)
+
 
 def is_placeholder_final(content: str | None) -> bool:
     return (content or "").strip().lower() in _PLACEHOLDER_FINALS
@@ -39,6 +47,17 @@ def is_aborted_final_response(content: str | None) -> bool:
     if not text:
         return False
     return any(marker in text for marker in _ABORTED_FINAL_MARKERS)
+
+
+def is_meaningful_final_response(content: str | None) -> bool:
+    """True when the assistant produced a real answer worth treating as step completion."""
+    text = (content or "").strip()
+    if not text or is_placeholder_final(text):
+        return False
+    if is_aborted_final_response(text):
+        return False
+    lowered = text.lower()
+    return not any(marker in lowered for marker in _UNSUCCESSFUL_FINAL_MARKERS)
 
 
 def resolve_messenger_final_content(

@@ -9,7 +9,7 @@ from typing import Any
 from cli.shared.commands.agent_commands import AgentCommands
 from cli.shared.rich_text import content_to_plain_text
 from cli.shared.slash_input import is_slash_command, normalize_slash_input
-from core.i18n import host_locale, t
+from core.i18n import t
 
 from integrations.max.client import MaxClient
 from integrations.max.commands import help_message_markdown
@@ -23,6 +23,7 @@ from integrations.max.markdown import (
     truncate_max_text,
 )
 from integrations.max.models import reply_kwargs_for_session
+from integrations.messenger.locale import messenger_host_locale
 
 logger = logging.getLogger(__name__)
 
@@ -207,16 +208,16 @@ class MaxHost:
     def action_clear_chat(self) -> None:
         self._session._transcript_store.clear()
         self._session._recent_tool_results.clear()
-        self.transcript_write(t("cleared", host_locale(self)))
+        self.transcript_write(t("cleared", messenger_host_locale(self)))
 
     def action_help(self) -> None:
-        asyncio.create_task(self._send_text(help_message_markdown(host_locale(self))))
+        asyncio.create_task(self._send_text(help_message_markdown(messenger_host_locale(self))))
 
     async def action_status(self) -> None:
         await self._interactive.show_status()
 
     def action_copy_output(self) -> None:
-        lang = host_locale(self)
+        lang = messenger_host_locale(self)
         text = self._session._transcript_store.last_assistant()
         if text:
             self.copy_text(text, label=t("copy_label", lang))
@@ -224,12 +225,12 @@ class MaxHost:
             self.transcript_write(t("copy_nothing", lang))
 
     def action_open_transcript(self) -> None:
-        lang = host_locale(self)
+        lang = messenger_host_locale(self)
         body = self._session._transcript_store.format_all()
         self.copy_text(body or t("transcript_empty", lang), label="transcript")
 
     def copy_text(self, text: str, *, label: str = "copied") -> None:
-        lang = host_locale(self)
+        lang = messenger_host_locale(self)
         if not text or not text.strip():
             self.transcript_write(t("copy_nothing", lang))
             return
@@ -243,9 +244,9 @@ class MaxHost:
         await self._send_text(f"**Режимы:** {modes}\nТекущий: `{self._session.execution_mode}`")
 
     def _action_stop_all(self) -> None:
-        for task in list(self._run_tasks):
-            if not task.done():
-                task.cancel()
+        from cli.shared.agent_stop import stop_agent_activity_sync
+
+        stop_agent_activity_sync(self)
         self.transcript_write("stopped")
 
     async def _create_new_session(self) -> None:
@@ -383,7 +384,7 @@ class MaxHost:
 
     async def _mcp_install(self, what: str = "") -> None:
         if not self._mcp_management_allowed():
-            await self._send_text(t("tg.mcp_read_only", host_locale(self)))
+            await self._send_text(t("tg.mcp_read_only", messenger_host_locale(self)))
             return
         self.transcript_write(
             "Установка MCP через MAX пока не поддерживается. Используйте: `helix mcp install` в терминале."
@@ -507,6 +508,11 @@ class MaxHost:
             await self._commands.handle(normalized)
             return
 
+        from cli.shared.cron_auto_dispatch import try_cron_auto_dispatch
+
+        if await try_cron_auto_dispatch(self, message):
+            return
+
         self._start_agent_run(message)
 
     async def _send_message(self, message: str) -> None:
@@ -554,7 +560,9 @@ class MaxHost:
         self.agent.events.subscribe(on_event)
 
         from core.tools.execution_context import (
+            agent_emit_scope,
             chat_delivery_scope,
+            reset_agent_emit_scope,
             reset_chat_delivery_scope,
         )
         from core.workspace import agent_path_visibility_context
@@ -569,6 +577,7 @@ class MaxHost:
             chat_id=target.get("chat_id"),
         )
         delivery_token = chat_delivery_scope(delivery_bridge)
+        emit_token = agent_emit_scope(self.agent.emit)
         agent_cfg = getattr(self.agent, "config", None)
         visibility_ctx = agent_path_visibility_context(
             is_admin=is_max_admin(self._session.bot_profile, self._session.user_id),
@@ -617,6 +626,7 @@ class MaxHost:
             finally:
                 self.agent.events.unsubscribe(on_event)
                 reset_chat_delivery_scope(delivery_token)
+                reset_agent_emit_scope(emit_token)
                 try:
                     await presenter.finish()
                 except Exception:

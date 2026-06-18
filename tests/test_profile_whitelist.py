@@ -68,3 +68,10 @@ def test_settings_read_holix_whitelist_env(monkeypatch: pytest.MonkeyPatch) -> N
     reload(config)
     assert config.settings.terminal_command_whitelist is False
     assert config.settings.terminal_whitelist_extra == "docker,make"
+
+    monkeypatch.delenv("HOLIX_TERMINAL_COMMAND_WHITELIST", raising=False)
+    monkeypatch.delenv("HOLIX_TERMINAL_WHITELIST_EXTRA", raising=False)
+    reload(config)
+    import core.tools.terminal as terminal_mod
+
+    reload(terminal_mod)
