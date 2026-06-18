@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import Any
 
 from core.crypto.encrypted_fs import ENCRYPTION_MAGIC, is_encrypted_file
-from core.profile.names import validate_profile_name
+from core.profile.names import resolve_workspace_root, validate_profile_name
 from core.workspace.limits import ProfileLimits, ensure_profile_limits, load_profile_limits
 
 QUOTA_DIRNAME = ".holix"
@@ -47,7 +47,7 @@ class QuotaUsage:
 
 
 def _resolve_workspace_root(workspace_root: Path) -> Path:
-    return workspace_root.expanduser().resolve()
+    return resolve_workspace_root(workspace_root)
 
 
 def quota_state_path(workspace_root: Path) -> Path:

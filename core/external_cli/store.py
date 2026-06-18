@@ -8,11 +8,11 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, Self
 
-from core.platform_compat import resolve_holix_home
+from core.profile.names import profile_dir_for_name
 
 
 def external_cli_dir(profile: str) -> Path:
-    return (resolve_holix_home() / "profiles" / profile / "external_clis").resolve()
+    return (profile_dir_for_name(profile) / "external_clis").resolve()
 
 
 def bindings_path(profile: str) -> Path:

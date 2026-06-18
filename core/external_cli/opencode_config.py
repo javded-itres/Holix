@@ -7,7 +7,7 @@ from pathlib import Path
 
 from core.external_cli.grok_config import grok_model_registry_name
 from core.models.manager import ModelConfig
-from core.platform_compat import resolve_holix_home
+from core.profile.names import profile_dir_for_name
 
 HOLIX_OPENCODE_PROVIDER = "holix"
 
@@ -25,7 +25,7 @@ def ensure_opencode_config(
     api_key: str,
 ) -> tuple[Path, str]:
     """Write ``opencode.json`` for the profile and return ``(config_path, launch_model)``."""
-    config_dir = (resolve_holix_home() / "profiles" / profile / "opencode").resolve()
+    config_dir = (profile_dir_for_name(profile) / "opencode").resolve()
     config_dir.mkdir(parents=True, exist_ok=True)
     config_path = config_dir / "opencode.json"
 

@@ -284,6 +284,15 @@ class TestPlanStorage:
         with pytest.raises(InvalidPlanIdError):
             resolve_plan_path(plan_dir, "/etc/passwd.json")
 
+    def test_load_plan_rejects_path_outside_plan_dir(self):
+        import core.plan_review.plan_storage as ps
+
+        ps._TEST_PLAN_DIR = Path(self._tmpdir)
+        outside = Path(self._tmpdir).parent / "outside_plan.json"
+        outside.write_text("{}", encoding="utf-8")
+        with pytest.raises(InvalidPlanIdError):
+            load_plan(str(outside))
+
 
 # ─── Plan Review Events ─────────────────────────────────────────────────────
 

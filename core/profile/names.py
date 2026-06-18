@@ -30,10 +30,22 @@ def profile_dir_for_name(profile: str | None, *, default: str = "default") -> Pa
     return (profiles_root() / name).resolve()
 
 
+def resolve_workspace_root(workspace_root: Path) -> Path:
+    """Resolve a workspace directory path (rejects obvious traversal in the input)."""
+    text = str(workspace_root)
+    if "\0" in text:
+        raise ProfileNameError("Invalid workspace path")
+    normalized = text.replace("\\", "/").strip()
+    if normalized.startswith("../") or "/../" in f"/{normalized}/":
+        raise ProfileNameError("Invalid workspace path")
+    return workspace_root.expanduser().resolve()
+
+
 def assert_under_profiles_root(path: Path) -> Path:
     """Ensure *path* stays inside the Holix profiles tree."""
     from core.profile_keys import profiles_root
 
+    # codeql[py/path-injection]: input is untrusted; containment is verified before return
     resolved = Path(path).expanduser().resolve()
     root = profiles_root().resolve()
     if resolved != root and root not in resolved.parents:

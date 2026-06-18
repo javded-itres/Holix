@@ -6,12 +6,13 @@ import os
 from pathlib import Path
 
 from core.env_loader import active_profile_name, profile_dir_path
+from core.profile.names import validate_profile_name
 
 from integrations.messenger.platform import MessengerPlatform
 
 
 def messenger_env_path(platform: MessengerPlatform, profile: str | None = None) -> Path:
-    name = (profile or active_profile_name()).strip() or "default"
+    name = validate_profile_name(profile if profile is not None else active_profile_name())
     return profile_dir_path(name) / platform.env_filename
 
 

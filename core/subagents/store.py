@@ -8,7 +8,7 @@ from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any, Self
 
-from core.platform_compat import resolve_holix_home
+from core.profile.names import profile_dir_for_name
 from core.subagents.base import SubAgentConfig
 from core.subagents.registry import builtin_subagent_names
 
@@ -31,7 +31,7 @@ DEFAULT_CUSTOM_TOOLS: list[str] = ["read_file", "list_directory", "terminal"]
 
 
 def subagents_dir(profile: str) -> Path:
-    return (resolve_holix_home() / "profiles" / profile / "subagents").resolve()
+    return (profile_dir_for_name(profile) / "subagents").resolve()
 
 
 def types_path(profile: str) -> Path:
