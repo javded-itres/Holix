@@ -27,7 +27,6 @@ def _record(
     *,
     process_id: str = "proc_test",
     log_path: str = "",
-    running: bool = True,
 ) -> BackgroundProcessRecord:
     return BackgroundProcessRecord(
         process_id=process_id,
@@ -74,9 +73,16 @@ def test_format_process_meta_running(monkeypatch: pytest.MonkeyPatch) -> None:
     assert "running" in meta
 
 
-def test_format_process_log_text_empty_when_stopped(tmp_path: Path) -> None:
-    rec = _record(log_path=str(tmp_path / "missing.log"), running=False)
+def test_format_process_log_text_empty_when_stopped(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    rec = _record(log_path=str(tmp_path / "missing.log"))
     rec._popen = None
+    monkeypatch.setattr(
+        "core.runtime.background_process.is_process_alive",
+        lambda _pid: False,
+    )
 
     body = format_process_log_text(rec, lang="en")
     assert "no log output" in body.lower()
