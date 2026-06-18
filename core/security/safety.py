@@ -14,11 +14,13 @@ _UNIX_SAFE: set[str] = {
     "python", "python3", "node", "npm",
     "pip list", "pip show",
     "pytest", "npm test", "make test",
+    "cp", "touch",
     "holix", "uv",
 }
 
 _WINDOWS_SAFE: set[str] = {
     "dir", "type", "more", "findstr", "where", "cd", "echo", "tree",
+    "copy", "copy /y",
     "whoami", "hostname", "date", "systeminfo", "tasklist", "ipconfig",
     "ping", "curl", "nslookup",
     "git status", "git log", "git diff", "git show",

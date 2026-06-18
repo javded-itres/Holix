@@ -101,11 +101,30 @@ class TestRiskClassifier:
 
     # ── Escalation tests ──
 
-    def test_write_env_file_escalates_to_high(self):
+    def test_write_project_env_file_is_low_risk(self, tmp_path, monkeypatch):
+        monkeypatch.chdir(tmp_path)
         tool = self._make_tool("write_file", "medium")
-        assessment = self.classifier.classify("write_file", tool, {"path": ".env", "content": "SECRET=abc"})
+        assessment = self.classifier.classify(
+            "write_file", tool, {"path": ".env", "content": "SECRET=abc"}
+        )
+        assert assessment.risk_level == RiskLevel.LOW
+        assert "project" in assessment.reason.lower()
+
+    def test_write_holix_profile_env_escalates_to_high(self, tmp_path, monkeypatch):
+        monkeypatch.setenv("HOLIX_HOME", str(tmp_path / "holix"))
+        from core.env_loader import init_holix_home
+
+        init_holix_home()
+        profile_env = tmp_path / "holix" / "profiles" / "alice" / ".env"
+        profile_env.parent.mkdir(parents=True, exist_ok=True)
+        tool = self._make_tool("write_file", "medium")
+        assessment = self.classifier.classify(
+            "write_file",
+            tool,
+            {"path": str(profile_env), "content": "API_KEY=secret"},
+        )
         assert assessment.risk_level == RiskLevel.HIGH
-        assert "env" in assessment.reason.lower()
+        assert "holix" in assessment.reason.lower()
 
     def test_write_config_py_escalates_to_high(self):
         tool = self._make_tool("write_file", "medium")

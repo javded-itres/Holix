@@ -78,17 +78,34 @@ class BackgroundProcessRegistry:
         *,
         profile: str,
         command: str,
+        conversation_id: str | None = None,
     ) -> list[BackgroundProcessRecord]:
-        """Stop every Holix-tracked process for profile and free target ports."""
+        """Stop prior session processes and any profile process holding target ports."""
         from core.runtime.port_utils import force_free_ports, parse_listen_ports
 
         async with self._lock:
             candidates = list(self._records_for_profile(profile))
         candidates.sort(key=lambda r: r.started_at, reverse=True)
 
-        stopped: list[BackgroundProcessRecord] = []
-        all_ports: list[int] = list(parse_listen_ports(command))
+        target_ports = set(parse_listen_ports(command))
+        to_stop: list[BackgroundProcessRecord] = []
+        seen_ids: set[str] = set()
         for rec in candidates:
+            if rec.process_id in seen_ids:
+                continue
+            same_session = bool(
+                conversation_id and rec.conversation_id == conversation_id
+            )
+            port_conflict = bool(
+                target_ports and set(self._ports_for_record(rec)) & target_ports
+            )
+            if same_session or port_conflict:
+                to_stop.append(rec)
+                seen_ids.add(rec.process_id)
+
+        stopped: list[BackgroundProcessRecord] = []
+        all_ports: list[int] = list(target_ports)
+        for rec in to_stop:
             await self._stop_record(rec)
             stopped.append(rec)
             for port in self._ports_for_record(rec):
@@ -109,9 +126,19 @@ class BackgroundProcessRegistry:
         chat_id: str | None = None,
         cwd: str | None = None,
     ) -> BackgroundProcessRecord:
-        from core.workspace import get_effective_workspace_root
+        from core.runtime.background_paths import (
+            background_log_dir,
+            build_background_spawn_env,
+            command_needs_shell,
+            resolve_argv_executable,
+            resolve_background_process_root,
+        )
 
-        await self.cleanup_before_start(profile=profile, command=command)
+        await self.cleanup_before_start(
+            profile=profile,
+            command=command,
+            conversation_id=conversation_id,
+        )
 
         from core.runtime.port_utils import find_busy_ports, format_port_conflict_message
 
@@ -126,40 +153,43 @@ class BackgroundProcessRegistry:
         if not argv:
             raise ValueError("Empty command")
 
-        root = cwd
-        if root is None:
-            ws = get_effective_workspace_root()
-            root = str(ws) if ws is not None else None
+        if cwd and str(cwd).strip():
+            project_root = Path(cwd).expanduser().resolve()
+        else:
+            project_root = resolve_background_process_root()
+        root = str(project_root)
 
-        log_dir = Path(root or ".") / ".holix" / "process-logs"
+        log_dir = background_log_dir(project_root)
         log_dir.mkdir(parents=True, exist_ok=True)
         process_id = f"proc_{uuid.uuid4().hex[:10]}"
         log_path = log_dir / f"{process_id}.log"
 
+        spawn_env = build_background_spawn_env(project_root)
+        spawn_argv = resolve_argv_executable(argv, project_root)
+
         def _spawn() -> tuple[Any, str]:
             log_handle = open(log_path, "ab")  # noqa: SIM115
             try:
-                if IS_WINDOWS or not any(
-                    token in command for token in ("&&", "||", "|", ";")
-                ):
-                    popen = popen_background(
-                        argv,
-                        stdout=log_handle,
-                        stderr=log_handle,
-                        cwd=root,
-                    )
-                else:
-                    shell_cmd = f"exec {command}" if IS_POSIX else command
+                if command_needs_shell(command):
                     shell_argv = (
-                        ["/bin/sh", "-c", shell_cmd]
+                        ["/bin/bash", "-lc", command.strip()]
                         if IS_POSIX
-                        else ["cmd", "/c", shell_cmd]
+                        else ["cmd", "/c", command.strip()]
                     )
                     popen = popen_background(
                         shell_argv,
                         stdout=log_handle,
                         stderr=log_handle,
                         cwd=root,
+                        env=spawn_env,
+                    )
+                else:
+                    popen = popen_background(
+                        spawn_argv,
+                        stdout=log_handle,
+                        stderr=log_handle,
+                        cwd=root,
+                        env=spawn_env,
                     )
             finally:
                 log_handle.close()

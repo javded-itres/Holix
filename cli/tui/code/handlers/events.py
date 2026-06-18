@@ -138,7 +138,7 @@ class CodeEventHandler:
                 log_hint = f" · log: {event.log_path}" if event.log_path else ""
                 self.app.transcript_write(
                     f"[green]▶ Background process:[/green] {label}{log_hint}\n"
-                    f"[dim]  /process-stop — halt · log in .holix/process-logs/[/dim]"
+                    f"[dim]  click process bar for log · /process-stop — halt[/dim]"
                 )
 
             elif isinstance(event, BackgroundProcessStoppedEvent):

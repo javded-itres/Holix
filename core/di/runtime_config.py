@@ -219,7 +219,7 @@ class HolixRuntimeConfig:
         if getattr(profile, "search", None):
             overrides["search"] = profile.search
         overrides["workspace_jail_enabled"] = bool(
-            getattr(profile, "workspace_jail_enabled", True)
+            getattr(profile, "workspace_jail_enabled", False)
         )
         if getattr(profile, "workspace_root", None):
             overrides["workspace_root"] = profile.workspace_root

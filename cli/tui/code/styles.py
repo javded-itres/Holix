@@ -18,8 +18,20 @@ Screen {
     display: block;
 }
 
+#process-bar.clickable {
+    text-style: bold;
+}
+
+#process-bar.clickable:hover {
+    background: $success 22%;
+}
+
 #process-bar.error {
     background: $error 15%;
+}
+
+#process-bar.error:hover {
+    background: $error 22%;
 }
 
 #transcript {

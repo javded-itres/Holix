@@ -36,3 +36,18 @@ def test_build_system_prompt_includes_env_paths(tmp_path: Path, monkeypatch: pyt
     )
     assert "## Holix configuration paths" in prompt
     assert str(profile_env_path("default")) in prompt
+
+
+def test_build_system_prompt_requires_run_and_debug(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("HOLIX_HOME", str(tmp_path))
+    (tmp_path / "profiles" / "default").mkdir(parents=True)
+
+    prompt = build_system_prompt(
+        tools_description="- **read_file**: read",
+        active_skills=[],
+        profile_name="default",
+    )
+    assert "## Run, debug, and environment setup (mandatory)" in prompt
+    assert "writing files is not enough" in prompt.lower()
+    assert "check_background_process" in prompt
+    assert "never claim" in prompt.lower() and "done" in prompt.lower()

@@ -2,6 +2,26 @@
 
 ## Unreleased
 
+## 0.1.16 — 2026-06-18
+
+### Added
+- **Cron auto-create from chat** — recurring requests in natural language (RU/EN) in Telegram, MAX, and TUI automatically create gateway cron jobs; `schedule_cron` agent tool as fallback
+- **Russian schedule parsing** — `каждый день в 10 утра`, `в 8 вечера`, `каждые 30 минут`, etc.
+- **Unified `/stop`** — `cli/shared/agent_stop.py` cancels agent workers, run tasks, confirmations, plan reviews, and sub-agents (TUI, Telegram, MAX)
+- **TUI process viewer** — modal to list/stop background processes; `/process` and `/process-stop` slash commands
+- **Background process paths** — `core/runtime/background_paths.py`: cwd from `working_directory` → jail → workspace; venv in PATH, `PYTHONUNBUFFERED`
+- **Port-aware cleanup** — `cleanup_before_start` stops only same-session processes or port conflicts (not all profile processes)
+
+### Fixed
+- **Plan mode** — sub-agent delegation and reasoning-only stalls; plan review flow improvements
+- **Cron schedule parser** — `every day at 10 am` no longer misparsed as 5-field cron
+- **Terminal safety** — Holix profile dirs and `.runtime-cache` blocked even when workspace jail is off
+- **`/init` locale** — runs in profile UI language (`/lang ru` | `en`)
+- **Background shell** — `bash -lc` instead of fragile `exec source …` for venv activation
+
+### Changed
+- **Version** — package `Holix` 0.1.16
+
 ## 0.1.15 — 2026-06-15
 
 ### Added

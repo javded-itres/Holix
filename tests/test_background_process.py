@@ -77,6 +77,90 @@ async def test_registry_start_and_stop(registry: BackgroundProcessRegistry, tmp_
 
 
 @pytest.mark.asyncio
+async def test_registry_keeps_other_sessions_alive(registry: BackgroundProcessRegistry, tmp_path) -> None:
+    first = _mock_popen(100)
+    second = _mock_popen(200)
+    third = _mock_popen(300)
+
+    with (
+        patch("core.runtime.background_process.popen_background", side_effect=[first, second, third]),
+        patch("core.runtime.background_process.terminate_process") as terminate,
+        patch("core.runtime.background_process.is_process_alive", return_value=True),
+        patch("core.runtime.port_utils.find_busy_ports", return_value=[]),
+        patch("core.runtime.port_utils.force_free_ports", return_value=[]),
+        patch("core.workspace.get_effective_workspace_root", return_value=tmp_path),
+    ):
+        rec1 = await registry.start(
+            command="uvicorn --port 8000",
+            label="backend",
+            conversation_id="c1",
+            profile="p1",
+        )
+        rec2 = await registry.start(
+            command="uvicorn --port 8001",
+            label="frontend",
+            conversation_id="c2",
+            profile="p1",
+        )
+        rec3 = await registry.start(
+            command="sleep 60",
+            label="same-session",
+            conversation_id="c1",
+            profile="p1",
+        )
+
+        assert rec1.process_id != rec2.process_id != rec3.process_id
+        active_c1 = registry.active_for_scope(profile="p1", conversation_id="c1")
+        active_c2 = registry.active_for_scope(profile="p1", conversation_id="c2")
+        assert active_c1 is not None
+        assert active_c1.process_id == rec3.process_id
+        assert active_c2 is not None
+        assert active_c2.process_id == rec2.process_id
+        terminate.assert_called_once_with(100, grace=2.0)
+
+
+@pytest.mark.asyncio
+async def test_registry_start_uses_workspace_root_without_cwd(
+    registry: BackgroundProcessRegistry,
+    tmp_path,
+) -> None:
+    project = tmp_path / "my-project"
+    project.mkdir()
+    popen = _mock_popen(9001)
+    captured_cwd: list[str] = []
+
+    def capture_spawn(argv, *, stdout, stderr, cwd, env=None):
+        captured_cwd.append(cwd)
+        return popen
+
+    with (
+        patch("core.runtime.background_process.popen_background", side_effect=capture_spawn),
+        patch("core.runtime.background_process.terminate_process"),
+        patch("core.runtime.background_process.is_process_alive", return_value=True),
+        patch("core.runtime.port_utils.find_busy_ports", return_value=[]),
+        patch("core.runtime.port_utils.force_free_ports", return_value=[]),
+        patch("core.workspace.get_effective_workspace_root", return_value=None),
+        patch(
+            "core.tools.execution_context.get_workspace_root",
+            return_value=str(project),
+        ),
+        patch(
+            "core.tools.execution_context.is_workspace_jail_enabled",
+            return_value=False,
+        ),
+    ):
+        record = await registry.start(
+            command="npm run dev",
+            label="dev",
+            conversation_id="c1",
+            profile="p1",
+        )
+
+    assert captured_cwd == [str(project.resolve())]
+    assert record.log_path.startswith(str(project / ".holix" / "process-logs"))
+
+
+@pytest.mark.asyncio
 async def test_registry_replaces_running_process(registry: BackgroundProcessRegistry, tmp_path) -> None:
     first = _mock_popen(100)
     second = _mock_popen(200)

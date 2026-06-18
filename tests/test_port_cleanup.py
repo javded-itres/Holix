@@ -15,15 +15,16 @@ def test_extract_listen_ports_from_log() -> None:
 
 
 @pytest.mark.asyncio
-async def test_cleanup_before_start_stops_all_profile_records(tmp_path) -> None:
+async def test_cleanup_before_start_leaves_other_sessions(tmp_path) -> None:
+    """Different conversations without port overlap should keep both processes."""
     registry = BackgroundProcessRegistry()
     popen = MagicMock()
     popen.pid = 100
 
     with (
         patch("core.runtime.background_process.popen_background", return_value=popen),
-        patch("core.runtime.background_process.terminate_process"),
-        patch("core.runtime.background_process.is_process_alive", return_value=False),
+        patch("core.runtime.background_process.terminate_process") as terminate,
+        patch("core.runtime.background_process.is_process_alive", return_value=True),
         patch("core.runtime.port_utils.find_busy_ports", return_value=[]),
         patch("core.workspace.get_effective_workspace_root", return_value=tmp_path),
         patch("core.runtime.port_utils.force_free_ports", return_value=[]) as free_ports,
@@ -43,10 +44,85 @@ async def test_cleanup_before_start_stops_all_profile_records(tmp_path) -> None:
         stopped = await registry.cleanup_before_start(
             profile="p1",
             command="uvicorn --port 8002",
+            conversation_id="c3",
         )
 
-    assert len(stopped) == 2
-    free_ports.assert_called()
+    assert stopped == []
+    terminate.assert_not_called()
+    assert free_ports.call_args_list[-1] == (([8002],),)
+
+
+@pytest.mark.asyncio
+async def test_cleanup_before_start_stops_same_session_only(tmp_path) -> None:
+    registry = BackgroundProcessRegistry()
+    first = MagicMock()
+    first.pid = 100
+    second = MagicMock()
+    second.pid = 200
+
+    with (
+        patch(
+            "core.runtime.background_process.popen_background",
+            side_effect=[first, second],
+        ),
+        patch("core.runtime.background_process.terminate_process") as terminate,
+        patch("core.runtime.background_process.is_process_alive", return_value=True),
+        patch("core.runtime.port_utils.find_busy_ports", return_value=[]),
+        patch("core.workspace.get_effective_workspace_root", return_value=tmp_path),
+        patch("core.runtime.port_utils.force_free_ports", return_value=[]),
+    ):
+        rec1 = await registry.start(
+            command="uvicorn --port 8000",
+            label="a",
+            conversation_id="c1",
+            profile="p1",
+        )
+        await registry.start(
+            command="uvicorn --port 8001",
+            label="b",
+            conversation_id="c2",
+            profile="p1",
+        )
+        stopped = await registry.cleanup_before_start(
+            profile="p1",
+            command="sleep 60",
+            conversation_id="c1",
+        )
+
+    assert len(stopped) == 1
+    assert stopped[0].process_id == rec1.process_id
+    terminate.assert_called_once_with(100, grace=2.0)
+
+
+@pytest.mark.asyncio
+async def test_cleanup_before_start_stops_port_conflicts(tmp_path) -> None:
+    registry = BackgroundProcessRegistry()
+    popen = MagicMock()
+    popen.pid = 100
+
+    with (
+        patch("core.runtime.background_process.popen_background", return_value=popen),
+        patch("core.runtime.background_process.terminate_process") as terminate,
+        patch("core.runtime.background_process.is_process_alive", return_value=True),
+        patch("core.runtime.port_utils.find_busy_ports", return_value=[]),
+        patch("core.workspace.get_effective_workspace_root", return_value=tmp_path),
+        patch("core.runtime.port_utils.force_free_ports", return_value=[]),
+    ):
+        rec = await registry.start(
+            command="uvicorn --port 8000",
+            label="api",
+            conversation_id="c1",
+            profile="p1",
+        )
+        stopped = await registry.cleanup_before_start(
+            profile="p1",
+            command="uvicorn --port 8000",
+            conversation_id="c2",
+        )
+
+    assert len(stopped) == 1
+    assert stopped[0].process_id == rec.process_id
+    terminate.assert_called_once_with(100, grace=2.0)
 
 
 def test_force_free_ports_retries(monkeypatch) -> None:

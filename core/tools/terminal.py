@@ -12,8 +12,9 @@ from core.tools.base import BaseTool
 from core.workspace import sanitize_paths_in_text
 
 
-def _blocked_sensitive_path_access(command: str) -> tuple[bool, str]:
+def _blocked_sensitive_path_access(command: str, *, jail_enabled: bool) -> tuple[bool, str]:
     """Block shell commands that reach Holix profile secrets or runtime caches."""
+    _ = jail_enabled  # workspace jail uses validate_workspace_command; secrets always blocked
     normalized = command.replace("\\", "/").lower()
     if references_holix_profiles(command):
         return True, "Access to Holix profile directories and secrets is not allowed."
@@ -70,20 +71,21 @@ class TerminalTool(BaseTool):
             if not allowed:
                 return f"Error: Command blocked by safety policy. {reason}"
 
-        blocked, reason = _blocked_sensitive_path_access(command)
-        if blocked:
-            return f"Error: Command blocked. {reason}"
-
         try:
-            from core.tools.execution_context import get_workspace_root, is_workspace_jail_enabled
+            from core.tools.execution_context import is_workspace_jail_enabled
             from core.workspace import get_effective_workspace_root
 
             jail = is_workspace_jail_enabled()
             root = get_effective_workspace_root()
-            workspace_raw = get_workspace_root()
+
+            blocked, reason = _blocked_sensitive_path_access(command, jail_enabled=jail)
+            if blocked:
+                return f"Error: Command blocked. {reason}"
+
             allowed, jail_reason = validate_workspace_command(
                 command,
-                str(root) if root is not None else workspace_raw,
+                str(root) if root is not None else None,
+                jail_enabled=jail,
             )
             if not allowed:
                 return f"Error: Command blocked. {jail_reason}"

@@ -84,8 +84,16 @@ def _path_tokens(command: str) -> list[str]:
     return tokens
 
 
-def command_escapes_workspace(command: str, workspace_root: Path | str | None) -> tuple[bool, str]:
+def command_escapes_workspace(
+    command: str,
+    workspace_root: Path | str | None,
+    *,
+    jail_enabled: bool = True,
+) -> tuple[bool, str]:
     """Return (blocked, reason) when a command targets paths outside the workspace."""
+    if not jail_enabled:
+        return False, ""
+
     text = (command or "").strip()
     if not text:
         return True, "Empty command."
@@ -118,9 +126,18 @@ def command_escapes_workspace(command: str, workspace_root: Path | str | None) -
     return False, ""
 
 
-def validate_workspace_command(command: str, workspace_root: Path | str | None) -> tuple[bool, str]:
+def validate_workspace_command(
+    command: str,
+    workspace_root: Path | str | None,
+    *,
+    jail_enabled: bool = True,
+) -> tuple[bool, str]:
     """Return (allowed, error_message)."""
-    blocked, reason = command_escapes_workspace(command, workspace_root)
+    blocked, reason = command_escapes_workspace(
+        command,
+        workspace_root,
+        jail_enabled=jail_enabled,
+    )
     if blocked:
         return False, reason
     return True, ""

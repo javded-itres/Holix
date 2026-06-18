@@ -22,6 +22,17 @@ def test_scan_log_detects_npm_err() -> None:
     assert errors
 
 
+def test_scan_log_detects_npm_error_lowercase() -> None:
+    log = (
+        "npm error code ENOENT\n"
+        "npm error path /tmp/project/package.json\n"
+        "npm error enoent Could not read package.json"
+    )
+    errors = scan_log_for_errors(log)
+    assert errors
+    assert any("npm error" in e.lower() for e in errors)
+
+
 def test_scan_log_ignores_clean_startup() -> None:
     log = "INFO: Uvicorn running on http://127.0.0.1:8000\nApplication startup complete."
     assert scan_log_for_errors(log) == []

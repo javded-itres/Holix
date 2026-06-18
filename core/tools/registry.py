@@ -103,6 +103,10 @@ class ToolRegistry:
 
         register_background_process_tools(self)
 
+        from core.tools.cron_schedule import register_cron_schedule_tool
+
+        register_cron_schedule_tool(self)
+
         from config import settings
 
         if settings.enable_browser_tools:

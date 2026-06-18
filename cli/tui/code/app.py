@@ -6,6 +6,7 @@ Single-column transcript, compact tool lines, status footer — no sidebar, no c
 
 from __future__ import annotations
 
+import asyncio
 import json
 import os
 import time
@@ -26,6 +27,7 @@ from textual.binding import Binding
 from textual.widgets import Static, TextArea
 
 from cli.core import HOLIX_HOME, ProfileConfig, ProfileManager, init_profile
+from cli.shared.agent_stop import AGENT_WORKER_GROUP, stop_agent_activity_sync
 from cli.tui.code.handlers import CodeEventHandler, SlashCommandsCore
 from cli.tui.code.styles import CODE_TUI_CSS
 from cli.tui.code.widgets import (
@@ -40,7 +42,11 @@ from cli.tui.code.widgets import (
     SlashCommandSuggestions,
     TranscriptPanel,
 )
-from cli.tui.modals import ModalStack, TranscriptViewerScreen
+from cli.tui.modals import (
+    ModalStack,
+    TranscriptViewerScreen,
+    open_background_process_viewer,
+)
 from cli.tui.shared.clipboard import copy_text_best_effort
 from cli.tui.shared.copy_bar import COPY_BAR_ID, hide_copy_bar, show_copy_bar
 from cli.tui.shared.keyboard_layout import (
@@ -366,6 +372,17 @@ class HolixCodeApp(App):
             pass
         self._background_process_id = None
 
+    def open_background_process_viewer(self, *, process_id: str = "") -> None:
+        """Open modal with process log tail and kill button."""
+        open_background_process_viewer(
+            self,
+            process_id=(process_id or self._background_process_id or "").strip() or None,
+        )
+
+    @on(CodeProcessBar.Pressed)
+    def on_process_bar_pressed(self) -> None:
+        self.open_background_process_viewer()
+
     def sync_background_process_bar(self) -> None:
         """Show the active session process bar from the in-memory registry."""
         from core.runtime.background_process import get_background_process_registry
@@ -635,6 +652,11 @@ class HolixCodeApp(App):
                 conversation_id=self.conversation_id,
                 execution_mode=mode,
             )
+        except asyncio.CancelledError:
+            self.transcript_write("[dim]stopped[/dim]")
+            self.set_status_line("ready")
+            self._restore_prompt_focus()
+            raise
         except Exception as exc:
             self.transcript_write(f"[red]agent error: {exc}[/red]")
             self.set_status_line("error")
@@ -660,6 +682,11 @@ class HolixCodeApp(App):
                 execution_mode=mode,
             ):
                 self.agent.emit(event)
+        except asyncio.CancelledError:
+            self.transcript_write("[dim]stopped[/dim]")
+            self.set_status_line("ready")
+            self._restore_prompt_focus()
+            raise
         except Exception as exc:
             self.transcript_write(f"[red]stream error: {exc}[/red]")
             self.set_status_line("error")
@@ -748,6 +775,16 @@ class HolixCodeApp(App):
             await self._slash.handle(message)
             return
 
+        from cli.shared.cron_auto_dispatch import try_cron_auto_dispatch
+
+        if await try_cron_auto_dispatch(self, message):
+            self.transcript_write(
+                f"\n[bold]❯[/bold] {message}\n",
+                store_kind="user",
+                store_plain=message,
+            )
+            return
+
         if self._agent_init_state == "initializing":
             self.transcript_write("[dim]still initializing — one moment…[/dim]")
             return
@@ -772,9 +809,19 @@ class HolixCodeApp(App):
         self._is_streaming = self.streaming_enabled
 
         if self.streaming_enabled:
-            self.run_worker(self._run_agent_streaming(message), name="agent-stream", exclusive=True)
+            self.run_worker(
+                self._run_agent_streaming(message),
+                name="agent-stream",
+                group=AGENT_WORKER_GROUP,
+                exclusive=True,
+            )
         else:
-            self.run_worker(self._run_agent_task(message), name="agent-run", exclusive=True)
+            self.run_worker(
+                self._run_agent_task(message),
+                name="agent-run",
+                group=AGENT_WORKER_GROUP,
+                exclusive=True,
+            )
 
     def on_text_area_changed(self, event: TextArea.Changed) -> None:
         if event.text_area.id == "input-area":
@@ -1226,11 +1273,12 @@ class HolixCodeApp(App):
         self._save_ui_state()
         self._refresh_status_bar()
 
+    def action_stop_all(self) -> None:
+        """Bound to Ctrl+S and shared with /stop."""
+        self._action_stop_all()
+
     def _action_stop_all(self) -> None:
-        try:
-            self.workers.cancel_all()
-        except Exception:
-            pass
+        stop_agent_activity_sync(self)
         self.clear_stream_display()
         self._is_streaming = False
         self.set_thinking(None)

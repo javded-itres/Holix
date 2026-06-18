@@ -91,11 +91,22 @@ TUI opens a modal with enable/disable/delete. Telegram has inline buttons under 
 - The runner prepends context that this is an **automated** run; the model should complete the task and **summarize** results.
 - Status fields: `last_run_at`, `last_status` (`success` / `error` / `running`), `next_run_at`, `run_count`.
 
+## Auto-creation from chat
+
+Holix **automatically creates** a cron job when the user writes a **recurring** request in natural language (Telegram, MAX, TUI), for example:
+
+- «Присылай мне новости по теме X каждый день в 10 утра»
+- «Send me a summary every day at 9»
+
+No `/cron add` needed for clear schedule + task phrasing. The host replies with job id and `next_run_at`. Gateway must still be running for execution.
+
+You can also call the **`schedule_cron`** tool (`schedule` + `task`) when auto-detection did not fire.
+
 ## Workflow for the agent
 
-1. Clarify **what** should run and **how often** (timezone: server local UTC for croniter unless user specifies).
+1. Clarify **what** should run and **how often** (timezone: server UTC for croniter unless user specifies).
 2. Draft a **clear task prompt** (one-shot instructions, no “ask me later”).
-3. Propose exact `/cron add …` or `holix cron add "…"` for the user to confirm, or execute CLI if allowed.
+3. Prefer **`schedule_cron`** tool or let the host auto-create; otherwise `/cron add …` or `holix cron add "…"`.
 4. Remind to start gateway if not running: `holix gateway start`.
 5. After creation, suggest `/cron list` to verify `next_run_at`.
 

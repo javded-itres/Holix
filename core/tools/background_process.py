@@ -164,12 +164,15 @@ async def _run_start_or_restart(
 ) -> str:
     from core.runtime.port_utils import parse_listen_ports
     from core.security.workspace_command_guard import validate_workspace_command
+    from core.tools.execution_context import is_workspace_jail_enabled
     from core.workspace import get_effective_workspace_root
 
+    jail = is_workspace_jail_enabled()
     ws = get_effective_workspace_root()
     allowed, jail_reason = validate_workspace_command(
         command,
         str(ws) if ws is not None else None,
+        jail_enabled=jail,
     )
     if not allowed:
         return f"Error: Command blocked. {jail_reason}"
@@ -208,7 +211,9 @@ async def _run_start_or_restart(
     except Exception:
         pass
 
-    default_wait = 2.0 if parse_listen_ports(command) else 0.0
+    default_wait = 4.0 if parse_listen_ports(command) else 0.0
+    if "--reload" in command or " run dev" in command:
+        default_wait = max(default_wait, 5.0)
     wait_s = max(0.0, min(float(startup_wait_seconds or default_wait), 10.0))
     report = await _check_and_format(
         registry,

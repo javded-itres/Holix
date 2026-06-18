@@ -15,6 +15,14 @@ def test_allows_list_dir() -> None:
     assert ok, reason
 
 
+def test_allows_cp_env_example() -> None:
+    if IS_WINDOWS:
+        ok, reason = command_whitelist.is_command_allowed("copy .env.example .env")
+    else:
+        ok, reason = command_whitelist.is_command_allowed("cp .env.example .env")
+    assert ok, reason
+
+
 def test_holix_in_default_whitelist():
     ok, reason = command_whitelist.is_command_allowed("holix gateway status")
     assert ok, reason

@@ -75,7 +75,6 @@ class RiskClassifier:
 
         # Sensitive file path patterns that escalate write_file to HIGH
         self._sensitive_path_patterns = [
-            (r"\.env$", "Writing to .env file"),
             (r"config\.py$", "Writing to config.py"),
             (r"settings\.py$", "Writing to settings.py"),
             (r"/etc/", "Writing to /etc/"),
@@ -169,6 +168,14 @@ class RiskClassifier:
         # WriteFileTool: escalate if writing to sensitive paths
         if tool_name == "write_file":
             path = arguments.get("path", "")
+            if self._is_env_file_path(path):
+                if self._is_holix_env_path(path):
+                    return (
+                        RiskLevel.HIGH,
+                        "Writing to Holix profile .env file",
+                        "write_sensitive_path:holix_env",
+                    )
+                return RiskLevel.LOW, "Project .env setup", None
             for pattern, reason in self._sensitive_path_patterns:
                 if re.search(pattern, path):
                     return RiskLevel.HIGH, reason, f"write_sensitive_path:{pattern}"
@@ -207,6 +214,35 @@ class RiskClassifier:
 
         # Default: use the declarative baseline
         return baseline, f"Tool: {tool_name}", None
+
+    @staticmethod
+    def _is_env_file_path(path: str) -> bool:
+        name = Path(path).name
+        return name == ".env" or name.startswith(".env.")
+
+    @staticmethod
+    def _resolve_write_path(path: str) -> Path | None:
+        raw = Path(path).expanduser()
+        try:
+            if raw.is_absolute():
+                return raw.resolve()
+            return (Path.cwd() / raw).resolve()
+        except OSError:
+            return None
+
+    def _is_holix_env_path(self, path: str) -> bool:
+        if not self._is_env_file_path(path):
+            return False
+        resolved = self._resolve_write_path(path)
+        if resolved is None:
+            return False
+        from core.env_loader import holix_home
+
+        try:
+            resolved.relative_to(holix_home().resolve())
+        except ValueError:
+            return False
+        return True
 
 
 # ─── Permission Management ────────────────────────────────────────────────

@@ -49,18 +49,16 @@ def list_unencrypted_profiles(manager) -> list[str]:
 
 
 def _prepare_workspace_for_encryption(manager, profile: str) -> Path:
-    """Ensure workspace jail + directory; preserve an existing jail root when set."""
-    from cli.core import enable_profile_workspace_isolation
-
+    """Ensure workspace directory exists; preserve jail settings unless already enabled."""
     config = manager.load_profile(profile)
-    if config.workspace_jail_enabled and config.workspace_root and str(config.workspace_root).strip():
+    if config.workspace_root and str(config.workspace_root).strip():
         workspace = Path(config.workspace_root).expanduser().resolve()
-        workspace.mkdir(parents=True, exist_ok=True)
-        ensure_profile_limits(profile)
-        reconcile_workspace_usage(workspace)
-        return workspace
-
-    return enable_profile_workspace_isolation(manager, profile)
+    else:
+        workspace = manager.get_profile_dir(profile) / "workspace"
+    workspace.mkdir(parents=True, exist_ok=True)
+    ensure_profile_limits(profile)
+    reconcile_workspace_usage(workspace)
+    return workspace
 
 
 def enable_profile_encryption(

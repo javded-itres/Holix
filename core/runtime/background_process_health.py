@@ -23,6 +23,9 @@ _ERROR_LINE_PATTERNS: tuple[re.Pattern[str], ...] = (
     ),
     re.compile(r"\b(EADDRINUSE|Address already in use)\b", re.I),
     re.compile(r"npm ERR!", re.I),
+    re.compile(r"\bnpm error\b", re.I),
+    re.compile(r"\bpnpm ERR!", re.I),
+    re.compile(r"\byarn run\b.*\berror\b", re.I),
     re.compile(r"ELIFECYCLE", re.I),
     re.compile(r"failed to compile", re.I),
     re.compile(r"Cannot find module", re.I),
@@ -205,7 +208,7 @@ def apply_port_checks(
     elif (
         missing
         and report.running
-        and report.status in ("healthy", "starting")
+        and report.status == "healthy"
         and not log_shows_ready(report.log_tail)
     ):
         report.status = "port_not_listening"

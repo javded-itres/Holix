@@ -210,9 +210,9 @@ class TelegramHost:
         await self._interactive.show_mode_picker()
 
     def _action_stop_all(self) -> None:
-        for task in list(self._run_tasks):
-            if not task.done():
-                task.cancel()
+        from cli.shared.agent_stop import stop_agent_activity_sync
+
+        stop_agent_activity_sync(self)
         self.transcript_write("stopped")
 
     async def _create_new_session(self) -> None:
@@ -641,6 +641,11 @@ class TelegramHost:
             if await self._interactive.handle_slash(normalized):
                 return
             await self._commands.handle(normalized)
+            return
+
+        from cli.shared.cron_auto_dispatch import try_cron_auto_dispatch
+
+        if await try_cron_auto_dispatch(self, message):
             return
 
         self._start_agent_run(message)

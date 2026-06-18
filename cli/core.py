@@ -88,7 +88,7 @@ class ProfileConfig(BaseModel):
     search: dict[str, Any] = Field(default_factory=dict)
 
     # Workspace jail: restrict file/terminal tools to the profile workspace directory
-    workspace_jail_enabled: bool = True
+    workspace_jail_enabled: bool = False
     workspace_root: str | None = None
 
     # At-rest encryption for workspace files (requires unlock key at runtime)
@@ -241,7 +241,6 @@ def resolve_profile_storage_paths(
             config.workspace_root = str(workspace_default.resolve())
     else:
         config.workspace_root = str(workspace_default.resolve())
-    config.workspace_jail_enabled = True
     return config
 
 
@@ -343,6 +342,8 @@ class ProfileManager:
             config.profile_name = profile
 
         config = resolve_profile_storage_paths(profile, config, profile_dir=profile_dir)
+        if profile in {"default", "admin"}:
+            config.workspace_jail_enabled = False
         storage_mode = "sparse" if inherit_global else "full"
 
         if with_access_key:
