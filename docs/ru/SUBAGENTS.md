@@ -148,7 +148,17 @@ Tools главного агента (при `enable_subagents: true`):
 1. `holix launch setup` или `/launch` в TUI — назначить CLI типу субагента (`agent_slot`, например `coder`)
 2. Делегировать задачу этому субагенту — при назначении появится tool `external_cli`
 
-Подробнее: [LAUNCH_SUBAGENTS.md](LAUNCH_SUBAGENTS.md), [LAUNCH.md](LAUNCH.md).
+Настройка: [LAUNCH.md](LAUNCH.md). TUI: `/launch` — назначение CLI типу субагента.
+
+### Субагенты и `holix launch`
+
+| | Субагенты Holix | `holix launch` (tmux) |
+|---|---|---|
+| **Что** | Фоновые воркеры Holix | Внешние CLI (Claude Code, OpenCode, …) |
+| **Старт** | `delegate_to_subagent` / `/subagent-spawn` | `holix launch <id>` или `external_cli` у назначенного субагента |
+| **Модель** | Модель родительского профиля | Слот (`agent_models.coder`, …) |
+
+Главный агент **не** получает `external_cli` напрямую — только субагент с назначением в `holix launch setup` или TUI `/launch`.
 
 ---
 
@@ -183,7 +193,7 @@ holix tui
 
 ## См. также
 
-- [LAUNCH_SUBAGENTS.md](LAUNCH_SUBAGENTS.md) — субагенты и `holix launch`
+- [LAUNCH.md](LAUNCH.md) — `holix launch` и tmux-сессии
 - [SLASH_COMMANDS.md](SLASH_COMMANDS.md) — все `/`-команды
 - [EXECUTION_MODES.md](EXECUTION_MODES.md) — Plan / Hybrid
 - [LOGS.md](LOGS.md) — `subagent.jsonl`

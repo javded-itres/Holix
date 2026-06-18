@@ -401,7 +401,7 @@ holix -p shared telegram map set 123456789 alice   # ручная альтерн
 holix -p shared gateway start
 ```
 
-Один бот на несколько изолированных профилей: [TELEGRAM_MULTI_PROFILE.md](TELEGRAM_MULTI_PROFILE.md).  
+Один бот на несколько изолированных профилей: [TELEGRAM.md](TELEGRAM.md).  
 Общее: [TELEGRAM.md](TELEGRAM.md).
 
 ---

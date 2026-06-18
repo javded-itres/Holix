@@ -62,15 +62,7 @@ Set bind address and port in the **profile** `.env` (`holix profile env --edit`)
 
 Admin routes (`/admin/*`) **always** require an admin API key.
 
-## Quick endpoint map
-
-| Group | Examples |
-|-------|----------|
-| Health | `GET /health`, `GET /v1/health`, `GET /health/detailed` |
-| Chat | `POST /v1/chat/completions` |
-| Hermes | `GET /v1/models`, `/v1/capabilities`, `/v1/runs`, `/api/sessions`, `/api/jobs` |
-| Management | `GET/POST /api/holix/profiles`, `…/models`, `…/telegram`, `…/max`, `…/reload` |
-| Admin | `POST /admin/api-keys`, `GET /admin/metrics`, `GET /metrics` (Prometheus) |
+Endpoint tables, request bodies, and curl examples: **[GATEWAY_API.md](GATEWAY_API.md)** only — not duplicated here.
 
 ## Gateway API keys
 

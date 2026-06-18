@@ -1,57 +1,61 @@
 # Holix Documentation (English)
 
-Holix is a self-improving AI agent with memory, skills, tool calling, MCP, CLI, TUI, API gateway, and Telegram.
+Holix is a self-improving AI agent: memory, skills, MCP, CLI, TUI, API gateway, Telegram, and MAX.
 
-**Install from PyPI:** `pipx install Holix` — [pypi.org/project/Holix](https://pypi.org/project/Holix/)
+**Install:** `uv tool install Holix` or see [INSTALLATION.md](INSTALLATION.md) (local **uv** path vs **Docker**).
 
-> **Follow development:** subscribe to the [Telegram channel @holix_agent](https://t.me/holix_agent) for releases, roadmap, and project news.
+> **Follow development:** [Telegram @holix_agent](https://t.me/holix_agent)
 
-## Getting started
+---
 
-1. [INSTALLATION.md](INSTALLATION.md) — PyPI install, **Windows**, extras, updates, Docker
-2. [START_HERE.md](START_HERE.md) — first run checklist
-3. [QUICKSTART.md](QUICKSTART.md) — minimal command list
-4. [CONFIGURATION.md](CONFIGURATION.md) — `.env`, profiles, secrets
-5. [PROFILES.md](PROFILES.md) — **isolated profiles, SOUL/USER identity, access keys, multi-user setup, workspace jail**
-6. [PROFILE_ENCRYPTION.md](PROFILE_ENCRYPTION.md) — **at-rest encryption: what is encrypted, OS policy (Linux/macOS/Windows), unlock key**
+## Start here
 
-## Interfaces
+| Step | Document |
+|------|----------|
+| 1. Install | [INSTALLATION.md](INSTALLATION.md) |
+| 2. First run checklist | [START_HERE.md](START_HERE.md) |
+| 3. Full learning path | [USER_GUIDE.md](USER_GUIDE.md) |
 
-- [CLI.md](CLI.md) — **complete `holix` command reference**
-- [LAUNCH.md](LAUNCH.md) — **`holix launch`** — external coding CLIs in tmux (Claude Code, OpenCode, Grok Build)
-- [SUBAGENTS.md](SUBAGENTS.md) — **sub-agents** — types, custom types (`/subagent-types`), spawn, delegate, limits
-- [LAUNCH_SUBAGENTS.md](LAUNCH_SUBAGENTS.md) — sub-agents vs `holix launch` and `external_cli` assignment
-- [SLASH_COMMANDS.md](SLASH_COMMANDS.md) — **all `/` commands** (TUI, Telegram, chat)
-- [EXECUTION_MODES.md](EXECUTION_MODES.md) — **ReAct, Plan, Hybrid, Auto** — how modes work and prompt examples
-- [TUI.md](TUI.md) — `holix tui`, web mode, copy, hub UI
-- [HUB.md](HUB.md) — `holix hub`, catalogs, `skill_assignments`
-- [GATEWAY.md](GATEWAY.md) — `holix gateway start|stop|status|reload`
-- [CRON.md](CRON.md) — **scheduled tasks** — auto-create from chat, `/cron`, `holix cron`
-- [GATEWAY_API.md](GATEWAY_API.md) — **Complete API reference — every endpoint documented** (auth, `/api/holix/`, SaaS curl)
-- [TELEGRAM.md](TELEGRAM.md) — Telegram
-- [MAX.md](MAX.md) — MAX messenger
-- [TELEGRAM_MULTI_PROFILE.md](TELEGRAM_MULTI_PROFILE.md) — one bot / multiple bots, access requests, manual `map`
-- [MAX_MULTI_PROFILE.md](MAX_MULTI_PROFILE.md) — one bot / multiple MAX bots, access requests, `map`
-- [BROWSER_TOOLS.md](BROWSER_TOOLS.md) — Playwright `browser_*` tools
+---
 
-## Packaging
+## Documentation map
 
-- [PYPI.md](PYPI.md) — build and publish to PyPI (`Holix`)
+### Install & configure
 
-## Operations
+- [INSTALLATION.md](INSTALLATION.md) — Path A: uv / pipx · Path B: Docker
+- [START_HERE.md](START_HERE.md) — checklist + command cheat sheet
+- [CONFIGURATION.md](CONFIGURATION.md) — `.env`, YAML, models
+- [PROFILES.md](PROFILES.md) — isolation, SOUL/USER, jail, keys
+- [PROFILE_ENCRYPTION.md](PROFILE_ENCRYPTION.md) — at-rest encryption
 
-- [LOGS.md](LOGS.md) — `holix logs`, rotation, debug mode
-- [DOCTOR.md](DOCTOR.md) — `holix doctor` and `--fix`
-- [SECURITY.md](SECURITY.md) — auth, encryption, production checklist
-- [PROFILE_ENCRYPTION.md](PROFILE_ENCRYPTION.md) — **full encryption guide by OS**
-- [TERMINAL_SECURITY.md](TERMINAL_SECURITY.md) — terminal whitelist, blocked commands, confirmations
-- [DEPLOYMENT.md](DEPLOYMENT.md) — Docker, systemd, CI
-- [TROUBLESHOOTING.md](TROUBLESHOOTING.md) — common failures
+### Using Holix
 
-## Architecture
+- [TUI.md](TUI.md) · [SLASH_COMMANDS.md](SLASH_COMMANDS.md) · [EXECUTION_MODES.md](EXECUTION_MODES.md)
+- [CLI.md](CLI.md) — complete command reference
+- [HUB.md](HUB.md) · [BROWSER_TOOLS.md](BROWSER_TOOLS.md)
 
-- [ARCHITECTURE.md](ARCHITECTURE.md) — runtime, DI, events, graph
+### Agents & automation
+
+- [SUBAGENTS.md](SUBAGENTS.md) · [LAUNCH.md](LAUNCH.md) · [CRON.md](CRON.md)
+
+### Integrations & API
+
+- [TELEGRAM.md](TELEGRAM.md) · [MAX.md](MAX.md)
+- [GATEWAY.md](GATEWAY.md) · [GATEWAY_API.md](GATEWAY_API.md)
+
+### Security & operations
+
+- [SECURITY.md](SECURITY.md) · [TERMINAL_SECURITY.md](TERMINAL_SECURITY.md)
+- [DEPLOYMENT.md](DEPLOYMENT.md) · [LOGS.md](LOGS.md) · [DOCTOR.md](DOCTOR.md) · [TROUBLESHOOTING.md](TROUBLESHOOTING.md)
+
+### Internals
+
+- [ARCHITECTURE.md](ARCHITECTURE.md) · [CHANGELOG.md](../CHANGELOG.md) · [PYPI.md](PYPI.md)
+
+---
 
 ## Russian
 
 [../ru/README.md](../ru/README.md)
+
+**Website:** [holix-agent.ru/docs](https://holix-agent.ru/docs)

@@ -1,50 +1,54 @@
 # Документация Holix (русский)
 
-Английская версия — основная: [../en/README.md](../en/README.md).
+Английская версия — основная для точности: [../en/README.md](../en/README.md).
 
-**Установка с PyPI:** `pipx install Holix` — [pypi.org/project/Holix](https://pypi.org/project/Holix/)
+**Установка:** `uv tool install Holix` или [INSTALLATION.md](INSTALLATION.md) (путь **uv** / **Docker**).
 
-> **Следите за развитием:** подпишитесь на [Telegram-канал @holix_agent](https://t.me/holix_agent) — релизы, планы и новости проекта.
+> **Канал:** [Telegram @holix_agent](https://t.me/holix_agent)
+
+---
 
 ## С чего начать
 
-1. [INSTALLATION.md](INSTALLATION.md) — установка с PyPI, **Windows**, extras, обновления
-2. [START_HERE.md](START_HERE.md) — первый запуск
-3. [QUICKSTART.md](QUICKSTART.md) — минимум команд
-4. [CONFIGURATION.md](CONFIGURATION.md) — `.env`, профили
-5. [PROFILES.md](PROFILES.md) — **изолированные профили, SOUL/USER, ключи доступа, несколько пользователей, workspace jail**
-6. [PROFILE_ENCRYPTION.md](PROFILE_ENCRYPTION.md) — **шифрование at-rest: что шифруется, политика по ОС (Linux/macOS/Windows), ключ разблокировки**
+| Шаг | Документ |
+|-----|----------|
+| 1. Установка | [INSTALLATION.md](INSTALLATION.md) |
+| 2. Первый запуск | [START_HERE.md](START_HERE.md) |
+| 3. Маршрут обучения | [USER_GUIDE.md](USER_GUIDE.md) |
 
-## Интерфейсы
+---
 
-- [CLI.md](CLI.md) — **справочник команд `holix`**
-- [LAUNCH.md](LAUNCH.md) — **`holix launch`** — внешние coding CLI в tmux (Claude Code, OpenCode, Grok Build)
-- [SUBAGENTS.md](SUBAGENTS.md) — **субагенты** — типы, свои типы (`/subagent-types`), запуск, делегирование, лимиты
-- [LAUNCH_SUBAGENTS.md](LAUNCH_SUBAGENTS.md) — субагенты и `holix launch`, назначение `external_cli`
-- [SLASH_COMMANDS.md](SLASH_COMMANDS.md) — **слэш-команды `/`**
-- [EXECUTION_MODES.md](EXECUTION_MODES.md) — **ReAct, Plan, Hybrid, Auto** — как работают режимы и примеры промптов
-- [TUI.md](TUI.md) — `holix tui`
-- [HUB.md](HUB.md) — каталоги навыков
-- [GATEWAY.md](GATEWAY.md) — API gateway
-- [CRON.md](CRON.md) — **периодические задачи** — автосоздание из чата, `/cron`, `holix cron`
-- [GATEWAY_API.md](GATEWAY_API.md) — **полный справочник API — каждый эндпоинт задокументирован** (auth, `/api/holix/`, SaaS curl)
-- [TELEGRAM.md](TELEGRAM.md) — Telegram
-- [MAX.md](MAX.md) — мессенджер MAX
-- [TELEGRAM_MULTI_PROFILE.md](TELEGRAM_MULTI_PROFILE.md) — один бот / несколько ботов, access requests, ручной `map`
-- [MAX_MULTI_PROFILE.md](MAX_MULTI_PROFILE.md) — один бот / несколько ботов MAX, access requests, `map`
-- [BROWSER_TOOLS.md](BROWSER_TOOLS.md) — Playwright
+## Карта документации
 
-## Лицензирование
+### Установка и конфигурация
 
-- [LICENSING_STRATEGY.md](LICENSING_STRATEGY.md) — стратегия лицензирования (Open Core / commercial)
+- [INSTALLATION.md](INSTALLATION.md) — путь A: uv · путь B: Docker
+- [START_HERE.md](START_HERE.md) — чеклист + шпаргалка
+- [CONFIGURATION.md](CONFIGURATION.md) · [PROFILES.md](PROFILES.md) · [PROFILE_ENCRYPTION.md](PROFILE_ENCRYPTION.md)
 
-## Эксплуатация
+### Работа с агентом
 
-- [LOGS.md](LOGS.md) — `holix logs`, ротация, debug
-- [DOCTOR.md](DOCTOR.md)
-- [SECURITY.md](SECURITY.md) — auth, шифрование, production checklist
-- [PROFILE_ENCRYPTION.md](PROFILE_ENCRYPTION.md) — **полный гайд по шифрованию по ОС**
-- [TERMINAL_SECURITY.md](TERMINAL_SECURITY.md) — whitelist терминала, запрещённые команды, подтверждения
-- [DEPLOYMENT.md](DEPLOYMENT.md)
-- [TROUBLESHOOTING.md](TROUBLESHOOTING.md)
-- [ARCHITECTURE.md](ARCHITECTURE.md)
+- [TUI.md](TUI.md) · [SLASH_COMMANDS.md](SLASH_COMMANDS.md) · [EXECUTION_MODES.md](EXECUTION_MODES.md)
+- [CLI.md](CLI.md) · [HUB.md](HUB.md) · [BROWSER_TOOLS.md](BROWSER_TOOLS.md)
+
+### Агенты и автоматизация
+
+- [SUBAGENTS.md](SUBAGENTS.md) · [LAUNCH.md](LAUNCH.md) · [CRON.md](CRON.md)
+
+### Интеграции и API
+
+- [TELEGRAM.md](TELEGRAM.md) · [MAX.md](MAX.md)
+- [GATEWAY.md](GATEWAY.md) · [GATEWAY_API.md](GATEWAY_API.md)
+
+### Безопасность и эксплуатация
+
+- [SECURITY.md](SECURITY.md) · [TERMINAL_SECURITY.md](TERMINAL_SECURITY.md)
+- [DEPLOYMENT.md](DEPLOYMENT.md) · [LOGS.md](LOGS.md) · [TROUBLESHOOTING.md](TROUBLESHOOTING.md)
+
+### Внутренности
+
+- [ARCHITECTURE.md](ARCHITECTURE.md) · [CHANGELOG.md](../CHANGELOG.md)
+
+---
+
+**Сайт:** [holix-agent.ru/docs](https://holix-agent.ru/docs)

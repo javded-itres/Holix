@@ -603,7 +603,7 @@ holix -p shared telegram map set 123456789 alice   # manual alternative
 holix -p shared gateway start
 ```
 
-Shared bot with isolated profiles: [TELEGRAM_MULTI_PROFILE.md](TELEGRAM_MULTI_PROFILE.md).  
+Shared bot with isolated profiles: [TELEGRAM.md](TELEGRAM.md#multi-profile-topologies).  
 See also [TELEGRAM.md](TELEGRAM.md).
 
 ---

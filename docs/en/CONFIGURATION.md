@@ -145,7 +145,7 @@ holix -p shared telegram map import "111:alice,222:bob"
 | `HOLIX_TELEGRAM_USER_PROFILES` | `USER_ID:profile` comma-separated in `telegram.env` |
 | `telegram-users.json` | User bindings; updated by `map` or `requests approve` |
 
-Details: [TELEGRAM.md](TELEGRAM.md), [TELEGRAM_MULTI_PROFILE.md](TELEGRAM_MULTI_PROFILE.md).
+Details: [TELEGRAM.md](TELEGRAM.md) (incl. multi-profile topologies).
 
 ## Key environment variables
 

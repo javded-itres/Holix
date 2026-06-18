@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+### Documentation
+- **Information architecture** — one canonical page per topic; merged multi-profile and launch-subagents docs into TELEGRAM, MAX, SUBAGENTS
+- **INSTALLATION** (EN/RU) — unified Path A (uv/pipx) and Path B (Docker); QUICKSTART → START_HERE cheat sheet
+- **USER_GUIDE** — learning path with links only (removed from site nav)
+- **Site /docs** — regrouped sidebar (install, daily use, agents, integrations, reference); CLI moved to end
+
 ## 0.1.16 — 2026-06-18
 
 ### Added
