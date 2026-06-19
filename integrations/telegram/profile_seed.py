@@ -134,11 +134,16 @@ def _seed_profile_env_from_bot(bot_profile: str, user_profile: str) -> None:
     if not to_copy:
         return
 
+    from core.crypto.profile_files import read_profile_file_text, write_profile_file_text
+    from core.crypto.unlock_context import bootstrap_profile_unlock_from_env
+
+    bootstrap_profile_unlock_from_env(user_profile)
+
     user_env = profile_env_path(user_profile)
     user_env.parent.mkdir(parents=True, exist_ok=True)
     lines: list[str] = []
     if user_env.is_file():
-        lines.append(user_env.read_text(encoding="utf-8").rstrip())
+        lines.append(read_profile_file_text(user_env, profile=user_profile).rstrip())
         lines.append("")
     else:
         lines.append(
@@ -146,7 +151,7 @@ def _seed_profile_env_from_bot(bot_profile: str, user_profile: str) -> None:
         )
     for key in sorted(to_copy):
         lines.append(f"{key}={to_copy[key]}")
-    user_env.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    write_profile_file_text(user_env, "\n".join(lines) + "\n", profile=user_profile)
 
 
 def seed_telegram_user_profile_from_bot(

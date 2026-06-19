@@ -119,16 +119,26 @@ class HolixTelegramBot:
     async def _ensure_authorized_menu(self, bot: Any, chat_id: int, user_id: int) -> None:
         if self.settings.allow_all or chat_id in self._menu_enabled_chats:
             return
+        import logging
+
         from integrations.messenger.locale import messenger_locale
 
         locale = messenger_locale(self.settings.profile)
-        await enable_chat_menu(
-            bot,
-            chat_id,
-            locale=locale,
-            bot_profile=self.settings.profile,
-            user_id=user_id,
-        )
+        try:
+            await enable_chat_menu(
+                bot,
+                chat_id,
+                locale=locale,
+                bot_profile=self.settings.profile,
+                user_id=user_id,
+            )
+        except Exception as exc:
+            logging.getLogger(__name__).warning(
+                "Telegram menu setup failed for chat %s (continuing): %s",
+                chat_id,
+                exc,
+            )
+        # Mark attempted so a slow/failed menu API does not block every message.
         self._menu_enabled_chats.add(chat_id)
 
     def _default_profile_for_user(self, user_id: int) -> str:
@@ -138,6 +148,7 @@ class HolixTelegramBot:
     async def _switch_session_profile(self, session: ChatSession, profile: str) -> None:
         from integrations.telegram.agent_setup import create_agent
 
+        previous_profile = session.profile
         session.profile = profile
         session.conversation_id = f"tg_{profile}_{session.chat_id}"
         session.agent = await create_agent(
@@ -145,7 +156,8 @@ class HolixTelegramBot:
             bot_profile=self.settings.profile,
             telegram_user_id=session.user_id,
         )
-        session.pending_files.clear()
+        if previous_profile != profile:
+            session.pending_files.clear()
         session.pending_plan_review_id = None
         session.pending_confirmation_message_id = None
         session.pending_plan_message_ids.clear()
@@ -331,6 +343,13 @@ class HolixTelegramBot:
                 )
                 saved_files.append(saved)
             except Exception as exc:
+                import logging
+
+                logging.getLogger(__name__).exception(
+                    "Telegram attachment save failed for profile=%s file=%s",
+                    session.profile,
+                    item.file_name,
+                )
                 errors.append(f"{item.file_name}: {exc}")
 
         if not saved_files and errors:

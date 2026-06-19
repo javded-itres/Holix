@@ -78,4 +78,7 @@ def test_copy_profile_settings_updates_existing_admin(holix_home) -> None:
         source_profile="default",
         target_profile="admin",
     )
-    assert manager.load_profile("admin").max_steps == 17
+    admin_cfg = manager.load_profile("admin")
+    assert admin_cfg.max_steps == 17
+    assert "profiles/admin/data" in admin_cfg.data_dir.replace("\\", "/")
+    assert "profiles/default/data" not in admin_cfg.data_dir.replace("\\", "/")

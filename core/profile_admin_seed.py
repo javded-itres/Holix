@@ -87,10 +87,16 @@ def copy_profile_settings_from_source(
 
     from cli.core import ProfileConfig, resolve_profile_storage_paths
 
-    from core.global_config import extract_profile_overrides, load_global_config_resolved
+    from core.global_config import (
+        PROFILE_ONLY_KEYS,
+        extract_profile_overrides,
+        load_global_config_resolved,
+    )
 
     source_cfg = manager.load_profile(source_profile)
     payload = source_cfg.model_dump()
+    for key in PROFILE_ONLY_KEYS:
+        payload.pop(key, None)
     payload["profile_name"] = target_profile
     target_cfg = ProfileConfig(**payload)
     target_cfg = resolve_profile_storage_paths(

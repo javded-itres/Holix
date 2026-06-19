@@ -61,6 +61,26 @@ def test_authorize_unlocks_mapped_profile_without_key(holix_home) -> None:
     assert "lain" in cli_core._unlocked_profiles
 
 
+def test_init_profile_for_telegram_ignores_stale_encryption_flag(
+    holix_home, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """encryption_enabled without crypto.json must not break Telegram file saves."""
+    from integrations.telegram.user_profiles import set_user_profile
+
+    manager = ProfileManager()
+    manager.create_profile("admin", inherit_global=True)
+    cfg = manager.load_profile("admin")
+    cfg.encryption_enabled = True
+    manager.save_profile("admin", cfg)
+
+    save_telegram_env({"TELEGRAM_BOT_TOKEN": "1:abc"}, profile="shared")
+    set_user_profile("shared", 77, "admin")
+    monkeypatch.setenv("HOLIX_UNLOCK_KEY", "unlock-key-stale-flag")
+
+    cfg = init_profile_for_telegram("admin", bot_profile="shared", telegram_user_id=77)
+    assert cfg.profile_name == "admin"
+
+
 def test_init_profile_for_telegram_does_not_prompt(holix_home, monkeypatch: pytest.MonkeyPatch) -> None:
     from integrations.telegram.user_profiles import set_user_profile
 

@@ -165,11 +165,26 @@ async def enable_chat_menu(
     if not commands:
         return []
 
+    import asyncio
+    import logging
+
     cid = int(chat_id)
     scope = BotCommandScopeChat(chat_id=cid)
-    await bot.set_my_commands(commands, scope=scope)
     try:
-        await bot.set_chat_menu_button(chat_id=cid, menu_button=MenuButtonCommands())
+        await asyncio.wait_for(
+            bot.set_my_commands(commands, scope=scope),
+            timeout=15.0,
+        )
+    except Exception as exc:
+        logging.getLogger(__name__).warning(
+            "set_my_commands failed for chat %s: %s", cid, exc
+        )
+        raise
+    try:
+        await asyncio.wait_for(
+            bot.set_chat_menu_button(chat_id=cid, menu_button=MenuButtonCommands()),
+            timeout=10.0,
+        )
     except Exception:
         pass
     return [cmd.command for cmd in commands]

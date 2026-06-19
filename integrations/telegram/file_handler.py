@@ -218,14 +218,12 @@ def profile_files_dir(
     bot_profile: str | None = None,
     telegram_user_id: int | None = None,
 ) -> Path:
-    from cli.core import ProfileManager, resolve_profile_storage_paths
+    from core.env_loader import profile_dir_path
 
     from integrations.telegram.profile_auth import init_profile_for_telegram
 
-    mgr = ProfileManager()
-    pdir = mgr.get_profile_dir(profile)
     if bot_profile is not None and telegram_user_id is not None:
-        cfg_source = init_profile_for_telegram(
+        init_profile_for_telegram(
             profile,
             bot_profile=bot_profile,
             telegram_user_id=telegram_user_id,
@@ -233,9 +231,9 @@ def profile_files_dir(
     else:
         from cli.core import init_profile
 
-        cfg_source = init_profile(profile, prompt_key=False)
-    cfg = resolve_profile_storage_paths(profile, cfg_source, profile_dir=pdir)
-    dest = Path(cfg.data_dir) / "files" / "telegram" / str(chat_id)
+        init_profile(profile, prompt_key=False)
+    # Always store Telegram attachments under the named profile dir (never a shared data_dir).
+    dest = profile_dir_path(profile) / "data" / "files" / "telegram" / str(chat_id)
     dest.mkdir(parents=True, exist_ok=True)
     return dest
 
@@ -510,25 +508,49 @@ def format_files_preview(
 def build_agent_prompt(user_text: str, files: list[SavedTelegramFile]) -> str:
     lines = []
     task = (user_text or "").strip()
+    images = [f for f in files if f.kind == "image" or _is_image(f.mime_type, f.original_name)]
     if task:
         lines.append(task)
+    elif images:
+        lines.append(
+            "Проанализируй прикреплённое изображение на основе распознавания ниже "
+            "и ответь по запросу пользователя."
+        )
     else:
         lines.append("Обработай прикреплённые файлы.")
 
     lines.append("")
-    lines.append("## Вложения (сохранены в профиле)")
+    lines.append("## Вложения из Telegram (уже загружены и сохранены)")
+    lines.append(
+        "Файлы уже приняты из чата и лежат на диске. "
+        "НЕ проси пользователя загрузить их повторно."
+    )
     for item in files:
+        is_image = item.kind == "image" or _is_image(item.mime_type, item.original_name)
         lines.append(f"- **{item.original_name}** ({item.kind})")
         lines.append(f"  Путь: `{item.path}`")
         lines.append(f"  MIME: {item.mime_type or 'unknown'} · {item.size_bytes} bytes")
+        if is_image:
+            lines.append(
+                "  Тип: изображение — read_file для JPEG/PNG не подходит; "
+                "используй блок «Содержимое / распознавание» ниже."
+            )
         if item.description:
-            lines.append("  Содержимое / распознавание:")
+            lines.append("  Содержимое / распознавание (vision, уже выполнено):")
             lines.append("  ```")
             lines.append(item.description.strip())
             lines.append("  ```")
+        elif is_image:
+            lines.append("  (Распознавание недоступно — опиши ограничение пользователю.)")
     lines.append("")
+    if images:
+        lines.append(
+            "Для изображений опирайся на vision-описание выше — это основной источник. "
+            "Не вызывай read_file для бинарных фото."
+        )
+        lines.append("")
     lines.append(
-        "Используй пути к файлам для read_file, write_file и других инструментов. "
+        "Для текстовых файлов используй read_file/write_file. "
         "Чтобы отправить сформированные файлы пользователю в Telegram, вызови "
         "send_chat_files с путями (2–10 файлов отправятся альбомом). "
         "Не удаляй оригиналы без явного запроса пользователя."
