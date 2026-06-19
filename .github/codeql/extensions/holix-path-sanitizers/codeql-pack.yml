@@ -1,4 +1,4 @@
-name: holix-itres/holix-path-model
+name: holix-itres/holix-path-sanitizers
 version: 0.0.1
 library: true
 extensionTargets:
