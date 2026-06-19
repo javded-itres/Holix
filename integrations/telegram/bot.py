@@ -160,17 +160,32 @@ class HolixTelegramBot:
         mapped = resolve_user_profile(self.settings.profile, user_id)
         return mapped or self.settings.profile
 
-    async def _switch_session_profile(self, session: ChatSession, profile: str) -> None:
+    async def _switch_session_profile(
+        self,
+        session: ChatSession,
+        profile: str,
+        *,
+        bot: Any | None = None,
+    ) -> None:
         from integrations.telegram.agent_setup import create_agent
+        from integrations.telegram.typing_indicator import TypingIndicator
 
         previous_profile = session.profile
         session.profile = profile
         session.conversation_id = f"tg_{profile}_{session.chat_id}"
-        session.agent = await create_agent(
-            profile,
-            bot_profile=self.settings.profile,
-            telegram_user_id=session.user_id,
-        )
+
+        async def _create() -> None:
+            session.agent = await create_agent(
+                profile,
+                bot_profile=self.settings.profile,
+                telegram_user_id=session.user_id,
+            )
+
+        if bot is not None:
+            async with TypingIndicator(bot, session.chat_id):
+                await _create()
+        else:
+            await _create()
         if previous_profile != profile:
             session.pending_files.clear()
         session.pending_plan_review_id = None
@@ -182,24 +197,55 @@ class HolixTelegramBot:
         session._memory_search_query = ""
         session._memory_search_results.clear()
 
-    async def _get_session(self, chat_id: int, user_id: int) -> ChatSession:
-        if chat_id not in self._sessions:
-            profile = self._default_profile_for_user(user_id)
-            self._sessions[chat_id] = ChatSession(
-                chat_id=chat_id,
-                user_id=user_id,
-                profile=profile,
-                conversation_id=f"tg_{profile}_{chat_id}",
-                bot_profile=self.settings.profile,
+    async def _send_session_error(self, bot: Any, chat_id: int, exc: Exception) -> None:
+        from integrations.telegram.markdown import escape_html
+
+        name = type(exc).__name__
+        if name == "InvalidTag":
+            text = (
+                "❌ Не удалось открыть память профиля (ошибка шифрования).\n"
+                "Обратитесь к администратору."
             )
-        session = self._sessions[chat_id]
-        if not session.profile_manual_override:
-            target = self._default_profile_for_user(user_id)
-            if target != session.profile:
-                await self._switch_session_profile(session, target)
-        if session.agent is None:
-            await self._switch_session_profile(session, session.profile)
-        return session
+        elif name == "ProfileKeyError":
+            text = "❌ Профиль защищён ключом доступа. Обратитесь к администратору."
+        elif name == "PermissionError":
+            text = f"❌ Нет доступа к этому профилю.\n{escape_html(str(exc))}"
+        else:
+            text = f"❌ Ошибка инициализации агента: {escape_html(str(exc) or name)}"
+        try:
+            await bot.send_message(chat_id, text, parse_mode="HTML")
+        except Exception:
+            pass
+
+    async def _get_session(
+        self,
+        chat_id: int,
+        user_id: int,
+        *,
+        bot: Any | None = None,
+    ) -> ChatSession:
+        try:
+            if chat_id not in self._sessions:
+                profile = self._default_profile_for_user(user_id)
+                self._sessions[chat_id] = ChatSession(
+                    chat_id=chat_id,
+                    user_id=user_id,
+                    profile=profile,
+                    conversation_id=f"tg_{profile}_{chat_id}",
+                    bot_profile=self.settings.profile,
+                )
+            session = self._sessions[chat_id]
+            if not session.profile_manual_override:
+                target = self._default_profile_for_user(user_id)
+                if target != session.profile:
+                    await self._switch_session_profile(session, target, bot=bot)
+            if session.agent is None:
+                await self._switch_session_profile(session, session.profile, bot=bot)
+            return session
+        except Exception as exc:
+            if bot is not None:
+                await self._send_session_error(bot, chat_id, exc)
+            raise
 
     async def _handle_transcribed_audio(
         self,
@@ -228,7 +274,9 @@ class HolixTelegramBot:
 
         await bot.send_chat_action(message.chat.id, action=ChatAction.TYPING)
 
-        session = await self._get_session(message.chat.id, message.from_user.id)
+        session = await self._get_session(
+            message.chat.id, message.from_user.id, bot=bot
+        )
         try:
             transcribed = await process_voice_message(
                 bot,
@@ -339,7 +387,7 @@ class HolixTelegramBot:
 
         await bot.send_chat_action(chat_id, action=ChatAction.TYPING)
 
-        session = await self._get_session(chat_id, user_id)
+        session = await self._get_session(chat_id, user_id, bot=bot)
         saved_files: list[SavedTelegramFile] = []
         errors: list[str] = []
 
@@ -402,7 +450,9 @@ class HolixTelegramBot:
         user_text: str,
         settings: TelegramSettings,
     ) -> bool:
-        session = await self._get_session(message.chat.id, message.from_user.id)
+        session = await self._get_session(
+            message.chat.id, message.from_user.id, bot=bot
+        )
         if not session.pending_files:
             return False
 
@@ -509,7 +559,9 @@ class HolixTelegramBot:
                 )
                 return
             await self._ensure_authorized_menu(bot, message.chat.id, message.from_user.id)
-            session = await self._get_session(message.chat.id, message.from_user.id)
+            session = await self._get_session(
+                message.chat.id, message.from_user.id, bot=bot
+            )
             host = TelegramHost(bot, session, edit_interval_ms=settings.edit_interval_ms)
             await host.handle_user_text(message.text.strip())
 
@@ -538,7 +590,12 @@ class HolixTelegramBot:
                 settings=settings,
             ):
                 return
-            session = await self._get_session(message.chat.id, message.from_user.id)
+            try:
+                session = await self._get_session(
+                    message.chat.id, message.from_user.id, bot=bot
+                )
+            except Exception:
+                return
             host = TelegramHost(bot, session, edit_interval_ms=settings.edit_interval_ms)
             await host.handle_user_text(message.text)
 
@@ -628,7 +685,9 @@ class HolixTelegramBot:
                 await query.answer("Invalid.", show_alert=True)
                 return
             _, cid, code = parts
-            session = await self._get_session(query.message.chat.id, query.from_user.id)
+            session = await self._get_session(
+                query.message.chat.id, query.from_user.id, bot=bot
+            )
             approvals = TelegramApprovals(bot, session)
             if approvals.resolve_confirmation_callback(cid, code):
                 await approvals.dismiss_confirmation_ui()
@@ -646,7 +705,9 @@ class HolixTelegramBot:
             if not self._allowed(query.from_user.id):
                 await query.answer("Access denied.", show_alert=True)
                 return
-            session = await self._get_session(query.message.chat.id, query.from_user.id)
+            session = await self._get_session(
+                query.message.chat.id, query.from_user.id, bot=bot
+            )
             host = TelegramHost(bot, session, edit_interval_ms=settings.edit_interval_ms)
             value = query.data.split(":", 1)[1] if ":" in query.data else ""
             try:
@@ -693,7 +754,9 @@ class HolixTelegramBot:
             if not self._allowed(query.from_user.id):
                 await query.answer("Access denied.", show_alert=True)
                 return
-            session = await self._get_session(query.message.chat.id, query.from_user.id)
+            session = await self._get_session(
+                query.message.chat.id, query.from_user.id, bot=bot
+            )
             host = TelegramHost(bot, session, edit_interval_ms=settings.edit_interval_ms)
             try:
                 msg = await dispatch_callback(host, query.data)
@@ -713,7 +776,9 @@ class HolixTelegramBot:
                 await query.answer("Invalid.", show_alert=True)
                 return
             _, rid, action = parts
-            session = await self._get_session(query.message.chat.id, query.from_user.id)
+            session = await self._get_session(
+                query.message.chat.id, query.from_user.id, bot=bot
+            )
             approvals = TelegramApprovals(bot, session)
             if approvals.resolve_plan_callback(rid, action):
                 await approvals.dismiss_plan_review_ui()

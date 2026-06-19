@@ -5,7 +5,10 @@ from __future__ import annotations
 from cli.core import ProfileConfig, init_profile
 from core.agent import HolixAgent
 
-from integrations.telegram.profile_auth import authorize_telegram_profile_access
+from integrations.telegram.profile_auth import (
+    init_profile_for_telegram,
+    telegram_user_may_access_profile,
+)
 
 
 async def create_agent(
@@ -17,7 +20,11 @@ async def create_agent(
     profile_key: str | None = None,
 ) -> HolixAgent:
     if bot_profile is not None and telegram_user_id is not None:
-        authorize_telegram_profile_access(bot_profile, telegram_user_id, profile)
+        if not telegram_user_may_access_profile(bot_profile, telegram_user_id, profile):
+            msg = (
+                f"Telegram user {telegram_user_id} is not authorized for profile '{profile}'"
+            )
+            raise PermissionError(msg)
         if config is None:
             from cli.core import ProfileManager
 
@@ -31,7 +38,16 @@ async def create_agent(
     from integrations.messenger.locale import ensure_messenger_locale
 
     ensure_messenger_locale(profile)
-    config = config or init_profile(profile, profile_key=profile_key, prompt_key=False)
+    if config is None:
+        if bot_profile is not None and telegram_user_id is not None:
+            config = init_profile_for_telegram(
+                profile,
+                bot_profile=bot_profile,
+                telegram_user_id=telegram_user_id,
+                profile_key=profile_key,
+            )
+        else:
+            config = init_profile(profile, profile_key=profile_key, prompt_key=False)
     from core.paths import ensure_profile_memory_dirs
 
     ensure_profile_memory_dirs(profile)
