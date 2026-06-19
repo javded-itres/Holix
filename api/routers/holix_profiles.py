@@ -159,7 +159,8 @@ async def delete_profile(
         "profile": profile_id,
         "notified_users": result.notified,
         "notify_failed": [
-            {"user_id": uid, "error": err} for uid, err in result.notify_failed
+            {"user_id": uid, "error": client_safe_message(err)}
+            for uid, err in result.notify_failed
         ],
         "mappings_removed": result.mappings_removed,
     }
@@ -305,17 +306,10 @@ async def jail_enable(
     if body.path:
         from pathlib import Path
 
-        from core.profile.names import resolve_workspace_root, trusted_profile_workspace
+        from core.profile.names import ensure_profile_workspace_dir
 
-        import os
-
-        root = trusted_profile_workspace(
-            profile_id,
-            resolve_workspace_root(Path(body.path)),
-        )
-        safe_root = Path(os.path.realpath(str(root)))
-        safe_root.mkdir(parents=True, exist_ok=True)
-        config.workspace_root = str(safe_root)
+        workspace = ensure_profile_workspace_dir(profile_id, Path(body.path))
+        config.workspace_root = str(workspace)
     else:
         workspace = enable_profile_workspace_isolation(manager, profile_id)
         config.workspace_root = str(workspace)

@@ -8,10 +8,9 @@ from core.docs_chat.service import DocsChatService
 from core.docs_chat.sessions import clear_session, load_session, validate_client_id
 from core.security.auth import RateLimiter
 from fastapi import APIRouter, Header, HTTPException, Query
-from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
-from api.errors import safe_sse_wrap
+from api.errors import sse_streaming_response
 from config import settings
 
 router = APIRouter(prefix="/v1/docs/chat", tags=["docs-chat"])
@@ -133,19 +132,20 @@ async def docs_chat(
     if request.stream:
 
         async def generate():
-            async for chunk in service.stream(
-                message,
-                lang=request.lang,
-                page_slug=request.page_slug,
-                client_id=request.client_id,
-            ):
-                yield chunk
+            try:
+                async for chunk in service.stream(
+                    message,
+                    lang=request.lang,
+                    page_slug=request.page_slug,
+                    client_id=request.client_id,
+                ):
+                    yield chunk
+            except Exception:
+                from api.errors import _SSE_ERROR_CHUNK
 
-        return StreamingResponse(
-            safe_sse_wrap(generate()),
-            media_type="text/event-stream",
-            headers={"Cache-Control": "no-cache", "Connection": "keep-alive"},
-        )
+                yield _SSE_ERROR_CHUNK
+
+        return sse_streaming_response(generate())
 
     content, pages, open_slug = await service.complete(
         message,

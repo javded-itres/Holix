@@ -27,6 +27,18 @@ _TARGET_NAME_RE = re.compile(r"^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,63}$")
 _GIT_URL_RE = re.compile(r"^(https://|git@|ssh://)[^\s]+$")
 
 
+_ALLOWED_INSTALL_TOOLS = frozenset({"git", "npm", "bun", "uv", "node", "python", "python3"})
+
+
+def _resolve_executable(program: str) -> str:
+    if program not in _ALLOWED_INSTALL_TOOLS:
+        raise ValueError(f"Unsupported command: {program}")
+    resolved = shutil.which(program)
+    if not resolved:
+        raise ValueError(f"Command not found: {program}")
+    return resolved
+
+
 def _validate_subprocess_argv(cmd: list[str]) -> list[str]:
     if not cmd or not all(isinstance(arg, str) and arg for arg in cmd):
         raise ValueError("Invalid subprocess command")
@@ -56,10 +68,12 @@ def ensure_mcp_servers_root() -> Path:
 def _run(cmd: list[str], cwd: Path | None = None, check: bool = True, capture: bool = False) -> subprocess.CompletedProcess:
     """Run a command, optionally capturing output."""
     argv = _validate_subprocess_argv(cmd)
+    executable = _resolve_executable(argv[0])
+    args = [executable, *argv[1:]]
     kwargs: dict[str, Any] = {"cwd": str(cwd) if cwd else None, "shell": False}
     if capture:
         kwargs.update({"stdout": subprocess.PIPE, "stderr": subprocess.PIPE, "text": True})
-    return subprocess.run(argv, check=check, **kwargs)
+    return subprocess.run(args, check=check, **kwargs)
 
 
 def clone_or_update_git(url: str, target_name: str, depth: int = 1) -> Path:

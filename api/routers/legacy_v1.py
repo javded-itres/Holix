@@ -7,11 +7,9 @@ import time
 from core.loop_streaming import StreamingAgentLoop
 from core.security.permissions import PermissionChecker
 from fastapi import APIRouter, Depends, Header, HTTPException
-from fastapi.responses import StreamingResponse
-
 from api import state
 from api.deps import get_registry, resolve_profile_name, verify_api_key
-from api.errors import safe_sse_wrap
+from api.errors import _SSE_ERROR_CHUNK, sse_streaming_response
 from api.models import ChatCompletionRequest, ChatCompletionResponse
 from api.services.content_parts import (
     UnsupportedContentTypeError,
@@ -85,19 +83,18 @@ async def chat_completions(
         streaming_loop = StreamingAgentLoop(agent)
 
         async def generate():
-            async with state._agent_request_lock:  # type: ignore[attr-defined]
-                with gateway_agent_path_visibility(agent, key_info):
-                    async for chunk in streaming_loop.run_conversation_stream(
-                        user_input=user_input,
-                        conversation_id=conversation_id,
-                    ):
-                        yield chunk
+            try:
+                async with state._agent_request_lock:  # type: ignore[attr-defined]
+                    with gateway_agent_path_visibility(agent, key_info):
+                        async for chunk in streaming_loop.run_conversation_stream(
+                            user_input=user_input,
+                            conversation_id=conversation_id,
+                        ):
+                            yield chunk
+            except Exception:
+                yield _SSE_ERROR_CHUNK
 
-        return StreamingResponse(
-            safe_sse_wrap(generate()),
-            media_type="text/event-stream",
-            headers={"Cache-Control": "no-cache", "Connection": "keep-alive"},
-        )
+        return sse_streaming_response(generate())
 
     try:
         start_time = time.time()

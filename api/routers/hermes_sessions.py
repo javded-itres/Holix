@@ -6,10 +6,8 @@ import json
 
 from core.security.permissions import PermissionChecker
 from fastapi import APIRouter, Depends, Header, HTTPException
-from fastapi.responses import StreamingResponse
-
 from api import state
-from api.errors import safe_sse_wrap
+from api.errors import _SSE_ERROR_CHUNK, sse_streaming_response
 from api.deps import (
     ensure_resource_profile,
     get_registry,
@@ -241,17 +239,16 @@ async def session_chat_stream(
     streaming_loop = StreamingAgentLoop(agent)
 
     async def generate():
-        async with state._agent_request_lock:  # type: ignore[attr-defined]
-            with gateway_agent_path_visibility(agent, key_info):
-                async for chunk in streaming_loop.run_conversation_stream(
-                    user_input=user_input,
-                    conversation_id=session.conversation_id,
-                ):
-                    yield chunk
-        yield f"data: {json.dumps({'type': 'run.completed', 'session_id': session_id})}\n\n"
+        try:
+            async with state._agent_request_lock:  # type: ignore[attr-defined]
+                with gateway_agent_path_visibility(agent, key_info):
+                    async for chunk in streaming_loop.run_conversation_stream(
+                        user_input=user_input,
+                        conversation_id=session.conversation_id,
+                    ):
+                        yield chunk
+            yield f"data: {json.dumps({'type': 'run.completed', 'session_id': session_id})}\n\n"
+        except Exception:
+            yield _SSE_ERROR_CHUNK
 
-    return StreamingResponse(
-        safe_sse_wrap(generate()),
-        media_type="text/event-stream",
-        headers={"Cache-Control": "no-cache", "Connection": "keep-alive"},
-    )
+    return sse_streaming_response(generate())

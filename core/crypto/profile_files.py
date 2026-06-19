@@ -138,7 +138,7 @@ def write_profile_file_text(path: Path, content: str, *, profile: str) -> None:
         dek = get_profile_session_dek(profile) or require_profile_dek(profile)
         write_encrypted_text(path, dek, content)
     else:
-        path.write_text(content, encoding="utf-8")  # codeql[py/clear-text-storage-sensitive-data]: encryption disabled by user config
+        path.write_text(content, encoding="utf-8")
     try:
         path.chmod(0o600)
     except OSError:

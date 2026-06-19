@@ -54,7 +54,7 @@ class APIKeyManager:
         return hmac.new(
             self._pepper().encode(),
             api_key.encode(),
-            hashlib.sha256,  # codeql[py/weak-sensitive-data-hashing]: HMAC-SHA256 with server pepper for API key lookup
+            hashlib.sha256,
         ).hexdigest()
 
     async def create_api_key(

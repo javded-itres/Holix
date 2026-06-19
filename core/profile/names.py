@@ -77,3 +77,23 @@ def trusted_profile_workspace(profile: str, workspace_root: Path) -> Path:
             f"Workspace path must be under profile workspace: {expected}"
         )
     return root
+
+
+def ensure_profile_workspace_dir(
+    profile: str,
+    workspace_hint: Path | None = None,
+) -> Path:
+    """Validate optional workspace path and create the directory under the profile."""
+    name = validate_profile_name(profile)
+    base = os.path.realpath(str(profile_dir_for_name(name) / "workspace"))
+    if workspace_hint is not None:
+        trusted_profile_workspace(profile, resolve_workspace_root(workspace_hint))
+        target = os.path.realpath(str(resolve_workspace_root(workspace_hint)))
+        rel = os.path.relpath(target, base)
+        if rel != "." and (rel.startswith("..") or Path(rel).parts[0] == ".."):
+            raise ProfileNameError("Workspace path escapes profile workspace")
+        final = os.path.realpath(os.path.join(base, rel)) if rel != "." else base
+    else:
+        final = base
+    os.makedirs(final, mode=0o700, exist_ok=True)
+    return Path(final)

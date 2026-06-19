@@ -149,12 +149,10 @@ async def test_server(
     try:
         tools = await _test_mcp_server(server_name, servers[server_name])
     except Exception as exc:
-        return {
-            "server": server_name,
-            "ok": False,
-            "tools": [],
-            "error": client_safe_message(exc),
-        }
+        raise HTTPException(
+            status_code=500,
+            detail=client_safe_message(exc),
+        ) from exc
     return {"server": server_name, "ok": True, "tools": tools, "count": len(tools)}
 
 

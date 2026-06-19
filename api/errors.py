@@ -24,6 +24,10 @@ def client_safe_message(exc: BaseException | str | None) -> str:
     return raw if settings.log_debug_enabled else "Internal server error"
 
 
+_SSE_ERROR_CHUNK = 'data: {"type":"error","message":"Internal server error"}\n\n'
+_SSE_HEADERS = {"Cache-Control": "no-cache", "Connection": "keep-alive"}
+
+
 async def safe_sse_wrap(stream: AsyncIterator[str]) -> AsyncIterator[str]:
     """Catch unhandled SSE generator failures so stack traces are not exposed."""
     try:
@@ -31,7 +35,34 @@ async def safe_sse_wrap(stream: AsyncIterator[str]) -> AsyncIterator[str]:
             yield chunk
     except Exception as exc:
         logger.exception("SSE stream failed")
-        yield f"data: {json.dumps({'type': 'error', 'message': client_safe_message(exc)})}\n\n"
+        if settings.log_debug_enabled:
+            yield f"data: {json.dumps({'type': 'error', 'message': client_safe_message(exc)})}\n\n"
+        else:
+            yield _SSE_ERROR_CHUNK
+
+
+def sse_streaming_response(stream: AsyncIterator[str]) -> StreamingResponse:
+    """Return an SSE response that never leaks stack traces to clients."""
+    from fastapi.responses import StreamingResponse
+
+    return StreamingResponse(
+        safe_sse_wrap(stream),
+        media_type="text/event-stream",
+        headers=_SSE_HEADERS,
+    )
+
+
+def public_api_detail(
+    detail: str | None,
+    *,
+    ok: str,
+    fail: str,
+    succeeded: bool,
+) -> str:
+    """Map internal status text to a client-safe API message."""
+    if settings.log_debug_enabled and detail:
+        return detail
+    return ok if succeeded else fail
 
 
 def openai_error_body(

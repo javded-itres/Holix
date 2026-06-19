@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import shutil
 import signal
 import subprocess
 import sys
@@ -188,6 +189,13 @@ def _validate_subprocess_argv(cmd: list[str]) -> list[str]:
     return list(cmd)
 
 
+def _resolve_background_executable(program: str) -> str:
+    resolved = shutil.which(program)
+    if not resolved:
+        raise ValueError(f"Command not found: {program}")
+    return resolved
+
+
 def popen_background(
     cmd: list[str],
     *,
@@ -199,11 +207,14 @@ def popen_background(
 ) -> subprocess.Popen:
     """Spawn a detached background child process."""
     argv = _validate_subprocess_argv(cmd)
+    executable = _resolve_background_executable(argv[0])
+    safe_argv = [executable, *argv[1:]]
     kwargs: dict = {
         "env": env,
         "stdout": stdout,
         "stderr": stderr,
         "stdin": stdin if stdin is not None else subprocess.DEVNULL,
+        "shell": False,
     }
     if cwd is not None:
         kwargs["cwd"] = cwd
@@ -212,7 +223,7 @@ def popen_background(
         kwargs["close_fds"] = True
     elif IS_WINDOWS and _CREATE_NEW_PROCESS_GROUP:
         kwargs["creationflags"] = _CREATE_NEW_PROCESS_GROUP
-    return subprocess.Popen(argv, **kwargs)
+    return subprocess.Popen(safe_argv, **kwargs)
 
 
 def port_check_hint(port: int) -> str:
