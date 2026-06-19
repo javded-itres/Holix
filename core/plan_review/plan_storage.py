@@ -15,8 +15,8 @@ from pathlib import Path
 from typing import Any
 
 from core.config_utils import get_local_plan_dir
-from core.paths import realpath_under
 from core.di.runtime_config import HolixRuntimeConfig
+from core.paths import realpath_under
 
 logger = logging.getLogger(__name__)
 

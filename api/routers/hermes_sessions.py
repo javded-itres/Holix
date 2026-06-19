@@ -6,14 +6,15 @@ import json
 
 from core.security.permissions import PermissionChecker
 from fastapi import APIRouter, Depends, Header, HTTPException
+
 from api import state
-from api.errors import _SSE_ERROR_CHUNK, sse_streaming_response
 from api.deps import (
     ensure_resource_profile,
     get_registry,
     resolve_profile_name,
     verify_api_key,
 )
+from api.errors import _SSE_ERROR_CHUNK, sse_streaming_response
 from api.schemas.hermes import SessionChatRequest, SessionCreateRequest, SessionPatchRequest
 from api.services.content_parts import (
     UnsupportedContentTypeError,
