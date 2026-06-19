@@ -9,7 +9,7 @@ from core.models.setup_helpers import add_preset_to_config, apply_ssl_override, 
 from fastapi import APIRouter, Depends, Header, HTTPException
 
 from api.deps import verify_api_key
-from api.errors import client_safe_message, public_api_detail
+from api.errors import client_safe_message
 from api.schemas.holix import AgentModelsPatchRequest, FallbacksPatchRequest, ProviderAddRequest
 from api.services.config_mask import mask_config_dict
 from api.services.holix_deps import profile_access
@@ -100,12 +100,7 @@ async def add_provider(
     name = body.name or body.preset_id
     return {
         "provider": name,
-        "message": public_api_detail(
-            message,
-            ok="Provider added",
-            fail="Failed to add provider",
-            succeeded=True,
-        ),
+        "message": "Provider added",
         "reload_required": True,
     }
 
@@ -156,21 +151,19 @@ async def test_provider(
         config.providers[provider_name] = provider_data
         manager.save_profile(profile_id, config)
 
+    from config import settings
+
+    if settings.log_debug_enabled:
+        error = None if ok else err
+    else:
+        error = None if ok else "Provider test failed"
+
     return {
         "provider": provider_name,
         "ok": ok,
         "models_found": len(models),
         "models": [m.get("id") for m in models[:20]],
-        "error": (
-            None
-            if ok
-            else public_api_detail(
-                err,
-                ok="",
-                fail="Provider test failed",
-                succeeded=False,
-            )
-        ),
+        "error": error,
         "reload_required": bool(ok and models),
     }
 

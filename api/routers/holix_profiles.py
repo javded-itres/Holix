@@ -14,7 +14,7 @@ from fastapi import APIRouter, Depends, Header, HTTPException
 
 from api import state
 from api.deps import verify_api_key
-from api.errors import client_safe_message
+
 from api.schemas.holix import (
     JailEnableRequest,
     ProfileCreateRequest,
@@ -152,16 +152,25 @@ async def delete_profile(
         await state.companions.stop_cron(profile_id)
         await state.companions.stop_telegram(profile_id)
     result = delete_profile_with_notification(profile_id, notify=notify, manager=manager)
+    from config import settings
+
     if result.error:
-        raise HTTPException(status_code=400, detail=client_safe_message(result.error))
+        detail = str(result.error) if settings.log_debug_enabled else "Profile deletion failed"
+        raise HTTPException(status_code=400, detail=detail)
+    if settings.log_debug_enabled:
+        notify_failed = [
+            {"user_id": uid, "error": str(err)} for uid, err in result.notify_failed
+        ]
+    else:
+        notify_failed = [
+            {"user_id": uid, "error": "Notification failed"}
+            for uid, err in result.notify_failed
+        ]
     return {
         "deleted": result.deleted,
         "profile": profile_id,
         "notified_users": result.notified,
-        "notify_failed": [
-            {"user_id": uid, "error": client_safe_message(err)}
-            for uid, err in result.notify_failed
-        ],
+        "notify_failed": notify_failed,
         "mappings_removed": result.mappings_removed,
     }
 
