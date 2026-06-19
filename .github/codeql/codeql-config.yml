@@ -4,4 +4,4 @@ paths-ignore:
   - web-docs
   - docs
 packs:
-  - holix-itres/holix-path-sanitizers
+  - ./.github/codeql/extensions
