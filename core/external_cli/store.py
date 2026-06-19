@@ -8,7 +8,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, Self
 
-from core.profile.names import profile_dir_for_name
+from core.profile.names import profile_dir_for_name, validate_profile_name
 
 
 def external_cli_dir(profile: str) -> Path:
@@ -91,7 +91,7 @@ class LaunchedSession:
 
 class ExternalCliStore:
     def __init__(self, profile: str) -> None:
-        self.profile = profile
+        self.profile = validate_profile_name(profile)
         external_cli_dir(profile).mkdir(parents=True, exist_ok=True)
 
     def load_bindings(self) -> dict[str, ExternalCliBinding]:

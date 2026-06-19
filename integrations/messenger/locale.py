@@ -3,13 +3,14 @@
 from __future__ import annotations
 
 from core.i18n.locale import LocaleStore, locale_path
+from core.profile.names import validate_profile_name
 
 MESSENGER_DEFAULT_LOCALE = "ru"
 
 
 def messenger_locale(profile: str) -> str:
     """Resolve UI language for a messenger session profile."""
-    name = (profile or "default").strip() or "default"
+    name = validate_profile_name(profile)
     store = LocaleStore(name)
     if not store._path.exists():
         return MESSENGER_DEFAULT_LOCALE
@@ -18,12 +19,12 @@ def messenger_locale(profile: str) -> str:
 
 def apply_messenger_locale(profile: str, *, locale: str = MESSENGER_DEFAULT_LOCALE) -> str:
     """Persist messenger default locale for a profile (new user onboarding)."""
-    return LocaleStore((profile or "default").strip() or "default").set(locale)
+    return LocaleStore(validate_profile_name(profile)).set(locale)
 
 
 def ensure_messenger_locale(profile: str) -> str:
     """Set messenger default locale when the profile has no saved locale yet."""
-    name = (profile or "default").strip() or "default"
+    name = validate_profile_name(profile)
     if locale_path(name).is_file():
         return LocaleStore(name).get()
     return apply_messenger_locale(name)
@@ -40,7 +41,7 @@ def bootstrap_messenger_locales(platform, bot_profile: str) -> list[str]:
     from integrations.messenger.admin import load_admin_holix_profile
     from integrations.messenger.user_profiles import load_user_profiles
 
-    bot_profile = (bot_profile or "default").strip() or "default"
+    bot_profile = validate_profile_name(bot_profile)
     names: set[str] = {bot_profile}
     admin_profile = load_admin_holix_profile(platform, bot_profile)
     if admin_profile:

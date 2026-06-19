@@ -37,8 +37,9 @@ Complete onboarding with the user, then call `complete_agent_initialization`.
 
 
 def init_path(profile: str | None = None) -> Path:
-    name = (profile or "default").strip() or "default"
-    return profile_dir_path(name) / INIT_MD_FILENAME
+    from core.profile.names import validate_profile_name
+
+    return profile_dir_path(validate_profile_name(profile)) / INIT_MD_FILENAME
 
 
 def init_pending(profile: str | None = None) -> bool:

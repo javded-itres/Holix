@@ -28,8 +28,12 @@ _MARKDOWN_HINT_RE = re.compile(
     r")",
     re.MULTILINE,
 )
-_HTML_TAG_RE = re.compile(r"<(/?)([a-z]+)(?:\s[^>]*)?>", re.IGNORECASE)
+_HTML_TAG_RE = re.compile(
+    r"<(/?)([a-z]{1,32})(?:\s[^>\n]{0,512})?>",
+    re.IGNORECASE,
+)
 _VOID_TAGS = frozenset({"br", "hr", "img"})
+_MAX_HTML_TAG_SCAN = 500
 
 _INLINE_PATTERN = re.compile(
     r"`([^`\n]+)`|"
@@ -165,6 +169,22 @@ def plain_to_max_html(text: str) -> str:
     return escape_html(text or "")
 
 
+def _open_html_tag_stack(fragment: str) -> list[str]:
+    stack: list[str] = []
+    for index, match in enumerate(_HTML_TAG_RE.finditer(fragment)):
+        if index >= _MAX_HTML_TAG_SCAN:
+            break
+        closing, tag = match.group(1), match.group(2).lower()
+        if tag in _VOID_TAGS:
+            continue
+        if closing:
+            if stack and stack[-1] == tag:
+                stack.pop()
+        else:
+            stack.append(tag)
+    return stack
+
+
 def truncate_max_html(html_text: str, max_len: int = SAFE_CHUNK_LEN) -> str:
     """Truncate HTML without breaking MAX format (closes open tags)."""
     text = html_text or ""
@@ -175,17 +195,7 @@ def truncate_max_html(html_text: str, max_len: int = SAFE_CHUNK_LEN) -> str:
     if cut.rfind("<") > cut.rfind(">"):
         cut = cut[: cut.rfind("<")]
 
-    stack: list[str] = []
-    for match in _HTML_TAG_RE.finditer(cut):
-        closing, tag = match.group(1), match.group(2).lower()
-        if tag in _VOID_TAGS:
-            continue
-        if closing:
-            if stack and stack[-1] == tag:
-                stack.pop()
-        else:
-            stack.append(tag)
-
+    stack = _open_html_tag_stack(cut)
     suffix = "".join(f"</{tag}>" for tag in reversed(stack))
     room = max_len - len(suffix)
     if room < 1:
@@ -195,16 +205,7 @@ def truncate_max_html(html_text: str, max_len: int = SAFE_CHUNK_LEN) -> str:
         cut = cut[:room]
         if cut.rfind("<") > cut.rfind(">"):
             cut = cut[: cut.rfind("<")]
-        stack = []
-        for match in _HTML_TAG_RE.finditer(cut):
-            closing, tag = match.group(1), match.group(2).lower()
-            if tag in _VOID_TAGS:
-                continue
-            if closing:
-                if stack and stack[-1] == tag:
-                    stack.pop()
-            else:
-                stack.append(tag)
+        stack = _open_html_tag_stack(cut)
         suffix = "".join(f"</{tag}>" for tag in reversed(stack))
 
     result = cut + suffix

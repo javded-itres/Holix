@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Any
 
 from core.env_loader import profile_dir_path
+from core.profile.names import validate_profile_name
 
 from integrations.messenger.platform import MessengerPlatform
 
@@ -39,8 +40,7 @@ class MessengerAccessRequest:
 
 
 def access_requests_path(platform: MessengerPlatform, bot_profile: str) -> Path:
-    name = (bot_profile or "default").strip() or "default"
-    return profile_dir_path(name) / platform.access_requests_filename
+    return profile_dir_path(validate_profile_name(bot_profile)) / platform.access_requests_filename
 
 
 def _utc_now() -> str:

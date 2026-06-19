@@ -13,8 +13,9 @@ DEFAULT_MAX_CHARS = 8000
 
 
 def user_path(profile: str | None = None) -> Path:
-    name = (profile or "default").strip() or "default"
-    return profile_dir_path(name) / USER_MD_FILENAME
+    from core.profile.names import validate_profile_name
+
+    return profile_dir_path(validate_profile_name(profile)) / USER_MD_FILENAME
 
 
 def _read_user_raw(profile: str | None = None) -> str:

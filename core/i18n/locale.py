@@ -5,7 +5,6 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from cli.core import ProfileManager
 from pydantic import BaseModel
 
 DEFAULT_LOCALE = "en"
@@ -18,7 +17,9 @@ class LocaleData(BaseModel):
 
 
 def locale_path(profile: str) -> Path:
-    d = ProfileManager().get_profile_dir(profile) / "data"
+    from core.profile.names import profile_dir_for_name, validate_profile_name
+
+    d = profile_dir_for_name(validate_profile_name(profile)) / "data"
     d.mkdir(parents=True, exist_ok=True)
     return d / "locale.json"
 
@@ -27,8 +28,10 @@ class LocaleStore:
     """Read/write interface language for a profile."""
 
     def __init__(self, profile: str = "default") -> None:
-        self.profile = profile
-        self._path = locale_path(profile)
+        from core.profile.names import validate_profile_name
+
+        self.profile = validate_profile_name(profile)
+        self._path = locale_path(self.profile)
 
     def load(self) -> LocaleData:
         if not self._path.exists():

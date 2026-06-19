@@ -12,9 +12,9 @@ logger = logging.getLogger(__name__)
 
 def resolve_holix_default_data_dir(profile: str = "default") -> Path:
     """Return ``~/.holix/profiles/<profile>/data`` (or HOLIX_HOME equivalent)."""
-    from core.platform_compat import resolve_holix_home
+    from core.profile.names import profile_dir_for_name
 
-    return (resolve_holix_home() / "profiles" / profile / "data").resolve()
+    return (profile_dir_for_name(profile) / "data").resolve()
 
 
 def resolve_profile_data_dir(profile: str | None = None) -> Path:
@@ -28,9 +28,13 @@ def resolve_profile_data_dir(profile: str | None = None) -> Path:
             except Exception:
                 cfg = init_profile(get_current_profile())
         else:
-            cfg = init_profile(profile)
+            from core.profile.names import validate_profile_name
+
+            cfg = init_profile(validate_profile_name(profile))
         if cfg.data_dir:
-            return Path(cfg.data_dir).expanduser().resolve()
+            from core.profile.names import resolve_workspace_root
+
+            return resolve_workspace_root(Path(cfg.data_dir))
     except Exception:
         pass
     return resolve_holix_default_data_dir(profile or "default")

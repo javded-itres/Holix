@@ -304,7 +304,12 @@ async def jail_enable(
     if body.path:
         from pathlib import Path
 
-        root = Path(body.path).expanduser().resolve()
+        from core.profile.names import resolve_workspace_root, trusted_profile_workspace
+
+        root = trusted_profile_workspace(
+            profile_id,
+            resolve_workspace_root(Path(body.path)),
+        )
         root.mkdir(parents=True, exist_ok=True)
         config.workspace_root = str(root)
     else:

@@ -269,9 +269,9 @@ class ProfileManager:
         Returns:
             Path to profile directory
         """
-        from core.profile.names import validate_profile_name
+        from core.profile.names import profile_dir_for_name
 
-        return profiles_dir() / validate_profile_name(profile)
+        return profile_dir_for_name(profile)
 
     def profile_exists(self, profile: str) -> bool:
         """Check if profile exists.

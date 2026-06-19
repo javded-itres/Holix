@@ -94,8 +94,8 @@ def save_messenger_env(
     values: dict[str, str],
     profile: str | None = None,
 ) -> Path:
-    name = (profile or values.get(platform.profile_key) or active_profile_name()).strip()
-    name = name or "default"
+    raw = profile or values.get(platform.profile_key) or active_profile_name()
+    name = validate_profile_name(raw)
     ensure_holix_home()
     path = messenger_env_path(platform, name)
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -116,7 +116,7 @@ def read_messenger_env_values(
     platform: MessengerPlatform,
     profile: str | None = None,
 ) -> dict[str, str]:
-    name = (profile or active_profile_name()).strip() or "default"
+    name = validate_profile_name(profile or active_profile_name())
     path = messenger_env_path(platform, name)
     legacy = False
     if not path.is_file():

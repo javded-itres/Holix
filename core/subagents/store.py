@@ -8,7 +8,7 @@ from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any, Self
 
-from core.profile.names import profile_dir_for_name
+from core.profile.names import profile_dir_for_name, validate_profile_name
 from core.subagents.base import SubAgentConfig
 from core.subagents.registry import builtin_subagent_names
 
@@ -99,7 +99,7 @@ def validate_custom_type_name(name: str) -> str:
 
 class SubAgentTypeStore:
     def __init__(self, profile: str) -> None:
-        self.profile = profile
+        self.profile = validate_profile_name(profile)
         subagents_dir(profile).mkdir(parents=True, exist_ok=True)
 
     def load_types(self) -> dict[str, CustomSubAgentType]:

@@ -9,10 +9,11 @@ from pathlib import Path
 from typing import Any, Self
 
 from core.platform_compat import is_process_alive, resolve_holix_home
+from core.profile.names import profile_dir_for_name
 
 
 def gateway_dir(profile: str = "default") -> Path:
-    return (resolve_holix_home() / "profiles" / profile / "gateway").resolve()
+    return (profile_dir_for_name(profile) / "gateway").resolve()
 
 
 def state_path(profile: str = "default") -> Path:

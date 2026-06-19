@@ -30,7 +30,9 @@ def runs_log_path(profile: str) -> Path:
 
 class CronStore:
     def __init__(self, profile: str = "default") -> None:
-        self.profile = profile
+        from core.profile.names import validate_profile_name
+
+        self.profile = validate_profile_name(profile)
         self._path = jobs_path(profile)
 
     def load(self) -> CronJobStore:

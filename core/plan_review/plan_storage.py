@@ -175,7 +175,13 @@ def resolve_trusted_plan_file(
     config: HolixRuntimeConfig | None = None,
 ) -> Path:
     """Resolve a plan file and ensure it stays under project plan directories."""
-    plan_path = Path(path)
+    text = str(path).strip()
+    if not text or "\0" in text:
+        raise InvalidPlanIdError(f"Invalid plan path: {path!r}")
+    normalized = text.replace("\\", "/")
+    if normalized.startswith("../") or "/../" in f"/{normalized}/":
+        raise InvalidPlanIdError(f"Plan path outside plan directories: {path}")
+    plan_path = Path(text)
     if plan_path.suffix == ".md":
         plan_path = plan_path.with_suffix(".json")
     resolved = plan_path.expanduser().resolve()
