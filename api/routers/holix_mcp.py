@@ -10,6 +10,7 @@ from core.mcp.popular import get_popular_by_key, get_popular_list
 from fastapi import APIRouter, Depends, Header, HTTPException
 
 from api.deps import verify_api_key
+from api.errors import client_safe_message
 from api.schemas.holix import McpAssignmentsPatchRequest, McpInstallRequest, McpServerCreateRequest
 from api.services.config_mask import mask_config_dict
 from api.services.holix_deps import profile_access
@@ -148,7 +149,12 @@ async def test_server(
     try:
         tools = await _test_mcp_server(server_name, servers[server_name])
     except Exception as exc:
-        return {"server": server_name, "ok": False, "tools": [], "error": str(exc)}
+        return {
+            "server": server_name,
+            "ok": False,
+            "tools": [],
+            "error": client_safe_message(exc),
+        }
     return {"server": server_name, "ok": True, "tools": tools, "count": len(tools)}
 
 

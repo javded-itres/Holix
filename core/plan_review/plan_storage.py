@@ -8,12 +8,14 @@ and analytics.
 
 import json
 import logging
+import os
 import re
 from datetime import datetime
 from pathlib import Path
 from typing import Any
 
 from core.config_utils import get_local_plan_dir
+from core.paths import realpath_under
 from core.di.runtime_config import HolixRuntimeConfig
 
 logger = logging.getLogger(__name__)
@@ -81,11 +83,10 @@ def resolve_plan_path(plan_dir: Path, plan_id: str) -> Path:
     if not name or not _PLAN_ID_RE.fullmatch(name):
         raise InvalidPlanIdError(f"Invalid plan id: {plan_id!r}")
 
-    root = plan_dir.resolve()
-    candidate = (root / name).resolve()
-    if not candidate.is_relative_to(root):
-        raise InvalidPlanIdError(f"Invalid plan id: {plan_id!r}")
-    return candidate
+    try:
+        return realpath_under(plan_dir.resolve(), name)
+    except ValueError as exc:
+        raise InvalidPlanIdError(f"Invalid plan id: {plan_id!r}") from exc
 
 
 def save_plan(
@@ -181,11 +182,11 @@ def resolve_trusted_plan_file(
     normalized = text.replace("\\", "/")
     if normalized.startswith("../") or "/../" in f"/{normalized}/":
         raise InvalidPlanIdError(f"Plan path outside plan directories: {path}")
-    plan_path = Path(text)
-    if plan_path.suffix == ".md":
-        plan_path = plan_path.with_suffix(".json")
-    resolved = plan_path.expanduser().resolve()
-    allowed_roots = [d.resolve() for d in _plan_search_dirs(config)]
+    expanded = os.path.expanduser(text)
+    resolved = Path(os.path.realpath(expanded))
+    if resolved.suffix == ".md":
+        resolved = resolved.with_suffix(".json")
+    allowed_roots = [Path(os.path.realpath(str(d.resolve()))) for d in _plan_search_dirs(config)]
     if not any(
         resolved == root or resolved.is_relative_to(root)
         for root in allowed_roots

@@ -11,6 +11,7 @@ from fastapi import APIRouter, Header, HTTPException, Query
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
+from api.errors import safe_sse_wrap
 from config import settings
 
 router = APIRouter(prefix="/v1/docs/chat", tags=["docs-chat"])
@@ -141,7 +142,7 @@ async def docs_chat(
                 yield chunk
 
         return StreamingResponse(
-            generate(),
+            safe_sse_wrap(generate()),
             media_type="text/event-stream",
             headers={"Cache-Control": "no-cache", "Connection": "keep-alive"},
         )

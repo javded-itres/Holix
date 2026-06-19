@@ -14,6 +14,7 @@ from fastapi import APIRouter, Depends, Header, HTTPException
 
 from api import state
 from api.deps import verify_api_key
+from api.errors import client_safe_message
 from api.schemas.holix import (
     JailEnableRequest,
     ProfileCreateRequest,
@@ -152,7 +153,7 @@ async def delete_profile(
         await state.companions.stop_telegram(profile_id)
     result = delete_profile_with_notification(profile_id, notify=notify, manager=manager)
     if result.error:
-        raise HTTPException(status_code=400, detail=result.error)
+        raise HTTPException(status_code=400, detail=client_safe_message(result.error))
     return {
         "deleted": result.deleted,
         "profile": profile_id,
@@ -306,12 +307,15 @@ async def jail_enable(
 
         from core.profile.names import resolve_workspace_root, trusted_profile_workspace
 
+        import os
+
         root = trusted_profile_workspace(
             profile_id,
             resolve_workspace_root(Path(body.path)),
         )
-        root.mkdir(parents=True, exist_ok=True)
-        config.workspace_root = str(root)
+        safe_root = Path(os.path.realpath(str(root)))
+        safe_root.mkdir(parents=True, exist_ok=True)
+        config.workspace_root = str(safe_root)
     else:
         workspace = enable_profile_workspace_isolation(manager, profile_id)
         config.workspace_root = str(workspace)

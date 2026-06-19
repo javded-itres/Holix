@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 import shutil
 import subprocess
 from pathlib import Path
@@ -22,6 +23,29 @@ from core.platform_compat import resolve_holix_home
 logger = logging.getLogger(__name__)
 
 MCP_SERVERS_ROOT = resolve_holix_home() / "mcp-servers"
+_TARGET_NAME_RE = re.compile(r"^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,63}$")
+_GIT_URL_RE = re.compile(r"^(https://|git@|ssh://)[^\s]+$")
+
+
+def _validate_subprocess_argv(cmd: list[str]) -> list[str]:
+    if not cmd or not all(isinstance(arg, str) and arg for arg in cmd):
+        raise ValueError("Invalid subprocess command")
+    if any("\0" in arg for arg in cmd):
+        raise ValueError("Invalid subprocess command")
+    return list(cmd)
+
+
+def _validate_target_name(name: str) -> str:
+    if not _TARGET_NAME_RE.fullmatch(name):
+        raise ValueError(f"Invalid MCP server name: {name!r}")
+    return name
+
+
+def _validate_git_url(url: str) -> str:
+    value = url.strip()
+    if not value or value.startswith("-") or not _GIT_URL_RE.fullmatch(value):
+        raise ValueError(f"Invalid git URL: {url!r}")
+    return value
 
 
 def ensure_mcp_servers_root() -> Path:
@@ -31,16 +55,19 @@ def ensure_mcp_servers_root() -> Path:
 
 def _run(cmd: list[str], cwd: Path | None = None, check: bool = True, capture: bool = False) -> subprocess.CompletedProcess:
     """Run a command, optionally capturing output."""
-    kwargs: dict[str, Any] = {"cwd": str(cwd) if cwd else None}
+    argv = _validate_subprocess_argv(cmd)
+    kwargs: dict[str, Any] = {"cwd": str(cwd) if cwd else None, "shell": False}
     if capture:
         kwargs.update({"stdout": subprocess.PIPE, "stderr": subprocess.PIPE, "text": True})
-    return subprocess.run(cmd, check=check, **kwargs)
+    return subprocess.run(argv, check=check, **kwargs)
 
 
 def clone_or_update_git(url: str, target_name: str, depth: int = 1) -> Path:
     """Clone a git repo into ~/.holix/mcp-servers/<target_name>."""
+    safe_url = _validate_git_url(url)
+    safe_name = _validate_target_name(target_name)
     root = ensure_mcp_servers_root()
-    dest = root / target_name
+    dest = root / safe_name
     if dest.exists():
         # try to pull latest (best effort)
         try:
@@ -51,7 +78,7 @@ def clone_or_update_git(url: str, target_name: str, depth: int = 1) -> Path:
     cmd = ["git", "clone"]
     if depth > 0:
         cmd += ["--depth", str(depth)]
-    cmd += [url, str(dest)]
+    cmd += [safe_url, str(dest)]
     _run(cmd)
     return dest
 

@@ -250,9 +250,8 @@ async def _llm_complete_text(
     text = (choice.message.content or "").strip()
     if not text and choice.finish_reason == "length":
         logger.warning(
-            "docs chat: model %r hit token limit with empty content; "
+            "docs chat: configured model hit token limit with empty content; "
             "set HOLIX_DOCS_CHAT_MODEL=smart or raise HOLIX_DOCS_CHAT_MAX_TOKENS",
-            model,
         )
     return sanitize_assistant_text(text)
 

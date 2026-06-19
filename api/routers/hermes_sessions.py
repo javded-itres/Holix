@@ -9,6 +9,7 @@ from fastapi import APIRouter, Depends, Header, HTTPException
 from fastapi.responses import StreamingResponse
 
 from api import state
+from api.errors import safe_sse_wrap
 from api.deps import (
     ensure_resource_profile,
     get_registry,
@@ -250,7 +251,7 @@ async def session_chat_stream(
         yield f"data: {json.dumps({'type': 'run.completed', 'session_id': session_id})}\n\n"
 
     return StreamingResponse(
-        generate(),
+        safe_sse_wrap(generate()),
         media_type="text/event-stream",
         headers={"Cache-Control": "no-cache", "Connection": "keep-alive"},
     )

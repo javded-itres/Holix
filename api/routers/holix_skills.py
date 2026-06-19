@@ -5,7 +5,11 @@ from __future__ import annotations
 from pathlib import Path
 
 from cli.core import ProfileManager
-from core.hub.normalize import discover_skill_files, parse_skill_file
+from core.hub.normalize import (
+    discover_skill_files,
+    parse_skill_file,
+    resolve_skill_markdown_path,
+)
 from core.skills.assignments import agents_for_skill
 from fastapi import APIRouter, Depends, Header, HTTPException, Query
 
@@ -152,12 +156,15 @@ async def show_skill(
     _, config = _require_profile(profile_id)
     skills_dir = Path(config.skills_dir)
     skill = None
-    flat = skills_dir / f"{skill_name}.md"
+    try:
+        flat = resolve_skill_markdown_path(skills_dir, skill_name)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail="Invalid skill name") from exc
     if flat.exists():
-        skill = parse_skill_file(flat)
+        skill = parse_skill_file(flat, root=skills_dir)
     if not skill:
         for sf in discover_skill_files(skills_dir):
-            parsed = parse_skill_file(sf)
+            parsed = parse_skill_file(sf, root=skills_dir)
             if parsed and parsed.get("name") == skill_name:
                 skill = parsed
                 break

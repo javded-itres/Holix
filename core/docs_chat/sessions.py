@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Any
 
 from core.env_loader import holix_home
+from core.paths import realpath_under
 
 _CLIENT_ID_RE = re.compile(r"^[a-f0-9-]{8,64}$", re.I)
 _MAX_MESSAGES = 40
@@ -30,7 +31,7 @@ def validate_client_id(client_id: str) -> str:
 
 def _session_path(client_id: str) -> Path:
     safe = validate_client_id(client_id)
-    return _sessions_dir() / f"{safe}.json"
+    return realpath_under(_sessions_dir(), f"{safe}.json")
 
 
 def _trim_messages(messages: list[dict[str, Any]]) -> list[dict[str, Any]]:

@@ -7,6 +7,7 @@ import shutil
 import stat
 from pathlib import Path
 
+from core.paths import realpath_under
 from core.platform_compat import IS_WINDOWS, resolve_holix_home
 
 logger = logging.getLogger(__name__)
@@ -24,7 +25,7 @@ def runtime_cache_root() -> Path:
 def profile_runtime_cache_dir(profile: str) -> Path:
     from core.profile.names import validate_profile_name
 
-    return runtime_cache_root() / validate_profile_name(profile)
+    return realpath_under(runtime_cache_root(), validate_profile_name(profile))
 
 
 def legacy_profile_cache_dir(profile: str) -> Path:

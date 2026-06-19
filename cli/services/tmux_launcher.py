@@ -135,7 +135,9 @@ def create_cli_session(
     launch_args = build_launch_args(spec, model, task)
     launch_cmd = _shell_launch_command(env, binary, launch_args)
     session_name = tmux_session or build_tmux_session_name(profile, spec.cli_id)
-    cwd_str = str(cwd.expanduser().resolve())
+    from core.profile.names import resolve_workspace_root
+
+    cwd_str = str(resolve_workspace_root(cwd))
 
     if new_window and target_session:
         if not tmux_session_alive(target_session):

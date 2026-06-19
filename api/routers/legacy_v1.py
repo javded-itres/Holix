@@ -11,6 +11,7 @@ from fastapi.responses import StreamingResponse
 
 from api import state
 from api.deps import get_registry, resolve_profile_name, verify_api_key
+from api.errors import safe_sse_wrap
 from api.models import ChatCompletionRequest, ChatCompletionResponse
 from api.services.content_parts import (
     UnsupportedContentTypeError,
@@ -93,7 +94,7 @@ async def chat_completions(
                         yield chunk
 
         return StreamingResponse(
-            generate(),
+            safe_sse_wrap(generate()),
             media_type="text/event-stream",
             headers={"Cache-Control": "no-cache", "Connection": "keep-alive"},
         )

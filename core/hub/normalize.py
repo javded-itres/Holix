@@ -2,14 +2,18 @@
 
 from __future__ import annotations
 
+import os
 import re
 from pathlib import Path
 from typing import Any
 
 import yaml
 
+from core.paths import PathTraversalError, realpath_under
+
 _SKIP_FILENAMES = frozenset({"skill-card.md", "skill_card.md"})
 _ECO_METADATA_KEYS = ("openclaw", "clawdbot", "hermes", "claude")
+_SKILL_FILENAME_RE = re.compile(r"^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,63}$")
 
 
 def is_skill_markdown(path: Path) -> bool:
@@ -43,8 +47,45 @@ def discover_skill_files(root: Path) -> list[Path]:
     return sorted(found)
 
 
-def parse_skill_file(path: Path) -> dict[str, Any] | None:
-    text = path.read_text(encoding="utf-8")
+def validate_skill_filename(skill_name: str) -> str:
+    """Return a safe flat skill filename segment (no path separators)."""
+    name = skill_name.strip()
+    if not name or ".." in name or "/" in name or "\\" in name or name in {".", ".."}:
+        raise ValueError(f"Invalid skill name: {skill_name!r}")
+    if not _SKILL_FILENAME_RE.fullmatch(name):
+        raise ValueError(f"Invalid skill name: {skill_name!r}")
+    return name
+
+
+def resolve_skill_markdown_path(root: Path, skill_name: str) -> Path:
+    """Resolve ``<root>/<skill_name>.md`` with traversal checks."""
+    safe = validate_skill_filename(skill_name)
+    return realpath_under(root.resolve(), f"{safe}.md")
+
+
+def assert_resolved_skill_path(path: Path, root: Path | None = None) -> Path:
+    """Resolve *path* and optionally ensure it stays under *root*."""
+    text = str(path)
+    if not text or "\0" in text:
+        raise PathTraversalError(f"Invalid skill path: {path!r}")
+    normalized = text.replace("\\", "/").strip()
+    if normalized.startswith("../") or "/../" in f"/{normalized}/":
+        raise PathTraversalError(f"Invalid skill path: {path!r}")
+    resolved = Path(os.path.realpath(os.path.expanduser(text)))
+    if root is not None:
+        base = os.path.realpath(str(root.resolve()))
+        candidate = str(resolved)
+        if candidate != base and not candidate.startswith(base + os.sep):
+            raise PathTraversalError(f"Skill path outside root: {path!r}")
+    return resolved
+
+
+def parse_skill_file(path: Path, *, root: Path | None = None) -> dict[str, Any] | None:
+    try:
+        safe_path = assert_resolved_skill_path(path, root)
+    except PathTraversalError:
+        return None
+    text = safe_path.read_text(encoding="utf-8")
     if not text.startswith("---"):
         return None
     parts = text.split("---", 2)

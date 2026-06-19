@@ -10,6 +10,19 @@ from pathlib import Path
 logger = logging.getLogger(__name__)
 
 
+class PathTraversalError(ValueError):
+    """Raised when a resolved path escapes its allowed base directory."""
+
+
+def realpath_under(base: Path | str, *parts: str) -> Path:
+    """Resolve a path and ensure it stays under *base* (path-injection guard)."""
+    root = os.path.realpath(str(base))
+    candidate = os.path.realpath(os.path.join(root, *parts))
+    if candidate != root and not candidate.startswith(root + os.sep):
+        raise PathTraversalError("Path escapes allowed directory")
+    return Path(candidate)
+
+
 def resolve_holix_default_data_dir(profile: str = "default") -> Path:
     """Return ``~/.holix/profiles/<profile>/data`` (or HOLIX_HOME equivalent)."""
     from core.profile.names import profile_dir_for_name

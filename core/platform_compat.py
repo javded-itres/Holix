@@ -180,6 +180,14 @@ def terminate_process(pid: int, *, grace: float = 10.0) -> None:
         _kill_signal(pid, signal.SIGKILL)
 
 
+def _validate_subprocess_argv(cmd: list[str]) -> list[str]:
+    if not cmd or not all(isinstance(arg, str) and arg for arg in cmd):
+        raise ValueError("Invalid subprocess command")
+    if any("\0" in arg for arg in cmd):
+        raise ValueError("Invalid subprocess command")
+    return list(cmd)
+
+
 def popen_background(
     cmd: list[str],
     *,
@@ -190,6 +198,7 @@ def popen_background(
     cwd: str | None = None,
 ) -> subprocess.Popen:
     """Spawn a detached background child process."""
+    argv = _validate_subprocess_argv(cmd)
     kwargs: dict = {
         "env": env,
         "stdout": stdout,
@@ -203,7 +212,7 @@ def popen_background(
         kwargs["close_fds"] = True
     elif IS_WINDOWS and _CREATE_NEW_PROCESS_GROUP:
         kwargs["creationflags"] = _CREATE_NEW_PROCESS_GROUP
-    return subprocess.Popen(cmd, **kwargs)
+    return subprocess.Popen(argv, **kwargs)
 
 
 def port_check_hint(port: int) -> str:

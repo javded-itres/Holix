@@ -61,6 +61,7 @@ def _upsert_env_var(path, key: str, value: str) -> None:
         if out and out[-1].strip():
             out.append("")
         out.append(f"{key}={value}")
+    # codeql[py/clear-text-storage-sensitive-data]: installer persists provider API keys to the user's local env file by design
     p.write_text("\n".join(out).rstrip() + "\n", encoding="utf-8")
 
 

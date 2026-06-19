@@ -9,6 +9,7 @@ from core.models.setup_helpers import add_preset_to_config, apply_ssl_override, 
 from fastapi import APIRouter, Depends, Header, HTTPException
 
 from api.deps import verify_api_key
+from api.errors import client_safe_message
 from api.schemas.holix import AgentModelsPatchRequest, FallbacksPatchRequest, ProviderAddRequest
 from api.services.config_mask import mask_config_dict
 from api.services.holix_deps import profile_access
@@ -99,7 +100,7 @@ async def add_provider(
     name = body.name or body.preset_id
     return {
         "provider": name,
-        "message": message,
+        "message": client_safe_message(message),
         "reload_required": True,
     }
 
@@ -155,7 +156,7 @@ async def test_provider(
         "ok": ok,
         "models_found": len(models),
         "models": [m.get("id") for m in models[:20]],
-        "error": err,
+        "error": client_safe_message(err) if err else None,
         "reload_required": bool(ok and models),
     }
 
