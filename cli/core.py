@@ -159,8 +159,11 @@ def resolve_profile_storage_paths(
     *,
     profile_dir: Path | None = None,
 ) -> ProfileConfig:
-    """Bind profile storage paths to ~/.holix/profiles/<name>/ (not process CWD)."""
-    base = (profile_dir or (profiles_dir() / profile)).resolve()
+    """Bind profile storage paths to ~/.helix/profiles/<name>/ (not process CWD)."""
+    from core.profile.names import profile_dir_for_name, validate_profile_name
+
+    safe_profile = validate_profile_name(profile)
+    base = profile_dir or profile_dir_for_name(safe_profile)
 
     def _path_is_writable(path: Path, *, mkdir_target: bool) -> bool:
         try:
@@ -185,17 +188,19 @@ def resolve_profile_storage_paths(
         """Resolve under profile dir; fall back when outside paths are not writable."""
         target = default.resolve()
         if path and str(path).strip():
+            from core.profile.names import ProfileNameError, _realpath_under
+
             expanded = Path(path).expanduser()
-            if expanded.is_absolute():
-                candidate = expanded.resolve()
-                try:
-                    candidate.relative_to(base)
-                    target = candidate
-                except ValueError:
-                    if _path_is_writable(candidate, mkdir_target=mkdir_target):
+            try:
+                if expanded.is_absolute():
+                    candidate = Path(os.path.realpath(os.path.expanduser(str(expanded))))
+                    base_real = os.path.realpath(str(base))
+                    if str(candidate).startswith(base_real + os.sep) or str(candidate) == base_real:
                         target = candidate
-            else:
-                target = (base / expanded).resolve()
+                else:
+                    target = _realpath_under(base, str(expanded))
+            except (ProfileNameError, OSError, ValueError):
+                target = default.resolve()
 
         if not mkdir_target and target.exists() and target.is_dir():
             target = default.resolve()
@@ -204,7 +209,7 @@ def resolve_profile_storage_paths(
             _path_is_writable(target, mkdir_target=mkdir_target)
         return str(target)
 
-    config.profile_name = profile
+    config.profile_name = safe_profile
     config.data_dir = _resolve(config.data_dir, base / "data", mkdir_target=True)
     config.memory_db_path = _resolve(
         config.memory_db_path,

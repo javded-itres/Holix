@@ -6,9 +6,10 @@ import html
 import re
 
 # Fenced ```code``` blocks
-_FENCE_RE = re.compile(r"```(?:[\w-]+)?\s*\n?([\s\S]*?)```")
+_FENCE_RE = re.compile(r"```(?:[\w-]{0,32})?\s*\n?([\s\S]{0,8192}?)```")
 # Rich markup leftovers
-_RICH_TAG_RE = re.compile(r"\[/?[^\]]+\]")
+_RICH_TAG_RE = re.compile(r"\[/?[^\]]{0,256}\]")
+_MAX_REGEX_SCAN = 500
 _HEADER_RE = re.compile(r"^(#{1,6})\s+(.+)$")
 _BULLET_RE = re.compile(r"^[-*•]\s+(.+)$")
 _ORDERED_RE = re.compile(r"^\d+\.\s+(.+)$")
@@ -39,7 +40,9 @@ def _apply_inline_styles(text: str) -> str:
 
     parts: list[str] = []
     last = 0
-    for match in _INLINE_PATTERN.finditer(text):
+    for index, match in enumerate(_INLINE_PATTERN.finditer(text)):
+        if index >= _MAX_REGEX_SCAN:
+            break
         parts.append(escape_html(text[last : match.start()]))
         if match.group(1) is not None:
             parts.append(f"<code>{escape_html(match.group(1))}</code>")
@@ -93,7 +96,9 @@ def markdown_to_telegram_html(text: str) -> str:
 
     parts: list[str] = []
     last = 0
-    for match in _FENCE_RE.finditer(raw):
+    for index, match in enumerate(_FENCE_RE.finditer(raw)):
+        if index >= _MAX_REGEX_SCAN:
+            break
         before = raw[last : match.start()]
         if before.strip():
             parts.append(_format_block_segment(before))
@@ -117,7 +122,10 @@ def plain_to_telegram_html(text: str) -> str:
     return escape_html(text or "")
 
 
-_TELEGRAM_TAG_RE = re.compile(r"<(/?)([a-z]+)(?:\s[^>]*)?>", re.IGNORECASE)
+_TELEGRAM_TAG_RE = re.compile(
+    r"<(/?)([a-z]{1,32})(?:\s[^>\n]{0,512})?>",
+    re.IGNORECASE,
+)
 _VOID_TAGS = frozenset({"br", "hr", "img"})
 _TELEGRAM_MAX_LEN = 4090
 
@@ -132,17 +140,22 @@ def truncate_telegram_html(html: str, max_len: int = _TELEGRAM_MAX_LEN) -> str:
     if cut.rfind("<") > cut.rfind(">"):
         cut = cut[: cut.rfind("<")]
 
-    stack: list[str] = []
-    for match in _TELEGRAM_TAG_RE.finditer(cut):
-        closing, tag = match.group(1), match.group(2).lower()
-        if tag in _VOID_TAGS:
-            continue
-        if closing:
-            if stack and stack[-1] == tag:
-                stack.pop()
-        else:
-            stack.append(tag)
+    def _open_tags(fragment: str) -> list[str]:
+        stack: list[str] = []
+        for index, match in enumerate(_TELEGRAM_TAG_RE.finditer(fragment)):
+            if index >= _MAX_REGEX_SCAN:
+                break
+            closing, tag = match.group(1), match.group(2).lower()
+            if tag in _VOID_TAGS:
+                continue
+            if closing:
+                if stack and stack[-1] == tag:
+                    stack.pop()
+            else:
+                stack.append(tag)
+        return stack
 
+    stack = _open_tags(cut)
     suffix = "".join(f"</{tag}>" for tag in reversed(stack))
     room = max_len - len(suffix)
     if room < 1:
@@ -152,16 +165,7 @@ def truncate_telegram_html(html: str, max_len: int = _TELEGRAM_MAX_LEN) -> str:
         cut = cut[:room]
         if cut.rfind("<") > cut.rfind(">"):
             cut = cut[: cut.rfind("<")]
-        stack = []
-        for match in _TELEGRAM_TAG_RE.finditer(cut):
-            closing, tag = match.group(1), match.group(2).lower()
-            if tag in _VOID_TAGS:
-                continue
-            if closing:
-                if stack and stack[-1] == tag:
-                    stack.pop()
-            else:
-                stack.append(tag)
+        stack = _open_tags(cut)
         suffix = "".join(f"</{tag}>" for tag in reversed(stack))
 
     result = cut + suffix
