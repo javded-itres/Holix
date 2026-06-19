@@ -13,7 +13,9 @@ from core.workspace.storage import (
     write_profile_file_text,
 )
 
-_IMAGE_SUFFIXES = frozenset({".jpg", ".jpeg", ".png", ".gif", ".webp", ".bmp", ".heic", ".heif", ".tif", ".tiff"})
+_IMAGE_SUFFIXES = frozenset(
+    {".jpg", ".jpeg", ".png", ".gif", ".webp", ".bmp", ".heic", ".heif", ".tif", ".tiff"}
+)
 
 
 def _is_binary_image_path(path: Path) -> bool:

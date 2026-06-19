@@ -49,6 +49,38 @@ def test_resolve_vision_config_uses_env_when_model_explicit(
     assert cfg.base_url.endswith("/v1")
 
 
+def test_resolve_vision_config_skips_text_only_explicit_model(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("LITELLM_API_KEY", "sk-test-key")
+    monkeypatch.setenv("LITELLM_API_BASE", "http://localhost:4000/v1")
+    _patch_vision_settings(monkeypatch, telegram_vision_model="coder")
+
+    class _Cfg:
+        providers = {
+            "litellm": {
+                "api_key": "sk-test-key",
+                "base_url": "http://localhost:4000/v1",
+                "available_models": ["coder", "gemini-flash", "auto"],
+                "default_model": "auto",
+            }
+        }
+        agent_models = {}
+        default_provider = "litellm"
+        model = "coder"
+        api_key = ""
+        base_url = ""
+
+    class _Mgr:
+        def load_profile(self, _profile: str):
+            return _Cfg()
+
+    monkeypatch.setattr("cli.core.get_profile_manager", lambda: _Mgr())
+
+    cfg = resolve_vision_config(profile="admin")
+    assert cfg.model == "gemini-flash"
+
+
 def test_resolve_vision_config_requires_api_when_only_model_set(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

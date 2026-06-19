@@ -54,6 +54,31 @@ _TEXT_SUFFIXES = frozenset(
     }
 )
 _PLACEHOLDER_KEYS = frozenset({"", "ollama", "dummy", "sk-...", "your-api-key"})
+# LiteLLM aliases known to handle image input (ordered preference).
+_VISION_MODEL_PREFERENCES: tuple[str, ...] = (
+    "gemini-flash",
+    "auto",
+    "claude-sonnet-4-6",
+    "claude-opus-4-7",
+    "claude-haiku-4-5-20251001",
+    "medgemma:27b",
+    "balanced",
+    "smart",
+    "heavy",
+    "research",
+)
+# Substrings that indicate a text-only / code model (unsuitable for vision).
+_TEXT_ONLY_MODEL_MARKERS: tuple[str, ...] = (
+    "coder",
+    "qwen3-coder",
+    "kimi-k2.7-code",
+    "deepseek-v4",
+    "llama-3.3",
+    "ollama-glm",
+    "openrouter-free",
+    "free",
+    "fast",
+)
 
 
 @dataclass(slots=True)
@@ -117,6 +142,60 @@ def _pick_model(*candidates: str) -> str:
         if model and model not in _PLACEHOLDER_KEYS:
             return model
     return ""
+
+
+def _is_text_only_model(name: str) -> bool:
+    lowered = str(name or "").strip().lower()
+    if not lowered:
+        return True
+    return any(marker in lowered for marker in _TEXT_ONLY_MODEL_MARKERS)
+
+
+def _collect_available_models(providers: dict[str, Any]) -> list[str]:
+    models: list[str] = []
+    for raw in providers.values():
+        if not isinstance(raw, dict):
+            continue
+        for item in raw.get("available_models") or []:
+            name = str(item or "").strip()
+            if name and name not in models:
+                models.append(name)
+    return models
+
+
+def _pick_vision_model(
+    *,
+    explicit: str,
+    available: list[str],
+    agent_fallbacks: list[str],
+) -> str:
+    """Choose a vision-capable model; ignore text-only aliases like ``coder``."""
+    explicit = str(explicit or "").strip()
+    if explicit and not _is_text_only_model(explicit):
+        return explicit
+
+    pool = available or [m for m in agent_fallbacks if m and not _is_text_only_model(m)]
+    for preferred in _VISION_MODEL_PREFERENCES:
+        if preferred in pool:
+            return preferred
+    for name in pool:
+        if not _is_text_only_model(name):
+            return name
+    return explicit or _pick_model(*agent_fallbacks) or "auto"
+
+
+def _vision_models_to_try(*, profile: str) -> list[str]:
+    """Ordered vision model list for describe retries."""
+    base = resolve_vision_config(profile=profile)
+    tried: list[str] = []
+    for name in [base.model, *_VISION_MODEL_PREFERENCES]:
+        model = str(name or "").strip()
+        if not model or model in tried or _is_text_only_model(model):
+            continue
+        tried.append(model)
+    if not tried:
+        tried.append(base.model)
+    return tried
 
 
 def resolve_vision_config(*, profile: str) -> VisionConfig:
@@ -190,11 +269,19 @@ def resolve_vision_config(*, profile: str) -> VisionConfig:
         if openai_creds:
             api_key, base_url = openai_creds
 
-    model = _pick_model(*model_candidates)
+    available_models: list[str] = []
+    if config is not None and isinstance(getattr(config, "providers", None), dict):
+        available_models = _collect_available_models(config.providers)
+
+    model = _pick_vision_model(
+        explicit=explicit_model,
+        available=available_models,
+        agent_fallbacks=[m for m in model_candidates if m],
+    )
     if not model:
         raise RuntimeError(
             "Vision: не задана модель. Укажите HOLIX_TELEGRAM_VISION_MODEL "
-            "или назначьте модель для main в holix models setup."
+            "(например gemini-flash или auto) или настройте holix models setup."
         )
     if not api_key or not base_url:
         raise RuntimeError(
@@ -325,18 +412,20 @@ async def _vision_describe_bytes(
     *,
     profile: str,
     mime: str = "image/jpeg",
+    model: str | None = None,
 ) -> str:
     image_b64 = base64.standard_b64encode(image_bytes).decode("ascii")
     from core.models.client_factory import create_openai_client
 
     vision = resolve_vision_config(profile=profile)
+    use_model = str(model or vision.model).strip() or vision.model
     client = create_openai_client(
         base_url=vision.base_url,
         api_key=vision.api_key,
         metadata=vision.provider_metadata,
     )
     response = await client.chat.completions.create(
-        model=vision.model,
+        model=use_model,
         messages=[
             {
                 "role": "user",
@@ -358,7 +447,10 @@ async def _vision_describe_bytes(
         max_tokens=2000,
         temperature=0.2,
     )
-    return (response.choices[0].message.content or "").strip()
+    text = (response.choices[0].message.content or "").strip()
+    if not text:
+        raise RuntimeError(f"модель {use_model} вернула пустой ответ (нет поддержки vision?)")
+    return text
 
 
 async def describe_image_from_url(url: str, *, profile: str) -> str:
@@ -387,7 +479,19 @@ async def describe_image_from_url(url: str, *, profile: str) -> str:
 async def describe_image(path: Path, *, profile: str) -> str:
     mime, _ = mimetypes.guess_type(str(path))
     mime = mime or "image/jpeg"
-    return await _vision_describe_bytes(path.read_bytes(), profile=profile, mime=mime)
+    image_bytes = path.read_bytes()
+    errors: list[str] = []
+    for model in _vision_models_to_try(profile=profile):
+        try:
+            return await _vision_describe_bytes(
+                image_bytes,
+                profile=profile,
+                mime=mime,
+                model=model,
+            )
+        except Exception as exc:
+            errors.append(f"{model}: {exc}")
+    raise RuntimeError("; ".join(errors) or "vision unavailable")
 
 
 async def enrich_saved_file(saved: SavedTelegramFile, *, profile: str) -> SavedTelegramFile:
