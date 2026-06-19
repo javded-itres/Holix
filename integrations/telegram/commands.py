@@ -227,25 +227,10 @@ async def register_bot_commands(
     if settings.allow_all:
         return await register_global_bot_commands(bot, locale=locale)
 
-    import asyncio
-
     await clear_default_bot_menu(bot)
-
-    async def _register_for_user(uid: int) -> None:
-        try:
-            await enable_chat_menu(
-                bot,
-                uid,
-                locale=locale,
-                bot_profile=bot_profile,
-                user_id=uid,
-            )
-        except Exception:
-            pass
-
-    # Do not block polling startup on per-chat Telegram API calls (can take minutes).
-    for uid in sorted(authorized_telegram_user_ids(bot_profile)):
-        asyncio.create_task(_register_for_user(uid), name=f"tg-menu-register-{uid}")
+    # Per-chat menus are registered lazily on the first authorized message
+    # (see HolixTelegramBot._ensure_authorized_menu). Eager registration here
+    # hammers the Telegram API on every gateway restart and often times out.
     return []
 
 
