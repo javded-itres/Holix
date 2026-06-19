@@ -9,7 +9,11 @@ from core.memory.session_search import (
     format_session_transcript,
 )
 from core.tools.base import BaseTool
-from core.tools.execution_context import get_conversation_id, get_memory_facade
+from core.tools.execution_context import (
+    get_conversation_id,
+    get_memory_facade,
+    get_profile_name,
+)
 
 
 def _resolve_memory() -> Any:
@@ -17,8 +21,17 @@ def _resolve_memory() -> Any:
     if facade is not None:
         return facade
 
+    from cli.core import ProfileManager
+
     from core.di import resolve_runtime_config
     from core.memory.facade import MemoryFacade
+
+    profile_name = (get_profile_name() or "").strip()
+    if profile_name:
+        manager = ProfileManager()
+        if manager.profile_exists(profile_name):
+            profile_cfg = manager.load_profile(profile_name)
+            return MemoryFacade(resolve_runtime_config(profile_cfg))
 
     return MemoryFacade(resolve_runtime_config())
 

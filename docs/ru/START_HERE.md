@@ -1,90 +1,61 @@
-# С чего начать
+# Первый запуск
 
-Чеклист для новой машины.
+Чеклист после [INSTALLATION.md](INSTALLATION.md). Предполагается, что `holix` в PATH (путь A) или запущен Docker (путь B).
 
-## Требования
-
-- Python **3.12+**
-- OpenAI-совместимый LLM (Ollama, LiteLLM, OpenAI, Groq, …)
-- [pipx](https://pipx.pypa.io/) (рекомендуется) или `pip` в venv
-
-## 1. Установка
-
-**Быстрый способ (macOS/Linux):** установка одной командой с определением языка, выбором полной/минимальной установки и `holix bootstrap`:
+## 1. Проверка установки
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/javded-itres/Holix/main/scripts/install.sh | bash
-```
-
-Подробнее: [INSTALLATION.md](INSTALLATION.md#установка-одной-командой-curl).
-
-**Вручную с PyPI:** пакет **[Holix](https://pypi.org/project/Holix/)**; команда — **`holix`**.
-
-```bash
-pipx install Holix
-# опционально: Telegram, браузер, веб-TUI, голос:
-pipx install "Holix[all]"
-
-holix bootstrap    # LLM + Telegram; язык профилей
 holix version
-holix doctor
-```
-
-В виртуальном окружении вместо pipx:
-
-```bash
-python -m venv .venv && source .venv/bin/activate
-pip install Holix
-```
-
-Не используйте `pip install helix` — это **другой** пакет на PyPI.
-
-**Разработчикам** (из git): [INSTALLATION.md](INSTALLATION.md)
-
-## 2. Первичная настройка
-
-```bash
-mkdir -p ~/.holix
 holix doctor
 holix doctor --fix
 ```
 
-При **первом диалоге** в новом профиле Holix проводит короткий онбординг (пока есть `INIT.md`): знакомство, личность агента (`SOUL.md`) и ваши предпочтения (`USER.md`). См. [PROFILES.md](PROFILES.md#идентичность-агента-soul-init-user).
-
-## 3. Модели
+Docker:
 
 ```bash
+docker compose ps
+docker compose exec holix holix doctor
+```
+
+## 2. Первичная настройка
+
+При **первом диалоге** в новом профиле Holix запускает онбординг (`INIT.md`): представьтесь, задайте личность агента (`SOUL.md`), предпочтения (`USER.md`). См. [PROFILES.md](PROFILES.md#agent-identity-soul-init-user).
+
+Если bootstrap не запускался:
+
+```bash
+holix bootstrap
 holix models setup
+holix models list
 holix config show
 ```
 
-## 4. Интерфейс
+## 3. Выбор интерфейса
 
-| Интерфейс | Команда |
-|-----------|---------|
-| TUI (рекомендуется) | `holix tui` |
-| Чат в терминале | `holix chat-command` |
-| Один запрос | `holix run "…"` |
-| API | `holix gateway start` |
+| Интерфейс | Команда | Когда |
+|-----------|---------|-------|
+| TUI (рекомендуется) | `holix tui` | Ежедневная работа, инструменты, hub, MCP |
+| Чат в терминале | `holix chat-command` | Лёгкий REPL |
+| Один запрос | `holix run "…"` | Скрипты |
+| HTTP API | `holix gateway start` | Приложения, OpenAI-клиенты |
+| Telegram | `holix -p shared telegram setup` | Мобильный доступ — [TELEGRAM.md](TELEGRAM.md) |
+| MAX | `holix max setup` | [MAX.md](MAX.md) |
 
 Слэш-команды: **`/help`** — [SLASH_COMMANDS.md](SLASH_COMMANDS.md).
 
-## 5. Опции
+## 4. Опциональные возможности
+
+Extras — [INSTALLATION.md](INSTALLATION.md):
 
 ```bash
-pipx install "Holix[telegram]"
+uv tool install "Holix[all]"
 holix -p shared telegram setup
-# мультипользовательский бот: /start → holix -p shared telegram requests approve …
-pipx install "Holix[max]"
-holix -p shared max setup
-# MAX в production: holix -p shared gateway start (webhook) — см. MAX.md
-pipx install "Holix[browser]"
-playwright install chromium
 holix hub browse
 holix mcp setup
+playwright install chromium
 ```
 
-## Production
+## 5. Production
 
 ```bash
 export HOLIX_ENV=production
@@ -95,10 +66,33 @@ holix gateway start
 
 [SECURITY.md](SECURITY.md), [DEPLOYMENT.md](DEPLOYMENT.md).
 
+## Шпаргалка команд
+
+```bash
+holix doctor
+holix models setup
+holix run "Привет"
+holix tui
+holix gateway start
+holix gateway status
+holix cron list
+holix launch setup
+holix logs -l error
+holix hub browse
+holix mcp setup
+holix update --channel pypi
+```
+
+Починка: `holix doctor --fix`
+
 ## Дальше
 
-- [MAX.md](MAX.md) — бот в мессенджере MAX
-- [CLI.md](CLI.md)
-- [CONFIGURATION.md](CONFIGURATION.md)
-- Логи: `holix logs` — [LOGS.md](LOGS.md)
-- [TROUBLESHOOTING.md](TROUBLESHOOTING.md)
+| Тема | Документ |
+|------|----------|
+| Конфигурация | [CONFIGURATION.md](CONFIGURATION.md) |
+| Профили | [PROFILES.md](PROFILES.md) |
+| CLI | [CLI.md](CLI.md) |
+| Cron | [CRON.md](CRON.md) |
+| Логи | [LOGS.md](LOGS.md) |
+| Проблемы | [TROUBLESHOOTING.md](TROUBLESHOOTING.md) |
+| Полный маршрут обучения | [USER_GUIDE.md](USER_GUIDE.md) |

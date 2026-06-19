@@ -148,7 +148,31 @@ Sub-agents do **not** automatically get `external_cli`. To let a sub-agent launc
 1. `holix launch setup` or TUI `/launch` — assign CLI to a sub-agent type (`agent_slot`, e.g. `coder`)
 2. Delegate to that sub-agent — it receives the `external_cli` tool when assigned
 
-Details: [LAUNCH_SUBAGENTS.md](LAUNCH_SUBAGENTS.md), [LAUNCH.md](LAUNCH.md).
+Setup: [LAUNCH.md](LAUNCH.md). TUI: `/launch` to assign CLI to a sub-agent type.
+
+### Sub-agents vs `holix launch`
+
+| | Holix sub-agents | `holix launch` (tmux CLIs) |
+|---|---|---|
+| **What** | Background Holix workers | Separate terminal agents (Claude Code, OpenCode, …) |
+| **Start** | `delegate_to_subagent` / `/subagent-spawn` | `holix launch <id>` or `external_cli` from assigned sub-agent |
+| **Model** | Parent profile model | Slot model (`agent_models.coder`, …) |
+| **Tools** | Holix tool registry (+ `external_cli` when assigned) | CLI's own tools |
+
+The main agent does **not** get `external_cli` directly — only a sub-agent whose type is assigned in `holix launch setup` or TUI `/launch`.
+
+Example:
+
+```text
+User: Research API in background and refactor auth in Claude Code
+
+Main agent:
+  delegate_to_subagent(researcher, "gather API docs …")
+  delegate_to_subagent(coder, "refactor auth in Claude Code")
+
+Sub-agent coder (claude assigned to coder slot):
+  external_cli(action=launch, cli_id=claude, task="refactor auth module")
+```
 
 ---
 
@@ -183,7 +207,7 @@ Delegate to coder: add type hints to cli/commands/launch.py and run tests
 
 ## See also
 
-- [LAUNCH_SUBAGENTS.md](LAUNCH_SUBAGENTS.md) — sub-agents vs `holix launch`
+- [LAUNCH.md](LAUNCH.md) — `holix launch` setup and tmux sessions
 - [SLASH_COMMANDS.md](SLASH_COMMANDS.md) — all `/` commands
 - [EXECUTION_MODES.md](EXECUTION_MODES.md) — Plan / Hybrid delegation
 - [LOGS.md](LOGS.md) — `subagent.jsonl`

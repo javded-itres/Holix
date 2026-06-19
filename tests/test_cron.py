@@ -20,6 +20,10 @@ def test_parse_natural_daily():
     assert parse_schedule_to_cron("every day at 9") == "0 9 * * *"
 
 
+def test_parse_natural_daily_with_am_pm():
+    assert parse_schedule_to_cron("every day at 10 am") == "0 10 * * *"
+
+
 def test_parse_every_minutes():
     assert parse_schedule_to_cron("every 15 minutes") == "*/15 * * * *"
 

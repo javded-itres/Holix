@@ -89,11 +89,10 @@ async def init_max_webhook(profile: str | None = None) -> MaxGatewayState | None
         raise
 
     try:
-        from core.i18n import LocaleStore
-
         from integrations.max.commands import register_bot_commands
+        from integrations.messenger.locale import messenger_locale
 
-        locale = LocaleStore(profile).get()
+        locale = messenger_locale(profile)
         registered = await register_bot_commands(client, locale=locale)
         if registered:
             logger.info("MAX menu: %d commands", len(registered))

@@ -6,6 +6,34 @@ Screen {
     background: $surface;
 }
 
+#process-bar {
+    height: 1;
+    display: none;
+    padding: 0 1;
+    background: $success 12%;
+    color: $text;
+}
+
+#process-bar.visible {
+    display: block;
+}
+
+#process-bar.clickable {
+    text-style: bold;
+}
+
+#process-bar.clickable:hover {
+    background: $success 22%;
+}
+
+#process-bar.error {
+    background: $error 15%;
+}
+
+#process-bar.error:hover {
+    background: $error 22%;
+}
+
 #transcript {
     height: 1fr;
     border: none;

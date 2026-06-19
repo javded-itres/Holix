@@ -1,228 +1,228 @@
 # Установка
 
-Holix требует **Python 3.12+** и устанавливается как CLI-команда `holix`.
+Holix требует **Python 3.12+** (для локальной установки) и устанавливается как команда **`holix`**. Выберите один путь ниже.
 
-## Требования
+## Выберите путь
+
+| Путь | Когда подходит | Результат |
+|------|----------------|-----------|
+| **A — Локально (uv / pipx)** | Ежедневная работа, разработка, TUI, несколько профилей на машине | `holix` на хосте; данные в `~/.holix/` (или `%LOCALAPPDATA%\Holix\`) |
+| **B — Docker** | Сервер, в первую очередь Telegram, минимум зависимостей на хосте | Контейнер: gateway + Telegram + cron в одном процессе |
+
+После любого пути — [START_HERE.md](START_HERE.md) (чеклист первого запуска).
+
+---
+
+## Требования (оба пути)
 
 | Компонент | Примечание |
 |-----------|------------|
-| Python | 3.12+ |
-| [uv](https://github.com/astral-sh/uv) | Рекомендуется |
+| Python 3.12+ | Только путь A (на хосте) |
+| [uv](https://github.com/astral-sh/uv) | **Рекомендуется** для пути A — установка, sync, `uv tool install`, `uv run` |
 | LLM | OpenAI-совместимый API (Ollama, LiteLLM, OpenAI, Groq, …) |
 
-Опциональные extras:
+### Опциональные extras (путь A)
 
-| Extra | PyPI (`pip` / `pipx`) | Из исходников (`uv sync`) | Назначение |
-|-------|----------------------|---------------------------|------------|
+| Extra | PyPI | Из исходников | Назначение |
+|-------|------|---------------|------------|
 | `telegram` | `pip install "Holix[telegram]"` | `uv sync --extra telegram` | Telegram-бот |
-| `browser` | `pip install "Holix[browser]"` | `uv sync --extra browser` | Playwright — [BROWSER_TOOLS.md](BROWSER_TOOLS.md) |
-| `voice` | `pip install "Holix[voice]"` | `uv sync --extra voice` | Голосовые сообщения (Whisper) |
-| `tui-web` | `pip install "Holix[tui-web]"` | `uv sync --extra tui-web` | `holix tui --web` |
-| `windows` | `pip install "Holix[windows]"` | `uv sync --extra windows` | `psutil` для процессов |
-| `all` | `pip install "Holix[all]"` | `uv sync --extra all` | всё выше |
+| `browser` | `pip install "Holix[browser]"` | `--extra browser` | Playwright — [BROWSER_TOOLS.md](BROWSER_TOOLS.md) |
+| `voice` | `pip install "Holix[voice]"` | `--extra voice` | Голос в Telegram |
+| `tui-web` | `pip install "Holix[tui-web]"` | `--extra tui-web` | `holix tui --web` |
+| `windows` | `pip install "Holix[windows]"` | `--extra windows` | Завершение дерева процессов |
+| `all` | `pip install "Holix[all]"` | `--extra all` | всё выше |
 
 После `browser`: `playwright install chromium`
 
-## Быстрая установка (пользователям)
+Пакет на PyPI: **[Holix](https://pypi.org/project/Holix/)**. Команда: **`holix`**. Не используйте `pip install helix` — это другой проект.
 
-### Установка одной командой (curl)
+---
 
-Самый быстрый способ для macOS/Linux: скачивает `install.sh`, определяет язык, спрашивает тип установки, ставит пакет с PyPI и запускает интерактивную настройку.
+## Путь A — Локальная установка
+
+### A1 — uv tool install (рекомендуется)
+
+Глобальный `holix` без ручного venv:
+
+```bash
+uv tool install Holix
+uv tool install "Holix[all]"
+
+holix version
+holix bootstrap
+holix doctor
+```
+
+Обновление: `uv tool upgrade Holix` или `holix update --channel pypi`.
+
+### A2 — Установка одной командой (curl)
+
+macOS/Linux: язык, полная/минимальная установка, PyPI, `holix bootstrap`:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/javded-itres/Holix/main/scripts/install.sh | bash
 ```
 
-Сохранить и запустить:
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/javded-itres/Holix/main/scripts/install.sh -o install.sh
-bash install.sh
-```
-
-**Что делает скрипт:**
-
-1. **Язык** — читает `LANG` / `LC_ALL` / `LC_MESSAGES`:
-   - Русская система (`ru_*`) → установщик и `holix bootstrap` сразу на **русском**
-   - Английская или другая → меню: `1) English` / `2) Русский`
-2. **Тип установки** — полная или минимальная (см. таблицу)
-3. **Пакет** — `pipx install` или `uv tool install` с PyPI
-4. **Bootstrap** — `holix bootstrap`: LLM + опционально Telegram (токен бота, Telegram ID админа)
-
 | Выбор | Пакет | Состав |
 |-------|-------|--------|
-| **Полная** (по умолчанию) | `Holix[all]` | Telegram, браузер, голос, web TUI |
+| **Полная** | `Holix[all]` | Telegram, браузер, голос, web TUI |
 | **Минимальная** | `Holix` | CLI, TUI, gateway, MCP |
 
-**Bootstrap (`holix bootstrap`)** после установки:
-
-| Шаг | Действие |
-|-----|----------|
-| Язык | Сохраняет UI-локаль в `profiles/default/data/locale.json` и `profiles/admin/data/locale.json` |
-| LLM | Ollama, LiteLLM, OpenAI или Groq; проверка подключения; запись в `config.yaml` профиля |
-| Telegram | Опционально: токен бота, ваш Telegram ID как админ, `HOLIX_TELEGRAM_VOICE_LANGUAGE` |
-
-Принудительный язык или повтор настройки:
+Повтор настройки:
 
 ```bash
 HOLIX_BOOTSTRAP_LANG=ru bash install.sh
 holix bootstrap --lang en
 holix bootstrap --skip-telegram
-holix bootstrap -y          # без интерактива
+holix bootstrap -y
 ```
 
-Из git-клона `./scripts/install.sh` работает так же (локальный `uv sync` + bootstrap).
+Подробнее: [START_HERE.md](START_HERE.md#1-install).
 
-### PyPI — вручную
-
-Опубликовано: [pypi.org/project/Holix](https://pypi.org/project/Holix/) (версия **0.1.11**).
-
-Пакет **`Holix`** (не `pip install helix` — это другой проект). Команда: **`holix`**.
-
-**Глобально (рекомендуется):**
+### A3 — pipx или pip
 
 ```bash
 pipx install Holix
-# или: uv tool install Holix
-holix version
+holix bootstrap
 ```
 
-**В venv** (после `source .venv/bin/activate`):
+В venv:
 
 ```bash
-pip install Holix
-holix version
+python -m venv .venv && source .venv/bin/activate
+pip install "Holix[telegram]"
+holix doctor
 ```
 
-**В пользовательский каталог** (`~/.local/bin` в PATH):
+В `~/.local/bin` (добавьте в PATH):
 
 ```bash
 pip install --user Holix
 export PATH="$HOME/.local/bin:$PATH"
-holix version
 ```
 
-### Из git
+### A4 — Windows
 
-```bash
-git clone https://github.com/javded-itres/Holix.git
-cd Holix
-./scripts/install.sh          # macOS / Linux
-# Windows: .\scripts\install.ps1
-holix install
-holix doctor
-```
-
-## Windows
-
-**Требования:** Python 3.12+ с [python.org](https://www.python.org/downloads/) (при установке отметьте «Add python.exe to PATH»).  
-**Рекомендуется:** [uv](https://github.com/astral-sh/uv).
-
-### Глобальная команда `holix` из любой папки
-
-**PyPI (проще всего):**
+Python 3.12+ с [python.org](https://www.python.org/downloads/) — **Add python.exe to PATH**.
 
 ```powershell
-pipx install Holix
-# или:
 uv tool install Holix
-
 holix version
 holix doctor
 ```
 
-**Из git:**
-
-```powershell
-git clone https://github.com/javded-itres/Holix.git
-cd Holix
-.\scripts\install.ps1
-# или, если holix уже в PATH:
-holix install --extra telegram
-```
-
-Установщик добавляет Holix в PATH пользователя. **Откройте новое окно PowerShell**, затем `holix version`.
-
-### Данные и профили
+Из git: `.\scripts\install.ps1` — после установки **новое** окно PowerShell.
 
 | Что | Путь |
 |-----|------|
-| Домашний каталог Holix | `%LOCALAPPDATA%\Holix\` (или `HOLIX_HOME`) |
+| Домашний каталог | `%LOCALAPPDATA%\Holix\` |
 | Профили | `%LOCALAPPDATA%\Holix\profiles\<имя>\` |
-| Лог gateway | `%LOCALAPPDATA%\Holix\profiles\<имя>\gateway\` |
 
-### Типичный запуск
+Опционально: `Holix[windows]`.
 
-```powershell
-holix models setup
-holix tui
-holix gateway start
-holix -p shared telegram setup
-```
-
-Опционально extra `windows` для корректного завершения дочерних процессов: `pip install "Holix[windows]"`.
-
-### Проблемы на Windows
-
-| Симптом | Решение |
-|---------|---------|
-| `holix` не найден | Новый терминал; проверьте `%USERPROFILE%\.local\bin` или повторите `.\scripts\install.ps1` |
-| Скрипт заблокирован | `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned` |
-| Кракозябры в TUI | Windows Terminal, кодировка UTF-8 |
-
-Подробнее: [TROUBLESHOOTING.md](TROUBLESHOOTING.md).
-
-## Установка для разработки
+### A5 — Из git (разработка)
 
 ```bash
+git clone https://github.com/javded-itres/Holix.git
+cd Holix
 uv sync
 uv pip install -e .
 cp .env.example .env
+holix doctor
 holix models setup
 ```
 
-## Первый запуск
-
-**После curl-установки** bootstrap обычно уже настроил LLM и Telegram. Иначе:
+Без глобальной установки:
 
 ```bash
-holix bootstrap              # язык, LLM, Telegram
-# или по шагам:
+uv run holix tui
+```
+
+Или: `./scripts/install.sh` / `holix install --extra telegram`.
+
+### Путь A — первый запуск
+
+Обычно делает `holix bootstrap`. Иначе:
+
+```bash
 holix doctor
 holix models setup
 holix telegram setup
+holix tui
 ```
 
-1. `cp .env.example .env` (опционально) или `~/.holix/global/.env`
-2. `holix doctor`
-3. `holix models setup` (если пропустили в bootstrap)
-4. `holix tui` или `holix chat-command`
+Данные: `~/.holix/` или `HOLIX_HOME`. Конфигурация: [CONFIGURATION.md](CONFIGURATION.md). Логи: [LOGS.md](LOGS.md).
 
-Язык интерфейса профиля: `/lang ru` или `/lang en` в TUI; файл `profiles/<имя>/data/locale.json`.
-
-Данные: `~/.holix/` (Linux/macOS), `%LOCALAPPDATA%\Holix\` (Windows) или `HOLIX_HOME` — см. [CONFIGURATION.md](CONFIGURATION.md). Логи: [LOGS.md](LOGS.md).
-
-## Обновление
+### Путь A — обновление и удаление
 
 ```bash
 holix update --channel pypi
-holix update --check
 ```
 
-Или: `pipx upgrade Holix` / `pip install -U Holix`
+Удаление: `uv tool uninstall Holix` / `pipx uninstall Holix`; при необходимости удалите `~/.holix/`.
 
-## Docker
+---
+
+## Путь B — Docker
+
+Python на хосте не нужен. В образе уже Telegram, voice, browser.
+
+### B1 — Быстрый старт
 
 ```bash
+export TELEGRAM_BOT_TOKEN="123456789:AAH..."
 docker compose up -d
 ```
 
-Подробнее: [DEPLOYMENT.md](DEPLOYMENT.md).
+При первом запуске создаётся `HOLIX_HOME` в контейнере.
 
-## Удаление
+### B2 — Одобрение пользователей Telegram
 
-1. Удалите `holix` из PATH.
-2. При необходимости удалите `~/.holix/`.
-3. Удалите каталог клона.
+Пользователь отправляет `/start`. Одобрение из контейнера:
 
-См. также [TROUBLESHOOTING.md](TROUBLESHOOTING.md), [DOCTOR.md](DOCTOR.md).
+```bash
+docker compose exec holix holix -p shared telegram requests list
+docker compose exec holix holix -p shared telegram requests approve USER_ID --create-profile alice
+docker compose exec holix holix -p shared telegram requests approve USER_ID --profile existing
+```
+
+Используйте **именованный** профиль бота (`-p shared`). В production профиль `default` недоступен.
+
+### B3 — Переменные окружения
+
+| Переменная | Назначение |
+|------------|------------|
+| `TELEGRAM_BOT_TOKEN` | Токен бота |
+| `MODEL`, `BASE_URL` | Облачная LLM вместо Ollama в контейнере |
+| `HOLIX_API_KEY_PEPPER` | Хеширование API-ключей |
+| `HOLIX_ENV=production` | Политика production |
+
+Смонтируйте том для `HOLIX_HOME`, чтобы сохранить профили между перезапусками (см. `docker-compose.yml` в репозитории).
+
+### B4 — Что работает внутри
+
+`holix gateway start -f` — gateway, Telegram и cron в одном процессе.
+
+Эксплуатация (systemd, TLS, шифрование): [DEPLOYMENT.md](DEPLOYMENT.md).
+
+---
+
+## Решение проблем при установке
+
+| Симптом | Действие |
+|---------|----------|
+| `holix: command not found` | Добавьте `~/.local/bin` в PATH или `uv tool install Holix` |
+| Версия Python | 3.12+; `uv python install 3.12` |
+| Ошибки после git pull | `uv sync && uv pip install -e .` |
+| Doctor: нет провайдера | `holix models setup` |
+| Docker: бот молчит | Токен, логи, `telegram requests approve` |
+| Windows: скрипт заблокирован | `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned` |
+
+Подробнее: [TROUBLESHOOTING.md](TROUBLESHOOTING.md), [DOCTOR.md](DOCTOR.md).
+
+## См. также
+
+- [START_HERE.md](START_HERE.md) — чеклист после установки
+- [CONFIGURATION.md](CONFIGURATION.md) — `.env`, профили
+- [DEPLOYMENT.md](DEPLOYMENT.md) — systemd, reverse proxy
+- [PYPI.md](PYPI.md) — публикация (для мейнтейнеров)

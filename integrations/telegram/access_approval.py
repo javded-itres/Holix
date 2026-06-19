@@ -86,6 +86,9 @@ def _prepare_profile_for_user(
                 bot_profile=bot_profile,
                 user_profile=target_profile,
             )
+        from integrations.messenger.locale import apply_messenger_locale
+
+        apply_messenger_locale(target_profile)
         return access_key, key_already_set
 
     if not manager.profile_exists(target_profile):
@@ -98,6 +101,9 @@ def _prepare_profile_for_user(
             bot_profile=bot_profile,
             user_profile=target_profile,
         )
+    from integrations.messenger.locale import ensure_messenger_locale
+
+    ensure_messenger_locale(target_profile)
     return None, profile_has_access_key(target_profile)
 
 

@@ -331,13 +331,21 @@ holix -p shared max status
 - Manual allowlist (`HOLIX_MAX_ALLOWED_USERS`) is optional when access requests are enabled.
 - There is **only one** MAX administrator (`HOLIX_MAX_ADMIN_USER_ID`); assign via `requests approve --set-admin`.
 
-Details: [MAX_MULTI_PROFILE.md](MAX_MULTI_PROFILE.md).
-
 ---
 
-## Multiple bots (full isolation)
+## Multi-profile topologies
 
-Different people → different profiles → different bots:
+Each profile has isolated `.env`, `max.env`, gateway, and memory. See [PROFILES.md](PROFILES.md).
+
+**Rule:** one MAX bot token = one host profile = one webhook (or one polling process).
+
+| Approach | Isolation | Setup |
+|----------|-----------|-------|
+| **One bot per profile** | Full | Separate token + gateway per profile |
+| **One bot + access requests** | Per-user profile + jail | § One bot — many users above |
+| **One bot + `map`** | Manual bindings | `holix max map set …` |
+
+### One bot per profile
 
 ```bash
 holix -p alice max setup
@@ -346,7 +354,13 @@ holix -p alice gateway start
 holix -p bob gateway start
 ```
 
-Each profile has its own `max.env`, webhook URL, and gateway port.
+Different `HOLIX_GATEWAY_PORT` and `HOLIX_MAX_WEBHOOK_URL` per profile in `.env` / `max.env`.
+
+### Common mistakes
+
+- Same token in multiple `max.env` files.
+- Same gateway port across profiles.
+- Production without allowlist or access requests.
 
 ## Manual user id → profile mapping
 
@@ -492,7 +506,7 @@ Run `holix doctor` to check token, webhook, and allowlist.
 
 ## See also
 
-- [MAX_MULTI_PROFILE.md](MAX_MULTI_PROFILE.md) — one bot / multiple bots, isolation
+- Multi-profile topologies — § above in this page
 - [TELEGRAM.md](TELEGRAM.md) — parallel Telegram integration
 - [GATEWAY.md](GATEWAY.md) — HTTP gateway and companions
 - [SLASH_COMMANDS.md](SLASH_COMMANDS.md) — `/` commands in MAX chats

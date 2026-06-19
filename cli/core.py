@@ -87,7 +87,7 @@ class ProfileConfig(BaseModel):
     # Web search providers (duckduckgo, searxng, firecrawl)
     search: dict[str, Any] = Field(default_factory=dict)
 
-    # Workspace jail: restrict file/terminal tools to a single directory tree
+    # Workspace jail: restrict file/terminal tools to the profile workspace directory
     workspace_jail_enabled: bool = False
     workspace_root: str | None = None
 
@@ -230,10 +230,17 @@ def resolve_profile_storage_paths(
         str(memory_dir / "checkpoints.db"),
         memory_dir / "checkpoints.db",
     )
+    workspace_default = base / "workspace"
+    workspace_default.mkdir(parents=True, exist_ok=True)
     if config.workspace_root and str(config.workspace_root).strip():
-        config.workspace_root = _resolve(config.workspace_root, base / "workspace")
+        resolved_ws = _resolve(config.workspace_root, workspace_default, mkdir_target=True)
+        try:
+            Path(resolved_ws).resolve().relative_to(base.resolve())
+            config.workspace_root = resolved_ws
+        except ValueError:
+            config.workspace_root = str(workspace_default.resolve())
     else:
-        config.workspace_root = None
+        config.workspace_root = str(workspace_default.resolve())
     return config
 
 
@@ -335,6 +342,8 @@ class ProfileManager:
             config.profile_name = profile
 
         config = resolve_profile_storage_paths(profile, config, profile_dir=profile_dir)
+        if profile in {"default", "admin"}:
+            config.workspace_jail_enabled = False
         storage_mode = "sparse" if inherit_global else "full"
 
         if with_access_key:

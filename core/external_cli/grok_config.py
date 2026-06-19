@@ -6,7 +6,7 @@ import re
 from pathlib import Path
 
 from core.models.manager import ModelConfig
-from core.platform_compat import resolve_holix_home
+from core.profile.names import profile_dir_for_name
 
 
 def grok_model_registry_name(raw: str) -> str:
@@ -21,7 +21,7 @@ def _toml_string(value: str) -> str:
 
 def ensure_grok_config(profile: str, model: ModelConfig) -> tuple[Path, str]:
     """Write ``config.toml`` under the profile and return ``(grok_home, registry_name)``."""
-    grok_home = (resolve_holix_home() / "profiles" / profile / "grok").resolve()
+    grok_home = (profile_dir_for_name(profile) / "grok").resolve()
     grok_home.mkdir(parents=True, exist_ok=True)
 
     registry_name = grok_model_registry_name(model.model)

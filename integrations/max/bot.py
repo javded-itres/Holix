@@ -262,9 +262,21 @@ class HelixMaxBot:
             await self._handle_unauthorized(client, uid, meta=meta, is_start=True)
             return
         try:
-            from core.i18n import LocaleStore
+            from integrations.messenger.locale import (
+                bootstrap_messenger_locales,
+                messenger_locale,
+            )
+            from integrations.messenger.platforms import MAX_PLATFORM
 
-            locale = LocaleStore(self.settings.profile).get()
+            asyncio.create_task(
+                asyncio.to_thread(
+                    bootstrap_messenger_locales,
+                    MAX_PLATFORM,
+                    self.settings.profile,
+                ),
+                name="max-locale-bootstrap",
+            )
+            locale = messenger_locale(self.settings.profile)
             await register_bot_commands(client, locale=locale)
         except Exception:
             logger.exception("Failed to sync MAX command menu on bot_started")

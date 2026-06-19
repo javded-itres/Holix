@@ -89,6 +89,18 @@ class AgentCommands:
             elif lower == "/stop":
                 h._action_stop_all()
 
+            elif lower in ("/process-stop", "/process stop"):
+                if hasattr(h, "_stop_background_process"):
+                    h.run_worker(h._stop_background_process())
+                else:
+                    h.transcript_write("[yellow]/process-stop — TUI only[/yellow]")
+
+            elif lower in ("/process", "/process list"):
+                if hasattr(h, "_list_background_processes"):
+                    h.run_worker(h._list_background_processes())
+                else:
+                    h.transcript_write("[yellow]/process — TUI only[/yellow]")
+
             elif lower == "/new":
                 h.run_worker(h._create_new_session())
 

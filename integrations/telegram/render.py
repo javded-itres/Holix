@@ -42,6 +42,12 @@ def buffer_to_telegram_html(buf: LiveTranscriptBuffer) -> str:
         ),
     ]
 
+    if buf.background_process:
+        icon = "🟢" if buf.background_process_healthy else "🔴"
+        parts.append(
+            f"<b>{icon} Process:</b> {escape_html(buf.background_process)}"
+        )
+
     if buf.thinking:
         label = live_thinking_label(buf.profile, fallback=buf.thinking)
         parts.append(f"<i>💭 {escape_html(label)}</i>")

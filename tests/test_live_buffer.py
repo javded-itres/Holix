@@ -26,3 +26,10 @@ def test_tool_start_clears_partial_answer():
     buf.set_answer("Давайте посмотрю, есть ли активные задачи.")
     buf.add_tool_start("list_subagents", {})
     assert buf.answer == ""
+
+
+def test_render_shows_error_process_icon():
+    buf = LiveTranscriptBuffer(profile="p1", mode="react")
+    buf.set_background_process(label="api · pid 1", process_id="proc_1", healthy=False)
+    text = buf.render_plain()
+    assert "🔴 Process:" in text

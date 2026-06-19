@@ -8,7 +8,11 @@ import re
 from pathlib import Path
 
 from core.env_loader import profile_dir_path
-from core.profile.names import ProfileNameError, validate_profile_name
+from core.profile.names import (
+    ProfileNameError,
+    assert_under_profiles_root,
+    validate_profile_name,
+)
 
 from integrations.messenger.env_store import (
     messenger_env_path,
@@ -46,10 +50,11 @@ def format_user_profiles_text(mapping: dict[int, str]) -> str:
 
 
 def _load_json_mapping(path: Path) -> dict[int, str]:
-    if not path.is_file():
+    safe_path = assert_under_profiles_root(path)
+    if not safe_path.is_file():
         return {}
     try:
-        data = json.loads(path.read_text(encoding="utf-8"))
+        data = json.loads(safe_path.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError):
         return {}
     if not isinstance(data, dict):
@@ -111,7 +116,8 @@ def _sync_env_user_profiles(
     bot_profile: str,
     mapping: dict[int, str],
 ) -> None:
-    values = read_messenger_env_values(platform, bot_profile)
+    name = validate_profile_name(bot_profile)
+    values = read_messenger_env_values(platform, name)
     text = format_user_profiles_text(mapping)
     if text:
         values[platform.user_profiles_key] = text
@@ -121,9 +127,9 @@ def _sync_env_user_profiles(
     if (
         values.get(token_key)
         or values.get(platform.user_profiles_key)
-        or messenger_env_path(platform, bot_profile).is_file()
+        or messenger_env_path(platform, name).is_file()
     ):
-        save_messenger_env(platform, values, profile=bot_profile)
+        save_messenger_env(platform, values, profile=name)
     elif platform.user_profiles_key in os.environ:
         os.environ.pop(platform.user_profiles_key, None)
 

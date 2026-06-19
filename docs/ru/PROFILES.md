@@ -127,7 +127,7 @@ holix -p shared telegram requests approve USER_ID --create-profile ivan
 
 Каждому одобренному пользователю создаётся защищённый профиль, workspace jail и ключ доступа в Telegram.
 
-Ручные привязки (`holix telegram map`) по-прежнему поддерживаются. См. [TELEGRAM_MULTI_PROFILE.md](TELEGRAM_MULTI_PROFILE.md).
+Ручные привязки (`holix telegram map`) по-прежнему поддерживаются. См. [TELEGRAM.md](TELEGRAM.md).
 
 ## Workspace jail (изоляция в директории)
 
@@ -277,7 +277,7 @@ HOLIX_PROFILE_KEY=hp_xxxxxxxx
 
 Ключ защищает **переключение в** профиль через интерфейсы Holix. Он не заменяет права файловой системы на `~/.holix` и API-ключи gateway — см. [SECURITY.md](SECURITY.md).
 
-Подробная инструкция по Telegram (один бот vs несколько ботов): [TELEGRAM_MULTI_PROFILE.md](TELEGRAM_MULTI_PROFILE.md).
+Подробная инструкция по Telegram (один бот vs несколько ботов): [TELEGRAM.md](TELEGRAM.md).
 
 Опциональное **шифрование at-rest** секретов и памяти (workspace остаётся plaintext): [PROFILE_ENCRYPTION.md](PROFILE_ENCRYPTION.md).
 

@@ -218,8 +218,9 @@ class HolixRuntimeConfig:
             overrides["subagent_max_concurrent"] = profile.subagent_max_concurrent
         if getattr(profile, "search", None):
             overrides["search"] = profile.search
-        if getattr(profile, "workspace_jail_enabled", False):
-            overrides["workspace_jail_enabled"] = profile.workspace_jail_enabled
+        overrides["workspace_jail_enabled"] = bool(
+            getattr(profile, "workspace_jail_enabled", False)
+        )
         if getattr(profile, "workspace_root", None):
             overrides["workspace_root"] = profile.workspace_root
         if getattr(profile, "encryption_enabled", False):

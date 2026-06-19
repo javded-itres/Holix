@@ -6,13 +6,16 @@ import os
 import re
 from typing import Any
 
-_ENV_REF = re.compile(r"^\$\{([A-Z0-9_]+)(?::([^}]*))?\}$")
-_INLINE_ENV_REF = re.compile(r"\$\{([A-Z0-9_]+)(?::([^}]*))?\}")
+_ENV_REF = re.compile(r"^\$\{([A-Z0-9_]{1,64})(?::([^}\n]{0,512}))?\}$")
+_INLINE_ENV_REF = re.compile(r"\$\{([A-Z0-9_]{1,64})(?::([^}\n]{0,512}))?\}")
+_MAX_ENV_SUB_BYTES = 256_000
 
 
 def substitute_env_in_string(text: str, *, leave_missing: bool = True) -> str:
     """Replace inline ${VAR} / ${ENV:VAR} with os.environ values."""
     if not text or "${" not in text:
+        return text
+    if len(text.encode("utf-8", errors="replace")) > _MAX_ENV_SUB_BYTES:
         return text
 
     def _repl(match: re.Match[str]) -> str:

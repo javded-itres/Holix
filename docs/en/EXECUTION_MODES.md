@@ -345,5 +345,5 @@ Execution mode itself is a **session setting** in TUI/Telegram (not usually stor
 
 - [SLASH_COMMANDS.md](SLASH_COMMANDS.md) — `/mode`, `/plan-*`, `/status`
 - [TUI.md](TUI.md) — Shift+Tab, web UI
-- [USER_GUIDE.md](USER_GUIDE.md) — full walkthrough
+- [USER_GUIDE.md](USER_GUIDE.md) — learning path (links to all topics)
 - [ARCHITECTURE.md](ARCHITECTURE.md) — LangGraph and runtime

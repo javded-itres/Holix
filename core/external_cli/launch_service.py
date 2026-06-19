@@ -13,6 +13,7 @@ from core.external_cli.assignment import (
 from core.external_cli.platform import ensure_launch_platform, launch_supported
 from core.external_cli.registry import get_cli_spec, list_cli_specs
 from core.external_cli.store import LaunchedSession
+from core.profile.names import trusted_profile_workspace, validate_profile_name
 
 
 class LaunchServiceError(RuntimeError):
@@ -28,10 +29,11 @@ def _resolve_binary(spec) -> str | None:
 def _load_profile_config(profile: str) -> Any:
     from cli.core import ProfileManager
 
+    name = validate_profile_name(profile)
     manager = ProfileManager()
-    if not manager.profile_exists(profile):
-        raise LaunchServiceError(f"Profile not found: {profile}")
-    return manager.load_profile(profile)
+    if not manager.profile_exists(name):
+        raise LaunchServiceError(f"Profile not found: {name}")
+    return manager.load_profile(name)
 
 
 def _session_dict(session: LaunchedSession) -> dict[str, Any]:
@@ -83,15 +85,16 @@ def launch_external_cli(
         known = ", ".join(s.cli_id for s in list_cli_specs())
         raise LaunchServiceError(f"Unknown CLI '{cli_id}'. Supported: {known}")
 
-    config = _load_profile_config(profile)
-    workdir = Path(cwd).expanduser() if cwd else None
+    safe_profile = validate_profile_name(profile)
+    config = _load_profile_config(safe_profile)
+    workdir = trusted_profile_workspace(safe_profile, Path(cwd)) if cwd else None
 
     from cli.services.tmux_launcher import TmuxError, launch_cli_by_id, restart_cli_by_id
 
     launcher = restart_cli_by_id if restart else launch_cli_by_id
     try:
         session = launcher(
-            profile=profile,
+            profile=safe_profile,
             cli_id=cli_id,
             profile_config=config,
             cwd=workdir,

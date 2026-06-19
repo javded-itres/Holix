@@ -7,6 +7,7 @@ from typing import Any
 
 TOOL_ALIASES: dict[str, str] = {
     "web_fetch": "fetch_url",
+    "run_project": "start_background_process",
 }
 
 

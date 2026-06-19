@@ -145,7 +145,7 @@ holix -p shared telegram map import "111:alice,222:bob"
 | `HOLIX_TELEGRAM_USER_PROFILES` | `USER_ID:profile` comma-separated in `telegram.env` |
 | `telegram-users.json` | User bindings; updated by `map` or `requests approve` |
 
-Details: [TELEGRAM.md](TELEGRAM.md), [TELEGRAM_MULTI_PROFILE.md](TELEGRAM_MULTI_PROFILE.md).
+Details: [TELEGRAM.md](TELEGRAM.md) (incl. multi-profile topologies).
 
 ## Key environment variables
 
@@ -277,9 +277,13 @@ holix models fallback clear
 
 Each fallback uses that provider's `default_model`. Inherited from `global/config.yaml` unless overridden in the profile.
 
+## Models
+
+Provider presets, `agent_models`, and fallbacks — canonical guide: **[MODELS.md](MODELS.md)** (not duplicated here).
+
 ## MCP and Hub
 
-- `mcp_servers`, `mcp_assignments` — see `holix mcp` in [CLI.md](CLI.md)
+- MCP servers and assignments — **[MCP.md](MCP.md)** and `holix mcp` in [CLI.md](CLI.md)
 - Hub lockfile: `{profile}/data/hub-lock.json` — [HUB.md](HUB.md)
 - `skill_assignments` — per-agent skill allowlists: `holix skills assign`
 

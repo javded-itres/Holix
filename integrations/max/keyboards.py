@@ -18,6 +18,16 @@ def _cb(action: str, value: str) -> str:
     return f"{PREFIX}:{action}:{value}"
 
 
+def background_process_stop_keyboard(process_token: str) -> dict[str, Any]:
+    return inline_keyboard(
+        [
+            [
+                _callback_btn("⏹ Остановить процесс", _cb("ps", process_token)),
+            ],
+        ]
+    )
+
+
 def parse_callback(payload: str) -> tuple[str, str] | None:
     if not payload or not payload.startswith(f"{PREFIX}:"):
         return None
@@ -226,7 +236,9 @@ def models_provider_keyboard(
 def status_menu_keyboard(locale: str | None = None, *, is_admin: bool = True) -> dict[str, Any]:
     from core.i18n.messages import t
 
-    loc = locale or "en"
+    from integrations.messenger.locale import MESSENGER_DEFAULT_LOCALE
+
+    loc = locale or MESSENGER_DEFAULT_LOCALE
     row0: list[dict[str, str]] = [
         _callback_btn(t("tg.menu.mode", loc), _cb("r", "mode")),
     ]

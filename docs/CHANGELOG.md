@@ -2,6 +2,40 @@
 
 ## Unreleased
 
+### Documentation
+- **Information architecture** — one canonical page per topic; merged multi-profile and launch-subagents docs into TELEGRAM, MAX, SUBAGENTS
+- **INSTALLATION** (EN/RU) — unified Path A (uv/pipx) and Path B (Docker); QUICKSTART → START_HERE cheat sheet
+- **USER_GUIDE** — learning path with links only (removed from site nav)
+- **Site /docs** — regrouped sidebar (install, daily use, agents, integrations, reference); CLI moved to end
+- **MCP, MODELS, MEMORY** (EN/RU) — dedicated canonical pages; CONFIGURATION links instead of duplicating
+- **RU parity** — ARCHITECTURE and LOGS full translations; LICENSING_STRATEGY (RU) + EN stub
+- **holix-docs** — nav/SEO for mcp, models, memory; client redirects (quickstart→start-here, merged stubs); marketing links to subagents
+
+## 0.1.16 — 2026-06-18
+
+### Added
+- **Cron auto-create from chat** — recurring requests in natural language (RU/EN) in Telegram, MAX, and TUI automatically create gateway cron jobs; `schedule_cron` agent tool as fallback
+- **Russian schedule parsing** — `каждый день в 10 утра`, `в 8 вечера`, `каждые 30 минут`, etc.
+- **Unified `/stop`** — `cli/shared/agent_stop.py` cancels agent workers, run tasks, confirmations, plan reviews, and sub-agents (TUI, Telegram, MAX)
+- **TUI process viewer** — modal to list/stop background processes; `/process` and `/process-stop` slash commands
+- **Background process paths** — `core/runtime/background_paths.py`: cwd from `working_directory` → jail → workspace; venv in PATH, `PYTHONUNBUFFERED`
+- **Port-aware cleanup** — `cleanup_before_start` stops only same-session processes or port conflicts (not all profile processes)
+
+### Fixed
+- **Plan mode** — sub-agent delegation and reasoning-only stalls; plan review flow improvements
+- **Cron schedule parser** — `every day at 10 am` no longer misparsed as 5-field cron
+- **Terminal safety** — Holix profile dirs and `.runtime-cache` blocked even when workspace jail is off
+- **`/init` locale** — runs in profile UI language (`/lang ru` | `en`)
+- **Background shell** — `bash -lc` instead of fragile `exec source …` for venv activation
+
+### Changed
+- **Version** — package `Holix` 0.1.16
+
+### Documentation
+- **CRON** (EN/RU) — dedicated page: auto-create from chat, schedule formats (RU/EN), `/cron`, `holix cron`, `schedule_cron`
+- **SLASH_COMMANDS, CLI, TUI, USER_GUIDE, TELEGRAM, TERMINAL_SECURITY** (EN/RU) — `/stop`, `/process`, cron auto-create, Holix path blocking without jail
+- **holix-docs** — version 0.1.16, `cron` nav slug, SEO, synced content
+
 ## 0.1.15 — 2026-06-15
 
 ### Added
@@ -190,7 +224,7 @@
 ### Documentation
 - **Profiles & Isolation** (EN/RU) — per-profile `.env`, gateway, Telegram, workspace jail
 - **Profile access keys** — optional protection for profile switching (`profile key`, `--protect`, `HOLIX_PROFILE_KEY`)
-- **Telegram channel** [@holix_agent](https://t.me/holix_agent) linked in README and TELEGRAM guides
+- **Telegram channel** [@helix_agent](https://t.me/helix_agent) linked in README and TELEGRAM guides
 - **DEPLOYMENT** — per-profile gateway, systemd `holix-gateway@`, docs-server env vars
 - **CONFIGURATION**, **CLI**, **GATEWAY**, **USER_GUIDE** updated for profiles and multi-gateway setup
 - Donation link updated to Boosty

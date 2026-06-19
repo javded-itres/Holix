@@ -170,12 +170,30 @@ def save_plan(
     return md_path
 
 
-def load_plan(path: str) -> dict[str, Any]:
-    """Load a plan from a JSON file."""
+def resolve_trusted_plan_file(
+    path: str | Path,
+    config: HolixRuntimeConfig | None = None,
+) -> Path:
+    """Resolve a plan file and ensure it stays under project plan directories."""
     plan_path = Path(path)
-
     if plan_path.suffix == ".md":
         plan_path = plan_path.with_suffix(".json")
+    resolved = plan_path.expanduser().resolve()
+    allowed_roots = [d.resolve() for d in _plan_search_dirs(config)]
+    if not any(
+        resolved == root or resolved.is_relative_to(root)
+        for root in allowed_roots
+    ):
+        raise InvalidPlanIdError(f"Plan path outside plan directories: {path}")
+    return resolved
+
+
+def load_plan(
+    path: str,
+    config: HolixRuntimeConfig | None = None,
+) -> dict[str, Any]:
+    """Load a plan from a JSON file under `.holix/plans/` (or legacy `.holix/plan/`)."""
+    plan_path = resolve_trusted_plan_file(path, config)
 
     if not plan_path.exists():
         raise FileNotFoundError(f"Plan file not found: {plan_path}")

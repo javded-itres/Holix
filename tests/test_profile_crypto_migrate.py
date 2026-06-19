@@ -61,7 +61,7 @@ def test_migrate_all_profiles_keeps_workspace_plaintext(holix_home, monkeypatch)
         assert is_profile_encryption_enabled(name)
         config = manager.load_profile(name)
         assert config.encryption_enabled is True
-        assert config.workspace_jail_enabled is True
+        assert config.workspace_jail_enabled is False
         target = manager.get_profile_dir(name) / "workspace" / "notes.txt"
         assert not is_encrypted_file(target)
         assert b"secret notes" in target.read_bytes()

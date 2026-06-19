@@ -145,38 +145,17 @@ holix -p shared telegram map import "111:alice,222:bob"
 | `HOLIX_TELEGRAM_USER_PROFILES` | `USER_ID:profile` через запятую в `telegram.env` |
 | `telegram-users.json` | Привязки пользователей; обновляется через `map` или `requests approve` |
 
-Подробнее: [TELEGRAM.md](TELEGRAM.md), [TELEGRAM_MULTI_PROFILE.md](TELEGRAM_MULTI_PROFILE.md).
+Подробнее: [TELEGRAM.md](TELEGRAM.md) (в т.ч. несколько профилей)
 
-## Fallback провайдеров (если модель недоступна)
+## Модели
 
-При ошибке основного провайдера (нет соединения, таймаут, rate limit, модель не найдена) Holix пробует **fallback-провайдеры** по порядку.
+Провайдеры, `agent_models`, fallback — **[MODELS.md](MODELS.md)**.
 
-**На уровне профиля** (в `global/config.yaml` или override в профиле):
+## MCP и Hub
 
-```yaml
-default_provider: openrouter
-fallback_providers:
-  - litellm
-  - ollama
-```
-
-**На уровне провайдера** (до profile-level fallback):
-
-```yaml
-providers:
-  openrouter:
-    fallback_providers: [litellm]
-```
-
-CLI:
-
-```bash
-holix models fallback list
-holix models fallback set litellm,ollama
-holix models fallback clear
-```
-
-Каждый fallback использует `default_model` своего провайдера. Подробнее: [../en/CONFIGURATION.md](../en/CONFIGURATION.md#provider-fallback-when-llm-is-unavailable).
+- MCP — **[MCP.md](MCP.md)** и `holix mcp` в [CLI.md](CLI.md)
+- Hub lockfile: `{profile}/data/hub-lock.json` — [HUB.md](HUB.md)
+- `skill_assignments` — `holix skills assign`
 
 ## Переменные окружения
 
@@ -194,28 +173,6 @@ providers:
   openai:
     api_key: ${ENV:OPENAI_API_KEY}
 ```
-
-## Модели
-
-```bash
-holix models presets
-holix models add openrouter    # OpenAI, DeepSeek, Kimi, Grok, Groq, …
-holix models add ollama --host 192.168.1.10:11434
-holix models add litellm --host http://proxy.local:4000
-holix models add vllm --host gpu-node:8000
-holix models setup
-holix models list
-```
-
-Пресеты: `openai`, `openrouter`, `anthropic` (Claude через OpenRouter), `deepseek`, `moonshot` (Kimi), `xai` (Grok), `groq`, `google`, `mistral`, `ollama`, `litellm`, `vllm`.
-
-**Хост для Ollama / LiteLLM / vLLM:** переменные `OLLAMA_HOST`, `LITELLM_API_BASE`, `VLLM_HOST` в `.env` или флаг `--host` при `holix models add` (также запрос в `models setup`). Порты по умолчанию: 11434, 4000, 8000. Подробнее: [../en/CONFIGURATION.md](../en/CONFIGURATION.md#host-for-ollama-litellm-vllm).
-
-Секреты в YAML: `${OPENAI_API_KEY}`, `${ENV:DEEPSEEK_API_KEY}`. OpenRouter: также `OPENROUTER_HTTP_REFERER` в `.env`.
-
-Подробнее: [../en/CONFIGURATION.md](../en/CONFIGURATION.md#provider-catalog).
-
-Поля `model` / `base_url` в корне YAML поддерживаются; предпочтительны `providers` + `default_provider`.
 
 ## Генерация плана (режимы Plan и Hybrid)
 

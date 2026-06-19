@@ -2,11 +2,14 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+
 import pytest
 from core.profile.names import (
     ProfileNameError,
     assert_under_profiles_root,
     profile_dir_for_name,
+    resolve_workspace_root,
     validate_profile_name,
 )
 
@@ -31,6 +34,11 @@ def test_profile_dir_for_name_under_profiles_root(tmp_path, monkeypatch) -> None
     monkeypatch.setenv("HELIX_HOME", str(tmp_path))
     path = profile_dir_for_name("alice")
     assert path == (tmp_path / "profiles" / "alice").resolve()
+
+
+def test_resolve_workspace_root_rejects_traversal() -> None:
+    with pytest.raises(ProfileNameError):
+        resolve_workspace_root(Path("../outside"))
 
 
 def test_assert_under_profiles_root_rejects_escape(tmp_path, monkeypatch) -> None:

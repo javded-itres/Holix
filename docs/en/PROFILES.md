@@ -127,7 +127,7 @@ holix -p shared telegram requests approve USER_ID --create-profile ivan
 
 Each approved user gets a protected profile, workspace jail, and the access key in Telegram.
 
-Manual bindings (`holix telegram map`) are still supported. See [TELEGRAM_MULTI_PROFILE.md](TELEGRAM_MULTI_PROFILE.md).
+Manual bindings (`holix telegram map`) are still supported. See [TELEGRAM.md § Multi-profile topologies](TELEGRAM.md#multi-profile-topologies).
 
 ## Workspace jail (directory isolation)
 
@@ -277,7 +277,7 @@ HOLIX_PROFILE_KEY=hp_xxxxxxxx
 
 The access key protects **switching into** a profile from Holix interfaces. It does not replace filesystem permissions on `~/.holix` or gateway API keys — see [SECURITY.md](SECURITY.md).
 
-Telegram guide (one bot vs multiple bots): [TELEGRAM_MULTI_PROFILE.md](TELEGRAM_MULTI_PROFILE.md).
+Telegram guide (one bot vs multiple bots): [TELEGRAM.md § Multi-profile topologies](TELEGRAM.md#multi-profile-topologies).
 
 Optional **at-rest encryption** for secrets and memory (workspace stays plaintext): [PROFILE_ENCRYPTION.md](PROFILE_ENCRYPTION.md).
 

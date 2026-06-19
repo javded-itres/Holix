@@ -15,6 +15,14 @@ def test_allows_list_dir() -> None:
     assert ok, reason
 
 
+def test_allows_cp_env_example() -> None:
+    if IS_WINDOWS:
+        ok, reason = command_whitelist.is_command_allowed("copy .env.example .env")
+    else:
+        ok, reason = command_whitelist.is_command_allowed("cp .env.example .env")
+    assert ok, reason
+
+
 def test_holix_in_default_whitelist():
     ok, reason = command_whitelist.is_command_allowed("holix gateway status")
     assert ok, reason
@@ -76,12 +84,15 @@ async def test_terminal_blocks_profile_memory_cache(
 
 @pytest.mark.asyncio
 async def test_terminal_tool_blocks_dangerous(monkeypatch: pytest.MonkeyPatch) -> None:
+    from core.tools import terminal as terminal_mod
     from core.tools.terminal import TerminalTool
 
     from config import settings
 
     monkeypatch.setattr(settings, "enable_terminal_tool", True)
     monkeypatch.setattr(settings, "terminal_command_whitelist", True)
+    monkeypatch.setattr(terminal_mod.settings, "enable_terminal_tool", True)
+    monkeypatch.setattr(terminal_mod.settings, "terminal_command_whitelist", True)
     tool = TerminalTool()
     out = await tool.execute("rm -rf /tmp/test")
     assert "blocked" in out.lower() or "Error" in out

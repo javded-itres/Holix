@@ -7,6 +7,7 @@ from pathlib import Path
 import cli.core as cli_core
 import pytest
 from core.i18n import LocaleStore, host_locale, set_host_locale, t
+from core.project.init_prompt import build_init_user_message
 from core.prompt_builder import build_system_prompt
 
 
@@ -58,6 +59,19 @@ def test_host_locale_helpers(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) ->
     assert host_locale(host) == "en"
     assert set_host_locale(host, "ru") == "ru"
     assert host_locale(host) == "ru"
+
+
+def test_init_prompt_uses_profile_locale(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    _patch_holix_home(tmp_path, monkeypatch)
+    LocaleStore("init_ru").set("ru")
+    msg = build_init_user_message(profile_name="init_ru")
+    assert "глубокую инициализацию проекта" in msg.lower()
+    assert "только на русском" in msg.lower() or "пиши на русском" in msg.lower()
+    assert "/lang ru" in msg.lower()
+
+    en_msg = build_init_user_message(locale="en")
+    assert "deep project onboarding" in en_msg.lower()
+    assert "interface language to english" in en_msg.lower()
 
 
 def test_prompt_includes_russian_instruction(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:

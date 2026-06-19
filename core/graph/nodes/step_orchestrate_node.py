@@ -178,6 +178,9 @@ async def step_orchestrate_node(state: HolixGraphState, config: RunnableConfig) 
 
     cfg = getattr(agent, "config", None) if agent else None
     from core.config_utils import is_subagents_enabled
+    from core.profile.soul import profile_name_from_agent
+
+    profile_name = profile_name_from_agent(agent) if agent else None
 
     if (
         is_subagents_enabled(cfg)
@@ -192,6 +195,7 @@ async def step_orchestrate_node(state: HolixGraphState, config: RunnableConfig) 
             current_step_index=current_step_idx,
             enable_subagents=True,
             max_concurrent=int(getattr(cfg, "subagent_max_concurrent", 4) or 4),
+            profile=profile_name,
         )
         if orch_plan.enabled:
             return {
@@ -203,11 +207,18 @@ async def step_orchestrate_node(state: HolixGraphState, config: RunnableConfig) 
             }
 
     # First entry for this step — inject step context
+    subagent_hint = ""
+    step_subagent = (current_step.get("subagent_type") or "").strip()
+    if step_subagent:
+        subagent_hint = f"\nAssigned sub-agent: {step_subagent}"
+
     step_context_msg = (
         f"[Plan Step {step_num}/{len(plan_steps)}] {step_description}\n"
         f"Tools: {', '.join(current_step.get('tools_needed', [])) or 'all available tools'}\n"
         f"Expected: {current_step.get('expected_output', '')}\n"
         f"Success criteria: {success_criteria}"
+        f"{subagent_hint}\n"
+        "Execute this step now with tools — do not reply with reasoning only."
     )
 
     messages = list(state.get("messages", []))

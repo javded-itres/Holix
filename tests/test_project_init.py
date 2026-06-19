@@ -46,6 +46,7 @@ async def test_run_project_init_warns_when_agent_busy() -> None:
     await session.run_lock.acquire()
     try:
         host = MagicMock()
+        host.profile = "default"
         host.agent = MagicMock()
         host._session = session
         host._send_plain = AsyncMock()
@@ -54,7 +55,8 @@ async def test_run_project_init_warns_when_agent_busy() -> None:
         await run_project_init(host)
 
         host.transcript_write.assert_called_once()
-        assert "занят" in str(host.transcript_write.call_args).lower()
+        msg = str(host.transcript_write.call_args).lower()
+        assert "busy" in msg or "занят" in msg
         host._send_message.assert_not_called()
     finally:
         session.run_lock.release()
@@ -64,6 +66,7 @@ async def test_run_project_init_warns_when_agent_busy() -> None:
 async def test_run_project_init_starts_agent_on_telegram() -> None:
     session = ChatSession(chat_id=1, user_id=1, profile="default", conversation_id="tg")
     host = MagicMock()
+    host.profile = "default"
     host.agent = MagicMock()
     host._session = session
     host._execution_modes = session.execution_modes

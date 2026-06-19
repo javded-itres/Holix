@@ -458,7 +458,8 @@ holix cron list
 holix cron disable job-id
 ```
 
-TUI/Telegram: `/cron`, `/cron add …`, `/cron bind <id>`.  
+TUI/Telegram/MAX: `/cron`, `/cron add …`, `/cron bind <id>`.  
+**Auto-create (0.1.16+):** recurring natural-language chat (RU/EN) creates jobs without `/cron add` — see [CRON.md](CRON.md).  
 Run log: `~/.holix/profiles/<profile>/data/cron/runs.log` · Skill: bundled `holix-cron`.
 
 ---
@@ -602,7 +603,7 @@ holix -p shared telegram map set 123456789 alice   # manual alternative
 holix -p shared gateway start
 ```
 
-Shared bot with isolated profiles: [TELEGRAM_MULTI_PROFILE.md](TELEGRAM_MULTI_PROFILE.md).  
+Shared bot with isolated profiles: [TELEGRAM.md](TELEGRAM.md#multi-profile-topologies).  
 See also [TELEGRAM.md](TELEGRAM.md).
 
 ---

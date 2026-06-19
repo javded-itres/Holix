@@ -211,7 +211,7 @@ Configure assignment in `holix launch setup` (field **Assign to sub-agent**) or 
 /launch list   # print assignments in the transcript
 ```
 
-See [LAUNCH_SUBAGENTS.md](LAUNCH_SUBAGENTS.md).
+See [SUBAGENTS.md](SUBAGENTS.md#sub-agents-vs-holix-launch).
 
 ---
 
@@ -229,7 +229,7 @@ See [LAUNCH_SUBAGENTS.md](LAUNCH_SUBAGENTS.md).
 
 ## See also
 
-- [LAUNCH_SUBAGENTS.md](LAUNCH_SUBAGENTS.md) — Holix sub-agents and `holix launch`
+- [SUBAGENTS.md](SUBAGENTS.md#sub-agents-vs-holix-launch) — Holix sub-agents and `holix launch`
 - [CLI.md](CLI.md) — full `holix` reference
 - [PROFILES.md](PROFILES.md) — profile layout and model slots
 - [CONFIGURATION.md](CONFIGURATION.md) — providers and `agent_models`
