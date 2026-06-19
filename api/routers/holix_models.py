@@ -151,23 +151,21 @@ async def test_provider(
         config.providers[provider_name] = provider_data
         manager.save_profile(profile_id, config)
 
-    from config import settings
+    if not ok and err:
+        import logging
 
-    payload = {
+        logging.getLogger(__name__).warning(
+            "Provider probe failed for %s: %s", provider_name, err
+        )
+
+    return {
         "provider": provider_name,
         "ok": ok,
         "models_found": len(models),
         "models": [m.get("id") for m in models[:20]],
+        "error": None if ok else "Provider test failed",
         "reload_required": bool(ok and models),
     }
-    if ok:
-        payload["error"] = None
-        return payload
-    if settings.log_debug_enabled:
-        payload["error"] = err
-        return payload
-    payload["error"] = "Provider test failed"
-    return payload
 
 
 @router.get("/agent-models")
