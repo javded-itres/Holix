@@ -3,5 +3,3 @@ paths-ignore:
   - tests
   - web-docs
   - docs
-packs:
-  - ./.github/codeql/extensions

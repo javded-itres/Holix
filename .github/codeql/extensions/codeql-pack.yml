@@ -5,3 +5,4 @@ extensionTargets:
   codeql/python-all: "*"
 dataExtensions:
   - "*.model.yaml"
+  - "*.model.yml"
