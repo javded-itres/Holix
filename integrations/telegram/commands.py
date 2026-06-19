@@ -179,7 +179,7 @@ async def enable_chat_menu(
         logging.getLogger(__name__).warning(
             "set_my_commands failed for chat %s: %s", cid, exc
         )
-        raise
+        return []
     try:
         await asyncio.wait_for(
             bot.set_chat_menu_button(chat_id=cid, menu_button=MenuButtonCommands()),
@@ -227,17 +227,26 @@ async def register_bot_commands(
     if settings.allow_all:
         return await register_global_bot_commands(bot, locale=locale)
 
+    import asyncio
+
     await clear_default_bot_menu(bot)
-    names: list[str] = []
+
+    async def _register_for_user(uid: int) -> None:
+        try:
+            await enable_chat_menu(
+                bot,
+                uid,
+                locale=locale,
+                bot_profile=bot_profile,
+                user_id=uid,
+            )
+        except Exception:
+            pass
+
+    # Do not block polling startup on per-chat Telegram API calls (can take minutes).
     for uid in sorted(authorized_telegram_user_ids(bot_profile)):
-        names = await enable_chat_menu(
-            bot,
-            uid,
-            locale=locale,
-            bot_profile=bot_profile,
-            user_id=uid,
-        )
-    return names
+        asyncio.create_task(_register_for_user(uid), name=f"tg-menu-register-{uid}")
+    return []
 
 
 async def sync_bot_menu(profile: str = "default") -> list[str]:

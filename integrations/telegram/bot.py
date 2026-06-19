@@ -116,30 +116,45 @@ class HolixTelegramBot:
         except Exception:
             pass
 
-    async def _ensure_authorized_menu(self, bot: Any, chat_id: int, user_id: int) -> None:
+    async def _ensure_authorized_menu(
+        self,
+        bot: Any,
+        chat_id: int,
+        user_id: int,
+        *,
+        blocking: bool = True,
+    ) -> None:
         if self.settings.allow_all or chat_id in self._menu_enabled_chats:
             return
+        import asyncio
         import logging
 
         from integrations.messenger.locale import messenger_locale
 
         locale = messenger_locale(self.settings.profile)
-        try:
-            await enable_chat_menu(
-                bot,
-                chat_id,
-                locale=locale,
-                bot_profile=self.settings.profile,
-                user_id=user_id,
-            )
-        except Exception as exc:
-            logging.getLogger(__name__).warning(
-                "Telegram menu setup failed for chat %s (continuing): %s",
-                chat_id,
-                exc,
-            )
+
+        async def _setup() -> None:
+            try:
+                await enable_chat_menu(
+                    bot,
+                    chat_id,
+                    locale=locale,
+                    bot_profile=self.settings.profile,
+                    user_id=user_id,
+                )
+            except Exception as exc:
+                logging.getLogger(__name__).warning(
+                    "Telegram menu setup failed for chat %s (continuing): %s",
+                    chat_id,
+                    exc,
+                )
+
         # Mark attempted so a slow/failed menu API does not block every message.
         self._menu_enabled_chats.add(chat_id)
+        if blocking:
+            await _setup()
+        else:
+            asyncio.create_task(_setup(), name=f"tg-menu-{chat_id}")
 
     def _default_profile_for_user(self, user_id: int) -> str:
         mapped = resolve_user_profile(self.settings.profile, user_id)
@@ -505,7 +520,15 @@ class HolixTelegramBot:
             if not self._allowed(message.from_user.id):
                 await self._handle_unauthorized(bot, message)
                 return
-            await self._ensure_authorized_menu(bot, message.chat.id, message.from_user.id)
+            from aiogram.enums import ChatAction
+
+            await bot.send_chat_action(message.chat.id, action=ChatAction.TYPING)
+            await self._ensure_authorized_menu(
+                bot,
+                message.chat.id,
+                message.from_user.id,
+                blocking=False,
+            )
             if message.text.strip().startswith("/"):
                 return
             if await self._flush_pending_files(
