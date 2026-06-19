@@ -153,19 +153,21 @@ async def test_provider(
 
     from config import settings
 
-    if settings.log_debug_enabled:
-        error = None if ok else err
-    else:
-        error = None if ok else "Provider test failed"
-
-    return {
+    payload = {
         "provider": provider_name,
         "ok": ok,
         "models_found": len(models),
         "models": [m.get("id") for m in models[:20]],
-        "error": error,
         "reload_required": bool(ok and models),
     }
+    if ok:
+        payload["error"] = None
+        return payload
+    if settings.log_debug_enabled:
+        payload["error"] = err
+        return payload
+    payload["error"] = "Provider test failed"
+    return payload
 
 
 @router.get("/agent-models")

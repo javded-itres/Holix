@@ -157,22 +157,22 @@ async def delete_profile(
     if result.error:
         detail = str(result.error) if settings.log_debug_enabled else "Profile deletion failed"
         raise HTTPException(status_code=400, detail=detail)
+    response = {
+        "deleted": bool(result.deleted),
+        "profile": profile_id,
+        "notified_users": int(result.notified),
+        "mappings_removed": int(result.mappings_removed),
+    }
     if settings.log_debug_enabled:
-        notify_failed = [
+        response["notify_failed"] = [
             {"user_id": uid, "error": str(err)} for uid, err in result.notify_failed
         ]
-    else:
-        notify_failed = [
-            {"user_id": uid, "error": "Notification failed"}
-            for uid, err in result.notify_failed
-        ]
-    return {
-        "deleted": result.deleted,
-        "profile": profile_id,
-        "notified_users": result.notified,
-        "notify_failed": notify_failed,
-        "mappings_removed": result.mappings_removed,
-    }
+        return response
+    response["notify_failed"] = [
+        {"user_id": uid, "error": "Notification failed"}
+        for uid, _err in result.notify_failed
+    ]
+    return response
 
 
 @router.post("/{profile_id}/reload", response_model=ReloadResponse)
