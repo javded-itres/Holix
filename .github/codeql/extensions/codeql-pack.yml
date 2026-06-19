@@ -1,7 +1,7 @@
 name: holix-itres/holix-path-sanitizers
-version: 0.0.1
+version: 0.0.2
 library: true
 extensionTargets:
   codeql/python-all: "*"
 dataExtensions:
-  - path-sanitizer.model.yml
+  - "*.model.yaml"
