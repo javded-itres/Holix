@@ -7,6 +7,18 @@ from core.tools.file_ops import ListDirectoryTool, ReadFileTool, WriteFileTool
 
 
 @pytest.mark.asyncio
+async def test_read_file_rejects_binary_image_with_helpful_message(tmp_path):
+    read_tool = ReadFileTool()
+    image = tmp_path / "scan.jpg"
+    image.write_bytes(b"\xff\xd8\xff\xe0binary")
+
+    result = await read_tool.execute(str(image))
+    assert "binary image" in result
+    assert "vision description" in result
+    assert "re-upload" in result
+
+
+@pytest.mark.asyncio
 async def test_write_and_read_file():
     """Test writing and reading files."""
     write_tool = WriteFileTool()

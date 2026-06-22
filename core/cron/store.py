@@ -50,6 +50,9 @@ class CronStore:
             store.model_dump_json(indent=2),
             encoding="utf-8",
         )
+        from core.cron.discovery import invalidate_profile
+
+        invalidate_profile(self.profile)
 
     def list_jobs(self, *, enabled_only: bool = False) -> list[CronJob]:
         jobs = self.load().jobs

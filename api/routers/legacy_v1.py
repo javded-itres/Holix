@@ -7,6 +7,7 @@ import time
 from core.loop_streaming import StreamingAgentLoop
 from core.security.permissions import PermissionChecker
 from fastapi import APIRouter, Depends, Header, HTTPException
+
 from api import state
 from api.deps import get_registry, resolve_profile_name, verify_api_key
 from api.errors import _SSE_ERROR_CHUNK, sse_streaming_response

@@ -82,10 +82,10 @@ async def _run_gateway_uvicorn(host: str, port: int) -> None:
     await server.serve()
 
 
-async def _run_cron_scheduler(profile: str) -> None:
-    from core.cron.scheduler import CronScheduler
+async def _run_cron_scheduler(_profile: str) -> None:
+    from core.cron.scheduler import GlobalCronScheduler
 
-    await CronScheduler(profile).run_forever()
+    await GlobalCronScheduler().run_forever()
 
 
 async def _run_max(profile: str) -> None:
@@ -227,9 +227,9 @@ async def _run_supervisor_async(
 def _cron_subprocess(profile: str) -> subprocess.Popen[bytes] | None:
     env = os.environ.copy()
     env["HOLIX_PROFILE"] = profile
-    print_success(f"Cron scheduler starting in subprocess (profile={profile})")
+    print_success("Cron scheduler starting in subprocess (all profiles)")
     return popen_background(
-        [sys.executable, "-m", "cli.services.cron_worker", "--profile", profile],
+        [sys.executable, "-m", "cli.services.cron_worker"],
         env=env,
     )
 

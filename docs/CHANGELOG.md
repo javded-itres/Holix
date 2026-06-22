@@ -2,6 +2,23 @@
 
 ## Unreleased
 
+## 0.1.17 — 2026-06-21
+
+### Added
+- **Global cron scheduler** — one gateway tick loop runs due jobs across all Holix profiles; per-profile job storage and visibility unchanged
+- **Cron profile index** — mtime-cached `jobs.json` discovery, periodic full scan, `HOLIX_CRON_MAX_CONCURRENT` run limit
+- **Telegram image router** (optional) — classify image overviews and route to specialist vision models (`HOLIX_TELEGRAM_IMAGE_ROUTER_ENABLED`)
+
+### Fixed
+- **Cron not running for user profiles** — jobs created under `admin` (or any mapped profile) execute when gateway runs on `docs`
+- **Telegram attachments** — store files under the named Holix profile, not shared `data_dir`
+- **Telegram gateway startup** — start polling before per-user menu registration; skip eager `set_my_commands` on boot; typing during agent init
+- **Telegram vision** — prefer vision-capable LiteLLM aliases (`vision-auto`, `gemini-flash`, `auto`) over text-only models
+
+### Changed
+- **Version** — package `Holix` 0.1.17
+- **Cron worker** — standalone worker schedules all profiles by default (`--profile` kept for legacy single-profile mode)
+
 ### Documentation
 - **Information architecture** — one canonical page per topic; merged multi-profile and launch-subagents docs into TELEGRAM, MAX, SUBAGENTS
 - **INSTALLATION** (EN/RU) — unified Path A (uv/pipx) and Path B (Docker); QUICKSTART → START_HERE cheat sheet

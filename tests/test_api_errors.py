@@ -3,7 +3,6 @@
 import json
 
 import pytest
-
 from api.errors import (
     agent_error_to_http,
     client_safe_message,

@@ -165,11 +165,26 @@ async def enable_chat_menu(
     if not commands:
         return []
 
+    import asyncio
+    import logging
+
     cid = int(chat_id)
     scope = BotCommandScopeChat(chat_id=cid)
-    await bot.set_my_commands(commands, scope=scope)
     try:
-        await bot.set_chat_menu_button(chat_id=cid, menu_button=MenuButtonCommands())
+        await asyncio.wait_for(
+            bot.set_my_commands(commands, scope=scope),
+            timeout=15.0,
+        )
+    except Exception as exc:
+        logging.getLogger(__name__).warning(
+            "set_my_commands failed for chat %s: %s", cid, exc
+        )
+        return []
+    try:
+        await asyncio.wait_for(
+            bot.set_chat_menu_button(chat_id=cid, menu_button=MenuButtonCommands()),
+            timeout=10.0,
+        )
     except Exception:
         pass
     return [cmd.command for cmd in commands]
@@ -213,16 +228,10 @@ async def register_bot_commands(
         return await register_global_bot_commands(bot, locale=locale)
 
     await clear_default_bot_menu(bot)
-    names: list[str] = []
-    for uid in sorted(authorized_telegram_user_ids(bot_profile)):
-        names = await enable_chat_menu(
-            bot,
-            uid,
-            locale=locale,
-            bot_profile=bot_profile,
-            user_id=uid,
-        )
-    return names
+    # Per-chat menus are registered lazily on the first authorized message
+    # (see HolixTelegramBot._ensure_authorized_menu). Eager registration here
+    # hammers the Telegram API on every gateway restart and often times out.
+    return []
 
 
 async def sync_bot_menu(profile: str = "default") -> list[str]:

@@ -7,6 +7,7 @@ import logging
 from collections.abc import AsyncIterator
 
 from fastapi import HTTPException
+from fastapi.responses import StreamingResponse
 
 from config import settings
 
@@ -43,8 +44,6 @@ async def safe_sse_wrap(stream: AsyncIterator[str]) -> AsyncIterator[str]:
 
 def sse_streaming_response(stream: AsyncIterator[str]) -> StreamingResponse:
     """Return an SSE response that never leaks stack traces to clients."""
-    from fastapi.responses import StreamingResponse
-
     return StreamingResponse(
         safe_sse_wrap(stream),
         media_type="text/event-stream",

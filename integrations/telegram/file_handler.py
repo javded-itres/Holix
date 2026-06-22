@@ -54,6 +54,32 @@ _TEXT_SUFFIXES = frozenset(
     }
 )
 _PLACEHOLDER_KEYS = frozenset({"", "ollama", "dummy", "sk-...", "your-api-key"})
+# LiteLLM aliases known to handle image input (ordered preference).
+_VISION_MODEL_PREFERENCES: tuple[str, ...] = (
+    "vision-auto",
+    "gemini-flash",
+    "auto",
+    "claude-sonnet-4-6",
+    "claude-opus-4-7",
+    "claude-haiku-4-5-20251001",
+    "medgemma:27b",
+    "balanced",
+    "smart",
+    "heavy",
+    "research",
+)
+# Substrings that indicate a text-only / code model (unsuitable for vision).
+_TEXT_ONLY_MODEL_MARKERS: tuple[str, ...] = (
+    "coder",
+    "qwen3-coder",
+    "kimi-k2.7-code",
+    "deepseek-v4",
+    "llama-3.3",
+    "ollama-glm",
+    "openrouter-free",
+    "free",
+    "fast",
+)
 
 
 @dataclass(slots=True)
@@ -64,6 +90,8 @@ class SavedTelegramFile:
     kind: str
     size_bytes: int
     description: str = ""
+    image_category: str = ""
+    specialist_model: str = ""
 
 
 @dataclass(slots=True)
@@ -117,6 +145,60 @@ def _pick_model(*candidates: str) -> str:
         if model and model not in _PLACEHOLDER_KEYS:
             return model
     return ""
+
+
+def _is_text_only_model(name: str) -> bool:
+    lowered = str(name or "").strip().lower()
+    if not lowered:
+        return True
+    return any(marker in lowered for marker in _TEXT_ONLY_MODEL_MARKERS)
+
+
+def _collect_available_models(providers: dict[str, Any]) -> list[str]:
+    models: list[str] = []
+    for raw in providers.values():
+        if not isinstance(raw, dict):
+            continue
+        for item in raw.get("available_models") or []:
+            name = str(item or "").strip()
+            if name and name not in models:
+                models.append(name)
+    return models
+
+
+def _pick_vision_model(
+    *,
+    explicit: str,
+    available: list[str],
+    agent_fallbacks: list[str],
+) -> str:
+    """Choose a vision-capable model; ignore text-only aliases like ``coder``."""
+    explicit = str(explicit or "").strip()
+    if explicit and not _is_text_only_model(explicit):
+        return explicit
+
+    pool = available or [m for m in agent_fallbacks if m and not _is_text_only_model(m)]
+    for preferred in _VISION_MODEL_PREFERENCES:
+        if preferred in pool:
+            return preferred
+    for name in pool:
+        if not _is_text_only_model(name):
+            return name
+    return explicit or _pick_model(*agent_fallbacks) or "auto"
+
+
+def _vision_models_to_try(*, profile: str) -> list[str]:
+    """Ordered vision model list for describe retries."""
+    base = resolve_vision_config(profile=profile)
+    tried: list[str] = []
+    for name in [base.model, *_VISION_MODEL_PREFERENCES]:
+        model = str(name or "").strip()
+        if not model or model in tried or _is_text_only_model(model):
+            continue
+        tried.append(model)
+    if not tried:
+        tried.append(base.model)
+    return tried
 
 
 def resolve_vision_config(*, profile: str) -> VisionConfig:
@@ -190,11 +272,19 @@ def resolve_vision_config(*, profile: str) -> VisionConfig:
         if openai_creds:
             api_key, base_url = openai_creds
 
-    model = _pick_model(*model_candidates)
+    available_models: list[str] = []
+    if config is not None and isinstance(getattr(config, "providers", None), dict):
+        available_models = _collect_available_models(config.providers)
+
+    model = _pick_vision_model(
+        explicit=explicit_model,
+        available=available_models,
+        agent_fallbacks=[m for m in model_candidates if m],
+    )
     if not model:
         raise RuntimeError(
             "Vision: не задана модель. Укажите HOLIX_TELEGRAM_VISION_MODEL "
-            "или назначьте модель для main в holix models setup."
+            "(например gemini-flash или auto) или настройте holix models setup."
         )
     if not api_key or not base_url:
         raise RuntimeError(
@@ -218,14 +308,12 @@ def profile_files_dir(
     bot_profile: str | None = None,
     telegram_user_id: int | None = None,
 ) -> Path:
-    from cli.core import ProfileManager, resolve_profile_storage_paths
+    from core.env_loader import profile_dir_path
 
     from integrations.telegram.profile_auth import init_profile_for_telegram
 
-    mgr = ProfileManager()
-    pdir = mgr.get_profile_dir(profile)
     if bot_profile is not None and telegram_user_id is not None:
-        cfg_source = init_profile_for_telegram(
+        init_profile_for_telegram(
             profile,
             bot_profile=bot_profile,
             telegram_user_id=telegram_user_id,
@@ -233,9 +321,9 @@ def profile_files_dir(
     else:
         from cli.core import init_profile
 
-        cfg_source = init_profile(profile, prompt_key=False)
-    cfg = resolve_profile_storage_paths(profile, cfg_source, profile_dir=pdir)
-    dest = Path(cfg.data_dir) / "files" / "telegram" / str(chat_id)
+        init_profile(profile, prompt_key=False)
+    # Always store Telegram attachments under the named profile dir (never a shared data_dir).
+    dest = profile_dir_path(profile) / "data" / "files" / "telegram" / str(chat_id)
     dest.mkdir(parents=True, exist_ok=True)
     return dest
 
@@ -322,13 +410,19 @@ def _extract_docx_text(path: Path, *, max_chars: int = 12000) -> str:
         return ""
 
 
-async def _vision_describe_bytes(
-    image_bytes: bytes,
+_OVERVIEW_VISION_PROMPT = (
+    "Describe this image in detail. Transcribe visible text (OCR), "
+    "objects, tables, and diagrams."
+)
+
+
+async def _chat_completion_text(
     *,
     profile: str,
-    mime: str = "image/jpeg",
+    model: str,
+    messages: list[dict[str, Any]],
+    max_tokens: int = 2000,
 ) -> str:
-    image_b64 = base64.standard_b64encode(image_bytes).decode("ascii")
     from core.models.client_factory import create_openai_client
 
     vision = resolve_vision_config(profile=profile)
@@ -338,17 +432,55 @@ async def _vision_describe_bytes(
         metadata=vision.provider_metadata,
     )
     response = await client.chat.completions.create(
-        model=vision.model,
+        model=model,
+        messages=messages,
+        max_tokens=max_tokens,
+        temperature=0.2,
+    )
+    text = (response.choices[0].message.content or "").strip()
+    if not text:
+        raise RuntimeError(f"модель {model} вернула пустой ответ")
+    return text
+
+
+async def _text_analyze(
+    *,
+    profile: str,
+    model: str,
+    system_prompt: str,
+    user_text: str,
+) -> str:
+    return await _chat_completion_text(
+        profile=profile,
+        model=model,
+        messages=[
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_text},
+        ],
+    )
+
+
+async def _vision_describe_bytes(
+    image_bytes: bytes,
+    *,
+    profile: str,
+    mime: str = "image/jpeg",
+    model: str | None = None,
+    prompt: str | None = None,
+) -> str:
+    image_b64 = base64.standard_b64encode(image_bytes).decode("ascii")
+    vision = resolve_vision_config(profile=profile)
+    use_model = str(model or vision.model).strip() or vision.model
+    return await _chat_completion_text(
+        profile=profile,
+        model=use_model,
         messages=[
             {
                 "role": "user",
                 "content": [
                     {
                         "type": "text",
-                        "text": (
-                            "Describe this image in detail. Transcribe visible text (OCR), "
-                            "objects, tables, and diagrams."
-                        ),
+                        "text": prompt or _OVERVIEW_VISION_PROMPT,
                     },
                     {
                         "type": "image_url",
@@ -357,22 +489,102 @@ async def _vision_describe_bytes(
                 ],
             }
         ],
-        max_tokens=2000,
-        temperature=0.2,
     )
-    return (response.choices[0].message.content or "").strip()
 
 
-async def describe_image_from_url(url: str, *, profile: str) -> str:
-    """Describe an inline or remote image URL (Hermes multimodal gateway path)."""
+def _parse_vision_auto_metadata(description: str) -> tuple[str, str]:
+    """Extract category and specialist model from LiteLLM vision-auto response."""
+    category = "general"
+    specialist = ""
+    match = re.search(r"Категория:\s*\S+\s*\((\w+)\)", description)
+    if match:
+        category = match.group(1)
+    spec_match = re.search(
+        r"## Специализированный анализ —\s*\S+\s*\(([^)]+)\)",
+        description,
+    )
+    if spec_match:
+        specialist = spec_match.group(1).strip()
+    return category, specialist
+
+
+async def _describe_image_routed(
+    image_bytes: bytes,
+    *,
+    profile: str,
+    mime: str = "image/jpeg",
+) -> tuple[str, str, str]:
+    """Return (description, image_category, specialist_model)."""
+    from integrations.telegram.image_router import (
+        analyze_with_specialist,
+        classify_image_overview,
+    )
+
+    vision_cfg = resolve_vision_config(profile=profile)
+    if vision_cfg.model == "vision-auto":
+        errors: list[str] = []
+        for model in ["vision-auto"]:
+            try:
+                description = await _vision_describe_bytes(
+                    image_bytes,
+                    profile=profile,
+                    mime=mime,
+                    model=model,
+                )
+                category, specialist = _parse_vision_auto_metadata(description)
+                return description, category, specialist
+            except Exception as exc:
+                errors.append(f"{model}: {exc}")
+        raise RuntimeError("; ".join(errors) or "vision-auto unavailable")
+
+    errors: list[str] = []
+    overview = ""
+    overview_model = ""
+    for model in _vision_models_to_try(profile=profile):
+        try:
+            overview = await _vision_describe_bytes(
+                image_bytes,
+                profile=profile,
+                mime=mime,
+                model=model,
+                prompt=_OVERVIEW_VISION_PROMPT,
+            )
+            overview_model = model
+            break
+        except Exception as exc:
+            errors.append(f"{model}: {exc}")
+
+    if not overview:
+        raise RuntimeError("; ".join(errors) or "vision unavailable")
+
+    if not settings.telegram_image_router_enabled:
+        return overview, "general", ""
+
+    route = classify_image_overview(overview)
+    if route.category == "general":
+        return overview, route.category, ""
+
+    description = await analyze_with_specialist(
+        overview=overview,
+        overview_model=overview_model,
+        image_bytes=image_bytes,
+        mime=mime,
+        profile=profile,
+        route=route,
+        vision_describe_fn=_vision_describe_bytes,
+        text_analyze_fn=_text_analyze,
+    )
+    return description, route.category, route.specialist_model
+
+
+async def _load_image_bytes_from_url(url: str) -> tuple[bytes, str]:
     raw = (url or "").strip()
     if raw.startswith("data:"):
         header, _, payload = raw.partition(",")
         mime = "image/jpeg"
         if header.startswith("data:") and ";" in header:
             mime = header[5:].split(";", 1)[0] or mime
-        image_bytes = base64.standard_b64decode(payload)
-        return await _vision_describe_bytes(image_bytes, profile=profile, mime=mime)
+        return base64.standard_b64decode(payload), mime
 
     if raw.startswith(("http://", "https://")):
         import httpx
@@ -381,15 +593,31 @@ async def describe_image_from_url(url: str, *, profile: str) -> str:
             response = await client.get(raw)
             response.raise_for_status()
             mime = response.headers.get("content-type", "image/jpeg").split(";", 1)[0]
-            return await _vision_describe_bytes(response.content, profile=profile, mime=mime)
+            return response.content, mime
 
     raise ValueError(f"Unsupported image URL: {raw[:80]}")
+
+
+async def describe_image_from_url(url: str, *, profile: str) -> str:
+    """Describe an inline or remote image URL (Hermes multimodal gateway path)."""
+    image_bytes, mime = await _load_image_bytes_from_url(url)
+    description, _, _ = await _describe_image_routed(
+        image_bytes,
+        profile=profile,
+        mime=mime,
+    )
+    return description
 
 
 async def describe_image(path: Path, *, profile: str) -> str:
     mime, _ = mimetypes.guess_type(str(path))
     mime = mime or "image/jpeg"
-    return await _vision_describe_bytes(path.read_bytes(), profile=profile, mime=mime)
+    description, _, _ = await _describe_image_routed(
+        path.read_bytes(),
+        profile=profile,
+        mime=mime,
+    )
+    return description
 
 
 async def enrich_saved_file(saved: SavedTelegramFile, *, profile: str) -> SavedTelegramFile:
@@ -398,7 +626,16 @@ async def enrich_saved_file(saved: SavedTelegramFile, *, profile: str) -> SavedT
 
     if saved.kind == "image" or _is_image(saved.mime_type, saved.original_name):
         try:
-            saved.description = await describe_image(path, profile=profile)
+            mime, _ = mimetypes.guess_type(str(path))
+            mime = mime or saved.mime_type or "image/jpeg"
+            description, category, specialist = await _describe_image_routed(
+                path.read_bytes(),
+                profile=profile,
+                mime=mime,
+            )
+            saved.description = description
+            saved.image_category = category
+            saved.specialist_model = specialist
             saved.kind = "image"
         except Exception as exc:
             saved.description = f"(Не удалось распознать изображение: {exc})"
@@ -494,6 +731,11 @@ def format_files_preview(
         lines.append(f"{idx}. <b>{label}</b> {escape_html(item.original_name)}")
         lines.append(f"   <code>{escape_html(str(item.path))}</code>")
         lines.append(f"   {item.size_bytes // 1024} KB")
+        if item.image_category and item.image_category != "general":
+            label_bits = [f"категория: {item.image_category}"]
+            if item.specialist_model:
+                label_bits.append(f"модель: {item.specialist_model}")
+            lines.append(f"   <i>{escape_html(', '.join(label_bits))}</i>")
         if item.description:
             short = item.description[:max_desc_chars]
             if len(item.description) > max_desc_chars:
@@ -510,25 +752,54 @@ def format_files_preview(
 def build_agent_prompt(user_text: str, files: list[SavedTelegramFile]) -> str:
     lines = []
     task = (user_text or "").strip()
+    images = [f for f in files if f.kind == "image" or _is_image(f.mime_type, f.original_name)]
     if task:
         lines.append(task)
+    elif images:
+        lines.append(
+            "Проанализируй прикреплённое изображение на основе распознавания ниже "
+            "и ответь по запросу пользователя."
+        )
     else:
         lines.append("Обработай прикреплённые файлы.")
 
     lines.append("")
-    lines.append("## Вложения (сохранены в профиле)")
+    lines.append("## Вложения из Telegram (уже загружены и сохранены)")
+    lines.append(
+        "Файлы уже приняты из чата и лежат на диске. "
+        "НЕ проси пользователя загрузить их повторно."
+    )
     for item in files:
+        is_image = item.kind == "image" or _is_image(item.mime_type, item.original_name)
         lines.append(f"- **{item.original_name}** ({item.kind})")
         lines.append(f"  Путь: `{item.path}`")
         lines.append(f"  MIME: {item.mime_type or 'unknown'} · {item.size_bytes} bytes")
+        if is_image:
+            lines.append(
+                "  Тип: изображение — read_file для JPEG/PNG не подходит; "
+                "используй блок «Содержимое / распознавание» ниже."
+            )
+        if is_image and item.image_category and item.image_category != "general":
+            meta = f"категория: {item.image_category}"
+            if item.specialist_model:
+                meta += f", specialist: {item.specialist_model}"
+            lines.append(f"  Маршрут vision: {meta}")
         if item.description:
-            lines.append("  Содержимое / распознавание:")
+            lines.append("  Содержимое / распознавание (vision + autorouter, уже выполнено):")
             lines.append("  ```")
             lines.append(item.description.strip())
             lines.append("  ```")
+        elif is_image:
+            lines.append("  (Распознавание недоступно — опиши ограничение пользователю.)")
     lines.append("")
+    if images:
+        lines.append(
+            "Для изображений опирайся на vision-описание выше — это основной источник. "
+            "Не вызывай read_file для бинарных фото."
+        )
+        lines.append("")
     lines.append(
-        "Используй пути к файлам для read_file, write_file и других инструментов. "
+        "Для текстовых файлов используй read_file/write_file. "
         "Чтобы отправить сформированные файлы пользователю в Telegram, вызови "
         "send_chat_files с путями (2–10 файлов отправятся альбомом). "
         "Не удаляй оригиналы без явного запроса пользователя."

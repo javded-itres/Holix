@@ -22,17 +22,18 @@ def test_holix_md_path_under_dot_helix(tmp_path: Path) -> None:
 
 
 def test_load_and_inject(tmp_path: Path, monkeypatch) -> None:
-
-    monkeypatch.chdir(tmp_path)
-    holix = tmp_path / ".helix"
+    project = tmp_path / "project"
+    project.mkdir()
+    monkeypatch.chdir(project)
+    holix = project / ".holix"
     holix.mkdir()
     (holix / "HOLIX.md").write_text("# Demo\n\nREST on /api/v1\n", encoding="utf-8")
 
-    assert holix_md_exists()
-    assert "REST" in load_holix_md()
+    assert holix_md_exists(project)
+    assert "REST" in load_holix_md(project)
     block = format_holix_md_block()
     assert "REST" in block
-    out = append_holix_project_context("BASE", tmp_path)
+    out = append_holix_project_context("BASE", project)
     assert "BASE" in out
     assert "REST" in out
 

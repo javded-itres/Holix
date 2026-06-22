@@ -254,6 +254,8 @@ async def warm_local_whisper_model_async(*, profile: str | None = None) -> None:
     """Background-friendly wrapper for :func:`warm_local_whisper_model`."""
     from config import settings
 
+    if not settings.whisper_auto_download or not settings.telegram_voice_enabled:
+        return
     model = (settings.whisper_local_model or "base").strip()
     root = local_whisper_download_root()
     print(f"Whisper: downloading local model '{model}' to {root} …", flush=True)

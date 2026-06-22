@@ -59,7 +59,11 @@ def init_profile_for_telegram(
     authorize_telegram_profile_access(bot_profile, telegram_user_id, holix_profile)
     import os
 
+    from core.crypto.profile_crypto import profile_has_crypto_metadata
+
     unlock_key = os.getenv("HOLIX_UNLOCK_KEY", "").strip() or None
+    if unlock_key and not profile_has_crypto_metadata(holix_profile):
+        unlock_key = None
     return init_profile(
         holix_profile,
         profile_key=profile_key,

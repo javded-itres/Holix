@@ -1,3 +1,6 @@
+import mimetypes
+from pathlib import Path
+
 from core.crypto.profile_crypto import ProfileCryptoLockedError
 from core.tools.base import BaseTool
 from core.tools.execution_context import get_profile_name
@@ -9,6 +12,18 @@ from core.workspace.storage import (
     read_profile_file_text,
     write_profile_file_text,
 )
+
+_IMAGE_SUFFIXES = frozenset(
+    {".jpg", ".jpeg", ".png", ".gif", ".webp", ".bmp", ".heic", ".heif", ".tif", ".tiff"}
+)
+
+
+def _is_binary_image_path(path: Path) -> bool:
+    suffix = path.suffix.lower()
+    if suffix in _IMAGE_SUFFIXES:
+        return True
+    mime, _ = mimetypes.guess_type(str(path))
+    return bool(mime and mime.startswith("image/"))
 
 
 class ReadFileTool(BaseTool):
@@ -47,6 +62,14 @@ class ReadFileTool(BaseTool):
 
             if not file_path.is_file():
                 return f"Error: '{path}' is not a file"
+
+            if _is_binary_image_path(file_path):
+                display_path = display_path_for_user(file_path, input_path=path)
+                return (
+                    f"{display_path} is a binary image file; read_file cannot decode it as text. "
+                    "If the user attached this image in Telegram, use the vision description "
+                    "already included in their message. Do not ask the user to re-upload the image."
+                )
 
             profile = get_profile_name()
             content = read_profile_file_text(file_path, profile=profile)

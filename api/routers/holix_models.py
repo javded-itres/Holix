@@ -9,7 +9,6 @@ from core.models.setup_helpers import add_preset_to_config, apply_ssl_override, 
 from fastapi import APIRouter, Depends, Header, HTTPException
 
 from api.deps import verify_api_key
-from api.errors import client_safe_message
 from api.schemas.holix import AgentModelsPatchRequest, FallbacksPatchRequest, ProviderAddRequest
 from api.services.config_mask import mask_config_dict
 from api.services.holix_deps import profile_access

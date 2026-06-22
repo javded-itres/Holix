@@ -49,6 +49,38 @@ def test_resolve_vision_config_uses_env_when_model_explicit(
     assert cfg.base_url.endswith("/v1")
 
 
+def test_resolve_vision_config_skips_text_only_explicit_model(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("LITELLM_API_KEY", "sk-test-key")
+    monkeypatch.setenv("LITELLM_API_BASE", "http://localhost:4000/v1")
+    _patch_vision_settings(monkeypatch, telegram_vision_model="coder")
+
+    class _Cfg:
+        providers = {
+            "litellm": {
+                "api_key": "sk-test-key",
+                "base_url": "http://localhost:4000/v1",
+                "available_models": ["coder", "gemini-flash", "auto"],
+                "default_model": "auto",
+            }
+        }
+        agent_models = {}
+        default_provider = "litellm"
+        model = "coder"
+        api_key = ""
+        base_url = ""
+
+    class _Mgr:
+        def load_profile(self, _profile: str):
+            return _Cfg()
+
+    monkeypatch.setattr("cli.core.get_profile_manager", lambda: _Mgr())
+
+    cfg = resolve_vision_config(profile="admin")
+    assert cfg.model == "gemini-flash"
+
+
 def test_resolve_vision_config_requires_api_when_only_model_set(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -72,21 +104,24 @@ def test_safe_filename_sanitizes() -> None:
 
 
 def test_profile_files_dir_under_data(tmp_path, monkeypatch: pytest.MonkeyPatch) -> None:
-    from cli.core import ProfileManager
-
-    profile = "default"
+    profile = "admin"
     pdir = tmp_path / "profiles" / profile
     pdir.mkdir(parents=True)
-    (pdir / "config.yaml").write_text("profile_name: default\n", encoding="utf-8")
-
-    monkeypatch.setattr(
-        ProfileManager,
-        "get_profile_dir",
-        lambda self, name: pdir,
+    (pdir / "config.yaml").write_text(
+        "profile_name: admin\n"
+        "data_dir: " + str(tmp_path / "profiles" / "default" / "data") + "\n",
+        encoding="utf-8",
     )
+
+    monkeypatch.setenv("HOLIX_HOME", str(tmp_path))
+    import cli.core as cli_core
+
+    monkeypatch.setattr(cli_core, "HOLIX_HOME", tmp_path)
+    monkeypatch.setattr(cli_core, "PROFILES_DIR", tmp_path / "profiles")
 
     dest = profile_files_dir(profile, 12345)
     assert dest == pdir / "data" / "files" / "telegram" / "12345"
+    assert "default" not in str(dest)
     assert dest.is_dir()
 
 
@@ -104,6 +139,23 @@ def test_build_agent_prompt_includes_path_and_description() -> None:
     assert "report.pdf" in prompt
     assert "Summary text" in prompt
     assert saved.path.as_posix() in prompt.replace("\\", "/")
+
+
+def test_build_agent_prompt_tells_agent_not_to_reupload_images() -> None:
+    saved = SavedTelegramFile(
+        path=Path("/tmp/profile/data/files/telegram/1/xray.jpg"),
+        original_name="xray.jpg",
+        mime_type="image/jpeg",
+        kind="image",
+        size_bytes=4096,
+        description="Shoulder X-ray with visible joint space.",
+    )
+    prompt = build_agent_prompt("Расшифруй снимок", [saved])
+    assert "Расшифруй снимок" in prompt
+    assert "Shoulder X-ray" in prompt
+    assert "НЕ проси пользователя загрузить" in prompt
+    assert "read_file для JPEG/PNG не подходит" in prompt
+    assert "vision-описание" in prompt
 
 
 def test_extract_pdf_text(tmp_path: Path) -> None:

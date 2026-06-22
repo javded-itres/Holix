@@ -14,7 +14,6 @@ from fastapi import APIRouter, Depends, Header, HTTPException
 
 from api import state
 from api.deps import verify_api_key
-
 from api.schemas.holix import (
     JailEnableRequest,
     ProfileCreateRequest,

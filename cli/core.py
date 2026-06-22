@@ -546,9 +546,11 @@ def unlock_profile(profile: str, profile_key: str) -> bool:
 
 def unlock_profile_encryption(profile: str, unlock_key: str) -> None:
     """Derive DEK from user encryption key and cache it for this process."""
-    from core.crypto.profile_crypto import unlock_profile_dek
+    from core.crypto.profile_crypto import profile_has_crypto_metadata, unlock_profile_dek
     from core.crypto.unlock_context import set_profile_session_unlock
 
+    if not profile_has_crypto_metadata(profile):
+        return
     dek = unlock_profile_dek(profile, unlock_key)
     set_profile_session_unlock(profile, dek)
 
@@ -589,12 +591,22 @@ def init_profile(
     _current_profile = profile
     _current_config = _profile_manager.load_profile(profile)
 
-    if unlock_key and unlock_key.strip():
-        from core.crypto.profile_crypto import is_profile_encryption_enabled
+    from core.crypto.profile_crypto import (
+        is_profile_encryption_enabled,
+        profile_has_crypto_metadata,
+    )
 
+    if getattr(_current_config, "encryption_enabled", False) and not profile_has_crypto_metadata(profile):
+        _current_config.encryption_enabled = False
+        try:
+            _profile_manager.save_profile(profile, _current_config)
+        except OSError:
+            pass
+
+    if unlock_key and unlock_key.strip():
         key = unlock_key.strip()
         os.environ["HOLIX_UNLOCK_KEY"] = key
-        if is_profile_encryption_enabled(profile) or getattr(_current_config, "encryption_enabled", False):
+        if is_profile_encryption_enabled(profile) or profile_has_crypto_metadata(profile):
             unlock_profile_encryption(profile, key)
 
     created_key = _profile_manager.pop_last_created_access_key()
