@@ -56,6 +56,7 @@ _TEXT_SUFFIXES = frozenset(
 _PLACEHOLDER_KEYS = frozenset({"", "ollama", "dummy", "sk-...", "your-api-key"})
 # LiteLLM aliases known to handle image input (ordered preference).
 _VISION_MODEL_PREFERENCES: tuple[str, ...] = (
+    "vision-auto",
     "gemini-flash",
     "auto",
     "claude-sonnet-4-6",
@@ -89,6 +90,8 @@ class SavedTelegramFile:
     kind: str
     size_bytes: int
     description: str = ""
+    image_category: str = ""
+    specialist_model: str = ""
 
 
 @dataclass(slots=True)
@@ -407,24 +410,69 @@ def _extract_docx_text(path: Path, *, max_chars: int = 12000) -> str:
         return ""
 
 
-async def _vision_describe_bytes(
-    image_bytes: bytes,
+_OVERVIEW_VISION_PROMPT = (
+    "Describe this image in detail. Transcribe visible text (OCR), "
+    "objects, tables, and diagrams."
+)
+
+
+async def _chat_completion_text(
     *,
     profile: str,
-    mime: str = "image/jpeg",
-    model: str | None = None,
+    model: str,
+    messages: list[dict[str, Any]],
+    max_tokens: int = 2000,
 ) -> str:
-    image_b64 = base64.standard_b64encode(image_bytes).decode("ascii")
     from core.models.client_factory import create_openai_client
 
     vision = resolve_vision_config(profile=profile)
-    use_model = str(model or vision.model).strip() or vision.model
     client = create_openai_client(
         base_url=vision.base_url,
         api_key=vision.api_key,
         metadata=vision.provider_metadata,
     )
     response = await client.chat.completions.create(
+        model=model,
+        messages=messages,
+        max_tokens=max_tokens,
+        temperature=0.2,
+    )
+    text = (response.choices[0].message.content or "").strip()
+    if not text:
+        raise RuntimeError(f"модель {model} вернула пустой ответ")
+    return text
+
+
+async def _text_analyze(
+    *,
+    profile: str,
+    model: str,
+    system_prompt: str,
+    user_text: str,
+) -> str:
+    return await _chat_completion_text(
+        profile=profile,
+        model=model,
+        messages=[
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_text},
+        ],
+    )
+
+
+async def _vision_describe_bytes(
+    image_bytes: bytes,
+    *,
+    profile: str,
+    mime: str = "image/jpeg",
+    model: str | None = None,
+    prompt: str | None = None,
+) -> str:
+    image_b64 = base64.standard_b64encode(image_bytes).decode("ascii")
+    vision = resolve_vision_config(profile=profile)
+    use_model = str(model or vision.model).strip() or vision.model
+    return await _chat_completion_text(
+        profile=profile,
         model=use_model,
         messages=[
             {
@@ -432,10 +480,7 @@ async def _vision_describe_bytes(
                 "content": [
                     {
                         "type": "text",
-                        "text": (
-                            "Describe this image in detail. Transcribe visible text (OCR), "
-                            "objects, tables, and diagrams."
-                        ),
+                        "text": prompt or _OVERVIEW_VISION_PROMPT,
                     },
                     {
                         "type": "image_url",
@@ -444,25 +489,102 @@ async def _vision_describe_bytes(
                 ],
             }
         ],
-        max_tokens=2000,
-        temperature=0.2,
     )
-    text = (response.choices[0].message.content or "").strip()
-    if not text:
-        raise RuntimeError(f"модель {use_model} вернула пустой ответ (нет поддержки vision?)")
-    return text
 
 
-async def describe_image_from_url(url: str, *, profile: str) -> str:
-    """Describe an inline or remote image URL (Hermes multimodal gateway path)."""
+def _parse_vision_auto_metadata(description: str) -> tuple[str, str]:
+    """Extract category and specialist model from LiteLLM vision-auto response."""
+    category = "general"
+    specialist = ""
+    match = re.search(r"Категория:\s*\S+\s*\((\w+)\)", description)
+    if match:
+        category = match.group(1)
+    spec_match = re.search(
+        r"## Специализированный анализ —\s*\S+\s*\(([^)]+)\)",
+        description,
+    )
+    if spec_match:
+        specialist = spec_match.group(1).strip()
+    return category, specialist
+
+
+async def _describe_image_routed(
+    image_bytes: bytes,
+    *,
+    profile: str,
+    mime: str = "image/jpeg",
+) -> tuple[str, str, str]:
+    """Return (description, image_category, specialist_model)."""
+    from integrations.telegram.image_router import (
+        analyze_with_specialist,
+        classify_image_overview,
+    )
+
+    vision_cfg = resolve_vision_config(profile=profile)
+    if vision_cfg.model == "vision-auto":
+        errors: list[str] = []
+        for model in ["vision-auto"]:
+            try:
+                description = await _vision_describe_bytes(
+                    image_bytes,
+                    profile=profile,
+                    mime=mime,
+                    model=model,
+                )
+                category, specialist = _parse_vision_auto_metadata(description)
+                return description, category, specialist
+            except Exception as exc:
+                errors.append(f"{model}: {exc}")
+        raise RuntimeError("; ".join(errors) or "vision-auto unavailable")
+
+    errors: list[str] = []
+    overview = ""
+    overview_model = ""
+    for model in _vision_models_to_try(profile=profile):
+        try:
+            overview = await _vision_describe_bytes(
+                image_bytes,
+                profile=profile,
+                mime=mime,
+                model=model,
+                prompt=_OVERVIEW_VISION_PROMPT,
+            )
+            overview_model = model
+            break
+        except Exception as exc:
+            errors.append(f"{model}: {exc}")
+
+    if not overview:
+        raise RuntimeError("; ".join(errors) or "vision unavailable")
+
+    if not settings.telegram_image_router_enabled:
+        return overview, "general", ""
+
+    route = classify_image_overview(overview)
+    if route.category == "general":
+        return overview, route.category, ""
+
+    description = await analyze_with_specialist(
+        overview=overview,
+        overview_model=overview_model,
+        image_bytes=image_bytes,
+        mime=mime,
+        profile=profile,
+        route=route,
+        vision_describe_fn=_vision_describe_bytes,
+        text_analyze_fn=_text_analyze,
+    )
+    return description, route.category, route.specialist_model
+
+
+async def _load_image_bytes_from_url(url: str) -> tuple[bytes, str]:
     raw = (url or "").strip()
     if raw.startswith("data:"):
         header, _, payload = raw.partition(",")
         mime = "image/jpeg"
         if header.startswith("data:") and ";" in header:
             mime = header[5:].split(";", 1)[0] or mime
-        image_bytes = base64.standard_b64decode(payload)
-        return await _vision_describe_bytes(image_bytes, profile=profile, mime=mime)
+        return base64.standard_b64decode(payload), mime
 
     if raw.startswith(("http://", "https://")):
         import httpx
@@ -471,27 +593,31 @@ async def describe_image_from_url(url: str, *, profile: str) -> str:
             response = await client.get(raw)
             response.raise_for_status()
             mime = response.headers.get("content-type", "image/jpeg").split(";", 1)[0]
-            return await _vision_describe_bytes(response.content, profile=profile, mime=mime)
+            return response.content, mime
 
     raise ValueError(f"Unsupported image URL: {raw[:80]}")
+
+
+async def describe_image_from_url(url: str, *, profile: str) -> str:
+    """Describe an inline or remote image URL (Hermes multimodal gateway path)."""
+    image_bytes, mime = await _load_image_bytes_from_url(url)
+    description, _, _ = await _describe_image_routed(
+        image_bytes,
+        profile=profile,
+        mime=mime,
+    )
+    return description
 
 
 async def describe_image(path: Path, *, profile: str) -> str:
     mime, _ = mimetypes.guess_type(str(path))
     mime = mime or "image/jpeg"
-    image_bytes = path.read_bytes()
-    errors: list[str] = []
-    for model in _vision_models_to_try(profile=profile):
-        try:
-            return await _vision_describe_bytes(
-                image_bytes,
-                profile=profile,
-                mime=mime,
-                model=model,
-            )
-        except Exception as exc:
-            errors.append(f"{model}: {exc}")
-    raise RuntimeError("; ".join(errors) or "vision unavailable")
+    description, _, _ = await _describe_image_routed(
+        path.read_bytes(),
+        profile=profile,
+        mime=mime,
+    )
+    return description
 
 
 async def enrich_saved_file(saved: SavedTelegramFile, *, profile: str) -> SavedTelegramFile:
@@ -500,7 +626,16 @@ async def enrich_saved_file(saved: SavedTelegramFile, *, profile: str) -> SavedT
 
     if saved.kind == "image" or _is_image(saved.mime_type, saved.original_name):
         try:
-            saved.description = await describe_image(path, profile=profile)
+            mime, _ = mimetypes.guess_type(str(path))
+            mime = mime or saved.mime_type or "image/jpeg"
+            description, category, specialist = await _describe_image_routed(
+                path.read_bytes(),
+                profile=profile,
+                mime=mime,
+            )
+            saved.description = description
+            saved.image_category = category
+            saved.specialist_model = specialist
             saved.kind = "image"
         except Exception as exc:
             saved.description = f"(Не удалось распознать изображение: {exc})"
@@ -596,6 +731,11 @@ def format_files_preview(
         lines.append(f"{idx}. <b>{label}</b> {escape_html(item.original_name)}")
         lines.append(f"   <code>{escape_html(str(item.path))}</code>")
         lines.append(f"   {item.size_bytes // 1024} KB")
+        if item.image_category and item.image_category != "general":
+            label_bits = [f"категория: {item.image_category}"]
+            if item.specialist_model:
+                label_bits.append(f"модель: {item.specialist_model}")
+            lines.append(f"   <i>{escape_html(', '.join(label_bits))}</i>")
         if item.description:
             short = item.description[:max_desc_chars]
             if len(item.description) > max_desc_chars:
@@ -639,8 +779,13 @@ def build_agent_prompt(user_text: str, files: list[SavedTelegramFile]) -> str:
                 "  Тип: изображение — read_file для JPEG/PNG не подходит; "
                 "используй блок «Содержимое / распознавание» ниже."
             )
+        if is_image and item.image_category and item.image_category != "general":
+            meta = f"категория: {item.image_category}"
+            if item.specialist_model:
+                meta += f", specialist: {item.specialist_model}"
+            lines.append(f"  Маршрут vision: {meta}")
         if item.description:
-            lines.append("  Содержимое / распознавание (vision, уже выполнено):")
+            lines.append("  Содержимое / распознавание (vision + autorouter, уже выполнено):")
             lines.append("  ```")
             lines.append(item.description.strip())
             lines.append("  ```")

@@ -213,6 +213,11 @@ class Settings(BaseSettings):
         validation_alias="HOLIX_TELEGRAM_VISION_MODEL",
         description="Vision model for Telegram images; empty = main agent model",
     )
+    telegram_image_router_enabled: bool = Field(
+        default=False,
+        validation_alias="HOLIX_TELEGRAM_IMAGE_ROUTER_ENABLED",
+        description="Helix-side image routing (off when LiteLLM vision-auto handles routing)",
+    )
     telegram_media_group_delay_ms: int = Field(
         default=800,
         validation_alias="HOLIX_TELEGRAM_MEDIA_GROUP_DELAY_MS",

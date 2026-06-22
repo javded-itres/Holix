@@ -10,7 +10,6 @@ from typing import Any
 @dataclass(slots=True)
 class CompanionState:
     profile: str
-    cron_task: asyncio.Task[Any] | None = None
     telegram_task: asyncio.Task[Any] | None = None
     max_task: asyncio.Task[Any] | None = None
 
@@ -20,12 +19,16 @@ class CompanionManager:
 
     def __init__(self) -> None:
         self._states: dict[str, CompanionState] = {}
+        self._global_cron_task: asyncio.Task[Any] | None = None
+
+    def _cron_running(self) -> bool:
+        return bool(self._global_cron_task and not self._global_cron_task.done())
 
     def status(self, profile: str) -> dict[str, Any]:
         state = self._states.get(profile)
         return {
             "profile": profile,
-            "cron_running": bool(state and state.cron_task and not state.cron_task.done()),
+            "cron_running": self._cron_running(),
             "telegram_running": bool(
                 state and state.telegram_task and not state.telegram_task.done()
             ),
@@ -35,26 +38,32 @@ class CompanionManager:
         }
 
     async def start_cron(self, profile: str) -> None:
-        await self.stop_cron(profile)
-        from core.cron.scheduler import CronScheduler
+        await self.ensure_global_cron()
 
-        state = self._states.setdefault(profile, CompanionState(profile=profile))
+    async def ensure_global_cron(self) -> None:
+        if self._cron_running():
+            return
+        from core.cron.scheduler import GlobalCronScheduler
 
         async def _run() -> None:
-            await CronScheduler(profile).run_forever()
+            await GlobalCronScheduler().run_forever()
 
-        state.cron_task = asyncio.create_task(_run(), name=f"holix-cron-{profile}")
+        self._global_cron_task = asyncio.create_task(_run(), name="holix-cron-global")
 
     async def stop_cron(self, profile: str) -> None:
-        state = self._states.get(profile)
-        if state is None or state.cron_task is None:
+        from core.cron.discovery import invalidate_profile
+
+        invalidate_profile(profile)
+
+    async def stop_global_cron(self) -> None:
+        if self._global_cron_task is None:
             return
-        state.cron_task.cancel()
+        self._global_cron_task.cancel()
         try:
-            await state.cron_task
+            await self._global_cron_task
         except asyncio.CancelledError:
             pass
-        state.cron_task = None
+        self._global_cron_task = None
 
     async def start_telegram(self, profile: str) -> None:
         await self.stop_telegram(profile)
@@ -123,7 +132,7 @@ class CompanionManager:
         return self.status(profile)
 
     async def shutdown_all(self) -> None:
+        await self.stop_global_cron()
         for profile in list(self._states):
-            await self.stop_cron(profile)
             await self.stop_telegram(profile)
             await self.stop_max(profile)

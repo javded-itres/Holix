@@ -4,20 +4,25 @@ from __future__ import annotations
 
 import argparse
 import asyncio
-import os
 import sys
 
-from core.cron.scheduler import CronScheduler
+from core.cron.scheduler import CronScheduler, GlobalCronScheduler
 
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Holix cron scheduler worker")
-    parser.add_argument("--profile", default=os.environ.get("HOLIX_PROFILE", "default"))
+    parser.add_argument(
+        "--profile",
+        default=None,
+        help="Legacy: run scheduler for one profile only (default: all profiles)",
+    )
     args = parser.parse_args(argv)
-    os.environ["HOLIX_PROFILE"] = args.profile
 
     async def _run() -> None:
-        await CronScheduler(args.profile).run_forever()
+        if args.profile:
+            await CronScheduler(args.profile).run_forever()
+        else:
+            await GlobalCronScheduler().run_forever()
 
     try:
         asyncio.run(_run())
