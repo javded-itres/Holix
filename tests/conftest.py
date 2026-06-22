@@ -8,6 +8,7 @@ import re
 import shutil
 import tempfile
 import uuid
+from pathlib import Path
 
 import pytest
 from core.tools.registry import ToolRegistry
@@ -147,6 +148,19 @@ def gateway_client(gateway_auth_headers, monkeypatch: pytest.MonkeyPatch):
     client = TestClient(api.gateway.app)
     yield client
     api.gateway.app.dependency_overrides.clear()
+
+
+@pytest.fixture(autouse=True)
+def _isolated_holix_home(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Keep profile paths off the developer/CI machine (~/.holix)."""
+    import cli.core as cli_core
+
+    holix_home = tmp_path / ".holix"
+    profiles = holix_home / "profiles"
+    profiles.mkdir(parents=True, exist_ok=True)
+    monkeypatch.setenv("HOLIX_HOME", str(holix_home))
+    monkeypatch.setattr(cli_core, "HOLIX_HOME", holix_home)
+    monkeypatch.setattr(cli_core, "PROFILES_DIR", profiles)
 
 
 @pytest.fixture(autouse=True)

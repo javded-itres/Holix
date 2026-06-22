@@ -40,9 +40,15 @@ class CronProfileIndex:
         if not root.exists():
             return []
 
+        from core.profile.names import ProfileNameError, validate_profile_name
+
         found: list[str] = []
         for item in root.iterdir():
             if not item.is_dir() or item.name in _SKIP_PROFILE_DIRS:
+                continue
+            try:
+                validate_profile_name(item.name)
+            except ProfileNameError:
                 continue
             if _profile_has_jobs(item.name):
                 found.append(item.name)
@@ -50,7 +56,10 @@ class CronProfileIndex:
 
     def refresh_known_profiles(self) -> None:
         now = time.monotonic()
-        if now - self._last_full_scan < self._discovery_interval_s:
+        if (
+            self._last_full_scan > 0
+            and now - self._last_full_scan < self._discovery_interval_s
+        ):
             return
         for profile in self.scan_profiles_with_jobs():
             self._load_profile(profile, force=True)

@@ -30,10 +30,11 @@ def test_validate_profile_name_rejects_unsafe(bad: str) -> None:
         validate_profile_name(bad)
 
 
-def test_profile_dir_for_name_under_profiles_root(tmp_path, monkeypatch) -> None:
-    monkeypatch.setenv("HELIX_HOME", str(tmp_path))
+def test_profile_dir_for_name_under_profiles_root() -> None:
+    from cli.core import HOLIX_HOME
+
     path = profile_dir_for_name("alice")
-    assert path == (tmp_path / "profiles" / "alice").resolve()
+    assert path == (HOLIX_HOME / "profiles" / "alice").resolve()
 
 
 def test_resolve_workspace_root_rejects_traversal() -> None:

@@ -185,7 +185,8 @@ async def test_api_key_manager_opens_resolved_db(tmp_path, monkeypatch) -> None:
 
 
 def test_doctor_migrates_stray_project_data(tmp_path, monkeypatch) -> None:
-    monkeypatch.setattr("cli.core.PROFILES_DIR", tmp_path / "profiles")
+    from cli.core import PROFILES_DIR
+
     repo = tmp_path / "repo"
     repo.mkdir()
     stray = repo / "data" / "memory"
@@ -202,4 +203,4 @@ def test_doctor_migrates_stray_project_data(tmp_path, monkeypatch) -> None:
     applied = apply_deterministic_fixes("default", findings)
     assert applied
     assert not (repo / "data").exists()
-    assert (tmp_path / "profiles" / "default" / "data" / "memory" / "ltm.db").exists()
+    assert (PROFILES_DIR / "default" / "data" / "memory" / "ltm.db").exists()

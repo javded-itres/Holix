@@ -44,9 +44,8 @@ def test_check_invalid_default_provider(tmp_path: Path, monkeypatch: pytest.Monk
     assert any(f.code == "profile.invalid_default_provider" for f in findings)
 
 
-def test_fix_create_profile(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr("cli.core.HOLIX_HOME", tmp_path)
-    monkeypatch.setattr("cli.core.PROFILES_DIR", tmp_path / "profiles")
+def test_fix_create_profile() -> None:
+    from cli.core import PROFILES_DIR
 
     finding = DoctorFinding(
         code="profile.missing",
@@ -59,7 +58,7 @@ def test_fix_create_profile(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> 
     )
     applied = apply_deterministic_fixes("newprof", [finding])
     assert applied
-    assert (tmp_path / "profiles" / "newprof" / "config.yaml").exists()
+    assert (PROFILES_DIR / "newprof" / "config.yaml").exists()
 
 
 def test_check_hub_missing_bundle(tmp_path: Path) -> None:

@@ -72,7 +72,9 @@ async def test_dishka_container_provides_agent(temp_dir):
 
 @pytest.mark.asyncio
 async def test_create_agent_initializes(memory_manager, temp_dir):
-    """create_agent uses profile paths without mutating global settings."""
+    """create_agent binds storage to the profile tree without mutating global settings."""
+    from cli.core import ProfileManager
+
     profile = ProfileConfig(
         profile_name="di_test",
         memory_db_path=f"{temp_dir}/mem.db",
@@ -80,6 +82,9 @@ async def test_create_agent_initializes(memory_manager, temp_dir):
         skills_dir=f"{temp_dir}/skills",
     )
     runtime_config = resolve_runtime_config(profile)
+    expected_memory = (
+        ProfileManager().get_profile_dir("di_test") / "data" / "memory" / "memory.db"
+    )
     container = None
     try:
         agent, container = await create_agent(
@@ -87,9 +92,7 @@ async def test_create_agent_initializes(memory_manager, temp_dir):
             enable_monitoring=False,
         )
         assert agent._initialized
-        assert Path(agent.config.memory_db_path).resolve() == Path(
-            f"{temp_dir}/mem.db"
-        ).resolve()
+        assert Path(agent.config.memory_db_path).resolve() == expected_memory.resolve()
     finally:
         if container:
             await container.close()

@@ -33,12 +33,15 @@ def _reset_profile_index() -> None:
 def profiles_root(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     from cli.core import ProfileManager
 
+    profiles = tmp_path / "profiles"
+    profiles.mkdir(parents=True, exist_ok=True)
+
     def fake_dir(self, profile: str) -> Path:
-        return _fake_profile_dir(tmp_path, profile)
+        return _fake_profile_dir(profiles, profile)
 
     monkeypatch.setattr(ProfileManager, "get_profile_dir", fake_dir)
-    monkeypatch.setattr("cli.core.profiles_dir", lambda: tmp_path)
-    return tmp_path
+    monkeypatch.setattr("cli.core.profiles_dir", lambda: profiles)
+    return profiles
 
 
 def test_index_discovers_multiple_profiles(profiles_root: Path) -> None:
