@@ -29,6 +29,7 @@ from core.graph.plan_step import (
 )
 from core.graph.state import HolixGraphState, get_agent_from_config
 from core.i18n.live_ui import live_reasoning_label, live_thinking_step_label
+from core.llm.max_tokens import profile_agent_max_tokens, resolve_agent_max_tokens
 from core.llm.response_text import (
     assistant_message_parts,
     resolve_assistant_text,
@@ -112,6 +113,15 @@ async def _plan_step_result(
         step_count=step_count,
         final_response=final_response,
         include_assistant=not assistant_already_appended,
+    )
+
+
+def _llm_max_tokens(agent, model_manager, agent_slot: str) -> int:
+    from config import settings
+
+    return resolve_agent_max_tokens(
+        profile_max_tokens=profile_agent_max_tokens(model_manager, agent_slot),
+        default_max_tokens=getattr(settings, "agent_max_tokens", None),
     )
 
 
@@ -228,6 +238,7 @@ async def react_node(state: HolixGraphState, config: RunnableConfig) -> dict:
     agent_slot = getattr(agent, "agent_slot", "main") if agent else "main"
     model_manager = getattr(agent, "model_manager", None) if agent else None
     llm_timeout_s = _llm_step_timeout_s(agent)
+    max_tokens = _llm_max_tokens(agent, model_manager, agent_slot)
 
     def _on_fallback_switch(cfg) -> None:
         if agent and hasattr(agent, "set_active_model_config"):
@@ -248,6 +259,7 @@ async def react_node(state: HolixGraphState, config: RunnableConfig) -> dict:
                 agent_slot=agent_slot,
                 on_switch=_on_fallback_switch,
                 llm_timeout_s=llm_timeout_s,
+                max_tokens=max_tokens,
             )
         else:
             return await _react_non_streaming(
@@ -263,6 +275,7 @@ async def react_node(state: HolixGraphState, config: RunnableConfig) -> dict:
                 agent_slot=agent_slot,
                 on_switch=_on_fallback_switch,
                 llm_timeout_s=llm_timeout_s,
+                max_tokens=max_tokens,
             )
 
     except LLMStepTimeoutError as exc:
@@ -328,6 +341,7 @@ async def _react_non_streaming(
     agent_slot: str = "main",
     on_switch=None,
     llm_timeout_s: float = _DEFAULT_LLM_STEP_TIMEOUT_S,
+    max_tokens: int | None = None,
 ) -> dict:
     """Non-streaming ReAct step."""
     conversation_id = state.get("conversation_id", "default")
@@ -344,6 +358,7 @@ async def _react_non_streaming(
                 tools=tools,
                 tool_choice="auto",
                 temperature=temperature,
+                max_tokens=max_tokens,
             )
         return await client.chat.completions.create(
             model=model,
@@ -351,6 +366,7 @@ async def _react_non_streaming(
             tools=tools,
             tool_choice="auto",
             temperature=temperature,
+            max_tokens=max_tokens,
         )
 
     async with asyncio.timeout(llm_timeout_s):
@@ -453,6 +469,7 @@ async def _react_streaming(
     agent_slot: str = "main",
     on_switch=None,
     llm_timeout_s: float = _DEFAULT_LLM_STEP_TIMEOUT_S,
+    max_tokens: int | None = None,
 ) -> dict:
     """Streaming ReAct step."""
     conversation_id = state.get("conversation_id", "default")
@@ -471,6 +488,7 @@ async def _react_streaming(
                     tools=tools,
                     tool_choice="auto",
                     temperature=temperature,
+                    max_tokens=max_tokens,
                     stream=True,
                 ),
             )
@@ -480,6 +498,7 @@ async def _react_streaming(
             tools=tools,
             tool_choice="auto",
             temperature=temperature,
+            max_tokens=max_tokens,
             stream=True,
         )
 
@@ -586,6 +605,7 @@ async def _react_streaming(
                         agent_slot=agent_slot,
                         on_switch=on_switch,
                         llm_timeout_s=llm_timeout_s,
+                        max_tokens=max_tokens,
                     )
                 messages = list(state.get("messages", []))
                 messages.append({"role": "assistant", "content": final_response})
@@ -676,6 +696,7 @@ async def _react_streaming(
             agent_slot=agent_slot,
             on_switch=on_switch,
             llm_timeout_s=llm_timeout_s,
+            max_tokens=max_tokens,
         )
     final_response = _non_empty_final(final_response)
     messages = list(state.get("messages", []))

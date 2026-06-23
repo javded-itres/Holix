@@ -1,3 +1,3 @@
 """Holix CLI - Professional command-line interface for Holix AI Agent."""
 
-__version__ = "0.1.17"
+__version__ = "0.1.18"

@@ -27,6 +27,11 @@ class Settings(BaseSettings):
 
     # Agent Configuration
     max_steps: int = 90
+    agent_max_tokens: int = Field(
+        default=8192,
+        validation_alias=AliasChoices("HOLIX_AGENT_MAX_TOKENS", "AGENT_MAX_TOKENS"),
+        description="Default max_tokens for ReAct agent steps (reasoning models need headroom)",
+    )
     llm_step_timeout: float = 300.0
     data_dir: str = "data"
     context_window: int = 131072
