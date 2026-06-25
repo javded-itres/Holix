@@ -165,9 +165,11 @@ async def run_agent_loop(
             )
         else:
             # Legacy fallback: just last 20 messages
+            from core.llm.api_messages import prepare_conversation_for_llm
+
             api_messages = [
                 {"role": "system", "content": system_prompt}
-            ] + messages[-20:]
+            ] + prepare_conversation_for_llm(messages[-20:])
 
         try:
             if stream:
@@ -553,7 +555,10 @@ def _build_api_messages(
     Returns:
         List of messages for the API call, starting with the system prompt.
     """
+    from core.llm.api_messages import prepare_conversation_for_llm
+
     system_msg = {"role": "system", "content": system_prompt}
+    history = prepare_conversation_for_llm(messages)
     system_tokens = context_manager.token_counter.count_message_tokens([system_msg])
 
     # Reserve buffer for model's response and tool overhead
@@ -568,7 +573,7 @@ def _build_api_messages(
     selected = []
     running_tokens = 0
 
-    for msg in reversed(messages):
+    for msg in reversed(history):
         msg_tokens = context_manager.token_counter.count_message_tokens([msg])
         if running_tokens + msg_tokens > available_tokens:
             break

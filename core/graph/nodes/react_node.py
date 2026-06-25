@@ -198,7 +198,11 @@ async def react_node(state: HolixGraphState, config: RunnableConfig) -> dict:
     if agent and hasattr(agent, "context_manager") and agent.context_manager:
         api_messages = _build_api_messages(system_prompt, messages, agent.context_manager)
     else:
-        api_messages = [{"role": "system", "content": system_prompt}] + messages[-20:]
+        from core.llm.api_messages import prepare_conversation_for_llm
+
+        api_messages = [{"role": "system", "content": system_prompt}] + prepare_conversation_for_llm(
+            messages[-20:]
+        )
 
     # Get runtime config
     client: AsyncOpenAI = agent.client if agent else None
@@ -809,7 +813,10 @@ def _build_system_prompt_from_state(state: HolixGraphState, agent=None) -> str:
 
 def _build_api_messages(system_prompt, messages, context_manager) -> list:
     """Build API message list respecting context window limits."""
+    from core.llm.api_messages import prepare_conversation_for_llm
+
     system_msg = {"role": "system", "content": system_prompt}
+    history = prepare_conversation_for_llm(messages)
     system_tokens = context_manager.token_counter.count_message_tokens([system_msg])
 
     response_reserve = 2048
@@ -821,7 +828,7 @@ def _build_api_messages(system_prompt, messages, context_manager) -> list:
     selected = []
     running_tokens = 0
 
-    for msg in reversed(messages):
+    for msg in reversed(history):
         msg_tokens = context_manager.token_counter.count_message_tokens([msg])
         if running_tokens + msg_tokens > available_tokens:
             break
