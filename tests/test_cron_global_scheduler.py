@@ -90,7 +90,6 @@ async def test_scheduler_does_not_self_skip_run_cron_job(
 ) -> None:
     """Regression: pre-registering the wrapper task made run_cron_job skip itself."""
     from core.cron import active_runs
-    from core.cron.runner import run_cron_job
     from core.cron.scheduler import CronScheduler
 
     past = datetime(2020, 1, 1, tzinfo=UTC).isoformat()
