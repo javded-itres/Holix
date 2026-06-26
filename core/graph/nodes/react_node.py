@@ -836,4 +836,6 @@ def _build_api_messages(system_prompt, messages, context_manager) -> list:
         running_tokens += msg_tokens
 
     selected.reverse()
-    return [system_msg] + selected
+    from core.llm.api_messages import finalize_api_messages
+
+    return [system_msg] + finalize_api_messages(selected)

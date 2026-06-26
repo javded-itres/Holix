@@ -582,5 +582,6 @@ def _build_api_messages(
 
     # Reverse back to chronological order
     selected.reverse()
+    from core.llm.api_messages import finalize_api_messages
 
-    return [system_msg] + selected
+    return [system_msg] + finalize_api_messages(selected)
