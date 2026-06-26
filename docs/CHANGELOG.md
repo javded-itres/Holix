@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+## 0.1.20 — 2026-06-26
+
+### Fixed
+- **Cron jobs never running** — scheduler no longer pre-registers wrapper tasks, so `run_cron_job` is not self-skipped with “already running”
+- **Strict LLM providers (tool ordering)** — defer context notes during tool-call turns; repair orphan `tool` messages after context truncation (Groq/Mistral `role 'tool' after role 'user'`)
+
+### Changed
+- **Version** — package `Holix` 0.1.20
+
 ## 0.1.19 — 2026-06-25
 
 ### Fixed
