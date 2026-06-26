@@ -84,6 +84,40 @@ def test_invalidate_profile_refreshes_after_save(profiles_root: Path) -> None:
 
 
 @pytest.mark.asyncio
+async def test_scheduler_does_not_self_skip_run_cron_job(
+    profiles_root: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Regression: pre-registering the wrapper task made run_cron_job skip itself."""
+    from core.cron import active_runs
+    from core.cron.runner import run_cron_job
+    from core.cron.scheduler import CronScheduler
+
+    past = datetime(2020, 1, 1, tzinfo=UTC).isoformat()
+    job = CronStore("alice").add(task="run now", cron_expression="*/10 * * * *")
+    store = CronStore("alice")
+    data = store.load()
+    data.jobs[0].next_run_at = past
+    store.save(data)
+
+    ran: list[str] = []
+
+    async def _fake_run(job_obj) -> None:
+        ran.append(job_obj.id)
+        active_runs.clear(job_obj.id)
+
+    monkeypatch.setattr("core.cron.scheduler.run_cron_job", _fake_run)
+
+    await CronScheduler("alice").tick()
+    for _ in range(50):
+        if ran:
+            break
+        await asyncio.sleep(0.02)
+
+    assert ran == [job.id]
+
+
+@pytest.mark.asyncio
 async def test_global_scheduler_dispatches_due_jobs_from_any_profile(
     profiles_root: Path,
     monkeypatch: pytest.MonkeyPatch,
