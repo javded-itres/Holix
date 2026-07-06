@@ -16,6 +16,8 @@ def create_studio_app(
     profile: str,
     *,
     serve_cwd: Path | str | None = None,
+    workspace_mode: str | None = None,
+    workspace_root: Path | str | None = None,
 ) -> FastAPI:
     app = FastAPI(
         title="Holix Studio",
@@ -33,6 +35,8 @@ def create_studio_app(
         profile=profile,
         auth_token=policy.token or None,
         serve_cwd=serve_cwd,
+        workspace_mode=workspace_mode,
+        workspace_root=workspace_root,
     )
     app.include_router(router)
     app.state.studio_session = router.studio_session  # type: ignore[attr-defined]

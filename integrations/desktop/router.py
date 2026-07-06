@@ -16,11 +16,13 @@ from starlette.requests import Request
 from integrations.desktop.security import studio_token_valid
 from integrations.desktop.session import StudioSession
 from integrations.desktop.workspace_files import (
+    STUDIO_WORKSPACE_CWD,
     WorkspacePathError,
     create_directory,
     delete_path,
     list_tree,
     move_path,
+    normalize_studio_workspace_mode,
     read_file,
     resolve_studio_workspace_root,
     stat_file,
@@ -75,10 +77,21 @@ def create_studio_router(
     auth_token: str | None = None,
     session: StudioSession | None = None,
     serve_cwd: Path | str | None = None,
+    workspace_mode: str | None = None,
+    workspace_root: Path | str | None = None,
 ) -> APIRouter:
     router = APIRouter(prefix=STUDIO_PREFIX)
-    studio_session = session or StudioSession(profile)
-    studio_workspace_root = resolve_studio_workspace_root(profile, serve_cwd=serve_cwd)
+    mode = normalize_studio_workspace_mode(workspace_mode)
+    studio_workspace_root = (
+        Path(workspace_root).expanduser().resolve()
+        if workspace_root is not None
+        else resolve_studio_workspace_root(profile, mode=mode, serve_cwd=serve_cwd)
+    )
+    studio_session = session or StudioSession(
+        profile,
+        workspace_root=studio_workspace_root,
+        workspace_mode=mode,
+    )
     require_auth = _auth_dependency(auth_token)
 
     @router.get("/api/health")
@@ -86,6 +99,7 @@ def create_studio_router(
         return {
             "status": "ok",
             "profile": profile,
+            "workspace_mode": mode,
             "workspace_root": str(studio_workspace_root),
         }
 
@@ -231,6 +245,7 @@ def create_studio_router(
                 "type": "connected",
                 "profile": profile,
                 "conversation_id": studio_session.conversation_id,
+                "workspace_mode": mode,
                 "workspace_root": str(studio_workspace_root),
             }
         )
@@ -286,6 +301,7 @@ def create_studio_router(
 
     router.studio_session = studio_session  # type: ignore[attr-defined]
     router.studio_workspace_root = studio_workspace_root  # type: ignore[attr-defined]
+    router.studio_workspace_mode = mode  # type: ignore[attr-defined]
     return router
 
 
@@ -301,5 +317,10 @@ def mount_studio_on_gateway(app: Any, *, profile: str | None = None) -> None:
         return
     host_profile = profile or (os.getenv("HOLIX_PROFILE") or "default").strip() or "default"
     token = os.getenv("HOLIX_STUDIO_TOKEN", "").strip() or None
-    router = create_studio_router(profile=host_profile, auth_token=token)
+    ws_mode = (os.getenv("HOLIX_STUDIO_WORKSPACE") or STUDIO_WORKSPACE_CWD).strip().lower()
+    router = create_studio_router(
+        profile=host_profile,
+        auth_token=token,
+        workspace_mode=ws_mode,
+    )
     app.include_router(router)

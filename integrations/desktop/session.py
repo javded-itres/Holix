@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import logging
 from collections.abc import Awaitable, Callable
+from pathlib import Path
 from typing import Any
 
 from core.agent_events import AgentEvent, EventType
@@ -28,8 +29,17 @@ _GENERATOR_ONLY_TYPES = frozenset(
 class StudioSession:
     """Holds agent state and runs user messages for Studio clients."""
 
-    def __init__(self, profile: str, *, conversation_id: str = "studio") -> None:
+    def __init__(
+        self,
+        profile: str,
+        *,
+        workspace_root: Path | str | None = None,
+        workspace_mode: str | None = None,
+        conversation_id: str = "studio",
+    ) -> None:
         self.profile = profile
+        self.workspace_root = Path(workspace_root or Path.cwd()).expanduser().resolve()
+        self.workspace_mode = workspace_mode
         self.conversation_id = conversation_id
         self.agent: Any | None = None
         self._init_lock = asyncio.Lock()
@@ -47,7 +57,11 @@ class StudioSession:
                 return self.agent
             from integrations.desktop.agent_setup import build_studio_agent
 
-            agent = build_studio_agent(self.profile)
+            agent = build_studio_agent(
+                self.profile,
+                workspace_root=self.workspace_root,
+                workspace_mode=self.workspace_mode,
+            )
             self._attach_event_forwarder(agent)
             await agent.initialize(mcp_ready_timeout=5.0, defer_skill_index=True)
             self.agent = agent

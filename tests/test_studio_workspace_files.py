@@ -4,11 +4,14 @@ from __future__ import annotations
 
 import pytest
 from integrations.desktop.workspace_files import (
+    STUDIO_WORKSPACE_CWD,
+    STUDIO_WORKSPACE_PROFILE,
     WorkspacePathError,
     create_directory,
     delete_path,
     list_tree,
     move_path,
+    normalize_studio_workspace_mode,
     read_file,
     resolve_studio_workspace_root,
     resolve_workspace_path,
@@ -196,12 +199,34 @@ def test_upload_file(studio_profile, studio_profile_ws) -> None:
     assert (studio_profile_ws / "docs" / "image.bin").read_bytes() == b"\x00\x01"
 
 
-def test_resolve_studio_workspace_uses_serve_cwd_when_jail_off(
+def test_resolve_studio_workspace_uses_serve_cwd_in_cwd_mode(
     tmp_path,
     monkeypatch,
     studio_profile,
 ) -> None:
     project = tmp_path / "project"
     project.mkdir()
-    root = resolve_studio_workspace_root(studio_profile, serve_cwd=project)
+    root = resolve_studio_workspace_root(
+        studio_profile,
+        mode=STUDIO_WORKSPACE_CWD,
+        serve_cwd=project,
+    )
     assert root == project.resolve()
+
+
+def test_resolve_studio_workspace_uses_profile_workspace_in_profile_mode(
+    studio_profile,
+    studio_profile_ws,
+) -> None:
+    root = resolve_studio_workspace_root(
+        studio_profile,
+        mode=STUDIO_WORKSPACE_PROFILE,
+    )
+    assert root == studio_profile_ws.resolve()
+
+
+def test_normalize_studio_workspace_mode() -> None:
+    assert normalize_studio_workspace_mode("cwd") == STUDIO_WORKSPACE_CWD
+    assert normalize_studio_workspace_mode("PROFILE") == STUDIO_WORKSPACE_PROFILE
+    with pytest.raises(ValueError):
+        normalize_studio_workspace_mode("invalid")

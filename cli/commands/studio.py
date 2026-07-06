@@ -41,7 +41,14 @@ def studio_serve(
     cwd: str | None = typer.Option(
         None,
         "--cwd",
-        help="Workspace directory to show in the file tree (default: current directory)",
+        help="Base directory for --workspace cwd (default: directory where holix was started)",
+    ),
+    workspace: str = typer.Option(
+        "cwd",
+        "--workspace",
+        "-w",
+        help="Workspace scope: cwd (launch directory) or profile (profile workspace only)",
+        case_sensitive=False,
     ),
     open_browser: bool = typer.Option(
         False,
@@ -75,6 +82,14 @@ def studio_serve(
 
     from pathlib import Path
 
+    from integrations.desktop.workspace_files import normalize_studio_workspace_mode
+
+    try:
+        ws_mode = normalize_studio_workspace_mode(workspace)
+    except ValueError as e:
+        print_error(str(e))
+        raise typer.Exit(1) from e
+
     run_studio_server(
         profile,
         policy,
@@ -82,12 +97,20 @@ def studio_serve(
         headless=headless,
         open_browser=open_browser,
         serve_cwd=Path(cwd).expanduser().resolve() if cwd else None,
+        workspace_mode=ws_mode,
     )
 
 
 @app.command("open")
 def studio_open(
     profile: str = typer.Option("default", "--profile", "-p", show_default=True),
+    workspace: str = typer.Option(
+        "cwd",
+        "--workspace",
+        "-w",
+        help="Workspace scope: cwd or profile",
+        case_sensitive=False,
+    ),
 ) -> None:
     """Launch Studio (starts serve and opens browser). Alias for serve --open."""
     studio_serve(
@@ -97,6 +120,8 @@ def studio_open(
         token=None,
         allow_lan=False,
         generate_token=True,
+        cwd=None,
+        workspace=workspace,
         open_browser=True,
         headless=False,
     )

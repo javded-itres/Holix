@@ -29,7 +29,7 @@ def studio_client(tmp_path, monkeypatch):
         allow_lan=False,
         is_production=False,
     )
-    app = create_studio_app(policy, profile, serve_cwd=ws)
+    app = create_studio_app(policy, profile, serve_cwd=ws, workspace_mode="cwd")
     return TestClient(app), profile
 
 

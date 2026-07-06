@@ -3,12 +3,18 @@
 from __future__ import annotations
 
 import asyncio
+import os
 from pathlib import Path
 
 import uvicorn
 
 from integrations.desktop.app import create_studio_app
 from integrations.desktop.security import StudioSecurityPolicy, append_query_token
+from integrations.desktop.workspace_files import (
+    STUDIO_WORKSPACE_CWD,
+    normalize_studio_workspace_mode,
+    resolve_studio_workspace_root,
+)
 
 
 async def _shutdown_app(app) -> None:
@@ -25,9 +31,24 @@ def run_studio_server(
     headless: bool = False,
     open_browser: bool = False,
     serve_cwd: Path | str | None = None,
+    workspace_mode: str = STUDIO_WORKSPACE_CWD,
 ) -> None:
-    cwd = Path(serve_cwd or Path.cwd()).expanduser().resolve()
-    app = create_studio_app(policy, profile, serve_cwd=cwd)
+    mode = normalize_studio_workspace_mode(workspace_mode)
+    launch_cwd = Path(serve_cwd or Path.cwd()).expanduser().resolve()
+    workspace_root = resolve_studio_workspace_root(
+        profile,
+        mode=mode,
+        serve_cwd=launch_cwd,
+    )
+    if mode == STUDIO_WORKSPACE_CWD:
+        os.chdir(workspace_root)
+    app = create_studio_app(
+        policy,
+        profile,
+        serve_cwd=launch_cwd,
+        workspace_mode=mode,
+        workspace_root=workspace_root,
+    )
     url = f"http://{policy.host}:{port}/studio/"
     if policy.token:
         url = append_query_token(url, policy.token)
@@ -35,7 +56,8 @@ def run_studio_server(
     from cli.utils.rich_console import print_info, print_success, print_warning
 
     print_success(f"Holix Studio serving profile={profile!r}")
-    print_info(f"Workspace: {cwd}")
+    print_info(f"Workspace mode: {mode}")
+    print_info(f"Workspace root: {workspace_root}")
     print_info(f"URL: {url}")
     if policy.token_generated:
         print_warning("Ephemeral Studio token — save the URL; required for API/WS access")

@@ -70,6 +70,10 @@ _TEXT_MIME_TYPES = frozenset(
         "inode/x-empty",
     }
 )
+STUDIO_WORKSPACE_CWD = "cwd"
+STUDIO_WORKSPACE_PROFILE = "profile"
+STUDIO_WORKSPACE_MODES = frozenset({STUDIO_WORKSPACE_CWD, STUDIO_WORKSPACE_PROFILE})
+
 _SKIP_DIR_NAMES = frozenset({".git", "__pycache__", ".venv", "node_modules", ".runtime-cache"})
 _MAX_WRITE_BYTES = 512_000
 _MAX_UPLOAD_BYTES = 5_000_000
@@ -96,24 +100,39 @@ class FileNode:
         return data
 
 
+def normalize_studio_workspace_mode(mode: str | None) -> str:
+    """Normalize CLI ``--workspace`` value."""
+    text = (mode or STUDIO_WORKSPACE_CWD).strip().lower()
+    if text not in STUDIO_WORKSPACE_MODES:
+        raise ValueError(
+            f"Invalid workspace mode {mode!r}; expected 'cwd' or 'profile'",
+        )
+    return text
+
+
 def resolve_studio_workspace_root(
     profile: str,
     *,
+    mode: str = STUDIO_WORKSPACE_CWD,
     serve_cwd: Path | str | None = None,
 ) -> Path:
     """Return the directory Studio should list (aligned with agent file tools).
 
-    When workspace jail is disabled, Holix tools resolve relative paths against
-    process CWD — Studio uses ``serve_cwd`` (directory where ``holix studio serve``
-    was started). When jail is enabled, the profile ``workspace_root`` is used.
+    * ``cwd`` — launch directory (or ``--cwd``); agent tools use process CWD.
+    * ``profile`` — profile ``workspace_root`` only; agent tools use workspace jail.
     """
     from cli.core import ProfileManager
 
-    config = ProfileManager().load_profile(profile)
-    if getattr(config, "workspace_jail_enabled", False) and config.workspace_root:
-        return Path(config.workspace_root).expanduser().resolve()
-    base = Path(serve_cwd or Path.cwd()).expanduser().resolve()
-    return base
+    workspace_mode = normalize_studio_workspace_mode(mode)
+    if workspace_mode == STUDIO_WORKSPACE_PROFILE:
+        config = ProfileManager().load_profile(profile)
+        root = getattr(config, "workspace_root", None)
+        if not root or not str(root).strip():
+            raise WorkspacePathError(
+                f"Profile {profile!r} has no workspace_root; use --workspace cwd",
+            )
+        return Path(root).expanduser().resolve()
+    return Path(serve_cwd or Path.cwd()).expanduser().resolve()
 
 
 def _validate_file_name(name: str) -> str:

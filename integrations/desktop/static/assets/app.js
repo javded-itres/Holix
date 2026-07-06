@@ -1105,11 +1105,13 @@ function setRunActive(active) {
 
 function handleWs(msg) {
   switch (msg.type) {
-    case "connected":
+    case "connected": {
+      const mode = msg.workspace_mode === "profile" ? "workspace" : "cwd";
       els.profile.textContent = msg.workspace_root
-        ? `profile: ${msg.profile} · ${msg.workspace_root}`
+        ? `profile: ${msg.profile} · ${mode}: ${msg.workspace_root}`
         : `profile: ${msg.profile}`;
       break;
+    }
     case "run_started":
       setRunActive(true);
       streamBuffer = "";
