@@ -25,7 +25,8 @@ The user wants **background specialized work** without blocking the main Holix c
 - research, coding, review, writing, analysis
 - optional: hand off implementation to **external coding CLIs** (Claude Code, OpenCode, Grok Build) via an assigned `coder` sub-agent
 
-**Always prefer Holix sub-agents** over inventing separate shell scripts or manual tmux unless the user explicitly wants raw terminal control.
+Use sub-agents **only when the user asks** to delegate (`/subagent-spawn`, "запусти субагента", etc.).
+Do not auto-spawn for regular chat questions.
 
 ## Prerequisites
 

@@ -153,6 +153,18 @@ def _format_list_subagents(raw: str) -> str:
     return "\n".join(lines)
 
 
+def extract_delegate_job_id(body: str) -> str | None:
+    """Return job_id from delegate_to_subagent JSON, if spawn succeeded."""
+    data = _loads_json((body or "").strip())
+    if not data:
+        return None
+    status = str(data.get("status") or "").strip()
+    if status not in {"spawned", "already_running"}:
+        return None
+    job_id = str(data.get("job_id") or "").strip()
+    return job_id or None
+
+
 def _format_delegate_result(raw: str) -> str:
     data = _loads_json(raw)
     if not data:

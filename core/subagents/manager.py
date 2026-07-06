@@ -410,12 +410,9 @@ class SubAgentManager:
         if handle.is_done:
             return
         event = self._ensure_done_event(handle)
-        if handle.config.process_mode == ProcessMode.ASYNC and handle.task is not None:
-            try:
-                await handle.task
-            except asyncio.CancelledError:
-                pass
-            return
+        # Always wait on done_event — never `await handle.task` here. Outer
+        # asyncio.wait_for(..., timeout=T) would cancel this waiter and, when
+        # it was tied to handle.task, kill the sub-agent prematurely.
         while not handle.is_done:
             try:
                 await asyncio.wait_for(event.wait(), timeout=0.25)

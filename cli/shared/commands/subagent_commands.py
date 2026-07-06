@@ -75,18 +75,37 @@ def _schedule_subagent_delivery(host: Any, job_id: str) -> None:
         logger.warning("No event loop for sub-agent result delivery (%s)", job_id)
 
 
+def _resolve_subagent_agent(host: Any) -> Any:
+    resolver = getattr(host, "resolve_subagent_agent", None)
+    if callable(resolver):
+        return resolver()
+    try:
+        from integrations.telegram.subagent_delivery import resolve_subagent_agent
+
+        return resolve_subagent_agent(host)
+    except Exception:
+        return _agent(host)
+
+
 async def _deliver_subagent_result_when_ready(host: Any, job_id: str) -> None:
     """Push background sub-agent output to the messenger when the job finishes."""
-    agent = _agent(host)
+    agent = _resolve_subagent_agent(host)
     if not agent or not hasattr(agent, "subagents"):
+        logger.warning("Sub-agent %s: agent not available for delivery", job_id)
         _host_notify(host, f"[red]Sub-agent {job_id}: agent not available for result delivery[/red]")
         return
     mgr = agent.subagents
     handle = mgr.get_handle(job_id)
     if not handle:
+        logger.warning(
+            "Sub-agent %s: handle not found (tracked=%d)",
+            job_id,
+            len(mgr.list_all()),
+        )
         _host_notify(host, f"[yellow]Sub-agent {job_id}: job handle not found[/yellow]")
         return
     try:
+        logger.info("Waiting for sub-agent %s delivery", job_id)
         timeout = handle.config.timeout
         result = await mgr.wait_for(job_id, timeout=timeout)
         text = (result.response or result.error or "").strip()
@@ -97,7 +116,8 @@ async def _deliver_subagent_result_when_ready(host: Any, job_id: str) -> None:
         if hasattr(host, "_send_text"):
             await host._send_text(f"**Субагент `{job_id}` завершил работу:**\n\n{text}")
         elif hasattr(host, "_send_split_plain"):
-            await host._send_split_plain(f"{job_id}:\n{text}")
+            await host._send_split_plain(text)
+            logger.info("Delivered sub-agent %s result (%d chars)", job_id, len(text))
         else:
             _host_notify(host, body[:8000])
     except TimeoutError:
@@ -115,7 +135,7 @@ async def run_subagents_command(host: Any, command: str) -> None:
     """List, spawn, terminate, or show sub-agent results."""
     cmd = command.strip().lower()
     parts = cmd.split()
-    agent = await _resolve_agent(host)
+    agent = _resolve_subagent_agent(host) or await _resolve_agent(host)
 
     if not agent or not hasattr(agent, "subagents"):
         host.transcript_write(

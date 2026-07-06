@@ -27,6 +27,10 @@ from core.agent_events import (
 from core.i18n.live_ui import live_plan_review_label, live_thinking_label
 from core.plan_review.review_events import PlanReviewRequestEvent
 from core.presenters.final_content import resolve_messenger_final_content
+from core.presenters.subagent_tool_text import (
+    extract_delegate_job_id,
+    format_subagent_tool_notice,
+)
 from core.security.confirmation_events import ConfirmationRequestEvent
 from core.subagents.interaction_events import SubAgentQuestionEvent
 
@@ -84,6 +88,27 @@ class TelegramEventHandler:
                 if (event.tool_name or "") == "send_chat_files" and body.startswith("Sent "):
                     buf.add_note(f"📎 {body[:240]}")
                 self._presenter.schedule_edit()
+                name = (event.tool_name or "").strip()
+                if name == "delegate_to_subagent" and body.strip():
+                    notice = format_subagent_tool_notice(name, body)
+                    if notice and "already_running" not in body:
+                        self._presenter.enqueue_outbound(
+                            self._presenter.send_notice(notice)
+                        )
+                    job_id = extract_delegate_job_id(body)
+                    if job_id and "already_running" not in body:
+                        agent = getattr(self._presenter.session, "agent", None)
+                        if agent is not None:
+                            from integrations.telegram.subagent_delivery import (
+                                schedule_telegram_subagent_delivery,
+                            )
+
+                            schedule_telegram_subagent_delivery(
+                                self._presenter._bot,
+                                self._presenter.session,
+                                job_id,
+                                agent=agent,
+                            )
 
             elif isinstance(event, ToolCallErrorEvent):
                 duration = getattr(event, "duration_ms", None)

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 from typing import Any
 
 from cli.shared.commands.agent_commands import AgentCommands
@@ -19,6 +20,8 @@ from integrations.telegram.markdown import (
     split_telegram_html,
 )
 from integrations.telegram.typing_indicator import TypingIndicator
+
+logger = logging.getLogger(__name__)
 
 
 class TelegramHost:
@@ -102,31 +105,19 @@ class TelegramHost:
                 plain_to_telegram_html(text[:3900]),
                 parse_mode="HTML",
             )
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.warning(
+                "Telegram _send_plain failed (chat=%s, %d chars): %s",
+                self._session.chat_id,
+                len(text or ""),
+                exc,
+            )
 
     async def _send_split_plain(self, text: str) -> None:
         """Send arbitrary long plain-ish text split into multiple TG messages."""
-        try:
-            html = plain_to_telegram_html(text)
-            chunks = split_telegram_html(html)
-            for chunk in chunks:
-                await self._bot.send_message(
-                    self._session.chat_id,
-                    chunk,
-                    parse_mode="HTML",
-                )
-                await asyncio.sleep(0.06)
-        except Exception:
-            # fallback single truncated
-            try:
-                await self._bot.send_message(
-                    self._session.chat_id,
-                    plain_to_telegram_html(text[:3800]),
-                    parse_mode="HTML",
-                )
-            except Exception:
-                pass
+        from integrations.telegram.subagent_delivery import send_long_text
+
+        await send_long_text(self._bot, self._session.chat_id, text)
 
     def run_worker(self, work: Any, **kwargs: Any) -> None:
         if asyncio.iscoroutine(work):
