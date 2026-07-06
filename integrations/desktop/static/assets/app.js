@@ -35,7 +35,23 @@ const els = {
   chatForm: document.getElementById("chat-form"),
   chatInput: document.getElementById("chat-input"),
   stopBtn: document.getElementById("stop-btn"),
+  layout: document.getElementById("layout"),
+  filesPanel: document.getElementById("files-panel"),
+  editorPanel: document.getElementById("editor-panel"),
+  chatPanel: document.getElementById("chat-panel"),
+  resizeFiles: document.getElementById("resize-files"),
+  resizeChat: document.getElementById("resize-chat"),
+  chatCollapseBtn: document.getElementById("chat-collapse-btn"),
+  chatExpandBtn: document.getElementById("chat-expand-btn"),
 };
+
+const PANEL_LAYOUT_KEY = "holix_studio_panel_layout_v1";
+const PANEL_LIMITS = {
+  files: { min: 160, max: 520, default: 240 },
+  chat: { min: 280, max: 640, default: 360 },
+  editorMin: 200,
+};
+let panelLayout = loadPanelLayout();
 
 let monacoReady = null;
 let editor = null;
@@ -50,6 +66,110 @@ let editorDirty = false;
 let selectedDirPath = "";
 let expandedDirs = loadExpandedDirs();
 let treeNodes = [];
+
+function loadPanelLayout() {
+  try {
+    const raw = sessionStorage.getItem(PANEL_LAYOUT_KEY);
+    if (!raw) return { filesWidth: 240, chatWidth: 360, chatCollapsed: false };
+    const data = JSON.parse(raw);
+    return {
+      filesWidth: clampPanelWidth("files", data.filesWidth ?? 240),
+      chatWidth: clampPanelWidth("chat", data.chatWidth ?? 360),
+      chatCollapsed: Boolean(data.chatCollapsed),
+    };
+  } catch {
+    return { filesWidth: 240, chatWidth: 360, chatCollapsed: false };
+  }
+}
+
+function savePanelLayout() {
+  sessionStorage.setItem(PANEL_LAYOUT_KEY, JSON.stringify(panelLayout));
+}
+
+function clampPanelWidth(panel, value) {
+  const limits = PANEL_LIMITS[panel];
+  return Math.round(Math.max(limits.min, Math.min(limits.max, Number(value) || limits.default)));
+}
+
+function applyPanelLayout() {
+  if (!els.layout) return;
+  els.layout.style.setProperty("--files-width", `${panelLayout.filesWidth}px`);
+  els.layout.style.setProperty("--chat-width", `${panelLayout.chatWidth}px`);
+  const collapsed = panelLayout.chatCollapsed;
+  els.chatPanel?.classList.toggle("collapsed", collapsed);
+  els.resizeChat?.classList.toggle("hidden", collapsed);
+  els.chatExpandBtn?.classList.toggle("hidden", !collapsed);
+  els.chatCollapseBtn?.classList.toggle("hidden", collapsed);
+  requestEditorLayout();
+}
+
+function requestEditorLayout() {
+  if (editor) editor.layout();
+  if (diffEditor) diffEditor.layout();
+}
+
+function initPanelResizers() {
+  if (!els.layout) return;
+
+  const startResize = (panel, handle, startX, startWidth) => {
+    const onMove = (ev) => {
+      const dx = ev.clientX - startX;
+      const layoutWidth = els.layout.clientWidth;
+      const otherPanelWidth =
+        panel === "files"
+          ? panelLayout.chatCollapsed
+            ? 0
+            : panelLayout.chatWidth
+          : panelLayout.filesWidth;
+      const handleSpace = panelLayout.chatCollapsed ? 4 : 8;
+      const max =
+        panel === "files"
+          ? layoutWidth - otherPanelWidth - PANEL_LIMITS.editorMin - handleSpace
+          : layoutWidth - panelLayout.filesWidth - PANEL_LIMITS.editorMin - handleSpace;
+      const next = clampPanelWidth(panel, startWidth + (panel === "files" ? dx : -dx));
+      const capped = Math.min(next, max);
+      if (panel === "files") panelLayout.filesWidth = capped;
+      else panelLayout.chatWidth = capped;
+      applyPanelLayout();
+    };
+    const onUp = () => {
+      els.layout.classList.remove("resizing");
+      handle?.classList.remove("active");
+      document.removeEventListener("pointermove", onMove);
+      document.removeEventListener("pointerup", onUp);
+      savePanelLayout();
+      requestEditorLayout();
+    };
+    els.layout.classList.add("resizing");
+    handle?.classList.add("active");
+    document.addEventListener("pointermove", onMove);
+    document.addEventListener("pointerup", onUp);
+  };
+
+  els.resizeFiles?.addEventListener("pointerdown", (e) => {
+    e.preventDefault();
+    startResize("files", els.resizeFiles, e.clientX, panelLayout.filesWidth);
+  });
+  els.resizeChat?.addEventListener("pointerdown", (e) => {
+    if (panelLayout.chatCollapsed) return;
+    e.preventDefault();
+    startResize("chat", els.resizeChat, e.clientX, panelLayout.chatWidth);
+  });
+
+  els.chatCollapseBtn?.addEventListener("click", () => {
+    panelLayout.chatCollapsed = true;
+    applyPanelLayout();
+    savePanelLayout();
+  });
+  els.chatExpandBtn?.addEventListener("click", () => {
+    panelLayout.chatCollapsed = false;
+    applyPanelLayout();
+    savePanelLayout();
+  });
+
+  window.addEventListener("resize", () => requestEditorLayout());
+  applyPanelLayout();
+}
 
 function loadExpandedDirs() {
   try {
@@ -509,6 +629,7 @@ els.chatForm.addEventListener("submit", (e) => {
 els.stopBtn.addEventListener("click", () => sendWs({ type: "slash", command: "/stop" }));
 
 async function boot() {
+  initPanelResizers();
   updateSelectedDirLabel();
   connectWs();
   try {

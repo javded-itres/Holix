@@ -12,8 +12,8 @@
     <span id="profile-label" class="muted"></span>
     <span id="conn-status" class="status">connecting…</span>
   </header>
-  <main class="layout">
-    <aside class="panel files-panel">
+  <main class="layout" id="layout">
+    <aside class="panel files-panel" id="files-panel">
       <div class="panel-title">
         <span>Workspace</span>
         <div class="panel-actions">
@@ -25,7 +25,8 @@
       <div id="file-tree" class="file-tree"></div>
       <input type="file" id="file-upload" class="hidden" multiple />
     </aside>
-    <section class="panel editor-panel">
+    <div class="resize-handle" id="resize-files" data-panel="files" title="Resize workspace"></div>
+    <section class="panel editor-panel" id="editor-panel">
       <div class="panel-title">
         <span id="editor-title">Editor</span>
         <div class="panel-actions">
@@ -36,8 +37,12 @@
       <div id="editor" class="editor-host"></div>
       <div id="diff-editor" class="editor-host hidden"></div>
     </section>
-    <section class="panel chat-panel">
-      <div class="panel-title">Agent</div>
+    <div class="resize-handle" id="resize-chat" data-panel="chat" title="Resize agent panel"></div>
+    <section class="panel chat-panel" id="chat-panel">
+      <div class="panel-title">
+        <span>Agent</span>
+        <button type="button" id="chat-collapse-btn" class="btn small icon-btn" title="Свернуть чат">▶</button>
+      </div>
       <div id="chat-log" class="chat-log"></div>
       <form id="chat-form" class="chat-form" action="#" method="post">
         <textarea id="chat-input" rows="3" placeholder="Message Holix… (/stop to cancel)"></textarea>
@@ -47,6 +52,7 @@
         </div>
       </form>
     </section>
+    <button type="button" id="chat-expand-btn" class="chat-expand-tab hidden" title="Открыть чат агента">Agent</button>
   </main>
   <dialog id="new-file-dialog" class="studio-dialog">
     <form id="new-file-form">
@@ -69,6 +75,6 @@
     </form>
   </dialog>
   <script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.52.2/min/vs/loader.js"></script>
-  <script src="/studio/assets/app.js?v=6" type="module"></script>
+  <script src="/studio/assets/app.js?v=7" type="module"></script>
 </body>
 </html>
