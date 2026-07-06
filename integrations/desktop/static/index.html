@@ -48,7 +48,27 @@
       </form>
     </section>
   </main>
+  <dialog id="new-file-dialog" class="studio-dialog">
+    <form id="new-file-form">
+      <h3 class="dialog-title">Новый файл</h3>
+      <p id="new-file-dir-label" class="dialog-hint muted"></p>
+      <label class="dialog-label" for="new-file-name">Имя файла</label>
+      <input
+        id="new-file-name"
+        class="dialog-input"
+        type="text"
+        autocomplete="off"
+        spellcheck="false"
+        placeholder="example.txt"
+        required
+      />
+      <div class="dialog-actions">
+        <button type="button" id="new-file-cancel" class="btn">Отмена</button>
+        <button type="submit" class="btn primary">Создать</button>
+      </div>
+    </form>
+  </dialog>
   <script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.52.2/min/vs/loader.js"></script>
-  <script src="/studio/assets/app.js?v=4" type="module"></script>
+  <script src="/studio/assets/app.js?v=5" type="module"></script>
 </body>
 </html>

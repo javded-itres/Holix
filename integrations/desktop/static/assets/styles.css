@@ -178,4 +178,52 @@ body {
 .btn.primary { background: var(--accent); color: #fff; border-color: transparent; }
 .btn.small { font-size: 0.75rem; padding: 0.2rem 0.5rem; }
 .btn:disabled { opacity: 0.45; cursor: not-allowed; }
+
+.studio-dialog {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0;
+  background: var(--panel);
+  color: var(--text);
+  min-width: 320px;
+  max-width: 90vw;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45);
+}
+.studio-dialog::backdrop {
+  background: rgba(0, 0, 0, 0.55);
+}
+.studio-dialog form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  padding: 1rem;
+}
+.dialog-title {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+}
+.dialog-hint {
+  margin: 0;
+  font-size: 0.8rem;
+}
+.dialog-label {
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+.dialog-input {
+  width: 100%;
+  background: #3c3c3c;
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 0.5rem;
+  font: inherit;
+}
+.dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  margin-top: 0.25rem;
+}
 .btn:hover { filter: brightness(1.1); }

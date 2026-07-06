@@ -26,6 +26,11 @@ const els = {
   diffHost: document.getElementById("diff-editor"),
   diffToggle: document.getElementById("diff-toggle"),
   saveBtn: document.getElementById("save-btn"),
+  newFileDialog: document.getElementById("new-file-dialog"),
+  newFileForm: document.getElementById("new-file-form"),
+  newFileName: document.getElementById("new-file-name"),
+  newFileDirLabel: document.getElementById("new-file-dir-label"),
+  newFileCancel: document.getElementById("new-file-cancel"),
   chatLog: document.getElementById("chat-log"),
   chatForm: document.getElementById("chat-form"),
   chatInput: document.getElementById("chat-input"),
@@ -293,10 +298,25 @@ async function saveCurrentFile() {
   updateEditorChrome();
 }
 
-async function createNewFile() {
-  const name = prompt("Имя нового файла:", "untitled.txt");
-  if (!name?.trim()) return;
-  const path = selectedDirPath ? `${selectedDirPath}/${name.trim()}` : name.trim();
+function openNewFileDialog() {
+  if (!els.newFileDialog) return;
+  els.newFileDirLabel.textContent = `Папка: ${selectedDirPath ? `/${selectedDirPath}` : "/"}`;
+  els.newFileName.value = "untitled.txt";
+  els.newFileDialog.showModal();
+  requestAnimationFrame(() => {
+    els.newFileName.focus();
+    els.newFileName.select();
+  });
+}
+
+function closeNewFileDialog() {
+  els.newFileDialog?.close();
+}
+
+async function createNewFile(name) {
+  const trimmed = (name || "").trim();
+  if (!trimmed) return;
+  const path = selectedDirPath ? `${selectedDirPath}/${trimmed}` : trimmed;
   const res = await fetch(apiUrl("/studio/api/files/write"), {
     method: "POST",
     headers: { ...authHeaders(), "Content-Type": "application/json" },
@@ -307,7 +327,6 @@ async function createNewFile() {
     return;
   }
   const data = await res.json();
-  await refreshTree();
   const parent = path.includes("/") ? path.slice(0, path.lastIndexOf("/")) : "";
   if (parent) expandedDirs.add(parent);
   saveExpandedDirs();
@@ -372,8 +391,15 @@ els.diffToggle.addEventListener("click", async () => {
   }
 });
 
-els.newFileBtn.addEventListener("click", () => createNewFile());
-els.uploadBtn.addEventListener("click", () => els.fileUpload.click());
+els.newFileBtn?.addEventListener("click", () => openNewFileDialog());
+els.newFileCancel?.addEventListener("click", () => closeNewFileDialog());
+els.newFileForm?.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const name = els.newFileName?.value || "";
+  closeNewFileDialog();
+  await createNewFile(name);
+});
+els.uploadBtn?.addEventListener("click", () => els.fileUpload?.click());
 els.fileUpload.addEventListener("change", async (e) => {
   await uploadFiles(e.target.files);
   e.target.value = "";
