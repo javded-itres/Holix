@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query, WebSocket, WebSocketDisconnect
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
 from starlette.requests import Request
 
 from integrations.desktop.security import studio_token_valid
@@ -134,16 +134,28 @@ def create_studio_router(
             if not clients:
                 studio_session.set_broadcast(_noop_broadcast)
 
+    @router.get("", include_in_schema=False)
+    async def studio_index_no_slash(request: Request) -> RedirectResponse:
+        """Redirect /studio → /studio/ preserving query string (token)."""
+        q = request.url.query
+        target = f"{STUDIO_PREFIX}/" + (f"?{q}" if q else "")
+        return RedirectResponse(url=target, status_code=307)
+
     @router.get("/", dependencies=[Depends(require_auth)])
-    async def studio_index() -> FileResponse:
+    async def studio_index(request: Request) -> HTMLResponse:
         index = _static_dir() / "index.html"
         if not index.is_file():
             raise HTTPException(status_code=503, detail="Studio static UI not installed")
-        return FileResponse(index)
+        html = index.read_text(encoding="utf-8")
+        token = request.query_params.get("token") or ""
+        if token:
+            inject = f'<script>window.HOLIX_STUDIO_TOKEN={json.dumps(token)};</script>'
+            html = html.replace("</head>", f"  {inject}\n</head>", 1)
+        return HTMLResponse(html)
 
-    @router.get("/assets/{asset_path:path}", dependencies=[Depends(require_auth)])
+    @router.get("/assets/{asset_path:path}")
     async def studio_assets(asset_path: str) -> FileResponse:
-        base = _static_dir().resolve()
+        base = (_static_dir() / "assets").resolve()
         target = (base / asset_path).resolve()
         if base not in target.parents and target != base:
             raise HTTPException(status_code=404)

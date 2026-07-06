@@ -1,5 +1,9 @@
 const params = new URLSearchParams(window.location.search);
-const token = params.get("token") || sessionStorage.getItem("holix_studio_token") || "";
+const token =
+  window.HOLIX_STUDIO_TOKEN ||
+  params.get("token") ||
+  sessionStorage.getItem("holix_studio_token") ||
+  "";
 if (token) sessionStorage.setItem("holix_studio_token", token);
 
 const authHeaders = () => (token ? { Authorization: `Bearer ${token}` } : {});
@@ -227,6 +231,7 @@ function sendWs(payload) {
 
 els.chatForm.addEventListener("submit", (e) => {
   e.preventDefault();
+  e.stopPropagation();
   const text = els.chatInput.value.trim();
   if (!text) return;
   appendChat(text, "user");

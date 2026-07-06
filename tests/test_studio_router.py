@@ -67,3 +67,11 @@ def test_studio_index(studio_client) -> None:
     res = client.get("/studio/?token=test-token")
     assert res.status_code == 200
     assert "Holix Studio" in res.text
+    assert "HOLIX_STUDIO_TOKEN" in res.text
+
+
+def test_assets_without_auth(studio_client) -> None:
+    client, _ = studio_client
+    res = client.get("/studio/assets/styles.css")
+    assert res.status_code == 200
+    assert "color-scheme" in res.text
