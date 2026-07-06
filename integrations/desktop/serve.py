@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+from pathlib import Path
 
 import uvicorn
 
@@ -23,8 +24,10 @@ def run_studio_server(
     port: int = 8788,
     headless: bool = False,
     open_browser: bool = False,
+    serve_cwd: Path | str | None = None,
 ) -> None:
-    app = create_studio_app(policy, profile)
+    cwd = Path(serve_cwd or Path.cwd()).expanduser().resolve()
+    app = create_studio_app(policy, profile, serve_cwd=cwd)
     url = f"http://{policy.host}:{port}/studio/"
     if policy.token:
         url = append_query_token(url, policy.token)
@@ -32,6 +35,7 @@ def run_studio_server(
     from cli.utils.rich_console import print_info, print_success, print_warning
 
     print_success(f"Holix Studio serving profile={profile!r}")
+    print_info(f"Workspace: {cwd}")
     print_info(f"URL: {url}")
     if policy.token_generated:
         print_warning("Ephemeral Studio token — save the URL; required for API/WS access")

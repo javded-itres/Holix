@@ -38,6 +38,11 @@ def studio_serve(
         "--generate-token/--no-generate-token",
         help="On loopback: create ephemeral token if --token omitted",
     ),
+    cwd: str | None = typer.Option(
+        None,
+        "--cwd",
+        help="Workspace directory to show in the file tree (default: current directory)",
+    ),
     open_browser: bool = typer.Option(
         False,
         "--open",
@@ -68,12 +73,15 @@ def studio_serve(
         print_error(str(e))
         raise typer.Exit(1) from e
 
+    from pathlib import Path
+
     run_studio_server(
         profile,
         policy,
         port=port,
         headless=headless,
         open_browser=open_browser,
+        serve_cwd=Path(cwd).expanduser().resolve() if cwd else None,
     )
 
 

@@ -13,8 +13,13 @@ def studio_client(tmp_path, monkeypatch):
     home = tmp_path / "holix"
     monkeypatch.setenv("HOLIX_HOME", str(home))
     profile = "router_test"
-    ws = home / "profiles" / profile / "workspace"
+    profile_dir = home / "profiles" / profile
+    ws = profile_dir / "workspace"
     ws.mkdir(parents=True)
+    (profile_dir / "config.yaml").write_text(
+        "profile_name: router_test\nworkspace_jail_enabled: false\n",
+        encoding="utf-8",
+    )
     (ws / "main.py").write_text("x = 1\n", encoding="utf-8")
 
     policy = StudioSecurityPolicy(
@@ -24,7 +29,7 @@ def studio_client(tmp_path, monkeypatch):
         allow_lan=False,
         is_production=False,
     )
-    app = create_studio_app(policy, profile)
+    app = create_studio_app(policy, profile, serve_cwd=ws)
     return TestClient(app), profile
 
 

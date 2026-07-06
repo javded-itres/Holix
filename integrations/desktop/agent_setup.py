@@ -6,7 +6,8 @@ from cli.core import init_profile
 from core.agent import HolixAgent
 
 
-async def create_studio_agent(profile: str, *, profile_key: str | None = None) -> HolixAgent:
+def build_studio_agent(profile: str, *, profile_key: str | None = None) -> HolixAgent:
+    """Create HolixAgent for Studio without async initialization."""
     config = init_profile(profile, profile_key=profile_key, prompt_key=False)
     from core.paths import ensure_profile_memory_dirs
 
@@ -28,6 +29,10 @@ async def create_studio_agent(profile: str, *, profile_key: str | None = None) -
     except Exception:
         pass
 
-    agent = HolixAgent(config=runtime_config, enable_monitoring=False)
+    return HolixAgent(config=runtime_config, enable_monitoring=False)
+
+
+async def create_studio_agent(profile: str, *, profile_key: str | None = None) -> HolixAgent:
+    agent = build_studio_agent(profile, profile_key=profile_key)
     await agent.initialize()
     return agent

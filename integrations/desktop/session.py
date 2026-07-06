@@ -45,10 +45,30 @@ class StudioSession:
         async with self._init_lock:
             if self.agent is not None:
                 return self.agent
-            from integrations.desktop.agent_setup import create_studio_agent
+            from integrations.desktop.agent_setup import build_studio_agent
 
-            self.agent = await create_studio_agent(self.profile)
+            agent = build_studio_agent(self.profile)
+            self._attach_event_forwarder(agent)
+            await agent.initialize(mcp_ready_timeout=5.0, defer_skill_index=True)
+            self.agent = agent
             return self.agent
+
+    def _attach_event_forwarder(self, agent: Any) -> None:
+        if self._event_forwarder is not None:
+            return
+
+        async def forward_event(event: AgentEvent) -> None:
+            await self._emit(agent_event_to_studio_message(event))
+
+        self._event_forwarder = forward_event
+        agent.events.subscribe(forward_event)
+
+    def _detach_event_forwarder(self) -> None:
+        agent = self.agent
+        forwarder = self._event_forwarder
+        if agent is not None and forwarder is not None:
+            agent.events.unsubscribe(forwarder)
+        self._event_forwarder = None
 
     async def handle_client_message(self, message: dict[str, Any]) -> None:
         try:
@@ -98,6 +118,12 @@ class StudioSession:
     async def _start_run(self, text: str, conversation_id: str) -> None:
         async with self._run_lock:
             if self._run_task and not self._run_task.done():
+                await self._emit(
+                    {
+                        "type": "error",
+                        "message": "Дождитесь ответа или нажмите Stop.",
+                    }
+                )
                 return
             self._run_task = asyncio.create_task(
                 self._run_agent_job(text, conversation_id),
@@ -106,6 +132,7 @@ class StudioSession:
 
     async def _run_agent_job(self, text: str, conversation_id: str) -> None:
         this_task = asyncio.current_task()
+        await self._emit({"type": "run_started", "conversation_id": conversation_id})
         try:
             agent = await self.ensure_agent()
             await self._run_agent(agent, text, conversation_id)
@@ -121,13 +148,6 @@ class StudioSession:
     async def _run_agent(self, agent: Any, text: str, conversation_id: str) -> None:
         from core.runtime.executor import run_holix
 
-        await self._emit({"type": "run_started", "conversation_id": conversation_id})
-
-        async def forward_event(event: AgentEvent) -> None:
-            await self._emit(agent_event_to_studio_message(event))
-
-        self._event_forwarder = forward_event
-        agent.events.subscribe(forward_event)
         completed = False
         try:
             async for event in run_holix(agent, text, conversation_id, stream=True):
@@ -140,9 +160,6 @@ class StudioSession:
             logger.exception("Studio agent run failed")
             await self._emit({"type": "error", "message": str(e)})
         finally:
-            if self._event_forwarder is not None:
-                agent.events.unsubscribe(self._event_forwarder)
-                self._event_forwarder = None
             if completed:
                 await asyncio.sleep(0)
                 await self._emit({"type": "run_finished", "conversation_id": conversation_id})
@@ -154,6 +171,7 @@ class StudioSession:
 
     async def shutdown(self) -> None:
         await self.stop_run(notify=False)
+        self._detach_event_forwarder()
         agent = self.agent
         self.agent = None
         if agent is not None:

@@ -91,6 +91,7 @@ async def test_user_message_forwards_bus_final_response(
         await asyncio.sleep(0)
 
     session.agent = agent
+    session._attach_event_forwarder(agent)
     monkeypatch.setattr(
         "core.runtime.executor.run_holix",
         fake_run_with_bus_final,
@@ -129,6 +130,7 @@ async def test_second_message_while_running_is_ignored(
         bus.emit(FinalResponseEvent(content="done", conversation_id="studio"))
 
     session.agent = agent
+    session._attach_event_forwarder(agent)
     monkeypatch.setattr("core.runtime.executor.run_holix", slow_run)
 
     await session.handle_client_message({"type": "user_message", "text": "first"})

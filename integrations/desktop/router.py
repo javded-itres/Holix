@@ -18,6 +18,7 @@ from integrations.desktop.workspace_files import (
     WorkspacePathError,
     list_tree,
     read_file,
+    resolve_studio_workspace_root,
     stat_file,
 )
 
@@ -47,14 +48,20 @@ def create_studio_router(
     profile: str,
     auth_token: str | None = None,
     session: StudioSession | None = None,
+    serve_cwd: Path | str | None = None,
 ) -> APIRouter:
     router = APIRouter(prefix=STUDIO_PREFIX)
     studio_session = session or StudioSession(profile)
+    studio_workspace_root = resolve_studio_workspace_root(profile, serve_cwd=serve_cwd)
     require_auth = _auth_dependency(auth_token)
 
     @router.get("/api/health")
     async def studio_health() -> dict[str, str]:
-        return {"status": "ok", "profile": profile}
+        return {
+            "status": "ok",
+            "profile": profile,
+            "workspace_root": str(studio_workspace_root),
+        }
 
     @router.get("/api/files/tree", dependencies=[Depends(require_auth)])
     async def files_tree(
@@ -62,14 +69,19 @@ def create_studio_router(
         depth: int = Query(4, ge=1, le=8),
     ) -> dict[str, Any]:
         try:
-            return list_tree(profile, depth=depth, root=root)
+            return list_tree(
+                profile,
+                depth=depth,
+                root=root,
+                workspace_root=studio_workspace_root,
+            )
         except WorkspacePathError as e:
             raise HTTPException(status_code=400, detail=str(e)) from e
 
     @router.get("/api/files/read", dependencies=[Depends(require_auth)])
     async def files_read(path: str = Query(..., min_length=1)) -> dict[str, Any]:
         try:
-            return read_file(profile, path)
+            return read_file(profile, path, workspace_root=studio_workspace_root)
         except FileNotFoundError as e:
             raise HTTPException(status_code=404, detail=str(e)) from e
         except (WorkspacePathError, ValueError) as e:
@@ -78,7 +90,7 @@ def create_studio_router(
     @router.get("/api/files/stat", dependencies=[Depends(require_auth)])
     async def files_stat(path: str = Query(..., min_length=1)) -> dict[str, Any]:
         try:
-            return stat_file(profile, path)
+            return stat_file(profile, path, workspace_root=studio_workspace_root)
         except FileNotFoundError as e:
             raise HTTPException(status_code=404, detail=str(e)) from e
         except WorkspacePathError as e:
@@ -115,6 +127,7 @@ def create_studio_router(
                 "type": "connected",
                 "profile": profile,
                 "conversation_id": studio_session.conversation_id,
+                "workspace_root": str(studio_workspace_root),
             }
         )
         try:
@@ -168,6 +181,7 @@ def create_studio_router(
         return FileResponse(target)
 
     router.studio_session = studio_session  # type: ignore[attr-defined]
+    router.studio_workspace_root = studio_workspace_root  # type: ignore[attr-defined]
     return router
 
 

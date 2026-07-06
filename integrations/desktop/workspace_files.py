@@ -7,8 +7,6 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from core.profile.names import ensure_profile_workspace_dir
-
 _TEXT_SUFFIXES = frozenset(
     {
         ".py",
@@ -74,8 +72,24 @@ class FileNode:
         return data
 
 
-def workspace_root(profile: str) -> Path:
-    return ensure_profile_workspace_dir(profile)
+def resolve_studio_workspace_root(
+    profile: str,
+    *,
+    serve_cwd: Path | str | None = None,
+) -> Path:
+    """Return the directory Studio should list (aligned with agent file tools).
+
+    When workspace jail is disabled, Holix tools resolve relative paths against
+    process CWD — Studio uses ``serve_cwd`` (directory where ``holix studio serve``
+    was started). When jail is enabled, the profile ``workspace_root`` is used.
+    """
+    from cli.core import ProfileManager
+
+    config = ProfileManager().load_profile(profile)
+    if getattr(config, "workspace_jail_enabled", False) and config.workspace_root:
+        return Path(config.workspace_root).expanduser().resolve()
+    base = Path(serve_cwd or Path.cwd()).expanduser().resolve()
+    return base
 
 
 def _normalize_rel(rel: str) -> str:
@@ -88,9 +102,15 @@ def _normalize_rel(rel: str) -> str:
     return "/".join(parts)
 
 
-def resolve_workspace_path(profile: str, rel_path: str) -> Path:
+def resolve_workspace_path(
+    profile: str,
+    rel_path: str,
+    *,
+    workspace_root: Path | None = None,
+    serve_cwd: Path | str | None = None,
+) -> Path:
     """Resolve a workspace-relative path; raise if outside workspace."""
-    root = workspace_root(profile)
+    root = workspace_root or resolve_studio_workspace_root(profile, serve_cwd=serve_cwd)
     rel = _normalize_rel(rel_path)
     target = (root / rel) if rel else root
     resolved = target.resolve()
@@ -100,11 +120,19 @@ def resolve_workspace_path(profile: str, rel_path: str) -> Path:
     return resolved
 
 
-def list_tree(profile: str, *, depth: int = 4, root: str = "workspace") -> dict[str, Any]:
-    """Return nested file tree under profile workspace."""
+def list_tree(
+    profile: str,
+    *,
+    depth: int = 4,
+    root: str = "workspace",
+    workspace_root: Path | None = None,
+    serve_cwd: Path | str | None = None,
+) -> dict[str, Any]:
+    """Return nested file tree under the Studio workspace root."""
     if root != "workspace":
         raise WorkspacePathError("Only workspace root is supported")
-    ws = workspace_root(profile)
+    ws = workspace_root or resolve_studio_workspace_root(profile, serve_cwd=serve_cwd)
+    ws.mkdir(parents=True, exist_ok=True)
     max_depth = max(1, min(int(depth), 8))
 
     def walk(directory: Path, current_depth: int) -> list[FileNode]:
@@ -133,11 +161,27 @@ def list_tree(profile: str, *, depth: int = 4, root: str = "workspace") -> dict[
         return nodes
 
     children = walk(ws, 1)
-    return {"root": "workspace", "path": ".", "children": [n.to_dict() for n in children]}
+    return {
+        "root": "workspace",
+        "path": ".",
+        "workspace_root": str(ws),
+        "children": [n.to_dict() for n in children],
+    }
 
 
-def stat_file(profile: str, rel_path: str) -> dict[str, Any]:
-    path = resolve_workspace_path(profile, rel_path)
+def stat_file(
+    profile: str,
+    rel_path: str,
+    *,
+    workspace_root: Path | None = None,
+    serve_cwd: Path | str | None = None,
+) -> dict[str, Any]:
+    path = resolve_workspace_path(
+        profile,
+        rel_path,
+        workspace_root=workspace_root,
+        serve_cwd=serve_cwd,
+    )
     if not path.exists():
         raise FileNotFoundError(rel_path)
     st = path.stat()
@@ -151,8 +195,20 @@ def stat_file(profile: str, rel_path: str) -> dict[str, Any]:
     }
 
 
-def read_file(profile: str, rel_path: str, *, max_bytes: int = 512_000) -> dict[str, Any]:
-    path = resolve_workspace_path(profile, rel_path)
+def read_file(
+    profile: str,
+    rel_path: str,
+    *,
+    max_bytes: int = 512_000,
+    workspace_root: Path | None = None,
+    serve_cwd: Path | str | None = None,
+) -> dict[str, Any]:
+    path = resolve_workspace_path(
+        profile,
+        rel_path,
+        workspace_root=workspace_root,
+        serve_cwd=serve_cwd,
+    )
     if not path.is_file():
         raise FileNotFoundError(rel_path)
     size = path.stat().st_size

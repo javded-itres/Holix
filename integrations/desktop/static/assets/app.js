@@ -191,7 +191,9 @@ function setRunActive(active) {
 function handleWs(msg) {
   switch (msg.type) {
     case "connected":
-      els.profile.textContent = `profile: ${msg.profile}`;
+      els.profile.textContent = msg.workspace_root
+        ? `profile: ${msg.profile} · ${msg.workspace_root}`
+        : `profile: ${msg.profile}`;
       break;
     case "run_started":
       setRunActive(true);
@@ -273,13 +275,13 @@ els.chatForm.addEventListener("submit", (e) => {
 els.stopBtn.addEventListener("click", () => sendWs({ type: "slash", command: "/stop" }));
 
 async function boot() {
+  connectWs();
   try {
     await initEditor();
     await refreshTree();
-    connectWs();
   } catch (err) {
-    setStatus("init failed", false);
-    appendChat(String(err), "error");
+    setStatus("tree load failed", false);
+    appendChat(`Workspace: ${err}`, "error");
   }
 }
 
