@@ -2,6 +2,21 @@
 
 ## Unreleased
 
+## 0.1.21 — 2026-07-06
+
+### Added
+- **Telegram sub-agent background delivery** — results are sent asynchronously so chat handlers are not blocked for minutes
+- **Web-research dispatch** — `search_intent` / `web_research` modules and `web-researcher` bundled skill for explicit sub-agent research requests
+- **`subagent_owner` pinning** — `/subagents` lists handles after spawns even when the main agent is re-initialized
+
+### Fixed
+- **Telegram sub-agent silence** — log send failures; deliver results on `delegate_to_subagent` completion
+- **Agent init race** — serialize Telegram agent initialization with a per-chat lock
+
+### Changed
+- **Sub-agent delegation** — only on explicit user request (`/subagent-spawn`, delegate tool), not automatic web-search routing
+- **Version** — package `Holix` 0.1.21
+
 ## 0.1.20 — 2026-06-26
 
 ### Fixed
