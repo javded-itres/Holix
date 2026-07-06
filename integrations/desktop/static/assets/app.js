@@ -34,6 +34,7 @@ const els = {
   selectedDir: document.getElementById("selected-dir"),
   newFileBtn: document.getElementById("new-file-btn"),
   newFolderBtn: document.getElementById("new-folder-btn"),
+  deleteItemBtn: document.getElementById("delete-item-btn"),
   uploadBtn: document.getElementById("upload-btn"),
   fileUpload: document.getElementById("file-upload"),
   editorTitle: document.getElementById("editor-title"),
@@ -60,6 +61,10 @@ const els = {
   moveDestination: document.getElementById("move-destination"),
   moveIntoDir: document.getElementById("move-into-dir"),
   moveCancel: document.getElementById("move-cancel"),
+  deleteDialog: document.getElementById("delete-dialog"),
+  deleteForm: document.getElementById("delete-form"),
+  deleteTargetLabel: document.getElementById("delete-target-label"),
+  deleteCancel: document.getElementById("delete-cancel"),
   chatLog: document.getElementById("chat-log"),
   chatForm: document.getElementById("chat-form"),
   chatInput: document.getElementById("chat-input"),
@@ -101,6 +106,7 @@ let expandedDirs = loadExpandedDirs();
 let treeNodes = [];
 let focusedTreeItem = null;
 let moveSourcePath = null;
+let deletePending = null;
 
 function loadPanelLayout() {
   try {
@@ -424,13 +430,34 @@ function clearDropTargets() {
   els.fileTree?.querySelectorAll(".drop-target").forEach((n) => n.classList.remove("drop-target"));
 }
 
+function setFocusedTreeItem(path, kind) {
+  focusedTreeItem = path ? { path, kind } : null;
+  updateTreeSelectionChrome();
+}
+
+function updateTreeSelectionChrome() {
+  const has = Boolean(focusedTreeItem?.path);
+  els.deleteItemBtn?.classList.toggle("hidden", !has);
+}
+
 function hideTreeContextMenu() {
   els.treeContextMenu?.classList.add("hidden");
+}
+
+function bindContextMenuAction(btn, handler) {
+  btn.addEventListener("mousedown", (e) => e.stopPropagation());
+  btn.addEventListener("click", (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    hideTreeContextMenu();
+    handler();
+  });
 }
 
 function showTreeContextMenu(x, y, node) {
   if (!els.treeContextMenu) return;
   hideTreeContextMenu();
+  setFocusedTreeItem(node.path, node.kind);
   const destLabel = selectedDirPath ? `/${selectedDirPath}` : "/";
   const menu = els.treeContextMenu;
   menu.innerHTML = "";
@@ -439,32 +466,30 @@ function showTreeContextMenu(x, y, node) {
   intoBtn.type = "button";
   intoBtn.textContent = `В текущую папку (${destLabel})`;
   intoBtn.disabled = !canMoveInto(node.path, selectedDirPath, node.kind);
-  intoBtn.addEventListener("click", async () => {
-    hideTreeContextMenu();
-    await moveTreePath(node.path, selectedDirPath, true);
+  bindContextMenuAction(intoBtn, () => {
+    moveTreePath(node.path, selectedDirPath, true);
   });
 
   const moveBtn = document.createElement("button");
   moveBtn.type = "button";
   moveBtn.textContent = "Переместить…";
-  moveBtn.addEventListener("click", () => {
-    hideTreeContextMenu();
-    openMoveDialog(node.path);
-  });
+  bindContextMenuAction(moveBtn, () => openMoveDialog(node.path));
 
   const delBtn = document.createElement("button");
   delBtn.type = "button";
   delBtn.className = "danger";
   delBtn.textContent = node.kind === "directory" ? "Удалить папку" : "Удалить файл";
-  delBtn.addEventListener("click", async () => {
-    hideTreeContextMenu();
-    await deleteTreePath(node.path, node.kind);
-  });
+  bindContextMenuAction(delBtn, () => openDeleteDialog(node.path, node.kind));
 
   menu.append(intoBtn, moveBtn, delBtn);
-  menu.classList.remove("hidden");
   menu.style.left = `${x}px`;
   menu.style.top = `${y}px`;
+  menu.classList.remove("hidden");
+  const rect = menu.getBoundingClientRect();
+  const maxX = Math.max(8, window.innerWidth - rect.width - 8);
+  const maxY = Math.max(8, window.innerHeight - rect.height - 8);
+  menu.style.left = `${Math.min(x, maxX)}px`;
+  menu.style.top = `${Math.min(y, maxY)}px`;
 }
 
 function setupDirectoryDropTarget(el, dirPath) {
@@ -494,13 +519,14 @@ function attachTreeItem(el, node) {
     e.dataTransfer.setData("text/x-holix-path", node.path);
     e.dataTransfer.setData("text/x-holix-kind", node.kind);
     e.dataTransfer.effectAllowed = "move";
-    focusedTreeItem = { path: node.path, kind: node.kind };
+    setFocusedTreeItem(node.path, node.kind);
   });
   el.addEventListener("dragend", () => clearDropTargets());
 
   el.addEventListener("contextmenu", (e) => {
     e.preventDefault();
-    focusedTreeItem = { path: node.path, kind: node.kind };
+    e.stopPropagation();
+    setFocusedTreeItem(node.path, node.kind);
     showTreeContextMenu(e.clientX, e.clientY, node);
   });
 
@@ -533,7 +559,7 @@ function handlePathDeleted(path) {
     focusedTreeItem &&
     (focusedTreeItem.path === path || focusedTreeItem.path.startsWith(`${path}/`))
   ) {
-    focusedTreeItem = null;
+    setFocusedTreeItem(null, null);
   }
 }
 
@@ -562,7 +588,7 @@ function handlePathMoved(source, dest, kind) {
   for (const expanded of nextExpanded) expandedDirs.add(expanded);
   saveExpandedDirs();
   expandPathAncestors(dest);
-  focusedTreeItem = { path: dest, kind };
+  setFocusedTreeItem(dest, kind);
   if (kind === "directory") selectDirectory(dest);
 }
 
@@ -577,9 +603,38 @@ async function readApiError(res) {
   return text || res.statusText || "Unknown error";
 }
 
-async function deleteTreePath(path, kind) {
-  const label = kind === "directory" ? `папку «${path}»` : `файл «${path}»`;
-  if (!confirm(`Удалить ${label}? Это действие нельзя отменить.`)) return;
+function openDeleteDialog(path, kind) {
+  if (!els.deleteDialog || !path) return;
+  deletePending = { path, kind };
+  const label = kind === "directory" ? "Папка" : "Файл";
+  els.deleteTargetLabel.textContent = `${label}: /${path}`;
+  els.deleteDialog.showModal();
+}
+
+function closeDeleteDialog() {
+  els.deleteDialog?.close();
+  deletePending = null;
+}
+
+function treeSelectionFocused() {
+  const active = document.activeElement;
+  if (!active) return false;
+  if (active === els.fileTree || els.fileTree?.contains(active)) return true;
+  if (active === els.deleteItemBtn) return true;
+  return Boolean(els.filesPanel?.contains(active) && !active.closest?.(".monaco-editor"));
+}
+
+function isDeleteShortcut(e) {
+  if (!focusedTreeItem?.path) return false;
+  if (els.deleteDialog?.open || els.moveDialog?.open || els.newFileDialog?.open || els.newFolderDialog?.open) {
+    return false;
+  }
+  if (e.key === "Delete") return true;
+  if (e.key === "Backspace" && treeSelectionFocused()) return true;
+  return false;
+}
+
+async function executeDelete(path, kind) {
   const res = await fetch(apiUrl("/studio/api/files/delete"), {
     method: "POST",
     headers: apiJsonHeaders(),
@@ -589,11 +644,13 @@ async function deleteTreePath(path, kind) {
     const err = await readApiError(res);
     appendChat(`Удаление не удалось: ${err}`, "error");
     if (res.status === 404) await refreshTree().catch(() => {});
-    return;
+    return false;
   }
   handlePathDeleted(path);
+  setFocusedTreeItem(null, null);
   await refreshTree();
   appendChat(`Удалено: ${path}`, "tool");
+  return true;
 }
 
 async function moveTreePath(source, destination, into = false) {
@@ -642,17 +699,26 @@ function closeMoveDialog() {
 }
 
 function initTreeFileOps() {
-  document.addEventListener("click", (e) => {
+  document.addEventListener("mousedown", (e) => {
     if (!els.treeContextMenu?.contains(e.target)) hideTreeContextMenu();
   });
-  document.addEventListener("keydown", (e) => {
-    if (e.key !== "Delete") return;
-    if (!focusedTreeItem) return;
-    if (document.activeElement === els.chatInput) return;
-    if (els.moveDialog?.open || els.newFileDialog?.open || els.newFolderDialog?.open) return;
-    e.preventDefault();
-    deleteTreePath(focusedTreeItem.path, focusedTreeItem.kind);
+  document.addEventListener(
+    "keydown",
+    (e) => {
+      if (!isDeleteShortcut(e)) return;
+      if (document.activeElement === els.chatInput) return;
+      e.preventDefault();
+      e.stopPropagation();
+      openDeleteDialog(focusedTreeItem.path, focusedTreeItem.kind);
+    },
+    true,
+  );
+
+  els.deleteItemBtn?.addEventListener("click", () => {
+    if (!focusedTreeItem?.path) return;
+    openDeleteDialog(focusedTreeItem.path, focusedTreeItem.kind);
   });
+  els.fileTree?.addEventListener("click", () => els.fileTree.focus());
 
   els.selectedDir?.addEventListener("dragover", (e) => {
     if (!e.dataTransfer?.types?.includes("text/x-holix-path")) return;
@@ -719,8 +785,9 @@ function renderNode(node) {
     label.textContent = `📁 ${node.name}`;
     label.title = node.path;
     label.addEventListener("click", () => {
-      focusedTreeItem = { path: node.path, kind: "directory" };
+      setFocusedTreeItem(node.path, "directory");
       selectDirectory(node.path);
+      els.fileTree?.focus();
     });
     attachTreeItem(label, node);
 
@@ -747,8 +814,9 @@ function renderNode(node) {
     file.textContent = node.name;
     file.title = node.path;
     file.addEventListener("click", () => {
-      focusedTreeItem = { path: node.path, kind: "file" };
+      setFocusedTreeItem(node.path, "file");
       openFile(node.path, file);
+      els.fileTree?.focus();
     });
     attachTreeItem(file, node);
 
@@ -760,7 +828,7 @@ function renderNode(node) {
 }
 
 async function refreshTree() {
-  const res = await fetch(apiUrl("/studio/api/files/tree"), { headers: authHeaders() });
+  const res = await fetch(apiUrl("/studio/api/files/tree?depth=8"), { headers: authHeaders() });
   if (!res.ok) throw new Error(await res.text());
   const data = await res.json();
   renderTree(data.children, els.fileTree);
@@ -985,6 +1053,14 @@ els.newFolderForm?.addEventListener("submit", async (e) => {
   closeNewFolderDialog();
   await createNewFolder(name);
 });
+els.deleteCancel?.addEventListener("click", () => closeDeleteDialog());
+els.deleteForm?.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const pending = deletePending;
+  closeDeleteDialog();
+  if (!pending?.path) return;
+  await executeDelete(pending.path, pending.kind);
+});
 els.moveCancel?.addEventListener("click", () => closeMoveDialog());
 els.moveForm?.addEventListener("submit", async (e) => {
   e.preventDefault();
@@ -1146,6 +1222,7 @@ els.stopBtn.addEventListener("click", () => sendWs({ type: "slash", command: "/s
 async function boot() {
   initPanelResizers();
   initTreeFileOps();
+  updateTreeSelectionChrome();
   updateSelectedDirLabel();
   connectWs();
   try {

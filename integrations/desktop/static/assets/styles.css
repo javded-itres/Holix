@@ -229,6 +229,14 @@ body {
   cursor: not-allowed;
 }
 .tree-context-menu button.danger { color: var(--error); }
+.danger-btn {
+  color: var(--error);
+  border-color: #6b3030;
+}
+.danger-btn:hover {
+  background: #3a2222;
+  color: #ffb8a8;
+}
 .dialog-check {
   display: flex;
   align-items: center;

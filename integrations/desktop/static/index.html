@@ -19,12 +19,12 @@
         <div class="panel-actions">
           <button type="button" id="new-file-btn" class="btn small" title="New file">+ File</button>
           <button type="button" id="new-folder-btn" class="btn small" title="New folder">+ Folder</button>
+          <button type="button" id="delete-item-btn" class="btn small danger-btn hidden" title="Удалить выбранный элемент">Delete</button>
           <button type="button" id="upload-btn" class="btn small" title="Upload">Upload</button>
         </div>
       </div>
       <div id="selected-dir" class="selected-dir muted">/</div>
       <div id="file-tree" class="file-tree" tabindex="0"></div>
-      <div id="tree-context-menu" class="tree-context-menu hidden" role="menu"></div>
       <input type="file" id="file-upload" class="hidden" multiple />
     </aside>
     <div class="resize-handle" id="resize-files" data-panel="files" title="Resize workspace"></div>
@@ -101,6 +101,18 @@
       </div>
     </form>
   </dialog>
+  <div id="tree-context-menu" class="tree-context-menu hidden" role="menu"></div>
+  <dialog id="delete-dialog" class="studio-dialog">
+    <form id="delete-form">
+      <h3 class="dialog-title">Удалить?</h3>
+      <p id="delete-target-label" class="dialog-hint muted"></p>
+      <p class="dialog-hint muted">Это действие нельзя отменить.</p>
+      <div class="dialog-actions">
+        <button type="button" id="delete-cancel" class="btn">Отмена</button>
+        <button type="submit" class="btn danger-btn">Удалить</button>
+      </div>
+    </form>
+  </dialog>
   <dialog id="move-dialog" class="studio-dialog">
     <form id="move-form">
       <h3 class="dialog-title">Переместить</h3>
@@ -127,6 +139,6 @@
     </form>
   </dialog>
   <script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.52.2/min/vs/loader.js"></script>
-  <script src="/studio/assets/app.js?v=13" type="module"></script>
+  <script src="/studio/assets/app.js?v=14" type="module"></script>
 </body>
 </html>
