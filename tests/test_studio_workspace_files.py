@@ -5,6 +5,7 @@ from __future__ import annotations
 import pytest
 from integrations.desktop.workspace_files import (
     WorkspacePathError,
+    create_directory,
     list_tree,
     read_file,
     resolve_studio_workspace_root,
@@ -85,6 +86,26 @@ def test_write_file_create_only_conflict(studio_profile, studio_profile_ws) -> N
     write_file(studio_profile, "dup.txt", "a", create_only=True, workspace_root=studio_profile_ws)
     with pytest.raises(FileExistsError):
         write_file(studio_profile, "dup.txt", "b", create_only=True, workspace_root=studio_profile_ws)
+
+
+def test_create_directory(studio_profile, studio_profile_ws) -> None:
+    created = create_directory(studio_profile, "notes", workspace_root=studio_profile_ws)
+    assert created["path"] == "notes"
+    assert created["kind"] == "directory"
+    assert (studio_profile_ws / "notes").is_dir()
+
+    nested = create_directory(
+        studio_profile,
+        "notes/archive/2026",
+        workspace_root=studio_profile_ws,
+    )
+    assert nested["path"] == "notes/archive/2026"
+    assert (studio_profile_ws / "notes" / "archive" / "2026").is_dir()
+
+
+def test_create_directory_conflict(studio_profile, studio_profile_ws) -> None:
+    with pytest.raises(FileExistsError):
+        create_directory(studio_profile, "docs", workspace_root=studio_profile_ws)
 
 
 def test_upload_file(studio_profile, studio_profile_ws) -> None:

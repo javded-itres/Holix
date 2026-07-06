@@ -18,6 +18,7 @@
         <span>Workspace</span>
         <div class="panel-actions">
           <button type="button" id="new-file-btn" class="btn small" title="New file">+ File</button>
+          <button type="button" id="new-folder-btn" class="btn small" title="New folder">+ Folder</button>
           <button type="button" id="upload-btn" class="btn small" title="Upload">Upload</button>
         </div>
       </div>
@@ -79,7 +80,27 @@
       </div>
     </form>
   </dialog>
+  <dialog id="new-folder-dialog" class="studio-dialog">
+    <form id="new-folder-form">
+      <h3 class="dialog-title">Новая папка</h3>
+      <p id="new-folder-dir-label" class="dialog-hint muted"></p>
+      <label class="dialog-label" for="new-folder-name">Имя папки</label>
+      <input
+        id="new-folder-name"
+        class="dialog-input"
+        type="text"
+        autocomplete="off"
+        spellcheck="false"
+        placeholder="docs"
+        required
+      />
+      <div class="dialog-actions">
+        <button type="button" id="new-folder-cancel" class="btn">Отмена</button>
+        <button type="submit" class="btn primary">Создать</button>
+      </div>
+    </form>
+  </dialog>
   <script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.52.2/min/vs/loader.js"></script>
-  <script src="/studio/assets/app.js?v=10" type="module"></script>
+  <script src="/studio/assets/app.js?v=11" type="module"></script>
 </body>
 </html>

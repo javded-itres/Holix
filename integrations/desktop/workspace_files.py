@@ -250,6 +250,30 @@ def read_file(
     }
 
 
+def create_directory(
+    profile: str,
+    rel_path: str,
+    *,
+    workspace_root: Path | None = None,
+    serve_cwd: Path | str | None = None,
+) -> dict[str, Any]:
+    """Create a directory inside the workspace."""
+    rel = _normalize_rel(rel_path)
+    if not rel:
+        raise WorkspacePathError("Directory path is required")
+    path = resolve_workspace_path(
+        profile,
+        rel,
+        workspace_root=workspace_root,
+        serve_cwd=serve_cwd,
+    )
+    if path.exists():
+        raise FileExistsError(rel)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.mkdir(parents=False, exist_ok=False)
+    return {"path": rel, "kind": "directory"}
+
+
 def write_file(
     profile: str,
     rel_path: str,

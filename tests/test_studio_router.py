@@ -99,6 +99,30 @@ def test_files_write_and_upload(studio_client) -> None:
     assert res.json()["path"] == "uploaded.txt"
 
 
+def test_files_mkdir(studio_client) -> None:
+    client, _ = studio_client
+    headers = {"Authorization": "Bearer test-token"}
+    res = client.post(
+        "/studio/api/files/mkdir",
+        headers=headers,
+        json={"path": "src/components"},
+    )
+    assert res.status_code == 200
+    assert res.json()["path"] == "src/components"
+    assert res.json()["kind"] == "directory"
+
+    tree = client.get("/studio/api/files/tree", headers=headers).json()
+    names = {c["name"] for c in tree["children"]}
+    assert "src" in names
+
+    res = client.post(
+        "/studio/api/files/mkdir",
+        headers=headers,
+        json={"path": "src/components"},
+    )
+    assert res.status_code == 409
+
+
 def test_assets_without_auth(studio_client) -> None:
     client, _ = studio_client
     res = client.get("/studio/assets/styles.css")

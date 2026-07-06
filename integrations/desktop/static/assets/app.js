@@ -28,6 +28,7 @@ const els = {
   fileTree: document.getElementById("file-tree"),
   selectedDir: document.getElementById("selected-dir"),
   newFileBtn: document.getElementById("new-file-btn"),
+  newFolderBtn: document.getElementById("new-folder-btn"),
   uploadBtn: document.getElementById("upload-btn"),
   fileUpload: document.getElementById("file-upload"),
   editorTitle: document.getElementById("editor-title"),
@@ -43,6 +44,11 @@ const els = {
   newFileName: document.getElementById("new-file-name"),
   newFileDirLabel: document.getElementById("new-file-dir-label"),
   newFileCancel: document.getElementById("new-file-cancel"),
+  newFolderDialog: document.getElementById("new-folder-dialog"),
+  newFolderForm: document.getElementById("new-folder-form"),
+  newFolderName: document.getElementById("new-folder-name"),
+  newFolderDirLabel: document.getElementById("new-folder-dir-label"),
+  newFolderCancel: document.getElementById("new-folder-cancel"),
   chatLog: document.getElementById("chat-log"),
   chatForm: document.getElementById("chat-form"),
   chatInput: document.getElementById("chat-input"),
@@ -377,6 +383,14 @@ function selectDirectory(path) {
   updateSelectedDirLabel();
 }
 
+function expandPathAncestors(path) {
+  const parts = (path || "").split("/").filter(Boolean);
+  for (let i = 1; i <= parts.length; i++) {
+    expandedDirs.add(parts.slice(0, i).join("/"));
+  }
+  saveExpandedDirs();
+}
+
 function renderTree(nodes, container) {
   treeNodes = nodes || [];
   container.innerHTML = "";
@@ -566,12 +580,44 @@ async function createNewFile(name) {
     return;
   }
   const data = await res.json();
-  const parent = path.includes("/") ? path.slice(0, path.lastIndexOf("/")) : "";
-  if (parent) expandedDirs.add(parent);
-  saveExpandedDirs();
+  expandPathAncestors(path);
   await refreshTree();
   const fileEl = els.fileTree.querySelector(`.tree-file[data-path="${CSS.escape(data.path)}"]`);
   await openFile(data.path, fileEl);
+}
+
+function openNewFolderDialog() {
+  if (!els.newFolderDialog) return;
+  els.newFolderDirLabel.textContent = `Папка: ${selectedDirPath ? `/${selectedDirPath}` : "/"}`;
+  els.newFolderName.value = "new-folder";
+  els.newFolderDialog.showModal();
+  requestAnimationFrame(() => {
+    els.newFolderName.focus();
+    els.newFolderName.select();
+  });
+}
+
+function closeNewFolderDialog() {
+  els.newFolderDialog?.close();
+}
+
+async function createNewFolder(name) {
+  const trimmed = (name || "").trim().replace(/\/+$/, "");
+  if (!trimmed) return;
+  const path = selectedDirPath ? `${selectedDirPath}/${trimmed}` : trimmed;
+  const res = await fetch(apiUrl("/studio/api/files/mkdir"), {
+    method: "POST",
+    headers: { ...authHeaders(), "Content-Type": "application/json" },
+    body: JSON.stringify({ path }),
+  });
+  if (!res.ok) {
+    appendChat(`Folder create failed: ${await res.text()}`, "error");
+    return;
+  }
+  const data = await res.json();
+  expandPathAncestors(data.path);
+  await refreshTree();
+  selectDirectory(data.path);
 }
 
 async function uploadFiles(fileList) {
@@ -642,6 +688,14 @@ els.newFileForm?.addEventListener("submit", async (e) => {
   const name = els.newFileName?.value || "";
   closeNewFileDialog();
   await createNewFile(name);
+});
+els.newFolderBtn?.addEventListener("click", () => openNewFolderDialog());
+els.newFolderCancel?.addEventListener("click", () => closeNewFolderDialog());
+els.newFolderForm?.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const name = els.newFolderName?.value || "";
+  closeNewFolderDialog();
+  await createNewFolder(name);
 });
 els.uploadBtn?.addEventListener("click", () => els.fileUpload?.click());
 els.fileUpload.addEventListener("change", async (e) => {

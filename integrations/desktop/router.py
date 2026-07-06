@@ -17,6 +17,7 @@ from integrations.desktop.security import studio_token_valid
 from integrations.desktop.session import StudioSession
 from integrations.desktop.workspace_files import (
     WorkspacePathError,
+    create_directory,
     list_tree,
     read_file,
     resolve_studio_workspace_root,
@@ -34,6 +35,10 @@ class WriteFileBody(BaseModel):
     path: str = Field(..., min_length=1)
     content: str = ""
     create_only: bool = False
+
+
+class MkdirBody(BaseModel):
+    path: str = Field(..., min_length=1)
 
 
 def _static_dir() -> Path:
@@ -120,6 +125,15 @@ def create_studio_router(
         except FileNotFoundError as e:
             raise HTTPException(status_code=404, detail=str(e)) from e
         except (WorkspacePathError, IsADirectoryError, ValueError) as e:
+            raise HTTPException(status_code=400, detail=str(e)) from e
+
+    @router.post("/api/files/mkdir", dependencies=[Depends(require_auth)])
+    async def files_mkdir(body: MkdirBody) -> dict[str, Any]:
+        try:
+            return create_directory(profile, body.path, workspace_root=studio_workspace_root)
+        except FileExistsError as e:
+            raise HTTPException(status_code=409, detail=str(e)) from e
+        except WorkspacePathError as e:
             raise HTTPException(status_code=400, detail=str(e)) from e
 
     @router.post("/api/files/upload", dependencies=[Depends(require_auth)])
