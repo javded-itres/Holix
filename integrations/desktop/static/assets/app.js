@@ -1,3 +1,11 @@
+import {
+  configureMonacoLanguages,
+  EDITOR_SUGGEST_OPTIONS,
+  setupMonacoEnvironment,
+} from "./monaco_languages.js";
+
+setupMonacoEnvironment();
+
 const params = new URLSearchParams(window.location.search);
 const token =
   window.HOLIX_STUDIO_TOKEN ||
@@ -193,7 +201,10 @@ function loadMonaco() {
     require.config({
       paths: { vs: "https://cdn.jsdelivr.net/npm/monaco-editor@0.52.2/min/vs" },
     });
-    require(["vs/editor/editor.main"], () => resolve(window.monaco));
+    require(["vs/editor/editor.main"], () => {
+      configureMonacoLanguages(window.monaco);
+      resolve(window.monaco);
+    });
   });
   return monacoReady;
 }
@@ -207,6 +218,7 @@ async function initEditor() {
     readOnly: true,
     automaticLayout: true,
     minimap: { enabled: false },
+    ...EDITOR_SUGGEST_OPTIONS,
   });
   editor.onDidChangeModelContent(() => {
     if (currentFilePath && !editor.getOption(monaco.editor.EditorOption.readOnly)) {
