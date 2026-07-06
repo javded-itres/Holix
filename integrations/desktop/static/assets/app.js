@@ -53,7 +53,7 @@ let treeNodes = [];
 
 function loadExpandedDirs() {
   try {
-    const raw = sessionStorage.getItem("holix_studio_expanded_dirs");
+    const raw = sessionStorage.getItem("holix_studio_expanded_dirs_v2");
     return new Set(raw ? JSON.parse(raw) : []);
   } catch {
     return new Set();
@@ -62,7 +62,7 @@ function loadExpandedDirs() {
 
 function saveExpandedDirs() {
   sessionStorage.setItem(
-    "holix_studio_expanded_dirs",
+    "holix_studio_expanded_dirs_v2",
     JSON.stringify([...expandedDirs]),
   );
 }
@@ -211,19 +211,10 @@ function renderNode(node) {
   return wrap;
 }
 
-function seedExpandedDirs(nodes) {
-  if (expandedDirs.size > 0) return;
-  for (const node of nodes || []) {
-    if (node.kind === "directory") expandedDirs.add(node.path);
-  }
-  saveExpandedDirs();
-}
-
 async function refreshTree() {
   const res = await fetch(apiUrl("/studio/api/files/tree"), { headers: authHeaders() });
   if (!res.ok) throw new Error(await res.text());
   const data = await res.json();
-  seedExpandedDirs(data.children);
   renderTree(data.children, els.fileTree);
 }
 
