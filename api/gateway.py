@@ -152,6 +152,13 @@ app.include_router(holix_telegram.router)
 app.include_router(holix_max.router)
 app.include_router(docs_chat_router)
 
+try:
+    from integrations.desktop.router import mount_studio_on_gateway
+
+    mount_studio_on_gateway(app)
+except ImportError:
+    pass
+
 register_max_routes(app)
 
 

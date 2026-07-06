@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Holix Studio</title>
+  <link rel="stylesheet" href="assets/styles.css" />
+</head>
+<body>
+  <header class="topbar">
+    <span class="brand">Holix Studio</span>
+    <span id="profile-label" class="muted"></span>
+    <span id="conn-status" class="status">connecting…</span>
+  </header>
+  <main class="layout">
+    <aside class="panel files-panel">
+      <div class="panel-title">Workspace</div>
+      <div id="file-tree" class="file-tree"></div>
+    </aside>
+    <section class="panel editor-panel">
+      <div class="panel-title">
+        <span id="editor-title">Editor</span>
+        <button id="diff-toggle" class="btn small hidden" type="button">Show diff</button>
+      </div>
+      <div id="editor" class="editor-host"></div>
+      <div id="diff-editor" class="editor-host hidden"></div>
+    </section>
+    <section class="panel chat-panel">
+      <div class="panel-title">Agent</div>
+      <div id="chat-log" class="chat-log"></div>
+      <form id="chat-form" class="chat-form">
+        <textarea id="chat-input" rows="3" placeholder="Message Holix… (/stop to cancel)"></textarea>
+        <div class="chat-actions">
+          <button type="submit" class="btn primary">Send</button>
+          <button type="button" id="stop-btn" class="btn">Stop</button>
+        </div>
+      </form>
+    </section>
+  </main>
+  <script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.52.2/min/vs/loader.js"></script>
+  <script src="assets/app.js" type="module"></script>
+</body>
+</html>

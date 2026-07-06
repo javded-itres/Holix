@@ -1,0 +1,69 @@
+"""HTTP smoke tests for Holix Studio router."""
+
+from __future__ import annotations
+
+import pytest
+from fastapi.testclient import TestClient
+from integrations.desktop.app import create_studio_app
+from integrations.desktop.security import StudioSecurityPolicy
+
+
+@pytest.fixture
+def studio_client(tmp_path, monkeypatch):
+    home = tmp_path / "holix"
+    monkeypatch.setenv("HOLIX_HOME", str(home))
+    profile = "router_test"
+    ws = home / "profiles" / profile / "workspace"
+    ws.mkdir(parents=True)
+    (ws / "main.py").write_text("x = 1\n", encoding="utf-8")
+
+    policy = StudioSecurityPolicy(
+        host="127.0.0.1",
+        token="test-token",
+        token_generated=False,
+        allow_lan=False,
+        is_production=False,
+    )
+    app = create_studio_app(policy, profile)
+    return TestClient(app), profile
+
+
+def test_health_no_auth(studio_client) -> None:
+    client, _ = studio_client
+    res = client.get("/studio/api/health")
+    assert res.status_code == 200
+    assert res.json()["status"] == "ok"
+
+
+def test_files_tree_requires_auth(studio_client) -> None:
+    client, _ = studio_client
+    res = client.get("/studio/api/files/tree")
+    assert res.status_code == 401
+
+
+def test_files_tree_with_token(studio_client) -> None:
+    client, _ = studio_client
+    res = client.get(
+        "/studio/api/files/tree",
+        headers={"Authorization": "Bearer test-token"},
+    )
+    assert res.status_code == 200
+    names = {c["name"] for c in res.json()["children"]}
+    assert "main.py" in names
+
+
+def test_files_read(studio_client) -> None:
+    client, _ = studio_client
+    res = client.get(
+        "/studio/api/files/read?path=main.py",
+        headers={"Authorization": "Bearer test-token"},
+    )
+    assert res.status_code == 200
+    assert res.json()["content"] == "x = 1\n"
+
+
+def test_studio_index(studio_client) -> None:
+    client, _ = studio_client
+    res = client.get("/studio/?token=test-token")
+    assert res.status_code == 200
+    assert "Holix Studio" in res.text

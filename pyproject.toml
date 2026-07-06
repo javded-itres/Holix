@@ -100,6 +100,7 @@ packages = ["cli", "core", "api", "integrations"]
 [tool.hatch.build.targets.wheel.force-include]
 "config.py" = "config.py"
 ".env.example" = ".env.example"
+"integrations/desktop/static" = "integrations/desktop/static"
 
 [tool.hatch.build.targets.sdist]
 include = [

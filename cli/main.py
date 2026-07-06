@@ -27,7 +27,7 @@ _BASE_COMMANDS_REGISTERED = False
 _HEAVY_COMMANDS_REGISTERED = False
 
 # Commands that pull chromadb/numpy via HolixAgent or SkillsManager.
-_HEAVY_ROOT_COMMANDS = frozenset({"chat", "run", "tui", "skills", "memory", "subagent"})
+_HEAVY_ROOT_COMMANDS = frozenset({"chat", "run", "tui", "skills", "memory", "subagent", "studio"})
 
 
 def _needs_heavy_commands(argv: list[str]) -> bool:
@@ -60,6 +60,7 @@ def _register_base_commands() -> None:
     from cli.commands.install_cmd import app as install_app
     from cli.commands.launch import app as launch_app
     from cli.commands.logs import app as logs_app
+    from cli.commands.studio import app as studio_app
     from cli.commands.max import register_max_command
     from cli.commands.mcp import app as mcp_app
     from cli.commands.search import app as search_app
@@ -83,6 +84,7 @@ def _register_base_commands() -> None:
     app.add_typer(update_app, name="update")
     app.add_typer(docs_app, name="docs")
     app.add_typer(launch_app, name="launch")
+    app.add_typer(studio_app, name="studio")
     _BASE_COMMANDS_REGISTERED = True
 
 
