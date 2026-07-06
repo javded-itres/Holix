@@ -12,8 +12,19 @@ from core.agent_events import (
     EventType,
     FinalResponseEvent,
     ThinkingEvent,
+    ToolCallErrorEvent,
     ToolCallResultEvent,
     ToolCallStartEvent,
+)
+
+# AgentEvent subclasses that store EventType.ERROR internally but expose a
+# different type string via to_dict() (confirmation flow, sub-agent prompts).
+_EXTENSION_STUDIO_TYPES = frozenset(
+    {
+        "confirmation_request",
+        "confirmation_response",
+        "subagent_question",
+    }
 )
 from core.tools.file_diff import DIFF_SEPARATOR
 
@@ -23,14 +34,17 @@ _WRITE_FILE_PATH_RE = re.compile(r"^(?:Created|Updated)\s+(\S+)", re.MULTILINE)
 def agent_event_to_studio_message(event: AgentEvent) -> dict[str, Any]:
     """Serialize one agent event for the Studio UI."""
     payload = event.to_dict()
-    payload["type"] = _studio_type(event)
+    payload["type"] = _studio_type(event, payload.get("type"))
     extras = _extra_studio_fields(event)
     if extras:
         payload.update(extras)
     return payload
 
 
-def _studio_type(event: AgentEvent) -> str:
+def _studio_type(event: AgentEvent, raw_type: object) -> str:
+    ext = str(raw_type or "")
+    if ext in _EXTENSION_STUDIO_TYPES:
+        return ext
     if isinstance(event, ThinkingEvent):
         return "thinking"
     if isinstance(event, AssistantDeltaEvent):
@@ -41,8 +55,12 @@ def _studio_type(event: AgentEvent) -> str:
         return "tool_call_start"
     if isinstance(event, ToolCallResultEvent):
         return "tool_call_result"
+    if isinstance(event, ToolCallErrorEvent):
+        return "tool_call_error"
     if isinstance(event, ErrorEvent):
         return "error"
+    if ext and ext != EventType.ERROR.value:
+        return ext
     return event.type.value if hasattr(event.type, "value") else str(event.type)
 
 
@@ -51,9 +69,15 @@ def _extra_studio_fields(event: AgentEvent) -> dict[str, Any]:
         diff_msg = _file_diff_from_write_result(event.result)
         if diff_msg:
             return {"file_diff": diff_msg}
-    if event.type == EventType.ERROR:
-        err = getattr(event, "error", "") or ""
-        return {"message": err}
+    if isinstance(event, ToolCallErrorEvent):
+        err = (event.error or "").strip()
+        if err:
+            return {"message": err, "tool_name": event.tool_name}
+        return {"tool_name": event.tool_name}
+    if isinstance(event, ErrorEvent):
+        err = (event.error or "").strip()
+        if err:
+            return {"message": err}
     return {}
 
 

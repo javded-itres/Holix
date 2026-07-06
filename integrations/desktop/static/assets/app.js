@@ -596,11 +596,33 @@ function handleWs(msg) {
     case "tool_call_result":
       if (msg.file_diff) showDiff(msg.file_diff);
       break;
-    case "error":
+    case "tool_call_error": {
+      const errText = (msg.message || msg.error || "").trim();
+      if (errText) {
+        appendChat(
+          msg.tool_name ? `✖ ${msg.tool_name}: ${errText}` : `✖ ${errText}`,
+          "error",
+        );
+      }
+      break;
+    }
+    case "confirmation_request":
+      appendChat(
+        `⚠ ${msg.tool_name || "tool"}: ${msg.reason || "требуется подтверждение"}`,
+        "tool",
+      );
+      break;
+    case "confirmation_response":
+    case "subagent_question":
+      break;
+    case "error": {
+      const errText = (msg.message || msg.error || "").trim();
+      if (!errText) break;
       setRunActive(false);
-      appendChat(msg.message || msg.error || "Error", "error");
+      appendChat(errText, "error");
       streamBuffer = "";
       break;
+    }
     case "max_steps_reached":
       setRunActive(false);
       appendChat(`Max steps reached (${msg.max_steps || "?"})`, "error");
