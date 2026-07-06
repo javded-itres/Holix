@@ -3,6 +3,7 @@ import {
   EDITOR_SUGGEST_OPTIONS,
   setupMonacoEnvironment,
 } from "./monaco_languages.js";
+import { renderMarkdown } from "./markdown_render.js";
 
 setupMonacoEnvironment();
 
@@ -31,7 +32,10 @@ const els = {
   fileUpload: document.getElementById("file-upload"),
   editorTitle: document.getElementById("editor-title"),
   editorHost: document.getElementById("editor"),
+  previewHost: document.getElementById("preview-host"),
   diffHost: document.getElementById("diff-editor"),
+  viewSourceBtn: document.getElementById("view-source-btn"),
+  viewPreviewBtn: document.getElementById("view-preview-btn"),
   diffToggle: document.getElementById("diff-toggle"),
   saveBtn: document.getElementById("save-btn"),
   newFileDialog: document.getElementById("new-file-dialog"),
@@ -54,6 +58,8 @@ const els = {
 };
 
 const PANEL_LAYOUT_KEY = "holix_studio_panel_layout_v1";
+const MARKDOWN_VIEW_KEY = "holix_studio_md_view_v1";
+const PREVIEW_DEBOUNCE_MS = 150;
 const PANEL_LIMITS = {
   files: { min: 160, max: 520, default: 240 },
   chat: { min: 280, max: 640, default: 360 },
@@ -71,6 +77,8 @@ let runActive = false;
 
 let currentFilePath = null;
 let editorDirty = false;
+let editorViewMode = loadMarkdownViewMode();
+let previewTimer = null;
 let selectedDirPath = "";
 let expandedDirs = loadExpandedDirs();
 let treeNodes = [];
@@ -225,6 +233,7 @@ async function initEditor() {
       editorDirty = true;
       updateEditorChrome();
     }
+    scheduleMarkdownPreview();
   });
   editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, () => {
     saveCurrentFile();
@@ -241,12 +250,117 @@ function setStatus(text, ok) {
   els.status.className = ok ? "status ok" : "status err";
 }
 
-function appendChat(text, cls) {
-  const div = document.createElement("div");
-  div.className = `msg ${cls}`;
-  div.textContent = text;
-  els.chatLog.appendChild(div);
+function loadMarkdownViewMode() {
+  try {
+    return sessionStorage.getItem(MARKDOWN_VIEW_KEY) === "preview" ? "preview" : "source";
+  } catch {
+    return "source";
+  }
+}
+
+function saveMarkdownViewMode() {
+  sessionStorage.setItem(MARKDOWN_VIEW_KEY, editorViewMode);
+}
+
+function isMarkdownPath(path) {
+  if (!path) return false;
+  const lower = path.toLowerCase();
+  return lower.endsWith(".md") || lower.endsWith(".markdown");
+}
+
+function appendChat(text, cls, options = {}) {
+  const { streaming = false } = options;
+  const wrap = document.createElement("div");
+  wrap.className = `msg ${cls}${streaming ? " streaming" : ""}`;
+  const body = document.createElement("div");
+  body.className = "msg-body";
+  body.textContent = text;
+  wrap.appendChild(body);
+  els.chatLog.appendChild(wrap);
   els.chatLog.scrollTop = els.chatLog.scrollHeight;
+  return wrap;
+}
+
+function ensureAssistantToggle(msgEl) {
+  if (msgEl.querySelector(".msg-toggle")) return;
+  const btn = document.createElement("button");
+  btn.type = "button";
+  btn.className = "msg-toggle btn small";
+  btn.textContent = "Source";
+  btn.addEventListener("click", () => toggleAssistantMessageMode(msgEl));
+  msgEl.appendChild(btn);
+}
+
+function setAssistantMessageBody(msgEl, text, mode) {
+  const body = msgEl.querySelector(".msg-body");
+  if (!body) return;
+  msgEl.dataset.raw = text;
+  if (mode === "source") {
+    body.textContent = text;
+    msgEl.classList.remove("rendered");
+    const btn = msgEl.querySelector(".msg-toggle");
+    if (btn) btn.textContent = "Preview";
+    return;
+  }
+  body.innerHTML = renderMarkdown(text);
+  msgEl.classList.add("rendered");
+  const btn = msgEl.querySelector(".msg-toggle");
+  if (btn) btn.textContent = "Source";
+}
+
+function finalizeAssistantMessage(msgEl, text) {
+  if (!msgEl || !text) return;
+  msgEl.classList.remove("streaming");
+  ensureAssistantToggle(msgEl);
+  setAssistantMessageBody(msgEl, text, "rendered");
+  els.chatLog.scrollTop = els.chatLog.scrollHeight;
+}
+
+function toggleAssistantMessageMode(msgEl) {
+  const raw = msgEl.dataset.raw || msgEl.querySelector(".msg-body")?.textContent || "";
+  const next = msgEl.classList.contains("rendered") ? "source" : "rendered";
+  setAssistantMessageBody(msgEl, raw, next);
+}
+
+function appendAssistantMessage(text) {
+  const wrap = appendChat("", "assistant");
+  finalizeAssistantMessage(wrap, text);
+  return wrap;
+}
+
+function updateMarkdownPreview() {
+  if (!els.previewHost || !editor) return;
+  els.previewHost.innerHTML = renderMarkdown(editor.getValue());
+}
+
+function scheduleMarkdownPreview() {
+  if (editorViewMode !== "preview" || !isMarkdownPath(currentFilePath)) return;
+  clearTimeout(previewTimer);
+  previewTimer = setTimeout(updateMarkdownPreview, PREVIEW_DEBOUNCE_MS);
+}
+
+function setEditorViewMode(mode) {
+  editorViewMode = mode === "preview" ? "preview" : "source";
+  saveMarkdownViewMode();
+  applyEditorViewMode();
+}
+
+function applyEditorViewMode() {
+  const md = isMarkdownPath(currentFilePath);
+  els.viewSourceBtn?.classList.toggle("hidden", !md);
+  els.viewPreviewBtn?.classList.toggle("hidden", !md);
+  if (!md) {
+    els.editorHost?.classList.remove("hidden");
+    els.previewHost?.classList.add("hidden");
+    return;
+  }
+  els.viewSourceBtn?.classList.toggle("active-view", editorViewMode === "source");
+  els.viewPreviewBtn?.classList.toggle("active-view", editorViewMode === "preview");
+  const preview = editorViewMode === "preview";
+  els.editorHost?.classList.toggle("hidden", preview);
+  els.previewHost?.classList.toggle("hidden", !preview);
+  if (preview) updateMarkdownPreview();
+  requestEditorLayout();
 }
 
 function updateSelectedDirLabel() {
@@ -355,12 +469,14 @@ function updateEditorChrome() {
     els.editorTitle.textContent = "Editor";
     els.saveBtn.classList.add("hidden");
     els.saveBtn.disabled = true;
+    applyEditorViewMode();
     return;
   }
   const dirtyMark = editorDirty ? " •" : "";
   els.editorTitle.textContent = `${currentFilePath}${dirtyMark}`;
   els.saveBtn.classList.remove("hidden");
   els.saveBtn.disabled = !editorDirty;
+  applyEditorViewMode();
 }
 
 function setEditorReadOnly(readOnly) {
@@ -485,9 +601,9 @@ async function uploadFiles(fileList) {
 }
 
 function showEditor() {
-  els.editorHost.classList.remove("hidden");
   els.diffHost.classList.add("hidden");
   els.diffToggle.classList.add("hidden");
+  applyEditorViewMode();
 }
 
 async function showDiff(diff) {
@@ -499,6 +615,9 @@ async function showDiff(diff) {
   updateEditorChrome();
   els.editorTitle.textContent = `Diff: ${diff.path}`;
   els.editorHost.classList.add("hidden");
+  els.previewHost?.classList.add("hidden");
+  els.viewSourceBtn?.classList.add("hidden");
+  els.viewPreviewBtn?.classList.add("hidden");
   els.diffHost.classList.remove("hidden");
   els.diffToggle.classList.remove("hidden");
   els.diffToggle.textContent = "Show file";
@@ -513,6 +632,8 @@ els.diffToggle.addEventListener("click", async () => {
     await openFile(pendingDiff.path);
   }
 });
+els.viewSourceBtn?.addEventListener("click", () => setEditorViewMode("source"));
+els.viewPreviewBtn?.addEventListener("click", () => setEditorViewMode("preview"));
 
 els.newFileBtn?.addEventListener("click", () => openNewFileDialog());
 els.newFileCancel?.addEventListener("click", () => closeNewFileDialog());
@@ -568,28 +689,36 @@ function handleWs(msg) {
     case "thinking": {
       const last = els.chatLog.querySelector(".msg.thinking:last-child");
       const text = msg.message || "Thinking…";
-      if (last && runActive) last.textContent = text;
-      else appendChat(text, "thinking");
+      if (last && runActive) {
+        const body = last.querySelector(".msg-body");
+        if (body) body.textContent = text;
+        else last.textContent = text;
+      } else {
+        appendChat(text, "thinking");
+      }
       break;
     }
     case "assistant_delta":
-      if (!streamBuffer) appendChat("", "assistant");
+      if (!streamBuffer) appendChat("", "assistant", { streaming: true });
       streamBuffer += msg.content || "";
       {
-        const last = els.chatLog.querySelector(".msg.assistant:last-child");
-        if (last) last.textContent = streamBuffer;
+        const last = els.chatLog.querySelector(".msg.assistant.streaming:last-child");
+        const body = last?.querySelector(".msg-body");
+        if (body) body.textContent = streamBuffer;
       }
       break;
-    case "final_response":
+    case "final_response": {
       setRunActive(false);
+      const content = msg.content || streamBuffer;
       streamBuffer = "";
-      if (msg.content) {
+      if (content) {
         const last = els.chatLog.querySelector(".msg.assistant:last-child");
-        if (last) last.textContent = msg.content;
-        else appendChat(msg.content, "assistant");
+        if (last) finalizeAssistantMessage(last, content);
+        else appendAssistantMessage(content);
       }
       refreshTree().catch(() => {});
       break;
+    }
     case "tool_call_start":
       appendChat(`▶ ${msg.tool_name}`, "tool");
       break;

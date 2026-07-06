@@ -30,12 +30,17 @@
       <div class="panel-title">
         <span id="editor-title">Editor</span>
         <div class="panel-actions">
+          <button type="button" id="view-source-btn" class="btn small hidden">Source</button>
+          <button type="button" id="view-preview-btn" class="btn small hidden">Preview</button>
           <button type="button" id="save-btn" class="btn small primary hidden" disabled>Save</button>
           <button id="diff-toggle" class="btn small hidden" type="button">Show diff</button>
         </div>
       </div>
-      <div id="editor" class="editor-host"></div>
-      <div id="diff-editor" class="editor-host hidden"></div>
+      <div class="editor-views">
+        <div id="editor" class="editor-host"></div>
+        <div id="preview-host" class="preview-host markdown-body hidden"></div>
+        <div id="diff-editor" class="editor-host hidden"></div>
+      </div>
     </section>
     <div class="resize-handle" id="resize-chat" data-panel="chat" title="Resize agent panel"></div>
     <section class="panel chat-panel" id="chat-panel">
@@ -75,6 +80,6 @@
     </form>
   </dialog>
   <script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.52.2/min/vs/loader.js"></script>
-  <script src="/studio/assets/app.js?v=9" type="module"></script>
+  <script src="/studio/assets/app.js?v=10" type="module"></script>
 </body>
 </html>
