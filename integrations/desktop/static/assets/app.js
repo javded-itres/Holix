@@ -33,6 +33,7 @@ let diffEditor = null;
 let ws = null;
 let streamBuffer = "";
 let pendingDiff = null;
+let runActive = false;
 
 function loadMonaco() {
   if (monacoReady) return monacoReady;
@@ -180,14 +181,29 @@ function connectWs() {
   };
 }
 
+function setRunActive(active) {
+  runActive = active;
+  els.chatInput.disabled = active;
+  els.chatForm.querySelector('button[type="submit"]').disabled = active;
+  els.stopBtn.disabled = !active;
+}
+
 function handleWs(msg) {
   switch (msg.type) {
     case "connected":
       els.profile.textContent = `profile: ${msg.profile}`;
       break;
-    case "thinking":
-      appendChat(msg.message || "Thinking…", "thinking");
+    case "run_started":
+      setRunActive(true);
+      streamBuffer = "";
       break;
+    case "thinking": {
+      const last = els.chatLog.querySelector(".msg.thinking:last-child");
+      const text = msg.message || "Thinking…";
+      if (last && runActive) last.textContent = text;
+      else appendChat(text, "thinking");
+      break;
+    }
     case "assistant_delta":
       if (!streamBuffer) appendChat("", "assistant");
       streamBuffer += msg.content || "";
@@ -197,6 +213,7 @@ function handleWs(msg) {
       }
       break;
     case "final_response":
+      setRunActive(false);
       streamBuffer = "";
       if (msg.content) {
         const last = els.chatLog.querySelector(".msg.assistant:last-child");
@@ -212,13 +229,22 @@ function handleWs(msg) {
       if (msg.file_diff) showDiff(msg.file_diff);
       break;
     case "error":
+      setRunActive(false);
       appendChat(msg.message || msg.error || "Error", "error");
       streamBuffer = "";
       break;
-    case "run_stopped":
-    case "run_cancelled":
-      appendChat("Run stopped", "tool");
+    case "max_steps_reached":
+      setRunActive(false);
+      appendChat(`Max steps reached (${msg.max_steps || "?"})`, "error");
       streamBuffer = "";
+      break;
+    case "run_stopped":
+      setRunActive(false);
+      appendChat("Stopped.", "tool");
+      streamBuffer = "";
+      break;
+    case "run_finished":
+      setRunActive(false);
       break;
     default:
       break;
@@ -234,6 +260,10 @@ els.chatForm.addEventListener("submit", (e) => {
   e.stopPropagation();
   const text = els.chatInput.value.trim();
   if (!text) return;
+  if (runActive) {
+    appendChat("Дождитесь ответа или нажмите Stop.", "tool");
+    return;
+  }
   appendChat(text, "user");
   streamBuffer = "";
   sendWs({ type: "user_message", text });

@@ -126,7 +126,10 @@ def create_studio_router(
                     continue
                 if not isinstance(message, dict):
                     continue
-                await studio_session.handle_client_message(message)
+                asyncio.create_task(
+                    studio_session.handle_client_message(message),
+                    name="studio-ws-message",
+                )
         except WebSocketDisconnect:
             pass
         finally:
