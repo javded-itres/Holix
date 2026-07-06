@@ -431,13 +431,24 @@ async def _chat_completion_text(
         api_key=vision.api_key,
         metadata=vision.provider_metadata,
     )
+    from core.llm.response_text import assistant_message_parts, resolve_assistant_text
+
     response = await client.chat.completions.create(
         model=model,
         messages=messages,
         max_tokens=max_tokens,
         temperature=0.2,
     )
-    text = (response.choices[0].message.content or "").strip()
+    message = response.choices[0].message
+    content, reasoning = assistant_message_parts(message)
+    finish_reason = response.choices[0].finish_reason if response.choices else None
+    text = resolve_assistant_text(
+        content=content,
+        reasoning_content=reasoning,
+        finish_reason=finish_reason,
+        model=model,
+        profile_name=profile,
+    ).strip()
     if not text:
         raise RuntimeError(f"модель {model} вернула пустой ответ")
     return text

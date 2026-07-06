@@ -14,6 +14,7 @@ from core.direct_dispatch.intent import (
 from core.direct_dispatch.intent import (
     is_subagent_list_request,
 )
+from core.direct_dispatch.search_intent import extract_search_topic
 
 logger = logging.getLogger(__name__)
 
@@ -25,25 +26,7 @@ _WEB_SEARCH_CALL_RE = re.compile(
     r"web_search\s*\(\s*['\"](.+?)['\"]\s*\)",
     re.IGNORECASE | re.DOTALL,
 )
-_WEB_SEARCH_TOPIC_RES = (
-    re.compile(
-        r"найди\s+(?:в\s+)?(?:интернете?|интеренете?|сети|web)\s+"
-        r"(?:информацию\s+)?(?:по\s+)?(.+)$",
-        re.IGNORECASE | re.DOTALL,
-    ),
-    re.compile(
-        r"поиск(?:ай)?\s+(?:в\s+)?(?:интернете?|интеренете?|сети)?\s*(.+)$",
-        re.IGNORECASE | re.DOTALL,
-    ),
-    re.compile(
-        r"search(?:\s+the\s+web|\s+online)?\s+for\s+(.+)$",
-        re.IGNORECASE | re.DOTALL,
-    ),
-    re.compile(
-        r"исследуй\s+(?:тему\s+)?(.+)$",
-        re.IGNORECASE | re.DOTALL,
-    ),
-)
+
 _ANALYSIS_TRIGGER_RE = re.compile(
     r"\s+(?:"
     r"проанализируй(?:те)?|анализ(?:ируй(?:те)?)?|"
@@ -66,15 +49,7 @@ def _extract_search_topic(text: str) -> str | None:
     explicit = _WEB_SEARCH_CALL_RE.search(text)
     if explicit:
         return _clean_query(explicit.group(1))
-
-    stripped = text.strip()
-    for pattern in _WEB_SEARCH_TOPIC_RES:
-        match = pattern.search(stripped)
-        if match:
-            q = _clean_query(match.group(1))
-            if len(q) >= 3:
-                return q
-    return None
+    return extract_search_topic(text)
 
 
 def _extract_web_search_query(text: str) -> str | None:

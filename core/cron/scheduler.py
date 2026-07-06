@@ -77,11 +77,10 @@ class GlobalCronScheduler:
                 async with self._dispatch_lock:
                     if active_runs.is_active(job.id):
                         continue
-                    task = asyncio.create_task(
+                    asyncio.create_task(
                         self._run_wrapped(profile, job.id),
                         name=f"cron-{profile}-{job.id}",
                     )
-                    active_runs.register_task(job.id, task)
 
     async def _run_wrapped(self, profile: str, job_id: str) -> None:
         async with self._semaphore:
@@ -126,8 +125,7 @@ class CronScheduler:
                 if active_runs.is_active(job.id):
                     continue
 
-            task = asyncio.create_task(self._run_wrapped(job.id), name=f"cron-{job.id}")
-            active_runs.register_task(job.id, task)
+            asyncio.create_task(self._run_wrapped(job.id), name=f"cron-{job.id}")
 
     async def _run_wrapped(self, job_id: str) -> None:
         job = self._store.get(job_id)

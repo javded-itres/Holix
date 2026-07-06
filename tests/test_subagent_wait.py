@@ -115,3 +115,34 @@ async def test_async_spawn_wait_returns_result(monkeypatch: pytest.MonkeyPatch) 
     result = await mgr.wait_for(handle.name, timeout=2.0)
     assert result.success is True
     assert result.response == "ok:summarize"
+
+
+@pytest.mark.asyncio
+async def test_wait_for_timeout_does_not_cancel_async_subagent() -> None:
+    """Outer wait_for timeout must not kill a still-running async sub-agent."""
+    mgr = _manager()
+    cfg = SubAgentConfig(name="web_researcher", process_mode=ProcessMode.ASYNC)
+    handle = SubAgentHandle(name="web_researcher", config=cfg, status=SubAgentStatus.RUNNING)
+
+    async def slow_runner() -> None:
+        await asyncio.sleep(0.15)
+        handle.result = SubAgentResult(
+            name="web_researcher",
+            success=True,
+            response="finished after slow work",
+            duration_ms=150.0,
+        )
+        handle.status = SubAgentStatus.COMPLETED
+        mgr.notify_handle_finished("web_researcher")
+
+    handle.task = asyncio.create_task(slow_runner())
+    mgr._register_handle("web_researcher", handle)
+
+    with pytest.raises(asyncio.TimeoutError):
+        await mgr.wait_for("web_researcher", timeout=0.05)
+
+    assert handle.task is not None
+    await asyncio.wait_for(handle.task, timeout=2.0)
+    assert handle.result is not None
+    assert handle.result.success is True
+    assert handle.result.response == "finished after slow work"

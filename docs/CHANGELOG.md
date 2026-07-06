@@ -2,6 +2,32 @@
 
 ## Unreleased
 
+## 0.1.20 — 2026-06-26
+
+### Fixed
+- **Cron jobs never running** — scheduler no longer pre-registers wrapper tasks, so `run_cron_job` is not self-skipped with “already running”
+- **Strict LLM providers (tool ordering)** — defer context notes during tool-call turns; repair orphan `tool` messages after context truncation (Groq/Mistral `role 'tool' after role 'user'`)
+
+### Changed
+- **Version** — package `Holix` 0.1.20
+
+## 0.1.19 — 2026-06-25
+
+### Fixed
+- **Strict LLM providers (Groq, Mistral, LiteLLM)** — sanitize chat history before API calls: strip `agent_soul` metadata, fold extra `role:system` turns into user context notes (fixes [#41](https://github.com/javded-itres/Holix/issues/41))
+
+### Changed
+- **Version** — package `Holix` 0.1.19
+
+## 0.1.18 — 2026-06-23
+
+### Fixed
+- **Empty model responses** — pass `max_tokens` (default `8192`, env `HOLIX_AGENT_MAX_TOKENS`) in ReAct steps so reasoning models (`coder`, `smart`) return visible answers
+- **Telegram vision** — use `resolve_assistant_text` for reasoning-only vision completions
+
+### Changed
+- **Version** — package `Holix` 0.1.18
+
 ## 0.1.17 — 2026-06-21
 
 ### Added

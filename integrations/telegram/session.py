@@ -44,6 +44,7 @@ class ChatSession:
     plan_callback_tokens: dict[str, str] = field(default_factory=dict)
     process_callback_tokens: dict[str, str] = field(default_factory=dict)
     agent: Any = None
+    subagent_owner: Any = None
     profile_manual_override: bool = False
     ui_profiles: list[str] = field(default_factory=list)
     ui_sessions: list[dict] = field(default_factory=list)

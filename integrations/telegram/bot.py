@@ -240,7 +240,15 @@ class HolixTelegramBot:
                 if target != session.profile:
                     await self._switch_session_profile(session, target, bot=bot)
             if session.agent is None:
-                await self._switch_session_profile(session, session.profile, bot=bot)
+                lock = getattr(session, "_agent_init_lock", None)
+                if lock is None:
+                    lock = asyncio.Lock()
+                    session._agent_init_lock = lock
+                async with lock:
+                    if session.agent is None:
+                        await self._switch_session_profile(
+                            session, session.profile, bot=bot
+                        )
             return session
         except Exception as exc:
             if bot is not None:
