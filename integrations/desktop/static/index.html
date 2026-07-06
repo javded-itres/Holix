@@ -23,7 +23,8 @@
         </div>
       </div>
       <div id="selected-dir" class="selected-dir muted">/</div>
-      <div id="file-tree" class="file-tree"></div>
+      <div id="file-tree" class="file-tree" tabindex="0"></div>
+      <div id="tree-context-menu" class="tree-context-menu hidden" role="menu"></div>
       <input type="file" id="file-upload" class="hidden" multiple />
     </aside>
     <div class="resize-handle" id="resize-files" data-panel="files" title="Resize workspace"></div>
@@ -100,7 +101,32 @@
       </div>
     </form>
   </dialog>
+  <dialog id="move-dialog" class="studio-dialog">
+    <form id="move-form">
+      <h3 class="dialog-title">Переместить</h3>
+      <p id="move-source-label" class="dialog-hint muted"></p>
+      <label class="dialog-label" for="move-destination">Новый путь</label>
+      <input
+        id="move-destination"
+        class="dialog-input"
+        type="text"
+        autocomplete="off"
+        spellcheck="false"
+        placeholder="docs/readme.md"
+        required
+      />
+      <p class="dialog-hint muted">Укажите полный путь в workspace или папку (имя сохранится).</p>
+      <label class="dialog-check">
+        <input id="move-into-dir" type="checkbox" />
+        Переместить в папку (добавить имя к пути)
+      </label>
+      <div class="dialog-actions">
+        <button type="button" id="move-cancel" class="btn">Отмена</button>
+        <button type="submit" class="btn primary">Переместить</button>
+      </div>
+    </form>
+  </dialog>
   <script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.52.2/min/vs/loader.js"></script>
-  <script src="/studio/assets/app.js?v=11" type="module"></script>
+  <script src="/studio/assets/app.js?v=12" type="module"></script>
 </body>
 </html>

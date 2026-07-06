@@ -18,7 +18,9 @@ from integrations.desktop.session import StudioSession
 from integrations.desktop.workspace_files import (
     WorkspacePathError,
     create_directory,
+    delete_path,
     list_tree,
+    move_path,
     read_file,
     resolve_studio_workspace_root,
     stat_file,
@@ -39,6 +41,16 @@ class WriteFileBody(BaseModel):
 
 class MkdirBody(BaseModel):
     path: str = Field(..., min_length=1)
+
+
+class DeletePathBody(BaseModel):
+    path: str = Field(..., min_length=1)
+
+
+class MovePathBody(BaseModel):
+    source: str = Field(..., min_length=1)
+    destination: str = ""
+    into: bool = False
 
 
 def _static_dir() -> Path:
@@ -134,6 +146,34 @@ def create_studio_router(
         except FileExistsError as e:
             raise HTTPException(status_code=409, detail=str(e)) from e
         except WorkspacePathError as e:
+            raise HTTPException(status_code=400, detail=str(e)) from e
+
+    @router.post("/api/files/delete", dependencies=[Depends(require_auth)])
+    async def files_delete(body: DeletePathBody) -> dict[str, Any]:
+        try:
+            return delete_path(profile, body.path, workspace_root=studio_workspace_root)
+        except FileNotFoundError as e:
+            raise HTTPException(status_code=404, detail=str(e)) from e
+        except WorkspacePathError as e:
+            raise HTTPException(status_code=400, detail=str(e)) from e
+
+    @router.post("/api/files/move", dependencies=[Depends(require_auth)])
+    async def files_move(body: MovePathBody) -> dict[str, Any]:
+        try:
+            return move_path(
+                profile,
+                body.source,
+                body.destination,
+                into=body.into,
+                workspace_root=studio_workspace_root,
+            )
+        except FileNotFoundError as e:
+            raise HTTPException(status_code=404, detail=str(e)) from e
+        except FileExistsError as e:
+            raise HTTPException(status_code=409, detail=str(e)) from e
+        except NotADirectoryError as e:
+            raise HTTPException(status_code=400, detail=str(e)) from e
+        except (WorkspacePathError, ValueError) as e:
             raise HTTPException(status_code=400, detail=str(e)) from e
 
     @router.post("/api/files/upload", dependencies=[Depends(require_auth)])

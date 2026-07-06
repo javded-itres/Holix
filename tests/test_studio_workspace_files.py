@@ -6,7 +6,9 @@ import pytest
 from integrations.desktop.workspace_files import (
     WorkspacePathError,
     create_directory,
+    delete_path,
     list_tree,
+    move_path,
     read_file,
     resolve_studio_workspace_root,
     resolve_workspace_path,
@@ -115,6 +117,51 @@ def test_create_directory(studio_profile, studio_profile_ws) -> None:
     )
     assert nested["path"] == "notes/archive/2026"
     assert (studio_profile_ws / "notes" / "archive" / "2026").is_dir()
+
+
+def test_delete_file_and_directory(studio_profile, studio_profile_ws) -> None:
+    write_file(studio_profile, "tmp.txt", "x", create_only=True, workspace_root=studio_profile_ws)
+    create_directory(studio_profile, "trash", workspace_root=studio_profile_ws)
+    delete_path(studio_profile, "tmp.txt", workspace_root=studio_profile_ws)
+    assert not (studio_profile_ws / "tmp.txt").exists()
+    delete_path(studio_profile, "trash", workspace_root=studio_profile_ws)
+    assert not (studio_profile_ws / "trash").exists()
+
+
+def test_move_file_and_directory(studio_profile, studio_profile_ws) -> None:
+    write_file(studio_profile, "a.txt", "one", create_only=True, workspace_root=studio_profile_ws)
+    create_directory(studio_profile, "archive", workspace_root=studio_profile_ws)
+
+    moved = move_path(
+        studio_profile,
+        "a.txt",
+        "archive",
+        into=True,
+        workspace_root=studio_profile_ws,
+    )
+    assert moved["path"] == "archive/a.txt"
+    assert (studio_profile_ws / "archive" / "a.txt").read_text(encoding="utf-8") == "one"
+
+    create_directory(studio_profile, "src", workspace_root=studio_profile_ws)
+    renamed = move_path(
+        studio_profile,
+        "src",
+        "lib",
+        workspace_root=studio_profile_ws,
+    )
+    assert renamed["path"] == "lib"
+    assert (studio_profile_ws / "lib").is_dir()
+
+
+def test_move_directory_into_self_fails(studio_profile, studio_profile_ws) -> None:
+    create_directory(studio_profile, "pkg", workspace_root=studio_profile_ws)
+    with pytest.raises(ValueError, match="subdirectory"):
+        move_path(
+            studio_profile,
+            "pkg",
+            "pkg/nested",
+            workspace_root=studio_profile_ws,
+        )
 
 
 def test_create_directory_conflict(studio_profile, studio_profile_ws) -> None:

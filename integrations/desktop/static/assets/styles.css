@@ -148,6 +148,10 @@ body {
   overflow: hidden;
   text-overflow: ellipsis;
 }
+.selected-dir.drop-target {
+  outline: 1px dashed var(--accent);
+  background: #1f3a5f;
+}
 
 .file-tree {
   overflow: auto;
@@ -190,10 +194,48 @@ body {
 }
 .tree-item:hover { background: #2a2d2e; }
 .tree-item.active { background: #094771; }
+.tree-item.drop-target { outline: 1px dashed var(--accent); background: #1f3a5f; }
 .tree-dir { color: #dcb67a; }
 .tree-file { color: var(--text); }
 .tree-children { margin-left: 0.9rem; }
 .tree-children.collapsed { display: none; }
+.tree-context-menu {
+  position: fixed;
+  z-index: 30;
+  min-width: 200px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+  padding: 0.25rem 0;
+}
+.tree-context-menu button {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  border: none;
+  color: var(--text);
+  font: inherit;
+  font-size: 0.85rem;
+  padding: 0.4rem 0.75rem;
+  cursor: pointer;
+}
+.tree-context-menu button:hover:not(:disabled) {
+  background: #2a2d2e;
+}
+.tree-context-menu button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.tree-context-menu button.danger { color: var(--error); }
+.dialog-check {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
 
 .editor-views {
   flex: 1;

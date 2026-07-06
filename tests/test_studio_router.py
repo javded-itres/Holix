@@ -99,6 +99,36 @@ def test_files_write_and_upload(studio_client) -> None:
     assert res.json()["path"] == "uploaded.txt"
 
 
+def test_files_delete_and_move(studio_client) -> None:
+    client, _ = studio_client
+    headers = {"Authorization": "Bearer test-token"}
+    client.post(
+        "/studio/api/files/write",
+        headers=headers,
+        json={"path": "moveme.txt", "content": "data", "create_only": True},
+    )
+    client.post(
+        "/studio/api/files/mkdir",
+        headers=headers,
+        json={"path": "dest"},
+    )
+    res = client.post(
+        "/studio/api/files/move",
+        headers=headers,
+        json={"source": "moveme.txt", "destination": "dest", "into": True},
+    )
+    assert res.status_code == 200
+    assert res.json()["path"] == "dest/moveme.txt"
+
+    res = client.post(
+        "/studio/api/files/delete",
+        headers=headers,
+        json={"path": "dest/moveme.txt"},
+    )
+    assert res.status_code == 200
+    assert res.json()["deleted"] is True
+
+
 def test_files_mkdir(studio_client) -> None:
     client, _ = studio_client
     headers = {"Authorization": "Bearer test-token"}

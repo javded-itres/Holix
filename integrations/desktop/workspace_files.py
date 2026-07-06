@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import mimetypes
+import shutil
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -297,6 +298,88 @@ def read_file(
         "content": content,
         "size": size,
         "language": _language_for_path(path),
+    }
+
+
+def _path_within(parent: Path, child: Path) -> bool:
+    try:
+        child.resolve().relative_to(parent.resolve())
+        return True
+    except ValueError:
+        return False
+
+
+def delete_path(
+    profile: str,
+    rel_path: str,
+    *,
+    workspace_root: Path | None = None,
+    serve_cwd: Path | str | None = None,
+) -> dict[str, Any]:
+    """Delete a file or directory (recursive) inside the workspace."""
+    rel = _normalize_rel(rel_path)
+    if not rel:
+        raise WorkspacePathError("Cannot delete workspace root")
+    root = workspace_root or resolve_studio_workspace_root(profile, serve_cwd=serve_cwd)
+    path = resolve_workspace_path(profile, rel, workspace_root=root)
+    if not path.exists():
+        raise FileNotFoundError(rel)
+    if path.resolve() == root.resolve():
+        raise WorkspacePathError("Cannot delete workspace root")
+    kind = "directory" if path.is_dir() else "file"
+    if path.is_dir():
+        shutil.rmtree(path)
+    else:
+        path.unlink()
+    return {"path": rel, "kind": kind, "deleted": True}
+
+
+def move_path(
+    profile: str,
+    source: str,
+    destination: str,
+    *,
+    into: bool = False,
+    workspace_root: Path | None = None,
+    serve_cwd: Path | str | None = None,
+) -> dict[str, Any]:
+    """Move or rename a workspace file or directory."""
+    source_rel = _normalize_rel(source)
+    if not source_rel:
+        raise WorkspacePathError("Source path is required")
+    dest_input = _normalize_rel(destination)
+    if not dest_input and not into:
+        raise WorkspacePathError("Destination path is required")
+
+    root = workspace_root or resolve_studio_workspace_root(profile, serve_cwd=serve_cwd)
+    src = resolve_workspace_path(profile, source_rel, workspace_root=root)
+    if not src.exists():
+        raise FileNotFoundError(source_rel)
+
+    if into:
+        dest_dir = resolve_workspace_path(profile, dest_input, workspace_root=root)
+        if not dest_dir.exists() or not dest_dir.is_dir():
+            raise NotADirectoryError(dest_input or ".")
+        dst = dest_dir / src.name
+        dest_rel = f"{dest_input}/{src.name}" if dest_input else src.name
+    else:
+        dst = resolve_workspace_path(profile, dest_input, workspace_root=root)
+        dest_rel = dest_input
+
+    if src.resolve() == dst.resolve():
+        raise ValueError("Cannot move path onto itself")
+    if src.is_dir() and _path_within(src, dst):
+        raise ValueError("Cannot move directory into itself or its subdirectory")
+
+    if dst.exists():
+        raise FileExistsError(dest_rel)
+
+    dst.parent.mkdir(parents=True, exist_ok=True)
+    shutil.move(str(src), str(dst))
+    return {
+        "source": source_rel,
+        "path": dest_rel,
+        "kind": "directory" if dst.is_dir() else "file",
     }
 
 
