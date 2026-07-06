@@ -16,6 +16,10 @@ const token =
 if (token) sessionStorage.setItem("holix_studio_token", token);
 
 const authHeaders = () => (token ? { Authorization: `Bearer ${token}` } : {});
+const apiJsonHeaders = () => ({
+  ...authHeaders(),
+  "Content-Type": "application/json",
+});
 const apiUrl = (path) => {
   const sep = path.includes("?") ? "&" : "?";
   const q = token ? `${sep}token=${encodeURIComponent(token)}` : "";
@@ -562,31 +566,46 @@ function handlePathMoved(source, dest, kind) {
   if (kind === "directory") selectDirectory(dest);
 }
 
+async function readApiError(res) {
+  const text = await res.text();
+  try {
+    const data = JSON.parse(text);
+    if (typeof data.detail === "string" && data.detail) return data.detail;
+  } catch {
+    /* plain text */
+  }
+  return text || res.statusText || "Unknown error";
+}
+
 async function deleteTreePath(path, kind) {
   const label = kind === "directory" ? `папку «${path}»` : `файл «${path}»`;
   if (!confirm(`Удалить ${label}? Это действие нельзя отменить.`)) return;
   const res = await fetch(apiUrl("/studio/api/files/delete"), {
     method: "POST",
-    headers: { ...authHeaders(), "Content-Type": "application/json" },
+    headers: apiJsonHeaders(),
     body: JSON.stringify({ path }),
   });
   if (!res.ok) {
-    appendChat(`Delete failed: ${await res.text()}`, "error");
+    const err = await readApiError(res);
+    appendChat(`Удаление не удалось: ${err}`, "error");
+    if (res.status === 404) await refreshTree().catch(() => {});
     return;
   }
   handlePathDeleted(path);
   await refreshTree();
-  appendChat(`Deleted ${path}`, "tool");
+  appendChat(`Удалено: ${path}`, "tool");
 }
 
 async function moveTreePath(source, destination, into = false) {
   const res = await fetch(apiUrl("/studio/api/files/move"), {
     method: "POST",
-    headers: { ...authHeaders(), "Content-Type": "application/json" },
+    headers: apiJsonHeaders(),
     body: JSON.stringify({ source, destination, into }),
   });
   if (!res.ok) {
-    appendChat(`Move failed: ${await res.text()}`, "error");
+    const err = await readApiError(res);
+    appendChat(`Перемещение не удалось: ${err}`, "error");
+    if (res.status === 404) await refreshTree().catch(() => {});
     return null;
   }
   const data = await res.json();
@@ -606,8 +625,10 @@ function openMoveDialog(sourcePath) {
   if (!els.moveDialog) return;
   moveSourcePath = sourcePath;
   els.moveSourceLabel.textContent = `Из: /${sourcePath}`;
-  els.moveDestination.value = selectedDirPath || "";
-  if (els.moveIntoDir) els.moveIntoDir.checked = true;
+  const base = sourcePath.includes("/") ? sourcePath.slice(sourcePath.lastIndexOf("/") + 1) : sourcePath;
+  const destDir = parentDir(sourcePath);
+  els.moveDestination.value = destDir ? `${destDir}/${base}` : base;
+  if (els.moveIntoDir) els.moveIntoDir.checked = false;
   els.moveDialog.showModal();
   requestAnimationFrame(() => {
     els.moveDestination.focus();

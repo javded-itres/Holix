@@ -323,14 +323,17 @@ def delete_path(
     root = workspace_root or resolve_studio_workspace_root(profile, serve_cwd=serve_cwd)
     path = resolve_workspace_path(profile, rel, workspace_root=root)
     if not path.exists():
-        raise FileNotFoundError(rel)
+        raise FileNotFoundError(f"Path not found: {rel}")
     if path.resolve() == root.resolve():
         raise WorkspacePathError("Cannot delete workspace root")
     kind = "directory" if path.is_dir() else "file"
-    if path.is_dir():
-        shutil.rmtree(path)
-    else:
-        path.unlink()
+    try:
+        if path.is_dir():
+            shutil.rmtree(path)
+        else:
+            path.unlink()
+    except OSError as e:
+        raise WorkspacePathError(f"Cannot delete {rel}: {e}") from e
     return {"path": rel, "kind": kind, "deleted": True}
 
 
@@ -354,17 +357,25 @@ def move_path(
     root = workspace_root or resolve_studio_workspace_root(profile, serve_cwd=serve_cwd)
     src = resolve_workspace_path(profile, source_rel, workspace_root=root)
     if not src.exists():
-        raise FileNotFoundError(source_rel)
+        raise FileNotFoundError(f"Source not found: {source_rel}")
 
+    dest_rel = dest_input
     if into:
         dest_dir = resolve_workspace_path(profile, dest_input, workspace_root=root)
-        if not dest_dir.exists() or not dest_dir.is_dir():
-            raise NotADirectoryError(dest_input or ".")
-        dst = dest_dir / src.name
-        dest_rel = f"{dest_input}/{src.name}" if dest_input else src.name
+        if dest_dir.exists() and dest_dir.is_dir():
+            dst = dest_dir / src.name
+            dest_rel = f"{dest_input}/{src.name}" if dest_input else src.name
+        elif not dest_input:
+            raise WorkspacePathError("Destination folder is required")
+        elif dest_dir.exists() and not dest_dir.is_dir():
+            raise ValueError(f"Destination is not a directory: {dest_input}")
+        else:
+            # "Into folder" was requested but the path does not exist yet —
+            # treat it as a full destination path (rename/move to that path).
+            dst = dest_dir
+            dest_rel = dest_input
     else:
         dst = resolve_workspace_path(profile, dest_input, workspace_root=root)
-        dest_rel = dest_input
 
     if src.resolve() == dst.resolve():
         raise ValueError("Cannot move path onto itself")
@@ -372,10 +383,13 @@ def move_path(
         raise ValueError("Cannot move directory into itself or its subdirectory")
 
     if dst.exists():
-        raise FileExistsError(dest_rel)
+        raise FileExistsError(f"Destination already exists: {dest_rel}")
 
     dst.parent.mkdir(parents=True, exist_ok=True)
-    shutil.move(str(src), str(dst))
+    try:
+        shutil.move(str(src), str(dst))
+    except OSError as e:
+        raise WorkspacePathError(f"Cannot move {source_rel} to {dest_rel}: {e}") from e
     return {
         "source": source_rel,
         "path": dest_rel,

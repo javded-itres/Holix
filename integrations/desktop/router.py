@@ -153,9 +153,11 @@ def create_studio_router(
         try:
             return delete_path(profile, body.path, workspace_root=studio_workspace_root)
         except FileNotFoundError as e:
-            raise HTTPException(status_code=404, detail=str(e)) from e
+            raise HTTPException(status_code=404, detail=str(e) or "Path not found") from e
         except WorkspacePathError as e:
             raise HTTPException(status_code=400, detail=str(e)) from e
+        except OSError as e:
+            raise HTTPException(status_code=500, detail=f"Delete failed: {e}") from e
 
     @router.post("/api/files/move", dependencies=[Depends(require_auth)])
     async def files_move(body: MovePathBody) -> dict[str, Any]:
@@ -168,13 +170,13 @@ def create_studio_router(
                 workspace_root=studio_workspace_root,
             )
         except FileNotFoundError as e:
-            raise HTTPException(status_code=404, detail=str(e)) from e
+            raise HTTPException(status_code=404, detail=str(e) or "Path not found") from e
         except FileExistsError as e:
-            raise HTTPException(status_code=409, detail=str(e)) from e
-        except NotADirectoryError as e:
+            raise HTTPException(status_code=409, detail=str(e) or "Destination already exists") from e
+        except (WorkspacePathError, ValueError, NotADirectoryError) as e:
             raise HTTPException(status_code=400, detail=str(e)) from e
-        except (WorkspacePathError, ValueError) as e:
-            raise HTTPException(status_code=400, detail=str(e)) from e
+        except OSError as e:
+            raise HTTPException(status_code=500, detail=f"Move failed: {e}") from e
 
     @router.post("/api/files/upload", dependencies=[Depends(require_auth)])
     async def files_upload(

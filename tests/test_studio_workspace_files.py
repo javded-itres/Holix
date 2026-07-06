@@ -153,6 +153,21 @@ def test_move_file_and_directory(studio_profile, studio_profile_ws) -> None:
     assert (studio_profile_ws / "lib").is_dir()
 
 
+def test_move_into_nonexistent_path_uses_full_destination(studio_profile, studio_profile_ws) -> None:
+    write_file(studio_profile, "note.txt", "hi", create_only=True, workspace_root=studio_profile_ws)
+    create_directory(studio_profile, "tests", workspace_root=studio_profile_ws)
+
+    moved = move_path(
+        studio_profile,
+        "note.txt",
+        "tests/tttt",
+        into=True,
+        workspace_root=studio_profile_ws,
+    )
+    assert moved["path"] == "tests/tttt"
+    assert (studio_profile_ws / "tests" / "tttt").read_text(encoding="utf-8") == "hi"
+
+
 def test_move_directory_into_self_fails(studio_profile, studio_profile_ws) -> None:
     create_directory(studio_profile, "pkg", workspace_root=studio_profile_ws)
     with pytest.raises(ValueError, match="subdirectory"):
