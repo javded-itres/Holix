@@ -14,13 +14,24 @@
   </header>
   <main class="layout">
     <aside class="panel files-panel">
-      <div class="panel-title">Workspace</div>
+      <div class="panel-title">
+        <span>Workspace</span>
+        <div class="panel-actions">
+          <button type="button" id="new-file-btn" class="btn small" title="New file">+ File</button>
+          <button type="button" id="upload-btn" class="btn small" title="Upload">Upload</button>
+        </div>
+      </div>
+      <div id="selected-dir" class="selected-dir muted">/</div>
       <div id="file-tree" class="file-tree"></div>
+      <input type="file" id="file-upload" class="hidden" multiple />
     </aside>
     <section class="panel editor-panel">
       <div class="panel-title">
         <span id="editor-title">Editor</span>
-        <button id="diff-toggle" class="btn small hidden" type="button">Show diff</button>
+        <div class="panel-actions">
+          <button type="button" id="save-btn" class="btn small primary hidden" disabled>Save</button>
+          <button id="diff-toggle" class="btn small hidden" type="button">Show diff</button>
+        </div>
       </div>
       <div id="editor" class="editor-host"></div>
       <div id="diff-editor" class="editor-host hidden"></div>
@@ -38,6 +49,6 @@
     </section>
   </main>
   <script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.52.2/min/vs/loader.js"></script>
-  <script src="/studio/assets/app.js?v=3" type="module"></script>
+  <script src="/studio/assets/app.js?v=4" type="module"></script>
 </body>
 </html>

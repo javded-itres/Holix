@@ -49,6 +49,8 @@ _TEXT_SUFFIXES = frozenset(
     }
 )
 _SKIP_DIR_NAMES = frozenset({".git", "__pycache__", ".venv", "node_modules", ".runtime-cache"})
+_MAX_WRITE_BYTES = 512_000
+_MAX_UPLOAD_BYTES = 5_000_000
 
 
 class WorkspacePathError(ValueError):
@@ -90,6 +92,22 @@ def resolve_studio_workspace_root(
         return Path(config.workspace_root).expanduser().resolve()
     base = Path(serve_cwd or Path.cwd()).expanduser().resolve()
     return base
+
+
+def _validate_file_name(name: str) -> str:
+    text = (name or "").strip()
+    if not text or text in {".", ".."}:
+        raise WorkspacePathError("Invalid file name")
+    if "/" in text or "\\" in text or "\0" in text:
+        raise WorkspacePathError("File name cannot contain path separators")
+    return text
+
+
+def _ensure_writable_text_path(path: Path) -> None:
+    suffix = path.suffix.lower()
+    if suffix and suffix not in _TEXT_SUFFIXES:
+        mime, _ = mimetypes.guess_type(path.name)
+        raise ValueError(f"Binary or unsupported file type: {mime or suffix}")
 
 
 def _normalize_rel(rel: str) -> str:
@@ -230,6 +248,80 @@ def read_file(
         "size": size,
         "language": _language_for_path(path),
     }
+
+
+def write_file(
+    profile: str,
+    rel_path: str,
+    content: str,
+    *,
+    create_only: bool = False,
+    max_bytes: int = _MAX_WRITE_BYTES,
+    workspace_root: Path | None = None,
+    serve_cwd: Path | str | None = None,
+) -> dict[str, Any]:
+    """Create or overwrite a UTF-8 text file inside the workspace."""
+    rel = _normalize_rel(rel_path)
+    if not rel:
+        raise WorkspacePathError("File path is required")
+    path = resolve_workspace_path(
+        profile,
+        rel,
+        workspace_root=workspace_root,
+        serve_cwd=serve_cwd,
+    )
+    _ensure_writable_text_path(path)
+    existed = path.exists()
+    if existed:
+        if create_only:
+            raise FileExistsError(rel)
+        if path.is_dir():
+            raise IsADirectoryError(rel)
+    else:
+        path.parent.mkdir(parents=True, exist_ok=True)
+
+    encoded = content.encode("utf-8")
+    if len(encoded) > max_bytes:
+        raise ValueError(f"File too large ({len(encoded)} bytes; max {max_bytes})")
+    path.write_text(content, encoding="utf-8")
+    return {
+        "path": rel,
+        "size": len(encoded),
+        "language": _language_for_path(path),
+        "created": not existed,
+    }
+
+
+def upload_file(
+    profile: str,
+    directory: str,
+    filename: str,
+    data: bytes,
+    *,
+    overwrite: bool = False,
+    max_bytes: int = _MAX_UPLOAD_BYTES,
+    workspace_root: Path | None = None,
+    serve_cwd: Path | str | None = None,
+) -> dict[str, Any]:
+    """Upload one file into a workspace directory (binary-safe)."""
+    safe_name = _validate_file_name(filename)
+    parent_rel = _normalize_rel(directory)
+    rel = f"{parent_rel}/{safe_name}" if parent_rel else safe_name
+    path = resolve_workspace_path(
+        profile,
+        rel,
+        workspace_root=workspace_root,
+        serve_cwd=serve_cwd,
+    )
+    if path.exists() and not overwrite:
+        raise FileExistsError(rel)
+    if path.is_dir():
+        raise IsADirectoryError(rel)
+    if len(data) > max_bytes:
+        raise ValueError(f"File too large ({len(data)} bytes; max {max_bytes})")
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_bytes(data)
+    return {"path": rel, "size": len(data)}
 
 
 def _language_for_path(path: Path) -> str:

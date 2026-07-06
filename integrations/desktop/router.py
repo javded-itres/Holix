@@ -8,8 +8,9 @@ import logging
 from pathlib import Path
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException, Query, WebSocket, WebSocketDisconnect
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile, WebSocket, WebSocketDisconnect
 from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
+from pydantic import BaseModel, Field
 from starlette.requests import Request
 
 from integrations.desktop.security import studio_token_valid
@@ -20,11 +21,19 @@ from integrations.desktop.workspace_files import (
     read_file,
     resolve_studio_workspace_root,
     stat_file,
+    upload_file,
+    write_file,
 )
 
 logger = logging.getLogger(__name__)
 
 STUDIO_PREFIX = "/studio"
+
+
+class WriteFileBody(BaseModel):
+    path: str = Field(..., min_length=1)
+    content: str = ""
+    create_only: bool = False
 
 
 def _static_dir() -> Path:
@@ -94,6 +103,45 @@ def create_studio_router(
         except FileNotFoundError as e:
             raise HTTPException(status_code=404, detail=str(e)) from e
         except WorkspacePathError as e:
+            raise HTTPException(status_code=400, detail=str(e)) from e
+
+    @router.post("/api/files/write", dependencies=[Depends(require_auth)])
+    async def files_write(body: WriteFileBody) -> dict[str, Any]:
+        try:
+            return write_file(
+                profile,
+                body.path,
+                body.content,
+                create_only=body.create_only,
+                workspace_root=studio_workspace_root,
+            )
+        except FileExistsError as e:
+            raise HTTPException(status_code=409, detail=str(e)) from e
+        except FileNotFoundError as e:
+            raise HTTPException(status_code=404, detail=str(e)) from e
+        except (WorkspacePathError, IsADirectoryError, ValueError) as e:
+            raise HTTPException(status_code=400, detail=str(e)) from e
+
+    @router.post("/api/files/upload", dependencies=[Depends(require_auth)])
+    async def files_upload(
+        file: UploadFile = File(...),
+        directory: str = Form(""),
+    ) -> dict[str, Any]:
+        try:
+            data = await file.read()
+            name = file.filename or "upload.bin"
+            # Strip any path components browsers may include (e.g. C:\fakepath\file.txt)
+            name = Path(name).name
+            return upload_file(
+                profile,
+                directory,
+                name,
+                data,
+                workspace_root=studio_workspace_root,
+            )
+        except FileExistsError as e:
+            raise HTTPException(status_code=409, detail=str(e)) from e
+        except (WorkspacePathError, IsADirectoryError, ValueError) as e:
             raise HTTPException(status_code=400, detail=str(e)) from e
 
     @router.websocket("/ws")

@@ -75,6 +75,30 @@ def test_studio_index(studio_client) -> None:
     assert "HOLIX_STUDIO_TOKEN" in res.text
 
 
+def test_files_write_and_upload(studio_client) -> None:
+    client, _ = studio_client
+    headers = {"Authorization": "Bearer test-token"}
+    res = client.post(
+        "/studio/api/files/write",
+        headers=headers,
+        json={"path": "new.txt", "content": "draft", "create_only": True},
+    )
+    assert res.status_code == 200
+    assert res.json()["path"] == "new.txt"
+
+    res = client.get("/studio/api/files/read?path=new.txt", headers=headers)
+    assert res.json()["content"] == "draft"
+
+    res = client.post(
+        "/studio/api/files/upload",
+        headers=headers,
+        data={"directory": ""},
+        files={"file": ("uploaded.txt", b"from browser", "text/plain")},
+    )
+    assert res.status_code == 200
+    assert res.json()["path"] == "uploaded.txt"
+
+
 def test_assets_without_auth(studio_client) -> None:
     client, _ = studio_client
     res = client.get("/studio/assets/styles.css")
