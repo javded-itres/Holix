@@ -52,6 +52,20 @@ def test_read_file(studio_profile, studio_profile_ws) -> None:
     assert data["language"] == "python"
 
 
+def test_read_log_file(studio_profile, studio_profile_ws) -> None:
+    (studio_profile_ws / "logs").mkdir()
+    (studio_profile_ws / "logs" / "helix_20260603.log").write_text(
+        "2026-06-03 INFO started\n",
+        encoding="utf-8",
+    )
+    data = read_file(
+        studio_profile,
+        "logs/helix_20260603.log",
+        workspace_root=studio_profile_ws,
+    )
+    assert "INFO started" in data["content"]
+
+
 def test_path_traversal_blocked(studio_profile, studio_profile_ws) -> None:
     with pytest.raises(WorkspacePathError):
         resolve_workspace_path(

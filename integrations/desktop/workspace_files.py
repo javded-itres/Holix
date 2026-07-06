@@ -46,6 +46,27 @@ _TEXT_SUFFIXES = frozenset(
         ".env",
         ".gitignore",
         ".dockerfile",
+        ".log",
+        ".csv",
+        ".tsv",
+        ".markdown",
+        ".rst",
+        ".htm",
+        ".properties",
+    }
+)
+_TEXT_MIME_TYPES = frozenset(
+    {
+        "application/json",
+        "application/xml",
+        "application/yaml",
+        "application/x-yaml",
+        "application/javascript",
+        "application/x-sh",
+        "application/sql",
+        "application/csv",
+        "application/toml",
+        "inode/x-empty",
     }
 )
 _SKIP_DIR_NAMES = frozenset({".git", "__pycache__", ".venv", "node_modules", ".runtime-cache"})
@@ -103,11 +124,42 @@ def _validate_file_name(name: str) -> str:
     return text
 
 
-def _ensure_writable_text_path(path: Path) -> None:
+def _guess_mime(path: Path) -> str | None:
+    mime, _ = mimetypes.guess_type(path.name)
+    return mime
+
+
+def _is_allowed_text_path(path: Path) -> bool:
     suffix = path.suffix.lower()
-    if suffix and suffix not in _TEXT_SUFFIXES:
-        mime, _ = mimetypes.guess_type(path.name)
-        raise ValueError(f"Binary or unsupported file type: {mime or suffix}")
+    if not suffix or suffix in _TEXT_SUFFIXES:
+        return True
+    mime = _guess_mime(path)
+    if mime and (mime.startswith("text/") or mime in _TEXT_MIME_TYPES):
+        return True
+    return False
+
+
+def _looks_like_utf8_text(path: Path, *, sample_bytes: int = 8192) -> bool:
+    try:
+        with path.open("rb") as handle:
+            chunk = handle.read(sample_bytes)
+        if b"\x00" in chunk:
+            return False
+        chunk.decode("utf-8")
+        return True
+    except (OSError, UnicodeDecodeError):
+        return False
+
+
+def _reject_unreadable_text_path(path: Path) -> None:
+    if _is_allowed_text_path(path) or _looks_like_utf8_text(path):
+        return
+    mime = _guess_mime(path)
+    raise ValueError(f"Binary or unsupported file type: {mime or path.suffix.lower() or path.name}")
+
+
+def _ensure_writable_text_path(path: Path) -> None:
+    _reject_unreadable_text_path(path)
 
 
 def _normalize_rel(rel: str) -> str:
@@ -203,12 +255,13 @@ def stat_file(
     if not path.exists():
         raise FileNotFoundError(rel_path)
     st = path.stat()
-    suffix = path.suffix.lower()
     return {
         "path": _normalize_rel(rel_path) or path.name,
         "kind": "directory" if path.is_dir() else "file",
         "size": st.st_size,
-        "readable_text": path.is_file() and (suffix in _TEXT_SUFFIXES or not suffix),
+        "readable_text": path.is_file() and (
+            _is_allowed_text_path(path) or _looks_like_utf8_text(path)
+        ),
         "language": _language_for_path(path),
     }
 
@@ -232,10 +285,7 @@ def read_file(
     size = path.stat().st_size
     if size > max_bytes:
         raise ValueError(f"File too large ({size} bytes; max {max_bytes})")
-    suffix = path.suffix.lower()
-    if suffix not in _TEXT_SUFFIXES and suffix:
-        mime, _ = mimetypes.guess_type(path.name)
-        raise ValueError(f"Binary or unsupported file type: {mime or suffix}")
+    _reject_unreadable_text_path(path)
 
     try:
         content = path.read_text(encoding="utf-8")
