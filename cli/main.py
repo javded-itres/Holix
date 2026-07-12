@@ -84,11 +84,7 @@ def _register_base_commands() -> None:
 
     from core.extensions.registry import register_cli_extensions
 
-    registered = register_cli_extensions(app)
-    if "studio" not in registered:
-        from cli.commands.studio import app as studio_stub
-
-        app.add_typer(studio_stub, name="studio")
+    register_cli_extensions(app)
 
     _BASE_COMMANDS_REGISTERED = True
 
