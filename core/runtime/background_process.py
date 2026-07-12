@@ -278,6 +278,10 @@ class BackgroundProcessRegistry:
                 out.append(rec)
         return sorted(out, key=lambda r: r.started_at, reverse=True)
 
+    def list_for_profile(self, *, profile: str) -> list[BackgroundProcessRecord]:
+        """All background processes for a profile (any conversation)."""
+        return sorted(self._records_for_profile(profile), key=lambda r: r.started_at, reverse=True)
+
     def active_for_scope(self, *, profile: str, conversation_id: str) -> BackgroundProcessRecord | None:
         for rec in self.list_for_scope(profile=profile, conversation_id=conversation_id):
             if rec.is_running():
