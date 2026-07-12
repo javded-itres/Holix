@@ -385,8 +385,18 @@ class ProfileManager:
             self.save_profile(profile, config, storage_mode=storage_mode)
 
         self._last_created_access_key = None
+        self._last_created_studio_password = None
         if with_access_key and not profile_has_access_key(profile):
             self._last_created_access_key = store_profile_access_key(profile)
+
+        try:
+            from holix_studio.credentials import ensure_studio_credentials
+
+            studio_pwd, studio_created = ensure_studio_credentials(profile)
+            if studio_created:
+                self._last_created_studio_password = studio_pwd
+        except ImportError:
+            pass
 
         return config
 
@@ -395,6 +405,12 @@ class ProfileManager:
         key = self._last_created_access_key
         self._last_created_access_key = None
         return key
+
+    def pop_last_created_studio_password(self) -> str | None:
+        """Return Studio login password from the most recent create_profile() call."""
+        pwd = self._last_created_studio_password
+        self._last_created_studio_password = None
+        return pwd
 
     def load_profile(self, profile: str) -> ProfileConfig:
         """Load profile configuration.

@@ -127,6 +127,7 @@ def profile_create(
 
     manager.create_profile(name, with_access_key=protect, inherit_global=inherit_global)
     access_key = manager.pop_last_created_access_key()
+    studio_password = manager.pop_last_created_studio_password()
     mode = "inherits global settings" if inherit_global else "standalone (clean)"
     print_success(f"Created profile '{name}' ({mode})")
     if inherit_global:
@@ -144,7 +145,16 @@ def profile_create(
             title="Profile access key",
             border_style="yellow",
         )
-    else:
+    if studio_password:
+        print_panel(
+            f"[cyan]{studio_password}[/cyan]\n\n"
+            "Save this password — it is shown only once.\n"
+            f"Studio sign-in username: [bold]{name}[/bold]\n"
+            f"Open Studio: [bold]holix -p {name} studio open[/bold]",
+            title="Studio login password",
+            border_style="yellow",
+        )
+    if not access_key:
         print_info(f"Switch freely: [bold]holix -p {name}[/bold]")
         print_info("Protect later: [cyan]holix -p {name} profile key init[/cyan]")
 
