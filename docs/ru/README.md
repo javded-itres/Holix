@@ -41,6 +41,12 @@
 - [TELEGRAM.md](TELEGRAM.md) · [MAX.md](MAX.md)
 - [GATEWAY.md](GATEWAY.md) · [GATEWAY_API.md](GATEWAY_API.md)
 
+### Экосистема расширений
+
+- [holix-sdk](https://github.com/javded-itres/holix-sdk) — отдельный пакет (PyPI: `holix-sdk`)
+- [EXTENSIONS.md](EXTENSIONS.md) — создание расширений (пошагово, копия в репозитории holix-sdk)
+- [BUILD_WITHOUT_HOLIX.md](../en/BUILD_WITHOUT_HOLIX.md) · [EXTENSION_GATEWAY.md](../en/EXTENSION_GATEWAY.md)
+
 ### Безопасность и эксплуатация
 
 - [SECURITY.md](SECURITY.md) · [TERMINAL_SECURITY.md](TERMINAL_SECURITY.md)

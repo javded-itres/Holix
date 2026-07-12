@@ -105,7 +105,13 @@ class HolixAgent:
         self._initialized = False
         self._event_context: EventContext | None = None
         self.agent_slot: str = "main"
+        self._active_model_config: ModelConfig | None = None
         self._model_manager = None
+
+    @property
+    def active_model_config(self) -> ModelConfig | None:
+        """Session-level model override from set_active_model_config, if any."""
+        return self._active_model_config
 
     @property
     def model_manager(self):
@@ -167,6 +173,7 @@ class HolixAgent:
         if model_slot_id is not None:
             self.agent_slot = normalize_skill_agent_slot(model_slot_id)
 
+        self._active_model_config = model_config
         temperature = model_config.temperature
         context_window = model_config.context_window or self.config.context_window
 
@@ -251,6 +258,9 @@ class HolixAgent:
         await self.memory.initialize_db()
 
         self.tools.register_all()
+        from core.extensions.agent_registry import register_agent_extensions
+
+        register_agent_extensions(self)
         from core.config_utils import is_subagents_enabled
 
         if is_subagents_enabled(self.config):

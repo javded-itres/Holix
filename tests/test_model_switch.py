@@ -71,6 +71,7 @@ def test_agent_set_active_model_config():
     assert agent.model == "other-model"
     assert agent.loop.model == "other-model"
     assert agent.agent_slot == "coder"
+    assert agent.active_model_config == new_mc
     assert agent.context_manager.context_window == 32_768
 
 
@@ -128,6 +129,26 @@ def test_apply_model_choice_sync_tui_host():
     assert label == "p/m"
     agent.set_active_model_config.assert_called_once()
     assert host._resolved_model == "m"
+
+
+def test_provider_model_slot_uses_main_agent_slot():
+    from core.agent import HolixAgent
+    from core.skills.assignments import normalize_skill_agent_slot
+
+    assert normalize_skill_agent_slot("prov:litellm:smart") == "main"
+
+    cfg = HolixRuntimeConfig.from_settings()
+    agent = HolixAgent(config=cfg, enable_monitoring=False)
+    mc = ModelConfig(
+        provider="litellm",
+        model="smart",
+        base_url="http://smart-gateway/v1",
+        api_key="k",
+    )
+    agent.set_active_model_config(mc, model_slot_id="prov:litellm:smart")
+    assert agent.agent_slot == "main"
+    assert agent.model == "smart"
+    assert agent.active_model_config == mc
 
 
 def test_choice_for_provider_model_slot():

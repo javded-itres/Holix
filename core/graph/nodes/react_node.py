@@ -241,6 +241,9 @@ async def react_node(state: HolixGraphState, config: RunnableConfig) -> dict:
 
     agent_slot = getattr(agent, "agent_slot", "main") if agent else "main"
     model_manager = getattr(agent, "model_manager", None) if agent else None
+    primary_override = (
+        getattr(agent, "active_model_config", None) if agent else None
+    )
     llm_timeout_s = _llm_step_timeout_s(agent)
     max_tokens = _llm_max_tokens(agent, model_manager, agent_slot)
 
@@ -261,6 +264,7 @@ async def react_node(state: HolixGraphState, config: RunnableConfig) -> dict:
                 temperature,
                 model_manager=model_manager,
                 agent_slot=agent_slot,
+                primary_override=primary_override,
                 on_switch=_on_fallback_switch,
                 llm_timeout_s=llm_timeout_s,
                 max_tokens=max_tokens,
@@ -277,6 +281,7 @@ async def react_node(state: HolixGraphState, config: RunnableConfig) -> dict:
                 temperature,
                 model_manager=model_manager,
                 agent_slot=agent_slot,
+                primary_override=primary_override,
                 on_switch=_on_fallback_switch,
                 llm_timeout_s=llm_timeout_s,
                 max_tokens=max_tokens,
@@ -343,6 +348,7 @@ async def _react_non_streaming(
     *,
     model_manager=None,
     agent_slot: str = "main",
+    primary_override=None,
     on_switch=None,
     llm_timeout_s: float = _DEFAULT_LLM_STEP_TIMEOUT_S,
     max_tokens: int | None = None,
@@ -357,6 +363,7 @@ async def _react_non_streaming(
             return await chat_completions_with_fallback(
                 model_manager,
                 agent_name=agent_slot,
+                primary_override=primary_override,
                 on_switch=on_switch,
                 messages=api_messages,
                 tools=tools,
@@ -459,6 +466,52 @@ async def _react_non_streaming(
         }
 
 
+def _has_streaming_tool_calls(tool_calls_dict: dict[int, dict[str, Any]]) -> bool:
+    return any(
+        (tc.get("function") or {}).get("name", "").strip()
+        for tc in tool_calls_dict.values()
+    )
+
+
+def _streaming_tool_calls_step_result(
+    *,
+    state,
+    agent,
+    conversation_id: str,
+    step_count: int,
+    current_content: str,
+    tool_calls_dict: dict[int, dict[str, Any]],
+) -> dict:
+    """Return a ReAct step that executes accumulated streaming tool calls."""
+    tool_calls = list(tool_calls_dict.values())
+    messages = list(state.get("messages", []))
+    messages.append(
+        {
+            "role": "assistant",
+            "content": current_content,
+            "tool_calls": tool_calls,
+        }
+    )
+
+    for tc_data in tool_calls:
+        if agent and hasattr(agent, "emit"):
+            agent.emit(
+                ToolCallStartEvent(
+                    tool_name=tc_data["function"]["name"],
+                    tool_id=tc_data["id"],
+                    arguments_raw=tc_data["function"]["arguments"],
+                    conversation_id=conversation_id,
+                )
+            )
+
+    return {
+        "messages": messages,
+        "tool_calls": tool_calls,
+        "step_count": step_count,
+        "is_final": False,
+    }
+
+
 async def _react_streaming(
     state,
     agent,
@@ -471,6 +524,7 @@ async def _react_streaming(
     *,
     model_manager=None,
     agent_slot: str = "main",
+    primary_override=None,
     on_switch=None,
     llm_timeout_s: float = _DEFAULT_LLM_STEP_TIMEOUT_S,
     max_tokens: int | None = None,
@@ -485,6 +539,7 @@ async def _react_streaming(
             return await run_with_provider_fallback(
                 model_manager,
                 agent_name=agent_slot,
+                primary_override=primary_override,
                 on_switch=on_switch,
                 factory=lambda cfg, llm_client: llm_client.chat.completions.create(
                     model=cfg.model,
@@ -583,6 +638,18 @@ async def _react_streaming(
             if finish_reason:
                 last_finish_reason = finish_reason
 
+            if finish_reason in ("stop", "tool_calls") and _has_streaming_tool_calls(
+                tool_calls_dict
+            ):
+                return _streaming_tool_calls_step_result(
+                    state=state,
+                    agent=agent,
+                    conversation_id=conversation_id,
+                    step_count=step_count,
+                    current_content=current_content,
+                    tool_calls_dict=tool_calls_dict,
+                )
+
             if finish_reason == "stop":
                 final_response = resolve_assistant_text(
                     content=current_content,
@@ -647,30 +714,24 @@ async def _react_streaming(
                 }
 
             elif finish_reason == "tool_calls":
-                # Tool calls via streaming
-                tool_calls = list(tool_calls_dict.values())
-                messages = list(state.get("messages", []))
-                messages.append({
-                    "role": "assistant",
-                    "content": current_content,
-                    "tool_calls": tool_calls,
-                })
+                return _streaming_tool_calls_step_result(
+                    state=state,
+                    agent=agent,
+                    conversation_id=conversation_id,
+                    step_count=step_count,
+                    current_content=current_content,
+                    tool_calls_dict=tool_calls_dict,
+                )
 
-                for tc_data in tool_calls:
-                    if agent and hasattr(agent, "emit"):
-                        agent.emit(ToolCallStartEvent(
-                            tool_name=tc_data["function"]["name"],
-                            tool_id=tc_data["id"],
-                            arguments_raw=tc_data["function"]["arguments"],
-                            conversation_id=conversation_id,
-                        ))
-
-                return {
-                    "messages": messages,
-                    "tool_calls": tool_calls,
-                    "step_count": step_count,
-                    "is_final": False,
-                }
+    if _has_streaming_tool_calls(tool_calls_dict):
+        return _streaming_tool_calls_step_result(
+            state=state,
+            agent=agent,
+            conversation_id=conversation_id,
+            step_count=step_count,
+            current_content=current_content,
+            tool_calls_dict=tool_calls_dict,
+        )
 
     # Stream ended without an explicit finish_reason — treat as final
     final_response = resolve_assistant_text(

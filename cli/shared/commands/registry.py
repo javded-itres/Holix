@@ -126,4 +126,14 @@ def all_slash_commands(
                 seen.add(cmd)
     except Exception:
         pass
+    try:
+        from core.extensions.agent_registry import agent_slash_commands
+
+        seen = {c for c, _ in out}
+        for spec in agent_slash_commands():
+            if spec.command not in seen:
+                out.append((spec.command, spec.description))
+                seen.add(spec.command)
+    except Exception:
+        pass
     return out

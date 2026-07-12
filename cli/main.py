@@ -60,18 +60,15 @@ def _register_base_commands() -> None:
     from cli.commands.install_cmd import app as install_app
     from cli.commands.launch import app as launch_app
     from cli.commands.logs import app as logs_app
-    from cli.commands.studio import app as studio_app
-    from cli.commands.max import register_max_command
+    from cli.commands.extensions import app as extensions_app
     from cli.commands.mcp import app as mcp_app
     from cli.commands.search import app as search_app
-    from cli.commands.telegram import register_telegram_command
     from cli.commands.update_cmd import app as update_app
 
     app.add_typer(config.app, name="config")
     app.add_typer(profile.app, name="profile")
     app.add_typer(models.app, name="models")
-    register_telegram_command(app)
-    register_max_command(app)
+    app.add_typer(extensions_app, name="extensions")
     app.add_typer(gateway.app, name="gateway")
     app.add_typer(doctor.app, name="doctor")
     app.add_typer(mcp_app, name="mcp")
@@ -84,7 +81,15 @@ def _register_base_commands() -> None:
     app.add_typer(update_app, name="update")
     app.add_typer(docs_app, name="docs")
     app.add_typer(launch_app, name="launch")
-    app.add_typer(studio_app, name="studio")
+
+    from core.extensions.registry import register_cli_extensions
+
+    registered = register_cli_extensions(app)
+    if "studio" not in registered:
+        from cli.commands.studio import app as studio_stub
+
+        app.add_typer(studio_stub, name="studio")
+
     _BASE_COMMANDS_REGISTERED = True
 
 

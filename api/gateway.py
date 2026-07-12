@@ -20,7 +20,6 @@ from fastapi.responses import PlainTextResponse
 from integrations.max.gateway_routes import (
     init_max_webhook,
     max_gateway_state,
-    register_max_routes,
 )
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
@@ -152,14 +151,9 @@ app.include_router(holix_telegram.router)
 app.include_router(holix_max.router)
 app.include_router(docs_chat_router)
 
-try:
-    from integrations.desktop.router import mount_studio_on_gateway
+from core.extensions.registry import mount_gateway_extensions
 
-    mount_studio_on_gateway(app)
-except ImportError:
-    pass
-
-register_max_routes(app)
+mount_gateway_extensions(app)
 
 
 @app.get("/")

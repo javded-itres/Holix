@@ -1,6 +1,28 @@
+import os
 from typing import Any
 
 from core.project.holix_md import HOLIX_MD_REL_PATH, task_context_note
+
+
+def format_studio_workspace_block() -> str:
+    """When Holix Studio is running, tell the agent which directory to use for files."""
+    mode = (os.getenv("HOLIX_STUDIO_WORKSPACE_MODE") or "").strip().lower()
+    root = (os.getenv("HOLIX_STUDIO_WORKSPACE_ROOT") or "").strip()
+    if not mode or not root:
+        return ""
+    if mode == "cwd":
+        return (
+            "## Holix Studio working directory\n\n"
+            f"Studio is in **cwd** mode. Create and edit all project files under:\n"
+            f"`{root}`\n\n"
+            "Use relative paths from that directory. Do **not** use the profile "
+            "`workspace/` folder unless the user explicitly asks."
+        )
+    return (
+        "## Holix Studio working directory\n\n"
+        f"Studio is in **profile workspace** mode. Create and edit project files only under:\n"
+        f"`{root}`"
+    )
 
 
 def language_instruction_block(*, locale: str | None = None, profile_name: str | None = None) -> str:
@@ -84,7 +106,7 @@ When the user asks for status (what you are doing, open tasks, progress) — cal
 
 ## Run, debug, and environment setup (mandatory)
 
-You are not a passive code generator. After creating or changing an application, **you** must make it runnable in the profile workspace — do not hand off "run npm install yourself" unless a command truly requires secrets or hardware you cannot access.
+You are not a passive code generator. After creating or changing an application, **you** must make it runnable in the current working directory (see Studio block below when in Holix Studio) — do not hand off "run npm install yourself" unless a command truly requires secrets or hardware you cannot access.
 
 ### Environment setup (do this before claiming progress)
 
@@ -149,6 +171,9 @@ Remember: You are a helpful, capable agent that learns and improves with each ta
     from core.project.holix_md import append_holix_project_context
 
     blocks = [lang_block, formatted_prompt.rstrip()]
+    studio_block = format_studio_workspace_block()
+    if studio_block:
+        blocks.append(studio_block)
     identity = format_identity_instructions(profile_name)
     if identity:
         blocks.append(identity)
@@ -156,6 +181,14 @@ Remember: You are a helpful, capable agent that learns and improves with each ta
     if user_block:
         blocks.append(user_block)
     blocks.append(format_soul_block(profile_name))
+    try:
+        from core.extensions.agent_registry import agent_prompt_fragment
+
+        ext_fragment = agent_prompt_fragment(profile_name or "default")
+        if ext_fragment:
+            blocks.append(ext_fragment)
+    except Exception:
+        pass
     return append_holix_project_context("\n\n".join(blocks))
 
 

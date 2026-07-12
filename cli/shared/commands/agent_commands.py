@@ -274,7 +274,9 @@ class AgentCommands:
             h.transcript_write(t("lang.invalid", lang, value=parts[1]))
             return
         h.transcript_write(t("lang.set", new_lang, code=new_lang.upper()))
-        if hasattr(h, "_refresh_status_bar"):
+        if hasattr(h, "on_locale_changed"):
+            await h.on_locale_changed()
+        elif hasattr(h, "_refresh_status_bar"):
             h._refresh_status_bar()
         if hasattr(h, "_sync_telegram_menu"):
             await h._sync_telegram_menu()

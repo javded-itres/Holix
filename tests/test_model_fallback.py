@@ -38,6 +38,17 @@ def _profile_with_providers() -> ProfileConfig:
     )
 
 
+def test_iter_fallback_configs_uses_runtime_override() -> None:
+    cfg = _profile_with_providers()
+    mm = ModelManager(cfg)
+    override = mm.get_provider_model_config("backup")
+    assert override is not None
+
+    chain = mm.iter_fallback_configs("main", primary_override=override)
+    assert chain[0].provider == "backup"
+    assert chain[0].model == "model-b"
+
+
 def test_iter_fallback_configs_order() -> None:
     cfg = _profile_with_providers()
     cfg.providers["primary"]["fallback_providers"] = ["local"]

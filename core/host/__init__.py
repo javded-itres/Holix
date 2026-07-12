@@ -1,0 +1,1 @@
+"""Shared host utilities for TUI, messengers, and Studio."""

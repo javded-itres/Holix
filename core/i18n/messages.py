@@ -453,6 +453,8 @@ When finished, confirm the absolute path written and give a 5–10 line summary 
         "plan.report.stack_tech": "Technology stack",
         "plan.report.stack_patterns": "Architectural patterns",
         "plan.report.stack_fixes": "Critical architectural fixes (vs original spec)",
+        "studio.wait_for_run": "Wait for the reply or press Stop.",
+        "studio.timeout": "Execution timed out. Try again or use /models.",
     },
     "ru": {
         "lang.current": "Язык интерфейса: {code}",
@@ -901,6 +903,8 @@ When finished, confirm the absolute path written and give a 5–10 line summary 
         "plan.report.stack_tech": "Стек технологий",
         "plan.report.stack_patterns": "Архитектурные паттерны",
         "plan.report.stack_fixes": "Критические архитектурные исправления (по сравнению с ТЗ)",
+        "studio.wait_for_run": "Дождитесь ответа или нажмите Stop.",
+        "studio.timeout": "Превышено время выполнения. Попробуйте ещё раз или /models.",
     },
 }
 

@@ -1,127 +1,33 @@
-"""Holix Studio — desktop and web IDE client."""
+"""Fallback when holix-studio extension is not installed."""
 
 from __future__ import annotations
 
 import typer
 
+_INSTALL_HINT = (
+    "Holix Studio is not installed.\n\n"
+    "Install the extension (separate repo, source-available license):\n"
+    "  uv tool install --force-reinstall --with holix-studio Holix\n"
+    "  # or editable checkout:\n"
+    "  pip install -e /path/to/holix-studio\n"
+    "  # or from git:\n"
+    "  pip install git+https://github.com/javded-itres/holix-studio.git\n\n"
+    "Then run: holix studio serve  |  holix studio open\n"
+    "Docs: https://github.com/javded-itres/holix-studio"
+)
+
 app = typer.Typer(
     name="studio",
-    help="Holix Studio (chat + workspace IDE) — local serve and Electron launcher",
-    no_args_is_help=True,
+    help="Holix Studio — install holix-studio extension to enable serve/open",
+    rich_markup_mode="rich",
 )
 
 
-@app.command("serve")
-def studio_serve(
-    profile: str = typer.Option(
-        "default",
-        "--profile",
-        "-p",
-        help="Holix profile",
-        show_default=True,
-    ),
-    host: str = typer.Option("127.0.0.1", "--host", help="Bind address"),
-    port: int = typer.Option(8788, "--port", help="HTTP port"),
-    token: str | None = typer.Option(
-        None,
-        "--token",
-        envvar="HOLIX_STUDIO_TOKEN",
-        help="Shared secret for browser/WebSocket access",
-    ),
-    allow_lan: bool = typer.Option(
-        False,
-        "--allow-lan",
-        help="Allow 0.0.0.0 bind (requires --token)",
-    ),
-    generate_token: bool = typer.Option(
-        True,
-        "--generate-token/--no-generate-token",
-        help="On loopback: create ephemeral token if --token omitted",
-    ),
-    cwd: str | None = typer.Option(
-        None,
-        "--cwd",
-        help="Base directory for --workspace cwd (default: directory where holix was started)",
-    ),
-    workspace: str = typer.Option(
-        "cwd",
-        "--workspace",
-        "-w",
-        help="Workspace scope: cwd (launch directory) or profile (profile workspace only)",
-        case_sensitive=False,
-    ),
-    open_browser: bool = typer.Option(
-        False,
-        "--open",
-        help="Open Studio in the default browser after start",
-    ),
-    headless: bool = typer.Option(
-        False,
-        "--headless",
-        help="Run without opening a browser (for CI/smoke)",
-    ),
-) -> None:
-    """Start Studio sidecar: static UI, files API, agent WebSocket."""
-    from integrations.desktop.security import StudioSecurityError, build_studio_policy
-    from integrations.desktop.serve import run_studio_server
-
+@app.callback(invoke_without_command=True)
+def studio_missing(ctx: typer.Context) -> None:
+    if ctx.invoked_subcommand is not None:
+        return
     from cli.utils.rich_console import print_error
-    from config import settings
 
-    try:
-        policy = build_studio_policy(
-            host=host,
-            cli_token=token,
-            allow_lan=allow_lan,
-            generate_token=generate_token,
-            is_production=settings.is_production,
-        )
-    except StudioSecurityError as e:
-        print_error(str(e))
-        raise typer.Exit(1) from e
-
-    from pathlib import Path
-
-    from integrations.desktop.workspace_files import normalize_studio_workspace_mode
-
-    try:
-        ws_mode = normalize_studio_workspace_mode(workspace)
-    except ValueError as e:
-        print_error(str(e))
-        raise typer.Exit(1) from e
-
-    run_studio_server(
-        profile,
-        policy,
-        port=port,
-        headless=headless,
-        open_browser=open_browser,
-        serve_cwd=Path(cwd).expanduser().resolve() if cwd else None,
-        workspace_mode=ws_mode,
-    )
-
-
-@app.command("open")
-def studio_open(
-    profile: str = typer.Option("default", "--profile", "-p", show_default=True),
-    workspace: str = typer.Option(
-        "cwd",
-        "--workspace",
-        "-w",
-        help="Workspace scope: cwd or profile",
-        case_sensitive=False,
-    ),
-) -> None:
-    """Launch Studio (starts serve and opens browser). Alias for serve --open."""
-    studio_serve(
-        profile=profile,
-        host="127.0.0.1",
-        port=8788,
-        token=None,
-        allow_lan=False,
-        generate_token=True,
-        cwd=None,
-        workspace=workspace,
-        open_browser=True,
-        headless=False,
-    )
+    print_error(_INSTALL_HINT)
+    raise typer.Exit(1)

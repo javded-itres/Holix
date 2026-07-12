@@ -44,15 +44,24 @@ def reload_os_companions(profile: str) -> dict[str, Any]:
     else:
         result["docs"] = "not_configured"
 
+    from cli.services.supervisor import (
+        _telegram_subprocess,
+        telegram_enabled,
+        telegram_should_start,
+    )
+
     if state.telegram_pid:
         if is_process_alive(state.telegram_pid):
             terminate_process(state.telegram_pid, grace=5.0)
-        from cli.services.supervisor import _telegram_subprocess
-
         proc = _telegram_subprocess(profile)
         result["telegram_subprocess"] = "restarted" if proc is not None else "stopped"
+    elif telegram_should_start(profile):
+        proc = _telegram_subprocess(profile)
+        result["telegram_subprocess"] = "started" if proc is not None else "stopped"
+    elif telegram_enabled(profile):
+        result["telegram_subprocess"] = "needs_aiogram"
     else:
-        result["telegram_subprocess"] = "in_process"
+        result["telegram_subprocess"] = "not_configured"
 
     if state.max_pid:
         if is_process_alive(state.max_pid):

@@ -212,6 +212,17 @@ def start_gateway_daemon(
     elif with_docs:
         print_warning("Documentation site was not started (see gateway.log)")
         print_info("Try: holix docs  — or reinstall: uv tool install . --force")
+
+    from cli.services.supervisor import telegram_enabled, telegram_should_start
+
+    if state.telegram_pid and is_process_alive(state.telegram_pid):
+        print_info(f"Telegram: running (pid={state.telegram_pid})")
+    elif telegram_should_start(profile):
+        print_warning("Telegram bot is starting (pid not recorded yet — check gateway.log)")
+    elif telegram_enabled(profile):
+        print_warning("Telegram bot was not started: aiogram is not installed")
+        print_info("Install: uv tool install --force-reinstall --with 'holix[telegram]' .")
+
     print_info(f"Logs: {state.log_file}")
     print_info("Stop: holix gateway stop")
 
@@ -291,11 +302,22 @@ def gateway_status(profile: str = "default") -> None:
         f"[cyan]Started:[/cyan] {state.started_at}",
         f"[cyan]Logs:[/cyan] {state.log_file}",
     ]
+    from cli.services.supervisor import telegram_enabled, telegram_should_start
+
     if state.telegram_pid:
         tg_alive = is_process_alive(state.telegram_pid)
         lines.append(
             f"[cyan]Telegram PID:[/cyan] {state.telegram_pid} "
             f"({'running' if tg_alive else 'stopped'})"
+        )
+    elif telegram_should_start(profile):
+        lines.append(
+            "[cyan]Telegram:[/cyan] configured (subprocess starting or stopped — check gateway.log)"
+        )
+    elif telegram_enabled(profile):
+        lines.append(
+            "[yellow]Telegram:[/yellow] token configured but aiogram not installed "
+            "(uv tool install --force-reinstall --with 'holix[telegram]' .)"
         )
     if state.max_pid:
         max_alive = is_process_alive(state.max_pid)

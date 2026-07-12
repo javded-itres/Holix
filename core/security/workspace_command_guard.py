@@ -80,6 +80,9 @@ def _path_tokens(command: str) -> list[str]:
     except ValueError:
         tokens = text.split()
     for match in _ABSOLUTE_PATH_RE.finditer(text):
+        start = match.start()
+        if start > 0 and text[start - 1] not in {" ", "\t", "\"", "'", ">", "|", ";", "&", "(", "\n"}:
+            continue
         tokens.append(match.group(0))
     return tokens
 

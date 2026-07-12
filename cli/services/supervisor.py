@@ -202,11 +202,11 @@ async def _run_supervisor_async(
         if with_docs
         else None
     )
+    tg_proc = _telegram_subprocess(profile)
     gateway_task = asyncio.create_task(_run_gateway_uvicorn(host, port), name="gateway")
-    telegram_task = asyncio.create_task(_run_telegram(profile), name="telegram")
     max_task = asyncio.create_task(_run_max(profile), name="max")
     cron_task = asyncio.create_task(_run_cron_scheduler(profile), name="cron")
-    tasks = (gateway_task, telegram_task, max_task, cron_task)
+    tasks = (gateway_task, max_task, cron_task)
 
     try:
         results = await asyncio.gather(*tasks, return_exceptions=True)
@@ -221,6 +221,7 @@ async def _run_supervisor_async(
                 task.cancel()
         await asyncio.gather(*tasks, return_exceptions=True)
         _terminate_proc(docs_proc)
+        _terminate_proc(tg_proc)
         print_info("All services stopped.")
 
 
@@ -271,9 +272,10 @@ def _telegram_subprocess(profile: str) -> subprocess.Popen[bytes] | None:
         return None
 
     env = os.environ.copy()
+    env["HOLIX_PROFILE"] = profile
     print_success(f"Telegram bot starting in subprocess (profile={profile})")
     proc = popen_background(
-        [sys.executable, "-m", "integrations.telegram.main"],
+        [sys.executable, "-m", "integrations.telegram.main", "--profile", profile],
         env=env,
     )
     if proc.pid:

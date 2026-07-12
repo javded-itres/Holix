@@ -45,6 +45,12 @@ Holix is a self-improving AI agent: memory, skills, MCP, CLI, TUI, API gateway, 
 - [TELEGRAM.md](TELEGRAM.md) · [MAX.md](MAX.md)
 - [GATEWAY.md](GATEWAY.md) · [GATEWAY_API.md](GATEWAY_API.md)
 
+### Extensions ecosystem
+
+- [holix-sdk](https://github.com/javded-itres/holix-sdk) — separate package (PyPI: `holix-sdk`)
+- [EXTENSIONS.md](EXTENSIONS.md) — create extensions (step-by-step, mirrored in holix-sdk repo)
+- [BUILD_WITHOUT_HOLIX.md](BUILD_WITHOUT_HOLIX.md) · [EXTENSION_GATEWAY.md](EXTENSION_GATEWAY.md)
+
 ### Security & operations
 
 - [SECURITY.md](SECURITY.md) · [TERMINAL_SECURITY.md](TERMINAL_SECURITY.md)
