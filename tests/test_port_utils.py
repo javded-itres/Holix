@@ -6,6 +6,7 @@ import socket
 from unittest.mock import patch
 
 from core.runtime.port_utils import (
+    extract_listen_ports_from_log,
     find_busy_ports,
     format_port_conflict_message,
     kill_listeners_on_ports,
@@ -41,6 +42,15 @@ def test_kill_listeners_on_ports_invokes_terminate(monkeypatch) -> None:
     result = kill_listeners_on_ports([8000])
     assert result == [9999]
     assert killed == [9999]
+
+
+def test_extract_listen_ports_from_log_nextjs_local_line() -> None:
+    log = (
+        "▲ Next.js 13.5.6\n"
+        "- Local:        http://localhost:3001\n"
+        "- ready started server on 0.0.0.0:3001\n"
+    )
+    assert extract_listen_ports_from_log(log) == [3001]
 
 
 def test_find_busy_ports_detects_occupied_port() -> None:

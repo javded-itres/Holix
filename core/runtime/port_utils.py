@@ -118,8 +118,10 @@ def extract_listen_ports_from_log(log_text: str) -> list[int]:
         return []
     patterns = (
         re.compile(r"https?://(?:127\.0\.0\.1|localhost|0\.0\.0\.0|\[::\]):(\d{2,5})\b", re.I),
+        re.compile(r"\bLocal:\s+https?://[^\s]*:(\d{2,5})\b", re.I),
         re.compile(r"\b(?:listening|ready|running)\s+(?:on\s+)?[^\s]*:(\d{2,5})\b", re.I),
         re.compile(r"\bUvicorn running on[^\n]*:(\d{2,5})\b", re.I),
+        re.compile(r"\bstarted server on[^\n]*:(\d{2,5})\b", re.I),
     )
     found: list[int] = []
     seen: set[int] = set()
