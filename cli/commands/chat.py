@@ -221,6 +221,12 @@ class ChatSession:
 
         # /clear
         elif cmd_lower == "/clear":
+            old_id = self.conversation_id
+            if self.agent and old_id:
+                try:
+                    await self.agent.memory.delete_conversation(old_id)
+                except Exception:
+                    pass
             self.conversation_id = f"cli_chat_{self.profile}_{int(asyncio.get_event_loop().time())}"
             print_success("Conversation cleared")
             return True

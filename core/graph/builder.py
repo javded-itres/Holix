@@ -4,6 +4,7 @@ Graph Builder — composes Holix LangGraph execution graphs by mode.
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from typing import Any
 
@@ -183,6 +184,18 @@ async def run_graph_loop(
             timeout_msg = f"Agent reached maximum steps ({max_steps}). Task may be too complex."
             await agent.memory.save_message(conversation_id, "assistant", timeout_msg)
 
+    except asyncio.CancelledError:
+        raise
+    except RuntimeError as e:
+        # LangGraph / LLM stream cleanup after cancel or wait_for timeout.
+        if "generator didn't stop after athrow" in str(e):
+            raise asyncio.CancelledError() from e
+        yield ErrorEvent(
+            error=f"Error during graph execution: {str(e)}",
+            error_type="execution",
+            recoverable=False,
+            conversation_id=conversation_id,
+        )
     except Exception as e:
         yield ErrorEvent(
             error=f"Error during graph execution: {str(e)}",

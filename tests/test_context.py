@@ -1,6 +1,6 @@
 """Tests for the context management system."""
 
-from unittest.mock import MagicMock
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 from core.agent_events import (
@@ -180,11 +180,56 @@ class TestContextManagerWithBus:
 
         # Check if any warning events were emitted
         warning_events = [e for e in self.events_received if isinstance(e, ContextWarningEvent)]
-        usage = self.manager.get_usage(messages)
+        usage = self.manager.get_usage(messages, include_system_reserve=True)
 
         if usage["percent"] >= 70:
             assert len(warning_events) > 0
             assert warning_events[0].level in ("warning", "critical")
+
+
+class TestContextManagerCompression:
+    @pytest.mark.asyncio
+    async def test_auto_compress_triggers_with_system_reserve(self):
+        counter = TokenCounter()
+        mock_compressor = MagicMock()
+        mock_compressor.compress = AsyncMock(
+            return_value=(
+                [
+                    {"role": "system", "content": "Context compressed. Summary…"},
+                    {"role": "user", "content": "latest"},
+                ],
+                "summary",
+            )
+        )
+        manager = ContextManager(
+            context_window=2000,
+            token_counter=counter,
+            compressor=mock_compressor,
+            system_prompt_reserve=1000,
+            compression_threshold=0.85,
+        )
+        messages = [{"role": "user", "content": "x" * 1200} for _ in range(12)]
+        result, was_compressed = await manager.auto_compress_if_needed(messages)
+        assert was_compressed is True
+        assert len(result) == 2
+        mock_compressor.compress.assert_awaited()
+
+    @pytest.mark.asyncio
+    async def test_compress_context_skips_when_tokens_do_not_shrink(self):
+        counter = TokenCounter()
+        messages = [{"role": "user", "content": "hello"}]
+        mock_compressor = MagicMock()
+        mock_compressor.compress = AsyncMock(return_value=(messages, ""))
+        manager = ContextManager(
+            context_window=1000,
+            token_counter=counter,
+            compressor=mock_compressor,
+        )
+        result, was_compressed = await manager.compress_context(
+            messages + [{"role": "user", "content": "world"}] * 5
+        )
+        assert was_compressed is False
+        assert result != []
 
 
 class TestContextCompressor:

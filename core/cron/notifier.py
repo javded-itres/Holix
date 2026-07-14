@@ -12,6 +12,7 @@ async def send_telegram_notification(
     message: str,
     *,
     bot_token: str | None = None,
+    profile: str = "default",
     parse_mode: str = "HTML",
 ) -> bool:
     """Send a message to Telegram chat using aiogram Bot."""
@@ -24,7 +25,7 @@ async def send_telegram_notification(
     if not bot_token:
         from integrations.telegram.config import load_telegram_settings
 
-        settings = load_telegram_settings()
+        settings = load_telegram_settings(profile)
         bot_token = settings.bot_token
 
     if not bot_token:

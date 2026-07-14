@@ -63,6 +63,14 @@ async def persist_cron_result(
             except Exception:
                 pass
 
+    if text:
+        try:
+            from core.cron.studio_notify import mirror_cron_to_studio_chat
+
+            mirror_cron_to_studio_chat(job, text)
+        except Exception:
+            pass
+
     return stored or ""
 
 

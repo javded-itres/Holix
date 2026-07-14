@@ -93,30 +93,50 @@ async def memory_retrieval_node(state: HolixGraphState, config: RunnableConfig) 
         except Exception as e:
             logger.warning(f"Procedural memory search failed: {e}")
 
-        # Also search legacy conversation memory for cross-session context
+        # Conversation memory: current session first, then other sessions.
         try:
-            conv_memories = await memory.search(
+            current_hits = await memory.search(
                 query=user_input,
                 top_k=5,
-                conversation_id=None,  # Search across ALL conversations
+                conversation_id=conversation_id,
             )
-            for mem in conv_memories:
+            for mem in current_hits:
+                meta = mem.get("metadata", {})
+                mem_type = meta.get("type", "")
+                source = "current session"
+                if mem_type == "context_compression":
+                    source = "compressed context (current session)"
+                distance = mem.get("distance")
+                relevance = f" (relevance: {1 - distance:.2f})" if distance is not None else ""
+                relevant_memories.append({
+                    "type": "conversation",
+                    "content": mem.get("content", "")[:500],
+                    "source": source,
+                    "relevance": relevance,
+                })
+
+            other_hits = await memory.search(
+                query=user_input,
+                top_k=5,
+                conversation_id=None,
+            )
+            for mem in other_hits:
                 meta = mem.get("metadata", {})
                 mem_conv = meta.get("conversation_id", "")
+                if mem_conv == conversation_id:
+                    continue
                 mem_type = meta.get("type", "")
-                # Only include from OTHER conversations or context compression summaries
-                if mem_conv != conversation_id or mem_type == "context_compression":
-                    source = f"session {mem_conv[:8]}" if mem_conv else "unknown"
-                    if mem_type == "context_compression":
-                        source = f"compressed context ({source})"
-                    distance = mem.get("distance")
-                    relevance = f" (relevance: {1 - distance:.2f})" if distance is not None else ""
-                    relevant_memories.append({
-                        "type": "conversation",
-                        "content": mem.get("content", "")[:500],
-                        "source": source,
-                        "relevance": relevance,
-                    })
+                source = f"session {mem_conv[:8]}" if mem_conv else "unknown"
+                if mem_type == "context_compression":
+                    source = f"compressed context ({source})"
+                distance = mem.get("distance")
+                relevance = f" (relevance: {1 - distance:.2f})" if distance is not None else ""
+                relevant_memories.append({
+                    "type": "conversation",
+                    "content": mem.get("content", "")[:500],
+                    "source": source,
+                    "relevance": relevance,
+                })
         except Exception as e:
             logger.warning(f"Conversation memory search failed: {e}")
 

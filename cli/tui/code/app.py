@@ -1114,6 +1114,13 @@ class HolixCodeApp(App):
             self.transcript_write("[dim]cleared[/dim]\n")
             self._auto_scroll = True
             self._restore_prompt_focus()
+            from cli.shared.commands.forget_memory import run_forget_memory
+
+            self.run_worker(
+                run_forget_memory(self, clear_ui=False),
+                name="forget-memory",
+                group="agent",
+            )
         except Exception:
             pass
 

@@ -124,6 +124,15 @@ class AgentCommands:
             elif lower.startswith("/profile"):
                 await self._profile(cmd)
 
+            elif lower in ("/forget", "/memory wipe", "/memory-wipe"):
+                from cli.shared.commands.forget_memory import run_forget_memory
+
+                worker = getattr(h, "run_worker", None)
+                if callable(worker):
+                    worker(run_forget_memory(h, clear_ui=True))
+                else:
+                    await run_forget_memory(h, clear_ui=True)
+
             elif lower.startswith("/memory-clear") or lower == "/memory clear":
                 h._memory_search_query = ""
                 h._memory_search_results = []

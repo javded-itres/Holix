@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import pytest
-from core.memory.conversation import _INDEXABLE_ROLES
+from core.memory.conversation import _SEARCHABLE_ROLES
 from core.memory.session_search import (
     format_memory_hit_line,
     format_memory_search_results,
@@ -18,9 +18,11 @@ from core.tools.execution_context import (
 from core.tools.session_memory import ReadSessionTool, SearchSessionsTool
 
 
-def test_indexable_roles_include_tool() -> None:
-    assert "tool" in _INDEXABLE_ROLES
-    assert "user" in _INDEXABLE_ROLES
+def test_searchable_roles_exclude_tool() -> None:
+    assert "tool" not in _SEARCHABLE_ROLES
+    assert "user" in _SEARCHABLE_ROLES
+    assert "assistant" in _SEARCHABLE_ROLES
+    assert "system" in _SEARCHABLE_ROLES
 
 
 def test_format_memory_hit_line_shows_session() -> None:
@@ -108,22 +110,36 @@ async def test_read_session_tool(memory_manager) -> None:
 
 
 @pytest.mark.asyncio
-async def test_tool_messages_indexed_in_search(memory_manager) -> None:
+async def test_tool_messages_excluded_from_search_but_kept_in_history(
+    memory_manager,
+) -> None:
+    conv_id = "tool-sess"
     long_tool_output = "x" * 50
     await memory_manager.save_message(
-        "tool-sess",
+        conv_id,
+        "user",
+        "Run diagnostics on the kubernetes cluster please",
+    )
+    await memory_manager.save_message(
+        conv_id,
         "tool",
         long_tool_output,
         metadata={"tool_name": "run_terminal_command"},
     )
-
-    results = await memory_manager.search("xxxxxxxx", top_k=3, conversation_id=None)
-    assert results
-    assert any(
-        r.get("metadata", {}).get("role") == "tool"
-        or r.get("metadata", {}).get("tool_name") == "run_terminal_command"
-        for r in results
+    await memory_manager.save_message(
+        conv_id,
+        "assistant",
+        "Diagnostics finished: cluster is healthy",
     )
+
+    history = await memory_manager.get_conversation(conv_id, limit=10)
+    assert len(history) == 3
+    assert any(m["role"] == "tool" for m in history)
+
+    results = await memory_manager.search("kubernetes diagnostics", top_k=5)
+    assert results
+    assert not any(r.get("metadata", {}).get("role") == "tool" for r in results)
+    assert any(r.get("metadata", {}).get("role") in {"user", "assistant"} for r in results)
 
 
 @pytest.mark.asyncio

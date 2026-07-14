@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import asyncio
 from collections.abc import AsyncGenerator
+from contextlib import aclosing
 from typing import Any
 
 from core.agent_events import AgentEvent
@@ -33,28 +35,36 @@ async def run_holix(
         if use_graph:
             from core.graph.builder import run_graph_loop
 
-            async for event in run_graph_loop(
-                agent,
-                user_input,
-                conversation_id,
-                stream=stream,
-                execution_mode=mode,
-            ):
-                if stamp:
-                    stamp(event)
-                yield event
+            async with aclosing(
+                run_graph_loop(
+                    agent,
+                    user_input,
+                    conversation_id,
+                    stream=stream,
+                    execution_mode=mode,
+                )
+            ) as events:
+                async for event in events:
+                    if stamp:
+                        stamp(event)
+                    yield event
         else:
             from core.agent_execution import run_agent_loop
 
-            async for event in run_agent_loop(
-                agent,
-                user_input,
-                conversation_id,
-                stream=stream,
-            ):
-                if stamp:
-                    stamp(event)
-                yield event
+            async with aclosing(
+                run_agent_loop(
+                    agent,
+                    user_input,
+                    conversation_id,
+                    stream=stream,
+                )
+            ) as events:
+                async for event in events:
+                    if stamp:
+                        stamp(event)
+                    yield event
+    except asyncio.CancelledError:
+        raise
     finally:
         if end:
             end()

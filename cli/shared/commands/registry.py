@@ -12,6 +12,8 @@ _STATIC_SLASH_COMMANDS: list[tuple[str, str]] = [
     ("/clear", "Clear transcript"),
     ("/metrics", "Show metrics"),
     ("/compress", "Compress conversation context (free context window)"),
+    ("/forget", "Clear session memory (DB + search index)"),
+    ("/memory wipe", "Clear session memory (alias)"),
     ("/init", "Deep project analysis → .holix/HOLIX.md"),
     ("/stream", "Toggle streaming"),
     ("/mode", "Cycle execution mode"),

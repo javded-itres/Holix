@@ -43,6 +43,32 @@ Example format:
 """
 
 
+def _turn_safe_recent_slice(
+    messages: list[dict[str, Any]],
+    keep_recent: int,
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    """Split *messages* without breaking assistant/tool_call turns."""
+    if len(messages) <= keep_recent:
+        return messages, []
+
+    start = max(0, len(messages) - keep_recent)
+    while start > 0 and messages[start].get("role") == "tool":
+        start -= 1
+    if start > 0 and messages[start].get("role") == "assistant" and messages[start].get(
+        "tool_calls"
+    ):
+        while start > 0 and messages[start - 1].get("role") == "tool":
+            start -= 1
+        if (
+            start > 0
+            and messages[start - 1].get("role") == "assistant"
+            and messages[start - 1].get("tool_calls")
+        ):
+            start -= 1
+
+    return messages[start:], messages[:start]
+
+
 class ContextCompressor:
     """Compress conversation history using LLM summarization.
 
@@ -82,8 +108,9 @@ class ContextCompressor:
         if len(soul_safe) <= keep_recent:
             return messages, ""
 
-        older_messages = soul_safe[:-keep_recent]
-        recent_messages = soul_safe[-keep_recent:]
+        recent_messages, older_messages = _turn_safe_recent_slice(soul_safe, keep_recent)
+        if not older_messages:
+            return messages, ""
 
         # Build text representation of older messages for summarization
         conversation_text = self._format_messages_for_summary(older_messages)

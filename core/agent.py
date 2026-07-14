@@ -443,18 +443,32 @@ class HolixAgent:
         from core.runtime.executor import run_holix
 
         final_response = ""
-        async for event in run_holix(
-            self,
-            user_input,
-            conversation_id,
-            stream=False,
-            execution_mode=execution_mode,
-        ):
-            self.emit(event)
-            if isinstance(event, FinalResponseEvent):
-                final_response = event.content
-            elif isinstance(event, ErrorEvent):
-                final_response = event.error
+        bus_final = ""
+
+        def _capture_bus_final(event: AgentEvent) -> None:
+            nonlocal bus_final
+            if isinstance(event, FinalResponseEvent) and (event.content or "").strip():
+                bus_final = event.content
+
+        self.events.subscribe(_capture_bus_final)
+        try:
+            async for event in run_holix(
+                self,
+                user_input,
+                conversation_id,
+                stream=False,
+                execution_mode=execution_mode,
+            ):
+                self.emit(event)
+                if isinstance(event, FinalResponseEvent):
+                    final_response = event.content
+                elif isinstance(event, ErrorEvent):
+                    final_response = event.error
+        finally:
+            self.events.unsubscribe(_capture_bus_final)
+
+        if not (final_response or "").strip() and (bus_final or "").strip():
+            final_response = bus_final
 
         from core.workspace import sanitize_paths_in_text
 

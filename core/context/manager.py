@@ -16,6 +16,10 @@ from core.context.token_counter import DEFAULT_CONTEXT_WINDOW, TokenCounter
 
 logger = logging.getLogger(__name__)
 
+# System prompt + tools + HOLIX.md overhead not stored in message history.
+DEFAULT_SYSTEM_PROMPT_RESERVE = 4096
+_MAX_AUTO_COMPRESS_ROUNDS = 3
+
 
 class ContextManager:
     """Manage conversation context window usage and automatic compression.
@@ -33,8 +37,9 @@ class ContextManager:
         token_counter: TokenCounter | None = None,
         compressor: ContextCompressor | None = None,
         event_bus: Any | None = None,
-        compression_threshold: float = 0.95,
-        warning_threshold: float = 0.8,
+        compression_threshold: float = 0.85,
+        warning_threshold: float = 0.70,
+        system_prompt_reserve: int = DEFAULT_SYSTEM_PROMPT_RESERVE,
     ):
         """Initialize the context manager.
 
@@ -43,8 +48,9 @@ class ContextManager:
             token_counter: TokenCounter instance for counting tokens.
             compressor: ContextCompressor instance for compressing history.
             event_bus: Optional AgentEventBus for emitting events.
-            compression_threshold: Fraction (0-1) at which auto-compress triggers (default 95%).
-            warning_threshold: Fraction (0-1) at which warnings are emitted (default 80%).
+            compression_threshold: Fraction (0-1) at which auto-compress triggers (default 85%).
+            warning_threshold: Fraction (0-1) at which warnings are emitted (default 70%).
+            system_prompt_reserve: Estimated tokens for system prompt not in history.
         """
         self.context_window = context_window
         self.token_counter = token_counter or TokenCounter()
@@ -52,6 +58,7 @@ class ContextManager:
         self.event_bus = event_bus
         self.compression_threshold = compression_threshold
         self.warning_threshold = warning_threshold
+        self.system_prompt_reserve = max(0, int(system_prompt_reserve))
 
         # Track last compression result
         self.last_summary: str = ""
@@ -135,18 +142,31 @@ class ContextManager:
         messages: list[dict[str, Any]],
         *,
         conversation_id: str | None = None,
+        include_system_reserve: bool = False,
     ) -> dict[str, Any]:
         """Get current context usage information.
 
         Args:
             messages: Current conversation messages.
             conversation_id: When set, enables incremental token counting cache.
+            include_system_reserve: Add estimated system-prompt tokens (for limits).
 
         Returns:
             Dict with keys: used (int), total (int), percent (float),
             messages_count (int), context_window (int).
         """
-        return self._build_usage(messages, conversation_id=conversation_id)
+        usage = self._build_usage(messages, conversation_id=conversation_id)
+        if not include_system_reserve or not self.system_prompt_reserve:
+            return usage
+        used = int(usage["used"]) + self.system_prompt_reserve
+        total = int(usage["total"]) or self.context_window
+        percent = (used / total * 100) if total > 0 else 0.0
+        return {
+            **usage,
+            "used": used,
+            "percent": round(percent, 1),
+            "system_reserve": self.system_prompt_reserve,
+        }
 
     def is_near_limit(
         self,
@@ -207,10 +227,23 @@ class ContextManager:
         total_str = TokenCounter.format_token_count(usage["total"])
         return f"{used_str}/{total_str} ({usage['percent']:.0f}%)"
 
+    def _adaptive_keep_recent(self, messages: list[dict[str, Any]]) -> int:
+        """Keep recent messages that fit ~25% of the context window."""
+        target = max(512, int(self.context_window * 0.25))
+        kept = 0
+        tokens = 0
+        for msg in reversed(messages):
+            msg_tokens = self.token_counter.count_message_tokens([msg])
+            if kept >= 2 and tokens + msg_tokens > target:
+                break
+            tokens += msg_tokens
+            kept += 1
+        return max(2, min(kept, 10))
+
     async def compress_context(
         self,
         messages: list[dict[str, Any]],
-        keep_recent: int = 10,
+        keep_recent: int | None = None,
     ) -> tuple[list[dict[str, Any]], bool]:
         """Compress conversation context manually.
 
@@ -225,7 +258,8 @@ class ContextManager:
             logger.warning("ContextCompressor not available — cannot compress")
             return messages, False
 
-        if len(messages) <= keep_recent:
+        keep = keep_recent if keep_recent is not None else self._adaptive_keep_recent(messages)
+        if len(messages) <= keep:
             return messages, False
 
         tokens_before = self.token_counter.count_message_tokens(messages)
@@ -234,10 +268,20 @@ class ContextManager:
 
         to_compress = strip_soul_messages(messages)
         compressed, summary = await self.compressor.compress(
-            to_compress, keep_recent=keep_recent
+            to_compress, keep_recent=keep
         )
 
+        if not summary.strip():
+            return messages, False
+
         tokens_after = self.token_counter.count_message_tokens(compressed)
+        if tokens_after >= tokens_before:
+            logger.warning(
+                "Context compression did not reduce tokens (%s → %s); skipping",
+                tokens_before,
+                tokens_after,
+            )
+            return messages, False
 
         # Track compression result
         self.last_summary = summary
@@ -265,6 +309,8 @@ class ContextManager:
     async def auto_compress_if_needed(
         self,
         messages: list[dict[str, Any]],
+        *,
+        conversation_id: str | None = None,
     ) -> tuple[list[dict[str, Any]], bool]:
         """Automatically compress context if usage exceeds threshold.
 
@@ -272,23 +318,47 @@ class ContextManager:
 
         Args:
             messages: Current conversation messages.
+            conversation_id: Cache key for token counting.
 
         Returns:
             Tuple of (messages, was_compressed).
         """
-        usage = self.get_usage(messages)
-        percent = usage["percent"]
+        current = messages
+        any_compressed = False
 
-        # Emit warning at warning threshold
-        if percent >= self.warning_threshold * 100 and percent < self.compression_threshold * 100:
-            self._emit_warning_event(usage, level="warning")
+        for round_idx in range(_MAX_AUTO_COMPRESS_ROUNDS):
+            usage = self.get_usage(
+                current,
+                conversation_id=conversation_id,
+                include_system_reserve=True,
+            )
+            percent = usage["percent"]
 
-        # Auto-compress at compression threshold
-        if percent >= self.compression_threshold * 100:
+            if percent >= self.warning_threshold * 100 and percent < self.compression_threshold * 100:
+                self._emit_warning_event(usage, level="warning")
+                break
+
+            if percent < self.compression_threshold * 100:
+                break
+
             self._emit_warning_event(usage, level="critical")
-            return await self.compress_context(messages)
+            compressed, was_compressed = await self.compress_context(current)
+            if not was_compressed:
+                break
+            current = compressed
+            any_compressed = True
+            self.invalidate_usage_cache(conversation_id)
 
-        return messages, False
+            if round_idx + 1 < _MAX_AUTO_COMPRESS_ROUNDS:
+                follow_up = self.get_usage(
+                    current,
+                    conversation_id=conversation_id,
+                    include_system_reserve=True,
+                )
+                if follow_up["percent"] < self.compression_threshold * 100:
+                    break
+
+        return current, any_compressed
 
     def _emit_compressed_event(
         self,

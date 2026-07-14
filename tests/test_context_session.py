@@ -26,7 +26,7 @@ async def test_compress_session_at_95_percent() -> None:
         memory = None
 
     messages = [{"role": "user", "content": "x" * 8000}]
-    usage = manager.get_usage(messages)
+    usage = manager.get_usage(messages, include_system_reserve=True)
     assert usage["percent"] >= manager.compression_threshold * 100
 
     out, was = await compress_session_if_needed(_Agent(), "c1", messages)
