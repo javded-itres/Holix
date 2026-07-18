@@ -21,13 +21,13 @@ class LaunchServiceError(RuntimeError):
 
 
 def _resolve_binary(spec) -> str | None:
-    from cli.launch.setup_wizard import _binary_installed
+    from core.external_cli.detect import binary_installed
 
-    return _binary_installed(spec)
+    return binary_installed(spec)
 
 
 def _load_profile_config(profile: str) -> Any:
-    from cli.core import ProfileManager
+    from core.profile import ProfileManager
 
     name = validate_profile_name(profile)
     manager = ProfileManager()
@@ -64,7 +64,7 @@ def list_clis(profile: str) -> list[dict[str, Any]]:
 
 
 def list_sessions(profile: str) -> list[dict[str, Any]]:
-    from cli.services.tmux_launcher import prune_dead_sessions
+    from core.runtime.tmux_launcher import prune_dead_sessions
 
     return [_session_dict(s) for s in prune_dead_sessions(profile)]
 
@@ -89,7 +89,7 @@ def launch_external_cli(
     config = _load_profile_config(safe_profile)
     workdir = trusted_profile_workspace(safe_profile, Path(cwd)) if cwd else None
 
-    from cli.services.tmux_launcher import TmuxError, launch_cli_by_id, restart_cli_by_id
+    from core.runtime.tmux_launcher import TmuxError, launch_cli_by_id, restart_cli_by_id
 
     launcher = restart_cli_by_id if restart else launch_cli_by_id
     try:
@@ -114,7 +114,7 @@ def send_session_message(
     enter: bool = True,
 ) -> dict[str, Any]:
     _require_platform()
-    from cli.services.tmux_launcher import (
+    from core.runtime.tmux_launcher import (
         find_launched_session,
         send_text,
         tmux_session_alive,
@@ -149,7 +149,7 @@ def capture_session_output(
     lines: int = 40,
 ) -> dict[str, Any]:
     _require_platform()
-    from cli.services.tmux_launcher import (
+    from core.runtime.tmux_launcher import (
         capture_pane,
         find_launched_session,
         tmux_session_alive,
@@ -176,7 +176,7 @@ def capture_session_output(
 
 def kill_launch_session(profile: str, session_ref: str) -> dict[str, Any]:
     _require_platform()
-    from cli.services.tmux_launcher import find_launched_session, kill_session, tmux_session_alive
+    from core.runtime.tmux_launcher import find_launched_session, kill_session, tmux_session_alive
 
     from core.external_cli.store import ExternalCliStore
 

@@ -143,7 +143,9 @@ After `/subagent-spawn` in chat hosts, completion may auto-push to transcript wh
 
 ## Questions from sub-agents (`ask_user`)
 
-Process-mode and async sub-agents can call `ask_user`. The parent surfaces a **`SubAgentQuestionEvent`**:
+Process-mode and async sub-agents can call `ask_user`. The parent surfaces a **`SubAgentQuestionEvent`**.
+
+**TUI:** a modal opens with the question, optional task/context, and an answer field (queue if several). Status bar shows `❓N` while questions wait. Esc dismisses the dialog but keeps the question pending.
 
 ```text
 ❓ coder: Which auth library should I use — JWT or sessions?
@@ -154,6 +156,7 @@ Reply: /subagent-reply coder JWT with refresh tokens
 
 | Input | When |
 |-------|------|
+| TUI answer dialog | Primary UX in Holix code TUI |
 | `/subagent-reply <job_id> <answer>` | Always works |
 | `@<job_id> <answer>` | Shorthand |
 | Plain text message | Only when **exactly one** pending question |

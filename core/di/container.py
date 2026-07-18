@@ -11,36 +11,46 @@ from core.di.providers import get_all_providers
 from core.di.runtime_config import HolixRuntimeConfig
 
 if TYPE_CHECKING:
-    from cli.core import ProfileConfig
+    from core.profile import ProfileConfig
 
 
 def create_async_container(
     config: HolixRuntimeConfig | None = None,
+    *,
+    gateway: bool = False,
 ) -> AsyncContainer:
     """Create the application async DI container.
 
     Args:
         config: Optional runtime config injected into APP scope context.
             When omitted, uses :meth:`HolixRuntimeConfig.from_settings`.
+        gateway: Include gateway process services (registry, stores, auth).
     """
     resolved = config or HolixRuntimeConfig.from_settings()
     return make_async_container(
-        *get_all_providers(),
+        *get_all_providers(gateway=gateway),
         context={HolixRuntimeConfig: resolved},
     )
 
 
 def resolve_gateway_runtime_config() -> HolixRuntimeConfig:
-    """Runtime config for API gateway (HOLIX_PROFILE or default)."""
+    """Runtime config for API gateway (HOLIX_PROFILE or default).
+
+    Falls back to env/settings when the named profile is not on disk yet
+    (e.g. import during tests before profiles are created).
+    """
     import os
 
-    from cli.core import init_profile
-
     from core.env_loader import bootstrap_profile_env
+    from core.profile import ProfileNotFoundError, init_profile
+    from core.profile_keys import ProfileKeyError
 
-    profile = os.getenv("HOLIX_PROFILE", "default")
-    bootstrap_profile_env(profile)
-    return resolve_runtime_config(init_profile(profile))
+    profile = (os.getenv("HOLIX_PROFILE") or "default").strip() or "default"
+    try:
+        bootstrap_profile_env(profile)
+        return resolve_runtime_config(init_profile(profile, prompt_key=False))
+    except (ProfileNotFoundError, ProfileKeyError, OSError, ValueError):
+        return HolixRuntimeConfig.from_settings()
 
 
 def resolve_runtime_config(profile: ProfileConfig | None = None) -> HolixRuntimeConfig:
@@ -74,11 +84,13 @@ async def create_agent(
     event_listeners: list[EventHandler] | None = None,
     enable_monitoring: bool = True,
     container: AsyncContainer | None = None,
+    mcp_ready_timeout: float = 10.0,
+    defer_skill_index: bool = False,
 ):
     """Create and initialize a HolixAgent using Dishka.
 
     Returns:
-        (agent, container) — caller should ``await container.close()`` when done.
+        (agent, container) — caller should ``await agent.close()`` when done.
     """
     from core.agent import HolixAgent
 
@@ -87,13 +99,22 @@ async def create_agent(
         container = create_async_container(config)
 
     agent = await container.get(HolixAgent)
+    agent._di_container = container
+
+    if enable_monitoring:
+        from core.agent_events import wire_default_monitoring
+
+        wire_default_monitoring(agent.events)
 
     if event_listeners:
         for listener in event_listeners:
             agent.events.subscribe(listener)
 
     if not agent._initialized:
-        await agent.initialize()
+        await agent.initialize(
+            mcp_ready_timeout=mcp_ready_timeout,
+            defer_skill_index=defer_skill_index,
+        )
 
     return agent, container
 

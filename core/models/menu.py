@@ -35,7 +35,7 @@ class ModelsMenuState:
 
 def build_models_menu(profile: str) -> ModelsMenuState:
     """Presets (main, agent_models) + per-provider model lists."""
-    from cli.core import ProfileManager
+    from core.profile import ProfileManager
     from core.models.manager import ModelManager
 
     try:
@@ -136,7 +136,7 @@ def choice_for_provider_model(provider: str, model_id: str) -> ModelChoice:
 
 
 def resolve_model_config(profile: str, choice: ModelChoice) -> Any:
-    from cli.core import ProfileManager
+    from core.profile import ProfileManager
     from core.models.manager import ModelConfig, ModelManager
 
     cfg = ProfileManager().load_profile(profile)

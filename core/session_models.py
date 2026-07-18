@@ -6,7 +6,7 @@ import json
 from pathlib import Path
 from typing import Any
 
-from cli.core import ProfileManager
+from core.profile import ProfileManager
 from pydantic import BaseModel, Field
 
 
@@ -101,7 +101,7 @@ def max_legacy_conversation_key(conversation_id: str, user_id: int) -> str | Non
 
 def persist_session_model(host: Any, choice: Any) -> None:
     """Save model pick for the host's current conversation."""
-    from integrations.telegram.model_switch import ModelChoice
+    from core.models.menu import ModelChoice
 
     cid = host_conversation_id(host)
     if not cid:
@@ -121,7 +121,7 @@ def persist_session_model(host: Any, choice: Any) -> None:
 
 
 def default_model_choice(profile: str) -> Any | None:
-    from integrations.telegram.model_switch import ModelChoice, build_models_menu
+    from core.models.menu import ModelChoice, build_models_menu
 
     menu = build_models_menu(profile)
     if menu.presets:
@@ -140,7 +140,7 @@ def default_model_choice(profile: str) -> Any | None:
 
 def restore_session_model(host: Any, *, profile: str | None = None) -> str | None:
     """Apply saved model for current conversation, or profile default if unset."""
-    from integrations.telegram.model_switch import ModelChoice, apply_model_choice_sync
+    from core.models.menu import ModelChoice, apply_model_choice_sync
 
     prof = profile or host_profile(host)
     cid = host_conversation_id(host)

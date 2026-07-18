@@ -30,15 +30,56 @@ def _normalize(command: str) -> str:
     return (command or "").replace("\\", "/")
 
 
-def references_holix_profiles(command: str) -> bool:
-    text = _normalize(command)
-    if _HOLIX_PROFILE_RE.search(text):
+def _looks_like_holix_profile_path(path: Path) -> bool:
+    """True when a resolved path sits under a Holix/Helix profile tree."""
+    norm = str(path).replace("\\", "/").lower()
+    if "/.holix/" in norm or "/.helix/" in norm:
         return True
+    # HOLIX_HOME/profiles/<name>/... (workspace lives here too)
+    return bool(re.search(r"/profiles/[a-z0-9][a-z0-9_.-]{0,63}(?:/|$)", norm))
+
+
+def references_holix_profiles(
+    command: str,
+    *,
+    allow_under: Path | str | None = None,
+) -> bool:
+    """True if the command reaches Holix profile dirs outside ``allow_under``.
+
+    Absolute paths under the profile workspace (e.g.
+    ``/var/lib/holix/profiles/<name>/workspace/...``) are allowed when
+    ``allow_under`` is that workspace root. Secrets and other profiles stay blocked.
+    """
+    text = _normalize(command)
+    # Unexpanded env / home markers — cannot prove they stay inside the workspace.
     if _SENSITIVE_HOME_RE.search(text):
         return True
-    if ".holix/profiles" in text.lower() or ".helix/profiles" in text.lower():
+
+    has_marker = (
+        _HOLIX_PROFILE_RE.search(text) is not None
+        or ".holix/profiles" in text.lower()
+        or ".helix/profiles" in text.lower()
+    )
+    if not has_marker:
+        return False
+
+    if allow_under is None:
         return True
-    return False
+
+    root = Path(allow_under).expanduser().resolve()
+    holix_paths: list[Path] = []
+    for token in _path_tokens(text):
+        resolved = _resolve_path_token(token, workspace_root=root, cwd=root)
+        if resolved is None:
+            continue
+        if _looks_like_holix_profile_path(resolved):
+            holix_paths.append(resolved)
+
+    if holix_paths:
+        return any(not _is_relative_to(path, root) for path in holix_paths)
+
+    # Marker present but no resolvable path tokens — fail closed.
+    return True
 
 
 def _resolve_path_token(token: str, *, workspace_root: Path, cwd: Path) -> Path | None:
@@ -101,19 +142,23 @@ def command_escapes_workspace(
     if not text:
         return True, "Empty command."
 
-    if references_holix_profiles(text):
-        return True, "Access to Holix profile directories and secrets is not allowed."
-
     if _PARENT_TRAVERSAL_RE.search(_normalize(text)):
         return True, "Parent directory traversal (..) is not allowed."
 
     if workspace_root is None:
+        if references_holix_profiles(text):
+            return True, "Access to Holix profile directories and secrets is not allowed."
         if _PATHISH_FLAGS.search(text) or _ABSOLUTE_PATH_RE.search(text):
             return True, "Absolute paths are not allowed without a workspace jail."
         return False, ""
 
     root = Path(workspace_root).expanduser().resolve()
     cwd = root
+
+    # Block profile secrets / other profiles; allow absolute paths under this workspace
+    # even when they contain ``.../profiles/<name>/...``.
+    if references_holix_profiles(text, allow_under=root):
+        return True, "Access to Holix profile directories and secrets is not allowed."
 
     if _normalize(text).strip() in {"/", "~", "~/.", "~"}:
         return True, "Listing the filesystem root or home directory is not allowed."

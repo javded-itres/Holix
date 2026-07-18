@@ -115,16 +115,25 @@ class AsyncSubAgentRunner:
             except Exception as e:
                 logger.debug(f"Skill injection failed for sub-agent: {e}")
 
-        profile_name = str(
-            getattr(getattr(self._parent, "config", None), "profile_name", None) or "default"
-        )
+        parent_cfg = getattr(self._parent, "config", None)
+        profile_name = str(getattr(parent_cfg, "profile_name", None) or "default")
+        from pathlib import Path
+
         from core.subagents.prompt import build_subagent_system_prompt
+
+        try:
+            working_directory = str(Path.cwd().resolve())
+        except OSError:
+            working_directory = str(Path.cwd())
 
         system_prompt = build_subagent_system_prompt(
             config,
             task,
             skills_block=skills_block,
             profile_name=profile_name,
+            workspace_root=getattr(parent_cfg, "workspace_root", None),
+            workspace_jail_enabled=getattr(parent_cfg, "workspace_jail_enabled", None),
+            working_directory=working_directory,
         )
 
         # Build messages
@@ -226,6 +235,13 @@ class AsyncSubAgentRunner:
                         steps_taken=steps_taken,
                         tool_calls=tool_calls_made,
                     )
+                    logger.info(
+                        "Sub-agent '%s' completed (steps=%d, tools=%d, %.0fms)",
+                        config.name,
+                        steps_taken,
+                        len(tool_calls_made),
+                        duration_ms,
+                    )
                     return handle.result
 
             # Max steps reached
@@ -240,6 +256,9 @@ class AsyncSubAgentRunner:
                 steps_taken=steps_taken,
                 tool_calls=tool_calls_made,
             )
+            logger.warning(
+                "Sub-agent '%s' hit max steps (%d)", config.name, max_steps
+            )
             return handle.result
 
         except asyncio.CancelledError:
@@ -252,6 +271,7 @@ class AsyncSubAgentRunner:
                 steps_taken=steps_taken,
                 tool_calls=tool_calls_made,
             )
+            logger.info("Sub-agent '%s' cancelled", config.name)
             return handle.result
 
         except Exception as e:
@@ -265,6 +285,7 @@ class AsyncSubAgentRunner:
                 steps_taken=steps_taken,
                 tool_calls=tool_calls_made,
             )
+            logger.exception("Sub-agent '%s' failed: %s", config.name, e)
             return handle.result
         finally:
             mgr = getattr(self._parent, "subagents", None)

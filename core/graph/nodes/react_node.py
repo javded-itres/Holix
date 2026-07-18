@@ -22,6 +22,10 @@ from core.agent_events import (
     ThinkingEvent,
     ToolCallStartEvent,
 )
+from core.graph.action_honesty import (
+    honesty_retry_update,
+    should_nudge_false_completion,
+)
 from core.graph.plan_step import (
     plan_step_active,
     plan_step_complete,
@@ -171,6 +175,34 @@ async def _plan_step_result(
         messages=messages,
         step_count=step_count,
         final_response=final_response,
+        include_assistant=not assistant_already_appended,
+    )
+
+
+def _maybe_honesty_retry(
+    state: HolixGraphState,
+    *,
+    messages: list[dict[str, Any]],
+    step_count: int,
+    final_response: str,
+    assistant_already_appended: bool,
+) -> dict[str, Any] | None:
+    """Block final answers that claim success without tool evidence."""
+    if not should_nudge_false_completion(
+        state,
+        final_response=final_response,
+        messages=messages,
+    ):
+        return None
+    logger.info(
+        "Action honesty nudge: blocking unproven completion claim (conversation_id=%s)",
+        state.get("conversation_id", ""),
+    )
+    return honesty_retry_update(
+        messages=messages,
+        step_count=step_count,
+        final_response=final_response,
+        honesty_nudge_count=int(state.get("honesty_nudge_count") or 0),
         include_assistant=not assistant_already_appended,
     )
 
@@ -533,6 +565,16 @@ async def _react_non_streaming(
                 assistant_already_appended=True,
             )
 
+        honesty = _maybe_honesty_retry(
+            state,
+            messages=messages,
+            step_count=step_count,
+            final_response=final_response,
+            assistant_already_appended=True,
+        )
+        if honesty is not None:
+            return honesty
+
         if agent and hasattr(agent, "memory"):
             await agent.memory.save_message(conversation_id, "assistant", final_response)
 
@@ -844,6 +886,16 @@ async def _react_streaming(
                         assistant_already_appended=True,
                     )
 
+                honesty = _maybe_honesty_retry(
+                    state,
+                    messages=messages,
+                    step_count=step_count,
+                    final_response=final_response,
+                    assistant_already_appended=True,
+                )
+                if honesty is not None:
+                    return honesty
+
                 if agent and hasattr(agent, "memory"):
                     await agent.memory.save_message(conversation_id, "assistant", final_response)
 
@@ -928,6 +980,16 @@ async def _react_streaming(
             final_response=final_response,
             assistant_already_appended=True,
         )
+
+    honesty = _maybe_honesty_retry(
+        state,
+        messages=messages,
+        step_count=step_count,
+        final_response=final_response,
+        assistant_already_appended=True,
+    )
+    if honesty is not None:
+        return honesty
 
     if agent and hasattr(agent, "memory"):
         await agent.memory.save_message(conversation_id, "assistant", final_response)
@@ -1014,12 +1076,15 @@ def _build_system_prompt_from_state(state: HolixGraphState, agent=None) -> str:
         combined_memories = f"{combined_memories}\n{plan_context}" if combined_memories else plan_context
 
     profile_name = profile_name_from_agent(agent) if agent else "default"
+    agent_config = getattr(agent, "config", None) if agent else None
     return build_system_prompt(
         tools_description=tools_desc,
         active_skills=relevant_skills,
         skills_formatted=skills_formatted,
         relevant_memories=combined_memories,
         profile_name=profile_name,
+        workspace_root=getattr(agent_config, "workspace_root", None),
+        workspace_jail_enabled=getattr(agent_config, "workspace_jail_enabled", None),
     )
 
 

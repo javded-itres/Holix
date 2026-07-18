@@ -1,4 +1,5 @@
 import asyncio
+import os
 import shlex
 
 from config import settings
@@ -12,11 +13,42 @@ from core.tools.base import BaseTool
 from core.workspace import sanitize_paths_in_text
 
 
-def _blocked_sensitive_path_access(command: str, *, jail_enabled: bool) -> tuple[bool, str]:
-    """Block shell commands that reach Holix profile secrets or runtime caches."""
-    _ = jail_enabled  # workspace jail uses validate_workspace_command; secrets always blocked
+def _env_bool(raw: str | None, *, default: bool) -> bool:
+    if raw is None or not str(raw).strip():
+        return default
+    return str(raw).strip().lower() in {"1", "true", "yes", "on"}
+
+
+def terminal_whitelist_enabled() -> bool:
+    """Live check — profile ``.env`` is applied after the Settings singleton is built."""
+    for key in ("HOLIX_TERMINAL_COMMAND_WHITELIST", "TERMINAL_COMMAND_WHITELIST"):
+        if key in os.environ:
+            return _env_bool(os.environ.get(key), default=True)
+    return bool(settings.terminal_command_whitelist)
+
+
+def terminal_whitelist_extra() -> str:
+    for key in ("HOLIX_TERMINAL_WHITELIST_EXTRA", "TERMINAL_WHITELIST_EXTRA"):
+        if key in os.environ and str(os.environ.get(key) or "").strip():
+            return str(os.environ.get(key) or "")
+    return str(settings.terminal_whitelist_extra or "")
+
+
+def _blocked_sensitive_path_access(
+    command: str,
+    *,
+    jail_enabled: bool,
+    workspace_root: str | None = None,
+) -> tuple[bool, str]:
+    """Block shell commands that reach Holix profile secrets or runtime caches.
+
+    When jail is on, absolute paths under the profile workspace are allowed even
+    though they live under ``.../profiles/<name>/``. Paths outside the workspace
+    (config, .env, other profiles) stay blocked.
+    """
     normalized = command.replace("\\", "/").lower()
-    if references_holix_profiles(command):
+    allow_under = workspace_root if jail_enabled and workspace_root else None
+    if references_holix_profiles(command, allow_under=allow_under):
         return True, "Access to Holix profile directories and secrets is not allowed."
     if (
         ".holix/memory-cache" in normalized
@@ -75,8 +107,8 @@ class TerminalTool(BaseTool):
         if not settings.enable_terminal_tool:
             return "Error: Terminal tool is disabled (HOLIX_ENABLE_TERMINAL_TOOL=false)"
 
-        if settings.terminal_command_whitelist:
-            command_whitelist.apply_extra(settings.terminal_whitelist_extra)
+        if terminal_whitelist_enabled():
+            command_whitelist.apply_extra(terminal_whitelist_extra())
             allowed, reason = command_whitelist.is_command_allowed(command)
             if not allowed:
                 return f"Error: Command blocked by safety policy. {reason}"
@@ -87,14 +119,19 @@ class TerminalTool(BaseTool):
 
             jail = is_workspace_jail_enabled()
             root = get_effective_workspace_root()
+            root_s = str(root) if root is not None else None
 
-            blocked, reason = _blocked_sensitive_path_access(command, jail_enabled=jail)
+            blocked, reason = _blocked_sensitive_path_access(
+                command,
+                jail_enabled=jail,
+                workspace_root=root_s,
+            )
             if blocked:
                 return f"Error: Command blocked. {reason}"
 
             allowed, jail_reason = validate_workspace_command(
                 command,
-                str(root) if root is not None else None,
+                root_s,
                 jail_enabled=jail,
             )
             if not allowed:

@@ -1,7 +1,10 @@
 import logging
 from collections.abc import AsyncGenerator
 
-from api.services.hermes_sse import (
+from openai import AsyncOpenAI
+
+from config import settings
+from core.presenters.sse import (
     assistant_delta,
     hermes_tool_progress,
     run_completed,
@@ -9,9 +12,6 @@ from api.services.hermes_sse import (
     tool_completed,
     tool_started,
 )
-from openai import AsyncOpenAI
-
-from config import settings
 
 logger = logging.getLogger(__name__)
 

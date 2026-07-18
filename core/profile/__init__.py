@@ -1,1 +1,50 @@
-"""Profile-scoped agent resources."""
+"""Profile-scoped resources: config, storage, session bootstrap, identity files."""
+
+from core.profile.service import (
+    HOLIX_HOME,
+    LOGS_DIR,
+    PROFILES_DIR,
+    ProfileConfig,
+    ProfileManager,
+    bootstrap_profile_unlock_from_env,
+    default_profile_allowed,
+    enable_profile_workspace_isolation,
+    get_current_config,
+    get_current_profile,
+    get_profile_manager,
+    init_profile,
+    logs_dir,
+    profiles_dir,
+    resolve_active_profile_name,
+    resolve_profile_storage_paths,
+    switch_profile,
+    unlock_profile,
+    unlock_profile_encryption,
+    validate_profile_name_for_env,
+)
+from core.profile_keys import ProfileExistsError, ProfileNotFoundError
+
+__all__ = [
+    "HOLIX_HOME",
+    "LOGS_DIR",
+    "PROFILES_DIR",
+    "ProfileConfig",
+    "ProfileExistsError",
+    "ProfileManager",
+    "ProfileNotFoundError",
+    "bootstrap_profile_unlock_from_env",
+    "default_profile_allowed",
+    "enable_profile_workspace_isolation",
+    "get_current_config",
+    "get_current_profile",
+    "get_profile_manager",
+    "init_profile",
+    "logs_dir",
+    "profiles_dir",
+    "resolve_active_profile_name",
+    "resolve_profile_storage_paths",
+    "switch_profile",
+    "unlock_profile",
+    "unlock_profile_encryption",
+    "validate_profile_name_for_env",
+]

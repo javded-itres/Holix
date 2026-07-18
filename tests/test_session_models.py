@@ -78,7 +78,7 @@ def test_restore_session_model_applies_saved_choice(tmp_path: Path, monkeypatch)
 
     with pytest.MonkeyPatch.context() as mp:
         mp.setattr(
-            "integrations.telegram.model_switch.resolve_model_config",
+            "core.models.menu.resolve_model_config",
             lambda _p, _c: ModelConfig(
                 provider="test",
                 model="saved-model",
@@ -128,7 +128,7 @@ def test_restore_session_model_max_legacy_chat_key(tmp_path: Path, monkeypatch):
 
     with pytest.MonkeyPatch.context() as mp:
         mp.setattr(
-            "integrations.telegram.model_switch.resolve_model_config",
+            "core.models.menu.resolve_model_config",
             lambda _p, _c: ModelConfig(
                 provider="litellm",
                 model="smart",

@@ -101,7 +101,7 @@ def apply_profile_locale(locale: str, *profiles: str) -> None:
             continue
         seen.add(profile)
         try:
-            from cli.core import init_profile
+            from core.profile import init_profile
 
             init_profile(profile)
         except Exception:

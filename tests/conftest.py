@@ -11,6 +11,13 @@ import uuid
 from pathlib import Path
 
 import pytest
+
+try:
+    from integrations.bootstrap import register_integration_hooks
+
+    register_integration_hooks()
+except Exception:
+    pass
 from core.tools.registry import ToolRegistry
 
 
@@ -104,15 +111,24 @@ def gateway_auth_headers() -> dict[str, str]:
 
 @pytest.fixture
 def gateway_client(gateway_auth_headers, monkeypatch: pytest.MonkeyPatch):
-    """TestClient with auth bypass and mocked host-profile agent."""
+    """TestClient with auth bypass and mocked host-profile agent.
+
+    FromDishka endpoints resolve via ``app.state.dishka_container``; keep that
+    container in sync with ``api.state`` mocks used by tests.
+    """
     from unittest.mock import AsyncMock, MagicMock
 
     import api.deps
     import api.gateway
     import api.state
+    from core.gateway.companions import CompanionManager
+    from core.gateway.locks import GatewayLocks
+    from core.gateway.profile_registry import ProfileAgentRegistry
     from core.gateway.responses_store import ResponsesStore
     from core.gateway.runs_store import RunsStore
     from core.gateway.sessions_store import SessionsStore
+    from core.gateway.types import HostProfileName
+    from core.security.auth import APIKeyManager, RateLimiter
     from fastapi.testclient import TestClient
 
     mock_agent = AsyncMock()
@@ -124,29 +140,91 @@ def gateway_client(gateway_auth_headers, monkeypatch: pytest.MonkeyPatch):
     mock_agent.search_memory = AsyncMock(return_value=[])
 
     mock_registry = MagicMock()
+    mock_registry.host_profile = "default"
     mock_registry.get_agent = AsyncMock(return_value=mock_agent)
     mock_registry.entry = MagicMock(return_value=MagicMock(agent=mock_agent))
     mock_registry.list_loaded_profiles = MagicMock(return_value=["default"])
 
+    responses_store = ResponsesStore()
+    runs_store = RunsStore()
+    sessions_store = SessionsStore()
+    companions = CompanionManager()
+    locks = GatewayLocks()
+    rate_limiter = RateLimiter()
+
     async def _fake_key():
         return {"permissions": ["read", "write", "execute", "admin"], "rate_limit": 1000}
 
-    async def _fake_registry():
-        return mock_registry
-
     monkeypatch.setattr(api.state, "registry", mock_registry)
     monkeypatch.setattr(api.state, "host_profile", "default")
-    monkeypatch.setattr(api.state, "responses_store", ResponsesStore())
-    monkeypatch.setattr(api.state, "runs_store", RunsStore())
-    monkeypatch.setattr(api.state, "sessions_store", SessionsStore())
-    monkeypatch.setattr(api.state, "_agent_request_lock", asyncio.Lock())
+    monkeypatch.setattr(api.state, "responses_store", responses_store)
+    monkeypatch.setattr(api.state, "runs_store", runs_store)
+    monkeypatch.setattr(api.state, "sessions_store", sessions_store)
+    monkeypatch.setattr(api.state, "companions", companions)
+    monkeypatch.setattr(api.state, "gateway_locks", locks)
+    monkeypatch.setattr(api.state, "_agent_request_lock", locks.agent_request)
+    monkeypatch.setattr(api.state, "rate_limiter", rate_limiter)
+
+    from contextlib import asynccontextmanager
+
+    class _OverlayContainer:
+        """Route FromDishka lookups to test doubles; fall back to real container."""
+
+        def __init__(self, base, overrides: dict):
+            self._base = base
+            self._overrides = overrides
+
+        async def get(self, dependency_type, component: str | None = ""):
+            if dependency_type in self._overrides:
+                return self._overrides[dependency_type]
+            if (
+                dependency_type is APIKeyManager
+                and api.state.api_key_manager is not None
+            ):
+                return api.state.api_key_manager
+            return await self._base.get(dependency_type, component)
+
+        def __call__(self, context=None, scope=None):
+            """Dishka middleware opens a REQUEST scope via container(...)."""
+
+            @asynccontextmanager
+            async def _cm():
+                async with self._base(context=context, scope=scope) as request_container:
+                    yield _OverlayContainer(request_container, self._overrides)
+
+            return _cm()
+
+        async def close(self):
+            return await self._base.close()
+
+        def __getattr__(self, name: str):
+            return getattr(self._base, name)
+
+    base_container = api.gateway.app.state.dishka_container
+    overlay = _OverlayContainer(
+        base_container,
+        {
+            ProfileAgentRegistry: mock_registry,
+            ResponsesStore: responses_store,
+            RunsStore: runs_store,
+            SessionsStore: sessions_store,
+            CompanionManager: companions,
+            GatewayLocks: locks,
+            HostProfileName: HostProfileName("default"),
+            RateLimiter: rate_limiter,
+        },
+    )
+    # Dishka middleware and routes read container from app.state
+    api.gateway.app.state.dishka_container = overlay
 
     api.gateway.app.dependency_overrides[api.deps.verify_api_key] = _fake_key
     api.gateway.app.dependency_overrides[api.deps.verify_admin_key] = _fake_key
-    api.gateway.app.dependency_overrides[api.deps.get_registry] = _fake_registry
+    if hasattr(api.deps, "get_registry"):
+        api.gateway.app.dependency_overrides[api.deps.get_registry] = lambda: mock_registry
 
     client = TestClient(api.gateway.app)
     yield client
+    api.gateway.app.state.dishka_container = base_container
     api.gateway.app.dependency_overrides.clear()
 
 
@@ -154,13 +232,26 @@ def gateway_client(gateway_auth_headers, monkeypatch: pytest.MonkeyPatch):
 def _isolated_holix_home(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """Keep profile paths off the developer/CI machine (~/.holix)."""
     import cli.core as cli_core
+    from core.profile import service as profile_service
 
     holix_home = tmp_path / ".holix"
     profiles = holix_home / "profiles"
+    logs = holix_home / "logs"
     profiles.mkdir(parents=True, exist_ok=True)
+    logs.mkdir(parents=True, exist_ok=True)
     monkeypatch.setenv("HOLIX_HOME", str(holix_home))
-    monkeypatch.setattr(cli_core, "HOLIX_HOME", holix_home)
-    monkeypatch.setattr(cli_core, "PROFILES_DIR", profiles)
+    # Avoid leaking profile selection from other tests into gateway import-time DI.
+    monkeypatch.delenv("HOLIX_PROFILE", raising=False)
+    # Implementation lives in core; keep cli.core attrs in sync for patches.
+    for mod in (profile_service, cli_core):
+        monkeypatch.setattr(mod, "HOLIX_HOME", holix_home, raising=False)
+        monkeypatch.setattr(mod, "PROFILES_DIR", profiles, raising=False)
+        monkeypatch.setattr(mod, "LOGS_DIR", logs, raising=False)
+    # Reset process-level profile session so tests do not leak names/paths.
+    profile_service._current_profile = None
+    profile_service._current_config = None
+    profile_service._unlocked_profiles.clear()
+    profile_service._profile_manager = profile_service.ProfileManager()
 
 
 @pytest.fixture(autouse=True)

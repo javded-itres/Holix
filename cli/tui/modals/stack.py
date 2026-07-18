@@ -6,16 +6,18 @@ from typing import Any
 
 from cli.tui.modals.confirmation_presenter import ConfirmationPresenter
 from cli.tui.modals.plan_review import PlanReviewPresenter
+from cli.tui.modals.subagent_question_presenter import SubagentQuestionPresenter
 
 
 class ModalStack:
-    """Single entry point for confirmation modals and in-chat plan review."""
+    """Single entry point for confirmation, plan review, and sub-agent questions."""
 
     def __init__(self, app: Any) -> None:
         self.app = app
         self._active_kind: str | None = None
         self.confirmation = ConfirmationPresenter(app, self)
         self.plan_review = PlanReviewPresenter(app, self)
+        self.subagent_question = SubagentQuestionPresenter(app, self)
 
     @property
     def active_kind(self) -> str | None:

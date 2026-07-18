@@ -545,6 +545,23 @@ def whitelist_enable(ctx: typer.Context) -> None:
     print_info("Restart gateway/Telegram or re-run CLI for changes to apply")
 
 
+@whitelist_app.command("disable")
+def whitelist_disable(ctx: typer.Context) -> None:
+    """Disable terminal command whitelist for the active profile (local trust)."""
+    from core.env_loader import profile_env_path
+    from core.terminal_whitelist_config import read_whitelist_enabled, set_whitelist_enabled
+
+    profile = _profile(ctx)
+    if not read_whitelist_enabled(profile):
+        print_info(f"Terminal whitelist is already disabled for profile '{profile}'")
+        raise typer.Exit(0)
+
+    set_whitelist_enabled(profile, False)
+    print_success(f"Terminal whitelist disabled for profile '{profile}'")
+    print_info(f"Saved in: {profile_env_path(profile)}")
+    print_info("Restart Holix TUI / CLI session for changes to apply")
+
+
 def _format_bytes(size: int) -> str:
     if size < 1024:
         return f"{size} B"

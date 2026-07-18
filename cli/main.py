@@ -14,6 +14,9 @@ from core.profile_keys import ProfileNotFoundError
 
 from cli.core import get_profile_manager, init_profile, resolve_active_profile_name
 from cli.utils.rich_console import print_info
+from integrations.bootstrap import register_integration_hooks
+
+register_integration_hooks()
 
 # Create Typer app
 app = typer.Typer(

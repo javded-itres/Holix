@@ -286,7 +286,7 @@ async def _configure_telegram(profile: str, lang: str) -> bool:
 
 
 def _configure_search(profile: str, lang: str) -> bool:
-    from core.search.setup_helpers import configure_search_interactive
+    from cli.search.interactive import configure_search_interactive
     from rich.prompt import Confirm
 
     console.print()

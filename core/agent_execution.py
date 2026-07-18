@@ -118,20 +118,22 @@ async def run_agent_loop(
 
     # Build system prompt
     tools_desc = format_tools_description(agent.tools.get_schemas())
-    profile_name = getattr(getattr(agent, "config", None), "profile_name", None)
+    agent_config = getattr(agent, "config", None)
+    profile_name = getattr(agent_config, "profile_name", None)
     system_prompt = build_system_prompt(
         tools_description=tools_desc,
         active_skills=relevant_skills,
         skills_formatted=skills_formatted,
         relevant_memories=relevant_memories,
         profile_name=profile_name,
+        workspace_root=getattr(agent_config, "workspace_root", None),
+        workspace_jail_enabled=getattr(agent_config, "workspace_jail_enabled", None),
     )
 
     # ------------------------------------------------------------------
     # 2. Main reasoning loop
     # ------------------------------------------------------------------
     step_count = 0
-    agent_config = getattr(agent, "config", None)
     max_steps = getattr(agent_config, "max_steps", settings.max_steps)
     model = getattr(agent, "model", settings.model)
     temperature = getattr(agent_config, "temperature", settings.temperature)

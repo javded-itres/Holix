@@ -19,6 +19,13 @@ def test_parse_listen_ports_variants() -> None:
     assert parse_listen_ports("npm run dev -- -p 3000") == [3000]
     assert parse_listen_ports("PORT=5173 npm run dev") == [5173]
     assert parse_listen_ports("python -m http.server") == []
+    assert parse_listen_ports("python3 -m http.server 3000") == [3000]
+
+
+def test_extract_listen_ports_from_log_http_server() -> None:
+    log = "Serving HTTP on 0.0.0.0 port 3000 (http://0.0.0.0:3000/) ...\n"
+    # Port comes from the "Serving HTTP on … port N" bind line, not the client URL.
+    assert extract_listen_ports_from_log(log) == [3000]
 
 
 def test_format_port_conflict_message_includes_hint() -> None:
@@ -51,6 +58,21 @@ def test_extract_listen_ports_from_log_nextjs_local_line() -> None:
         "- ready started server on 0.0.0.0:3001\n"
     )
     assert extract_listen_ports_from_log(log) == [3001]
+
+
+def test_extract_listen_ports_ignores_client_api_urls() -> None:
+    """Worker logs that *call* an API must not claim the API listen port."""
+    log = (
+        "2026-07-17 09:02:06 [INFO] User watcher started. "
+        "Interval: 300s, API: http://localhost:8000/users\n"
+        "2026-07-17 09:02:07 [INFO] Baseline saved: 0 users\n"
+    )
+    assert extract_listen_ports_from_log(log) == []
+
+
+def test_extract_listen_ports_uvicorn_bind_line() -> None:
+    log = "INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)\n"
+    assert extract_listen_ports_from_log(log) == [8000]
 
 
 def test_find_busy_ports_detects_occupied_port() -> None:

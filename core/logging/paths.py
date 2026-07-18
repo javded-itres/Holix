@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path
 
-from cli.core import HOLIX_HOME, LOGS_DIR
+from core.profile import HOLIX_HOME, LOGS_DIR
 
 from core.cron.store import runs_log_path
 

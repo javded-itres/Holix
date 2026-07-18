@@ -61,7 +61,8 @@ def get_telegram_status(profile_id: str) -> dict[str, Any]:
     admin_id = load_admin_user_id(profile_id)
     mapping = load_user_profiles(profile_id)
     pending = list_pending_requests(profile_id)
-    companions = state.companions.status(profile_id) if state.companions else {}
+    companions_mgr = state.get().companions
+    companions = companions_mgr.status(profile_id) if companions_mgr else {}
 
     return {
         "profile": profile_id,

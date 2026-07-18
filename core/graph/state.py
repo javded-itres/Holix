@@ -81,6 +81,9 @@ class HolixGraphState(TypedDict, total=False):
     is_step_complete: bool                   # True when current plan step is finished (react produced no tool_calls)
     current_step_start_count: int            # step_count at the start of current plan step (for per-step limit)
 
+    # Action honesty: block "done" claims without successful tool evidence
+    honesty_nudge_count: int                 # How many false-completion nudges this turn
+
     # Enriched plan data (from detailed plan_node)
     plan_analysis: dict[str, Any] | None  # Analysis: task_summary, complexity, clarifying_questions
     plan_architecture: dict[str, Any] | None  # Architecture: approach, tech_stack, structure, risks
@@ -101,5 +104,22 @@ def get_agent_from_config(config: RunnableConfig) -> Any:
     Returns:
         The HolixAgent instance, or None if not available.
     """
+    runtime = get_graph_runtime_from_config(config)
+    if runtime is not None and runtime.agent is not None:
+        return runtime.agent
     configurable = config.get("configurable", {})
     return configurable.get("_agent")
+
+
+def get_graph_runtime_from_config(config: RunnableConfig):
+    """Retrieve GraphRuntime from LangGraph RunnableConfig."""
+    from core.domain.graph_runtime import GraphRuntime
+
+    configurable = config.get("configurable", {})
+    runtime = configurable.get("_runtime")
+    if isinstance(runtime, GraphRuntime):
+        return runtime
+    agent = configurable.get("_agent")
+    if agent is not None:
+        return GraphRuntime.from_agent(agent)
+    return None

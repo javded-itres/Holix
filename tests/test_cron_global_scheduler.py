@@ -31,7 +31,7 @@ def _reset_profile_index() -> None:
 
 @pytest.fixture
 def profiles_root(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
-    from cli.core import ProfileManager
+    from core.profile import ProfileManager
 
     profiles = tmp_path / "profiles"
     profiles.mkdir(parents=True, exist_ok=True)
@@ -40,7 +40,9 @@ def profiles_root(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
         return _fake_profile_dir(profiles, profile)
 
     monkeypatch.setattr(ProfileManager, "get_profile_dir", fake_dir)
-    monkeypatch.setattr("cli.core.profiles_dir", lambda: profiles)
+    monkeypatch.setattr("core.profile.service.profiles_dir", lambda: profiles)
+    monkeypatch.setattr("core.profile.profiles_dir", lambda: profiles)
+    monkeypatch.setattr("cli.core.profiles_dir", lambda: profiles, raising=False)
     return profiles
 
 

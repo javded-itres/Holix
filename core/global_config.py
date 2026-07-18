@@ -53,7 +53,7 @@ def _strip_profile_only(data: dict[str, Any]) -> dict[str, Any]:
 
 def default_global_config_data() -> dict[str, Any]:
     """Baseline global YAML (models, MCP, behavior — no per-profile paths)."""
-    from cli.core import ProfileConfig
+    from core.profile import ProfileConfig
 
     return _strip_profile_only(ProfileConfig(profile_name="_global").model_dump())
 
@@ -88,7 +88,7 @@ def ensure_global_config(*, seed_from_profile: str | None = "default") -> Path:
 
     data: dict[str, Any] | None = None
     if seed_from_profile:
-        from cli.core import profiles_dir
+        from core.profile import profiles_dir
 
         candidate = profiles_dir() / seed_from_profile / "config.yaml"
         if candidate.is_file():

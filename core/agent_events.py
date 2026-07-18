@@ -655,54 +655,6 @@ def create_compatibility_print_handler() -> EventHandler:
     return handler
 
 
-def create_rich_cli_handler():
-    """
-    Returns a handler that uses Holix's Rich utilities for beautiful output.
-
-    This is the recommended handler for the modern `holix chat` experience.
-    It provides colored tool calls, markdown rendering, spinners (when used
-    together with chat.py logic), etc.
-    """
-    try:
-        from cli.utils.rich_console import (
-            console,
-            print_info,
-            print_success,
-            print_tool_call,
-        )
-    except ImportError:
-        # Fallback if called outside CLI context
-        return create_compatibility_print_handler()
-
-    def handler(event: AgentEvent) -> None:
-        if isinstance(event, ToolCallStartEvent):
-            print_tool_call(event.tool_name, status="running")
-        elif isinstance(event, ToolCallResultEvent):
-            print_tool_call(event.tool_name, status="done")
-        elif isinstance(event, ToolCallErrorEvent):
-            print_tool_call(event.tool_name, status="error")
-        elif isinstance(event, SelfImprovementStartedEvent):
-            print_info("Analyzing session for new skill creation...")
-        elif isinstance(event, SkillCreatedEvent):
-            print_success(f"New skill learned: {event.skill_name}")
-        elif isinstance(event, ThinkingEvent):
-            if "thinking" in event.message.lower():
-                console.print(f"[dim]{event.message}[/dim]")
-            else:
-                print_info(event.message)
-        elif isinstance(event, AssistantDeltaEvent):
-            # In rich mode we usually let the main chat loop handle deltas
-            # via print_assistant_message, so we stay quiet here.
-            pass
-        elif isinstance(event, FinalResponseEvent):
-            # Usually handled by the caller
-            pass
-        elif isinstance(event, MaxStepsReachedEvent):
-            console.print(f"[yellow]Agent reached maximum steps ({event.max_steps}).[/yellow]")
-
-    return handler
-
-
 # ---------------------------------------------------------------------
 # Default monitoring wiring (used by HolixAgent)
 # ---------------------------------------------------------------------

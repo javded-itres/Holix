@@ -158,7 +158,7 @@ def sync_custom_type_profile_bindings(
     previous_name: str | None = None,
 ) -> None:
     """Persist skills, MCP, model slot, and external CLI links for a custom type."""
-    from cli.core import get_profile_manager
+    from core.profile import get_profile_manager
 
     from core.external_cli.assignment import assign_cli_to_subagent, unassign_cli_subagent
     from core.external_cli.store import ExternalCliStore
@@ -193,7 +193,7 @@ def sync_custom_type_profile_bindings(
     if custom.model_slot:
         agent_models = dict(getattr(config, "agent_models", None) or {})
         if custom.model_slot not in agent_models and custom.model_slot != "main":
-            from integrations.telegram.model_switch import build_models_menu
+            from core.models.menu import build_models_menu
 
             menu = build_models_menu(profile)
             for preset in menu.presets:
@@ -224,7 +224,7 @@ def sync_custom_type_profile_bindings(
 
 def cleanup_custom_type_profile_bindings(profile: str, name: str) -> None:
     """Remove profile links when a custom sub-agent type is deleted."""
-    from cli.core import get_profile_manager
+    from core.profile import get_profile_manager
 
     manager = get_profile_manager()
     config = manager.load_profile(profile)

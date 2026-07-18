@@ -9,6 +9,20 @@ import pytest
 from core.env_loader import bootstrap_env, holix_env_path, init_holix_home
 
 
+@pytest.fixture(autouse=True)
+def _reset_env_loader_state() -> None:
+    """Each test gets a clean bootstrap (shell-lock snapshot is process-global)."""
+    import core.env_loader as el
+
+    el._BOOTSTRAPPED = False
+    el._SHELL_ENV_KEYS = None
+    el._ACTIVE_PROFILE_ENV = None
+    yield
+    el._BOOTSTRAPPED = False
+    el._SHELL_ENV_KEYS = None
+    el._ACTIVE_PROFILE_ENV = None
+
+
 @pytest.fixture
 def holix_home(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     monkeypatch.setenv("HOLIX_HOME", str(tmp_path))

@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 from logging.handlers import RotatingFileHandler
 
-from cli.core import LOGS_DIR
+from core.profile import LOGS_DIR
 
 from config import settings
 from core.logging.paths import subagent_log, system_log

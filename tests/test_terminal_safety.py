@@ -128,6 +128,9 @@ async def test_terminal_tool_blocks_dangerous(monkeypatch: pytest.MonkeyPatch) -
 
     from config import settings
 
+    # Live env is checked before the Settings singleton
+    monkeypatch.setenv("HOLIX_TERMINAL_COMMAND_WHITELIST", "true")
+    monkeypatch.setenv("TERMINAL_COMMAND_WHITELIST", "true")
     monkeypatch.setattr(settings, "enable_terminal_tool", True)
     monkeypatch.setattr(settings, "terminal_command_whitelist", True)
     monkeypatch.setattr(terminal_mod.settings, "enable_terminal_tool", True)

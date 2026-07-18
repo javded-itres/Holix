@@ -34,7 +34,11 @@ class WebSearchTool(BaseTool):
     async def execute(self, query: str, max_results: int = 5) -> str:
         """Search the web using profile-configured providers."""
         try:
-            engine = SearchEngine()
+            from core.runtime.agent_sessions import get_agent_session
+            from core.tools.execution_context import get_profile_name
+
+            live = get_agent_session(get_profile_name())
+            engine = live.search if live is not None and hasattr(live, "search") else SearchEngine()
             return await engine.search(query, max_results=max_results)
         except Exception as e:
             return f"Error during web search: {str(e)}"

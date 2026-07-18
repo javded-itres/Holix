@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
-from cli.tui.shared.formatters import (
+from core.presenters.tool_format import (
     format_tool_args,
     format_tool_header,
 )

@@ -124,6 +124,9 @@ def run_sub_agent_in_process(
     interactive: bool = True,
     search_config: dict[str, Any] | None = None,
     profile_name: str = "default",
+    workspace_root: str = "",
+    workspace_jail_enabled: bool = False,
+    working_directory: str = "",
 ) -> None:
     """Entry point for a sub-agent running in a separate process.
 
@@ -170,9 +173,23 @@ def run_sub_agent_in_process(
         metadata={"preset_id": preset_id} if preset_id else None,
     )
 
-    # Create own tool registry (subset)
+    # Match parent process CWD so relative paths hit the same project tree
+    if working_directory and str(working_directory).strip():
+        try:
+            from pathlib import Path as _Path
+
+            os.chdir(_Path(working_directory).expanduser().resolve())
+        except OSError as exc:
+            print(f"[sub-process] chdir to working_directory failed: {exc}")
+
+    # Create own tool registry with the same workspace as the main agent
     from core.tools.registry import ToolRegistry
-    registry = ToolRegistry(profile_name=profile_name)
+
+    registry = ToolRegistry(
+        workspace_root=(workspace_root or None),
+        workspace_jail_enabled=bool(workspace_jail_enabled),
+        profile_name=profile_name,
+    )
     registry.register_all()
 
     # MCP for this sub (if any servers listed in its config and defs passed)
@@ -236,6 +253,9 @@ def run_sub_agent_in_process(
         task,
         skills_block=skills_block,
         profile_name=profile_name,
+        workspace_root=workspace_root or None,
+        workspace_jail_enabled=bool(workspace_jail_enabled),
+        working_directory=working_directory or None,
     )
 
     # Build messages
@@ -758,6 +778,13 @@ class SubAgentProcessManager:
             started_at=time.monotonic(),
         )
 
+        try:
+            from pathlib import Path as _Path
+
+            parent_cwd = str(_Path.cwd().resolve())
+        except OSError:
+            parent_cwd = os.getcwd()
+
         process_args = (
             config_dict,
             task,
@@ -775,6 +802,9 @@ class SubAgentProcessManager:
             interactive,
             search_config,
             str(getattr(parent_cfg, "profile_name", None) or "default"),
+            str(getattr(parent_cfg, "workspace_root", None) or ""),
+            bool(getattr(parent_cfg, "workspace_jail_enabled", False)),
+            parent_cwd,
         )
         parent_metadata = dict(getattr(parent_cfg, "provider_metadata", None) or {})
         mp_ctx = subagent_mp_context()

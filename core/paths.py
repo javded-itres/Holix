@@ -33,7 +33,7 @@ def resolve_holix_default_data_dir(profile: str = "default") -> Path:
 def resolve_profile_data_dir(profile: str | None = None) -> Path:
     """Best-effort profile ``data_dir`` for the active or named profile."""
     try:
-        from cli.core import get_current_config, get_current_profile, init_profile
+        from core.profile import get_current_config, get_current_profile, init_profile
 
         if profile is None:
             try:
@@ -127,7 +127,7 @@ def ensure_sqlite_parent(path: str | Path) -> Path:
 
 def ensure_profile_memory_dirs(profile: str) -> None:
     """Ensure SQLite/Chroma memory directories exist for a profile."""
-    from cli.core import ProfileManager
+    from core.profile import ProfileManager
 
     cfg = ProfileManager().load_profile(profile)
     prepare_sqlite_db_file(cfg.memory_db_path)

@@ -1,8 +1,10 @@
-"""Send cron job results to Telegram and MAX chats."""
+"""Send cron job results via registered messenger hooks (Telegram / MAX)."""
 
 from __future__ import annotations
 
 import logging
+
+from core.plugins.hooks import notify_hooks
 
 logger = logging.getLogger(__name__)
 
@@ -15,35 +17,18 @@ async def send_telegram_notification(
     profile: str = "default",
     parse_mode: str = "HTML",
 ) -> bool:
-    """Send a message to Telegram chat using aiogram Bot."""
-    try:
-        from aiogram import Bot
-    except ImportError:
-        logger.warning("aiogram not installed, cannot send Telegram notification")
+    """Send a message to Telegram chat using registered notify hook."""
+    send = notify_hooks.send_telegram
+    if send is None:
+        logger.warning("Telegram notify hook not registered")
         return False
-
-    if not bot_token:
-        from integrations.telegram.config import load_telegram_settings
-
-        settings = load_telegram_settings(profile)
-        bot_token = settings.bot_token
-
-    if not bot_token:
-        logger.warning("Telegram bot token not configured")
-        return False
-
-    bot = Bot(token=bot_token)
-    try:
-        await bot.send_message(chat_id, message, parse_mode=parse_mode)
-        return True
-    except Exception as e:
-        logger.warning("Failed to send Telegram notification: %s", e)
-        return False
-    finally:
-        try:
-            await bot.session.close()
-        except Exception:
-            pass
+    return await send(
+        chat_id,
+        message,
+        bot_token=bot_token,
+        profile=profile,
+        parse_mode=parse_mode,
+    )
 
 
 async def send_max_notification(
@@ -53,38 +38,19 @@ async def send_max_notification(
     chat_id: int | None = None,
     profile: str = "default",
 ) -> bool:
-    """Send a cron notification to a MAX user or chat."""
+    """Send a cron notification to a MAX user or chat via registered hook."""
     if user_id is None and chat_id is None:
         return False
-    try:
-        from integrations.max.client import MaxClient
-        from integrations.max.config import load_max_settings
-        from integrations.max.markdown import prepare_max_markdown
-    except ImportError:
-        logger.warning("MAX integration unavailable for cron notification")
+    send = notify_hooks.send_max
+    if send is None:
+        logger.warning("MAX notify hook not registered")
         return False
-
-    settings = load_max_settings(profile)
-    if not settings.bot_token:
-        logger.warning("MAX bot token not configured")
-        return False
-
-    client = MaxClient(settings.bot_token)
-    try:
-        text = prepare_max_markdown(message)
-        if chat_id is not None:
-            await client.send_message(text, fmt="markdown", chat_id=chat_id)
-        else:
-            await client.send_message(text, fmt="markdown", user_id=user_id)
-        return True
-    except Exception as exc:
-        logger.warning("Failed to send MAX cron notification: %s", exc)
-        return False
-    finally:
-        try:
-            await client.close()
-        except Exception:
-            pass
+    return await send(
+        message,
+        user_id=user_id,
+        chat_id=chat_id,
+        profile=profile,
+    )
 
 
 def format_status_message(

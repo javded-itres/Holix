@@ -1,41 +1,27 @@
-"""Hermes-compatible SSE event formatting for gateway streams."""
+"""Hermes-compatible SSE event formatting for gateway streams.
+
+Implementation lives in ``core.presenters.sse`` so the agent loop does not
+depend on the API package.
+"""
 
 from __future__ import annotations
 
-import json
-from typing import Any
+from core.presenters.sse import (
+    assistant_delta,
+    hermes_tool_progress,
+    run_completed,
+    sse_data,
+    sse_named,
+    tool_completed,
+    tool_started,
+)
 
-
-def sse_data(payload: dict[str, Any]) -> str:
-    return f"data: {json.dumps(payload)}\n\n"
-
-
-def sse_named(event: str, payload: dict[str, Any]) -> str:
-    return f"event: {event}\ndata: {json.dumps(payload)}\n\n"
-
-
-def assistant_delta(content: str) -> str:
-    return sse_data({"type": "assistant.delta", "content": content})
-
-
-def tool_started(tool: str, *, call_id: str | None = None) -> str:
-    payload: dict[str, Any] = {"type": "tool.started", "tool": tool}
-    if call_id:
-        payload["call_id"] = call_id
-    return sse_data(payload)
-
-
-def tool_completed(tool: str, *, result_preview: str = "") -> str:
-    return sse_data({
-        "type": "tool.completed",
-        "tool": tool,
-        "result": result_preview[:200],
-    })
-
-
-def hermes_tool_progress(tool: str) -> str:
-    return sse_named("hermes.tool.progress", {"tool": tool, "status": "started"})
-
-
-def run_completed(**extra: Any) -> str:
-    return sse_data({"type": "run.completed", **extra})
+__all__ = [
+    "assistant_delta",
+    "hermes_tool_progress",
+    "run_completed",
+    "sse_data",
+    "sse_named",
+    "tool_completed",
+    "tool_started",
+]

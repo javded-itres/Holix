@@ -6,6 +6,7 @@ from typing import Any
 
 from core.host.command_menu import HostCommandSpec
 from core.host.command_menu import command_specs as host_command_specs
+from core.host.command_menu import host_menu_commands
 from core.i18n import t
 
 from integrations.messenger.locale import MESSENGER_DEFAULT_LOCALE, messenger_locale
@@ -13,9 +14,13 @@ from integrations.messenger.locale import MESSENGER_DEFAULT_LOCALE, messenger_lo
 TelegramCommandSpec = HostCommandSpec
 
 
+def telegram_menu_commands(locale: str | None = None) -> list[tuple[str, str]]:
+    """``(command, description)`` pairs for bot menu / tests."""
+    return host_menu_commands(locale)
+
+
 def command_specs(locale: str | None = None) -> list[TelegramCommandSpec]:
     return host_command_specs(locale)
-
 
 def _bot_commands_for_locale(locale: str | None = None) -> list[Any]:
     try:

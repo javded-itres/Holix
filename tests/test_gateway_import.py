@@ -117,10 +117,14 @@ async def test_chat_completions_serializes_agent_access() -> None:
     key_info = {"permissions": ["read", "write", "execute"]}
     mock_registry = MagicMock()
     mock_registry.get_agent = AsyncMock(return_value=mock_agent)
+    from core.gateway.locks import GatewayLocks
+
     response = await chat_completions(
-        request,
-        key_info=key_info,
+        locks=GatewayLocks(),
         registry=mock_registry,
+        host_profile="default",
+        request=request,
+        key_info=key_info,
         x_holix_profile=None,
         x_hermes_profile=None,
         x_holix_session_id=None,

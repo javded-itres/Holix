@@ -293,7 +293,7 @@ class SkillsManager:
 
         profile = getattr(self._config, "profile_name", None) or "default"
         try:
-            from cli.core import ProfileManager
+            from core.profile import ProfileManager
 
             manager = ProfileManager()
             if not manager.profile_exists(profile):

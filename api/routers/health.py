@@ -6,18 +6,34 @@ from datetime import datetime
 
 from fastapi import APIRouter
 
-from api import state
+from dishka.integrations.fastapi import DishkaRoute, FromDishka
+
+from api.di import (
+    APIKeyManager,
+    CompanionManager,
+    GatewayLocks,
+    HostProfileName,
+    ProfileAgentRegistry,
+    RateLimiter,
+    ResponsesStore,
+    RunsStore,
+    SessionsStore,
+)
+
 from config import settings
 
-router = APIRouter(tags=["health"])
+router = APIRouter(tags=["health"], route_class=DishkaRoute)
 
 
 @router.get("/health")
-async def health(detailed: bool = False):
-    registry = state.registry
+async def health(
+    registry: FromDishka[ProfileAgentRegistry],
+    host_profile: FromDishka[HostProfileName],
+    detailed: bool = False,
+):
     agent_ready = False
     if registry is not None:
-        entry = registry.entry(state.host_profile)
+        entry = registry.entry(str(host_profile))
         if entry is not None:
             agent_ready = entry.agent._initialized
     if not detailed:
@@ -36,20 +52,24 @@ async def health_v1():
 
 
 @router.get("/health/detailed")
-async def health_detailed():
-    registry = state.registry
+async def health_detailed(
+    registry: FromDishka[ProfileAgentRegistry],
+    companions: FromDishka[CompanionManager],
+    runs_store: FromDishka[RunsStore],
+    host_profile: FromDishka[HostProfileName],
+):
     loaded = registry.list_loaded_profiles() if registry else []
     companion_status = {}
-    if state.companions is not None:
+    if companions is not None:
         for name in loaded:
-            companion_status[name] = state.companions.status(name)
+            companion_status[name] = companions.status(name)
     runs_count = 0
-    if state.runs_store is not None:
-        state.runs_store._gc()  # noqa: SLF001
-        runs_count = len(state.runs_store._runs)  # noqa: SLF001
+    if runs_store is not None:
+        runs_store._gc()  # noqa: SLF001
+        runs_count = len(runs_store._runs)  # noqa: SLF001
     return {
         "status": "ok",
-        "host_profile": state.host_profile,
+        "host_profile": str(host_profile),
         "loaded_profiles": loaded,
         "active_runs": runs_count,
         "companions": companion_status,

@@ -200,6 +200,19 @@ async def run_subagents_command(host: Any, command: str) -> None:
 
         handled, feedback = try_route_subagent_reply(agent, command.strip())
         host.transcript_write(feedback or "reply sent")
+        # Keep TUI question queue in sync when answered via slash
+        modals = getattr(host, "_modals", None)
+        presenter = getattr(modals, "subagent_question", None) if modals else None
+        if presenter is not None and hasattr(presenter, "sync_with_bridge"):
+            try:
+                presenter.sync_with_bridge()
+            except Exception:
+                pass
+        if hasattr(host, "_refresh_status_bar"):
+            try:
+                host._refresh_status_bar()
+            except Exception:
+                pass
         return
 
     if parts[0] == "/subagent-result" and len(parts) >= 2:

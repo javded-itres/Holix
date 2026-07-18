@@ -142,10 +142,14 @@ async def run_graph_loop(
         conversation_id=conversation_id,
     )
 
+    from core.domain.graph_runtime import GraphRuntime
+
+    graph_runtime = GraphRuntime.from_agent(agent) if agent is not None else None
     config = {
         "configurable": {
             "thread_id": conversation_id,
             "_agent": agent,
+            "_runtime": graph_runtime,
         },
     }
 

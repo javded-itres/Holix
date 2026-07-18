@@ -57,7 +57,12 @@ How to configure package metadata and publish to PyPI.
 
     clear_retrieval_cache()
     monkeypatch.setattr("core.docs_chat.retrieval.embed_query", lambda _q: np.array([0.95, 0.05, 0.0]))
-    monkeypatch.setattr("cli.services.docs_site.resolve_web_docs_dir", lambda: web_docs)
+    monkeypatch.setattr("core.docs_chat.paths.resolve_web_docs_dir", lambda: web_docs)
+    monkeypatch.setattr(
+        "cli.services.docs_site.resolve_web_docs_dir",
+        lambda: web_docs,
+        raising=False,
+    )
     clear_retrieval_cache()
     return web_docs
 

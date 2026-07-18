@@ -5,7 +5,20 @@ from __future__ import annotations
 from cli.core import ProfileManager
 from fastapi import APIRouter, Depends, Header, HTTPException
 
-from api import state
+from dishka.integrations.fastapi import DishkaRoute, FromDishka
+
+from api.di import (
+    APIKeyManager,
+    CompanionManager,
+    GatewayLocks,
+    HostProfileName,
+    ProfileAgentRegistry,
+    RateLimiter,
+    ResponsesStore,
+    RunsStore,
+    SessionsStore,
+)
+
 from api.deps import verify_api_key
 from api.schemas.holix import TelegramApproveRequest, TelegramMapSetRequest, TelegramSetupRequest
 from api.services.holix_deps import profile_access
@@ -27,7 +40,7 @@ from api.services.telegram_ops import (
     sync_telegram_menu,
 )
 
-router = APIRouter(prefix="/api/holix/profiles/{profile_id}/telegram", tags=["holix-telegram"])
+router = APIRouter(prefix="/api/holix/profiles/{profile_id}/telegram", tags=["holix-telegram"], route_class=DishkaRoute)
 
 
 def _require_profile(profile_id: str) -> None:
@@ -53,6 +66,7 @@ async def telegram_status(
 
 @router.post("/setup")
 async def telegram_setup(
+    companions: FromDishka[CompanionManager],
     profile_id: str,
     body: TelegramSetupRequest,
     key_info: dict = Depends(verify_api_key),
@@ -70,10 +84,10 @@ async def telegram_setup(
     except TelegramOpError as exc:
         raise _map_op_error(exc) from exc
 
-    if state.companions is not None:
-        await state.companions.reload(profile_id)
+    if companions is not None:
+        await companions.reload(profile_id)
         result["reload_required"] = False
-        result["companions"] = state.companions.status(profile_id)
+        result["companions"] = companions.status(profile_id)
     return result
 
 

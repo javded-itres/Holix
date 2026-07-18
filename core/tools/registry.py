@@ -52,7 +52,12 @@ class ToolRegistry:
         from core.tools.ask_user import AskUserTool
         from core.tools.code_executor import MathCalculatorTool, PythonExecutorTool
         from core.tools.database import SQLQueryTool, SQLSchemaTool
-        from core.tools.file_ops import PatchFileTool, ReadFileTool, WriteFileTool
+        from core.tools.file_ops import (
+            ListDirectoryTool,
+            PatchFileTool,
+            ReadFileTool,
+            WriteFileTool,
+        )
         from core.tools.send_chat_files import SendChatFilesTool
         from core.tools.session_memory import ReadSessionTool, SearchSessionsTool
         from core.tools.terminal import TerminalTool
@@ -62,13 +67,16 @@ class ToolRegistry:
         self.register(ReadFileTool())
         self.register(WriteFileTool())
         self.register(PatchFileTool())
+        self.register(ListDirectoryTool())
 
         from core.tools.holix_init import register_holix_init_tools
 
         register_holix_init_tools(self)
 
         # System
-        self.register(TerminalTool())
+        terminal_tool = TerminalTool()
+        self.register(terminal_tool)
+        self.register_alias("terminal", terminal_tool)
         from core.external_cli.platform import launch_supported
 
         if launch_supported():
@@ -87,8 +95,12 @@ class ToolRegistry:
         self.register(SQLSchemaTool())
 
         # Code execution
-        self.register(PythonExecutorTool())
-        self.register(MathCalculatorTool())
+        python_tool = PythonExecutorTool()
+        self.register(python_tool)
+        self.register_alias("code_executor", python_tool)
+        calc_tool = MathCalculatorTool()
+        self.register(calc_tool)
+        self.register_alias("math_calculator", calc_tool)
 
         # Sub-agent ↔ user bridge
         self.register(AskUserTool())
@@ -267,18 +279,18 @@ class ToolRegistry:
         )
         try:
             # Gate with ActionGuard if installed
-            if self._action_guard:
-                result = await self._action_guard.check_and_execute(
-                    tool_name=tool_name,
-                    tool_instance=tool,
-                    arguments=args,
-                    execute_fn=tool.execute,
-                    conversation_id=conversation_id,
-                )
-                return sanitize_paths_in_text(result) if isinstance(result, str) else result
-
-            # No guard: execute directly (backward compatible)
             try:
+                if self._action_guard:
+                    result = await self._action_guard.check_and_execute(
+                        tool_name=tool_name,
+                        tool_instance=tool,
+                        arguments=args,
+                        execute_fn=tool.execute,
+                        conversation_id=conversation_id,
+                    )
+                    return sanitize_paths_in_text(result) if isinstance(result, str) else result
+
+                # No guard: execute directly (backward compatible)
                 result = await tool.execute(**args)
                 return sanitize_paths_in_text(result) if isinstance(result, str) else result
             except Exception as e:

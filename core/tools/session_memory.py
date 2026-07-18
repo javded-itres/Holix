@@ -21,7 +21,7 @@ def _resolve_memory() -> Any:
     if facade is not None:
         return facade
 
-    from cli.core import ProfileManager
+    from core.profile import ProfileManager
 
     from core.di import resolve_runtime_config
     from core.memory.facade import MemoryFacade

@@ -495,6 +495,8 @@ class ActionGuard:
 
         # Map from confirmation_id -> asyncio.Future[ConfirmationChoice]
         self._pending_confirmations: dict[str, asyncio.Future] = {}
+        # Metadata so session/always grants can unblock sibling waiters
+        self._pending_assessments: dict[str, RiskAssessment] = {}
         self._confirmation_counter = 0
 
         # Audit logging callback
@@ -592,6 +594,14 @@ class ActionGuard:
         )
         self._log_audit("allowed", assessment, f"user_{choice.value}")
 
+        # Unblock other concurrent waiters covered by session/always grants.
+        # Without this, parallel sub-agents freeze forever (timeout=none).
+        if choice in (
+            ConfirmationChoice.ALLOW_SESSION,
+            ConfirmationChoice.ALLOW_ALWAYS,
+        ):
+            self._resolve_pending_covered_by_grants(choice)
+
         # Step 7: Execute
         return await execute_fn(**arguments)
 
@@ -604,12 +614,19 @@ class ActionGuard:
         and awaits the result. The TUI or API layer resolves it
         by calling resolve_confirmation().
         """
+        import uuid
+
         self._confirmation_counter += 1
-        confirmation_id = f"confirm_{self._confirmation_counter}_{conversation_id}"
+        # Unique id: counter alone collides across conversation restarts;
+        # uuid keeps concurrent sub-agent prompts distinct.
+        confirmation_id = (
+            f"confirm_{self._confirmation_counter}_{conversation_id}_{uuid.uuid4().hex[:8]}"
+        )
 
         loop = asyncio.get_running_loop()
         future = loop.create_future()
         self._pending_confirmations[confirmation_id] = future
+        self._pending_assessments[confirmation_id] = assessment
 
         logger.info(
             f"ActionGuard: requesting confirmation for {assessment.tool_name} "
@@ -638,7 +655,11 @@ class ActionGuard:
 
             # Wait for resolution (with configurable timeout)
             timeout = self._confirmation_timeout if self._confirmation_timeout > 0 else None
-            logger.info(f"ActionGuard: awaiting confirmation (timeout={timeout}s)")
+            logger.info(
+                "ActionGuard: awaiting confirmation (timeout=%s, pending=%d)",
+                f"{timeout}s" if timeout is not None else "none",
+                len(self._pending_confirmations),
+            )
             return await asyncio.wait_for(future, timeout=timeout)
 
         except TimeoutError:
@@ -648,6 +669,7 @@ class ActionGuard:
 
         finally:
             self._pending_confirmations.pop(confirmation_id, None)
+            self._pending_assessments.pop(confirmation_id, None)
 
     def resolve_confirmation(self, confirmation_id: str, choice: ConfirmationChoice) -> bool:
         """Resolve a pending confirmation request.
@@ -672,6 +694,48 @@ class ActionGuard:
             ))
 
         return True
+
+    def resolve_confirmation_latest(self, choice: ConfirmationChoice) -> bool:
+        """Resolve the most recently requested pending confirmation."""
+        if not self._pending_confirmations:
+            return False
+        confirmation_id = list(self._pending_confirmations.keys())[-1]
+        return self.resolve_confirmation(confirmation_id, choice)
+
+    def _resolve_pending_covered_by_grants(self, choice: ConfirmationChoice) -> int:
+        """Wake waiters whose tool calls are now pre-authorized.
+
+        After ALLOW_SESSION / ALLOW_ALWAYS, other concurrent sub-agents may
+        still be blocked on the same tool. Resolve them so they don't hang
+        with timeout=none forever.
+        """
+        woken = 0
+        for confirmation_id, future in list(self._pending_confirmations.items()):
+            if future.done():
+                continue
+            assessment = self._pending_assessments.get(confirmation_id)
+            if assessment is None:
+                continue
+            if not self._permission_manager.is_allowed(
+                assessment.tool_name,
+                assessment.risk_level,
+                assessment.pattern_matched,
+            ):
+                continue
+            # ALLOW_ONCE is enough: the stored grant already covers execution.
+            if self.resolve_confirmation(confirmation_id, ConfirmationChoice.ALLOW_ONCE):
+                woken += 1
+                logger.info(
+                    "ActionGuard: auto-resolved pending %s for %s after %s grant",
+                    confirmation_id,
+                    assessment.tool_name,
+                    choice.value,
+                )
+        if woken:
+            logger.info(
+                "ActionGuard: unblocked %d concurrent confirmation waiter(s)", woken
+            )
+        return woken
 
     def _log_audit(self, action: str, assessment: RiskAssessment, detail: str | None) -> None:
         """Log an audit record to file and optional callback."""
@@ -711,7 +775,7 @@ def configure_security_storage(data_dir: str | Path) -> None:
     permission_manager.set_data_dir(data_dir)
 
 
-def init_action_guard(
+def build_action_guard(
     event_bus: Any,
     auto_allow_threshold: RiskLevel = RiskLevel.LOW,
     interactive: bool = True,
@@ -719,11 +783,7 @@ def init_action_guard(
     data_dir: str | Path | None = None,
     profile_name: str | None = None,
 ) -> ActionGuard:
-    """Initialize the global ActionGuard instance.
-
-    Called by HolixAgent after the event bus is ready.
-    """
-    global _action_guard
+    """Construct an ActionGuard for one agent instance."""
     profile_key = (profile_name or "").strip() or None
     if data_dir is not None and profile_key:
         pm = PermissionManager(data_dir=data_dir)
@@ -734,7 +794,7 @@ def init_action_guard(
     else:
         pm = permission_manager
 
-    guard = ActionGuard(
+    return ActionGuard(
         event_bus=event_bus,
         permission_manager=pm,
         auto_allow_threshold=auto_allow_threshold,
@@ -742,6 +802,27 @@ def init_action_guard(
         confirmation_timeout=confirmation_timeout,
         data_dir=data_dir,
     )
+
+
+def init_action_guard(
+    event_bus: Any,
+    auto_allow_threshold: RiskLevel = RiskLevel.LOW,
+    interactive: bool = True,
+    confirmation_timeout: int = 0,
+    data_dir: str | Path | None = None,
+    profile_name: str | None = None,
+) -> ActionGuard:
+    """Initialize and register the global ActionGuard (legacy compat)."""
+    global _action_guard
+    guard = build_action_guard(
+        event_bus=event_bus,
+        auto_allow_threshold=auto_allow_threshold,
+        interactive=interactive,
+        confirmation_timeout=confirmation_timeout,
+        data_dir=data_dir,
+        profile_name=profile_name,
+    )
+    profile_key = (profile_name or "").strip() or None
     if profile_key:
         _profile_action_guards[profile_key] = guard
     _action_guard = guard
@@ -749,8 +830,13 @@ def init_action_guard(
 
 
 def get_action_guard(profile_name: str | None = None) -> ActionGuard | None:
-    """Get ActionGuard for a profile, or the last-initialized global guard."""
+    """Get ActionGuard from live agent session, profile cache, or global."""
+    from core.runtime.agent_sessions import get_agent_attribute
+
     profile_key = (profile_name or "").strip() or None
+    agent_guard = get_agent_attribute(profile_key, "_action_guard")
+    if agent_guard is not None:
+        return agent_guard
     if profile_key:
         return _profile_action_guards.get(profile_key) or _action_guard
     return _action_guard

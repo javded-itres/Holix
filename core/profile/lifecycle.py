@@ -1,11 +1,12 @@
-"""Profile lifecycle helpers (delete with user notification)."""
+"""Profile lifecycle helpers (delete with optional messenger notification via hooks)."""
 
 from __future__ import annotations
 
 import logging
 from dataclasses import dataclass, field
 
-from cli.core import ProfileManager
+from core.plugins.hooks import profile_lifecycle_hooks
+from core.profile import ProfileManager
 
 logger = logging.getLogger(__name__)
 
@@ -24,55 +25,19 @@ class ProfileDeleteResult:
 
 def find_telegram_users_for_profile(target_profile: str) -> list[tuple[str, int]]:
     """Return ``(bot_profile, telegram_user_id)`` pairs bound to *target_profile*."""
-    from integrations.telegram.user_profiles import load_user_profiles
-
-    name = target_profile.strip()
-    if not name:
+    finder = profile_lifecycle_hooks.find_telegram_users
+    if finder is None:
         return []
-    manager = ProfileManager()
-    hits: list[tuple[str, int]] = []
-    for bot_profile in manager.list_profiles():
-        for uid, mapped in load_user_profiles(bot_profile).items():
-            if mapped == name:
-                hits.append((bot_profile, int(uid)))
-    return hits
+    return finder(target_profile)
 
 
 def format_profile_deletion_message(profile: str) -> str:
-    from integrations.telegram.markdown import escape_html
-
-    profile_esc = escape_html(profile)
-    return "\n".join(
-        [
-            "⚠️ <b>Профиль Holix удалён</b>",
-            "",
-            f"Ваш профиль <code>{profile_esc}</code> удалён администратором с сервера.",
-            "Данные профиля (память, workspace, настройки) больше недоступны.",
-            "",
-            "Если нужен новый доступ — отправьте запрос администратору или "
-            "используйте /start в боте.",
-        ]
-    )
-
-
-async def notify_profile_deletion(
-    bot_profile: str,
-    user_id: int,
-    *,
-    deleted_profile: str,
-) -> None:
-    from integrations.telegram.config import load_telegram_settings
-    from integrations.telegram.env_store import load_telegram_env_files
-    from integrations.telegram.notify import send_user_message
-
-    load_telegram_env_files(bot_profile)
-    token = load_telegram_settings(bot_profile).bot_token.strip()
-    if not token:
-        raise RuntimeError(f"TELEGRAM_BOT_TOKEN is not configured for bot profile '{bot_profile}'")
-    await send_user_message(
-        token,
-        int(user_id),
-        format_profile_deletion_message(deleted_profile),
+    fmt = profile_lifecycle_hooks.format_deletion_message
+    if fmt is not None:
+        return fmt(profile)
+    return (
+        f"Profile '{profile}' was deleted by an administrator. "
+        "Profile data is no longer available."
     )
 
 
@@ -82,35 +47,18 @@ def notify_profile_deletion_sync(
     *,
     deleted_profile: str,
 ) -> None:
-    from core.asyncio_sync import run_coroutine_sync
-
-    run_coroutine_sync(
-        notify_profile_deletion(
-            bot_profile,
-            user_id,
-            deleted_profile=deleted_profile,
-        )
-    )
+    notify = profile_lifecycle_hooks.notify_deletion_sync
+    if notify is None:
+        raise RuntimeError("Profile deletion notification hooks are not registered")
+    notify(bot_profile, user_id, deleted_profile)
 
 
 def remove_profile_telegram_bindings(target_profile: str) -> int:
     """Drop Telegram user→profile mappings pointing at *target_profile*."""
-    from integrations.telegram.user_profiles import load_user_profiles, save_user_profiles
-
-    name = target_profile.strip()
-    removed = 0
-    manager = ProfileManager()
-    for bot_profile in manager.list_profiles():
-        mapping = load_user_profiles(bot_profile)
-        changed = False
-        for uid, mapped in list(mapping.items()):
-            if mapped == name:
-                del mapping[uid]
-                removed += 1
-                changed = True
-        if changed:
-            save_user_profiles(bot_profile, mapping)
-    return removed
+    remover = profile_lifecycle_hooks.remove_bindings
+    if remover is None:
+        return 0
+    return remover(target_profile)
 
 
 def delete_profile_with_notification(

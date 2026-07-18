@@ -93,7 +93,7 @@ def test_apply_preset_index():
 
     with pytest.MonkeyPatch.context() as mp:
         mp.setattr(
-            "integrations.telegram.model_switch.resolve_model_config",
+            "core.models.menu.resolve_model_config",
             lambda _p, _c: ModelConfig(
                 provider="p",
                 model="m",
@@ -116,7 +116,7 @@ def test_apply_model_choice_sync_tui_host():
 
     with pytest.MonkeyPatch.context() as mp:
         mp.setattr(
-            "integrations.telegram.model_switch.resolve_model_config",
+            "core.models.menu.resolve_model_config",
             lambda _p, _c: ModelConfig(
                 provider="p",
                 model="m",
@@ -124,6 +124,8 @@ def test_apply_model_choice_sync_tui_host():
                 api_key="k",
             ),
         )
+        # MagicMock auto-creates attrs; seed real value so hasattr check is meaningful.
+        host._resolved_model = None
         label = apply_model_choice_sync(host, choice)
 
     assert label == "p/m"

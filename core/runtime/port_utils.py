@@ -5,6 +5,7 @@ from __future__ import annotations
 import re
 import socket
 import subprocess
+from pathlib import Path
 
 from core.platform_compat import IS_WINDOWS, port_check_hint, terminate_process
 
@@ -15,6 +16,7 @@ _PORT_PATTERNS: tuple[re.Pattern[str], ...] = (
     re.compile(r"\bPORT=(\d{2,5})\b"),
     re.compile(r"--listen[=\s]+[^\s]*:(\d{2,5})\b", re.I),
     re.compile(r"\blisten[=\s]+[^\s]*:(\d{2,5})\b", re.I),
+    re.compile(r"\bhttp\.server\s+(\d{2,5})\b", re.I),
 )
 
 
@@ -65,6 +67,92 @@ def ports_in_use(ports: list[int], *, host: str = "127.0.0.1") -> list[int]:
     return [port for port in ports if not is_port_available(host, port)]
 
 
+def _pids_from_ss_listeners(port: int) -> list[int]:
+    """Parse ``ss -tlnp`` output when ``lsof`` is unavailable."""
+    pids: list[int] = []
+    seen: set[int] = set()
+    needle = f":{port}"
+    try:
+        result = subprocess.run(
+            ["ss", "-tlnp"],
+            capture_output=True,
+            text=True,
+            timeout=5,
+            check=False,
+        )
+        if result.returncode != 0:
+            return []
+        for line in result.stdout.splitlines():
+            if needle not in line or "LISTEN" not in line:
+                continue
+            for match in re.finditer(r"pid=(\d+)", line):
+                pid = int(match.group(1))
+                if pid > 0 and pid not in seen:
+                    seen.add(pid)
+                    pids.append(pid)
+    except (OSError, subprocess.SubprocessError, ValueError):
+        return []
+    return pids
+
+
+def _pids_from_proc_cmdline_port(port: int) -> list[int]:
+    """Find listener PIDs by scanning ``/proc/*/cmdline`` when ``lsof`` is blocked."""
+    if port < 1 or port > 65535:
+        return []
+    if port not in ports_in_use([port]):
+        return []
+    pattern = re.compile(
+        rf"(?:--port[=\s]+{port}\b|-p\s+{port}\b|:{port}\b|\.{port}\b)",
+        re.I,
+    )
+    pids: list[int] = []
+    seen: set[int] = set()
+    try:
+        for entry in Path("/proc").iterdir():
+            if not entry.name.isdigit():
+                continue
+            pid = int(entry.name)
+            if pid in seen:
+                continue
+            try:
+                raw = (entry / "cmdline").read_bytes()
+            except OSError:
+                continue
+            text = raw.replace(b"\x00", b" ").decode("utf-8", errors="replace")
+            if pattern.search(text):
+                seen.add(pid)
+                pids.append(pid)
+    except OSError:
+        return []
+    return pids
+
+
+def _pids_from_fuser(port: int) -> list[int]:
+    """Resolve listener PIDs via ``fuser`` when ``lsof``/``ss -p`` are restricted (e.g. ``sg docker``)."""
+    pids: list[int] = []
+    seen: set[int] = set()
+    try:
+        result = subprocess.run(
+            ["fuser", f"{port}/tcp"],
+            capture_output=True,
+            text=True,
+            timeout=5,
+            check=False,
+        )
+        text = f"{result.stdout or ''} {result.stderr or ''}"
+        for token in text.replace("/tcp", " ").split():
+            if not token.isdigit():
+                continue
+            pid = int(token)
+            if pid == port or pid <= 0 or pid in seen:
+                continue
+            seen.add(pid)
+            pids.append(pid)
+    except (OSError, subprocess.SubprocessError, ValueError):
+        return []
+    return pids
+
+
 def pids_listening_on_port(port: int) -> list[int]:
     """Return PIDs listening on a TCP port (best effort, platform-specific)."""
     if port < 1 or port > 65535:
@@ -107,21 +195,43 @@ def pids_listening_on_port(port: int) -> list[int]:
             )
             if result.returncode == 0 and result.stdout.strip():
                 _add(result.stdout)
+            if not pids:
+                pids = _pids_from_ss_listeners(port)
+            if not pids:
+                pids = _pids_from_fuser(port)
+            if not pids:
+                pids = _pids_from_proc_cmdline_port(port)
     except (OSError, subprocess.SubprocessError, ValueError):
         pass
     return pids
 
 
 def extract_listen_ports_from_log(log_text: str) -> list[int]:
-    """Infer listen ports from typical dev-server log lines."""
+    """Infer *listen* ports from typical dev-server bind lines.
+
+    Only match lines that mean the process is accepting connections. Client-side
+    URLs (e.g. ``API: http://localhost:8000/users`` in a watcher log) must not
+    be treated as owned listen ports — that steals preview targets from the real
+    server and hides the worker process.
+    """
     if not (log_text or "").strip():
         return []
     patterns = (
-        re.compile(r"https?://(?:127\.0\.0\.1|localhost|0\.0\.0\.0|\[::\]):(\d{2,5})\b", re.I),
+        # Next.js / Vite style: "- Local: http://localhost:3001"
         re.compile(r"\bLocal:\s+https?://[^\s]*:(\d{2,5})\b", re.I),
-        re.compile(r"\b(?:listening|ready|running)\s+(?:on\s+)?[^\s]*:(\d{2,5})\b", re.I),
+        # "listening on 0.0.0.0:8000" / "running on http://127.0.0.1:5173"
+        re.compile(
+            r"\b(?:listening|ready|running)\s+(?:on\s+)?(?:https?://)?(?:127\.0\.0\.1|localhost|0\.0\.0\.0|\[::\]|\*):(\d{2,5})\b",
+            re.I,
+        ),
         re.compile(r"\bUvicorn running on[^\n]*:(\d{2,5})\b", re.I),
         re.compile(r"\bstarted server on[^\n]*:(\d{2,5})\b", re.I),
+        re.compile(r"\bServing HTTP on [^\s]+ port (\d{2,5})\b", re.I),
+        # Explicit bind host:port without "http" client path noise
+        re.compile(
+            r"\b(?:bound to|bind(?:ing)? to|listen(?:ing)? at)\s+(?:https?://)?(?:127\.0\.0\.1|localhost|0\.0\.0\.0|\[::\]|\*):(\d{2,5})\b",
+            re.I,
+        ),
     )
     found: list[int] = []
     seen: set[int] = set()

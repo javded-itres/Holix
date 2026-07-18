@@ -169,14 +169,18 @@ def bootstrap_env(*, include_project: bool = True, force: bool = False) -> None:
     2. ``~/.holix/global/.env`` (shared global settings)
     3. ``~/.holix/.env`` (legacy global fallback when ``global/.env`` is absent)
 
-    Variables already set in the process environment are never overwritten.
+    Variables already set in the process environment (true shell exports) are
+    never overwritten. File values may be re-applied when *force* is true.
     """
     global _BOOTSTRAPPED, _SHELL_ENV_KEYS
     init_holix_home()
     if _BOOTSTRAPPED and not force:
         return
 
-    if force:
+    # Capture shell-locked keys once only. Re-snapshotting on force=True would
+    # treat previously loaded .env values as "shell" and block profile overrides
+    # (e.g. CWD/.env whitelist=true locking out profiles/*/ .env whitelist=false).
+    if _SHELL_ENV_KEYS is None:
         _SHELL_ENV_KEYS = set(os.environ.keys())
     _shell_locked_keys()
 
@@ -220,11 +224,9 @@ def bootstrap_env(*, include_project: bool = True, force: bool = False) -> None:
 def bootstrap_profile_env(profile: str, *, force: bool = False) -> None:
     """Load profile-specific ``.env`` on top of global bootstrap.
 
-    Profile values override global file values but never shell exports.
+    Profile values override CWD/global file values but never true shell exports.
     """
-    global _ACTIVE_PROFILE_ENV, _SHELL_ENV_KEYS
-    if force:
-        _SHELL_ENV_KEYS = set(os.environ.keys())
+    global _ACTIVE_PROFILE_ENV
     bootstrap_env(force=force)
     name = (profile or "default").strip() or "default"
     os.environ["HOLIX_PROFILE"] = name
@@ -235,6 +237,7 @@ def bootstrap_profile_env(profile: str, *, force: bool = False) -> None:
     except Exception:
         pass
     _seed_profile_env(name, inherit_global=True)
+    # Profile wins over project/global file values (shell exports still locked).
     _apply_env_file(profile_env_path(name), override_file_values=True, profile=name)
     _apply_legacy_helix_env_aliases()
     _ACTIVE_PROFILE_ENV = name
@@ -248,13 +251,84 @@ def _file_tag(path: Path) -> str:
     return "present" if path.is_file() else "missing"
 
 
-def format_env_context_block(*, profile_name: str | None = None) -> str:
+def _project_env_for_prompt(
+    *,
+    profile_name: str,
+    workspace_root: str | None = None,
+    workspace_jail_enabled: bool | None = None,
+) -> Path | None:
+    """Return a project ``.env`` path safe to mention in the system prompt.
+
+    Gateway/Telegram run with process CWD = Holix install tree. Advertising
+    ``Path.cwd()/.env`` makes jailed agents treat the install dir as their
+    workspace. Prefer the profile workspace ``.env`` when jail is on.
+    """
+    prof_env = profile_env_path(profile_name)
+    jail = bool(workspace_jail_enabled)
+    root = (workspace_root or "").strip() or None
+    if not jail:
+        try:
+            from core.tools.execution_context import (
+                get_workspace_root,
+                is_workspace_jail_enabled,
+            )
+
+            jail = is_workspace_jail_enabled()
+            if root is None:
+                ctx = get_workspace_root()
+                if ctx and str(ctx).strip():
+                    root = str(ctx).strip()
+        except Exception:
+            pass
+
+    if jail and root:
+        ws_env = Path(root).expanduser() / ".env"
+        try:
+            if ws_env.resolve() == prof_env.resolve():
+                return None
+        except OSError:
+            pass
+        return ws_env
+
+    proj = project_env_path()
+    try:
+        if proj.resolve() == prof_env.resolve():
+            return None
+    except OSError:
+        return None
+    # Never present Holix install / deploy CWD as the user project root.
+    try:
+        resolved = proj.resolve()
+        home = holix_home().resolve()
+        if home in resolved.parents or resolved.parent == home:
+            return None
+        # profiles/<name>/.env already covered; skip install trees named Helix/holix-deploy
+        parts = {p.lower() for p in resolved.parts}
+        if "holix-deploy" in parts or (
+            resolved.name == ".env" and resolved.parent.name.lower() in {"helix", "holix"}
+        ):
+            return None
+    except OSError:
+        return None
+    return proj
+
+
+def format_env_context_block(
+    *,
+    profile_name: str | None = None,
+    workspace_root: str | None = None,
+    workspace_jail_enabled: bool | None = None,
+) -> str:
     """Markdown for system prompts: where Holix env vars and profile config live."""
     profile = (profile_name or active_profile_name()).strip() or "default"
     home = holix_home()
     prof_env = profile_env_path(profile)
     legacy_env = holix_env_path()
-    proj_env = project_env_path()
+    proj_env = _project_env_for_prompt(
+        profile_name=profile,
+        workspace_root=workspace_root,
+        workspace_jail_enabled=workspace_jail_enabled,
+    )
     tg_env = profile_dir_path(profile) / "telegram.env"
     profile_yaml = profile_dir_path(profile) / "config.yaml"
     skills_dir = profile_dir_path(profile) / "data" / "skills"
@@ -281,9 +355,18 @@ def format_env_context_block(*, profile_name: str | None = None) -> str:
         lines.append(
             f"4. Legacy global env (fallback): `{legacy_env}` ({_file_tag(legacy_env)})"
         )
-    if proj_env.resolve() != prof_env.resolve():
+    if proj_env is not None:
         suffix = "optional" if not proj_env.is_file() else "present"
         lines.append(f"4. Project `.env` overlay: `{proj_env}` ({suffix})")
+    root = (workspace_root or "").strip() or None
+    if root and workspace_jail_enabled:
+        lines.extend(
+            [
+                "",
+                f"- **Profile workspace (jail root — your project files):** `{root}`",
+                "  Do **not** use the Holix install/deploy directory or process CWD as the project root.",
+            ]
+        )
     lines.extend(
         [
             "",

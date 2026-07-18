@@ -80,7 +80,7 @@ class ProfileAgentRegistry:
                 await self._dispose_entry(self._entries.pop(name))
 
     async def _create_entry(self, profile: str) -> ProfileEntry:
-        from cli.core import init_profile
+        from core.profile import init_profile
 
         from core.agent_events import create_compatibility_print_handler
         from core.crypto.gateway_crypto import require_gateway_profile_unlock

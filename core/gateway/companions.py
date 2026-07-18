@@ -1,10 +1,18 @@
-"""Per-profile Telegram and cron companions (start/stop/reload without uvicorn restart)."""
+"""Per-profile Telegram/MAX/cron companions (start/stop without uvicorn restart).
+
+Outer packages register runners via ``core.plugins.register_companion_hooks``.
+"""
 
 from __future__ import annotations
 
 import asyncio
+import logging
 from dataclasses import dataclass
 from typing import Any
+
+from core.plugins.hooks import companion_hooks
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass(slots=True)
@@ -67,17 +75,17 @@ class CompanionManager:
 
     async def start_telegram(self, profile: str) -> None:
         await self.stop_telegram(profile)
-        from cli.services.supervisor import telegram_should_start
-
-        if not telegram_should_start(profile):
+        should_start = companion_hooks.telegram_should_start
+        runner = companion_hooks.start_telegram
+        if should_start is None or runner is None:
+            logger.debug("Telegram companion hooks not registered; skip %s", profile)
             return
-        from integrations.telegram.bot import HolixTelegramBot
-
+        if not should_start(profile):
+            return
         state = self._states.setdefault(profile, CompanionState(profile=profile))
 
         async def _run() -> None:
-            bot = HolixTelegramBot(profile=profile)
-            await bot.run_polling()
+            await runner(profile)
 
         state.telegram_task = asyncio.create_task(
             _run(),
@@ -97,17 +105,17 @@ class CompanionManager:
 
     async def start_max(self, profile: str) -> None:
         await self.stop_max(profile)
-        from integrations.max.gateway_routes import max_should_poll
-
-        if not max_should_poll(profile):
+        should_poll = companion_hooks.max_should_poll
+        runner = companion_hooks.start_max
+        if should_poll is None or runner is None:
+            logger.debug("MAX companion hooks not registered; skip %s", profile)
             return
-        from integrations.max.config import load_max_settings
-        from integrations.max.polling import run_polling
-
+        if not should_poll(profile):
+            return
         state = self._states.setdefault(profile, CompanionState(profile=profile))
 
         async def _run() -> None:
-            await run_polling(load_max_settings(profile), profile=profile)
+            await runner(profile)
 
         state.max_task = asyncio.create_task(_run(), name=f"holix-max-{profile}")
 

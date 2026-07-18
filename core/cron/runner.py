@@ -8,7 +8,7 @@ import time
 from datetime import UTC, datetime
 from typing import Any
 
-from cli.core import ProfileManager
+from core.profile import ProfileManager
 
 from core.cron import active_runs
 from core.cron.expressions import format_next_run_iso

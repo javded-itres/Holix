@@ -60,11 +60,14 @@ PREDEFINED_SUBAGENTS = {
         name="coder",
         system_prompt=(
             "You are a code generation specialist. Your job is to write, edit, "
-            "and debug code. You can read existing files, write new ones, execute "
-            "code for testing, and use the terminal for running commands. "
-            "Always verify your code works before reporting completion."
+            "and debug code. You can list and read existing files, write new ones, "
+            "execute code for testing, and use the terminal for running commands. "
+            "Always work in the shared working directory from your system prompt "
+            "(same as the main agent). Prefer list_directory / read_file before "
+            "assuming a path is missing. Always verify your code works before "
+            "reporting completion."
         ),
-        tools=["read_file", "write_file", "terminal", "code_executor"],
+        tools=["read_file", "write_file", "list_directory", "terminal", "code_executor"],
         max_steps=15,
         mode="react",
         process_mode="async",

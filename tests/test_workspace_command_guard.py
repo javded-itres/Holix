@@ -27,6 +27,59 @@ def test_references_holix_profiles() -> None:
     assert references_holix_profiles("ls .holix/profiles/bob")
 
 
+def test_references_holix_profiles_allows_under_workspace(tmp_path: Path) -> None:
+    """Absolute workspace paths under .../profiles/<name>/workspace must not be blocked."""
+    profile = tmp_path / "profiles" / "invite-user"
+    workspace = profile / "workspace"
+    workspace.mkdir(parents=True)
+    (workspace / "docker-compose.yml").write_text("services: {}\n", encoding="utf-8")
+    (profile / "config.yaml").write_text("profile_name: invite-user\n", encoding="utf-8")
+
+    abs_ws = str(workspace.resolve())
+    assert not references_holix_profiles(f"cd {abs_ws}", allow_under=workspace)
+    assert not references_holix_profiles(
+        f"docker compose -f {abs_ws}/docker-compose.yml build",
+        allow_under=workspace,
+    )
+    assert not references_holix_profiles(f"ls {abs_ws}/user_catalog", allow_under=workspace)
+
+    # Secrets / non-workspace profile paths still blocked
+    assert references_holix_profiles(
+        f"cat {profile.resolve()}/config.yaml",
+        allow_under=workspace,
+    )
+    assert references_holix_profiles("cat ~/.holix/profiles/alice/.env", allow_under=workspace)
+
+
+def test_allows_absolute_path_under_workspace_profile_tree(tmp_path: Path) -> None:
+    profile = tmp_path / "profiles" / "invite-pavel"
+    workspace = profile / "workspace"
+    workspace.mkdir(parents=True)
+    abs_ws = str(workspace.resolve())
+
+    allowed, reason = validate_workspace_command(f"cd {abs_ws}", workspace)
+    assert allowed, reason
+    allowed, reason = validate_workspace_command(
+        f"docker compose -f {abs_ws}/docker-compose.yml build",
+        workspace,
+    )
+    assert allowed, reason
+    allowed, reason = validate_workspace_command("docker compose build", workspace)
+    assert allowed, reason
+
+
+def test_blocks_profile_secrets_outside_workspace(tmp_path: Path) -> None:
+    profile = tmp_path / "profiles" / "invite-pavel"
+    workspace = profile / "workspace"
+    workspace.mkdir(parents=True)
+    config = profile / "config.yaml"
+    config.write_text("x: 1\n", encoding="utf-8")
+
+    allowed, reason = validate_workspace_command(f"cat {config.resolve()}", workspace)
+    assert not allowed
+    assert reason
+
+
 def test_blocks_parent_traversal(workspace: Path) -> None:
     blocked, _ = command_escapes_workspace("cat ../outside.env", workspace)
     assert blocked

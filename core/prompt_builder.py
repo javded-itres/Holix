@@ -1,27 +1,160 @@
 import os
+from pathlib import Path
 from typing import Any
 
 from core.project.holix_md import HOLIX_MD_REL_PATH, task_context_note
 
 
-def format_studio_workspace_block() -> str:
-    """When Holix Studio is running, tell the agent which directory to use for files."""
+def resolve_agent_working_directory(
+    *,
+    workspace_root: str | None = None,
+    workspace_jail_enabled: bool | None = None,
+    working_directory: str | None = None,
+) -> str:
+    """Directory relative paths and project discovery should use.
+
+    Jail on → profile workspace root. Jail off → process CWD (same for main
+    agent and in-process sub-agents). Explicit ``working_directory`` wins.
+    """
+    if working_directory and str(working_directory).strip():
+        try:
+            return str(Path(working_directory).expanduser().resolve())
+        except OSError:
+            return str(working_directory).strip()
+
+    root = (workspace_root or "").strip() or None
+    jail = workspace_jail_enabled
+    if root is None or jail is None:
+        try:
+            from core.tools.execution_context import get_workspace_root, is_workspace_jail_enabled
+
+            if jail is None:
+                jail = is_workspace_jail_enabled()
+            if root is None:
+                ctx_root = get_workspace_root()
+                if ctx_root and str(ctx_root).strip():
+                    root = str(ctx_root).strip()
+        except Exception:
+            pass
+
+    if jail and root:
+        try:
+            return str(Path(root).expanduser().resolve())
+        except OSError:
+            return root
+
+    try:
+        return str(Path.cwd().resolve())
+    except OSError:
+        return str(Path.cwd())
+
+
+def format_working_directory_block(
+    *,
+    workspace_root: str | None = None,
+    workspace_jail_enabled: bool | None = None,
+    working_directory: str | None = None,
+) -> str:
+    """Tell agents (main + sub) which directory file tools use."""
+    root = (workspace_root or "").strip() or None
+    jail = workspace_jail_enabled
+    if root is None or jail is None:
+        try:
+            from core.tools.execution_context import get_workspace_root, is_workspace_jail_enabled
+
+            if jail is None:
+                jail = is_workspace_jail_enabled()
+            if root is None:
+                ctx_root = get_workspace_root()
+                if ctx_root and str(ctx_root).strip():
+                    root = str(ctx_root).strip()
+        except Exception:
+            pass
+
+    primary = resolve_agent_working_directory(
+        workspace_root=root,
+        workspace_jail_enabled=jail,
+        working_directory=working_directory,
+    )
+
+    if jail and root:
+        return (
+            "## Working directory (shared workspace)\n\n"
+            "You share this workspace with the main Holix agent and sibling sub-agents.\n"
+            f"**Primary path:** `{primary}`\n\n"
+            "Create and edit **all** project files under this directory. "
+            "Use paths relative to it (or absolute paths under it). "
+            "Do **not** write into the Holix install tree or another profile's workspace. "
+            "If a path is unclear, call `list_directory` on `.` first."
+        )
+
+    lines = [
+        "## Working directory (shared with main agent)\n",
+        "You use the **same** process working directory as the main Holix agent "
+        "and other sub-agents in this session.",
+        f"**CWD (relative paths resolve here):** `{primary}`",
+    ]
+    if root:
+        lines.append(f"**Profile workspace_root** (jail off — not forced): `{root}`")
+    lines.append(
+        "Prefer paths under the CWD. Start with `list_directory` on `.` if the task "
+        "does not give absolute paths. Do not invent another project root."
+    )
+    return "\n".join(lines)
+
+
+def format_studio_workspace_block(
+    *,
+    workspace_root: str | None = None,
+    workspace_jail_enabled: bool | None = None,
+) -> str:
+    """When Holix Studio is running, tell the agent which directory to use for files.
+
+    Prefer the per-session agent workspace (jail root). Process env
+    ``HOLIX_STUDIO_WORKSPACE_*`` reflects the *serve* process only — in multi-user
+    SaaS that is often the deploy CWD, not the invite user's profile workspace.
+    """
+    root = (workspace_root or "").strip() or None
+    jail = workspace_jail_enabled
+
+    if root is None or jail is None:
+        try:
+            from core.tools.execution_context import get_workspace_root, is_workspace_jail_enabled
+
+            if jail is None:
+                jail = is_workspace_jail_enabled()
+            if root is None:
+                ctx_root = get_workspace_root()
+                if ctx_root and str(ctx_root).strip():
+                    root = str(ctx_root).strip()
+        except Exception:
+            pass
+
+    if jail and root:
+        return (
+            "## Holix Studio working directory\n\n"
+            "Create and edit **all** project files only under this workspace:\n"
+            f"`{root}`\n\n"
+            "Use paths relative to that directory (or absolute paths under it). "
+            "Do **not** write into the Holix install/deploy tree or another user's workspace."
+        )
+
     mode = (os.getenv("HOLIX_STUDIO_WORKSPACE_MODE") or "").strip().lower()
-    root = (os.getenv("HOLIX_STUDIO_WORKSPACE_ROOT") or "").strip()
-    if not mode or not root:
+    env_root = (os.getenv("HOLIX_STUDIO_WORKSPACE_ROOT") or "").strip()
+    if not mode or not env_root:
         return ""
     if mode == "cwd":
         return (
             "## Holix Studio working directory\n\n"
             f"Studio is in **cwd** mode. Create and edit all project files under:\n"
-            f"`{root}`\n\n"
+            f"`{env_root}`\n\n"
             "Use relative paths from that directory. Do **not** use the profile "
             "`workspace/` folder unless the user explicitly asks."
         )
     return (
         "## Holix Studio working directory\n\n"
         f"Studio is in **profile workspace** mode. Create and edit project files only under:\n"
-        f"`{root}`"
+        f"`{env_root}`"
     )
 
 
@@ -44,6 +177,8 @@ def build_system_prompt(
     *,
     profile_name: str | None = None,
     locale: str | None = None,
+    workspace_root: str | None = None,
+    workspace_jail_enabled: bool | None = None,
 ) -> str:
     """Build the system prompt for the agent.
 
@@ -82,6 +217,16 @@ Do not auto-spawn sub-agents for ordinary questions — answer yourself or use m
 **Honesty:** Never claim a sub-agent is running unless you called `delegate_to_subagent` (or `list_subagents` shows it).
 When the user asks for status (what you are doing, open tasks, progress) — call `list_subagents()`, state only verified facts, and list concrete next steps.
 
+## Hard rule: never fake completed work
+
+**Absolute rule:** You must not state that an action is done unless a tool in *this turn* returned a successful result that proves it.
+
+- **Forbidden without a successful tool result:** "Готово", "сохранил", "файл создан", "удалил", "I've saved", "successfully created", paths to files you "wrote", checklists of ✅ completed work.
+- **Saying you will do it is not doing it.** "Сейчас сохраню / запишу / write_file" without an actual tool call is a failure. Call the tool in the same step; do not end the turn on a promise.
+- **Tool failed ⇒ report failure.** If the tool returns an error (permission denied, exit code ≠ 0, not found), say it failed, quote the error, and do **not** claim partial or full success.
+- **Only report what tools returned.** After tools run, summarize their actual output. If you did not call a tool, you may only describe intent or ask a question — never invent outcomes.
+- **Verify writes/deletes** when the user cares about the file: `write_file` / terminal, then `list_directory` or `read_file` / `ls` before saying the file exists.
+
 ## Instructions
 
 1. **Think step-by-step** before taking action
@@ -89,7 +234,21 @@ When the user asks for status (what you are doing, open tasks, progress) — cal
 3. **Break down complex tasks** into smaller, manageable steps
 4. **Run what you build** — writing files is not enough; install deps, configure env, start the app, read logs, fix errors, re-run until it works or you hit a blocker you cannot fix alone
 5. **Learn from success**: After completing a complex multi-step task successfully, you should consider creating a skill for future use
-6. **Be precise**: Always verify your work and handle errors gracefully; never claim "done" without execution evidence
+6. **Be precise**: Always verify your work and handle errors gracefully; never claim "done" without a successful tool result in this turn
+
+## Scheduling: Holix cron vs application timers
+
+These are different things — choose correctly:
+
+| User intent | What to do |
+|-------------|------------|
+| Build a service/script/worker that runs on an interval (poll API, write logs, jobs inside the project) | **Implement code** (loop, APScheduler, cron inside the app, systemd unit). Start with `start_background_process`. **Do not** call `schedule_cron`. |
+| Holix should wake the *agent* on a schedule (send digests, remind, periodic agent checks) | Use `schedule_cron` or tell the user `/cron add <schedule> :: <task>`. Requires gateway. |
+| One-shot work now | Run it now with tools — no cron. |
+
+Examples:
+- «Создай консольный сервис, который раз в 5 минут ходит на API пользователей…» → write a worker service + background process, **not** Holix cron.
+- «Присылай мне сводку каждый день в 10 утра» → `schedule_cron` / `/cron add`.
 
 ## Tool Usage Guidelines
 
@@ -97,7 +256,7 @@ When the user asks for status (what you are doing, open tasks, progress) — cal
 - Use `write_file` to create or modify files
 - Use `run_terminal_command` for one-shot commands (git, tests, package install) with a timeout
 - Use `start_background_process` (alias `run_project`) for dev servers and long-running apps — never block the chat with `npm run dev`, `uvicorn`, etc. Do **not** use `run_terminal_command` for servers.
-- Before starting a server, call `stop_background_process` if one may already be running — never stack multiple dev servers
+- Multiple dev servers are allowed on **different ports** (e.g. frontend :3000 + API :8000); only stop or restart when reusing the **same** port
 - Always keep the **same port** from the project config/README — never hop to 8001, 8002… unless the user explicitly asks
 - After `start_background_process`, call `check_background_process` — it reports which PID listens on each expected port (`ours` vs `foreign`)
 - If status is `wrong_process_on_port`, `port_in_use`, `crashed`, `error_in_log`, or `port_not_listening`: read the log, fix code if needed, then `restart_background_process` with the **same command** (same port), and `check_background_process` again until `healthy`
@@ -126,7 +285,7 @@ You are not a passive code generator. After creating or changing an application,
 
 ### Reporting
 
-State what you actually ran (commands, ports, test counts). If something failed, include the error snippet and what you tried next — never imply success without log or test evidence.
+State what you actually ran (commands, ports, test counts). If something failed, include the error snippet and what you tried next — never imply success without log or test evidence. Never mark work complete from narration alone.
 
 ## Skills
 
@@ -145,12 +304,12 @@ State what you actually ran (commands, ports, test counts). If something failed,
 ## Response Format
 
 When responding to the user:
-1. Explain what you're going to do
-2. Execute necessary tools
-3. Summarize the results
-4. If you encounter errors, explain them and suggest solutions
+1. Briefly state the next action (optional)
+2. **Execute tools immediately** — do not end the turn after a promise
+3. Summarize **only** what tool results prove
+4. If tools fail, explain the error and next fix — never claim success
 
-Remember: You are a helpful, capable agent that learns and improves with each task.
+Remember: You are a helpful, capable agent that learns and improves with each task. Honesty about failures beats a false "done".
 """
 
     from core.env_loader import format_env_context_block
@@ -163,7 +322,11 @@ Remember: You are a helpful, capable agent that learns and improves with each ta
         memories=relevant_memories if relevant_memories else "No relevant memories from past conversations.",
         holix_path=HOLIX_MD_REL_PATH,
         project_note=task_context_note(),
-        env_paths=format_env_context_block(profile_name=profile_name),
+        env_paths=format_env_context_block(
+            profile_name=profile_name,
+            workspace_root=workspace_root,
+            workspace_jail_enabled=workspace_jail_enabled,
+        ),
     )
 
     from core.profile.soul import format_identity_instructions, format_soul_block
@@ -171,9 +334,20 @@ Remember: You are a helpful, capable agent that learns and improves with each ta
     from core.project.holix_md import append_holix_project_context
 
     blocks = [lang_block, formatted_prompt.rstrip()]
-    studio_block = format_studio_workspace_block()
+    studio_block = format_studio_workspace_block(
+        workspace_root=workspace_root,
+        workspace_jail_enabled=workspace_jail_enabled,
+    )
     if studio_block:
         blocks.append(studio_block)
+    else:
+        # Always pin the shared working directory (main agent + sub-agents).
+        wd_block = format_working_directory_block(
+            workspace_root=workspace_root,
+            workspace_jail_enabled=workspace_jail_enabled,
+        )
+        if wd_block:
+            blocks.append(wd_block)
     identity = format_identity_instructions(profile_name)
     if identity:
         blocks.append(identity)
@@ -189,7 +363,11 @@ Remember: You are a helpful, capable agent that learns and improves with each ta
             blocks.append(ext_fragment)
     except Exception:
         pass
-    return append_holix_project_context("\n\n".join(blocks))
+    project_cwd = resolve_agent_working_directory(
+        workspace_root=workspace_root,
+        workspace_jail_enabled=workspace_jail_enabled,
+    )
+    return append_holix_project_context("\n\n".join(blocks), cwd=project_cwd)
 
 
 def format_tools_description(tools_schemas: list[dict[str, Any]]) -> str:

@@ -116,7 +116,10 @@ async def test_registry_keeps_other_sessions_alive(registry: BackgroundProcessRe
         assert active_c1.process_id == rec3.process_id
         assert active_c2 is not None
         assert active_c2.process_id == rec2.process_id
-        terminate.assert_called_once_with(100, grace=2.0)
+        c1_records = registry.list_for_scope(profile="p1", conversation_id="c1")
+        assert len(c1_records) == 2
+        assert {rec.process_id for rec in c1_records} == {rec1.process_id, rec3.process_id}
+        terminate.assert_not_called()
 
 
 @pytest.mark.asyncio
@@ -161,13 +164,13 @@ async def test_registry_start_uses_workspace_root_without_cwd(
 
 
 @pytest.mark.asyncio
-async def test_registry_replaces_running_process(registry: BackgroundProcessRegistry, tmp_path) -> None:
+async def test_registry_allows_multiple_same_session(registry: BackgroundProcessRegistry, tmp_path) -> None:
     first = _mock_popen(100)
     second = _mock_popen(200)
 
     with (
         patch("core.runtime.background_process.popen_background", side_effect=[first, second]),
-        patch("core.runtime.background_process.terminate_process"),
+        patch("core.runtime.background_process.terminate_process") as terminate,
         patch("core.runtime.background_process.is_process_alive", return_value=True),
         patch("core.runtime.port_utils.find_busy_ports", return_value=[]),
         patch("core.runtime.port_utils.force_free_ports", return_value=[]),
@@ -186,10 +189,46 @@ async def test_registry_replaces_running_process(registry: BackgroundProcessRegi
             profile="p1",
         )
         active = registry.active_for_scope(profile="p1", conversation_id="c1")
+        records = registry.list_for_scope(profile="p1", conversation_id="c1")
 
     assert rec1.process_id != rec2.process_id
     assert active is not None
     assert active.process_id == rec2.process_id
+    assert len(records) == 2
+    terminate.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_registry_replaces_process_on_same_port(registry: BackgroundProcessRegistry, tmp_path) -> None:
+    first = _mock_popen(100)
+    second = _mock_popen(200)
+
+    with (
+        patch("core.runtime.background_process.popen_background", side_effect=[first, second]),
+        patch("core.runtime.background_process.terminate_process") as terminate,
+        patch("core.runtime.background_process.is_process_alive", return_value=True),
+        patch("core.runtime.port_utils.find_busy_ports", return_value=[]),
+        patch("core.runtime.port_utils.force_free_ports", return_value=[]),
+        patch("core.workspace.get_effective_workspace_root", return_value=tmp_path),
+    ):
+        rec1 = await registry.start(
+            command="uvicorn --port 8000",
+            label="first",
+            conversation_id="c1",
+            profile="p1",
+        )
+        rec2 = await registry.start(
+            command="uvicorn --port 8000",
+            label="second",
+            conversation_id="c1",
+            profile="p1",
+        )
+        active = registry.active_for_scope(profile="p1", conversation_id="c1")
+
+    assert rec1.process_id != rec2.process_id
+    assert active is not None
+    assert active.process_id == rec2.process_id
+    terminate.assert_called_once_with(100, grace=2.0)
 
 
 @pytest.mark.asyncio

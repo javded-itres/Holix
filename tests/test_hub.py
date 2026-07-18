@@ -225,7 +225,8 @@ def test_remove_hub_install(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
         def save_profile(self, profile: str, config: object) -> None:
             pass
 
-    monkeypatch.setattr("cli.core.get_profile_manager", lambda: _PM())
+    monkeypatch.setattr("core.profile.service.get_profile_manager", lambda: _PM())
+    monkeypatch.setattr("core.profile.get_profile_manager", lambda: _PM())
 
     names = remove_hub_install("test", cfg, "clawhub:demo")
     assert "demo" in names

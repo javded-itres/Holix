@@ -74,6 +74,36 @@ Tools: `save_agent_soul`, `save_user_profile` in `core/tools/profile_identity.py
 | HTTP | `holix gateway start` → FastAPI |
 | Telegram | `holix telegram run` or gateway companion |
 
+## Target layering (refactor in progress)
+
+Dependency direction:
+
+```
+cli / api / integrations  →  core
+```
+
+| Layer | Location | Role |
+|-------|----------|------|
+| Presentation | `cli/`, `api/`, `integrations/` | UX, HTTP, messengers |
+| Application | `core/application/`, `core/di/` | run scope, profile runtime, Dishka |
+| Domain (thin) | `core/domain/` | `RunContext`, `GraphRuntime` |
+| Infrastructure in core | `core/memory/`, `core/tools/`, … | storage, tools, graph |
+
+**Rules:**
+
+1. `core` must not import `cli`, `api`, or `integrations` (enforced by `tests/test_architecture_boundaries.py`).
+2. Profile management lives in `core.profile` (`cli.core` re-exports for compatibility).
+3. SSE formatting lives in `core.presenters.sse` (API re-exports).
+4. Agent construction goes through Dishka (`core.di.create_agent`).
+5. Gateway process services (registry, stores, auth, locks) live in Dishka APP
+   scope (`create_async_container(..., gateway=True)`). Routers inject via
+   `FromDishka[...]`. Lifespan calls `api.state.bind_from_container(container)`
+   so non-request code and tests can use the same instances through `api.state`.
+
+Outer behavior (Telegram/MAX companions, cron notify, profile-delete messages)
+is registered via ``core.plugins`` hooks from ``integrations.bootstrap`` — core
+never imports `cli` / `api` / `integrations` (enforced by tests).
+
 ## See also
 
 - [CLI.md](CLI.md)
