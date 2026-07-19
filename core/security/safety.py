@@ -19,8 +19,10 @@ _UNIX_SAFE: set[str] = {
 }
 
 _WINDOWS_SAFE: set[str] = {
+    # Native cmd/PowerShell-friendly plus common Git-Bash/Unix aliases agents use
     "dir", "type", "more", "findstr", "where", "cd", "echo", "tree",
     "copy", "copy /y", "md", "mkdir", "touch",
+    "ls", "cat", "head", "tail", "pwd", "cp", "mv", "rm",
     "whoami", "hostname", "date", "systeminfo", "tasklist", "ipconfig",
     "ping", "curl", "nslookup",
     "git status", "git log", "git diff", "git show",
