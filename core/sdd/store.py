@@ -584,7 +584,7 @@ class SpecStore:
                     main_text = f"# {domain}\n\n"
                 new_main = merge_delta_into_main(main_text, delta_text)
                 main_path.write_text(new_main, encoding="utf-8")
-                merged.append(str(main_path.relative_to(self.workspace)))
+                merged.append(main_path.relative_to(self.workspace).as_posix())
 
         arch = archive_root(self.workspace)
         arch.mkdir(parents=True, exist_ok=True)
@@ -596,7 +596,7 @@ class SpecStore:
         return {
             "ok": True,
             "change_id": cid,
-            "archived_to": str(dest.relative_to(self.workspace)),
+            "archived_to": dest.relative_to(self.workspace).as_posix(),
             "merged_specs": merged,
         }
 

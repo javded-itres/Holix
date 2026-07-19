@@ -9,7 +9,10 @@ from pathlib import Path
 from core.platform_compat import IS_WINDOWS
 
 _HOLIX_PROFILE_RE = re.compile(
-    r"(?:~/?\.holix/profiles/|\.holix/profiles/|(?:^|[\s'\"])(?:/[\w.\-]+)*/profiles/[a-zA-Z0-9][a-zA-Z0-9_.-]{0,63}/)",
+    r"(?:~/?\.holix/profiles/"
+    r"|\.holix/profiles/"
+    # POSIX absolute or Windows drive paths (normalized to /) under .../profiles/<name>/
+    r"|(?:^|[\s'\"=])(?:[A-Za-z]:)?(?:/[\w.\-]+)*/profiles/[a-zA-Z0-9][a-zA-Z0-9_.-]{0,63}/)",
     re.I,
 )
 _SENSITIVE_HOME_RE = re.compile(

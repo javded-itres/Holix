@@ -20,7 +20,7 @@ _UNIX_SAFE: set[str] = {
 
 _WINDOWS_SAFE: set[str] = {
     "dir", "type", "more", "findstr", "where", "cd", "echo", "tree",
-    "copy", "copy /y",
+    "copy", "copy /y", "md", "mkdir", "touch",
     "whoami", "hostname", "date", "systeminfo", "tasklist", "ipconfig",
     "ping", "curl", "nslookup",
     "git status", "git log", "git diff", "git show",
