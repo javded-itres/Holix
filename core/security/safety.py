@@ -14,13 +14,15 @@ _UNIX_SAFE: set[str] = {
     "python", "python3", "node", "npm",
     "pip list", "pip show",
     "pytest", "npm test", "make test",
-    "cp", "touch",
+    "cp", "touch", "mkdir", "cd", "echo", "chmod", "test",
     "holix", "uv",
 }
 
 _WINDOWS_SAFE: set[str] = {
+    # Native cmd/PowerShell-friendly plus common Git-Bash/Unix aliases agents use
     "dir", "type", "more", "findstr", "where", "cd", "echo", "tree",
-    "copy", "copy /y",
+    "copy", "copy /y", "md", "mkdir", "touch",
+    "ls", "cat", "head", "tail", "pwd", "cp", "mv", "rm",
     "whoami", "hostname", "date", "systeminfo", "tasklist", "ipconfig",
     "ping", "curl", "nslookup",
     "git status", "git log", "git diff", "git show",
@@ -34,7 +36,7 @@ _WINDOWS_SAFE: set[str] = {
 _COMMON_DANGEROUS: list[str] = [
     r"rm\s+-rf",
     r">\s*/dev/",
-    r"dd\s+",
+    r"\bdd\s+",
     r"mkfs",
     r"fdisk",
     r"shutdown",
@@ -58,6 +60,45 @@ _WINDOWS_DANGEROUS: list[str] = [
 _SHELL_CHAINING = re.compile(
     r"(?:&&|\|\||[;|&`$<>]|\$\(|\n|\r)"
 )
+_SHELL_STATEMENT_SPLIT = re.compile(r"(?:&&|\|\||;)")
+_PIPE_SPLIT = re.compile(r"(?<![\"'])\|(?![\"'])")
+_REDIRECT_TOKENS = re.compile(
+    r"\s+(?:>>?|<<?|\d+>>?)\s*(?:[^\s|;&]+|\"[^\"]*\"|'[^']*')"
+)
+
+
+def command_needs_shell(command: str) -> bool:
+    """True when the command string requires a shell interpreter."""
+    return bool(_SHELL_CHAINING.search(command or ""))
+
+
+def iter_shell_command_segments(command: str) -> list[str]:
+    """Split a compound shell command into simple segments for whitelist checks."""
+    text = (command or "").strip()
+    if not text:
+        return []
+    statements = _SHELL_STATEMENT_SPLIT.split(text) if command_needs_shell(text) else [text]
+    segments: list[str] = []
+    for statement in statements:
+        statement = statement.strip()
+        if not statement:
+            continue
+        for pipe_part in _PIPE_SPLIT.split(statement):
+            part = _REDIRECT_TOKENS.sub("", pipe_part).strip()
+            if part:
+                segments.append(part)
+    return segments
+
+
+def _base_command_name(segment: str) -> str:
+    text = (segment or "").strip().lower()
+    if not text:
+        return ""
+    for token in text.split():
+        if "=" in token and not token.startswith("="):
+            continue
+        return token
+    return ""
 
 
 class CommandWhitelist:
@@ -72,22 +113,35 @@ class CommandWhitelist:
     def is_command_allowed(self, command: str) -> tuple[bool, str | None]:
         """Check if a command is safe to execute.
 
-        Args:
-            command: Command string to check
-
-        Returns:
-            Tuple of (is_allowed, reason)
+        Compound shell commands (``&&``, ``|``, ``>``, etc.) are allowed when every
+        extracted segment passes the same whitelist and dangerous-pattern rules.
         """
         command_lower = command.lower().strip()
-
-        if _SHELL_CHAINING.search(command):
-            return False, "Blocked shell chaining or redirection"
+        if not command_lower:
+            return False, "Empty command"
 
         for pattern in self.dangerous_patterns:
             if re.search(pattern, command_lower):
                 return False, f"Blocked dangerous pattern: {pattern}"
 
-        base_cmd = command_lower.split()[0] if command_lower else ""
+        segments = iter_shell_command_segments(command)
+        if not segments:
+            return False, "Empty command"
+
+        for segment in segments:
+            allowed, reason = self._is_simple_segment_allowed(segment)
+            if not allowed:
+                return False, reason
+        return True, None
+
+    def _is_simple_segment_allowed(self, segment: str) -> tuple[bool, str | None]:
+        command_lower = (segment or "").strip().lower()
+        if not command_lower:
+            return False, "Empty command segment"
+
+        base_cmd = _base_command_name(command_lower)
+        if not base_cmd:
+            return False, "Empty command segment"
 
         if base_cmd in self.safe_commands:
             return True, None

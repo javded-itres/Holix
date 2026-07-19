@@ -7,6 +7,7 @@ the event bus as side effects.
 """
 
 import asyncio
+import json
 import logging
 import time
 from collections.abc import AsyncIterator
@@ -20,6 +21,10 @@ from core.agent_events import (
     FinalResponseEvent,
     ThinkingEvent,
     ToolCallStartEvent,
+)
+from core.graph.action_honesty import (
+    honesty_retry_update,
+    should_nudge_false_completion,
 )
 from core.graph.plan_step import (
     plan_step_active,
@@ -49,9 +54,35 @@ logger = logging.getLogger(__name__)
 _DEFAULT_LLM_STEP_TIMEOUT_S = 300.0
 
 
+async def _compress_messages_if_needed(
+    agent: Any,
+    conversation_id: str,
+    messages: list[dict[str, Any]],
+) -> tuple[list[dict[str, Any]], dict[str, Any]]:
+    """Compress in-graph history before an LLM step (not only after tools)."""
+    if not agent or not getattr(agent, "context_manager", None):
+        return messages, {}
+    from core.runtime.context_session import compress_session_if_needed
+
+    compressed, was_compressed = await compress_session_if_needed(
+        agent,
+        conversation_id,
+        list(messages),
+    )
+    if was_compressed:
+        return compressed, {"messages": compressed}
+    return messages, {}
+
+
+def _merge_state_patch(update: dict[str, Any], patch: dict[str, Any]) -> dict[str, Any]:
+    if not patch:
+        return update
+    return {**patch, **update}
+
+
 async def _close_async_stream(stream: Any) -> None:
     """Best-effort close of an OpenAI/httpx streaming response."""
-    for method_name in ("close", "aclose"):
+    for method_name in ("aclose", "close"):
         method = getattr(stream, method_name, None)
         if not callable(method):
             continue
@@ -59,9 +90,38 @@ async def _close_async_stream(stream: Any) -> None:
             result = method()
             if asyncio.iscoroutine(result):
                 await result
+            else:
+                # Sync close() can block on hung TCP streams and freeze the event loop.
+                await asyncio.to_thread(method)
         except Exception:
             logger.debug("Failed to close LLM stream via %s", method_name, exc_info=True)
         return
+
+
+async def _await_next_stream_chunk(stream: Any, timeout: float) -> Any:
+    """Read one chunk without injecting exceptions into ``stream`` on timeout."""
+    task = asyncio.create_task(anext(stream))
+    try:
+        return await asyncio.wait_for(task, timeout=timeout)
+    except TimeoutError:
+        await _close_async_stream(stream)
+        task.cancel()
+        try:
+            await task
+        except BaseException:
+            pass
+        raise
+    except asyncio.CancelledError:
+        task.cancel()
+        try:
+            await task
+        except BaseException:
+            pass
+        await _close_async_stream(stream)
+        raise
+    except StopAsyncIteration:
+        task.cancel()
+        raise
 
 
 async def _iter_stream_chunks(stream: Any, timeout_s: float) -> AsyncIterator[Any]:
@@ -71,12 +131,15 @@ async def _iter_stream_chunks(stream: Any, timeout_s: float) -> AsyncIterator[An
         while True:
             remaining = deadline - time.monotonic()
             if remaining <= 0:
-                raise TimeoutError
+                raise TimeoutError(f"LLM stream exceeded {timeout_s:.0f}s deadline")
             try:
-                chunk = await asyncio.wait_for(anext(stream), timeout=remaining)
+                chunk = await _await_next_stream_chunk(stream, remaining)
             except StopAsyncIteration:
                 break
             yield chunk
+    except asyncio.CancelledError:
+        await _close_async_stream(stream)
+        raise
     finally:
         await _close_async_stream(stream)
 
@@ -112,6 +175,34 @@ async def _plan_step_result(
         messages=messages,
         step_count=step_count,
         final_response=final_response,
+        include_assistant=not assistant_already_appended,
+    )
+
+
+def _maybe_honesty_retry(
+    state: HolixGraphState,
+    *,
+    messages: list[dict[str, Any]],
+    step_count: int,
+    final_response: str,
+    assistant_already_appended: bool,
+) -> dict[str, Any] | None:
+    """Block final answers that claim success without tool evidence."""
+    if not should_nudge_false_completion(
+        state,
+        final_response=final_response,
+        messages=messages,
+    ):
+        return None
+    logger.info(
+        "Action honesty nudge: blocking unproven completion claim (conversation_id=%s)",
+        state.get("conversation_id", ""),
+    )
+    return honesty_retry_update(
+        messages=messages,
+        step_count=step_count,
+        final_response=final_response,
+        honesty_nudge_count=int(state.get("honesty_nudge_count") or 0),
         include_assistant=not assistant_already_appended,
     )
 
@@ -193,8 +284,13 @@ async def react_node(state: HolixGraphState, config: RunnableConfig) -> dict:
     # Build system prompt from state
     system_prompt = _build_system_prompt_from_state(state, agent=agent)
 
+    # Auto-compress before each LLM step (tool-heavy runs can skip compress between react hops)
+    messages = list(state.get("messages", []))
+    messages, messages_patch = await _compress_messages_if_needed(
+        agent, conversation_id, messages
+    )
+
     # Build API messages
-    messages = state.get("messages", [])
     if agent and hasattr(agent, "context_manager") and agent.context_manager:
         api_messages = _build_api_messages(system_prompt, messages, agent.context_manager)
     else:
@@ -215,11 +311,14 @@ async def react_node(state: HolixGraphState, config: RunnableConfig) -> dict:
             steps_taken=step_count,
             conversation_id=conversation_id,
         )
-        return {
-            "step_count": step_count,
-            "is_final": True,
-            "final_response": err,
-        }
+        return _merge_state_patch(
+            {
+                "step_count": step_count,
+                "is_final": True,
+                "final_response": err,
+            },
+            messages_patch,
+        )
     tools = agent.tools.get_schemas() if agent and hasattr(agent, "tools") else []
     temperature = 0.7
     if agent and hasattr(agent, "config"):
@@ -233,14 +332,20 @@ async def react_node(state: HolixGraphState, config: RunnableConfig) -> dict:
             steps_taken=step_count,
             conversation_id=conversation_id,
         )
-        return {
-            "step_count": step_count,
-            "is_final": True,
-            "final_response": err,
-        }
+        return _merge_state_patch(
+            {
+                "step_count": step_count,
+                "is_final": True,
+                "final_response": err,
+            },
+            messages_patch,
+        )
 
     agent_slot = getattr(agent, "agent_slot", "main") if agent else "main"
     model_manager = getattr(agent, "model_manager", None) if agent else None
+    primary_override = (
+        getattr(agent, "active_model_config", None) if agent else None
+    )
     llm_timeout_s = _llm_step_timeout_s(agent)
     max_tokens = _llm_max_tokens(agent, model_manager, agent_slot)
 
@@ -250,7 +355,7 @@ async def react_node(state: HolixGraphState, config: RunnableConfig) -> dict:
 
     try:
         if stream:
-            return await _react_streaming(
+            result = await _react_streaming(
                 state,
                 agent,
                 api_messages,
@@ -261,12 +366,13 @@ async def react_node(state: HolixGraphState, config: RunnableConfig) -> dict:
                 temperature,
                 model_manager=model_manager,
                 agent_slot=agent_slot,
+                primary_override=primary_override,
                 on_switch=_on_fallback_switch,
                 llm_timeout_s=llm_timeout_s,
                 max_tokens=max_tokens,
             )
         else:
-            return await _react_non_streaming(
+            result = await _react_non_streaming(
                 state,
                 agent,
                 api_messages,
@@ -277,10 +383,12 @@ async def react_node(state: HolixGraphState, config: RunnableConfig) -> dict:
                 temperature,
                 model_manager=model_manager,
                 agent_slot=agent_slot,
+                primary_override=primary_override,
                 on_switch=_on_fallback_switch,
                 llm_timeout_s=llm_timeout_s,
                 max_tokens=max_tokens,
             )
+        return _merge_state_patch(result, messages_patch)
 
     except LLMStepTimeoutError as exc:
         err = exc.user_message
@@ -295,11 +403,14 @@ async def react_node(state: HolixGraphState, config: RunnableConfig) -> dict:
             steps_taken=step_count,
             conversation_id=conversation_id,
         )
-        return {
-            "step_count": step_count,
-            "is_final": True,
-            "final_response": err,
-        }
+        return _merge_state_patch(
+            {
+                "step_count": step_count,
+                "is_final": True,
+                "final_response": err,
+            },
+            messages_patch,
+        )
     except TimeoutError:
         timeout_s = llm_timeout_s
         err = llm_step_timeout_message(timeout_s, model=model)
@@ -310,11 +421,20 @@ async def react_node(state: HolixGraphState, config: RunnableConfig) -> dict:
             steps_taken=step_count,
             conversation_id=conversation_id,
         )
-        return {
-            "step_count": step_count,
-            "is_final": True,
-            "final_response": err,
-        }
+        return _merge_state_patch(
+            {
+                "step_count": step_count,
+                "is_final": True,
+                "final_response": err,
+            },
+            messages_patch,
+        )
+    except RuntimeError as e:
+        if "generator didn't stop after athrow" in str(e):
+            raise asyncio.CancelledError() from e
+        raise
+    except asyncio.CancelledError:
+        raise
     except Exception as e:
         logger.error(f"Error in react_node: {e}")
         err = f"Error during agent step: {str(e)}"
@@ -324,11 +444,14 @@ async def react_node(state: HolixGraphState, config: RunnableConfig) -> dict:
             steps_taken=step_count,
             conversation_id=conversation_id,
         )
-        return {
-            "step_count": step_count,
-            "is_final": True,
-            "final_response": err,
-        }
+        return _merge_state_patch(
+            {
+                "step_count": step_count,
+                "is_final": True,
+                "final_response": err,
+            },
+            messages_patch,
+        )
 
 
 async def _react_non_streaming(
@@ -343,6 +466,7 @@ async def _react_non_streaming(
     *,
     model_manager=None,
     agent_slot: str = "main",
+    primary_override=None,
     on_switch=None,
     llm_timeout_s: float = _DEFAULT_LLM_STEP_TIMEOUT_S,
     max_tokens: int | None = None,
@@ -357,6 +481,7 @@ async def _react_non_streaming(
             return await chat_completions_with_fallback(
                 model_manager,
                 agent_name=agent_slot,
+                primary_override=primary_override,
                 on_switch=on_switch,
                 messages=api_messages,
                 tools=tools,
@@ -440,6 +565,16 @@ async def _react_non_streaming(
                 assistant_already_appended=True,
             )
 
+        honesty = _maybe_honesty_retry(
+            state,
+            messages=messages,
+            step_count=step_count,
+            final_response=final_response,
+            assistant_already_appended=True,
+        )
+        if honesty is not None:
+            return honesty
+
         if agent and hasattr(agent, "memory"):
             await agent.memory.save_message(conversation_id, "assistant", final_response)
 
@@ -459,6 +594,114 @@ async def _react_non_streaming(
         }
 
 
+def _has_streaming_tool_calls(tool_calls_dict: dict[int, dict[str, Any]]) -> bool:
+    return any(
+        (tc.get("function") or {}).get("name", "").strip()
+        for tc in tool_calls_dict.values()
+    )
+
+
+def _streaming_tool_calls_error(tool_calls_dict: dict[int, dict[str, Any]]) -> str | None:
+    """Detect incomplete streamed tool JSON (common when finish_reason=length)."""
+    if not _has_streaming_tool_calls(tool_calls_dict):
+        return None
+    for tc in tool_calls_dict.values():
+        fn = tc.get("function") or {}
+        name = (fn.get("name") or "").strip()
+        args_raw = fn.get("arguments") or ""
+        if not name:
+            return (
+                "Tool call incomplete (token limit). "
+                "Use update_holix_section — one heading, under 30 lines."
+            )
+        try:
+            json.loads(args_raw)
+        except json.JSONDecodeError:
+            return (
+                f"`{name}` arguments truncated by token limit. "
+                "Use update_holix_section with a short section body instead."
+            )
+    return None
+
+
+def _tool_limit_nudge_result(
+    state,
+    *,
+    step_count: int,
+    error: str,
+) -> dict[str, Any]:
+    messages = list(state.get("messages", []))
+    messages.append({"role": "user", "content": f"[System] {error}"})
+    return {
+        "messages": messages,
+        "step_count": step_count,
+        "is_final": False,
+        "tool_calls": [],
+    }
+
+
+def _streaming_tool_step_or_nudge(
+    *,
+    state,
+    agent,
+    conversation_id: str,
+    step_count: int,
+    current_content: str,
+    tool_calls_dict: dict[int, dict[str, Any]],
+    finish_reason: str | None = None,
+) -> dict[str, Any]:
+    tool_err = _streaming_tool_calls_error(tool_calls_dict)
+    if tool_err and finish_reason in ("length", "stop", "tool_calls", None):
+        return _tool_limit_nudge_result(state, step_count=step_count, error=tool_err)
+    return _streaming_tool_calls_step_result(
+        state=state,
+        agent=agent,
+        conversation_id=conversation_id,
+        step_count=step_count,
+        current_content=current_content,
+        tool_calls_dict=tool_calls_dict,
+    )
+
+
+def _streaming_tool_calls_step_result(
+    *,
+    state,
+    agent,
+    conversation_id: str,
+    step_count: int,
+    current_content: str,
+    tool_calls_dict: dict[int, dict[str, Any]],
+) -> dict:
+    """Return a ReAct step that executes accumulated streaming tool calls."""
+    tool_calls = list(tool_calls_dict.values())
+    messages = list(state.get("messages", []))
+    messages.append(
+        {
+            "role": "assistant",
+            "content": current_content,
+            "tool_calls": tool_calls,
+        }
+    )
+
+    for tc_data in tool_calls:
+        if agent and hasattr(agent, "emit"):
+            agent.emit(
+                ToolCallStartEvent(
+                    tool_name=tc_data["function"]["name"],
+                    tool_id=tc_data["id"],
+                    arguments_raw=tc_data["function"]["arguments"],
+                    conversation_id=conversation_id,
+                )
+            )
+
+    return {
+        "messages": messages,
+        "tool_calls": tool_calls,
+        "step_count": step_count,
+        "is_final": False,
+    }
+
+
 async def _react_streaming(
     state,
     agent,
@@ -471,6 +714,7 @@ async def _react_streaming(
     *,
     model_manager=None,
     agent_slot: str = "main",
+    primary_override=None,
     on_switch=None,
     llm_timeout_s: float = _DEFAULT_LLM_STEP_TIMEOUT_S,
     max_tokens: int | None = None,
@@ -485,6 +729,7 @@ async def _react_streaming(
             return await run_with_provider_fallback(
                 model_manager,
                 agent_name=agent_slot,
+                primary_override=primary_override,
                 on_switch=on_switch,
                 factory=lambda cfg, llm_client: llm_client.chat.completions.create(
                     model=cfg.model,
@@ -583,6 +828,19 @@ async def _react_streaming(
             if finish_reason:
                 last_finish_reason = finish_reason
 
+            if finish_reason in ("stop", "tool_calls", "length") and _has_streaming_tool_calls(
+                tool_calls_dict
+            ):
+                return _streaming_tool_step_or_nudge(
+                    state=state,
+                    agent=agent,
+                    conversation_id=conversation_id,
+                    step_count=step_count,
+                    current_content=current_content,
+                    tool_calls_dict=tool_calls_dict,
+                    finish_reason=finish_reason,
+                )
+
             if finish_reason == "stop":
                 final_response = resolve_assistant_text(
                     content=current_content,
@@ -608,7 +866,7 @@ async def _react_streaming(
                         model_manager=model_manager,
                         agent_slot=agent_slot,
                         on_switch=on_switch,
-                        llm_timeout_s=llm_timeout_s,
+                        llm_timeout_s=min(45.0, llm_timeout_s),
                         max_tokens=max_tokens,
                     )
                 messages = list(state.get("messages", []))
@@ -627,6 +885,16 @@ async def _react_streaming(
                         final_response=final_response,
                         assistant_already_appended=True,
                     )
+
+                honesty = _maybe_honesty_retry(
+                    state,
+                    messages=messages,
+                    step_count=step_count,
+                    final_response=final_response,
+                    assistant_already_appended=True,
+                )
+                if honesty is not None:
+                    return honesty
 
                 if agent and hasattr(agent, "memory"):
                     await agent.memory.save_message(conversation_id, "assistant", final_response)
@@ -647,30 +915,26 @@ async def _react_streaming(
                 }
 
             elif finish_reason == "tool_calls":
-                # Tool calls via streaming
-                tool_calls = list(tool_calls_dict.values())
-                messages = list(state.get("messages", []))
-                messages.append({
-                    "role": "assistant",
-                    "content": current_content,
-                    "tool_calls": tool_calls,
-                })
+                return _streaming_tool_step_or_nudge(
+                    state=state,
+                    agent=agent,
+                    conversation_id=conversation_id,
+                    step_count=step_count,
+                    current_content=current_content,
+                    tool_calls_dict=tool_calls_dict,
+                    finish_reason=finish_reason,
+                )
 
-                for tc_data in tool_calls:
-                    if agent and hasattr(agent, "emit"):
-                        agent.emit(ToolCallStartEvent(
-                            tool_name=tc_data["function"]["name"],
-                            tool_id=tc_data["id"],
-                            arguments_raw=tc_data["function"]["arguments"],
-                            conversation_id=conversation_id,
-                        ))
-
-                return {
-                    "messages": messages,
-                    "tool_calls": tool_calls,
-                    "step_count": step_count,
-                    "is_final": False,
-                }
+    if _has_streaming_tool_calls(tool_calls_dict):
+        return _streaming_tool_step_or_nudge(
+            state=state,
+            agent=agent,
+            conversation_id=conversation_id,
+            step_count=step_count,
+            current_content=current_content,
+            tool_calls_dict=tool_calls_dict,
+            finish_reason=last_finish_reason,
+        )
 
     # Stream ended without an explicit finish_reason — treat as final
     final_response = resolve_assistant_text(
@@ -699,7 +963,7 @@ async def _react_streaming(
             model_manager=model_manager,
             agent_slot=agent_slot,
             on_switch=on_switch,
-            llm_timeout_s=llm_timeout_s,
+            llm_timeout_s=min(45.0, llm_timeout_s),
             max_tokens=max_tokens,
         )
     final_response = _non_empty_final(final_response)
@@ -716,6 +980,16 @@ async def _react_streaming(
             final_response=final_response,
             assistant_already_appended=True,
         )
+
+    honesty = _maybe_honesty_retry(
+        state,
+        messages=messages,
+        step_count=step_count,
+        final_response=final_response,
+        assistant_already_appended=True,
+    )
+    if honesty is not None:
+        return honesty
 
     if agent and hasattr(agent, "memory"):
         await agent.memory.save_message(conversation_id, "assistant", final_response)
@@ -802,12 +1076,22 @@ def _build_system_prompt_from_state(state: HolixGraphState, agent=None) -> str:
         combined_memories = f"{combined_memories}\n{plan_context}" if combined_memories else plan_context
 
     profile_name = profile_name_from_agent(agent) if agent else "default"
+    agent_config = getattr(agent, "config", None) if agent else None
+    persona_name = getattr(agent, "studio_agent_type", None) if agent else None
+    persona_prompt = getattr(agent, "studio_persona_prompt", None) if agent else None
+    if persona_name in (None, "", "main"):
+        persona_name = None
+        persona_prompt = None
     return build_system_prompt(
         tools_description=tools_desc,
         active_skills=relevant_skills,
         skills_formatted=skills_formatted,
         relevant_memories=combined_memories,
         profile_name=profile_name,
+        workspace_root=getattr(agent_config, "workspace_root", None),
+        workspace_jail_enabled=getattr(agent_config, "workspace_jail_enabled", None),
+        persona_name=persona_name,
+        persona_prompt=persona_prompt,
     )
 
 

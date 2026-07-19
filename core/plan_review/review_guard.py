@@ -182,17 +182,27 @@ class PlanReviewGuard:
 _plan_review_guard: PlanReviewGuard | None = None
 
 
+def build_plan_review_guard(
+    event_bus: Any,
+    interactive: bool = True,
+    review_timeout: int = 600,
+) -> PlanReviewGuard:
+    """Construct a PlanReviewGuard for one agent instance."""
+    return PlanReviewGuard(
+        event_bus=event_bus,
+        interactive=interactive,
+        review_timeout=review_timeout,
+    )
+
+
 def init_plan_review_guard(
     event_bus: Any,
     interactive: bool = True,
     review_timeout: int = 600,
 ) -> PlanReviewGuard:
-    """Initialize the global PlanReviewGuard instance.
-
-    Called by HolixAgent after the event bus is ready.
-    """
+    """Initialize and register the global PlanReviewGuard (legacy compat)."""
     global _plan_review_guard
-    _plan_review_guard = PlanReviewGuard(
+    _plan_review_guard = build_plan_review_guard(
         event_bus=event_bus,
         interactive=interactive,
         review_timeout=review_timeout,
@@ -200,6 +210,11 @@ def init_plan_review_guard(
     return _plan_review_guard
 
 
-def get_plan_review_guard() -> PlanReviewGuard | None:
-    """Get the global PlanReviewGuard instance (or None if not initialized)."""
+def get_plan_review_guard(profile_name: str | None = None) -> PlanReviewGuard | None:
+    """Get PlanReviewGuard from live agent session or global fallback."""
+    from core.runtime.agent_sessions import get_agent_attribute
+
+    agent_guard = get_agent_attribute(profile_name, "_plan_review_guard")
+    if agent_guard is not None:
+        return agent_guard
     return _plan_review_guard

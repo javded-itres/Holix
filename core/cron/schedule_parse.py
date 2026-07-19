@@ -47,14 +47,21 @@ _WEEKLY = re.compile(r"every\s+week|weekly", re.I)
 _WEEKDAY = re.compile(r"weekdays?|mon-fri", re.I)
 
 # Russian
-_RU_EVERY_MINUTES = re.compile(r"каждые\s+(\d+)\s+мин", re.I)
-_RU_EVERY_HOURS = re.compile(r"каждые\s+(\d+)\s+час", re.I)
+_RU_EVERY_MINUTES = re.compile(
+    r"(?:каждые|раз\s+в)\s+(\d+)\s+мин",
+    re.I,
+)
+_RU_EVERY_HOURS = re.compile(
+    r"(?:каждые|раз\s+в)\s+(\d+)\s+час",
+    re.I,
+)
 _RU_DAILY = re.compile(r"каждый\s+день|ежедневно|раз\s+в\s+день|каждое\s+утро", re.I)
 _RU_HOURLY = re.compile(r"каждый\s+час|ежечасно|раз\s+в\s+час", re.I)
 _RU_WEEKLY = re.compile(r"каждую\s+неделю|еженедельно|раз\s+в\s+неделю", re.I)
 _RU_WEEKDAY = re.compile(r"по\s+будням|будни", re.I)
+# Time-of-day only — do not match «раз в 5 минут» (interval, not 05:00).
 _RU_AT_TIME = re.compile(
-    r"в\s+(\d{1,2})(?::(\d{2}))?\s*(утра|вечера|часов|ч\.?)?",
+    r"(?<!раз\s)(?<!раз\sв\s)в\s+(\d{1,2})(?::(\d{2}))?\s*(утра|вечера|часов|ч\.?)",
     re.I,
 )
 
@@ -153,5 +160,6 @@ def parse_schedule_to_cron(schedule: str) -> str:
 
     raise ValueError(
         "Could not parse schedule. Use 5-field cron (e.g. `0 9 * * *`) or phrases like "
-        "`every day at 9:00`, `каждый день в 10 утра`, `every 30 minutes`, `hourly`."
+        "`every day at 9:00`, `каждый день в 10 утра`, `every 30 minutes`, "
+        "`раз в 5 минут`, `hourly`."
     )

@@ -40,13 +40,14 @@ class MCPServerConfig:
                 d["command"] = self.command
             if self.args:
                 d["args"] = self.args
-            if self.env:
-                d["env"] = self.env
             if self.cwd:
                 d["cwd"] = self.cwd
         else:
             if self.url:
                 d["url"] = self.url
+        # env holds secrets + MCP_HEADER_* for both transports
+        if self.env:
+            d["env"] = self.env
         return d
 
     @classmethod

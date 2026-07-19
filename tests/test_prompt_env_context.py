@@ -51,3 +51,41 @@ def test_build_system_prompt_requires_run_and_debug(tmp_path: Path, monkeypatch:
     assert "writing files is not enough" in prompt.lower()
     assert "check_background_process" in prompt
     assert "never claim" in prompt.lower() and "done" in prompt.lower()
+    assert "## Hard rule: never fake completed work" in prompt
+    assert "Saying you will do it is not doing it" in prompt
+
+
+def test_format_env_context_block_jail_hides_install_cwd(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Gateway CWD is Holix install — must not appear as project root when jail is on."""
+    monkeypatch.setenv("HOLIX_HOME", str(tmp_path))
+    monkeypatch.setenv("HOLIX_PROFILE", "invite-user")
+    (tmp_path / "profiles" / "invite-user").mkdir(parents=True)
+    workspace = tmp_path / "profiles" / "invite-user" / "workspace"
+    workspace.mkdir(parents=True)
+    install = tmp_path / "holix-deploy" / "Helix"
+    install.mkdir(parents=True)
+    (install / ".env").write_text("FROM_INSTALL=1\n", encoding="utf-8")
+    monkeypatch.chdir(install)
+
+    block = format_env_context_block(
+        profile_name="invite-user",
+        workspace_root=str(workspace),
+        workspace_jail_enabled=True,
+    )
+    assert str(install / ".env") not in block
+    assert "holix-deploy" not in block
+    assert str(workspace) in block
+    assert "jail root" in block.lower()
+
+    prompt = build_system_prompt(
+        tools_description="- **read_file**: read",
+        active_skills=[],
+        profile_name="invite-user",
+        workspace_root=str(workspace),
+        workspace_jail_enabled=True,
+    )
+    assert str(workspace) in prompt
+    assert str(install / ".env") not in prompt

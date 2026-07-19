@@ -8,9 +8,21 @@ from core.config_utils import resolve_env_refs
 
 
 def parse_claude_mcp_json(data: dict[str, Any]) -> dict[str, dict[str, Any]]:
-    """Return Holix-style mcp_servers dict from Claude plugin .mcp.json."""
+    """Return Holix-style mcp_servers dict from Claude plugin .mcp.json.
+
+    Accepts both flat maps and Claude's ``{"mcpServers": {...}}`` wrapper
+    (used by many official plugins, e.g. atlassian).
+    """
+    if not isinstance(data, dict):
+        return {}
+    servers = data
+    for key in ("mcpServers", "servers"):
+        nested = data.get(key)
+        if isinstance(nested, dict):
+            servers = nested
+            break
     out: dict[str, dict[str, Any]] = {}
-    for name, spec in data.items():
+    for name, spec in servers.items():
         if not isinstance(spec, dict):
             continue
         converted = _convert_server(name, spec)

@@ -88,7 +88,7 @@ _SYSTEM_RU = f"""Ты — ассистент документации Holix на
 
 
 def _search_index_path() -> Path:
-    from cli.services.docs_site import resolve_web_docs_dir
+    from core.docs_chat.paths import resolve_web_docs_dir
 
     return resolve_web_docs_dir() / "search-index.json"
 
@@ -192,10 +192,9 @@ def _user_facing_error(exc: Exception, *, lang: str) -> str:
 
 
 def _resolve_llm(profile_name: str) -> tuple[str, str, str, float, int]:
-    from cli.core import init_profile
-
     from core.env_loader import bootstrap_profile_env
     from core.models.manager import ModelManager
+    from core.profile import init_profile
 
     bootstrap_profile_env(profile_name)
     profile = init_profile(profile_name)
@@ -260,7 +259,7 @@ class DocsChatService:
     """Stateless docs Q&A — one LLM turn, no agent tools."""
 
     def __init__(self, profile_name: str | None = None) -> None:
-        from cli.core import ProfileManager
+        from core.profile import ProfileManager
 
         requested = (profile_name or settings.docs_chat_profile).strip() or "docs"
         if ProfileManager().profile_exists(requested):

@@ -151,6 +151,13 @@ class TestPlanReviewGuard:
 
     def test_init_and_get_guard(self):
         """init_plan_review_guard sets the global instance."""
+        import core.plan_review.review_guard as rg
+        from core.runtime import agent_sessions
+
+        # Isolate from agent sessions registered by other tests.
+        agent_sessions._sessions.clear()  # noqa: SLF001
+        rg._plan_review_guard = None
+
         bus = AgentEventBus(name="test")
         guard = init_plan_review_guard(bus, interactive=True, review_timeout=300)
         assert guard is not None

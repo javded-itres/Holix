@@ -14,11 +14,36 @@ from chromadb.config import Settings as ChromaSettings
 from core.di.runtime_config import HolixRuntimeConfig
 from core.memory.chroma_embeddings import get_or_create_collection
 from core.paths import prepare_sqlite_db_file, prepare_vector_db_dir
+from core.sqlite_util import connect_aiosqlite
 
 logger = logging.getLogger(__name__)
 
-_INDEXABLE_ROLES = frozenset({"user", "assistant", "system", "tool"})
+# Roles embedded in Chroma for semantic search (tools stay in SQLite only).
+_SEARCHABLE_ROLES = frozenset({"user", "assistant", "system"})
 _MIN_INDEX_CHARS = 10
+_SEARCH_OVERFETCH_FACTOR = 5
+_SEARCH_OVERFETCH_MAX = 60
+
+
+def _should_index_for_search(role: str) -> bool:
+    return role in _SEARCHABLE_ROLES
+
+
+def _filter_searchable_hits(
+    memories: list[dict[str, Any]],
+    *,
+    top_k: int,
+) -> list[dict[str, Any]]:
+    """Drop tool-role vector hits (legacy index entries and noise)."""
+    filtered: list[dict[str, Any]] = []
+    for mem in memories:
+        role = str((mem.get("metadata") or {}).get("role") or "")
+        if role == "tool":
+            continue
+        filtered.append(mem)
+        if len(filtered) >= top_k:
+            break
+    return filtered
 
 
 class ConversationStore:
@@ -46,7 +71,7 @@ class ConversationStore:
         )
 
     async def initialize_db(self) -> None:
-        async with aiosqlite.connect(str(self.db_path)) as db:
+        async with connect_aiosqlite(self.db_path) as db:
             await db.execute("""
                 CREATE TABLE IF NOT EXISTS conversations (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -74,7 +99,7 @@ class ConversationStore:
         content: str,
         metadata: dict[str, Any] | None = None,
     ) -> int:
-        async with aiosqlite.connect(str(self.db_path)) as db:
+        async with connect_aiosqlite(self.db_path) as db:
             cursor = await db.execute(
                 """INSERT INTO conversations (conversation_id, role, content, metadata)
                    VALUES (?, ?, ?, ?)""",
@@ -83,7 +108,7 @@ class ConversationStore:
             message_id = cursor.lastrowid
             await db.commit()
 
-        if content and len(content) > _MIN_INDEX_CHARS and role in _INDEXABLE_ROLES:
+        if content and len(content) > _MIN_INDEX_CHARS and _should_index_for_search(role):
             try:
                 meta = {
                     "conversation_id": conversation_id,
@@ -111,7 +136,7 @@ class ConversationStore:
         conversation_id: str,
         limit: int = 30,
     ) -> list[dict[str, Any]]:
-        async with aiosqlite.connect(str(self.db_path)) as db:
+        async with connect_aiosqlite(self.db_path) as db:
             db.row_factory = aiosqlite.Row
             cursor = await db.execute(
                 """SELECT role, content, timestamp, metadata
@@ -149,9 +174,13 @@ class ConversationStore:
     ) -> list[dict[str, Any]]:
         try:
             where_filter = {"conversation_id": conversation_id} if conversation_id else None
+            fetch_k = min(
+                max(top_k, top_k * _SEARCH_OVERFETCH_FACTOR),
+                _SEARCH_OVERFETCH_MAX,
+            )
             results = self.collection.query(
                 query_texts=[query],
-                n_results=top_k,
+                n_results=fetch_k,
                 where=where_filter,
             )
 
@@ -164,7 +193,7 @@ class ConversationStore:
                         "metadata": metadata,
                         "distance": results["distances"][0][i] if results.get("distances") else None,
                     })
-            return memories
+            return _filter_searchable_hits(memories, top_k=top_k)
         except Exception as e:
             logger.warning("Error during semantic search: %s", e)
             return []
@@ -174,7 +203,7 @@ class ConversationStore:
         conversation_id: str,
         new_messages: list[dict[str, Any]],
     ) -> int:
-        async with aiosqlite.connect(str(self.db_path)) as db:
+        async with connect_aiosqlite(self.db_path) as db:
             await db.execute(
                 "DELETE FROM conversations WHERE conversation_id = ?",
                 (conversation_id,),
@@ -202,7 +231,7 @@ class ConversationStore:
                 role = msg.get("role", "")
                 content = msg.get("content", "")
                 meta = msg.get("metadata", {})
-                if content and len(content) > _MIN_INDEX_CHARS and role in _INDEXABLE_ROLES:
+                if content and len(content) > _MIN_INDEX_CHARS and _should_index_for_search(role):
                     try:
                         m = {
                             "conversation_id": conversation_id,
@@ -229,7 +258,7 @@ class ConversationStore:
 
     async def delete_conversation(self, conversation_id: str) -> bool:
         try:
-            async with aiosqlite.connect(str(self.db_path)) as db:
+            async with connect_aiosqlite(self.db_path) as db:
                 await db.execute(
                     "DELETE FROM conversations WHERE conversation_id = ?",
                     (conversation_id,),
@@ -245,7 +274,7 @@ class ConversationStore:
 
     async def list_recent_conversations(self, limit: int = 10) -> list[dict]:
         try:
-            async with aiosqlite.connect(str(self.db_path)) as db:
+            async with connect_aiosqlite(self.db_path) as db:
                 db.row_factory = aiosqlite.Row
                 cursor = await db.execute(
                     """

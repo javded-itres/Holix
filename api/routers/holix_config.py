@@ -5,6 +5,7 @@ from __future__ import annotations
 from cli.core import ProfileManager
 from core.env_loader import read_profile_env_map
 from core.global_config import deep_merge_dict
+from dishka.integrations.fastapi import DishkaRoute
 from fastapi import APIRouter, Depends, Header, HTTPException
 
 from api.deps import verify_api_key
@@ -14,7 +15,7 @@ from api.services.env_mask import mask_env_map
 from api.services.env_store import patch_profile_env
 from api.services.holix_deps import profile_access
 
-router = APIRouter(prefix="/api/holix/profiles/{profile_id}", tags=["holix-config"])
+router = APIRouter(prefix="/api/holix/profiles/{profile_id}", tags=["holix-config"], route_class=DishkaRoute)
 
 
 def _require_profile(profile_id: str) -> tuple[ProfileManager, object]:

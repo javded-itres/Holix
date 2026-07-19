@@ -209,6 +209,9 @@ class MaxHost:
         self._session._transcript_store.clear()
         self._session._recent_tool_results.clear()
         self.transcript_write(t("cleared", messenger_host_locale(self)))
+        from cli.shared.commands.forget_memory import run_forget_memory
+
+        self.run_worker(run_forget_memory(self, clear_ui=False))
 
     def action_help(self) -> None:
         asyncio.create_task(self._send_text(help_message_markdown(messenger_host_locale(self))))

@@ -74,6 +74,36 @@ Tools: `save_agent_soul`, `save_user_profile` в `core/tools/profile_identity.py
 | HTTP | `holix gateway start` |
 | Telegram / MAX | companion в gateway |
 
+## Целевые слои (рефакторинг)
+
+Направление зависимостей:
+
+```
+cli / api / integrations  →  core
+```
+
+| Слой | Где | Роль |
+|------|-----|------|
+| Presentation | `cli/`, `api/`, `integrations/` | UX, HTTP, мессенджеры |
+| Application | `core/application/`, `core/di/` | run scope, profile runtime, Dishka |
+| Domain (тонкий) | `core/domain/` | `RunContext`, `GraphRuntime` |
+| Infrastructure в core | `core/memory/`, `core/tools/`, … | storage, tools, graph |
+
+**Правила:**
+
+1. `core` не импортирует `cli`, `api`, `integrations` (тест `tests/test_architecture_boundaries.py`).
+2. Профили — `core.profile` (`cli.core` — re-export для совместимости).
+3. SSE — `core.presenters.sse` (API re-export).
+4. Агент собирается через Dishka (`core.di.create_agent`).
+5. Сервисы gateway (registry, stores, auth, locks) — Dishka APP scope
+   (`create_async_container(..., gateway=True)`). Routers — `FromDishka[...]`.
+   Lifespan: `api.state.bind_from_container(container)` — те же инстансы для
+   non-request кода и тестов через `api.state`.
+
+Внешнее поведение (companions Telegram/MAX, cron notify, сообщения об удалении профиля)
+регистрируется через hooks ``core.plugins`` из ``integrations.bootstrap`` — `core`
+не импортирует `cli` / `api` / `integrations` (проверяется тестами).
+
 ## См. также
 
 - [CLI.md](CLI.md)

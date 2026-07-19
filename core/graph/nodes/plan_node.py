@@ -412,7 +412,8 @@ async def plan_node(state: HolixGraphState, config: RunnableConfig) -> dict:
     if not project_handbook:
         project_handbook = (
             f"{planning_context_note()} "
-            "No `.holix/HOLIX.md` yet — run `/init` in this repo to generate it."
+            "No `.holix/HOLIX.md` in the working directory or nested subfolders (up to two "
+            "levels) — run `/init` in this repo to generate it."
         )
 
     # Build tools description

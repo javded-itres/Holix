@@ -2,26 +2,25 @@
 
 from __future__ import annotations
 
+from dishka.integrations.fastapi import DishkaRoute, FromDishka
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import PlainTextResponse
 
-from api import state
 from api.deps import verify_admin_key
+from api.di import APIKeyManager
 from config import settings
 
-router = APIRouter(prefix="/admin", tags=["admin"])
+router = APIRouter(prefix="/admin", tags=["admin"], route_class=DishkaRoute)
 
 
 @router.post("/api-keys")
 async def create_api_key_endpoint(
+    manager: FromDishka[APIKeyManager],
     name: str,
     permissions: str = "read,write",
     rate_limit: int = 100,
     admin_key: dict = Depends(verify_admin_key),
 ):
-    manager = state.api_key_manager
-    if manager is None:
-        raise HTTPException(status_code=503, detail="API key manager not initialized")
     api_key = await manager.create_api_key(name, permissions, rate_limit)
     return {
         "api_key": api_key,
@@ -33,22 +32,20 @@ async def create_api_key_endpoint(
 
 
 @router.get("/api-keys")
-async def list_api_keys_endpoint(admin_key: dict = Depends(verify_admin_key)):
-    manager = state.api_key_manager
-    if manager is None:
-        raise HTTPException(status_code=503, detail="API key manager not initialized")
+async def list_api_keys_endpoint(
+    manager: FromDishka[APIKeyManager],
+    admin_key: dict = Depends(verify_admin_key),
+):
     keys = await manager.list_api_keys()
     return {"api_keys": keys, "count": len(keys)}
 
 
 @router.delete("/api-keys/{key_id}")
 async def revoke_api_key_endpoint(
+    manager: FromDishka[APIKeyManager],
     api_key_to_revoke: str,
     admin_key: dict = Depends(verify_admin_key),
 ):
-    manager = state.api_key_manager
-    if manager is None:
-        raise HTTPException(status_code=503, detail="API key manager not initialized")
     success = await manager.revoke_api_key(api_key_to_revoke)
     if not success:
         raise HTTPException(status_code=404, detail="API key not found")

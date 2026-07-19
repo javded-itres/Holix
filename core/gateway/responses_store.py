@@ -22,7 +22,9 @@ def _db_path() -> Path:
 
 
 def _connect() -> sqlite3.Connection:
-    conn = sqlite3.connect(_db_path(), check_same_thread=False)
+    from core.sqlite_util import connect_sqlite
+
+    conn = connect_sqlite(_db_path(), check_same_thread=False)
     conn.row_factory = sqlite3.Row
     conn.execute(
         """

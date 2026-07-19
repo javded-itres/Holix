@@ -124,6 +124,15 @@ class AgentCommands:
             elif lower.startswith("/profile"):
                 await self._profile(cmd)
 
+            elif lower in ("/forget", "/memory wipe", "/memory-wipe"):
+                from cli.shared.commands.forget_memory import run_forget_memory
+
+                worker = getattr(h, "run_worker", None)
+                if callable(worker):
+                    worker(run_forget_memory(h, clear_ui=True))
+                else:
+                    await run_forget_memory(h, clear_ui=True)
+
             elif lower.startswith("/memory-clear") or lower == "/memory clear":
                 h._memory_search_query = ""
                 h._memory_search_results = []
@@ -198,6 +207,11 @@ class AgentCommands:
                 from cli.shared.commands.cron_commands import run_cron_command
 
                 await run_cron_command(h, cmd)
+
+            elif lower.startswith("/spec"):
+                from cli.shared.commands.spec_commands import run_spec_command
+
+                await run_spec_command(h, cmd)
 
             elif lower.startswith("/hub") or lower in ("/plugins", "/marketplace"):
                 await self._hub(cmd)
@@ -274,7 +288,9 @@ class AgentCommands:
             h.transcript_write(t("lang.invalid", lang, value=parts[1]))
             return
         h.transcript_write(t("lang.set", new_lang, code=new_lang.upper()))
-        if hasattr(h, "_refresh_status_bar"):
+        if hasattr(h, "on_locale_changed"):
+            await h.on_locale_changed()
+        elif hasattr(h, "_refresh_status_bar"):
             h._refresh_status_bar()
         if hasattr(h, "_sync_telegram_menu"):
             await h._sync_telegram_menu()

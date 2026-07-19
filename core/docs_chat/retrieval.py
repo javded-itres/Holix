@@ -32,7 +32,7 @@ class DocsSearchHit:
 
 
 def _web_docs_dir() -> Path:
-    from cli.services.docs_site import resolve_web_docs_dir
+    from core.docs_chat.paths import resolve_web_docs_dir
 
     return resolve_web_docs_dir()
 

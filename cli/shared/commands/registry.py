@@ -12,6 +12,8 @@ _STATIC_SLASH_COMMANDS: list[tuple[str, str]] = [
     ("/clear", "Clear transcript"),
     ("/metrics", "Show metrics"),
     ("/compress", "Compress conversation context (free context window)"),
+    ("/forget", "Clear session memory (DB + search index)"),
+    ("/memory wipe", "Clear session memory (alias)"),
     ("/init", "Deep project analysis → .holix/HOLIX.md"),
     ("/stream", "Toggle streaming"),
     ("/mode", "Cycle execution mode"),
@@ -77,6 +79,13 @@ _STATIC_SLASH_COMMANDS: list[tuple[str, str]] = [
     ("/cron disable", "Disable cron job by id"),
     ("/cron remove", "Delete cron job by id"),
     ("/cron bind", "Post cron summaries to current session"),
+    ("/spec", "SDD: status of openspec specs & changes"),
+    ("/spec init", "Initialize openspec/ in workspace"),
+    ("/spec propose", "Scaffold change: /spec propose <id>"),
+    ("/spec status", "SDD status or /spec status <change-id>"),
+    ("/spec mode", "Set apply mode: /spec mode <id> self|subagents|hybrid"),
+    ("/spec apply", "Apply change: /spec apply <id>"),
+    ("/spec archive", "Archive change: /spec archive <id>"),
     ("/subagents", "List running sub-agents"),
     ("/subagent-types", "Manage custom sub-agent types (TUI)"),
     ("/subagent-types list", "List built-in and custom sub-agent types"),
@@ -124,6 +133,16 @@ def all_slash_commands(
             if cmd not in seen:
                 out.append((cmd, desc))
                 seen.add(cmd)
+    except Exception:
+        pass
+    try:
+        from core.extensions.agent_registry import agent_slash_commands
+
+        seen = {c for c, _ in out}
+        for spec in agent_slash_commands():
+            if spec.command not in seen:
+                out.append((spec.command, spec.description))
+                seen.add(spec.command)
     except Exception:
         pass
     return out

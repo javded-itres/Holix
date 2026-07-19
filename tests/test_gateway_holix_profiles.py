@@ -106,7 +106,7 @@ def test_profile_reload(
         "cli.services.gateway_companions.reload_os_companions",
             lambda _profile: {
                 "docs": "not_configured",
-                "telegram_subprocess": "in_process",
+                "telegram_subprocess": "started",
                 "max_subprocess": "in_process",
             },
     )
@@ -119,7 +119,7 @@ def test_profile_reload(
     body = response.json()
     assert body["status"] == "reloaded"
     assert body["profile"] == "reload-me"
-    assert body["os_companions"]["telegram_subprocess"] == "in_process"
+    assert body["os_companions"]["telegram_subprocess"] == "started"
 
 
 def test_profile_key_init(holix_home: Path, holix_client: TestClient, gateway_auth_headers: dict) -> None:

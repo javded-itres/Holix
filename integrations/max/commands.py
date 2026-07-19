@@ -22,13 +22,34 @@ def max_bot_commands(
         specs = commands_for_user(bot_profile, int(user_id), locale=locale)
     else:
         specs = command_specs(locale)
-    return [
+    items = [
         {
             "name": spec.command,
             "description": spec.description[:MAX_COMMAND_DESC_LEN],
         }
         for spec in specs[:MAX_COMMAND_LIMIT]
     ]
+    # Merge extension commands (billing, …)
+    try:
+        from integrations.max.plugin_api import extension_bot_commands
+
+        seen = {i["name"] for i in items}
+        for ext in extension_bot_commands():
+            name = (ext.command or "").strip().lstrip("/").lower()
+            if not name or name in seen:
+                continue
+            items.append(
+                {
+                    "name": name,
+                    "description": (ext.description or name)[:MAX_COMMAND_DESC_LEN],
+                }
+            )
+            seen.add(name)
+            if len(items) >= MAX_COMMAND_LIMIT:
+                break
+    except Exception:
+        pass
+    return items[:MAX_COMMAND_LIMIT]
 
 
 async def register_bot_commands(

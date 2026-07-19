@@ -264,7 +264,7 @@ class HolixCodeApp(App):
             try:
                 self.call_from_thread(self.transcript_write, content)
             except Exception:
-                self.call_later(0, self.transcript_write, content)
+                self.call_later(self.transcript_write, content)
 
     def transcript_scroll_bottom(self) -> None:
         try:
@@ -425,7 +425,17 @@ class HolixCodeApp(App):
         from core.i18n import LocaleStore
 
         lang = LocaleStore(self.profile).get().upper()
-        line = f"{self.profile} · {lang} · {model}{stream} · {cwd} · {mode} · {sess}{ctx}"
+        pending_q = ""
+        try:
+            n = self._modals.subagent_question.pending_count
+            if n:
+                pending_q = f" · ❓{n}"
+        except Exception:
+            pending_q = ""
+        line = (
+            f"{self.profile} · {lang} · {model}{stream} · {cwd} · "
+            f"{mode} · {sess}{ctx}{pending_q}"
+        )
         self.set_status_line(line)
 
     # --- Persistence ---
@@ -508,9 +518,15 @@ class HolixCodeApp(App):
             self._set_prompt_enabled(True)
             return
 
-        self.agent = HolixAgent(config=runtime_config)
+        from core.di import create_agent as di_create_agent
+
+        self.agent, self._di_container = await di_create_agent(
+            runtime_config,
+            enable_monitoring=False,
+            mcp_ready_timeout=2.0,
+            defer_skill_index=True,
+        )
         self.agent.events.subscribe(self._on_agent_event)
-        await self.agent.initialize(mcp_ready_timeout=2.0, defer_skill_index=True)
         await self._load_conversation_history()
         self.transcript_write("[dim]ready — type a message or /help[/dim]\n")
         self.set_status_line("ready")
@@ -635,7 +651,8 @@ class HolixCodeApp(App):
                 BackgroundProcessErrorEvent,
             ),
         ):
-            self.call_later(0, self._event_handler.handle, event)
+            # Textual: call_later(callback, *args) — delay is not the first arg.
+            self.call_later(self._event_handler.handle, event)
         else:
             self._event_handler.handle(event)
 
@@ -767,6 +784,12 @@ class HolixCodeApp(App):
                 self.transcript_write(f"\n[bold]❯[/bold] {message}\n")
                 if feedback:
                     self.transcript_write(f"[dim]{feedback}[/dim]")
+                # Drop queue entries already answered outside the modal
+                try:
+                    self._modals.subagent_question.sync_with_bridge()
+                except Exception:
+                    pass
+                self._refresh_status_bar()
                 return
 
         message = normalize_slash_input(message)
@@ -1114,6 +1137,13 @@ class HolixCodeApp(App):
             self.transcript_write("[dim]cleared[/dim]\n")
             self._auto_scroll = True
             self._restore_prompt_focus()
+            from cli.shared.commands.forget_memory import run_forget_memory
+
+            self.run_worker(
+                run_forget_memory(self, clear_ui=False),
+                name="forget-memory",
+                group="agent",
+            )
         except Exception:
             pass
 
@@ -1792,8 +1822,14 @@ class HolixCodeApp(App):
             except Exception:
                 pass
 
-            new_agent = HolixAgent(config=runtime_config)
-            await new_agent.initialize()
+            from core.di import create_agent as di_create_agent
+
+            if self.agent is not None:
+                await self.agent.close()
+            new_agent, self._di_container = await di_create_agent(
+                runtime_config,
+                enable_monitoring=False,
+            )
             self.agent = new_agent
             self.profile = new_profile
             self.config = new_config
@@ -1807,7 +1843,7 @@ class HolixCodeApp(App):
         except Exception as e:
             self.transcript_write(f"[red]{e}[/red]")
 
-    # --- Confirmations / plan review ---
+    # --- Confirmations / plan review / sub-agent questions ---
 
     def _handle_confirmation_request(self, event: ConfirmationRequestEvent) -> None:
         self._modals.confirmation.show(event)
@@ -1820,6 +1856,10 @@ class HolixCodeApp(App):
 
     def _resolve_plan_review(self, choice, feedback: str = "") -> None:
         self._modals.plan_review.resolve(choice, feedback)
+
+    def _handle_subagent_question(self, event) -> None:
+        self._modals.subagent_question.show(event)
+        self._refresh_status_bar()
 
     # --- Scroll / focus ---
 

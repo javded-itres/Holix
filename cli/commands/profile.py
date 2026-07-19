@@ -127,6 +127,7 @@ def profile_create(
 
     manager.create_profile(name, with_access_key=protect, inherit_global=inherit_global)
     access_key = manager.pop_last_created_access_key()
+    studio_password = manager.pop_last_created_studio_password()
     mode = "inherits global settings" if inherit_global else "standalone (clean)"
     print_success(f"Created profile '{name}' ({mode})")
     if inherit_global:
@@ -144,7 +145,16 @@ def profile_create(
             title="Profile access key",
             border_style="yellow",
         )
-    else:
+    if studio_password:
+        print_panel(
+            f"[cyan]{studio_password}[/cyan]\n\n"
+            "Save this password — it is shown only once.\n"
+            f"Studio sign-in username: [bold]{name}[/bold]\n"
+            f"Open Studio: [bold]holix -p {name} studio open[/bold]",
+            title="Studio login password",
+            border_style="yellow",
+        )
+    if not access_key:
         print_info(f"Switch freely: [bold]holix -p {name}[/bold]")
         print_info("Protect later: [cyan]holix -p {name} profile key init[/cyan]")
 
@@ -533,6 +543,23 @@ def whitelist_enable(ctx: typer.Context) -> None:
     print_success(f"Terminal whitelist enabled for profile '{profile}'")
     print_info(f"Saved in: {profile_env_path(profile)}")
     print_info("Restart gateway/Telegram or re-run CLI for changes to apply")
+
+
+@whitelist_app.command("disable")
+def whitelist_disable(ctx: typer.Context) -> None:
+    """Disable terminal command whitelist for the active profile (local trust)."""
+    from core.env_loader import profile_env_path
+    from core.terminal_whitelist_config import read_whitelist_enabled, set_whitelist_enabled
+
+    profile = _profile(ctx)
+    if not read_whitelist_enabled(profile):
+        print_info(f"Terminal whitelist is already disabled for profile '{profile}'")
+        raise typer.Exit(0)
+
+    set_whitelist_enabled(profile, False)
+    print_success(f"Terminal whitelist disabled for profile '{profile}'")
+    print_info(f"Saved in: {profile_env_path(profile)}")
+    print_info("Restart Holix TUI / CLI session for changes to apply")
 
 
 def _format_bytes(size: int) -> str:

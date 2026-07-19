@@ -25,6 +25,26 @@ async def test_prepare_session_appends_user_message(memory_manager):
 
 
 @pytest.mark.asyncio
+async def test_prepare_session_loads_full_recent_history(memory_manager):
+    """Agent must see more than the legacy 30-message window (tool-heavy runs)."""
+    agent = type("Agent", (), {})()
+    agent.memory = memory_manager
+    agent.context_manager = None
+    agent.config = None
+
+    conv_id = "studio_heavy"
+    for i in range(45):
+        await memory_manager.save_message(conv_id, "tool", f"tool output {i}")
+
+    messages, compressed = await prepare_session(agent, "continue task", conv_id)
+
+    assert compressed is False
+    roles = [m["role"] for m in messages if not is_soul_message(m)]
+    assert roles.count("tool") == 45
+    assert messages[-1]["content"] == "continue task"
+
+
+@pytest.mark.asyncio
 async def test_conversation_messages_chronological_order(memory_manager):
     """Recent messages are returned oldest-first (stable via id ordering)."""
     conv_id = "order_test"

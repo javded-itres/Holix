@@ -134,8 +134,11 @@ async def test_create_agent_seeds_llm_from_bot_profile(holix_home, monkeypatch: 
     set_user_profile("shared", 77, "lain")
 
     fake_agent = MagicMock()
-    fake_agent.initialize = AsyncMock()
-    with patch("integrations.telegram.agent_setup.HolixAgent", return_value=fake_agent):
+    fake_container = MagicMock()
+    with patch(
+        "core.di.create_agent",
+        new=AsyncMock(return_value=(fake_agent, fake_container)),
+    ):
         await create_agent("lain", bot_profile="shared", telegram_user_id=77)
 
     mc = ModelManager(manager.load_profile("lain")).get_default_model_config()
@@ -165,8 +168,11 @@ async def test_create_agent_after_approval_does_not_prompt(holix_home, monkeypat
     monkeypatch.setattr("typer.prompt", prompt)
 
     fake_agent = MagicMock()
-    fake_agent.initialize = AsyncMock()
-    with patch("integrations.telegram.agent_setup.HolixAgent", return_value=fake_agent):
+    fake_container = MagicMock()
+    with patch(
+        "core.di.create_agent",
+        new=AsyncMock(return_value=(fake_agent, fake_container)),
+    ) as di_create:
         agent = await create_agent(
             "lain",
             bot_profile="shared",
@@ -174,7 +180,7 @@ async def test_create_agent_after_approval_does_not_prompt(holix_home, monkeypat
         )
 
     assert agent is fake_agent
-    fake_agent.initialize.assert_awaited_once()
+    di_create.assert_awaited_once()
 
 
 @pytest.mark.asyncio
@@ -199,8 +205,11 @@ async def test_get_session_unlocks_keyed_profile(holix_home, monkeypatch: pytest
     )
 
     fake_agent = MagicMock()
-    fake_agent.initialize = AsyncMock()
-    with patch("integrations.telegram.agent_setup.HolixAgent", return_value=fake_agent):
+    fake_container = MagicMock()
+    with patch(
+        "core.di.create_agent",
+        new=AsyncMock(return_value=(fake_agent, fake_container)),
+    ):
         session = await bot._get_session(chat_id=100, user_id=77)
 
     assert session.profile == "lain"

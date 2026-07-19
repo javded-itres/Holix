@@ -23,11 +23,17 @@ PROFILE_ROOT_SECRET_NAMES = (
     "USER.md",
     "INIT.md",
 )
+PROFILE_DATA_SECRET_NAMES = ("studio_auth.json",)
 
 
 def profile_root_secrets(profile: str) -> list[Path]:
     root = profile_dir_path(profile)
     return [root / name for name in PROFILE_ROOT_SECRET_NAMES]
+
+
+def profile_data_secrets(profile: str) -> list[Path]:
+    data_root = profile_dir_path(profile) / "data"
+    return [data_root / name for name in PROFILE_DATA_SECRET_NAMES]
 
 
 def _data_files_tree(profile: str) -> Path:
@@ -38,6 +44,9 @@ def iter_plaintext_profile_secrets(profile: str) -> list[Path]:
     """List confidential profile root files that still need encryption."""
     paths: list[Path] = []
     for path in profile_root_secrets(profile):
+        if path.is_file() and not is_encrypted_file(path):
+            paths.append(path)
+    for path in profile_data_secrets(profile):
         if path.is_file() and not is_encrypted_file(path):
             paths.append(path)
     return paths

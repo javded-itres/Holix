@@ -57,11 +57,15 @@ async def chat_completions_with_fallback(
     model_manager: ModelManager,
     *,
     agent_name: str | None = "main",
+    primary_override: ModelConfig | None = None,
     on_switch: Callable[[ModelConfig], None] | None = None,
     **create_kwargs: Any,
 ) -> Any:
     """Call ``chat.completions.create`` trying configured fallback providers."""
-    configs = model_manager.iter_fallback_configs(agent_name)
+    configs = model_manager.iter_fallback_configs(
+        agent_name,
+        primary_override=primary_override,
+    )
     if not configs:
         raise ValueError("No model configuration available")
 
@@ -93,11 +97,15 @@ async def run_with_provider_fallback[T](
     model_manager: ModelManager,
     *,
     agent_name: str | None = "main",
+    primary_override: ModelConfig | None = None,
     on_switch: Callable[[ModelConfig], None] | None = None,
     factory: Callable[[ModelConfig, AsyncOpenAI], Awaitable[T]],
 ) -> T:
     """Run an async LLM call with the same fallback chain (streaming or custom)."""
-    configs = model_manager.iter_fallback_configs(agent_name)
+    configs = model_manager.iter_fallback_configs(
+        agent_name,
+        primary_override=primary_override,
+    )
     if not configs:
         raise ValueError("No model configuration available")
 

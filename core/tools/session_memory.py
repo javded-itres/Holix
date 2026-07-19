@@ -21,10 +21,9 @@ def _resolve_memory() -> Any:
     if facade is not None:
         return facade
 
-    from cli.core import ProfileManager
-
     from core.di import resolve_runtime_config
     from core.memory.facade import MemoryFacade
+    from core.profile import ProfileManager
 
     profile_name = (get_profile_name() or "").strip()
     if profile_name:
@@ -43,10 +42,10 @@ class SearchSessionsTool(BaseTool):
         super().__init__()
         self.name = "search_sessions"
         self.description = (
-            "Search message history across ALL conversation sessions in this profile "
-            "(Telegram, TUI, cron, etc.). Returns excerpts with conversation_id so "
-            "you can call read_session for full context. Excludes the current session "
-            "by default."
+            "Search message history across conversation sessions in this profile "
+            "(Studio, Telegram, TUI, cron, etc.). Returns excerpts with conversation_id "
+            "so you can call read_session for full context. Includes the current "
+            "session when include_current=true (recommended for follow-up tasks)."
         )
         self.risk_level = "no"
         self.parameters = {
@@ -63,8 +62,8 @@ class SearchSessionsTool(BaseTool):
                 },
                 "include_current": {
                     "type": "boolean",
-                    "description": "Include hits from the active session (default false)",
-                    "default": False,
+                    "description": "Include hits from the active session (default true)",
+                    "default": True,
                 },
             },
             "required": ["query"],

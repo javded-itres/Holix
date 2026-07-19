@@ -34,7 +34,7 @@ class CronProfileIndex:
             self.invalidate(profile)
 
     def scan_profiles_with_jobs(self) -> list[str]:
-        from cli.core import profiles_dir
+        from core.profile import profiles_dir
 
         root = profiles_dir()
         if not root.exists():

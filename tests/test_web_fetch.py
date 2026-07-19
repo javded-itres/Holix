@@ -85,11 +85,12 @@ async def test_process_spawn_passes_search_config() -> None:
         with patch("core.subagents.process.asyncio.create_task"):
             await mgr.run(config, "find docs")
 
-    assert captured_args[-2] == {
+    # process_args: …, search_config, profile_name, workspace_root, jail, cwd
+    assert captured_args[-5] == {
         "strategy": "first_success",
         "providers": ["firecrawl"],
     }
-    assert captured_args[-1] == "default"
+    assert captured_args[-4] == "default"
     flattened = " ".join(str(a) for a in captured_args)
     assert "sk-test" not in flattened
 

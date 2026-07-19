@@ -8,8 +8,6 @@ import time
 from datetime import UTC, datetime
 from typing import Any
 
-from cli.core import ProfileManager
-
 from core.cron import active_runs
 from core.cron.expressions import format_next_run_iso
 from core.cron.models import CronJob
@@ -21,6 +19,8 @@ from core.cron.notifier import (
 from core.cron.session_sync import format_cron_summary, persist_cron_result
 from core.cron.store import CronStore, runs_log_path
 from core.di import create_agent, resolve_runtime_config
+from core.presenters.final_content import resolve_messenger_final_content
+from core.profile import ProfileManager
 
 logger = logging.getLogger(__name__)
 
@@ -35,6 +35,7 @@ async def _notify_job_result(job: CronJob, message: str, *, html: bool = False) 
         await send_telegram_notification(
             chat_id=job.notify_chat_id,
             message=tg_text,
+            profile=job.profile,
             parse_mode="HTML",
         )
     if job.notify_max_user_id or job.notify_max_chat_id:
@@ -216,10 +217,11 @@ async def run_cron_job(job: CronJob) -> None:
             job.last_status = "success"
             job.last_error = None
 
-            if response_text.strip() and (
+            deliverable = resolve_messenger_final_content(response_text)
+            if deliverable.strip() and (
                 job.notify_chat_id or job.notify_max_user_id or job.notify_max_chat_id
             ):
-                preview = format_cron_summary(job, response_text)
+                preview = format_cron_summary(job, deliverable)
                 await _notify_job_result(job, preview)
 
         if response_text.strip():

@@ -1,4 +1,4 @@
-"""FastAPI dependencies for Holix gateway."""
+"""FastAPI dependencies for Holix gateway (Dishka-backed where possible)."""
 
 from __future__ import annotations
 
@@ -25,6 +25,16 @@ _bearer_scheme = HTTPBearer(
 )
 
 
+async def _dishka_get[T](request: Request, dep_type: type[T]) -> T | None:
+    container = getattr(request.app.state, "dishka_container", None)
+    if container is None:
+        return None
+    try:
+        return await container.get(dep_type)
+    except Exception:
+        return None
+
+
 def _api_key_from_request(
     request: Request,
     credentials: HTTPAuthorizationCredentials | None,
@@ -38,11 +48,24 @@ def _api_key_from_request(
     return None
 
 
-async def _validate_key(api_key: str, *, default_limit: int) -> dict:
+async def _validate_key(
+    api_key: str,
+    *,
+    default_limit: int,
+    request: Request | None = None,
+) -> dict:
+    from core.security.auth import APIKeyManager, RateLimiter
+
     from api import state
 
-    manager = state.api_key_manager
-    limiter = state.rate_limiter
+    manager = None
+    limiter = None
+    if request is not None:
+        manager = await _dishka_get(request, APIKeyManager)
+        limiter = await _dishka_get(request, RateLimiter)
+    gw = state.get()
+    manager = manager or gw.api_key_manager
+    limiter = limiter or gw.rate_limiter
     if manager is None:
         raise HTTPException(status_code=503, detail="API key manager not initialized")
 
@@ -75,7 +98,7 @@ async def verify_api_key(
         if not settings.effective_require_auth:
             return dict(_BOOTSTRAP_KEY_INFO)
         raise HTTPException(status_code=401, detail="API key required")
-    return await _validate_key(api_key, default_limit=settings.rate_limit_rpm)
+    return await _validate_key(api_key, default_limit=settings.rate_limit_rpm, request=request)
 
 
 async def verify_optional_api_key(
@@ -86,7 +109,7 @@ async def verify_optional_api_key(
     api_key = _api_key_from_request(request, credentials)
     if not api_key:
         return None
-    return await _validate_key(api_key, default_limit=settings.rate_limit_rpm)
+    return await _validate_key(api_key, default_limit=settings.rate_limit_rpm, request=request)
 
 
 async def verify_admin_key(key_info: dict = Depends(verify_api_key)) -> dict:
@@ -124,7 +147,7 @@ class RequestContext:
 
 
 def _sanitize_profile_name(name: str) -> str:
-    from cli.core import ProfileNotFoundError, validate_profile_name_for_env
+    from core.profile import ProfileNotFoundError, validate_profile_name_for_env
 
     try:
         return validate_profile_name_for_env(name)
@@ -152,9 +175,140 @@ def ensure_resource_profile(resource_profile: str, expected_profile: str) -> Non
         raise HTTPException(status_code=404, detail="Not found")
 
 
-async def get_registry():
+def _state_fallback(name: str):
     from api import state
 
-    if state.registry is None:
+    return getattr(state.get(), name, None)
+
+
+async def get_registry(request: Request):
+    """Profile agent registry (Dishka APP scope, state fallback)."""
+    from core.gateway.profile_registry import ProfileAgentRegistry
+
+    reg = await _dishka_get(request, ProfileAgentRegistry)
+    if reg is not None:
+        return reg
+    reg = _state_fallback("registry")
+    if reg is None:
         raise HTTPException(status_code=503, detail="Gateway registry not initialized")
-    return state.registry
+    return reg
+
+
+async def get_registry_optional(request: Request):
+    """Like get_registry but returns None when not ready (health endpoints)."""
+    try:
+        return await get_registry(request)
+    except HTTPException:
+        return _state_fallback("registry")
+
+
+async def get_companions(request: Request):
+    from core.gateway.companions import CompanionManager
+
+    val = await _dishka_get(request, CompanionManager)
+    if val is not None:
+        return val
+    val = _state_fallback("companions")
+    if val is None:
+        raise HTTPException(status_code=503, detail="Companions not initialized")
+    return val
+
+
+async def get_companions_optional(request: Request):
+    try:
+        return await get_companions(request)
+    except HTTPException:
+        return _state_fallback("companions")
+
+
+async def get_runs_store(request: Request):
+    from core.gateway.runs_store import RunsStore
+
+    val = await _dishka_get(request, RunsStore)
+    if val is not None:
+        return val
+    val = _state_fallback("runs_store")
+    if val is None:
+        raise HTTPException(status_code=503, detail="Runs store not initialized")
+    return val
+
+
+async def get_runs_store_optional(request: Request):
+    try:
+        return await get_runs_store(request)
+    except HTTPException:
+        return _state_fallback("runs_store")
+
+
+async def get_sessions_store(request: Request):
+    from core.gateway.sessions_store import SessionsStore
+
+    val = await _dishka_get(request, SessionsStore)
+    if val is not None:
+        return val
+    val = _state_fallback("sessions_store")
+    if val is None:
+        raise HTTPException(status_code=503, detail="Sessions store not initialized")
+    return val
+
+
+async def get_responses_store(request: Request):
+    from core.gateway.responses_store import ResponsesStore
+
+    val = await _dishka_get(request, ResponsesStore)
+    if val is not None:
+        return val
+    val = _state_fallback("responses_store")
+    if val is None:
+        raise HTTPException(status_code=503, detail="Responses store not initialized")
+    return val
+
+
+async def get_api_key_manager(request: Request):
+    from core.security.auth import APIKeyManager
+
+    val = await _dishka_get(request, APIKeyManager)
+    if val is not None:
+        return val
+    val = _state_fallback("api_key_manager")
+    if val is None:
+        raise HTTPException(status_code=503, detail="API key manager not initialized")
+    return val
+
+
+async def get_rate_limiter(request: Request):
+    from core.security.auth import RateLimiter
+
+    val = await _dishka_get(request, RateLimiter)
+    if val is not None:
+        return val
+    return _state_fallback("rate_limiter")
+
+
+async def get_gateway_locks(request: Request):
+    from core.gateway.locks import GatewayLocks
+
+    from api import state
+
+    val = await _dishka_get(request, GatewayLocks)
+    if val is not None:
+        return val
+    try:
+        return state.require_gateway_locks()
+    except state.GatewayStateError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+
+
+async def get_host_profile(request: Request) -> str:
+    from core.gateway.types import HostProfileName
+
+    from api import state
+
+    host = await _dishka_get(request, HostProfileName)
+    if host is not None:
+        return str(host)
+    try:
+        registry = await get_registry(request)
+        return getattr(registry, "host_profile", None) or state.get_host_profile()
+    except HTTPException:
+        return state.get_host_profile()

@@ -3,10 +3,14 @@
 from __future__ import annotations
 
 from cli.core import ProfileManager
+from dishka.integrations.fastapi import DishkaRoute, FromDishka
 from fastapi import APIRouter, Depends, Header, HTTPException
 
-import api.state
 from api.deps import verify_api_key
+from api.di import (
+    CompanionManager,
+    HostProfileName,
+)
 from api.schemas.holix import MaxApproveRequest, MaxMapSetRequest, MaxSetupRequest
 from api.services.holix_deps import profile_access
 from api.services.max_ops import (
@@ -27,7 +31,7 @@ from api.services.max_ops import (
 )
 from api.services.profile_access import require_admin_access
 
-router = APIRouter(prefix="/api/holix/profiles/{profile_id}/max", tags=["holix-max"])
+router = APIRouter(prefix="/api/holix/profiles/{profile_id}/max", tags=["holix-max"], route_class=DishkaRoute)
 
 
 def _require_profile(profile_id: str) -> None:
@@ -53,6 +57,8 @@ async def max_status(
 
 @router.post("/setup")
 async def max_setup(
+    companions: FromDishka[CompanionManager],
+    host_profile: FromDishka[HostProfileName],
     profile_id: str,
     body: MaxSetupRequest,
     key_info: dict = Depends(verify_api_key),
@@ -70,7 +76,7 @@ async def max_setup(
     except MaxOpError as exc:
         raise _map_op_error(exc) from exc
 
-    if profile_id == api.state.host_profile:
+    if profile_id == str(host_profile):
         from integrations.max.gateway_routes import reload_max_webhook
 
         result["companions"] = await reload_max_webhook(profile_id)

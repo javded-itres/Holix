@@ -33,6 +33,11 @@ async def tool_execution_node(state: HolixGraphState, config: RunnableConfig) ->
     if not tool_calls or not agent:
         return {"tool_calls": [], "tool_results": []}
 
+    from core.memory.tool_content import (
+        truncate_tool_content_for_graph,
+        truncate_tool_content_for_memory,
+    )
+
     messages = list(state.get("messages", []))
     tool_results = []
 
@@ -84,11 +89,13 @@ async def tool_execution_node(state: HolixGraphState, config: RunnableConfig) ->
                     conversation_id=conversation_id,
                 ))
 
-        # Append tool result message
+        graph_result = truncate_tool_content_for_graph(result)
+
+        # Append tool result message (graph uses a smaller cap than SQLite memory)
         tool_msg = {
             "role": "tool",
             "tool_call_id": tool_id,
-            "content": result,
+            "content": graph_result,
         }
         messages.append(tool_msg)
         tool_results.append({
@@ -98,10 +105,8 @@ async def tool_execution_node(state: HolixGraphState, config: RunnableConfig) ->
             "duration_ms": duration,
         })
 
-        # Save to memory (truncate huge outputs — full result stays in graph state)
+        # Save to memory (truncate huge outputs)
         if agent and hasattr(agent, "memory"):
-            from core.memory.tool_content import truncate_tool_content_for_memory
-
             await agent.memory.save_message(
                 conversation_id,
                 "tool",

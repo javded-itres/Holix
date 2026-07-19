@@ -41,6 +41,12 @@
 - [TELEGRAM.md](TELEGRAM.md) · [MAX.md](MAX.md)
 - [GATEWAY.md](GATEWAY.md) · [GATEWAY_API.md](GATEWAY_API.md)
 
+### Экосистема расширений
+
+- [holix-sdk](https://github.com/javded-itres/holix-sdk) — отдельный пакет (PyPI: `holix-sdk`)
+- [EXTENSIONS.md](EXTENSIONS.md) — создание расширений (пошагово, копия в репозитории holix-sdk)
+- [BUILD_WITHOUT_HOLIX.md](../en/BUILD_WITHOUT_HOLIX.md) · [EXTENSION_GATEWAY.md](../en/EXTENSION_GATEWAY.md)
+
 ### Безопасность и эксплуатация
 
 - [SECURITY.md](SECURITY.md) · [TERMINAL_SECURITY.md](TERMINAL_SECURITY.md)
@@ -49,6 +55,8 @@
 ### Внутренности
 
 - [ARCHITECTURE.md](ARCHITECTURE.md) · [CHANGELOG.md](../CHANGELOG.md) · [LICENSING_STRATEGY.md](LICENSING_STRATEGY.md)
+- [SDD.md](SDD.md) — Spec-Driven Development (tools, slash, Studio)
+- [SDD_STUDIO_PLAN.md](SDD_STUDIO_PLAN.md) — план SDD в Studio (модель OpenSpec)
 
 ---
 

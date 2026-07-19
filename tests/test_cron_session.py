@@ -65,3 +65,44 @@ async def test_persist_skips_duplicate_assistant():
         run_conversation_id="cron-j1",
     )
     agent.memory.save_message.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_persist_cron_result_mirrors_to_studio_session(tmp_path, monkeypatch):
+    import json
+    from pathlib import Path
+
+    profile = "studio_cron"
+
+    def fake_data_dir(name: str) -> Path:
+        d = tmp_path / name / "data"
+        d.mkdir(parents=True, exist_ok=True)
+        return d
+
+    monkeypatch.setattr(
+        "core.cron.studio_notify.resolve_holix_default_data_dir",
+        fake_data_dir,
+    )
+
+    job = CronJob(
+        id="j-studio",
+        name="Studio ping",
+        task="ping",
+        cron_expression="0 9 * * *",
+        profile=profile,
+        session_id="studio",
+    )
+    agent = MagicMock()
+    agent.memory = None
+
+    await persist_cron_result(
+        agent,
+        job,
+        response="Studio cron hello",
+        run_conversation_id="cron-j-studio",
+    )
+
+    path = Path(tmp_path) / profile / "data" / "studio" / "cwd" / "studio.json"
+    assert path.is_file()
+    data = json.loads(path.read_text(encoding="utf-8"))
+    assert "Studio cron hello" in data["messages"][-1]["text"]

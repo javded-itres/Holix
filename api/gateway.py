@@ -7,20 +7,16 @@ import os
 from contextlib import asynccontextmanager
 
 from core.di.container import create_async_container, resolve_gateway_runtime_config
-from core.gateway.companions import CompanionManager
 from core.gateway.profile_registry import ProfileAgentRegistry
-from core.gateway.responses_store import ResponsesStore
-from core.gateway.runs_store import RunsStore
-from core.gateway.sessions_store import SessionsStore
-from core.security.auth import APIKeyManager, RateLimiter
-from dishka.integrations.fastapi import setup_dishka
+from core.gateway.types import HostProfileName
+from dishka.integrations.fastapi import FromDishka, inject, setup_dishka
 from fastapi import Depends, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import PlainTextResponse
+from integrations.bootstrap import register_integration_hooks
 from integrations.max.gateway_routes import (
     init_max_webhook,
     max_gateway_state,
-    register_max_routes,
 )
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
@@ -48,7 +44,12 @@ from api.routers import (
 )
 from config import settings
 
-_dishka_container = create_async_container(resolve_gateway_runtime_config())
+register_integration_hooks()
+
+_dishka_container = create_async_container(
+    resolve_gateway_runtime_config(),
+    gateway=True,
+)
 
 
 class SecurityHeadersMiddleware(BaseHTTPMiddleware):
@@ -63,29 +64,19 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
 async def lifespan(app: FastAPI):
     """Initialize multi-profile registry, stores, and API key DB."""
     from core.env_loader import init_holix_home
-    from core.paths import ensure_profile_memory_dirs, resolve_api_keys_db_path
+    from core.paths import ensure_profile_memory_dirs
 
     init_holix_home()
 
     if settings.is_production and not settings.api_key_pepper.strip():
         raise RuntimeError("HOLIX_API_KEY_PEPPER is required when HOLIX_ENV=production")
 
+    container = app.state.dishka_container
     host_profile = (os.getenv("HOLIX_PROFILE") or "default").strip() or "default"
-    state.host_profile = host_profile
-    state.registry = ProfileAgentRegistry(host_profile)
-    state.companions = CompanionManager()
-    state.responses_store = ResponsesStore()
-    state.runs_store = RunsStore()
-    state.sessions_store = SessionsStore()
-    state.rate_limiter = RateLimiter()
-    state._agent_request_lock = asyncio.Lock()
 
-    import api.deps as gateway_deps
-
-    state.api_key_manager = APIKeyManager(str(resolve_api_keys_db_path()))
-    await state.api_key_manager.initialize_db()
-    gateway_deps.api_key_manager = state.api_key_manager
-    gateway_deps.rate_limiter = state.rate_limiter
+    # Bind process state to the same APP-scope instances Dishka owns.
+    gw = await state.bind_from_container(container, host_profile_name=host_profile)
+    await gw.api_key_manager.initialize_db()
 
     supervised = os.getenv("HOLIX_GATEWAY_SUPERVISOR", "").strip().lower() in {
         "1",
@@ -95,12 +86,12 @@ async def lifespan(app: FastAPI):
     }
 
     async def _warm_gateway() -> None:
-        ensure_profile_memory_dirs(host_profile)
-        await state.registry.get_agent(host_profile)
+        ensure_profile_memory_dirs(gw.host_profile)
+        await gw.registry.get_agent(gw.host_profile)
         if not supervised:
-            await state.companions.start_cron(host_profile)
-            await state.companions.start_telegram(host_profile)
-            await state.companions.start_max(host_profile)
+            await gw.companions.start_cron(gw.host_profile)
+            await gw.companions.start_telegram(gw.host_profile)
+            await gw.companions.start_max(gw.host_profile)
 
     asyncio.create_task(_warm_gateway(), name="holix-gateway-warm")
 
@@ -108,10 +99,11 @@ async def lifespan(app: FastAPI):
 
     yield
 
-    if state.companions is not None:
-        await state.companions.shutdown_all()
-    if state.registry is not None:
-        await state.registry.shutdown()
+    if gw.companions is not None:
+        await gw.companions.shutdown_all()
+    if gw.registry is not None:
+        await gw.registry.shutdown()
+    state.clear()
     await app.state.dishka_container.close()
 
 
@@ -152,18 +144,23 @@ app.include_router(holix_telegram.router)
 app.include_router(holix_max.router)
 app.include_router(docs_chat_router)
 
-register_max_routes(app)
+from core.extensions.registry import mount_gateway_extensions  # noqa: E402
+
+mount_gateway_extensions(app)
 
 
 @app.get("/")
-async def root():
-    registry = state.registry
+@inject
+async def root(
+    registry: FromDishka[ProfileAgentRegistry],
+    host_profile: FromDishka[HostProfileName],
+):
     loaded = registry.list_loaded_profiles() if registry else []
     return {
         "name": "Holix API",
         "version": "0.2.0",
         "status": "running",
-        "host_profile": state.host_profile,
+        "host_profile": str(host_profile),
         "loaded_profiles": loaded,
         "require_auth": settings.effective_require_auth,
         "max_webhook": (
@@ -190,16 +187,17 @@ async def prometheus_metrics_public(
 
 def __getattr__(name: str):
     """Backward compatibility for ``api.gateway.agent`` in tests."""
+    gw = state.get()
     if name == "agent":
-        reg = state.registry
+        reg = gw.registry
         if reg is None:
             return None
-        entry = reg.entry(state.host_profile)
+        entry = reg.entry(gw.host_profile)
         return entry.agent if entry else None
     if name == "api_key_manager":
-        return state.api_key_manager
+        return gw.api_key_manager
     if name == "rate_limiter":
-        return state.rate_limiter
+        return gw.rate_limiter
     raise AttributeError(name)
 
 

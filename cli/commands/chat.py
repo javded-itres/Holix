@@ -75,11 +75,10 @@ class ChatSession:
     async def initialize_agent(self):
         """Initialize the Holix agent."""
         with console.status("[bold cyan]Initializing Holix...", spinner="dots"):
-            from core.agent_events import (
-                create_compatibility_print_handler,
-                create_rich_cli_handler,
-            )
+            from core.agent_events import create_compatibility_print_handler
             from core.di import resolve_runtime_config
+
+            from cli.adapters.event_handlers import create_rich_cli_handler
 
             runtime_config = resolve_runtime_config(self.config)
 
@@ -107,13 +106,12 @@ class ChatSession:
             except Exception:
                 listeners = [create_compatibility_print_handler()]
 
-            from core.agent import HolixAgent
+            from core.di import create_agent as di_create_agent
 
-            self.agent = HolixAgent(
-                config=runtime_config,
+            self.agent, self._di_container = await di_create_agent(
+                runtime_config,
                 event_listeners=listeners,
             )
-            await self.agent.initialize()
 
             # Attach event history recorder (for /debug events)
             self._attach_event_history_recorder()
@@ -221,6 +219,12 @@ class ChatSession:
 
         # /clear
         elif cmd_lower == "/clear":
+            old_id = self.conversation_id
+            if self.agent and old_id:
+                try:
+                    await self.agent.memory.delete_conversation(old_id)
+                except Exception:
+                    pass
             self.conversation_id = f"cli_chat_{self.profile}_{int(asyncio.get_event_loop().time())}"
             print_success("Conversation cleared")
             return True

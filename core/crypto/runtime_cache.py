@@ -102,7 +102,7 @@ def cache_dir_is_private(path: Path) -> bool:
 
 def recover_stale_runtime_caches() -> dict[str, int]:
     """Wipe orphan plaintext caches after crash or legacy layout migration."""
-    from cli.core import ProfileManager
+    from core.profile import ProfileManager
 
     root = runtime_cache_root()
     root.mkdir(parents=True, exist_ok=True)

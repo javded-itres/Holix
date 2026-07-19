@@ -524,6 +524,52 @@ class TestActionGuard:
         assert result is False
 
     @pytest.mark.asyncio
+    async def test_session_grant_unblocks_concurrent_waiters(self):
+        """ALLOW_SESSION must wake other sub-agents waiting on the same tool.
+
+        Without this, parallel async sub-agents freeze forever (timeout=none)
+        after the user approves only one of several pending confirmations.
+        """
+        guard = ActionGuard(
+            event_bus=None,
+            permission_manager=self.pm,
+            risk_classifier=self.classifier,
+            auto_allow_threshold=RiskLevel.NO,
+            interactive=True,
+            confirmation_timeout=5,
+        )
+
+        class FakeTool:
+            risk_level = "medium"
+
+        async def fake_execute(**kwargs):
+            return f"wrote:{kwargs.get('path', '?')}"
+
+        tasks = [
+            asyncio.create_task(
+                guard.check_and_execute(
+                    tool_name="write_file",
+                    tool_instance=FakeTool(),
+                    arguments={"path": f"f{i}.py", "content": "x"},
+                    execute_fn=fake_execute,
+                    conversation_id="default",
+                )
+            )
+            for i in range(3)
+        ]
+
+        await asyncio.sleep(0.1)
+        assert len(guard._pending_confirmations) == 3
+
+        first_id = list(guard._pending_confirmations.keys())[0]
+        assert guard.resolve_confirmation(first_id, ConfirmationChoice.ALLOW_SESSION)
+
+        results = await asyncio.wait_for(asyncio.gather(*tasks), timeout=5.0)
+        assert all(r.startswith("wrote:") for r in results)
+        assert len(guard._pending_confirmations) == 0
+        assert self.pm.is_allowed("write_file", RiskLevel.MEDIUM)
+
+    @pytest.mark.asyncio
     async def test_default_confirmation_has_no_timeout(self):
         """Default confirmation_timeout=0 waits until the user responds."""
         guard = ActionGuard(

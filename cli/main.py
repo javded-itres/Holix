@@ -11,9 +11,12 @@ from rich.traceback import install
 install(show_locals=True)
 
 from core.profile_keys import ProfileNotFoundError
+from integrations.bootstrap import register_integration_hooks
 
 from cli.core import get_profile_manager, init_profile, resolve_active_profile_name
 from cli.utils.rich_console import print_info
+
+register_integration_hooks()
 
 # Create Typer app
 app = typer.Typer(
@@ -27,7 +30,7 @@ _BASE_COMMANDS_REGISTERED = False
 _HEAVY_COMMANDS_REGISTERED = False
 
 # Commands that pull chromadb/numpy via HolixAgent or SkillsManager.
-_HEAVY_ROOT_COMMANDS = frozenset({"chat", "run", "tui", "skills", "memory", "subagent"})
+_HEAVY_ROOT_COMMANDS = frozenset({"chat", "run", "tui", "skills", "memory", "subagent", "studio"})
 
 
 def _needs_heavy_commands(argv: list[str]) -> bool:
@@ -56,21 +59,19 @@ def _register_base_commands() -> None:
     from cli.commands.bootstrap import app as bootstrap_app
     from cli.commands.cron import app as cron_app
     from cli.commands.docs import app as docs_app
+    from cli.commands.extensions import app as extensions_app
     from cli.commands.hub import app as hub_app
     from cli.commands.install_cmd import app as install_app
     from cli.commands.launch import app as launch_app
     from cli.commands.logs import app as logs_app
-    from cli.commands.max import register_max_command
     from cli.commands.mcp import app as mcp_app
     from cli.commands.search import app as search_app
-    from cli.commands.telegram import register_telegram_command
     from cli.commands.update_cmd import app as update_app
 
     app.add_typer(config.app, name="config")
     app.add_typer(profile.app, name="profile")
     app.add_typer(models.app, name="models")
-    register_telegram_command(app)
-    register_max_command(app)
+    app.add_typer(extensions_app, name="extensions")
     app.add_typer(gateway.app, name="gateway")
     app.add_typer(doctor.app, name="doctor")
     app.add_typer(mcp_app, name="mcp")
@@ -83,6 +84,11 @@ def _register_base_commands() -> None:
     app.add_typer(update_app, name="update")
     app.add_typer(docs_app, name="docs")
     app.add_typer(launch_app, name="launch")
+
+    from core.extensions.registry import register_cli_extensions
+
+    register_cli_extensions(app)
+
     _BASE_COMMANDS_REGISTERED = True
 
 

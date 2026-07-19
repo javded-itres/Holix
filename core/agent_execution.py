@@ -118,26 +118,36 @@ async def run_agent_loop(
 
     # Build system prompt
     tools_desc = format_tools_description(agent.tools.get_schemas())
-    profile_name = getattr(getattr(agent, "config", None), "profile_name", None)
+    agent_config = getattr(agent, "config", None)
+    profile_name = getattr(agent_config, "profile_name", None)
+    persona_name = getattr(agent, "studio_agent_type", None)
+    persona_prompt = getattr(agent, "studio_persona_prompt", None)
+    if persona_name in (None, "", "main"):
+        persona_name = None
+        persona_prompt = None
     system_prompt = build_system_prompt(
         tools_description=tools_desc,
         active_skills=relevant_skills,
         skills_formatted=skills_formatted,
         relevant_memories=relevant_memories,
         profile_name=profile_name,
+        workspace_root=getattr(agent_config, "workspace_root", None),
+        workspace_jail_enabled=getattr(agent_config, "workspace_jail_enabled", None),
+        persona_name=persona_name,
+        persona_prompt=persona_prompt,
     )
 
     # ------------------------------------------------------------------
     # 2. Main reasoning loop
     # ------------------------------------------------------------------
     step_count = 0
-    agent_config = getattr(agent, "config", None)
     max_steps = getattr(agent_config, "max_steps", settings.max_steps)
     model = getattr(agent, "model", settings.model)
     temperature = getattr(agent_config, "temperature", settings.temperature)
     client: AsyncOpenAI = agent.client
     agent_slot = getattr(agent, "agent_slot", "main")
     model_manager = getattr(agent, "model_manager", None)
+    primary_override = getattr(agent, "active_model_config", None)
 
     def _on_fallback_switch(cfg) -> None:
         if hasattr(agent, "set_active_model_config"):
@@ -180,6 +190,7 @@ async def run_agent_loop(
                     stream_response = await run_with_provider_fallback(
                         model_manager,
                         agent_name=agent_slot,
+                        primary_override=primary_override,
                         on_switch=_on_fallback_switch,
                         factory=lambda cfg, llm_client: llm_client.chat.completions.create(
                             model=cfg.model,
@@ -235,8 +246,12 @@ async def run_agent_loop(
                                     tool_calls_dict[idx]["function"]["arguments"] += tc_delta.function.arguments
 
                     finish_reason = chunk.choices[0].finish_reason
+                    has_stream_tools = bool(tool_calls_dict) and any(
+                        (tc.get("function") or {}).get("name", "").strip()
+                        for tc in tool_calls_dict.values()
+                    )
 
-                    if finish_reason == "stop":
+                    if finish_reason == "stop" and not has_stream_tools:
                         # Final answer arrived via streaming
                         final_response = current_content or "No response generated"
 
@@ -256,8 +271,10 @@ async def run_agent_loop(
                         await _maybe_self_improve(agent, conversation_id, messages, final_response)
                         return
 
-                    elif finish_reason == "tool_calls":
-                        # Tool calls arrived via streaming
+                    elif finish_reason == "tool_calls" or (
+                        finish_reason == "stop" and has_stream_tools
+                    ):
+                        # Tool calls arrived via streaming (some providers use finish_reason=stop)
                         tool_calls = list(tool_calls_dict.values())
                         assistant_msg = {
                             "role": "assistant",
@@ -336,6 +353,7 @@ async def run_agent_loop(
                     response = await chat_completions_with_fallback(
                         model_manager,
                         agent_name=agent_slot,
+                        primary_override=primary_override,
                         on_switch=_on_fallback_switch,
                         messages=api_messages,
                         tools=agent.tools.get_schemas(),

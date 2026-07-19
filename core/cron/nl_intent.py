@@ -1,4 +1,8 @@
-"""Detect recurring-task intent in natural-language chat messages."""
+"""Detect when a chat message asks Holix to schedule a recurring *agent* job.
+
+Implementation requests (build a service/script with its own timer) must NOT
+match — those go to the coding agent, not Holix cron auto-create.
+"""
 
 from __future__ import annotations
 
@@ -23,6 +27,36 @@ from core.cron.schedule_parse import (
     parse_schedule_to_cron,
 )
 
+# User wants Holix gateway cron to run the *agent* on a schedule (digest, remind).
+_WANT_HOLIX_SCHEDULE = re.compile(
+    r"(?:"
+    r"присылай|напомни|напоминай|отправляй\s+мне|шл[ие]\s+мне|"
+    r"поставь\s+(?:на\s+)?расписание|запланируй\s+(?:задач|агент|проверк)|"
+    r"создай\s+cron|добавь\s+cron|поставь\s+cron|настрой\s+cron|"
+    r"/cron\s+add|schedule_cron|holix\s+cron|"
+    r"send\s+me\b|remind\s+me\b|schedule\s+(?:this|an?\s+agent|a\s+task)|"
+    r"set\s+up\s+(?:a\s+)?(?:cron|recurring)\s+(?:job|task)|"
+    r"каждый\s+день\s+(?:присылай|отправляй|шл[ие]|напоминай)|"
+    r"every\s+day\s+(?:send|remind|email|notify)"
+    r")",
+    re.I,
+)
+
+# Build/run application code — never auto-create Holix cron for these.
+_IMPLEMENTATION = re.compile(
+    r"(?:"
+    r"\bсоздай\b|\bнапиши\b|\bреализуй\b|\bимплементируй\b|"
+    r"консольн\w*\s+сервис|фонов\w*\s+(?:сервис|процесс|job)|"
+    r"сервис,?\s+который|скрипт,?\s+который|программ\w*,?\s+которая|"
+    r"приложение|daemon|воркер|worker|"
+    r"start_background|background_process|"
+    r"\bimplement\b|\bwrite\s+a\s+(?:service|script|app|program)\b|"
+    r"\bcreate\s+a\s+(?:service|script|app|console)\b|"
+    r"long[- ]running|dev\s+server"
+    r")",
+    re.I,
+)
+
 _RECURRENCE = re.compile(
     r"(?:"
     r"every\s+day|daily|every\s+hour|hourly|every\s+week|weekly|weekdays?|"
@@ -32,8 +66,9 @@ _RECURRENCE = re.compile(
     r"каждый\s+час|ежечасно|раз\s+в\s+час|"
     r"каждую\s+неделю|еженедельно|раз\s+в\s+неделю|"
     r"каждые\s+\d+\s+мин(?:ут)?|каждые\s+\d+\s+час(?:а|ов)?|"
-    r"в\s+\d{1,2}(?::\d{2})?\s*(?:утра|вечера|часов|ч\.?)?|"
-    r"по\s+будням|по\s+расписанию|регулярно|периодически"
+    r"раз\s+в\s+\d+\s+мин(?:ут)?|раз\s+в\s+\d+\s+час(?:а|ов)?|"
+    r"в\s+\d{1,2}(?::\d{2})?\s*(?:утра|вечера|часов|ч\.?)|"
+    r"по\s+будням|по\s+расписанию"
     r")",
     re.I,
 )
@@ -98,7 +133,6 @@ def _schedule_phrase(text: str) -> str | None:
             if re.search(r"каждый\s+час|hourly|every\s+hour", low, re.I):
                 return "hourly"
         return None
-    # Prefer daily+time combo when both present
     merged = " ".join(dict.fromkeys(parts))
     return merged
 
@@ -110,7 +144,8 @@ def _strip_schedule_fragments(text: str) -> str:
     task = re.sub(
         r"\b(?:каждый\s+день|ежедневно|раз\s+в\s+день|каждое\s+утро|"
         r"каждый\s+час|ежечасно|каждую\s+неделю|еженедельно|"
-        r"по\s+будням|по\s+расписанию|регулярно|периодически|"
+        r"раз\s+в\s+\d+\s+мин(?:ут)?|раз\s+в\s+\d+\s+час(?:а|ов)?|"
+        r"по\s+будням|по\s+расписанию|"
         r"every\s+day|daily|hourly|weekly|weekdays?)\b",
         " ",
         task,
@@ -121,7 +156,10 @@ def _strip_schedule_fragments(text: str) -> str:
 
 
 def detect_cron_intent(text: str) -> CronIntent | None:
-    """Return cron intent when the message asks for a recurring scheduled task."""
+    """Return intent only when the user wants Holix to run the agent on a schedule.
+
+    Does **not** match coding tasks such as «создай сервис, который раз в 5 минут…».
+    """
     raw = (text or "").strip()
     if len(raw) < 12:
         return None
@@ -129,10 +167,19 @@ def detect_cron_intent(text: str) -> CronIntent | None:
         return None
     if _HELP.search(raw):
         return None
+
+    # Implementation / app-building → never Holix cron auto-create
+    if _IMPLEMENTATION.search(raw) and not _WANT_HOLIX_SCHEDULE.search(raw):
+        return None
+
+    # Require clear intent to schedule Holix agent work (not mere "every N minutes" in a build brief)
+    if not _WANT_HOLIX_SCHEDULE.search(raw):
+        return None
+
     if not _RECURRENCE.search(raw):
         return None
     if _ONE_SHOT.search(raw) and not re.search(
-        r"каждый|ежеднев|every\s+day|daily|hourly|weekly|every\s+\d+",
+        r"каждый|ежеднев|every\s+day|daily|hourly|weekly|every\s+\d+|раз\s+в\s+\d+",
         raw,
         re.I,
     ):

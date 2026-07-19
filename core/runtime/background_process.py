@@ -80,7 +80,7 @@ class BackgroundProcessRegistry:
         command: str,
         conversation_id: str | None = None,
     ) -> list[BackgroundProcessRecord]:
-        """Stop prior session processes and any profile process holding target ports."""
+        """Stop profile processes that hold ports the new command needs."""
         from core.runtime.port_utils import force_free_ports, parse_listen_ports
 
         async with self._lock:
@@ -93,13 +93,10 @@ class BackgroundProcessRegistry:
         for rec in candidates:
             if rec.process_id in seen_ids:
                 continue
-            same_session = bool(
-                conversation_id and rec.conversation_id == conversation_id
-            )
             port_conflict = bool(
                 target_ports and set(self._ports_for_record(rec)) & target_ports
             )
-            if same_session or port_conflict:
+            if port_conflict:
                 to_stop.append(rec)
                 seen_ids.add(rec.process_id)
 
@@ -229,16 +226,20 @@ class BackgroundProcessRegistry:
         return rec
 
     async def stop_for_scope(self, *, profile: str, conversation_id: str) -> BackgroundProcessRecord | None:
-        scope = self._scope_key(profile, conversation_id)
-        async with self._lock:
-            candidates = [
-                rec
-                for rec in self._records.values()
-                if self._scope_key(rec.profile, rec.conversation_id) == scope
-            ]
-        if not candidates:
+        """Stop the newest running process in this chat session (or most recent if all stopped)."""
+        rec = self.active_for_scope(profile=profile, conversation_id=conversation_id)
+        if rec is None:
+            records = self.list_for_scope(profile=profile, conversation_id=conversation_id)
+            rec = records[0] if records else None
+        if rec is None:
             return None
-        return await self._stop_all_records(candidates)
+        from core.runtime.port_utils import force_free_ports
+
+        ports = self._ports_for_record(rec)
+        await self._stop_record(rec)
+        if ports:
+            await asyncio.to_thread(force_free_ports, ports)
+        return rec
 
     async def stop_for_profile(self, *, profile: str) -> BackgroundProcessRecord | None:
         """Stop all background processes for a profile (any conversation)."""
@@ -277,6 +278,10 @@ class BackgroundProcessRegistry:
             if self._scope_key(rec.profile, rec.conversation_id) == scope:
                 out.append(rec)
         return sorted(out, key=lambda r: r.started_at, reverse=True)
+
+    def list_for_profile(self, *, profile: str) -> list[BackgroundProcessRecord]:
+        """All background processes for a profile (any conversation)."""
+        return sorted(self._records_for_profile(profile), key=lambda r: r.started_at, reverse=True)
 
     def active_for_scope(self, *, profile: str, conversation_id: str) -> BackgroundProcessRecord | None:
         for rec in self.list_for_scope(profile=profile, conversation_id=conversation_id):
@@ -386,11 +391,33 @@ class BackgroundProcessRegistry:
                 pass
 
 
-_registry: BackgroundProcessRegistry | None = None
+_default_registry: BackgroundProcessRegistry | None = None
+_profile_registries: dict[str, BackgroundProcessRegistry] = {}
 
 
-def get_background_process_registry() -> BackgroundProcessRegistry:
-    global _registry
-    if _registry is None:
-        _registry = BackgroundProcessRegistry()
-    return _registry
+def bind_background_process_registry(
+    registry: BackgroundProcessRegistry,
+    profile_name: str,
+) -> None:
+    """Associate a registry with a profile (set during agent initialize)."""
+    key = (profile_name or "default").strip() or "default"
+    _profile_registries[key] = registry
+
+
+def unbind_background_process_registry(profile_name: str) -> None:
+    key = (profile_name or "default").strip() or "default"
+    _profile_registries.pop(key, None)
+
+
+def get_background_process_registry(profile_name: str | None = None) -> BackgroundProcessRegistry:
+    """Return profile-bound registry when available, else process default."""
+    from core.tools.execution_context import get_profile_name
+
+    key = (profile_name or get_profile_name() or "default").strip() or "default"
+    bound = _profile_registries.get(key)
+    if bound is not None:
+        return bound
+    global _default_registry
+    if _default_registry is None:
+        _default_registry = BackgroundProcessRegistry()
+    return _default_registry

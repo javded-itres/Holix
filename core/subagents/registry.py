@@ -22,7 +22,7 @@ PREDEFINED_SUBAGENTS = {
             "clear, actionable insights. Focus on accuracy and thoroughness."
         ),
         tools=["web_search", "web_fetch", "read_file", "list_directory"],
-        max_steps=12,
+        max_steps=150,
         mode="react",
         process_mode="async",
         temperature=0.3,
@@ -48,7 +48,7 @@ PREDEFINED_SUBAGENTS = {
             "- Do NOT delegate further — you are the final research node."
         ),
         tools=["web_search", "web_fetch"],
-        max_steps=15,
+        max_steps=150,
         mode="react",
         process_mode="async",
         temperature=0.4,
@@ -60,12 +60,15 @@ PREDEFINED_SUBAGENTS = {
         name="coder",
         system_prompt=(
             "You are a code generation specialist. Your job is to write, edit, "
-            "and debug code. You can read existing files, write new ones, execute "
-            "code for testing, and use the terminal for running commands. "
-            "Always verify your code works before reporting completion."
+            "and debug code. You can list and read existing files, write new ones, "
+            "execute code for testing, and use the terminal for running commands. "
+            "Always work in the shared working directory from your system prompt "
+            "(same as the main agent). Prefer list_directory / read_file before "
+            "assuming a path is missing. Always verify your code works before "
+            "reporting completion."
         ),
-        tools=["read_file", "write_file", "terminal", "code_executor"],
-        max_steps=15,
+        tools=["read_file", "write_file", "list_directory", "terminal", "code_executor"],
+        max_steps=150,
         mode="react",
         process_mode="async",
         temperature=0.2,
@@ -81,7 +84,7 @@ PREDEFINED_SUBAGENTS = {
             "execute SQL queries, run Python code, and use mathematical tools."
         ),
         tools=["sql_query", "sql_schema", "code_executor", "math_calculator"],
-        max_steps=10,
+        max_steps=150,
         mode="react",
         process_mode="async",
         temperature=0.1,
@@ -97,7 +100,7 @@ PREDEFINED_SUBAGENTS = {
             "Provide specific, actionable feedback with file paths and line numbers."
         ),
         tools=["read_file", "list_directory", "terminal"],
-        max_steps=8,
+        max_steps=150,
         mode="react",
         process_mode="async",
         temperature=0.2,
@@ -113,7 +116,7 @@ PREDEFINED_SUBAGENTS = {
             "user guides. Focus on clarity, completeness, and proper formatting."
         ),
         tools=["read_file", "write_file", "list_directory"],
-        max_steps=8,
+        max_steps=150,
         mode="react",
         process_mode="async",
         temperature=0.5,

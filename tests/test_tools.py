@@ -2,8 +2,9 @@ import os
 import tempfile
 
 import pytest
+from core.project.holix_md import HOLIX_MD_FILENAME
 from core.tools.code_executor import MathCalculatorTool
-from core.tools.file_ops import ListDirectoryTool, ReadFileTool, WriteFileTool
+from core.tools.file_ops import ListDirectoryTool, PatchFileTool, ReadFileTool, WriteFileTool
 
 
 @pytest.mark.asyncio
@@ -35,6 +36,39 @@ async def test_write_and_read_file():
         # Read file
         result = await read_tool.execute(test_file)
         assert content in result
+
+
+@pytest.mark.asyncio
+async def test_patch_file_applies_replacements(tmp_path):
+    patch_tool = PatchFileTool()
+    read_tool = ReadFileTool()
+    target = tmp_path / "notes.md"
+    target.write_text("# Doc\n- Purpose:\n- Stack:\n", encoding="utf-8")
+
+    result = await patch_tool.execute(
+        str(target),
+        replacements=[
+            {"old_string": "- Purpose:", "new_string": "- Purpose: Demo project"},
+            {"old_string": "- Stack:", "new_string": "- Stack: Python"},
+        ],
+    )
+    assert "2 replacement" in result
+
+    content = await read_tool.execute(str(target))
+    assert "Demo project" in content
+    assert "Python" in content
+
+
+@pytest.mark.asyncio
+async def test_write_file_rejects_oversized_holix_md(tmp_path):
+    write_tool = WriteFileTool()
+    holix = tmp_path / ".holix" / HOLIX_MD_FILENAME
+    holix.parent.mkdir(parents=True, exist_ok=True)
+    holix.write_text("# skeleton\n", encoding="utf-8")
+
+    result = await write_tool.execute(str(holix), "x" * 7000)
+    assert "patch_file" in result
+    assert holix.read_text(encoding="utf-8") == "# skeleton\n"
 
 
 @pytest.mark.asyncio

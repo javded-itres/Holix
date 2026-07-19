@@ -43,6 +43,13 @@ class ToolRegistry:
         # Note: we no longer print here. The agent loop or higher level
         # can emit AgentEvent if it wants to surface tool registration.
 
+    def unregister(self, name: str) -> bool:
+        """Remove a tool by name. Returns True if it was present."""
+        if name in self.tools:
+            del self.tools[name]
+            return True
+        return False
+
     def register_alias(self, alias: str, tool: BaseTool) -> None:
         """Register an alternate name for an existing tool."""
         self.tools[alias] = tool
@@ -52,7 +59,12 @@ class ToolRegistry:
         from core.tools.ask_user import AskUserTool
         from core.tools.code_executor import MathCalculatorTool, PythonExecutorTool
         from core.tools.database import SQLQueryTool, SQLSchemaTool
-        from core.tools.file_ops import ReadFileTool, WriteFileTool
+        from core.tools.file_ops import (
+            ListDirectoryTool,
+            PatchFileTool,
+            ReadFileTool,
+            WriteFileTool,
+        )
         from core.tools.send_chat_files import SendChatFilesTool
         from core.tools.session_memory import ReadSessionTool, SearchSessionsTool
         from core.tools.terminal import TerminalTool
@@ -61,9 +73,17 @@ class ToolRegistry:
         # File operations
         self.register(ReadFileTool())
         self.register(WriteFileTool())
+        self.register(PatchFileTool())
+        self.register(ListDirectoryTool())
+
+        from core.tools.holix_init import register_holix_init_tools
+
+        register_holix_init_tools(self)
 
         # System
-        self.register(TerminalTool())
+        terminal_tool = TerminalTool()
+        self.register(terminal_tool)
+        self.register_alias("terminal", terminal_tool)
         from core.external_cli.platform import launch_supported
 
         if launch_supported():
@@ -82,8 +102,12 @@ class ToolRegistry:
         self.register(SQLSchemaTool())
 
         # Code execution
-        self.register(PythonExecutorTool())
-        self.register(MathCalculatorTool())
+        python_tool = PythonExecutorTool()
+        self.register(python_tool)
+        self.register_alias("code_executor", python_tool)
+        calc_tool = MathCalculatorTool()
+        self.register(calc_tool)
+        self.register_alias("math_calculator", calc_tool)
 
         # Sub-agent ↔ user bridge
         self.register(AskUserTool())
@@ -106,6 +130,10 @@ class ToolRegistry:
         from core.tools.cron_schedule import register_cron_schedule_tool
 
         register_cron_schedule_tool(self)
+
+        from core.tools.sdd import register_sdd_tools
+
+        register_sdd_tools(self)
 
         from config import settings
 
@@ -188,10 +216,11 @@ class ToolRegistry:
             seen.add(name)
             schemas.append(tool.to_openai_schema())
         if (for_agent_slot or "main").strip().lower() == "main":
+            hidden_for_main = frozenset({"external_cli", "ask_user"})
             schemas = [
                 schema
                 for schema in schemas
-                if schema.get("function", {}).get("name") != "external_cli"
+                if schema.get("function", {}).get("name") not in hidden_for_main
             ]
         return schemas
 
@@ -261,18 +290,18 @@ class ToolRegistry:
         )
         try:
             # Gate with ActionGuard if installed
-            if self._action_guard:
-                result = await self._action_guard.check_and_execute(
-                    tool_name=tool_name,
-                    tool_instance=tool,
-                    arguments=args,
-                    execute_fn=tool.execute,
-                    conversation_id=conversation_id,
-                )
-                return sanitize_paths_in_text(result) if isinstance(result, str) else result
-
-            # No guard: execute directly (backward compatible)
             try:
+                if self._action_guard:
+                    result = await self._action_guard.check_and_execute(
+                        tool_name=tool_name,
+                        tool_instance=tool,
+                        arguments=args,
+                        execute_fn=tool.execute,
+                        conversation_id=conversation_id,
+                    )
+                    return sanitize_paths_in_text(result) if isinstance(result, str) else result
+
+                # No guard: execute directly (backward compatible)
                 result = await tool.execute(**args)
                 return sanitize_paths_in_text(result) if isinstance(result, str) else result
             except Exception as e:

@@ -124,7 +124,7 @@ class ExternalCliTool(BaseTool):
             session_ref = (kwargs.get("session") or "").strip()
             if not session_ref:
                 return "Error: session required for send/output."
-            from cli.services.tmux_launcher import find_launched_session
+            from core.runtime.tmux_launcher import find_launched_session
 
             found = find_launched_session(profile, session_ref)
             if found:

@@ -170,6 +170,36 @@ See [CONTRIBUTING.md](CONTRIBUTING.md). Run tests before PRs: `uv run pytest -m 
 
 ---
 
+## Extensions
+
+Build extensions with the separate **`holix-sdk`** package (stable public API):
+
+```bash
+pip install holix-sdk Holix
+```
+
+Repository: [github.com/javded-itres/holix-sdk](https://github.com/javded-itres/holix-sdk)
+
+| Guide | Path |
+|-------|------|
+| English | [holix-sdk/docs/en/EXTENSIONS.md](https://github.com/javded-itres/holix-sdk/blob/main/docs/en/EXTENSIONS.md) |
+| Russian | [holix-sdk/docs/ru/EXTENSIONS.md](https://github.com/javded-itres/holix-sdk/blob/main/docs/ru/EXTENSIONS.md) |
+| Holix copy (EN) | [docs/en/EXTENSIONS.md](docs/en/EXTENSIONS.md) |
+
+```bash
+holix extensions list
+holix extensions agent-list
+```
+
+Reference: `packages/holix-extension-demo` in this repo.
+
+---
+
 ## License
 
-MIT — see [LICENSE](LICENSE)
+**Holix core:** MIT — see [LICENSE](LICENSE).
+
+**Holix Studio** is a separate extension package ([holix-studio](https://github.com/javded-itres/holix-studio))
+under the [Holix Studio Source Available License](https://github.com/javded-itres/holix-studio/blob/main/LICENSE)
+(source visible, **no redistribution or resale**). Install from the Studio repository when needed (`pip install` / clone).
+Holix loads it via the `holix.extensions` entry-point API — see [THIRD_PARTY_LICENSES.md](THIRD_PARTY_LICENSES.md).

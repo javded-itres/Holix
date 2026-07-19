@@ -8,16 +8,22 @@ import uuid
 
 from core.gateway.runs_store import RunStatus
 from core.security.permissions import PermissionChecker
+from dishka.integrations.fastapi import DishkaRoute, FromDishka
 from fastapi import APIRouter, Depends, Header, HTTPException
 from fastapi.responses import StreamingResponse
 
-from api import state
 from api.deps import (
     RequestContext,
     ensure_resource_profile,
-    get_registry,
     resolve_profile_name,
     verify_api_key,
+)
+from api.di import (
+    GatewayLocks,
+    HostProfileName,
+    ProfileAgentRegistry,
+    ResponsesStore,
+    RunsStore,
 )
 from api.schemas.hermes import (
     CapabilitiesResponse,
@@ -35,7 +41,7 @@ from api.services.path_visibility import (
     gateway_agent_path_visibility_for_admin,
 )
 
-router = APIRouter(prefix="/v1", tags=["hermes"])
+router = APIRouter(prefix="/v1", tags=["hermes"], route_class=DishkaRoute)
 
 
 def _resolve_ctx(
@@ -47,10 +53,12 @@ def _resolve_ctx(
     x_hermes_session_id: str | None = Header(None),
     x_holix_session_key: str | None = Header(None),
     x_hermes_session_key: str | None = Header(None),
+    *,
+    host_profile: str = "default",
 ) -> RequestContext:
     from api.deps import _header_alias, _validate_session_key
 
-    host = state.host_profile or "default"
+    host = host_profile or "default"
     profile = resolve_profile_name(
         header_profile=_header_alias(x_holix_profile, x_hermes_profile),
         model=model,
@@ -70,8 +78,8 @@ def _resolve_ctx(
 
 @router.get("/models")
 async def list_models(
+    host_profile: FromDishka[HostProfileName],
     key_info: dict = Depends(verify_api_key),
-    registry=Depends(get_registry),
     x_holix_profile: str | None = Header(None),
     x_hermes_profile: str | None = Header(None),
     refresh: bool = False,
@@ -79,7 +87,7 @@ async def list_models(
     from api.deps import _header_alias
     from api.services.model_catalog import list_profile_models
 
-    host = state.host_profile or "default"
+    host = str(host_profile)
     profile = resolve_profile_name(
         header_profile=_header_alias(x_holix_profile, x_hermes_profile),
         model=None,
@@ -90,8 +98,10 @@ async def list_models(
 
 
 @router.get("/capabilities", response_model=CapabilitiesResponse)
-async def capabilities(key_info: dict = Depends(verify_api_key)):
-    model_name = state.host_profile or "holix"
+async def capabilities(
+    host_profile: FromDishka[HostProfileName],
+    key_info: dict = Depends(verify_api_key)):
+    model_name = (str(host_profile) or "holix")
     return CapabilitiesResponse(
         model=model_name,
         features={
@@ -128,12 +138,13 @@ async def capabilities(key_info: dict = Depends(verify_api_key)):
 
 @router.get("/toolsets")
 async def list_toolsets(
+    registry: FromDishka[ProfileAgentRegistry],
+    host_profile: FromDishka[HostProfileName],
     key_info: dict = Depends(verify_api_key),
-    registry=Depends(get_registry),
     x_holix_profile: str | None = Header(None),
     x_hermes_profile: str | None = Header(None),
 ):
-    ctx = _resolve_ctx(key_info, None, x_holix_profile, x_hermes_profile, None, None, None, None)
+    ctx = _resolve_ctx(key_info, None, x_holix_profile, x_hermes_profile, None, None, None, None, host_profile=str(host_profile))
     agent = await registry.get_agent(ctx.profile)
     tools = agent.get_tools()
     return [
@@ -150,12 +161,13 @@ async def list_toolsets(
 
 @router.get("/skills")
 async def list_skills_hermes(
+    registry: FromDishka[ProfileAgentRegistry],
+    host_profile: FromDishka[HostProfileName],
     key_info: dict = Depends(verify_api_key),
-    registry=Depends(get_registry),
     x_holix_profile: str | None = Header(None),
     x_hermes_profile: str | None = Header(None),
 ):
-    ctx = _resolve_ctx(key_info, None, x_holix_profile, x_hermes_profile, None, None, None, None)
+    ctx = _resolve_ctx(key_info, None, x_holix_profile, x_hermes_profile, None, None, None, None, host_profile=str(host_profile))
     agent = await registry.get_agent(ctx.profile)
     raw = agent.get_skills()
     items = []
@@ -173,9 +185,12 @@ async def list_skills_hermes(
 
 @router.post("/responses")
 async def create_response(
+    locks: FromDishka[GatewayLocks],
+    registry: FromDishka[ProfileAgentRegistry],
+    responses_store: FromDishka[ResponsesStore],
+    host_profile: FromDishka[HostProfileName],
     body: ResponsesCreateRequest,
     key_info: dict = Depends(verify_api_key),
-    registry=Depends(get_registry),
     x_holix_profile: str | None = Header(None),
     x_hermes_profile: str | None = Header(None),
     x_holix_session_id: str | None = Header(None),
@@ -191,13 +206,12 @@ async def create_response(
         x_holix_session_id,
         x_hermes_session_id,
         x_holix_session_key,
-        x_hermes_session_key,
-    )
+        x_hermes_session_key, host_profile=str(host_profile))
     checker = PermissionChecker(key_info["permissions"])
     if not checker.can_read():
         raise HTTPException(status_code=403, detail="Insufficient permissions")
 
-    store = state.responses_store
+    store = responses_store
     if body.previous_response_id and store is not None:
         prev = store.get(body.previous_response_id)
         if prev is None:
@@ -214,7 +228,7 @@ async def create_response(
 
     conversation = body.conversation or ctx.conversation_id
     agent = await registry.get_agent(ctx.profile)
-    async with state._agent_request_lock:  # type: ignore[attr-defined]
+    async with locks.agent_request:
         with gateway_agent_path_visibility(agent, key_info):
             output = await agent.run(
                 user_input=user_input,
@@ -247,13 +261,15 @@ async def create_response(
 
 @router.get("/responses/{response_id}")
 async def get_response(
+    responses_store: FromDishka[ResponsesStore],
+    host_profile: FromDishka[HostProfileName],
     response_id: str,
     key_info: dict = Depends(verify_api_key),
     x_holix_profile: str | None = Header(None),
     x_hermes_profile: str | None = Header(None),
 ):
-    ctx = _resolve_ctx(key_info, None, x_holix_profile, x_hermes_profile, None, None, None, None)
-    store = state.responses_store
+    ctx = _resolve_ctx(key_info, None, x_holix_profile, x_hermes_profile, None, None, None, None, host_profile=str(host_profile))
+    store = responses_store
     if store is None:
         raise HTTPException(status_code=503, detail="Responses store unavailable")
     item = store.get(response_id)
@@ -265,13 +281,15 @@ async def get_response(
 
 @router.delete("/responses/{response_id}")
 async def delete_response(
+    responses_store: FromDishka[ResponsesStore],
+    host_profile: FromDishka[HostProfileName],
     response_id: str,
     key_info: dict = Depends(verify_api_key),
     x_holix_profile: str | None = Header(None),
     x_hermes_profile: str | None = Header(None),
 ):
-    ctx = _resolve_ctx(key_info, None, x_holix_profile, x_hermes_profile, None, None, None, None)
-    store = state.responses_store
+    ctx = _resolve_ctx(key_info, None, x_holix_profile, x_hermes_profile, None, None, None, None, host_profile=str(host_profile))
+    store = responses_store
     if store is None:
         raise HTTPException(status_code=503, detail="Responses store unavailable")
     item = store.get(response_id)
@@ -297,8 +315,15 @@ def _set_run_status(
     runs.update(run_id, status=status, **payload)
 
 
-async def _execute_run(record, registry, *, is_admin: bool = False) -> None:
-    runs = state.runs_store
+async def _execute_run(
+    record,
+    registry,
+    runs_store: RunsStore,
+    locks: GatewayLocks,
+    *,
+    is_admin: bool = False,
+) -> None:
+    runs = runs_store
     if runs is None:
         return
 
@@ -306,7 +331,7 @@ async def _execute_run(record, registry, *, is_admin: bool = False) -> None:
     try:
         _set_run_status(runs, run_id, RunStatus.RUNNING, last_event="run.running")
         agent = await registry.get_agent(record.profile)
-        async with state._agent_request_lock:  # type: ignore[attr-defined]
+        async with locks.agent_request:
             if record._cancel.is_set():
                 _set_run_status(
                     runs, run_id, RunStatus.CANCELLED, last_event="run.cancelled"
@@ -349,9 +374,12 @@ async def _execute_run(record, registry, *, is_admin: bool = False) -> None:
 
 @router.post("/runs", status_code=202)
 async def create_run(
+    locks: FromDishka[GatewayLocks],
+    registry: FromDishka[ProfileAgentRegistry],
+    runs_store: FromDishka[RunsStore],
+    host_profile: FromDishka[HostProfileName],
     body: RunsCreateRequest,
     key_info: dict = Depends(verify_api_key),
-    registry=Depends(get_registry),
     x_holix_profile: str | None = Header(None),
     x_hermes_profile: str | None = Header(None),
     x_holix_session_id: str | None = Header(None),
@@ -369,12 +397,13 @@ async def create_run(
         x_hermes_session_id,
         None,
         None,
+        host_profile=str(host_profile),
     )
     checker = PermissionChecker(key_info["permissions"])
     if not checker.can_execute() and not checker.can_read():
         raise HTTPException(status_code=403, detail="Execute permission required")
 
-    runs = state.runs_store
+    runs = runs_store
     if runs is None:
         raise HTTPException(status_code=503, detail="Runs store unavailable")
 
@@ -386,7 +415,15 @@ async def create_run(
         instructions=body.instructions,
     )
     runs.update(record.run_id, last_event="run.started")
-    asyncio.create_task(_execute_run(record, registry, is_admin=checker.is_admin()))
+    asyncio.create_task(
+        _execute_run(
+            record,
+            registry,
+            runs_store,
+            locks,
+            is_admin=checker.is_admin(),
+        )
+    )
     return {"run_id": record.run_id, "status": record.status.value}
 
 
@@ -404,13 +441,15 @@ def _require_run(
 
 @router.get("/runs/{run_id}")
 async def get_run(
+    runs_store: FromDishka[RunsStore],
+    host_profile: FromDishka[HostProfileName],
     run_id: str,
     key_info: dict = Depends(verify_api_key),
     x_holix_profile: str | None = Header(None),
     x_hermes_profile: str | None = Header(None),
 ):
-    ctx = _resolve_ctx(key_info, None, x_holix_profile, x_hermes_profile, None, None, None, None)
-    runs = state.runs_store
+    ctx = _resolve_ctx(key_info, None, x_holix_profile, x_hermes_profile, None, None, None, None, host_profile=str(host_profile))
+    runs = runs_store
     if runs is None:
         raise HTTPException(status_code=503, detail="Runs store unavailable")
     record = _require_run(runs, run_id, ctx.profile)
@@ -419,13 +458,15 @@ async def get_run(
 
 @router.get("/runs/{run_id}/events")
 async def run_events(
+    runs_store: FromDishka[RunsStore],
+    host_profile: FromDishka[HostProfileName],
     run_id: str,
     key_info: dict = Depends(verify_api_key),
     x_holix_profile: str | None = Header(None),
     x_hermes_profile: str | None = Header(None),
 ):
-    ctx = _resolve_ctx(key_info, None, x_holix_profile, x_hermes_profile, None, None, None, None)
-    runs = state.runs_store
+    ctx = _resolve_ctx(key_info, None, x_holix_profile, x_hermes_profile, None, None, None, None, host_profile=str(host_profile))
+    runs = runs_store
     if runs is None:
         raise HTTPException(status_code=503, detail="Runs store unavailable")
     _require_run(runs, run_id, ctx.profile)
@@ -458,13 +499,15 @@ async def run_events(
 
 @router.post("/runs/{run_id}/stop")
 async def stop_run(
+    runs_store: FromDishka[RunsStore],
+    host_profile: FromDishka[HostProfileName],
     run_id: str,
     key_info: dict = Depends(verify_api_key),
     x_holix_profile: str | None = Header(None),
     x_hermes_profile: str | None = Header(None),
 ):
-    ctx = _resolve_ctx(key_info, None, x_holix_profile, x_hermes_profile, None, None, None, None)
-    runs = state.runs_store
+    ctx = _resolve_ctx(key_info, None, x_holix_profile, x_hermes_profile, None, None, None, None, host_profile=str(host_profile))
+    runs = runs_store
     if runs is None:
         raise HTTPException(status_code=503, detail="Runs store unavailable")
     _require_run(runs, run_id, ctx.profile)
@@ -475,14 +518,16 @@ async def stop_run(
 
 @router.post("/runs/{run_id}/approval")
 async def approve_run(
+    runs_store: FromDishka[RunsStore],
+    host_profile: FromDishka[HostProfileName],
     run_id: str,
     body: RunApprovalRequest,
     key_info: dict = Depends(verify_api_key),
     x_holix_profile: str | None = Header(None),
     x_hermes_profile: str | None = Header(None),
 ):
-    ctx = _resolve_ctx(key_info, None, x_holix_profile, x_hermes_profile, None, None, None, None)
-    runs = state.runs_store
+    ctx = _resolve_ctx(key_info, None, x_holix_profile, x_hermes_profile, None, None, None, None, host_profile=str(host_profile))
+    runs = runs_store
     if runs is None:
         raise HTTPException(status_code=503, detail="Runs store unavailable")
     _require_run(runs, run_id, ctx.profile)

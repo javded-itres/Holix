@@ -1,4 +1,4 @@
-"""Bundled default skills (holix-cron, holix-subagents)."""
+"""Bundled default skills (holix-cron, holix-subagents, holix-sdd-*)."""
 
 from __future__ import annotations
 
@@ -33,13 +33,29 @@ def test_bundled_holix_subagents_skill_exists():
     assert "holix launch" in parsed["content"]
 
 
+def test_bundled_holix_sdd_skills_exist():
+    for name in ("holix-sdd-propose", "holix-sdd-apply", "holix-sdd-archive"):
+        skill_md = bundled_skills_root() / name / "SKILL.md"
+        assert skill_md.is_file(), name
+        parsed = parse_skill_file(skill_md)
+        assert parsed is not None
+        assert parsed["name"] == name
+    apply = parse_skill_file(bundled_skills_root() / "holix-sdd-apply" / "SKILL.md")
+    assert "sdd_set_apply_mode" in apply["content"]
+    assert "subagents" in apply["content"]
+    propose = parse_skill_file(bundled_skills_root() / "holix-sdd-propose" / "SKILL.md")
+    assert "assignee" in propose["content"]
+
+
 def test_seed_bundled_skills(tmp_path: Path):
     dest = tmp_path / "skills"
     first = seed_bundled_skills(dest)
     assert "holix-cron" in first
     assert "holix-subagents" in first
+    assert "holix-sdd-propose" in first
     assert (dest / "holix-cron.md").is_file()
     assert (dest / "holix-subagents.md").is_file()
+    assert (dest / "holix-sdd-apply.md").is_file()
 
     second = seed_bundled_skills(dest)
     assert second == []
@@ -52,6 +68,7 @@ def test_ensure_bundled_assigned_to_main():
     assigns, added = ensure_bundled_assigned_to_main({"main": ["docker-manager"]})
     assert "holix-cron" in added
     assert "holix-subagents" in added
+    assert "holix-sdd-propose" in added
     assert "holix-cron" in assigns["main"]
     assert "holix-subagents" in assigns["main"]
     assert "docker-manager" in assigns["main"]

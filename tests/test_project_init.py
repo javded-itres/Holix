@@ -40,6 +40,28 @@ def test_choose_init_execution_mode_plan_for_tui() -> None:
     assert host._execution_mode_index == 1
 
 
+def test_choose_init_execution_mode_react_for_studio_host() -> None:
+    """Studio uses react for /init — avoids plan-review UI during onboarding."""
+
+    class StudioSession:
+        __module__ = "holix_studio.application.session"
+
+        execution_modes = ["react", "plan_and_execute", "hybrid", "auto"]
+        execution_mode_index = 0
+
+    studio_session = StudioSession()
+    host = SimpleNamespace(
+        _session=studio_session,
+        _execution_modes=studio_session.execution_modes,
+        _execution_mode_index=0,
+        _refresh_status_bar=lambda: None,
+        config=SimpleNamespace(),
+    )
+    mode = choose_init_execution_mode(host)
+    assert mode == "react"
+    assert host._execution_mode_index == 0
+
+
 @pytest.mark.asyncio
 async def test_run_project_init_warns_when_agent_busy() -> None:
     session = ChatSession(chat_id=1, user_id=1, profile="default", conversation_id="tg")
@@ -63,7 +85,9 @@ async def test_run_project_init_warns_when_agent_busy() -> None:
 
 
 @pytest.mark.asyncio
-async def test_run_project_init_starts_agent_on_telegram() -> None:
+async def test_run_project_init_starts_agent_on_telegram(tmp_path, monkeypatch) -> None:
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / "README.md").write_text("# Demo\n", encoding="utf-8")
     session = ChatSession(chat_id=1, user_id=1, profile="default", conversation_id="tg")
     host = MagicMock()
     host.profile = "default"
@@ -72,6 +96,7 @@ async def test_run_project_init_starts_agent_on_telegram() -> None:
     host._execution_modes = session.execution_modes
     host._execution_mode_index = 0
     host._refresh_status_bar = MagicMock()
+    host.emit_system = None
     host._send_plain = AsyncMock()
     host._send_message = AsyncMock()
 
@@ -80,6 +105,11 @@ async def test_run_project_init_starts_agent_on_telegram() -> None:
     host._send_plain.assert_awaited_once()
     host._send_message.assert_awaited_once()
     assert session.execution_mode == "react"
+    assert (tmp_path / ".holix" / "HOLIX.md").is_file()
+    prompt = host._send_message.await_args.args[0]
+    assert "Pre-scan" in prompt
+    assert "~20 `read_file`" in prompt
+    assert "patch_file" in prompt
 
 
 @pytest.mark.asyncio

@@ -90,9 +90,16 @@ class ModelManager:
             add(str(item).strip())
         return names
 
-    def iter_fallback_configs(self, agent_name: str | None = None) -> list[ModelConfig]:
+    def iter_fallback_configs(
+        self,
+        agent_name: str | None = None,
+        *,
+        primary_override: ModelConfig | None = None,
+    ) -> list[ModelConfig]:
         """Primary model config followed by configured fallback providers."""
-        if agent_name and agent_name != "main":
+        if primary_override is not None:
+            primary = primary_override
+        elif agent_name and agent_name != "main":
             primary = self.get_agent_model_config(agent_name)
         else:
             primary = self.get_default_model_config()

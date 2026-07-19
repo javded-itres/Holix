@@ -14,7 +14,7 @@ except ImportError:  # py < 3.11
     from typing import Self  # type: ignore[assignment]
 
 if TYPE_CHECKING:
-    from cli.core import ProfileConfig
+    from core.profile import ProfileConfig
 
 
 @dataclass(frozen=True, slots=True)
@@ -105,10 +105,25 @@ class HolixRuntimeConfig:
     workspace_root: str | None = None
     encryption_enabled: bool = False
 
+    # Self-authored drop-in agent extensions (local single-operator only)
+    # False for Telegram/MAX multi-user agents.
+    self_extensions_enabled: bool = True
+
     @classmethod
     def from_settings(cls, source: Settings | None = None) -> Self:
-        """Build config from pydantic Settings (env / .env)."""
-        s = source or default_settings
+        """Build config from pydantic Settings (env / .env).
+
+        Prefer a fresh ``Settings()`` so profile ``.env`` loaded after process
+        start (``bootstrap_profile_env``) is visible. The module-level
+        ``config.settings`` singleton is frozen at first import.
+        """
+        if source is not None:
+            s = source
+        else:
+            try:
+                s = Settings(_env_file=None)
+            except Exception:
+                s = default_settings
         return cls(
             model=s.model,
             base_url=s.base_url,
@@ -186,7 +201,7 @@ class HolixRuntimeConfig:
             overrides["temperature"] = profile.temperature
         if profile.max_steps is not None:
             overrides["max_steps"] = profile.max_steps
-        from cli.core import ProfileManager, resolve_profile_storage_paths
+        from core.profile import ProfileManager, resolve_profile_storage_paths
 
         profile = resolve_profile_storage_paths(
             profile.profile_name,
@@ -225,6 +240,8 @@ class HolixRuntimeConfig:
             overrides["workspace_root"] = profile.workspace_root
         if getattr(profile, "encryption_enabled", False):
             overrides["encryption_enabled"] = profile.encryption_enabled
+        if getattr(profile, "auto_allow_threshold", None):
+            overrides["auto_allow_threshold"] = str(profile.auto_allow_threshold)
 
         if profile.default_provider and profile.providers:
             pdata = profile.providers.get(profile.default_provider) or {}

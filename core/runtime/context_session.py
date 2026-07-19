@@ -23,7 +23,12 @@ async def compress_session_if_needed(
     profile = profile_name_from_agent(agent)
     messages = inject_soul_into_messages(messages, profile)
 
-    compressed, was_compressed = await cm.auto_compress_if_needed(messages)
+    compressed, was_compressed = await cm.auto_compress_if_needed(
+        messages,
+        conversation_id=conversation_id,
+    )
+    if was_compressed:
+        cm.invalidate_usage_cache(conversation_id)
     if not was_compressed:
         return messages, False
 

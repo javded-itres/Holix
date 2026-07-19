@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import logging
 import os
-import sqlite3
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
@@ -33,7 +32,7 @@ def resolve_holix_default_data_dir(profile: str = "default") -> Path:
 def resolve_profile_data_dir(profile: str | None = None) -> Path:
     """Best-effort profile ``data_dir`` for the active or named profile."""
     try:
-        from cli.core import get_current_config, get_current_profile, init_profile
+        from core.profile import get_current_config, get_current_profile, init_profile
 
         if profile is None:
             try:
@@ -109,10 +108,13 @@ def prepare_sqlite_db_file(path: str | Path) -> Path:
         _rename_blocking_path(db_path)
 
     try:
-        conn = sqlite3.connect(str(db_path))
+        from core.sqlite_util import connect_sqlite
+
+        conn = connect_sqlite(db_path)
         conn.execute("PRAGMA user_version")
         conn.close()
-    except sqlite3.Error as exc:
+    except Exception as exc:
+        # sqlite3.Error and OSError both surface as open failures
         raise RuntimeError(
             f"Cannot open SQLite database at {db_path} "
             f"(parent={db_path.parent}, writable={os.access(db_path.parent, os.W_OK)}): {exc}"
@@ -127,7 +129,7 @@ def ensure_sqlite_parent(path: str | Path) -> Path:
 
 def ensure_profile_memory_dirs(profile: str) -> None:
     """Ensure SQLite/Chroma memory directories exist for a profile."""
-    from cli.core import ProfileManager
+    from core.profile import ProfileManager
 
     cfg = ProfileManager().load_profile(profile)
     prepare_sqlite_db_file(cfg.memory_db_path)

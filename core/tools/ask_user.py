@@ -15,8 +15,14 @@ class AskUserTool(BaseTool):
         super().__init__()
         self.name = "ask_user"
         self.description = (
-            "Ask the user a clarifying question. The question appears in the main "
-            "chat; when the user answers, you receive the reply and can continue."
+            "Ask the human a single clarifying question when you truly cannot "
+            "proceed without their decision. The question opens a dialog in the "
+            "main Holix UI; when they answer, you receive the reply and continue. "
+            "Write the question so a busy human understands it in one glance: "
+            "state what you need, offer concrete options when possible, and put "
+            "background in `context` (not in the question). Prefer making a "
+            "reasonable choice yourself over asking when the task already implies "
+            "the answer."
         )
         self.risk_level = "no"
         self.parameters = {
@@ -24,11 +30,19 @@ class AskUserTool(BaseTool):
             "properties": {
                 "question": {
                     "type": "string",
-                    "description": "Clear question for the user",
+                    "description": (
+                        "One clear, self-contained question for the human. "
+                        "Prefer closed choices when possible, e.g. "
+                        "'Use JWT or session cookies for auth?'. "
+                        "Do not dump long analysis — put that in context."
+                    ),
                 },
                 "context": {
                     "type": "string",
-                    "description": "Optional short context (what you are doing)",
+                    "description": (
+                        "Short background: which file/path, what you found, and "
+                        "why the choice matters (1–3 sentences)."
+                    ),
                 },
             },
             "required": ["question"],

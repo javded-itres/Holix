@@ -7,6 +7,7 @@ from typing import Any
 from cli.core import ProfileManager
 from core.mcp.installer import build_config_from_popular, install_from_git
 from core.mcp.popular import get_popular_by_key, get_popular_list
+from dishka.integrations.fastapi import DishkaRoute
 from fastapi import APIRouter, Depends, Header, HTTPException
 
 from api.deps import verify_api_key
@@ -15,7 +16,7 @@ from api.schemas.holix import McpAssignmentsPatchRequest, McpInstallRequest, Mcp
 from api.services.config_mask import mask_config_dict
 from api.services.holix_deps import profile_access
 
-router = APIRouter(prefix="/api/holix/profiles/{profile_id}/mcp", tags=["holix-mcp"])
+router = APIRouter(prefix="/api/holix/profiles/{profile_id}/mcp", tags=["holix-mcp"], route_class=DishkaRoute)
 
 
 def _require_profile(profile_id: str) -> tuple[ProfileManager, object]:

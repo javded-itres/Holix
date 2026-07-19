@@ -61,6 +61,7 @@ class AsyncSubAgentRunner:
             config=config,
             status=SubAgentStatus.RUNNING,
             started_at=time.monotonic(),
+            max_steps=int(config.max_steps or 0),
         )
 
         # Create the asyncio task
@@ -115,16 +116,25 @@ class AsyncSubAgentRunner:
             except Exception as e:
                 logger.debug(f"Skill injection failed for sub-agent: {e}")
 
-        profile_name = str(
-            getattr(getattr(self._parent, "config", None), "profile_name", None) or "default"
-        )
+        parent_cfg = getattr(self._parent, "config", None)
+        profile_name = str(getattr(parent_cfg, "profile_name", None) or "default")
+        from pathlib import Path
+
         from core.subagents.prompt import build_subagent_system_prompt
+
+        try:
+            working_directory = str(Path.cwd().resolve())
+        except OSError:
+            working_directory = str(Path.cwd())
 
         system_prompt = build_subagent_system_prompt(
             config,
             task,
             skills_block=skills_block,
             profile_name=profile_name,
+            workspace_root=getattr(parent_cfg, "workspace_root", None),
+            workspace_jail_enabled=getattr(parent_cfg, "workspace_jail_enabled", None),
+            working_directory=working_directory,
         )
 
         # Build messages
@@ -154,6 +164,12 @@ class AsyncSubAgentRunner:
         try:
             while steps_taken < max_steps:
                 steps_taken += 1
+                handle.record_activity(
+                    "step",
+                    f"Reasoning step {steps_taken}/{max_steps}",
+                    steps_taken=steps_taken,
+                )
+                self._notify_progress(config.name)
 
                 # Set up timeout
                 try:
@@ -169,6 +185,11 @@ class AsyncSubAgentRunner:
                     )
                 except TimeoutError:
                     handle.status = SubAgentStatus.TIMED_OUT
+                    handle.record_activity(
+                        "status",
+                        f"Timed out after {config.timeout}s",
+                        steps_taken=steps_taken,
+                    )
                     handle.result = SubAgentResult(
                         name=config.name,
                         success=False,
@@ -201,11 +222,31 @@ class AsyncSubAgentRunner:
                     messages.append(msg_dict)
 
                     for tc in message.tool_calls:
+                        tool_name = tc.function.name
                         tool_calls_made.append({
-                            "name": tc.function.name,
+                            "name": tool_name,
                             "arguments": tc.function.arguments,
                         })
+                        handle.record_activity(
+                            "tool_start",
+                            f"Calling {tool_name}",
+                            tool_name=tool_name,
+                            details=(tc.function.arguments or "")[:300],
+                            steps_taken=steps_taken,
+                        )
+                        self._notify_progress(config.name)
                         result = await self._execute_tool(tc, config)
+                        preview = (result or "").strip()
+                        if len(preview) > 240:
+                            preview = preview[:239] + "…"
+                        handle.record_activity(
+                            "tool_result",
+                            f"{tool_name} finished",
+                            tool_name=tool_name,
+                            details=preview,
+                            steps_taken=steps_taken,
+                        )
+                        self._notify_progress(config.name)
                         messages.append({
                             "role": "tool",
                             "tool_call_id": tc.id,
@@ -218,6 +259,11 @@ class AsyncSubAgentRunner:
 
                     duration_ms = (time.monotonic() - start_time) * 1000
                     handle.status = SubAgentStatus.COMPLETED
+                    handle.record_activity(
+                        "status",
+                        "Completed",
+                        steps_taken=steps_taken,
+                    )
                     handle.result = SubAgentResult(
                         name=config.name,
                         success=True,
@@ -226,11 +272,23 @@ class AsyncSubAgentRunner:
                         steps_taken=steps_taken,
                         tool_calls=tool_calls_made,
                     )
+                    logger.info(
+                        "Sub-agent '%s' completed (steps=%d, tools=%d, %.0fms)",
+                        config.name,
+                        steps_taken,
+                        len(tool_calls_made),
+                        duration_ms,
+                    )
                     return handle.result
 
             # Max steps reached
             duration_ms = (time.monotonic() - start_time) * 1000
             handle.status = SubAgentStatus.FAILED
+            handle.record_activity(
+                "status",
+                f"Max steps ({max_steps}) reached",
+                steps_taken=steps_taken,
+            )
             handle.result = SubAgentResult(
                 name=config.name,
                 success=False,
@@ -240,10 +298,18 @@ class AsyncSubAgentRunner:
                 steps_taken=steps_taken,
                 tool_calls=tool_calls_made,
             )
+            logger.warning(
+                "Sub-agent '%s' hit max steps (%d)", config.name, max_steps
+            )
             return handle.result
 
         except asyncio.CancelledError:
             handle.status = SubAgentStatus.CANCELLED
+            handle.record_activity(
+                "status",
+                "Cancelled",
+                steps_taken=steps_taken,
+            )
             handle.result = SubAgentResult(
                 name=config.name,
                 success=False,
@@ -252,11 +318,17 @@ class AsyncSubAgentRunner:
                 steps_taken=steps_taken,
                 tool_calls=tool_calls_made,
             )
+            logger.info("Sub-agent '%s' cancelled", config.name)
             return handle.result
 
         except Exception as e:
             duration_ms = (time.monotonic() - start_time) * 1000
             handle.status = SubAgentStatus.FAILED
+            handle.record_activity(
+                "status",
+                f"Failed: {e}",
+                steps_taken=steps_taken,
+            )
             handle.result = SubAgentResult(
                 name=config.name,
                 success=False,
@@ -265,6 +337,7 @@ class AsyncSubAgentRunner:
                 steps_taken=steps_taken,
                 tool_calls=tool_calls_made,
             )
+            logger.exception("Sub-agent '%s' failed: %s", config.name, e)
             return handle.result
         finally:
             mgr = getattr(self._parent, "subagents", None)
@@ -295,6 +368,15 @@ class AsyncSubAgentRunner:
     def list_active(self) -> list[SubAgentHandle]:
         """List all active (running) sub-agents."""
         return [h for h in self._active_handles.values() if h.is_running]
+
+    def _notify_progress(self, name: str) -> None:
+        mgr = getattr(self._parent, "subagents", None)
+        notify = getattr(mgr, "notify_progress", None)
+        if callable(notify):
+            try:
+                notify(name)
+            except Exception:
+                logger.debug("Sub-agent progress notify failed", exc_info=True)
 
     def _get_tool_schemas(self, config: SubAgentConfig) -> list[dict[str, Any]]:
         """Get OpenAI tool schemas for the sub-agent's tool subset.

@@ -9,7 +9,14 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-from core.hub.claude_marketplace import ensure_marketplace_repo, materialize_plugin
+from core.hub.claude_marketplace import (
+    MARKETPLACES,
+    _cache_dir_for_repo,
+    ensure_marketplace_repo,
+    list_plugins,
+    materialize_plugin,
+    source_needs_marketplace_checkout,
+)
 from core.hub.clawhub import ClawHubClient
 from core.hub.hermes_hub import HERMES_GIT_URL, hermes_skill_subpath
 from core.hub.lockfile import HubEntry, HubLockfile
@@ -175,22 +182,38 @@ class SkillImporter:
         flat: bool,
         install_spec: str,
     ) -> InstallResult:
-        repo_root, data = ensure_marketplace_repo(marketplace)
+        # Prefer catalog metadata (raw JSON / browse cache) so remote plugins
+        # (source url/github/git-subdir) do not block on a full monorepo clone.
         plugin_meta = None
-        for p in data.get("plugins", []):
-            if isinstance(p, dict) and p.get("name") == plugin_name:
-                from core.hub.claude_marketplace import MarketplacePlugin
-
-                plugin_meta = MarketplacePlugin(
-                    name=p["name"],
-                    description=p.get("description") or "",
-                    category=p.get("category") or "",
-                    homepage=p.get("homepage") or "",
-                    source=p.get("source"),
-                )
+        for p in list_plugins(marketplace, browse_only=True, use_cache=False):
+            if p.name == plugin_name:
+                plugin_meta = p
                 break
+        if plugin_meta is None:
+            # Fallback: full marketplace checkout (also covers relative-path plugins)
+            _, data = ensure_marketplace_repo(marketplace, update=True)
+            for p in data.get("plugins", []):
+                if isinstance(p, dict) and p.get("name") == plugin_name:
+                    from core.hub.claude_marketplace import MarketplacePlugin
+
+                    plugin_meta = MarketplacePlugin(
+                        name=p["name"],
+                        description=p.get("description") or "",
+                        category=p.get("category") or "",
+                        homepage=p.get("homepage") or "",
+                        source=p.get("source"),
+                    )
+                    break
         if not plugin_meta:
             raise ValueError(f"Plugin '{plugin_name}' not in marketplace '{marketplace}'")
+
+        if source_needs_marketplace_checkout(plugin_meta.source):
+            repo_root, _ = ensure_marketplace_repo(marketplace, update=True)
+        else:
+            # Remote trees are resolved independently; repo_root is only for labels.
+            meta = MARKETPLACES.get(marketplace) or {}
+            repo_url = meta.get("repo") or marketplace
+            repo_root = _cache_dir_for_repo(repo_url)
 
         dest = self.hub_root / "claude" / plugin_name
         bundle = materialize_plugin(repo_root, plugin_meta, dest)
@@ -243,8 +266,10 @@ class SkillImporter:
         install_spec: str,
     ) -> InstallResult:
         client = ClawHubClient()
-        ver, files = client.fetch_skill_bundle(slug, version)
-        bundle_dir = self.hub_root / slug
+        # slug may be bare, @owner/name, or owner/name — client resolves 409 ambiguity
+        ver, files, owner, bare = client.fetch_skill_bundle(slug, version)
+        qual = f"@{owner}/{bare}" if owner else bare
+        bundle_dir = self.hub_root / (f"{owner}__{bare}" if owner else bare)
         if bundle_dir.exists():
             shutil.rmtree(bundle_dir)
         bundle_dir.mkdir(parents=True)
@@ -255,38 +280,43 @@ class SkillImporter:
 
         skill_md = bundle_dir / "SKILL.md"
         if not skill_md.exists():
-            raise ValueError(f"ClawHub skill '{slug}' has no SKILL.md")
+            # Some bundles nest SKILL.md one level down
+            found = list(bundle_dir.rglob("SKILL.md"))
+            skill_md = found[0] if found else skill_md
+        if not skill_md.exists():
+            raise ValueError(f"ClawHub skill '{qual}' has no SKILL.md")
         skill = parse_skill_file(skill_md)
         if not skill:
-            raise ValueError(f"Failed to parse SKILL.md for '{slug}'")
+            raise ValueError(f"Failed to parse SKILL.md for '{qual}'")
         if as_name:
             skill["name"] = re.sub(r"[^a-z0-9-]+", "-", as_name.lower()).strip("-")
         name = skill["name"]
         flat_file = write_flat_skill(self.skills_dir / f"{name}.md", skill) if flat else None
 
-        entry_id = f"clawhub:{slug}"
+        entry_id = f"clawhub:{qual}"
+        resolved_spec = install_spec or f"clawhub:{qual}" + (f"@{ver}" if ver else "")
         self.lock.upsert(
             HubEntry(
                 id=entry_id,
                 source="clawhub",
-                slug=slug,
+                slug=qual,
                 version=ver,
                 install_path=str(bundle_dir),
                 skill_name=name,
                 installed_at=HubLockfile.now_iso(),
-                install_spec=install_spec,
+                install_spec=resolved_spec,
             )
         )
         rebuild_slash_registry(self.skills_dir)
         return InstallResult(
             name,
             "clawhub",
-            slug,
+            qual,
             ver,
             bundle_dir,
             flat_file,
             entry_id,
-            install_spec=install_spec,
+            install_spec=resolved_spec,
             skill_names=[name],
         )
 

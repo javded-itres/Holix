@@ -41,16 +41,9 @@ def _install_path_dirs() -> str:
 
 
 def _binary_installed(spec: ExternalCliSpec) -> str | None:
-    search_path = _install_path_dirs()
-    for name in spec.binary_names:
-        path = shutil.which(name, path=search_path)
-        if path:
-            return path
-    for raw in spec.binary_paths:
-        candidate = Path(raw).expanduser()
-        if candidate.is_file() and os.access(candidate, os.X_OK):
-            return str(candidate)
-    return None
+    from core.external_cli.detect import binary_installed
+
+    return binary_installed(spec)
 
 
 def _try_install(spec_id: str) -> bool:

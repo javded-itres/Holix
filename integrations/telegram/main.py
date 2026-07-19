@@ -19,7 +19,17 @@ def main(profile: str = "default") -> None:
 
 
 if __name__ == "__main__":
+    import argparse
+    import os
+
     from core.platform_compat import ensure_multiprocessing_support
 
     ensure_multiprocessing_support()
-    main()
+    parser = argparse.ArgumentParser(description="Holix Telegram bot")
+    parser.add_argument(
+        "--profile",
+        "-p",
+        default=(os.getenv("HOLIX_PROFILE") or "default").strip() or "default",
+    )
+    args = parser.parse_args()
+    main(args.profile)

@@ -115,10 +115,18 @@ class SubAgentInteractionBridge:
                     context=context,
                 )
             )
+            q_preview = (question or "").replace("\n", " ").strip()
+            if len(q_preview) > 240:
+                q_preview = q_preview[:239] + "…"
+            ctx_preview = (context or "").replace("\n", " ").strip()
+            if len(ctx_preview) > 120:
+                ctx_preview = ctx_preview[:119] + "…"
             logger.info(
-                "Sub-agent '%s' question surfaced (id=%s)",
+                "Sub-agent '%s' question surfaced (id=%s): %s%s",
                 subagent_name,
                 request_id,
+                q_preview or "(empty)",
+                f" | context={ctx_preview}" if ctx_preview else "",
             )
 
         timeout = self._confirmation_timeout if self._confirmation_timeout > 0 else None
@@ -195,11 +203,19 @@ def get_interaction_bridge(agent: Any) -> SubAgentInteractionBridge | None:
     return getattr(subagents, "interactions", None)
 
 
-def resolve_any_confirmation(agent: Any, choice: ConfirmationChoice) -> bool:
-    """Resolve a pending confirmation from process sub-agents or the main ActionGuard."""
-    bridge = get_interaction_bridge(agent)
-    if bridge and bridge.resolve_confirmation_latest(choice):
-        return True
+def resolve_any_confirmation(
+    agent: Any,
+    choice: ConfirmationChoice,
+    *,
+    confirmation_id: str | None = None,
+) -> bool:
+    """Resolve a pending confirmation from process sub-agents or the main ActionGuard.
+
+    Prefer an explicit ``confirmation_id`` (from the modal that was shown).
+    Without it, resolve the latest pending on the ActionGuard first (async
+    sub-agents), then the process-mode bridge.
+    """
+    cid = (confirmation_id or "").strip() or None
 
     guard = None
     if agent and getattr(agent, "tools", None):
@@ -208,9 +224,28 @@ def resolve_any_confirmation(agent: Any, choice: ConfirmationChoice) -> bool:
         from core.security.confirmation import get_action_guard
 
         guard = get_action_guard()
+
+    bridge = get_interaction_bridge(agent)
+
+    if cid:
+        if guard and guard.resolve_confirmation(cid, choice):
+            return True
+        if bridge and bridge.resolve_confirmation(cid, choice):
+            return True
+        return False
+
+    # Prefer ActionGuard (async sub-agents share it) over the process IPC bridge.
     if guard and guard._pending_confirmations:
-        cid = list(guard._pending_confirmations.keys())[-1]
-        return guard.resolve_confirmation(cid, choice)
+        if hasattr(guard, "resolve_confirmation_latest"):
+            if guard.resolve_confirmation_latest(choice):
+                return True
+        else:
+            latest = list(guard._pending_confirmations.keys())[-1]
+            if guard.resolve_confirmation(latest, choice):
+                return True
+
+    if bridge and bridge.resolve_confirmation_latest(choice):
+        return True
     return False
 
 

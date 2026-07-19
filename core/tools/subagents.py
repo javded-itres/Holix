@@ -28,14 +28,19 @@ class DelegateToSubAgentTool(BaseTool):
         super().__init__()
         self._parent = parent_agent
         self.name = "delegate_to_subagent"
+        types = list_available_subagents(profile=_profile_name(parent_agent))
+        custom = [a["name"] for a in types if not a.get("builtin")]
+        builtin = [a["name"] for a in types if a.get("builtin")]
+        type_hint = (
+            ("Custom (prefer for SDD): " + ", ".join(custom) + ". " if custom else "")
+            + "Built-in: "
+            + ", ".join(builtin)
+        )
         self.description = (
-            "Delegate a task to a specialized sub-agent that runs in a separate process "
-            "without blocking the main model. Returns a job id — use wait_subagent_result "
-            "to collect the answer. Available types: "
-            + ", ".join(
-                a["name"]
-                for a in list_available_subagents(profile=_profile_name(parent_agent))
-            )
+            "Delegate a task to a specialized sub-agent (background). Returns job_id — "
+            "use wait_subagent_result. For SDD apply prefer sdd_apply/sdd_dispatch so "
+            "assignees from tasks.md are used (do not replace coder-python with coder). "
+            + type_hint
         )
         self.risk_level = "low"
         self.parameters = {
@@ -43,7 +48,11 @@ class DelegateToSubAgentTool(BaseTool):
             "properties": {
                 "agent_type": {
                     "type": "string",
-                    "description": "Sub-agent type: researcher, coder, analyst, reviewer, writer, web_researcher",
+                    "description": (
+                        "Exact sub-agent type name from list_subagent_types "
+                        "(custom names like coder-python, or built-ins). "
+                        "For SDD tasks always use the tasks.md assignee string."
+                    ),
                 },
                 "task": {
                     "type": "string",
@@ -64,6 +73,11 @@ class DelegateToSubAgentTool(BaseTool):
         try:
             agent_type = agent_type.strip()
             task = task.strip()
+            from core.subagents.resolve import resolve_subagent_type
+
+            agent_type = resolve_subagent_type(
+                agent_type, profile=_profile_name(agent)
+            )
             existing = agent.subagents.find_running_duplicate(agent_type, task)
             if existing is not None:
                 return json.dumps(
@@ -175,6 +189,40 @@ class ListSubAgentsTool(BaseTool):
         return json.dumps(summary, ensure_ascii=False)
 
 
+class ListSubAgentTypesTool(BaseTool):
+    """List built-in and custom sub-agent types available for SDD assignees / spawn."""
+
+    def __init__(self, parent_agent: Any):
+        super().__init__()
+        self._parent = parent_agent
+        self.name = "list_subagent_types"
+        self.description = (
+            "List available sub-agent types (built-in + custom for this profile). "
+            "Use when assigning SDD tasks (mode subagents/hybrid) or choosing agent_type "
+            "for delegate_to_subagent. Prefer custom types when they match the work; "
+            "if none exist, use built-ins (coder, reviewer, …). Mode self does not need assignees."
+        )
+        self.risk_level = "no"
+        self.parameters = {"type": "object", "properties": {}, "required": []}
+
+    async def execute(self) -> str:
+        profile = _profile_name(self._parent)
+        types = list_available_subagents(profile=profile)
+        custom = [t for t in types if not t.get("builtin")]
+        return json.dumps(
+            {
+                "profile": profile,
+                "types": types,
+                "custom_count": len(custom),
+                "hint": (
+                    "For SDD propose: if custom_count>0 assign tasks to matching custom "
+                    "types; else use built-ins. For apply mode self, assignees are ignored."
+                ),
+            },
+            ensure_ascii=False,
+        )
+
+
 class TerminateSubAgentTool(BaseTool):
     """Cancel a running sub-agent."""
 
@@ -202,4 +250,8 @@ def register_subagent_tools(registry: Any, parent_agent: Any) -> None:
     registry.register(DelegateToSubAgentTool(parent_agent))
     registry.register(WaitSubAgentResultTool(parent_agent))
     registry.register(ListSubAgentsTool(parent_agent))
+    registry.register(ListSubAgentTypesTool(parent_agent))
     registry.register(TerminateSubAgentTool(parent_agent))
+    from core.tools.sdd import register_sdd_dispatch_tool
+
+    register_sdd_dispatch_tool(registry, parent_agent)

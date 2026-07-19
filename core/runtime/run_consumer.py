@@ -26,13 +26,23 @@ async def consume_run_holix(
     effective_timeout = timeout_s if timeout_s is not None else agent_run_timeout_s(agent)
 
     async def _consume() -> None:
-        async for event in run_holix(
-            agent,
-            user_input,
-            conversation_id,
-            stream=stream,
-            execution_mode=execution_mode,
-        ):
-            emit(event)
+        try:
+            async for event in run_holix(
+                agent,
+                user_input,
+                conversation_id,
+                stream=stream,
+                execution_mode=execution_mode,
+            ):
+                emit(event)
+        except asyncio.CancelledError:
+            raise
+        except RuntimeError as exc:
+            if "generator didn't stop after athrow" in str(exc):
+                raise asyncio.CancelledError() from exc
+            raise
 
-    await asyncio.wait_for(_consume(), timeout=effective_timeout)
+    try:
+        await asyncio.wait_for(_consume(), timeout=effective_timeout)
+    except asyncio.CancelledError:
+        raise

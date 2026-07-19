@@ -2,9 +2,16 @@
 SubAgent base types — configuration, results, and handles.
 """
 
+from __future__ import annotations
+
+import time
 from dataclasses import dataclass, field
 from enum import StrEnum
 from typing import Any
+
+_ACTIVITY_LOG_MAX = 100
+_ACTIVITY_TEXT_MAX = 500
+_ACTIVITY_DETAILS_MAX = 400
 
 
 class ProcessMode(StrEnum):
@@ -44,7 +51,7 @@ class SubAgentConfig:
     system_prompt: str = ""                      # Specialized system prompt
     model: str = ""                              # Model override (empty = inherit from parent)
     tools: list[str] = field(default_factory=list)  # Subset of tool names
-    max_steps: int = 10                          # Max reasoning steps
+    max_steps: int = 150                         # Max reasoning steps
     mode: str = "react"                          # Execution mode
     process_mode: ProcessMode = ProcessMode.ASYNC  # How to run
     timeout: float = 120.0                       # Timeout in seconds
@@ -111,6 +118,12 @@ class SubAgentHandle:
     agent_type: str = ""                         # Registry type (researcher, coder, …)
     spawn_fallback_reason: str = ""              # Set when OS-process spawn fell back to async
     done_event: Any = field(default=None, repr=False)  # asyncio.Event set on completion
+    # Live progress for Studio / status UIs
+    steps_taken: int = 0
+    max_steps: int = 0
+    current_activity: str = ""
+    last_tool: str = ""
+    activity_log: list[dict[str, Any]] = field(default_factory=list)
 
     @property
     def is_running(self) -> bool:
@@ -128,9 +141,95 @@ class SubAgentHandle:
     @property
     def elapsed_ms(self) -> float:
         """Milliseconds since start, or total duration if done."""
-        import time
         if self.started_at is None:
             return 0.0
         if self.is_done and self.result:
             return self.result.duration_ms
         return (time.monotonic() - self.started_at) * 1000
+
+    def record_activity(
+        self,
+        kind: str,
+        message: str,
+        *,
+        tool_name: str = "",
+        details: str = "",
+        steps_taken: int | None = None,
+    ) -> dict[str, Any]:
+        """Append a UI-visible activity entry and update live fields."""
+        if steps_taken is not None:
+            self.steps_taken = max(0, int(steps_taken))
+        text = (message or "").strip()
+        if len(text) > _ACTIVITY_TEXT_MAX:
+            text = text[: _ACTIVITY_TEXT_MAX - 1] + "…"
+        detail_text = (details or "").strip()
+        if len(detail_text) > _ACTIVITY_DETAILS_MAX:
+            detail_text = detail_text[: _ACTIVITY_DETAILS_MAX - 1] + "…"
+        tool = (tool_name or "").strip()
+        entry: dict[str, Any] = {
+            "ts": time.time(),
+            "kind": (kind or "status").strip() or "status",
+            "message": text,
+            "tool_name": tool,
+            "details": detail_text,
+            "steps_taken": self.steps_taken,
+        }
+        if text:
+            self.current_activity = text
+        if tool:
+            self.last_tool = tool
+        self.activity_log.append(entry)
+        if len(self.activity_log) > _ACTIVITY_LOG_MAX:
+            self.activity_log = self.activity_log[-_ACTIVITY_LOG_MAX:]
+        return entry
+
+    def to_status_dict(
+        self,
+        *,
+        include_activity: bool = True,
+        include_result: bool = True,
+    ) -> dict[str, Any]:
+        """Serialize handle state for APIs and Studio monitoring."""
+        cfg = self.config
+        payload: dict[str, Any] = {
+            "name": self.name,
+            "status": self.status.value if hasattr(self.status, "value") else str(self.status),
+            "agent_type": self.agent_type or getattr(cfg, "agent_type", "") or "",
+            "task_preview": self.task_preview or "",
+            "process_mode": (
+                cfg.process_mode.value
+                if hasattr(cfg.process_mode, "value")
+                else str(cfg.process_mode or "async")
+            ),
+            "process_id": self.process_id,
+            "elapsed_ms": round(float(self.elapsed_ms), 1),
+            "steps_taken": int(self.steps_taken or 0),
+            "max_steps": int(self.max_steps or getattr(cfg, "max_steps", 0) or 0),
+            "current_activity": self.current_activity or "",
+            "last_tool": self.last_tool or "",
+            "running": self.is_running,
+            "done": self.is_done,
+            "spawn_fallback_reason": self.spawn_fallback_reason or "",
+        }
+        if include_activity:
+            payload["activity_log"] = list(self.activity_log or [])
+        if include_result and self.result is not None:
+            res = self.result
+            response = (res.response or "").strip()
+            if len(response) > 4000:
+                response = response[:3999] + "…"
+            error = (res.error or "").strip()
+            if len(error) > 1000:
+                error = error[:999] + "…"
+            tool_calls = list(res.tool_calls or [])
+            if len(tool_calls) > 40:
+                tool_calls = tool_calls[-40:]
+            payload["result"] = {
+                "success": bool(res.success),
+                "response": response,
+                "error": error,
+                "duration_ms": float(res.duration_ms or 0),
+                "steps_taken": int(res.steps_taken or 0),
+                "tool_calls": tool_calls,
+            }
+        return payload

@@ -40,8 +40,13 @@ def search_index(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     (web_docs / "index.html").write_text("<html></html>")
     (web_docs / "search-index.json").write_text(json.dumps(index))
     monkeypatch.setattr(
+        "core.docs_chat.paths.resolve_web_docs_dir",
+        lambda: web_docs,
+    )
+    monkeypatch.setattr(
         "cli.services.docs_site.resolve_web_docs_dir",
         lambda: web_docs,
+        raising=False,
     )
     return web_docs
 

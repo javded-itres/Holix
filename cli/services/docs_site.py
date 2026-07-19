@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import os
 import shutil
 import subprocess
 import sys
@@ -14,37 +13,11 @@ from cli.utils.rich_console import console, print_error, print_info, print_succe
 
 
 def resolve_web_docs_dir() -> Path:
-    """Locate holix-docs/ (standalone site) or legacy web-docs/ in a checkout."""
-    candidates: list[Path] = []
+    from core.docs_chat.paths import resolve_web_docs_dir as _resolve
 
-    override = os.getenv("HOLIX_WEB_DOCS_DIR", "").strip()
-    if override:
-        candidates.append(Path(override).expanduser())
+    return _resolve()
 
-    try:
-        repo = detect_repo_root()
-        candidates.append(repo.parent / "holix-docs")
-        candidates.append(repo / "web-docs")
-    except FileNotFoundError:
-        pass
 
-    candidates.append(Path(__file__).resolve().parents[2] / "web-docs")
-    candidates.append(Path.cwd() / "holix-docs")
-    candidates.append(Path.cwd() / "web-docs")
-
-    seen: set[Path] = set()
-    for path in candidates:
-        resolved = path.resolve()
-        if resolved in seen:
-            continue
-        seen.add(resolved)
-        if (resolved / "index.html").is_file():
-            return resolved
-
-    raise FileNotFoundError(
-        "Documentation site not found. Clone holix-docs next to Helix, set "
-        "HOLIX_WEB_DOCS_DIR, or run from a checkout that contains web-docs/."
-    )
 
 
 def _sync_docs_from_helix(web_docs_dir: Path) -> int:

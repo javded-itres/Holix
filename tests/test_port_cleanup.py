@@ -53,7 +53,7 @@ async def test_cleanup_before_start_leaves_other_sessions(tmp_path) -> None:
 
 
 @pytest.mark.asyncio
-async def test_cleanup_before_start_stops_same_session_only(tmp_path) -> None:
+async def test_cleanup_before_start_keeps_same_session_without_port_overlap(tmp_path) -> None:
     registry = BackgroundProcessRegistry()
     first = MagicMock()
     first.pid = 100
@@ -71,7 +71,7 @@ async def test_cleanup_before_start_stops_same_session_only(tmp_path) -> None:
         patch("core.workspace.get_effective_workspace_root", return_value=tmp_path),
         patch("core.runtime.port_utils.force_free_ports", return_value=[]),
     ):
-        rec1 = await registry.start(
+        await registry.start(
             command="uvicorn --port 8000",
             label="a",
             conversation_id="c1",
@@ -89,9 +89,8 @@ async def test_cleanup_before_start_stops_same_session_only(tmp_path) -> None:
             conversation_id="c1",
         )
 
-    assert len(stopped) == 1
-    assert stopped[0].process_id == rec1.process_id
-    terminate.assert_called_once_with(100, grace=2.0)
+    assert stopped == []
+    terminate.assert_not_called()
 
 
 @pytest.mark.asyncio

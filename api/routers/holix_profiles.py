@@ -10,10 +10,15 @@ from core.profile_keys import (
     store_profile_access_key,
     verify_profile_access_key,
 )
+from dishka.integrations.fastapi import DishkaRoute, FromDishka
 from fastapi import APIRouter, Depends, Header, HTTPException
 
-from api import state
 from api.deps import verify_api_key
+from api.di import (
+    CompanionManager,
+    HostProfileName,
+    ProfileAgentRegistry,
+)
 from api.schemas.holix import (
     JailEnableRequest,
     ProfileCreateRequest,
@@ -23,16 +28,17 @@ from api.schemas.holix import (
 from api.services.holix_deps import profile_access
 from api.services.profile_access import require_admin_access
 
-router = APIRouter(prefix="/api/holix/profiles", tags=["holix-profiles"])
+router = APIRouter(prefix="/api/holix/profiles", tags=["holix-profiles"], route_class=DishkaRoute)
 
 
 @router.get("")
 async def list_profiles(
+    host_profile: FromDishka[HostProfileName],
     key_info: dict = Depends(verify_api_key),
     x_holix_profile: str | None = Header(None),
     x_holix_profile_key: str | None = Header(None, alias="X-Holix-Profile-Key"),
 ):
-    ctx = profile_access(state.host_profile, key_info, x_holix_profile, x_holix_profile_key)
+    ctx = profile_access(str(host_profile), key_info, x_holix_profile, x_holix_profile_key)
     require_admin_access(ctx)
     manager = ProfileManager()
     profiles = []
@@ -47,12 +53,13 @@ async def list_profiles(
 
 @router.post("")
 async def create_profile(
+    host_profile: FromDishka[HostProfileName],
     body: ProfileCreateRequest,
     key_info: dict = Depends(verify_api_key),
     x_holix_profile: str | None = Header(None),
     x_holix_profile_key: str | None = Header(None, alias="X-Holix-Profile-Key"),
 ):
-    ctx = profile_access(state.host_profile, key_info, x_holix_profile, x_holix_profile_key)
+    ctx = profile_access(str(host_profile), key_info, x_holix_profile, x_holix_profile_key)
     require_admin_access(ctx)
     manager = ProfileManager()
     name = body.name.strip()
@@ -103,6 +110,8 @@ async def get_profile(
 
 @router.get("/{profile_id}/status")
 async def profile_status(
+    registry: FromDishka[ProfileAgentRegistry],
+    companions: FromDishka[CompanionManager],
     profile_id: str,
     key_info: dict = Depends(verify_api_key),
     x_holix_profile: str | None = Header(None),
@@ -112,8 +121,8 @@ async def profile_status(
     manager = ProfileManager()
     if not manager.profile_exists(profile_id):
         raise HTTPException(status_code=404, detail="Profile not found")
-    loaded = profile_id in (state.registry.list_loaded_profiles() if state.registry else [])
-    companions = state.companions.status(profile_id) if state.companions else {}
+    loaded = profile_id in (registry.list_loaded_profiles() if registry else [])
+    companions = companions.status(profile_id) if companions else {}
     return {
         "profile": profile_id,
         "exists": True,
@@ -125,6 +134,8 @@ async def profile_status(
 
 @router.delete("/{profile_id}")
 async def delete_profile(
+    registry: FromDishka[ProfileAgentRegistry],
+    companions: FromDishka[CompanionManager],
     profile_id: str,
     key_info: dict = Depends(verify_api_key),
     x_holix_profile: str | None = Header(None),
@@ -143,13 +154,13 @@ async def delete_profile(
     manager = ProfileManager()
     if not manager.profile_exists(profile_id):
         raise HTTPException(status_code=404, detail="Profile not found")
-    if state.registry and profile_id in state.registry.list_loaded_profiles():
-        entry = state.registry.entry(profile_id)
+    if registry and profile_id in registry.list_loaded_profiles():
+        entry = registry.entry(profile_id)
         if entry is not None:
-            await state.registry.unload(profile_id)
-    if state.companions:
-        await state.companions.stop_cron(profile_id)
-        await state.companions.stop_telegram(profile_id)
+            await registry.unload(profile_id)
+    if companions:
+        await companions.stop_cron(profile_id)
+        await companions.stop_telegram(profile_id)
     result = delete_profile_with_notification(profile_id, notify=notify, manager=manager)
     from config import settings
 
@@ -176,14 +187,15 @@ async def delete_profile(
 
 @router.post("/{profile_id}/reload", response_model=ReloadResponse)
 async def reload_profile(
+    registry: FromDishka[ProfileAgentRegistry],
+    companions: FromDishka[CompanionManager],
+    host_profile: FromDishka[HostProfileName],
     profile_id: str,
     key_info: dict = Depends(verify_api_key),
     x_holix_profile: str | None = Header(None),
     x_holix_profile_key: str | None = Header(None, alias="X-Holix-Profile-Key"),
 ):
     profile_access(profile_id, key_info, x_holix_profile, x_holix_profile_key)
-    if state.registry is None or state.companions is None:
-        raise HTTPException(status_code=503, detail="Gateway not initialized")
     manager = ProfileManager()
     if not manager.profile_exists(profile_id):
         raise HTTPException(status_code=404, detail="Profile not found")
@@ -192,20 +204,19 @@ async def reload_profile(
 
     bootstrap_profile_env(profile_id, force=True)
 
-    await state.companions.stop_cron(profile_id)
-    await state.companions.stop_telegram(profile_id)
-    await state.companions.stop_max(profile_id)
-    agent_result = await state.registry.reload(profile_id)
-    companion_result = await state.companions.reload(profile_id)
+    await companions.stop_cron(profile_id)
+    await companions.stop_telegram(profile_id)
+    await companions.stop_max(profile_id)
+    agent_result = await registry.reload(profile_id)
+    companion_result = await companions.reload(profile_id)
 
     from cli.services.gateway_companions import reload_os_companions
 
     os_companion_result = reload_os_companions(profile_id)
 
     companion_result = dict(companion_result)
-    import api.state as api_state
-
-    if profile_id == api_state.host_profile:
+    
+    if profile_id == str(host_profile):
         from integrations.max.gateway_routes import reload_max_webhook
 
         companion_result.update(await reload_max_webhook(profile_id))

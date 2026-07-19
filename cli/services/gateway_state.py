@@ -44,9 +44,15 @@ class GatewayState:
     docs_pid: int | None = None
     docs_host: str | None = None
     docs_port: int | None = None
+    # Extension sidecars: [{id, host, port, pid, label, url_path, url}, ...]
+    sidecars: list[dict[str, Any]] | None = None
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> Self:
+        raw_sidecars = data.get("sidecars")
+        sidecars: list[dict[str, Any]] | None = None
+        if isinstance(raw_sidecars, list):
+            sidecars = [dict(x) for x in raw_sidecars if isinstance(x, dict)]
         return cls(
             pid=int(data["pid"]),
             host=str(data["host"]),
@@ -62,6 +68,7 @@ class GatewayState:
             docs_pid=int(data["docs_pid"]) if data.get("docs_pid") is not None else None,
             docs_host=str(data["docs_host"]) if data.get("docs_host") is not None else None,
             docs_port=int(data["docs_port"]) if data.get("docs_port") is not None else None,
+            sidecars=sidecars,
         )
 
     def to_dict(self) -> dict[str, Any]:
@@ -176,6 +183,11 @@ def update_docs_info(*, pid: int, host: str, port: int, profile: str = "default"
     _with_state(profile, docs_pid=pid, docs_host=host, docs_port=port)
 
 
+def update_sidecars(sidecars: list[dict[str, Any]], *, profile: str = "default") -> None:
+    """Persist running extension sidecar metadata on gateway state."""
+    _with_state(profile, sidecars=list(sidecars))
+
+
 def new_state(
     *,
     pid: int,
@@ -188,6 +200,7 @@ def new_state(
     docs_pid: int | None = None,
     docs_host: str | None = None,
     docs_port: int | None = None,
+    sidecars: list[dict[str, Any]] | None = None,
 ) -> GatewayState:
     ensure_gateway_dir(profile)
     return GatewayState(
@@ -203,6 +216,7 @@ def new_state(
         docs_pid=docs_pid,
         docs_host=docs_host,
         docs_port=docs_port,
+        sidecars=sidecars,
     )
 
 
@@ -220,12 +234,17 @@ def health_url(state: GatewayState) -> str:
 
 def list_running_states() -> list[GatewayState]:
     """Return alive gateway states across all profiles."""
+    from core.profile.names import ProfileNameError
+
     from cli.core import get_profile_manager
 
     out: list[GatewayState] = []
     manager = get_profile_manager()
     for name in manager.list_profiles():
-        state = load_state(name)
+        try:
+            state = load_state(name)
+        except ProfileNameError:
+            continue
         if state is not None and is_process_alive(state.pid):
             out.append(state)
     return out

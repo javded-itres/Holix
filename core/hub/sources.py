@@ -42,11 +42,9 @@ def parse_install_source(spec: str, *, as_name: str | None = None) -> ParsedSour
         return ParsedSource("claude", plugin.strip(), version=None, as_name=as_name)
 
     if spec.startswith("clawhub:"):
-        slug = spec.split(":", 1)[1].strip()
-        ver = None
-        if "@" in slug:
-            slug, ver = slug.rsplit("@", 1)
-        return ParsedSource("clawhub", slug, version=ver, as_name=as_name)
+        body = spec.split(":", 1)[1].strip()
+        body, ver = _split_clawhub_ref_version(body)
+        return ParsedSource("clawhub", body, version=ver, as_name=as_name)
 
     m = _SKILLS_SH_RE.match(spec)
     if m or spec.lower().startswith("skills-sh/"):
@@ -66,12 +64,29 @@ def parse_install_source(spec: str, *, as_name: str | None = None) -> ParsedSour
     if spec.startswith(("./", "../", "/", "~")) or "/" in spec:
         return ParsedSource("path", spec, as_name=as_name)
 
-    # default: ClawHub slug
-    ver = None
-    slug = spec
-    if "@" in slug:
-        slug, ver = slug.rsplit("@", 1)
+    # default: ClawHub slug / @owner/slug
+    slug, ver = _split_clawhub_ref_version(spec)
     return ParsedSource("clawhub", slug, version=ver, as_name=as_name)
+
+
+_CLAW_VER_RE = re.compile(
+    r"^(?P<ref>.+)@(?P<ver>[0-9]+(?:\.[0-9A-Za-z_-]+)*)$"
+)
+
+
+def _split_clawhub_ref_version(body: str) -> tuple[str, str | None]:
+    """Split clawhub ref and trailing @version without breaking @owner/slug."""
+    text = (body or "").strip()
+    if not text:
+        return text, None
+    m = _CLAW_VER_RE.match(text)
+    if not m:
+        return text, None
+    ref, ver = m.group("ref"), m.group("ver")
+    # Avoid treating "@owner" alone as ref with version "…"
+    if ref == "@" or ref.endswith("@"):
+        return text, None
+    return ref, ver
 
 
 def skills_sh_to_git_url(spec: str) -> tuple[str, str | None]:

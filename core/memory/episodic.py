@@ -16,6 +16,7 @@ import aiosqlite
 from openai import AsyncOpenAI
 
 from core.memory.vector import VectorMemoryStore
+from core.sqlite_util import connect_aiosqlite
 
 logger = logging.getLogger(__name__)
 
@@ -55,7 +56,7 @@ class EpisodicMemoryStore:
         meta["outcome"] = outcome
         meta["timestamp"] = datetime.now().isoformat()
 
-        async with aiosqlite.connect(self._db_path) as db:
+        async with connect_aiosqlite(self._db_path) as db:
             cursor = await db.execute(
                 """INSERT INTO ltm_entries (memory_type, content, source, category, metadata)
                    VALUES ('episodic', ?, ?, 'conversation', ?)""",
@@ -120,7 +121,7 @@ class EpisodicMemoryStore:
             List of episode dicts.
         """
         episodes = []
-        async with aiosqlite.connect(self._db_path) as db:
+        async with connect_aiosqlite(self._db_path) as db:
             db.row_factory = aiosqlite.Row
             cursor = await db.execute(
                 """SELECT id, content, metadata, created_at

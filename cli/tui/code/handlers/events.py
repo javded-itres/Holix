@@ -90,28 +90,13 @@ class CodeEventHandler:
 
             elif isinstance(event, ConfirmationRequestEvent):
                 self.app.set_thinking(None)
-                sub = getattr(event, "subagent_name", "") or ""
-                if sub:
-                    self.app.transcript_write(
-                        f"\n[yellow]Sub-agent [cyan]{sub}[/cyan] needs approval:[/yellow] "
-                        f"{event.tool_name} — {event.reason}\n"
-                        f"[dim]/1 once · /2 session · /3 always · /4 deny[/dim]\n"
-                    )
-                else:
-                    self.app.transcript_write(
-                        f"\n[yellow]Confirmation:[/yellow] {event.tool_name} — {event.reason}\n"
-                        f"[dim]/1 once · /2 session · /3 always · /4 deny[/dim]\n"
-                    )
+                # Modal queue + transcript; also /1–/4 if dialog dismissed
                 self.app._handle_confirmation_request(event)
 
             elif isinstance(event, SubAgentQuestionEvent):
                 self.app.set_thinking(None)
-                name = event.subagent_name or "sub-agent"
-                q = (event.question or "").strip()
-                self.app.transcript_write(
-                    f"[magenta]❓ {name}:[/magenta] {q}\n"
-                    f"[dim]Reply, /subagent-reply {name} …, or @{name} …[/dim]"
-                )
+                # Modal queue + transcript; answer via dialog, free text, or /subagent-reply
+                self.app._handle_subagent_question(event)
 
             elif isinstance(event, PlanReviewRequestEvent):
                 self.app.set_thinking(None)

@@ -16,6 +16,7 @@ from core.external_cli.launch_service import (
 )
 from core.external_cli.platform import launch_supported
 from core.external_cli.registry import list_cli_specs
+from dishka.integrations.fastapi import DishkaRoute
 from fastapi import APIRouter, Depends, Header, HTTPException, Query
 
 from api.deps import verify_api_key
@@ -26,7 +27,7 @@ from api.schemas.holix import (
 )
 from api.services.holix_deps import profile_access
 
-router = APIRouter(prefix="/api/holix/profiles/{profile_id}/launch", tags=["holix-launch"])
+router = APIRouter(prefix="/api/holix/profiles/{profile_id}/launch", tags=["holix-launch"], route_class=DishkaRoute)
 
 
 def _require_profile(profile_id: str) -> None:

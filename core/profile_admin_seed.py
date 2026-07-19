@@ -6,7 +6,7 @@ import os
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from cli.core import ProfileManager
+    from core.profile import ProfileManager
 
 
 def is_production_env() -> bool:
@@ -85,13 +85,12 @@ def copy_profile_settings_from_source(
     if not manager.profile_exists(source_profile):
         return False
 
-    from cli.core import ProfileConfig, resolve_profile_storage_paths
-
     from core.global_config import (
         PROFILE_ONLY_KEYS,
         extract_profile_overrides,
         load_global_config_resolved,
     )
+    from core.profile import ProfileConfig, resolve_profile_storage_paths
 
     source_cfg = manager.load_profile(source_profile)
     payload = source_cfg.model_dump()
@@ -123,11 +122,12 @@ def ensure_admin_profile_from_default(
     if not is_production_env():
         return None
 
-    from cli.core import ProfileManager as PM
-    from integrations.telegram.admin import DEFAULT_ADMIN_PROFILE
-
+    from core.profile import ProfileManager as PM
+    
     mgr = manager or PM()
-    target = (admin_profile or DEFAULT_ADMIN_PROFILE).strip() or DEFAULT_ADMIN_PROFILE
+    from core.plugins.hooks import profile_lifecycle_hooks
+    default = profile_lifecycle_hooks.default_admin_profile
+    target = (admin_profile or default).strip() or default
     source = (source_profile or "default").strip() or "default"
 
     if not mgr.profile_exists(source):

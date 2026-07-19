@@ -19,6 +19,7 @@ from typing import Any
 import aiosqlite
 
 from core.memory.vector import VectorMemoryStore
+from core.sqlite_util import connect_aiosqlite
 
 logger = logging.getLogger(__name__)
 
@@ -65,7 +66,7 @@ class StrategicMemoryStore:
         meta["category"] = category
         meta["timestamp"] = datetime.now().isoformat()
 
-        async with aiosqlite.connect(self._db_path) as db:
+        async with connect_aiosqlite(self._db_path) as db:
             # Check if key already exists
             cursor = await db.execute(
                 "SELECT id FROM ltm_entries WHERE memory_type = 'strategic' AND key = ?",
@@ -149,7 +150,7 @@ class StrategicMemoryStore:
             List of strategy dicts in that category.
         """
         strategies = []
-        async with aiosqlite.connect(self._db_path) as db:
+        async with connect_aiosqlite(self._db_path) as db:
             db.row_factory = aiosqlite.Row
             cursor = await db.execute(
                 """SELECT id, key, content, source, metadata, created_at, updated_at
@@ -188,7 +189,7 @@ class StrategicMemoryStore:
             List of all strategy dicts.
         """
         strategies = []
-        async with aiosqlite.connect(self._db_path) as db:
+        async with connect_aiosqlite(self._db_path) as db:
             db.row_factory = aiosqlite.Row
             cursor = await db.execute(
                 """SELECT key, content, category, source, metadata
@@ -223,7 +224,7 @@ class StrategicMemoryStore:
         Returns:
             True if the strategy was deleted.
         """
-        async with aiosqlite.connect(self._db_path) as db:
+        async with connect_aiosqlite(self._db_path) as db:
             cursor = await db.execute(
                 "DELETE FROM ltm_entries WHERE memory_type = 'strategic' AND key = ?",
                 (key,),

@@ -124,6 +124,9 @@ def run_sub_agent_in_process(
     interactive: bool = True,
     search_config: dict[str, Any] | None = None,
     profile_name: str = "default",
+    workspace_root: str = "",
+    workspace_jail_enabled: bool = False,
+    working_directory: str = "",
 ) -> None:
     """Entry point for a sub-agent running in a separate process.
 
@@ -170,9 +173,23 @@ def run_sub_agent_in_process(
         metadata={"preset_id": preset_id} if preset_id else None,
     )
 
-    # Create own tool registry (subset)
+    # Match parent process CWD so relative paths hit the same project tree
+    if working_directory and str(working_directory).strip():
+        try:
+            from pathlib import Path as _Path
+
+            os.chdir(_Path(working_directory).expanduser().resolve())
+        except OSError as exc:
+            print(f"[sub-process] chdir to working_directory failed: {exc}")
+
+    # Create own tool registry with the same workspace as the main agent
     from core.tools.registry import ToolRegistry
-    registry = ToolRegistry(profile_name=profile_name)
+
+    registry = ToolRegistry(
+        workspace_root=(workspace_root or None),
+        workspace_jail_enabled=bool(workspace_jail_enabled),
+        profile_name=profile_name,
+    )
     registry.register_all()
 
     # MCP for this sub (if any servers listed in its config and defs passed)
@@ -236,6 +253,9 @@ def run_sub_agent_in_process(
         task,
         skills_block=skills_block,
         profile_name=profile_name,
+        workspace_root=workspace_root or None,
+        workspace_jail_enabled=bool(workspace_jail_enabled),
+        working_directory=working_directory or None,
     )
 
     # Build messages
@@ -320,6 +340,13 @@ def run_sub_agent_in_process(
                 pass
 
             steps_taken += 1
+            _send_progress(
+                output_queue,
+                config.name,
+                kind="step",
+                message=f"Reasoning step {steps_taken}/{max_steps}",
+                steps_taken=steps_taken,
+            )
 
             # LLM call with timeout
             try:
@@ -369,10 +396,20 @@ def run_sub_agent_in_process(
                 messages.append(msg_dict)
 
                 for tc in message.tool_calls:
+                    tool_name = tc.function.name
                     tool_calls_made.append({
-                        "name": tc.function.name,
+                        "name": tool_name,
                         "arguments": tc.function.arguments,
                     })
+                    _send_progress(
+                        output_queue,
+                        config.name,
+                        kind="tool_start",
+                        message=f"Calling {tool_name}",
+                        steps_taken=steps_taken,
+                        tool_name=tool_name,
+                        details=(tc.function.arguments or "")[:300],
+                    )
 
                     try:
                         tool_result = _execute_tool_guarded(
@@ -390,6 +427,19 @@ def run_sub_agent_in_process(
                         )
                     except Exception as e:
                         tool_result = f"Error: {e}"
+
+                    preview = (tool_result or "").strip()
+                    if len(preview) > 240:
+                        preview = preview[:239] + "…"
+                    _send_progress(
+                        output_queue,
+                        config.name,
+                        kind="tool_result",
+                        message=f"{tool_name} finished",
+                        steps_taken=steps_taken,
+                        tool_name=tool_name,
+                        details=preview,
+                    )
 
                     messages.append({
                         "role": "tool",
@@ -641,6 +691,35 @@ def _wait_ipc_response(
     return default
 
 
+def _send_progress(
+    output_queue: multiprocessing.Queue,
+    agent_name: str,
+    *,
+    kind: str,
+    message: str,
+    steps_taken: int = 0,
+    tool_name: str = "",
+    details: str = "",
+) -> None:
+    """Best-effort live progress for the parent process / Studio UI."""
+    try:
+        msg = AgentMessage(
+            from_agent=agent_name,
+            to_agent="main",
+            msg_type="progress",
+            content=message or "",
+            metadata={
+                "kind": kind,
+                "steps_taken": steps_taken,
+                "tool_name": tool_name,
+                "details": details,
+            },
+        )
+        output_queue.put(msg.serialize(), timeout=0.5)
+    except Exception:
+        pass
+
+
 def _send_result(
     output_queue: multiprocessing.Queue,
     agent_name: str,
@@ -756,7 +835,15 @@ class SubAgentProcessManager:
             config=config,
             status=SubAgentStatus.RUNNING,
             started_at=time.monotonic(),
+            max_steps=int(config.max_steps or 0),
         )
+
+        try:
+            from pathlib import Path as _Path
+
+            parent_cwd = str(_Path.cwd().resolve())
+        except OSError:
+            parent_cwd = os.getcwd()
 
         process_args = (
             config_dict,
@@ -775,6 +862,9 @@ class SubAgentProcessManager:
             interactive,
             search_config,
             str(getattr(parent_cfg, "profile_name", None) or "default"),
+            str(getattr(parent_cfg, "workspace_root", None) or ""),
+            bool(getattr(parent_cfg, "workspace_jail_enabled", False)),
+            parent_cwd,
         )
         parent_metadata = dict(getattr(parent_cfg, "provider_metadata", None) or {})
         mp_ctx = subagent_mp_context()
@@ -888,10 +978,33 @@ class SubAgentProcessManager:
                         steps_taken=meta.get("steps_taken", 0),
                         tool_calls=meta.get("tool_calls", []),
                     )
+                    handle.steps_taken = int(meta.get("steps_taken", 0) or 0)
                     handle.status = SubAgentStatus.COMPLETED if handle.result.success else SubAgentStatus.FAILED
+                    handle.record_activity(
+                        "status",
+                        "Completed" if handle.result.success else "Failed",
+                        steps_taken=handle.steps_taken,
+                    )
                     self._notify_parent_done(agent_name)
                     self._cleanup_ipc(agent_name)
                     return
+
+            elif msg.msg_type == "progress":
+                meta = msg.metadata or {}
+                handle.record_activity(
+                    str(meta.get("kind") or "progress"),
+                    msg.content or "",
+                    tool_name=str(meta.get("tool_name") or ""),
+                    details=str(meta.get("details") or ""),
+                    steps_taken=int(meta.get("steps_taken") or handle.steps_taken or 0),
+                )
+                mgr = getattr(self._parent, "subagents", None)
+                notify = getattr(mgr, "notify_progress", None)
+                if callable(notify):
+                    try:
+                        notify(agent_name)
+                    except Exception:
+                        logger.debug("progress notify failed", exc_info=True)
 
             elif msg.msg_type == "heartbeat":
                 pass
@@ -910,6 +1023,7 @@ class SubAgentProcessManager:
                     duration_ms=(time.monotonic() - (handle.started_at or time.monotonic())) * 1000,
                 )
                 handle.status = SubAgentStatus.FAILED
+                handle.record_activity("status", f"Error: {msg.content or 'failed'}")
                 self._notify_parent_done(agent_name)
                 self._cleanup_ipc(agent_name)
                 return

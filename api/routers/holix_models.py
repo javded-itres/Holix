@@ -6,6 +6,7 @@ from cli.core import ProfileManager
 from core.models.catalog import get_provider_preset, list_provider_presets
 from core.models.profile_cleanup import remove_provider_from_profile
 from core.models.setup_helpers import add_preset_to_config, apply_ssl_override, probe_provider
+from dishka.integrations.fastapi import DishkaRoute
 from fastapi import APIRouter, Depends, Header, HTTPException
 
 from api.deps import verify_api_key
@@ -13,7 +14,7 @@ from api.schemas.holix import AgentModelsPatchRequest, FallbacksPatchRequest, Pr
 from api.services.config_mask import mask_config_dict
 from api.services.holix_deps import profile_access
 
-router = APIRouter(prefix="/api/holix/profiles/{profile_id}/models", tags=["holix-models"])
+router = APIRouter(prefix="/api/holix/profiles/{profile_id}/models", tags=["holix-models"], route_class=DishkaRoute)
 
 
 def _require_profile(profile_id: str) -> ProfileManager:

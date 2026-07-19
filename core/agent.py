@@ -3,6 +3,8 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
+    from dishka import AsyncContainer
+
     from core.models.manager import ModelConfig
 
 from openai import AsyncOpenAI
@@ -20,6 +22,8 @@ from core.di.runtime_config import HolixRuntimeConfig
 from core.loop import AgentLoop
 from core.memory.facade import MemoryFacade
 from core.models.client_factory import create_openai_client
+from core.runtime.background_process import BackgroundProcessRegistry
+from core.search.engine import SearchEngine
 from core.skills.manager import SkillsManager
 from core.tools.registry import ToolRegistry
 
@@ -42,6 +46,15 @@ class HolixAgent:
         event_listeners: list[EventHandler] | None = None,
         *,
         client: AsyncOpenAI | None = None,
+        memory: MemoryFacade | None = None,
+        skills: SkillsManager | None = None,
+        tools: ToolRegistry | None = None,
+        token_counter: TokenCounter | None = None,
+        compressor: ContextCompressor | None = None,
+        context_manager: ContextManager | None = None,
+        background_process_registry: BackgroundProcessRegistry | None = None,
+        search_engine: SearchEngine | None = None,
+        di_container: AsyncContainer | None = None,
         # Legacy overrides (merged into config when config is omitted)
         model: str | None = None,
         base_url: str | None = None,
@@ -49,8 +62,15 @@ class HolixAgent:
         temperature: float | None = None,
         max_steps: int | None = None,
         enable_monitoring: bool = True,
+        allow_defaults: bool = True,
     ):
-        """Initialize the Holix agent."""
+        """Initialize the Holix agent.
+
+        Production code should construct the agent via Dishka
+        (``core.di.create_agent`` / ``create_holix_agent``) with all services
+        injected and ``allow_defaults=False``. Unit tests may pass
+        ``allow_defaults=True`` (default) for convenience.
+        """
         base_config = config or HolixRuntimeConfig.from_settings()
         self.config = base_config.with_overrides(
             model=model,
@@ -61,13 +81,23 @@ class HolixAgent:
         )
 
         self.model = self.config.model
-        self.client = client or create_openai_client(
-            base_url=self.config.base_url,
-            api_key=self.config.api_key,
-            metadata=self.config.provider_metadata or None,
-        )
+        if client is not None:
+            self.client = client
+        elif allow_defaults:
+            self.client = create_openai_client(
+                base_url=self.config.base_url,
+                api_key=self.config.api_key,
+                metadata=self.config.provider_metadata or None,
+            )
+        else:
+            raise TypeError("HolixAgent requires client when allow_defaults=False")
 
-        self.events = event_bus or AgentEventBus(name="Holix")
+        if event_bus is not None:
+            self.events = event_bus
+        elif allow_defaults:
+            self.events = AgentEventBus(name="Holix")
+        else:
+            raise TypeError("HolixAgent requires event_bus when allow_defaults=False")
         if event_listeners:
             for listener in event_listeners:
                 self.events.subscribe(listener)
@@ -75,28 +105,58 @@ class HolixAgent:
         if enable_monitoring:
             wire_default_monitoring(self.events)
 
-        self.memory = MemoryFacade(self.config)
-        self.skills = SkillsManager(self.config)
-        self.tools = ToolRegistry(
-            workspace_root=self.config.workspace_root,
-            workspace_jail_enabled=self.config.workspace_jail_enabled,
-            profile_name=self.config.profile_name,
+        def _req(name: str, value: Any, factory):
+            if value is not None:
+                return value
+            if allow_defaults:
+                return factory()
+            raise TypeError(f"HolixAgent requires {name} when allow_defaults=False")
+
+        self.memory = _req("memory", memory, lambda: MemoryFacade(self.config))
+        self.skills = _req("skills", skills, lambda: SkillsManager(self.config))
+        self.tools = _req(
+            "tools",
+            tools,
+            lambda: ToolRegistry(
+                workspace_root=self.config.workspace_root,
+                workspace_jail_enabled=self.config.workspace_jail_enabled,
+                profile_name=self.config.profile_name,
+            ),
         )
         self.loop = AgentLoop(self)
 
         context_window = self._resolve_context_window(self.config.context_window)
-        self.token_counter = TokenCounter(model=self.model)
-        self.compressor = ContextCompressor(
-            client=self.client,
-            model=self.model,
-            token_counter=self.token_counter,
+        self.token_counter = _req(
+            "token_counter", token_counter, lambda: TokenCounter(model=self.model)
         )
-        self.context_manager = ContextManager(
-            context_window=context_window,
-            token_counter=self.token_counter,
-            compressor=self.compressor,
-            event_bus=self.events,
+        self.compressor = _req(
+            "compressor",
+            compressor,
+            lambda: ContextCompressor(
+                client=self.client,
+                model=self.model,
+                token_counter=self.token_counter,
+            ),
         )
+        self.context_manager = _req(
+            "context_manager",
+            context_manager,
+            lambda: ContextManager(
+                context_window=context_window,
+                token_counter=self.token_counter,
+                compressor=self.compressor,
+                event_bus=self.events,
+            ),
+        )
+        self.background_processes = _req(
+            "background_process_registry",
+            background_process_registry,
+            BackgroundProcessRegistry,
+        )
+        self.search = _req("search_engine", search_engine, SearchEngine)
+        self._di_container = di_container
+        self._action_guard = None
+        self._plan_review_guard = None
 
         self._graph = None
         self._use_langgraph = self.config.use_langgraph
@@ -105,15 +165,20 @@ class HolixAgent:
         self._initialized = False
         self._event_context: EventContext | None = None
         self.agent_slot: str = "main"
+        self._active_model_config: ModelConfig | None = None
         self._model_manager = None
+
+    @property
+    def active_model_config(self) -> ModelConfig | None:
+        """Session-level model override from set_active_model_config, if any."""
+        return self._active_model_config
 
     @property
     def model_manager(self):
         """Lazy ModelManager for provider routing and fallbacks."""
         if self._model_manager is None:
-            from cli.core import ProfileManager
-
             from core.models.manager import ModelManager
+            from core.profile import ProfileManager
 
             profile_name = getattr(self.config, "profile_name", "default") or "default"
             self._model_manager = ModelManager(ProfileManager().load_profile(profile_name))
@@ -167,6 +232,7 @@ class HolixAgent:
         if model_slot_id is not None:
             self.agent_slot = normalize_skill_agent_slot(model_slot_id)
 
+        self._active_model_config = model_config
         temperature = model_config.temperature
         context_window = model_config.context_window or self.config.context_window
 
@@ -251,12 +317,23 @@ class HolixAgent:
         await self.memory.initialize_db()
 
         self.tools.register_all()
+        from core.extensions.agent_registry import register_agent_extensions
+        from core.tools.agent_extensions import register_agent_extension_manager_tool
+
+        # Manager tool is always available (even when extensions are kill-switched)
+        register_agent_extension_manager_tool(self)
+        register_agent_extensions(self)
         from core.config_utils import is_subagents_enabled
 
         if is_subagents_enabled(self.config):
             from core.tools.subagents import register_subagent_tools
 
             register_subagent_tools(self.tools, self)
+        else:
+            # SDD dispatch still available (mode=self); spawn needs subagents enabled
+            from core.tools.sdd import register_sdd_dispatch_tool
+
+            register_sdd_dispatch_tool(self.tools, self)
         # Register MCP tools (if configured in profile/runtime). Non-fatal.
         mcp_count = 0
         if getattr(self.config, "mcp_enabled", True) and getattr(self.config, "mcp_servers", None):
@@ -282,24 +359,19 @@ class HolixAgent:
         if hasattr(self.memory, "set_skills_manager"):
             self.memory.set_skills_manager(self.skills)
 
-        from core.search.engine import set_search_config
-
-        set_search_config(getattr(self.config, "search", None) or None)
         enabled = []
         try:
-            from core.search.engine import get_search_config
-
-            enabled = get_search_config().enabled_providers()
+            enabled = self.search._config.enabled_providers()
         except Exception:
             pass
         if enabled:
             self.emit(ThinkingEvent(message=f"Search providers: {', '.join(enabled)}"))
 
-        from core.security.confirmation import RiskLevel, init_action_guard
+        from core.security.confirmation import RiskLevel, build_action_guard
 
         auto_allow_threshold = RiskLevel(self.config.auto_allow_threshold)
         interactive = not self.config.non_interactive
-        guard = init_action_guard(
+        self._action_guard = build_action_guard(
             event_bus=self.events,
             auto_allow_threshold=auto_allow_threshold,
             interactive=interactive,
@@ -307,15 +379,21 @@ class HolixAgent:
             data_dir=self.config.data_dir,
             profile_name=self.config.profile_name,
         )
-        self.tools.set_action_guard(guard)
+        self.tools.set_action_guard(self._action_guard)
 
-        from core.plan_review import init_plan_review_guard
+        from core.plan_review.review_guard import build_plan_review_guard
 
-        self._plan_review_guard = init_plan_review_guard(
+        self._plan_review_guard = build_plan_review_guard(
             event_bus=self.events,
             interactive=interactive,
             review_timeout=self.config.plan_review_timeout,
         )
+
+        from core.runtime.agent_sessions import register_agent_session
+        from core.runtime.background_process import bind_background_process_registry
+
+        register_agent_session(self)
+        bind_background_process_registry(self.background_processes, self.config.profile_name)
 
         self._initialized = True
         self.emit(ThinkingEvent(message="Holix Agent ready!"))
@@ -339,13 +417,44 @@ class HolixAgent:
 
         return {"mcp_tools": mcp_tools, "skills_indexed": skills_indexed}
 
+    def reload_agent_extensions(self) -> dict[str, Any]:
+        """Hot-reload profile drop-in agent extensions (tools, slash, middleware).
+
+        Used after the agent scaffolds a new extension so tools are available
+        in the current session without restart. Local single-operator only.
+        """
+        from core.extensions.agent_registry import reload_agent_extensions
+
+        result = reload_agent_extensions(self)
+        loaded = result.get("loaded") or []
+        self.emit(
+            ThinkingEvent(
+                message=(
+                    f"Agent extensions reloaded: {', '.join(loaded) if loaded else '(none)'}"
+                )
+            )
+        )
+        return result
+
     async def close(self) -> None:
-        """Cleanup (MCP sessions etc.). Safe to call multiple times."""
+        """Cleanup (MCP sessions, DI container). Safe to call multiple times."""
+        from core.runtime.agent_sessions import unregister_agent_session
+        from core.runtime.background_process import unbind_background_process_registry
+
+        unregister_agent_session(self)
+        unbind_background_process_registry(self.config.profile_name)
         try:
             if hasattr(self.tools, "_mcp_manager") and getattr(self.tools, "_mcp_manager", None):
                 await self.tools._mcp_manager.disconnect_all()
         except Exception:
             pass
+        container = self._di_container
+        self._di_container = None
+        if container is not None:
+            try:
+                await container.close()
+            except Exception:
+                pass
 
     async def reload_mcp(
         self,
@@ -433,18 +542,32 @@ class HolixAgent:
         from core.runtime.executor import run_holix
 
         final_response = ""
-        async for event in run_holix(
-            self,
-            user_input,
-            conversation_id,
-            stream=False,
-            execution_mode=execution_mode,
-        ):
-            self.emit(event)
-            if isinstance(event, FinalResponseEvent):
-                final_response = event.content
-            elif isinstance(event, ErrorEvent):
-                final_response = event.error
+        bus_final = ""
+
+        def _capture_bus_final(event: AgentEvent) -> None:
+            nonlocal bus_final
+            if isinstance(event, FinalResponseEvent) and (event.content or "").strip():
+                bus_final = event.content
+
+        self.events.subscribe(_capture_bus_final)
+        try:
+            async for event in run_holix(
+                self,
+                user_input,
+                conversation_id,
+                stream=False,
+                execution_mode=execution_mode,
+            ):
+                self.emit(event)
+                if isinstance(event, FinalResponseEvent):
+                    final_response = event.content
+                elif isinstance(event, ErrorEvent):
+                    final_response = event.error
+        finally:
+            self.events.unsubscribe(_capture_bus_final)
+
+        if not (final_response or "").strip() and (bus_final or "").strip():
+            final_response = bus_final
 
         from core.workspace import sanitize_paths_in_text
 

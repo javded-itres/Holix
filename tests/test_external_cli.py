@@ -168,7 +168,7 @@ def test_build_launch_args_grok_task_positional() -> None:
 
 
 def test_send_text_combines_literal_and_enter(monkeypatch: pytest.MonkeyPatch) -> None:
-    from cli.services import tmux_launcher
+    from core.runtime import tmux_launcher
 
     calls: list[list[str]] = []
 
@@ -186,7 +186,7 @@ def test_send_text_combines_literal_and_enter(monkeypatch: pytest.MonkeyPatch) -
 
 
 def test_send_text_when_ready_waits_for_prompt(monkeypatch: pytest.MonkeyPatch) -> None:
-    from cli.services import tmux_launcher
+    from core.runtime import tmux_launcher
 
     panes = [
         "booting…",
@@ -286,7 +286,7 @@ async def test_external_cli_tool_list_empty(holix_home, monkeypatch) -> None:
     monkeypatch.setattr("core.tools.external_cli.launch_supported", lambda: True)
     monkeypatch.setattr("core.tools.external_cli.get_profile_name", lambda: "default")
     monkeypatch.setattr(
-        "cli.services.tmux_launcher.prune_dead_sessions",
+        "core.runtime.tmux_launcher.prune_dead_sessions",
         lambda _profile: [],
     )
     tool = ExternalCliTool()
@@ -414,9 +414,15 @@ async def test_external_cli_tool_launch_allowed_for_assigned_subagent(
     monkeypatch.setattr("core.tools.external_cli.get_profile_name", lambda: "default")
     monkeypatch.setattr("core.tools.external_cli.get_subagent_type", lambda: "coder")
     monkeypatch.setattr(
-        "cli.services.tmux_launcher.launch_cli_by_id",
+        "core.runtime.tmux_launcher.launch_cli_by_id",
         lambda **kwargs: launched,
     )
+    monkeypatch.setattr(
+        "cli.services.tmux_launcher.launch_cli_by_id",
+        lambda **kwargs: launched,
+        raising=False,
+    )
+
     class _FakeProfileManager:
         def profile_exists(self, _name: str) -> bool:
             return True
@@ -424,7 +430,9 @@ async def test_external_cli_tool_launch_allowed_for_assigned_subagent(
         def load_profile(self, _name: str):
             return SimpleNamespace()
 
-    monkeypatch.setattr("cli.core.ProfileManager", _FakeProfileManager)
+    monkeypatch.setattr("core.profile.ProfileManager", _FakeProfileManager)
+    monkeypatch.setattr("core.profile.service.ProfileManager", _FakeProfileManager)
+    monkeypatch.setattr("cli.core.ProfileManager", _FakeProfileManager, raising=False)
 
     tool = ExternalCliTool()
     result = await tool.execute(action="launch", cli_id="claude", task="fix tests")
@@ -436,7 +444,10 @@ def test_main_agent_tool_schemas_hide_external_cli() -> None:
     registry.register_all()
     names = {schema["function"]["name"] for schema in registry.get_schemas()}
     assert "external_cli" not in names
+    assert "ask_user" not in names
+    assert "ask_user" in registry.tools
 
     names_sub = {schema["function"]["name"] for schema in registry.get_schemas(for_agent_slot="coder")}
     if launch_supported():
         assert "external_cli" in names_sub
+    assert "ask_user" in names_sub

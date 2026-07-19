@@ -2,6 +2,7 @@ from pathlib import Path
 
 import aiosqlite
 
+from core.sqlite_util import connect_aiosqlite
 from core.tools.base import BaseTool
 
 
@@ -56,7 +57,8 @@ class SQLQueryTool(BaseTool):
             # Detect query type
             query_type = query.strip().split()[0].upper()
 
-            async with aiosqlite.connect(db_file) as db:
+            # User DB: busy wait only — do not force WAL on arbitrary project files.
+            async with connect_aiosqlite(db_file, wal=False) as db:
                 db.row_factory = aiosqlite.Row
 
                 if query_type == "SELECT":
@@ -127,7 +129,7 @@ class SQLSchemaTool(BaseTool):
             if not db_file.exists():
                 return f"Error: Database '{db_path}' does not exist"
 
-            async with aiosqlite.connect(db_file) as db:
+            async with connect_aiosqlite(db_file, wal=False) as db:
                 # Get all tables
                 cursor = await db.execute(
                     "SELECT name FROM sqlite_master WHERE type='table' ORDER BY name"

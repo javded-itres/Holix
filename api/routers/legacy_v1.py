@@ -6,10 +6,15 @@ import time
 
 from core.loop_streaming import StreamingAgentLoop
 from core.security.permissions import PermissionChecker
+from dishka.integrations.fastapi import DishkaRoute, FromDishka
 from fastapi import APIRouter, Depends, Header, HTTPException
 
-from api import state
-from api.deps import get_registry, resolve_profile_name, verify_api_key
+from api.deps import resolve_profile_name, verify_api_key
+from api.di import (
+    GatewayLocks,
+    HostProfileName,
+    ProfileAgentRegistry,
+)
 from api.errors import _SSE_ERROR_CHUNK, sse_streaming_response
 from api.models import ChatCompletionRequest, ChatCompletionResponse
 from api.services.content_parts import (
@@ -19,7 +24,7 @@ from api.services.content_parts import (
 )
 from api.services.path_visibility import gateway_agent_path_visibility
 
-router = APIRouter(prefix="/v1", tags=["agent"])
+router = APIRouter(prefix="/v1", tags=["agent"], route_class=DishkaRoute)
 
 
 def _ctx_from_headers(
@@ -29,10 +34,12 @@ def _ctx_from_headers(
     x_hermes_profile: str | None,
     x_holix_session_id: str | None,
     x_hermes_session_id: str | None,
+    *,
+    host_profile: str = "default",
 ):
     from api.deps import _header_alias
 
-    host = state.host_profile or "default"
+    host = host_profile or "default"
     profile = resolve_profile_name(
         header_profile=_header_alias(x_holix_profile, x_hermes_profile),
         model=model,
@@ -44,9 +51,11 @@ def _ctx_from_headers(
 
 @router.post("/chat/completions", response_model=ChatCompletionResponse)
 async def chat_completions(
+    locks: FromDishka[GatewayLocks],
+    registry: FromDishka[ProfileAgentRegistry],
+    host_profile: FromDishka[HostProfileName],
     request: ChatCompletionRequest,
     key_info: dict = Depends(verify_api_key),
-    registry=Depends(get_registry),
     x_holix_profile: str | None = Header(None),
     x_hermes_profile: str | None = Header(None),
     x_holix_session_id: str | None = Header(None),
@@ -58,8 +67,7 @@ async def chat_completions(
         x_holix_profile,
         x_hermes_profile,
         x_holix_session_id,
-        x_hermes_session_id,
-    )
+        x_hermes_session_id, host_profile=str(host_profile))
     checker = PermissionChecker(key_info["permissions"])
     if not checker.can_read():
         raise HTTPException(status_code=403, detail="Insufficient permissions")
@@ -85,7 +93,7 @@ async def chat_completions(
 
         async def generate():
             try:
-                async with state._agent_request_lock:  # type: ignore[attr-defined]
+                async with locks.agent_request:
                     with gateway_agent_path_visibility(agent, key_info):
                         async for chunk in streaming_loop.run_conversation_stream(
                             user_input=user_input,
@@ -99,7 +107,7 @@ async def chat_completions(
 
     try:
         start_time = time.time()
-        async with state._agent_request_lock:  # type: ignore[attr-defined]
+        async with locks.agent_request:
             with gateway_agent_path_visibility(agent, key_info):
                 response = await agent.run(
                     user_input=user_input,
@@ -131,16 +139,16 @@ async def chat_completions(
 
 @router.get("/conversations/{conversation_id}")
 async def get_conversation(
+    registry: FromDishka[ProfileAgentRegistry],
+    host_profile: FromDishka[HostProfileName],
     conversation_id: str,
     limit: int = 30,
     key_info: dict = Depends(verify_api_key),
-    registry=Depends(get_registry),
     x_holix_profile: str | None = Header(None),
     x_hermes_profile: str | None = Header(None),
 ):
     profile, _, _ = _ctx_from_headers(
-        key_info, None, x_holix_profile, x_hermes_profile, None, None
-    )
+        key_info, None, x_holix_profile, x_hermes_profile, None, None, host_profile=str(host_profile))
     agent = await registry.get_agent(profile)
     history = await agent.get_conversation_history(conversation_id, limit)
     return {"conversation_id": conversation_id, "messages": history, "count": len(history)}
@@ -148,14 +156,14 @@ async def get_conversation(
 
 @router.get("/tools")
 async def list_tools(
+    registry: FromDishka[ProfileAgentRegistry],
+    host_profile: FromDishka[HostProfileName],
     key_info: dict = Depends(verify_api_key),
-    registry=Depends(get_registry),
     x_holix_profile: str | None = Header(None),
     x_hermes_profile: str | None = Header(None),
 ):
     profile, _, _ = _ctx_from_headers(
-        key_info, None, x_holix_profile, x_hermes_profile, None, None
-    )
+        key_info, None, x_holix_profile, x_hermes_profile, None, None, host_profile=str(host_profile))
     agent = await registry.get_agent(profile)
     tools = agent.get_tools()
     return {"tools": tools, "count": len(tools)}
@@ -163,16 +171,16 @@ async def list_tools(
 
 @router.post("/search")
 async def search_memory(
+    registry: FromDishka[ProfileAgentRegistry],
+    host_profile: FromDishka[HostProfileName],
     query: str,
     top_k: int = 5,
     key_info: dict = Depends(verify_api_key),
-    registry=Depends(get_registry),
     x_holix_profile: str | None = Header(None),
     x_hermes_profile: str | None = Header(None),
 ):
     profile, _, _ = _ctx_from_headers(
-        key_info, None, x_holix_profile, x_hermes_profile, None, None
-    )
+        key_info, None, x_holix_profile, x_hermes_profile, None, None, host_profile=str(host_profile))
     agent = await registry.get_agent(profile)
     results = await agent.search_memory(query, top_k)
     return {"query": query, "results": results, "count": len(results)}
@@ -180,6 +188,7 @@ async def search_memory(
 
 @router.post("/permissions/grant")
 async def grant_permission(
+    host_profile: FromDishka[HostProfileName],
     tool_name: str,
     risk_level: str = "high",
     scope: str = "session",
@@ -195,8 +204,7 @@ async def grant_permission(
     if not checker.can_execute():
         raise HTTPException(status_code=403, detail="Execute permission required")
     profile, _, _ = _ctx_from_headers(
-        key_info, None, x_holix_profile, x_hermes_profile, None, None
-    )
+        key_info, None, x_holix_profile, x_hermes_profile, None, None, host_profile=str(host_profile))
     permission_manager = get_permission_manager_for_profile(profile)
     try:
         risk_enum = RL(risk_level)
@@ -209,6 +217,7 @@ async def grant_permission(
 
 @router.get("/permissions")
 async def list_permissions(
+    host_profile: FromDishka[HostProfileName],
     key_info: dict = Depends(verify_api_key),
     x_holix_profile: str | None = Header(None),
     x_hermes_profile: str | None = Header(None),
@@ -216,13 +225,13 @@ async def list_permissions(
     from core.security.confirmation import get_permission_manager_for_profile
 
     profile, _, _ = _ctx_from_headers(
-        key_info, None, x_holix_profile, x_hermes_profile, None, None
-    )
+        key_info, None, x_holix_profile, x_hermes_profile, None, None, host_profile=str(host_profile))
     return get_permission_manager_for_profile(profile).list_grants()
 
 
 @router.delete("/permissions/{grant_key}")
 async def revoke_permission(
+    host_profile: FromDishka[HostProfileName],
     grant_key: str,
     scope: str = "always",
     key_info: dict = Depends(verify_api_key),
@@ -233,8 +242,7 @@ async def revoke_permission(
     from core.security.confirmation import RiskLevel as RL
 
     profile, _, _ = _ctx_from_headers(
-        key_info, None, x_holix_profile, x_hermes_profile, None, None
-    )
+        key_info, None, x_holix_profile, x_hermes_profile, None, None, host_profile=str(host_profile))
     permission_manager = get_permission_manager_for_profile(profile)
     try:
         scope_enum = PermissionScope(scope)
@@ -254,6 +262,7 @@ async def revoke_permission(
 
 @router.post("/confirmations/resolve")
 async def resolve_confirmation(
+    host_profile: FromDishka[HostProfileName],
     confirmation_id: str,
     choice: str,
     key_info: dict = Depends(verify_api_key),
@@ -266,8 +275,7 @@ async def resolve_confirmation(
     if not checker.can_execute():
         raise HTTPException(status_code=403, detail="Execute permission required")
     profile, _, _ = _ctx_from_headers(
-        key_info, None, x_holix_profile, x_hermes_profile, None, None
-    )
+        key_info, None, x_holix_profile, x_hermes_profile, None, None, host_profile=str(host_profile))
     guard = get_action_guard(profile)
     if guard is None:
         raise HTTPException(status_code=404, detail="No confirmation guard initialized")
@@ -307,14 +315,16 @@ async def resolve_plan_review(
 
 
 @router.get("/plans")
-async def list_plans(limit: int = 20, key_info: dict = Depends(verify_api_key)):
+async def list_plans(
+    limit: int = 20, key_info: dict = Depends(verify_api_key)):
     from core.plan_review.plan_storage import list_plans
 
     return {"plans": list_plans(limit=limit)}
 
 
 @router.get("/plans/{plan_id}")
-async def get_plan(plan_id: str, key_info: dict = Depends(verify_api_key)):
+async def get_plan(
+    plan_id: str, key_info: dict = Depends(verify_api_key)):
     from core.plan_review.plan_storage import (
         InvalidPlanIdError,
         get_plan_dir,

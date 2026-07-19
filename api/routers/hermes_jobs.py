@@ -6,14 +6,17 @@ import asyncio
 
 from core.cron import active_runs
 from core.cron.store import CronStore
+from dishka.integrations.fastapi import DishkaRoute, FromDishka
 from fastapi import APIRouter, Depends, Header, HTTPException
 
-from api import state
 from api.deps import resolve_profile_name, verify_api_key
+from api.di import (
+    HostProfileName,
+)
 from api.schemas.hermes import JobCreateRequest, JobPatchRequest
 from api.services.job_body import job_to_api_dict, normalize_job_fields
 
-router = APIRouter(prefix="/api/jobs", tags=["jobs"])
+router = APIRouter(prefix="/api/jobs", tags=["jobs"], route_class=DishkaRoute)
 
 _STORE_KEYS = frozenset({
     "task",
@@ -34,35 +37,39 @@ def _store_fields(fields: dict) -> dict:
 def _job_profile(
     x_holix_profile: str | None,
     x_hermes_profile: str | None,
+    *,
+    host_profile: str = "default",
 ) -> str:
     from api.deps import _header_alias
 
     return resolve_profile_name(
         header_profile=_header_alias(x_holix_profile, x_hermes_profile),
         model=None,
-        host_profile=state.host_profile or "default",
+        host_profile=host_profile or "default",
     )
 
 
 @router.get("")
 async def list_jobs(
+    host_profile: FromDishka[HostProfileName],
     key_info: dict = Depends(verify_api_key),
     x_holix_profile: str | None = Header(None),
     x_hermes_profile: str | None = Header(None),
 ):
-    profile = _job_profile(x_holix_profile, x_hermes_profile)
+    profile = _job_profile(x_holix_profile, x_hermes_profile, host_profile=str(host_profile))
     jobs = CronStore(profile).list_jobs()
     return {"jobs": [job_to_api_dict(j) for j in jobs], "count": len(jobs)}
 
 
 @router.post("")
 async def create_job(
+    host_profile: FromDishka[HostProfileName],
     body: JobCreateRequest,
     key_info: dict = Depends(verify_api_key),
     x_holix_profile: str | None = Header(None),
     x_hermes_profile: str | None = Header(None),
 ):
-    profile = _job_profile(x_holix_profile, x_hermes_profile)
+    profile = _job_profile(x_holix_profile, x_hermes_profile, host_profile=str(host_profile))
     try:
         fields = normalize_job_fields(
             body.model_dump(exclude_none=True),
@@ -77,12 +84,13 @@ async def create_job(
 
 @router.get("/{job_id}")
 async def get_job(
+    host_profile: FromDishka[HostProfileName],
     job_id: str,
     key_info: dict = Depends(verify_api_key),
     x_holix_profile: str | None = Header(None),
     x_hermes_profile: str | None = Header(None),
 ):
-    profile = _job_profile(x_holix_profile, x_hermes_profile)
+    profile = _job_profile(x_holix_profile, x_hermes_profile, host_profile=str(host_profile))
     job = CronStore(profile).get(job_id)
     if job is None:
         raise HTTPException(status_code=404, detail="Job not found")
@@ -91,13 +99,14 @@ async def get_job(
 
 @router.patch("/{job_id}")
 async def patch_job(
+    host_profile: FromDishka[HostProfileName],
     job_id: str,
     body: JobPatchRequest,
     key_info: dict = Depends(verify_api_key),
     x_holix_profile: str | None = Header(None),
     x_hermes_profile: str | None = Header(None),
 ):
-    profile = _job_profile(x_holix_profile, x_hermes_profile)
+    profile = _job_profile(x_holix_profile, x_hermes_profile, host_profile=str(host_profile))
     store = CronStore(profile)
     job = store.get(job_id)
     if job is None:
@@ -122,12 +131,13 @@ async def patch_job(
 
 @router.delete("/{job_id}")
 async def delete_job(
+    host_profile: FromDishka[HostProfileName],
     job_id: str,
     key_info: dict = Depends(verify_api_key),
     x_holix_profile: str | None = Header(None),
     x_hermes_profile: str | None = Header(None),
 ):
-    profile = _job_profile(x_holix_profile, x_hermes_profile)
+    profile = _job_profile(x_holix_profile, x_hermes_profile, host_profile=str(host_profile))
     store = CronStore(profile)
     active_runs.cancel(job_id)
     job = store.get(job_id)
@@ -142,12 +152,13 @@ async def delete_job(
 
 @router.post("/{job_id}/pause")
 async def pause_job(
+    host_profile: FromDishka[HostProfileName],
     job_id: str,
     key_info: dict = Depends(verify_api_key),
     x_holix_profile: str | None = Header(None),
     x_hermes_profile: str | None = Header(None),
 ):
-    profile = _job_profile(x_holix_profile, x_hermes_profile)
+    profile = _job_profile(x_holix_profile, x_hermes_profile, host_profile=str(host_profile))
     try:
         job = CronStore(profile).set_enabled(job_id, False)
     except KeyError:
@@ -157,12 +168,13 @@ async def pause_job(
 
 @router.post("/{job_id}/resume")
 async def resume_job(
+    host_profile: FromDishka[HostProfileName],
     job_id: str,
     key_info: dict = Depends(verify_api_key),
     x_holix_profile: str | None = Header(None),
     x_hermes_profile: str | None = Header(None),
 ):
-    profile = _job_profile(x_holix_profile, x_hermes_profile)
+    profile = _job_profile(x_holix_profile, x_hermes_profile, host_profile=str(host_profile))
     try:
         job = CronStore(profile).set_enabled(job_id, True)
     except KeyError:
@@ -172,12 +184,13 @@ async def resume_job(
 
 @router.post("/{job_id}/run")
 async def run_job_now(
+    host_profile: FromDishka[HostProfileName],
     job_id: str,
     key_info: dict = Depends(verify_api_key),
     x_holix_profile: str | None = Header(None),
     x_hermes_profile: str | None = Header(None),
 ):
-    profile = _job_profile(x_holix_profile, x_hermes_profile)
+    profile = _job_profile(x_holix_profile, x_hermes_profile, host_profile=str(host_profile))
     store = CronStore(profile)
     job = store.get(job_id)
     if job is None:

@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from cli.core import ProfileConfig, init_profile
-from core.agent import HolixAgent
 
 from integrations.max.profile_auth import authorize_max_profile_access
 
@@ -15,7 +14,7 @@ async def create_agent(
     bot_profile: str | None = None,
     max_user_id: int | None = None,
     profile_key: str | None = None,
-) -> HolixAgent:
+):
     if bot_profile is not None and max_user_id is not None:
         authorize_max_profile_access(bot_profile, max_user_id, profile)
         if config is None:
@@ -32,26 +31,16 @@ async def create_agent(
 
     ensure_messenger_locale(profile)
     config = config or init_profile(profile, profile_key=profile_key, prompt_key=False)
-    from core.paths import ensure_profile_memory_dirs
 
-    ensure_profile_memory_dirs(profile)
-    from core.di import resolve_runtime_config
+    import os
 
-    runtime_config = resolve_runtime_config(config)
-    try:
-        from core.models.manager import ModelManager
+    from core.application.profile_runtime import resolve_profile_agent_config
+    from core.di import create_agent as di_create_agent
 
-        mc = ModelManager(config).get_default_model_config()
-        if mc:
-            runtime_config = runtime_config.with_overrides(
-                model=mc.model,
-                base_url=mc.base_url,
-                api_key=mc.api_key,
-                temperature=mc.temperature,
-            )
-    except Exception:
-        pass
+    # Multi-user messenger host: no self-authored extensions into shared agent state.
+    os.environ.setdefault("HOLIX_MESSENGER_HOST", "max")
 
-    agent = HolixAgent(config=runtime_config)
-    await agent.initialize()
+    runtime_config = resolve_profile_agent_config(profile, config)
+    runtime_config = runtime_config.with_overrides(self_extensions_enabled=False)
+    agent, _container = await di_create_agent(runtime_config)
     return agent
