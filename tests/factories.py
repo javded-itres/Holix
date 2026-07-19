@@ -6,7 +6,6 @@ from pathlib import Path
 from typing import Any
 
 import pytest
-
 from core.agent import HolixAgent
 from core.di.runtime_config import HolixRuntimeConfig
 

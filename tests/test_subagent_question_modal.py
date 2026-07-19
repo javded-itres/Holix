@@ -5,9 +5,9 @@ from __future__ import annotations
 from types import SimpleNamespace
 from unittest.mock import MagicMock
 
-from core.subagents.interaction_events import SubAgentQuestionEvent
 from cli.tui.modals.subagent_question import SubagentQuestionModal
 from cli.tui.modals.subagent_question_presenter import SubagentQuestionPresenter
+from core.subagents.interaction_events import SubAgentQuestionEvent
 
 
 def test_modal_from_event_fields():

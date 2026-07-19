@@ -5,26 +5,19 @@ from __future__ import annotations
 import json
 
 from core.security.permissions import PermissionChecker
-from fastapi import APIRouter, Depends, Header, HTTPException
-
 from dishka.integrations.fastapi import DishkaRoute, FromDishka
-
-from api.di import (
-    APIKeyManager,
-    CompanionManager,
-    GatewayLocks,
-    HostProfileName,
-    ProfileAgentRegistry,
-    RateLimiter,
-    ResponsesStore,
-    RunsStore,
-    SessionsStore,
-)
+from fastapi import APIRouter, Depends, Header, HTTPException
 
 from api.deps import (
     ensure_resource_profile,
     resolve_profile_name,
     verify_api_key,
+)
+from api.di import (
+    GatewayLocks,
+    HostProfileName,
+    ProfileAgentRegistry,
+    SessionsStore,
 )
 from api.errors import _SSE_ERROR_CHUNK, sse_streaming_response
 from api.schemas.hermes import SessionChatRequest, SessionCreateRequest, SessionPatchRequest

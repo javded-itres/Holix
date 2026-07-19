@@ -11,11 +11,11 @@ from typing import Any
 
 from core.hub.claude_marketplace import (
     MARKETPLACES,
+    _cache_dir_for_repo,
     ensure_marketplace_repo,
     list_plugins,
     materialize_plugin,
     source_needs_marketplace_checkout,
-    _cache_dir_for_repo,
 )
 from core.hub.clawhub import ClawHubClient
 from core.hub.hermes_hub import HERMES_GIT_URL, hermes_skill_subpath

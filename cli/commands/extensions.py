@@ -114,7 +114,10 @@ def agent_extensions_list(
 ) -> None:
     """List holix.agent.extensions entry points and local folder extensions."""
     from core.env_loader import active_profile_name
-    from core.extensions.agent_registry import clear_agent_extension_cache, discover_agent_extensions
+    from core.extensions.agent_registry import (
+        clear_agent_extension_cache,
+        discover_agent_extensions,
+    )
     from core.extensions.registry import holix_install_hint
 
     prof = profile or active_profile_name()
@@ -237,7 +240,11 @@ def agent_extension_control(
 ) -> None:
     """Show disable/quarantine control file for agent extensions."""
     from core.env_loader import active_profile_name
-    from core.extensions.control import control_path, list_local_agent_extension_folders, load_control
+    from core.extensions.control import (
+        control_path,
+        list_local_agent_extension_folders,
+        load_control,
+    )
 
     prof = profile or active_profile_name()
     ctrl = load_control(prof)

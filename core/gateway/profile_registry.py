@@ -80,13 +80,12 @@ class ProfileAgentRegistry:
                 await self._dispose_entry(self._entries.pop(name))
 
     async def _create_entry(self, profile: str) -> ProfileEntry:
-        from core.profile import init_profile
-
         from core.agent_events import create_compatibility_print_handler
         from core.crypto.gateway_crypto import require_gateway_profile_unlock
         from core.di.container import create_agent, resolve_runtime_config
         from core.env_loader import bootstrap_profile_env
         from core.paths import ensure_profile_memory_dirs
+        from core.profile import init_profile
 
         def _prepare_runtime() -> Any:
             bootstrap_profile_env(profile)

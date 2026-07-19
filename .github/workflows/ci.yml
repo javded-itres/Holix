@@ -91,7 +91,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v5
-      - run: uv sync --all-extras
+      # Same extras as test; skip studio (private git dep holix-studio is not cloneable on GHA).
+      - run: >-
+          uv sync
+          --extra demo
+          --extra telegram --extra max
+          --extra browser --extra voice --extra tui-web --extra windows
       - name: Scan for committed secrets patterns
         run: |
           ! rg -i 'sk-[a-zA-Z0-9]{20,}' --glob '!*.md' --glob '!.github/**' || (echo "Possible API key in repo" && exit 1)

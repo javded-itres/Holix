@@ -1,6 +1,6 @@
 """Dishka provider registry."""
 
-from dishka import Provider, Scope, provide
+from dishka import Provider, Scope
 
 from core.di.providers.agent_services import AgentServicesProvider
 from core.di.providers.config import ConfigProvider

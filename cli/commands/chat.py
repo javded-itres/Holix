@@ -75,9 +75,10 @@ class ChatSession:
     async def initialize_agent(self):
         """Initialize the Holix agent."""
         with console.status("[bold cyan]Initializing Holix...", spinner="dots"):
-            from cli.adapters.event_handlers import create_rich_cli_handler
             from core.agent_events import create_compatibility_print_handler
             from core.di import resolve_runtime_config
+
+            from cli.adapters.event_handlers import create_rich_cli_handler
 
             runtime_config = resolve_runtime_config(self.config)
 

@@ -7,8 +7,9 @@ must not depend on Dishka REQUEST being active.
 
 from __future__ import annotations
 
+from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
-from typing import TYPE_CHECKING, Any, AsyncIterator
+from typing import TYPE_CHECKING, Any
 
 from core.domain.run_context import RunContext
 from core.tools import execution_context as ec

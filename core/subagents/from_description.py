@@ -4,7 +4,8 @@ from __future__ import annotations
 
 import logging
 import re
-from typing import Any, Iterable
+from collections.abc import Iterable
+from typing import Any
 
 from core.subagents.store import (
     DEFAULT_CUSTOM_TOOLS,
@@ -452,8 +453,8 @@ async def expand_system_prompt_via_llm(
     resolved_model = (model or "").strip() or None
     if resolved_client is None or not resolved_model:
         try:
-            from core.profile import init_profile
             from core.models.manager import ModelManager
+            from core.profile import init_profile
 
             prof = init_profile(profile or "default")
             mm = ModelManager(prof)

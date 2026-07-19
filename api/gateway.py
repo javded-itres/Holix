@@ -13,6 +13,7 @@ from dishka.integrations.fastapi import FromDishka, inject, setup_dishka
 from fastapi import Depends, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import PlainTextResponse
+from integrations.bootstrap import register_integration_hooks
 from integrations.max.gateway_routes import (
     init_max_webhook,
     max_gateway_state,
@@ -42,8 +43,6 @@ from api.routers import (
     legacy_v1,
 )
 from config import settings
-
-from integrations.bootstrap import register_integration_hooks
 
 register_integration_hooks()
 
@@ -145,7 +144,7 @@ app.include_router(holix_telegram.router)
 app.include_router(holix_max.router)
 app.include_router(docs_chat_router)
 
-from core.extensions.registry import mount_gateway_extensions
+from core.extensions.registry import mount_gateway_extensions  # noqa: E402
 
 mount_gateway_extensions(app)
 

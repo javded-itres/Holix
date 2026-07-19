@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import pytest
-
 from core.prompt_builder import format_studio_workspace_block
 
 

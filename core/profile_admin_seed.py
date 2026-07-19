@@ -85,13 +85,12 @@ def copy_profile_settings_from_source(
     if not manager.profile_exists(source_profile):
         return False
 
-    from core.profile import ProfileConfig, resolve_profile_storage_paths
-
     from core.global_config import (
         PROFILE_ONLY_KEYS,
         extract_profile_overrides,
         load_global_config_resolved,
     )
+    from core.profile import ProfileConfig, resolve_profile_storage_paths
 
     source_cfg = manager.load_profile(source_profile)
     payload = source_cfg.model_dump()

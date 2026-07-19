@@ -48,7 +48,6 @@ async def async_checkpointer(
             from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
 
             from core.paths import prepare_sqlite_db_file
-
             from core.sqlite_util import connect_aiosqlite
 
             resolved = prepare_sqlite_db_file(db_path)

@@ -6,23 +6,13 @@ import asyncio
 
 from core.cron import active_runs
 from core.cron.store import CronStore
+from dishka.integrations.fastapi import DishkaRoute, FromDishka
 from fastapi import APIRouter, Depends, Header, HTTPException
 
-from dishka.integrations.fastapi import DishkaRoute, FromDishka
-
-from api.di import (
-    APIKeyManager,
-    CompanionManager,
-    GatewayLocks,
-    HostProfileName,
-    ProfileAgentRegistry,
-    RateLimiter,
-    ResponsesStore,
-    RunsStore,
-    SessionsStore,
-)
-
 from api.deps import resolve_profile_name, verify_api_key
+from api.di import (
+    HostProfileName,
+)
 from api.schemas.hermes import JobCreateRequest, JobPatchRequest
 from api.services.job_body import job_to_api_dict, normalize_job_fields
 

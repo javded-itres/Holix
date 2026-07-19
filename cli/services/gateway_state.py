@@ -234,8 +234,9 @@ def health_url(state: GatewayState) -> str:
 
 def list_running_states() -> list[GatewayState]:
     """Return alive gateway states across all profiles."""
-    from cli.core import get_profile_manager
     from core.profile.names import ProfileNameError
+
+    from cli.core import get_profile_manager
 
     out: list[GatewayState] = []
     manager = get_profile_manager()

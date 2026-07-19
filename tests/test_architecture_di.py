@@ -7,7 +7,7 @@ from core.agent import HolixAgent
 from core.di.container import create_agent, create_async_container
 from core.di.runtime_config import HolixRuntimeConfig
 from core.domain.graph_runtime import GraphRuntime
-from core.runtime.agent_sessions import get_agent_session, register_agent_session
+from core.runtime.agent_sessions import get_agent_session
 from core.runtime.background_process import (
     BackgroundProcessRegistry,
     bind_background_process_registry,

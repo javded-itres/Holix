@@ -18,7 +18,7 @@ import logging
 import os
 import subprocess
 import sys
-from dataclasses import asdict, dataclass, field
+from dataclasses import dataclass, field
 from typing import Any
 
 from core.extensions.base import CAPABILITY_SIDECAR
@@ -29,6 +29,7 @@ from core.extensions.permissions import (
     extension_permissions,
 )
 from core.platform_compat import popen_background
+
 from cli.utils.ports import resolve_listen_port
 from cli.utils.rich_console import print_info, print_success, print_warning
 

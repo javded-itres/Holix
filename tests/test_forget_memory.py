@@ -3,10 +3,8 @@
 from __future__ import annotations
 
 from types import SimpleNamespace
-from unittest.mock import AsyncMock
 
 import pytest
-
 from cli.shared.commands.forget_memory import (
     run_forget_memory,
     wipe_conversation_memory_for_host,

@@ -6,23 +6,15 @@ import time
 
 from core.loop_streaming import StreamingAgentLoop
 from core.security.permissions import PermissionChecker
+from dishka.integrations.fastapi import DishkaRoute, FromDishka
 from fastapi import APIRouter, Depends, Header, HTTPException
 
-from dishka.integrations.fastapi import DishkaRoute, FromDishka
-
+from api.deps import resolve_profile_name, verify_api_key
 from api.di import (
-    APIKeyManager,
-    CompanionManager,
     GatewayLocks,
     HostProfileName,
     ProfileAgentRegistry,
-    RateLimiter,
-    ResponsesStore,
-    RunsStore,
-    SessionsStore,
 )
-
-from api.deps import resolve_profile_name, verify_api_key
 from api.errors import _SSE_ERROR_CHUNK, sse_streaming_response
 from api.models import ChatCompletionRequest, ChatCompletionResponse
 from api.services.content_parts import (

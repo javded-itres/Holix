@@ -8,8 +8,6 @@ import time
 from datetime import UTC, datetime
 from typing import Any
 
-from core.profile import ProfileManager
-
 from core.cron import active_runs
 from core.cron.expressions import format_next_run_iso
 from core.cron.models import CronJob
@@ -19,9 +17,10 @@ from core.cron.notifier import (
     send_telegram_notification,
 )
 from core.cron.session_sync import format_cron_summary, persist_cron_result
-from core.presenters.final_content import resolve_messenger_final_content
 from core.cron.store import CronStore, runs_log_path
 from core.di import create_agent, resolve_runtime_config
+from core.presenters.final_content import resolve_messenger_final_content
+from core.profile import ProfileManager
 
 logger = logging.getLogger(__name__)
 

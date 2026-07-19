@@ -4,9 +4,8 @@ from __future__ import annotations
 
 from typing import Any
 
-from core.host.command_menu import HostCommandSpec
+from core.host.command_menu import HostCommandSpec, host_menu_commands
 from core.host.command_menu import command_specs as host_command_specs
-from core.host.command_menu import host_menu_commands
 from core.i18n import t
 
 from integrations.messenger.locale import MESSENGER_DEFAULT_LOCALE, messenger_locale

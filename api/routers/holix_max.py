@@ -3,23 +3,14 @@
 from __future__ import annotations
 
 from cli.core import ProfileManager
+from dishka.integrations.fastapi import DishkaRoute, FromDishka
 from fastapi import APIRouter, Depends, Header, HTTPException
 
-from dishka.integrations.fastapi import DishkaRoute, FromDishka
-
-from api.di import (
-    APIKeyManager,
-    CompanionManager,
-    GatewayLocks,
-    HostProfileName,
-    ProfileAgentRegistry,
-    RateLimiter,
-    ResponsesStore,
-    RunsStore,
-    SessionsStore,
-)
-
 from api.deps import verify_api_key
+from api.di import (
+    CompanionManager,
+    HostProfileName,
+)
 from api.schemas.holix import MaxApproveRequest, MaxMapSetRequest, MaxSetupRequest
 from api.services.holix_deps import profile_access
 from api.services.max_ops import (

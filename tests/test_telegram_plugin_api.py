@@ -88,7 +88,6 @@ def test_load_plugins_invokes_register_telegram(monkeypatch):
 
 def test_all_command_specs_includes_extension(monkeypatch):
     from integrations.telegram.commands import all_command_specs
-    from integrations.telegram.plugin_api import TelegramBotCommand
 
     set_active_telegram_plugin_api(
         TelegramPluginAPI(

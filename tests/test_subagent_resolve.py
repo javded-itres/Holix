@@ -5,7 +5,6 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
-
 from core.subagents.from_description import build_custom_type_from_brief
 from core.subagents.resolve import resolve_subagent_type
 from core.subagents.store import SubAgentTypeStore

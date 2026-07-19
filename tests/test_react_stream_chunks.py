@@ -5,7 +5,6 @@ from __future__ import annotations
 import asyncio
 
 import pytest
-
 from core.graph.nodes.react_node import _iter_stream_chunks
 
 

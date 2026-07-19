@@ -8,7 +8,6 @@ import pytest
 from core.extensions.local_loader import discover_local_host_extensions
 from core.extensions.registry import (
     clear_extension_discovery_cache,
-    discover_extensions,
     list_all_entrypoint_rows,
 )
 

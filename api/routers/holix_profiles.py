@@ -10,23 +10,15 @@ from core.profile_keys import (
     store_profile_access_key,
     verify_profile_access_key,
 )
+from dishka.integrations.fastapi import DishkaRoute, FromDishka
 from fastapi import APIRouter, Depends, Header, HTTPException
 
-from dishka.integrations.fastapi import DishkaRoute, FromDishka
-
+from api.deps import verify_api_key
 from api.di import (
-    APIKeyManager,
     CompanionManager,
-    GatewayLocks,
     HostProfileName,
     ProfileAgentRegistry,
-    RateLimiter,
-    ResponsesStore,
-    RunsStore,
-    SessionsStore,
 )
-
-from api.deps import verify_api_key
 from api.schemas.holix import (
     JailEnableRequest,
     ProfileCreateRequest,

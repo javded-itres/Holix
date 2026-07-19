@@ -5,11 +5,10 @@ from __future__ import annotations
 import logging
 from logging.handlers import RotatingFileHandler
 
-from core.profile import LOGS_DIR
-
 from config import settings
 from core.logging.paths import subagent_log, system_log
 from core.logging.state import LoggingState, load_logging_state, save_logging_state
+from core.profile import LOGS_DIR
 
 _CONFIGURED = False
 

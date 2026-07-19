@@ -7,21 +7,8 @@ from typing import Any
 from cli.core import ProfileManager
 from core.mcp.installer import build_config_from_popular, install_from_git
 from core.mcp.popular import get_popular_by_key, get_popular_list
+from dishka.integrations.fastapi import DishkaRoute
 from fastapi import APIRouter, Depends, Header, HTTPException
-
-from dishka.integrations.fastapi import DishkaRoute, FromDishka
-
-from api.di import (
-    APIKeyManager,
-    CompanionManager,
-    GatewayLocks,
-    HostProfileName,
-    ProfileAgentRegistry,
-    RateLimiter,
-    ResponsesStore,
-    RunsStore,
-    SessionsStore,
-)
 
 from api.deps import verify_api_key
 from api.errors import client_safe_message

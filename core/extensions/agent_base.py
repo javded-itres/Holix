@@ -6,9 +6,11 @@ from typing import Any
 
 from holix_sdk.agent import (
     AgentExtension,
-    AgentExtensionBase as _SDKAgentExtensionBase,
     AgentExtensionContext,
     SlashCommandSpec,
+)
+from holix_sdk.agent import (
+    AgentExtensionBase as _SDKAgentExtensionBase,
 )
 
 from core.extensions.middleware import MiddlewareChain

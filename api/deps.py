@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
-from typing import TypeVar
 
 from fastapi import Depends, HTTPException, Request
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
@@ -25,10 +24,8 @@ _bearer_scheme = HTTPBearer(
     description="Holix gateway API key (hx_…). Also accepted via X-API-Key header.",
 )
 
-T = TypeVar("T")
 
-
-async def _dishka_get(request: Request, dep_type: type[T]) -> T | None:
+async def _dishka_get[T](request: Request, dep_type: type[T]) -> T | None:
     container = getattr(request.app.state, "dishka_container", None)
     if container is None:
         return None
@@ -57,8 +54,9 @@ async def _validate_key(
     default_limit: int,
     request: Request | None = None,
 ) -> dict:
-    from api import state
     from core.security.auth import APIKeyManager, RateLimiter
+
+    from api import state
 
     manager = None
     limiter = None
@@ -288,8 +286,9 @@ async def get_rate_limiter(request: Request):
 
 
 async def get_gateway_locks(request: Request):
-    from api import state
     from core.gateway.locks import GatewayLocks
+
+    from api import state
 
     val = await _dishka_get(request, GatewayLocks)
     if val is not None:
@@ -301,8 +300,9 @@ async def get_gateway_locks(request: Request):
 
 
 async def get_host_profile(request: Request) -> str:
-    from api import state
     from core.gateway.types import HostProfileName
+
+    from api import state
 
     host = await _dishka_get(request, HostProfileName)
     if host is not None:

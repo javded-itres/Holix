@@ -114,13 +114,12 @@ def send_session_message(
     enter: bool = True,
 ) -> dict[str, Any]:
     _require_platform()
+    from core.external_cli.store import ExternalCliStore
     from core.runtime.tmux_launcher import (
         find_launched_session,
         send_text,
         tmux_session_alive,
     )
-
-    from core.external_cli.store import ExternalCliStore
 
     found = find_launched_session(profile, session_ref)
     target = found.tmux_session if found else session_ref
@@ -149,13 +148,12 @@ def capture_session_output(
     lines: int = 40,
 ) -> dict[str, Any]:
     _require_platform()
+    from core.external_cli.store import ExternalCliStore
     from core.runtime.tmux_launcher import (
         capture_pane,
         find_launched_session,
         tmux_session_alive,
     )
-
-    from core.external_cli.store import ExternalCliStore
 
     found = find_launched_session(profile, session_ref)
     target = found.tmux_session if found else session_ref
@@ -176,9 +174,8 @@ def capture_session_output(
 
 def kill_launch_session(profile: str, session_ref: str) -> dict[str, Any]:
     _require_platform()
-    from core.runtime.tmux_launcher import find_launched_session, kill_session, tmux_session_alive
-
     from core.external_cli.store import ExternalCliStore
+    from core.runtime.tmux_launcher import find_launched_session, kill_session, tmux_session_alive
 
     found = find_launched_session(profile, session_ref)
     target = found.tmux_session if found else session_ref

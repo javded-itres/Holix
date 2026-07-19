@@ -20,9 +20,9 @@ def resolve_profile_agent_config(
     workspace_root: str | None = None,
 ) -> HolixRuntimeConfig:
     """Build runtime config from a CLI profile with optional workspace overrides."""
-    from core.profile import init_profile
     from core.di import resolve_runtime_config
     from core.paths import ensure_profile_memory_dirs
+    from core.profile import init_profile
 
     prof = config or init_profile(
         profile,

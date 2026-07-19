@@ -6,11 +6,6 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
-from cli.utils.rich_console import print_error, print_info, print_success, print_warning
-from rich.console import Console
-from rich.prompt import Confirm, Prompt
-from rich.table import Table
-
 from core.hub.catalog import (
     SOURCE_BY_KEY,
     SOURCES,
@@ -21,6 +16,11 @@ from core.hub.catalog import (
 from core.hub.claude_marketplace import MARKETPLACES
 from core.hub.importer import SkillImporter
 from core.hub.slash_registry import rebuild_slash_registry
+from rich.console import Console
+from rich.prompt import Confirm, Prompt
+from rich.table import Table
+
+from cli.utils.rich_console import print_error, print_info, print_success, print_warning
 
 
 def _fetch_rows(source: str, query: str, *, limit: int = 20) -> list[CatalogRow]:
@@ -151,7 +151,6 @@ def run_interactive_hub(
 
         if installed_names and ctx is not None:
             from core.profile import get_profile_manager
-
             from core.skills.assignments import apply_skills_to_agent_slots
 
             if Confirm.ask(

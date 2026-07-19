@@ -5,21 +5,8 @@ from __future__ import annotations
 from cli.core import ProfileManager
 from core.env_loader import read_profile_env_map
 from core.global_config import deep_merge_dict
+from dishka.integrations.fastapi import DishkaRoute
 from fastapi import APIRouter, Depends, Header, HTTPException
-
-from dishka.integrations.fastapi import DishkaRoute, FromDishka
-
-from api.di import (
-    APIKeyManager,
-    CompanionManager,
-    GatewayLocks,
-    HostProfileName,
-    ProfileAgentRegistry,
-    RateLimiter,
-    ResponsesStore,
-    RunsStore,
-    SessionsStore,
-)
 
 from api.deps import verify_api_key
 from api.schemas.holix import ConfigPatchRequest, EnvPatchRequest

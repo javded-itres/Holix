@@ -8,23 +8,22 @@ import uuid
 
 from core.gateway.runs_store import RunStatus
 from core.security.permissions import PermissionChecker
+from dishka.integrations.fastapi import DishkaRoute, FromDishka
 from fastapi import APIRouter, Depends, Header, HTTPException
 from fastapi.responses import StreamingResponse
 
-from dishka.integrations.fastapi import DishkaRoute, FromDishka
-
+from api.deps import (
+    RequestContext,
+    ensure_resource_profile,
+    resolve_profile_name,
+    verify_api_key,
+)
 from api.di import (
     GatewayLocks,
     HostProfileName,
     ProfileAgentRegistry,
     ResponsesStore,
     RunsStore,
-)
-from api.deps import (
-    RequestContext,
-    ensure_resource_profile,
-    resolve_profile_name,
-    verify_api_key,
 )
 from api.schemas.hermes import (
     CapabilitiesResponse,

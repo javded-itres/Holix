@@ -6,7 +6,6 @@ from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
-
 from core.sdd.dispatch import dispatch_change_tasks, load_task_jobs
 from core.sdd.policy import soft_gate_warning
 from core.sdd.store import SpecStore
@@ -72,7 +71,6 @@ async def test_dispatch_spawns_non_main(tmp_path: Path):
     parent.subagents.spawn_typed = AsyncMock(return_value=(handle, None))
 
     # is_subagents_enabled may inspect config — patch
-    import core.sdd.dispatch as dispatch_mod
 
     result = await dispatch_change_tasks(store, "feat-x", parent_agent=parent)
     # may fail if subagents disabled — force via mock path

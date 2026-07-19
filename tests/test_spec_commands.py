@@ -5,7 +5,6 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
-
 from cli.shared.commands.spec_commands import run_spec_command
 
 

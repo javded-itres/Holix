@@ -96,8 +96,8 @@ def discover_extensions(profile: str | None = None) -> tuple[Any, ...]:
         if name:
             by_name[name] = ext
     try:
-        from core.extensions.local_loader import discover_local_host_extensions
         from core.env_loader import active_profile_name
+        from core.extensions.local_loader import discover_local_host_extensions
 
         prof = profile or active_profile_name()
         for ext in discover_local_host_extensions(prof):
@@ -267,8 +267,8 @@ def list_all_entrypoint_rows() -> list[dict[str, Any]]:
 
     # Local agent folders not yet listed
     try:
-        from core.extensions.local_loader import discover_local_agent_extensions
         from core.env_loader import active_profile_name
+        from core.extensions.local_loader import discover_local_agent_extensions
 
         for ext in discover_local_agent_extensions(active_profile_name()):
             name = str(getattr(ext, "name", "") or "")

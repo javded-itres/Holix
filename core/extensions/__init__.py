@@ -28,6 +28,13 @@ from core.extensions.base import (
     ExtensionInfo,
     HolixExtension,
 )
+from core.extensions.control import (
+    disable_extension,
+    enable_extension,
+    is_extension_blocked,
+    load_control,
+    quarantine_extension,
+)
 from core.extensions.middleware import LLMMiddleware, LLMRequestContext, MiddlewareChain
 from core.extensions.registry import (
     ENTRYPOINT_GROUP,
@@ -43,13 +50,6 @@ from core.extensions.registry import (
 from core.extensions.settings import (
     load_extension_settings,
     save_extension_settings,
-)
-from core.extensions.control import (
-    disable_extension,
-    enable_extension,
-    is_extension_blocked,
-    load_control,
-    quarantine_extension,
 )
 
 __all__ = [

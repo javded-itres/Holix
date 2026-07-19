@@ -11,12 +11,12 @@ from core.hub.claude_marketplace import MARKETPLACES, list_plugins, search_plugi
 from core.hub.claude_mcp import merge_into_profile_servers
 from core.hub.clawhub import ClawHubClient
 from core.hub.hermes_hub import list_hermes_skills, search_hermes_skills
-from cli.hub.interactive import run_interactive_hub
 from core.hub.skills_sh import search_skills_sh
 from core.hub.slash_registry import rebuild_slash_registry
 from core.hub.updates import check_hub_updates
 
 from cli.core import get_profile_manager
+from cli.hub.interactive import run_interactive_hub
 from cli.utils.rich_console import (
     print_error,
     print_info,

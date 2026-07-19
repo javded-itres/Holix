@@ -190,15 +190,14 @@ def sync_custom_type_profile_bindings(
     previous_name: str | None = None,
 ) -> None:
     """Persist skills, MCP, model slot, and external CLI links for a custom type."""
-    from core.profile import get_profile_manager
-
     from core.external_cli.assignment import assign_cli_to_subagent, unassign_cli_subagent
     from core.external_cli.store import ExternalCliStore
+    from core.profile import get_profile_manager
     manager = get_profile_manager()
     config = manager.load_profile(profile)
-    slot = custom.name
+    agent_slot = custom.name
 
-    if previous_name and previous_name != slot:
+    if previous_name and previous_name != agent_slot:
         old_assigns = dict(getattr(config, "skill_assignments", None) or {})
         if previous_name in old_assigns:
             del old_assigns[previous_name]
@@ -210,24 +209,24 @@ def sync_custom_type_profile_bindings(
 
     assigns = dict(getattr(config, "skill_assignments", None) or {})
     if custom.skills:
-        assigns[slot] = list(dict.fromkeys(custom.skills))
-    elif slot in assigns:
-        del assigns[slot]
+        assigns[agent_slot] = list(dict.fromkeys(custom.skills))
+    elif agent_slot in assigns:
+        del assigns[agent_slot]
     config.skill_assignments = assigns
 
     mcp_assigns = dict(getattr(config, "mcp_assignments", None) or {})
     if custom.mcp_servers:
-        mcp_assigns[slot] = list(dict.fromkeys(custom.mcp_servers))
-    elif slot in mcp_assigns:
-        del mcp_assigns[slot]
+        mcp_assigns[agent_slot] = list(dict.fromkeys(custom.mcp_servers))
+    elif agent_slot in mcp_assigns:
+        del mcp_assigns[agent_slot]
     config.mcp_assignments = mcp_assigns
 
-    slot = (custom.model_slot or "").strip()
-    if slot and slot.lower() not in ("main", "default", "inherit", "parent"):
-        resolved = resolve_model_slot_binding(profile, slot)
+    model_slot = (custom.model_slot or "").strip()
+    if model_slot and model_slot.lower() not in ("main", "default", "inherit", "parent"):
+        resolved = resolve_model_slot_binding(profile, model_slot)
         if resolved:
             agent_models = dict(getattr(config, "agent_models", None) or {})
-            agent_models[slot] = {
+            agent_models[model_slot] = {
                 "provider": resolved[0],
                 "model": resolved[1],
             }
@@ -238,15 +237,15 @@ def sync_custom_type_profile_bindings(
     store = ExternalCliStore(profile)
     bindings = store.load_bindings()
     for binding in bindings.values():
-        if binding.agent_slot == slot and binding.cli_id != custom.external_cli_id:
+        if binding.agent_slot == agent_slot and binding.cli_id != custom.external_cli_id:
             binding.agent_slot = ""
             store.upsert_binding(binding)
 
     if custom.external_cli_id:
-        assign_cli_to_subagent(profile, custom.external_cli_id, slot)
+        assign_cli_to_subagent(profile, custom.external_cli_id, agent_slot)
     else:
         for cli_id, binding in bindings.items():
-            if binding.agent_slot == slot:
+            if binding.agent_slot == agent_slot:
                 unassign_cli_subagent(profile, cli_id)
 
 

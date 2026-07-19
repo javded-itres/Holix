@@ -11,21 +11,8 @@ from core.hub.normalize import (
     resolve_skill_markdown_path,
 )
 from core.skills.assignments import agents_for_skill
+from dishka.integrations.fastapi import DishkaRoute
 from fastapi import APIRouter, Depends, Header, HTTPException, Query
-
-from dishka.integrations.fastapi import DishkaRoute, FromDishka
-
-from api.di import (
-    APIKeyManager,
-    CompanionManager,
-    GatewayLocks,
-    HostProfileName,
-    ProfileAgentRegistry,
-    RateLimiter,
-    ResponsesStore,
-    RunsStore,
-    SessionsStore,
-)
 
 from api.deps import verify_api_key
 from api.schemas.holix import SkillAssignmentsPatchRequest

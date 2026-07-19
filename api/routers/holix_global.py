@@ -11,11 +11,11 @@ from core.global_config import (
     load_global_config_raw,
     strip_profile_only_keys,
 )
-from fastapi import APIRouter, Depends, Header
 from dishka.integrations.fastapi import DishkaRoute, FromDishka
+from fastapi import APIRouter, Depends, Header
 
-from api.di import HostProfileName
 from api.deps import verify_api_key
+from api.di import HostProfileName
 from api.schemas.holix import ConfigPatchRequest, EnvPatchRequest
 from api.services.config_mask import mask_config_dict
 from api.services.env_mask import mask_env_map

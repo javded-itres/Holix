@@ -35,8 +35,8 @@ class ModelsMenuState:
 
 def build_models_menu(profile: str) -> ModelsMenuState:
     """Presets (main, agent_models) + per-provider model lists."""
-    from core.profile import ProfileManager
     from core.models.manager import ModelManager
+    from core.profile import ProfileManager
 
     try:
         cfg = ProfileManager().load_profile(profile)
@@ -136,8 +136,8 @@ def choice_for_provider_model(provider: str, model_id: str) -> ModelChoice:
 
 
 def resolve_model_config(profile: str, choice: ModelChoice) -> Any:
-    from core.profile import ProfileManager
     from core.models.manager import ModelConfig, ModelManager
+    from core.profile import ProfileManager
 
     cfg = ProfileManager().load_profile(profile)
     mm = ModelManager(cfg)
@@ -213,7 +213,11 @@ def apply_model_choice_sync(
         host._refresh_status_bar()
 
     if persist:
-        from core.session_models import _mark_model_synced, host_conversation_id, persist_session_model
+        from core.session_models import (
+            _mark_model_synced,
+            host_conversation_id,
+            persist_session_model,
+        )
 
         persist_session_model(host, choice)
         _mark_model_synced(host, host_conversation_id(host))

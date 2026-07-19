@@ -6,7 +6,6 @@ from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
-
 from core.sdd.dispatch import dispatch_change_tasks, load_task_jobs
 from core.sdd.store import SpecStore
 from core.sdd.task_completion import (

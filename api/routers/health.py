@@ -4,22 +4,15 @@ from __future__ import annotations
 
 from datetime import datetime
 
+from dishka.integrations.fastapi import DishkaRoute, FromDishka
 from fastapi import APIRouter
 
-from dishka.integrations.fastapi import DishkaRoute, FromDishka
-
 from api.di import (
-    APIKeyManager,
     CompanionManager,
-    GatewayLocks,
     HostProfileName,
     ProfileAgentRegistry,
-    RateLimiter,
-    ResponsesStore,
     RunsStore,
-    SessionsStore,
 )
-
 from config import settings
 
 router = APIRouter(tags=["health"], route_class=DishkaRoute)

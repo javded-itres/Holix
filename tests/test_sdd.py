@@ -5,7 +5,6 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
-
 from core.sdd.apply_mode import apply_mode_prompt_text, normalize_apply_mode, save_apply_mode
 from core.sdd.merge import merge_delta_into_main
 from core.sdd.store import SpecStore

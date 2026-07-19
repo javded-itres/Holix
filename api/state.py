@@ -17,12 +17,10 @@ compatibility surface for:
 from __future__ import annotations
 
 import asyncio
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from dishka import AsyncContainer
-
     from core.gateway.companions import CompanionManager
     from core.gateway.locks import GatewayLocks
     from core.gateway.profile_registry import ProfileAgentRegistry
@@ -30,6 +28,7 @@ if TYPE_CHECKING:
     from core.gateway.runs_store import RunsStore
     from core.gateway.sessions_store import SessionsStore
     from core.security.auth import APIKeyManager, RateLimiter
+    from dishka import AsyncContainer
 
 
 class GatewayStateError(RuntimeError):

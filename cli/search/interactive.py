@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import asyncio
 from typing import Any
 
+from core.search.catalog import SEARCH_PROVIDERS
 from core.search.config import SearchConfig
 from core.search.setup_helpers import (
     build_search_config,
@@ -16,6 +18,7 @@ from core.search.setup_helpers import (
     search_already_configured,
 )
 
+
 def configure_search_interactive(
     profile: str,
     *,
@@ -27,12 +30,13 @@ def configure_search_interactive(
     test_query: str = "open source ai agents",
 ) -> bool:
     """Interactive provider picker; saves config to the profile."""
-    from cli.installer.bootstrap_i18n import bt
-    from cli.utils.rich_console import print_error, print_info, print_success, print_warning
     from rich.console import Console
     from rich.panel import Panel
     from rich.prompt import Confirm, Prompt
     from rich.table import Table
+
+    from cli.installer.bootstrap_i18n import bt
+    from cli.utils.rich_console import print_error, print_info, print_success, print_warning
 
     console = Console()
     current = SearchConfig.from_dict(load_profile_search(profile))

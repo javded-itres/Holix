@@ -3,23 +3,13 @@
 from __future__ import annotations
 
 from cli.core import ProfileManager
+from dishka.integrations.fastapi import DishkaRoute, FromDishka
 from fastapi import APIRouter, Depends, Header, HTTPException
 
-from dishka.integrations.fastapi import DishkaRoute, FromDishka
-
-from api.di import (
-    APIKeyManager,
-    CompanionManager,
-    GatewayLocks,
-    HostProfileName,
-    ProfileAgentRegistry,
-    RateLimiter,
-    ResponsesStore,
-    RunsStore,
-    SessionsStore,
-)
-
 from api.deps import verify_api_key
+from api.di import (
+    CompanionManager,
+)
 from api.schemas.holix import TelegramApproveRequest, TelegramMapSetRequest, TelegramSetupRequest
 from api.services.holix_deps import profile_access
 from api.services.profile_access import require_admin_access

@@ -2,12 +2,12 @@
 
 from __future__ import annotations
 
+from dishka.integrations.fastapi import DishkaRoute, FromDishka
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import PlainTextResponse
-from dishka.integrations.fastapi import DishkaRoute, FromDishka
 
-from api.di import APIKeyManager
 from api.deps import verify_admin_key
+from api.di import APIKeyManager
 from config import settings
 
 router = APIRouter(prefix="/admin", tags=["admin"], route_class=DishkaRoute)

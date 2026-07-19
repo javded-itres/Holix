@@ -30,7 +30,9 @@ async def run_single_query(query: str, conversation_id: str, config: ProfileConf
     with create_spinner() as progress:
         task = progress.add_task("Initializing Holix...", total=None)
         from core.agent_events import create_compatibility_print_handler
-from cli.adapters.event_handlers import create_rich_cli_handler
+
+        from cli.adapters.event_handlers import create_rich_cli_handler
+
         try:
             handler = create_rich_cli_handler()
         except Exception:

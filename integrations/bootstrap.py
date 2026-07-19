@@ -18,6 +18,7 @@ def register_integration_hooks() -> None:
 
 def _register_companions() -> None:
     from cli.services.supervisor import telegram_should_start
+
     from integrations.max.gateway_routes import max_should_poll
 
     async def start_telegram(profile: str) -> None:
@@ -127,6 +128,7 @@ def _register_profile_lifecycle() -> None:
 
     def find_telegram_users(target_profile: str) -> list[tuple[str, int]]:
         from core.profile import ProfileManager
+
         from integrations.telegram.user_profiles import load_user_profiles
 
         name = target_profile.strip()
@@ -188,6 +190,7 @@ def _register_profile_lifecycle() -> None:
 
     def remove_bindings(target_profile: str) -> int:
         from core.profile import ProfileManager
+
         from integrations.telegram.user_profiles import load_user_profiles, save_user_profiles
 
         name = target_profile.strip()

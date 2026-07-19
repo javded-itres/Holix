@@ -192,10 +192,9 @@ def _user_facing_error(exc: Exception, *, lang: str) -> str:
 
 
 def _resolve_llm(profile_name: str) -> tuple[str, str, str, float, int]:
-    from core.profile import init_profile
-
     from core.env_loader import bootstrap_profile_env
     from core.models.manager import ModelManager
+    from core.profile import init_profile
 
     bootstrap_profile_env(profile_name)
     profile = init_profile(profile_name)

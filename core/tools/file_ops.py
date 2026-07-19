@@ -2,14 +2,10 @@ import mimetypes
 from pathlib import Path
 
 from core.crypto.profile_crypto import ProfileCryptoLockedError
+from core.project.holix_md import HOLIX_MD_FILENAME, HOLIX_MD_LEGACY_FILENAME
 from core.tools.base import BaseTool
 from core.tools.execution_context import get_profile_name
-from core.project.holix_md import HOLIX_MD_FILENAME, HOLIX_MD_LEGACY_FILENAME
 from core.tools.file_diff import format_write_file_result, read_file_text
-
-_HOLIX_MD_MAX_WRITE_CHARS = 6000
-_PATCH_MAX_REPLACEMENTS = 12
-_PATCH_MAX_NEW_CHARS = 2000
 from core.workspace import WorkspaceJailError, display_path_for_user, resolve_tool_path
 from core.workspace.quota import WorkspaceQuotaExceeded
 from core.workspace.storage import (
@@ -17,6 +13,10 @@ from core.workspace.storage import (
     read_profile_file_text,
     write_profile_file_text,
 )
+
+_HOLIX_MD_MAX_WRITE_CHARS = 6000
+_PATCH_MAX_REPLACEMENTS = 12
+_PATCH_MAX_NEW_CHARS = 2000
 
 _IMAGE_SUFFIXES = frozenset(
     {".jpg", ".jpeg", ".png", ".gif", ".webp", ".bmp", ".heic", ".heif", ".tif", ".tiff"}

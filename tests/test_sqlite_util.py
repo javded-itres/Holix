@@ -6,7 +6,6 @@ import asyncio
 import sqlite3
 
 import pytest
-
 from core.sqlite_util import connect_aiosqlite, connect_sqlite
 
 

@@ -7,7 +7,6 @@ from pathlib import Path
 from unittest.mock import patch
 
 import pytest
-
 from core.extensions.agent_base import AgentExtensionBase, SlashCommandSpec
 from core.extensions.agent_registry import (
     ENTRYPOINT_GROUP,

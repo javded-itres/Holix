@@ -6,10 +6,9 @@ import json
 from datetime import UTC, datetime
 from pathlib import Path
 
-from core.profile import ProfileManager
-
 from core.cron.expressions import format_next_run_iso, validate_cron_expression
 from core.cron.models import CronJob, CronJobStore
+from core.profile import ProfileManager
 
 
 def cron_dir(profile: str) -> Path:

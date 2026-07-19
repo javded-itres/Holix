@@ -9,7 +9,7 @@ Collected hooks are applied when the Telegram bot is built / starts.
 from __future__ import annotations
 
 import logging
-from collections.abc import Awaitable, Callable
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import Any
 

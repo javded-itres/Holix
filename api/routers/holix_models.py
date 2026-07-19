@@ -6,21 +6,8 @@ from cli.core import ProfileManager
 from core.models.catalog import get_provider_preset, list_provider_presets
 from core.models.profile_cleanup import remove_provider_from_profile
 from core.models.setup_helpers import add_preset_to_config, apply_ssl_override, probe_provider
+from dishka.integrations.fastapi import DishkaRoute
 from fastapi import APIRouter, Depends, Header, HTTPException
-
-from dishka.integrations.fastapi import DishkaRoute, FromDishka
-
-from api.di import (
-    APIKeyManager,
-    CompanionManager,
-    GatewayLocks,
-    HostProfileName,
-    ProfileAgentRegistry,
-    RateLimiter,
-    ResponsesStore,
-    RunsStore,
-    SessionsStore,
-)
 
 from api.deps import verify_api_key
 from api.schemas.holix import AgentModelsPatchRequest, FallbacksPatchRequest, ProviderAddRequest

@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
 
 # Short TTL so Studio auto-browse / refresh does not hammer remote registries.
 _CATALOG_CACHE_TTL_SEC = 90.0
-_catalog_cache: dict[tuple[str, str, int, bool], tuple[float, list["CatalogRow"]]] = {}
+_catalog_cache: dict[tuple[str, str, int, bool], tuple[float, list[CatalogRow]]] = {}
 
 
 @dataclass

@@ -177,9 +177,8 @@ class HolixAgent:
     def model_manager(self):
         """Lazy ModelManager for provider routing and fallbacks."""
         if self._model_manager is None:
-            from core.profile import ProfileManager
-
             from core.models.manager import ModelManager
+            from core.profile import ProfileManager
 
             profile_name = getattr(self.config, "profile_name", "default") or "default"
             self._model_manager = ModelManager(ProfileManager().load_profile(profile_name))

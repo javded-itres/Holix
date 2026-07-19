@@ -7,7 +7,7 @@ from core.project.init_scan import InitProjectScan, format_init_scan_report, sca
 
 
 def _holix_md_rel_path(target_dir: str | None = None) -> str:
-    from core.project.holix_md import HOLIX_MD_FILENAME, HOLIX_MD_REL_PATH
+    from core.project.holix_md import HOLIX_MD_FILENAME
 
     rel = (target_dir or "").strip().strip("/").replace("\\", "/")
     if not rel:

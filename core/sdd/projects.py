@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from core.sdd.paths import CONFIG_FILE, OPENSPEC_DIR, openspec_root
+from core.sdd.paths import CONFIG_FILE, openspec_root
 
 _SKIP_DIR_NAMES = frozenset(
     {

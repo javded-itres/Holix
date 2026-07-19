@@ -12,7 +12,7 @@ from core.extensions.local_loader import (
     load_local_default_settings,
 )
 from core.extensions.manifest import load_manifest_from_module, merge_manifest_into_extension
-from core.extensions.middleware import MiddlewareChain, get_or_create_chain, install_llm_middleware
+from core.extensions.middleware import get_or_create_chain, install_llm_middleware
 from core.extensions.permissions import PERMISSION_TOOLS, enforce_permissions
 from core.extensions.registry import _entry_points_for_group
 from core.extensions.settings import (
