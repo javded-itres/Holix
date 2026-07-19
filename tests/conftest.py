@@ -229,6 +229,20 @@ def gateway_client(gateway_auth_headers, monkeypatch: pytest.MonkeyPatch):
 
 
 @pytest.fixture(autouse=True)
+def _reset_env_loader_state() -> None:
+    """Keep env bootstrap shell-lock state from leaking across tests."""
+    import core.env_loader as el
+
+    el._BOOTSTRAPPED = False
+    el._SHELL_ENV_KEYS = None
+    el._ACTIVE_PROFILE_ENV = None
+    yield
+    el._BOOTSTRAPPED = False
+    el._SHELL_ENV_KEYS = None
+    el._ACTIVE_PROFILE_ENV = None
+
+
+@pytest.fixture(autouse=True)
 def _isolated_holix_home(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """Keep profile paths off the developer/CI machine (~/.holix)."""
     import cli.core as cli_core

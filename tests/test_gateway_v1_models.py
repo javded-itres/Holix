@@ -31,9 +31,10 @@ def test_v1_models_returns_llm_models_not_profiles(
     }
     manager.save_profile("docs", cfg)
 
-    monkeypatch.setattr("api.state.host_profile", "docs")
-
-    response = gateway_client.get("/v1/models", headers=gateway_auth_headers)
+    response = gateway_client.get(
+        "/v1/models",
+        headers={**gateway_auth_headers, "X-Holix-Profile": "docs"},
+    )
     assert response.status_code == 200
     payload = response.json()
     assert payload["object"] == "list"

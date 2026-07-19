@@ -46,6 +46,17 @@ def _shell_locked_keys() -> set[str]:
     return _SHELL_ENV_KEYS
 
 
+def _is_shell_locked(key: str) -> bool:
+    """True only while a key is still present as a live process export.
+
+    Snapshot membership alone is not enough: tests (and rare runtime unsets)
+    may remove a key that was present when the shell snapshot was taken, or
+    re-snapshot after a previous bootstrap left file-loaded keys in
+    ``os.environ``. In those cases files must still be allowed to apply.
+    """
+    return key in _shell_locked_keys() and key in os.environ
+
+
 def _find_env_example_path() -> Path | None:
     candidates: list[Path] = [
         Path.cwd() / ".env.example",
@@ -150,11 +161,10 @@ def _apply_env_file(
     except ImportError:
         return
 
-    locked = _shell_locked_keys()
     for key, value in dotenv_values_for_path(path, profile=profile).items():
         if value is None or not str(value).strip():
             continue
-        if key in locked:
+        if _is_shell_locked(key):
             continue
         if not override_file_values and key in os.environ:
             continue
@@ -211,9 +221,8 @@ def bootstrap_env(*, include_project: bool = True, force: bool = False) -> None:
         if user_env.is_file():
             merged.update(dotenv_values(user_env))
 
-    locked = _shell_locked_keys()
     for key, value in merged.items():
-        if value is None or not str(value).strip() or key in locked:
+        if value is None or not str(value).strip() or _is_shell_locked(key):
             continue
         os.environ[key] = str(value)
 
