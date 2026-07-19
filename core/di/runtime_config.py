@@ -105,6 +105,10 @@ class HolixRuntimeConfig:
     workspace_root: str | None = None
     encryption_enabled: bool = False
 
+    # Self-authored drop-in agent extensions (local single-operator only)
+    # False for Telegram/MAX multi-user agents.
+    self_extensions_enabled: bool = True
+
     @classmethod
     def from_settings(cls, source: Settings | None = None) -> Self:
         """Build config from pydantic Settings (env / .env).

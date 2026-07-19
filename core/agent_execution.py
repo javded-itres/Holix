@@ -120,6 +120,11 @@ async def run_agent_loop(
     tools_desc = format_tools_description(agent.tools.get_schemas())
     agent_config = getattr(agent, "config", None)
     profile_name = getattr(agent_config, "profile_name", None)
+    persona_name = getattr(agent, "studio_agent_type", None)
+    persona_prompt = getattr(agent, "studio_persona_prompt", None)
+    if persona_name in (None, "", "main"):
+        persona_name = None
+        persona_prompt = None
     system_prompt = build_system_prompt(
         tools_description=tools_desc,
         active_skills=relevant_skills,
@@ -128,6 +133,8 @@ async def run_agent_loop(
         profile_name=profile_name,
         workspace_root=getattr(agent_config, "workspace_root", None),
         workspace_jail_enabled=getattr(agent_config, "workspace_jail_enabled", None),
+        persona_name=persona_name,
+        persona_prompt=persona_prompt,
     )
 
     # ------------------------------------------------------------------

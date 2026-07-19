@@ -3,15 +3,20 @@
 from __future__ import annotations
 
 import json
+import logging
 import re
+import time
 import urllib.error
 import urllib.parse
 import urllib.request
 from dataclasses import dataclass
 
+logger = logging.getLogger(__name__)
+
 HERMES_REPO = "amanning3390/hermeshub"
 HERMES_GIT_URL = f"https://github.com/{HERMES_REPO}.git"
 GITHUB_CONTENTS_API = f"https://api.github.com/repos/{HERMES_REPO}/contents/skills"
+HERMES_MARKETPLACE_API = "https://hermeshub.xyz/api/v1/skills/marketplace"
 USER_AGENT = "Holix/1.0 (+https://github.com/javded-itres/Holix)"
 
 
@@ -24,7 +29,7 @@ class HermesHubHit:
     install_spec: str
 
 
-def _github_get(url: str) -> object:
+def _github_get(url: str, *, timeout: float = 8.0) -> object:
     req = urllib.request.Request(
         url,
         headers={
@@ -32,48 +37,77 @@ def _github_get(url: str) -> object:
             "Accept": "application/vnd.github+json",
         },
     )
-    with urllib.request.urlopen(req, timeout=30) as resp:
+    with urllib.request.urlopen(req, timeout=timeout) as resp:
         return json.loads(resp.read().decode("utf-8"))
+
+
+def _http_get_json(url: str, *, timeout: float = 8.0) -> object:
+    """GET JSON with redirect follow (urllib default) and short timeout."""
+    req = urllib.request.Request(
+        url,
+        headers={
+            "User-Agent": USER_AGENT,
+            "Accept": "application/json",
+        },
+    )
+    with urllib.request.urlopen(req, timeout=timeout) as resp:
+        return json.loads(resp.read().decode("utf-8"))
+
+
+_HERMES_LIST_CACHE: tuple[float, list[HermesHubHit]] | None = None
+_HERMES_LIST_TTL = 90.0
 
 
 def list_hermes_skills(*, limit: int = 50) -> list[HermesHubHit]:
     """List skill directories from the HermesHub GitHub repo."""
-    try:
-        data = _github_get(GITHUB_CONTENTS_API)
-    except urllib.error.HTTPError as e:
-        if e.code == 403:
-            return _list_from_marketplace_api(limit=limit)
-        raise
-    if not isinstance(data, list):
-        return []
+    global _HERMES_LIST_CACHE
+    now = time.monotonic()
+    if _HERMES_LIST_CACHE and (now - _HERMES_LIST_CACHE[0]) < _HERMES_LIST_TTL:
+        return list(_HERMES_LIST_CACHE[1][:limit])
 
     hits: list[HermesHubHit] = []
-    for item in data[:limit]:
-        if item.get("type") != "dir":
-            continue
-        slug = item.get("name", "")
-        if not slug or slug.startswith("."):
-            continue
-        hits.append(
-            HermesHubHit(
-                slug=slug,
-                name=slug,
-                description="",
-                category="hermes",
-                install_spec=f"hermes:{slug}",
-            )
-        )
-    return hits
+    # Prefer GitHub contents (usually fast on IPv4). Fall back to marketplace API.
+    try:
+        data = _github_get(GITHUB_CONTENTS_API, timeout=8.0)
+        if isinstance(data, list):
+            for item in data:
+                if item.get("type") != "dir":
+                    continue
+                slug = item.get("name", "")
+                if not slug or slug.startswith("."):
+                    continue
+                hits.append(
+                    HermesHubHit(
+                        slug=slug,
+                        name=slug,
+                        description="",
+                        category="hermes",
+                        install_spec=f"hermes:{slug}",
+                    )
+                )
+    except (urllib.error.URLError, TimeoutError, OSError, json.JSONDecodeError) as exc:
+        logger.debug("hermes github list failed: %s", exc)
+
+    if not hits:
+        try:
+            hits = _list_from_marketplace_api(limit=max(limit, 50))
+        except (urllib.error.URLError, TimeoutError, OSError, json.JSONDecodeError) as exc:
+            logger.info("hermes catalog unavailable: %s", exc)
+            hits = []
+
+    if hits:
+        _HERMES_LIST_CACHE = (now, hits)
+    return hits[:limit]
 
 
 def _list_from_marketplace_api(*, limit: int) -> list[HermesHubHit]:
-    """Fallback when GitHub API is rate-limited."""
-    url = "https://hermeshub.xyz/api/v1/skills/marketplace?" + urllib.parse.urlencode(
+    """Fallback when GitHub API is rate-limited or unreachable."""
+    url = HERMES_MARKETPLACE_API + "?" + urllib.parse.urlencode(
         {"limit": str(limit), "page": "1"}
     )
-    req = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
-    with urllib.request.urlopen(req, timeout=30) as resp:
-        data = json.loads(resp.read().decode("utf-8"))
+    data = _http_get_json(url, timeout=8.0)
+    if not isinstance(data, dict):
+        return []
     hits: list[HermesHubHit] = []
     for row in data.get("skills", [])[:limit]:
         slug = row.get("slug") or row.get("name", "")

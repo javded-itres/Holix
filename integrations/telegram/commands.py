@@ -20,7 +20,23 @@ def telegram_menu_commands(locale: str | None = None) -> list[tuple[str, str]]:
 
 
 def command_specs(locale: str | None = None) -> list[TelegramCommandSpec]:
+    """Built-in Holix commands only (not extension-contributed)."""
     return host_command_specs(locale)
+
+
+def all_command_specs(locale: str | None = None) -> list[TelegramCommandSpec]:
+    """Built-in + commands registered by Telegram plugins/extensions."""
+    specs = list(command_specs(locale))
+    try:
+        from integrations.telegram.plugin_api import extension_bot_commands
+
+        for cmd in extension_bot_commands():
+            specs.append(
+                TelegramCommandSpec.from_pair(cmd.command, cmd.description)
+            )
+    except Exception:
+        pass
+    return specs
 
 def _bot_commands_for_locale(locale: str | None = None) -> list[Any]:
     try:
@@ -29,7 +45,7 @@ def _bot_commands_for_locale(locale: str | None = None) -> list[Any]:
         return []
     return [
         BotCommand(command=spec.command, description=spec.description[:256])
-        for spec in command_specs(locale)
+        for spec in all_command_specs(locale)
     ]
 
 
@@ -91,7 +107,7 @@ def _bot_commands_for_user(
 
         specs = commands_for_user(bot_profile, int(user_id), locale=locale)
     else:
-        specs = command_specs(locale)
+        specs = all_command_specs(locale)
     try:
         from aiogram.types import BotCommand
     except ImportError:
@@ -170,7 +186,7 @@ async def register_global_bot_commands(bot: Any, *, locale: str | None = None) -
         await bot.set_chat_menu_button(menu_button=MenuButtonCommands())
     except Exception:
         pass
-    return [spec.command for spec in command_specs(locale)]
+    return [spec.command for spec in all_command_specs(locale)]
 
 
 async def register_bot_commands(
@@ -227,7 +243,7 @@ def help_message_html(
 
         specs = commands_for_user(bot_profile, int(user_id), locale=loc)
     else:
-        specs = command_specs(loc)
+        specs = all_command_specs(loc)
     lines = [
         f"<b>{escape_html_simple(t('tg.help.title', loc))}</b>",
         "",

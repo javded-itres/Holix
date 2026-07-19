@@ -1077,6 +1077,11 @@ def _build_system_prompt_from_state(state: HolixGraphState, agent=None) -> str:
 
     profile_name = profile_name_from_agent(agent) if agent else "default"
     agent_config = getattr(agent, "config", None) if agent else None
+    persona_name = getattr(agent, "studio_agent_type", None) if agent else None
+    persona_prompt = getattr(agent, "studio_persona_prompt", None) if agent else None
+    if persona_name in (None, "", "main"):
+        persona_name = None
+        persona_prompt = None
     return build_system_prompt(
         tools_description=tools_desc,
         active_skills=relevant_skills,
@@ -1085,6 +1090,8 @@ def _build_system_prompt_from_state(state: HolixGraphState, agent=None) -> str:
         profile_name=profile_name,
         workspace_root=getattr(agent_config, "workspace_root", None),
         workspace_jail_enabled=getattr(agent_config, "workspace_jail_enabled", None),
+        persona_name=persona_name,
+        persona_prompt=persona_prompt,
     )
 
 

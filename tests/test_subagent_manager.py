@@ -27,7 +27,7 @@ def test_allocate_name_suffix_when_busy() -> None:
         config=SubAgentConfig(name="researcher"),
         status=SubAgentStatus.RUNNING,
     )
-    assert mgr.allocate_name("researcher") == "researcher-2"
+    assert mgr.allocate_name("researcher") == "researcher-1"
 
 
 def test_allocate_name_reuses_slot_when_done() -> None:

@@ -181,6 +181,8 @@ dependencies = [
 Capabilities: `cli`, `http`, `sidecar`, `agent`.  
 Holix подставляет поля из manifest, если в классе расширения оставлены значения по умолчанию.
 
+**Sidecar (отдельный порт вместе с gateway):** host-расширение с capability `sidecar` реализует `sidecar_spec(profile) → dict | None` (`id`, `host`, `port`, `argv`, опционально `env`, `label`). Supervisor поднимает процесс при `holix gateway start` и останавливает при shutdown. Пример: `holix-billing-console`.
+
 ### 5. Agent-расширение
 
 ```python

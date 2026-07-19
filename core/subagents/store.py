@@ -44,7 +44,7 @@ class CustomSubAgentType:
     description: str = ""
     system_prompt: str = ""
     tools: list[str] = field(default_factory=lambda: list(DEFAULT_CUSTOM_TOOLS))
-    max_steps: int = 12
+    max_steps: int = 150
     temperature: float = 0.3
     skills: list[str] = field(default_factory=list)
     mcp_servers: list[str] = field(default_factory=list)
@@ -59,7 +59,7 @@ class CustomSubAgentType:
             description=str(data.get("description") or ""),
             system_prompt=str(data.get("system_prompt") or ""),
             tools=tools or list(DEFAULT_CUSTOM_TOOLS),
-            max_steps=int(data.get("max_steps") or 12),
+            max_steps=int(data.get("max_steps") or 150),
             temperature=float(data.get("temperature") if data.get("temperature") is not None else 0.3),
             skills=[str(s) for s in (data.get("skills") or []) if str(s).strip()],
             mcp_servers=[str(m) for m in (data.get("mcp_servers") or []) if str(m).strip()],
@@ -151,6 +151,38 @@ class SubAgentTypeStore:
         return removed
 
 
+def resolve_model_slot_binding(
+    profile: str, model_slot: str
+) -> tuple[str, str] | None:
+    """Map a Studio/CLI model slot id to (provider, model).
+
+    Empty / main / inherit → None (use parent main agent model).
+    """
+    slot = (model_slot or "").strip()
+    if not slot or slot.lower() in ("main", "default", "inherit", "parent"):
+        return None
+    try:
+        from core.models.menu import build_models_menu
+
+        menu = build_models_menu(profile)
+        for preset in menu.presets:
+            if preset.slot_id == slot:
+                return str(preset.provider), str(preset.model)
+        for prov in menu.providers:
+            prefix = f"prov:{prov.name}:"
+            if slot.startswith(prefix):
+                model_id = slot[len(prefix) :]
+                if model_id in (prov.models or []):
+                    return str(prov.name), str(model_id)
+    except Exception:
+        pass
+    if slot.startswith("prov:"):
+        parts = slot.split(":", 2)
+        if len(parts) == 3 and parts[1] and parts[2]:
+            return parts[1], parts[2]
+    return None
+
+
 def sync_custom_type_profile_bindings(
     profile: str,
     custom: CustomSubAgentType,
@@ -190,20 +222,16 @@ def sync_custom_type_profile_bindings(
         del mcp_assigns[slot]
     config.mcp_assignments = mcp_assigns
 
-    if custom.model_slot:
-        agent_models = dict(getattr(config, "agent_models", None) or {})
-        if custom.model_slot not in agent_models and custom.model_slot != "main":
-            from core.models.menu import build_models_menu
-
-            menu = build_models_menu(profile)
-            for preset in menu.presets:
-                if preset.slot_id == custom.model_slot:
-                    agent_models[custom.model_slot] = {
-                        "provider": preset.provider,
-                        "model": preset.model,
-                    }
-                    break
-        config.agent_models = agent_models
+    slot = (custom.model_slot or "").strip()
+    if slot and slot.lower() not in ("main", "default", "inherit", "parent"):
+        resolved = resolve_model_slot_binding(profile, slot)
+        if resolved:
+            agent_models = dict(getattr(config, "agent_models", None) or {})
+            agent_models[slot] = {
+                "provider": resolved[0],
+                "model": resolved[1],
+            }
+            config.agent_models = agent_models
 
     manager.save_profile(profile, config)
 

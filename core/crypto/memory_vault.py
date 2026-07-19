@@ -5,7 +5,6 @@ from __future__ import annotations
 import io
 import logging
 import shutil
-import sqlite3
 import tarfile
 from pathlib import Path
 
@@ -114,7 +113,9 @@ def _materialize_sqlite(vault_path: Path, profile: str, dek: bytes) -> Path:
         shutil.copy2(vault_path, cache_path)
     else:
         cache_path.parent.mkdir(parents=True, exist_ok=True)
-        conn = sqlite3.connect(str(cache_path))
+        from core.sqlite_util import connect_sqlite
+
+        conn = connect_sqlite(cache_path)
         conn.execute("PRAGMA user_version")
         conn.close()
 

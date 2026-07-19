@@ -43,6 +43,13 @@ class ToolRegistry:
         # Note: we no longer print here. The agent loop or higher level
         # can emit AgentEvent if it wants to surface tool registration.
 
+    def unregister(self, name: str) -> bool:
+        """Remove a tool by name. Returns True if it was present."""
+        if name in self.tools:
+            del self.tools[name]
+            return True
+        return False
+
     def register_alias(self, alias: str, tool: BaseTool) -> None:
         """Register an alternate name for an existing tool."""
         self.tools[alias] = tool
@@ -123,6 +130,10 @@ class ToolRegistry:
         from core.tools.cron_schedule import register_cron_schedule_tool
 
         register_cron_schedule_tool(self)
+
+        from core.tools.sdd import register_sdd_tools
+
+        register_sdd_tools(self)
 
         from config import settings
 

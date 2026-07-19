@@ -68,17 +68,20 @@ class SubAgentManager:
         self._process_manager = SubAgentProcessManager(parent_agent, self._comm_bus.process_bus)
         self._handles: dict[str, SubAgentHandle] = {}
         self._pending_done: set[str] = set()
+        self._finished_emitted: set[str] = set()
+        self._progress_emit_at: dict[str, float] = {}
         self._process_spawn_unreliable = False
+        self._progress_min_interval = 1.25
 
     def _max_concurrent(self) -> int:
         cfg = getattr(self._parent, "config", None)
         return int(getattr(cfg, "subagent_max_concurrent", 4) or 4)
 
     def allocate_name(self, base: str) -> str:
-        """Return ``base`` or ``base-N`` when a run with that name is still active."""
+        """Return ``base`` or ``base-1``, ``base-2``, … when that name is still active."""
         if base not in self._handles or self._handles[base].is_done:
             return base
-        n = 2
+        n = 1
         while True:
             candidate = f"{base}-{n}"
             existing = self._handles.get(candidate)
@@ -193,7 +196,15 @@ class SubAgentManager:
         handle.task_preview = (task or "")[:240]
         handle.agent_type = agent_type or config.name
         handle.spawn_fallback_reason = fallback_reason
+        handle.max_steps = int(getattr(config, "max_steps", 0) or 0)
+        if not handle.current_activity:
+            handle.record_activity(
+                "status",
+                f"Started ({handle.config.process_mode.value})",
+                steps_taken=0,
+            )
         self._register_handle(config.name, handle)
+        self._emit_started(handle)
         return handle
 
     def _register_handle(self, name: str, handle: SubAgentHandle) -> None:
@@ -203,6 +214,110 @@ class SubAgentManager:
         if name in self._pending_done or handle.is_done:
             self._pending_done.discard(name)
             self._mark_done(handle)
+            self._emit_finished_once(handle)
+
+    def _emit_agent_event(self, event: Any) -> None:
+        emit = getattr(self._parent, "emit", None)
+        if not callable(emit):
+            return
+        try:
+            emit(event)
+        except Exception:
+            logger.debug("Failed to emit sub-agent lifecycle event", exc_info=True)
+
+    def _emit_started(self, handle: SubAgentHandle) -> None:
+        from core.agent_events import SubAgentStartedEvent
+
+        mode = handle.config.process_mode
+        self._emit_agent_event(
+            SubAgentStartedEvent(
+                name=handle.name,
+                agent_type=handle.agent_type or handle.config.agent_type or "",
+                task_preview=handle.task_preview or "",
+                process_mode=mode.value if hasattr(mode, "value") else str(mode),
+                process_id=handle.process_id,
+            )
+        )
+
+    def _emit_progress(self, handle: SubAgentHandle) -> None:
+        from core.agent_events import SubAgentProgressEvent
+
+        self._emit_agent_event(
+            SubAgentProgressEvent(
+                name=handle.name,
+                agent_type=handle.agent_type or handle.config.agent_type or "",
+                status=handle.status.value if hasattr(handle.status, "value") else str(handle.status),
+                steps_taken=int(handle.steps_taken or 0),
+                max_steps=int(handle.max_steps or handle.config.max_steps or 0),
+                current_activity=handle.current_activity or "",
+                last_tool=handle.last_tool or "",
+                elapsed_ms=float(handle.elapsed_ms or 0),
+            )
+        )
+
+    def _emit_finished_once(self, handle: SubAgentHandle) -> None:
+        from core.agent_events import SubAgentFinishedEvent
+
+        if handle.name in self._finished_emitted:
+            return
+        self._finished_emitted.add(handle.name)
+        result = handle.result
+        success = bool(result.success) if result else False
+        response = (result.response if result else "") or ""
+        error = (result.error if result else "") or ""
+        if len(response) > 400:
+            response = response[:399] + "…"
+        if len(error) > 400:
+            error = error[:399] + "…"
+        self._emit_agent_event(
+            SubAgentFinishedEvent(
+                name=handle.name,
+                agent_type=handle.agent_type or handle.config.agent_type or "",
+                status=handle.status.value if hasattr(handle.status, "value") else str(handle.status),
+                task_preview=handle.task_preview or "",
+                success=success,
+                error=error,
+                response_preview=response,
+                steps_taken=int(
+                    (result.steps_taken if result else 0) or handle.steps_taken or 0
+                ),
+                elapsed_ms=float(handle.elapsed_ms or 0),
+            )
+        )
+        # SDD apply/dispatch: mark tasks.md checkbox when job succeeds
+        self._maybe_complete_sdd_task(handle, success=success)
+
+    def _maybe_complete_sdd_task(
+        self, handle: SubAgentHandle, *, success: bool
+    ) -> None:
+        try:
+            from core.sdd.task_completion import try_complete_sdd_task_for_subagent
+
+            cfg = getattr(self._parent, "config", None)
+            workspace = getattr(cfg, "workspace_root", None)
+            # task_preview starts with [SDD change=… task=…] for dispatched jobs
+            try_complete_sdd_task_for_subagent(
+                job_id=handle.name,
+                task_preview=handle.task_preview or "",
+                success=success,
+                workspace=workspace,
+            )
+        except Exception:
+            logger.debug("SDD task auto-complete skipped", exc_info=True)
+
+    def notify_progress(self, name: str, *, force: bool = False) -> None:
+        """Optional progress fan-out for Studio (throttled)."""
+        import time
+
+        handle = self._handles.get(name)
+        if not handle or not handle.is_running:
+            return
+        now = time.monotonic()
+        last = self._progress_emit_at.get(name, 0.0)
+        if not force and (now - last) < self._progress_min_interval:
+            return
+        self._progress_emit_at[name] = now
+        self._emit_progress(handle)
 
     async def spawn_typed(
         self,
@@ -211,12 +326,29 @@ class SubAgentManager:
         *,
         wait: bool = False,
         timeout: float | None = None,
+        instance_name: str | None = None,
     ) -> tuple[SubAgentHandle, SubAgentResult | None]:
-        """Spawn a registry sub-agent in a separate process when supported."""
+        """Spawn a registry sub-agent in a separate process when supported.
+
+        ``instance_name`` forces a job id (e.g. ``coder-1``); if that slot is
+        busy, falls back to :meth:`allocate_name`.
+        """
+        from core.subagents.resolve import resolve_subagent_type
         from core.subagents.spawn import prepare_subagent_config
 
         parent_cfg = getattr(self._parent, "config", None)
-        instance = self.allocate_name(agent_type)
+        profile = str(getattr(parent_cfg, "profile_name", None) or "default")
+        agent_type = resolve_subagent_type(agent_type, profile=profile)
+        wanted = (instance_name or "").strip()
+        if wanted:
+            existing = self._handles.get(wanted)
+            instance = (
+                wanted
+                if existing is None or existing.is_done
+                else self.allocate_name(agent_type)
+            )
+        else:
+            instance = self.allocate_name(agent_type)
         sub_cfg = prepare_subagent_config(agent_type, parent_cfg, instance_name=instance)
         handle = await self.spawn_sub_agent(sub_cfg, task, agent_type=agent_type)
         if not wait:
@@ -483,15 +615,7 @@ class SubAgentManager:
             "cancelled": sum(1 for h in handles if h.status == SubAgentStatus.CANCELLED),
             "timed_out": sum(1 for h in handles if h.status == SubAgentStatus.TIMED_OUT),
             "agents": [
-                {
-                    "name": h.name,
-                    "status": h.status.value,
-                    "elapsed_ms": h.elapsed_ms,
-                    "process_mode": h.config.process_mode.value,
-                    "process_id": h.process_id,
-                    "agent_type": h.agent_type,
-                    "task_preview": h.task_preview,
-                }
+                h.to_status_dict(include_activity=False, include_result=False)
                 for h in handles
             ],
         }
@@ -500,6 +624,10 @@ class SubAgentManager:
         """Called by runners when a sub-agent completes."""
         handle = self._handles.get(name)
         if handle:
+            if handle.is_done and not handle.current_activity:
+                status = handle.status.value if hasattr(handle.status, "value") else str(handle.status)
+                handle.record_activity("status", f"Finished ({status})")
             self._mark_done(handle)
+            self._emit_finished_once(handle)
         else:
             self._pending_done.add(name)

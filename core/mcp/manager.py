@@ -152,7 +152,18 @@ class MCPManager:
             else:  # sse
                 if not cfg.url:
                     return
-                async with sse_client(cfg.url) as (read, write):
+                # Headers from env: MCP_HEADER_Authorization → Authorization, etc.
+                # (Claude plugins and Studio MCP editor store secrets this way.)
+                headers: dict[str, str] = {}
+                for ek, ev in (cfg.env or {}).items():
+                    if not ek.startswith("MCP_HEADER_") or not ev:
+                        continue
+                    headers[ek[len("MCP_HEADER_") :]] = str(ev)
+                async with sse_client(
+                    cfg.url,
+                    headers=headers or None,
+                    timeout=float(cfg.timeout or 60.0),
+                ) as (read, write):
                     async with ClientSession(read, write) as sess:
                         await sess.initialize()
                         session = sess

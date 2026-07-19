@@ -5,8 +5,6 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-import aiosqlite
-
 from core.di.runtime_config import HolixRuntimeConfig
 from core.memory.episodic import EpisodicMemoryStore
 from core.memory.procedural import ProceduralMemoryStore
@@ -14,6 +12,7 @@ from core.memory.semantic import SemanticMemoryStore
 from core.memory.strategic import StrategicMemoryStore
 from core.memory.vector import VectorMemoryStore
 from core.paths import prepare_sqlite_db_file
+from core.sqlite_util import connect_aiosqlite
 
 logger = logging.getLogger(__name__)
 
@@ -46,7 +45,7 @@ class LongTermMemoryStore:
         )
 
     async def initialize_db(self) -> None:
-        async with aiosqlite.connect(str(self._ltm_db_path)) as db:
+        async with connect_aiosqlite(self._ltm_db_path) as db:
             await db.execute("""
                 CREATE TABLE IF NOT EXISTS ltm_entries (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,

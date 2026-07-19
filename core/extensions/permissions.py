@@ -12,6 +12,7 @@ PERMISSION_FILESYSTEM = "filesystem"
 PERMISSION_TOOLS = "tools"
 PERMISSION_SUBPROCESS = "subprocess"
 PERMISSION_GATEWAY = "gateway"
+PERMISSION_MIDDLEWARE = "middleware"
 
 ALL_PERMISSIONS = frozenset(
     {
@@ -20,6 +21,7 @@ ALL_PERMISSIONS = frozenset(
         PERMISSION_TOOLS,
         PERMISSION_SUBPROCESS,
         PERMISSION_GATEWAY,
+        PERMISSION_MIDDLEWARE,
     }
 )
 

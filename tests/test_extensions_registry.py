@@ -5,6 +5,7 @@ from __future__ import annotations
 from core.extensions.base import CAPABILITY_CLI, ExtensionBase
 from core.extensions.registry import (
     ENTRYPOINT_GROUP,
+    clear_extension_discovery_cache,
     discover_extensions,
     list_extension_info,
     register_cli_extensions,
@@ -16,12 +17,12 @@ def test_extension_entrypoint_group_name() -> None:
 
 
 def test_discover_extensions_returns_tuple() -> None:
-    discover_extensions.cache_clear()
+    clear_extension_discovery_cache()
     assert isinstance(discover_extensions(), tuple)
 
 
 def test_builtin_telegram_and_max_extensions_discovered() -> None:
-    discover_extensions.cache_clear()
+    clear_extension_discovery_cache()
     names = {ext.name for ext in discover_extensions()}
     assert "telegram" in names
     assert "max" in names

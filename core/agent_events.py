@@ -63,6 +63,9 @@ class EventType(StrEnum):
     # Sub-agent orchestration
     SUBAGENT_WAVE_STARTED = "subagent_wave_started"
     SUBAGENT_WAVE_COMPLETED = "subagent_wave_completed"
+    SUBAGENT_STARTED = "subagent_started"
+    SUBAGENT_PROGRESS = "subagent_progress"
+    SUBAGENT_FINISHED = "subagent_finished"
 
     # Background project processes
     BACKGROUND_PROCESS_STARTED = "background_process_started"
@@ -410,6 +413,92 @@ class SubAgentWaveCompletedEvent(AgentEvent):
 
 
 @dataclass
+class SubAgentStartedEvent(AgentEvent):
+    """A delegated sub-agent began work."""
+
+    name: str = ""
+    agent_type: str = ""
+    task_preview: str = ""
+    process_mode: str = ""
+    process_id: int | None = None
+
+    def __post_init__(self):
+        super().__post_init__()
+        object.__setattr__(self, "type", EventType.SUBAGENT_STARTED)
+
+    def _extra_fields(self) -> dict[str, Any]:
+        return {
+            "name": self.name,
+            "agent_type": self.agent_type,
+            "task_preview": self.task_preview,
+            "process_mode": self.process_mode,
+            "process_id": self.process_id,
+        }
+
+
+@dataclass
+class SubAgentProgressEvent(AgentEvent):
+    """Periodic progress from a running sub-agent (tool/step updates)."""
+
+    name: str = ""
+    agent_type: str = ""
+    status: str = ""
+    steps_taken: int = 0
+    max_steps: int = 0
+    current_activity: str = ""
+    last_tool: str = ""
+    elapsed_ms: float = 0.0
+
+    def __post_init__(self):
+        super().__post_init__()
+        object.__setattr__(self, "type", EventType.SUBAGENT_PROGRESS)
+
+    def _extra_fields(self) -> dict[str, Any]:
+        return {
+            "name": self.name,
+            "agent_type": self.agent_type,
+            "status": self.status,
+            "steps_taken": self.steps_taken,
+            "max_steps": self.max_steps,
+            "current_activity": self.current_activity,
+            "last_tool": self.last_tool,
+            "elapsed_ms": self.elapsed_ms,
+        }
+
+
+@dataclass
+class SubAgentFinishedEvent(AgentEvent):
+    """A delegated sub-agent finished (success, failure, cancel, or timeout)."""
+
+    name: str = ""
+    agent_type: str = ""
+    status: str = ""
+    task_preview: str = ""
+    success: bool = False
+    error: str = ""
+    response_preview: str = ""
+    steps_taken: int = 0
+    elapsed_ms: float = 0.0
+
+    def __post_init__(self):
+        super().__post_init__()
+        object.__setattr__(self, "type", EventType.SUBAGENT_FINISHED)
+
+    def _extra_fields(self) -> dict[str, Any]:
+        return {
+            "name": self.name,
+            "agent_type": self.agent_type,
+            "status": self.status,
+            "task_preview": self.task_preview,
+            "success": self.success,
+            "error": self.error,
+            "response_preview": self.response_preview,
+            "steps_taken": self.steps_taken,
+            "elapsed_ms": self.elapsed_ms,
+        }
+
+
+@dataclass
 class BackgroundProcessStartedEvent(AgentEvent):
     """A long-running project process was started in the background."""
     process_id: str = ""
@@ -701,6 +790,11 @@ __all__ = [
     "PlanGeneratedEvent",
     "PlanStepCompletedEvent",
     "PlanCompletedEvent",
+    "SubAgentWaveStartedEvent",
+    "SubAgentWaveCompletedEvent",
+    "SubAgentStartedEvent",
+    "SubAgentProgressEvent",
+    "SubAgentFinishedEvent",
     # helpers
     "make_event",
     "HasEventBus",

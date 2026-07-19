@@ -208,6 +208,11 @@ class AgentCommands:
 
                 await run_cron_command(h, cmd)
 
+            elif lower.startswith("/spec"):
+                from cli.shared.commands.spec_commands import run_spec_command
+
+                await run_spec_command(h, cmd)
+
             elif lower.startswith("/hub") or lower in ("/plugins", "/marketplace"):
                 await self._hub(cmd)
 

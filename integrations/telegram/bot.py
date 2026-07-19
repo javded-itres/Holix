@@ -44,14 +44,37 @@ class HolixTelegramBot:
 
     def _allowed(self, user_id: int) -> bool:
         """Check access with hot reload so CLI approve works without bot restart."""
+        from integrations.telegram.plugin_api import (
+            extension_access_allows,
+            get_active_telegram_plugin_api,
+        )
+
+        uid = int(user_id)
+        ext_verdict = extension_access_allows(get_active_telegram_plugin_api(), uid)
+        if ext_verdict is False:
+            return False
+        if ext_verdict is True:
+            return True
         if self.settings.allow_all:
             return True
         from integrations.telegram.allowlist import load_allowed_user_ids
 
-        uid = int(user_id)
         if uid in load_allowed_user_ids(self.settings.profile):
             return True
         return resolve_user_profile(self.settings.profile, uid) is not None
+
+    async def _reply_gate(self, message: Any, gate: Any) -> None:
+        """Send gate denial / upsell message to the user."""
+        markup = getattr(gate, "reply_markup", None)
+        html = getattr(gate, "reply_html", None)
+        text = getattr(gate, "reply_text", None)
+        try:
+            if html:
+                await message.answer(html, parse_mode="HTML", reply_markup=markup)
+            elif text:
+                await message.answer(text, reply_markup=markup)
+        except Exception:
+            pass
 
     async def _handle_unauthorized(
         self,
@@ -322,7 +345,50 @@ class HolixTelegramBot:
         )
 
         host = TelegramHost(bot, session, edit_interval_ms=settings.edit_interval_ms)
+        if not await self._pass_message_gate(
+            message,
+            user_id=message.from_user.id,
+            chat_id=message.chat.id,
+            text=transcribed,
+            session=session,
+            host=host,
+            is_command=False,
+        ):
+            return
         await host.handle_user_text(transcribed)
+
+    async def _pass_message_gate(
+        self,
+        message: Any,
+        *,
+        user_id: int,
+        chat_id: int,
+        text: str,
+        session: Any = None,
+        host: Any = None,
+        is_command: bool = False,
+    ) -> bool:
+        """Return False if a plugin gate blocked the message (reply already sent)."""
+        from integrations.telegram.plugin_api import (
+            get_active_telegram_plugin_api,
+            run_message_gates,
+        )
+
+        api = getattr(self, "_plugin_api", None) or get_active_telegram_plugin_api()
+        gate = await run_message_gates(
+            api,
+            user_id=user_id,
+            chat_id=chat_id,
+            text=text,
+            message=message,
+            session=session,
+            host=host,
+            is_command=is_command,
+        )
+        if not gate.allow:
+            await self._reply_gate(message, gate)
+            return False
+        return True
 
     async def _enqueue_file_attachment(
         self,
@@ -437,6 +503,21 @@ class HolixTelegramBot:
         if caption:
             await bot.send_message(chat_id, preview, parse_mode="HTML")
             prompt = build_agent_prompt(caption, saved_files)
+
+            class _GateMsg:
+                async def answer(self, text: str, **kwargs: Any) -> None:
+                    await bot.send_message(chat_id, text, **kwargs)
+
+            if not await self._pass_message_gate(
+                _GateMsg(),
+                user_id=session.user_id,
+                chat_id=chat_id,
+                text=prompt,
+                session=session,
+                host=host,
+                is_command=False,
+            ):
+                return
             await host.handle_user_text(prompt)
             return
 
@@ -488,7 +569,33 @@ class HolixTelegramBot:
         bot = Bot(token=self.settings.bot_token)
         dp = Dispatcher()
         settings = self.settings
+
+        # --- Telegram plugins (billing, CRM, …) — no product logic in Holix core ---
+        from integrations.telegram.plugin_api import (
+            TelegramPluginAPI,
+            apply_telegram_handlers,
+            load_telegram_plugins,
+            run_message_gates,
+        )
+
+        plugin_api = TelegramPluginAPI(
+            bot_profile=settings.profile,
+            settings=settings,
+            bot=bot,
+            dispatcher=dp,
+            get_session=self._get_session,
+            make_host=lambda b, s: TelegramHost(
+                b, s, edit_interval_ms=settings.edit_interval_ms
+            ),
+        )
+        load_telegram_plugins(plugin_api)
+        self._plugin_api = plugin_api
+
+        # Core commands only in Command() filter; extension cmds use own handlers.
         menu_commands = [spec.command for spec in command_specs()]
+
+        # Extension handlers first so /pay etc. are not swallowed by free-text.
+        apply_telegram_handlers(plugin_api)
 
         @dp.startup()
         async def _on_startup() -> None:
@@ -571,7 +678,21 @@ class HolixTelegramBot:
                 message.chat.id, message.from_user.id, bot=bot
             )
             host = TelegramHost(bot, session, edit_interval_ms=settings.edit_interval_ms)
-            await host.handle_user_text(message.text.strip())
+            text = message.text.strip()
+            gate = await run_message_gates(
+                plugin_api,
+                user_id=message.from_user.id,
+                chat_id=message.chat.id,
+                text=text,
+                message=message,
+                session=session,
+                host=host,
+                is_command=True,
+            )
+            if not gate.allow:
+                await self._reply_gate(message, gate)
+                return
+            await host.handle_user_text(text)
 
         @dp.message(F.text)
         async def on_text(message: Message) -> None:
@@ -605,6 +726,19 @@ class HolixTelegramBot:
             except Exception:
                 return
             host = TelegramHost(bot, session, edit_interval_ms=settings.edit_interval_ms)
+            gate = await run_message_gates(
+                plugin_api,
+                user_id=message.from_user.id,
+                chat_id=message.chat.id,
+                text=message.text,
+                message=message,
+                session=session,
+                host=host,
+                is_command=False,
+            )
+            if not gate.allow:
+                await self._reply_gate(message, gate)
+                return
             await host.handle_user_text(message.text)
 
         @dp.message(F.voice)

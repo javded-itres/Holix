@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 import pytest
@@ -15,6 +16,27 @@ def test_parse_clawhub_slug():
     assert p.kind == "clawhub"
     assert p.ref == "my-skill"
     assert p.version == "1.2.0"
+
+
+def test_parse_clawhub_owner_qualified():
+    p = parse_install_source("clawhub:@pskoett/self-improving-agent")
+    assert p.kind == "clawhub"
+    assert p.ref == "@pskoett/self-improving-agent"
+    assert p.version is None
+
+    p2 = parse_install_source("clawhub:@pskoett/self-improving-agent@4.0.1")
+    assert p2.ref == "@pskoett/self-improving-agent"
+    assert p2.version == "4.0.1"
+
+
+def test_clawhub_parse_ref_and_ambiguous_resolve():
+    from core.hub.clawhub import parse_clawhub_ref
+
+    assert parse_clawhub_ref("@pskoett/self-improving-agent") == (
+        "pskoett",
+        "self-improving-agent",
+    )
+    assert parse_clawhub_ref("self-improving-agent") == (None, "self-improving-agent")
 
 
 def test_parse_skills_sh():
@@ -92,6 +114,62 @@ def test_parse_claude_source():
     assert p.ref == "commit-commands"
 
 
+def test_ensure_marketplace_repo_replaces_browse_only_cache(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+):
+    """Install must full-clone when hub-cache only has marketplace.json from browse."""
+    import core.hub.claude_marketplace as mp
+
+    hub_cache = tmp_path / "hub-cache"
+    monkeypatch.setattr(mp, "HUB_CACHE", hub_cache)
+
+    meta = mp.MARKETPLACES["claude-official"]
+    dest = mp._cache_dir_for_repo(meta["repo"])
+    mp_path = dest / meta["marketplace"]
+    mp_path.parent.mkdir(parents=True)
+    mp_path.write_text(
+        json.dumps(
+            {
+                "plugins": [
+                    {
+                        "name": "gitlab",
+                        "description": "GitLab",
+                        "source": "./external_plugins/gitlab",
+                    }
+                ]
+            }
+        ),
+        encoding="utf-8",
+    )
+    (dest / mp._BROWSE_ONLY_MARKER).write_text("1\n", encoding="utf-8")
+    # No .git, no external_plugins — reproduces prod "Plugin path not found"
+
+    def fake_run(cmd, check=True, **kwargs):
+        if cmd[:2] == ["git", "clone"]:
+            target = Path(cmd[-1])
+            target.mkdir(parents=True, exist_ok=True)
+            (target / ".git").mkdir()
+            plugin = target / "external_plugins" / "gitlab"
+            plugin.mkdir(parents=True)
+            (plugin / "README.md").write_text("ok", encoding="utf-8")
+            mp_out = target / meta["marketplace"]
+            mp_out.parent.mkdir(parents=True, exist_ok=True)
+            mp_out.write_text(mp_path.read_text(encoding="utf-8"), encoding="utf-8")
+            return 0
+        return 0
+
+    monkeypatch.setattr(mp, "_run", fake_run)
+
+    repo_root, data = mp.ensure_marketplace_repo("claude-official", update=True)
+    assert (repo_root / ".git").is_dir()
+    assert not (repo_root / mp._BROWSE_ONLY_MARKER).exists()
+    assert (repo_root / "external_plugins" / "gitlab").is_dir()
+    assert any(p.get("name") == "gitlab" for p in data.get("plugins", []))
+
+    src = mp.resolve_plugin_source(repo_root, "./external_plugins/gitlab")
+    assert src.is_dir()
+
+
 def test_parse_hermes_source():
     p = parse_install_source("hermes:api-builder")
     assert p.kind == "hermes"
@@ -128,6 +206,71 @@ def test_claude_mcp_http():
     assert "github" in out
     assert out["github"]["transport"] == "sse"
     assert out["github"]["url"] == "https://example.com/mcp"
+
+
+def test_claude_mcp_servers_wrapper():
+    """Claude plugins often nest servers under mcpServers (e.g. atlassian)."""
+    from core.hub.claude_mcp import parse_claude_mcp_json
+
+    raw = {
+        "mcpServers": {
+            "atlassian": {
+                "type": "http",
+                "url": "https://mcp.atlassian.com/v1/mcp/authv2",
+            }
+        }
+    }
+    out = parse_claude_mcp_json(raw)
+    assert "atlassian" in out
+    assert out["atlassian"]["url"] == "https://mcp.atlassian.com/v1/mcp/authv2"
+
+
+def test_resolve_plugin_source_url(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+    import core.hub.claude_marketplace as mp
+
+    hub_cache = tmp_path / "hub-cache"
+    monkeypatch.setattr(mp, "HUB_CACHE", hub_cache)
+
+    def fake_archive(owner: str, repo: str, ref: str | None, dest: Path) -> bool:
+        assert owner == "atlassian"
+        assert repo == "atlassian-mcp-server"
+        dest.mkdir(parents=True, exist_ok=True)
+        (dest / ".mcp.json").write_text(
+            json.dumps(
+                {
+                    "mcpServers": {
+                        "atlassian": {
+                            "type": "http",
+                            "url": "https://mcp.atlassian.com/v1/mcp",
+                        }
+                    }
+                }
+            ),
+            encoding="utf-8",
+        )
+        skills = dest / "skills" / "triage-issue"
+        skills.mkdir(parents=True)
+        (skills / "SKILL.md").write_text(
+            "---\nname: triage-issue\ndescription: d\n---\n\nbody\n",
+            encoding="utf-8",
+        )
+        return True
+
+    monkeypatch.setattr(mp, "_download_github_archive", fake_archive)
+
+    src = mp.resolve_plugin_source(
+        tmp_path,
+        {
+            "source": "url",
+            "url": "https://github.com/atlassian/atlassian-mcp-server.git",
+            "sha": "abc123",
+        },
+    )
+    assert (src / ".mcp.json").is_file()
+    assert not mp.source_needs_marketplace_checkout(
+        {"source": "url", "url": "https://example.com/x.git"}
+    )
+    assert mp.source_needs_marketplace_checkout("./external_plugins/gitlab")
 
 
 def test_slash_registry(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):

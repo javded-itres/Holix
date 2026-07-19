@@ -213,6 +213,19 @@ def start_gateway_daemon(
         print_warning("Documentation site was not started (see gateway.log)")
         print_info("Try: holix docs  — or reinstall: uv tool install . --force")
 
+    # Refresh state for late-written sidecar PIDs
+    state = load_state(profile) or state
+    for sc in state.sidecars or []:
+        label = sc.get("label") or sc.get("id") or "sidecar"
+        url = sc.get("url") or ""
+        sc_pid = sc.get("pid")
+        alive = sc_pid is not None and is_process_alive(int(sc_pid))
+        if url:
+            print_info(
+                f"Sidecar {label}: {url}"
+                + (f" (pid={sc_pid})" if alive else " (stopped — check gateway.log)")
+            )
+
     from cli.services.supervisor import telegram_enabled, telegram_should_start
 
     if state.telegram_pid and is_process_alive(state.telegram_pid):
@@ -250,6 +263,14 @@ def stop_gateway_daemon(profile: str = "default") -> None:
 
     if state.docs_pid and is_process_alive(state.docs_pid):
         terminate_process(state.docs_pid, grace=5.0)
+
+    for sc in state.sidecars or []:
+        try:
+            sc_pid = int(sc.get("pid") or 0)
+        except (TypeError, ValueError):
+            sc_pid = 0
+        if sc_pid and is_process_alive(sc_pid):
+            terminate_process(sc_pid, grace=5.0)
 
     if state.docs_host and state.docs_port:
         from cli.utils.ports import wait_for_port_available
@@ -324,6 +345,20 @@ def gateway_status(profile: str = "default") -> None:
         lines.append(
             f"[cyan]MAX PID:[/cyan] {state.max_pid} "
             f"({'running' if max_alive else 'stopped'})"
+        )
+    for sc in state.sidecars or []:
+        label = sc.get("label") or sc.get("id") or "sidecar"
+        url = sc.get("url") or f"{sc.get('host')}:{sc.get('port')}"
+        try:
+            sc_pid = int(sc.get("pid") or 0)
+        except (TypeError, ValueError):
+            sc_pid = 0
+        alive = sc_pid and is_process_alive(sc_pid)
+        lines.append(
+            f"[cyan]Sidecar {label}:[/cyan] {url} "
+            f"({'running' if alive else 'stopped'}"
+            + (f", pid={sc_pid}" if sc_pid else "")
+            + ")"
         )
     from cli.services.gateway_state import docs_url
 

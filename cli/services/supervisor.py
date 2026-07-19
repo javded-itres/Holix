@@ -13,7 +13,17 @@ from integrations.max.gateway_routes import max_enabled, max_should_poll, max_sh
 from integrations.telegram.config import load_telegram_settings, telegram_aiogram_available
 
 from cli.services.docs_site import docs_url, resolve_web_docs_dir
-from cli.services.gateway_state import update_docs_info, update_max_pid, update_telegram_pid
+from cli.services.extension_sidecars import (
+    sidecars_to_state,
+    start_extension_sidecars,
+    terminate_sidecars,
+)
+from cli.services.gateway_state import (
+    update_docs_info,
+    update_max_pid,
+    update_sidecars,
+    update_telegram_pid,
+)
 from cli.utils.ports import resolve_listen_port
 from cli.utils.rich_console import print_info, print_success, print_warning
 
@@ -203,6 +213,13 @@ async def _run_supervisor_async(
         else None
     )
     tg_proc = _telegram_subprocess(profile)
+    sidecar_procs = start_extension_sidecars(
+        profile, gateway_host=host, gateway_port=port
+    )
+    if sidecar_procs:
+        update_sidecars(sidecars_to_state(sidecar_procs), profile=profile)
+        companions_extra = ", ".join(s.label for s in sidecar_procs)
+        print_info(f"Extension sidecars: {companions_extra}")
     gateway_task = asyncio.create_task(_run_gateway_uvicorn(host, port), name="gateway")
     max_task = asyncio.create_task(_run_max(profile), name="max")
     cron_task = asyncio.create_task(_run_cron_scheduler(profile), name="cron")
@@ -220,6 +237,7 @@ async def _run_supervisor_async(
             if not task.done():
                 task.cancel()
         await asyncio.gather(*tasks, return_exceptions=True)
+        terminate_sidecars(sidecar_procs)
         _terminate_proc(docs_proc)
         _terminate_proc(tg_proc)
         print_info("All services stopped.")
@@ -312,6 +330,11 @@ def _start_with_reload(
         if with_docs
         else None
     )
+    sidecar_procs = start_extension_sidecars(
+        profile, gateway_host=host, gateway_port=port
+    )
+    if sidecar_procs:
+        update_sidecars(sidecars_to_state(sidecar_procs), profile=profile)
 
     try:
         uvicorn.run(
@@ -324,6 +347,7 @@ def _start_with_reload(
     except KeyboardInterrupt:
         print_info("\nShutting down gateway...")
     finally:
+        terminate_sidecars(sidecar_procs)
         for proc in (tg_proc, max_proc, cron_proc, docs_proc):
             _terminate_proc(proc)
 

@@ -103,6 +103,9 @@ class ProfileConfig(BaseModel):
     # Safety: tool confirmation threshold (no|low|medium|high). high = auto-allow all risks.
     auto_allow_threshold: str | None = None
 
+    # Per-extension settings: { extension_name: { key: value, ... }, ... }
+    extension_settings: dict[str, Any] = Field(default_factory=dict)
+
 
 def _holix_env_name() -> str:
     return os.getenv("HOLIX_ENV", "development").strip().lower()

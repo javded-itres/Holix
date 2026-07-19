@@ -68,6 +68,21 @@ class HelixMaxBot:
 
     async def warmup(self) -> None:
         """Eagerly initialize shared Holix agent (memory, tools, MCP) at bot startup."""
+        # Load MAX extensions (billing, …) once per process
+        try:
+            from integrations.max.plugin_api import MaxPluginAPI, load_max_plugins
+
+            if getattr(self, "_plugin_api", None) is None:
+                plugin_api = MaxPluginAPI(
+                    bot_profile=self.settings.profile,
+                    settings=self.settings,
+                )
+                load_max_plugins(plugin_api)
+                self._plugin_api = plugin_api
+        except Exception:
+            logger.exception("Failed to load MAX plugins")
+            self._plugin_api = None
+
         asyncio.create_task(
             asyncio.to_thread(_seed_admin_profile_background),
             name="max-admin-profile-seed",
@@ -83,11 +98,24 @@ class HelixMaxBot:
         logger.info("Holix agent ready (profile=%s, model=%s)", self.settings.profile, model)
 
     def _allowed(self, user_id: int) -> bool:
+        from integrations.max.plugin_api import (
+            extension_access_allows,
+            get_active_max_plugin_api,
+        )
+
+        uid = int(user_id)
+        ext_verdict = extension_access_allows(
+            getattr(self, "_plugin_api", None) or get_active_max_plugin_api(),
+            uid,
+        )
+        if ext_verdict is False:
+            return False
+        if ext_verdict is True:
+            return True
         if self.settings.allow_all:
             return True
         from integrations.max.allowlist import load_allowed_user_ids
 
-        uid = int(user_id)
         if uid in load_allowed_user_ids(self.settings.profile):
             return True
         return resolve_user_profile(self.settings.profile, uid) is not None
@@ -352,6 +380,61 @@ class HelixMaxBot:
         )
         session.incoming_message_id = incoming_mid
         host = MaxHost(client, session)
+
+        # Extension commands + message gates (billing, …)
+        try:
+            from integrations.max.plugin_api import (
+                get_active_max_plugin_api,
+                run_message_gates,
+            )
+
+            api = getattr(self, "_plugin_api", None) or get_active_max_plugin_api()
+            if api is not None:
+                api.client = client
+            is_cmd = text.strip().startswith("/")
+            # Let extensions handle their slash commands first
+            if is_cmd and api is not None:
+                handled = await self._run_extension_command(
+                    api,
+                    client=client,
+                    user_id=uid,
+                    reply_user_id=reply_user_id,
+                    reply_chat_id=reply_chat_id,
+                    chat_type=chat_type,
+                    text=text,
+                    session=session,
+                    host=host,
+                )
+                if handled:
+                    return
+            gate = await run_message_gates(
+                api,
+                user_id=uid,
+                chat_id=reply_chat_id or 0,
+                text=text,
+                is_command=is_cmd,
+                client=client,
+                session=session,
+                host=host,
+            )
+            if not gate.allow:
+                reply = reply_kwargs_for_session(
+                    user_id=uid,
+                    reply_user_id=reply_user_id,
+                    reply_chat_id=reply_chat_id,
+                    chat_type=chat_type,
+                )
+                body = gate.reply_markdown or gate.reply_text or "⛔ Доступ ограничен."
+                await client.send_message(
+                    plain_to_max_html(body) if gate.reply_markdown else body,
+                    fmt="html" if gate.reply_markdown else None,
+                    attachments=gate.reply_attachments,
+                    **reply,
+                )
+                return
+        except Exception:
+            logger.exception("MAX extension gate/command failed")
+
         await host.handle_user_text(text)
 
     async def _handle_message_media(
@@ -497,6 +580,32 @@ class HelixMaxBot:
                 await client.answer_callback(callback_id, notification=f"Ошибка: {exc}"[:200])
             return
 
+        # Extension callbacks (billing bill:…)
+        try:
+            from integrations.max.plugin_api import (
+                get_active_max_plugin_api,
+                run_callback_handlers,
+            )
+
+            api = getattr(self, "_plugin_api", None) or get_active_max_plugin_api()
+            if api is not None and await run_callback_handlers(
+                api,
+                user_id=int(uid),
+                chat_id=reply_chat_id,
+                payload=payload,
+                client=client,
+                callback_id=callback_id,
+                reply_user_id=reply_user_id,
+                reply_chat_id=reply_chat_id,
+            ):
+                try:
+                    await client.answer_callback(callback_id, notification="OK")
+                except Exception:
+                    pass
+                return
+        except Exception:
+            logger.exception("MAX extension callback failed")
+
         if not self._allowed(uid):
             await client.answer_callback(callback_id, notification="Access denied")
             return
@@ -532,3 +641,46 @@ class HelixMaxBot:
             await client.answer_callback(callback_id, notification=notification or None)
         except Exception:
             logger.exception("Failed to answer MAX callback %s", callback_id)
+
+    async def _run_extension_command(
+        self,
+        api: Any,
+        *,
+        client: MaxClient,
+        user_id: int,
+        reply_user_id: int | None,
+        reply_chat_id: int | None,
+        chat_type: str | None,
+        text: str,
+        session: MaxChatSession,
+        host: MaxHost,
+    ) -> bool:
+        """Dispatch slash commands registered by extensions. Returns True if handled."""
+        token = text.strip().split()[0].lstrip("/").lower()
+        ext_cmds = {c.command for c in (api.commands or [])}
+        if token not in ext_cmds:
+            return False
+        # Callbacks/handlers registered via add_handlers may attach command map
+        handlers = getattr(api, "_command_handlers", None) or {}
+        fn = handlers.get(token)
+        if fn is None:
+            return False
+        try:
+            result = fn(
+                api,
+                client=client,
+                user_id=user_id,
+                chat_id=reply_chat_id,
+                text=text,
+                session=session,
+                host=host,
+                reply_user_id=reply_user_id,
+                reply_chat_id=reply_chat_id,
+                chat_type=chat_type,
+            )
+            if hasattr(result, "__await__"):
+                await result
+            return True
+        except Exception:
+            logger.exception("MAX extension command /%s failed", token)
+            return True

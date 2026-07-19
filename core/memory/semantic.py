@@ -14,6 +14,7 @@ from typing import Any
 import aiosqlite
 
 from core.memory.vector import VectorMemoryStore
+from core.sqlite_util import connect_aiosqlite
 
 logger = logging.getLogger(__name__)
 
@@ -55,7 +56,7 @@ class SemanticMemoryStore:
         meta["source"] = source
         meta["timestamp"] = datetime.now().isoformat()
 
-        async with aiosqlite.connect(self._db_path) as db:
+        async with connect_aiosqlite(self._db_path) as db:
             # Check if key already exists
             cursor = await db.execute(
                 "SELECT id FROM ltm_entries WHERE memory_type = 'semantic' AND key = ?",
@@ -134,7 +135,7 @@ class SemanticMemoryStore:
         Returns:
             Fact dict with key, content, metadata, or None if not found.
         """
-        async with aiosqlite.connect(self._db_path) as db:
+        async with connect_aiosqlite(self._db_path) as db:
             db.row_factory = aiosqlite.Row
             cursor = await db.execute(
                 """SELECT id, key, content, source, metadata, created_at, updated_at
@@ -171,7 +172,7 @@ class SemanticMemoryStore:
             List of all fact dicts.
         """
         facts = []
-        async with aiosqlite.connect(self._db_path) as db:
+        async with connect_aiosqlite(self._db_path) as db:
             db.row_factory = aiosqlite.Row
             cursor = await db.execute(
                 """SELECT key, content, source, metadata
@@ -205,7 +206,7 @@ class SemanticMemoryStore:
         Returns:
             True if the fact was deleted.
         """
-        async with aiosqlite.connect(self._db_path) as db:
+        async with connect_aiosqlite(self._db_path) as db:
             cursor = await db.execute(
                 "DELETE FROM ltm_entries WHERE memory_type = 'semantic' AND key = ?",
                 (key,),

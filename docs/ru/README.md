@@ -55,6 +55,8 @@
 ### Внутренности
 
 - [ARCHITECTURE.md](ARCHITECTURE.md) · [CHANGELOG.md](../CHANGELOG.md) · [LICENSING_STRATEGY.md](LICENSING_STRATEGY.md)
+- [SDD.md](SDD.md) — Spec-Driven Development (tools, slash, Studio)
+- [SDD_STUDIO_PLAN.md](SDD_STUDIO_PLAN.md) — план SDD в Studio (модель OpenSpec)
 
 ---
 

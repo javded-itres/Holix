@@ -169,6 +169,25 @@ def language_instruction_block(*, locale: str | None = None, profile_name: str |
     return t("prompt.lang_block", ui_locale)
 
 
+def format_studio_persona_block(
+    persona_name: str | None,
+    persona_prompt: str | None,
+) -> str:
+    """Optional role overlay when Studio main chat runs as a typed agent."""
+    prompt = (persona_prompt or "").strip()
+    if not prompt:
+        return ""
+    name = (persona_name or "custom").strip() or "custom"
+    return (
+        f"## Active Studio agent type: {name}\n\n"
+        f"You are the main Studio chat agent currently running as type **{name}**.\n"
+        "Adopt this role as your primary identity, tone, and task focus for this conversation:\n\n"
+        f"{prompt}\n\n"
+        "You still have full Holix main-agent tools and Studio workspace access. "
+        "Keep honesty rules: never claim work is done without successful tool results."
+    )
+
+
 def build_system_prompt(
     tools_description: str,
     active_skills: list[dict[str, Any]],
@@ -179,6 +198,8 @@ def build_system_prompt(
     locale: str | None = None,
     workspace_root: str | None = None,
     workspace_jail_enabled: bool | None = None,
+    persona_name: str | None = None,
+    persona_prompt: str | None = None,
 ) -> str:
     """Build the system prompt for the agent.
 
@@ -355,6 +376,9 @@ Remember: You are a helpful, capable agent that learns and improves with each ta
     if user_block:
         blocks.append(user_block)
     blocks.append(format_soul_block(profile_name))
+    persona_block = format_studio_persona_block(persona_name, persona_prompt)
+    if persona_block:
+        blocks.append(persona_block)
     try:
         from core.extensions.agent_registry import agent_prompt_fragment
 

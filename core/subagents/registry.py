@@ -22,7 +22,7 @@ PREDEFINED_SUBAGENTS = {
             "clear, actionable insights. Focus on accuracy and thoroughness."
         ),
         tools=["web_search", "web_fetch", "read_file", "list_directory"],
-        max_steps=12,
+        max_steps=150,
         mode="react",
         process_mode="async",
         temperature=0.3,
@@ -48,7 +48,7 @@ PREDEFINED_SUBAGENTS = {
             "- Do NOT delegate further — you are the final research node."
         ),
         tools=["web_search", "web_fetch"],
-        max_steps=15,
+        max_steps=150,
         mode="react",
         process_mode="async",
         temperature=0.4,
@@ -68,7 +68,7 @@ PREDEFINED_SUBAGENTS = {
             "reporting completion."
         ),
         tools=["read_file", "write_file", "list_directory", "terminal", "code_executor"],
-        max_steps=15,
+        max_steps=150,
         mode="react",
         process_mode="async",
         temperature=0.2,
@@ -84,7 +84,7 @@ PREDEFINED_SUBAGENTS = {
             "execute SQL queries, run Python code, and use mathematical tools."
         ),
         tools=["sql_query", "sql_schema", "code_executor", "math_calculator"],
-        max_steps=10,
+        max_steps=150,
         mode="react",
         process_mode="async",
         temperature=0.1,
@@ -100,7 +100,7 @@ PREDEFINED_SUBAGENTS = {
             "Provide specific, actionable feedback with file paths and line numbers."
         ),
         tools=["read_file", "list_directory", "terminal"],
-        max_steps=8,
+        max_steps=150,
         mode="react",
         process_mode="async",
         temperature=0.2,
@@ -116,7 +116,7 @@ PREDEFINED_SUBAGENTS = {
             "user guides. Focus on clarity, completeness, and proper formatting."
         ),
         tools=["read_file", "write_file", "list_directory"],
-        max_steps=8,
+        max_steps=150,
         mode="react",
         process_mode="async",
         temperature=0.5,

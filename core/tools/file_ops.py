@@ -142,7 +142,9 @@ class WriteFileTool(BaseTool):
             write_profile_file_text(file_path, content, profile=profile)
 
             display_path = display_path_for_user(file_path, input_path=path)
-            return format_write_file_result(display_path, old_text, content)
+            result = format_write_file_result(display_path, old_text, content)
+            warn = _sdd_soft_gate_warning(path)
+            return f"{warn}\n{result}" if warn else result
 
         except WorkspaceQuotaExceeded as e:
             return format_quota_error(e)
@@ -152,6 +154,16 @@ class WriteFileTool(BaseTool):
             return f"Error: {e}"
         except Exception as e:
             return f"Error writing file: {str(e)}"
+
+
+def _sdd_soft_gate_warning(writing_path: str) -> str | None:
+    try:
+        from core.sdd.policy import soft_gate_warning
+        from core.sdd.store import workspace_from_context
+
+        return soft_gate_warning(workspace_from_context(), writing_path=writing_path)
+    except Exception:
+        return None
 
 
 class PatchFileTool(BaseTool):

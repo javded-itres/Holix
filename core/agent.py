@@ -319,7 +319,10 @@ class HolixAgent:
 
         self.tools.register_all()
         from core.extensions.agent_registry import register_agent_extensions
+        from core.tools.agent_extensions import register_agent_extension_manager_tool
 
+        # Manager tool is always available (even when extensions are kill-switched)
+        register_agent_extension_manager_tool(self)
         register_agent_extensions(self)
         from core.config_utils import is_subagents_enabled
 
@@ -327,6 +330,11 @@ class HolixAgent:
             from core.tools.subagents import register_subagent_tools
 
             register_subagent_tools(self.tools, self)
+        else:
+            # SDD dispatch still available (mode=self); spawn needs subagents enabled
+            from core.tools.sdd import register_sdd_dispatch_tool
+
+            register_sdd_dispatch_tool(self.tools, self)
         # Register MCP tools (if configured in profile/runtime). Non-fatal.
         mcp_count = 0
         if getattr(self.config, "mcp_enabled", True) and getattr(self.config, "mcp_servers", None):
@@ -409,6 +417,25 @@ class HolixAgent:
             pass
 
         return {"mcp_tools": mcp_tools, "skills_indexed": skills_indexed}
+
+    def reload_agent_extensions(self) -> dict[str, Any]:
+        """Hot-reload profile drop-in agent extensions (tools, slash, middleware).
+
+        Used after the agent scaffolds a new extension so tools are available
+        in the current session without restart. Local single-operator only.
+        """
+        from core.extensions.agent_registry import reload_agent_extensions
+
+        result = reload_agent_extensions(self)
+        loaded = result.get("loaded") or []
+        self.emit(
+            ThinkingEvent(
+                message=(
+                    f"Agent extensions reloaded: {', '.join(loaded) if loaded else '(none)'}"
+                )
+            )
+        )
+        return result
 
     async def close(self) -> None:
         """Cleanup (MCP sessions, DI container). Safe to call multiple times."""

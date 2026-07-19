@@ -50,9 +50,15 @@ async def create_agent(
         else:
             config = init_profile(profile, profile_key=profile_key, prompt_key=False)
 
+    import os
+
     from core.application.profile_runtime import resolve_profile_agent_config
     from core.di import create_agent as di_create_agent
 
+    # Multi-user messenger host: no self-authored extensions into shared agent state.
+    os.environ.setdefault("HOLIX_MESSENGER_HOST", "telegram")
+
     runtime_config = resolve_profile_agent_config(profile, config)
+    runtime_config = runtime_config.with_overrides(self_extensions_enabled=False)
     agent, _container = await di_create_agent(runtime_config)
     return agent

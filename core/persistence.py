@@ -49,9 +49,14 @@ async def async_checkpointer(
 
             from core.paths import prepare_sqlite_db_file
 
+            from core.sqlite_util import connect_aiosqlite
+
             resolved = prepare_sqlite_db_file(db_path)
-            conn_string = str(resolved)
-            async with AsyncSqliteSaver.from_conn_string(conn_string) as checkpointer:
+            # Own connection: busy wait + WAL so concurrent checkpoints do not
+            # raise "database is locked" (default aiosqlite timeout is only 5s).
+            async with connect_aiosqlite(resolved) as conn:
+                checkpointer = AsyncSqliteSaver(conn)
+                await checkpointer.setup()
                 logger.info("Using AsyncSqliteSaver at %s", resolved)
                 yield checkpointer
                 return

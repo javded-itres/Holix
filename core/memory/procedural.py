@@ -14,6 +14,7 @@ from typing import Any
 import aiosqlite
 
 from core.memory.vector import VectorMemoryStore
+from core.sqlite_util import connect_aiosqlite
 
 logger = logging.getLogger(__name__)
 
@@ -117,7 +118,7 @@ class ProceduralMemoryStore:
         outcome_str = "success" if success else "failure"
         content = f"Skill '{skill_name}' used for: {task_description[:200]} — outcome: {outcome_str}"
 
-        async with aiosqlite.connect(self._db_path) as db:
+        async with connect_aiosqlite(self._db_path) as db:
             cursor = await db.execute(
                 """INSERT INTO ltm_entries (memory_type, content, source, category, metadata)
                    VALUES ('procedural', ?, ?, 'skill_outcome', ?)""",
@@ -147,7 +148,7 @@ class ProceduralMemoryStore:
             "recent_outcomes": [],
         }
 
-        async with aiosqlite.connect(self._db_path) as db:
+        async with connect_aiosqlite(self._db_path) as db:
             db.row_factory = aiosqlite.Row
             cursor = await db.execute(
                 """SELECT metadata, created_at

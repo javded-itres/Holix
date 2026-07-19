@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from integrations.telegram.access_approval import is_telegram_admin
-from integrations.telegram.commands import TelegramCommandSpec, command_specs
+from integrations.telegram.commands import TelegramCommandSpec, all_command_specs
 from integrations.telegram.profile_visibility import is_profile_list_hidden
 
 # Hidden from slash menu for non-admins; invocation returns tg.menu_unavailable.
@@ -54,7 +54,7 @@ def commands_for_user(
     *,
     locale: str | None = None,
 ) -> list[TelegramCommandSpec]:
-    specs = command_specs(locale)
+    specs = all_command_specs(locale)
     if not commands_restricted_for_user(bot_profile, user_id):
         return specs
     if is_telegram_admin(bot_profile, user_id):

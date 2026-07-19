@@ -61,18 +61,32 @@ def prepare_subagent_config(
     if not cfg.mcp_servers and agent_type in mcp_assigns:
         cfg.mcp_servers = list(mcp_assigns[agent_type])
 
-    from core.subagents.store import SubAgentTypeStore
+    from core.subagents.store import SubAgentTypeStore, resolve_model_slot_binding
 
     custom = SubAgentTypeStore(profile).get(agent_type)
-    if custom and custom.model_slot:
-        try:
-            from core.models.manager import ModelManager
+    # Empty / main → inherit parent model (cfg.model stays unset)
+    if custom and (custom.model_slot or "").strip():
+        slot = (custom.model_slot or "").strip()
+        if slot.lower() not in ("main", "default", "inherit", "parent"):
+            try:
+                from core.models.manager import ModelManager
 
-            mc = ModelManager(parent_config).get_agent_model_config(custom.model_slot)
-            if mc:
-                cfg.model = mc.model
-        except Exception:
-            pass
+                mc = ModelManager(parent_config).get_agent_model_config(slot)
+                if mc and mc.model:
+                    cfg.model = mc.model
+                else:
+                    binding = resolve_model_slot_binding(profile, slot)
+                    if binding:
+                        provider, model_id = binding
+                        pmc = ModelManager(parent_config).get_provider_model_config(
+                            provider, model_id=model_id
+                        )
+                        if pmc and pmc.model:
+                            cfg.model = pmc.model
+                        else:
+                            cfg.model = model_id
+            except Exception:
+                pass
 
     tools = list(cfg.tools or [])
     if "ask_user" not in tools:
