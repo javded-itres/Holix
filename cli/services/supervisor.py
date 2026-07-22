@@ -213,6 +213,10 @@ async def _run_supervisor_async(
         else None
     )
     tg_proc = _telegram_subprocess(profile)
+    # MAX must run as a separate OS process (like Telegram). In-process polling
+    # races gateway agent warm-up on the same profile and can hang forever in
+    # create_agent — bot never reaches Long Polling and appears dead.
+    max_proc = _max_subprocess(profile)
     sidecar_procs = start_extension_sidecars(
         profile, gateway_host=host, gateway_port=port
     )
@@ -221,9 +225,8 @@ async def _run_supervisor_async(
         companions_extra = ", ".join(s.label for s in sidecar_procs)
         print_info(f"Extension sidecars: {companions_extra}")
     gateway_task = asyncio.create_task(_run_gateway_uvicorn(host, port), name="gateway")
-    max_task = asyncio.create_task(_run_max(profile), name="max")
     cron_task = asyncio.create_task(_run_cron_scheduler(profile), name="cron")
-    tasks = (gateway_task, max_task, cron_task)
+    tasks = (gateway_task, cron_task)
 
     try:
         results = await asyncio.gather(*tasks, return_exceptions=True)
@@ -240,6 +243,7 @@ async def _run_supervisor_async(
         terminate_sidecars(sidecar_procs)
         _terminate_proc(docs_proc)
         _terminate_proc(tg_proc)
+        _terminate_proc(max_proc)
         print_info("All services stopped.")
 
 

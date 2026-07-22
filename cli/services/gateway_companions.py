@@ -63,14 +63,19 @@ def reload_os_companions(profile: str) -> dict[str, Any]:
     else:
         result["telegram_subprocess"] = "not_configured"
 
-    if state.max_pid:
-        if is_process_alive(state.max_pid):
-            terminate_process(state.max_pid, grace=5.0)
-        from cli.services.supervisor import _max_subprocess
+    from cli.services.supervisor import _max_subprocess
+    from integrations.max.gateway_routes import max_enabled, max_should_poll
 
+    if state.max_pid and is_process_alive(state.max_pid):
+        terminate_process(state.max_pid, grace=5.0)
         proc = _max_subprocess(profile)
         result["max_subprocess"] = "restarted" if proc is not None else "stopped"
+    elif max_should_poll(profile):
+        proc = _max_subprocess(profile)
+        result["max_subprocess"] = "started" if proc is not None else "stopped"
+    elif max_enabled(profile):
+        result["max_subprocess"] = "webhook_or_disabled"
     else:
-        result["max_subprocess"] = "in_process"
+        result["max_subprocess"] = "not_configured"
 
     return result
