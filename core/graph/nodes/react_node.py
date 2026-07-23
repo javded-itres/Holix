@@ -22,9 +22,19 @@ from core.agent_events import (
     ThinkingEvent,
     ToolCallStartEvent,
 )
+from core.llm.usage import (
+    completion_text_from_message,
+    emit_llm_call_usage,
+    resolve_usage,
+    usage_dict_from_response,
+    usage_dict_from_stream_chunk,
+)
 from core.graph.action_honesty import (
+    honesty_refusal_update,
     honesty_retry_update,
+    resolve_tool_choice,
     should_nudge_false_completion,
+    should_refuse_unproven_sdd_fill,
 )
 from core.graph.plan_step import (
     plan_step_active,
@@ -187,24 +197,47 @@ def _maybe_honesty_retry(
     final_response: str,
     assistant_already_appended: bool,
 ) -> dict[str, Any] | None:
-    """Block final answers that claim success without tool evidence."""
-    if not should_nudge_false_completion(
+    """Block final answers that claim success without tool evidence.
+
+    SDD fill: after max nudges without sdd_write_artifact, replace the lie with
+    an honest refusal instead of accepting the claim as final.
+    """
+    if should_nudge_false_completion(
         state,
         final_response=final_response,
         messages=messages,
     ):
-        return None
-    logger.info(
-        "Action honesty nudge: blocking unproven completion claim (conversation_id=%s)",
-        state.get("conversation_id", ""),
-    )
-    return honesty_retry_update(
-        messages=messages,
-        step_count=step_count,
+        logger.info(
+            "Action honesty nudge: blocking unproven completion claim "
+            "(conversation_id=%s)",
+            state.get("conversation_id", ""),
+        )
+        return honesty_retry_update(
+            messages=messages,
+            step_count=step_count,
+            final_response=final_response,
+            honesty_nudge_count=int(state.get("honesty_nudge_count") or 0),
+            include_assistant=not assistant_already_appended,
+            user_input=state.get("user_input"),
+        )
+    if should_refuse_unproven_sdd_fill(
+        state,
         final_response=final_response,
-        honesty_nudge_count=int(state.get("honesty_nudge_count") or 0),
-        include_assistant=not assistant_already_appended,
-    )
+        messages=messages,
+    ):
+        logger.warning(
+            "Action honesty refusal: SDD fill without sdd_write_artifact "
+            "(conversation_id=%s)",
+            state.get("conversation_id", ""),
+        )
+        return honesty_refusal_update(
+            messages=messages,
+            step_count=step_count,
+            honesty_nudge_count=int(state.get("honesty_nudge_count") or 0),
+            include_assistant=not assistant_already_appended,
+            final_response=final_response,
+        )
+    return None
 
 
 def _llm_max_tokens(agent, model_manager, agent_slot: str) -> int:
@@ -245,6 +278,30 @@ def _emit_final_response(
                 conversation_id=conversation_id,
             )
         )
+
+
+def _emit_llm_usage(
+    agent,
+    *,
+    model: str,
+    step: int,
+    conversation_id: str,
+    usage: dict[str, int],
+    duration_ms: float | None = None,
+    finish_reason: str | None = None,
+    estimated: bool = False,
+) -> None:
+    """Publish token usage for Studio dashboards (all agent tabs)."""
+    emit_llm_call_usage(
+        agent,
+        model=model,
+        step=step,
+        conversation_id=conversation_id,
+        usage=usage,
+        duration_ms=duration_ms,
+        finish_reason=finish_reason,
+        estimated=estimated,
+    )
 
 
 async def react_node(state: HolixGraphState, config: RunnableConfig) -> dict:
@@ -320,6 +377,7 @@ async def react_node(state: HolixGraphState, config: RunnableConfig) -> dict:
             messages_patch,
         )
     tools = agent.tools.get_schemas() if agent and hasattr(agent, "tools") else []
+    tool_choice = resolve_tool_choice(state, messages, tools=tools)
     temperature = 0.7
     if agent and hasattr(agent, "config"):
         temperature = getattr(agent.config, "temperature", 0.7)
@@ -370,6 +428,7 @@ async def react_node(state: HolixGraphState, config: RunnableConfig) -> dict:
                 on_switch=_on_fallback_switch,
                 llm_timeout_s=llm_timeout_s,
                 max_tokens=max_tokens,
+                tool_choice=tool_choice,
             )
         else:
             result = await _react_non_streaming(
@@ -387,6 +446,7 @@ async def react_node(state: HolixGraphState, config: RunnableConfig) -> dict:
                 on_switch=_on_fallback_switch,
                 llm_timeout_s=llm_timeout_s,
                 max_tokens=max_tokens,
+                tool_choice=tool_choice,
             )
         return _merge_state_patch(result, messages_patch)
 
@@ -470,9 +530,11 @@ async def _react_non_streaming(
     on_switch=None,
     llm_timeout_s: float = _DEFAULT_LLM_STEP_TIMEOUT_S,
     max_tokens: int | None = None,
+    tool_choice: str | dict[str, Any] = "auto",
 ) -> dict:
     """Non-streaming ReAct step."""
     conversation_id = state.get("conversation_id", "default")
+    choice: str | dict[str, Any] = tool_choice or "auto"
 
     async def _call_llm():
         if model_manager:
@@ -485,7 +547,7 @@ async def _react_non_streaming(
                 on_switch=on_switch,
                 messages=api_messages,
                 tools=tools,
-                tool_choice="auto",
+                tool_choice=choice,
                 temperature=temperature,
                 max_tokens=max_tokens,
             )
@@ -493,15 +555,35 @@ async def _react_non_streaming(
             model=model,
             messages=api_messages,
             tools=tools,
-            tool_choice="auto",
+            tool_choice=choice,
             temperature=temperature,
             max_tokens=max_tokens,
         )
 
+    t0 = time.monotonic()
     async with asyncio.timeout(llm_timeout_s):
         response = await _call_llm()
+    duration_ms = (time.monotonic() - t0) * 1000.0
 
     message = response.choices[0].message
+    finish_reason = response.choices[0].finish_reason if response.choices else None
+    provider_usage = usage_dict_from_response(response)
+    usage = resolve_usage(
+        response,
+        messages=api_messages,
+        completion_text=completion_text_from_message(message),
+        model=model,
+    )
+    _emit_llm_usage(
+        agent,
+        model=model,
+        step=step_count,
+        conversation_id=conversation_id,
+        usage=usage,
+        duration_ms=duration_ms,
+        finish_reason=finish_reason,
+        estimated=provider_usage is None,
+    )
     messages = list(state.get("messages", []))
 
     msg_dict = {"role": "assistant", "content": message.content or ""}
@@ -718,11 +800,43 @@ async def _react_streaming(
     on_switch=None,
     llm_timeout_s: float = _DEFAULT_LLM_STEP_TIMEOUT_S,
     max_tokens: int | None = None,
+    tool_choice: str | dict[str, Any] = "auto",
 ) -> dict:
     """Streaming ReAct step."""
     conversation_id = state.get("conversation_id", "default")
+    choice: str | dict[str, Any] = tool_choice or "auto"
 
     async def _open_stream():
+        kwargs = {
+            "messages": api_messages,
+            "tools": tools,
+            "tool_choice": choice,
+            "temperature": temperature,
+            "max_tokens": max_tokens,
+            "stream": True,
+            "stream_options": {"include_usage": True},
+        }
+
+        async def _create(llm_client, model_name: str):
+            try:
+                return await llm_client.chat.completions.create(
+                    model=model_name, **kwargs
+                )
+            except TypeError:
+                # Older/local clients may not accept stream_options
+                kwargs.pop("stream_options", None)
+                return await llm_client.chat.completions.create(
+                    model=model_name, **kwargs
+                )
+            except Exception as exc:
+                # Some OpenAI-compatible servers reject stream_options
+                if "stream_options" in kwargs and "stream_options" in str(exc).lower():
+                    kwargs.pop("stream_options", None)
+                    return await llm_client.chat.completions.create(
+                        model=model_name, **kwargs
+                    )
+                raise
+
         if model_manager:
             from core.models.fallback import run_with_provider_fallback
 
@@ -731,25 +845,9 @@ async def _react_streaming(
                 agent_name=agent_slot,
                 primary_override=primary_override,
                 on_switch=on_switch,
-                factory=lambda cfg, llm_client: llm_client.chat.completions.create(
-                    model=cfg.model,
-                    messages=api_messages,
-                    tools=tools,
-                    tool_choice="auto",
-                    temperature=temperature,
-                    max_tokens=max_tokens,
-                    stream=True,
-                ),
+                factory=lambda cfg, llm_client: _create(llm_client, cfg.model),
             )
-        return await client.chat.completions.create(
-            model=model,
-            messages=api_messages,
-            tools=tools,
-            tool_choice="auto",
-            temperature=temperature,
-            max_tokens=max_tokens,
-            stream=True,
-        )
+        return await _create(client, model)
 
     current_content = ""
     current_reasoning = ""
@@ -757,9 +855,49 @@ async def _react_streaming(
     last_finish_reason: str | None = None
     reasoning_status_emitted = False
     reasoning_only_deadline: float | None = None
+    stream_usage: dict[str, int] | None = None
+    stream_t0 = time.monotonic()
+    stream_usage_emitted = False
+
+    def _emit_stream_usage_once(*, completion_text: str = "") -> None:
+        nonlocal stream_usage_emitted
+        if stream_usage_emitted:
+            return
+        stream_usage_emitted = True
+        # Prefer provider usage; otherwise estimate from prompt + streamed text/tools.
+        tool_blob = ""
+        if tool_calls_dict:
+            parts: list[str] = []
+            for item in tool_calls_dict.values():
+                fn = (item or {}).get("function") or {}
+                parts.append(str(fn.get("name") or ""))
+                parts.append(str(fn.get("arguments") or ""))
+            tool_blob = "\n".join(parts)
+        text = (completion_text or current_content or current_reasoning or tool_blob or "").strip()
+        usage = resolve_usage(
+            messages=api_messages,
+            completion_text=text,
+            model=model,
+            stream_usage=stream_usage,
+        )
+        _emit_llm_usage(
+            agent,
+            model=model,
+            step=step_count,
+            conversation_id=conversation_id,
+            usage=usage,
+            duration_ms=(time.monotonic() - stream_t0) * 1000.0,
+            finish_reason=last_finish_reason,
+            estimated=stream_usage is None,
+        )
 
     stream_response = await _open_stream()
     async for chunk in _iter_stream_chunks(stream_response, llm_timeout_s):
+            chunk_usage = usage_dict_from_stream_chunk(chunk)
+            if chunk_usage:
+                stream_usage = chunk_usage
+            if not getattr(chunk, "choices", None):
+                continue
             delta = chunk.choices[0].delta
             content_delta, reasoning_delta = stream_delta_parts(delta)
 
@@ -831,6 +969,7 @@ async def _react_streaming(
             if finish_reason in ("stop", "tool_calls", "length") and _has_streaming_tool_calls(
                 tool_calls_dict
             ):
+                _emit_stream_usage_once()
                 return _streaming_tool_step_or_nudge(
                     state=state,
                     agent=agent,
@@ -854,6 +993,7 @@ async def _react_streaming(
                         "Empty streaming LLM response (model=%s); retrying non-streaming",
                         model,
                     )
+                    # Non-streaming retry will emit its own usage event.
                     return await _react_non_streaming(
                         state,
                         agent,
@@ -876,6 +1016,7 @@ async def _react_streaming(
                     await agent.memory.save_message(conversation_id, "assistant", final_response)
 
                 if plan_step_active(state):
+                    _emit_stream_usage_once(completion_text=final_response)
                     return await _plan_step_result(
                         state,
                         agent=agent,
@@ -894,11 +1035,13 @@ async def _react_streaming(
                     assistant_already_appended=True,
                 )
                 if honesty is not None:
+                    _emit_stream_usage_once(completion_text=final_response)
                     return honesty
 
                 if agent and hasattr(agent, "memory"):
                     await agent.memory.save_message(conversation_id, "assistant", final_response)
 
+                _emit_stream_usage_once(completion_text=final_response)
                 _emit_final_response(
                     agent,
                     content=final_response,
@@ -915,6 +1058,7 @@ async def _react_streaming(
                 }
 
             elif finish_reason == "tool_calls":
+                _emit_stream_usage_once()
                 return _streaming_tool_step_or_nudge(
                     state=state,
                     agent=agent,
@@ -926,6 +1070,7 @@ async def _react_streaming(
                 )
 
     if _has_streaming_tool_calls(tool_calls_dict):
+        _emit_stream_usage_once()
         return _streaming_tool_step_or_nudge(
             state=state,
             agent=agent,
@@ -969,6 +1114,7 @@ async def _react_streaming(
     final_response = _non_empty_final(final_response)
     messages = list(state.get("messages", []))
     messages.append({"role": "assistant", "content": final_response})
+    _emit_stream_usage_once(completion_text=final_response)
 
     if plan_step_active(state):
         return await _plan_step_result(

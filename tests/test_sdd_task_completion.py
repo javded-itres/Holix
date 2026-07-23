@@ -178,6 +178,51 @@ def test_manager_finish_marks_sdd_task(tmp_path: Path):
     assert any(t.id == "1.1" and t.done for t in tasks)
 
 
+def test_manager_respawn_same_job_id_auto_checks_again(tmp_path: Path):
+    """Reusing job name after a finished run must still mark SDD tasks."""
+    store = SpecStore(tmp_path)
+    _ready_change(store)
+    write_task_job(tmp_path, "feat-x", "1.1", "coder")
+
+    parent = MagicMock()
+    parent.config = MagicMock()
+    parent.config.workspace_root = str(tmp_path)
+    parent.emit = MagicMock()
+
+    mgr = SubAgentManager(parent)
+    first = SubAgentHandle(
+        name="coder",
+        config=SubAgentConfig(name="coder"),
+        status=SubAgentStatus.COMPLETED,
+        task_preview="[SDD change=feat-x task=1.1]\nfirst",
+        result=SubAgentResult(name="coder", success=True, response="ok"),
+    )
+    mgr._handles["coder"] = first
+    mgr._emit_finished_once(first)
+    assert "coder" in mgr._finished_emitted
+
+    # Uncheck so we can observe a second auto-complete
+    store.check_task("feat-x", task_id="1.1", done=False)
+
+    second = SubAgentHandle(
+        name="coder",
+        config=SubAgentConfig(name="coder"),
+        status=SubAgentStatus.RUNNING,
+        task_preview="[SDD change=feat-x task=1.1]\nsecond",
+    )
+    mgr._register_handle("coder", second)
+    assert "coder" not in mgr._finished_emitted
+
+    second.status = SubAgentStatus.COMPLETED
+    second.result = SubAgentResult(name="coder", success=True, response="ok2")
+    mgr.notify_handle_finished("coder")
+
+    tasks = parse_tasks_markdown(
+        (tmp_path / "openspec/changes/feat-x/tasks.md").read_text(encoding="utf-8")
+    )
+    assert any(t.id == "1.1" and t.done for t in tasks)
+
+
 @pytest.mark.asyncio
 async def test_check_task_cancels_running_subagent(tmp_path: Path):
     """Marking a task done must stop the still-running SDD subagent for that task."""

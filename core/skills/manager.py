@@ -181,8 +181,9 @@ class SkillsManager:
                     metadata = yaml.safe_load(parts[1])
                     markdown_content = parts[2].strip()
 
+                    # Empty YAML frontmatter yields None; **None is TypeError.
                     return {
-                        **metadata,
+                        **(metadata or {}),
                         "content": markdown_content,
                         "filepath": str(filepath)
                     }

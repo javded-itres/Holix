@@ -60,5 +60,10 @@ async def create_agent(
 
     runtime_config = resolve_profile_agent_config(profile, config)
     runtime_config = runtime_config.with_overrides(self_extensions_enabled=False)
-    agent, _container = await di_create_agent(runtime_config)
+    # Defer skill embedding index: full index can hang for minutes when the
+    # embedding backend is slow/unreachable, which freezes Telegram replies.
+    agent, _container = await di_create_agent(
+        runtime_config,
+        defer_skill_index=True,
+    )
     return agent

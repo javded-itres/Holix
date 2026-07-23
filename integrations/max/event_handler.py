@@ -18,6 +18,7 @@ from core.agent_events import (
     FinalResponseEvent,
     PlanCompletedEvent,
     PlanStepCompletedEvent,
+    SubAgentTimeoutExtendedEvent,
     SubAgentWaveCompletedEvent,
     SubAgentWaveStartedEvent,
     ThinkingEvent,
@@ -216,6 +217,23 @@ class MaxEventHandler:
                             f"✓ Субагенты: волна {wave}/{total} — "
                             f"{completed}/{total_jobs} готово"
                         )
+                    )
+
+            elif isinstance(event, SubAgentTimeoutExtendedEvent):
+                name = event.name or "sub-agent"
+                added = int(round(float(event.added_timeout_s or 0)))
+                note = (
+                    event.message
+                    or (
+                        f"⏱ Таймаут для субагента `{name}` увеличен на {added}s — "
+                        "ещё работает"
+                    )
+                ).strip()
+                buf.add_note(note[:500])
+                self._presenter.schedule_edit()
+                if note:
+                    self._presenter.enqueue_outbound(
+                        self._presenter.send_notice(note)
                     )
 
             elif isinstance(event, SubAgentQuestionEvent):

@@ -293,6 +293,7 @@ def run_sub_agent_in_process(
     start_time = time.monotonic()
     tool_calls_made: list[dict[str, Any]] = []
     steps_taken = 0
+    tokens_used = 0
     max_steps = config.max_steps
     result = None
 
@@ -332,6 +333,7 @@ def run_sub_agent_in_process(
                             duration_ms=(time.monotonic() - start_time) * 1000,
                             steps_taken=steps_taken,
                             tool_calls=tool_calls_made,
+                            tokens_used=tokens_used,
                         )
                         _send_result(output_queue, config.name, result)
                         heartbeat_stop.set()
@@ -370,12 +372,28 @@ def run_sub_agent_in_process(
                     duration_ms=(time.monotonic() - start_time) * 1000,
                     steps_taken=steps_taken,
                     tool_calls=tool_calls_made,
+                    tokens_used=tokens_used,
                 )
                 _send_result(output_queue, config.name, result)
                 heartbeat_stop.set()
                 return
 
             message = response.choices[0].message
+            try:
+                from core.llm.usage import (
+                    completion_text_from_message,
+                    resolve_usage,
+                )
+
+                usage = resolve_usage(
+                    response,
+                    messages=messages,
+                    completion_text=completion_text_from_message(message),
+                    model=model,
+                )
+                tokens_used += int(usage.get("total_tokens") or 0)
+            except Exception:
+                pass
 
             if message.tool_calls:
                 msg_dict = {
@@ -456,6 +474,7 @@ def run_sub_agent_in_process(
                     duration_ms=(time.monotonic() - start_time) * 1000,
                     steps_taken=steps_taken,
                     tool_calls=tool_calls_made,
+                    tokens_used=tokens_used,
                 )
                 _send_result(output_queue, config.name, result)
                 heartbeat_stop.set()
@@ -469,6 +488,7 @@ def run_sub_agent_in_process(
             duration_ms=(time.monotonic() - start_time) * 1000,
             steps_taken=steps_taken,
             tool_calls=tool_calls_made,
+            tokens_used=tokens_used,
         )
         _send_result(output_queue, config.name, result)
         heartbeat_stop.set()
@@ -481,6 +501,7 @@ def run_sub_agent_in_process(
             duration_ms=(time.monotonic() - start_time) * 1000,
             steps_taken=steps_taken,
             tool_calls=tool_calls_made,
+            tokens_used=tokens_used,
         )
         _send_result(output_queue, config.name, result)
 
@@ -737,6 +758,7 @@ def _send_result(
             "duration_ms": result.duration_ms,
             "steps_taken": result.steps_taken,
             "tool_calls": result.tool_calls,
+            "tokens_used": int(result.tokens_used or 0),
         },
     )
     try:
@@ -977,6 +999,7 @@ class SubAgentProcessManager:
                         duration_ms=meta.get("duration_ms", 0),
                         steps_taken=meta.get("steps_taken", 0),
                         tool_calls=meta.get("tool_calls", []),
+                        tokens_used=int(meta.get("tokens_used") or 0),
                     )
                     handle.steps_taken = int(meta.get("steps_taken", 0) or 0)
                     handle.status = SubAgentStatus.COMPLETED if handle.result.success else SubAgentStatus.FAILED
@@ -1007,7 +1030,9 @@ class SubAgentProcessManager:
                         logger.debug("progress notify failed", exc_info=True)
 
             elif msg.msg_type == "heartbeat":
-                pass
+                # Heartbeats mark liveness for wait-timeout extension without
+                # spamming the activity log.
+                handle.touch_activity()
 
             elif msg.msg_type == "confirmation_request":
                 await self._handle_ipc_confirmation(agent_name, msg)

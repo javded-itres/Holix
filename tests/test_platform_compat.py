@@ -11,6 +11,22 @@ import pytest
 from core import platform_compat as pc
 
 
+def test_is_process_alive_current_pid() -> None:
+    import os
+
+    assert pc.is_process_alive(os.getpid()) is True
+
+
+def test_is_process_alive_dead_pid() -> None:
+    assert pc.is_process_alive(999_999_999) is False
+
+
+def test_is_process_alive_rejects_zombie(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(pc, "_is_zombie_pid", lambda _pid: True)
+    monkeypatch.setattr(pc.os, "kill", lambda *_a, **_k: None)
+    assert pc.is_process_alive(12345) is False
+
+
 def test_resolve_holix_home_env_override(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     custom = tmp_path / "custom-helix"
     monkeypatch.setenv("HOLIX_HOME", str(custom))

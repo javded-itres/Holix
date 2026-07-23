@@ -7,10 +7,21 @@ import time
 
 
 def is_port_available(host: str, port: int) -> bool:
-    """Return True if ``host:port`` can be bound for listening."""
+    """Return True if ``host:port`` can be bound for listening.
+
+    Uses ``SO_REUSEADDR`` so a just-killed listener in TIME_WAIT is not treated
+    as busy (uvicorn binds the same way). Without this, Studio often bumps
+    8788→8789 after restart while nginx still proxies to 8788 → empty responses.
+    """
     family = socket.AF_INET6 if ":" in host else socket.AF_INET
     sock = socket.socket(family, socket.SOCK_STREAM)
     try:
+        sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        if family == socket.AF_INET6:
+            try:
+                sock.setsockopt(socket.IPPROTO_IPV6, socket.IPV6_V6ONLY, 0)
+            except OSError:
+                pass
         sock.bind((host, port))
         return True
     except OSError:

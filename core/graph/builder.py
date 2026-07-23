@@ -83,6 +83,8 @@ def prepare_initial_state(
         "sub_agent_tasks": [],
         "sub_agent_results": {},
         "pending_subagent": None,
+        # Per user turn (must reset: checkpoint otherwise freezes honesty forever)
+        "honesty_nudge_count": 0,
     }
 
 

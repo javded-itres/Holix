@@ -27,6 +27,15 @@ def test_build_filesystem_rejects_bad_path():
         build_config_from_popular(pop, {"allowed_paths": "/no/such/dir"})
 
 
+def test_build_config_from_popular_accepts_none_params():
+    """Studio install path used to pass params=None → TypeError on **None."""
+    pop = get_popular_by_key("filesystem")
+    assert pop is not None
+    data = build_config_from_popular(pop, None)
+    assert isinstance(data, dict)
+    assert data.get("command") or data.get("transport")
+
+
 def test_format_exception_group():
     try:
         raise ExceptionGroup("tg", [ValueError("ENOENT: path missing")])

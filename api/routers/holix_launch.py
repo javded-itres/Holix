@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from cli.core import ProfileManager
 from core.external_cli.launch_service import (
     LaunchServiceError,
     assign_cli,
@@ -16,23 +15,20 @@ from core.external_cli.launch_service import (
 )
 from core.external_cli.platform import launch_supported
 from core.external_cli.registry import list_cli_specs
-from dishka.integrations.fastapi import DishkaRoute
+from dishka.integrations.fastapi import DishkaRoute, FromDishka
 from fastapi import APIRouter, Depends, Header, HTTPException, Query
 
 from api.deps import verify_api_key
+from api.di import ProfileManager
 from api.schemas.holix import (
     LaunchAssignRequest,
     LaunchCliRequest,
     LaunchSendRequest,
 )
-from api.services.holix_deps import profile_access
+from api.services.holix_deps import ensure_profile_exists, profile_access
 
 router = APIRouter(prefix="/api/holix/profiles/{profile_id}/launch", tags=["holix-launch"], route_class=DishkaRoute)
 
-
-def _require_profile(profile_id: str) -> None:
-    if not ProfileManager().profile_exists(profile_id):
-        raise HTTPException(status_code=404, detail="Profile not found")
 
 
 def _launch_http_error(exc: LaunchServiceError) -> HTTPException:
@@ -47,12 +43,13 @@ def _launch_http_error(exc: LaunchServiceError) -> HTTPException:
 @router.get("/clis")
 async def get_launch_clis(
     profile_id: str,
+    manager: FromDishka[ProfileManager],
     key_info: dict = Depends(verify_api_key),
     x_holix_profile: str | None = Header(None),
     x_holix_profile_key: str | None = Header(None, alias="X-Holix-Profile-Key"),
 ):
     profile_access(profile_id, key_info, x_holix_profile, x_holix_profile_key)
-    _require_profile(profile_id)
+    ensure_profile_exists(manager, profile_id)
     return {
         "supported": launch_supported(),
         "clis": list_clis(profile_id),
@@ -63,12 +60,13 @@ async def get_launch_clis(
 @router.get("/sessions")
 async def get_launch_sessions(
     profile_id: str,
+    manager: FromDishka[ProfileManager],
     key_info: dict = Depends(verify_api_key),
     x_holix_profile: str | None = Header(None),
     x_holix_profile_key: str | None = Header(None, alias="X-Holix-Profile-Key"),
 ):
     profile_access(profile_id, key_info, x_holix_profile, x_holix_profile_key)
-    _require_profile(profile_id)
+    ensure_profile_exists(manager, profile_id)
     sessions = list_sessions(profile_id)
     return {"sessions": sessions, "count": len(sessions)}
 
@@ -76,6 +74,7 @@ async def get_launch_sessions(
 @router.post("/{cli_id}")
 async def post_launch_cli(
     profile_id: str,
+    manager: FromDishka[ProfileManager],
     cli_id: str,
     body: LaunchCliRequest,
     key_info: dict = Depends(verify_api_key),
@@ -83,7 +82,7 @@ async def post_launch_cli(
     x_holix_profile_key: str | None = Header(None, alias="X-Holix-Profile-Key"),
 ):
     profile_access(profile_id, key_info, x_holix_profile, x_holix_profile_key)
-    _require_profile(profile_id)
+    ensure_profile_exists(manager, profile_id)
     try:
         session = launch_external_cli(
             profile_id,
@@ -101,6 +100,7 @@ async def post_launch_cli(
 @router.post("/{cli_id}/restart")
 async def post_restart_cli(
     profile_id: str,
+    manager: FromDishka[ProfileManager],
     cli_id: str,
     body: LaunchCliRequest,
     key_info: dict = Depends(verify_api_key),
@@ -108,7 +108,7 @@ async def post_restart_cli(
     x_holix_profile_key: str | None = Header(None, alias="X-Holix-Profile-Key"),
 ):
     profile_access(profile_id, key_info, x_holix_profile, x_holix_profile_key)
-    _require_profile(profile_id)
+    ensure_profile_exists(manager, profile_id)
     try:
         session = launch_external_cli(
             profile_id,
@@ -126,6 +126,7 @@ async def post_restart_cli(
 @router.patch("/{cli_id}/assignment")
 async def patch_launch_assignment(
     profile_id: str,
+    manager: FromDishka[ProfileManager],
     cli_id: str,
     body: LaunchAssignRequest,
     key_info: dict = Depends(verify_api_key),
@@ -133,7 +134,7 @@ async def patch_launch_assignment(
     x_holix_profile_key: str | None = Header(None, alias="X-Holix-Profile-Key"),
 ):
     profile_access(profile_id, key_info, x_holix_profile, x_holix_profile_key)
-    _require_profile(profile_id)
+    ensure_profile_exists(manager, profile_id)
     try:
         binding = assign_cli(profile_id, cli_id, body.agent_slot)
     except LaunchServiceError as exc:
@@ -144,13 +145,14 @@ async def patch_launch_assignment(
 @router.delete("/{cli_id}/assignment")
 async def delete_launch_assignment(
     profile_id: str,
+    manager: FromDishka[ProfileManager],
     cli_id: str,
     key_info: dict = Depends(verify_api_key),
     x_holix_profile: str | None = Header(None),
     x_holix_profile_key: str | None = Header(None, alias="X-Holix-Profile-Key"),
 ):
     profile_access(profile_id, key_info, x_holix_profile, x_holix_profile_key)
-    _require_profile(profile_id)
+    ensure_profile_exists(manager, profile_id)
     try:
         binding = unassign_cli(profile_id, cli_id)
     except LaunchServiceError as exc:
@@ -161,6 +163,7 @@ async def delete_launch_assignment(
 @router.post("/sessions/{session_ref}/send")
 async def post_session_send(
     profile_id: str,
+    manager: FromDishka[ProfileManager],
     session_ref: str,
     body: LaunchSendRequest,
     key_info: dict = Depends(verify_api_key),
@@ -168,7 +171,7 @@ async def post_session_send(
     x_holix_profile_key: str | None = Header(None, alias="X-Holix-Profile-Key"),
 ):
     profile_access(profile_id, key_info, x_holix_profile, x_holix_profile_key)
-    _require_profile(profile_id)
+    ensure_profile_exists(manager, profile_id)
     try:
         result = send_session_message(
             profile_id,
@@ -184,6 +187,7 @@ async def post_session_send(
 @router.get("/sessions/{session_ref}/output")
 async def get_session_output(
     profile_id: str,
+    manager: FromDishka[ProfileManager],
     session_ref: str,
     lines: int = Query(40, ge=1, le=200),
     key_info: dict = Depends(verify_api_key),
@@ -191,7 +195,7 @@ async def get_session_output(
     x_holix_profile_key: str | None = Header(None, alias="X-Holix-Profile-Key"),
 ):
     profile_access(profile_id, key_info, x_holix_profile, x_holix_profile_key)
-    _require_profile(profile_id)
+    ensure_profile_exists(manager, profile_id)
     try:
         return capture_session_output(profile_id, session_ref, lines=lines)
     except LaunchServiceError as exc:
@@ -201,13 +205,14 @@ async def get_session_output(
 @router.delete("/sessions/{session_ref}")
 async def delete_session(
     profile_id: str,
+    manager: FromDishka[ProfileManager],
     session_ref: str,
     key_info: dict = Depends(verify_api_key),
     x_holix_profile: str | None = Header(None),
     x_holix_profile_key: str | None = Header(None, alias="X-Holix-Profile-Key"),
 ):
     profile_access(profile_id, key_info, x_holix_profile, x_holix_profile_key)
-    _require_profile(profile_id)
+    ensure_profile_exists(manager, profile_id)
     try:
         return kill_launch_session(profile_id, session_ref)
     except LaunchServiceError as exc:

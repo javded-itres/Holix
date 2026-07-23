@@ -535,6 +535,33 @@ async def plan_node(state: HolixGraphState, config: RunnableConfig) -> dict:
                 )
 
             result_text = response.choices[0].message.content or ""
+            try:
+                from core.llm.usage import (
+                    completion_text_from_message,
+                    emit_llm_call_usage,
+                    resolve_usage,
+                    usage_dict_from_response,
+                )
+
+                provider_usage = usage_dict_from_response(response)
+                usage = resolve_usage(
+                    response,
+                    messages=list(api_kwargs.get("messages") or []),
+                    completion_text=completion_text_from_message(
+                        response.choices[0].message
+                    ),
+                    model=model,
+                )
+                emit_llm_call_usage(
+                    agent,
+                    model=model,
+                    step=attempt + 1,
+                    conversation_id=conversation_id,
+                    usage=usage,
+                    estimated=provider_usage is None,
+                )
+            except Exception:
+                logger.debug("Plan token accounting failed", exc_info=True)
             logger.info(
                 f"Plan LLM response received: {len(result_text)} chars "
                 f"(first 200: {result_text[:200]})"

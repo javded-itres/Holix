@@ -131,6 +131,8 @@ class WaitSubAgentResultTool(BaseTool):
         self.name = "wait_subagent_result"
         self.description = (
             "Wait for a sub-agent started via delegate_to_subagent and return its result. "
+            "job_id may be the bare name (e.g. coder-python) from delegate_to_subagent "
+            "or the full id (e.g. studio-123::coder-python) from list_subagents. "
             "Use list_subagents to see running jobs."
         )
         self.risk_level = "no"
@@ -139,7 +141,10 @@ class WaitSubAgentResultTool(BaseTool):
             "properties": {
                 "job_id": {
                     "type": "string",
-                    "description": "Sub-agent job id returned by delegate_to_subagent",
+                    "description": (
+                        "Bare job name from delegate_to_subagent (e.g. coder-python) "
+                        "or full id from list_subagents (e.g. studio-pid::coder-python)"
+                    ),
                 },
                 "timeout_seconds": {
                     "type": "number",
@@ -152,11 +157,15 @@ class WaitSubAgentResultTool(BaseTool):
     async def execute(self, job_id: str, timeout_seconds: float | None = None) -> str:
         agent = _agent(self._parent)
         mgr = agent.subagents
+        job_id = (job_id or "").strip()
         try:
             handle = mgr.get_handle(job_id)
-            if not handle:
-                return f"Error: no sub-agent with job_id '{job_id}'. Use list_subagents."
-            timeout = timeout_seconds or handle.config.timeout
+            timeout = timeout_seconds
+            if handle is not None:
+                timeout = timeout_seconds or handle.config.timeout
+            elif timeout is None:
+                timeout = 900.0
+            # wait_for resolves owner::name and can poll the profile registry.
             result = await mgr.wait_for(job_id, timeout=timeout)
             return json.dumps(
                 {
@@ -169,8 +178,35 @@ class WaitSubAgentResultTool(BaseTool):
                 },
                 ensure_ascii=False,
             )
+        except KeyError:
+            try:
+                summary = mgr.get_status_summary()
+                known = [
+                    str(a.get("id") or a.get("name") or "")
+                    for a in (summary.get("agents") or [])
+                ]
+                known = [k for k in known if k][:12]
+            except Exception:
+                known = []
+            hint = (
+                f" Known jobs: {', '.join(known)}."
+                if known
+                else " Call list_subagents() for current jobs."
+            )
+            return (
+                f"Error: no sub-agent with job_id '{job_id}'.{hint} "
+                "Use the bare name (coder-python) or full id (studio-…::coder-python)."
+            )
+        except TimeoutError as e:
+            detail = (str(e) or "").strip() or "wait timed out"
+            return (
+                f"Error waiting for sub-agent '{job_id}': {detail}. "
+                "If it is still running, call wait_subagent_result again "
+                "or list_subagents; the job was not cancelled."
+            )
         except Exception as e:
-            return f"Error waiting for sub-agent '{job_id}': {e}"
+            detail = (str(e) or "").strip() or type(e).__name__
+            return f"Error waiting for sub-agent '{job_id}': {detail}"
 
 
 class ListSubAgentsTool(BaseTool):

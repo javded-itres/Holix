@@ -130,6 +130,52 @@ def _terminate_proc(proc: subprocess.Popen[bytes] | None) -> None:
         proc.kill()
 
 
+async def _watch_os_companions(
+    profile: str,
+    *,
+    procs: dict[str, subprocess.Popen[bytes] | None],
+    interval_sec: float = 5.0,
+    restart_backoff_sec: float = 3.0,
+    max_consecutive_failures: int = 5,
+) -> None:
+    """Restart Telegram/MAX OS companions if they exit (zombies / crashes).
+
+    Permanent config failures (e.g. MAX profile misconfiguration) use
+    exponential backoff and stop after *max_consecutive_failures* so a
+    broken companion cannot busy-loop the host.
+    """
+    failures: dict[str, int] = {"telegram": 0, "max": 0}
+    while True:
+        await asyncio.sleep(interval_sec)
+        for name, start_fn in (
+            ("telegram", lambda: _telegram_subprocess(profile)),
+            ("max", lambda: _max_subprocess(profile)),
+        ):
+            proc = procs.get(name)
+            if proc is None or proc.poll() is None:
+                if proc is not None and proc.poll() is None:
+                    failures[name] = 0
+                continue
+            code = proc.returncode
+            failures[name] = failures.get(name, 0) + 1
+            n = failures[name]
+            if n > max_consecutive_failures:
+                print_warning(
+                    f"{name} companion exited (code={code}) {n} times; "
+                    f"giving up auto-restart (profile={profile})"
+                )
+                procs[name] = None
+                continue
+            backoff = restart_backoff_sec * (2 ** min(n - 1, 4))
+            print_warning(
+                f"{name} companion exited (code={code}); "
+                f"restarting in {backoff:.0f}s "
+                f"(try {n}/{max_consecutive_failures}, profile={profile})"
+            )
+            await asyncio.sleep(backoff)
+            procs[name] = start_fn()
+
+
 def _docs_subprocess(
     host: str,
     port: int,
@@ -217,6 +263,10 @@ async def _run_supervisor_async(
     # races gateway agent warm-up on the same profile and can hang forever in
     # create_agent — bot never reaches Long Polling and appears dead.
     max_proc = _max_subprocess(profile)
+    companion_procs: dict[str, subprocess.Popen[bytes] | None] = {
+        "telegram": tg_proc,
+        "max": max_proc,
+    }
     sidecar_procs = start_extension_sidecars(
         profile, gateway_host=host, gateway_port=port
     )
@@ -226,7 +276,11 @@ async def _run_supervisor_async(
         print_info(f"Extension sidecars: {companions_extra}")
     gateway_task = asyncio.create_task(_run_gateway_uvicorn(host, port), name="gateway")
     cron_task = asyncio.create_task(_run_cron_scheduler(profile), name="cron")
-    tasks = (gateway_task, cron_task)
+    companion_watch = asyncio.create_task(
+        _watch_os_companions(profile, procs=companion_procs),
+        name="companion-watch",
+    )
+    tasks = (gateway_task, cron_task, companion_watch)
 
     try:
         results = await asyncio.gather(*tasks, return_exceptions=True)
@@ -242,8 +296,8 @@ async def _run_supervisor_async(
         await asyncio.gather(*tasks, return_exceptions=True)
         terminate_sidecars(sidecar_procs)
         _terminate_proc(docs_proc)
-        _terminate_proc(tg_proc)
-        _terminate_proc(max_proc)
+        _terminate_proc(companion_procs.get("telegram"))
+        _terminate_proc(companion_procs.get("max"))
         print_info("All services stopped.")
 
 
@@ -269,6 +323,7 @@ def _max_subprocess(profile: str) -> subprocess.Popen[bytes] | None:
             )
         return None
 
+    _terminate_stray_module_workers("integrations.max.main", profile)
     env = os.environ.copy()
     env["HOLIX_PROFILE"] = profile
     print_success(f"MAX bot starting in subprocess (polling, profile={profile})")
@@ -279,6 +334,38 @@ def _max_subprocess(profile: str) -> subprocess.Popen[bytes] | None:
     if proc.pid:
         update_max_pid(proc.pid, profile=profile)
     return proc
+
+
+def _terminate_stray_module_workers(module: str, profile: str) -> None:
+    """Stop other OS processes for the same companion module+profile (avoid dual poll)."""
+    from core.platform_compat import is_process_alive, terminate_process
+
+    profile_flag = f"--profile {profile}"
+    profile_flag_eq = f"--profile={profile}"
+    try:
+        import pathlib
+
+        for proc_dir in pathlib.Path("/proc").iterdir():
+            if not proc_dir.name.isdigit():
+                continue
+            pid = int(proc_dir.name)
+            if pid == os.getpid() or not is_process_alive(pid):
+                continue
+            try:
+                cmd = (proc_dir / "cmdline").read_bytes().replace(b"\0", b" ").decode(
+                    errors="replace"
+                )
+            except (OSError, PermissionError):
+                continue
+            if module not in cmd:
+                continue
+            # Require explicit profile flag so multi-profile hosts are not disrupted.
+            if profile_flag not in cmd and profile_flag_eq not in cmd:
+                continue
+            print_warning(f"Stopping stray {module} pid={pid} (profile={profile})")
+            terminate_process(pid, grace=3.0)
+    except Exception:
+        pass
 
 
 def _telegram_subprocess(profile: str) -> subprocess.Popen[bytes] | None:
@@ -293,6 +380,7 @@ def _telegram_subprocess(profile: str) -> subprocess.Popen[bytes] | None:
         print_info("Install: uv sync --extra telegram")
         return None
 
+    _terminate_stray_module_workers("integrations.telegram.main", profile)
     env = os.environ.copy()
     env["HOLIX_PROFILE"] = profile
     print_success(f"Telegram bot starting in subprocess (profile={profile})")

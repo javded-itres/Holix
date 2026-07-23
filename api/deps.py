@@ -54,18 +54,26 @@ async def _validate_key(
     default_limit: int,
     request: Request | None = None,
 ) -> dict:
+    """Validate API key via Dishka APP scope; state only when container is absent.
+
+    Request path: ``request.app.state.dishka_container`` (same instances as lifespan).
+    Non-request / legacy tests without app: fall back to ``api.state`` mirror.
+    """
     from core.security.auth import APIKeyManager, RateLimiter
 
     from api import state
 
-    manager = None
-    limiter = None
+    manager: APIKeyManager | None = None
+    limiter: RateLimiter | None = None
     if request is not None:
         manager = await _dishka_get(request, APIKeyManager)
         limiter = await _dishka_get(request, RateLimiter)
-    gw = state.get()
-    manager = manager or gw.api_key_manager
-    limiter = limiter or gw.rate_limiter
+    if manager is None:
+        # Container missing (unit tests / non-HTTP) — use process mirror.
+        gw = state.get()
+        manager = gw.api_key_manager
+        if limiter is None:
+            limiter = gw.rate_limiter
     if manager is None:
         raise HTTPException(status_code=503, detail="API key manager not initialized")
 
@@ -182,7 +190,7 @@ def _state_fallback(name: str):
 
 
 async def get_registry(request: Request):
-    """Profile agent registry (Dishka APP scope, state fallback)."""
+    """Profile agent registry — Dishka first; state only if container has no binding."""
     from core.gateway.profile_registry import ProfileAgentRegistry
 
     reg = await _dishka_get(request, ProfileAgentRegistry)

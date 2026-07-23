@@ -4,26 +4,20 @@ from __future__ import annotations
 
 from typing import Any
 
-from cli.core import ProfileManager
 from core.mcp.installer import build_config_from_popular, install_from_git
 from core.mcp.popular import get_popular_by_key, get_popular_list
-from dishka.integrations.fastapi import DishkaRoute
+from dishka.integrations.fastapi import DishkaRoute, FromDishka
 from fastapi import APIRouter, Depends, Header, HTTPException
 
 from api.deps import verify_api_key
 from api.errors import client_safe_message
 from api.schemas.holix import McpAssignmentsPatchRequest, McpInstallRequest, McpServerCreateRequest
 from api.services.config_mask import mask_config_dict
-from api.services.holix_deps import profile_access
+from api.di import ProfileManager
+from api.services.holix_deps import load_existing_profile, profile_access
 
 router = APIRouter(prefix="/api/holix/profiles/{profile_id}/mcp", tags=["holix-mcp"], route_class=DishkaRoute)
 
-
-def _require_profile(profile_id: str) -> tuple[ProfileManager, object]:
-    manager = ProfileManager()
-    if not manager.profile_exists(profile_id):
-        raise HTTPException(status_code=404, detail="Profile not found")
-    return manager, manager.load_profile(profile_id)
 
 
 async def _test_mcp_server(name: str, data: dict[str, Any]) -> list[str]:
@@ -47,12 +41,13 @@ async def _test_mcp_server(name: str, data: dict[str, Any]) -> list[str]:
 @router.get("/servers")
 async def list_servers(
     profile_id: str,
+    manager: FromDishka[ProfileManager],
     key_info: dict = Depends(verify_api_key),
     x_holix_profile: str | None = Header(None),
     x_holix_profile_key: str | None = Header(None, alias="X-Holix-Profile-Key"),
 ):
     profile_access(profile_id, key_info, x_holix_profile, x_holix_profile_key)
-    _, config = _require_profile(profile_id)
+    _, config = load_existing_profile(manager, profile_id)
     servers = mask_config_dict({"mcp_servers": getattr(config, "mcp_servers", {}) or {}})["mcp_servers"]
     assignments = getattr(config, "mcp_assignments", {}) or {}
     return {"servers": servers, "assignments": assignments, "count": len(servers)}
@@ -61,13 +56,14 @@ async def list_servers(
 @router.post("/servers")
 async def create_server(
     profile_id: str,
+    manager: FromDishka[ProfileManager],
     body: McpServerCreateRequest,
     key_info: dict = Depends(verify_api_key),
     x_holix_profile: str | None = Header(None),
     x_holix_profile_key: str | None = Header(None, alias="X-Holix-Profile-Key"),
 ):
     profile_access(profile_id, key_info, x_holix_profile, x_holix_profile_key)
-    manager, config = _require_profile(profile_id)
+    manager, config = load_existing_profile(manager, profile_id)
     servers = dict(getattr(config, "mcp_servers", {}) or {})
     if body.name in servers:
         raise HTTPException(status_code=409, detail="Server already exists")
@@ -96,13 +92,14 @@ async def create_server(
 @router.get("/servers/{server_name}")
 async def get_server(
     profile_id: str,
+    manager: FromDishka[ProfileManager],
     server_name: str,
     key_info: dict = Depends(verify_api_key),
     x_holix_profile: str | None = Header(None),
     x_holix_profile_key: str | None = Header(None, alias="X-Holix-Profile-Key"),
 ):
     profile_access(profile_id, key_info, x_holix_profile, x_holix_profile_key)
-    _, config = _require_profile(profile_id)
+    _, config = load_existing_profile(manager, profile_id)
     servers = getattr(config, "mcp_servers", {}) or {}
     if server_name not in servers:
         raise HTTPException(status_code=404, detail="Server not found")
@@ -113,13 +110,14 @@ async def get_server(
 @router.delete("/servers/{server_name}")
 async def delete_server(
     profile_id: str,
+    manager: FromDishka[ProfileManager],
     server_name: str,
     key_info: dict = Depends(verify_api_key),
     x_holix_profile: str | None = Header(None),
     x_holix_profile_key: str | None = Header(None, alias="X-Holix-Profile-Key"),
 ):
     profile_access(profile_id, key_info, x_holix_profile, x_holix_profile_key)
-    manager, config = _require_profile(profile_id)
+    manager, config = load_existing_profile(manager, profile_id)
     servers = dict(getattr(config, "mcp_servers", {}) or {})
     if server_name not in servers:
         raise HTTPException(status_code=404, detail="Server not found")
@@ -137,13 +135,14 @@ async def delete_server(
 @router.post("/servers/{server_name}/test")
 async def test_server(
     profile_id: str,
+    manager: FromDishka[ProfileManager],
     server_name: str,
     key_info: dict = Depends(verify_api_key),
     x_holix_profile: str | None = Header(None),
     x_holix_profile_key: str | None = Header(None, alias="X-Holix-Profile-Key"),
 ):
     profile_access(profile_id, key_info, x_holix_profile, x_holix_profile_key)
-    _, config = _require_profile(profile_id)
+    _, config = load_existing_profile(manager, profile_id)
     servers = getattr(config, "mcp_servers", {}) or {}
     if server_name not in servers:
         raise HTTPException(status_code=404, detail="Server not found")
@@ -160,25 +159,27 @@ async def test_server(
 @router.get("/assignments")
 async def get_assignments(
     profile_id: str,
+    manager: FromDishka[ProfileManager],
     key_info: dict = Depends(verify_api_key),
     x_holix_profile: str | None = Header(None),
     x_holix_profile_key: str | None = Header(None, alias="X-Holix-Profile-Key"),
 ):
     profile_access(profile_id, key_info, x_holix_profile, x_holix_profile_key)
-    _, config = _require_profile(profile_id)
+    _, config = load_existing_profile(manager, profile_id)
     return {"assignments": getattr(config, "mcp_assignments", {}) or {}}
 
 
 @router.patch("/assignments")
 async def patch_assignments(
     profile_id: str,
+    manager: FromDishka[ProfileManager],
     body: McpAssignmentsPatchRequest,
     key_info: dict = Depends(verify_api_key),
     x_holix_profile: str | None = Header(None),
     x_holix_profile_key: str | None = Header(None, alias="X-Holix-Profile-Key"),
 ):
     profile_access(profile_id, key_info, x_holix_profile, x_holix_profile_key)
-    manager, config = _require_profile(profile_id)
+    manager, config = load_existing_profile(manager, profile_id)
     servers = set((getattr(config, "mcp_servers", {}) or {}).keys())
     for role, lst in body.assignments.items():
         unknown = [s for s in lst if s not in servers]
@@ -195,12 +196,13 @@ async def patch_assignments(
 @router.get("/popular")
 async def list_popular(
     profile_id: str,
+    manager: FromDishka[ProfileManager],
     key_info: dict = Depends(verify_api_key),
     x_holix_profile: str | None = Header(None),
     x_holix_profile_key: str | None = Header(None, alias="X-Holix-Profile-Key"),
 ):
     profile_access(profile_id, key_info, x_holix_profile, x_holix_profile_key)
-    _require_profile(profile_id)
+    load_existing_profile(manager, profile_id)
     popular = []
     for entry in get_popular_list():
         popular.append({
@@ -216,13 +218,14 @@ async def list_popular(
 @router.post("/install")
 async def install_server(
     profile_id: str,
+    manager: FromDishka[ProfileManager],
     body: McpInstallRequest,
     key_info: dict = Depends(verify_api_key),
     x_holix_profile: str | None = Header(None),
     x_holix_profile_key: str | None = Header(None, alias="X-Holix-Profile-Key"),
 ):
     profile_access(profile_id, key_info, x_holix_profile, x_holix_profile_key)
-    manager, config = _require_profile(profile_id)
+    manager, config = load_existing_profile(manager, profile_id)
     servers = dict(getattr(config, "mcp_servers", {}) or {})
 
     if body.popular_key:

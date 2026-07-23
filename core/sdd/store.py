@@ -98,10 +98,12 @@ _TASKS_STUB = """\
 - [ ] 1.1 First concrete step
   - **assignee:** `main`
   - **reason:** shared / coordination
+  - **depends_on:**
 
-- [ ] 1.2 Next step (set assignee to a subagent type for parallel work)
+- [ ] 1.2 Next step (runs after 1.1; set assignee for parallel multi-agent apply)
   - **assignee:** `main`
   - **reason:** default to main; change for multi-agent apply
+  - **depends_on:** `1.1`
 """
 
 _DELTA_STUB = """\
@@ -139,6 +141,30 @@ class SpecStore:
     @property
     def project_root(self) -> Path:
         return self.workspace
+
+    def tool_relpath(self, path: Path | str) -> str:
+        """Path relative to Holix workspace for read_file / write_file.
+
+        SpecStore paths are under the *project* root. Nested projects (e.g.
+        ``user_catalog/openspec/...``) must be reported with the project
+        prefix so file tools resolve them from the profile workspace root.
+        """
+        p = Path(path).expanduser().resolve()
+        try:
+            holix = workspace_from_context()
+        except Exception:
+            holix = None
+        if holix is not None:
+            try:
+                holix = holix.resolve()
+                if p.is_relative_to(holix) and self.workspace.is_relative_to(holix):
+                    return p.relative_to(holix).as_posix()
+            except (ValueError, OSError):
+                pass
+        try:
+            return p.relative_to(self.workspace).as_posix()
+        except ValueError:
+            return str(p)
 
     def is_initialized(self) -> bool:
         return self.root.is_dir() and config_path(self.workspace).is_file()
@@ -184,12 +210,56 @@ class SpecStore:
             out.append(
                 {
                     "domain": d.name,
-                    "path": str(spec.relative_to(self.workspace)),
+                    "path": self.tool_relpath(spec),
                     "requirements": len(_REQ_COUNT_RE.findall(text)),
                     "chars": len(text),
                 }
             )
         return out
+
+    def project_domain_slug(self) -> str:
+        """Default domain name from the project folder (workspace root name)."""
+        raw = (self.workspace.name or "project").strip()
+        try:
+            return validate_domain(raw)
+        except ValueError:
+            slug = re.sub(r"[^a-z0-9\-_]+", "-", raw.lower()).strip("-_")
+            if not slug:
+                slug = "project"
+            try:
+                return validate_domain(slug[:64])
+            except ValueError:
+                return "project"
+
+    def resolve_delta_domain(self, preferred: str | None = None) -> str:
+        """Pick delta domain: existing main specs first, else project folder name.
+
+        - If ``openspec/specs/<domain>/`` already exists → use one of those
+          (prefer *preferred* when it matches, else domain equal to project
+          name, else the first sorted domain).
+        - If there are no main domains yet → use the project directory name
+          (not the change id, not a free-typed ``example`` stub).
+        """
+        existing = [str(s.get("domain") or "") for s in self.list_specs()]
+        existing = [d for d in existing if d]
+        pref_norm: str | None = None
+        raw = (preferred or "").strip()
+        if raw:
+            try:
+                pref_norm = validate_domain(raw)
+            except ValueError:
+                pref_norm = None
+        if existing:
+            if pref_norm:
+                for d in existing:
+                    if d == pref_norm or d.lower() == pref_norm.lower():
+                        return d
+            project_slug = self.project_domain_slug()
+            for d in existing:
+                if d == project_slug or d.lower() == project_slug.lower():
+                    return d
+            return sorted(existing)[0]
+        return self.project_domain_slug()
 
     def read_spec(self, domain: str) -> str:
         domain = validate_domain(domain)
@@ -228,7 +298,7 @@ class SpecStore:
                     archived.append(
                         {
                             "change_id": d.name,
-                            "path": str(d.relative_to(self.workspace)),
+                            "path": self.tool_relpath(d),
                             "archived": True,
                         }
                     )
@@ -238,7 +308,7 @@ class SpecStore:
         self,
         change_id: str,
         *,
-        domain: str = "example",
+        domain: str = "",
         request: str = "",
         understanding_gate_enabled: bool = False,
         understanding_threshold: int = 80,
@@ -246,7 +316,7 @@ class SpecStore:
         if not self.is_initialized():
             raise RuntimeError("SDD not initialized — call sdd_init first")
         cid = validate_change_id(change_id)
-        domain = validate_domain(domain)
+        domain = self.resolve_delta_domain(domain)
         dest = change_dir(self.workspace, cid)
         if dest.exists():
             raise FileExistsError(f"change already exists: {cid}")
@@ -294,7 +364,8 @@ class SpecStore:
         return {
             "ok": True,
             "change_id": cid,
-            "path": str(dest.relative_to(self.workspace)),
+            "domain": domain,
+            "path": self.tool_relpath(dest),
             "artifacts": artifacts,
             "understanding": understanding.to_dict(),
             "next": (
@@ -311,32 +382,38 @@ class SpecStore:
         cdir = change_dir(self.workspace, cid)
         if not cdir.is_dir():
             raise FileNotFoundError(f"change not found: {cid}")
-        rel = str(cdir.relative_to(self.workspace))
+        rel = self.tool_relpath(cdir)
         tasks: list = []
         tasks_path = cdir / "tasks.md"
         if tasks_path.is_file():
             tasks = parse_tasks_markdown(tasks_path.read_text(encoding="utf-8"))
         mode = load_apply_mode(self.workspace, cid)
         tasks_ok = self._tasks_ready_for_apply(tasks, apply_mode=mode)
+        delta_specs = (
+            list((cdir / "specs").rglob(SPEC_FILENAME))
+            if (cdir / "specs").is_dir()
+            else []
+        )
         artifacts = {
             "proposal": (cdir / "proposal.md").is_file()
             and self._artifact_filled(cdir / "proposal.md"),
-            "design": (cdir / "design.md").is_file(),
+            "design": (cdir / "design.md").is_file()
+            and self._artifact_filled(cdir / "design.md"),
             "tasks": tasks_path.is_file() and tasks_ok,
-            "specs": any(
-                p.is_file()
-                for p in (cdir / "specs").rglob(SPEC_FILENAME)
-            )
-            if (cdir / "specs").is_dir()
-            else False,
+            # File existence alone is not enough — create_change writes stubs.
+            "specs": bool(delta_specs)
+            and all(self._artifact_filled(p) for p in delta_specs),
         }
         missing: list[str] = []
         if not artifacts["proposal"]:
             missing.append("proposal (fill Why/What/Impact)")
+        if not artifacts["design"]:
+            missing.append("design (fill approach + assignees, not stubs)")
         if not artifacts["specs"]:
-            missing.append("delta specs")
+            missing.append("delta specs (fill ADDED/MODIFIED requirements, not stubs)")
         if not artifacts["tasks"]:
             missing.append(self._tasks_missing_reason(tasks, apply_mode=mode))
+        # design is reported for honesty/UI but not required to start apply
         apply_ready = (
             artifacts["proposal"]
             and artifacts["specs"]
@@ -363,31 +440,69 @@ class SpecStore:
         *,
         domain: str | None = None,
     ) -> dict:
+        from core.tools.file_diff import build_file_diff_payload
+
         cid = validate_change_id(change_id)
         cdir = change_dir(self.workspace, cid)
         if not cdir.is_dir():
             raise FileNotFoundError(f"change not found: {cid}")
         art = artifact.strip().lower()
+        extra: dict = {}
         if art in ("proposal", "proposal.md"):
             path = cdir / "proposal.md"
         elif art in ("design", "design.md"):
             path = cdir / "design.md"
         elif art in ("tasks", "tasks.md"):
             path = cdir / "tasks.md"
+            from core.sdd.tasks import ensure_tasks_openspec_format, parse_tasks_markdown
+
+            content, norm_notes = ensure_tasks_openspec_format(
+                content, title=f"Tasks: {cid}"
+            )
+            tasks_written = parse_tasks_markdown(content)
+            extra = {
+                "tasks_total": len(tasks_written),
+                "normalized": bool(norm_notes),
+                "normalize_notes": norm_notes,
+                "format": "openspec-checklist",
+            }
         elif art in ("specs", "spec", "delta", "spec.md"):
-            dom = validate_domain(domain or "example")
+            # Prefer an already-scaffolded delta domain under this change, else resolve.
+            if domain and str(domain).strip():
+                dom = self.resolve_delta_domain(domain)
+            else:
+                existing_deltas = (
+                    sorted(p.name for p in (cdir / "specs").iterdir() if p.is_dir())
+                    if (cdir / "specs").is_dir()
+                    else []
+                )
+                if len(existing_deltas) == 1:
+                    dom = existing_deltas[0]
+                elif existing_deltas:
+                    resolved = self.resolve_delta_domain(None)
+                    dom = resolved if resolved in existing_deltas else existing_deltas[0]
+                else:
+                    dom = self.resolve_delta_domain(None)
             path = cdir / "specs" / dom / SPEC_FILENAME
             path.parent.mkdir(parents=True, exist_ok=True)
         else:
             raise ValueError(
                 f"unknown artifact {artifact!r}; use proposal|design|tasks|specs"
             )
+
+        before = path.read_text(encoding="utf-8") if path.is_file() else None
         path.write_text(content, encoding="utf-8")
-        return {
+        rel = self.tool_relpath(path)
+        out: dict = {
             "ok": True,
-            "path": str(path.relative_to(self.workspace)),
+            "path": rel,
             "chars": len(content),
+            **extra,
         }
+        file_diff = build_file_diff_payload(rel, before, content)
+        if file_diff:
+            out["file_diff"] = file_diff
+        return out
 
     def check_task(
         self,
@@ -536,32 +651,37 @@ class SpecStore:
         path = change_dir(self.workspace, st.change_id) / "tasks.md"
         tasks = parse_tasks_markdown(path.read_text(encoding="utf-8"))
         mode = st.apply_mode
-        plan: list[dict] = []
+        from core.sdd.task_graph import (
+            build_task_graph,
+            format_graph_summary,
+            plan_rows_from_graph,
+        )
+
+        executors: dict[str, str] = {}
         for t in tasks:
-            if t.done:
-                continue
             if mode == "self":
-                executor = "main"
+                executors[t.id] = "main"
             elif t.assignee in ("main", "unassigned", ""):
-                executor = "main"
+                executors[t.id] = "main"
             else:
-                executor = t.assignee
-            plan.append(
-                {
-                    "id": t.id,
-                    "text": t.text,
-                    "assignee": t.assignee,
-                    "executor": executor,
-                }
-            )
+                executors[t.id] = t.assignee
+        graph = build_task_graph(tasks, infer_sequential=True)
+        plan = plan_rows_from_graph(graph, executor_for=executors)
+        summary = format_graph_summary(graph)
         return {
             "ok": True,
             "change_id": st.change_id,
             "apply_mode": mode,
             "plan": plan,
+            "graph": graph.to_dict(),
+            "graph_summary": summary,
             "message": (
-                f"Apply mode={mode}. Execute plan in order; mark tasks with sdd_check_task. "
-                "For executor!=main use subagent tools when mode is subagents/hybrid."
+                f"Apply mode={mode}. Execute by task graph waves "
+                f"(depends_on + same-section order); mark done with sdd_check_task. "
+                "Only ready tasks (deps satisfied) may run; "
+                "for executor!=main use sdd_dispatch / subagent tools when mode is "
+                "subagents/hybrid.\n"
+                f"{summary}"
             ),
         }
 
@@ -584,7 +704,7 @@ class SpecStore:
                     main_text = f"# {domain}\n\n"
                 new_main = merge_delta_into_main(main_text, delta_text)
                 main_path.write_text(new_main, encoding="utf-8")
-                merged.append(main_path.relative_to(self.workspace).as_posix())
+                merged.append(self.tool_relpath(main_path))
 
         arch = archive_root(self.workspace)
         arch.mkdir(parents=True, exist_ok=True)
@@ -596,7 +716,7 @@ class SpecStore:
         return {
             "ok": True,
             "change_id": cid,
-            "archived_to": dest.relative_to(self.workspace).as_posix(),
+            "archived_to": self.tool_relpath(dest),
             "merged_specs": merged,
         }
 
@@ -619,7 +739,7 @@ class SpecStore:
             enriched.append(item)
         return {
             "initialized": self.is_initialized(),
-            "path": str(self.root.relative_to(self.workspace)) if self.root.exists() else None,
+            "path": self.tool_relpath(self.root) if self.root.exists() else None,
             "project_root": str(self.workspace),
             "specs": self.list_specs() if self.is_initialized() else [],
             "changes": enriched,
@@ -627,10 +747,31 @@ class SpecStore:
 
     @staticmethod
     def _artifact_filled(path: Path) -> bool:
+        """True when markdown has real content (not create_change placeholders)."""
         text = path.read_text(encoding="utf-8")
-        # strip comments and stubs
+        # Explicit scaffold markers from SpecStore stubs
+        stub_markers = (
+            "<!-- Why this change is needed -->",
+            "<!-- User-visible and technical changes -->",
+            "<!-- fill after understanding confirmed -->",
+            "<!-- High-level design -->",
+            "The system SHALL …",
+            "The system SHALL ...",
+            "- **GIVEN** …",
+            "- **GIVEN** ...",
+            "First concrete step",
+            "Next step (set assignee",
+        )
+        if any(m in text for m in stub_markers):
+            return False
+        # strip comments and headings
         cleaned = re.sub(r"<!--.*?-->", "", text, flags=re.DOTALL)
         cleaned = re.sub(r"^#.*$", "", cleaned, flags=re.MULTILINE)
+        # Ellipsis-only placeholders left from stubs
+        if re.search(r"(?m)^\s*[-*]\s*\*\*[A-Z]+\*\*\s*[.…]+", cleaned):
+            return False
+        if "SHALL …" in cleaned or "SHALL ..." in cleaned:
+            return False
         return len(cleaned.strip()) >= 40
 
     @staticmethod

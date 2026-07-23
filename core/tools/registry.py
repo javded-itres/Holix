@@ -142,6 +142,13 @@ class ToolRegistry:
 
             register_browser_tools(self)
 
+        try:
+            from holix_studio.agent_tools.desktop import register_desktop_tools
+
+            register_desktop_tools(self)
+        except ImportError:
+            pass
+
     async def register_mcp(
         self,
         mcp_servers: dict[str, Any],

@@ -107,17 +107,45 @@ async def execute_step_node(state: HolixGraphState, config: RunnableConfig) -> d
             temperature = 0.3  # Lower temperature for plan steps
 
             profile_name = getattr(getattr(agent, "config", None), "profile_name", None)
+            step_messages = [
+                {"role": "system", "content": _step_system_prompt(profile_name)},
+                {"role": "user", "content": step_prompt},
+            ]
             response = await client.chat.completions.create(
                 model=model,
-                messages=[
-                    {"role": "system", "content": _step_system_prompt(profile_name)},
-                    {"role": "user", "content": step_prompt},
-                ],
+                messages=step_messages,
                 temperature=temperature,
                 max_tokens=2000,
             )
 
             step_response = response.choices[0].message.content or ""
+            try:
+                from core.llm.usage import (
+                    completion_text_from_message,
+                    emit_llm_call_usage,
+                    resolve_usage,
+                    usage_dict_from_response,
+                )
+
+                provider_usage = usage_dict_from_response(response)
+                usage = resolve_usage(
+                    response,
+                    messages=step_messages,
+                    completion_text=completion_text_from_message(
+                        response.choices[0].message
+                    ),
+                    model=model,
+                )
+                emit_llm_call_usage(
+                    agent,
+                    model=model,
+                    step=step_num,
+                    conversation_id=conversation_id,
+                    usage=usage,
+                    estimated=provider_usage is None,
+                )
+            except Exception:
+                logger.debug("Execute-step token accounting failed", exc_info=True)
         except Exception as e:
             logger.warning(f"LLM call failed in execute_step: {e}")
             step_response = f"Error executing step {step_num}: {str(e)}"

@@ -63,6 +63,15 @@ class HolixTelegramBot:
             return True
         return resolve_user_profile(self.settings.profile, uid) is not None
 
+    async def _send_typing(self, bot: Any, chat_id: int) -> None:
+        """Best-effort typing indicator — must never abort message handling."""
+        try:
+            from aiogram.enums import ChatAction
+
+            await bot.send_chat_action(chat_id, action=ChatAction.TYPING)
+        except Exception:
+            pass
+
     async def _reply_gate(self, message: Any, gate: Any) -> None:
         """Send gate denial / upsell message to the user."""
         markup = getattr(gate, "reply_markup", None)
@@ -287,8 +296,6 @@ class HolixTelegramBot:
         suffix: str,
         settings: TelegramSettings,
     ) -> None:
-        from aiogram.enums import ChatAction
-
         from config import settings as app_settings
         from integrations.telegram.markdown import escape_html
         from integrations.telegram.voice_handler import (
@@ -303,7 +310,7 @@ class HolixTelegramBot:
             )
             return
 
-        await bot.send_chat_action(message.chat.id, action=ChatAction.TYPING)
+        await self._send_typing(bot, message.chat.id)
 
         session = await self._get_session(
             message.chat.id, message.from_user.id, bot=bot
@@ -449,8 +456,6 @@ class HolixTelegramBot:
         caption: str,
         settings: TelegramSettings,
     ) -> None:
-        from aiogram.enums import ChatAction
-
         from integrations.telegram.file_handler import (
             SavedTelegramFile,
             build_agent_prompt,
@@ -459,7 +464,7 @@ class HolixTelegramBot:
         )
         from integrations.telegram.markdown import escape_html
 
-        await bot.send_chat_action(chat_id, action=ChatAction.TYPING)
+        await self._send_typing(bot, chat_id)
 
         session = await self._get_session(chat_id, user_id, bot=bot)
         saved_files: list[SavedTelegramFile] = []
@@ -628,7 +633,11 @@ class HolixTelegramBot:
             if registered:
                 print(f"Telegram menu: {len(registered)} commands", flush=True)
             elif not settings.allow_all:
-                print("Telegram menu: hidden until users are approved", flush=True)
+                # Per-chat menus are registered lazily on first authorized message.
+                print(
+                    "Telegram menu: per-chat (registered on first authorized message)",
+                    flush=True,
+                )
             from integrations.telegram.voice_handler import warm_local_whisper_model_async
 
             asyncio.create_task(
@@ -701,9 +710,7 @@ class HolixTelegramBot:
             if not self._allowed(message.from_user.id):
                 await self._handle_unauthorized(bot, message)
                 return
-            from aiogram.enums import ChatAction
-
-            await bot.send_chat_action(message.chat.id, action=ChatAction.TYPING)
+            await self._send_typing(bot, message.chat.id)
             await self._ensure_authorized_menu(
                 bot,
                 message.chat.id,
@@ -725,21 +732,34 @@ class HolixTelegramBot:
                 )
             except Exception:
                 return
-            host = TelegramHost(bot, session, edit_interval_ms=settings.edit_interval_ms)
-            gate = await run_message_gates(
-                plugin_api,
-                user_id=message.from_user.id,
-                chat_id=message.chat.id,
-                text=message.text,
-                message=message,
-                session=session,
-                host=host,
-                is_command=False,
-            )
-            if not gate.allow:
-                await self._reply_gate(message, gate)
-                return
-            await host.handle_user_text(message.text)
+            try:
+                host = TelegramHost(bot, session, edit_interval_ms=settings.edit_interval_ms)
+                gate = await run_message_gates(
+                    plugin_api,
+                    user_id=message.from_user.id,
+                    chat_id=message.chat.id,
+                    text=message.text,
+                    message=message,
+                    session=session,
+                    host=host,
+                    is_command=False,
+                )
+                if not gate.allow:
+                    await self._reply_gate(message, gate)
+                    return
+                await host.handle_user_text(message.text)
+            except Exception as exc:
+                print(
+                    f"Telegram on_text failed (chat={message.chat.id}): "
+                    f"{type(exc).__name__}: {exc}",
+                    flush=True,
+                )
+                try:
+                    await message.answer(
+                        "⚠️ Не удалось обработать сообщение. Попробуйте ещё раз."
+                    )
+                except Exception:
+                    pass
 
         @dp.message(F.voice)
         async def on_voice(message: Message) -> None:
