@@ -99,6 +99,25 @@ def test_allows_workspace_relative_commands(workspace: Path) -> None:
     assert allowed
 
 
+def test_allows_dev_null_redirects(workspace: Path) -> None:
+    """2>/dev/null and >/dev/null are normal shell, not a workspace escape."""
+    for cmd in (
+        "true >/dev/null",
+        "true 2>/dev/null",
+        "cmd arg 2>/dev/null",
+        "python -c 'print(1)' >/dev/null 2>&1",
+        "test -f foo || echo missing >/dev/null",
+    ):
+        allowed, reason = validate_workspace_command(cmd, workspace)
+        assert allowed, f"{cmd!r} blocked: {reason}"
+
+
+def test_still_blocks_real_outside_paths(workspace: Path) -> None:
+    allowed, reason = validate_workspace_command("cat /etc/passwd", workspace)
+    assert not allowed
+    assert "outside" in reason.lower() or "workspace" in reason.lower()
+
+
 def test_blocks_listing_root(workspace: Path) -> None:
     blocked, _ = command_escapes_workspace("ls -la /", workspace)
     assert blocked

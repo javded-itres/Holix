@@ -90,6 +90,8 @@ MESSAGES: dict[str, dict[str, str]] = {
             "• /plan-confirm · /plan-reject — plan review\n"
             "• /cron — scheduled jobs\n"
             "  /cron add every day at 9 :: task\n"
+            "• /spec — SDD (create / show / apply / archive)\n"
+            "  /spec create id -- request · /spec apply id\n"
             "• /mcp — MCP servers menu\n"
             "  /mcp remove name — remove server\n\n"
             "Confirmations: buttons under the message or /yes /no"
@@ -117,6 +119,7 @@ MESSAGES: dict[str, dict[str, str]] = {
         "tg.cmd.forget": "Clear session memory",
         "tg.cmd.init": "Project analysis → HOLIX.md",
         "tg.cmd.cron": "Cron jobs",
+        "tg.cmd.spec": "SDD: create / show / apply / archive",
         "tg.cmd.message": "Admin broadcast (all or profile)",
         "tg.message_admin_only": "Only the Telegram bot admin can use /message.",
         "tg.menu_unavailable": "This menu is not available for your account.",
@@ -158,7 +161,8 @@ MESSAGES: dict[str, dict[str, str]] = {
             "  /new /sessions /switch N /session name <x>\n"
             "  /profile [name|N]  /memory <q>  /last [/N]  /tools\n"
             "  /yes /no  /plan-confirm|auto|refine|reject\n"
-            "  /launch [/list]  /mcp [/list|/install <key|url>|/assign|/test|/tools]"
+            "  /launch [/list]  /mcp [/list|/install <key|url>|/assign|/test|/tools]\n"
+            "  /spec [/init|/create|/show|/apply|/archive|/fill]"
         ),
         "tui.launch.title": "External CLI launch",
         "tui.launch.assign": "Assign sub-agent",
@@ -579,6 +583,8 @@ When finished, confirm the absolute path written and give a 5–10 line summary 
             "• /plan-confirm · /plan-reject — план\n"
             "• /cron — периодические задачи\n"
             "  /cron add every day at 9 :: задача\n"
+            "• /spec — SDD (создать / смотреть / apply / архив)\n"
+            "  /spec create id -- запрос · /spec apply id\n"
             "• /mcp — меню MCP серверов\n"
             "  /mcp remove имя — удалить сервер\n\n"
             "Подтверждения: кнопки под сообщением или /yes /no"
@@ -606,6 +612,7 @@ When finished, confirm the absolute path written and give a 5–10 line summary 
         "tg.cmd.forget": "Очистить память сессии",
         "tg.cmd.init": "Анализ проекта → HOLIX.md",
         "tg.cmd.cron": "Периодические задачи",
+        "tg.cmd.spec": "SDD: создать / смотреть / apply / архив",
         "tg.cmd.message": "Рассылка админа (всем или профилю)",
         "tg.message_admin_only": "Команда /message доступна только администратору бота.",
         "tg.menu_unavailable": "Это меню недоступно для вашей учётной записи.",
@@ -647,7 +654,8 @@ When finished, confirm the absolute path written and give a 5–10 line summary 
             "  /new /sessions /switch N /session name <имя>\n"
             "  /profile [имя|N]  /memory <запрос>  /last [/N]  /tools\n"
             "  /yes /no  /plan-confirm|auto|refine|reject\n"
-            "  /launch [/list]  /mcp [/list|/install <key|url>|/assign|/test|/tools]"
+            "  /launch [/list]  /mcp [/list|/install <key|url>|/assign|/test|/tools]\n"
+            "  /spec [/init|/create|/show|/apply|/archive|/fill]"
         ),
         "tui.launch.title": "Внешние CLI (launch)",
         "tui.launch.assign": "Назначить субагента",

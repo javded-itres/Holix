@@ -54,7 +54,7 @@ class SubAgentConfig:
     max_steps: int = 150                         # Max reasoning steps
     mode: str = "react"                          # Execution mode
     process_mode: ProcessMode = ProcessMode.ASYNC  # How to run
-    timeout: float = 120.0                       # Timeout in seconds
+    timeout: float = 900.0                       # Wait / job budget (seconds)
     memory_access: MemoryAccess = MemoryAccess.SHARED  # Memory access level
     temperature: float = 0.7                     # LLM temperature
     description: str = ""                        # Human-readable description
@@ -87,6 +87,7 @@ class SubAgentResult:
     duration_ms: float = 0.0                      # Execution time in ms
     memory_used: int = 0                          # Approximate memory used (bytes)
     steps_taken: int = 0                          # Number of reasoning steps
+    tokens_used: int = 0                          # Sum of LLM tokens (prompt+completion) for this run
 
     @property
     def status(self) -> SubAgentStatus:
@@ -124,6 +125,7 @@ class SubAgentHandle:
     current_activity: str = ""
     last_tool: str = ""
     activity_log: list[dict[str, Any]] = field(default_factory=list)
+    last_activity_at: float | None = None  # time.monotonic of last progress / heartbeat
 
     @property
     def is_running(self) -> bool:
@@ -147,6 +149,23 @@ class SubAgentHandle:
             return self.result.duration_ms
         return (time.monotonic() - self.started_at) * 1000
 
+    def touch_activity(self) -> None:
+        """Mark the sub-agent as live without appending an activity log entry."""
+        self.last_activity_at = time.monotonic()
+
+    def is_actively_working(self, *, max_idle_s: float = 90.0) -> bool:
+        """True when running and progress/heartbeat was seen within max_idle_s."""
+        if not self.is_running:
+            return False
+        now = time.monotonic()
+        last = self.last_activity_at
+        if last is None and self.started_at is not None:
+            # Just started — treat as active until idle window elapses
+            last = self.started_at
+        if last is None:
+            return False
+        return (now - last) <= max(0.0, float(max_idle_s))
+
     def record_activity(
         self,
         kind: str,
@@ -157,6 +176,7 @@ class SubAgentHandle:
         steps_taken: int | None = None,
     ) -> dict[str, Any]:
         """Append a UI-visible activity entry and update live fields."""
+        self.touch_activity()
         if steps_taken is not None:
             self.steps_taken = max(0, int(steps_taken))
         text = (message or "").strip()

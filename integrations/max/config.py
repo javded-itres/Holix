@@ -123,10 +123,14 @@ def load_max_settings(profile: str = "default") -> MaxSettings:
             mode = "polling"
         else:
             mode = "webhook"
+    # Host bot profile is the CLI/gateway profile argument (same as Telegram).
+    # Do not override with HOLIX_MAX_PROFILE — that env is often left as
+    # "default" and breaks production (default profile is disabled).
+    host_profile = (profile or "").strip() or "default"
     return MaxSettings(
         access_token=_env_first("MAX_ACCESS_TOKEN", "HOLIX_MAX_ACCESS_TOKEN"),
         allowed_user_ids=_env_first("HOLIX_MAX_ALLOWED_USERS", "HELIX_MAX_ALLOWED_USERS"),
-        profile=_env_first("HOLIX_MAX_PROFILE", "HELIX_MAX_PROFILE", default=profile),
+        profile=host_profile,
         mode=mode,
         webhook_url=_env_first("HOLIX_MAX_WEBHOOK_URL", "HELIX_MAX_WEBHOOK_URL"),
         webhook_secret=_env_first("HOLIX_MAX_WEBHOOK_SECRET", "HELIX_MAX_WEBHOOK_SECRET"),

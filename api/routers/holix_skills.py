@@ -4,28 +4,22 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from cli.core import ProfileManager
 from core.hub.normalize import (
     discover_skill_files,
     parse_skill_file,
     resolve_skill_markdown_path,
 )
 from core.skills.assignments import agents_for_skill
-from dishka.integrations.fastapi import DishkaRoute
+from dishka.integrations.fastapi import DishkaRoute, FromDishka
 from fastapi import APIRouter, Depends, Header, HTTPException, Query
 
 from api.deps import verify_api_key
+from api.di import ProfileManager
 from api.schemas.holix import SkillAssignmentsPatchRequest
-from api.services.holix_deps import profile_access
+from api.services.holix_deps import load_existing_profile, profile_access
 
 router = APIRouter(prefix="/api/holix/profiles/{profile_id}/skills", tags=["holix-skills"], route_class=DishkaRoute)
 
-
-def _require_profile(profile_id: str) -> tuple[ProfileManager, object]:
-    manager = ProfileManager()
-    if not manager.profile_exists(profile_id):
-        raise HTTPException(status_code=404, detail="Profile not found")
-    return manager, manager.load_profile(profile_id)
 
 
 def _skills_manager(config):
@@ -40,6 +34,7 @@ def _skills_manager(config):
 @router.get("")
 async def list_skills(
     profile_id: str,
+    manager: FromDishka[ProfileManager],
     limit: int = Query(50, ge=1, le=500),
     agent: str | None = Query(None),
     key_info: dict = Depends(verify_api_key),
@@ -47,7 +42,7 @@ async def list_skills(
     x_holix_profile_key: str | None = Header(None, alias="X-Holix-Profile-Key"),
 ):
     profile_access(profile_id, key_info, x_holix_profile, x_holix_profile_key)
-    _, config = _require_profile(profile_id)
+    _, config = load_existing_profile(manager, profile_id)
     mgr = _skills_manager(config)
     slot = agent or "main"
     assigns = getattr(config, "skill_assignments", None) or {}
@@ -70,6 +65,7 @@ async def list_skills(
 @router.get("/search")
 async def search_skills(
     profile_id: str,
+    manager: FromDishka[ProfileManager],
     q: str = Query(..., min_length=1),
     agent: str | None = Query(None),
     key_info: dict = Depends(verify_api_key),
@@ -77,7 +73,7 @@ async def search_skills(
     x_holix_profile_key: str | None = Header(None, alias="X-Holix-Profile-Key"),
 ):
     profile_access(profile_id, key_info, x_holix_profile, x_holix_profile_key)
-    _, config = _require_profile(profile_id)
+    _, config = load_existing_profile(manager, profile_id)
     mgr = _skills_manager(config)
     results = mgr.get_relevant_skills(q, top_k=20, agent_slot=agent or "main")
     return {
@@ -93,25 +89,27 @@ async def search_skills(
 @router.get("/assignments")
 async def get_assignments(
     profile_id: str,
+    manager: FromDishka[ProfileManager],
     key_info: dict = Depends(verify_api_key),
     x_holix_profile: str | None = Header(None),
     x_holix_profile_key: str | None = Header(None, alias="X-Holix-Profile-Key"),
 ):
     profile_access(profile_id, key_info, x_holix_profile, x_holix_profile_key)
-    _, config = _require_profile(profile_id)
+    _, config = load_existing_profile(manager, profile_id)
     return {"assignments": getattr(config, "skill_assignments", None) or {}}
 
 
 @router.patch("/assignments")
 async def patch_assignments(
     profile_id: str,
+    manager: FromDishka[ProfileManager],
     body: SkillAssignmentsPatchRequest,
     key_info: dict = Depends(verify_api_key),
     x_holix_profile: str | None = Header(None),
     x_holix_profile_key: str | None = Header(None, alias="X-Holix-Profile-Key"),
 ):
     profile_access(profile_id, key_info, x_holix_profile, x_holix_profile_key)
-    manager, config = _require_profile(profile_id)
+    manager, config = load_existing_profile(manager, profile_id)
     config.skill_assignments = body.assignments
     manager.save_profile(profile_id, config)
     return {"assignments": config.skill_assignments, "reload_required": True}
@@ -120,13 +118,14 @@ async def patch_assignments(
 @router.post("/seed-bundled")
 async def seed_bundled(
     profile_id: str,
+    manager: FromDishka[ProfileManager],
     force: bool = Query(False),
     key_info: dict = Depends(verify_api_key),
     x_holix_profile: str | None = Header(None),
     x_holix_profile_key: str | None = Header(None, alias="X-Holix-Profile-Key"),
 ):
     profile_access(profile_id, key_info, x_holix_profile, x_holix_profile_key)
-    manager, config = _require_profile(profile_id)
+    manager, config = load_existing_profile(manager, profile_id)
     from core.skills.bundled import ensure_bundled_assigned_to_main, seed_bundled_skills
 
     skills_dir = Path(config.skills_dir)
@@ -148,13 +147,14 @@ async def seed_bundled(
 @router.get("/{skill_name}")
 async def show_skill(
     profile_id: str,
+    manager: FromDishka[ProfileManager],
     skill_name: str,
     key_info: dict = Depends(verify_api_key),
     x_holix_profile: str | None = Header(None),
     x_holix_profile_key: str | None = Header(None, alias="X-Holix-Profile-Key"),
 ):
     profile_access(profile_id, key_info, x_holix_profile, x_holix_profile_key)
-    _, config = _require_profile(profile_id)
+    _, config = load_existing_profile(manager, profile_id)
     skills_dir = Path(config.skills_dir)
     skill = None
     try:

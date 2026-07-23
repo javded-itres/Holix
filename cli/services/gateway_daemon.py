@@ -140,6 +140,14 @@ def start_gateway_daemon(
         print_info(f"Stop it first: {profile_cli_prefix(profile)} gateway stop")
         raise SystemExit(1)
 
+    from cli.services.gateway_singleton import assert_can_start_gateway
+
+    try:
+        assert_can_start_gateway(profile)
+    except RuntimeError as exc:
+        print_error(str(exc))
+        raise SystemExit(1) from exc
+
     listen_port = resolve_listen_port(host, port)
     if listen_port != port:
         print_warning(f"Port {port} is in use; using {listen_port} instead")

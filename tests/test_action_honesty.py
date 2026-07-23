@@ -4,19 +4,29 @@ from __future__ import annotations
 
 from core.graph.action_honesty import (
     ACTION_HONESTY_NUDGE,
+    SDD_FILL_HONESTY_NUDGE,
+    SDD_FILL_HONESTY_REFUSAL,
     claims_action_completed,
+    claims_sdd_artifacts_filled,
     ends_turn_on_unexecuted_intent,
+    honesty_refusal_update,
     honesty_retry_update,
+    is_sdd_fill_request,
     lacks_evidence_for_claim,
+    resolve_tool_choice,
+    sdd_fill_requires_tools,
     should_nudge_false_completion,
+    should_refuse_unproven_sdd_fill,
     successful_tools_since_last_user,
 )
+from core.graph.builder import prepare_initial_state
 
 
 def test_claims_completion_ru_and_en() -> None:
     assert claims_action_completed("Готово! План сохранён в файл.")
     assert claims_action_completed("I've saved the plan to disk.")
     assert claims_action_completed("Successfully created the project.")
+    assert claims_action_completed("Готово. Заполнил все четыре артефакта.")
     assert not claims_action_completed("Что нужно сделать?")
     assert not claims_action_completed("Сейчас сохраню план через write_file.")
 
@@ -53,6 +63,171 @@ def test_list_only_not_enough_for_write_claim() -> None:
         "Рабочая директория пустая. План сохранён как TMS.md.",
         messages,
     )
+
+
+def test_sdd_create_change_not_enough_for_spec_filled_claim() -> None:
+    """Scaffolding a change is not evidence that the spec was filled."""
+    messages = [
+        {"role": "user", "content": "Создай спеку new_user"},
+        {
+            "role": "assistant",
+            "content": "",
+            "tool_calls": [
+                {
+                    "id": "c1",
+                    "type": "function",
+                    "function": {"name": "sdd_create_change", "arguments": "{}"},
+                }
+            ],
+        },
+        {
+            "role": "tool",
+            "tool_call_id": "c1",
+            "content": '{"ok": true, "change_id": "new_user", "filled": false}',
+        },
+    ]
+    assert lacks_evidence_for_claim(
+        "Готово, спека new_user создана и заполнена.",
+        messages,
+    )
+
+
+def test_sdd_write_artifact_allows_spec_claim() -> None:
+    messages = [
+        {"role": "user", "content": "Заполни спеку"},
+        {
+            "role": "assistant",
+            "content": "",
+            "tool_calls": [
+                {
+                    "id": "c1",
+                    "type": "function",
+                    "function": {"name": "sdd_write_artifact", "arguments": "{}"},
+                }
+            ],
+        },
+        {
+            "role": "tool",
+            "tool_call_id": "c1",
+            "content": '{"ok": true, "path": "openspec/changes/new_user/specs/auth/spec.md"}',
+        },
+    ]
+    assert not lacks_evidence_for_claim(
+        "Заполнил delta-спеку через sdd_write_artifact.",
+        messages,
+    )
+
+
+def test_studio_sdd_fill_claim_without_write_is_blocked() -> None:
+    """UI auto-prompt after create_change: pure text 'Заполнил' is not enough."""
+    user = (
+        "SDD change `new-user` created in project `user_catalog`.\n"
+        "User request:\nNeed a watcher\n\n"
+        "MUST call sdd_write_artifact for proposal, design, delta specs, and tasks."
+    )
+    claim = (
+        "Готово. Заполнил все четыре артефакта SDD change `new-user`.\n"
+        "| Proposal | `user_catalog/openspec/changes/new-user/proposal.md` | 1250 chars |"
+    )
+    messages = [
+        {"role": "user", "content": user},
+        {"role": "assistant", "content": claim},
+    ]
+    assert is_sdd_fill_request(user)
+    assert claims_sdd_artifacts_filled(claim)
+    assert lacks_evidence_for_claim(claim, messages)
+    assert sdd_fill_requires_tools(messages)
+    assert should_nudge_false_completion(
+        {"honesty_nudge_count": 0, "user_input": user},
+        final_response=claim,
+        messages=messages,
+    )
+    # Stuck checkpoint count must not block after reset path (count still 0 each turn)
+    assert should_nudge_false_completion(
+        {"honesty_nudge_count": 1, "user_input": user},
+        final_response=claim,
+        messages=messages,
+    )
+    # After max SDD nudges, stop nudging — but refuse the false final instead
+    assert not should_nudge_false_completion(
+        {"honesty_nudge_count": 3, "user_input": user},
+        final_response=claim,
+        messages=messages,
+    )
+    assert should_refuse_unproven_sdd_fill(
+        {"honesty_nudge_count": 3, "user_input": user},
+        final_response=claim,
+        messages=messages,
+    )
+    refusal = honesty_refusal_update(
+        messages=messages,
+        step_count=4,
+        honesty_nudge_count=3,
+        include_assistant=False,
+        final_response=claim,
+    )
+    assert refusal["is_final"] is True
+    assert refusal["final_response"] == SDD_FILL_HONESTY_REFUSAL
+    assert "sdd_write_artifact" in refusal["final_response"]
+    assert refusal["messages"][-1]["content"] == SDD_FILL_HONESTY_REFUSAL
+
+
+def test_sdd_fill_tool_choice_required_until_write() -> None:
+    user = (
+        "SDD change `x` created in project `p`.\n"
+        "Please fill proposal via sdd_write_artifact."
+    )
+    messages = [{"role": "user", "content": user}]
+    state = {"user_input": user, "tool_results": []}
+    # Without sdd_write_artifact in schemas → required
+    assert resolve_tool_choice(state, messages, tools=[{"type": "function"}]) == "required"
+    # With schema → force that function
+    forced = resolve_tool_choice(
+        state,
+        messages,
+        tools=[
+            {
+                "type": "function",
+                "function": {"name": "sdd_write_artifact", "parameters": {}},
+            }
+        ],
+    )
+    assert forced == {
+        "type": "function",
+        "function": {"name": "sdd_write_artifact"},
+    }
+    messages_with_write = messages + [
+        {
+            "role": "assistant",
+            "content": "",
+            "tool_calls": [
+                {
+                    "id": "c1",
+                    "type": "function",
+                    "function": {"name": "sdd_write_artifact", "arguments": "{}"},
+                }
+            ],
+        },
+        {
+            "role": "tool",
+            "tool_call_id": "c1",
+            "name": "sdd_write_artifact",
+            "content": '{"ok": true, "path": "openspec/changes/x/proposal.md"}',
+        },
+    ]
+    assert (
+        resolve_tool_choice(
+            {"user_input": user, "tool_results": []},
+            messages_with_write,
+            tools=[{"type": "function"}],
+        )
+        == "auto"
+    )
+
+
+def test_prepare_initial_state_resets_honesty_nudge() -> None:
+    state = prepare_initial_state(agent=None, user_input="hi")
+    assert state["honesty_nudge_count"] == 0
 
 
 def test_write_file_success_allows_claim() -> None:
@@ -125,6 +300,18 @@ def test_honesty_retry_update_appends_nudge() -> None:
     assert out["honesty_nudge_count"] == 1
     assert out["messages"][-1]["content"] == ACTION_HONESTY_NUDGE
     assert out["messages"][-2]["role"] == "assistant"
+
+
+def test_sdd_honesty_retry_uses_sdd_nudge() -> None:
+    user = "SDD change `x` created.\nPlease fill via sdd_write_artifact."
+    out = honesty_retry_update(
+        messages=[{"role": "user", "content": user}],
+        step_count=1,
+        final_response="Готово. Заполнил все четыре артефакта.",
+        honesty_nudge_count=0,
+        user_input=user,
+    )
+    assert out["messages"][-1]["content"] == SDD_FILL_HONESTY_NUDGE
 
 
 def test_plan_mode_skips_honesty_nudge() -> None:

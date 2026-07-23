@@ -63,8 +63,9 @@ def reload_os_companions(profile: str) -> dict[str, Any]:
     else:
         result["telegram_subprocess"] = "not_configured"
 
-    from cli.services.supervisor import _max_subprocess
     from integrations.max.gateway_routes import max_enabled, max_should_poll
+
+    from cli.services.supervisor import _max_subprocess
 
     if state.max_pid and is_process_alive(state.max_pid):
         terminate_process(state.max_pid, grace=5.0)

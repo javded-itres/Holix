@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from cli.core import ProfileManager, enable_profile_workspace_isolation
+from cli.core import enable_profile_workspace_isolation
 from core.profile_keys import (
     ProfileExistsError,
     profile_has_access_key,
@@ -18,6 +18,7 @@ from api.di import (
     CompanionManager,
     HostProfileName,
     ProfileAgentRegistry,
+    ProfileManager,
 )
 from api.schemas.holix import (
     JailEnableRequest,
@@ -34,13 +35,13 @@ router = APIRouter(prefix="/api/holix/profiles", tags=["holix-profiles"], route_
 @router.get("")
 async def list_profiles(
     host_profile: FromDishka[HostProfileName],
+    manager: FromDishka[ProfileManager],
     key_info: dict = Depends(verify_api_key),
     x_holix_profile: str | None = Header(None),
     x_holix_profile_key: str | None = Header(None, alias="X-Holix-Profile-Key"),
 ):
     ctx = profile_access(str(host_profile), key_info, x_holix_profile, x_holix_profile_key)
     require_admin_access(ctx)
-    manager = ProfileManager()
     profiles = []
     for name in manager.list_profiles():
         profiles.append({
@@ -54,6 +55,7 @@ async def list_profiles(
 @router.post("")
 async def create_profile(
     host_profile: FromDishka[HostProfileName],
+    manager: FromDishka[ProfileManager],
     body: ProfileCreateRequest,
     key_info: dict = Depends(verify_api_key),
     x_holix_profile: str | None = Header(None),
@@ -61,7 +63,6 @@ async def create_profile(
 ):
     ctx = profile_access(str(host_profile), key_info, x_holix_profile, x_holix_profile_key)
     require_admin_access(ctx)
-    manager = ProfileManager()
     name = body.name.strip()
     if not name:
         raise HTTPException(status_code=400, detail="Profile name is required")
@@ -90,12 +91,12 @@ async def create_profile(
 @router.get("/{profile_id}")
 async def get_profile(
     profile_id: str,
+    manager: FromDishka[ProfileManager],
     key_info: dict = Depends(verify_api_key),
     x_holix_profile: str | None = Header(None),
     x_holix_profile_key: str | None = Header(None, alias="X-Holix-Profile-Key"),
 ):
     profile_access(profile_id, key_info, x_holix_profile, x_holix_profile_key)
-    manager = ProfileManager()
     if not manager.profile_exists(profile_id):
         raise HTTPException(status_code=404, detail="Profile not found")
     config = manager.load_profile(profile_id)
@@ -113,12 +114,12 @@ async def profile_status(
     registry: FromDishka[ProfileAgentRegistry],
     companions: FromDishka[CompanionManager],
     profile_id: str,
+    manager: FromDishka[ProfileManager],
     key_info: dict = Depends(verify_api_key),
     x_holix_profile: str | None = Header(None),
     x_holix_profile_key: str | None = Header(None, alias="X-Holix-Profile-Key"),
 ):
     profile_access(profile_id, key_info, x_holix_profile, x_holix_profile_key)
-    manager = ProfileManager()
     if not manager.profile_exists(profile_id):
         raise HTTPException(status_code=404, detail="Profile not found")
     loaded = profile_id in (registry.list_loaded_profiles() if registry else [])
@@ -137,6 +138,7 @@ async def delete_profile(
     registry: FromDishka[ProfileAgentRegistry],
     companions: FromDishka[CompanionManager],
     profile_id: str,
+    manager: FromDishka[ProfileManager],
     key_info: dict = Depends(verify_api_key),
     x_holix_profile: str | None = Header(None),
     x_holix_profile_key: str | None = Header(None, alias="X-Holix-Profile-Key"),
@@ -151,7 +153,6 @@ async def delete_profile(
             status_code=400,
             detail=f"Cannot delete protected profile '{profile_id}'",
         )
-    manager = ProfileManager()
     if not manager.profile_exists(profile_id):
         raise HTTPException(status_code=404, detail="Profile not found")
     if registry and profile_id in registry.list_loaded_profiles():
@@ -191,12 +192,12 @@ async def reload_profile(
     companions: FromDishka[CompanionManager],
     host_profile: FromDishka[HostProfileName],
     profile_id: str,
+    manager: FromDishka[ProfileManager],
     key_info: dict = Depends(verify_api_key),
     x_holix_profile: str | None = Header(None),
     x_holix_profile_key: str | None = Header(None, alias="X-Holix-Profile-Key"),
 ):
     profile_access(profile_id, key_info, x_holix_profile, x_holix_profile_key)
-    manager = ProfileManager()
     if not manager.profile_exists(profile_id):
         raise HTTPException(status_code=404, detail="Profile not found")
 
@@ -245,12 +246,12 @@ async def key_status(
 @router.post("/{profile_id}/key/init")
 async def key_init(
     profile_id: str,
+    manager: FromDishka[ProfileManager],
     key_info: dict = Depends(verify_api_key),
     x_holix_profile: str | None = Header(None),
     x_holix_profile_key: str | None = Header(None, alias="X-Holix-Profile-Key"),
 ):
     profile_access(profile_id, key_info, x_holix_profile, x_holix_profile_key)
-    manager = ProfileManager()
     if not manager.profile_exists(profile_id):
         raise HTTPException(status_code=404, detail="Profile not found")
     if profile_has_access_key(profile_id):
@@ -299,12 +300,13 @@ async def key_disable(
 @router.get("/{profile_id}/jail")
 async def jail_status(
     profile_id: str,
+    manager: FromDishka[ProfileManager],
     key_info: dict = Depends(verify_api_key),
     x_holix_profile: str | None = Header(None),
     x_holix_profile_key: str | None = Header(None, alias="X-Holix-Profile-Key"),
 ):
     profile_access(profile_id, key_info, x_holix_profile, x_holix_profile_key)
-    config = ProfileManager().load_profile(profile_id)
+    config = manager.load_profile(profile_id)
     return {
         "enabled": config.workspace_jail_enabled,
         "workspace_root": config.workspace_root,
@@ -314,13 +316,13 @@ async def jail_status(
 @router.post("/{profile_id}/jail/enable")
 async def jail_enable(
     profile_id: str,
+    manager: FromDishka[ProfileManager],
     body: JailEnableRequest,
     key_info: dict = Depends(verify_api_key),
     x_holix_profile: str | None = Header(None),
     x_holix_profile_key: str | None = Header(None, alias="X-Holix-Profile-Key"),
 ):
     profile_access(profile_id, key_info, x_holix_profile, x_holix_profile_key)
-    manager = ProfileManager()
     config = manager.load_profile(profile_id)
     if body.path:
         from pathlib import Path
@@ -344,12 +346,12 @@ async def jail_enable(
 @router.post("/{profile_id}/jail/disable")
 async def jail_disable(
     profile_id: str,
+    manager: FromDishka[ProfileManager],
     key_info: dict = Depends(verify_api_key),
     x_holix_profile: str | None = Header(None),
     x_holix_profile_key: str | None = Header(None, alias="X-Holix-Profile-Key"),
 ):
     profile_access(profile_id, key_info, x_holix_profile, x_holix_profile_key)
-    manager = ProfileManager()
     config = manager.load_profile(profile_id)
     config.workspace_jail_enabled = False
     manager.save_profile(profile_id, config)

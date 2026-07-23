@@ -52,6 +52,7 @@ def _request_dict(req: TelegramAccessRequest) -> dict[str, Any]:
 
 
 def get_telegram_status(profile_id: str) -> dict[str, Any]:
+    from integrations.messenger.bot_links import normalize_bot_username, telegram_bot_url
     from integrations.telegram.config import load_telegram_settings
 
     from api import state
@@ -63,11 +64,15 @@ def get_telegram_status(profile_id: str) -> dict[str, Any]:
     pending = list_pending_requests(profile_id)
     companions_mgr = state.get().companions
     companions = companions_mgr.status(profile_id) if companions_mgr else {}
+    env_values = read_telegram_env_values(profile_id)
+    bot_username = normalize_bot_username(env_values.get("HOLIX_TELEGRAM_BOT_USERNAME"))
 
     return {
         "profile": profile_id,
         "configured": bool(settings.bot_token.strip()),
         "token_masked": mask_token(settings.bot_token),
+        "bot_username": bot_username,
+        "bot_url": telegram_bot_url(bot_username),
         "access_requests_enabled": settings.access_requests,
         "pending_count": len(pending),
         "allowed_user_ids": settings.allowed_user_ids,
@@ -95,18 +100,33 @@ async def setup_telegram(
     except TelegramApiError as exc:
         raise TelegramOpError(str(exc), status_code=400) from exc
 
+    from integrations.messenger.bot_links import normalize_bot_username, telegram_bot_url
+
     load_telegram_env_files(profile_id)
     existing = read_telegram_env_values(profile_id)
+    username = normalize_bot_username(me.get("username")) or str(
+        me.get("username") or me.get("first_name") or "bot"
+    ).strip().lstrip("@")
     values = {
         "TELEGRAM_BOT_TOKEN": token,
         "HOLIX_TELEGRAM_ACCESS_REQUESTS": "true",
     }
+    if username:
+        values["HOLIX_TELEGRAM_BOT_USERNAME"] = username
     allowed = existing.get("HOLIX_TELEGRAM_ALLOWED_USERS", "").strip()
     if allowed:
         values["HOLIX_TELEGRAM_ALLOWED_USERS"] = allowed.replace(" ", "")
     edit_ms = existing.get("HOLIX_TELEGRAM_EDIT_MS", "")
     if edit_ms:
         values["HOLIX_TELEGRAM_EDIT_MS"] = edit_ms
+    for key in (
+        "HOLIX_TELEGRAM_ADMIN_USER_ID",
+        "HOLIX_TELEGRAM_ADMIN_PROFILE",
+        "HOLIX_TELEGRAM_USER_PROFILES",
+        "HOLIX_TELEGRAM_ALLOW_ALL",
+    ):
+        if existing.get(key):
+            values[key] = existing[key]
 
     path = save_telegram_env(values, profile=profile_id)
     if also_project_env:
@@ -116,11 +136,11 @@ async def setup_telegram(
 
         merge_project_env(Path.cwd() / ".env", values)
 
-    username = me.get("username") or me.get("first_name") or "bot"
     return {
         "profile": profile_id,
         "bot_id": me.get("id"),
         "bot_username": username,
+        "bot_url": telegram_bot_url(username),
         "token_masked": mask_token(token),
         "config_path": str(path),
         "reload_required": True,

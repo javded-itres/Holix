@@ -2,26 +2,20 @@
 
 from __future__ import annotations
 
-from cli.core import ProfileManager
 from core.models.catalog import get_provider_preset, list_provider_presets
 from core.models.profile_cleanup import remove_provider_from_profile
 from core.models.setup_helpers import add_preset_to_config, apply_ssl_override, probe_provider
-from dishka.integrations.fastapi import DishkaRoute
+from dishka.integrations.fastapi import DishkaRoute, FromDishka
 from fastapi import APIRouter, Depends, Header, HTTPException
 
 from api.deps import verify_api_key
+from api.di import ProfileManager
 from api.schemas.holix import AgentModelsPatchRequest, FallbacksPatchRequest, ProviderAddRequest
 from api.services.config_mask import mask_config_dict
-from api.services.holix_deps import profile_access
+from api.services.holix_deps import ensure_profile_exists, profile_access
 
 router = APIRouter(prefix="/api/holix/profiles/{profile_id}/models", tags=["holix-models"], route_class=DishkaRoute)
 
-
-def _require_profile(profile_id: str) -> ProfileManager:
-    manager = ProfileManager()
-    if not manager.profile_exists(profile_id):
-        raise HTTPException(status_code=404, detail="Profile not found")
-    return manager
 
 
 @router.get("/presets")
@@ -48,12 +42,13 @@ async def list_presets(
 @router.get("/providers")
 async def list_providers(
     profile_id: str,
+    manager: FromDishka[ProfileManager],
     key_info: dict = Depends(verify_api_key),
     x_holix_profile: str | None = Header(None),
     x_holix_profile_key: str | None = Header(None, alias="X-Holix-Profile-Key"),
 ):
     profile_access(profile_id, key_info, x_holix_profile, x_holix_profile_key)
-    manager = _require_profile(profile_id)
+    ensure_profile_exists(manager, profile_id)
     config = manager.load_profile(profile_id)
     providers = mask_config_dict({"providers": config.providers or {}})["providers"]
     return {
@@ -66,13 +61,14 @@ async def list_providers(
 @router.post("/providers")
 async def add_provider(
     profile_id: str,
+    manager: FromDishka[ProfileManager],
     body: ProviderAddRequest,
     key_info: dict = Depends(verify_api_key),
     x_holix_profile: str | None = Header(None),
     x_holix_profile_key: str | None = Header(None, alias="X-Holix-Profile-Key"),
 ):
     profile_access(profile_id, key_info, x_holix_profile, x_holix_profile_key)
-    manager = _require_profile(profile_id)
+    ensure_profile_exists(manager, profile_id)
     config = manager.load_profile(profile_id)
 
     preset = get_provider_preset(body.preset_id)
@@ -109,12 +105,13 @@ async def add_provider(
 async def remove_provider(
     profile_id: str,
     provider_name: str,
+    manager: FromDishka[ProfileManager],
     key_info: dict = Depends(verify_api_key),
     x_holix_profile: str | None = Header(None),
     x_holix_profile_key: str | None = Header(None, alias="X-Holix-Profile-Key"),
 ):
     profile_access(profile_id, key_info, x_holix_profile, x_holix_profile_key)
-    manager = _require_profile(profile_id)
+    ensure_profile_exists(manager, profile_id)
     config = manager.load_profile(profile_id)
     if provider_name not in (config.providers or {}):
         raise HTTPException(status_code=404, detail="Provider not found")
@@ -128,12 +125,13 @@ async def remove_provider(
 async def test_provider(
     profile_id: str,
     provider_name: str,
+    manager: FromDishka[ProfileManager],
     key_info: dict = Depends(verify_api_key),
     x_holix_profile: str | None = Header(None),
     x_holix_profile_key: str | None = Header(None, alias="X-Holix-Profile-Key"),
 ):
     profile_access(profile_id, key_info, x_holix_profile, x_holix_profile_key)
-    manager = _require_profile(profile_id)
+    ensure_profile_exists(manager, profile_id)
     config = manager.load_profile(profile_id)
     providers = config.providers or {}
     if provider_name not in providers:
@@ -171,12 +169,13 @@ async def test_provider(
 @router.get("/agent-models")
 async def get_agent_models(
     profile_id: str,
+    manager: FromDishka[ProfileManager],
     key_info: dict = Depends(verify_api_key),
     x_holix_profile: str | None = Header(None),
     x_holix_profile_key: str | None = Header(None, alias="X-Holix-Profile-Key"),
 ):
     profile_access(profile_id, key_info, x_holix_profile, x_holix_profile_key)
-    manager = _require_profile(profile_id)
+    ensure_profile_exists(manager, profile_id)
     config = manager.load_profile(profile_id)
     return {"agent_models": config.agent_models or {}, "count": len(config.agent_models or {})}
 
@@ -184,13 +183,14 @@ async def get_agent_models(
 @router.patch("/agent-models")
 async def patch_agent_models(
     profile_id: str,
+    manager: FromDishka[ProfileManager],
     body: AgentModelsPatchRequest,
     key_info: dict = Depends(verify_api_key),
     x_holix_profile: str | None = Header(None),
     x_holix_profile_key: str | None = Header(None, alias="X-Holix-Profile-Key"),
 ):
     profile_access(profile_id, key_info, x_holix_profile, x_holix_profile_key)
-    manager = _require_profile(profile_id)
+    ensure_profile_exists(manager, profile_id)
     config = manager.load_profile(profile_id)
     config.agent_models = body.agent_models
     manager.save_profile(profile_id, config)
@@ -200,12 +200,13 @@ async def patch_agent_models(
 @router.get("/fallbacks")
 async def get_fallbacks(
     profile_id: str,
+    manager: FromDishka[ProfileManager],
     key_info: dict = Depends(verify_api_key),
     x_holix_profile: str | None = Header(None),
     x_holix_profile_key: str | None = Header(None, alias="X-Holix-Profile-Key"),
 ):
     profile_access(profile_id, key_info, x_holix_profile, x_holix_profile_key)
-    manager = _require_profile(profile_id)
+    ensure_profile_exists(manager, profile_id)
     config = manager.load_profile(profile_id)
     return {"providers": config.fallback_providers or []}
 
@@ -213,13 +214,14 @@ async def get_fallbacks(
 @router.patch("/fallbacks")
 async def patch_fallbacks(
     profile_id: str,
+    manager: FromDishka[ProfileManager],
     body: FallbacksPatchRequest,
     key_info: dict = Depends(verify_api_key),
     x_holix_profile: str | None = Header(None),
     x_holix_profile_key: str | None = Header(None, alias="X-Holix-Profile-Key"),
 ):
     profile_access(profile_id, key_info, x_holix_profile, x_holix_profile_key)
-    manager = _require_profile(profile_id)
+    ensure_profile_exists(manager, profile_id)
     config = manager.load_profile(profile_id)
     unknown = [p for p in body.providers if p not in (config.providers or {})]
     if unknown:

@@ -93,8 +93,15 @@ def init_understanding(
             score=100,
             status="skipped",
             summary="Understanding gate disabled by user settings.",
+            history=(
+                [{"role": "user", "text": request.strip(), "score_after": 100}]
+                if request.strip()
+                else []
+            ),
         )
     else:
+        # Gate ON: always start at 0 / clarifying so the agent runs Q&A.
+        # Do NOT set score=100 here — that skips the survey mode.
         state = UnderstandingState(
             enabled=True,
             threshold=thr,
@@ -210,6 +217,88 @@ def confirm_understanding(project_root: Path, change_id: str) -> dict[str, Any]:
     }
 
 
+def accept_request_understanding(
+    project_root: Path,
+    change_id: str,
+    *,
+    request: str = "",
+    unlock: bool = True,
+) -> UnderstandingState:
+    """Record the user request and optionally unlock artifact writes.
+
+    Parameters
+    ----------
+    unlock:
+        True (default for **fill** / «Fill again»): set score ≥ threshold and
+        ``confirmed`` so ``sdd_write_artifact`` is allowed immediately.
+        False (create with gate ON): only seed history/summary — keep
+        ``clarifying`` and score 0 so the agent must run the understanding Q&A.
+    """
+    state = load_understanding(project_root, change_id)
+    req = (request or "").strip()
+
+    if state is None:
+        if unlock:
+            state = UnderstandingState(
+                enabled=True,
+                threshold=DEFAULT_THRESHOLD,
+                score=100,
+                status="confirmed",
+                summary=req[:500],
+                history=(
+                    [{"role": "user", "text": req, "score_after": 100}] if req else []
+                ),
+            )
+        else:
+            state = UnderstandingState(
+                enabled=True,
+                threshold=DEFAULT_THRESHOLD,
+                score=0,
+                status="clarifying",
+                summary="",
+                history=(
+                    [{"role": "user", "text": req, "score_after": 0}] if req else []
+                ),
+            )
+        return save_understanding(project_root, change_id, state)
+
+    # Gate disabled or already terminal
+    if not state.enabled or state.status == "skipped":
+        return state
+    if state.status == "confirmed" and unlock:
+        return state
+
+    # Seed request into history without inventing understanding score
+    if req:
+        already = any(
+            (h.get("role") == "user" and (h.get("text") or "").strip() == req)
+            for h in state.history
+        )
+        if not already:
+            state.history = list(state.history) + [
+                {
+                    "role": "user",
+                    "text": req,
+                    "score_after": state.score if not unlock else 100,
+                }
+            ]
+        if not (state.summary or "").strip():
+            # Only set summary on unlock; during Q&A the agent owns summary
+            if unlock:
+                state.summary = req[:500]
+
+    if unlock:
+        # Explicit fill path: user asked to write artifacts now
+        state.score = max(int(state.score), int(state.threshold), 100)
+        state.status = "confirmed"
+        state.open_questions = []
+        if req and not (state.summary or "").strip():
+            state.summary = req[:500]
+    # else: leave clarifying/ready and score as init_understanding left them
+
+    return save_understanding(project_root, change_id, state)
+
+
 def gate_blocks_propose(project_root: Path, change_id: str) -> str | None:
     """Return blocking message if propose should not continue yet."""
     state = load_understanding(project_root, change_id)
@@ -223,6 +312,7 @@ def gate_blocks_propose(project_root: Path, change_id: str) -> str | None:
             "Ask user to confirm proceed (sdd_confirm_understanding) or continue Q&A."
         )
     return (
-        f"Understanding gate active: {state.score}% < {state.threshold}%. "
+        f"Understanding gate active: {state.score}% < {state.threshold}% "
+        f"(status={state.status}). "
         "Continue clarifying with sdd_update_understanding; do not fill full proposal yet."
     )

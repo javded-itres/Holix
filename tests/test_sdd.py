@@ -33,6 +33,59 @@ def test_parse_tasks_with_assignees():
     assert tasks[1].done is True
 
 
+def test_reject_and_normalize_freeform_tasks():
+    from core.sdd.tasks import ensure_tasks_openspec_format, parse_tasks_markdown
+
+    bad = """# Задачи: frontend
+
+## 1. Подготовка проекта
+- **Описание:** Создать директорию frontend/
+- **Исполнитель:** coder
+- **Результат:** package.json
+
+## 2. UI layout
+- **Описание:** AppLayout
+- **Исполнитель:** coder
+- **Результат:** навигация
+"""
+    assert parse_tasks_markdown(bad) == []
+    fixed, notes = ensure_tasks_openspec_format(bad)
+    assert notes
+    tasks = parse_tasks_markdown(fixed)
+    assert len(tasks) == 2
+    assert tasks[0].id == "1.1"
+    assert tasks[0].assignee == "coder"
+    assert "- [ ] 1.1 " in fixed
+    assert "**assignee:**" in fixed
+
+    with pytest.raises(ValueError, match="OpenSpec"):
+        ensure_tasks_openspec_format("# Empty\n\nNo tasks here.\n")
+
+
+def test_write_artifact_tasks_auto_normalizes(tmp_path: Path):
+    store = SpecStore(tmp_path)
+    store.init(example_domain="auth")
+    store.create_change("fe", domain="auth")
+    result = store.write_artifact(
+        "fe",
+        "tasks",
+        """# Tasks: fe
+
+## 1. Scaffold
+- **Description:** Vite app
+- **Assignee:** coder
+- **Result:** package.json
+""",
+    )
+    assert result["ok"] is True
+    assert result["tasks_total"] == 1
+    assert result["normalized"] is True
+    tasks = store.list_tasks("fe")
+    assert len(tasks) == 1
+    assert tasks[0]["assignee"] == "coder"
+    assert tasks[0]["id"] == "1.1"
+
+
 def test_set_task_done_and_assignee():
     md = """# T
 
@@ -332,7 +385,52 @@ def test_understanding_gate_disabled_skips(tmp_path: Path):
         understanding_gate_enabled=False,
     )
     assert created["understanding"]["status"] == "skipped"
+    assert created["understanding"]["score"] == 100
     assert gate_blocks_propose(tmp_path, "simple") is None
+
+
+def test_accept_request_understanding_unlock_modes(tmp_path: Path):
+    """unlock=False seeds request without forcing 100%; unlock=True confirms for fill."""
+    from core.sdd.understanding import (
+        accept_request_understanding,
+        gate_blocks_propose,
+        init_understanding,
+        load_understanding,
+    )
+
+    store = SpecStore(tmp_path)
+    store.init()
+    store.create_change(
+        "feat",
+        request="Add feature X",
+        understanding_gate_enabled=True,
+        understanding_threshold=80,
+    )
+    und = load_understanding(tmp_path, "feat")
+    assert und is not None
+    assert und.status == "clarifying" and und.score == 0
+
+    seeded = accept_request_understanding(
+        tmp_path, "feat", request="Add feature X", unlock=False
+    )
+    assert seeded.status == "clarifying"
+    assert seeded.score == 0
+    assert gate_blocks_propose(tmp_path, "feat") is not None
+
+    unlocked = accept_request_understanding(
+        tmp_path, "feat", request="Add feature X", unlock=True
+    )
+    assert unlocked.status == "confirmed"
+    assert unlocked.score >= unlocked.threshold
+    assert gate_blocks_propose(tmp_path, "feat") is None
+
+    # create with request already seeds history via init_understanding
+    init_understanding(
+        tmp_path, "other", enabled=True, threshold=75, request="Need Y"
+    )
+    other = load_understanding(tmp_path, "other")
+    assert other is not None
+    assert other.score == 0 and other.status == "clarifying"
 
 
 @pytest.mark.asyncio
@@ -355,3 +453,98 @@ async def test_sdd_tools_register_and_init(tmp_path: Path):
         assert (tmp_path / "openspec" / "config.yaml").is_file()
     finally:
         reset_workspace_scope(tokens)
+
+
+@pytest.mark.asyncio
+async def test_nested_project_paths_and_read_file_hint(tmp_path: Path):
+    """Nested SDD must report workspace-relative paths (project prefix)."""
+    import json
+
+    from core.tools.execution_context import reset_workspace_scope, workspace_scope
+    from core.tools.file_ops import ReadFileTool
+    from core.tools.registry import ToolRegistry
+
+    project = tmp_path / "user_catalog"
+    project.mkdir()
+    store = SpecStore(project)
+    store.init(example_domain="user_catalog")
+    store.create_change("test-1", domain="user_catalog", request="demo")
+
+    # Jail on so resolve_tool_path uses workspace root (not cwd).
+    tokens = workspace_scope(
+        workspace_root=str(tmp_path),
+        workspace_jail_enabled=True,
+    )
+    try:
+        # Paths for tools include project prefix
+        assert store.tool_relpath(project / "openspec/changes/test-1/tasks.md") == (
+            "user_catalog/openspec/changes/test-1/tasks.md"
+        )
+        reg = ToolRegistry()
+        reg.register_all()
+        status_raw = await reg.tools["sdd_status"].execute(
+            project="user_catalog", change_id="test-1"
+        )
+        status = json.loads(status_raw)
+        assert status["ok"] is True
+        assert status["artifact_paths"]["tasks"] == (
+            "user_catalog/openspec/changes/test-1/tasks.md"
+        )
+        assert status["path"] == "user_catalog/openspec/changes/test-1"
+
+        # Wrong workspace-root path → hint with correct nested path
+        read = ReadFileTool()
+        bad = await read.execute("openspec/changes/test-1/tasks.md")
+        assert "does not exist" in bad
+        assert "user_catalog/openspec/changes/test-1/tasks.md" in bad
+
+        # Correct path works
+        good = await read.execute("user_catalog/openspec/changes/test-1/tasks.md")
+        assert "does not exist" not in good
+        assert "Tasks" in good or "tasks" in good.lower() or "# " in good
+    finally:
+        reset_workspace_scope(tokens)
+
+
+def test_resolve_delta_domain_prefers_existing_over_example(tmp_path: Path):
+    project = tmp_path / "user_catalog"
+    project.mkdir()
+    store = SpecStore(project)
+    store.init(example_domain="user_catalog")
+    # Wrong preferred domain must not invent a new delta domain
+    assert store.resolve_delta_domain("example") == "user_catalog"
+    assert store.resolve_delta_domain("new-user") == "user_catalog"
+    assert store.resolve_delta_domain("user_catalog") == "user_catalog"
+    created = store.create_change("watcher", domain="example")
+    assert created["domain"] == "user_catalog"
+    assert (project / "openspec/changes/watcher/specs/user_catalog/spec.md").is_file()
+    assert not (project / "openspec/changes/watcher/specs/example").exists()
+    assert not (project / "openspec/changes/watcher/specs/new-user").exists()
+
+
+def test_resolve_delta_domain_project_name_when_empty(tmp_path: Path):
+    project = tmp_path / "billing-api"
+    project.mkdir()
+    store = SpecStore(project)
+    # Initialized but no domain specs yet
+    store.root.mkdir(parents=True, exist_ok=True)
+    (store.root / "config.yaml").write_text("schema: holix-spec\n", encoding="utf-8")
+    (store.root / "specs").mkdir(parents=True, exist_ok=True)
+    (store.root / "changes").mkdir(parents=True, exist_ok=True)
+    assert store.list_specs() == []
+    assert store.project_domain_slug() == "billing-api"
+    assert store.resolve_delta_domain("example") == "billing-api"
+    created = store.create_change("add-invoice", domain="example")
+    assert created["domain"] == "billing-api"
+    assert (project / "openspec/changes/add-invoice/specs/billing-api/spec.md").is_file()
+
+
+def test_resolve_delta_domain_multiple_existing(tmp_path: Path):
+    project = tmp_path / "mono"
+    project.mkdir()
+    store = SpecStore(project)
+    store.init(example_domain="alpha")
+    (project / "openspec/specs/beta").mkdir(parents=True)
+    (project / "openspec/specs/beta/spec.md").write_text("# beta\n", encoding="utf-8")
+    assert store.resolve_delta_domain("beta") == "beta"
+    assert store.resolve_delta_domain("") == "alpha"  # first sorted

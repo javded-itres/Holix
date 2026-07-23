@@ -52,11 +52,50 @@ async def test_patch_file_applies_replacements(tmp_path):
             {"old_string": "- Stack:", "new_string": "- Stack: Python"},
         ],
     )
-    assert "2 replacement" in result
+    assert "Updated" in result
+    assert "--- diff ---" in result
 
     content = await read_tool.execute(str(target))
     assert "Demo project" in content
     assert "Python" in content
+
+
+@pytest.mark.asyncio
+async def test_patch_file_allows_large_code_edit(tmp_path):
+    """Ordinary files may use larger new_string than HOLIX handbook limit."""
+    from core.tools.file_ops import _PATCH_MAX_NEW_CHARS_HOLIX
+
+    patch_tool = PatchFileTool()
+    target = tmp_path / "module.py"
+    target.write_text("def f():\n    return 1\n", encoding="utf-8")
+    body = "x" * (_PATCH_MAX_NEW_CHARS_HOLIX + 500)
+    result = await patch_tool.execute(
+        str(target),
+        replacements=[{"old_string": "return 1", "new_string": f"return '{body}'"}],
+    )
+    assert "Updated" in result
+    assert body in target.read_text(encoding="utf-8")
+
+
+@pytest.mark.asyncio
+async def test_patch_file_rejects_oversized_holix_patch(tmp_path):
+    from core.tools.file_ops import _PATCH_MAX_NEW_CHARS_HOLIX
+
+    patch_tool = PatchFileTool()
+    holix = tmp_path / ".holix" / HOLIX_MD_FILENAME
+    holix.parent.mkdir(parents=True, exist_ok=True)
+    holix.write_text("# Title\n\n## A\nold\n", encoding="utf-8")
+    result = await patch_tool.execute(
+        str(holix),
+        replacements=[
+            {
+                "old_string": "old",
+                "new_string": "n" * (_PATCH_MAX_NEW_CHARS_HOLIX + 1),
+            }
+        ],
+    )
+    assert "too long" in result
+    assert holix.read_text(encoding="utf-8") == "# Title\n\n## A\nold\n"
 
 
 @pytest.mark.asyncio

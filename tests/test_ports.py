@@ -17,6 +17,7 @@ from cli.utils.ports import (
 def test_is_port_available_detects_busy_port() -> None:
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
         sock.bind(("127.0.0.1", 0))
+        sock.listen(1)
         _, port = sock.getsockname()
         assert is_port_available("127.0.0.1", port) is False
 
@@ -25,6 +26,7 @@ def test_resolve_listen_port_bumps_when_busy() -> None:
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
         sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         sock.bind(("127.0.0.1", 0))
+        sock.listen(1)
         busy_port = sock.getsockname()[1]
         resolved = resolve_listen_port("127.0.0.1", busy_port, max_offset=10)
         assert resolved == busy_port + 1
@@ -50,6 +52,7 @@ def test_wait_for_port_available_waits_for_release() -> None:
     holder = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     holder.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     holder.bind(("127.0.0.1", 0))
+    holder.listen(1)
     port = holder.getsockname()[1]
 
     def _release() -> None:
@@ -67,6 +70,7 @@ def test_resolve_listen_port_waits_before_bumping() -> None:
     holder = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     holder.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     holder.bind(("127.0.0.1", 0))
+    holder.listen(1)
     port = holder.getsockname()[1]
 
     def _release() -> None:
@@ -84,14 +88,14 @@ def test_resolve_listen_port_waits_before_bumping() -> None:
 def test_resolve_listen_port_raises_when_exhausted() -> None:
     holders: list[socket.socket] = []
     try:
-        for _ in range(3):
-            s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-            s.bind(("127.0.0.1", 0))
-            holders.append(s)
-        base = holders[0].getsockname()[1]
-        for s in holders[1:]:
-            assert s.getsockname()[1] != base
+        # Hold an exclusive listening port; with SO_REUSEADDR probes, only a real
+        # LISTEN socket is treated as busy (Linux allows dual bind without listen).
+        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        s.bind(("127.0.0.1", 0))
+        s.listen(1)
+        holders.append(s)
+        base = s.getsockname()[1]
         with pytest.raises(OSError, match="no free port"):
             resolve_listen_port("127.0.0.1", base, max_offset=0)
     finally:

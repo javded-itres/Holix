@@ -32,6 +32,7 @@ _HOST_COMMAND_KEYS: list[tuple[str, str]] = [
     ("forget", "tg.cmd.forget"),
     ("init", "tg.cmd.init"),
     ("cron", "tg.cmd.cron"),
+    ("spec", "tg.cmd.spec"),
     ("message", "tg.cmd.message"),
     ("lang", "tg.cmd.lang"),
     ("yes", "tg.cmd.yes"),

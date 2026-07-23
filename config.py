@@ -45,7 +45,7 @@ class Settings(BaseSettings):
     enable_subagents: bool = True
     subagent_default_process_mode: str = "async"
     subagent_max_concurrent: int = 4
-    subagent_process_timeout: float = 120.0
+    subagent_process_timeout: float = 900.0
     subagent_heartbeat_interval: float = 5.0
 
     # Meta-Agent Configuration

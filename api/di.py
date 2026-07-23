@@ -25,6 +25,7 @@ from core.gateway.responses_store import ResponsesStore
 from core.gateway.runs_store import RunsStore
 from core.gateway.sessions_store import SessionsStore
 from core.gateway.types import HostProfileName
+from core.profile.service import ProfileManager
 from core.security.auth import APIKeyManager, RateLimiter
 
 __all__ = [
@@ -33,6 +34,7 @@ __all__ = [
     "GatewayLocks",
     "HostProfileName",
     "ProfileAgentRegistry",
+    "ProfileManager",
     "RateLimiter",
     "ResponsesStore",
     "RunsStore",

@@ -161,6 +161,7 @@ class AsyncSubAgentRunner:
                 logger.debug(f"Memory injection failed for sub-agent: {e}")
 
         # ReAct loop
+        tokens_used = 0
         try:
             while steps_taken < max_steps:
                 steps_taken += 1
@@ -197,10 +198,26 @@ class AsyncSubAgentRunner:
                         duration_ms=(time.monotonic() - start_time) * 1000,
                         steps_taken=steps_taken,
                         tool_calls=tool_calls_made,
+                        tokens_used=tokens_used,
                     )
                     return handle.result
 
                 message = response.choices[0].message
+                try:
+                    from core.llm.usage import (
+                        completion_text_from_message,
+                        resolve_usage,
+                    )
+
+                    usage = resolve_usage(
+                        response,
+                        messages=messages,
+                        completion_text=completion_text_from_message(message),
+                        model=model,
+                    )
+                    tokens_used += int(usage.get("total_tokens") or 0)
+                except Exception:
+                    logger.debug("Sub-agent token accounting failed", exc_info=True)
 
                 if message.tool_calls:
                     # Execute tool calls
@@ -271,6 +288,7 @@ class AsyncSubAgentRunner:
                         duration_ms=duration_ms,
                         steps_taken=steps_taken,
                         tool_calls=tool_calls_made,
+                        tokens_used=tokens_used,
                     )
                     logger.info(
                         "Sub-agent '%s' completed (steps=%d, tools=%d, %.0fms)",
@@ -297,6 +315,7 @@ class AsyncSubAgentRunner:
                 duration_ms=duration_ms,
                 steps_taken=steps_taken,
                 tool_calls=tool_calls_made,
+                        tokens_used=tokens_used,
             )
             logger.warning(
                 "Sub-agent '%s' hit max steps (%d)", config.name, max_steps
@@ -317,6 +336,7 @@ class AsyncSubAgentRunner:
                 duration_ms=(time.monotonic() - start_time) * 1000,
                 steps_taken=steps_taken,
                 tool_calls=tool_calls_made,
+                        tokens_used=tokens_used,
             )
             logger.info("Sub-agent '%s' cancelled", config.name)
             return handle.result
@@ -336,6 +356,7 @@ class AsyncSubAgentRunner:
                 duration_ms=duration_ms,
                 steps_taken=steps_taken,
                 tool_calls=tool_calls_made,
+                        tokens_used=tokens_used,
             )
             logger.exception("Sub-agent '%s' failed: %s", config.name, e)
             return handle.result
