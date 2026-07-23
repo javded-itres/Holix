@@ -110,12 +110,27 @@ def load_max_settings(profile: str = "default") -> MaxSettings:
         access_requests = True
 
     mode = _env_first("HOLIX_MAX_MODE", "HELIX_MAX_MODE", default="polling").lower()
+    # Production prefers webhook, but keep explicit polling when requested
+    # (or when webhook URL is unset — otherwise MAX never receives updates).
     if os.getenv("HOLIX_ENV", "").strip().lower() == "production" and mode not in {"webhook"}:
-        mode = "webhook"
+        allow_poll = _env_first(
+            "HOLIX_MAX_ALLOW_POLLING",
+            "HELIX_MAX_ALLOW_POLLING",
+            default="",
+        ).lower() in {"1", "true", "yes", "on"}
+        webhook_url = _env_first("HOLIX_MAX_WEBHOOK_URL", "HELIX_MAX_WEBHOOK_URL")
+        if mode == "polling" and (allow_poll or not webhook_url):
+            mode = "polling"
+        else:
+            mode = "webhook"
+    # Host bot profile is the CLI/gateway profile argument (same as Telegram).
+    # Do not override with HOLIX_MAX_PROFILE — that env is often left as
+    # "default" and breaks production (default profile is disabled).
+    host_profile = (profile or "").strip() or "default"
     return MaxSettings(
         access_token=_env_first("MAX_ACCESS_TOKEN", "HOLIX_MAX_ACCESS_TOKEN"),
         allowed_user_ids=_env_first("HOLIX_MAX_ALLOWED_USERS", "HELIX_MAX_ALLOWED_USERS"),
-        profile=_env_first("HOLIX_MAX_PROFILE", "HELIX_MAX_PROFILE", default=profile),
+        profile=host_profile,
         mode=mode,
         webhook_url=_env_first("HOLIX_MAX_WEBHOOK_URL", "HELIX_MAX_WEBHOOK_URL"),
         webhook_secret=_env_first("HOLIX_MAX_WEBHOOK_SECRET", "HELIX_MAX_WEBHOOK_SECRET"),

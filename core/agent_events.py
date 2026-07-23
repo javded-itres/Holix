@@ -65,6 +65,7 @@ class EventType(StrEnum):
     SUBAGENT_WAVE_COMPLETED = "subagent_wave_completed"
     SUBAGENT_STARTED = "subagent_started"
     SUBAGENT_PROGRESS = "subagent_progress"
+    SUBAGENT_TIMEOUT_EXTENDED = "subagent_timeout_extended"
     SUBAGENT_FINISHED = "subagent_finished"
 
     # Background project processes
@@ -262,6 +263,26 @@ class LLMCallCompletedEvent(AgentEvent):
     step: int = 0
     duration_ms: float | None = None
     finish_reason: str | None = None
+    prompt_tokens: int = 0
+    completion_tokens: int = 0
+    total_tokens: int = 0
+    estimated: bool = False
+
+    def __post_init__(self):
+        super().__post_init__()
+        object.__setattr__(self, "type", EventType.LLM_CALL_COMPLETED)
+
+    def _extra_fields(self) -> dict[str, Any]:
+        return {
+            "model": self.model,
+            "step": self.step,
+            "duration_ms": self.duration_ms,
+            "finish_reason": self.finish_reason,
+            "prompt_tokens": self.prompt_tokens,
+            "completion_tokens": self.completion_tokens,
+            "total_tokens": self.total_tokens,
+            "estimated": self.estimated,
+        }
 
 
 @dataclass
@@ -467,6 +488,36 @@ class SubAgentProgressEvent(AgentEvent):
 
 
 @dataclass
+class SubAgentTimeoutExtendedEvent(AgentEvent):
+    """Wait budget extended because the sub-agent is still actively working."""
+
+    name: str = ""
+    agent_type: str = ""
+    added_timeout_s: float = 0.0
+    total_budget_s: float = 0.0
+    extensions: int = 0
+    current_activity: str = ""
+    steps_taken: int = 0
+    message: str = ""
+
+    def __post_init__(self):
+        super().__post_init__()
+        object.__setattr__(self, "type", EventType.SUBAGENT_TIMEOUT_EXTENDED)
+
+    def _extra_fields(self) -> dict[str, Any]:
+        return {
+            "name": self.name,
+            "agent_type": self.agent_type,
+            "added_timeout_s": self.added_timeout_s,
+            "total_budget_s": self.total_budget_s,
+            "extensions": self.extensions,
+            "current_activity": self.current_activity,
+            "steps_taken": self.steps_taken,
+            "message": self.message,
+        }
+
+
+@dataclass
 class SubAgentFinishedEvent(AgentEvent):
     """A delegated sub-agent finished (success, failure, cancel, or timeout)."""
 
@@ -479,6 +530,7 @@ class SubAgentFinishedEvent(AgentEvent):
     response_preview: str = ""
     steps_taken: int = 0
     elapsed_ms: float = 0.0
+    tokens_used: int = 0
 
     def __post_init__(self):
         super().__post_init__()
@@ -495,6 +547,7 @@ class SubAgentFinishedEvent(AgentEvent):
             "response_preview": self.response_preview,
             "steps_taken": self.steps_taken,
             "elapsed_ms": self.elapsed_ms,
+            "tokens_used": self.tokens_used,
         }
 
 
@@ -794,6 +847,7 @@ __all__ = [
     "SubAgentWaveCompletedEvent",
     "SubAgentStartedEvent",
     "SubAgentProgressEvent",
+    "SubAgentTimeoutExtendedEvent",
     "SubAgentFinishedEvent",
     # helpers
     "make_event",

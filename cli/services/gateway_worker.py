@@ -38,6 +38,15 @@ def main(argv: list[str] | None = None) -> int:
 
     bootstrap_profile_unlock_from_env(args.profile)
     bootstrap_profile_env(args.profile)
+
+    from cli.services.gateway_singleton import assert_can_start_gateway
+
+    try:
+        assert_can_start_gateway(args.profile, exclude_pid=os.getpid())
+    except RuntimeError as exc:
+        print(f"gateway_worker: {exc}", file=sys.stderr)
+        return 1
+
     try:
         from integrations.telegram.env_store import load_telegram_env_files
 

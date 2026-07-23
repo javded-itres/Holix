@@ -181,10 +181,18 @@ class SddCreateChangeTool(BaseTool):
         super().__init__()
         self.name = "sdd_create_change"
         self.description = (
-            "Scaffold a new change under openspec/changes/<id>/. "
-            "Pass request= user request text. If the user enabled understanding gate, "
-            "you MUST clarify with sdd_update_understanding until score ≥ threshold, "
-            "then sdd_confirm_understanding before filling full proposal."
+            "Scaffold a new change under openspec/changes/<id>/ with STUB proposal/"
+            "delta specs/tasks only — this does NOT fill the real specification. "
+            "You MUST then call sdd_write_artifact for proposal, specs, and tasks. "
+            "Main openspec/specs/<domain> updates only after sdd_archive. "
+            "Pass request= user request text. If understanding gate is enabled: "
+            "BEFORE asking the user any questions — (1) read main specs + archived "
+            "changes (sdd_list_specs, sdd_read_spec, sdd_list_changes "
+            "include_archive=true), (2) if project context is weak run /init-equivalent "
+            "analysis and update HOLIX.md, (3) sdd_update_understanding with score/"
+            "summary, (4) only then ask residual questions; when score ≥ threshold "
+            "sdd_confirm_understanding before filling full proposal. "
+            "Chat + all artifacts must use the user's Studio locale only (ru or en)."
         )
         self.risk_level = "medium"
         self.parameters = {
@@ -197,8 +205,13 @@ class SddCreateChangeTool(BaseTool):
                 },
                 "domain": {
                     "type": "string",
-                    "description": "Domain for initial delta spec (default: example)",
-                    "default": "example",
+                    "description": (
+                        "Preferred main domain for the delta. If openspec/specs/ already "
+                        "has domains, only an existing domain is used (match preferred, "
+                        "else project-named domain, else first). If no domains exist, "
+                        "delta domain = project folder name. Leave empty to auto-resolve."
+                    ),
+                    "default": "",
                 },
                 "request": {
                     "type": "string",
@@ -213,7 +226,7 @@ class SddCreateChangeTool(BaseTool):
         self,
         change_id: str,
         project: str = "",
-        domain: str = "example",
+        domain: str = "",
         request: str = "",
         **_: Any,
     ) -> str:
@@ -222,14 +235,38 @@ class SddCreateChangeTool(BaseTool):
             from core.tools.execution_context import get_profile_name
 
             prefs = SddPrefsStore(get_profile_name()).get()
-            result = _store(project).create_change(
+            store = _store(project)
+            result = store.create_change(
                 change_id,
-                domain=domain,
+                domain=domain or "",
                 request=request or "",
                 understanding_gate_enabled=prefs.understanding_gate_enabled,
                 understanding_threshold=prefs.understanding_threshold,
             )
+            # When understanding gate is ON, leave clarifying/score=0 so the agent
+            # runs Q&A (sdd_update_understanding). Do NOT auto-confirm to 100%.
+            und = result.get("understanding") or {}
+            if und.get("enabled") and und.get("status") == "clarifying":
+                result["next"] = (
+                    "Understanding gate active: research specs + HOLIX, then "
+                    "sdd_update_understanding (honest score), ask residual questions "
+                    "until score ≥ threshold, sdd_confirm_understanding, then "
+                    "sdd_write_artifact. Do not invent score=100 to skip Q&A."
+                )
+            else:
+                result["next"] = (
+                    "Fill proposal/specs/tasks via sdd_write_artifact "
+                    "(no change-root specs.md — use artifact=specs + domain)."
+                )
             result["project"] = project or ""
+            result["filled"] = False
+            result["warning"] = (
+                "Scaffold only: proposal/specs/tasks are stubs until sdd_write_artifact. "
+                "Do not tell the user the specification is complete. "
+                "Paths: openspec/changes/<id>/{proposal,design,tasks}.md and "
+                "specs/<domain>/spec.md — there is NO specs.md at change root. "
+                "Main domain specs (openspec/specs/) appear only after sdd_archive."
+            )
             return result_json(result)
         except Exception as exc:
             return _err(exc)
@@ -259,12 +296,40 @@ class SddStatusTool(BaseTool):
         try:
             store = _store(project)
             if change_id:
+                from core.sdd.paths import change_dir
                 from core.sdd.understanding import load_understanding
 
-                data = {"ok": True, "project": project or "", **store.change_status(change_id).to_dict()}
+                status = store.change_status(change_id)
+                data = {
+                    "ok": True,
+                    "project": project or "",
+                    **status.to_dict(),
+                }
                 und = load_understanding(store.project_root, change_id)
                 if und is not None:
                     data["understanding"] = und.to_dict()
+                cdir = change_dir(store.workspace, change_id)
+                rel = store.tool_relpath(cdir)
+                delta_specs = (
+                    sorted(
+                        store.tool_relpath(p)
+                        for p in (cdir / "specs").rglob("spec.md")
+                    )
+                    if (cdir / "specs").is_dir()
+                    else []
+                )
+                data["artifact_paths"] = {
+                    "proposal": f"{rel}/proposal.md",
+                    "design": f"{rel}/design.md",
+                    "tasks": f"{rel}/tasks.md",
+                    "specs": delta_specs,
+                }
+                data["path_note"] = (
+                    "Paths are relative to the Holix workspace (include project/ "
+                    "prefix when SDD lives in a subfolder). No specs.md at change "
+                    "root — use sdd_write_artifact; delta specs under "
+                    "specs/<domain>/spec.md. Prefer sdd_* tools over read_file."
+                )
                 return result_json(data)
             return result_json({"ok": True, "project": project or "", **store.status_overview()})
         except Exception as exc:
@@ -277,7 +342,24 @@ class SddWriteArtifactTool(BaseTool):
         self.name = "sdd_write_artifact"
         self.description = (
             "Write a change artifact: proposal | design | tasks | specs. "
-            "For tasks.md every item MUST include assignee (main or subagent type)."
+            "PREFERRED way to fill a change — do NOT use write_file/read_file for "
+            "openspec artifacts. There is NO file openspec/changes/<id>/specs.md; "
+            "artifact=specs writes openspec/changes/<id>/specs/<domain>/spec.md "
+            "(pass domain= or omit to use the scaffolded domain). "
+            "Other paths: proposal.md, design.md, tasks.md under the change folder. "
+            "For tasks.md ONLY OpenSpec Holix checklist format is accepted:\n"
+            "- [ ] 1.1 Title\n"
+            "  - **assignee:** `coder`\n"
+            "  - **reason:** …\n"
+            "  - **depends_on:** `1.0`   # optional; empty or omit if no deps\n"
+            "Build a task **graph**: use depends_on so subagents run in order "
+            "(wave 1 = no deps / ready; later waves after prerequisites are done). "
+            "Same-section order (1.1 before 1.2) is inferred when depends_on is empty. "
+            "Parallel tasks: share the same depends_on (or none). "
+            "Do NOT write free-form sections (## 1. … + **Описание**/**Исполнитель**). "
+            "Invalid tasks.md is rejected (or auto-normalized when possible). "
+            "Write content in the user's Studio UI language only (ru or en) — "
+            "match locale from the user/Studio prompt; do not mix languages."
         )
         self.risk_level = "medium"
         self.parameters = {
@@ -289,7 +371,16 @@ class SddWriteArtifactTool(BaseTool):
                     "type": "string",
                     "description": "proposal | design | tasks | specs",
                 },
-                "content": {"type": "string", "description": "Full markdown content"},
+                "content": {
+                    "type": "string",
+                    "description": (
+                        "Full markdown content in the user's Studio locale only "
+                        "(ru or en — same language for the whole artifact). "
+                        "For artifact=tasks: OpenSpec checklist only "
+                        "(`- [ ] 1.1 …` + nested `**assignee:**` and optional "
+                        "`**depends_on:**` for the execution graph)."
+                    ),
+                },
                 "domain": {
                     "type": "string",
                     "description": "Required when artifact=specs (delta domain)",
@@ -318,7 +409,8 @@ class SddWriteArtifactTool(BaseTool):
                         "ok": False,
                         "error": block,
                         "hint": (
-                            "Clarify with sdd_update_understanding until score ≥ threshold, "
+                            "Research main/archived specs and project context first, "
+                            "sdd_update_understanding until score ≥ threshold, "
                             "then sdd_confirm_understanding before writing artifacts."
                         ),
                     }
@@ -508,10 +600,11 @@ class SddApplyTool(BaseTool):
         self.name = "sdd_apply"
         self.description = (
             "Start apply for a change only if apply-ready and apply mode is set. "
-            "Returns execution plan (task → executor). "
-            "For mode subagents/hybrid automatically runs sdd_dispatch so each task "
-            "spawns its **tasks.md assignee** (custom types like coder-python), not a "
-            "generic built-in. Do NOT call delegate_to_subagent(coder) for SDD work."
+            "Returns execution plan with task graph (depends_on, waves, ready/blocked). "
+            "For mode subagents/hybrid automatically runs sdd_dispatch for **ready** "
+            "tasks only (deps satisfied); later waves spawn after prerequisites complete. "
+            "Each task uses its **tasks.md assignee**. "
+            "Do NOT call delegate_to_subagent(coder) for SDD work."
         )
         self.risk_level = "low"
         self.parameters = {
@@ -598,8 +691,13 @@ class SddUpdateUnderstandingTool(BaseTool):
         super().__init__()
         self.name = "sdd_update_understanding"
         self.description = (
-            "Update understanding score (0–100) for a change after assessing the request "
-            "or user answers. If score < threshold → ask open_questions. "
+            "Update understanding score (0–100) for a change. "
+            "First call should follow reading main/archived specs and project context "
+            "(/init or HOLIX.md if needed) — put that into summary; only put residual "
+            "gaps in questions (do not quiz the user before that research). "
+            "Write summary and questions in the user's Studio locale only (ru or en). "
+            "After user answers, call again with user_answer and updated score. "
+            "If score < threshold → keep open_questions. "
             "If score ≥ threshold → offer proceed or more questions. "
             "If further answers drop score below threshold → clarify again."
         )
@@ -701,9 +799,10 @@ class SddDispatchTool(BaseTool):
         self._parent = parent_agent
         self.name = "sdd_dispatch"
         self.description = (
-            "Spawn subagents for non-main tasks using **exact assignee** from tasks.md "
-            "(e.g. coder-python). Prefer sdd_apply (auto-dispatches). "
-            "Never substitute built-in coder when assignee is a custom type. "
+            "Spawn subagents for **graph-ready** non-main tasks (depends_on satisfied; "
+            "same-section order inferred). Uses **exact assignee** from tasks.md. "
+            "Blocked tasks wait for the next wave after sdd_check_task / auto-complete. "
+            "Prefer sdd_apply (auto-dispatches). "
             "Mode self returns main_tasks only. Then wait_subagent_result / sdd_check_task."
         )
         self.risk_level = "medium"

@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
-from fastapi import Depends, Header
+from typing import Any
+
+from core.profile.service import ProfileManager
+from fastapi import Depends, Header, HTTPException
 
 from api.deps import verify_api_key
 from api.services.profile_access import ProfileAccessContext, verify_profile_management
@@ -29,3 +32,18 @@ async def require_profile_access(
     x_holix_profile_key: str | None = Header(None, alias="X-Holix-Profile-Key"),
 ) -> ProfileAccessContext:
     return profile_access(profile_id, key_info, x_holix_profile, x_holix_profile_key)
+
+
+def ensure_profile_exists(manager: ProfileManager, profile_id: str) -> ProfileManager:
+    """404 if profile is missing; return the injected manager for chaining."""
+    if not manager.profile_exists(profile_id):
+        raise HTTPException(status_code=404, detail="Profile not found")
+    return manager
+
+
+def load_existing_profile(
+    manager: ProfileManager, profile_id: str
+) -> tuple[ProfileManager, Any]:
+    """Return (manager, config) or raise 404."""
+    ensure_profile_exists(manager, profile_id)
+    return manager, manager.load_profile(profile_id)

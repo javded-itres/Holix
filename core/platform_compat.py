@@ -69,6 +69,35 @@ def prefer_async_subagents() -> bool:
     return False
 
 
+def _is_zombie_pid(pid: int) -> bool:
+    """True when *pid* is a zombie (still listed but not running).
+
+    Linux keeps zombies until the parent reaps them; ``os.kill(pid, 0)``
+    still succeeds, so callers that only probe with signal 0 mis-report
+    dead companion processes as alive.
+    """
+    if pid <= 0:
+        return False
+    if IS_LINUX:
+        try:
+            with open(f"/proc/{pid}/status", encoding="utf-8") as fh:
+                for line in fh:
+                    if line.startswith("State:"):
+                        parts = line.split()
+                        return len(parts) >= 2 and parts[1].startswith("Z")
+        except (FileNotFoundError, PermissionError, OSError):
+            return False
+        return False
+    try:
+        import psutil
+    except ImportError:
+        return False
+    try:
+        return psutil.Process(pid).status() == psutil.STATUS_ZOMBIE
+    except (psutil.Error, ValueError, TypeError):
+        return False
+
+
 def is_process_alive(pid: int) -> bool:
     if pid <= 0:
         return False
@@ -77,11 +106,12 @@ def is_process_alive(pid: int) -> bool:
     except ProcessLookupError:
         return False
     except PermissionError:
-        return True
+        # Process exists but we cannot signal it; still treat zombies as dead.
+        return not _is_zombie_pid(pid)
     except OSError:
         # Windows: signal 0 is unsupported; WinError 87 means the PID is invalid.
         return False
-    return True
+    return not _is_zombie_pid(pid)
 
 
 def _kill_signal(pid: int, sig: int) -> None:

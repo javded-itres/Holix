@@ -12,6 +12,7 @@
 
 | Шаг | Документ |
 |-----|----------|
+| 0. **Обзор продукта** (для пользователей) | [HOLIX_OVERVIEW.md](HOLIX_OVERVIEW.md) |
 | 1. Установка | [INSTALLATION.md](INSTALLATION.md) |
 | 2. Первый запуск | [START_HERE.md](START_HERE.md) |
 | 3. Маршрут обучения | [USER_GUIDE.md](USER_GUIDE.md) |

@@ -58,6 +58,21 @@ class MaxHost:
         return self._session.profile
 
     @property
+    def workspace_root(self) -> str | None:
+        """Profile workspace for shared slash commands (/spec, /init, …)."""
+        agent = self.agent
+        cfg = getattr(agent, "config", None) if agent is not None else None
+        root = getattr(cfg, "workspace_root", None) if cfg is not None else None
+        if root:
+            return str(root)
+        try:
+            from core.profile_keys import profile_dir
+
+            return str(profile_dir(self.profile) / "workspace")
+        except Exception:
+            return None
+
+    @property
     def streaming_enabled(self) -> bool:
         return self._session.streaming_enabled
 

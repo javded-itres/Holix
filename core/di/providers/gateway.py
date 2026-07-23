@@ -13,6 +13,7 @@ from core.gateway.responses_store import ResponsesStore
 from core.gateway.runs_store import RunsStore
 from core.gateway.sessions_store import SessionsStore
 from core.gateway.types import HostProfileName
+from core.profile.service import ProfileManager
 from core.security.auth import APIKeyManager, RateLimiter
 
 
@@ -26,6 +27,11 @@ class GatewayServicesProvider(Provider):
         return HostProfileName(
             (os.getenv("HOLIX_PROFILE") or "default").strip() or "default"
         )
+
+    @provide(scope=Scope.APP)
+    def profile_manager(self) -> ProfileManager:
+        """Shared profile store for /api/holix management routes."""
+        return ProfileManager()
 
     @provide(scope=Scope.APP)
     def profile_registry(self, host_profile_name: HostProfileName) -> ProfileAgentRegistry:

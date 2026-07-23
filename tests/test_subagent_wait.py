@@ -6,6 +6,7 @@ import asyncio
 from unittest.mock import MagicMock
 
 import pytest
+from core.subagents import manager as manager_mod
 from core.subagents.base import (
     ProcessMode,
     SubAgentConfig,
@@ -22,7 +23,9 @@ def _manager() -> SubAgentManager:
         enable_subagents=True,
         subagent_max_concurrent=4,
         confirmation_timeout=0,
+        subagent_process_timeout=900.0,
     )
+    parent.emit = MagicMock()
     return SubAgentManager(parent)
 
 
@@ -118,8 +121,15 @@ async def test_async_spawn_wait_returns_result(monkeypatch: pytest.MonkeyPatch) 
 
 
 @pytest.mark.asyncio
-async def test_wait_for_timeout_does_not_cancel_async_subagent() -> None:
+async def test_wait_for_timeout_does_not_cancel_async_subagent(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     """Outer wait_for timeout must not kill a still-running async sub-agent."""
+    # Idle sub-agent must not get infinite extensions.
+    monkeypatch.setattr(manager_mod, "WAIT_GRACE_S", 0.0)
+    monkeypatch.setattr(manager_mod, "WAIT_ACTIVE_IDLE_S", 0.0)
+    monkeypatch.setattr(manager_mod, "WAIT_MAX_EXTENSIONS", 0)
+
     mgr = _manager()
     cfg = SubAgentConfig(name="web_researcher", process_mode=ProcessMode.ASYNC)
     handle = SubAgentHandle(name="web_researcher", config=cfg, status=SubAgentStatus.RUNNING)
@@ -138,7 +148,7 @@ async def test_wait_for_timeout_does_not_cancel_async_subagent() -> None:
     handle.task = asyncio.create_task(slow_runner())
     mgr._register_handle("web_researcher", handle)
 
-    with pytest.raises(asyncio.TimeoutError):
+    with pytest.raises(TimeoutError, match="timed out waiting"):
         await mgr.wait_for("web_researcher", timeout=0.05)
 
     assert handle.task is not None
@@ -146,3 +156,93 @@ async def test_wait_for_timeout_does_not_cancel_async_subagent() -> None:
     assert handle.result is not None
     assert handle.result.success is True
     assert handle.result.response == "finished after slow work"
+
+
+@pytest.mark.asyncio
+async def test_wait_for_extends_when_subagent_is_active(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Active sub-agent should get more wait budget instead of hard timeout."""
+    monkeypatch.setattr(manager_mod, "WAIT_GRACE_S", 0.02)
+    monkeypatch.setattr(manager_mod, "WAIT_ACTIVE_IDLE_S", 5.0)
+    monkeypatch.setattr(manager_mod, "WAIT_MAX_EXTENSIONS", 5)
+
+    mgr = _manager()
+    cfg = SubAgentConfig(name="coder-python-1", process_mode=ProcessMode.ASYNC)
+    handle = SubAgentHandle(
+        name="coder-python-1",
+        config=cfg,
+        status=SubAgentStatus.RUNNING,
+    )
+    handle.started_at = asyncio.get_running_loop().time()
+    handle.record_activity("step", "Reasoning step 1/10", steps_taken=1)
+    mgr._register_handle("coder-python-1", handle)
+
+    async def finish_after_extension() -> None:
+        # Longer than the first budget (0.08s), shorter than budget+extension.
+        await asyncio.sleep(0.12)
+        handle.record_activity("step", "Reasoning step 2/10", steps_taken=2)
+        handle.result = SubAgentResult(
+            name="coder-python-1",
+            success=True,
+            response="done after extension",
+            duration_ms=120.0,
+            steps_taken=2,
+        )
+        handle.status = SubAgentStatus.COMPLETED
+        mgr.notify_handle_finished("coder-python-1")
+
+    asyncio.create_task(finish_after_extension())
+
+    result = await mgr.wait_for("coder-python-1", timeout=0.08)
+    assert result.success is True
+    assert result.response == "done after extension"
+    # At least one extension notice should have been emitted.
+    emit = mgr._parent.emit
+    assert emit.called
+    types = [getattr(c.args[0], "type", None) for c in emit.call_args_list if c.args]
+    assert any(str(t) == "subagent_timeout_extended" for t in types)
+
+
+@pytest.mark.asyncio
+async def test_wait_for_accepts_full_job_id() -> None:
+    """list_subagents exposes owner::name; wait_for must resolve to local handle."""
+    mgr = _manager()
+    cfg = SubAgentConfig(name="coder-python", process_mode=ProcessMode.ASYNC)
+    handle = SubAgentHandle(
+        name="coder-python",
+        config=cfg,
+        status=SubAgentStatus.RUNNING,
+    )
+    handle.result = SubAgentResult(
+        name="coder-python",
+        success=True,
+        response="ok",
+        duration_ms=5.0,
+    )
+    handle.status = SubAgentStatus.COMPLETED
+    mgr._register_handle("coder-python", handle)
+
+    assert mgr.get_handle("studio-1994594::coder-python") is handle
+    result = await mgr.wait_for("studio-1994594::coder-python", timeout=1.0)
+    assert result.success is True
+    assert result.response == "ok"
+
+
+@pytest.mark.asyncio
+async def test_wait_for_timeout_when_idle(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(manager_mod, "WAIT_GRACE_S", 0.0)
+    monkeypatch.setattr(manager_mod, "WAIT_ACTIVE_IDLE_S", 0.01)
+    monkeypatch.setattr(manager_mod, "WAIT_MAX_EXTENSIONS", 3)
+
+    mgr = _manager()
+    cfg = SubAgentConfig(name="stuck", process_mode=ProcessMode.ASYNC)
+    handle = SubAgentHandle(name="stuck", config=cfg, status=SubAgentStatus.RUNNING)
+    handle.started_at = asyncio.get_running_loop().time() - 10.0
+    handle.last_activity_at = handle.started_at
+    mgr._register_handle("stuck", handle)
+
+    with pytest.raises(TimeoutError, match="appears idle/hung"):
+        await mgr.wait_for("stuck", timeout=0.05)

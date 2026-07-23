@@ -53,18 +53,22 @@ def _request_dict(req: MaxAccessRequest) -> dict[str, Any]:
 
 def get_max_status(profile_id: str) -> dict[str, Any]:
     from integrations.max.config import load_max_settings
-
+    from integrations.messenger.bot_links import max_bot_url, normalize_bot_username
 
     load_max_env_files(profile_id)
     settings = load_max_settings(profile_id)
     admin_id = load_admin_user_id(profile_id)
     mapping = load_user_profiles(profile_id)
     pending = list_pending_requests(profile_id)
+    env_values = read_max_env_values(profile_id)
+    bot_username = normalize_bot_username(env_values.get("HOLIX_MAX_BOT_USERNAME"))
 
     return {
         "profile": profile_id,
         "configured": bool(settings.access_token.strip()),
         "token_masked": mask_token(settings.access_token),
+        "bot_username": bot_username,
+        "bot_url": max_bot_url(bot_username),
         "access_requests_enabled": settings.access_requests,
         "pending_count": len(pending),
         "allowed_user_ids": settings.allowed_user_ids,
@@ -93,19 +97,36 @@ async def setup_max(
     except MaxApiError as exc:
         raise MaxOpError(str(exc), status_code=400) from exc
 
+    from integrations.messenger.bot_links import max_bot_url, normalize_bot_username
+
     load_max_env_files(profile_id)
     existing = read_max_env_values(profile_id)
+    username = normalize_bot_username(me.get("username")) or str(
+        me.get("username") or me.get("name") or "bot"
+    ).strip().lstrip("@")
     values: dict[str, str] = {
         "MAX_ACCESS_TOKEN": token,
         "HOLIX_MAX_ACCESS_REQUESTS": "true",
         "HOLIX_MAX_PROFILE": profile_id,
     }
+    if username:
+        values["HOLIX_MAX_BOT_USERNAME"] = username
     allowed = existing.get("HOLIX_MAX_ALLOWED_USERS", existing.get("HELIX_MAX_ALLOWED_USERS", "")).strip()
     if allowed:
         values["HOLIX_MAX_ALLOWED_USERS"] = allowed.replace(" ", "")
     mode = existing.get("HOLIX_MAX_MODE", existing.get("HELIX_MAX_MODE", "")).strip()
     if mode:
         values["HOLIX_MAX_MODE"] = mode
+    for key in (
+        "HOLIX_MAX_ADMIN_USER_ID",
+        "HOLIX_MAX_ADMIN_PROFILE",
+        "HOLIX_MAX_USER_PROFILES",
+        "HOLIX_MAX_ALLOW_ALL",
+        "HOLIX_MAX_WEBHOOK_URL",
+        "HOLIX_MAX_WEBHOOK_SECRET",
+    ):
+        if existing.get(key):
+            values[key] = existing[key]
 
     path = save_max_env(values, profile=profile_id)
     if also_project_env:
@@ -115,11 +136,11 @@ async def setup_max(
 
         merge_project_env(Path.cwd() / ".env", values)
 
-    username = me.get("username") or me.get("name") or "bot"
     return {
         "profile": profile_id,
         "bot_user_id": me.get("user_id"),
         "bot_username": username,
+        "bot_url": max_bot_url(username),
         "token_masked": mask_token(token),
         "config_path": str(path),
         "reload_required": True,

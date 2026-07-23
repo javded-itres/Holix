@@ -227,11 +227,15 @@ def auto_prepare(cloned: Path, cmd: str) -> None:
         logger.warning("Auto-prepare step failed (non-fatal): %s", e)
 
 
-def build_config_from_popular(pop: PopularMCPServer, provided_params: dict[str, str]) -> dict[str, Any]:
+def build_config_from_popular(
+    pop: PopularMCPServer,
+    provided_params: dict[str, str] | None = None,
+) -> dict[str, Any]:
     """Turn a popular entry + user params into a raw dict suitable for MCPServerConfig."""
     from core.mcp.validate import normalize_allowed_paths
 
-    params = {**pop.default_params, **provided_params}
+    # Studio / callers may pass params=None; **None raises TypeError.
+    params = {**(pop.default_params or {}), **(provided_params or {})}
     if pop.key == "filesystem":
         raw_paths = params.get("allowed_paths", "")
         if not (raw_paths or "").strip():

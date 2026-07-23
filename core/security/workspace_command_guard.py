@@ -28,9 +28,40 @@ _ABSOLUTE_PATH_RE = re.compile(
 _PATHISH_FLAGS = re.compile(r"(?:^|[\s])(/|\.\./|~/)")
 _SKIP_TOKENS = frozenset({"&&", "||", "|", ";", ">", ">>", "<", "2>", "2>>"})
 
+# Safe OS devices used by redirects (2>/dev/null) and common CLI patterns.
+# Not a workspace escape — do not require them to live under the profile root.
+_ALLOWED_SYSTEM_PATHS = frozenset(
+    {
+        "/dev/null",
+        "/dev/zero",
+        "/dev/stdin",
+        "/dev/stdout",
+        "/dev/stderr",
+        "/dev/tty",
+        "/dev/urandom",
+        "/dev/random",
+        "/dev/fd/0",
+        "/dev/fd/1",
+        "/dev/fd/2",
+    }
+)
+
 
 def _normalize(command: str) -> str:
     return (command or "").replace("\\", "/")
+
+
+def _is_allowed_system_path(path: Path) -> bool:
+    """True for well-known device nodes that commands may reference outside the jail."""
+    try:
+        norm = path.resolve().as_posix()
+    except OSError:
+        norm = str(path).replace("\\", "/")
+    if norm in _ALLOWED_SYSTEM_PATHS:
+        return True
+    # Unresolved / Windows-style forms
+    alt = str(path).replace("\\", "/")
+    return alt in _ALLOWED_SYSTEM_PATHS
 
 
 def _looks_like_holix_profile_path(path: Path) -> bool:
@@ -169,6 +200,8 @@ def command_escapes_workspace(
     for token in _path_tokens(text):
         resolved = _resolve_path_token(token, workspace_root=root, cwd=cwd)
         if resolved is None:
+            continue
+        if _is_allowed_system_path(resolved) or _is_allowed_system_path(Path(token)):
             continue
         if not _is_relative_to(resolved, root):
             label = token[:80] + ("…" if len(token) > 80 else "")

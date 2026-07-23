@@ -100,6 +100,7 @@ def test_telegram_setup(
     assert response.status_code == 200
     body = response.json()
     assert body["bot_username"] == "holix_test_bot"
+    assert body["bot_url"] == "https://t.me/holix_test_bot"
     assert "token_masked" in body
     assert body["reload_required"] is False
 
@@ -107,7 +108,10 @@ def test_telegram_setup(
         "/api/holix/profiles/tg-setup/telegram/status",
         headers=gateway_auth_headers,
     )
-    assert status.json()["configured"] is True
+    status_body = status.json()
+    assert status_body["configured"] is True
+    assert status_body["bot_username"] == "holix_test_bot"
+    assert status_body["bot_url"] == "https://t.me/holix_test_bot"
 
 
 def test_telegram_requests_approve_reject(
