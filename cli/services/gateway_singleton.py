@@ -6,7 +6,7 @@ import re
 import subprocess
 from dataclasses import dataclass
 
-from cli.services.gateway_state import GatewayState, is_process_alive, list_running_states
+from cli.services.gateway_state import is_process_alive, list_running_states
 
 
 @dataclass(frozen=True)

@@ -10,10 +10,10 @@ from dishka.integrations.fastapi import DishkaRoute, FromDishka
 from fastapi import APIRouter, Depends, Header, HTTPException
 
 from api.deps import verify_api_key
+from api.di import ProfileManager
 from api.errors import client_safe_message
 from api.schemas.holix import McpAssignmentsPatchRequest, McpInstallRequest, McpServerCreateRequest
 from api.services.config_mask import mask_config_dict
-from api.di import ProfileManager
 from api.services.holix_deps import load_existing_profile, profile_access
 
 router = APIRouter(prefix="/api/holix/profiles/{profile_id}/mcp", tags=["holix-mcp"], route_class=DishkaRoute)

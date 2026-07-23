@@ -9,9 +9,9 @@ from dishka.integrations.fastapi import DishkaRoute, FromDishka
 from fastapi import APIRouter, Depends, Header, HTTPException
 
 from api.deps import verify_api_key
+from api.di import ProfileManager
 from api.schemas.holix import AgentModelsPatchRequest, FallbacksPatchRequest, ProviderAddRequest
 from api.services.config_mask import mask_config_dict
-from api.di import ProfileManager
 from api.services.holix_deps import ensure_profile_exists, profile_access
 
 router = APIRouter(prefix="/api/holix/profiles/{profile_id}/models", tags=["holix-models"], route_class=DishkaRoute)

@@ -22,13 +22,6 @@ from core.agent_events import (
     ThinkingEvent,
     ToolCallStartEvent,
 )
-from core.llm.usage import (
-    completion_text_from_message,
-    emit_llm_call_usage,
-    resolve_usage,
-    usage_dict_from_response,
-    usage_dict_from_stream_chunk,
-)
 from core.graph.action_honesty import (
     honesty_refusal_update,
     honesty_retry_update,
@@ -54,6 +47,13 @@ from core.llm.step_timeout import (
     LLMStepTimeoutError,
     llm_step_timeout_message,
     reasoning_only_abort_s,
+)
+from core.llm.usage import (
+    completion_text_from_message,
+    emit_llm_call_usage,
+    resolve_usage,
+    usage_dict_from_response,
+    usage_dict_from_stream_chunk,
 )
 from core.presenters.final_content import MESSENGER_EMPTY_FINAL_RU
 from core.profile.soul import profile_name_from_agent

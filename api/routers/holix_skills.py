@@ -14,8 +14,8 @@ from dishka.integrations.fastapi import DishkaRoute, FromDishka
 from fastapi import APIRouter, Depends, Header, HTTPException, Query
 
 from api.deps import verify_api_key
-from api.schemas.holix import SkillAssignmentsPatchRequest
 from api.di import ProfileManager
+from api.schemas.holix import SkillAssignmentsPatchRequest
 from api.services.holix_deps import load_existing_profile, profile_access
 
 router = APIRouter(prefix="/api/holix/profiles/{profile_id}/skills", tags=["holix-skills"], route_class=DishkaRoute)

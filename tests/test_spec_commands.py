@@ -133,9 +133,9 @@ async def test_spec_create_with_request_keeps_clarifying_when_gate_on(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ):
     """Gate ON: create must leave clarifying/0 so survey mode runs (not score=100)."""
+    import cli.shared.commands.spec_commands as spec_cmd
     from core.sdd.prefs import SddPrefs
     from core.sdd.understanding import gate_blocks_propose, load_understanding
-    import cli.shared.commands.spec_commands as spec_cmd
 
     monkeypatch.setattr(
         spec_cmd,
@@ -167,9 +167,9 @@ async def test_spec_fill_unlocks_understanding_gate(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ):
     """Explicit /spec fill unlocks the gate so sdd_write_artifact can proceed."""
+    import cli.shared.commands.spec_commands as spec_cmd
     from core.sdd.prefs import SddPrefs
     from core.sdd.understanding import gate_blocks_propose, load_understanding
-    import cli.shared.commands.spec_commands as spec_cmd
 
     monkeypatch.setattr(
         spec_cmd,

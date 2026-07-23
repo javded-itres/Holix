@@ -3,11 +3,10 @@
 from __future__ import annotations
 
 import pytest
-from fastapi import HTTPException
-
 from api.services.holix_deps import ensure_profile_exists, load_existing_profile
 from core.di.container import create_async_container, resolve_gateway_runtime_config
 from core.profile.service import ProfileManager
+from fastapi import HTTPException
 
 
 @pytest.mark.asyncio

@@ -7,9 +7,9 @@ from fastapi import APIRouter, Depends, Header, HTTPException
 
 from api.deps import verify_api_key
 from api.di import (
-    ProfileManager,
     CompanionManager,
     HostProfileName,
+    ProfileManager,
 )
 from api.schemas.holix import MaxApproveRequest, MaxMapSetRequest, MaxSetupRequest
 from api.services.holix_deps import ensure_profile_exists, profile_access

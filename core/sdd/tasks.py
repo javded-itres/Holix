@@ -235,8 +235,6 @@ def normalize_tasks_markdown(content: str, *, title: str | None = None) -> tuple
     existing = parse_tasks_markdown(text)
     if existing:
         # Canonicalize already-valid checklists (formal assignee lines, ids).
-        heading = title or _extract_title(text) or "Tasks"
-        # Preserve free-form nested notes? render_tasks only keeps assignee/reason.
         # Prefer in-place formalization of assignees when structure is already checklist.
         cleaned = _canonicalize_checklist(text)
         if cleaned != text:

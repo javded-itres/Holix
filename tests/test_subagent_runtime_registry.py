@@ -2,18 +2,16 @@
 
 from __future__ import annotations
 
-import os
 from pathlib import Path
 
 import pytest
-
+from core.subagents import runtime_registry as rr
 from core.subagents.base import (
     ProcessMode,
     SubAgentConfig,
     SubAgentHandle,
     SubAgentStatus,
 )
-from core.subagents import runtime_registry as rr
 
 
 @pytest.fixture()

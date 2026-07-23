@@ -7,8 +7,8 @@ from fastapi import APIRouter, Depends, Header, HTTPException
 
 from api.deps import verify_api_key
 from api.di import (
-    ProfileManager,
     CompanionManager,
+    ProfileManager,
 )
 from api.schemas.holix import TelegramApproveRequest, TelegramMapSetRequest, TelegramSetupRequest
 from api.services.holix_deps import ensure_profile_exists, profile_access

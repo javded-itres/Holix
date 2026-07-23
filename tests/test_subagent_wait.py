@@ -6,6 +6,7 @@ import asyncio
 from unittest.mock import MagicMock
 
 import pytest
+from core.subagents import manager as manager_mod
 from core.subagents.base import (
     ProcessMode,
     SubAgentConfig,
@@ -13,7 +14,6 @@ from core.subagents.base import (
     SubAgentResult,
     SubAgentStatus,
 )
-from core.subagents import manager as manager_mod
 from core.subagents.manager import SubAgentManager
 
 

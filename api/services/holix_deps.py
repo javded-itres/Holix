@@ -4,11 +4,11 @@ from __future__ import annotations
 
 from typing import Any
 
+from core.profile.service import ProfileManager
 from fastapi import Depends, Header, HTTPException
 
 from api.deps import verify_api_key
 from api.services.profile_access import ProfileAccessContext, verify_profile_management
-from core.profile.service import ProfileManager
 
 
 def profile_access(

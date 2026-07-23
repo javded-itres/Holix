@@ -94,10 +94,11 @@ def test_max_should_poll_in_development(monkeypatch: pytest.MonkeyPatch) -> None
     assert max_should_webhook() is False
 
 
-def test_max_forces_webhook_in_production(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_max_allows_polling_in_production(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Explicit HOLIX_MAX_MODE=polling is honored even in production (gateway companion)."""
     _block_max_env_files(monkeypatch)
     monkeypatch.setenv("HOLIX_MAX_ACCESS_TOKEN", "test-token")
     monkeypatch.setenv("HOLIX_MAX_MODE", "polling")
     monkeypatch.setenv("HOLIX_ENV", "production")
-    assert max_should_webhook() is True
-    assert max_should_poll() is False
+    assert max_should_webhook() is False
+    assert max_should_poll() is True
