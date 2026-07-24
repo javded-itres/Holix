@@ -783,11 +783,24 @@ def build_action_guard(
     data_dir: str | Path | None = None,
     profile_name: str | None = None,
 ) -> ActionGuard:
-    """Construct an ActionGuard for one agent instance."""
+    """Construct an ActionGuard for one agent instance.
+
+    Permission storage is shared per profile so ALLOW_SESSION / ALLOW_ALWAYS
+    from one Studio tab also covers parallel conversation agents.
+    Each agent still gets its own ActionGuard (pending futures are per-run).
+    """
     profile_key = (profile_name or "").strip() or None
     if data_dir is not None and profile_key:
-        pm = PermissionManager(data_dir=data_dir)
-        _profile_permission_managers[profile_key] = pm
+        pm = _profile_permission_managers.get(profile_key)
+        if pm is None:
+            pm = PermissionManager(data_dir=data_dir)
+            _profile_permission_managers[profile_key] = pm
+        else:
+            # Keep storage path in sync if the profile data_dir moved.
+            try:
+                pm.set_data_dir(data_dir)
+            except Exception:
+                pass
     elif data_dir is not None:
         configure_security_storage(data_dir)
         pm = permission_manager
