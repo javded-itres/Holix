@@ -226,9 +226,24 @@ def format_studio_preview_block(
         "### Built-in MCP `holix_studio` (always installed)",
         "- After a server is healthy, call MCP tool `open_preview_url` with the listen **port** "
         "(tools appear as `mcp_holix_studio_*`).",
-        "- Use `list_preview_targets` to see ports; `profile_info_tool` for workspace + URL mode.",
+        "- Use `list_preview_targets` to see ports; `preview_origins` for port→public origin map; "
+        "`resolve_preview_origin_tool` for one backend origin; `profile_info_tool` for workspace + URL mode.",
         "- Use `read_identity_file` / `write_identity_file` only for this user's SOUL.md / USER.md.",
-        "- The tool returns `frame_url` (subdomain when H2 is on). Paste **that** URL for the user.",
+        "- The tool returns `frame_url` (subdomain when H2 is on) and often `origin`. "
+        "Paste **frame_url** for the user; use **origin** as API base when wiring services.",
+        "",
+        "### Frontend + backend in the same Studio session",
+        "- If both FE and BE run here, follow skill **holix-studio-frontend-backend**.",
+        "- Set frontend API base (`VITE_API_URL` / `NEXT_PUBLIC_*` / `REACT_APP_*` / axios baseURL) "
+        "to the **backend** public origin from `resolve_preview_origin_tool` or `preview_origins` — "
+        "**never** `http://localhost:BACKEND_PORT` (that is the user's laptop, not Studio).",
+        "- Allow CORS on the backend for the **frontend** public origin when required.",
+        "- Restart the frontend after env changes, then re-open previews.",
+        "- **Vite/Nuxt HMR WebSocket** errors (`wss://…/_nuxt/`, `wss://localhost:5173`, "
+        "`[vite] failed to connect to websocket`) are **not** API failures — hot reload only. "
+        "Match `open_preview_url` port to the real listen port; set "
+        "`vite.server.hmr = { protocol: 'wss', clientPort: 443 }` and `allowedHosts: true`, "
+        "or `hmr: false` in Studio if WS still fails. App can work without HMR.",
         "",
         "### Hard rules",
         "- **Never** tell the user to open `http://localhost:PORT`, `http://127.0.0.1:PORT`, "

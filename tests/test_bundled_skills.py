@@ -47,15 +47,33 @@ def test_bundled_holix_sdd_skills_exist():
     assert "assignee" in propose["content"]
 
 
+def test_bundled_holix_studio_frontend_backend_skill_exists():
+    skill_md = bundled_skills_root() / "holix-studio-frontend-backend" / "SKILL.md"
+    assert skill_md.is_file()
+    parsed = parse_skill_file(skill_md)
+    assert parsed is not None
+    assert parsed["name"] == "holix-studio-frontend-backend"
+    body = parsed["content"].lower()
+    assert "vite_api_url" in body
+    assert "localhost" in body
+    assert "preview_origins" in parsed["content"]
+    assert "resolve_preview_origin" in parsed["content"]
+    assert "open_preview_url" in parsed["content"]
+    assert "hmr" in body
+    assert "clientPort" in parsed["content"]
+
+
 def test_seed_bundled_skills(tmp_path: Path):
     dest = tmp_path / "skills"
     first = seed_bundled_skills(dest)
     assert "holix-cron" in first
     assert "holix-subagents" in first
     assert "holix-sdd-propose" in first
+    assert "holix-studio-frontend-backend" in first
     assert (dest / "holix-cron.md").is_file()
     assert (dest / "holix-subagents.md").is_file()
     assert (dest / "holix-sdd-apply.md").is_file()
+    assert (dest / "holix-studio-frontend-backend.md").is_file()
 
     second = seed_bundled_skills(dest)
     assert second == []
@@ -69,6 +87,8 @@ def test_ensure_bundled_assigned_to_main():
     assert "holix-cron" in added
     assert "holix-subagents" in added
     assert "holix-sdd-propose" in added
+    assert "holix-studio-frontend-backend" in added
     assert "holix-cron" in assigns["main"]
     assert "holix-subagents" in assigns["main"]
+    assert "holix-studio-frontend-backend" in assigns["main"]
     assert "docker-manager" in assigns["main"]
