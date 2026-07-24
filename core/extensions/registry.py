@@ -360,9 +360,11 @@ def shutdown_extensions() -> None:
 
 
 def register_cli_extensions(root_app: Any) -> list[str]:
+    # Use the same instances that received on_startup (local drop-ins are
+    # re-instantiated on every discover_extensions() call otherwise).
     startup_extensions()
     names: list[str] = []
-    for ext in discover_extensions():
+    for ext in _loaded_extensions:
         try:
             if hasattr(ext, "register_cli") and callable(ext.register_cli):
                 ext.register_cli(root_app)
@@ -373,9 +375,11 @@ def register_cli_extensions(root_app: Any) -> list[str]:
 
 
 def mount_gateway_extensions(app: Any) -> list[str]:
+    # Must mount the *same* extension instances that ran on_startup so
+    # stateful fields (e.g. billing ``_service``) are visible to HTTP routes.
     startup_extensions()
     names: list[str] = []
-    for ext in discover_extensions():
+    for ext in _loaded_extensions:
         if not enforce_permissions(ext, frozenset({PERMISSION_GATEWAY}), context="gateway"):
             continue
         try:
