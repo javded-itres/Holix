@@ -40,7 +40,8 @@ class BrowserOpenTool(BaseTool):
         self.name = "browser_open"
         self.description = (
             "Open a URL in the browser for this conversation (creates or reuses a session). "
-            "Use browser_snapshot next to see interactive elements."
+            "Use browser_snapshot next to see interactive elements. "
+            "Set record=true to start video recording of browser work (WebM under data/browser_videos/)."
         )
         self.risk_level = "high"
         self.parameters = {
@@ -52,18 +53,29 @@ class BrowserOpenTool(BaseTool):
                     "enum": ["load", "domcontentloaded", "networkidle", "commit"],
                     "default": "domcontentloaded",
                 },
+                "record": {
+                    "type": "boolean",
+                    "description": "Start (or keep) video recording for this browser session",
+                    "default": False,
+                },
             },
             "required": ["url"],
         }
 
-    async def execute(self, url: str, wait_until: str = "domcontentloaded") -> str:
+    async def execute(
+        self,
+        url: str,
+        wait_until: str = "domcontentloaded",
+        record: bool = False,
+    ) -> str:
         try:
             normalized = validate_browser_url(url, _allowed_hosts())
             cid = get_conversation_id()
-            session = await get_browser_session_manager().get_or_create(cid)
+            session = await get_browser_session_manager().get_or_create(cid, record=record)
             await session.page.goto(normalized, wait_until=wait_until, timeout=60_000)
             session.refs.clear()
-            return f"Opened {session.page.url} (conversation={cid})"
+            rec = " recording=on" if session.recording else ""
+            return f"Opened {session.page.url} (conversation={cid}{rec})"
         except Exception as e:
             return f"browser_open error: {e}"
 
@@ -219,19 +231,80 @@ class BrowserWaitTool(BaseTool):
             return f"browser_wait error: {e}"
 
 
-class BrowserCloseTool(BaseTool):
+class BrowserRecordStartTool(BaseTool):
     def __init__(self) -> None:
         super().__init__()
-        self.name = "browser_close"
-        self.description = "Close the browser session for this conversation."
+        self.name = "browser_record_start"
+        self.description = (
+            "Start recording a WebM video of the browser session for this conversation. "
+            "Continue with browser_open / click / fill as usual, then call browser_record_stop "
+            "(or browser_close) to save the file under data/browser_videos/."
+        )
+        self.risk_level = "medium"
+        self.parameters = {"type": "object", "properties": {}}
+
+    async def execute(self) -> str:
+        try:
+            cid = get_conversation_id()
+            session, already = await get_browser_session_manager().start_recording(cid)
+            if already:
+                return (
+                    f"Video recording already active for conversation={cid} "
+                    f"(url={session.page.url}). Call browser_record_stop to save."
+                )
+            return (
+                f"Video recording started for conversation={cid} "
+                f"(url={session.page.url}). Call browser_record_stop when finished."
+            )
+        except Exception as e:
+            return f"browser_record_start error: {e}"
+
+
+class BrowserRecordStopTool(BaseTool):
+    def __init__(self) -> None:
+        super().__init__()
+        self.name = "browser_record_stop"
+        self.description = (
+            "Stop browser video recording and save the WebM under data/browser_videos/. "
+            "Keeps the browser session open for further automation."
+        )
         self.risk_level = "low"
         self.parameters = {"type": "object", "properties": {}}
 
     async def execute(self) -> str:
         try:
             cid = get_conversation_id()
-            closed = await get_browser_session_manager().close(cid)
-            return "Browser closed." if closed else "No browser session was open."
+            path = await get_browser_session_manager().stop_recording(cid, keep_session=True)
+            if path is None:
+                return (
+                    "No active browser video recording for this conversation. "
+                    "Call browser_record_start (or browser_open with record=true) first."
+                )
+            return f"Video saved: {path}"
+        except Exception as e:
+            return f"browser_record_stop error: {e}"
+
+
+class BrowserCloseTool(BaseTool):
+    def __init__(self) -> None:
+        super().__init__()
+        self.name = "browser_close"
+        self.description = (
+            "Close the browser session for this conversation. "
+            "If video recording was active, finalizes and saves the WebM under data/browser_videos/."
+        )
+        self.risk_level = "low"
+        self.parameters = {"type": "object", "properties": {}}
+
+    async def execute(self) -> str:
+        try:
+            cid = get_conversation_id()
+            closed, video_path = await get_browser_session_manager().close(cid)
+            if not closed:
+                return "No browser session was open."
+            if video_path is not None:
+                return f"Browser closed. Video saved: {video_path}"
+            return "Browser closed."
         except Exception as e:
             return f"browser_close error: {e}"
 
@@ -244,4 +317,6 @@ def register_browser_tools(registry: ToolRegistry) -> None:
     registry.register(BrowserFillTool())
     registry.register(BrowserPressTool())
     registry.register(BrowserWaitTool())
+    registry.register(BrowserRecordStartTool())
+    registry.register(BrowserRecordStopTool())
     registry.register(BrowserCloseTool())

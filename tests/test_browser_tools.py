@@ -12,6 +12,8 @@ from core.tools.browser.tools import (
     BrowserCloseTool,
     BrowserFillTool,
     BrowserOpenTool,
+    BrowserRecordStartTool,
+    BrowserRecordStopTool,
     BrowserSnapshotTool,
     register_browser_tools,
 )
@@ -63,7 +65,7 @@ def _mock_session(*, url: str = "https://example.com/", refs: dict | None = None
     page.locator.return_value.first.click = AsyncMock()
     page.locator.return_value.first.fill = AsyncMock()
 
-    session = SimpleNamespace(page=page, refs=refs or {})
+    session = SimpleNamespace(page=page, refs=refs or {}, recording=False)
     return session
 
 
@@ -176,7 +178,7 @@ async def test_browser_close():
     token = conversation_scope("c1")
     try:
         with patch("core.tools.browser.tools.get_browser_session_manager") as mgr:
-            mgr.return_value.close = AsyncMock(return_value=True)
+            mgr.return_value.close = AsyncMock(return_value=(True, None))
             result = await tool.execute()
     finally:
         reset_conversation_scope(token)
@@ -185,7 +187,121 @@ async def test_browser_close():
     mgr.return_value.close.assert_awaited_once_with("c1")
 
 
-def test_register_browser_tools_adds_seven_tools():
+@pytest.mark.asyncio
+async def test_browser_close_saves_video():
+    from pathlib import Path
+
+    tool = BrowserCloseTool()
+
+    token = conversation_scope("c1")
+    try:
+        with patch("core.tools.browser.tools.get_browser_session_manager") as mgr:
+            mgr.return_value.close = AsyncMock(
+                return_value=(True, Path("/data/browser_videos/c1_20260101.webm"))
+            )
+            result = await tool.execute()
+    finally:
+        reset_conversation_scope(token)
+
+    assert "Browser closed." in result
+    assert "Video saved:" in result
+    assert "c1_20260101.webm" in result
+
+
+@pytest.mark.asyncio
+async def test_browser_record_start():
+    tool = BrowserRecordStartTool()
+    session = _mock_session()
+    session.recording = True
+
+    token = conversation_scope("c1")
+    try:
+        with patch("core.tools.browser.tools.get_browser_session_manager") as mgr:
+            mgr.return_value.start_recording = AsyncMock(return_value=(session, False))
+            result = await tool.execute()
+    finally:
+        reset_conversation_scope(token)
+
+    assert "Video recording started" in result
+    mgr.return_value.start_recording.assert_awaited_once_with("c1")
+
+
+@pytest.mark.asyncio
+async def test_browser_record_start_already_active():
+    tool = BrowserRecordStartTool()
+    session = _mock_session()
+    session.recording = True
+
+    token = conversation_scope("c1")
+    try:
+        with patch("core.tools.browser.tools.get_browser_session_manager") as mgr:
+            mgr.return_value.start_recording = AsyncMock(return_value=(session, True))
+            result = await tool.execute()
+    finally:
+        reset_conversation_scope(token)
+
+    assert "already active" in result
+
+
+@pytest.mark.asyncio
+async def test_browser_record_stop():
+    tool = BrowserRecordStopTool()
+    from pathlib import Path
+
+    token = conversation_scope("c1")
+    try:
+        with patch("core.tools.browser.tools.get_browser_session_manager") as mgr:
+            mgr.return_value.stop_recording = AsyncMock(
+                return_value=Path("/data/browser_videos/c1.webm")
+            )
+            result = await tool.execute()
+    finally:
+        reset_conversation_scope(token)
+
+    assert result == "Video saved: /data/browser_videos/c1.webm"
+    mgr.return_value.stop_recording.assert_awaited_once_with("c1", keep_session=True)
+
+
+@pytest.mark.asyncio
+async def test_browser_record_stop_no_active():
+    tool = BrowserRecordStopTool()
+
+    token = conversation_scope("c1")
+    try:
+        with patch("core.tools.browser.tools.get_browser_session_manager") as mgr:
+            mgr.return_value.stop_recording = AsyncMock(return_value=None)
+            result = await tool.execute()
+    finally:
+        reset_conversation_scope(token)
+
+    assert "No active browser video recording" in result
+
+
+@pytest.mark.asyncio
+async def test_browser_open_passes_record_flag():
+    tool = BrowserOpenTool()
+    session = _mock_session()
+    session.recording = True
+
+    token = conversation_scope("conv-1")
+    try:
+        with (
+            patch(
+                "core.tools.browser.tools.validate_browser_url",
+                return_value="https://example.com",
+            ),
+            patch("core.tools.browser.tools.get_browser_session_manager") as mgr,
+        ):
+            mgr.return_value.get_or_create = AsyncMock(return_value=session)
+            result = await tool.execute(url="example.com", record=True)
+    finally:
+        reset_conversation_scope(token)
+
+    mgr.return_value.get_or_create.assert_awaited_once_with("conv-1", record=True)
+    assert "recording=on" in result
+
+
+def test_register_browser_tools_adds_nine_tools():
     registry = ToolRegistry()
     register_browser_tools(registry)
     names = set(registry.get_tool_names())
@@ -196,6 +312,8 @@ def test_register_browser_tools_adds_seven_tools():
         "browser_fill",
         "browser_press",
         "browser_wait",
+        "browser_record_start",
+        "browser_record_stop",
         "browser_close",
     }
 

@@ -33,17 +33,23 @@ Or: `holix install --extra browser`
 
 | Tool | Risk | Description |
 |------|------|-------------|
-| `browser_open` | high | Open URL (`wait_until`: load / domcontentloaded / networkidle / commit) |
+| `browser_open` | high | Open URL (`wait_until`: load / domcontentloaded / networkidle / commit). Optional `record=true` starts WebM capture |
 | `browser_snapshot` | low | Title, interactive elements with refs `e1`, `e2`, … |
 | `browser_click` | high | Click by `ref` or CSS `selector` |
 | `browser_fill` | high | Type into field |
 | `browser_press` | medium | Key (Enter, Tab, Escape, …) |
 | `browser_wait` | low | Wait for selector, timeout, or `network_idle` |
-| `browser_close` | low | Close browser session for conversation |
+| `browser_record_start` | medium | Start WebM video of the browser session |
+| `browser_record_stop` | low | Stop recording and save WebM; keeps session open |
+| `browser_close` | low | Close browser session (finalizes video if recording) |
 
 Typical flow: `browser_open` → `browser_snapshot` → `browser_fill` / `browser_click` → `browser_close`.
 
+Video flow: `browser_record_start` (or `browser_open` with `record=true`) → automate → `browser_record_stop` or `browser_close`.
+
 Screenshots: `{DATA_DIR}/browser_screenshots/` when `screenshot=true`.
+
+Videos: `{DATA_DIR}/browser_videos/*.webm` (Playwright + bundled ffmpeg).
 
 ## Sessions
 
