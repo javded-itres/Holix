@@ -223,15 +223,22 @@ def format_studio_preview_block(
         "After `start_background_process` / a healthy listen port, the user opens the app "
         "in the Studio **Browser** panel (preview iframe) — not by typing a URL into their own machine.",
         "",
+        "### Built-in MCP `holix_studio` (always installed)",
+        "- After a server is healthy, call MCP tool `open_preview_url` with the listen **port** "
+        "(tools appear as `mcp_holix_studio_*`).",
+        "- Use `list_preview_targets` to see ports; `profile_info_tool` for workspace + URL mode.",
+        "- Use `read_identity_file` / `write_identity_file` only for this user's SOUL.md / USER.md.",
+        "- The tool returns `frame_url` (subdomain when H2 is on). Paste **that** URL for the user.",
+        "",
         "### Hard rules",
         "- **Never** tell the user to open `http://localhost:PORT`, `http://127.0.0.1:PORT`, "
         "or `http://<server-ip>:PORT`. Those work only on the Studio host; the user is remote.",
-        "- **Never** invent public preview hostnames or endpoint ids.",
+        "- **Never** invent public preview hostnames or endpoint ids — use `open_preview_url`.",
         "- Prefer binding the server to `127.0.0.1` (loopback). `0.0.0.0` is allowed but do not "
         "advertise the raw host port as the user URL.",
         "- Keep the **same port** from the project config; Studio maps that port into the Browser panel.",
-        "- After the process is healthy, say clearly: open **Browser** in Studio and select this port "
-        "(or refresh targets). Optionally mention the path proxy form below.",
+        "- After the process is healthy, call `open_preview_url`, then tell the user to open "
+        "**Browser** in Studio (or the returned `frame_url`).",
         "",
     ]
 

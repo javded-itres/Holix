@@ -56,6 +56,8 @@ def test_studio_preview_block_subdomain_mode(monkeypatch: pytest.MonkeyPatch) ->
     assert "preview.holix-agent.ru" in block
     assert "localhost" in block  # forbidden rule mentions it
     assert "Browser" in block
+    assert "open_preview_url" in block
+    assert "holix_studio" in block
     assert "p{PORT}" in block or "p{{PORT}}" in block or "p{PORT}-" in block
 
 
