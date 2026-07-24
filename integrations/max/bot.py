@@ -127,21 +127,80 @@ class HelixMaxBot:
         *,
         meta: dict[str, Any] | None = None,
         is_start: bool = False,
-    ) -> None:
+    ) -> bool:
+        """Handle unauth user. Returns True if access was granted (billing auto-onboard)."""
         from integrations.max.access_requests import register_access_request
 
         meta = meta or {}
+        uid = int(user_id)
+
+        # Billing extension: auto-onboard with profile meta (no admin queue).
+        try:
+            from integrations.max.plugin_api import (
+                extension_access_allows,
+                get_active_max_plugin_api,
+            )
+
+            api = getattr(self, "_plugin_api", None) or get_active_max_plugin_api()
+            if api is not None and getattr(api, "access_checks", None):
+                if extension_access_allows(api, uid) is True:
+                    await client.send_message(
+                        plain_to_max_html(
+                            "✅ <b>Доступ открыт</b>\n\n"
+                            "Можно пользоваться ботом (free-квота / подписка).\n"
+                            "Отправьте сообщение или `/menu`."
+                        ),
+                        user_id=uid,
+                        fmt="html",
+                    )
+                    return True
+                try:
+                    from holix_max_billing.auto_access import (
+                        billing_auto_access_enabled,
+                        ensure_auto_approved,
+                    )
+                    from holix_max_billing.config import load_billing_config
+                    from holix_max_billing.service import BillingService
+
+                    cfg = load_billing_config(bot_profile=self.settings.profile)
+                    svc = BillingService(cfg) if cfg.enabled else None
+                    if svc is not None and billing_auto_access_enabled(svc):
+                        if ensure_auto_approved(
+                            self.settings.profile,
+                            uid,
+                            username=meta.get("username"),
+                            first_name=meta.get("first_name"),
+                            last_name=meta.get("last_name"),
+                            service=svc,
+                        ):
+                            await client.send_message(
+                                plain_to_max_html(
+                                    "✅ <b>Доступ открыт</b>\n\n"
+                                    "Можно пользоваться ботом (free-квота / подписка).\n"
+                                    "Отправьте сообщение или `/menu`."
+                                ),
+                                user_id=uid,
+                                fmt="html",
+                            )
+                            return True
+                except ImportError:
+                    pass
+                except Exception:
+                    logger.exception("max billing ensure_auto_approved failed")
+        except Exception:
+            logger.debug("max unauthorized billing path skipped", exc_info=True)
+
         if not self.settings.access_requests:
             await client.send_message(
                 plain_to_max_html("Access denied."),
-                user_id=user_id,
+                user_id=uid,
                 fmt="html",
             )
-            return
+            return False
 
         req, created = register_access_request(
             self.settings.profile,
-            user_id=int(user_id),
+            user_id=uid,
             username=meta.get("username"),
             first_name=meta.get("first_name"),
             last_name=meta.get("last_name"),
@@ -172,6 +231,7 @@ class HelixMaxBot:
                 self._notify_admin_new_request(req),
                 name=f"max-admin-notify-{req.user_id}",
             )
+        return False
 
     async def _notify_admin_new_request(self, req: Any) -> None:
         try:
@@ -287,8 +347,12 @@ class HelixMaxBot:
             return
         meta = user_meta_from_update(update)
         if not self._allowed(uid):
-            await self._handle_unauthorized(client, uid, meta=meta, is_start=True)
-            return
+            granted = await self._handle_unauthorized(
+                client, uid, meta=meta, is_start=True
+            )
+            if not granted:
+                return
+            # billing auto-onboard already messaged user — still show help below
         try:
             from integrations.messenger.locale import (
                 bootstrap_messenger_locales,
@@ -328,13 +392,15 @@ class HelixMaxBot:
         if not self._allowed(uid):
             text_peek = message_text(msg).strip().lower()
             is_start = text_peek in {"/start", "start"}
-            await self._handle_unauthorized(
+            granted = await self._handle_unauthorized(
                 client,
                 uid,
                 meta=meta,
                 is_start=is_start,
             )
-            return
+            if not granted:
+                return
+            # Auto-onboard succeeded — continue handling this message
         text = message_text(msg).strip()
         logger.info("MAX message from user %s: %r", uid, text[:120] if text else "(media)")
         reply_user_id, reply_chat_id = reply_target_from_message(msg)
