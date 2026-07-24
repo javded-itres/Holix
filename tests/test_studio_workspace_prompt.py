@@ -3,7 +3,10 @@
 from __future__ import annotations
 
 import pytest
-from core.prompt_builder import format_studio_workspace_block
+from core.prompt_builder import (
+    format_studio_preview_block,
+    format_studio_workspace_block,
+)
 
 
 def test_studio_workspace_block_cwd(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -34,3 +37,33 @@ def test_studio_workspace_block_empty_without_env(monkeypatch: pytest.MonkeyPatc
     monkeypatch.delenv("HOLIX_STUDIO_WORKSPACE_MODE", raising=False)
     monkeypatch.delenv("HOLIX_STUDIO_WORKSPACE_ROOT", raising=False)
     assert format_studio_workspace_block(workspace_jail_enabled=False) == ""
+
+
+def test_studio_preview_block_empty_outside_studio(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("HOLIX_STUDIO", raising=False)
+    monkeypatch.delenv("HOLIX_STUDIO_WORKSPACE_MODE", raising=False)
+    monkeypatch.delenv("HOLIX_STUDIO_WORKSPACE_ROOT", raising=False)
+    assert format_studio_preview_block(workspace_jail_enabled=False) == ""
+
+
+def test_studio_preview_block_subdomain_mode(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("HOLIX_STUDIO", "1")
+    monkeypatch.setenv("PREVIEW_URL_MODE", "subdomain")
+    monkeypatch.setenv("PREVIEW_BASE_DOMAIN", "preview.holix-agent.ru")
+    monkeypatch.setenv("STUDIO_PUBLIC_URL", "https://studio.holix-agent.ru")
+    block = format_studio_preview_block()
+    assert "subdomain" in block.lower()
+    assert "preview.holix-agent.ru" in block
+    assert "localhost" in block  # forbidden rule mentions it
+    assert "Browser" in block
+    assert "p{PORT}" in block or "p{{PORT}}" in block or "p{PORT}-" in block
+
+
+def test_studio_preview_block_path_mode(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("HOLIX_STUDIO", "1")
+    monkeypatch.setenv("PREVIEW_URL_MODE", "path")
+    monkeypatch.delenv("PREVIEW_BASE_DOMAIN", raising=False)
+    monkeypatch.setenv("STUDIO_PUBLIC_URL", "https://studio.example.com")
+    block = format_studio_preview_block()
+    assert "/studio/preview/" in block
+    assert "subdomain" not in block.lower() or "path" in block.lower()

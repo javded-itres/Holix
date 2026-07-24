@@ -188,6 +188,96 @@ def format_studio_persona_block(
     )
 
 
+def _studio_session_active() -> bool:
+    """True only inside Holix Studio process (not TUI / Telegram / bare CLI)."""
+    flag = (os.getenv("HOLIX_STUDIO") or "").strip().lower()
+    if flag in {"1", "true", "yes", "on"}:
+        return True
+    # holix studio serve sets these for the serve process / agent children.
+    mode = (os.getenv("HOLIX_STUDIO_WORKSPACE_MODE") or "").strip()
+    return bool(mode)
+
+
+def format_studio_preview_block(
+    *,
+    workspace_root: str | None = None,
+    workspace_jail_enabled: bool | None = None,
+) -> str:
+    """How the user opens HTTP apps in Studio (path proxy or H2 subdomain).
+
+    Studio-only — empty for TUI/Telegram so local agents keep localhost habits.
+    """
+    del workspace_root, workspace_jail_enabled  # API parity with other studio blocks
+    if not _studio_session_active():
+        return ""
+
+    mode = (os.getenv("PREVIEW_URL_MODE") or "path").strip().lower() or "path"
+    base = (os.getenv("PREVIEW_BASE_DOMAIN") or "").strip().lstrip(".")
+    public = (os.getenv("STUDIO_PUBLIC_URL") or "").strip().rstrip("/")
+    scheme = (os.getenv("PREVIEW_PUBLIC_SCHEME") or "https").strip() or "https"
+
+    lines = [
+        "## Holix Studio browser preview (mandatory)",
+        "",
+        "You are running **inside Holix Studio**, not on the user's laptop.",
+        "After `start_background_process` / a healthy listen port, the user opens the app "
+        "in the Studio **Browser** panel (preview iframe) — not by typing a URL into their own machine.",
+        "",
+        "### Hard rules",
+        "- **Never** tell the user to open `http://localhost:PORT`, `http://127.0.0.1:PORT`, "
+        "or `http://<server-ip>:PORT`. Those work only on the Studio host; the user is remote.",
+        "- **Never** invent public preview hostnames or endpoint ids.",
+        "- Prefer binding the server to `127.0.0.1` (loopback). `0.0.0.0` is allowed but do not "
+        "advertise the raw host port as the user URL.",
+        "- Keep the **same port** from the project config; Studio maps that port into the Browser panel.",
+        "- After the process is healthy, say clearly: open **Browser** in Studio and select this port "
+        "(or refresh targets). Optionally mention the path proxy form below.",
+        "",
+    ]
+
+    if public:
+        lines.append(f"Studio UI origin: `{public}`")
+        lines.append("")
+
+    if mode == "subdomain" and base:
+        lines.extend(
+            [
+                "### Preview URL mode: **subdomain** (H2)",
+                f"- Base domain: `{base}`",
+                f"- Public form (Studio generates the id): "
+                f"`{scheme}://p{{PORT}}-{{endpoint_id}}.{base}/`",
+                f"- Example shape only: `{scheme}://p8000-ab12cd34.{base}/` "
+                "(real `endpoint_id` is assigned by Studio when the preview is opened).",
+                "- Path dual-run still exists as "
+                f"`{public or 'https://<studio-host>'}/studio/preview/{{PORT}}/` "
+                "but prefer subdomain when the Browser panel shows it.",
+                "- Cookie/auth for the preview host is handled by Studio — do not ask the user "
+                "to copy cookies or open raw ports.",
+                "",
+            ]
+        )
+    else:
+        lines.extend(
+            [
+                "### Preview URL mode: **path** (same-origin proxy)",
+                "- Iframe URL form: "
+                f"`{public or 'https://<studio-host>'}/studio/preview/{{PORT}}/`",
+                "- The Browser panel builds this automatically from the listen port.",
+                "",
+            ]
+        )
+
+    lines.extend(
+        [
+            "### What to report to the user",
+            "- Process id, listen port, health status from tools.",
+            "- That the app is ready in **Studio → Browser** for that port.",
+            "- Do **not** paste localhost or bare `:PORT` as the primary open link.",
+        ]
+    )
+    return "\n".join(lines)
+
+
 def build_system_prompt(
     tools_description: str,
     active_skills: list[dict[str, Any]],
@@ -369,6 +459,12 @@ Remember: You are a helpful, capable agent that learns and improves with each ta
         )
         if wd_block:
             blocks.append(wd_block)
+    preview_block = format_studio_preview_block(
+        workspace_root=workspace_root,
+        workspace_jail_enabled=workspace_jail_enabled,
+    )
+    if preview_block:
+        blocks.append(preview_block)
     identity = format_identity_instructions(profile_name)
     if identity:
         blocks.append(identity)
