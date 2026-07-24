@@ -94,3 +94,29 @@ def test_ignores_holix_md_deeper_than_two_levels(tmp_path: Path) -> None:
 
     assert resolve_holix_md_read_path(project) is None
     assert not holix_md_exists(project)
+
+
+def test_discover_skips_unreadable_subdirs(tmp_path: Path) -> None:
+    """Docker volume mounts (root-owned db_data) must not abort discovery."""
+    import os
+    import stat
+
+    project = tmp_path / "repo"
+    project.mkdir()
+    nested = project / "apps" / "api"
+    nested.mkdir(parents=True)
+    holix = nested / ".holix"
+    holix.mkdir()
+    (holix / "HOLIX.md").write_text("# API\n", encoding="utf-8")
+
+    blocked = project / "emis_backend" / "db_data"
+    blocked.mkdir(parents=True)
+    # No traverse for others — mimics root-owned postgres volume for non-root agent.
+    os.chmod(blocked, 0o000)
+
+    try:
+        paths = discover_holix_md_paths(project)
+        assert paths == [holix / "HOLIX.md"]
+        assert "API" in load_holix_md(project)
+    finally:
+        os.chmod(blocked, stat.S_IRWXU)

@@ -195,6 +195,17 @@ async def run_graph_loop(
     except RuntimeError as e:
         # LangGraph / LLM stream cleanup after cancel or wait_for timeout.
         if "generator didn't stop after athrow" in str(e):
+            # Prefer the real failure (e.g. PermissionError while building the
+            # prompt) over a silent cancel — otherwise Studio looks "hung".
+            root = e.__cause__ or e.__context__
+            if root is not None and not isinstance(root, asyncio.CancelledError):
+                yield ErrorEvent(
+                    error=f"Error during graph execution: {root}",
+                    error_type="execution",
+                    recoverable=False,
+                    conversation_id=conversation_id,
+                )
+                return
             raise asyncio.CancelledError() from e
         yield ErrorEvent(
             error=f"Error during graph execution: {str(e)}",

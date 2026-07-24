@@ -49,14 +49,31 @@ def _workspace_root(cwd: str | Path | None = None) -> Path:
     return (Path(cwd) if cwd else Path.cwd()).expanduser().resolve()
 
 
+def _is_file(path: Path) -> bool:
+    try:
+        return path.is_file()
+    except OSError:
+        return False
+
+
+def _is_dir(path: Path) -> bool:
+    try:
+        return path.is_dir()
+    except OSError:
+        return False
+
+
 def _holix_md_file_in_dir(base: Path) -> Path | None:
-    holix_dir = get_local_holix_dir(base)
-    holix_md = holix_dir / HOLIX_MD_FILENAME
-    if holix_md.is_file():
-        return holix_md
-    legacy = holix_dir / HOLIX_MD_LEGACY_FILENAME
-    if legacy.is_file():
-        return legacy
+    try:
+        holix_dir = get_local_holix_dir(base)
+        holix_md = holix_dir / HOLIX_MD_FILENAME
+        if _is_file(holix_md):
+            return holix_md
+        legacy = holix_dir / HOLIX_MD_LEGACY_FILENAME
+        if _is_file(legacy):
+            return legacy
+    except OSError:
+        return None
     return None
 
 
@@ -71,10 +88,14 @@ def discover_holix_md_paths(
     found: list[tuple[int, str, Path]] = []
 
     def consider(directory: Path, depth: int) -> None:
-        hit = _holix_md_file_in_dir(directory)
-        if hit is not None:
-            rel = str(directory.relative_to(root)).replace("\\", "/")
-            found.append((depth, rel, hit))
+        try:
+            hit = _holix_md_file_in_dir(directory)
+            if hit is not None:
+                rel = str(directory.relative_to(root)).replace("\\", "/")
+                found.append((depth, rel, hit))
+        except OSError:
+            # Unreadable dirs (docker volumes, root-owned mounts) must not abort the agent.
+            return
 
     consider(root, 0)
     if depth_limit == 0:
@@ -90,7 +111,7 @@ def discover_holix_md_paths(
         except OSError:
             continue
         for child in children:
-            if not child.is_dir():
+            if not _is_dir(child):
                 continue
             name = child.name
             if name in _SKIP_SEARCH_DIRS or name.startswith("."):

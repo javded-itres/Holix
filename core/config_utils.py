@@ -69,12 +69,21 @@ _LOCAL_SYSTEM_KEYS: frozenset[str] = frozenset({
 })
 
 
+def _path_is_dir(path: Path) -> bool:
+    """``Path.is_dir`` that treats permission/IO errors as missing (not present)."""
+    try:
+        return path.is_dir()
+    except OSError:
+        return False
+
+
 def get_local_holix_dir(cwd: str | None = None) -> Path:
     """Return <cwd>/.holix (or CWD/.holix). Falls back to legacy .helix when present."""
     base = Path(cwd) if cwd else Path.cwd()
     holix = base / ".holix"
     helix = base / ".helix"
-    if helix.is_dir() and not holix.is_dir():
+    # Docker volume mounts (e.g. postgres db_data) are often root-owned; never raise.
+    if _path_is_dir(helix) and not _path_is_dir(holix):
         return helix
     return holix
 
