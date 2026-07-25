@@ -50,14 +50,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: astral-sh/setup-uv@v5
+      - uses: actions/setup-python@v5
         with:
-          enable-cache: true
           python-version: "3.12"
 
       - name: Install build tools
-        # --no-sources: ignore private git sources (e.g. holix-studio) so CI can build core only
-        run: uv sync --group dev --no-install-project --no-sources
+        # Avoid uv workspace resolution (private holix-studio git source is not
+        # available on public runners). Hatch/build only needs core package metadata.
+        run: python -m pip install -U pip build twine
 
       - name: Verify tag matches package version
         if: startsWith(github.ref, 'refs/tags/v')
@@ -73,15 +73,15 @@ jobs:
       - name: Build package
         env:
           HOLIX_NO_VERSION_BUMP: "1"
-        run: uv build --no-sources
+        run: python -m build
 
       - name: Validate artifacts
-        run: uv run twine check dist/*
+        run: twine check dist/*
 
       - name: Smoke install wheel
         run: |
-          uv venv /tmp/helix-publish-smoke --python 3.12
-          uv pip install --python /tmp/helix-publish-smoke/bin/python dist/holix-*.whl
+          python -m venv /tmp/helix-publish-smoke
+          /tmp/helix-publish-smoke/bin/pip install dist/holix-*.whl
           /tmp/helix-publish-smoke/bin/holix version
           /tmp/helix-publish-smoke/bin/holix --help
           /tmp/helix-publish-smoke/bin/python -c "from config import settings; print('config ok')"
