@@ -2,6 +2,103 @@
 
 ## Unreleased
 
+## 1.0.0 — 2026-07-25
+
+**First stable major release.** Holix graduates from the 0.1.x beta line to a production-oriented 1.0 API for the agent runtime, extension ecosystem, messenger hosts, and gateway.
+
+### Highlights
+
+- **Extension platform** — installable host/agent extensions via `holix-sdk`, drop-in folders, sidecars, Telegram/MAX plugin APIs, and agent self-extension (local only)
+- **SDD + subagent runtime** — structured task graph, registry, and hardened gateway orchestration for multi-step work
+- **Messenger production** — MAX Long Polling as supervised OS subprocess; billing auto-onboard; dual-path health for extensions
+- **Studio companion (optional package)** — browser IDE, workspace tree, agent WebSocket, preview origins
+- **Security** — shared `PermissionManager` across parallel agents; terminal whitelist extras can be removed; Windows path/whitelist fixes
+- **Browser** — WebM session recording tools for agent-driven browser work
+- **Docs** — holix-docs site: full Extensions + holix-sdk guides (RU/EN), self-extension modes, Support Desk tutorial examples
+
+### Added
+
+#### Extensions & holix-sdk
+- **Extension framework** — discovery of host (`holix.extensions`) and agent (`holix.agent.extensions`) entry points plus profile/global drop-in folders
+- **`holix-sdk`** — stable public package for extension authors (`ExtensionBase`, `AgentExtensionBase`, capabilities, host/i18n/models bridges)
+- **Gateway companions** — host extensions mount FastAPI routes and optional **sidecars** on `holix gateway start`
+- **Messenger plugin APIs** — `register_telegram` / `register_max`: commands, handlers, message gates, access checks, callbacks
+- **Agent self-extension** — tool `manage_agent_extensions` (list/create/disable/enable/reload/quarantine); skill `/holix-extensions`
+- **Hot-reload** — local CLI/TUI sessions load new drop-in tools without full process restart
+- **Self-extension policy** — create/reload allowed only in **local single-operator** mode; denied on multi-user Telegram/MAX hosts (`HOLIX_SELF_EXTENSIONS` override)
+- **Kill-switches** — `agent_extensions_control.yaml`, `HOLIX_AGENT_EXTENSIONS_OFF`, `HOLIX_AGENT_EXTENSIONS_DISABLED`
+- **Reference package** — `packages/holix-extension-demo` (tool, slash, LLM middleware)
+
+#### SDD & agents
+- **SDD task graph** — structured change/task execution model
+- **Subagent runtime registry** — lifecycle tracking, binding slots, gateway-oriented orchestration
+- **Layered architecture / DI providers** — cleaner runtime composition and action honesty paths
+
+#### Studio (optional holix-studio extension)
+- **MVP local serve** — IDE panel, Monaco editor, agent chat over WebSocket
+- **Workspace tree** — create/upload/move/delete files and directories; CWD display
+- **Agent chat** — streaming init, markdown preview, resizable/collapsible panels
+- **Preview** — browser preview preference; FE/BE public origins and Vite HMR guidance for agents
+- **Profile credentials** — Studio login material generated on profile create when applicable
+
+#### Runtime & tools
+- **Browser video** — WebM recording tools for agent sessions
+- **Background processes** — `list_for_profile` on process registry; better Next.js/generic port detection from logs
+- **Security** — remove terminal whitelist extras; share profile `PermissionManager` across parallel agents
+
+#### Messengers
+- **MAX** — Long Polling runs as OS subprocess under gateway supervisor (avoids in-process hang); explicit polling allowed in production
+- **Billing auto-onboard** — when billing is enabled, skip admin approval queue for MAX (and consistent TG path)
+- **Extension instance fix** — gateway `mount_gateway` uses the same host extension instances as `on_startup` (stateful billing/health)
+
+#### Documentation (holix-docs site)
+- Full **Extensions** guide (RU/EN): architecture, install, drop-ins, self-extension modes, Support Desk tutorial (no Studio/billing product docs on that page)
+- Dedicated **holix-sdk** reference with module map and code samples
+- Site nav + SEO for `extensions` and `holix-sdk`
+
+### Fixed
+
+- **MAX hang** — concurrent in-process agent creation under polling replaced by supervised subprocess
+- **Empty billing health providers** — host extension remount no longer loses `_service` state
+- **Webhook FastAPI 422** — nested `Request` import treated as query param; module-level import pattern documented
+- **Windows** — path handling, terminal whitelist aliases (`ls`/`cp` style), CI-portable tests
+- **Env bootstrap** — shell-lock behavior and `/v1/models` profile routing in tests
+- **Agent** — skip unreadable directories when discovering `HOLIX.md`
+- **Ports** — treat listening sockets as busy; Windows/Unix listener detection
+- **Studio** — WebSocket delivery, auth-free static assets, file tree move/delete, spurious end-of-run errors, SaaS workspace ownership / browser preview preference
+- **Ruff / CI** — lint cleanups, security extras in CI, subagent binding slot bug
+
+### Changed
+
+- **Version** — package `Holix` **1.0.0** (semver major: production/stable classifier; extension contracts documented as SDK API v1)
+- **PyPI classifier** — `Development Status :: 5 - Production/Stable` (was Beta)
+- **Messenger hosts** — force `self_extensions_enabled=False` for Telegram/MAX multi-user agents
+- **Extension mount lifecycle** — CLI and gateway registration iterate `_loaded_extensions` after startup (same instances)
+
+### Security
+
+- Parallel agents on one profile share permission state consistently
+- Terminal whitelist extras removable without full reset
+- Multi-user bots cannot self-author extensions into shared agent state by default
+
+### Upgrade notes (0.1.x → 1.0.0)
+
+1. **Install:** `pip install -U Holix` or `pipx upgrade Holix` (or your pinned deploy image).
+2. **Python:** still requires **≥ 3.12**.
+3. **Extensions:** authors should depend on `holix-sdk>=0.1.0` and declare `requires_holix` appropriately; drop-ins under `~/.holix/profiles/<p>/extensions/` continue to work.
+4. **Self-extension:** only local CLI/TUI; Telegram/MAX bots return `self_extensions_denied` on create/reload.
+5. **MAX:** ensure gateway supervisor starts MAX as subprocess (default after this release); restart gateway after upgrade.
+6. **Host webhooks:** import FastAPI `Request` at module level (not inside nested handlers) to avoid HTTP 422.
+7. **Breaking expectations (behavioral, not silent renames):**
+   - Multi-user messengers no longer allow agent-authored drop-ins.
+   - Extension HTTP mounts must not assume a second discover cycle creates a fresh service instance for webhooks.
+8. **Optional products** (billing, studio) remain separate packages; core 1.0.0 does not require them.
+
+### Documentation
+
+- `docs/en|ru/EXTENSIONS.md` — expanded author + operator guide
+- holix-docs: `/docs/extensions`, `/docs/holix-sdk` (deployed site)
+
 ## 0.1.21 — 2026-07-06
 
 ### Added

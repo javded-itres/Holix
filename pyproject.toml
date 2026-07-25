@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "Holix"
-version = "0.1.21"
+version = "1.0.0"
 description = "Self-improving AI agent with memory, skills, MCP, CLI, and TUI"
 readme = "README.md"
 license = "MIT"
@@ -13,7 +13,7 @@ requires-python = ">=3.12"
 authors = [{ name = "Pavel Lukyanov" }]
 keywords = ["ai", "agent", "llm", "cli", "mcp", "tools", "langgraph"]
 classifiers = [
-    "Development Status :: 4 - Beta",
+    "Development Status :: 5 - Production/Stable",
     "Environment :: Console",
     "Intended Audience :: Developers",
     "License :: OSI Approved :: MIT License",
