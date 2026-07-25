@@ -268,7 +268,11 @@ class StartBackgroundProcessTool(BaseTool):
                 },
                 "label": {
                     "type": "string",
-                    "description": "Short human-readable label (e.g. 'FastAPI :8000')",
+                    "description": (
+                        "Process name as {project}_{front|back}, e.g. 'shop_api_front' or "
+                        "'shop_api_back'. Studio shows it as 'shop_api_front (host)' / "
+                        "'shop_api_back (docker)'."
+                    ),
                 },
                 "working_directory": {
                     "type": "string",
@@ -336,7 +340,10 @@ class RestartBackgroundProcessTool(BaseTool):
                 },
                 "label": {
                     "type": "string",
-                    "description": "Short label (e.g. 'FastAPI :8000')",
+                    "description": (
+                        "Process name as {project}_{front|back}, e.g. 'shop_api_front' "
+                        "or 'shop_api_back'."
+                    ),
                 },
                 "working_directory": {
                     "type": "string",
