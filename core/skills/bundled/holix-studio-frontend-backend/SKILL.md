@@ -160,6 +160,7 @@ Or start with a flag if the toolchain supports it. Hard-refresh the Browser pane
 - Invent H2 hostnames or endpoint ids — always call `open_preview_url` / `resolve_preview_origin_tool`.
 - Leave a committed `.env` with `localhost` as the only API URL when the app is meant to run in Studio (use Studio-resolved origin or document both local vs Studio).
 - Point the frontend at the **frontend** origin by mistake — API base must be the **backend** port’s origin.
+- Open the app via **Desktop** (`desktop_start` / `desktop_exec` / firefox in noVNC). Web apps go to **Studio → Browser** via `open_preview_url`. Desktop is only for native GUI apps or when the user asks for Desktop.
 
 ## Checklist before “done”
 

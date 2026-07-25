@@ -223,6 +223,20 @@ def format_studio_preview_block(
         "After `start_background_process` / a healthy listen port, the user opens the app "
         "in the Studio **Browser** panel (preview iframe) — not by typing a URL into their own machine.",
         "",
+        "### Priority: Browser panel first — Desktop last",
+        "Studio has two UI surfaces. Prefer them in this order:",
+        "1. **Browser panel (default)** — web apps, sites, SPA/HTTP previews. "
+        "Start the server → `open_preview_url` → user opens **Studio → Browser**.",
+        "2. **Playwright `browser_*` tools** (if enabled) — only for automated page interaction "
+        "(forms, clicks, snapshots) against a URL; still not a substitute for user preview.",
+        "3. **Desktop panel (`desktop_*` tools)** — **only** when the user explicitly asks for "
+        "Desktop/noVNC/Linux GUI, **or** you must run a **native desktop application** "
+        "(Qt/GTK/Electron desktop UI, LibreOffice, IDE, etc.).",
+        "",
+        "**Do not** use `desktop_start` / `desktop_exec` (firefox, chromium, chrome, xdg-open) "
+        "to open a website or preview a web app. That is the wrong surface: heavy, slow, and "
+        "bypasses Studio Browser. Web = Browser panel + `open_preview_url`.",
+        "",
         "### Built-in MCP `holix_studio` (always installed)",
         "- After a server is healthy, call MCP tool `open_preview_url` with the listen **port** "
         "(tools appear as `mcp_holix_studio_*`).",
@@ -254,6 +268,7 @@ def format_studio_preview_block(
         "- Keep the **same port** from the project config; Studio maps that port into the Browser panel.",
         "- After the process is healthy, call `open_preview_url`, then tell the user to open "
         "**Browser** in Studio (or the returned `frame_url`).",
+        "- **Never** start Desktop just to “show the site” or “open the browser”.",
         "",
     ]
 

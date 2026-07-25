@@ -102,7 +102,32 @@ def write_profile_file_text(
             new_size=file_path.stat().st_size if file_path.is_file() else new_size,
             created=created,
         )
+        _maybe_reown_saas_path(file_path, profile=profile)
     return new_size
+
+
+def _maybe_reown_saas_path(file_path: Path, *, profile: str) -> None:
+    """SaaS Studio: reown agent-written paths to profile shell user (h_*).
+
+    Without this, interactive terminal cannot create ``.git`` inside dirs the
+    agent created as the service user (Permission denied).
+    """
+    import os
+
+    flag = (os.getenv("HOLIX_STUDIO") or "").strip().lower()
+    if flag not in {"1", "true", "yes", "on"}:
+        return
+    try:
+        from holix_studio.infrastructure.shell.linux_user import maybe_reown_workspace_path
+
+        maybe_reown_workspace_path(profile, file_path)
+        # Parent dirs may have been mkdir'd by the agent as holix as well.
+        parent = file_path.parent
+        root = _workspace_root_or_none()
+        if root is not None and parent != root and path_is_in_workspace(parent):
+            maybe_reown_workspace_path(profile, parent)
+    except Exception:
+        pass
 
 
 def file_exists_for_profile(file_path: Path, *, profile: str) -> bool:

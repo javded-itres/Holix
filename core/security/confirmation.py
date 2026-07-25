@@ -139,6 +139,12 @@ class RiskClassifier:
         if tool_name == "stop_background_process":
             return RiskLevel.LOW, "Stop background dev server", None
 
+        # SDD: all sdd_* tools auto-allowed except task launch (apply/dispatch)
+        if tool_name.startswith("sdd_"):
+            if tool_name in ("sdd_apply", "sdd_dispatch"):
+                return RiskLevel.HIGH, "SDD task launch requires confirmation", "sdd_task_launch"
+            return RiskLevel.NO, "SDD tool (auto-allowed)", None
+
         # TerminalTool: always HIGH, but check for blocked patterns
         if tool_name == "run_terminal_command":
             command = arguments.get("command", "")

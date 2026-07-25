@@ -99,6 +99,21 @@ class TestRiskClassifier:
         assessment = self.classifier.classify("execute_python", tool, {"code": "print('hello')"})
         assert assessment.risk_level == RiskLevel.HIGH
 
+    # ── SDD: auto-allow all except task launch ──
+
+    def test_sdd_read_tools_are_no_risk(self):
+        for name in ("sdd_list_projects", "sdd_status", "sdd_read_spec", "sdd_write_artifact"):
+            tool = self._make_tool(name, "medium")  # classifier overrides declarative
+            assessment = self.classifier.classify(name, tool, {})
+            assert assessment.risk_level == RiskLevel.NO, name
+
+    def test_sdd_apply_and_dispatch_are_high_risk(self):
+        for name in ("sdd_apply", "sdd_dispatch"):
+            tool = self._make_tool(name, "no")  # classifier still forces HIGH
+            assessment = self.classifier.classify(name, tool, {"change": "demo"})
+            assert assessment.risk_level == RiskLevel.HIGH, name
+            assert assessment.pattern_matched == "sdd_task_launch"
+
     # ── Escalation tests ──
 
     def test_write_project_env_file_is_low_risk(self, tmp_path, monkeypatch):

@@ -56,7 +56,7 @@ class SddInitTool(BaseTool):
             "(openspec/config.yaml, specs/, changes/). "
             "Pass project= relative path (e.g. apps/api) or empty for workspace root."
         )
-        self.risk_level = "medium"
+        self.risk_level = "no"
         self.parameters = {
             "type": "object",
             "properties": {
@@ -194,7 +194,7 @@ class SddCreateChangeTool(BaseTool):
             "sdd_confirm_understanding before filling full proposal. "
             "Chat + all artifacts must use the user's Studio locale only (ru or en)."
         )
-        self.risk_level = "medium"
+        self.risk_level = "no"
         self.parameters = {
             "type": "object",
             "properties": {
@@ -361,7 +361,7 @@ class SddWriteArtifactTool(BaseTool):
             "Write content in the user's Studio UI language only (ru or en) — "
             "match locale from the user/Studio prompt; do not mix languages."
         )
-        self.risk_level = "medium"
+        self.risk_level = "no"
         self.parameters = {
             "type": "object",
             "properties": {
@@ -432,7 +432,7 @@ class SddSetTaskAssigneeTool(BaseTool):
         super().__init__()
         self.name = "sdd_set_task_assignee"
         self.description = "Set assignee (main or subagent type/name) on a tasks.md item."
-        self.risk_level = "low"
+        self.risk_level = "no"
         self.parameters = {
             "type": "object",
             "properties": {
@@ -489,7 +489,7 @@ class SddCheckTaskTool(BaseTool):
             "When done=true, cancels any still-running subagent bound to that "
             "task (and all SDD subagents for the change if every task is done)."
         )
-        self.risk_level = "low"
+        self.risk_level = "no"
         self.parameters = {
             "type": "object",
             "properties": {
@@ -570,7 +570,7 @@ class SddSetApplyModeTool(BaseTool):
             "Record user's apply execution mode: self | subagents | hybrid. "
             "Required before sdd_apply / coding."
         )
-        self.risk_level = "low"
+        self.risk_level = "no"
         self.parameters = {
             "type": "object",
             "properties": {
@@ -606,7 +606,7 @@ class SddApplyTool(BaseTool):
             "Each task uses its **tasks.md assignee**. "
             "Do NOT call delegate_to_subagent(coder) for SDD work."
         )
-        self.risk_level = "low"
+        self.risk_level = "high"
         self.parameters = {
             "type": "object",
             "properties": {
@@ -669,7 +669,7 @@ class SddArchiveTool(BaseTool):
             "Merge change delta specs into main openspec/specs/, "
             "then move the change folder to changes/archive/YYYY-MM-DD-<id>/."
         )
-        self.risk_level = "high"
+        self.risk_level = "no"
         self.parameters = {
             "type": "object",
             "properties": {
@@ -701,7 +701,7 @@ class SddUpdateUnderstandingTool(BaseTool):
             "If score ≥ threshold → offer proceed or more questions. "
             "If further answers drop score below threshold → clarify again."
         )
-        self.risk_level = "low"
+        self.risk_level = "no"
         self.parameters = {
             "type": "object",
             "properties": {
@@ -771,7 +771,7 @@ class SddConfirmUnderstandingTool(BaseTool):
             "understanding ≥ threshold. Required before filling full artifacts "
             "when understanding gate is enabled."
         )
-        self.risk_level = "low"
+        self.risk_level = "no"
         self.parameters = {
             "type": "object",
             "properties": {
@@ -805,7 +805,7 @@ class SddDispatchTool(BaseTool):
             "Prefer sdd_apply (auto-dispatches). "
             "Mode self returns main_tasks only. Then wait_subagent_result / sdd_check_task."
         )
-        self.risk_level = "medium"
+        self.risk_level = "high"
         self.parameters = {
             "type": "object",
             "properties": {

@@ -61,6 +61,8 @@ def test_studio_preview_block_subdomain_mode(monkeypatch: pytest.MonkeyPatch) ->
     assert "preview_origins" in block
     assert "holix-studio-frontend-backend" in block
     assert "p{PORT}" in block or "p{{PORT}}" in block or "p{PORT}-" in block
+    assert "desktop_start" in block
+    assert "Browser panel first" in block or "Browser panel" in block
 
 
 def test_studio_preview_block_path_mode(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -74,3 +76,5 @@ def test_studio_preview_block_path_mode(monkeypatch: pytest.MonkeyPatch) -> None
     assert "resolve_preview_origin" in block or "preview_origins" in block
     assert "VITE_API_URL" in block
     assert "HMR" in block or "websocket" in block.lower()
+    assert "Do not" in block or "Do **not**" in block
+    assert "desktop_exec" in block or "desktop_start" in block
