@@ -13,6 +13,7 @@ from core.terminal_whitelist_config import (
     parse_command_list,
     read_whitelist_enabled,
     read_whitelist_extra,
+    remove_whitelist_commands,
     set_whitelist_enabled,
 )
 
@@ -45,6 +46,19 @@ def test_add_whitelist_commands_persists_to_profile_env(profile_env: str) -> Non
     path = profile_env_path(profile_env)
     text = path.read_text(encoding="utf-8")
     assert f"{WHITELIST_EXTRA_KEY}=ls,cat,python,git,docker" in text
+
+
+def test_remove_whitelist_commands_updates_profile_env(profile_env: str) -> None:
+    add_whitelist_commands(profile_env, "ls, cat, python, git")
+    removed = remove_whitelist_commands(profile_env, "cat, missing, python")
+    assert removed == ["cat", "python"]
+    assert read_whitelist_extra(profile_env) == ["ls", "git"]
+
+    removed_all = remove_whitelist_commands(profile_env, "ls, git")
+    assert removed_all == ["ls", "git"]
+    assert read_whitelist_extra(profile_env) == []
+    path = profile_env_path(profile_env)
+    assert WHITELIST_EXTRA_KEY not in path.read_text(encoding="utf-8")
 
 
 def test_set_whitelist_enabled_writes_profile_env(profile_env: str) -> None:

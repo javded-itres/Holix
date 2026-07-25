@@ -76,6 +76,29 @@ def add_whitelist_commands(profile: str, commands: str) -> list[str]:
     return added
 
 
+def remove_whitelist_commands(profile: str, commands: str) -> list[str]:
+    """Remove commands from profile extras (builtin defaults are never removed)."""
+    current = read_whitelist_extra(profile)
+    to_remove = set(parse_command_list(commands))
+    if not to_remove:
+        return []
+    removed: list[str] = []
+    kept: list[str] = []
+    for cmd in current:
+        if cmd in to_remove:
+            removed.append(cmd)
+        else:
+            kept.append(cmd)
+    if not removed:
+        return []
+    if not kept:
+        remove_profile_env_vars(profile, WHITELIST_EXTRA_KEY, WHITELIST_EXTRA_LEGACY_KEY)
+    else:
+        remove_profile_env_vars(profile, WHITELIST_EXTRA_KEY, WHITELIST_EXTRA_LEGACY_KEY)
+        upsert_profile_env_var(profile, WHITELIST_EXTRA_KEY, format_command_list(kept))
+    return removed
+
+
 def builtin_whitelist_commands() -> list[str]:
     checker = CommandWhitelist()
     return sorted(checker.safe_commands)

@@ -495,6 +495,34 @@ def whitelist_add(
     print_info("Restart gateway/Telegram or re-run CLI for changes to apply")
 
 
+@whitelist_app.command("remove")
+def whitelist_remove(
+    ctx: typer.Context,
+    commands: str = typer.Argument(
+        ...,
+        help='Comma-separated commands to remove from profile extras, e.g. "docker, make"',
+    ),
+) -> None:
+    """Remove commands from the profile terminal whitelist extras."""
+    from core.env_loader import profile_env_path
+    from core.terminal_whitelist_config import parse_command_list, remove_whitelist_commands
+
+    profile = _profile(ctx)
+    parsed = parse_command_list(commands)
+    if not parsed:
+        print_error("No commands provided")
+        raise typer.Exit(1)
+
+    removed = remove_whitelist_commands(profile, commands)
+    path = profile_env_path(profile)
+    if removed:
+        print_success(f"Removed from whitelist for profile '{profile}': {', '.join(removed)}")
+    else:
+        print_info(f"None of the commands were in profile extras for '{profile}'")
+    print_info(f"Saved in: {path}")
+    print_info("Restart gateway/Telegram or re-run CLI for changes to apply")
+
+
 @whitelist_app.command("list")
 def whitelist_list(ctx: typer.Context) -> None:
     """List terminal whitelist settings for the active profile."""
