@@ -1,9 +1,9 @@
 # Руководство автора расширений Holix
 
-> Полное руководство перенесено в **[EXTENSIONS.md](EXTENSIONS.md)** — пошаговая инструкция по созданию расширений с отдельным пакетом `holix-sdk`.
+Полное руководство: **[EXTENSIONS.md](EXTENSIONS.md)** — архитектура, holix-sdk, agent/host, drop-in, sidecar, Telegram/MAX, middleware, примеры и чеклист.
 
-Быстрые ссылки:
+Кратко:
 
-- [EXTENSIONS.md](EXTENSIONS.md) — создание расширений по шагам
-- [BUILD_WITHOUT_HOLIX.md](../en/BUILD_WITHOUT_HOLIX.md) — внешние приложения без import Holix
-- [EXTENSION_GATEWAY.md](../en/EXTENSION_GATEWAY.md) — контракт gateway
+- [EXTENSIONS.md](EXTENSIONS.md) — создавать и подключать расширения
+- [GATEWAY_API.md](GATEWAY_API.md) — HTTP API для внешних приложений
+- [TELEGRAM.md](TELEGRAM.md) · [MAX.md](MAX.md) — мессенджеры

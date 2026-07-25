@@ -1,128 +1,188 @@
-# Holix Extensions — Author Guide
+# Holix Extensions
 
-> **SDK API version:** `holix_sdk.__api_version__ == 1`
+> **SDK API:** `holix_sdk.__api_version__ == 1`  
+> Extensions are the supported way to add tools, slash commands, HTTP APIs, UI, and messenger plugins **without forking Holix core**.
 
-This guide explains how to build Holix extensions using the **`holix-sdk`** package — a **separate, installable Python package** with a stable public API. Extension authors should depend on `holix-sdk`, not on internal `core.*` or `cli.*` modules.
+This page covers architecture, extension types, permissions, install paths, **end-to-end examples**, drop-ins, sidecars, Telegram/MAX plugins, LLM middleware, CLI, and a release checklist.
 
-Related docs:
+Related: [MCP](MCP.md) · [API Gateway](GATEWAY.md) · [API reference](GATEWAY_API.md) · [Telegram](TELEGRAM.md) · [MAX](MAX.md) · [CLI](CLI.md)
 
-- [BUILD_WITHOUT_HOLIX.md](BUILD_WITHOUT_HOLIX.md) — external apps via HTTP/MCP (no Python import)
-- [EXTENSION_GATEWAY.md](EXTENSION_GATEWAY.md) — gateway contract for host extensions
-- [GATEWAY_API.md](GATEWAY_API.md) — full HTTP reference
+---
+
+## Why extensions
+
+| Goal | Extension approach |
+|------|--------------------|
+| New agent tool | Agent extension + `BaseTool` |
+| Slash `/mycommand` | Agent extension |
+| `holix mycmd` CLI | Host extension (`register_cli`) |
+| HTTP on gateway `:8000` | Host extension (`mount_gateway`) |
+| Separate UI process | Host + capability `sidecar` |
+| Billing / paywall (Telegram or MAX) | Host + `register_telegram` / `register_max` |
+| Per-LLM-call stats | Agent + `register_middleware` |
+| External SaaS / mobile | No Python — [Gateway API](GATEWAY_API.md) |
+
+**Principle:** Holix core stays a MIT agent runtime; products (Studio, billing, custom tools) live in separate packages discovered via entry points or profile folders.
 
 ---
 
 ## Architecture
 
 ```
-┌─────────────────────────────────────────────────────────┐
-│  Holix core (MIT) — agent, CLI, gateway, extension loader │
-└───────────────────────────┬─────────────────────────────┘
-                            │
-              ┌─────────────▼─────────────┐
-              │   holix-sdk (MIT, PyPI)    │  ← import ONLY this
-              │   stable extension API     │
-              └─────────────┬───────────────┘
-                            │
-     ┌──────────────────────┼──────────────────────┐
-     │                      │                      │
-holix.extensions    holix.agent.extensions    HTTP / MCP
-(host: CLI, HTTP)   (tools, slash, prompts)   (any language)
+┌──────────────────────────────────────────────────────────────┐
+│  Holix core (MIT) — agent, CLI, gateway, extension loader    │
+└──────────────────────────────┬───────────────────────────────┘
+                               │
+                 ┌─────────────▼─────────────┐
+                 │  holix-sdk (MIT, PyPI)     │  ← import ONLY this (host)
+                 │  stable public API         │
+                 └─────────────┬─────────────┘
+                               │
+        ┌──────────────────────┼──────────────────────┐
+        │                      │                      │
+ holix.extensions      holix.agent.extensions     HTTP / MCP
+ (CLI, gateway,        (tools, slash, prompts,   (any language)
+  sidecar, TG/MAX)      middleware, settings)
 ```
 
-| Pattern | Entry-point group | Typical use |
-|---------|-------------------|-------------|
-| **Host extension** | `holix.extensions` | CLI subcommands, FastAPI routes, sidecar UI |
-| **Agent extension** | `holix.agent.extensions` | Agent tools, slash commands, prompt fragments, **LLM middleware**, settings |
-| **Drop-in folder** | (no install) | `~/.holix/profiles/<p>/extensions/<name>/` — remove folder = unload |
-| **Telegram plugin** | `holix.telegram.extensions` **or** host `register_telegram(api)` | Bot commands, handlers, pre-agent message gates (e.g. billing) |
-| **External application** | — | Mobile, web, SaaS via Gateway API |
+| Pattern | Entry point / path | Provides |
+|---------|-------------------|----------|
+| **Host** | `holix.extensions` | CLI, FastAPI routes, sidecar, `register_telegram` / `register_max` |
+| **Agent** | `holix.agent.extensions` | Tools, slash, system prompt, LLM middleware, settings |
+| **Drop-in** | `~/.holix/profiles/<p>/extensions/<name>/` | Same without pip; delete folder = unload |
+| **Telegram plugin** | `holix.telegram.extensions` **or** host `register_telegram` | Bot commands, handlers, message gate, access check |
+| **MAX plugin** | `holix.max.extensions` **or** host `register_max` | Same for MAX |
+| **External app** | Bearer API key | Mobile/web/SaaS via gateway |
 
-Built-in host extensions in Holix core: `telegram`, `max`.  
-Reference agent extension in the Holix repo: `packages/holix-extension-demo`.  
-Reference host extension (separate repo): [holix-studio](https://github.com/javded-itres/holix-studio).
+Built-in host extensions: `telegram`, `max`.  
+Reference agent: `packages/holix-extension-demo`.  
+Reference host UI: [holix-studio](https://github.com/javded-itres/holix-studio).  
+Billing: `holix-telegram-billing`, `holix-max-billing`, `holix-billing-console`.
 
 ---
 
-## holix-sdk — separate package
+## Capabilities
 
-`holix-sdk` lives in `packages/holix-sdk/` in the Holix repository and is published **independently** from Holix core.
+| Capability | SDK constant | Purpose |
+|------------|--------------|---------|
+| `cli` | `CAPABILITY_CLI` | Typer subcommands (`holix <name> …`) |
+| `http` | `CAPABILITY_HTTP` | Gateway routes (`mount_gateway`) |
+| `sidecar` | `CAPABILITY_SIDECAR` | Companion process on `holix gateway start` |
+| `agent` | (agent entry) | Tools / slash / prompt / middleware |
 
-### Install
+One package may register **both** host and agent entry points.
+
+---
+
+## Permissions
+
+Declare the **minimum** set. Missing permissions → warning and **skipped** registration.
+
+| Permission | Required for |
+|------------|--------------|
+| `tools` | Agent tools |
+| `middleware` | LLM middleware chain |
+| `gateway` | `mount_gateway()` |
+| `network` | Outbound HTTP, messengers, sidecar |
+| `filesystem` | Workspace file APIs (host) |
+| `subprocess` | Child processes |
+
+---
+
+## holix-sdk
+
+Separate package (`packages/holix-sdk/`, PyPI: **`holix-sdk`**). Host code must **not** import `core.*` / `cli.*`.
 
 ```bash
-# End users / extension authors
 pip install holix-sdk Holix
-
-# Holix monorepo developers
+# Holix monorepo:
 uv sync --extra sdk
 ```
 
-### Why a separate package?
-
-1. **Stable contract** — breaking changes only in `holix-sdk` major versions.
-2. **Clear boundary** — host/UI code never imports `core.*` or `cli.*`.
-3. **Independent release** — extension authors pin `holix-sdk>=0.1.0` without forking Holix.
-4. **License clarity** — `holix-sdk` is MIT, same as Holix core.
-
-### Public modules
-
-| Module | Import | Purpose |
-|--------|--------|---------|
-| `holix_sdk` | `HolixExtension`, `ExtensionBase`, `ExtensionContext`, `CAPABILITY_*` | Host extension protocol |
-| `holix_sdk.agent` | `AgentExtensionBase`, `SlashCommandSpec` | Agent extension protocol |
-| `holix_sdk.host` | `AgentCommands`, `all_slash_commands`, … | Bridge host UI to agent |
-| `holix_sdk.i18n` | `LocaleStore`, `t`, `host_locale` | Localization |
-| `holix_sdk.models` | `ModelChoice`, `build_models_menu`, … | Runtime model picker |
-| `holix_sdk.profile` | `ProfileManager`, `init_profile` | Profile access |
-| `holix_sdk.agent_runtime` | `HolixAgent`, agent events | Agent lifecycle & events |
-| `holix_sdk.security` | confirmation, web security helpers | Approvals & tokens |
-| `holix_sdk.commands` | `command_specs` | Host command menu |
-| `holix_sdk.paths` | `realpath_under`, … | Safe paths |
-
-Check API version in code:
+| Module | Purpose |
+|--------|---------|
+| `holix_sdk` | `ExtensionBase`, `ExtensionContext`, `CAPABILITY_*` |
+| `holix_sdk.agent` | `AgentExtensionBase`, `SlashCommandSpec` |
+| `holix_sdk.host` | Host UI ↔ agent bridge |
+| `holix_sdk.i18n` | Localization |
+| `holix_sdk.models` | Model picker |
+| `holix_sdk.profile` | Profiles |
+| `holix_sdk.agent_runtime` | Agent lifecycle |
+| `holix_sdk.security` | Approvals, tokens |
+| `holix_sdk.paths` | Safe paths |
 
 ```python
 from holix_sdk import __api_version__
 assert __api_version__ == 1
 ```
 
+**Exception:** agent extensions may use `core.tools.base.BaseTool` and preferably `core.extensions.agent_base.AgentExtensionBase` (settings + middleware).
+
 ---
 
-## Create a new extension — step by step
+## Install / connect an extension
 
-### 1. Choose extension type
+### 1. pip / uv (entry points)
 
-| Goal | Type | Entry point |
-|------|------|-------------|
-| Add `holix mycmd` CLI | Host | `holix.extensions` |
-| Mount routes on gateway `:8000` | Host | `holix.extensions` |
-| Add agent tool | Agent | `holix.agent.extensions` |
-| Add `/mycommand` slash | Agent | `holix.agent.extensions` |
-| Inject system prompt text | Agent | `holix.agent.extensions` |
+```bash
+pip install my-holix-extension
+# development:
+pip install -e ./my-holix-extension
 
-One Python package can register **both** entry points.
-
-### 2. Project layout
-
+holix extensions list
+holix extensions agent-list
+holix extensions list --json
 ```
-my-holix-extension/
+
+### 2. Profile drop-in (no pip)
+
+```text
+~/.holix/profiles/default/extensions/my_stats/
+  agent.py
+  settings.default.yaml    # optional
+  holix.plugin.json        # optional
+  extension.py             # host optional
+```
+
+Also: `~/.holix/extensions/<name>/` and production symlinks under `/var/lib/holix/extensions/`.
+
+### 3. Product env vars
+
+```bash
+HOLIX_BILLING_ENABLED=true
+HOLIX_BILLING_PROVIDERS=stars,yookassa
+HOLIX_MAX_BILLING_ENABLED=true
+```
+
+### 4. Verify
+
+```bash
+holix extensions list
+holix extensions agent-list
+holix extensions settings demo
+holix doctor
+holix gateway start -f
+# OpenAPI: http://127.0.0.1:8000/docs
+```
+
+---
+
+## Tutorial: agent extension (full example)
+
+### Layout
+
+```text
+hello-holix-ext/
 ├── pyproject.toml
-├── README.md
-├── LICENSE
-├── my_holix_ext/
+├── hello_holix_ext/
 │   ├── __init__.py
-│   ├── holix.plugin.json      # optional manifest
-│   ├── extension.py           # host entry (holix.extensions)
-│   ├── agent.py               # agent entry (holix.agent.extensions)
-│   └── tools.py               # agent tools (if any)
-└── tests/
-    └── test_extension.py
+│   ├── holix.plugin.json
+│   ├── agent.py
+│   └── tools.py
+└── tests/test_extension.py
 ```
 
-### 3. `pyproject.toml`
-
-**Agent extension only:**
+### `pyproject.toml`
 
 ```toml
 [build-system]
@@ -130,356 +190,358 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "my-holix-extension"
+name = "hello-holix-ext"
 version = "0.1.0"
-description = "My Holix agent extension"
-readme = "README.md"
-license = "MIT"
+description = "Sample Holix agent extension"
 requires-python = ">=3.12"
-dependencies = [
-    "Holix>=0.1.21",
-    "holix-sdk>=0.1.0",
-]
+dependencies = ["Holix>=0.1.21", "holix-sdk>=0.1.0"]
 
 [project.entry-points."holix.agent.extensions"]
-myext = "my_holix_ext.agent:get_agent_extension"
+hello = "hello_holix_ext.agent:get_agent_extension"
 
 [tool.hatch.build.targets.wheel]
-packages = ["my_holix_ext"]
+packages = ["hello_holix_ext"]
 ```
 
-**Host extension** — add:
-
-```toml
-[project.entry-points."holix.extensions"]
-myext = "my_holix_ext.extension:get_extension"
-```
-
-**Optional FastAPI dependency** for HTTP routes:
-
-```toml
-dependencies = [
-    "Holix>=0.1.21",
-    "holix-sdk>=0.1.0",
-    "fastapi>=0.136.0",
-]
-```
-
-### 4. `holix.plugin.json` (optional)
-
-Place inside the Python package directory (e.g. `my_holix_ext/holix.plugin.json`):
-
-```json
-{
-  "id": "myext",
-  "version": "0.1.0",
-  "requires": { "holix": ">=0.1.21", "holix_sdk": ">=0.1.0" },
-  "description": "Short human-readable description",
-  "capabilities": ["agent"],
-  "permissions": ["tools"]
-}
-```
-
-Capabilities: `cli`, `http`, `sidecar`, `agent`.  
-Holix merges manifest fields when the extension class leaves defaults empty.
-
-### 5. Implement agent extension
-
-Prefer `core.extensions.agent_base.AgentExtensionBase` when running inside Holix
-(adds **settings** + **LLM middleware** hooks). Pure `holix_sdk` still works for tools/slash.
+### Tool
 
 ```python
-# my_holix_ext/agent.py
+# hello_holix_ext/tools.py
 from __future__ import annotations
-
 from typing import Any
-
-from holix_sdk.agent import SlashCommandSpec
-from core.extensions.agent_base import AgentExtensionBase
 from core.tools.base import BaseTool
 
-from my_holix_ext.tools import MyTool
+
+class HelloEchoTool(BaseTool):
+    def __init__(self) -> None:
+        super().__init__()
+        self.name = "hello_echo"
+        self.description = "Demo echo tool from the hello extension."
+        self.risk_level = "no"
+        self.parameters = {
+            "type": "object",
+            "properties": {"text": {"type": "string"}},
+            "required": ["text"],
+        }
+
+    async def execute(self, text: str = "", **kwargs: Any) -> str:
+        return f"hello_echo: {text}"
+```
+
+### Agent entry
+
+```python
+# hello_holix_ext/agent.py
+from __future__ import annotations
+from typing import Any
+from holix_sdk.agent import SlashCommandSpec
+
+try:
+    from core.extensions.agent_base import AgentExtensionBase
+except ImportError:
+    from holix_sdk.agent import AgentExtensionBase  # type: ignore
+
+from hello_holix_ext.tools import HelloEchoTool
 
 
-class MyAgentExtension(AgentExtensionBase):
-    name = "myext"
+class HelloAgentExtension(AgentExtensionBase):
+    name = "hello"
     version = "0.1.0"
     requires_holix = ">=0.1.21"
     permissions = frozenset({"tools", "middleware"})
 
     def default_settings(self) -> dict[str, Any]:
-        return {"enabled": True, "collect_stats": True}
+        return {"enabled": True}
 
     def register_tools(self, registry: Any, agent: Any) -> None:
-        registry.register(MyTool())
+        if self.settings.get("enabled") is False:
+            return
+        registry.register(HelloEchoTool())
 
     def register_slash_commands(self, commands: list[SlashCommandSpec]) -> None:
-        commands.append(SlashCommandSpec("/myext", "My extension command"))
+        commands.append(SlashCommandSpec(command="/hello", description="Hello extension demo"))
 
     def augment_system_prompt(self, profile: str) -> str | None:
-        return "## My extension\nExtra instructions for the agent."
+        return "## hello extension\nTool `hello_echo` is available for demo/echo requests."
 
     def register_middleware(self, chain: Any, agent: Any) -> None:
-        """Every agent LLM call goes through registered middleware (onion)."""
-        if self.settings.get("collect_stats") is False:
-            return
-
-        class StatsMw:
-            name = "myext_stats"
-
+        class HelloMw:
+            name = "hello_mw"
             async def process(self, ctx, call_next):
-                result = await call_next()
-                # ctx.model, ctx.messages, ctx.duration_ms, ctx.response, …
-                return result
-
-        chain.add(StatsMw())
+                return await call_next()
+        chain.add(HelloMw())
 
 
-def get_agent_extension() -> MyAgentExtension:
-    return MyAgentExtension()
+def get_agent_extension() -> HelloAgentExtension:
+    return HelloAgentExtension()
 ```
 
-#### LLM middleware
-
-On agent init Holix:
-
-1. Discovers agent extensions (packages + **folder drop-ins**)
-2. Loads settings (`default_settings` → profile config → settings file)
-3. Calls `register_tools` / slash / prompt
-4. Calls `register_middleware(chain, agent)`
-5. Installs a proxy on `agent.client.chat.completions.create`
-
-If you **delete** the extension package or the drop-in folder, the next agent
-start will not discover it — middleware and tools disappear automatically.
-
-Settings file (auto-created from defaults on first run):
-
-```text
-~/.holix/profiles/<profile>/extension_settings/<extension_name>.yaml
-```
-
-Or in profile `config.yaml`:
-
-```yaml
-extension_settings:
-  myext:
-    enabled: true
-    collect_stats: true
-```
-
-CLI:
+### Install & check
 
 ```bash
-holix extensions settings myext
-holix extensions settings myext --set collect_stats=false
+pip install -e .
 holix extensions agent-list
+holix extensions settings hello
+holix chat-command -p default
 ```
 
-#### Drop-in folder (no pip install)
+Settings file:
 
 ```text
-~/.holix/profiles/default/extensions/request_stats/
-  agent.py                 # get_agent_extension()
-  settings.default.yaml    # optional
-  holix.plugin.json        # optional
+~/.holix/profiles/<profile>/extension_settings/hello.yaml
 ```
 
-Remove the folder → extension gone on next Holix start.
+---
 
-**Tool example** (`core.tools.base.BaseTool` is allowed inside agent extensions):
+## Tutorial: host extension (CLI + HTTP)
 
-```python
-# my_holix_ext/tools.py
-from __future__ import annotations
-
-from typing import Any
-
-from core.tools.base import BaseTool
-
-
-class MyTool(BaseTool):
-    def __init__(self) -> None:
-        super().__init__()
-        self.name = "my_tool"
-        self.description = "Does something useful."
-        self.risk_level = "no"
-        self.parameters = {
-            "type": "object",
-            "properties": {"query": {"type": "string"}},
-            "required": ["query"],
-        }
-
-    async def execute(self, query: str, **kwargs: Any) -> str:
-        return f"Result for: {query}"
+```toml
+[project.entry-points."holix.extensions"]
+hello_host = "hello_holix_ext.extension:get_extension"
 ```
 
-### 6. Implement host extension
-
 ```python
-# my_holix_ext/extension.py
+# hello_holix_ext/extension.py
 from __future__ import annotations
-
 from typing import Any
-
 import typer
 from holix_sdk import CAPABILITY_CLI, CAPABILITY_HTTP, ExtensionBase
 
+cli_app = typer.Typer(help="Hello host extension")
 
-class MyExtension(ExtensionBase):
-    name = "myext"
+@cli_app.command("ping")
+def ping() -> None:
+    typer.echo("pong from hello_host")
+
+
+class HelloHostExtension(ExtensionBase):
+    name = "hello_host"
     version = "0.1.0"
     requires_holix = ">=0.1.21"
-    description = "My host extension"
     capabilities = frozenset({CAPABILITY_CLI, CAPABILITY_HTTP})
     permissions = frozenset({"gateway", "network"})
 
     def register_cli(self, root: typer.Typer) -> None:
-        from my_holix_ext.cli import app
-        root.add_typer(app, name="myext")
+        root.add_typer(cli_app, name="hello")
 
     def mount_gateway(self, app: Any) -> None:
-        from my_holix_ext.router import router
-        app.include_router(router, prefix="/myext")
+        # Import FastAPI Request at module scope if you need request bodies.
+        from fastapi import APIRouter
+        router = APIRouter(prefix="/api/holix/hello", tags=["hello"])
+
+        @router.get("/health")
+        def health() -> dict[str, str]:
+            return {"status": "ok", "extension": "hello_host"}
+
+        app.include_router(router)
 
 
-def get_extension() -> MyExtension:
-    return MyExtension()
+def get_extension() -> HelloHostExtension:
+    return HelloHostExtension()
 ```
 
-**Rules for host code:**
+```bash
+holix hello ping
+curl -s http://127.0.0.1:8000/api/holix/hello/health
+```
 
-- Import **`holix_sdk`** for protocols, host bridge, i18n, models.
-- Do **not** import `core.*`, `cli.*`, `integrations.*` (except `core.tools.base` is agent-only).
-- Use FastAPI / Typer in **your** package, not in Holix internals.
+---
 
-### 6b. Sidecar UI / separate HTTP process
-
-Host extensions can start a **companion process on another port** when the gateway supervisor boots (`holix gateway start`). Declare capability `sidecar` and implement:
+## Sidecar UI
 
 ```python
 from holix_sdk import CAPABILITY_SIDECAR, ExtensionBase
 
-class MySidecarExtension(ExtensionBase):
-    name = "my_sidecar"
+class BillingConsoleExt(ExtensionBase):
+    name = "billing_console"
     capabilities = frozenset({CAPABILITY_SIDECAR})
     permissions = frozenset({"network", "gateway"})
 
-    def should_start_sidecar(self, profile: str) -> bool:
-        return True  # optional gate
-
     def sidecar_spec(self, profile: str) -> dict | None:
-        """Return None to skip. Supervisor starts argv as a subprocess."""
         return {
-            "id": "my_sidecar",
-            "label": "My UI",
+            "id": "billing_console",
+            "label": "Billing Console",
             "host": "127.0.0.1",
-            "port": 8099,
-            "url_path": "/",
-            "argv": ["-m", "my_pkg.main", "--profile", profile],
-            "env": {"PYTHONPATH": "/path/to/pkg/root"},  # drop-ins need this
+            "port": 8091,
+            "argv": ["-m", "holix_billing_console.main", "--profile", profile],
         }
 ```
 
-The supervisor writes sidecar metadata into gateway `state.json` (`sidecars` list) and stops processes on gateway shutdown. Example: **holix-billing-console** (billing admin UI on port `8091`).
+Supervisor records sidecars in gateway `state.json` and stops them on shutdown.  
+Production example: **holix-billing-console** on port `8091`.
 
-### 7. Install and verify
+---
+
+## Telegram plugins
+
+| Hook | API |
+|------|-----|
+| Bot menu command | `api.add_command("pay", "Pay")` |
+| Handlers | `api.add_handlers(registrar)` |
+| Pre-agent gate | `api.add_message_gate(async_fn)` |
+| Skip admin queue | `api.add_access_check(fn)` |
+| Payment webhooks | host `mount_gateway` |
+
+```toml
+[project.entry-points."holix.extensions"]
+telegram_billing = "holix_telegram_billing.extension:get_extension"
+[project.entry-points."holix.telegram.extensions"]
+telegram_billing = "holix_telegram_billing.extension:get_extension"
+```
+
+Config is **env-only** (`HOLIX_BILLING_*`). When billing is enabled, users auto-onboard on free quota — **no admin approval queue**.
+
+Reference: **holix-telegram-billing**.
+
+---
+
+## MAX plugins
+
+| Hook | API |
+|------|-----|
+| Command | `api.add_command` + `api.add_command_handler` |
+| Gate | `api.add_message_gate` |
+| Callbacks | `api.add_callback_handler` |
+| Webhook | `POST /api/holix/max-billing/webhook/yookassa` |
+
+Env: `HOLIX_MAX_BILLING_*` (falls back to shared YooKassa keys).  
+No native Stars on MAX — typically YooKassa redirect + webhook.
+
+Reference: **holix-max-billing**.
+
+---
+
+## LLM middleware
+
+On agent init Holix:
+
+1. Discover agent extensions (packages + drop-ins)
+2. Load settings
+3. Register tools / slash / prompt
+4. `register_middleware(chain, agent)`
+5. Proxy `agent.client.chat.completions.create`
+
+```python
+class MyMw:
+    name = "my_mw"
+    async def process(self, ctx, call_next):
+        result = await call_next()
+        return result
+```
+
+Reference: `packages/holix-extension-demo`.
+
+---
+
+## Host lifecycle hooks
+
+| Hook | When |
+|------|------|
+| `on_startup(ctx)` | Once per process |
+| `register_cli(app)` | CLI assembly |
+| `mount_gateway(app)` | Gateway boot |
+| `register_telegram(api)` | Telegram bot build |
+| `register_max(api)` | MAX bot build |
+| `sidecar_spec(profile)` | Sidecar start |
+| `on_shutdown()` | Process stop |
+
+Factories must return an **instance**:
+
+```python
+def get_extension():
+    return MyExtension()
+```
+
+---
+
+## Gateway contract (summary)
+
+Base URL: `http://127.0.0.1:8000`
+
+| Header | Value |
+|--------|-------|
+| `Authorization` | `Bearer hx_…` |
+| `X-API-Key` | `hx_…` |
+
+| Extension | Prefix |
+|-----------|--------|
+| telegram_billing | `/api/holix/billing/*` |
+| max_billing | `/api/holix/max-billing/*` |
+| studio | `/studio` |
+| yours | e.g. `/api/holix/hello` |
+
+OpenAPI: `/openapi.json`, Swagger: `/docs`. Full list: [GATEWAY_API.md](GATEWAY_API.md).
+
+---
+
+## Ecosystem packages
+
+| Package | Kind | Role |
+|---------|------|------|
+| `holix-extension-demo` | agent | `demo_echo`, `/demo`, LLM stats |
+| `holix-telegram-billing` | host + TG | plans, Stars, YooKassa, gate |
+| `holix-max-billing` | host + MAX | plans, YooKassa, gate |
+| `holix-billing-console` | sidecar | admin UI (~8091) |
+| `holix-studio` | host | SDD Studio UI |
 
 ```bash
-# Editable install while developing
-pip install -e ./my-holix-extension
+ln -s /opt/holix-extensions/holix-telegram-billing \
+      /var/lib/holix/extensions/holix-telegram-billing
+```
 
-# Or from monorepo workspace (if linked)
-uv sync
+---
 
-# Verify discovery
+## CLI cheat sheet
+
+```bash
 holix extensions list
 holix extensions agent-list
 holix extensions list --json
-```
-
-Run the agent and confirm the tool appears:
-
-```bash
-holix chat-command -p default
-# Agent should list my_tool among registered tools
-```
-
-### 8. Test
-
-```python
-# tests/test_extension.py
-from my_holix_ext.agent import get_agent_extension
-
-
-def test_agent_extension_metadata() -> None:
-    ext = get_agent_extension()
-    assert ext.name == "myext"
-    assert "tools" in ext.permissions
-```
-
-Run: `pytest tests/ -q`
-
----
-
-## Permissions
-
-Declare only what you need in `permissions` (code or manifest):
-
-| Permission | Required for |
-|------------|--------------|
-| `tools` | Registering agent tools |
-| `gateway` | `mount_gateway()` — FastAPI routes on Holix gateway |
-| `network` | Outbound HTTP, messengers, sidecar servers |
-| `filesystem` | Workspace file APIs in host |
-| `subprocess` | Spawning child processes |
-
-Holix logs a warning and **skips** registration if permissions are missing.
-
----
-
-## CLI commands
-
-```bash
-holix extensions list           # host extensions (holix.extensions)
-holix extensions agent-list     # agent extensions (holix.agent.extensions)
-holix extensions list --json    # machine-readable output
+holix extensions settings <name>
+holix extensions settings <name> --set key=value
+holix doctor
+holix gateway start -f
 ```
 
 ---
 
-## Publishing
+## Release checklist
 
-### Publish `holix-sdk` (maintainers)
-
-From `packages/holix-sdk/`:
-
-```bash
-uv build
-uv publish   # or twine upload dist/*
-```
-
-Package name on PyPI: **`holix-sdk`**.
-
-### Publish your extension
-
-1. Set `name`, `version`, `dependencies` in `pyproject.toml`.
-2. Pin `holix-sdk>=0.1.0` and `Holix>=0.1.21`.
-3. `uv build && uv publish`.
-4. Users install: `pip install my-holix-extension`.
-
-Holix discovers the extension automatically via entry points after `pip install` — no changes to Holix core required.
-
----
-
-## Checklist before release
-
-- [ ] Host code imports only `holix_sdk` (not `core` / `cli`)
-- [ ] Entry-point factory functions return instances (`get_extension()`, `get_agent_extension()`)
-- [ ] `name`, `version`, `requires_holix`, `permissions` set on extension class
-- [ ] `holix.plugin.json` present (recommended)
-- [ ] `holix extensions list` / `agent-list` shows your package
+- [ ] Host imports only `holix_sdk`
+- [ ] Factories return instances
+- [ ] `name`, `version`, `requires_holix`, `permissions`, `capabilities` set
+- [ ] `holix.plugin.json` present
+- [ ] Visible in `holix extensions list` / `agent-list`
+- [ ] Tools / slash / health verified
+- [ ] Webhook handlers: `Request` at module scope
 - [ ] Tests pass
-- [ ] License file included (MIT for open extensions)
+- [ ] LICENSE included
+
+```bash
+uv build && uv publish
+pip install my-holix-extension
+```
+
+---
+
+## Troubleshooting
+
+| Symptom | Fix |
+|---------|-----|
+| Missing from `list` | Entry point / install path / typo |
+| Tool not in agent | `tools` permission; agent entry; settings `enabled` |
+| Health empty providers | Shared host instance; env load; billing disabled in tariffs |
+| Webhook 422 `query request` | Module-level FastAPI `Request` import |
+| Messenger asks admin approval | Billing disabled → `ACCESS_REQUESTS` queue |
+| Sidecar not starting | Missing capability / `sidecar_spec` None / port busy |
+
+---
+
+## External apps without Python
+
+1. `holix gateway start`
+2. Profile API key
+3. Use [GATEWAY_API.md](GATEWAY_API.md)
 
 ---
 
@@ -489,64 +551,16 @@ Holix discovers the extension automatically via entry points after `pip install`
 |-----------|---------|
 | Holix core | MIT |
 | holix-sdk | MIT |
-| Your MIT extension | Your choice (MIT recommended) |
-| Proprietary products (e.g. Holix Studio) | Separate license |
+| Your open extension | Your choice (MIT recommended) |
+| Proprietary products | Separate license |
 
-See [THIRD_PARTY_LICENSES.md](../../THIRD_PARTY_LICENSES.md).
+---
 
-## Telegram plugins (billing, paywalls, …)
+## Next steps
 
-Holix keeps **product billing out of core**. Extensions plug into the Telegram bot via:
+1. Copy the `hello-holix-ext` example or `packages/holix-extension-demo`
+2. `pip install -e .` → `holix extensions agent-list`
+3. Add the tool / HTTP / messenger hook you need
+4. Production: env, nginx webhooks, `holix doctor`
 
-| Hook | API |
-|------|-----|
-| Slash commands in bot menu | `api.add_command("pay", "…")` |
-| Aiogram handlers | `api.add_handlers(registrar)` |
-| Pre-agent message gate | `api.add_message_gate(async_gate)` |
-| Optional access check | `api.add_access_check(fn)` |
-| Payment webhooks | host `mount_gateway` |
-
-### Entry points
-
-```toml
-[project.entry-points."holix.extensions"]
-my_bill = "pkg.extension:get_extension"
-
-[project.entry-points."holix.telegram.extensions"]
-my_bill = "pkg.extension:get_extension"
-```
-
-```python
-class MyBillingExtension:
-    name = "my_bill"
-    # … HolixExtension fields …
-
-    def register_telegram(self, api):
-        api.add_command("pay", "Pay")
-        api.add_handlers(lambda a: register_my_handlers(a))
-        api.add_message_gate(my_gate)
-
-def get_extension():
-    return MyBillingExtension()
-```
-
-Reference package (separate repository): **`holix-telegram-billing`**  
-Settings for that extension are **only** environment variables (`HOLIX_BILLING_*`), not Holix YAML.
-
-See the package README for `/tariffs`, `/pay`, free quota, and demo payment flow.
-
-## MAX plugins (billing, paywalls, …)
-
-Same idea as Telegram. Extensions implement `register_max(api)` or entry point
-`holix.max.extensions`.
-
-| Hook | API |
-|------|-----|
-| Slash commands in bot menu | `api.add_command("pay", "…")` + `api.add_command_handler("pay", fn)` |
-| Pre-agent message gate | `api.add_message_gate(async_gate)` |
-| Callback buttons | `api.add_callback_handler(fn)` |
-| Payment webhooks | host `mount_gateway` |
-
-Reference package: **`holix-max-billing`** (YooKassa + demo; **no Telegram Stars** — MAX Bot API has no native payments).  
-Env: `HOLIX_MAX_BILLING_*` (falls back to shared `HOLIX_BILLING_YOOKASSA_*` / plans).
-
+See also: [Architecture](ARCHITECTURE.md) · [Security](SECURITY.md) · [Deployment](DEPLOYMENT.md)
