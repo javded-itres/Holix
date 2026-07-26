@@ -33,6 +33,14 @@ QUERY_ALIASES: dict[str, str] = {
     "голосовые": "telegram",
     "бот": "telegram",
     "bot": "telegram",
+    # Spec-Driven Development (openspec / sdd_* tools)
+    "sdd": "sdd",
+    "спек": "sdd",
+    "спека": "sdd",
+    "спеки": "sdd",
+    "спецификац": "sdd",
+    "openspec": "sdd",
+    "spec-driven": "sdd",
 }
 
 SEARCH_STOPWORDS = frozenset(
@@ -98,6 +106,31 @@ SLUG_KEYWORDS: dict[str, list[str]] = {
     "logs": ["logs", "логи", "debug", "rotation"],
     "pypi": ["pypi", "publish", "публикация", "package"],
     "user-guide": ["guide", "руководство", "usage"],
+    "sdd": [
+        "sdd",
+        "spec-driven",
+        "spec driven development",
+        "openspec",
+        "спеки",
+        "спецификация",
+        "sdd_init",
+        "sdd_apply",
+        "sdd_archive",
+        "sdd_create_change",
+        "tasks.md",
+        "proposal",
+        "holix-sdd-propose",
+    ],
+    "extensions": [
+        "extensions",
+        "расширения",
+        "holix-sdk",
+        "extension",
+        "plugin",
+        "drop-in",
+    ],
+    "holix-sdk": ["holix-sdk", "sdk", "ExtensionBase", "AgentExtensionBase"],
+    "subagents": ["subagents", "субагенты", "delegate", "coder", "reviewer"],
 }
 
 
