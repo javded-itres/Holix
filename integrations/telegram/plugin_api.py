@@ -134,6 +134,7 @@ def _load_from_telegram_entrypoints(api: TelegramPluginAPI) -> None:
         from core.extensions.registry import _entry_points_for_group
     except Exception:
         return
+    already = set(api._extensions_loaded)
     for ep in sorted(_entry_points_for_group(TELEGRAM_ENTRYPOINT_GROUP), key=lambda e: e.name):
         try:
             obj = ep.load()
@@ -143,14 +144,18 @@ def _load_from_telegram_entrypoints(api: TelegramPluginAPI) -> None:
                 plug = obj()
             else:
                 plug = obj
+            name = str(getattr(plug, "name", None) or ep.name)
+            # Skip if host entry already registered the same extension
+            if name in already:
+                continue
             reg = getattr(plug, "register_telegram", None)
             if not callable(reg):
                 logger.warning("telegram entry point %s has no register_telegram", ep.name)
                 continue
             reg(api)
-            name = str(getattr(plug, "name", None) or ep.name)
             if name not in api._extensions_loaded:
                 api._extensions_loaded.append(name)
+                already.add(name)
         except Exception:
             logger.exception("failed to load telegram entry point %s", ep.name)
 

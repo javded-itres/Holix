@@ -42,15 +42,17 @@ class HolixTelegramBot:
         self._media_groups = MediaGroupBuffer(delay_sec=delay)
         self._menu_enabled_chats: set[int] = set()
 
+    def _plugin_api_active(self) -> Any:
+        from integrations.telegram.plugin_api import get_active_telegram_plugin_api
+
+        return getattr(self, "_plugin_api", None) or get_active_telegram_plugin_api()
+
     def _allowed(self, user_id: int) -> bool:
         """Check access with hot reload so CLI approve works without bot restart."""
-        from integrations.telegram.plugin_api import (
-            extension_access_allows,
-            get_active_telegram_plugin_api,
-        )
+        from integrations.telegram.plugin_api import extension_access_allows
 
         uid = int(user_id)
-        ext_verdict = extension_access_allows(get_active_telegram_plugin_api(), uid)
+        ext_verdict = extension_access_allows(self._plugin_api_active(), uid)
         if ext_verdict is False:
             return False
         if ext_verdict is True:
@@ -62,6 +64,41 @@ class HolixTelegramBot:
         if uid in load_allowed_user_ids(self.settings.profile):
             return True
         return resolve_user_profile(self.settings.profile, uid) is not None
+
+    async def _run_plugin_gates(
+        self,
+        message: Any,
+        *,
+        text: str,
+        is_command: bool = False,
+        plugin_api: Any | None = None,
+        session: Any | None = None,
+        host: Any | None = None,
+    ) -> bool:
+        """Run extension message gates *before* agent/session init.
+
+        Returns False if a gate blocked the message (reply already sent).
+        Extensions (e.g. studio_telegram onboarding) own UX for unknown users.
+        """
+        from integrations.telegram.plugin_api import run_message_gates
+
+        if message is None or getattr(message, "from_user", None) is None:
+            return False
+        api = plugin_api if plugin_api is not None else self._plugin_api_active()
+        gate = await run_message_gates(
+            api,
+            user_id=int(message.from_user.id),
+            chat_id=int(message.chat.id),
+            text=text,
+            message=message,
+            session=session,
+            host=host,
+            is_command=is_command,
+        )
+        if not gate.allow:
+            await self._reply_gate(message, gate)
+            return False
+        return True
 
     async def _send_typing(self, bot: Any, chat_id: int) -> None:
         """Best-effort typing indicator — must never abort message handling."""
@@ -310,6 +347,8 @@ class HolixTelegramBot:
             )
             return
 
+        # Caller already ran extension gates + allowlist (_admit_or_onboard)
+
         await self._send_typing(bot, message.chat.id)
 
         session = await self._get_session(
@@ -352,16 +391,6 @@ class HolixTelegramBot:
         )
 
         host = TelegramHost(bot, session, edit_interval_ms=settings.edit_interval_ms)
-        if not await self._pass_message_gate(
-            message,
-            user_id=message.from_user.id,
-            chat_id=message.chat.id,
-            text=transcribed,
-            session=session,
-            host=host,
-            is_command=False,
-        ):
-            return
         await host.handle_user_text(transcribed)
 
     async def _pass_message_gate(
@@ -382,20 +411,14 @@ class HolixTelegramBot:
         )
 
         api = getattr(self, "_plugin_api", None) or get_active_telegram_plugin_api()
-        gate = await run_message_gates(
-            api,
-            user_id=user_id,
-            chat_id=chat_id,
+        return await self._run_plugin_gates(
+            message,
             text=text,
-            message=message,
+            is_command=is_command,
+            plugin_api=api,
             session=session,
             host=host,
-            is_command=is_command,
         )
-        if not gate.allow:
-            await self._reply_gate(message, gate)
-            return False
-        return True
 
     async def _enqueue_file_attachment(
         self,
@@ -649,6 +672,14 @@ class HolixTelegramBot:
         async def cmd_start(message: Message) -> None:
             if message.from_user is None:
                 return
+            # Extension onboarding (studio_telegram) before allowlist / agent init
+            if not await self._run_plugin_gates(
+                message,
+                text=(message.text or "/start"),
+                is_command=True,
+                plugin_api=plugin_api,
+            ):
+                return
             if not self._allowed(message.from_user.id):
                 await self._handle_unauthorized(bot, message, is_start=True)
                 return
@@ -665,6 +696,15 @@ class HolixTelegramBot:
         async def on_menu_command(message: Message) -> None:
             if message.from_user is None or not message.text:
                 return
+            text = message.text.strip()
+            # Gates first — unknown users never hit create_agent / PermissionError
+            if not await self._run_plugin_gates(
+                message,
+                text=text,
+                is_command=True,
+                plugin_api=plugin_api,
+            ):
+                return
             if not self._allowed(message.from_user.id):
                 await self._handle_unauthorized(bot, message)
                 return
@@ -674,7 +714,7 @@ class HolixTelegramBot:
             from integrations.telegram.command_access import is_command_allowed
             from integrations.telegram.markdown import escape_html
 
-            cmd_token = message.text.strip().split()[0].lstrip("/").lower()
+            cmd_token = text.split()[0].lstrip("/").lower()
             if not is_command_allowed(cmd_token, settings.profile, message.from_user.id):
                 lang = messenger_locale(settings.profile)
                 await message.answer(
@@ -687,26 +727,21 @@ class HolixTelegramBot:
                 message.chat.id, message.from_user.id, bot=bot
             )
             host = TelegramHost(bot, session, edit_interval_ms=settings.edit_interval_ms)
-            text = message.text.strip()
-            gate = await run_message_gates(
-                plugin_api,
-                user_id=message.from_user.id,
-                chat_id=message.chat.id,
-                text=text,
-                message=message,
-                session=session,
-                host=host,
-                is_command=True,
-            )
-            if not gate.allow:
-                await self._reply_gate(message, gate)
-                return
             await host.handle_user_text(text)
 
         @dp.message(F.text)
         async def on_text(message: Message) -> None:
             if message.from_user is None or message.text is None:
                 return
+            # 1) Extension gates (Studio pitch / invite) — no agent session yet
+            if not await self._run_plugin_gates(
+                message,
+                text=message.text,
+                is_command=False,
+                plugin_api=plugin_api,
+            ):
+                return
+            # 2) Core allowlist (after extensions had a chance to own UX)
             if not self._allowed(message.from_user.id):
                 await self._handle_unauthorized(bot, message)
                 return
@@ -734,19 +769,6 @@ class HolixTelegramBot:
                 return
             try:
                 host = TelegramHost(bot, session, edit_interval_ms=settings.edit_interval_ms)
-                gate = await run_message_gates(
-                    plugin_api,
-                    user_id=message.from_user.id,
-                    chat_id=message.chat.id,
-                    text=message.text,
-                    message=message,
-                    session=session,
-                    host=host,
-                    is_command=False,
-                )
-                if not gate.allow:
-                    await self._reply_gate(message, gate)
-                    return
                 await host.handle_user_text(message.text)
             except Exception as exc:
                 print(
@@ -761,13 +783,26 @@ class HolixTelegramBot:
                 except Exception:
                     pass
 
+        async def _admit_or_onboard(message: Message, *, text: str) -> bool:
+            """Extension gate → allowlist. False means stop (reply already sent)."""
+            if not await self._run_plugin_gates(
+                message,
+                text=text,
+                is_command=False,
+                plugin_api=plugin_api,
+            ):
+                return False
+            if not self._allowed(message.from_user.id):
+                await self._handle_unauthorized(bot, message)
+                return False
+            return True
+
         @dp.message(F.voice)
         async def on_voice(message: Message) -> None:
             """Handle voice notes: download → Whisper → process as text."""
             if message.from_user is None or message.voice is None:
                 return
-            if not self._allowed(message.from_user.id):
-                await self._handle_unauthorized(bot, message)
+            if not await _admit_or_onboard(message, text="[voice]"):
                 return
             await self._handle_transcribed_audio(
                 bot,
@@ -782,8 +817,7 @@ class HolixTelegramBot:
             """Handle audio attachments (mp3/m4a) the same way as voice notes."""
             if message.from_user is None or message.audio is None:
                 return
-            if not self._allowed(message.from_user.id):
-                await self._handle_unauthorized(bot, message)
+            if not await _admit_or_onboard(message, text="[audio]"):
                 return
             suffix = suffix_for_audio(mime_type=message.audio.mime_type)
             await self._handle_transcribed_audio(
@@ -798,8 +832,7 @@ class HolixTelegramBot:
         async def on_photo(message: Message) -> None:
             if message.from_user is None or not message.photo:
                 return
-            if not self._allowed(message.from_user.id):
-                await self._handle_unauthorized(bot, message)
+            if not await _admit_or_onboard(message, text="[photo]"):
                 return
             photo = message.photo[-1]
             await self._enqueue_file_attachment(
@@ -818,8 +851,7 @@ class HolixTelegramBot:
         async def on_document(message: Message) -> None:
             if message.from_user is None or message.document is None:
                 return
-            if not self._allowed(message.from_user.id):
-                await self._handle_unauthorized(bot, message)
+            if not await _admit_or_onboard(message, text="[document]"):
                 return
             doc = message.document
             file_name = doc.file_name or f"document_{doc.file_unique_id}"
