@@ -141,11 +141,16 @@ async def _run_agent_task(agent: Any, job: CronJob, *, prompt: str) -> str:
     )
 
 
-async def run_cron_job(job: CronJob) -> None:
-    """Run one cron job; updates store with status and schedules next run."""
+async def run_cron_job(job: CronJob, *, force: bool = False, trigger: str = "schedule") -> None:
+    """Run one cron job; updates store with status and schedules next run.
+
+    ``force=True`` runs even when the job is disabled (Studio «Run now»).
+    """
     store = CronStore(job.profile)
     current = store.get(job.id)
-    if current is None or not current.enabled:
+    if current is None:
+        return
+    if not force and not current.enabled:
         return
     if current.last_status == "running" or active_runs.is_active(job.id):
         logger.warning("Cron job %s already running, skip", job.id)
@@ -160,7 +165,8 @@ async def run_cron_job(job: CronJob) -> None:
     job.last_status = "running"
     job.last_error = None
     store.update(job)
-    _append_run_log(job.profile, f"START {job.id} {job.name!r}")
+    started_at_iso = datetime.now(UTC).replace(microsecond=0).isoformat()
+    _append_run_log(job.profile, f"START {job.id} {job.name!r} trigger={trigger}")
 
     started = time.monotonic()
     container = None
@@ -272,3 +278,21 @@ async def run_cron_job(job: CronJob) -> None:
             job.profile,
             f"END {job.id} status={job.last_status} duration={job.last_duration_s}s",
         )
+        try:
+            from core.cron.history import record_run
+
+            preview = (response_text or job.last_result or "").strip().replace("\n", " ")
+            record_run(
+                job.profile,
+                job_id=job.id,
+                job_name=job.name or "",
+                status=str(job.last_status or "unknown"),
+                started_at=started_at_iso,
+                finished_at=job.last_run_at,
+                duration_s=job.last_duration_s,
+                error=job.last_error,
+                result_preview=preview[:2000] if preview else None,
+                trigger=trigger,
+            )
+        except Exception:
+            logger.debug("cron history record failed", exc_info=True)
