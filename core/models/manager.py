@@ -51,9 +51,10 @@ class ModelManager:
         base_url = (provider_data.get("base_url") or "").strip()
         if not resolved_model or not base_url:
             return None
-        model_contexts = provider_data.get("model_contexts", {})
-        context_window = model_contexts.get(resolved_model) if model_contexts else None
-        if hasattr(self.profile_config, "context_window") and self.profile_config.context_window:
+        model_contexts = provider_data.get("model_contexts", {}) or {}
+        # Per-model context from settings / discovery wins; profile default is fallback.
+        context_window = model_contexts.get(resolved_model)
+        if not context_window and hasattr(self.profile_config, "context_window"):
             context_window = self.profile_config.context_window
         temp = temperature
         if temp is None and hasattr(self.profile_config, "temperature"):
@@ -136,9 +137,11 @@ class ModelManager:
             if not provider_data:
                 return None
             model_id = provider_data.get("default_model", "") or ""
-            model_contexts = provider_data.get("model_contexts", {})
-            context_window = model_contexts.get(model_id) if model_contexts else None
-            if hasattr(self.profile_config, "context_window") and self.profile_config.context_window:
+            model_contexts = provider_data.get("model_contexts", {}) or {}
+            context_window = model_contexts.get(model_id)
+            if not context_window and getattr(
+                self.profile_config, "context_window", None
+            ):
                 context_window = self.profile_config.context_window
             base_url = (provider_data.get("base_url") or "").strip()
             if not base_url:
@@ -202,12 +205,12 @@ class ModelManager:
             return None
 
         model_id = agent_data.get("model", "")
-        # Get context_window: agent override → provider model_contexts → profile → None
-        model_contexts = provider_data.get("model_contexts", {})
+        # Priority: agent override → provider model_contexts[model] → profile default
+        model_contexts = provider_data.get("model_contexts", {}) or {}
         context_window = agent_data.get("context_window")
         if not context_window:
-            context_window = model_contexts.get(model_id) if model_contexts else None
-        if not context_window and hasattr(self.profile_config, 'context_window') and self.profile_config.context_window:
+            context_window = model_contexts.get(model_id)
+        if not context_window and getattr(self.profile_config, "context_window", None):
             context_window = self.profile_config.context_window
 
         return ModelConfig(
