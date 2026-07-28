@@ -372,6 +372,32 @@ class HelixMaxBot:
             await register_bot_commands(client, locale=locale)
         except Exception:
             logger.exception("Failed to sync MAX command menu on bot_started")
+
+        # Prefer billing (or other extension) welcome for /start payload
+        try:
+            from integrations.max.plugin_api import get_active_max_plugin_api
+
+            api = getattr(self, "_plugin_api", None) or get_active_max_plugin_api()
+            if api is not None:
+                api.client = client
+                session = await self._get_session(uid, reply_user_id=uid)
+                host = MaxHost(client, session)
+                handled = await self._run_extension_command(
+                    api,
+                    client=client,
+                    user_id=uid,
+                    reply_user_id=uid,
+                    reply_chat_id=None,
+                    chat_type=None,
+                    text="/start",
+                    session=session,
+                    host=host,
+                )
+                if handled:
+                    return
+        except Exception:
+            logger.exception("MAX extension start on bot_started failed")
+
         await client.send_message(
             plain_to_max_html(
                 help_message_markdown()
@@ -423,10 +449,8 @@ class HelixMaxBot:
             return
 
         chat_type = chat_type_from_update(update)
-        if text.lower() in {"ping", "/start", "start"}:
-            if text.lower() in {"/start", "start"}:
-                await self._handle_bot_started(client, update)
-                return
+        # ping is lightweight; /start may be owned by billing extension welcome
+        if text.lower() == "ping":
             await client.send_message(
                 "pong",
                 **reply_kwargs_for_session(
@@ -458,8 +482,10 @@ class HelixMaxBot:
             if api is not None:
                 api.client = client
             is_cmd = text.strip().startswith("/")
-            # Let extensions handle their slash commands first
-            if is_cmd and api is not None:
+            # Bare "start" (no slash) — normalize for extension dispatch
+            ext_text = text if is_cmd else (f"/{text}" if text.lower() == "start" else text)
+            # Let extensions handle /start welcome + other slash commands first
+            if (is_cmd or text.lower() == "start") and api is not None:
                 handled = await self._run_extension_command(
                     api,
                     client=client,
@@ -467,12 +493,16 @@ class HelixMaxBot:
                     reply_user_id=reply_user_id,
                     reply_chat_id=reply_chat_id,
                     chat_type=chat_type,
-                    text=text,
+                    text=ext_text,
                     session=session,
                     host=host,
                 )
                 if handled:
                     return
+            # Fallback core /start if extension did not handle
+            if text.lower() in {"/start", "start"}:
+                await self._handle_bot_started(client, update)
+                return
             gate = await run_message_gates(
                 api,
                 user_id=uid,
