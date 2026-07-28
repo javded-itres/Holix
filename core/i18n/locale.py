@@ -7,7 +7,8 @@ from pathlib import Path
 
 from pydantic import BaseModel
 
-DEFAULT_LOCALE = "en"
+# Holix Studio / product default UI language (Russia-first SaaS).
+DEFAULT_LOCALE = "ru"
 SUPPORTED_LOCALES = frozenset({"en", "ru"})
 
 
