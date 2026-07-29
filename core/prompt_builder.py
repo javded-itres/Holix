@@ -85,7 +85,15 @@ def format_working_directory_block(
             "Create and edit **all** project files under this directory. "
             "Use paths relative to it (or absolute paths under it). "
             "Do **not** write into the Holix install tree or another profile's workspace. "
-            "If a path is unclear, call `list_directory` on `.` first."
+            "If a path is unclear, call `list_directory` on `.` first.\n\n"
+            "### Tool results are ground truth\n"
+            "- Prefer relative paths: `ls`, `ls <project>`, `list_directory` on `.` — "
+            "not `~`, `/`, `/root`, `$HOLIX_HOME`, or parent profile dirs.\n"
+            "- If a tool returns `Success`, `Contents of …`, or `[DIR]`/`[FILE]` names, "
+            "that listing is real. Never say the workspace is empty or that tools are "
+            "deaf/silent when such a result is already in this turn.\n"
+            "- `Command blocked` / path-outside-workspace only applies to that one "
+            "forbidden path; it does not invalidate other successful listings."
         )
 
     lines = [
@@ -136,7 +144,11 @@ def format_studio_workspace_block(
             "Create and edit **all** project files only under this workspace:\n"
             f"`{root}`\n\n"
             "Use paths relative to that directory (or absolute paths under it). "
-            "Do **not** write into the Holix install/deploy tree or another user's workspace."
+            "Do **not** write into the Holix install/deploy tree or another user's workspace.\n\n"
+            "CWD is already the workspace. Prefer `list_directory` on `.` and relative "
+            "`ls` / project names — never `~`, `/root`, or `$HOLIX_HOME`. "
+            "Successful tool listings are authoritative: do not claim the workspace is "
+            "empty or that tools returned nothing when they already listed files."
         )
 
     mode = (os.getenv("HOLIX_STUDIO_WORKSPACE_MODE") or "").strip().lower()

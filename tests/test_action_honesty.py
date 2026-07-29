@@ -6,9 +6,13 @@ from core.graph.action_honesty import (
     ACTION_HONESTY_NUDGE,
     SDD_FILL_HONESTY_NUDGE,
     SDD_FILL_HONESTY_REFUSAL,
+    WORKSPACE_GROUNDING_NUDGE,
     claims_action_completed,
+    claims_empty_or_deaf_tools,
     claims_sdd_artifacts_filled,
+    denies_visible_workspace,
     ends_turn_on_unexecuted_intent,
+    has_successful_workspace_listing,
     honesty_refusal_update,
     honesty_retry_update,
     is_sdd_fill_request,
@@ -338,3 +342,57 @@ def test_promise_without_tools_is_nudged() -> None:
         final_response="Сейчас сохраню план через write_file.",
         messages=messages,
     )
+
+
+def test_empty_workspace_claim_denied_when_listing_succeeded() -> None:
+    messages = [
+        {"role": "user", "content": "Запусти it-resources-site"},
+        {
+            "role": "assistant",
+            "content": "",
+            "tool_calls": [
+                {
+                    "id": "c1",
+                    "type": "function",
+                    "function": {"name": "list_directory", "arguments": "{}"},
+                }
+            ],
+        },
+        {
+            "role": "tool",
+            "tool_call_id": "c1",
+            "name": "list_directory",
+            "content": (
+                "Contents of /var/lib/holix/profiles/x/workspace:\n"
+                "[DIR]  it-resources-site\n"
+                "[DIR]  it_rs_vue"
+            ),
+        },
+    ]
+    claim = (
+        "В workspace сейчас нет папки it-resources-site (workspace практически пустой). "
+        "Инструменты возвращают пустые ответы."
+    )
+    assert claims_empty_or_deaf_tools(claim)
+    assert has_successful_workspace_listing(messages)
+    assert denies_visible_workspace(claim, messages)
+    assert should_nudge_false_completion(
+        {"honesty_nudge_count": 0},
+        final_response=claim,
+        messages=messages,
+    )
+    out = honesty_retry_update(
+        messages=messages,
+        step_count=1,
+        final_response=claim,
+        honesty_nudge_count=0,
+    )
+    assert out["messages"][-1]["content"] == WORKSPACE_GROUNDING_NUDGE
+
+
+def test_empty_claim_without_listing_is_not_workspace_nudge() -> None:
+    messages = [{"role": "user", "content": "Что в workspace?"}]
+    claim = "Workspace пуст, list_directory ничего не вернул."
+    assert claims_empty_or_deaf_tools(claim)
+    assert not has_successful_workspace_listing(messages)
+    assert not denies_visible_workspace(claim, messages)

@@ -137,6 +137,47 @@ ACTION_HONESTY_NUDGE = (
     "after sdd_archive. If a tool failed, say it failed and show the error."
 )
 
+# Model denies tool visibility despite successful list_directory / ls results.
+_EMPTY_OR_DEAF_CLAIM = re.compile(
+    r"(?is)("
+    r"workspace\s+(practically\s+)?(is\s+)?empty"
+    r"|workspace\s+пуст"
+    r"|воркспейс\s+пуст"
+    r"|рабоч(ая|ей)\s+директор(ия|ии)\s+пуст"
+    r"|нет\s+папк[иа]\s+"
+    r"|проект[а]?\s+.+\s+нигде\s+нет"
+    r"|проект[а]?\s+.+\s+нет\b"
+    r"|tools?\s+(return|returned|are)\s+empty"
+    r"|пустые\s+ответы"
+    r"|не\s+возвращают\s+(никакого\s+)?результат"
+    r"|глухонемая\s+сред"
+    r"|глух(ая|ой)\s+сред"
+    r"|инструменты\s+(молчат|не\s+работают|не\s+отвечают)"
+    r"|list_directory\s+.+\s+(пуст|глюч|empty)"
+    r"|не\s+могу\s+(сейчас\s+)?(дать|увидеть|прочитать)\s+"
+    r"|unable\s+to\s+(see|list|read)\s+(the\s+)?(workspace|directory|filesystem)"
+    r"|no\s+(visible\s+)?(project|directory|files?)\s+(in\s+)?(the\s+)?workspace"
+    r")"
+)
+
+_LISTING_MARKERS = (
+    "[dir]",
+    "[file]",
+    "contents of",
+    "success (exit code 0)",
+    "total ",
+)
+
+WORKSPACE_GROUNDING_NUDGE = (
+    "[Action honesty — workspace] You claimed the workspace is empty or that "
+    "tools returned nothing, but this turn already has successful listing "
+    "results (list_directory / run_terminal_command with directories or files). "
+    "Those tool results are ground truth. Do NOT say tools are deaf/empty. "
+    "Re-read the tool outputs in this turn, name the directories/files they show, "
+    "and continue the user task using relative paths only (not ~, /, $HOLIX_HOME). "
+    "A single blocked path outside the jail does not erase successful listings."
+)
+
 SDD_FILL_HONESTY_NUDGE = (
     "[Action honesty — SDD] You claimed SDD artifacts were filled, but this turn "
     "has no successful sdd_write_artifact result. "
@@ -157,6 +198,92 @@ SDD_FILL_HONESTY_REFUSAL = (
 
 _MAX_HONESTY_NUDGES = 1
 _MAX_SDD_FILL_HONESTY_NUDGES = 3
+
+
+def claims_empty_or_deaf_tools(text: str | None) -> bool:
+    """True when the assistant claims workspace/tools show nothing."""
+    content = (text or "").strip()
+    if not content or len(content) < 12:
+        return False
+    return bool(_EMPTY_OR_DEAF_CLAIM.search(content))
+
+
+def _listing_evidence_from_content(content: str) -> bool:
+    """True if a tool payload clearly lists workspace entries or a successful ls."""
+    c = (content or "").strip()
+    if not c or _tool_result_failed(c):
+        return False
+    lower = c.lower()
+    if any(m in lower for m in _LISTING_MARKERS):
+        return True
+    # Relative name dumps like "it-resources-site\nit_rs_vue"
+    lines = [ln.strip() for ln in c.splitlines() if ln.strip()]
+    if 1 <= len(lines) <= 40 and all(
+        not ln.lower().startswith("error") and "/" not in ln[:1] for ln in lines
+    ):
+        # at least one non-meta line that looks like a filename/dirname
+        if any(
+            re.match(r"^[A-Za-z0-9_.][A-Za-z0-9_.\-]*$", ln) and ln not in {"Success", "STDOUT:", "STDERR:"}
+            for ln in lines
+        ):
+            return True
+    return False
+
+
+def has_successful_workspace_listing(
+    messages: list[dict[str, Any]] | None,
+    *,
+    tool_results: list[dict[str, Any]] | None = None,
+) -> bool:
+    """True if list_directory / terminal already returned a usable listing this turn."""
+    if messages:
+        last_user = -1
+        for i, msg in enumerate(messages):
+            if msg.get("role") == "user":
+                last_user = i
+        id_to_name = _tool_call_id_names(messages)
+        for msg in messages[last_user + 1 :]:
+            if msg.get("role") != "tool":
+                continue
+            raw = msg.get("content")
+            content = raw if isinstance(raw, str) else str(raw or "")
+            name = _tool_name_from_message(msg, id_to_name).lower()
+            if name in {
+                "list_directory",
+                "run_terminal_command",
+                "terminal",
+                "read_file",
+            } or not name:
+                if _listing_evidence_from_content(content):
+                    return True
+    if tool_results:
+        for tr in tool_results:
+            if not isinstance(tr, dict):
+                continue
+            raw = tr.get("result")
+            content = raw if isinstance(raw, str) else str(raw or "")
+            name = str(tr.get("tool_name") or "").lower()
+            if name in {
+                "list_directory",
+                "run_terminal_command",
+                "terminal",
+                "read_file",
+            } or not name:
+                if _listing_evidence_from_content(content):
+                    return True
+    return False
+
+
+def denies_visible_workspace(
+    text: str | None,
+    messages: list[dict[str, Any]] | None,
+    *,
+    tool_results: list[dict[str, Any]] | None = None,
+) -> bool:
+    """True when the model claims empty/deaf tools despite successful listings."""
+    if not claims_empty_or_deaf_tools(text):
+        return False
+    return has_successful_workspace_listing(messages, tool_results=tool_results)
 
 
 def claims_action_completed(text: str | None) -> bool:
@@ -427,6 +554,12 @@ def should_nudge_false_completion(
         user_input=user_input,
     ):
         return True
+    if denies_visible_workspace(
+        final_response,
+        messages,
+        tool_results=state.get("tool_results") if isinstance(state, dict) else None,
+    ):
+        return True
     # SDD fill turn: never end with pure text before any sdd_write_artifact.
     if sdd_fill_requires_tools(
         messages,
@@ -480,11 +613,12 @@ def honesty_retry_update(
         if not already:
             updated.append({"role": "assistant", "content": final_response})
     user = (user_input or "").strip() or last_user_text(updated)
-    nudge = (
-        SDD_FILL_HONESTY_NUDGE
-        if is_sdd_fill_request(user) or claims_sdd_artifacts_filled(final_response)
-        else ACTION_HONESTY_NUDGE
-    )
+    if is_sdd_fill_request(user) or claims_sdd_artifacts_filled(final_response):
+        nudge = SDD_FILL_HONESTY_NUDGE
+    elif denies_visible_workspace(final_response, updated):
+        nudge = WORKSPACE_GROUNDING_NUDGE
+    else:
+        nudge = ACTION_HONESTY_NUDGE
     updated.append({"role": "user", "content": nudge})
     return {
         "messages": updated,
