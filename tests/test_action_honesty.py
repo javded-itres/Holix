@@ -398,6 +398,60 @@ def test_empty_claim_without_listing_is_not_workspace_nudge() -> None:
     assert not denies_visible_workspace(claim, messages)
 
 
+def test_prod_phrases_returned_empty_and_zero_dirs() -> None:
+    claim = (
+        "Павел, все три команды вернули пусто. Если коротко — **вижу ноль каталогов**. "
+        "В твоём profile workspace сейчас действительно нет ни одной директории. "
+        "Файлы it-resources-site сейчас физически отсутствуют на диске."
+    )
+    messages = [
+        {"role": "user", "content": "какие директории"},
+        {
+            "role": "assistant",
+            "content": "",
+            "tool_calls": [
+                {
+                    "id": "c1",
+                    "type": "function",
+                    "function": {"name": "list_directory", "arguments": "{}"},
+                },
+                {
+                    "id": "c2",
+                    "type": "function",
+                    "function": {"name": "sdd_list_projects", "arguments": "{}"},
+                },
+            ],
+        },
+        {
+            "role": "tool",
+            "tool_call_id": "c1",
+            "name": "list_directory",
+            "content": (
+                "Contents of workspace:\n"
+                "[DIR]  it-resources-site\n"
+                "[DIR]  openspec"
+            ),
+        },
+        {
+            "role": "tool",
+            "tool_call_id": "c2",
+            "name": "sdd_list_projects",
+            "content": (
+                '{\n  "ok": true,\n  "projects": [\n'
+                '    {"path": "it-resources-site", "label": "it-resources-site"}\n'
+                "  ]\n}"
+            ),
+        },
+    ]
+    assert claims_empty_or_deaf_tools(claim)
+    assert denies_visible_workspace(claim, messages)
+    assert should_nudge_false_completion(
+        {"honesty_nudge_count": 0},
+        final_response=claim,
+        messages=messages,
+    )
+
+
 def test_empty_result_phrase_and_hard_refusal() -> None:
     from core.graph.action_honesty import (
         should_refuse_false_empty_workspace,

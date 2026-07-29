@@ -145,12 +145,24 @@ _EMPTY_OR_DEAF_CLAIM = re.compile(
     r"|воркспейс\s+пуст"
     r"|рабоч(ая|ей)\s+директор(ия|ии)\s+пуст"
     r"|нет\s+папк[иа]\s+"
+    r"|нет\s+ни\s+одной\s+директор"
+    r"|нет\s+ни\s+одного\s+(файл|проект|каталог)"
+    r"|ноль\s+каталог"
+    r"|вижу\s+ноль"
     r"|проект[а]?\s+.+\s+нигде\s+нет"
     r"|проект[а]?\s+.+\s+нет\b"
+    r"|самой\s+папки\s+сейчас\s+.+\s+нет"
+    r"|физически\s+отсутств"
     r"|tools?\s+(return|returned|are)\s+empty"
     r"|пустые?\s+ответы?"
     r"|пустой\s+результат"
     r"|пустые?\s+результат"
+    r"|вернули\s+пусто"
+    r"|вернул[аи]?\s+пусто"
+    r"|дали\s+пусто"
+    r"|дал[аи]?\s+пусто"
+    r"|пусто/null"
+    r"|пусто\s*/\s*null"
     r"|возвращают\s+пуст"
     r"|упрямо\s+возвраща"
     r"|не\s+возвращают\s+(никакого\s+)?результат"
@@ -158,14 +170,16 @@ _EMPTY_OR_DEAF_CLAIM = re.compile(
     r"|глух(ая|ой)\s+сред"
     r"|инструменты\s+(молчат|не\s+работают|не\s+отвечают|не\s+видят)"
     r"|тул[ыа]?\s+(молчат|пуст|не\s+работа)"
+    r"|команды\s+вернул"
     r"|list_directory\s+.+\s+(пуст|глюч|empty)"
     r"|не\s+могу\s+(сейчас\s+)?(дать|увидеть|прочитать|перечитать)\s+"
-    r"|не\s+вижу\s+(полн|содерж|файл|директор|workspace|воркспейс)"
+    r"|не\s+вижу\s+(полн|содерж|файл|директор|workspace|воркспейс|ни\s)"
     r"|unable\s+to\s+(see|list|read)\s+(the\s+)?(workspace|directory|filesystem)"
     r"|no\s+(visible\s+)?(project|directory|files?)\s+(in\s+)?(the\s+)?workspace"
     r"|without\s+confirmation\s+from\s+(the\s+)?workspace"
     r"|без\s+подтверждения\s+из\s+workspace"
     r"|без\s+успешных\s+ответов\s+тул"
+    r"|данных,?\s+которых\s+не\s+было"
     r")"
 )
 
@@ -175,6 +189,24 @@ _LISTING_MARKERS = (
     "contents of",
     "success (exit code 0)",
     "total ",
+    '"ok": true',
+    '"ok":true',
+    '"projects"',
+    "content of ",
+)
+
+# Dir/file names listed by tools this turn.
+_LISTED_NAME_RE = re.compile(
+    r"(?im)^(?:\[(?:DIR|FILE)\]\s+|drwx|[-d][rwx-]{9}\s+\d+\s+\S+\s+\S+\s+\d+\s+\S+\s+\d+\s+\d+:\d+\s+)?([A-Za-z0-9][A-Za-z0-9_.-]{1,80})\s*$"
+)
+_DENIES_NAME_RE = re.compile(
+    r"(?is)("
+    r"нет\s+(?:ни\s+)?(?:проекта\s+|папки\s+|каталога\s+|файла\s+)?"
+    r"|отсутств\w*\s+"
+    r"|не\s+(?:вижу|нашёл|нашел|нашла)\s+"
+    r"|missing\s+"
+    r"|does\s+not\s+exist"
+    r")"
 )
 
 WORKSPACE_GROUNDING_NUDGE = (
@@ -222,7 +254,12 @@ def extract_workspace_listing_evidence(
 
     def _take(label: str, content: str) -> None:
         body = (content or "").strip()
-        if not body or not _listing_evidence_from_content(body):
+        if not body:
+            return
+        useful = _listing_evidence_from_content(body) or (
+            '"ok"' in body.lower() and "true" in body.lower()
+        )
+        if not useful:
             return
         if len(body) > 600:
             body = body[:600].rstrip() + "…"
@@ -334,6 +371,11 @@ def has_successful_workspace_listing(
                 "run_terminal_command",
                 "terminal",
                 "read_file",
+                "sdd_list_projects",
+                "sdd_list_specs",
+                "sdd_list_changes",
+                "sdd_status",
+                "sdd_init",
             } or not name:
                 if _listing_evidence_from_content(content):
                     return True
@@ -349,9 +391,114 @@ def has_successful_workspace_listing(
                 "run_terminal_command",
                 "terminal",
                 "read_file",
+                "sdd_list_projects",
+                "sdd_list_specs",
+                "sdd_list_changes",
+                "sdd_status",
+                "sdd_init",
             } or not name:
                 if _listing_evidence_from_content(content):
                     return True
+    return False
+
+
+def _collect_listed_entry_names(
+    messages: list[dict[str, Any]] | None,
+    *,
+    tool_results: list[dict[str, Any]] | None = None,
+) -> set[str]:
+    """Entry names visible in successful tool listings this turn."""
+    names: set[str] = set()
+    skip = {
+        "total",
+        "success",
+        "stdout",
+        "stderr",
+        "ok",
+        "path",
+        "label",
+        "projects",
+        "workspace",
+        "initialized",
+        "content",
+        "of",
+        "drwxrws---",
+        "drwxr-xr-x",
+        "..",
+        ".",
+    }
+
+    def _absorb(content: str) -> None:
+        if not _listing_evidence_from_content(content):
+            return
+        for line in content.splitlines():
+            m = _LISTED_NAME_RE.match(line.strip())
+            if not m:
+                # also [DIR]  name form
+                m2 = re.match(r"^\[(?:DIR|FILE)\]\s+(\S+)", line.strip(), re.I)
+                if not m2:
+                    continue
+                name = m2.group(1).strip().rstrip("/")
+            else:
+                name = m.group(1).strip().rstrip("/")
+            low = name.lower()
+            if low in skip or len(name) < 2:
+                continue
+            if name.startswith("-") or name.startswith("total"):
+                continue
+            names.add(name)
+        # JSON project paths from sdd_list_projects
+        for m in re.finditer(r'"path"\s*:\s*"([^"]+)"', content):
+            p = m.group(1).strip().strip("/")
+            if p and p not in skip:
+                names.add(p.split("/")[0])
+        for m in re.finditer(r'"label"\s*:\s*"([^"]+)"', content):
+            p = m.group(1).strip()
+            if p and p not in {".", *skip}:
+                names.add(p)
+
+    if messages:
+        last_user = -1
+        for i, msg in enumerate(messages):
+            if msg.get("role") == "user":
+                last_user = i
+        for msg in messages[last_user + 1 :]:
+            if msg.get("role") != "tool":
+                continue
+            raw = msg.get("content")
+            _absorb(raw if isinstance(raw, str) else str(raw or ""))
+    if tool_results:
+        for tr in tool_results:
+            if not isinstance(tr, dict):
+                continue
+            raw = tr.get("result")
+            _absorb(raw if isinstance(raw, str) else str(raw or ""))
+    return names
+
+
+def denies_names_shown_by_tools(
+    text: str | None,
+    messages: list[dict[str, Any]] | None,
+    *,
+    tool_results: list[dict[str, Any]] | None = None,
+) -> bool:
+    """True if the model says a tool-listed name is missing."""
+    content = (text or "").strip()
+    if not content or not _DENIES_NAME_RE.search(content):
+        return False
+    listed = _collect_listed_entry_names(messages, tool_results=tool_results)
+    if not listed:
+        return False
+    lower = content.lower()
+    for name in listed:
+        if name.lower() in lower and re.search(
+            rf"(?is)(нет|отсутств|не\s+вижу|не\s+нашёл|не\s+нашел|missing|does\s+not\s+exist).{{0,40}}{re.escape(name)}|{re.escape(name)}.{{0,40}}(нет|отсутств|не\s+вижу|missing)",
+            content,
+        ):
+            return True
+        # weaker: name + empty-claim nearby
+        if name.lower() in lower and claims_empty_or_deaf_tools(content):
+            return True
     return False
 
 
@@ -362,9 +509,57 @@ def denies_visible_workspace(
     tool_results: list[dict[str, Any]] | None = None,
 ) -> bool:
     """True when the model claims empty/deaf tools despite successful listings."""
-    if not claims_empty_or_deaf_tools(text):
+    if not has_successful_workspace_listing(messages, tool_results=tool_results):
+        # also treat sdd_list_projects JSON as listing evidence
+        if not _has_sdd_or_json_listing(messages, tool_results=tool_results):
+            return False
+    if claims_empty_or_deaf_tools(text):
+        return True
+    if denies_names_shown_by_tools(text, messages, tool_results=tool_results):
+        return True
+    return False
+
+
+def _has_sdd_or_json_listing(
+    messages: list[dict[str, Any]] | None,
+    *,
+    tool_results: list[dict[str, Any]] | None = None,
+) -> bool:
+    """True for successful sdd_list_* / JSON project listings this turn."""
+    def _ok(content: str, name: str = "") -> bool:
+        c = (content or "").strip()
+        if not c or _tool_result_failed(c):
+            return False
+        low = c.lower()
+        n = (name or "").lower()
+        if "sdd_list" in n or "sdd_status" in n or "sdd_init" in n:
+            return '"ok"' in low and "true" in low
+        if '"projects"' in low and '"ok"' in low:
+            return True
         return False
-    return has_successful_workspace_listing(messages, tool_results=tool_results)
+
+    if messages:
+        last_user = -1
+        for i, msg in enumerate(messages):
+            if msg.get("role") == "user":
+                last_user = i
+        id_to_name = _tool_call_id_names(messages)
+        for msg in messages[last_user + 1 :]:
+            if msg.get("role") != "tool":
+                continue
+            raw = msg.get("content")
+            content = raw if isinstance(raw, str) else str(raw or "")
+            if _ok(content, _tool_name_from_message(msg, id_to_name)):
+                return True
+    if tool_results:
+        for tr in tool_results:
+            if not isinstance(tr, dict):
+                continue
+            raw = tr.get("result")
+            content = raw if isinstance(raw, str) else str(raw or "")
+            if _ok(content, str(tr.get("tool_name") or "")):
+                return True
+    return False
 
 
 def claims_action_completed(text: str | None) -> bool:
