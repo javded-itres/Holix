@@ -180,6 +180,12 @@ _EMPTY_OR_DEAF_CLAIM = re.compile(
     r"|без\s+подтверждения\s+из\s+workspace"
     r"|без\s+успешных\s+ответов\s+тул"
     r"|данных,?\s+которых\s+не\s+было"
+    r"|список\s+пуст"
+    r"|каталог\w*\s+пуст"
+    r"|директор\w*\s+пуст"
+    r"|пуст(ой|ая|ое|ые)?\s+(список|каталог|workspace|воркспейс)"
+    r"|сессия\s+ограничен"
+    r"|текущая\s+сессия\s+ограничен"
     r")"
 )
 
@@ -518,6 +524,26 @@ def denies_visible_workspace(
     if denies_names_shown_by_tools(text, messages, tool_results=tool_results):
         return True
     return False
+
+
+def scrub_false_empty_claim_content(
+    content: str | None,
+    messages: list[dict[str, Any]] | None,
+    *,
+    tool_results: list[dict[str, Any]] | None = None,
+) -> str:
+    """Blank assistant text that denies visible tool listings (mid-turn or final).
+
+    Models often stream «Список пуст…» together with more tool_calls; that text is
+    shown in Studio even though honesty only runs on final answers. Scrub it so
+    the UI does not display a contradiction of prior Success listings.
+    """
+    text = content if isinstance(content, str) else ("" if content is None else str(content))
+    if not text.strip():
+        return text
+    if denies_visible_workspace(text, messages, tool_results=tool_results):
+        return ""
+    return text
 
 
 def _has_sdd_or_json_listing(

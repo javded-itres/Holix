@@ -398,6 +398,26 @@ def test_empty_claim_without_listing_is_not_workspace_nudge() -> None:
     assert not denies_visible_workspace(claim, messages)
 
 
+def test_spisok_pust_scrubbed_when_listing_exists() -> None:
+    from core.graph.action_honesty import scrub_false_empty_claim_content
+
+    claim = (
+        "Список пуст. Проверю рабочую директорию напрямую. "
+        "Похоже, текущая сессия ограничена и"
+    )
+    messages = [
+        {"role": "user", "content": "ls"},
+        {
+            "role": "tool",
+            "name": "list_directory",
+            "content": "Contents of w:\n[DIR]  it-resources-site\n[DIR]  openspec",
+        },
+    ]
+    assert claims_empty_or_deaf_tools(claim)
+    assert denies_visible_workspace(claim, messages)
+    assert scrub_false_empty_claim_content(claim, messages) == ""
+
+
 def test_prod_phrases_returned_empty_and_zero_dirs() -> None:
     claim = (
         "Павел, все три команды вернули пусто. Если коротко — **вижу ноль каталогов**. "

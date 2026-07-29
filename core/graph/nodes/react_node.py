@@ -23,9 +23,12 @@ from core.agent_events import (
     ToolCallStartEvent,
 )
 from core.graph.action_honesty import (
+    denies_visible_workspace,
+    has_successful_workspace_listing,
     honesty_refusal_update,
     honesty_retry_update,
     resolve_tool_choice,
+    scrub_false_empty_claim_content,
     should_nudge_false_completion,
     should_refuse_false_empty_workspace,
     should_refuse_unproven_sdd_fill,
@@ -609,7 +612,19 @@ async def _react_non_streaming(
     )
     messages = list(state.get("messages", []))
 
-    msg_dict = {"role": "assistant", "content": message.content or ""}
+    raw_assistant = message.content or ""
+    scrubbed = scrub_false_empty_claim_content(
+        raw_assistant,
+        state.get("messages"),
+        tool_results=state.get("tool_results"),
+    )
+    if scrubbed != raw_assistant and (raw_assistant or "").strip():
+        logger.warning(
+            "Scrubbed false empty-workspace claim from assistant+tools content "
+            "(conversation_id=%s)",
+            conversation_id,
+        )
+    msg_dict = {"role": "assistant", "content": scrubbed}
 
     if message.tool_calls:
         # Tool calls requested
@@ -780,10 +795,21 @@ def _streaming_tool_calls_step_result(
     """Return a ReAct step that executes accumulated streaming tool calls."""
     tool_calls = list(tool_calls_dict.values())
     messages = list(state.get("messages", []))
+    scrubbed = scrub_false_empty_claim_content(
+        current_content,
+        state.get("messages"),
+        tool_results=state.get("tool_results"),
+    )
+    if scrubbed != (current_content or "") and (current_content or "").strip():
+        logger.warning(
+            "Scrubbed false empty-workspace claim from streaming assistant+tools "
+            "(conversation_id=%s)",
+            conversation_id,
+        )
     messages.append(
         {
             "role": "assistant",
-            "content": current_content,
+            "content": scrubbed,
             "tool_calls": tool_calls,
         }
     )
@@ -927,7 +953,13 @@ async def _react_streaming(
             # Content / reasoning streaming (reasoning models may only fill reasoning_*)
             if content_delta:
                 current_content += content_delta
-                if agent and hasattr(agent, "emit"):
+                # After successful listings, buffer text until the step finishes so
+                # «Список пуст…» is not painted into Studio before we can scrub it.
+                prior_listing = has_successful_workspace_listing(
+                    state.get("messages"),
+                    tool_results=state.get("tool_results"),
+                )
+                if agent and hasattr(agent, "emit") and not prior_listing:
                     agent.emit(AssistantDeltaEvent(
                         content=content_delta,
                         accumulated=current_content,
@@ -1033,6 +1065,12 @@ async def _react_streaming(
                         max_tokens=max_tokens,
                     )
                 messages = list(state.get("messages", []))
+                # If we buffered stream text after listings, scrub before finalizing.
+                final_response = scrub_false_empty_claim_content(
+                    final_response,
+                    state.get("messages"),
+                    tool_results=state.get("tool_results"),
+                ) or final_response
                 messages.append({"role": "assistant", "content": final_response})
 
                 if agent and hasattr(agent, "memory"):
@@ -1065,6 +1103,19 @@ async def _react_streaming(
                     await agent.memory.save_message(conversation_id, "assistant", final_response)
 
                 _emit_stream_usage_once(completion_text=final_response)
+                # Emit full text now if we suppressed live deltas after tool listings.
+                if has_successful_workspace_listing(
+                    state.get("messages"),
+                    tool_results=state.get("tool_results"),
+                ) and (final_response or "").strip():
+                    if agent and hasattr(agent, "emit"):
+                        agent.emit(
+                            AssistantDeltaEvent(
+                                content=final_response,
+                                accumulated=final_response,
+                                conversation_id=conversation_id,
+                            )
+                        )
                 _emit_final_response(
                     agent,
                     content=final_response,
