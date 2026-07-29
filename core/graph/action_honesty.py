@@ -148,15 +148,24 @@ _EMPTY_OR_DEAF_CLAIM = re.compile(
     r"|проект[а]?\s+.+\s+нигде\s+нет"
     r"|проект[а]?\s+.+\s+нет\b"
     r"|tools?\s+(return|returned|are)\s+empty"
-    r"|пустые\s+ответы"
+    r"|пустые?\s+ответы?"
+    r"|пустой\s+результат"
+    r"|пустые?\s+результат"
+    r"|возвращают\s+пуст"
+    r"|упрямо\s+возвраща"
     r"|не\s+возвращают\s+(никакого\s+)?результат"
     r"|глухонемая\s+сред"
     r"|глух(ая|ой)\s+сред"
-    r"|инструменты\s+(молчат|не\s+работают|не\s+отвечают)"
+    r"|инструменты\s+(молчат|не\s+работают|не\s+отвечают|не\s+видят)"
+    r"|тул[ыа]?\s+(молчат|пуст|не\s+работа)"
     r"|list_directory\s+.+\s+(пуст|глюч|empty)"
-    r"|не\s+могу\s+(сейчас\s+)?(дать|увидеть|прочитать)\s+"
+    r"|не\s+могу\s+(сейчас\s+)?(дать|увидеть|прочитать|перечитать)\s+"
+    r"|не\s+вижу\s+(полн|содерж|файл|директор|workspace|воркспейс)"
     r"|unable\s+to\s+(see|list|read)\s+(the\s+)?(workspace|directory|filesystem)"
     r"|no\s+(visible\s+)?(project|directory|files?)\s+(in\s+)?(the\s+)?workspace"
+    r"|without\s+confirmation\s+from\s+(the\s+)?workspace"
+    r"|без\s+подтверждения\s+из\s+workspace"
+    r"|без\s+успешных\s+ответов\s+тул"
     r")"
 )
 
@@ -178,6 +187,8 @@ WORKSPACE_GROUNDING_NUDGE = (
     "A single blocked path outside the jail does not erase successful listings."
 )
 
+_MAX_WORKSPACE_GROUNDING_NUDGES = 2
+
 SDD_FILL_HONESTY_NUDGE = (
     "[Action honesty — SDD] You claimed SDD artifacts were filled, but this turn "
     "has no successful sdd_write_artifact result. "
@@ -198,6 +209,76 @@ SDD_FILL_HONESTY_REFUSAL = (
 
 _MAX_HONESTY_NUDGES = 1
 _MAX_SDD_FILL_HONESTY_NUDGES = 3
+
+
+def extract_workspace_listing_evidence(
+    messages: list[dict[str, Any]] | None,
+    *,
+    tool_results: list[dict[str, Any]] | None = None,
+    max_chars: int = 1800,
+) -> str:
+    """Collect recent successful listing payloads for forced user-facing correction."""
+    chunks: list[str] = []
+
+    def _take(label: str, content: str) -> None:
+        body = (content or "").strip()
+        if not body or not _listing_evidence_from_content(body):
+            return
+        if len(body) > 600:
+            body = body[:600].rstrip() + "…"
+        chunks.append(f"**{label}:**\n```\n{body}\n```")
+
+    if messages:
+        last_user = -1
+        for i, msg in enumerate(messages):
+            if msg.get("role") == "user":
+                last_user = i
+        id_to_name = _tool_call_id_names(messages)
+        for msg in messages[last_user + 1 :]:
+            if msg.get("role") != "tool":
+                continue
+            raw = msg.get("content")
+            content = raw if isinstance(raw, str) else str(raw or "")
+            name = _tool_name_from_message(msg, id_to_name) or "tool"
+            _take(name, content)
+    if not chunks and tool_results:
+        for tr in tool_results:
+            if not isinstance(tr, dict):
+                continue
+            raw = tr.get("result")
+            content = raw if isinstance(raw, str) else str(raw or "")
+            name = str(tr.get("tool_name") or "tool")
+            _take(name, content)
+
+    if not chunks:
+        return ""
+    joined = "\n\n".join(chunks[-4:])
+    if len(joined) > max_chars:
+        return joined[:max_chars].rstrip() + "…"
+    return joined
+
+
+def workspace_grounding_refusal_text(
+    messages: list[dict[str, Any]] | None,
+    *,
+    tool_results: list[dict[str, Any]] | None = None,
+) -> str:
+    """User-visible correction when the model keeps denying visible tool listings."""
+    evidence = extract_workspace_listing_evidence(
+        messages, tool_results=tool_results
+    )
+    head = (
+        "Инструменты в этом ходе **уже вернули непустой результат** "
+        "(list_directory / terminal). Утверждение «tools пустые / workspace пуст / "
+        "глухая среда» — ошибка модели, а не инфраструктуры.\n\n"
+        "Ниже — фактические ответы tools из этого хода:\n\n"
+    )
+    if evidence:
+        return head + evidence + (
+            "\n\nПродолжаю задачу, опираясь на эти listing'и "
+            "(относительные пути, без `~` / `$HOLIX_HOME`)."
+        )
+    return head + "(listing evidence present but could not be formatted)."
 
 
 def claims_empty_or_deaf_tools(text: str | None) -> bool:
@@ -497,10 +578,15 @@ def _max_nudges_for_turn(
     *,
     final_response: str | None,
     user_input: str | None = None,
+    tool_results: list[dict[str, Any]] | None = None,
 ) -> int:
     user = (user_input or "").strip() or last_user_text(messages)
     if is_sdd_fill_request(user) or claims_sdd_artifacts_filled(final_response):
         return _MAX_SDD_FILL_HONESTY_NUDGES
+    if denies_visible_workspace(
+        final_response, messages, tool_results=tool_results
+    ):
+        return _MAX_WORKSPACE_GROUNDING_NUDGES
     return _MAX_HONESTY_NUDGES
 
 
@@ -539,8 +625,12 @@ def should_nudge_false_completion(
 ) -> bool:
     """Whether to block the final answer and force a tool-use retry."""
     user_input = state.get("user_input") if isinstance(state, dict) else None
+    tool_results = state.get("tool_results") if isinstance(state, dict) else None
     max_nudges = _max_nudges_for_turn(
-        messages, final_response=final_response, user_input=user_input
+        messages,
+        final_response=final_response,
+        user_input=user_input,
+        tool_results=tool_results,
     )
     if int(state.get("honesty_nudge_count") or 0) >= max_nudges:
         return False
@@ -550,24 +640,47 @@ def should_nudge_false_completion(
     if lacks_evidence_for_claim(
         final_response,
         messages,
-        tool_results=state.get("tool_results"),
+        tool_results=tool_results,
         user_input=user_input,
     ):
         return True
     if denies_visible_workspace(
         final_response,
         messages,
-        tool_results=state.get("tool_results") if isinstance(state, dict) else None,
+        tool_results=tool_results,
     ):
         return True
     # SDD fill turn: never end with pure text before any sdd_write_artifact.
     if sdd_fill_requires_tools(
         messages,
-        tool_results=state.get("tool_results"),
+        tool_results=tool_results,
         user_input=user_input,
     ) and (final_response or "").strip():
         return True
     return ends_turn_on_unexecuted_intent(final_response, messages)
+
+
+def should_refuse_false_empty_workspace(
+    state: dict[str, Any],
+    *,
+    final_response: str | None,
+    messages: list[dict[str, Any]] | None,
+) -> bool:
+    """After workspace grounding nudges, replace persistent 'empty tools' lies."""
+    if _plan_mode_skips_honesty(state):
+        return False
+    tool_results = state.get("tool_results") if isinstance(state, dict) else None
+    if not denies_visible_workspace(
+        final_response, messages, tool_results=tool_results
+    ):
+        return False
+    max_nudges = _max_nudges_for_turn(
+        messages,
+        final_response=final_response,
+        user_input=state.get("user_input") if isinstance(state, dict) else None,
+        tool_results=tool_results,
+    )
+    return int(state.get("honesty_nudge_count") or 0) >= max_nudges
 
 
 def should_refuse_unproven_sdd_fill(
@@ -637,10 +750,11 @@ def honesty_refusal_update(
     honesty_nudge_count: int = 0,
     include_assistant: bool = True,
     final_response: str | None = None,
+    refusal: str | None = None,
 ) -> dict[str, Any]:
-    """Replace an unproven SDD success claim with an honest failure final."""
+    """Replace an unproven claim with an honest failure / evidence final."""
     updated = list(messages)
-    refusal = SDD_FILL_HONESTY_REFUSAL
+    body = (refusal or SDD_FILL_HONESTY_REFUSAL).strip()
     last = updated[-1] if updated else None
     if (
         isinstance(last, dict)
@@ -650,21 +764,22 @@ def honesty_refusal_update(
             or (final_response and (last.get("content") or "") == final_response)
             or claims_sdd_artifacts_filled(str(last.get("content") or ""))
             or claims_action_completed(str(last.get("content") or ""))
+            or claims_empty_or_deaf_tools(str(last.get("content") or ""))
         )
     ):
-        updated[-1] = {"role": "assistant", "content": refusal}
+        updated[-1] = {"role": "assistant", "content": body}
     elif include_assistant or not (
         isinstance(last, dict) and last.get("role") == "assistant"
     ):
-        updated.append({"role": "assistant", "content": refusal})
+        updated.append({"role": "assistant", "content": body})
     else:
-        updated[-1] = {"role": "assistant", "content": refusal}
+        updated[-1] = {"role": "assistant", "content": body}
     return {
         "messages": updated,
         "step_count": step_count,
         "is_final": True,
         "tool_calls": [],
-        "final_response": refusal,
+        "final_response": body,
         "honesty_nudge_count": int(honesty_nudge_count),
     }
 

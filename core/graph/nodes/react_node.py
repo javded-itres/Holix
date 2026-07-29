@@ -27,7 +27,9 @@ from core.graph.action_honesty import (
     honesty_retry_update,
     resolve_tool_choice,
     should_nudge_false_completion,
+    should_refuse_false_empty_workspace,
     should_refuse_unproven_sdd_fill,
+    workspace_grounding_refusal_text,
 )
 from core.graph.plan_step import (
     plan_step_active,
@@ -207,8 +209,8 @@ def _maybe_honesty_retry(
         final_response=final_response,
         messages=messages,
     ):
-        logger.info(
-            "Action honesty nudge: blocking unproven completion claim "
+        logger.warning(
+            "Action honesty nudge: blocking unproven/empty-tools claim "
             "(conversation_id=%s)",
             state.get("conversation_id", ""),
         )
@@ -219,6 +221,27 @@ def _maybe_honesty_retry(
             honesty_nudge_count=int(state.get("honesty_nudge_count") or 0),
             include_assistant=not assistant_already_appended,
             user_input=state.get("user_input"),
+        )
+    if should_refuse_false_empty_workspace(
+        state,
+        final_response=final_response,
+        messages=messages,
+    ):
+        logger.warning(
+            "Action honesty refusal: model denied visible tool listings "
+            "(conversation_id=%s)",
+            state.get("conversation_id", ""),
+        )
+        return honesty_refusal_update(
+            messages=messages,
+            step_count=step_count,
+            honesty_nudge_count=int(state.get("honesty_nudge_count") or 0),
+            include_assistant=not assistant_already_appended,
+            final_response=final_response,
+            refusal=workspace_grounding_refusal_text(
+                messages,
+                tool_results=state.get("tool_results"),
+            ),
         )
     if should_refuse_unproven_sdd_fill(
         state,

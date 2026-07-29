@@ -396,3 +396,48 @@ def test_empty_claim_without_listing_is_not_workspace_nudge() -> None:
     assert claims_empty_or_deaf_tools(claim)
     assert not has_successful_workspace_listing(messages)
     assert not denies_visible_workspace(claim, messages)
+
+
+def test_empty_result_phrase_and_hard_refusal() -> None:
+    from core.graph.action_honesty import (
+        should_refuse_false_empty_workspace,
+        workspace_grounding_refusal_text,
+    )
+
+    claim = (
+        "инструменты в этом сеансе упрямо возвращают пустой результат — "
+        "и read_file, и run_terminal_command"
+    )
+    messages = [
+        {"role": "user", "content": "openspec"},
+        {
+            "role": "assistant",
+            "content": "",
+            "tool_calls": [
+                {
+                    "id": "c1",
+                    "type": "function",
+                    "function": {"name": "list_directory", "arguments": "{}"},
+                }
+            ],
+        },
+        {
+            "role": "tool",
+            "tool_call_id": "c1",
+            "name": "list_directory",
+            "content": (
+                "Contents of workspace:\n"
+                "[DIR]  it-resources-site\n"
+                "[DIR]  openspec"
+            ),
+        },
+    ]
+    assert claims_empty_or_deaf_tools(claim)
+    assert denies_visible_workspace(claim, messages)
+    state = {"honesty_nudge_count": 2}
+    assert should_refuse_false_empty_workspace(
+        state, final_response=claim, messages=messages
+    )
+    text = workspace_grounding_refusal_text(messages)
+    assert "it-resources-site" in text
+    assert "openspec" in text
