@@ -16,6 +16,10 @@ _workspace_jail_enabled: ContextVar[bool] = ContextVar("holix_workspace_jail_ena
 _full_paths_visible: ContextVar[bool] = ContextVar("holix_full_paths_visible", default=True)
 _profile_name: ContextVar[str] = ContextVar("holix_profile_name", default="default")
 _agent_emit: ContextVar[Any] = ContextVar("holix_agent_emit", default=None)
+# Cooperative cancel: asyncio.Event set when the run should stop between tools.
+_cancel_event: ContextVar[Any] = ContextVar("holix_cancel_event", default=None)
+# Unattended (cron / background) — stricter tool policy.
+_unattended_mode: ContextVar[bool] = ContextVar("holix_unattended_mode", default=False)
 
 
 def get_conversation_id() -> str:
@@ -96,6 +100,43 @@ def reset_chat_delivery_scope(token) -> None:
 
 def get_agent_emit() -> Any | None:
     return _agent_emit.get()
+
+
+def get_cancel_event() -> Any | None:
+    """Return the run cancel Event if one is bound for this context."""
+    return _cancel_event.get()
+
+
+def is_run_cancelled() -> bool:
+    """True when cooperative cancel was requested for the current run."""
+    ev = _cancel_event.get()
+    if ev is None:
+        return False
+    try:
+        return bool(ev.is_set())
+    except Exception:
+        return False
+
+
+def cancel_scope(cancel_event: Any | None):
+    """Bind a cancel Event for the duration of a run (token for reset)."""
+    return _cancel_event.set(cancel_event)
+
+
+def reset_cancel_scope(token) -> None:
+    _cancel_event.reset(token)
+
+
+def is_unattended_mode() -> bool:
+    return bool(_unattended_mode.get())
+
+
+def unattended_scope(*, unattended: bool = True):
+    return _unattended_mode.set(bool(unattended))
+
+
+def reset_unattended_scope(token) -> None:
+    _unattended_mode.reset(token)
 
 
 def agent_emit_scope(emit_fn: Any):

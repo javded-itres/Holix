@@ -172,7 +172,9 @@ def resolve_model_slot_binding(
             prefix = f"prov:{prov.name}:"
             if slot.startswith(prefix):
                 model_id = slot[len(prefix) :]
-                if model_id in (prov.models or []):
+                # Accept even if not currently in available_models (menu may be
+                # filtered later); the slot id is the source of truth.
+                if model_id:
                     return str(prov.name), str(model_id)
     except Exception:
         pass
@@ -222,14 +224,23 @@ def sync_custom_type_profile_bindings(
     config.mcp_assignments = mcp_assigns
 
     model_slot = (custom.model_slot or "").strip()
+    agent_models = dict(getattr(config, "agent_models", None) or {})
     if model_slot and model_slot.lower() not in ("main", "default", "inherit", "parent"):
         resolved = resolve_model_slot_binding(profile, model_slot)
         if resolved:
-            agent_models = dict(getattr(config, "agent_models", None) or {})
-            agent_models[model_slot] = {
+            entry = {
                 "provider": resolved[0],
                 "model": resolved[1],
             }
+            # Slot id (prov:litellm:…) and type name both map to the same model
+            # so spawn can resolve via either path.
+            agent_models[model_slot] = entry
+            agent_models[agent_slot] = entry
+            config.agent_models = agent_models
+    else:
+        # Inherit main: drop previous type-level override if present.
+        if agent_slot in agent_models and agent_slot != "main":
+            del agent_models[agent_slot]
             config.agent_models = agent_models
 
     manager.save_profile(profile, config)

@@ -183,6 +183,21 @@ def ensure_resource_profile(resource_profile: str, expected_profile: str) -> Non
         raise HTTPException(status_code=404, detail="Not found")
 
 
+def ensure_key_profile_allowed(key_info: dict, profile: str) -> None:
+    """Reject when API key is not allowed to use *profile* (audit #5).
+
+    Returns 403 so callers know it is a permission issue, not a missing resource.
+    """
+    from core.security.permissions import key_allows_profile
+
+    if key_allows_profile(key_info, profile):
+        return
+    raise HTTPException(
+        status_code=403,
+        detail=f"API key is not allowed to access profile '{profile}'",
+    )
+
+
 def _state_fallback(name: str):
     from api import state
 

@@ -16,6 +16,7 @@ class RunStatus(StrEnum):
     RUNNING = "running"
     COMPLETED = "completed"
     FAILED = "failed"
+    CANCELLING = "cancelling"
     CANCELLED = "cancelled"
     WAITING_APPROVAL = "waiting_approval"
 
@@ -39,6 +40,8 @@ class RunRecord:
     _cancel: asyncio.Event = field(default_factory=asyncio.Event)
     _approval: asyncio.Event = field(default_factory=asyncio.Event)
     approval_payload: dict[str, Any] | None = None
+    # Live asyncio.Task for the run worker (set by API layer; not serialized).
+    _task: asyncio.Task | None = field(default=None, repr=False, compare=False)
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -109,6 +112,11 @@ class RunsStore:
         return run
 
     def request_cancel(self, run_id: str) -> bool:
+        """Signal cancel. Status becomes CANCELLING until the worker finishes.
+
+        Does **not** claim CANCELLED immediately — the executing task may still
+        be running tools; see API task.cancel() for cooperative stop.
+        """
         run = self._runs.get(run_id)
         if run is None:
             return False
@@ -119,10 +127,25 @@ class RunsStore:
             RunStatus.RUNNING,
             RunStatus.WAITING_APPROVAL,
         }:
-            run.status = RunStatus.CANCELLED
-            run.last_event = "run.cancelled"
+            run.status = RunStatus.CANCELLING
+            run.last_event = "run.cancelling"
+            run.events.append({"type": "run.cancelling"})
+        # Best-effort: cancel the asyncio.Task if the API layer attached one.
+        task = run._task
+        if task is not None and not task.done():
+            task.cancel()
         run.updated_at = time.time()
         return True
+
+    def mark_cancelled(self, run_id: str) -> None:
+        """Transition to CANCELLED after the worker has actually stopped."""
+        run = self._runs.get(run_id)
+        if run is None:
+            return
+        run.status = RunStatus.CANCELLED
+        run.last_event = "run.cancelled"
+        run.updated_at = time.time()
+        run.events.append({"type": "run.cancelled"})
 
     def resolve_approval(self, run_id: str, decision: dict[str, Any]) -> bool:
         run = self._runs.get(run_id)
@@ -139,6 +162,7 @@ class RunsStore:
             RunStatus.COMPLETED,
             RunStatus.FAILED,
             RunStatus.CANCELLED,
+            # CANCELLING is not terminal — worker may still be finishing.
         }
         for rid in list(self._runs):
             run = self._runs[rid]

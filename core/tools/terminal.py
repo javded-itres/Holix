@@ -71,6 +71,73 @@ def _format_process_result(
     return f"Error (exit code {returncode}):\nSTDOUT:\n{output}\nSTDERR:\n{error}"
 
 
+def _spawn_kwargs() -> dict:
+    """Kwargs so children can be killed as a process group on POSIX."""
+    kwargs = dict(subprocess_shell_kwargs())
+    if not IS_WINDOWS:
+        # New session → killpg works for shell pipelines.
+        kwargs["start_new_session"] = True
+    return kwargs
+
+
+async def _kill_process_tree(process: asyncio.subprocess.Process) -> None:
+    if process.returncode is not None:
+        return
+    try:
+        if not IS_WINDOWS and process.pid:
+            try:
+                os.killpg(process.pid, 9)
+            except (ProcessLookupError, PermissionError, OSError):
+                process.kill()
+        else:
+            process.kill()
+    except ProcessLookupError:
+        return
+    try:
+        await asyncio.wait_for(process.wait(), timeout=1.0)
+    except (TimeoutError, ProcessLookupError):
+        pass
+
+
+async def _communicate_with_cancel(
+    process: asyncio.subprocess.Process,
+    *,
+    timeout: float,
+) -> tuple[bytes, bytes]:
+    """Wait for process output, honouring cooperative cancel and hard timeout."""
+    from core.tools.execution_context import is_run_cancelled
+
+    comm = asyncio.create_task(process.communicate())
+    loop = asyncio.get_running_loop()
+    deadline = loop.time() + max(0.1, float(timeout))
+    poll = 0.2
+
+    try:
+        while not comm.done():
+            if is_run_cancelled():
+                await _kill_process_tree(process)
+                raise asyncio.CancelledError("run cancelled")
+
+            remaining = deadline - loop.time()
+            if remaining <= 0:
+                await _kill_process_tree(process)
+                raise TimeoutError()
+
+            wait_s = min(poll, remaining)
+            try:
+                return await asyncio.wait_for(asyncio.shield(comm), timeout=wait_s)
+            except TimeoutError:
+                continue
+        return await comm
+    finally:
+        if not comm.done():
+            comm.cancel()
+            try:
+                await comm
+            except (asyncio.CancelledError, Exception):
+                pass
+
+
 class TerminalTool(BaseTool):
     """Tool for executing terminal commands safely."""
 
@@ -88,15 +155,15 @@ class TerminalTool(BaseTool):
             "properties": {
                 "command": {
                     "type": "string",
-                    "description": "The terminal command to execute"
+                    "description": "The terminal command to execute",
                 },
                 "timeout": {
                     "type": "integer",
                     "description": "Timeout in seconds (default: 30)",
-                    "default": 30
-                }
+                    "default": 30,
+                },
             },
-            "required": ["command"]
+            "required": ["command"],
         }
 
     async def execute(self, command: str, timeout: int = 30) -> str:
@@ -106,6 +173,11 @@ class TerminalTool(BaseTool):
         """
         if not settings.enable_terminal_tool:
             return "Error: Terminal tool is disabled (HOLIX_ENABLE_TERMINAL_TOOL=false)"
+
+        from core.tools.execution_context import is_run_cancelled
+
+        if is_run_cancelled():
+            return "Error: Run cancelled — terminal command not started."
 
         if terminal_whitelist_enabled():
             command_whitelist.apply_extra(terminal_whitelist_extra())
@@ -138,10 +210,13 @@ class TerminalTool(BaseTool):
                 return f"Error: Command blocked. {jail_reason}"
 
             if jail and root is None:
-                return "Error: Workspace jail is enabled but no workspace root is configured."
+                return (
+                    "Error: Workspace jail is enabled but no workspace root is configured."
+                )
 
             cwd: str | None = str(root) if root is not None else None
             use_shell = command_needs_shell(command)
+            spawn_kw = _spawn_kwargs()
 
             if use_shell:
                 process = await asyncio.create_subprocess_shell(
@@ -149,7 +224,7 @@ class TerminalTool(BaseTool):
                     stdout=asyncio.subprocess.PIPE,
                     stderr=asyncio.subprocess.PIPE,
                     cwd=cwd,
-                    **subprocess_shell_kwargs(),
+                    **spawn_kw,
                 )
             else:
                 try:
@@ -165,13 +240,12 @@ class TerminalTool(BaseTool):
                     stdout=asyncio.subprocess.PIPE,
                     stderr=asyncio.subprocess.PIPE,
                     cwd=cwd,
-                    **subprocess_shell_kwargs(),
+                    **spawn_kw,
                 )
 
             try:
-                stdout, stderr = await asyncio.wait_for(
-                    process.communicate(),
-                    timeout=timeout
+                stdout, stderr = await _communicate_with_cancel(
+                    process, timeout=float(timeout or 30)
                 )
 
                 output = sanitize_paths_in_text(
@@ -187,8 +261,11 @@ class TerminalTool(BaseTool):
                 )
 
             except TimeoutError:
-                process.kill()
+                await _kill_process_tree(process)
                 return f"Error: Command timed out after {timeout} seconds"
+            except asyncio.CancelledError:
+                await _kill_process_tree(process)
+                return "Error: Run cancelled — terminal command terminated."
 
         except Exception as e:
             return f"Error executing command: {str(e)}"

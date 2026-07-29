@@ -30,10 +30,18 @@ class APIKeyManager:
                     last_used DATETIME,
                     is_active BOOLEAN DEFAULT 1,
                     rate_limit INTEGER DEFAULT 100,
-                    permissions TEXT DEFAULT 'read,write'
+                    permissions TEXT DEFAULT 'read,write',
+                    allowed_profiles TEXT
                 )
                 """
             )
+            # Migrate older DBs that predate allowed_profiles.
+            try:
+                await db.execute(
+                    "ALTER TABLE api_keys ADD COLUMN allowed_profiles TEXT"
+                )
+            except Exception:
+                pass  # column already exists
             await db.execute(
                 "CREATE INDEX IF NOT EXISTS idx_key_hash ON api_keys(key_hash)"
             )
@@ -63,18 +71,27 @@ class APIKeyManager:
         name: str,
         permissions: str = "read,write",
         rate_limit: int | None = None,
+        allowed_profiles: str | list[str] | None = None,
     ) -> str:
         api_key = self.generate_api_key()
         key_hash = self.hash_key(api_key)
         limit = rate_limit if rate_limit is not None else settings.rate_limit_rpm
+        if allowed_profiles is None:
+            profiles_raw = None
+        elif isinstance(allowed_profiles, str):
+            profiles_raw = allowed_profiles.strip() or None
+        else:
+            profiles_raw = ",".join(
+                str(p).strip() for p in allowed_profiles if str(p).strip()
+            ) or None
 
         async with connect_aiosqlite(self.db_path) as db:
             await db.execute(
                 """
-                INSERT INTO api_keys (key_hash, name, permissions, rate_limit)
-                VALUES (?, ?, ?, ?)
+                INSERT INTO api_keys (key_hash, name, permissions, rate_limit, allowed_profiles)
+                VALUES (?, ?, ?, ?, ?)
                 """,
-                (key_hash, name, permissions, limit),
+                (key_hash, name, permissions, limit, profiles_raw),
             )
             await db.commit()
 
@@ -90,7 +107,8 @@ class APIKeyManager:
             db.row_factory = aiosqlite.Row
             cursor = await db.execute(
                 """
-                SELECT id, name, permissions, rate_limit, is_active, last_used
+                SELECT id, name, permissions, rate_limit, is_active, last_used,
+                       allowed_profiles
                 FROM api_keys
                 WHERE key_hash = ? AND is_active = 1
                 """,
@@ -103,12 +121,20 @@ class APIKeyManager:
                     (key_hash,),
                 )
                 await db.commit()
+                from core.security.permissions import parse_allowed_profiles
+
+                raw_profiles = None
+                try:
+                    raw_profiles = row["allowed_profiles"]
+                except (KeyError, IndexError):
+                    raw_profiles = None
                 return {
                     "id": row["id"],
                     "name": row["name"],
                     "permissions": row["permissions"].split(","),
                     "rate_limit": row["rate_limit"],
                     "last_used": row["last_used"],
+                    "allowed_profiles": parse_allowed_profiles(raw_profiles),
                 }
         return None
 
@@ -127,24 +153,32 @@ class APIKeyManager:
             db.row_factory = aiosqlite.Row
             cursor = await db.execute(
                 """
-                SELECT id, name, created_at, last_used, is_active, permissions, rate_limit
+                SELECT id, name, created_at, last_used, is_active, permissions,
+                       rate_limit, allowed_profiles
                 FROM api_keys
                 ORDER BY created_at DESC
                 """
             )
             rows = await cursor.fetchall()
-            return [
-                {
-                    "id": row["id"],
-                    "name": row["name"],
-                    "created_at": row["created_at"],
-                    "last_used": row["last_used"],
-                    "is_active": bool(row["is_active"]),
-                    "permissions": row["permissions"],
-                    "rate_limit": row["rate_limit"],
-                }
-                for row in rows
-            ]
+            out = []
+            for row in rows:
+                try:
+                    ap = row["allowed_profiles"]
+                except (KeyError, IndexError):
+                    ap = None
+                out.append(
+                    {
+                        "id": row["id"],
+                        "name": row["name"],
+                        "created_at": row["created_at"],
+                        "last_used": row["last_used"],
+                        "is_active": bool(row["is_active"]),
+                        "permissions": row["permissions"],
+                        "rate_limit": row["rate_limit"],
+                        "allowed_profiles": ap,
+                    }
+                )
+            return out
 
 
 class RateLimiter:

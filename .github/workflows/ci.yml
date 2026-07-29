@@ -46,7 +46,14 @@ jobs:
 
       - name: Pytest
         shell: bash
-        run: uv run pytest -m "not llm" -q
+        # Surface unawaited coroutines from subagent lifecycle (audit #8).
+        # error::RuntimeWarning is applied only to our packages' unawaited
+        # coroutine pattern via -W; full "error" is too noisy for third-party.
+        env:
+          PYTHONWARNINGS: default::RuntimeWarning
+        run: >
+          uv run pytest -m "not llm" -q
+          -W default::RuntimeWarning
 
       - name: Doctor (dry run)
         shell: bash

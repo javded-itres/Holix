@@ -14,6 +14,7 @@ from fastapi.responses import StreamingResponse
 
 from api.deps import (
     RequestContext,
+    ensure_key_profile_allowed,
     ensure_resource_profile,
     resolve_profile_name,
     verify_api_key,
@@ -68,6 +69,7 @@ def _resolve_ctx(
     session_key = _validate_session_key(
         _header_alias(x_holix_session_key, x_hermes_session_key)
     )
+    ensure_key_profile_allowed(key_info, profile)
     return RequestContext(
         profile=profile,
         conversation_id=session_id,
@@ -93,6 +95,7 @@ async def list_models(
         model=None,
         host_profile=host,
     )
+    ensure_key_profile_allowed(key_info, profile)
     data = await list_profile_models(profile, refresh=refresh)
     return {"object": "list", "data": data}
 
@@ -328,14 +331,18 @@ async def _execute_run(
         return
 
     run_id = record.run_id
+    from core.tools.execution_context import cancel_scope, reset_cancel_scope
+
+    cancel_token = cancel_scope(record._cancel)
     try:
+        if record._cancel.is_set():
+            runs.mark_cancelled(run_id)
+            return
         _set_run_status(runs, run_id, RunStatus.RUNNING, last_event="run.running")
         agent = await registry.get_agent(record.profile)
         async with locks.agent_request:
             if record._cancel.is_set():
-                _set_run_status(
-                    runs, run_id, RunStatus.CANCELLED, last_event="run.cancelled"
-                )
+                runs.mark_cancelled(run_id)
                 return
             with gateway_agent_path_visibility_for_admin(agent, is_admin=is_admin):
                 output = await agent.run(
@@ -343,9 +350,7 @@ async def _execute_run(
                     conversation_id=record.session_id or "default",
                 )
         if record._cancel.is_set():
-            _set_run_status(
-                runs, run_id, RunStatus.CANCELLED, last_event="run.cancelled"
-            )
+            runs.mark_cancelled(run_id)
             return
         _set_run_status(
             runs,
@@ -356,11 +361,12 @@ async def _execute_run(
             usage={"input_tokens": 0, "output_tokens": 0, "total_tokens": 0},
         )
         runs.append_event(run_id, {"type": "run.completed", "output": output})
+    except asyncio.CancelledError:
+        runs.mark_cancelled(run_id)
+        raise
     except Exception as exc:
         if record._cancel.is_set():
-            _set_run_status(
-                runs, run_id, RunStatus.CANCELLED, last_event="run.cancelled"
-            )
+            runs.mark_cancelled(run_id)
             return
         _set_run_status(
             runs,
@@ -370,6 +376,8 @@ async def _execute_run(
             error=str(exc),
         )
         runs.append_event(run_id, {"type": "run.failed", "error": str(exc)})
+    finally:
+        reset_cancel_scope(cancel_token)
 
 
 @router.post("/runs", status_code=202)
@@ -400,7 +408,8 @@ async def create_run(
         host_profile=str(host_profile),
     )
     checker = PermissionChecker(key_info["permissions"])
-    if not checker.can_execute() and not checker.can_read():
+    # Read-only keys must not create runs (audit: was ``not exec and not read``).
+    if not checker.can_execute():
         raise HTTPException(status_code=403, detail="Execute permission required")
 
     runs = runs_store
@@ -415,7 +424,7 @@ async def create_run(
         instructions=body.instructions,
     )
     runs.update(record.run_id, last_event="run.started")
-    asyncio.create_task(
+    task = asyncio.create_task(
         _execute_run(
             record,
             registry,
@@ -424,6 +433,7 @@ async def create_run(
             is_admin=checker.is_admin(),
         )
     )
+    record._task = task
     return {"run_id": record.run_id, "status": record.status.value}
 
 
@@ -488,6 +498,7 @@ async def run_events(
             }:
                 yield f"data: {json.dumps({'type': 'run.terminal', 'status': record.status.value})}\n\n"
                 break
+            # CANCELLING is non-terminal: keep streaming until CANCELLED/COMPLETED/FAILED
             await asyncio.sleep(0.25)
 
     return StreamingResponse(

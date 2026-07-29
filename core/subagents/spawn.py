@@ -2,11 +2,14 @@
 
 from __future__ import annotations
 
+import logging
 from typing import Any
 
 from core.platform_compat import prefer_async_subagents, process_subagents_supported
 from core.subagents.base import ProcessMode, SubAgentConfig
 from core.subagents.registry import get_subagent_config
+
+logger = logging.getLogger(__name__)
 
 
 def _inject_external_cli_tools(
@@ -41,6 +44,83 @@ def resolve_process_mode(parent_config: Any) -> ProcessMode:
     return ProcessMode.ASYNC
 
 
+def resolve_subagent_model_id(
+    parent_config: Any,
+    profile: str,
+    model_slot: str,
+) -> str | None:
+    """Resolve a Studio/CLI model slot to a concrete model id for sub-agent spawn.
+
+    Empty / main / inherit → None (caller keeps parent model).
+
+    Important: do **not** use ``ModelManager.get_agent_model_config(slot)`` when
+    ``slot`` is missing from ``agent_models`` — that helper falls back to the
+    profile default (e.g. smart), so Studio ``prov:litellm:…`` picks never apply.
+    """
+    slot = (model_slot or "").strip()
+    if not slot or slot.lower() in ("main", "default", "inherit", "parent"):
+        return None
+
+    from core.models.manager import ModelManager
+    from core.subagents.store import resolve_model_slot_binding
+
+    mm = ModelManager(parent_config)
+    agent_models = getattr(parent_config, "agent_models", None) or {}
+
+    # 1) Explicit agent_models entry for this slot (only when key exists).
+    if slot in agent_models:
+        try:
+            mc = mm.get_agent_model_config(slot)
+            if mc and (mc.model or "").strip():
+                return str(mc.model).strip()
+        except Exception:
+            logger.debug(
+                "agent_models lookup failed for slot %r", slot, exc_info=True
+            )
+
+    # 2) Studio provider slots and named presets (reads profile menu from disk).
+    binding = resolve_model_slot_binding(profile, slot)
+    if binding:
+        provider, model_id = binding
+        try:
+            pmc = mm.get_provider_model_config(provider, model_id=model_id)
+            if pmc and (pmc.model or "").strip():
+                return str(pmc.model).strip()
+        except Exception:
+            logger.debug(
+                "provider model config failed for %s/%s",
+                provider,
+                model_id,
+                exc_info=True,
+            )
+        if model_id:
+            return str(model_id).strip()
+
+    # 3) Bare model id already (e.g. "kimi-k2.7-code") if known on a provider.
+    providers = getattr(parent_config, "providers", None) or {}
+    for pname, pdata in providers.items():
+        if not isinstance(pdata, dict):
+            continue
+        available = pdata.get("available_models") or []
+        default_model = pdata.get("default_model") or ""
+        if slot == default_model or slot in available:
+            try:
+                pmc = mm.get_provider_model_config(pname, model_id=slot)
+                if pmc and (pmc.model or "").strip():
+                    return str(pmc.model).strip()
+            except Exception:
+                pass
+            return slot
+
+    logger.warning(
+        "Could not resolve sub-agent model_slot %r for profile %r — "
+        "inheriting parent model",
+        slot,
+        profile,
+    )
+    return None
+
+
 def prepare_subagent_config(
     agent_type: str,
     parent_config: Any,
@@ -61,32 +141,28 @@ def prepare_subagent_config(
     if not cfg.mcp_servers and agent_type in mcp_assigns:
         cfg.mcp_servers = list(mcp_assigns[agent_type])
 
-    from core.subagents.store import SubAgentTypeStore, resolve_model_slot_binding
+    from core.subagents.store import SubAgentTypeStore
 
     custom = SubAgentTypeStore(profile).get(agent_type)
     # Empty / main → inherit parent model (cfg.model stays unset)
     if custom and (custom.model_slot or "").strip():
         slot = (custom.model_slot or "").strip()
-        if slot.lower() not in ("main", "default", "inherit", "parent"):
-            try:
-                from core.models.manager import ModelManager
-
-                mc = ModelManager(parent_config).get_agent_model_config(slot)
-                if mc and mc.model:
-                    cfg.model = mc.model
-                else:
-                    binding = resolve_model_slot_binding(profile, slot)
-                    if binding:
-                        provider, model_id = binding
-                        pmc = ModelManager(parent_config).get_provider_model_config(
-                            provider, model_id=model_id
-                        )
-                        if pmc and pmc.model:
-                            cfg.model = pmc.model
-                        else:
-                            cfg.model = model_id
-            except Exception:
-                pass
+        try:
+            resolved = resolve_subagent_model_id(parent_config, profile, slot)
+            if resolved:
+                cfg.model = resolved
+                logger.info(
+                    "Sub-agent %s model_slot %r → model %r",
+                    agent_type,
+                    slot,
+                    resolved,
+                )
+        except Exception:
+            logger.exception(
+                "Failed to resolve model_slot %r for sub-agent %s",
+                slot,
+                agent_type,
+            )
 
     tools = list(cfg.tools or [])
     if "ask_user" not in tools:

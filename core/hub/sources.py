@@ -54,6 +54,12 @@ def parse_install_source(spec: str, *, as_name: str | None = None) -> ParsedSour
         return ParsedSource("git", spec[4:].strip(), as_name=as_name)
 
     if spec.startswith(("http://", "https://")):
+        # Audit #7: never fetch skills/extensions over plain HTTP.
+        if spec.startswith("http://"):
+            raise ValueError(
+                "Insecure HTTP install sources are not allowed; use HTTPS "
+                f"(got {spec!r})"
+            )
         if spec.rstrip("/").endswith("SKILL.md"):
             return ParsedSource("url", spec, as_name=as_name)
         return ParsedSource("git", spec, as_name=as_name)

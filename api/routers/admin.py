@@ -19,14 +19,26 @@ async def create_api_key_endpoint(
     name: str,
     permissions: str = "read,write",
     rate_limit: int = 100,
+    allowed_profiles: str | None = None,
     admin_key: dict = Depends(verify_admin_key),
 ):
-    api_key = await manager.create_api_key(name, permissions, rate_limit)
+    """Create a gateway API key.
+
+    ``allowed_profiles`` — optional comma-separated profile allowlist.
+    Empty/omitted means all profiles (legacy). Admin keys always bypass.
+    """
+    api_key = await manager.create_api_key(
+        name,
+        permissions,
+        rate_limit,
+        allowed_profiles=allowed_profiles,
+    )
     return {
         "api_key": api_key,
         "name": name,
         "permissions": permissions,
         "rate_limit": rate_limit,
+        "allowed_profiles": allowed_profiles,
         "warning": "Save this API key securely. It will not be shown again!",
     }
 

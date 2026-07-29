@@ -111,3 +111,68 @@ def test_prepare_subagent_custom_mcp_and_cli(holix_home, monkeypatch: pytest.Mon
     cfg = prepare_subagent_config("ops-runner", parent, instance_name="ops-runner")
     assert "filesystem" in cfg.mcp_servers
     assert "external_cli" in cfg.tools
+
+def test_prepare_subagent_applies_provider_model_slot(
+    holix_home, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Studio model_slot prov:provider:model must not fall back to default model."""
+    from types import SimpleNamespace
+
+    from core.subagents.spawn import resolve_subagent_model_id
+
+    custom = CustomSubAgentType(
+        name="kimi-worker",
+        description="Uses kimi",
+        system_prompt="You code carefully with tests.",
+        model_slot="prov:litellm:kimi-k2.7-code",
+    )
+    SubAgentTypeStore("default").upsert(custom)
+
+    parent = SimpleNamespace(
+        subagent_default_process_mode="async",
+        subagent_process_timeout=None,
+        profile_name="default",
+        mcp_assignments={},
+        agent_models={},  # empty — old bug used get_agent_model_config → default
+        providers={
+            "litellm": {
+                "base_url": "https://llm.example/v1",
+                "api_key": "sk-test",
+                "default_model": "smart",
+                "available_models": [
+                    "smart",
+                    "kimi-k2.7-code",
+                    "deepseek-v4-pro",
+                ],
+            }
+        },
+        default_provider="litellm",
+        model="smart",
+        base_url="https://llm.example/v1",
+        api_key="sk-test",
+        temperature=0.7,
+    )
+
+    # Direct resolver must return kimi, not smart
+    assert (
+        resolve_subagent_model_id(parent, "default", "prov:litellm:kimi-k2.7-code")
+        == "kimi-k2.7-code"
+    )
+    assert resolve_subagent_model_id(parent, "default", "main") is None
+    assert resolve_subagent_model_id(parent, "default", "") is None
+
+    cfg = prepare_subagent_config("kimi-worker", parent, instance_name="kimi-worker")
+    assert cfg.model == "kimi-k2.7-code"
+
+    # With empty model_slot — inherit (no model override)
+    custom2 = CustomSubAgentType(
+        name="inherit-worker",
+        description="Inherit",
+        system_prompt="You help with general tasks carefully.",
+        model_slot="",
+    )
+    SubAgentTypeStore("default").upsert(custom2)
+    cfg2 = prepare_subagent_config(
+        "inherit-worker", parent, instance_name="inherit-worker"
+    )
+    assert not cfg2.model

@@ -44,6 +44,57 @@ class RiskLevel(StrEnum):
 # Ordering for comparison: NO < LOW < MEDIUM < HIGH
 _RISK_ORDER = {RiskLevel.NO: 0, RiskLevel.LOW: 1, RiskLevel.MEDIUM: 2, RiskLevel.HIGH: 3}
 
+# Universal interpreters / package runners that can bypass text jail filters
+# when auto-approved in cron (audit #6).
+_UNATTENDED_BLOCKED_TOOLS = frozenset(
+    {
+        "execute_python",
+        "code_executor",
+    }
+)
+_UNATTENDED_BLOCKED_TERMINAL_BINS = frozenset(
+    {
+        "python",
+        "python3",
+        "py",
+        "node",
+        "nodejs",
+        "npm",
+        "npx",
+        "uv",
+        "pip",
+        "pip3",
+        "deno",
+        "bun",
+        "ruby",
+        "perl",
+        "php",
+    }
+)
+
+
+def _unattended_tool_block_reason(
+    tool_name: str,
+    arguments: dict[str, Any] | None,
+) -> str | None:
+    """Return a short reason if *tool* must not run unattended, else None."""
+    name = (tool_name or "").strip()
+    if name in _UNATTENDED_BLOCKED_TOOLS:
+        return "code execution tools are not allowed unattended"
+    if name in {"run_terminal_command", "terminal"}:
+        cmd = str((arguments or {}).get("command") or "").strip().lower()
+        if not cmd:
+            return None
+        # First non-assignment token ≈ binary
+        for token in cmd.replace("\n", " ").split():
+            if "=" in token and not token.startswith("="):
+                continue
+            base = token.rsplit("/", 1)[-1]
+            if base in _UNATTENDED_BLOCKED_TERMINAL_BINS:
+                return f"interpreter '{base}' is not allowed unattended"
+            break
+    return None
+
 
 @dataclass
 class RiskAssessment:
@@ -551,13 +602,39 @@ class ActionGuard:
         # Step 1: Classify risk
         assessment = self._risk_classifier.classify(tool_name, tool_instance, arguments)
 
-        # Step 1.5: Headless / plan execution — skip confirmation prompts
+        # Step 1.25: Unattended policy — block universal interpreters (audit #6).
+        # In cron/background, python/node/uv can escape text-based jail filters.
         if self._auto_approve_background:
+            blocked = _unattended_tool_block_reason(tool_name, arguments)
+            if blocked:
+                self._log_audit(
+                    "blocked_unattended_interpreter",
+                    assessment,
+                    blocked,
+                )
+                return (
+                    f"Error: Tool '{tool_name}' is blocked in unattended/cron mode "
+                    f"({blocked}). Use interactive session or grant a stored permission "
+                    f"for a safer alternative."
+                )
+
+        # Step 1.5: Headless / plan execution shortcuts
+        if self._auto_approve_background:
+            # Cron/background is intentionally unattended — still log the bypass.
             self._log_audit("auto_approved_background", assessment, "background_run")
             return await execute_fn(**arguments)
         if self._auto_approve_plan_execution:
-            self._log_audit("auto_approved_plan_execution", assessment, "plan_execution_mode")
-            return await execute_fn(**arguments)
+            # Plan approval is natural-language only: auto-allow read/low/medium,
+            # but HIGH tools (terminal, execute_python, …) still need confirmation
+            # so a plan is not a blanket grant (audit #2).
+            if assessment.risk_level != RiskLevel.HIGH:
+                self._log_audit(
+                    "auto_approved_plan_execution",
+                    assessment,
+                    "plan_execution_mode",
+                )
+                return await execute_fn(**arguments)
+            # fall through — HIGH requires confirmation / stored permission
 
         # Step 2: Check if auto-allowed by config threshold
         if _RISK_ORDER.get(assessment.risk_level, 0) <= _RISK_ORDER.get(self._auto_allow_threshold, 1):

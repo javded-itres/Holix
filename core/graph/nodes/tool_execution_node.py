@@ -42,6 +42,31 @@ async def tool_execution_node(state: HolixGraphState, config: RunnableConfig) ->
     tool_results = []
 
     for tc_data in tool_calls:
+        # Cooperative cancel between tool calls (audit #3).
+        try:
+            from core.tools.execution_context import is_run_cancelled
+
+            if is_run_cancelled():
+                messages.append(
+                    {
+                        "role": "tool",
+                        "tool_call_id": tc_data.get("id", ""),
+                        "content": "Error: Run cancelled — tool not executed.",
+                    }
+                )
+                tool_results.append(
+                    {
+                        "tool_name": tc_data.get("function", {}).get("name", ""),
+                        "tool_id": tc_data.get("id", ""),
+                        "result": "Error: Run cancelled — tool not executed.",
+                        "duration_ms": 0,
+                        "cancelled": True,
+                    }
+                )
+                continue
+        except Exception:
+            pass
+
         tool_name = tc_data.get("function", {}).get("name", "")
         tool_id = tc_data.get("id", "")
         tc_data.get("function", {}).get("arguments", "")

@@ -296,6 +296,12 @@ class ToolRegistry:
             profile_unlock_scope(profile=self._profile_name, dek=dek) if dek is not None else []
         )
         try:
+            from core.tools.execution_context import is_run_cancelled
+
+            if is_run_cancelled():
+                return sanitize_paths_in_text(
+                    f"Error: Run cancelled — tool '{tool_name}' not executed."
+                )
             # Gate with ActionGuard if installed
             try:
                 if self._action_guard:

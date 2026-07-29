@@ -2,6 +2,30 @@
 
 ## Unreleased
 
+## 1.0.1 — 2026-07-29
+
+Patch release focused on **tool isolation**, **gateway security**, and **cooperative cancel** so Studio/agent runs fail closed on secrets and stay killable.
+
+### Fixed
+
+- **`execute_python`** — runs in a **subprocess** with restricted builtins; safe `__import__` for allowlisted modules (fixes `ImportError: __import__ not found`); cooperative cancel + hard timeout kill process tree
+- **Terminal cancel** — `run_terminal_command` honours run cancellation and kills the process group on cancel/timeout
+- **Workspace jail** — absolute paths under the profile workspace allowed when jail root is set; profile secrets / `$HOLIX_HOME` / caches stay blocked
+- **Hub HTTPS** — hub source fetch prefers HTTPS and records commit SHA when available
+- **Subagents** — safer spawn/store handling for custom types and cancel/status paths
+- **Gateway / API keys** — profile-scoped API key permissions; confirmation and permission checks tightened for unattended / high-risk tools
+- **Hermes runs** — run status transitions and cancel semantics (avoid marking cancelled too early; respect exec/read capability checks)
+
+### Security
+
+- Block shell access to Holix profile directories and secrets even when workspace jail is off
+- Unattended contexts cannot run unrestricted python/node-style tooling without permission
+- Shared permission/confirmation state across parallel agents improved for Studio multi-run
+
+### Tests
+
+- `tests/test_code_executor.py`, `tests/test_terminal_cancel.py`, `tests/test_hub_https.py`, `tests/test_api_key_profile_scope.py`
+
 ## 1.0.0 — 2026-07-25
 
 **First stable major release.** Holix graduates from the 0.1.x beta line to a production-oriented 1.0 API for the agent runtime, extension ecosystem, messenger hosts, and gateway.

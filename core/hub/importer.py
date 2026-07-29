@@ -335,10 +335,25 @@ class SkillImporter:
     ) -> InstallResult:
         folder = _safe_dir_name(url)
         cloned = clone_or_update_git(url, folder)
-        if ref:
-            from core.mcp.installer import _run
+        from core.mcp.installer import _run
 
+        if ref:
             _run(["git", "-C", str(cloned), "checkout", ref], check=False)
+
+        # Record resolved commit SHA for supply-chain traceability (audit #7).
+        commit_sha: str | None = None
+        try:
+            proc = _run(
+                ["git", "-C", str(cloned), "rev-parse", "HEAD"],
+                check=False,
+                capture=True,
+            )
+            out = getattr(proc, "stdout", None) or ""
+            if isinstance(out, bytes):
+                out = out.decode("utf-8", errors="replace")
+            commit_sha = (out or "").strip() or None
+        except Exception:
+            commit_sha = None
 
         src = cloned
         if subpath:
@@ -351,6 +366,7 @@ class SkillImporter:
             flat=flat,
             slug_hint=slug_hint or folder,
             install_spec=install_spec or source_label or url,
+            version=commit_sha,
         )
 
     def _install_url(
@@ -361,6 +377,10 @@ class SkillImporter:
         flat: bool,
         install_spec: str,
     ) -> InstallResult:
+        if (url or "").strip().lower().startswith("http://"):
+            raise ValueError(
+                "Insecure HTTP install sources are not allowed; use HTTPS"
+            )
         req = urllib.request.Request(url, headers={"User-Agent": "Holix/1.0"})
         with urllib.request.urlopen(req, timeout=30) as resp:
             text = resp.read().decode("utf-8")
@@ -390,6 +410,7 @@ class SkillImporter:
         flat: bool,
         slug_hint: str | None = None,
         install_spec: str = "",
+        version: str | None = None,
     ) -> InstallResult:
         src = src.resolve()
         if not src.exists():
@@ -404,7 +425,7 @@ class SkillImporter:
                 bundle_dir,
                 source=source,
                 slug=slug,
-                version=None,
+                version=version,
                 as_name=as_name,
                 flat=flat,
                 entry_id=f"{source}:{slug}",
@@ -421,7 +442,7 @@ class SkillImporter:
                 bundle_dir,
                 source=source,
                 slug=slug,
-                version=None,
+                version=version,
                 as_name=as_name,
                 flat=flat,
                 entry_id=f"{source}:{slug}",

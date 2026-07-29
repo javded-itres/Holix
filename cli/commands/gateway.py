@@ -149,3 +149,125 @@ def gateway_configure(
     from cli.commands.gateway_configure import run_gateway_configure
 
     run_gateway_configure(profile=_profile(ctx), start_after=start)
+
+# ── API keys (gateway auth) ──────────────────────────────────────────────
+
+keys_app = typer.Typer(help="Manage gateway API keys (auth for /v1)", no_args_is_help=True)
+app.add_typer(keys_app, name="keys")
+
+
+def _keys_manager():
+    from core.security.auth import APIKeyManager
+
+    return APIKeyManager()
+
+
+@keys_app.command("create")
+def keys_create(
+    name: str = typer.Option(..., "--name", "-n", help="Key label"),
+    permissions: str = typer.Option(
+        "read,write,execute",
+        "--permissions",
+        "-p",
+        help="Comma list: read,write,execute,admin",
+    ),
+    rate_limit: int = typer.Option(100, "--rate-limit", "-r", help="Requests per minute"),
+    profiles: str = typer.Option(
+        "",
+        "--profiles",
+        help="Comma list of allowed profiles (empty = all profiles)",
+    ),
+):
+    """Create a gateway API key. Print once — not stored in plaintext."""
+    import asyncio
+
+    from cli.utils.rich_console import print_info, print_success, print_warning
+
+    async def _run() -> str:
+        mgr = _keys_manager()
+        await mgr.initialize_db()
+        allowed = profiles.strip() or None
+        return await mgr.create_api_key(
+            name=name,
+            permissions=permissions,
+            rate_limit=rate_limit,
+            allowed_profiles=allowed,
+        )
+
+    try:
+        key = asyncio.run(_run())
+    except Exception as e:
+        print_error(f"Failed to create key: {e}")
+        raise typer.Exit(1) from e
+    print_success(f"Created API key '{name}'")
+    print_info(f"permissions: {permissions}")
+    print_info(f"rate_limit:  {rate_limit}")
+    print_info(f"profiles:    {profiles.strip() or '(all)'}")
+    print_warning("Save this secret now — it will not be shown again:")
+    print(key)
+
+
+@keys_app.command("list")
+def keys_list():
+    """List gateway API keys (metadata only)."""
+    import asyncio
+
+    from rich.console import Console
+    from rich.table import Table
+
+    from cli.utils.rich_console import print_info
+
+    async def _run():
+        mgr = _keys_manager()
+        await mgr.initialize_db()
+        return await mgr.list_api_keys()
+
+    try:
+        rows = asyncio.run(_run())
+    except Exception as e:
+        print_error(f"Failed to list keys: {e}")
+        raise typer.Exit(1) from e
+
+    table = Table(title="Gateway API keys")
+    table.add_column("id")
+    table.add_column("name")
+    table.add_column("permissions")
+    table.add_column("profiles")
+    table.add_column("active")
+    table.add_column("rate")
+    for row in rows:
+        table.add_row(
+            str(row.get("id")),
+            str(row.get("name")),
+            str(row.get("permissions")),
+            str(row.get("allowed_profiles") or "*"),
+            "yes" if row.get("is_active") else "no",
+            str(row.get("rate_limit")),
+        )
+    Console().print(table)
+    print_info(f"{len(rows)} key(s)")
+
+
+@keys_app.command("revoke")
+def keys_revoke(
+    api_key: str = typer.Argument(..., help="Full API key secret (hx_…)"),
+):
+    """Revoke a gateway API key by its secret value."""
+    import asyncio
+
+    from cli.utils.rich_console import print_success
+
+    async def _run() -> bool:
+        mgr = _keys_manager()
+        await mgr.initialize_db()
+        return await mgr.revoke_api_key(api_key)
+
+    try:
+        ok = asyncio.run(_run())
+    except Exception as e:
+        print_error(f"Failed to revoke: {e}")
+        raise typer.Exit(1) from e
+    if not ok:
+        print_error("Key not found or already inactive")
+        raise typer.Exit(1)
+    print_success("API key revoked")
