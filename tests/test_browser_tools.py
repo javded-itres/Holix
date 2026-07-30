@@ -258,7 +258,8 @@ async def test_browser_record_stop():
     finally:
         reset_conversation_scope(token)
 
-    assert result == "Video saved: /data/browser_videos/c1.webm"
+    assert result.startswith("Video saved: ")
+    assert Path(result.removeprefix("Video saved: ")) == Path("/data/browser_videos/c1.webm")
     mgr.return_value.stop_recording.assert_awaited_once_with("c1", keep_session=True)
 
 
