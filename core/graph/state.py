@@ -38,6 +38,8 @@ class HolixGraphState(TypedDict, total=False):
     # Execution control
     step_count: int
     max_steps: int
+    base_max_steps: int                  # Original max_steps before auto-extensions
+    step_budget_extensions: int          # How many times max_steps was auto-extended
     max_steps_per_plan_step: int         # Max ReAct iterations per plan step
     execution_mode: str                  # "react" | "plan_and_execute" | "hybrid"
     is_final: bool                       # True when final response generated

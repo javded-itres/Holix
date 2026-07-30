@@ -35,6 +35,7 @@ class EventType(StrEnum):
     ASSISTANT_DELTA = "assistant_delta"
     FINAL_RESPONSE = "final_response"
     MAX_STEPS_REACHED = "max_steps_reached"
+    MAX_STEPS_EXTENDED = "max_steps_extended"
 
     # Tool execution
     TOOL_CALL_START = "tool_call_start"
@@ -235,6 +236,30 @@ class ToolCallErrorEvent(AgentEvent):
 class MaxStepsReachedEvent(AgentEvent):
     """Agent reached the configured max_steps limit."""
     max_steps: int = 90
+
+
+@dataclass
+class MaxStepsExtendedEvent(AgentEvent):
+    """Step budget was extended after a health/progress check at max_steps."""
+
+    max_steps: int = 90
+    previous_max_steps: int = 0
+    extra_steps: int = 0
+    extensions: int = 0
+    reason: str = ""
+
+    def __post_init__(self):
+        super().__post_init__()
+        object.__setattr__(self, "type", EventType.MAX_STEPS_EXTENDED)
+
+    def _extra_fields(self) -> dict[str, Any]:
+        return {
+            "max_steps": self.max_steps,
+            "previous_max_steps": self.previous_max_steps,
+            "extra_steps": self.extra_steps,
+            "extensions": self.extensions,
+            "reason": self.reason,
+        }
 
 
 @dataclass
@@ -741,6 +766,7 @@ def make_event(
         EventType.TOOL_CALL_ERROR: ToolCallErrorEvent,
         EventType.FINAL_RESPONSE: FinalResponseEvent,
         EventType.ERROR: ErrorEvent,
+        EventType.MAX_STEPS_EXTENDED: MaxStepsExtendedEvent,
         EventType.THINKING: ThinkingEvent,
         EventType.SKILL_CREATED: SkillCreatedEvent,
         EventType.CONTEXT_COMPRESSED: ContextCompressedEvent,
@@ -793,6 +819,11 @@ def create_compatibility_print_handler() -> EventHandler:
             print(event.content, end="", flush=True)
         elif isinstance(event, MaxStepsReachedEvent):
             print(f"Agent reached maximum steps ({event.max_steps}). Task may be too complex.")
+        elif isinstance(event, MaxStepsExtendedEvent):
+            print(
+                f"Step budget extended by {event.extra_steps} "
+                f"(now max {event.max_steps}): {event.reason or 'still working'}"
+            )
 
     return handler
 
@@ -833,6 +864,7 @@ __all__ = [
     "ToolCallResultEvent",
     "ToolCallErrorEvent",
     "MaxStepsReachedEvent",
+    "MaxStepsExtendedEvent",
     "ErrorEvent",
     "LLMCallStartedEvent",
     "LLMCallCompletedEvent",

@@ -94,7 +94,9 @@ class AsyncSubAgentRunner:
         start_time = time.monotonic()
         tool_calls_made: list[dict[str, Any]] = []
         steps_taken = 0
-        max_steps = config.max_steps
+        max_steps = int(config.max_steps or 0)
+        base_max_steps = max_steps
+        step_budget_extensions = 0
 
         # Build client (inherit from parent or use config override)
         model = config.model or self._parent.model
@@ -163,164 +165,207 @@ class AsyncSubAgentRunner:
         # ReAct loop
         tokens_used = 0
         try:
-            while steps_taken < max_steps:
-                steps_taken += 1
+            from core.runtime.step_budget import StepBudgetPolicy, evaluate_step_budget
+
+            step_policy = StepBudgetPolicy.from_config(parent_cfg)
+
+            while True:
+                while steps_taken < max_steps:
+                    steps_taken += 1
+                    handle.max_steps = max_steps
+                    handle.record_activity(
+                        "step",
+                        f"Reasoning step {steps_taken}/{max_steps}",
+                        steps_taken=steps_taken,
+                    )
+                    self._notify_progress(config.name)
+
+                    # Set up timeout
+                    try:
+                        response = await asyncio.wait_for(
+                            client.chat.completions.create(
+                                model=model,
+                                messages=messages,
+                                tools=tools_schemas if tools_schemas else None,
+                                tool_choice="auto" if tools_schemas else None,
+                                temperature=config.temperature,
+                            ),
+                            timeout=config.timeout,
+                        )
+                    except TimeoutError:
+                        handle.status = SubAgentStatus.TIMED_OUT
+                        handle.record_activity(
+                            "status",
+                            f"Timed out after {config.timeout}s",
+                            steps_taken=steps_taken,
+                        )
+                        handle.result = SubAgentResult(
+                            name=config.name,
+                            success=False,
+                            error=f"Sub-agent timed out after {config.timeout}s",
+                            duration_ms=(time.monotonic() - start_time) * 1000,
+                            steps_taken=steps_taken,
+                            tool_calls=tool_calls_made,
+                            tokens_used=tokens_used,
+                        )
+                        return handle.result
+
+                    message = response.choices[0].message
+                    try:
+                        from core.llm.usage import (
+                            completion_text_from_message,
+                            resolve_usage,
+                        )
+
+                        usage = resolve_usage(
+                            response,
+                            messages=messages,
+                            completion_text=completion_text_from_message(message),
+                            model=model,
+                        )
+                        tokens_used += int(usage.get("total_tokens") or 0)
+                    except Exception:
+                        logger.debug("Sub-agent token accounting failed", exc_info=True)
+
+                    if message.tool_calls:
+                        # Execute tool calls
+                        msg_dict = {
+                            "role": "assistant",
+                            "content": message.content or "",
+                            "tool_calls": [
+                                {
+                                    "id": tc.id,
+                                    "type": tc.type,
+                                    "function": {
+                                        "name": tc.function.name,
+                                        "arguments": tc.function.arguments,
+                                    },
+                                }
+                                for tc in message.tool_calls
+                            ],
+                        }
+                        messages.append(msg_dict)
+
+                        for tc in message.tool_calls:
+                            tool_name = tc.function.name
+                            tool_calls_made.append({
+                                "name": tool_name,
+                                "arguments": tc.function.arguments,
+                            })
+                            handle.record_activity(
+                                "tool_start",
+                                f"Calling {tool_name}",
+                                tool_name=tool_name,
+                                details=(tc.function.arguments or "")[:300],
+                                steps_taken=steps_taken,
+                            )
+                            self._notify_progress(config.name)
+                            result = await self._execute_tool(tc, config)
+                            preview = (result or "").strip()
+                            if len(preview) > 240:
+                                preview = preview[:239] + "…"
+                            tool_calls_made[-1]["result"] = result
+                            handle.record_activity(
+                                "tool_result",
+                                f"{tool_name} finished",
+                                tool_name=tool_name,
+                                details=preview,
+                                steps_taken=steps_taken,
+                            )
+                            self._notify_progress(config.name)
+                            messages.append({
+                                "role": "tool",
+                                "tool_call_id": tc.id,
+                                "content": result,
+                            })
+                    else:
+                        # Final response
+                        final_response = message.content or "No response"
+                        messages.append({"role": "assistant", "content": final_response})
+
+                        duration_ms = (time.monotonic() - start_time) * 1000
+                        handle.status = SubAgentStatus.COMPLETED
+                        handle.record_activity(
+                            "status",
+                            "Completed",
+                            steps_taken=steps_taken,
+                        )
+                        handle.result = SubAgentResult(
+                            name=config.name,
+                            success=True,
+                            response=final_response,
+                            duration_ms=duration_ms,
+                            steps_taken=steps_taken,
+                            tool_calls=tool_calls_made,
+                            tokens_used=tokens_used,
+                        )
+                        logger.info(
+                            "Sub-agent '%s' completed (steps=%d, tools=%d, %.0fms)",
+                            config.name,
+                            steps_taken,
+                            len(tool_calls_made),
+                            duration_ms,
+                        )
+                        return handle.result
+
+                # Max steps: health-check — extend if still working with relevant progress
+                decision = evaluate_step_budget(
+                    step_count=steps_taken,
+                    max_steps=max_steps,
+                    extensions_used=step_budget_extensions,
+                    messages=messages,
+                    tool_calls_log=tool_calls_made,
+                    task=task,
+                    policy=step_policy,
+                    base_max_steps=base_max_steps,
+                )
+                if decision.extend:
+                    prev = max_steps
+                    max_steps = decision.new_max_steps
+                    step_budget_extensions = decision.extensions_used
+                    handle.max_steps = max_steps
+                    handle.record_activity(
+                        "step_budget_extended",
+                        (
+                            f"Step budget +{decision.extra_steps} "
+                            f"({prev} → {max_steps}): {decision.reason}"
+                        ),
+                        steps_taken=steps_taken,
+                    )
+                    self._notify_progress(config.name)
+                    logger.info(
+                        "Sub-agent '%s' step budget extended %s → %s (ext=%s)",
+                        config.name,
+                        prev,
+                        max_steps,
+                        step_budget_extensions,
+                    )
+                    continue
+
+                duration_ms = (time.monotonic() - start_time) * 1000
+                handle.status = SubAgentStatus.FAILED
                 handle.record_activity(
-                    "step",
-                    f"Reasoning step {steps_taken}/{max_steps}",
+                    "status",
+                    f"Max steps ({max_steps}) reached: {decision.reason}",
                     steps_taken=steps_taken,
                 )
-                self._notify_progress(config.name)
-
-                # Set up timeout
-                try:
-                    response = await asyncio.wait_for(
-                        client.chat.completions.create(
-                            model=model,
-                            messages=messages,
-                            tools=tools_schemas if tools_schemas else None,
-                            tool_choice="auto" if tools_schemas else None,
-                            temperature=config.temperature,
-                        ),
-                        timeout=config.timeout,
-                    )
-                except TimeoutError:
-                    handle.status = SubAgentStatus.TIMED_OUT
-                    handle.record_activity(
-                        "status",
-                        f"Timed out after {config.timeout}s",
-                        steps_taken=steps_taken,
-                    )
-                    handle.result = SubAgentResult(
-                        name=config.name,
-                        success=False,
-                        error=f"Sub-agent timed out after {config.timeout}s",
-                        duration_ms=(time.monotonic() - start_time) * 1000,
-                        steps_taken=steps_taken,
-                        tool_calls=tool_calls_made,
-                        tokens_used=tokens_used,
-                    )
-                    return handle.result
-
-                message = response.choices[0].message
-                try:
-                    from core.llm.usage import (
-                        completion_text_from_message,
-                        resolve_usage,
-                    )
-
-                    usage = resolve_usage(
-                        response,
-                        messages=messages,
-                        completion_text=completion_text_from_message(message),
-                        model=model,
-                    )
-                    tokens_used += int(usage.get("total_tokens") or 0)
-                except Exception:
-                    logger.debug("Sub-agent token accounting failed", exc_info=True)
-
-                if message.tool_calls:
-                    # Execute tool calls
-                    msg_dict = {
-                        "role": "assistant",
-                        "content": message.content or "",
-                        "tool_calls": [
-                            {
-                                "id": tc.id,
-                                "type": tc.type,
-                                "function": {
-                                    "name": tc.function.name,
-                                    "arguments": tc.function.arguments,
-                                },
-                            }
-                            for tc in message.tool_calls
-                        ],
-                    }
-                    messages.append(msg_dict)
-
-                    for tc in message.tool_calls:
-                        tool_name = tc.function.name
-                        tool_calls_made.append({
-                            "name": tool_name,
-                            "arguments": tc.function.arguments,
-                        })
-                        handle.record_activity(
-                            "tool_start",
-                            f"Calling {tool_name}",
-                            tool_name=tool_name,
-                            details=(tc.function.arguments or "")[:300],
-                            steps_taken=steps_taken,
-                        )
-                        self._notify_progress(config.name)
-                        result = await self._execute_tool(tc, config)
-                        preview = (result or "").strip()
-                        if len(preview) > 240:
-                            preview = preview[:239] + "…"
-                        handle.record_activity(
-                            "tool_result",
-                            f"{tool_name} finished",
-                            tool_name=tool_name,
-                            details=preview,
-                            steps_taken=steps_taken,
-                        )
-                        self._notify_progress(config.name)
-                        messages.append({
-                            "role": "tool",
-                            "tool_call_id": tc.id,
-                            "content": result,
-                        })
-                else:
-                    # Final response
-                    final_response = message.content or "No response"
-                    messages.append({"role": "assistant", "content": final_response})
-
-                    duration_ms = (time.monotonic() - start_time) * 1000
-                    handle.status = SubAgentStatus.COMPLETED
-                    handle.record_activity(
-                        "status",
-                        "Completed",
-                        steps_taken=steps_taken,
-                    )
-                    handle.result = SubAgentResult(
-                        name=config.name,
-                        success=True,
-                        response=final_response,
-                        duration_ms=duration_ms,
-                        steps_taken=steps_taken,
-                        tool_calls=tool_calls_made,
-                        tokens_used=tokens_used,
-                    )
-                    logger.info(
-                        "Sub-agent '%s' completed (steps=%d, tools=%d, %.0fms)",
-                        config.name,
-                        steps_taken,
-                        len(tool_calls_made),
-                        duration_ms,
-                    )
-                    return handle.result
-
-            # Max steps reached
-            duration_ms = (time.monotonic() - start_time) * 1000
-            handle.status = SubAgentStatus.FAILED
-            handle.record_activity(
-                "status",
-                f"Max steps ({max_steps}) reached",
-                steps_taken=steps_taken,
-            )
-            handle.result = SubAgentResult(
-                name=config.name,
-                success=False,
-                response="Sub-agent reached maximum steps",
-                error=f"Max steps ({max_steps}) reached",
-                duration_ms=duration_ms,
-                steps_taken=steps_taken,
-                tool_calls=tool_calls_made,
-                        tokens_used=tokens_used,
-            )
-            logger.warning(
-                "Sub-agent '%s' hit max steps (%d)", config.name, max_steps
-            )
-            return handle.result
+                handle.result = SubAgentResult(
+                    name=config.name,
+                    success=False,
+                    response="Sub-agent reached maximum steps",
+                    error=f"Max steps ({max_steps}) reached: {decision.reason}",
+                    duration_ms=duration_ms,
+                    steps_taken=steps_taken,
+                    tool_calls=tool_calls_made,
+                    tokens_used=tokens_used,
+                )
+                logger.warning(
+                    "Sub-agent '%s' hit max steps (%d): %s",
+                    config.name,
+                    max_steps,
+                    decision.reason,
+                )
+                return handle.result
 
         except asyncio.CancelledError:
             handle.status = SubAgentStatus.CANCELLED

@@ -33,6 +33,7 @@ from core.agent_events import (
     AssistantDeltaEvent,
     ErrorEvent,
     FinalResponseEvent,
+    MaxStepsExtendedEvent,
     MaxStepsReachedEvent,
     SelfImprovementStartedEvent,
     SkillCreatedEvent,
@@ -142,6 +143,8 @@ async def run_agent_loop(
     # ------------------------------------------------------------------
     step_count = 0
     max_steps = getattr(agent_config, "max_steps", settings.max_steps)
+    base_max_steps = int(max_steps or 0)
+    step_budget_extensions = 0
     model = getattr(agent, "model", settings.model)
     temperature = getattr(agent_config, "temperature", settings.temperature)
     client: AsyncOpenAI = agent.client
@@ -162,7 +165,8 @@ async def run_agent_loop(
         conversation_id=conversation_id,
     )
 
-    while step_count < max_steps:
+    while True:
+      while step_count < max_steps:
         step_count += 1
 
         # Build API messages: system prompt + recent messages
@@ -464,13 +468,50 @@ async def run_agent_loop(
             )
             return
 
-    # Max steps reached
-    yield MaxStepsReachedEvent(
-        max_steps=max_steps,
-        conversation_id=conversation_id,
-    )
-    timeout_msg = f"Agent reached maximum steps ({max_steps}). Task may be too complex."
-    await agent.memory.save_message(conversation_id, "assistant", timeout_msg)
+      # Inner budget exhausted — health-check before hard stop
+      from core.runtime.step_budget import StepBudgetPolicy, evaluate_step_budget
+
+      decision = evaluate_step_budget(
+          step_count=step_count,
+          max_steps=max_steps,
+          extensions_used=step_budget_extensions,
+          messages=messages,
+          task=str(user_input or "")[:2000],
+          policy=StepBudgetPolicy.from_config(agent_config),
+          base_max_steps=base_max_steps,
+      )
+      if decision.extend:
+          prev_max = max_steps
+          max_steps = decision.new_max_steps
+          step_budget_extensions = decision.extensions_used
+          yield MaxStepsExtendedEvent(
+              max_steps=max_steps,
+              previous_max_steps=prev_max,
+              extra_steps=decision.extra_steps,
+              extensions=step_budget_extensions,
+              reason=decision.reason,
+              conversation_id=conversation_id,
+          )
+          yield ThinkingEvent(
+              message=(
+                  f"Step budget extended by {decision.extra_steps} "
+                  f"(now max {max_steps}): still working"
+              ),
+              conversation_id=conversation_id,
+          )
+          continue
+
+      # Max steps reached (hung / no progress / extension cap)
+      yield MaxStepsReachedEvent(
+          max_steps=max_steps,
+          conversation_id=conversation_id,
+      )
+      timeout_msg = (
+          f"Agent reached maximum steps ({max_steps}). "
+          f"{decision.reason or 'Task may be too complex.'}"
+      )
+      await agent.memory.save_message(conversation_id, "assistant", timeout_msg)
+      return
 
 
 async def _maybe_self_improve(

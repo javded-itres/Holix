@@ -59,6 +59,8 @@ from pathlib import Path
 
 _LOCAL_SYSTEM_KEYS: frozenset[str] = frozenset({
     "model", "base_url", "api_key", "temperature", "max_steps",
+    "max_steps_extend_enabled", "max_steps_extend_by",
+    "max_steps_max_extensions", "max_steps_hard_cap",
     "providers", "agent_models", "default_provider",
     "auto_allow_threshold", "non_interactive", "confirmation_timeout",
     "plan_review_enabled", "plan_review_timeout",

@@ -474,6 +474,14 @@ async def react_node(state: HolixGraphState, config: RunnableConfig) -> dict:
                 max_tokens=max_tokens,
                 tool_choice=tool_choice,
             )
+        from core.runtime.step_budget import maybe_extend_for_graph_result
+
+        result = maybe_extend_for_graph_result(
+            state,
+            result,
+            agent=agent,
+            task=str(state.get("user_input") or ""),
+        )
         return _merge_state_patch(result, messages_patch)
 
     except LLMStepTimeoutError as exc:

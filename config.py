@@ -27,6 +27,35 @@ class Settings(BaseSettings):
 
     # Agent Configuration
     max_steps: int = 90
+    max_steps_extend_enabled: bool = Field(
+        default=True,
+        validation_alias=AliasChoices(
+            "HOLIX_MAX_STEPS_EXTEND_ENABLED",
+            "MAX_STEPS_EXTEND_ENABLED",
+        ),
+        description=(
+            "When max_steps is hit, check if agent is still making relevant progress "
+            "and grant extra steps instead of stopping immediately"
+        ),
+    )
+    max_steps_extend_by: int = Field(
+        default=30,
+        validation_alias=AliasChoices("HOLIX_MAX_STEPS_EXTEND_BY", "MAX_STEPS_EXTEND_BY"),
+        description="How many steps to add when progress check passes",
+    )
+    max_steps_max_extensions: int = Field(
+        default=3,
+        validation_alias=AliasChoices(
+            "HOLIX_MAX_STEPS_MAX_EXTENSIONS",
+            "MAX_STEPS_MAX_EXTENSIONS",
+        ),
+        description="Max number of automatic step-budget extensions per run",
+    )
+    max_steps_hard_cap: int = Field(
+        default=0,
+        validation_alias=AliasChoices("HOLIX_MAX_STEPS_HARD_CAP", "MAX_STEPS_HARD_CAP"),
+        description="Absolute max_steps after extensions (0 = base + extend_by * max_extensions)",
+    )
     agent_max_tokens: int = Field(
         default=8192,
         validation_alias=AliasChoices("HOLIX_AGENT_MAX_TOKENS", "AGENT_MAX_TOKENS"),

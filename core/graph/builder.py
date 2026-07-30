@@ -59,6 +59,8 @@ def prepare_initial_state(
         "relevant_strategies": [],
         "step_count": 0,
         "max_steps": max_steps,
+        "base_max_steps": max_steps,
+        "step_budget_extensions": 0,
         "max_steps_per_plan_step": max_per_step,
         "execution_mode": execution_mode,
         "is_final": False,
