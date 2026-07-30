@@ -23,7 +23,6 @@ from core.agent_events import (
     ToolCallStartEvent,
 )
 from core.graph.action_honesty import (
-    denies_visible_workspace,
     has_successful_workspace_listing,
     honesty_refusal_update,
     honesty_retry_update,

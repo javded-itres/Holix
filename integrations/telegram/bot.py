@@ -407,7 +407,6 @@ class HolixTelegramBot:
         """Return False if a plugin gate blocked the message (reply already sent)."""
         from integrations.telegram.plugin_api import (
             get_active_telegram_plugin_api,
-            run_message_gates,
         )
 
         api = getattr(self, "_plugin_api", None) or get_active_telegram_plugin_api()
@@ -603,7 +602,6 @@ class HolixTelegramBot:
             TelegramPluginAPI,
             apply_telegram_handlers,
             load_telegram_plugins,
-            run_message_gates,
         )
 
         plugin_api = TelegramPluginAPI(
