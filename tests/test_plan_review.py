@@ -411,6 +411,7 @@ class TestBuildPlanMarkdown:
             ],
             step_count=1,
             user_input="Build a REST API",
+            locale="en",
         )
         assert "Execution Plan" in md
         assert "Build a REST API" in md
@@ -427,6 +428,7 @@ class TestBuildPlanMarkdown:
                        "clarifying_questions": ["Which framework?"], "constraints": ["Python only"]},
             architecture={"approach": "FastAPI", "tech_stack": ["Python", "FastAPI"],
                          "structure": "api/", "risks": [{"risk": "Migration issues", "mitigation": "Use Alembic"}]},
+            locale="en",
         )
         assert "📊 Analysis" in md
         assert "Complex" in md
@@ -455,6 +457,7 @@ class TestBuildPlanMarkdown:
         md = build_plan_markdown(
             plan_steps=[{"step": 1, "description": "Simple task"}],
             step_count=1,
+            locale="en",
         )
         assert "📊 Analysis" not in md
         assert "Step 1" in md
