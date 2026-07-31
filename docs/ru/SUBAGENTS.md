@@ -8,12 +8,14 @@
 
 ```yaml
 enable_subagents: true
-subagent_default_process_mode: process   # process | async
+subagent_default_process_mode: async   # async | process
 subagent_max_concurrent: 4
-subagent_process_timeout: 120
+subagent_process_timeout: 900
+subagent_supervisor_enabled: true
+subagent_supervisor_max_interventions: 3
 ```
 
-По умолчанию: `enable_subagents: true`.
+По умолчанию: `enable_subagents: true`, режим процесса **`async`** (OS process доступен с fallback).
 
 Если выключено — `delegate_to_subagent` и `/subagent-spawn` вернут ошибку.
 
@@ -126,14 +128,59 @@ Tools главного агента (при `enable_subagents: true`):
 
 При `enable_subagents: true` план может делегировать шаги субагентам (`researcher` → `coder` → `reviewer`). См. [EXECUTION_MODES.md](EXECUTION_MODES.md).
 
+В **`plan_and_execute`** возможны **волны** субагентов и цикл **supervisor** до синтеза:
+
+```text
+delegate → collect → supervisor → (rework failed?) → react synthesis
+```
+
+---
+
+## Supervisor
+
+Два уровня помощи застрявшим воркерам.
+
+### 1. Runtime supervisor (во время job)
+
+Фоновый watcher при первом spawn (`core/subagents/supervisor.py`):
+
+| Детект | Действие |
+|--------|----------|
+| **Loop** — один и тот же tool+args | Guidance в тот же job |
+| **Thrash** — только ошибки tools | Не повторять; чинить причину |
+| **Hung** — нет activity `idle_s` | Подтолкнуть к финалу / смене стратегии |
+| **Stall** — шаги без прогресса | Сузить задачу |
+
+Лимиты: max interventions, cooldown. Событие: `SubAgentSupervisorEvent`.
+
+| Переменная | Default | Смысл |
+|------------|---------|--------|
+| `HOLIX_SUBAGENT_SUPERVISOR_ENABLED` | `true` | Вкл/выкл |
+| `HOLIX_SUBAGENT_SUPERVISOR_POLL_S` | `4` | Интервал опроса |
+| `HOLIX_SUBAGENT_SUPERVISOR_IDLE_S` | `90` | Порог hang |
+| `HOLIX_SUBAGENT_SUPERVISOR_MAX_INTERVENTIONS` | `3` | Лимит на job / rework |
+| `HOLIX_SUBAGENT_SUPERVISOR_COOLDOWN_S` | `45` | Пауза между вмешательствами |
+
+### 2. Graph supervisor (после волны)
+
+После `collect_subagent` в plan mode:
+
+1. Смотрит результаты волны.  
+2. Failed jobs → **rework** того же `agent_type` с инструкциями.  
+3. Успешные jobs сохраняются; failed `prior_job` заменяется.  
+4. Синтез в `react`.
+
+План: [SUBAGENT_SUPERVISOR.md](../en/SUBAGENT_SUPERVISOR.md).  
+Общий step-budget: [EXECUTION_MODES.md](EXECUTION_MODES.md).
+
 ---
 
 ## Модель выполнения
 
 | Режим | Поведение |
 |-------|-----------|
-| `process` (по умолчанию на Linux/macOS) | Отдельный OS-процесс — параллелизм и изоляция |
-| `async` | Задача `asyncio` в процессе Holix — меньше накладных расходов |
+| `async` (по умолчанию) | Задача `asyncio` в процессе Holix — меньше накладных расходов |
+| `process` | Отдельный OS-процесс — сильнее изоляция; возможен fallback на async |
 
 Настраивается через `subagent_default_process_mode`.
 
@@ -167,7 +214,9 @@ Tools главного агента (при `enable_subagents: true`):
 - Лог: `logs/subagent.jsonl` — см. [LOGS.md](LOGS.md)
 - CLI: `holix logs -s subagent`
 - Параллельно: не больше `subagent_max_concurrent` (по умолчанию 4)
-- Таймаут job: `subagent_process_timeout` (секунды)
+- Таймаут job: `subagent_process_timeout` (секунды; часто `900`)
+- Wait-бюджет может продлеваться при активной работе
+- Вмешательства supervisor видны в activity и agent events
 
 ---
 

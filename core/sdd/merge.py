@@ -48,62 +48,82 @@ def _preamble_and_reqs(content: str) -> tuple[str, list[_Requirement]]:
     return preamble, _split_requirements(content)
 
 
-def _parse_delta_sections(delta: str) -> dict[str, list[_Requirement]]:
-    """Return {ADDED|MODIFIED|REMOVED: [requirements]} from a delta spec."""
-    sections: dict[str, list[_Requirement]] = {
-        "ADDED": [],
-        "MODIFIED": [],
-        "REMOVED": [],
-    }
+def _parse_delta_sections(delta: str) -> list[tuple[str, list[_Requirement]]]:
+    """Return ordered [(ADDED|MODIFIED|REMOVED, requirements), ...] from a delta.
+
+    Sections are applied in document order so a later REMOVED wins over an
+    earlier MODIFIED of the same title (and vice versa).
+    """
     matches = list(_SECTION_RE.finditer(delta))
     if not matches:
         # Whole file treated as ADDED if it has requirements
-        sections["ADDED"] = _split_requirements(delta)
-        return sections
+        return [("ADDED", _split_requirements(delta))]
 
+    ordered: list[tuple[str, list[_Requirement]]] = []
     for i, m in enumerate(matches):
         kind = m.group(1).upper()
         start = m.end()
         end = matches[i + 1].start() if i + 1 < len(matches) else len(delta)
         body = delta[start:end]
-        sections[kind] = _split_requirements(body)
-    return sections
+        ordered.append((kind, _split_requirements(body)))
+    return ordered
+
+
+def _apply_section(
+    *,
+    kind: str,
+    reqs: list[_Requirement],
+    by_title: dict[str, _Requirement],
+    order: list[str],
+) -> list[str]:
+    """Mutate by_title; return updated order of normalized titles."""
+    if kind == "REMOVED":
+        for r in reqs:
+            key = _normalize_title(r.title)
+            by_title.pop(key, None)
+            order = [t for t in order if t != key]
+        return order
+
+    if kind == "MODIFIED":
+        for r in reqs:
+            key = _normalize_title(r.title)
+            by_title[key] = r
+            if key not in order:
+                order.append(key)
+        return order
+
+    # ADDED (and unknown kinds treated as ADDED)
+    for r in reqs:
+        key = _normalize_title(r.title)
+        if key in by_title:
+            # Already present → replace body (safe re-archive / re-add)
+            by_title[key] = r
+        else:
+            by_title[key] = r
+            order.append(key)
+    return order
 
 
 def merge_delta_into_main(main_content: str, delta_content: str) -> str:
     """Apply delta requirement sections onto main spec markdown.
 
-    - ADDED: append requirements not already present (by title)
-    - MODIFIED: replace body of matching title
+    - ADDED: append requirements not already present (by title); if title exists, replace body
+    - MODIFIED: replace body of matching title (append if missing)
     - REMOVED: drop matching titles
+    - Sections are applied **in document order** (later section wins for the same title)
+    - Duplicate titles in main are collapsed to a single requirement
     """
     preamble, main_reqs = _preamble_and_reqs(main_content)
-    by_title: dict[str, _Requirement] = {
-        _normalize_title(r.title): r for r in main_reqs
-    }
-    order = [_normalize_title(r.title) for r in main_reqs]
-
-    sections = _parse_delta_sections(delta_content)
-
-    for r in sections["REMOVED"]:
-        key = _normalize_title(r.title)
-        by_title.pop(key, None)
-        order = [t for t in order if t != key]
-
-    for r in sections["MODIFIED"]:
+    by_title: dict[str, _Requirement] = {}
+    order: list[str] = []
+    for r in main_reqs:
         key = _normalize_title(r.title)
         by_title[key] = r
         if key not in order:
             order.append(key)
 
-    for r in sections["ADDED"]:
-        key = _normalize_title(r.title)
-        if key in by_title:
-            # treat as modify if already exists
-            by_title[key] = r
-        else:
-            by_title[key] = r
-            order.append(key)
+    for kind, reqs in _parse_delta_sections(delta_content):
+        order = _apply_section(kind=kind, reqs=reqs, by_title=by_title, order=order)
 
     parts: list[str] = []
     if preamble.strip():

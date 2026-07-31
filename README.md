@@ -159,8 +159,19 @@ Details: [docs/en/ARCHITECTURE.md](docs/en/ARCHITECTURE.md)
 ## Docker
 
 ```bash
-docker compose up -d
+cp docker/env.example .env
+# set TELEGRAM_BOT_TOKEN, MODEL, BASE_URL, API_KEY, HOLIX_API_KEY_PEPPER
+docker compose up -d --build
 ```
+
+| Mode | Command |
+|------|---------|
+| Full agent (gateway + Telegram) | `docker compose up -d` |
+| + local Ollama | `docker compose --profile ollama up -d` |
+| Gateway API only | `docker compose --profile gateway-only up -d holix-gateway` |
+| Multi-user prod (bind mounts) | `docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d` |
+
+Drop-in extensions: put packages under `./extensions/`. Full guide: [docs/en/INSTALLATION.md § Path B](docs/en/INSTALLATION.md#path-b--docker).
 
 ---
 

@@ -3,13 +3,14 @@
 > **On this documentation site:** `/docs/gateway-api` (same content as this page).  
 > **Live OpenAPI (try requests):** `http://127.0.0.1:8000/docs` on the gateway port — not the docs site port.
 
-Holix runs a **single multi-profile HTTP gateway** with three public surfaces:
+Holix runs a **single multi-profile HTTP gateway** with four public surfaces:
 
 | Surface | Prefix | Purpose |
 |---------|--------|---------|
 | **Hermes-compatible API** | `/v1`, `/api/sessions`, `/api/jobs` | Drop-in for Open WebUI, LobeChat, Hermes clients |
 | **Holix agent extensions** | `/v1/chat/completions`, permissions, plans | OpenAI chat + tool permissions + plan review |
 | **Holix Management API** | `/api/holix/` | SaaS control plane: profiles, models, MCP, skills, Telegram |
+| **A2A (Agent2Agent)** | `/a2a`, `/.well-known/agent.json` | Interop with remote agents (JSON-RPC + REST + **SSE streaming**) — see [A2A.md](A2A.md) |
 
 Operational guide (start/stop, ports, logs): [GATEWAY.md](GATEWAY.md).
 

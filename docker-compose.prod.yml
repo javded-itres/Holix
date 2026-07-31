@@ -1,0 +1,49 @@
+# Production overlay — always-restart, log rotation, production defaults.
+#
+# Bind-mount storage is controlled by env (no second volume list — avoids
+# double-mount merge with docker-compose.yml):
+#
+#   HOLIX_DATA_DIR=./data/holix          # host path → /data/.holix
+#   HOLIX_EXTENSIONS_DIR=./extensions    # → /data/.holix/extensions
+#   HOLIX_FILES_DIR=./data/files         # → /data/files
+#
+# Usage:
+#   cp docker/env.example .env
+#   # set HOLIX_DATA_DIR, secrets, MODEL, TELEGRAM_BOT_TOKEN, …
+#   mkdir -p "${HOLIX_DATA_DIR:-./data/holix}" \
+#            "${HOLIX_EXTENSIONS_DIR:-./extensions}" \
+#            "${HOLIX_FILES_DIR:-./data/files}"
+#   docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+#
+# Multi-user:
+#   1. Start with TELEGRAM_BOT_TOKEN + MODEL/BASE_URL/API_KEY
+#   2. Users /start → approve --create-profile <name>
+#   3. Profiles live under $HOLIX_DATA_DIR/profiles/
+#   4. Drop extensions into $HOLIX_EXTENSIONS_DIR; restart
+
+x-prod-logging: &prod-logging
+  driver: json-file
+  options:
+    max-size: "50m"
+    max-file: "5"
+
+services:
+  holix:
+    restart: always
+    environment:
+      HOLIX_ENV: production
+      HOLIX_REQUIRE_AUTH: "true"
+      HOLIX_WORKSPACE_JAIL: ${HOLIX_WORKSPACE_JAIL:-true}
+      HOLIX_ENABLE_CODE_EXECUTOR: ${HOLIX_ENABLE_CODE_EXECUTOR:-false}
+      HOLIX_TERMINAL_COMMAND_WHITELIST: ${HOLIX_TERMINAL_COMMAND_WHITELIST:-true}
+      HOLIX_CORS_ORIGINS: ${HOLIX_CORS_ORIGINS:-}
+    logging: *prod-logging
+
+  holix-gateway:
+    restart: always
+    environment:
+      HOLIX_ENV: production
+      HOLIX_REQUIRE_AUTH: "true"
+      HOLIX_TELEGRAM_AUTOSTART: "false"
+      HOLIX_MAX_AUTOSTART: "false"
+    logging: *prod-logging

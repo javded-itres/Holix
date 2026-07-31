@@ -26,11 +26,12 @@ class _FakeHost:
         self.profile = profile
 
 
-def test_default_locale_is_en(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_default_locale_is_ru(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Product default UI locale is Russian (Russia-first SaaS)."""
     _patch_holix_home(tmp_path, monkeypatch)
-    store = LocaleStore("default_en")
-    assert store.get() == "en"
-    assert t("cleared", store.get()) == "Chat cleared"
+    store = LocaleStore("default_ru_check")
+    assert store.get() == "ru"
+    assert t("cleared", store.get()) == "Чат очищен"
 
 
 def test_set_locale_ru(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -56,6 +57,8 @@ def test_set_locale_rejects_unknown(tmp_path: Path, monkeypatch: pytest.MonkeyPa
 def test_host_locale_helpers(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     _patch_holix_home(tmp_path, monkeypatch)
     host = _FakeHost("host_helpers")
+    assert host_locale(host) == "ru"
+    assert set_host_locale(host, "en") == "en"
     assert host_locale(host) == "en"
     assert set_host_locale(host, "ru") == "ru"
     assert host_locale(host) == "ru"

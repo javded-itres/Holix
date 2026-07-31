@@ -685,26 +685,101 @@ class SpecStore:
             ),
         }
 
-    def archive(self, change_id: str) -> dict:
+    @staticmethod
+    def _delta_domain_for_spec(specs_delta: Path, delta_spec: Path) -> str | None:
+        """Map ``changes/<id>/specs/<domain>/…/spec.md`` → top-level domain name.
+
+        OpenSpec layout is ``specs/<domain>/spec.md``. Nested files under a domain
+        (e.g. ``specs/auth/notes/spec.md``) still merge into **auth**, not a
+        bogus domain named after the nested folder.
+        Only files named ``spec.md`` under ``specs/<domain>/`` (any depth) are used;
+        the domain is the first path segment relative to ``specs/``.
+        """
+        try:
+            rel = delta_spec.parent.resolve().relative_to(specs_delta.resolve())
+        except ValueError:
+            return None
+        parts = rel.parts
+        if not parts:
+            return None
+        domain = parts[0]
+        try:
+            validate_domain(domain)
+        except ValueError:
+            return None
+        return domain
+
+    def archive(self, change_id: str, *, force: bool = False) -> dict:
         cid = validate_change_id(change_id)
         cdir = change_dir(self.workspace, cid)
         if not cdir.is_dir():
             raise FileNotFoundError(f"change not found: {cid}")
+
+        st = self.change_status(cid)
+        warnings: list[str] = []
+        if not st.apply_ready:
+            warnings.append(
+                "Change is not apply_ready (proposal/specs/tasks incomplete)."
+            )
+        open_tasks = [
+            t
+            for t in parse_tasks_markdown(
+                (cdir / "tasks.md").read_text(encoding="utf-8")
+                if (cdir / "tasks.md").is_file()
+                else ""
+            )
+            if not t.done
+        ]
+        if open_tasks:
+            warnings.append(
+                f"{len(open_tasks)} open task(s) remain; archive will still merge deltas."
+            )
+        if warnings and not force:
+            # Soft gate: still allow archive (historical behavior) but surface warnings
+            # so agents/UI do not assume a clean merge of finished work.
+            pass
+
         merged: list[str] = []
+        merge_errors: list[str] = []
         specs_delta = cdir / "specs"
+        # One merge pass per domain (later nested/duplicate delta files merge in sort order)
+        domain_deltas: dict[str, list[Path]] = {}
         if specs_delta.is_dir():
             for delta_spec in sorted(specs_delta.rglob(SPEC_FILENAME)):
-                domain = delta_spec.parent.name
-                main_path = domain_spec_path(self.workspace, domain)
-                delta_text = delta_spec.read_text(encoding="utf-8")
-                if main_path.is_file():
-                    main_text = main_path.read_text(encoding="utf-8")
-                else:
-                    main_path.parent.mkdir(parents=True, exist_ok=True)
-                    main_text = f"# {domain}\n\n"
-                new_main = merge_delta_into_main(main_text, delta_text)
-                main_path.write_text(new_main, encoding="utf-8")
-                merged.append(self.tool_relpath(main_path))
+                domain = self._delta_domain_for_spec(specs_delta, delta_spec)
+                if not domain:
+                    merge_errors.append(
+                        f"skipped non-domain delta path: {self.tool_relpath(delta_spec)}"
+                    )
+                    continue
+                domain_deltas.setdefault(domain, []).append(delta_spec)
+
+        for domain, paths in sorted(domain_deltas.items()):
+            main_path = domain_spec_path(self.workspace, domain)
+            if main_path.is_file():
+                main_text = main_path.read_text(encoding="utf-8")
+            else:
+                main_path.parent.mkdir(parents=True, exist_ok=True)
+                main_text = f"# {domain}\n\n"
+            for delta_spec in paths:
+                try:
+                    delta_text = delta_spec.read_text(encoding="utf-8")
+                    main_text = merge_delta_into_main(main_text, delta_text)
+                except Exception as exc:
+                    merge_errors.append(
+                        f"{self.tool_relpath(delta_spec)}: {exc}"
+                    )
+            main_path.write_text(main_text, encoding="utf-8")
+            merged.append(self.tool_relpath(main_path))
+
+        if merge_errors and not merged and not force:
+            return {
+                "ok": False,
+                "change_id": cid,
+                "error": "No specs merged",
+                "merge_errors": merge_errors,
+                "warnings": warnings,
+            }
 
         arch = archive_root(self.workspace)
         arch.mkdir(parents=True, exist_ok=True)
@@ -713,12 +788,17 @@ class SpecStore:
         if dest.exists():
             dest = arch / f"{stamp}-{cid}-{_unique_suffix()}"
         shutil.move(str(cdir), str(dest))
-        return {
+        result: dict = {
             "ok": True,
             "change_id": cid,
             "archived_to": self.tool_relpath(dest),
             "merged_specs": merged,
         }
+        if warnings:
+            result["warnings"] = warnings
+        if merge_errors:
+            result["merge_errors"] = merge_errors
+        return result
 
     def status_overview(self) -> dict:
         changes = self.list_changes() if self.is_initialized() else []

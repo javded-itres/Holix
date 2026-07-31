@@ -86,8 +86,12 @@ async def test_run_project_init_warns_when_agent_busy() -> None:
 
 @pytest.mark.asyncio
 async def test_run_project_init_starts_agent_on_telegram(tmp_path, monkeypatch) -> None:
+    from core.i18n.locale import LocaleStore
+
     monkeypatch.chdir(tmp_path)
     (tmp_path / "README.md").write_text("# Demo\n", encoding="utf-8")
+    # Pin English so assertions stay locale-stable regardless of product default.
+    LocaleStore("default").set("en")
     session = ChatSession(chat_id=1, user_id=1, profile="default", conversation_id="tg")
     host = MagicMock()
     host.profile = "default"

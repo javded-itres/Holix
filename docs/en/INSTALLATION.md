@@ -186,44 +186,122 @@ Or: `pipx upgrade Holix` / `uv tool upgrade Holix`
 
 No Python on the host required. Image includes Telegram, voice, and browser extras.
 
-### B1 — Quick start
+Files:
+
+| File | Purpose |
+|------|---------|
+| `docker-compose.yml` | Agent + optional Ollama + gateway-only profile |
+| `docker-compose.prod.yml` | Bind-mount storage, always-restart, log rotation |
+| `docker/env.example` | Full environment template → copy to `.env` |
+| `./extensions/` | Drop-in extensions (mounted into the container) |
+
+### B1 — Quick start (model + Telegram → working agent)
 
 ```bash
-export TELEGRAM_BOT_TOKEN="123456789:AAH..."
-docker compose up -d
+cp docker/env.example .env
+# Edit at least:
+#   TELEGRAM_BOT_TOKEN=123456789:AAH...
+#   MODEL=gpt-4o-mini
+#   BASE_URL=https://api.openai.com/v1
+#   API_KEY=sk-...
+#   HOLIX_API_KEY_PEPPER=$(openssl rand -hex 32)
+
+docker compose up -d --build
+# or with local Ollama:
+# docker compose --profile ollama up -d --build
 ```
 
-On first run Holix bootstraps `HOLIX_HOME` inside the container and saves the bot token.
+On first run Holix creates profile `shared` (production-safe; `default` is forbidden when `HOLIX_ENV=production`), writes LLM and Telegram settings under `HOLIX_HOME`, enables workspace jail, and starts **gateway + Telegram + cron**.
 
-### B2 — Approve Telegram users
+Gateway health: `http://127.0.0.1:8000/health`
+
+### B2 — Approve Telegram users (multi-user)
 
 Users send `/start` in Telegram. Approve from the container:
 
 ```bash
 docker compose exec holix holix -p shared telegram requests list
 docker compose exec holix holix -p shared telegram requests approve USER_ID --create-profile alice
-# bind to existing profile:
+# bind to an existing profile:
 docker compose exec holix holix -p shared telegram requests approve USER_ID --profile existing
 ```
 
-Use a **named** bot profile (`-p shared` or your bootstrap profile). Profile `default` is dev-only when `HOLIX_ENV=production`.
+Each approved user gets an isolated profile under `profiles/<name>/` (memory, workspace, SOUL). Use a **named** bot host profile (`-p shared`).
 
-### B3 — Environment variables
+### B3 — Gateway only (API, no messengers)
+
+```bash
+# HOLIX_TELEGRAM_AUTOSTART / HOLIX_MAX_AUTOSTART forced off
+docker compose --profile gateway-only up -d holix-gateway
+```
+
+Same image and volumes; no Telegram/MAX OS companions. Useful behind Studio, mobile apps, or reverse proxy.
+
+### B4 — Production multi-user (bind-mounted storage)
+
+```bash
+mkdir -p ./data/holix ./extensions ./data/files
+# in .env (paths become bind mounts via docker-compose.yml):
+#   HOLIX_DATA_DIR=./data/holix
+#   HOLIX_EXTENSIONS_DIR=./extensions
+#   HOLIX_FILES_DIR=./data/files
+# plus secrets + MODEL + TELEGRAM_BOT_TOKEN
+docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+```
+
+| Env / host path | Container | Content |
+|-----------------|-----------|---------|
+| `HOLIX_DATA_DIR` (default named volume `holix-data`) | `/data/.holix` | Profiles, memory, gateway state, telegram.env |
+| `HOLIX_EXTENSIONS_DIR` (default `./extensions`) | `/data/.holix/extensions` | Drop-in / git-cloned extensions |
+| `HOLIX_FILES_DIR` (default `./data/files`) | `/data/files` | Optional shared host files |
+
+Per-user workspace: `$HOLIX_DATA_DIR/profiles/<user>/workspace/` (jail on by default via `HOLIX_WORKSPACE_JAIL=true`).
+
+### B5 — Extensions (load & register)
+
+**Drop-in (no rebuild):**
+
+```bash
+# clone or copy under ./extensions/
+git clone <repo> ./extensions/my-billing
+docker compose restart holix
+docker compose exec holix holix extensions list
+docker compose exec holix holix extensions agent-list
+```
+
+**Pip on start** (comma-separated specs in `.env`):
+
+```bash
+HOLIX_EXTENSIONS_PIP=some-pypi-package,/data/.holix/extensions/local-pkg
+HOLIX_EXTENSIONS_SYNC=true   # reinstall each start; false after first install
+```
+
+Entrypoint installs specs, then Holix discovers entry points + folders. See [EXTENSIONS.md](EXTENSIONS.md).
+
+### B6 — Environment variables (main)
 
 | Variable | Purpose |
 |----------|---------|
-| `TELEGRAM_BOT_TOKEN` | Required for Telegram bot |
-| `MODEL`, `BASE_URL` | Cloud LLM instead of bundled Ollama |
-| `HOLIX_API_KEY_PEPPER` | Production API key hashing |
-| `HOLIX_ENV=production` | Production policy (named profiles) |
+| `TELEGRAM_BOT_TOKEN` | Telegram bot token |
+| `MODEL`, `BASE_URL`, `API_KEY` | OpenAI-compatible LLM |
+| `HOLIX_API_KEY_PEPPER` | **Required** production API key hashing |
+| `HOLIX_PROFILE` | Bot host profile (default `shared`) |
+| `HOLIX_ENV=production` | Named profiles, auth enforced |
+| `HOLIX_WORKSPACE_JAIL` | Per-profile file jail (default `true`) |
+| `HOLIX_TELEGRAM_AUTOSTART` | Start Telegram companion (`false` = gateway-only) |
+| `HOLIX_MAX_AUTOSTART` | Start MAX polling companion |
+| `HOLIX_EXTENSIONS_PIP` | Comma-separated pip/path specs at boot |
+| `HOLIX_DATA_DIR` | Host path for `HOLIX_HOME` (prod compose) |
 
-Bind `HOLIX_HOME` to a host volume to persist profiles across container restarts (see `docker-compose.yml` in the repo).
+Full template: [`docker/env.example`](../../docker/env.example).
 
-### B4 — What runs inside
+### B7 — What runs inside
 
-`holix gateway start -f` — gateway, Telegram bot, and cron scheduler in one process.
+Command `agent` (default): `holix gateway start -f` — gateway, Telegram/MAX when tokens set, cron, extension sidecars.
 
-Production layout (systemd, TLS, encryption): [DEPLOYMENT.md](DEPLOYMENT.md) — Docker section there points back here for install; DEPLOYMENT covers **operations**, not first-time container setup.
+Commands: `agent` | `gateway` | `telegram` | `max` | `bootstrap` | `extensions` | `cli` | `shell`.
+
+Production ops (systemd, TLS, encryption): [DEPLOYMENT.md](DEPLOYMENT.md).
 
 ---
 

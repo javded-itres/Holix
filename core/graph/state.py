@@ -38,6 +38,8 @@ class HolixGraphState(TypedDict, total=False):
     # Execution control
     step_count: int
     max_steps: int
+    base_max_steps: int                  # Original max_steps before auto-extensions
+    step_budget_extensions: int          # How many times max_steps was auto-extended
     max_steps_per_plan_step: int         # Max ReAct iterations per plan step
     execution_mode: str                  # "react" | "plan_and_execute" | "hybrid"
     is_final: bool                       # True when final response generated
@@ -50,9 +52,11 @@ class HolixGraphState(TypedDict, total=False):
     meta_decision: dict[str, Any] | None  # Strategy adjustments from meta-agent
     needs_refinement: bool               # Set by meta-agent for self-refinement
 
-    # Self-refinement state (Phase 5)
+    # Self-refinement / Reflexion state
     refinement_iterations: int
     max_refinement_iterations: int
+    reflection_count: int                    # Reflexion retries this turn
+    reflection_log: list[dict[str, Any]]     # Verbal reflections + quality scores
 
     # Sub-agent state (Phase 4b)
     sub_agent_tasks: list[dict[str, Any]]    # Sub-tasks for sub-agents
@@ -66,6 +70,13 @@ class HolixGraphState(TypedDict, total=False):
     subagent_wave_step_indices: list[int] | None  # Plan indices finished in last wave
     subagent_awaiting_synthesis: bool     # True after collect, before react synthesis
     subagent_delegate_next: bool           # Router hint to spawn the next wave
+
+    # Graph-native supervisor (post-wave rework cycle)
+    supervisor_needs_rework: bool          # Router: supervisor → delegate again
+    supervisor_rework_tasks: list[dict[str, Any]]  # Tasks with guidance for same types
+    supervisor_rework_round: int           # How many graph rework rounds this turn
+    supervisor_log: list[dict[str, Any]]   # Audit trail of interventions
+    supervisor_last_diagnosis: dict[str, Any] | None
 
     # Plan state (for plan_and_execute and hybrid modes)
     plan_steps: list[dict[str, Any]]         # Ordered list of plan steps

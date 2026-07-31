@@ -2,9 +2,31 @@
 
 ## Docker
 
-Первая установка в контейнере (токен, тома, одобрение пользователей): **[INSTALLATION.md § Путь B](INSTALLATION.md#путь-b--docker)**.
+Первая установка в контейнере (токен, тома, одобрение, расширения): **[INSTALLATION.md § Путь B](INSTALLATION.md#путь-b--docker)**.
 
-Здесь — **эксплуатация** уже запущенного Docker: hardening, обновления, связка с reverse proxy ниже.
+Точки входа Compose:
+
+| Цель | Команда |
+|------|---------|
+| Полный агент (gateway + Telegram) | `docker compose up -d` |
+| + локальная Ollama | `docker compose --profile ollama up -d` |
+| Только Gateway API | `docker compose --profile gateway-only up -d holix-gateway` |
+| Multi-user prod (bind mounts) | `docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d` |
+
+Шаблоны: `docker/env.example`, `docker-compose.yml`, `docker-compose.prod.yml`.
+
+### Чеклист production (Docker)
+
+1. Сильный `HOLIX_API_KEY_PEPPER`.
+2. Именованный профиль `HOLIX_PROFILE=shared` (не `default` в production).
+3. Bind-mount `HOLIX_DATA_DIR` — профили/workspace переживают апгрейд образа.
+4. `HOLIX_TELEGRAM_ACCESS_REQUESTS=true`; approve с `--create-profile`.
+5. `HOLIX_WORKSPACE_JAIL=true` для multi-tenant.
+6. TLS на reverse proxy; при необходимости `HOLIX_CORS_ORIGINS`.
+7. Расширения в `HOLIX_EXTENSIONS_DIR` или через `HOLIX_EXTENSIONS_PIP`.
+8. Апгрейд: `docker compose pull && docker compose up -d` (том данных не трогать).
+
+Ниже — **host**-production (systemd). Docker стыкуется с reverse proxy / мониторингом так же.
 
 ## systemd
 

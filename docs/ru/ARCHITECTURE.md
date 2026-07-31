@@ -6,10 +6,26 @@ Holix — платформа AI-агента на Python: единый цикл 
 
 ```
 HolixAgent (core/agent.py)
-    → run_agent_loop() / LangGraph (core/agent_execution.py)
+    → LangGraph mode graph (core/graph/)  [предпочтительно при use_langgraph=true]
+    → или legacy loop (core/agent_execution.py)
     → события AgentEvent (core/agent_events.py)
-    → ToolRegistry, MemoryManager, SkillManager
+    → ToolRegistry, MemoryManager, SkillManager, SubAgentManager
 ```
+
+### Режимы LangGraph (циклы)
+
+| Режим | Схема |
+|-------|--------|
+| `react` | `memory → meta → react ⇄ tools → reflect ⇄ react → finalize` |
+| `hybrid` | `memory → meta → plan → review → react ⇄ tools → reflect → finalize` |
+| `plan_and_execute` | plan/review + steps + `delegate → collect → supervisor → rework/react` + `reflect` |
+
+- **Meta-agent** — pre-thinking.  
+- **Reflexion** — оценка черновика + verbal retry.  
+- **Step budget** — расширение `max_steps` при прогрессе.  
+- **Субагенты** — runtime supervisor + graph rework.  
+
+Документация: [EXECUTION_MODES.md](EXECUTION_MODES.md), [SUBAGENTS.md](SUBAGENTS.md).
 
 | Адаптер | Роль |
 |---------|------|
@@ -22,8 +38,11 @@ HolixAgent (core/agent.py)
 | Компонент | Путь | Роль |
 |-----------|------|------|
 | Агент | `core/agent.py` | Память, навыки, tools, цикл |
-| Выполнение | `core/agent_execution.py` | Единый agent loop |
+| Граф | `core/graph/` | LangGraph modes, nodes, routers, state |
+| Выполнение | `core/agent_execution.py` | Legacy / non-graph loop |
 | События | `core/agent_events.py` | Pub/sub `AgentEventBus` |
+| Субагенты | `core/subagents/` | Manager, spawn, supervisor, runners |
+| Meta / refine | `core/meta_agent.py`, `core/self_refinement/` | Advisory + quality |
 | Tools | `core/tools/` | `BaseTool`, registry, browser, terminal |
 | Память | `core/memory/` | SQLite + ChromaDB |
 | Навыки | `core/skills/` | Markdown, generator, hub |
@@ -106,6 +125,8 @@ cli / api / integrations  →  core
 
 ## См. также
 
+- [EXECUTION_MODES.md](EXECUTION_MODES.md) — режимы, Reflexion, step budget
+- [SUBAGENTS.md](SUBAGENTS.md) — воркеры и supervisor
 - [CLI.md](CLI.md)
 - [GATEWAY.md](GATEWAY.md)
 - [MEMORY.md](MEMORY.md) · [MCP.md](MCP.md) · [MODELS.md](MODELS.md)

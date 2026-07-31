@@ -64,10 +64,34 @@ async def collect_subagent_node(
         )
         results = {job_id: payload for job_id, payload in zip(pending, payloads, strict=True)}
 
+        orch_raw = state.get("subagent_orchestration")
+        total_waves = 1
+        if orch_raw:
+            total_waves = len(OrchestrationPlan.from_dict(orch_raw).waves) or 1
+
+        sub_results = dict(state.get("sub_agent_results", {}))
+        for job_id, payload in results.items():
+            sub_results[job_id] = payload
+
+        # Merge into existing wave slot (supervisor rework must not drop prior successes).
+        # Rework jobs supersede their prior_job so failed attempts do not re-trigger forever.
+        wave_results = dict(state.get("subagent_wave_results", {}))
+        prior_wave = dict(wave_results.get(str(wave_idx)) or {})
+        merged_wave = dict(prior_wave)
+        for job_id, payload in results.items():
+            meta = task_meta_raw.get(job_id) or {}
+            prior_job = str(meta.get("prior_job") or "")
+            if prior_job and prior_job in merged_wave:
+                merged_wave.pop(prior_job, None)
+                sub_results.pop(prior_job, None)
+            merged_wave[job_id] = payload
+        wave_results[str(wave_idx)] = merged_wave
+
         task_meta: dict[str, SubagentTask] = {}
         step_indices: list[int] = []
-        for job_id, meta in task_meta_raw.items():
-            if job_id not in results:
+        for job_id in merged_wave:
+            meta = task_meta_raw.get(job_id) or {}
+            if not meta:
                 continue
             task_meta[job_id] = SubagentTask(
                 agent_type=str(meta.get("agent_type", "")),
@@ -77,38 +101,27 @@ async def collect_subagent_node(
             )
             step_indices.append(int(meta.get("step_index", 0)))
 
-        orch_raw = state.get("subagent_orchestration")
-        total_waves = 1
-        if orch_raw:
-            total_waves = len(OrchestrationPlan.from_dict(orch_raw).waves) or 1
-
         aggregate = format_wave_aggregate(
             wave_id=wave_idx,
             total_waves=total_waves,
-            results=results,
+            results=merged_wave,
             task_meta=task_meta,
         )
         user_summary = format_wave_user_summary(
             wave_id=wave_idx,
             total_waves=total_waves,
-            results=results,
+            results=merged_wave,
             task_meta=task_meta,
         )
-
-        sub_results = dict(state.get("sub_agent_results", {}))
-        for job_id, payload in results.items():
-            sub_results[job_id] = payload
-
-        wave_results = dict(state.get("subagent_wave_results", {}))
-        wave_results[str(wave_idx)] = results
 
         messages = list(state.get("messages", []))
         messages.append({"role": "user", "content": aggregate})
 
-        completed = sum(1 for p in results.values() if p.get("success"))
+        completed = sum(1 for p in merged_wave.values() if p.get("success"))
         log_subagent_event(
             "INFO",
-            f"wave {wave_idx + 1}/{total_waves} collected {completed}/{len(results)}",
+            f"wave {wave_idx + 1}/{total_waves} collected {completed}/{len(merged_wave)}"
+            f" (batch={len(results)})",
             subagent=",".join(pending),
         )
         if agent and hasattr(agent, "emit"):
@@ -119,7 +132,7 @@ async def collect_subagent_node(
                     wave_id=wave_idx,
                     total_waves=total_waves,
                     completed=completed,
-                    total=len(results),
+                    total=len(merged_wave),
                     summary=user_summary,
                     conversation_id=state.get("conversation_id", "default"),
                 )

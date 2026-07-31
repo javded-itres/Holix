@@ -27,6 +27,26 @@ def substitute_env_in_string(text: str, *, leave_missing: bool = True) -> str:
     return _INLINE_ENV_REF.sub(_repl, text)
 
 
+def is_meta_agent_enabled(cfg: Any, *, default: bool = True) -> bool:
+    """Whether the meta-agent advisory node should run."""
+    if cfg is None:
+        return default
+    value = getattr(cfg, "enable_meta_agent", None)
+    if value is None:
+        return default
+    return bool(value)
+
+
+def is_self_refinement_enabled(cfg: Any, *, default: bool = True) -> bool:
+    """Whether Reflexion / self-refinement after draft answers is enabled."""
+    if cfg is None:
+        return default
+    value = getattr(cfg, "enable_self_refinement", None)
+    if value is None:
+        return default
+    return bool(value)
+
+
 def is_subagents_enabled(cfg: Any, *, default: bool = True) -> bool:
     """Return whether sub-agents are enabled (default on when unset)."""
     if cfg is None:
@@ -59,6 +79,11 @@ from pathlib import Path
 
 _LOCAL_SYSTEM_KEYS: frozenset[str] = frozenset({
     "model", "base_url", "api_key", "temperature", "max_steps",
+    "max_steps_extend_enabled", "max_steps_extend_by",
+    "max_steps_max_extensions", "max_steps_hard_cap",
+    "subagent_supervisor_enabled", "subagent_supervisor_poll_s",
+    "subagent_supervisor_idle_s", "subagent_supervisor_max_interventions",
+    "subagent_supervisor_cooldown_s",
     "providers", "agent_models", "default_provider",
     "auto_allow_threshold", "non_interactive", "confirmation_timeout",
     "plan_review_enabled", "plan_review_timeout",

@@ -27,22 +27,26 @@ Check the active mode: `/status`.
 ```mermaid
 flowchart LR
   subgraph react [ReAct]
-    R1[User message] --> R2[Think + tools loop]
-    R2 --> R3[Answer]
+    R1[User message] --> R2[Meta]
+    R2 --> R3[Think + tools loop]
+    R3 --> R4[Reflect]
+    R4 --> R5[Answer]
   end
 
   subgraph plan [Plan and Execute]
-    P1[User message] --> P2[Build plan]
+    P1[User message] --> P2[Meta + plan]
     P2 --> P3[Your approval]
-    P3 --> P4[Step 1..N with tools]
-    P4 --> P5[Answer]
+    P3 --> P4[Steps / subagents]
+    P4 --> P5[Reflect]
+    P5 --> P6[Answer]
   end
 
   subgraph hybrid [Hybrid]
-    H1[User message] --> H2[Build plan]
+    H1[User message] --> H2[Meta + plan]
     H2 --> H3[Your approval]
-    H3 --> H4[ReAct inside each step]
-    H4 --> H5[Answer]
+    H3 --> H4[ReAct inside steps]
+    H4 --> H5[Reflect]
+    H5 --> H6[Answer]
   end
 ```
 
@@ -50,6 +54,9 @@ flowchart LR
 |---|-------|----------------|--------|
 | Plan before tools | No | Yes | Yes |
 | Tool loop style | One continuous loop | Per plan step | ReAct within each step |
+| Meta-agent (pre-thinking) | Yes (default on) | Yes | Yes |
+| Reflexion after draft | Yes (default on) | On final / max steps | Yes |
+| Subagent waves + supervisor | — | Yes when subagents on | Optional via tools |
 | Good task size | Small–medium | Medium, structured | Large, open-ended |
 | User approvals | Tool risk only | Plan + optional per-step | Plan + optional per-step |
 
@@ -69,11 +76,17 @@ flowchart LR
 ### How it behaves
 
 1. You send a message.
-2. The model may call tools (`read_file`, `run_terminal_command`, …).
-3. Results go back to the model; the loop continues.
-4. You get a final answer (or hit the step limit).
+2. **Meta-agent** (optional, default on) adds a short strategic hint from memory/context.
+3. The model may call tools (`read_file`, `run_terminal_command`, …).
+4. Results go back to the model; the loop continues.
+5. On a draft answer (or `max_steps`), **Reflexion** evaluates quality; if low, Holix retries with verbal self-feedback (up to `max_refinement_iterations`).
+6. You get the accepted final answer.
 
 Risky tools still ask for `/yes` or `/1`–`/4` confirmation.
+
+```text
+memory → meta → react ⇄ tools → reflect ⇄ react → finalize
+```
 
 ### Prompt examples
 
@@ -311,6 +324,59 @@ During `/plan-auto`, plan-step tools may auto-approve per security policy.
 
 ---
 
+## Reflexion (self-critique)
+
+Holix uses a **Reflexion-style** loop on the main agent (not Tree/Graph of Thoughts):
+
+1. Produce a draft final answer.
+2. Evaluate quality (and optional tool trajectory) via the meta evaluator.
+3. If below threshold → inject **verbal self-reflection** into the conversation and run **another ReAct pass**.
+4. Store reflection episodes in long-term memory when available.
+
+| Variable | Default | Effect |
+|----------|---------|--------|
+| `HOLIX_ENABLE_META_AGENT` / `enable_meta_agent` | `true` | Pre-thinking strategic hint after memory retrieval |
+| `HOLIX_ENABLE_SELF_REFINEMENT` / `enable_self_refinement` | `true` | Run Reflect after draft answers |
+| `HOLIX_MAX_REFINEMENT_ITERATIONS` | `2` | Max Reflexion retries per turn |
+| `HOLIX_REFINEMENT_QUALITY_THRESHOLD` | `0.7` | Accept draft when score ≥ threshold |
+
+Disable: `HOLIX_ENABLE_SELF_REFINEMENT=false` (or profile YAML `enable_self_refinement: false`).
+
+---
+
+## Step budget (max_steps)
+
+When the agent hits `max_steps`, Holix does not always stop immediately:
+
+1. **Health check** — recent tools, loops, errors, pending work.
+2. **Working + relevant** → grant extra steps (`max_steps_extend_by`, capped).
+3. **Hung / pure error thrash** → stop (or subagent supervisor guidance).
+
+| Variable | Default | Effect |
+|----------|---------|--------|
+| `max_steps` | `90` (runtime; profile may override) | Base ReAct/graph step budget |
+| `HOLIX_MAX_STEPS_EXTEND_ENABLED` | `true` | Allow auto-extension |
+| `HOLIX_MAX_STEPS_EXTEND_BY` | `30` | Steps added per extension |
+| `HOLIX_MAX_STEPS_MAX_EXTENSIONS` | `3` | Max extensions per run |
+| `HOLIX_MAX_STEPS_HARD_CAP` | `0` | Absolute cap (`0` = base + extend×N) |
+
+---
+
+## Subagents in Plan mode
+
+With `enable_subagents: true`, `plan_and_execute` can run **waves** of sub-agents, then a **supervisor** cycle:
+
+```text
+delegate → collect → supervisor → (rework failed jobs?) → react synthesis
+```
+
+- **Runtime supervisor** — mid-job loop/hang → inject guidance into the same job.  
+- **Graph supervisor** — after collect, re-delegate failed types with repair instructions.  
+
+Details: [SUBAGENTS.md](SUBAGENTS.md#supervisor).
+
+---
+
 ## Configuration
 
 Profile `.env` / settings (see [.env.example](../../.env.example)):
@@ -323,7 +389,9 @@ Profile `.env` / settings (see [.env.example](../../.env.example)):
 | `plan_generation_max_tokens` | `12000` | Max tokens for plan JSON (large reports) |
 | `plan_generation_retries` | `2` | Retries on timeout or truncated JSON |
 | `max_steps_per_plan_step` | `5` | Tool iterations per step in Plan mode |
-| `max_steps` | `15` | Global graph step limit |
+| `max_steps` | profile / `90` | Global graph step limit |
+| `enable_meta_agent` | `true` | Meta pre-thinking node |
+| `enable_self_refinement` | `true` | Reflexion after draft |
 
 Execution mode itself is a **session setting** in TUI/Telegram (not usually stored in `.env`). Use `/mode` or Shift+Tab.
 
@@ -344,6 +412,9 @@ Execution mode itself is a **session setting** in TUI/Telegram (not usually stor
 ## Related docs
 
 - [SLASH_COMMANDS.md](SLASH_COMMANDS.md) — `/mode`, `/plan-*`, `/status`
+- [SUBAGENTS.md](SUBAGENTS.md) — workers, supervisor, rework
+- [MEMORY.md](MEMORY.md) — Reflexion episodes in LTM
+- [CONFIGURATION.md](CONFIGURATION.md) — env / profile keys
 - [TUI.md](TUI.md) — Shift+Tab, web UI
 - [USER_GUIDE.md](USER_GUIDE.md) — learning path (links to all topics)
 - [ARCHITECTURE.md](ARCHITECTURE.md) — LangGraph and runtime

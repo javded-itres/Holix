@@ -27,22 +27,26 @@ Holix запускает агента через **LangGraph**. **Режим р�
 ```mermaid
 flowchart LR
   subgraph react [ReAct]
-    R1[Сообщение] --> R2[Цикл мысль + инструменты]
-    R2 --> R3[Ответ]
+    R1[Сообщение] --> R2[Meta]
+    R2 --> R3[Цикл мысль + tools]
+    R3 --> R4[Reflect]
+    R4 --> R5[Ответ]
   end
 
   subgraph plan [Plan and Execute]
-    P1[Сообщение] --> P2[План]
+    P1[Сообщение] --> P2[Meta + план]
     P2 --> P3[Согласование]
-    P3 --> P4[Шаги 1..N]
-    P4 --> P5[Ответ]
+    P3 --> P4[Шаги / субагенты]
+    P4 --> P5[Reflect]
+    P5 --> P6[Ответ]
   end
 
   subgraph hybrid [Hybrid]
-    H1[Сообщение] --> H2[План]
+    H1[Сообщение] --> H2[Meta + план]
     H2 --> H3[Согласование]
     H3 --> H4[ReAct внутри шага]
-    H4 --> H5[Ответ]
+    H4 --> H5[Reflect]
+    H5 --> H6[Ответ]
   end
 ```
 
@@ -50,6 +54,9 @@ flowchart LR
 |---|-------|----------------|--------|
 | План до инструментов | Нет | Да | Да |
 | Цикл инструментов | Один общий | По шагам плана | ReAct внутри шага |
+| Meta-agent (pre-thinking) | Да (по умолчанию) | Да | Да |
+| Reflexion после черновика | Да (по умолчанию) | На final / max_steps | Да |
+| Волны субагентов + supervisor | — | Да при enable_subagents | Через tools |
 | Размер задачи | Небольшая–средняя | Средняя, структурированная | Крупная, открытая |
 | Согласования | Риск инструментов | План + опционально шаги | План + опционально шаги |
 
@@ -58,6 +65,16 @@ flowchart LR
 ## ReAct (`react`)
 
 **Режим по умолчанию.** Агент чередует рассуждение и вызовы инструментов, пока не ответит или не достигнет `max_steps`.
+
+Типичный граф:
+
+```text
+memory → meta → react ⇄ tools → reflect ⇄ react → finalize
+```
+
+1. **Meta-agent** (по умолчанию вкл.) — короткая стратегическая подсказка.  
+2. Цикл ReAct / tools.  
+3. **Reflexion** — оценка черновика; при низком качестве — verbal feedback и повтор ReAct (до `max_refinement_iterations`).
 
 ### Когда использовать
 
@@ -311,6 +328,56 @@ flowchart LR
 
 ---
 
+## Reflexion (самокритика)
+
+Holix использует цикл в стиле **Reflexion** (не Tree/Graph of Thoughts):
+
+1. Черновик финального ответа.  
+2. Оценка качества (+ опционально траектория tools).  
+3. Ниже порога → **verbal reflection** в сообщения и ещё один проход ReAct.  
+4. Эпизоды reflection в LTM при доступной памяти.
+
+| Переменная | По умолчанию | Эффект |
+|------------|--------------|--------|
+| `HOLIX_ENABLE_META_AGENT` / `enable_meta_agent` | `true` | Meta после retrieval памяти |
+| `HOLIX_ENABLE_SELF_REFINEMENT` / `enable_self_refinement` | `true` | Reflect после черновика |
+| `HOLIX_MAX_REFINEMENT_ITERATIONS` | `2` | Макс. retry Reflexion |
+| `HOLIX_REFINEMENT_QUALITY_THRESHOLD` | `0.7` | Принять ответ при score ≥ |
+
+Выключить: `HOLIX_ENABLE_SELF_REFINEMENT=false`.
+
+---
+
+## Бюджет шагов (max_steps)
+
+При достижении `max_steps` Holix не всегда останавливается сразу:
+
+1. Проверка прогресса (tools, loop, ошибки).  
+2. **Работает + релевантно** → +шаги (`max_steps_extend_by`).  
+3. **Завис / thrash** → стоп (или guidance supervisor у субагентов).
+
+| Переменная | По умолчанию | Эффект |
+|------------|--------------|--------|
+| `max_steps` | `90` (runtime; профиль может переопределить) | Базовый бюджет |
+| `HOLIX_MAX_STEPS_EXTEND_ENABLED` | `true` | Авто-расширение |
+| `HOLIX_MAX_STEPS_EXTEND_BY` | `30` | Шагов за раз |
+| `HOLIX_MAX_STEPS_MAX_EXTENSIONS` | `3` | Сколько раз |
+| `HOLIX_MAX_STEPS_HARD_CAP` | `0` | Жёсткий потолок (`0` = base+extend×N) |
+
+---
+
+## Субагенты в Plan mode
+
+При `enable_subagents: true` режим `plan_and_execute` может запускать **волны** субагентов и **supervisor**:
+
+```text
+delegate → collect → supervisor → (rework failed?) → react synthesis
+```
+
+Подробнее: [SUBAGENTS.md](SUBAGENTS.md#supervisor).
+
+---
+
 ## Настройки
 
 `.env` профиля / settings (см. [.env.example](../../.env.example)):
@@ -323,7 +390,9 @@ flowchart LR
 | `plan_generation_max_tokens` | `12000` | Макс. токенов для JSON плана (большие отчёты) |
 | `plan_generation_retries` | `2` | Повторы при таймауте или обрезанном JSON |
 | `max_steps_per_plan_step` | `5` | Итераций инструментов на шаг в Plan |
-| `max_steps` | `15` | Общий лимит шагов графа |
+| `max_steps` | `90` | Общий лимит шагов графа / ReAct |
+| `enable_meta_agent` | `true` | Meta pre-thinking |
+| `enable_self_refinement` | `true` | Reflexion после черновика |
 
 Сам режим — **настройка сессии** в TUI/Telegram (обычно не в `.env`). Используйте `/mode` или Shift+Tab.
 
@@ -344,6 +413,9 @@ flowchart LR
 ## См. также
 
 - [SLASH_COMMANDS.md](SLASH_COMMANDS.md) — `/mode`, `/plan-*`, `/status`
+- [SUBAGENTS.md](SUBAGENTS.md) — воркеры, supervisor, rework
+- [MEMORY.md](MEMORY.md) — эпизоды Reflexion в LTM
+- [CONFIGURATION.md](CONFIGURATION.md) — env / профиль
 - [TUI.md](TUI.md) — Shift+Tab, веб-интерфейс
 - [USER_GUIDE.md](USER_GUIDE.md) — маршрут обучения (ссылки на все темы)
 - [ARCHITECTURE.md](ARCHITECTURE.md) — LangGraph и runtime

@@ -12,10 +12,20 @@ Data path: `~/.holix/profiles/<name>/data/memory/` (encrypted when [profile encr
 |-------|------|
 | Conversation | Messages per `conversation_id` (TUI session, Telegram chat, `cron-<id>`, API) |
 | Episodic / strategic | Summaries and extracted facts from successful runs |
+| Reflexion episodes | Quality critiques / retries (`metadata.type=reflexion` or `self_refinement`) |
 | Semantic (Chroma) | Embeddings for `/memory` and `holix memory search` |
 | Skills index | Chroma index for `holix skills search` (related, not chat memory) |
 
 The agent retrieves relevant past context automatically during runs; you can also search explicitly.
+
+### Reflexion and LTM
+
+When **self-refinement** is enabled (default), each evaluate/retry cycle may store:
+
+- **Episodic** — quality score, improvement areas, accept vs retry  
+- **Strategic** (on retry) — short “when quality is low on X, apply …” tips  
+
+See [EXECUTION_MODES.md](EXECUTION_MODES.md#reflexion-self-critique).
 
 ---
 

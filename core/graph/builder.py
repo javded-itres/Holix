@@ -59,6 +59,8 @@ def prepare_initial_state(
         "relevant_strategies": [],
         "step_count": 0,
         "max_steps": max_steps,
+        "base_max_steps": max_steps,
+        "step_budget_extensions": 0,
         "max_steps_per_plan_step": max_per_step,
         "execution_mode": execution_mode,
         "is_final": False,
@@ -67,6 +69,8 @@ def prepare_initial_state(
         "needs_refinement": False,
         "refinement_iterations": 0,
         "max_refinement_iterations": max_refinement,
+        "reflection_count": 0,
+        "reflection_log": [],
         "plan_steps": [],
         "current_plan_step": 0,
         "plan_status": "pending_review",
@@ -85,6 +89,11 @@ def prepare_initial_state(
         "pending_subagent": None,
         # Per user turn (must reset: checkpoint otherwise freezes honesty forever)
         "honesty_nudge_count": 0,
+        "supervisor_needs_rework": False,
+        "supervisor_rework_tasks": [],
+        "supervisor_rework_round": 0,
+        "supervisor_log": [],
+        "supervisor_last_diagnosis": None,
     }
 
 

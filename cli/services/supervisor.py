@@ -28,13 +28,23 @@ from cli.utils.ports import resolve_listen_port
 from cli.utils.rich_console import print_info, print_success, print_warning
 
 
+def _companion_autostart(env_name: str, *, default: bool = True) -> bool:
+    """``HOLIX_*_AUTOSTART`` — false disables OS companions (gateway-only Docker)."""
+    raw = os.getenv(env_name, "").strip().lower()
+    if not raw:
+        return default
+    return raw in {"1", "true", "yes", "on"}
+
+
 def telegram_enabled(profile: str = "default") -> bool:
     """True when a Telegram bot token is configured."""
     return bool(load_telegram_settings(profile).bot_token.strip())
 
 
 def telegram_should_start(profile: str = "default") -> bool:
-    """True when token is set and optional aiogram dependency is installed."""
+    """True when token is set, aiogram is available, and autostart is enabled."""
+    if not _companion_autostart("HOLIX_TELEGRAM_AUTOSTART", default=True):
+        return False
     return telegram_enabled(profile) and telegram_aiogram_available()
 
 

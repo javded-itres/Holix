@@ -23,7 +23,6 @@ from core.agent_events import (
     ToolCallStartEvent,
 )
 from core.graph.action_honesty import (
-    denies_visible_workspace,
     has_successful_workspace_listing,
     honesty_refusal_update,
     honesty_retry_update,
@@ -474,6 +473,14 @@ async def react_node(state: HolixGraphState, config: RunnableConfig) -> dict:
                 max_tokens=max_tokens,
                 tool_choice=tool_choice,
             )
+        from core.runtime.step_budget import maybe_extend_for_graph_result
+
+        result = maybe_extend_for_graph_result(
+            state,
+            result,
+            agent=agent,
+            task=str(state.get("user_input") or ""),
+        )
         return _merge_state_patch(result, messages_patch)
 
     except LLMStepTimeoutError as exc:
@@ -1294,6 +1301,26 @@ def _build_system_prompt_from_state(state: HolixGraphState, agent=None) -> str:
     # Append plan context to combined memories
     if plan_context:
         combined_memories = f"{combined_memories}\n{plan_context}" if combined_memories else plan_context
+
+    # Meta-agent strategic hint (pre-thinking)
+    meta = state.get("meta_decision") or {}
+    if isinstance(meta, dict):
+        hint = str(meta.get("context_hint") or "").strip()
+        if hint:
+            block = f"\n\n## Meta-agent guidance\n{hint}\n"
+            combined_memories = f"{combined_memories}{block}" if combined_memories else block.strip()
+
+    # Prior Reflexion notes this turn (verbal self-reflection memory)
+    reflection_log = list(state.get("reflection_log") or [])
+    if reflection_log:
+        last = reflection_log[-1]
+        areas = ", ".join(last.get("improvement_areas") or []) or "quality"
+        refl = (
+            f"\n\n## Prior self-reflection (this turn)\n"
+            f"Last quality≈{last.get('quality_score', '?')}; focus on: {areas}.\n"
+            f"{(last.get('refinement_prompt') or last.get('reasoning') or '')[:400]}\n"
+        )
+        combined_memories = f"{combined_memories}{refl}" if combined_memories else refl.strip()
 
     profile_name = profile_name_from_agent(agent) if agent else "default"
     agent_config = getattr(agent, "config", None) if agent else None

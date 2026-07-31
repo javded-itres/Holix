@@ -2,6 +2,30 @@
 
 ## Unreleased
 
+## 1.0.2 — 2026-07-31
+
+Runtime orchestration, Reflexion, A2A, production Docker, and multi-user deploy ergonomics.
+
+### Added
+
+- **A2A (Agent2Agent)** — Holix as A2A **server** (Agent Card + JSON-RPC `/a2a` + REST + **SSE streaming** via `message/stream` / `/a2a/message:stream`) and **client** (`a2a_list_agents`, `a2a_discover`, `a2a_send_message`, `a2a_get_task`). Profile `a2a:` config / `HOLIX_A2A_*`. Docs: [A2A.md](en/A2A.md).
+- **Reflexion (main agent)** — after a draft answer, meta evaluator scores quality (+ tool trajectory); low scores inject verbal self-feedback and retry ReAct (`reflect` node). Defaults: `enable_meta_agent` / `enable_self_refinement` **on**. Docs: [EXECUTION_MODES.md](en/EXECUTION_MODES.md#reflexion-self-critique).
+- **Step budget extension** — at `max_steps`, health-check may grant more steps when the agent is still progressing (`HOLIX_MAX_STEPS_EXTEND_*`). Applies to main graph/legacy loop and sub-agents.
+- **Subagent supervisor (runtime)** — background watcher detects loop / thrash / hang / stall and injects **guidance** into the same job (async + process). Events: `SubAgentSupervisorEvent`.
+- **Subagent supervisor (graph)** — in `plan_and_execute`, after `collect`: rework failed wave jobs with repair instructions; merge keeps successes (`prior_job` supersede). Design: [SUBAGENT_SUPERVISOR.md](en/SUBAGENT_SUPERVISOR.md).
+- **Docker production stack** — `docker-compose.yml` (full agent / gateway-only / Ollama profiles), `docker-compose.prod.yml`, `docker/env.example`, entrypoint modes (`agent`, `gateway`, extensions pip/drop-in), bootstrap for profile `shared` + workspace jail. Docs: [INSTALLATION.md](en/INSTALLATION.md#path-b--docker).
+
+### Changed
+
+- Default `subagent_default_process_mode` documented as **`async`** (process still available with spawn fallback).
+- Mode graphs wire `meta_agent` and `reflect` into `react`, `hybrid`, and `plan_and_execute`.
+- Companion autostart flags: `HOLIX_TELEGRAM_AUTOSTART` / `HOLIX_MAX_AUTOSTART` for gateway-only containers.
+- Docker default profile is **`shared`** (production-safe; `default` remains dev-only).
+
+### Docs
+
+- Updated EN/RU: EXECUTION_MODES, SUBAGENTS, CONFIGURATION, ARCHITECTURE, MEMORY, INSTALLATION, DEPLOYMENT; supervisor design plan under `docs/plans/`.
+
 ## 1.0.1 — 2026-07-29
 
 Patch release focused on **tool isolation**, **gateway security**, and **cooperative cancel** so Studio/agent runs fail closed on secrets and stay killable.

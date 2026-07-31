@@ -26,6 +26,7 @@ from api import state
 from api.deps import verify_admin_key
 from api.docs_chat import router as docs_chat_router
 from api.routers import (
+    a2a,
     admin,
     health,
     hermes_jobs,
@@ -128,6 +129,7 @@ app.add_middleware(
 app.add_middleware(SecurityHeadersMiddleware)
 
 app.include_router(health.router)
+app.include_router(a2a.router)
 app.include_router(hermes_v1.router)
 app.include_router(legacy_v1.router)
 app.include_router(hermes_jobs.router)

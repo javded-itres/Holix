@@ -294,10 +294,22 @@ def run_sub_agent_in_process(
     tool_calls_made: list[dict[str, Any]] = []
     steps_taken = 0
     tokens_used = 0
-    max_steps = config.max_steps
+    max_steps = int(config.max_steps or 0)
+    base_max_steps = max_steps
+    step_budget_extensions = 0
     result = None
 
     try:
+        from core.runtime.step_budget import StepBudgetPolicy, evaluate_step_budget
+
+        # Process workers may not have full parent Settings; use env-backed defaults.
+        try:
+            from config import settings as _settings
+
+            step_policy = StepBudgetPolicy.from_config(_settings)
+        except Exception:
+            step_policy = StepBudgetPolicy()
+
         # Start heartbeat in background
         heartbeat_stop = multiprocessing.Event()
 
@@ -319,179 +331,251 @@ def run_sub_agent_in_process(
         hb_thread = threading.Thread(target=heartbeat_worker, daemon=True)
         hb_thread.start()
 
-        while steps_taken < max_steps:
-            # Check for cancel signal
-            try:
-                while not input_queue.empty():
-                    data = input_queue.get_nowait()
-                    msg = AgentMessage.deserialize(data)
-                    if msg.msg_type == "cancel":
-                        result = SubAgentResult(
-                            name=config.name,
-                            success=False,
-                            error="Cancelled by parent",
-                            duration_ms=(time.monotonic() - start_time) * 1000,
+        while True:
+            while steps_taken < max_steps:
+                # Check for cancel signal
+                try:
+                    while not input_queue.empty():
+                        data = input_queue.get_nowait()
+                        msg = AgentMessage.deserialize(data)
+                        if msg.msg_type == "cancel":
+                            result = SubAgentResult(
+                                name=config.name,
+                                success=False,
+                                error="Cancelled by parent",
+                                duration_ms=(time.monotonic() - start_time) * 1000,
+                                steps_taken=steps_taken,
+                                tool_calls=tool_calls_made,
+                                tokens_used=tokens_used,
+                            )
+                            _send_result(output_queue, config.name, result)
+                            heartbeat_stop.set()
+                            return
+                except Exception:
+                    pass
+
+                steps_taken += 1
+                _send_progress(
+                    output_queue,
+                    config.name,
+                    kind="step",
+                    message=f"Reasoning step {steps_taken}/{max_steps}",
+                    steps_taken=steps_taken,
+                )
+
+                # Drain supervisor guidance / cancel from parent
+                try:
+                    while True:
+                        try:
+                            data = input_queue.get_nowait()
+                        except Exception:
+                            break
+                        msg = AgentMessage.deserialize(data)
+                        if msg.msg_type == "cancel":
+                            result = SubAgentResult(
+                                name=config.name,
+                                success=False,
+                                error="Cancelled by parent",
+                                duration_ms=(time.monotonic() - start_time) * 1000,
+                                steps_taken=steps_taken,
+                                tool_calls=tool_calls_made,
+                                tokens_used=tokens_used,
+                            )
+                            _send_result(output_queue, config.name, result)
+                            heartbeat_stop.set()
+                            return
+                        if msg.msg_type in {"guidance", "revise"} and (msg.content or "").strip():
+                            messages.append(
+                                {
+                                    "role": "system",
+                                    "content": (
+                                        "### Runtime supervisor intervention\n"
+                                        "The parent runtime detected a problem and sent guidance. "
+                                        "Follow it on this step:\n\n"
+                                        f"{msg.content.strip()}"
+                                    ),
+                                }
+                            )
+                            _send_progress(
+                                output_queue,
+                                config.name,
+                                kind="status",
+                                message="Applied supervisor guidance",
+                                steps_taken=steps_taken,
+                            )
+                except Exception:
+                    pass
+
+                # LLM call with timeout
+                try:
+                    response = loop.run_until_complete(
+                        _asyncio.wait_for(
+                            client.chat.completions.create(
+                                model=model,
+                                messages=messages,
+                                tools=tools_schemas if tools_schemas else None,
+                                tool_choice="auto" if tools_schemas else None,
+                                temperature=config.temperature,
+                            ),
+                            timeout=config.timeout,
+                        )
+                    )
+                except TimeoutError:
+                    result = SubAgentResult(
+                        name=config.name,
+                        success=False,
+                        error=f"Timed out after {config.timeout}s",
+                        duration_ms=(time.monotonic() - start_time) * 1000,
+                        steps_taken=steps_taken,
+                        tool_calls=tool_calls_made,
+                        tokens_used=tokens_used,
+                    )
+                    _send_result(output_queue, config.name, result)
+                    heartbeat_stop.set()
+                    return
+
+                message = response.choices[0].message
+                try:
+                    from core.llm.usage import (
+                        completion_text_from_message,
+                        resolve_usage,
+                    )
+
+                    usage = resolve_usage(
+                        response,
+                        messages=messages,
+                        completion_text=completion_text_from_message(message),
+                        model=model,
+                    )
+                    tokens_used += int(usage.get("total_tokens") or 0)
+                except Exception:
+                    pass
+
+                if message.tool_calls:
+                    msg_dict = {
+                        "role": "assistant",
+                        "content": message.content or "",
+                        "tool_calls": [
+                            {
+                                "id": tc.id,
+                                "type": tc.type,
+                                "function": {
+                                    "name": tc.function.name,
+                                    "arguments": tc.function.arguments,
+                                },
+                            }
+                            for tc in message.tool_calls
+                        ],
+                    }
+                    messages.append(msg_dict)
+
+                    for tc in message.tool_calls:
+                        tool_name = tc.function.name
+                        tool_calls_made.append({
+                            "name": tool_name,
+                            "arguments": tc.function.arguments,
+                        })
+                        _send_progress(
+                            output_queue,
+                            config.name,
+                            kind="tool_start",
+                            message=f"Calling {tool_name}",
                             steps_taken=steps_taken,
-                            tool_calls=tool_calls_made,
-                            tokens_used=tokens_used,
+                            tool_name=tool_name,
+                            details=(tc.function.arguments or "")[:300],
                         )
-                        _send_result(output_queue, config.name, result)
-                        heartbeat_stop.set()
-                        return
-            except Exception:
-                pass
 
-            steps_taken += 1
-            _send_progress(
-                output_queue,
-                config.name,
-                kind="step",
-                message=f"Reasoning step {steps_taken}/{max_steps}",
-                steps_taken=steps_taken,
+                        try:
+                            tool_result = _execute_tool_guarded(
+                                registry,
+                                tc,
+                                config=config,
+                                profile_name=profile_name,
+                                output_queue=output_queue,
+                                input_queue=input_queue,
+                                auto_allow_threshold=auto_allow_threshold,
+                                confirmation_timeout=confirmation_timeout,
+                                interactive=interactive,
+                                data_dir=data_dir,
+                                loop=loop,
+                            )
+                        except Exception as e:
+                            tool_result = f"Error: {e}"
+
+                        preview = (tool_result or "").strip()
+                        if len(preview) > 240:
+                            preview = preview[:239] + "…"
+                        tool_calls_made[-1]["result"] = tool_result
+                        _send_progress(
+                            output_queue,
+                            config.name,
+                            kind="tool_result",
+                            message=f"{tool_name} finished",
+                            steps_taken=steps_taken,
+                            tool_name=tool_name,
+                            details=preview,
+                        )
+
+                        messages.append({
+                            "role": "tool",
+                            "tool_call_id": tc.id,
+                            "content": tool_result,
+                        })
+                else:
+                    # Final answer
+                    final_response = message.content or "No response"
+                    result = SubAgentResult(
+                        name=config.name,
+                        success=True,
+                        response=final_response,
+                        duration_ms=(time.monotonic() - start_time) * 1000,
+                        steps_taken=steps_taken,
+                        tool_calls=tool_calls_made,
+                        tokens_used=tokens_used,
+                    )
+                    _send_result(output_queue, config.name, result)
+                    heartbeat_stop.set()
+                    return
+
+            # Max steps: health-check — extend if still working
+            decision = evaluate_step_budget(
+                step_count=steps_taken,
+                max_steps=max_steps,
+                extensions_used=step_budget_extensions,
+                messages=messages,
+                tool_calls_log=tool_calls_made,
+                task=str(task or ""),
+                policy=step_policy,
+                base_max_steps=base_max_steps,
             )
-
-            # LLM call with timeout
-            try:
-                response = loop.run_until_complete(
-                    _asyncio.wait_for(
-                        client.chat.completions.create(
-                            model=model,
-                            messages=messages,
-                            tools=tools_schemas if tools_schemas else None,
-                            tool_choice="auto" if tools_schemas else None,
-                            temperature=config.temperature,
-                        ),
-                        timeout=config.timeout,
-                    )
-                )
-            except TimeoutError:
-                result = SubAgentResult(
-                    name=config.name,
-                    success=False,
-                    error=f"Timed out after {config.timeout}s",
-                    duration_ms=(time.monotonic() - start_time) * 1000,
+            if decision.extend:
+                prev = max_steps
+                max_steps = decision.new_max_steps
+                step_budget_extensions = decision.extensions_used
+                _send_progress(
+                    output_queue,
+                    config.name,
+                    kind="step_budget_extended",
+                    message=(
+                        f"Step budget +{decision.extra_steps} "
+                        f"({prev} → {max_steps}): {decision.reason}"
+                    ),
                     steps_taken=steps_taken,
-                    tool_calls=tool_calls_made,
-                    tokens_used=tokens_used,
                 )
-                _send_result(output_queue, config.name, result)
-                heartbeat_stop.set()
-                return
+                continue
 
-            message = response.choices[0].message
-            try:
-                from core.llm.usage import (
-                    completion_text_from_message,
-                    resolve_usage,
-                )
-
-                usage = resolve_usage(
-                    response,
-                    messages=messages,
-                    completion_text=completion_text_from_message(message),
-                    model=model,
-                )
-                tokens_used += int(usage.get("total_tokens") or 0)
-            except Exception:
-                pass
-
-            if message.tool_calls:
-                msg_dict = {
-                    "role": "assistant",
-                    "content": message.content or "",
-                    "tool_calls": [
-                        {
-                            "id": tc.id,
-                            "type": tc.type,
-                            "function": {
-                                "name": tc.function.name,
-                                "arguments": tc.function.arguments,
-                            },
-                        }
-                        for tc in message.tool_calls
-                    ],
-                }
-                messages.append(msg_dict)
-
-                for tc in message.tool_calls:
-                    tool_name = tc.function.name
-                    tool_calls_made.append({
-                        "name": tool_name,
-                        "arguments": tc.function.arguments,
-                    })
-                    _send_progress(
-                        output_queue,
-                        config.name,
-                        kind="tool_start",
-                        message=f"Calling {tool_name}",
-                        steps_taken=steps_taken,
-                        tool_name=tool_name,
-                        details=(tc.function.arguments or "")[:300],
-                    )
-
-                    try:
-                        tool_result = _execute_tool_guarded(
-                            registry,
-                            tc,
-                            config=config,
-                            profile_name=profile_name,
-                            output_queue=output_queue,
-                            input_queue=input_queue,
-                            auto_allow_threshold=auto_allow_threshold,
-                            confirmation_timeout=confirmation_timeout,
-                            interactive=interactive,
-                            data_dir=data_dir,
-                            loop=loop,
-                        )
-                    except Exception as e:
-                        tool_result = f"Error: {e}"
-
-                    preview = (tool_result or "").strip()
-                    if len(preview) > 240:
-                        preview = preview[:239] + "…"
-                    _send_progress(
-                        output_queue,
-                        config.name,
-                        kind="tool_result",
-                        message=f"{tool_name} finished",
-                        steps_taken=steps_taken,
-                        tool_name=tool_name,
-                        details=preview,
-                    )
-
-                    messages.append({
-                        "role": "tool",
-                        "tool_call_id": tc.id,
-                        "content": tool_result,
-                    })
-            else:
-                # Final answer
-                final_response = message.content or "No response"
-                result = SubAgentResult(
-                    name=config.name,
-                    success=True,
-                    response=final_response,
-                    duration_ms=(time.monotonic() - start_time) * 1000,
-                    steps_taken=steps_taken,
-                    tool_calls=tool_calls_made,
-                    tokens_used=tokens_used,
-                )
-                _send_result(output_queue, config.name, result)
-                heartbeat_stop.set()
-                return
-
-        # Max steps
-        result = SubAgentResult(
-            name=config.name,
-            success=False,
-            error=f"Max steps ({max_steps}) reached",
-            duration_ms=(time.monotonic() - start_time) * 1000,
-            steps_taken=steps_taken,
-            tool_calls=tool_calls_made,
-            tokens_used=tokens_used,
-        )
-        _send_result(output_queue, config.name, result)
-        heartbeat_stop.set()
+            result = SubAgentResult(
+                name=config.name,
+                success=False,
+                error=f"Max steps ({max_steps}) reached: {decision.reason}",
+                duration_ms=(time.monotonic() - start_time) * 1000,
+                steps_taken=steps_taken,
+                tool_calls=tool_calls_made,
+                tokens_used=tokens_used,
+            )
+            _send_result(output_queue, config.name, result)
+            heartbeat_stop.set()
+            return
 
     except Exception as e:
         result = SubAgentResult(

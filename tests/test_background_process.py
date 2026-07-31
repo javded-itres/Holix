@@ -414,3 +414,33 @@ def test_live_buffer_renders_background_process() -> None:
     buf.set_background_process(label="uvicorn :8000 · pid 1234", process_id="proc_abc")
     text = buf.render_plain()
     assert "🟢 Process: uvicorn :8000 · pid 1234" in text
+
+@pytest.mark.asyncio
+async def test_registry_persists_and_hydrates_across_instances(tmp_path, monkeypatch) -> None:
+    """Telegram and Studio are separate OS processes — disk index bridges them."""
+    monkeypatch.setenv("HOLIX_HOME", str(tmp_path))
+    (tmp_path / "profiles" / "p1" / "data").mkdir(parents=True)
+    ws = tmp_path / "profiles" / "p1" / "workspace"
+    ws.mkdir(parents=True)
+    popen = _mock_popen(424242)
+
+    reg_telegram = BackgroundProcessRegistry()
+    with (
+        patch("core.runtime.background_process.popen_background", return_value=popen),
+        patch("core.runtime.background_process.is_process_alive", return_value=True),
+        patch("core.runtime.port_utils.find_busy_ports", return_value=[]),
+        patch("core.runtime.port_utils.force_free_ports", return_value=[]),
+        patch("core.workspace.get_effective_workspace_root", return_value=ws),
+    ):
+        record = await reg_telegram.start(
+            command="npm run dev -- --host 0.0.0.0 --port 5173",
+            label="app_front",
+            conversation_id="tg-1",
+            profile="p1",
+        )
+        reg_studio = BackgroundProcessRegistry()
+        listed = reg_studio.list_for_profile(profile="p1")
+
+    assert any(r.process_id == record.process_id for r in listed)
+    assert listed[0].label == "app_front"
+    assert listed[0].command.startswith("npm run dev")

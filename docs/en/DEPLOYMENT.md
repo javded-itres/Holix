@@ -2,9 +2,31 @@
 
 ## Docker
 
-First-time container install (token, volumes, user approval): **[INSTALLATION.md § Path B](INSTALLATION.md#path-b--docker)**.
+First-time container install (token, volumes, user approval, extensions): **[INSTALLATION.md § Path B](INSTALLATION.md#path-b--docker)**.
 
-This section covers **production operations** for an already-running Docker deployment: env hardening, persistence, upgrades, and pairing with reverse proxy / monitoring below.
+Compose entry points:
+
+| Goal | Command |
+|------|---------|
+| Full agent (gateway + Telegram) | `docker compose up -d` |
+| + local Ollama | `docker compose --profile ollama up -d` |
+| Gateway API only | `docker compose --profile gateway-only up -d holix-gateway` |
+| Multi-user prod (bind mounts) | `docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d` |
+
+Templates: `docker/env.example`, `docker-compose.yml`, `docker-compose.prod.yml`.
+
+### Production checklist (Docker)
+
+1. Set a strong `HOLIX_API_KEY_PEPPER` (and rotate if leaked).
+2. Use named profile `HOLIX_PROFILE=shared` (never `default` in production).
+3. Bind-mount `HOLIX_DATA_DIR` so profiles/workspaces survive image upgrades.
+4. Keep `HOLIX_TELEGRAM_ACCESS_REQUESTS=true`; approve users with `--create-profile`.
+5. Leave `HOLIX_WORKSPACE_JAIL=true` for multi-tenant file isolation.
+6. Put reverse proxy TLS in front; optionally set `HOLIX_CORS_ORIGINS`.
+7. Drop extensions into `HOLIX_EXTENSIONS_DIR` or set `HOLIX_EXTENSIONS_PIP`.
+8. Upgrade: `docker compose pull && docker compose up -d` (data volume untouched).
+
+This section below covers **host** production (systemd). Docker ops pair with reverse proxy / monitoring the same way.
 
 ## systemd
 

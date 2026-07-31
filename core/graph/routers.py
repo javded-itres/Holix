@@ -15,10 +15,25 @@ def route_after_react(state: HolixGraphState) -> str:
     step_count = state.get("step_count", 0)
     max_steps = state.get("max_steps", 90)
 
-    if is_final or step_count >= max_steps:
-        return "finalize"
-    if tool_calls:
+    if tool_calls and not is_final and step_count < max_steps:
         return "tool_execution"
+    # Draft answer or step budget exhausted → Reflexion evaluate (may loop to react)
+    if is_final or step_count >= max_steps or not tool_calls:
+        return "reflect"
+    return "reflect"
+
+
+def route_after_reflect(state: HolixGraphState) -> str:
+    """After Reflexion: retry ReAct with feedback, or finalize."""
+    if state.get("is_final", False) and not state.get("needs_refinement"):
+        return "finalize"
+    if state.get("needs_refinement"):
+        step_count = state.get("step_count", 0)
+        max_steps = state.get("max_steps", 90)
+        if step_count >= max_steps:
+            logger.info("Reflexion requested retry but max_steps reached — finalizing")
+            return "finalize"
+        return "react"
     return "finalize"
 
 
@@ -69,7 +84,7 @@ def route_after_react_plan(state: HolixGraphState) -> str:
     current_step_start_count = state.get("current_step_start_count", 0)
 
     if is_final or step_count >= max_steps:
-        return "finalize"
+        return "reflect"
     if tool_calls:
         return "tool_execution"
     if is_step_complete:
@@ -114,4 +129,18 @@ def route_after_step_orchestrate(state: HolixGraphState) -> str:
 
 def route_after_delegate_subagent(state: HolixGraphState) -> str:
     """After sub-agent delegation, continue to react for the step."""
+    return "react"
+
+
+def route_after_supervisor(state: HolixGraphState) -> str:
+    """After graph supervisor: rework failed jobs or synthesize via react."""
+    if state.get("is_final", False):
+        return "finalize"
+    if state.get("supervisor_needs_rework") and state.get("supervisor_rework_tasks"):
+        logger.info(
+            "Supervisor routing to rework (%d task(s), round=%s)",
+            len(state.get("supervisor_rework_tasks") or []),
+            state.get("supervisor_rework_round", 0),
+        )
+        return "delegate_subagent"
     return "react"
