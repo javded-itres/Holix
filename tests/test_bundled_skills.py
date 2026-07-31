@@ -54,16 +54,20 @@ def test_bundled_holix_studio_frontend_backend_skill_exists():
     assert parsed is not None
     assert parsed["name"] == "holix-studio-frontend-backend"
     body = parsed["content"].lower()
-    assert "vite_api_url" in body
-    assert "localhost" in body
-    assert "preview_origins" in parsed["content"]
-    assert "resolve_preview_origin" in parsed["content"]
+    assert "0.0.0.0" in body or "0.0.0.0" in parsed["content"]
     assert "open_preview_url" in parsed["content"]
-    assert "hmr" in body
-    assert "clientPort" in parsed["content"]
+    assert "docker-compose" in body or "docker compose" in body
+    assert "nginx" in body
+    assert "preview" in body
+    # Platform / required flags
+    assert parsed.get("required") is True or parsed.get("platform") is True or "required" in (
+        parsed.get("tags") or []
+    )
 
 
 def test_seed_bundled_skills(tmp_path: Path):
+    from core.skills.bundled import required_bundled_skill_names
+
     dest = tmp_path / "skills"
     first = seed_bundled_skills(dest)
     assert "holix-cron" in first
@@ -75,8 +79,14 @@ def test_seed_bundled_skills(tmp_path: Path):
     assert (dest / "holix-sdd-apply.md").is_file()
     assert (dest / "holix-studio-frontend-backend.md").is_file()
 
+    # Non-required skills are not re-seeded; required platform skill is refreshed
+    fe = dest / "holix-studio-frontend-backend.md"
+    fe.write_text("stale", encoding="utf-8")
     second = seed_bundled_skills(dest)
-    assert second == []
+    assert "holix-cron" not in second
+    assert "holix-studio-frontend-backend" in second
+    assert "stale" not in fe.read_text(encoding="utf-8")
+    assert "holix-studio-frontend-backend" in required_bundled_skill_names()
 
     third = seed_bundled_skills(dest, overwrite=True)
     assert "holix-cron" in third

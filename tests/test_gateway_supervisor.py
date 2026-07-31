@@ -34,10 +34,19 @@ def test_telegram_enabled_with_token(monkeypatch: pytest.MonkeyPatch) -> None:
 def test_telegram_should_start_requires_aiogram(monkeypatch: pytest.MonkeyPatch) -> None:
     _block_telegram_env_files(monkeypatch)
     monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "test-token")
+    monkeypatch.delenv("HOLIX_TELEGRAM_AUTOSTART", raising=False)
     if telegram_aiogram_available():
         assert telegram_should_start() is True
     else:
         assert telegram_should_start() is False
+
+
+def test_telegram_should_start_respects_autostart_off(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Gateway-only Docker sets HOLIX_TELEGRAM_AUTOSTART=false."""
+    _block_telegram_env_files(monkeypatch)
+    monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "test-token")
+    monkeypatch.setenv("HOLIX_TELEGRAM_AUTOSTART", "false")
+    assert telegram_should_start() is False
 
 
 def test_docs_should_start_when_site_configured(
@@ -90,6 +99,7 @@ def test_max_should_poll_in_development(monkeypatch: pytest.MonkeyPatch) -> None
     monkeypatch.setenv("HOLIX_MAX_ACCESS_TOKEN", "test-token")
     monkeypatch.setenv("HOLIX_MAX_MODE", "polling")
     monkeypatch.setenv("HOLIX_ENV", "development")
+    monkeypatch.delenv("HOLIX_MAX_AUTOSTART", raising=False)
     assert max_should_poll() is True
     assert max_should_webhook() is False
 
@@ -100,5 +110,14 @@ def test_max_allows_polling_in_production(monkeypatch: pytest.MonkeyPatch) -> No
     monkeypatch.setenv("HOLIX_MAX_ACCESS_TOKEN", "test-token")
     monkeypatch.setenv("HOLIX_MAX_MODE", "polling")
     monkeypatch.setenv("HOLIX_ENV", "production")
+    monkeypatch.delenv("HOLIX_MAX_AUTOSTART", raising=False)
     assert max_should_webhook() is False
     assert max_should_poll() is True
+
+
+def test_max_should_poll_respects_autostart_off(monkeypatch: pytest.MonkeyPatch) -> None:
+    _block_max_env_files(monkeypatch)
+    monkeypatch.setenv("HOLIX_MAX_ACCESS_TOKEN", "test-token")
+    monkeypatch.setenv("HOLIX_MAX_MODE", "polling")
+    monkeypatch.setenv("HOLIX_MAX_AUTOSTART", "false")
+    assert max_should_poll() is False

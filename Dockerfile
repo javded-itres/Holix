@@ -38,6 +38,7 @@ RUN mkdir -p data/memory data/skills data/security \
     && uv run playwright install chromium
 
 ENV HOLIX_HOME=/data/.holix
+ENV HOLIX_PROFILE=shared
 ENV HOLIX_ENV=production
 ENV HOLIX_REQUIRE_AUTH=true
 ENV HOLIX_GATEWAY_HOST=0.0.0.0
@@ -45,18 +46,22 @@ ENV HOLIX_GATEWAY_PORT=8000
 ENV HOLIX_TELEGRAM_ACCESS_REQUESTS=true
 ENV HOLIX_TELEGRAM_VOICE_ENABLED=true
 ENV HOLIX_TELEGRAM_FILES_ENABLED=true
+ENV HOLIX_TELEGRAM_AUTOSTART=true
+ENV HOLIX_MAX_AUTOSTART=true
+ENV HOLIX_WORKSPACE_JAIL=true
 ENV ENABLE_BROWSER_TOOLS=true
 ENV BROWSER_HEADLESS=true
 
 EXPOSE 8000
 
-HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
+HEALTHCHECK --interval=30s --timeout=10s --start-period=45s --retries=3 \
     CMD curl -f "http://127.0.0.1:${HOLIX_GATEWAY_PORT:-8000}/health" || exit 1
 
 COPY scripts/docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 
-VOLUME ["/data/.holix"]
+VOLUME ["/data/.holix", "/data/files"]
 
 ENTRYPOINT ["docker-entrypoint.sh"]
-CMD ["gateway"]
+# agent = gateway + Telegram/MAX companions; use "gateway" with HOLIX_TELEGRAM_AUTOSTART=false for API-only
+CMD ["agent"]

@@ -666,8 +666,11 @@ class SddArchiveTool(BaseTool):
         super().__init__()
         self.name = "sdd_archive"
         self.description = (
-            "Merge change delta specs into main openspec/specs/, "
-            "then move the change folder to changes/archive/YYYY-MM-DD-<id>/."
+            "Merge change delta specs (ADDED/MODIFIED/REMOVED Requirements) into "
+            "main openspec/specs/<domain>/spec.md, then move the change folder to "
+            "changes/archive/YYYY-MM-DD-<id>/. Nested delta files under "
+            "specs/<domain>/… still merge into that domain. Returns warnings if "
+            "tasks are still open (merge still proceeds)."
         )
         self.risk_level = "no"
         self.parameters = {
@@ -675,13 +678,20 @@ class SddArchiveTool(BaseTool):
             "properties": {
                 "project": _PROJECT_PROP,
                 "change_id": {"type": "string"},
+                "force": {
+                    "type": "boolean",
+                    "description": "Reserved for stricter gates; archive currently always merges when change exists.",
+                    "default": False,
+                },
             },
             "required": ["change_id"],
         }
 
-    async def execute(self, change_id: str, project: str = "", **_: Any) -> str:
+    async def execute(
+        self, change_id: str, project: str = "", force: bool = False, **_: Any
+    ) -> str:
         try:
-            return result_json(_store(project).archive(change_id))
+            return result_json(_store(project).archive(change_id, force=bool(force)))
         except Exception as exc:
             return _err(exc)
 

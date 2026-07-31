@@ -82,6 +82,7 @@ class SubAgentManager:
         self._progress_min_interval = 1.25
         self._runtime_owner: str | None = None
         self._runtime_source: str | None = None
+        self._supervisor: Any = None
 
     def _max_concurrent(self) -> int:
         cfg = getattr(self._parent, "config", None)
@@ -258,7 +259,26 @@ class SubAgentManager:
         self._register_handle(config.name, handle)
         self._emit_started(handle)
         self._publish_runtime(handle)
+        self._ensure_supervisor().ensure_running()
+        if self._supervisor is not None:
+            try:
+                self._supervisor.reset_job(config.name)
+            except Exception:
+                pass
         return handle
+
+    def _ensure_supervisor(self) -> Any:
+        """Lazy-create the runtime supervisor (watches jobs, injects guidance)."""
+        if self._supervisor is not None:
+            return self._supervisor
+        from core.subagents.supervisor import SubagentSupervisor, SupervisorPolicy
+
+        cfg = getattr(self._parent, "config", None)
+        self._supervisor = SubagentSupervisor(
+            self,
+            policy=SupervisorPolicy.from_config(cfg),
+        )
+        return self._supervisor
 
     def _register_handle(self, name: str, handle: SubAgentHandle) -> None:
         """Track a handle and reconcile completion notifications."""

@@ -80,6 +80,15 @@ class ProfileConfig(BaseModel):
     enable_subagents: bool | None = None
     subagent_default_process_mode: str | None = None
     subagent_max_concurrent: int | None = None
+    # Runtime supervisor: watch stuck sub-agent jobs and inject guidance
+    subagent_supervisor_enabled: bool | None = None
+
+    # Meta-agent (pre-thinking) and Reflexion self-refinement
+    enable_meta_agent: bool | None = None
+    enable_self_refinement: bool | None = None
+
+    # When max_steps is hit, allow automatic budget extensions on progress
+    max_steps_extend_enabled: bool | None = None
 
     # Hub: optional background ClawHub version updates
     hub_auto_update: bool = False
@@ -105,6 +114,9 @@ class ProfileConfig(BaseModel):
 
     # Per-extension settings: { extension_name: { key: value, ... }, ... }
     extension_settings: dict[str, Any] = Field(default_factory=dict)
+
+    # Agent2Agent (A2A) protocol: server exposure + remote agents client registry
+    a2a: dict[str, Any] = Field(default_factory=dict)
 
 
 def _holix_env_name() -> str:

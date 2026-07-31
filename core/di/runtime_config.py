@@ -44,6 +44,7 @@ class HolixRuntimeConfig:
     subagent_max_concurrent: int
     subagent_process_timeout: float
     subagent_heartbeat_interval: float
+    subagent_supervisor_enabled: bool
 
     # Meta-agent / refinement / evolution
     enable_meta_agent: bool
@@ -52,6 +53,12 @@ class HolixRuntimeConfig:
     refinement_quality_threshold: float
     enable_evolution: bool
     evolution_auto_learn: bool
+
+    # Step budget auto-extension when agent is still making progress
+    max_steps_extend_enabled: bool
+    max_steps_extend_by: int
+    max_steps_max_extensions: int
+    max_steps_hard_cap: int
 
     # Safety / plan review
     auto_allow_threshold: str
@@ -141,12 +148,23 @@ class HolixRuntimeConfig:
             subagent_max_concurrent=s.subagent_max_concurrent,
             subagent_process_timeout=s.subagent_process_timeout,
             subagent_heartbeat_interval=s.subagent_heartbeat_interval,
+            subagent_supervisor_enabled=bool(
+                getattr(s, "subagent_supervisor_enabled", True)
+            ),
             enable_meta_agent=s.enable_meta_agent,
             enable_self_refinement=s.enable_self_refinement,
             max_refinement_iterations=s.max_refinement_iterations,
             refinement_quality_threshold=s.refinement_quality_threshold,
             enable_evolution=s.enable_evolution,
             evolution_auto_learn=s.evolution_auto_learn,
+            max_steps_extend_enabled=bool(
+                getattr(s, "max_steps_extend_enabled", True)
+            ),
+            max_steps_extend_by=int(getattr(s, "max_steps_extend_by", 30) or 30),
+            max_steps_max_extensions=int(
+                getattr(s, "max_steps_max_extensions", 3) or 3
+            ),
+            max_steps_hard_cap=int(getattr(s, "max_steps_hard_cap", 0) or 0),
             auto_allow_threshold=s.auto_allow_threshold,
             non_interactive=s.non_interactive,
             confirmation_timeout=s.confirmation_timeout,
@@ -231,6 +249,18 @@ class HolixRuntimeConfig:
             overrides["subagent_default_process_mode"] = profile.subagent_default_process_mode
         if getattr(profile, "subagent_max_concurrent", None) is not None:
             overrides["subagent_max_concurrent"] = profile.subagent_max_concurrent
+        if getattr(profile, "subagent_supervisor_enabled", None) is not None:
+            overrides["subagent_supervisor_enabled"] = bool(
+                profile.subagent_supervisor_enabled
+            )
+        if getattr(profile, "enable_meta_agent", None) is not None:
+            overrides["enable_meta_agent"] = bool(profile.enable_meta_agent)
+        if getattr(profile, "enable_self_refinement", None) is not None:
+            overrides["enable_self_refinement"] = bool(profile.enable_self_refinement)
+        if getattr(profile, "max_steps_extend_enabled", None) is not None:
+            overrides["max_steps_extend_enabled"] = bool(
+                profile.max_steps_extend_enabled
+            )
         if getattr(profile, "search", None):
             overrides["search"] = profile.search
         overrides["workspace_jail_enabled"] = bool(

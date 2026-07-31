@@ -147,6 +147,114 @@ The system SHALL support password and OAuth login.
     assert out.count("### Requirement:") == 2
 
 
+def test_merge_document_order_removed_wins_after_modified():
+    main = "# D\n\n### Requirement: Foo\nOld\n"
+    delta = """## MODIFIED Requirements
+
+### Requirement: Foo
+New body
+
+## REMOVED Requirements
+
+### Requirement: Foo
+"""
+    out = merge_delta_into_main(main, delta)
+    assert "Foo" not in out
+    assert "New body" not in out
+
+
+def test_merge_collapses_duplicate_titles_in_main():
+    main = """# D
+
+### Requirement: Dup
+First
+
+### Requirement: Dup
+Second
+"""
+    delta = """## MODIFIED Requirements
+
+### Requirement: Dup
+Third
+"""
+    out = merge_delta_into_main(main, delta)
+    assert out.count("### Requirement:") == 1
+    assert "Third" in out
+    assert "First" not in out
+
+
+def test_archive_nested_spec_merges_into_parent_domain(tmp_path: Path):
+    store = SpecStore(tmp_path)
+    store.init(example_domain="auth")
+    store.create_change("nested-merge", domain="auth")
+    store.write_artifact(
+        "nested-merge",
+        "proposal",
+        "# Proposal\n\n## Why\nNeed nested layout fix.\n\n## What\nMerge correctly.\n\n## Impact\nSpecs.\n",
+    )
+    store.write_artifact(
+        "nested-merge",
+        "specs",
+        "## ADDED Requirements\n\n### Requirement: Top level\nBody top.\n\n#### Scenario: S\n- **GIVEN** a\n- **WHEN** b\n- **THEN** c\n",
+        domain="auth",
+    )
+    nested = (
+        tmp_path
+        / "openspec"
+        / "changes"
+        / "nested-merge"
+        / "specs"
+        / "auth"
+        / "notes"
+        / "spec.md"
+    )
+    nested.parent.mkdir(parents=True, exist_ok=True)
+    nested.write_text(
+        "## ADDED Requirements\n\n### Requirement: Nested note\nBody nested.\n\n"
+        "#### Scenario: S\n- **GIVEN** a\n- **WHEN** b\n- **THEN** c\n",
+        encoding="utf-8",
+    )
+    store.write_artifact(
+        "nested-merge",
+        "tasks",
+        "# Tasks\n\n- [x] 1.1 Done\n  - **assignee:** `main`\n  - **reason:** ok\n",
+    )
+    archived = store.archive("nested-merge")
+    assert archived["ok"] is True
+    # Must NOT create openspec/specs/notes/
+    assert not (tmp_path / "openspec" / "specs" / "notes").exists()
+    main = (tmp_path / "openspec" / "specs" / "auth" / "spec.md").read_text(encoding="utf-8")
+    assert "Top level" in main
+    assert "Nested note" in main
+    assert archived["merged_specs"] == ["openspec/specs/auth/spec.md"]
+
+
+def test_archive_warns_on_open_tasks(tmp_path: Path):
+    store = SpecStore(tmp_path)
+    store.init(example_domain="auth")
+    store.create_change("open-tasks", domain="auth")
+    store.write_artifact(
+        "open-tasks",
+        "proposal",
+        "# Proposal\n\n## Why\nWhy enough for propose.\n\n## What\nWhat.\n\n## Impact\nImpact.\n",
+    )
+    store.write_artifact(
+        "open-tasks",
+        "specs",
+        "## ADDED Requirements\n\n### Requirement: Open\nBody.\n\n#### Scenario: S\n- **GIVEN** a\n- **WHEN** b\n- **THEN** c\n",
+        domain="auth",
+    )
+    store.write_artifact(
+        "open-tasks",
+        "tasks",
+        "# Tasks\n\n- [ ] 1.1 Still open\n  - **assignee:** `main`\n  - **reason:** work\n",
+    )
+    archived = store.archive("open-tasks")
+    assert archived["ok"] is True
+    assert archived.get("warnings")
+    assert any("open task" in w.lower() for w in archived["warnings"])
+
+
 def test_store_lifecycle(tmp_path: Path):
     store = SpecStore(tmp_path)
     init = store.init(example_domain="auth")

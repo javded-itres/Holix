@@ -1302,6 +1302,26 @@ def _build_system_prompt_from_state(state: HolixGraphState, agent=None) -> str:
     if plan_context:
         combined_memories = f"{combined_memories}\n{plan_context}" if combined_memories else plan_context
 
+    # Meta-agent strategic hint (pre-thinking)
+    meta = state.get("meta_decision") or {}
+    if isinstance(meta, dict):
+        hint = str(meta.get("context_hint") or "").strip()
+        if hint:
+            block = f"\n\n## Meta-agent guidance\n{hint}\n"
+            combined_memories = f"{combined_memories}{block}" if combined_memories else block.strip()
+
+    # Prior Reflexion notes this turn (verbal self-reflection memory)
+    reflection_log = list(state.get("reflection_log") or [])
+    if reflection_log:
+        last = reflection_log[-1]
+        areas = ", ".join(last.get("improvement_areas") or []) or "quality"
+        refl = (
+            f"\n\n## Prior self-reflection (this turn)\n"
+            f"Last quality≈{last.get('quality_score', '?')}; focus on: {areas}.\n"
+            f"{(last.get('refinement_prompt') or last.get('reasoning') or '')[:400]}\n"
+        )
+        combined_memories = f"{combined_memories}{refl}" if combined_memories else refl.strip()
+
     profile_name = profile_name_from_agent(agent) if agent else "default"
     agent_config = getattr(agent, "config", None) if agent else None
     persona_name = getattr(agent, "studio_agent_type", None) if agent else None

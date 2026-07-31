@@ -129,9 +129,9 @@ class TestRouteAfterReactPlan:
             plan_steps=[{"step": 1, "description": "Step 1"}],
             current_plan_step=0,
         )
-        assert route_after_react_plan(state) == "finalize"
+        assert route_after_react_plan(state) == "reflect"
 
-    def test_is_final_routes_to_finalize(self):
+    def test_is_final_routes_to_reflect(self):
         from core.graph.nodes.step_orchestrate_node import route_after_react_plan
 
         state = HolixGraphState(
@@ -141,7 +141,7 @@ class TestRouteAfterReactPlan:
             step_count=5,
             max_steps=15,
         )
-        assert route_after_react_plan(state) == "finalize"
+        assert route_after_react_plan(state) == "reflect"
 
     def test_step_complete_routes_to_orchestrate(self):
         from core.graph.nodes.step_orchestrate_node import route_after_react_plan
@@ -548,7 +548,7 @@ class TestPerStepLimitEnforcement:
         assert result == "react"
 
     def test_no_plan_uses_global_limit(self):
-        """Without plan steps, use global max_steps for finalize."""
+        """Without plan steps, use global max_steps → Reflexion then finalize."""
         from core.graph.nodes.step_orchestrate_node import route_after_react_plan
 
         state = HolixGraphState(
@@ -562,4 +562,4 @@ class TestPerStepLimitEnforcement:
             current_step_start_count=0,
         )
         result = route_after_react_plan(state)
-        assert result == "finalize"
+        assert result == "reflect"

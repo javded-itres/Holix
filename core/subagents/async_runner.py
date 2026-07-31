@@ -180,6 +180,32 @@ class AsyncSubAgentRunner:
                     )
                     self._notify_progress(config.name)
 
+                    # Runtime supervisor guidance (same job course-correction)
+                    try:
+                        from core.subagents.supervisor import (
+                            drain_guidance_messages,
+                            format_guidance_system_message,
+                        )
+
+                        if self._comm_bus is not None:
+                            guidance_texts = await drain_guidance_messages(
+                                self._comm_bus.receive,
+                                config.name,
+                            )
+                            gmsg = format_guidance_system_message(guidance_texts)
+                            if gmsg:
+                                messages.append({"role": "system", "content": gmsg})
+                                handle.record_activity(
+                                    "status",
+                                    "Applied supervisor guidance",
+                                    steps_taken=steps_taken,
+                                )
+                    except Exception:
+                        logger.debug(
+                            "sub-agent guidance drain failed",
+                            exc_info=True,
+                        )
+
                     # Set up timeout
                     try:
                         response = await asyncio.wait_for(

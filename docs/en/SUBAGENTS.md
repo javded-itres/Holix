@@ -8,12 +8,15 @@ In the profile `config.yaml` or global `.env`:
 
 ```yaml
 enable_subagents: true
-subagent_default_process_mode: process   # process | async
+subagent_default_process_mode: async   # async | process
 subagent_max_concurrent: 4
-subagent_process_timeout: 120
+subagent_process_timeout: 900
+# Runtime supervisor (mid-job guidance) + graph rework caps
+subagent_supervisor_enabled: true
+subagent_supervisor_max_interventions: 3
 ```
 
-Default in Holix: `enable_subagents: true`.
+Default in Holix: `enable_subagents: true`, default process mode **`async`** (OS process available with fallback).
 
 If disabled, `delegate_to_subagent` and `/subagent-spawn` return an error.
 
@@ -126,14 +129,63 @@ Available tools on the main agent (when `enable_subagents: true`):
 
 With `enable_subagents: true`, multi-step plans can delegate steps to sub-agents (e.g. `researcher` → `coder` → `reviewer`). See [EXECUTION_MODES.md](EXECUTION_MODES.md).
 
+In **`plan_and_execute`**, Holix may run **waves** of sub-agents, then a **graph supervisor** before synthesis:
+
+```text
+delegate → collect → supervisor → (rework failed jobs?) → react synthesis
+```
+
+---
+
+## Supervisor
+
+Holix runs two complementary helpers so stuck workers do not fail silently.
+
+### 1. Runtime supervisor (mid-job)
+
+Background watcher started with the first spawn (`core/subagents/supervisor.py`):
+
+| Detects | Action |
+|---------|--------|
+| **Loop** — same tool + args repeated | Inject **guidance** into the same job’s message stream |
+| **Thrash** — only tool errors | Guidance: fix root cause, do not repeat |
+| **Hung** — no activity for `idle_s` | Nudge to finish or change strategy |
+| **Stall** — steps without progress | Narrow the task |
+
+Limits: max interventions per job, cooldown between nudges. Emits `SubAgentSupervisorEvent` for UIs.
+
+| Variable | Default | Meaning |
+|----------|---------|---------|
+| `HOLIX_SUBAGENT_SUPERVISOR_ENABLED` | `true` | Master switch |
+| `HOLIX_SUBAGENT_SUPERVISOR_POLL_S` | `4` | Poll interval (seconds) |
+| `HOLIX_SUBAGENT_SUPERVISOR_IDLE_S` | `90` | Hung threshold |
+| `HOLIX_SUBAGENT_SUPERVISOR_MAX_INTERVENTIONS` | `3` | Cap per job / graph rework rounds |
+| `HOLIX_SUBAGENT_SUPERVISOR_COOLDOWN_S` | `45` | Min seconds between interventions |
+
+Async and process workers both apply guidance **before the next LLM step**.
+
+### 2. Graph supervisor (after a wave)
+
+In `plan_and_execute`, after `collect_subagent`:
+
+1. Inspect wave results.  
+2. For **failed** jobs, schedule **rework** of the same agent type with repair instructions.  
+3. Keep successful jobs; supersede failed `prior_job` ids.  
+4. Cap rework rounds with the same max-interventions setting.  
+5. Then synthesize in `react`.
+
+Design notes: [SUBAGENT_SUPERVISOR.md](SUBAGENT_SUPERVISOR.md).
+
+Sub-agents also share **step-budget extension** with the main agent (extra steps when still making progress) — [EXECUTION_MODES.md](EXECUTION_MODES.md#step-budget-max_steps).
+
 ---
 
 ## Process model
 
 | Mode | Behavior |
 |------|----------|
-| `process` (default on Linux/macOS) | Separate OS process — parallelism, isolation |
-| `async` | In-process `asyncio` task — lower overhead |
+| `async` (default) | In-process `asyncio` task — lower overhead, shared memory options |
+| `process` | Separate OS process — stronger isolation; may fall back to async if spawn fails |
 
 Configured via `subagent_default_process_mode` in profile config.
 
@@ -181,7 +233,9 @@ Sub-agent coder (claude assigned to coder slot):
 - Structured log: `logs/subagent.jsonl` — see [LOGS.md](LOGS.md)
 - CLI: `holix logs -s subagent`
 - Concurrent limit: `subagent_max_concurrent` (default 4)
-- Timeout per job: `subagent_process_timeout` (seconds)
+- Timeout per job: `subagent_process_timeout` (seconds; default often `900`)
+- Wait budgets can extend while a job is still active (activity heartbeat)
+- Supervisor interventions appear as activity (`supervisor_guidance`) and agent events
 
 ---
 

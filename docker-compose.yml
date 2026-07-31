@@ -1,52 +1,140 @@
-# Holix agent — minimal start: set TELEGRAM_BOT_TOKEN and run `docker compose up -d`
+# Holix agent — Docker Compose
 #
-# Quick start:
-#   export TELEGRAM_BOT_TOKEN="123456:ABC..."
+# ── Quick start (Telegram bot + gateway + cloud/local LLM) ──────────────────
+#   cp docker/env.example .env
+#   # edit: TELEGRAM_BOT_TOKEN, MODEL, BASE_URL, API_KEY
 #   docker compose up -d
 #
-# Approve Telegram users:
-#   docker compose exec holix holix telegram requests list
-#   docker compose exec holix holix telegram requests approve USER_ID --profile default
+# ── With local Ollama ───────────────────────────────────────────────────────
+#   docker compose --profile ollama up -d
 #
-# CLI / admin:
+# ── Gateway only (API, no Telegram/MAX companions) ──────────────────────────
+#   docker compose --profile gateway-only up -d holix-gateway
+#
+# ── Production multi-user (bind-mount storage + extensions) ─────────────────
+#   mkdir -p ./data/holix ./extensions ./data/files
+#   # in .env: HOLIX_DATA_DIR=./data/holix  HOLIX_EXTENSIONS_DIR=./extensions
+#   docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+#
+# Approve Telegram users:
+#   docker compose exec holix holix -p shared telegram requests list
+#   docker compose exec holix holix -p shared telegram requests approve USER_ID --create-profile alice
+#
+# Extensions:
+#   # drop-in: put package under ./extensions/<name>/  (mounted → HOLIX_HOME/extensions)
+#   docker compose exec holix holix extensions list
+#   # pip into the running image:
+#   #   HOLIX_EXTENSIONS_PIP=./extensions/my-pkg  or  holix-sdk-package-name
+#
+# CLI:
 #   docker compose exec holix holix --help
-#   docker compose exec holix holix profile create alice
+#   docker compose exec holix holix -p shared profile create alice
+
+x-holix-common: &holix-common
+  image: ${HOLIX_IMAGE:-holix-agent:latest}
+  build:
+    context: .
+    dockerfile: Dockerfile
+  restart: unless-stopped
+  environment: &holix-env
+    HOLIX_HOME: /data/.holix
+    HOLIX_PROFILE: ${HOLIX_PROFILE:-shared}
+    HOLIX_ENV: ${HOLIX_ENV:-production}
+    HOLIX_REQUIRE_AUTH: ${HOLIX_REQUIRE_AUTH:-true}
+    HOLIX_API_KEY_PEPPER: ${HOLIX_API_KEY_PEPPER:-change-me-in-production}
+    HOLIX_GATEWAY_HOST: 0.0.0.0
+    HOLIX_GATEWAY_PORT: "8000"
+    # LLM
+    MODEL: ${MODEL:-}
+    BASE_URL: ${BASE_URL:-}
+    API_KEY: ${API_KEY:-}
+    TEMPERATURE: ${TEMPERATURE:-0.7}
+    OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+    OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
+    DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
+    LITELLM_API_BASE: ${LITELLM_API_BASE:-}
+    LITELLM_API_KEY: ${LITELLM_API_KEY:-}
+    OLLAMA_HOST: ${OLLAMA_HOST:-http://ollama:11434}
+    # Telegram
+    TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
+    HOLIX_TELEGRAM_BOT_TOKEN: ${HOLIX_TELEGRAM_BOT_TOKEN:-}
+    HOLIX_TELEGRAM_ACCESS_REQUESTS: ${HOLIX_TELEGRAM_ACCESS_REQUESTS:-true}
+    HOLIX_TELEGRAM_ALLOWED_USERS: ${HOLIX_TELEGRAM_ALLOWED_USERS:-}
+    HOLIX_TELEGRAM_ALLOW_ALL: ${HOLIX_TELEGRAM_ALLOW_ALL:-}
+    HOLIX_TELEGRAM_ADMIN_USER_ID: ${HOLIX_TELEGRAM_ADMIN_USER_ID:-}
+    HOLIX_TELEGRAM_VOICE_ENABLED: ${HOLIX_TELEGRAM_VOICE_ENABLED:-true}
+    HOLIX_TELEGRAM_FILES_ENABLED: ${HOLIX_TELEGRAM_FILES_ENABLED:-true}
+    HOLIX_TELEGRAM_AUTOSTART: ${HOLIX_TELEGRAM_AUTOSTART:-true}
+    # MAX messenger (optional)
+    MAX_ACCESS_TOKEN: ${MAX_ACCESS_TOKEN:-}
+    HOLIX_MAX_ACCESS_TOKEN: ${HOLIX_MAX_ACCESS_TOKEN:-}
+    HOLIX_MAX_AUTOSTART: ${HOLIX_MAX_AUTOSTART:-true}
+    # Tools / browser
+    ENABLE_BROWSER_TOOLS: ${ENABLE_BROWSER_TOOLS:-true}
+    BROWSER_HEADLESS: "true"
+    HOLIX_ENABLE_TERMINAL_TOOL: ${HOLIX_ENABLE_TERMINAL_TOOL:-true}
+    HOLIX_ENABLE_CODE_EXECUTOR: ${HOLIX_ENABLE_CODE_EXECUTOR:-false}
+    HOLIX_TERMINAL_COMMAND_WHITELIST: ${HOLIX_TERMINAL_COMMAND_WHITELIST:-true}
+    # Multi-user workspace jail
+    HOLIX_WORKSPACE_JAIL: ${HOLIX_WORKSPACE_JAIL:-true}
+    # Extensions: comma-separated pip specs or local paths inside container
+    HOLIX_EXTENSIONS_PIP: ${HOLIX_EXTENSIONS_PIP:-}
+    HOLIX_EXTENSIONS_SYNC: ${HOLIX_EXTENSIONS_SYNC:-true}
+    # CORS (comma-separated; empty = default)
+    HOLIX_CORS_ORIGINS: ${HOLIX_CORS_ORIGINS:-}
+    # Unlock encrypted profiles (optional)
+    HOLIX_UNLOCK_KEY: ${HOLIX_UNLOCK_KEY:-}
+  volumes: &holix-volumes
+    # Persistent Holix home (profiles, memory, gateway state, telegram.env)
+    - ${HOLIX_DATA_DIR:-holix-data}:/data/.holix
+    # Drop-in / git-clone extensions (no rebuild)
+    - ${HOLIX_EXTENSIONS_DIR:-./extensions}:/data/.holix/extensions
+    # Optional shared file store for multi-user deployments
+    - ${HOLIX_FILES_DIR:-./data/files}:/data/files
+  networks:
+    - holix-network
+  healthcheck:
+    test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8000/health"]
+    interval: 30s
+    timeout: 10s
+    retries: 3
+    start_period: 45s
 
 services:
+  # ── Full agent: gateway + Telegram/MAX companions + cron ──────────────────
   holix:
-    build: .
-    image: holix-agent:latest
+    <<: *holix-common
+    container_name: holix
     ports:
       - "${HOLIX_GATEWAY_PORT:-8000}:8000"
-    environment:
-      HOLIX_HOME: /data/.holix
-      HOLIX_PROFILE: ${HOLIX_PROFILE:-default}
-      HOLIX_ENV: production
-      HOLIX_REQUIRE_AUTH: "true"
-      HOLIX_API_KEY_PEPPER: ${HOLIX_API_KEY_PEPPER:-change-me-in-production}
-      HOLIX_GATEWAY_HOST: 0.0.0.0
-      HOLIX_GATEWAY_PORT: "8000"
-      HOLIX_TELEGRAM_ACCESS_REQUESTS: "true"
-      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:?Set TELEGRAM_BOT_TOKEN in .env or environment}
-      MODEL: ${MODEL:-qwen2.5-coder:32b}
-      BASE_URL: ${BASE_URL:-http://ollama:11434/v1}
-      API_KEY: ${API_KEY:-ollama}
-      OLLAMA_HOST: ${OLLAMA_HOST:-http://ollama:11434}
-      HOLIX_TELEGRAM_VOICE_ENABLED: ${HOLIX_TELEGRAM_VOICE_ENABLED:-true}
-      HOLIX_TELEGRAM_FILES_ENABLED: ${HOLIX_TELEGRAM_FILES_ENABLED:-true}
-      ENABLE_BROWSER_TOOLS: ${ENABLE_BROWSER_TOOLS:-true}
-      BROWSER_HEADLESS: "true"
-    volumes:
-      - holix-data:/data/.holix
+    command: ["agent"]
+    # Ollama is optional; start with --profile ollama when using local models
     depends_on:
       ollama:
         condition: service_started
-    restart: unless-stopped
-    networks:
-      - holix-network
+        required: false
 
+  # ── Gateway only: OpenAI-compatible API + management, no messengers ───────
+  holix-gateway:
+    <<: *holix-common
+    profiles: ["gateway-only"]
+    container_name: holix-gateway
+    ports:
+      - "${HOLIX_GATEWAY_PORT:-8000}:8000"
+    environment:
+      <<: *holix-env
+      HOLIX_TELEGRAM_AUTOSTART: "false"
+      HOLIX_MAX_AUTOSTART: "false"
+      # Keep tokens out of this service unless you intentionally enable companions
+      TELEGRAM_BOT_TOKEN: ""
+      HOLIX_TELEGRAM_BOT_TOKEN: ""
+    command: ["gateway"]
+
+  # ── Optional local LLM ────────────────────────────────────────────────────
   ollama:
+    profiles: ["ollama"]
     image: ollama/ollama:latest
+    container_name: holix-ollama
     ports:
       - "${OLLAMA_PORT:-11434}:11434"
     volumes:
@@ -54,9 +142,10 @@ services:
     restart: unless-stopped
     networks:
       - holix-network
+
 volumes:
-  ollama-data:
   holix-data:
+  ollama-data:
 
 networks:
   holix-network:

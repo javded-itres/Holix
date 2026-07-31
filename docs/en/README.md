@@ -38,7 +38,9 @@ Holix is a self-improving AI agent: memory, skills, MCP, CLI, TUI, API gateway, 
 
 ### Agents & automation
 
-- [SUBAGENTS.md](SUBAGENTS.md) · [LAUNCH.md](LAUNCH.md) · [CRON.md](CRON.md)
+- [EXECUTION_MODES.md](EXECUTION_MODES.md) — ReAct / Plan / Hybrid, **Reflexion**, step budget
+- [SUBAGENTS.md](SUBAGENTS.md) — workers, **supervisor**, rework · [A2A.md](A2A.md) — Agent2Agent protocol · [LAUNCH.md](LAUNCH.md) · [CRON.md](CRON.md)
+- [SUBAGENT_SUPERVISOR.md](SUBAGENT_SUPERVISOR.md) — design notes
 
 ### Integrations & API
 

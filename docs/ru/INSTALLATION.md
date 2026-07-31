@@ -167,18 +167,38 @@ holix update --channel pypi
 
 Python на хосте не нужен. В образе уже Telegram, voice, browser.
 
-### B1 — Быстрый старт
+Файлы:
+
+| Файл | Назначение |
+|------|------------|
+| `docker-compose.yml` | Агент + опционально Ollama + профиль gateway-only |
+| `docker-compose.prod.yml` | Bind-mount хранилища, restart always, ротация логов |
+| `docker/env.example` | Полный шаблон env → скопировать в `.env` |
+| `./extensions/` | Drop-in расширения (монтируются в контейнер) |
+
+### B1 — Быстрый старт (модель + Telegram → рабочий агент)
 
 ```bash
-export TELEGRAM_BOT_TOKEN="123456789:AAH..."
-docker compose up -d
+cp docker/env.example .env
+# Минимум:
+#   TELEGRAM_BOT_TOKEN=123456789:AAH...
+#   MODEL=gpt-4o-mini
+#   BASE_URL=https://api.openai.com/v1
+#   API_KEY=sk-...
+#   HOLIX_API_KEY_PEPPER=$(openssl rand -hex 32)
+
+docker compose up -d --build
+# с локальной Ollama:
+# docker compose --profile ollama up -d --build
 ```
 
-При первом запуске создаётся `HOLIX_HOME` в контейнере.
+При старте создаётся профиль `shared` (в production `default` запрещён), пишутся LLM и Telegram в `HOLIX_HOME`, включается workspace jail, поднимаются **gateway + Telegram + cron**.
 
-### B2 — Одобрение пользователей Telegram
+Health: `http://127.0.0.1:8000/health`
 
-Пользователь отправляет `/start`. Одобрение из контейнера:
+### B2 — Одобрение пользователей Telegram (мультипользователь)
+
+Пользователь шлёт `/start`. Одобрение из контейнера:
 
 ```bash
 docker compose exec holix holix -p shared telegram requests list
@@ -186,22 +206,76 @@ docker compose exec holix holix -p shared telegram requests approve USER_ID --cr
 docker compose exec holix holix -p shared telegram requests approve USER_ID --profile existing
 ```
 
-Используйте **именованный** профиль бота (`-p shared`). В production профиль `default` недоступен.
+У каждого пользователя — изолированный профиль `profiles/<name>/` (память, workspace, SOUL). Хост-бот: **именованный** профиль (`-p shared`).
 
-### B3 — Переменные окружения
+### B3 — Только gateway (API без мессенджеров)
+
+```bash
+docker compose --profile gateway-only up -d holix-gateway
+```
+
+Тот же образ и тома; companions Telegram/MAX не стартуют. Удобно за Studio, мобильным клиентом или reverse proxy.
+
+### B4 — Production multi-user (файловое хранилище на хосте)
+
+```bash
+mkdir -p ./data/holix ./extensions ./data/files
+# в .env (пути → bind mounts через docker-compose.yml):
+#   HOLIX_DATA_DIR=./data/holix
+#   HOLIX_EXTENSIONS_DIR=./extensions
+#   HOLIX_FILES_DIR=./data/files
+# + секреты, MODEL, TELEGRAM_BOT_TOKEN
+docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+```
+
+| Env / путь на хосте | Контейнер | Содержимое |
+|---------------------|-----------|------------|
+| `HOLIX_DATA_DIR` (по умолчанию том `holix-data`) | `/data/.holix` | Профили, память, gateway, telegram.env |
+| `HOLIX_EXTENSIONS_DIR` (по умолчанию `./extensions`) | `/data/.holix/extensions` | Drop-in / git-clone расширения |
+| `HOLIX_FILES_DIR` (по умолчанию `./data/files`) | `/data/files` | Общие файлы хоста (опционально) |
+
+Workspace: `$HOLIX_DATA_DIR/profiles/<user>/workspace/` (`HOLIX_WORKSPACE_JAIL=true` по умолчанию).
+
+### B5 — Расширения (загрузка и регистрация)
+
+**Drop-in (без пересборки образа):**
+
+```bash
+git clone <repo> ./extensions/my-billing
+docker compose restart holix
+docker compose exec holix holix extensions list
+docker compose exec holix holix extensions agent-list
+```
+
+**Pip при старте** (в `.env`, через запятую):
+
+```bash
+HOLIX_EXTENSIONS_PIP=some-pypi-package,/data/.holix/extensions/local-pkg
+HOLIX_EXTENSIONS_SYNC=true
+```
+
+См. [EXTENSIONS.md](EXTENSIONS.md).
+
+### B6 — Основные переменные
 
 | Переменная | Назначение |
 |------------|------------|
 | `TELEGRAM_BOT_TOKEN` | Токен бота |
-| `MODEL`, `BASE_URL` | Облачная LLM вместо Ollama в контейнере |
-| `HOLIX_API_KEY_PEPPER` | Хеширование API-ключей |
-| `HOLIX_ENV=production` | Политика production |
+| `MODEL`, `BASE_URL`, `API_KEY` | OpenAI-совместимая LLM |
+| `HOLIX_API_KEY_PEPPER` | **Обязателен** в production |
+| `HOLIX_PROFILE` | Профиль хоста бота (по умолчанию `shared`) |
+| `HOLIX_WORKSPACE_JAIL` | Изоляция файлов на профиль |
+| `HOLIX_TELEGRAM_AUTOSTART` | Companion Telegram (`false` = только API) |
+| `HOLIX_EXTENSIONS_PIP` | pip/path-пакеты при старте |
+| `HOLIX_DATA_DIR` | Путь `HOLIX_HOME` на хосте (prod compose) |
 
-Смонтируйте том для `HOLIX_HOME`, чтобы сохранить профили между перезапусками (см. `docker-compose.yml` в репозитории).
+Полный шаблон: [`docker/env.example`](../../docker/env.example).
 
-### B4 — Что работает внутри
+### B7 — Что внутри
 
-`holix gateway start -f` — gateway, Telegram и cron в одном процессе.
+Команда `agent` (по умолчанию): `holix gateway start -f` — gateway, Telegram/MAX при наличии токенов, cron, sidecars расширений.
+
+Команды entrypoint: `agent` | `gateway` | `telegram` | `max` | `bootstrap` | `extensions` | `cli` | `shell`.
 
 Эксплуатация (systemd, TLS, шифрование): [DEPLOYMENT.md](DEPLOYMENT.md).
 

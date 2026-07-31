@@ -83,6 +83,8 @@ class BackgroundProcessRegistry:
         """Stop profile processes that hold ports the new command needs."""
         from core.runtime.port_utils import force_free_ports, parse_listen_ports
 
+        # Include processes started by Telegram/other Holix OS processes.
+        self.hydrate_from_disk(profile)
         async with self._lock:
             candidates = list(self._records_for_profile(profile))
         candidates.sort(key=lambda r: r.started_at, reverse=True)
@@ -209,10 +211,19 @@ class BackgroundProcessRegistry:
             )
             self._records[process_id] = record
 
+        # Persist so Studio (separate OS process) sees Telegram/CLI starts.
+        try:
+            from core.runtime.background_process_store import upsert_record
+
+            await asyncio.to_thread(upsert_record, record)
+        except Exception as exc:
+            logger.warning("Failed to persist background process index: %s", exc)
+
         logger.info(
-            "Background process started id=%s pid=%s cmd=%s",
+            "Background process started id=%s pid=%s profile=%s cmd=%s",
             process_id,
             record.pid,
+            profile,
             command[:200],
         )
         return record
@@ -220,6 +231,9 @@ class BackgroundProcessRegistry:
     async def stop(self, process_id: str) -> BackgroundProcessRecord | None:
         async with self._lock:
             rec = self._records.get(process_id)
+        if rec is None:
+            # May only exist on disk (started by another Holix process).
+            rec = self.get(process_id)
         if rec is None:
             return None
         await self._stop_all_records([rec])
@@ -267,21 +281,6 @@ class BackgroundProcessRegistry:
         if all_ports:
             await asyncio.to_thread(force_free_ports, all_ports)
         return candidates[0]
-
-    def get(self, process_id: str) -> BackgroundProcessRecord | None:
-        return self._records.get(process_id)
-
-    def list_for_scope(self, *, profile: str, conversation_id: str) -> list[BackgroundProcessRecord]:
-        scope = self._scope_key(profile, conversation_id)
-        out: list[BackgroundProcessRecord] = []
-        for rec in self._records.values():
-            if self._scope_key(rec.profile, rec.conversation_id) == scope:
-                out.append(rec)
-        return sorted(out, key=lambda r: r.started_at, reverse=True)
-
-    def list_for_profile(self, *, profile: str) -> list[BackgroundProcessRecord]:
-        """All background processes for a profile (any conversation)."""
-        return sorted(self._records_for_profile(profile), key=lambda r: r.started_at, reverse=True)
 
     def active_for_scope(self, *, profile: str, conversation_id: str) -> BackgroundProcessRecord | None:
         for rec in self.list_for_scope(profile=profile, conversation_id=conversation_id):
@@ -389,6 +388,89 @@ class BackgroundProcessRegistry:
                 await asyncio.to_thread(rec._popen.wait, timeout=1)
             except Exception:
                 pass
+        try:
+            from core.runtime.background_process_store import remove_record
+
+            await asyncio.to_thread(remove_record, rec.profile, rec.process_id)
+        except Exception as exc:
+            logger.warning("Failed to remove background process from index: %s", exc)
+        async with self._lock:
+            self._records.pop(rec.process_id, None)
+
+    def hydrate_from_disk(self, profile: str | None = None) -> int:
+        """Load process rows started by other Holix processes (Telegram/Studio/CLI).
+
+        Returns number of records newly merged into memory.
+        """
+        from core.runtime.background_process_store import (
+            iter_profile_names_with_index,
+            load_index,
+            prune_dead_records,
+        )
+
+        profiles: set[str] = set()
+        if profile:
+            profiles.add((profile or "").strip() or "default")
+        else:
+            profiles.update(
+                (rec.profile or "default").strip() or "default"
+                for rec in self._records.values()
+            )
+            if not profiles:
+                profiles.update(iter_profile_names_with_index())
+
+        added = 0
+        for prof in profiles:
+            rows = prune_dead_records(prof, is_alive=is_process_alive)
+            if not rows:
+                rows = load_index(prof)
+            for row in rows:
+                pid_key = str(row.get("process_id") or "")
+                if not pid_key or pid_key in self._records:
+                    continue
+                try:
+                    pid = int(row.get("pid") or 0)
+                except (TypeError, ValueError):
+                    continue
+                if pid <= 0 or not is_process_alive(pid):
+                    continue
+                rec = BackgroundProcessRecord(
+                    process_id=pid_key,
+                    label=str(row.get("label") or pid_key)[:120],
+                    command=str(row.get("command") or ""),
+                    pid=pid,
+                    conversation_id=str(row.get("conversation_id") or ""),
+                    profile=str(row.get("profile") or prof),
+                    chat_id=(str(row["chat_id"]) if row.get("chat_id") else None),
+                    log_path=str(row.get("log_path") or ""),
+                    started_at=float(row.get("started_at") or time.time()),
+                    _popen=None,
+                )
+                self._records[pid_key] = rec
+                added += 1
+        return added
+
+    def get(self, process_id: str) -> BackgroundProcessRecord | None:
+        rec = self._records.get(process_id)
+        if rec is not None:
+            return rec
+        # Cross-process: scan profile indexes
+        self.hydrate_from_disk()
+        return self._records.get(process_id)
+
+    def list_for_profile(self, *, profile: str) -> list[BackgroundProcessRecord]:
+        """All background processes for a profile (any conversation + disk index)."""
+        self.hydrate_from_disk(profile)
+        return sorted(self._records_for_profile(profile), key=lambda r: r.started_at, reverse=True)
+
+    def list_for_scope(self, *, profile: str, conversation_id: str) -> list[BackgroundProcessRecord]:
+        self.hydrate_from_disk(profile)
+        scope = self._scope_key(profile, conversation_id)
+        out: list[BackgroundProcessRecord] = []
+        for rec in self._records.values():
+            if self._scope_key(rec.profile, rec.conversation_id) == scope:
+                out.append(rec)
+        return sorted(out, key=lambda r: r.started_at, reverse=True)
 
 
 _default_registry: BackgroundProcessRegistry | None = None
@@ -402,6 +484,10 @@ def bind_background_process_registry(
     """Associate a registry with a profile (set during agent initialize)."""
     key = (profile_name or "default").strip() or "default"
     _profile_registries[key] = registry
+    try:
+        registry.hydrate_from_disk(key)
+    except Exception:
+        pass
 
 
 def unbind_background_process_registry(profile_name: str) -> None:
@@ -410,14 +496,41 @@ def unbind_background_process_registry(profile_name: str) -> None:
 
 
 def get_background_process_registry(profile_name: str | None = None) -> BackgroundProcessRegistry:
-    """Return profile-bound registry when available, else process default."""
+    """Return the registry for a Holix profile (never share one bag across profiles).
+
+    Agent initialize binds its instance via :func:`bind_background_process_registry`.
+    When unbound, create/reuse a per-profile registry so Studio HTTP listing and
+    tools cannot mix process records between users.
+
+    Always hydrates from the shared on-disk index so Telegram-started processes
+    appear in Studio for the same profile.
+    """
     from core.tools.execution_context import get_profile_name
 
     key = (profile_name or get_profile_name() or "default").strip() or "default"
     bound = _profile_registries.get(key)
     if bound is not None:
+        try:
+            bound.hydrate_from_disk(key)
+        except Exception:
+            pass
         return bound
-    global _default_registry
-    if _default_registry is None:
-        _default_registry = BackgroundProcessRegistry()
-    return _default_registry
+    # Isolate by profile key. Keep a process-wide default only for the
+    # literal ``default`` key used by single-user / tests without a profile.
+    if key == "default":
+        global _default_registry
+        if _default_registry is None:
+            _default_registry = BackgroundProcessRegistry()
+        _profile_registries.setdefault("default", _default_registry)
+        try:
+            _default_registry.hydrate_from_disk("default")
+        except Exception:
+            pass
+        return _default_registry
+    reg = BackgroundProcessRegistry()
+    try:
+        reg.hydrate_from_disk(key)
+    except Exception:
+        pass
+    _profile_registries[key] = reg
+    return reg

@@ -35,7 +35,9 @@
 
 ### Агенты и автоматизация
 
-- [SUBAGENTS.md](SUBAGENTS.md) · [LAUNCH.md](LAUNCH.md) · [CRON.md](CRON.md)
+- [EXECUTION_MODES.md](EXECUTION_MODES.md) — ReAct / Plan / Hybrid, **Reflexion**, step budget
+- [SUBAGENTS.md](SUBAGENTS.md) — воркеры, **supervisor**, rework · [LAUNCH.md](LAUNCH.md) · [CRON.md](CRON.md)
+- [en/SUBAGENT_SUPERVISOR.md](../en/SUBAGENT_SUPERVISOR.md) — дизайн supervisor
 
 ### Интеграции и API
 

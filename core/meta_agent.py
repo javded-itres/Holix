@@ -85,13 +85,17 @@ Based on the user's input and available context:
 Respond in JSON:
 {{"suggested_mode": "react|plan_and_execute|hybrid|", "context_hint": "brief hint", "confidence": 0.0-1.0, "reasoning": "why"}}"""
 
-META_EVALUATE_PROMPT = """You are a quality assessor for an AI agent. Evaluate the response quality.
+META_EVALUATE_PROMPT = """You are a Reflexion evaluator for an AI agent. Critique the draft answer.
 
 Rate the response on:
 - Completeness: Does it fully address the user's question?
-- Accuracy: Is the information correct?
+- Accuracy: Is the information correct and grounded in tools/results when relevant?
 - Clarity: Is it well-structured and easy to understand?
 - Actionability: Does it provide concrete, useful guidance?
+- Trajectory: If tool trajectory is provided, did tools succeed and support the claim?
+
+If quality is insufficient, set needs_refinement=true and write a specific refinement_prompt
+the agent should follow on the next attempt (verbal self-reflection).
 
 Respond in JSON:
 {{"quality_score": 0.0-1.0, "needs_refinement": true/false, "improvement_areas": ["area1", ...], "refinement_prompt": "what to improve", "reasoning": "why"}}"""
@@ -199,21 +203,32 @@ Context: {context_str}
             logger.debug("Meta-agent: no client, returning default assessment")
             return QualityAssessment()
 
+        ctx = context or {}
+        trajectory = str(ctx.get("trajectory") or "").strip()
+        traj_block = f"\nTool trajectory:\n{trajectory[:1500]}\n" if trajectory else ""
+        prior = ctx.get("prior_reflections")
+        prior_block = f"\nPrior reflection count this turn: {prior}\n" if prior else ""
+
         prompt = f"""Original task: {original_task[:300]}
 
 Agent response: {response[:1000]}
-
+{traj_block}{prior_block}
 {META_EVALUATE_PROMPT}"""
 
         try:
             response_obj = await self._client.chat.completions.create(
                 model=self._model,
                 messages=[
-                    {"role": "system", "content": "You are a quality assessor. Respond only with valid JSON."},
+                    {
+                        "role": "system",
+                        "content": (
+                            "You are a Reflexion evaluator. Respond only with valid JSON."
+                        ),
+                    },
                     {"role": "user", "content": prompt},
                 ],
                 temperature=0.1,
-                max_tokens=200,
+                max_tokens=280,
             )
 
             result_text = response_obj.choices[0].message.content or ""

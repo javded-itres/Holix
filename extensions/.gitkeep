@@ -1,0 +1,7 @@
+# Drop-in Holix extensions (mounted into the container at $HOLIX_HOME/extensions).
+#
+# Layout examples:
+#   extensions/my_stats/agent.py
+#   extensions/holix-telegram-billing/   (git clone)
+#
+# See docs/en/EXTENSIONS.md

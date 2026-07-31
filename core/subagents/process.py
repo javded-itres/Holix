@@ -363,6 +363,49 @@ def run_sub_agent_in_process(
                     steps_taken=steps_taken,
                 )
 
+                # Drain supervisor guidance / cancel from parent
+                try:
+                    while True:
+                        try:
+                            data = input_queue.get_nowait()
+                        except Exception:
+                            break
+                        msg = AgentMessage.deserialize(data)
+                        if msg.msg_type == "cancel":
+                            result = SubAgentResult(
+                                name=config.name,
+                                success=False,
+                                error="Cancelled by parent",
+                                duration_ms=(time.monotonic() - start_time) * 1000,
+                                steps_taken=steps_taken,
+                                tool_calls=tool_calls_made,
+                                tokens_used=tokens_used,
+                            )
+                            _send_result(output_queue, config.name, result)
+                            heartbeat_stop.set()
+                            return
+                        if msg.msg_type in {"guidance", "revise"} and (msg.content or "").strip():
+                            messages.append(
+                                {
+                                    "role": "system",
+                                    "content": (
+                                        "### Runtime supervisor intervention\n"
+                                        "The parent runtime detected a problem and sent guidance. "
+                                        "Follow it on this step:\n\n"
+                                        f"{msg.content.strip()}"
+                                    ),
+                                }
+                            )
+                            _send_progress(
+                                output_queue,
+                                config.name,
+                                kind="status",
+                                message="Applied supervisor guidance",
+                                steps_taken=steps_taken,
+                            )
+                except Exception:
+                    pass
+
                 # LLM call with timeout
                 try:
                     response = loop.run_until_complete(

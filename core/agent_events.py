@@ -67,6 +67,7 @@ class EventType(StrEnum):
     SUBAGENT_STARTED = "subagent_started"
     SUBAGENT_PROGRESS = "subagent_progress"
     SUBAGENT_TIMEOUT_EXTENDED = "subagent_timeout_extended"
+    SUBAGENT_SUPERVISOR = "subagent_supervisor"
     SUBAGENT_FINISHED = "subagent_finished"
 
     # Background project processes
@@ -543,6 +544,38 @@ class SubAgentTimeoutExtendedEvent(AgentEvent):
 
 
 @dataclass
+class SubAgentSupervisorEvent(AgentEvent):
+    """Runtime supervisor intervened (or exhausted interventions) for a sub-agent."""
+
+    name: str = ""
+    agent_type: str = ""
+    kind: str = ""  # loop | thrash | hung | stall | ok
+    severity: str = ""
+    attempt: int = 0
+    max_interventions: int = 0
+    summary: str = ""
+    message: str = ""
+    exhausted: bool = False
+
+    def __post_init__(self):
+        super().__post_init__()
+        object.__setattr__(self, "type", EventType.SUBAGENT_SUPERVISOR)
+
+    def _extra_fields(self) -> dict[str, Any]:
+        return {
+            "name": self.name,
+            "agent_type": self.agent_type,
+            "kind": self.kind,
+            "severity": self.severity,
+            "attempt": self.attempt,
+            "max_interventions": self.max_interventions,
+            "summary": self.summary,
+            "message": self.message,
+            "exhausted": self.exhausted,
+        }
+
+
+@dataclass
 class SubAgentFinishedEvent(AgentEvent):
     """A delegated sub-agent finished (success, failure, cancel, or timeout)."""
 
@@ -880,6 +913,7 @@ __all__ = [
     "SubAgentStartedEvent",
     "SubAgentProgressEvent",
     "SubAgentTimeoutExtendedEvent",
+    "SubAgentSupervisorEvent",
     "SubAgentFinishedEvent",
     # helpers
     "make_event",

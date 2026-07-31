@@ -35,6 +35,12 @@ async def meta_agent_node(state: HolixGraphState, config: RunnableConfig) -> dic
     agent = get_agent_from_config(config)
     user_input = state.get("user_input", "")
 
+    from core.config_utils import is_meta_agent_enabled
+
+    cfg = getattr(agent, "config", None) if agent else None
+    if not is_meta_agent_enabled(cfg, default=True):
+        return {"meta_decision": None}
+
     if not agent or not hasattr(agent, "client"):
         logger.debug("Meta-agent: no agent/client available, skipping")
         return {"meta_decision": None}

@@ -12,10 +12,20 @@ Holix хранит историю диалогов и долгосрочные �
 |------|------------|
 | Диалог | Сообщения по `conversation_id` (TUI, Telegram, cron, API) |
 | Эпизодическая / стратегическая | Сводки и факты из успешных запусков |
+| Reflexion | Критики качества / retry (`metadata.type=reflexion` или `self_refinement`) |
 | Семантика (Chroma) | Эмбеддинги для `/memory` и `holix memory search` |
 | Индекс навыков | Поиск по skills (отдельно от чата) |
 
 Агент подтягивает контекст автоматически; можно искать явно.
+
+### Reflexion и LTM
+
+При включённом **self-refinement** (по умолчанию) каждый evaluate/retry может писать:
+
+- **эпизодическую** память — score, areas, accept vs retry  
+- **стратегическую** (при retry) — короткие советы «когда quality low on X…»  
+
+См. [EXECUTION_MODES.md](EXECUTION_MODES.md).
 
 ---
 

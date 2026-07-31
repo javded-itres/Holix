@@ -334,6 +334,12 @@ class HolixAgent:
             from core.tools.sdd import register_sdd_dispatch_tool
 
             register_sdd_dispatch_tool(self.tools, self)
+        try:
+            from core.tools.a2a import register_a2a_tools
+
+            register_a2a_tools(self.tools, self)
+        except Exception:
+            pass
         # Register MCP tools (if configured in profile/runtime). Non-fatal.
         mcp_count = 0
         if getattr(self.config, "mcp_enabled", True) and getattr(self.config, "mcp_servers", None):

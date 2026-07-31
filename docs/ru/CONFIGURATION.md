@@ -186,7 +186,43 @@ providers:
 | `plan_generation_max_tokens` | `12000` | Макс. токенов для JSON плана (большие отчёты) |
 | `plan_generation_retries` | `2` | Повторы при таймауте или обрезанном JSON |
 | `max_steps_per_plan_step` | `5` | Итераций инструментов на шаг плана |
-| `max_steps` | `15` | Общий лимит шагов графа |
+| `max_steps` | `90` | Общий бюджет шагов графа / ReAct |
+
+## Meta-agent и Reflexion
+
+| Переменная | Default | Эффект |
+|------------|---------|--------|
+| `HOLIX_ENABLE_META_AGENT` / `enable_meta_agent` | `true` | Meta после retrieval памяти |
+| `HOLIX_ENABLE_SELF_REFINEMENT` / `enable_self_refinement` | `true` | Reflect после черновика ответа |
+| `HOLIX_MAX_REFINEMENT_ITERATIONS` | `2` | Макс. retry Reflexion |
+| `HOLIX_REFINEMENT_QUALITY_THRESHOLD` | `0.7` | Принять при score ≥ |
+
+См. [EXECUTION_MODES.md](EXECUTION_MODES.md).
+
+## Расширение step budget
+
+| Переменная | Default | Эффект |
+|------------|---------|--------|
+| `HOLIX_MAX_STEPS_EXTEND_ENABLED` | `true` | Авто-расширение при прогрессе |
+| `HOLIX_MAX_STEPS_EXTEND_BY` | `30` | Шагов за расширение |
+| `HOLIX_MAX_STEPS_MAX_EXTENSIONS` | `3` | Сколько раз |
+| `HOLIX_MAX_STEPS_HARD_CAP` | `0` | Жёсткий потолок (`0` = вычисляется) |
+
+## Субагенты и supervisor
+
+| Переменная | Default | Эффект |
+|------------|---------|--------|
+| `enable_subagents` | `true` | Делегирование / волны |
+| `subagent_default_process_mode` | `async` | `async` или `process` |
+| `subagent_max_concurrent` | `4` | Параллельные jobs |
+| `subagent_process_timeout` | `900` | Бюджет ожидания (сек) |
+| `HOLIX_SUBAGENT_SUPERVISOR_ENABLED` | `true` | Runtime + graph supervisor |
+| `HOLIX_SUBAGENT_SUPERVISOR_POLL_S` | `4` | Интервал опроса |
+| `HOLIX_SUBAGENT_SUPERVISOR_IDLE_S` | `90` | Порог hang |
+| `HOLIX_SUBAGENT_SUPERVISOR_MAX_INTERVENTIONS` | `3` | Лимит вмешательств / rework |
+| `HOLIX_SUBAGENT_SUPERVISOR_COOLDOWN_S` | `45` | Пауза между guidance |
+
+См. [SUBAGENTS.md](SUBAGENTS.md).
 
 ## Локальные дополнения проекта
 

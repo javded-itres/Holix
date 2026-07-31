@@ -43,7 +43,10 @@ def max_should_webhook(profile: str = "default") -> bool:
 
 
 def max_should_poll(profile: str = "default") -> bool:
-    """True when MAX token is set and mode is polling (default outside production)."""
+    """True when MAX token is set, mode is polling, and autostart is enabled."""
+    raw = os.getenv("HOLIX_MAX_AUTOSTART", "").strip().lower()
+    if raw in {"0", "false", "no", "off"}:
+        return False
     load_max_env_files()
     settings = load_max_settings(profile)
     return max_enabled(profile) and not settings.is_webhook_mode

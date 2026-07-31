@@ -6,10 +6,26 @@ Holix is a Python agent platform with a single execution path for reasoning, eve
 
 ```
 HolixAgent (core/agent.py)
-    → run_agent_loop() / LangGraph (core/agent_execution.py)
+    → LangGraph mode graph (core/graph/)  [preferred when use_langgraph=true]
+    → or legacy loop (core/agent_execution.py)
     → yields AgentEvent (core/agent_events.py)
-    → ToolRegistry, MemoryManager, SkillManager
+    → ToolRegistry, MemoryManager, SkillManager, SubAgentManager
 ```
+
+### LangGraph modes (cyclic orchestration)
+
+| Mode | Graph sketch |
+|------|----------------|
+| `react` | `memory → meta → react ⇄ tools → reflect ⇄ react → finalize` |
+| `hybrid` | `memory → meta → plan → review → react ⇄ tools → reflect → finalize` |
+| `plan_and_execute` | plan/review + `step_orchestrate` + optional `delegate → collect → supervisor → rework/react` + `reflect` |
+
+- **Meta-agent** — short pre-thinking hint (`core/graph/nodes/meta_agent_node.py`).  
+- **Reflexion** — post-draft quality critique + verbal retry (`reflect_node.py`).  
+- **Step budget** — at `max_steps`, health-check and optional extension (`core/runtime/step_budget.py`).  
+- **Subagents** — async/process workers; **runtime supervisor** (mid-job guidance) + **graph supervisor** (wave rework).  
+
+Product docs: [EXECUTION_MODES.md](EXECUTION_MODES.md), [SUBAGENTS.md](SUBAGENTS.md).
 
 | Adapter | Role |
 |---------|------|
@@ -22,8 +38,11 @@ HolixAgent (core/agent.py)
 | Component | Path | Role |
 |-----------|------|------|
 | Agent | `core/agent.py` | Orchestrates memory, skills, tools, loop |
-| Execution | `core/agent_execution.py` | Unified agent loop |
+| Graph | `core/graph/` | LangGraph modes, nodes, routers, state |
+| Execution | `core/agent_execution.py` | Legacy / non-graph agent loop |
 | Events | `core/agent_events.py` | Pub/sub `AgentEventBus` |
+| Subagents | `core/subagents/` | Manager, spawn, supervisor, process/async runners |
+| Meta / refine | `core/meta_agent.py`, `core/self_refinement/` | Advisory + quality evaluate |
 | Tools | `core/tools/` | `BaseTool`, registry, browser, terminal |
 | Memory | `core/memory/` | SQLite + ChromaDB |
 | Skills | `core/skills/` | Markdown skills, generator, hub |
@@ -106,6 +125,8 @@ never imports `cli` / `api` / `integrations` (enforced by tests).
 
 ## See also
 
+- [EXECUTION_MODES.md](EXECUTION_MODES.md) — modes, Reflexion, step budget
+- [SUBAGENTS.md](SUBAGENTS.md) — workers and supervisor
 - [CLI.md](CLI.md)
 - [GATEWAY.md](GATEWAY.md)
 - [SECURITY.md](SECURITY.md)

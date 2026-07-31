@@ -76,7 +76,13 @@ def create_openai_client(
     api_key: str,
     metadata: dict[str, Any] | None = None,
 ) -> AsyncOpenAI:
-    """Build AsyncOpenAI client with resolved key and provider headers."""
+    """Build AsyncOpenAI client with resolved key and provider headers.
+
+    Always inject a custom ``httpx.AsyncClient``. Older ``openai`` SDKs (e.g. 1.47)
+    still pass ``proxies=`` into httpx, which httpx>=0.28 rejects with::
+
+        TypeError: AsyncClient.__init__() got an unexpected keyword argument 'proxies'
+    """
     preset_id = (metadata or {}).get("preset_id")
     resolved_key = resolve_provider_api_key(api_key, preset_id=preset_id)
     headers = build_default_headers(metadata)
@@ -84,11 +90,15 @@ def create_openai_client(
     kwargs: dict[str, Any] = {
         "base_url": base_url,
         "api_key": resolved_key,
+        # Bypass OpenAI's AsyncHttpxClientWrapper which may still forward
+        # removed httpx kwargs (proxies) on httpx 0.28+.
+        "http_client": httpx.AsyncClient(
+            verify=resolve_verify_ssl(metadata),
+            follow_redirects=True,
+            timeout=httpx.Timeout(600.0, connect=30.0),
+        ),
     }
     if headers:
         kwargs["default_headers"] = headers
-
-    if not resolve_verify_ssl(metadata):
-        kwargs["http_client"] = httpx.AsyncClient(verify=False)
 
     return AsyncOpenAI(**kwargs)

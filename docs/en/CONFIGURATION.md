@@ -299,7 +299,45 @@ Profile `.env` / `config.yaml` (see also [EXECUTION_MODES.md](EXECUTION_MODES.md
 | `plan_generation_max_tokens` | `12000` | Max tokens for plan JSON (large development reports) |
 | `plan_generation_retries` | `2` | Retries on timeout or truncated JSON |
 | `max_steps_per_plan_step` | `5` | Tool iterations per plan step |
-| `max_steps` | `15` | Overall graph step limit |
+| `max_steps` | `90` | Overall graph / ReAct step budget (profile may override) |
+
+## Meta-agent & Reflexion
+
+Main-agent **pre-thinking** and **post-draft self-critique** (default **on**). Full behaviour: [EXECUTION_MODES.md](EXECUTION_MODES.md#reflexion-self-critique).
+
+| Variable | Default | Effect |
+|----------|---------|--------|
+| `HOLIX_ENABLE_META_AGENT` / `enable_meta_agent` | `true` | Meta node after memory retrieval |
+| `HOLIX_ENABLE_SELF_REFINEMENT` / `enable_self_refinement` | `true` | Reflect after draft final answers |
+| `HOLIX_MAX_REFINEMENT_ITERATIONS` / `max_refinement_iterations` | `2` | Max Reflexion retries |
+| `HOLIX_REFINEMENT_QUALITY_THRESHOLD` / `refinement_quality_threshold` | `0.7` | Accept when quality ≥ threshold |
+
+## Step budget extension
+
+When `max_steps` is hit, Holix may grant more steps if the agent is still making progress ([EXECUTION_MODES.md](EXECUTION_MODES.md#step-budget-max_steps)):
+
+| Variable | Default | Effect |
+|----------|---------|--------|
+| `HOLIX_MAX_STEPS_EXTEND_ENABLED` | `true` | Enable auto-extension |
+| `HOLIX_MAX_STEPS_EXTEND_BY` | `30` | Steps per extension |
+| `HOLIX_MAX_STEPS_MAX_EXTENSIONS` | `3` | Max extensions per run |
+| `HOLIX_MAX_STEPS_HARD_CAP` | `0` | Absolute cap (`0` = derived) |
+
+## Subagents & supervisor
+
+| Variable | Default | Effect |
+|----------|---------|--------|
+| `enable_subagents` | `true` | Allow delegation / waves |
+| `subagent_default_process_mode` | `async` | `async` or `process` |
+| `subagent_max_concurrent` | `4` | Parallel jobs |
+| `subagent_process_timeout` | `900` | Wait / job budget (seconds) |
+| `HOLIX_SUBAGENT_SUPERVISOR_ENABLED` | `true` | Mid-job + graph rework supervisor |
+| `HOLIX_SUBAGENT_SUPERVISOR_POLL_S` | `4` | Runtime poll interval |
+| `HOLIX_SUBAGENT_SUPERVISOR_IDLE_S` | `90` | Hung threshold |
+| `HOLIX_SUBAGENT_SUPERVISOR_MAX_INTERVENTIONS` | `3` | Cap per job / rework rounds |
+| `HOLIX_SUBAGENT_SUPERVISOR_COOLDOWN_S` | `45` | Cooldown between interventions |
+
+See [SUBAGENTS.md](SUBAGENTS.md).
 
 ## Local project supplements
 

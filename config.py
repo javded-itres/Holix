@@ -76,14 +76,62 @@ class Settings(BaseSettings):
     subagent_max_concurrent: int = 4
     subagent_process_timeout: float = 900.0
     subagent_heartbeat_interval: float = 5.0
+    # Runtime supervisor: watch stuck jobs and inject guidance (same job)
+    subagent_supervisor_enabled: bool = Field(
+        default=True,
+        validation_alias=AliasChoices(
+            "HOLIX_SUBAGENT_SUPERVISOR_ENABLED",
+            "SUBAGENT_SUPERVISOR_ENABLED",
+        ),
+        description="Background supervisor watches sub-agents and injects guidance on loop/hang",
+    )
+    subagent_supervisor_poll_s: float = Field(
+        default=4.0,
+        validation_alias=AliasChoices("HOLIX_SUBAGENT_SUPERVISOR_POLL_S"),
+        description="Supervisor poll interval seconds",
+    )
+    subagent_supervisor_idle_s: float = Field(
+        default=90.0,
+        validation_alias=AliasChoices("HOLIX_SUBAGENT_SUPERVISOR_IDLE_S"),
+        description="Seconds without activity before treating a job as hung",
+    )
+    subagent_supervisor_max_interventions: int = Field(
+        default=3,
+        validation_alias=AliasChoices("HOLIX_SUBAGENT_SUPERVISOR_MAX_INTERVENTIONS"),
+        description="Max guidance interventions per sub-agent job",
+    )
+    subagent_supervisor_cooldown_s: float = Field(
+        default=45.0,
+        validation_alias=AliasChoices("HOLIX_SUBAGENT_SUPERVISOR_COOLDOWN_S"),
+        description="Minimum seconds between interventions for the same job",
+    )
 
-    # Meta-Agent Configuration
-    enable_meta_agent: bool = False
+    # Meta-Agent Configuration (pre-thinking advisory — Reflexion setup)
+    enable_meta_agent: bool = Field(
+        default=True,
+        validation_alias=AliasChoices("HOLIX_ENABLE_META_AGENT", "ENABLE_META_AGENT"),
+        description="Run meta-agent after memory retrieval for strategic hints",
+    )
 
-    # Self-Refinement Configuration
-    enable_self_refinement: bool = False
-    max_refinement_iterations: int = 2
-    refinement_quality_threshold: float = 0.7
+    # Self-Refinement / Reflexion Configuration (evaluate draft → verbal feedback → retry)
+    enable_self_refinement: bool = Field(
+        default=True,
+        validation_alias=AliasChoices(
+            "HOLIX_ENABLE_SELF_REFINEMENT",
+            "ENABLE_SELF_REFINEMENT",
+        ),
+        description="After a draft final answer, evaluate quality and retry with reflection",
+    )
+    max_refinement_iterations: int = Field(
+        default=2,
+        validation_alias=AliasChoices("HOLIX_MAX_REFINEMENT_ITERATIONS"),
+        description="Max Reflexion retries after a draft answer",
+    )
+    refinement_quality_threshold: float = Field(
+        default=0.7,
+        validation_alias=AliasChoices("HOLIX_REFINEMENT_QUALITY_THRESHOLD"),
+        description="Accept draft when quality_score >= threshold",
+    )
 
     # Evolution Configuration
     enable_evolution: bool = False

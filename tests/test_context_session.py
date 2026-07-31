@@ -43,7 +43,7 @@ def test_route_after_react_respects_max_steps_with_tools() -> None:
         max_steps=15,
         is_final=False,
     )
-    assert route_after_react(state) == "finalize"
+    assert route_after_react(state) == "reflect"
 
 
 def test_truncate_tool_content_for_memory() -> None:
