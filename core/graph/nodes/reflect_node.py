@@ -93,7 +93,13 @@ async def _persist_reflection(
     will_retry: bool,
 ) -> None:
     memory = getattr(agent, "memory", None)
-    if not memory or not hasattr(memory, "episodic"):
+    if not memory:
+        return
+    # Memory facade properties raise RuntimeError when LTM is disabled —
+    # do not use hasattr() (it re-raises non-AttributeError from the property).
+    try:
+        episodic = memory.episodic
+    except Exception:
         return
     try:
         outcome = "retry" if will_retry else "accept"
@@ -102,7 +108,7 @@ async def _persist_reflection(
             f"needs_refinement={assessment.needs_refinement}, outcome={outcome}, "
             f"areas={', '.join(assessment.improvement_areas[:3])}"
         )
-        await memory.episodic.store_episode(
+        await episodic.store_episode(
             conversation_id=conversation_id,
             summary=summary,
             outcome=outcome,
@@ -115,18 +121,23 @@ async def _persist_reflection(
                 "will_retry": will_retry,
             },
         )
-        if will_retry and assessment.improvement_areas and hasattr(memory, "strategic"):
-            key = f"reflexion_{(assessment.improvement_areas[0] or 'general')[:40]}"
-            await memory.strategic.store_strategy(
-                key=key,
-                content=(
-                    f"When quality is low on '{assessment.improvement_areas[0]}', "
-                    f"apply: {(assessment.refinement_prompt or '')[:300]}"
-                ),
-                category="reflexion",
-                source="reflexion",
-                metadata={"quality_score": assessment.quality_score},
-            )
+        if will_retry and assessment.improvement_areas:
+            try:
+                strategic = memory.strategic
+            except Exception:
+                strategic = None
+            if strategic is not None:
+                key = f"reflexion_{(assessment.improvement_areas[0] or 'general')[:40]}"
+                await strategic.store_strategy(
+                    key=key,
+                    content=(
+                        f"When quality is low on '{assessment.improvement_areas[0]}', "
+                        f"apply: {(assessment.refinement_prompt or '')[:300]}"
+                    ),
+                    category="reflexion",
+                    source="reflexion",
+                    metadata={"quality_score": assessment.quality_score},
+                )
     except Exception:
         logger.debug("Failed to persist reflexion episode", exc_info=True)
 

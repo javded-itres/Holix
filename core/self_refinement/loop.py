@@ -243,7 +243,12 @@ Your improved response:"""
             output: RefinedOutput from the refinement process.
             original_task: The original user task.
         """
-        if not memory or not hasattr(memory, "episodic"):
+        if not memory:
+            return
+        # Facade properties raise when LTM is off (not AttributeError).
+        try:
+            episodic = memory.episodic
+        except Exception:
             return
 
         try:
@@ -256,7 +261,7 @@ Your improved response:"""
                 f"improvements: {', '.join(output.improvements[:3])}"
             )
 
-            await memory.episodic.store_episode(
+            await episodic.store_episode(
                 conversation_id=conversation_id,
                 summary=summary,
                 outcome=outcome,
