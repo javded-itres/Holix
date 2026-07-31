@@ -12,12 +12,31 @@ from integrations.messenger.env_store import (
 from integrations.messenger.platform import MessengerPlatform
 
 
+def _normalize_env_raw(raw: str | None) -> str:
+    """Strip whitespace and optional surrounding quotes from dotenv values."""
+    text = (raw or "").strip()
+    if len(text) >= 2 and text[0] == text[-1] and text[0] in {'"', "'"}:
+        text = text[1:-1].strip()
+    return text
+
+
 def load_admin_user_id(platform: MessengerPlatform, bot_profile: str) -> int | None:
+    """Load admin Telegram/MAX user id for the bot profile.
+
+    Preference order:
+    1. platform messenger env file (``telegram.env`` / ``max.env``)
+    2. process environment (profile ``.env`` / systemd) — common on VDS deploys
+    """
     load_messenger_env_files(platform, bot_profile)
-    raw = read_messenger_env_values(platform, bot_profile).get(
-        platform.admin_user_id_key,
-        "",
-    ).strip()
+    raw = _normalize_env_raw(
+        read_messenger_env_values(platform, bot_profile).get(
+            platform.admin_user_id_key,
+            "",
+        )
+    )
+    if not raw.isdigit():
+        # Fallback: profile .env is often the source of truth in production
+        raw = _normalize_env_raw(os.getenv(platform.admin_user_id_key, ""))
     if raw.isdigit():
         return int(raw)
     return None
@@ -25,10 +44,14 @@ def load_admin_user_id(platform: MessengerPlatform, bot_profile: str) -> int | N
 
 def load_admin_holix_profile(platform: MessengerPlatform, bot_profile: str) -> str:
     load_messenger_env_files(platform, bot_profile)
-    raw = read_messenger_env_values(platform, bot_profile).get(
-        platform.admin_profile_key,
-        "",
-    ).strip()
+    raw = _normalize_env_raw(
+        read_messenger_env_values(platform, bot_profile).get(
+            platform.admin_profile_key,
+            "",
+        )
+    )
+    if not raw:
+        raw = _normalize_env_raw(os.getenv(platform.admin_profile_key, ""))
     return raw or platform.default_admin_profile
 
 
