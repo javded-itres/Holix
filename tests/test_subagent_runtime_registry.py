@@ -141,3 +141,51 @@ def test_get_job_by_id(profile_home: str) -> None:
     assert job is not None
     assert job["name"] == "reviewer"
     assert job["source"] == "max"
+
+
+def test_delete_job_removes_snapshot(profile_home: str) -> None:
+    owner = "studio-7"
+    rr.publish_handle(
+        profile_home,
+        _running_handle("coder"),
+        owner=owner,
+        source="studio",
+    )
+    assert rr.get_job(profile_home, f"{owner}::coder") is not None
+    result = rr.delete_job(profile_home, f"{owner}::coder")
+    assert result["ok"] is True
+    assert result["deleted"] >= 1
+    assert rr.get_job(profile_home, f"{owner}::coder") is None
+    assert rr.list_jobs(profile_home) == []
+
+
+def test_delete_done_jobs_keeps_running(profile_home: str, monkeypatch: pytest.MonkeyPatch) -> None:
+    import time
+
+    owner = "studio-8"
+    running = _running_handle("worker")
+    rr.publish_handle(profile_home, running, owner=owner, source="studio")
+
+    # Write a finished job snapshot directly (recent so retention keeps it).
+    now = time.time()
+    done_path = rr._job_path(profile_home, owner, "finished")
+    done_path.parent.mkdir(parents=True, exist_ok=True)
+    done_path.write_text(
+        (
+            '{"name":"finished","status":"completed","running":false,"done":true,'
+            f'"owner":"{owner}","id":"{owner}::finished","updated_at":{now}'
+            "}\n"
+        ),
+        encoding="utf-8",
+    )
+    jobs = rr.list_jobs(profile_home, include_done=True)
+    names = {j["name"] for j in jobs}
+    assert "worker" in names
+    assert "finished" in names
+
+    result = rr.delete_done_jobs(profile_home)
+    assert result["ok"] is True
+    assert result["deleted"] >= 1
+    remaining = {j["name"] for j in rr.list_jobs(profile_home, include_done=True)}
+    assert "finished" not in remaining
+    assert "worker" in remaining

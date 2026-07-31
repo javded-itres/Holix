@@ -122,22 +122,36 @@ OpenSpec Holix checklist only. Free-form `## 1. …` + Description/Assignee sect
 
 ## 1. Backend
 
-- [ ] 1.1 OAuth endpoints
+- [ ] 1.1 OAuth token endpoint only
   - **assignee:** `coder`
+  - **size:** `s`
   - **reason:** isolated API
   - **depends_on:**
 
 - [ ] 1.2 Shared auth config
   - **assignee:** `main`
+  - **size:** `m`
   - **reason:** conflict-prone
   - **depends_on:** `1.1`
 
 ## 2. Frontend
 
-- [ ] 2.1 Login UI
+- [ ] 2.1 Login UI (screen only)
   - **assignee:** `coder`
+  - **size:** `s`
   - **depends_on:** `1.1`
 ```
+
+### Task sizing (subagents)
+
+| size | Meaning | Approx. step budget |
+|------|---------|---------------------|
+| `xs` | One file / function | 40 |
+| `s` | One deliverable, 1–3 files | 60 |
+| `m` | Focused module slice | 90 |
+| `l` / `xl` | **Rejected** for subagent assignees — split first | — |
+
+Prefer 5–15 small checklist items. One sub-agent job = one deliverable so runs finish in fewer steps.
 
 ### Spec delta sample
 

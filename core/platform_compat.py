@@ -234,11 +234,21 @@ def popen_background(
     stderr=None,
     stdin=None,
     cwd: str | None = None,
+    preexec_fn=None,
 ) -> subprocess.Popen:
     """Spawn a detached background child process."""
     argv = _validate_subprocess_argv(cmd)
-    executable = _resolve_background_executable(argv[0])
-    safe_argv = [executable, *argv[1:]]
+    # systemd-run / wrappers may be the first token — resolve only real bins.
+    try:
+        executable = _resolve_background_executable(argv[0])
+        safe_argv = [executable, *argv[1:]]
+    except ValueError:
+        # Absolute path already, or wrapper not on PATH in some edge cases.
+        safe_argv = list(argv)
+        if not Path(safe_argv[0]).is_file() and not shutil.which(safe_argv[0]):
+            raise
+        if shutil.which(safe_argv[0]):
+            safe_argv[0] = shutil.which(safe_argv[0]) or safe_argv[0]
     kwargs: dict = {
         "env": env,
         "stdout": stdout,
@@ -251,6 +261,8 @@ def popen_background(
     if IS_POSIX:
         kwargs["start_new_session"] = True
         kwargs["close_fds"] = True
+        if preexec_fn is not None:
+            kwargs["preexec_fn"] = preexec_fn
     elif IS_WINDOWS and _CREATE_NEW_PROCESS_GROUP:
         kwargs["creationflags"] = _CREATE_NEW_PROCESS_GROUP
     return subprocess.Popen(safe_argv, **kwargs)

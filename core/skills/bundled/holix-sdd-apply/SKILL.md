@@ -37,10 +37,11 @@ If mode is missing, `sdd_apply` fails on purpose. **Do not start coding.**
 
 1. Follow the plan from `sdd_apply` only; respect delta specs
 2. Mode **self**: you execute every task (ignore assignees; do not spawn subagents)
-3. Mode **subagents** / **hybrid**: trust auto-dispatch / `sdd_dispatch` job ids — they use **tasks.md assignee** (custom types). Same type → `type-1`, `type-2`, … in parallel. Then `wait_subagent_result`; do `main` tasks yourself.  
+3. Mode **subagents** / **hybrid**: trust auto-dispatch / `sdd_dispatch` job ids — they use **tasks.md assignee** (custom types). Same type → `type-1`, `type-2`, … in parallel. Dispatch budgets `max_steps` from each task's **size** (`xs`/`s`/`m`). Then `wait_subagent_result`; do `main` tasks yourself.  
    **Successful subagent jobs auto-mark their task checkbox** in `tasks.md` — you do not need `sdd_check_task` for those. Still call `sdd_check_task` for **main** tasks and if auto-mark failed.
 4. After each **main** task: `sdd_check_task`
 5. When all done: suggest archive (`holix-sdd-archive` / `sdd_archive`)
+6. If a sub-agent thrash-fails on a still-large task: **split** that task in `tasks.md` into smaller XS/S items and re-dispatch — do not just raise max_steps
 
 ## Do NOT
 

@@ -18,6 +18,8 @@ class SpecTask:
     assignee: str = "unassigned"
     reason: str = ""
     depends_on: list[str] = field(default_factory=list)
+    # Optional volume label: xs | s | m | l | xl (see core.sdd.task_sizing).
+    size: str = ""
     line_index: int = -1  # index of the ``- [ ]`` line in the source (0-based)
 
 

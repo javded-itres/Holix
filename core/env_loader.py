@@ -69,8 +69,12 @@ def _find_env_example_path() -> Path | None:
     except Exception:
         pass
     for candidate in candidates:
-        if candidate.is_file():
-            return candidate
+        try:
+            if candidate.is_file():
+                return candidate
+        except OSError:
+            # e.g. cwd under /root and process runs as holix → PermissionError
+            continue
     return None
 
 

@@ -221,12 +221,17 @@ def plan_rows_from_graph(
         wave = graph.wave_of.get(tid)
         wave_num = (wave + 1) if isinstance(wave, int) and wave >= 0 else None
         unblocks = list(graph.dependents.get(tid, []))
+        from core.sdd.task_sizing import max_steps_for_size, resolve_task_size
+
+        size = resolve_task_size(task)
         rows.append(
             {
                 "id": tid,
                 "text": task.text,
                 "assignee": task.assignee,
                 "executor": executors.get(tid, task.assignee or "main"),
+                "size": size,
+                "max_steps": max_steps_for_size(size),
                 "depends_on": deps,
                 "blocked_by": blocked,
                 "ready": not blocked,

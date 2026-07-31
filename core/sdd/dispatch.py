@@ -111,23 +111,40 @@ async def dispatch_change_tasks(
     for t in tasks:
         if t.done:
             continue
-        item = plan_by_id.get(t.id) or {
-            "id": t.id,
-            "text": t.text,
-            "assignee": t.assignee,
-            "executor": t.assignee
-            if t.assignee not in ("main", "unassigned", "")
-            else "main",
-            "depends_on": list(graph.depends_on.get(t.id, [])),
-            "blocked_by": [
-                d for d in graph.depends_on.get(t.id, []) if not _task_done(tasks, d)
-            ],
-            "ready": t.id in ready_ids,
-            "wave": (graph.wave_of.get(t.id, -1) + 1)
-            if graph.wave_of.get(t.id, -1) >= 0
-            else None,
-            "unblocks": list(graph.dependents.get(t.id, [])),
-        }
+        if t.id in plan_by_id:
+            item = dict(plan_by_id[t.id])
+        else:
+            from core.sdd.task_sizing import max_steps_for_size, resolve_task_size
+
+            size = resolve_task_size(t)
+            item = {
+                "id": t.id,
+                "text": t.text,
+                "assignee": t.assignee,
+                "executor": t.assignee
+                if t.assignee not in ("main", "unassigned", "")
+                else "main",
+                "size": size,
+                "max_steps": max_steps_for_size(size),
+                "depends_on": list(graph.depends_on.get(t.id, [])),
+                "blocked_by": [
+                    d
+                    for d in graph.depends_on.get(t.id, [])
+                    if not _task_done(tasks, d)
+                ],
+                "ready": t.id in ready_ids,
+                "wave": (graph.wave_of.get(t.id, -1) + 1)
+                if graph.wave_of.get(t.id, -1) >= 0
+                else None,
+                "unblocks": list(graph.dependents.get(t.id, [])),
+            }
+        # Always re-resolve size from live task text/size field.
+        if not item.get("size"):
+            from core.sdd.task_sizing import max_steps_for_size, resolve_task_size
+
+            size = resolve_task_size(t)
+            item["size"] = size
+            item["max_steps"] = max_steps_for_size(size)
         executor = (item.get("executor") or "main").strip()
         if t.id not in ready_ids:
             blocked_tasks.append(item)
@@ -164,6 +181,8 @@ async def dispatch_change_tasks(
     async def _spawn_one(
         item: dict[str, Any], agent_type: str, instance_name: str
     ) -> dict[str, Any]:
+        from core.sdd.task_sizing import max_steps_for_size, resolve_task_size
+
         task_id = item.get("id")
         deps = item.get("depends_on") or []
         blocked = item.get("blocked_by") or []
@@ -171,10 +190,14 @@ async def dispatch_change_tasks(
         wave = item.get("wave")
         wave_label = f"wave={wave}" if wave else "wave=?"
         deps_label = ",".join(str(d) for d in deps) if deps else "none"
+        # Prefer size from plan/item; fall back to heuristic on text.
+        size = item.get("size") or resolve_task_size(item)
+        budget = int(item.get("max_steps") or max_steps_for_size(size))
         task_text = (
             f"[SDD change={change_id} task={task_id}{project_attr}]\n"
             f"Task graph: {wave_label}; depends_on={deps_label}; "
             f"unblocks={','.join(str(u) for u in unblocks) if unblocks else 'none'}\n"
+            f"Size: {size} (budget ≈ {budget} steps — stay focused).\n"
             f"{item.get('text')}\n\n"
             "Implement THIS task only, in graph order.\n"
             f"- Prerequisites (must already be done): {deps_label}\n"
@@ -182,6 +205,8 @@ async def dispatch_change_tasks(
             f"{', '.join(str(b) for b in blocked) if blocked else 'none'}\n"
             f"- Downstream tasks waiting on you: "
             f"{', '.join(str(u) for u in unblocks) if unblocks else 'none'}\n"
+            "Scope discipline: do not expand into neighboring tasks. "
+            "Prefer the minimal file set for this deliverable. "
             "Do not start work that belongs to other task ids. "
             "Respect openspec delta specs for this change. "
             "Do not modify unrelated files. "
@@ -189,7 +214,7 @@ async def dispatch_change_tasks(
             "and may dispatch the next wave."
         )
         try:
-            kwargs: dict[str, Any] = {}
+            kwargs: dict[str, Any] = {"max_steps": budget}
             if instance_name:
                 kwargs["instance_name"] = instance_name
             handle = await mgr.spawn_typed(agent_type, task_text, **kwargs)
@@ -201,6 +226,8 @@ async def dispatch_change_tasks(
                 "executor": agent_type,
                 "job_id": getattr(h, "name", None),
                 "wave": wave,
+                "size": size,
+                "max_steps": budget,
                 "depends_on": list(deps),
                 "process_mode": getattr(
                     getattr(h, "config", None), "process_mode", None

@@ -166,6 +166,21 @@ class BackgroundProcessRegistry:
         spawn_env = build_background_spawn_env(project_root)
         spawn_argv = resolve_argv_executable(argv, project_root)
 
+        # Optional Studio/admin resource limits (CPU/RAM) for multi-tenant hosts.
+        preexec = None
+        try:
+            from core.runtime.resource_limits import (
+                load_resource_limits,
+                process_preexec_fn,
+                wrap_process_argv,
+            )
+
+            _limits = load_resource_limits()
+            preexec = process_preexec_fn(_limits)
+            spawn_argv = wrap_process_argv(spawn_argv, _limits)
+        except Exception:
+            preexec = None
+
         def _spawn() -> tuple[Any, str]:
             log_handle = open(log_path, "ab")  # noqa: SIM115
             try:
@@ -175,12 +190,22 @@ class BackgroundProcessRegistry:
                         if IS_POSIX
                         else ["cmd", "/c", command.strip()]
                     )
+                    try:
+                        from core.runtime.resource_limits import (
+                            load_resource_limits,
+                            wrap_process_argv,
+                        )
+
+                        shell_argv = wrap_process_argv(shell_argv, load_resource_limits())
+                    except Exception:
+                        pass
                     popen = popen_background(
                         shell_argv,
                         stdout=log_handle,
                         stderr=log_handle,
                         cwd=root,
                         env=spawn_env,
+                        preexec_fn=preexec,
                     )
                 else:
                     popen = popen_background(
@@ -189,6 +214,7 @@ class BackgroundProcessRegistry:
                         stderr=log_handle,
                         cwd=root,
                         env=spawn_env,
+                        preexec_fn=preexec,
                     )
             finally:
                 log_handle.close()

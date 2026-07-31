@@ -96,46 +96,79 @@ A workspace may contain several projects, each with its own `openspec/`.
 
 Studio and `sdd_*` tools parse **only** checkbox lines. Free-form sections are **rejected**.
 
+### Size & decomposition (required for subagents)
+
+**Before writing `tasks.md`, estimate volume and split large work.**
+
+| size | Meaning | Typical sub-agent steps |
+|------|---------|-------------------------|
+| `xs` | One file / one function / stub | ~40 |
+| `s`  | One slice, 1–3 files, **one** deliverable | ~60 |
+| `m`  | Focused module feature | ~90 |
+| `l` / `xl` | **Too big** — `sdd_write_artifact` **rejects** for subagent assignees | — |
+
+Rules for volume:
+1. **Prefer 5–15 small tasks** over 1–3 mega-tasks.
+2. One sub-agent task = **one deliverable** (one endpoint **or** one UI screen **or** one test file — not all).
+3. Put `  - **size:** \`s\`` (or `xs`/`m`) on every task. Holix also estimates missing sizes.
+4. If a task would be L/XL (full feature, frontend+backend, "entire module") → **split** with `depends_on` before write.
+5. Parallelize independent slices (same `depends_on`) so waves stay short.
+
 **Correct (required):**
 
 ```markdown
 # Tasks: <change-id>
 
-## 1. Implementation
+## 1. Backend
 
-- [ ] 1.1 Add OAuth endpoints
+- [ ] 1.1 Add OAuth token endpoint only
   - **assignee:** `coder`
+  - **size:** `s`
   - **reason:** isolated API surface
   - **depends_on:**
 
-- [ ] 1.2 Wire UI to OAuth (after API)
+- [ ] 1.2 Persist session store
   - **assignee:** `coder`
+  - **size:** `s`
   - **reason:** needs 1.1
+  - **depends_on:** `1.1`
+
+## 2. Frontend
+
+- [ ] 2.1 Login button + redirect (UI only)
+  - **assignee:** `coder`
+  - **size:** `s`
+  - **reason:** needs API from 1.1
   - **depends_on:** `1.1`
 
 - [ ] 1.3 Shared auth config
   - **assignee:** `main`
+  - **size:** `m`
   - **reason:** conflict-prone shared code
   - **depends_on:** `1.1`
 ```
 
-**Wrong (not visible in UI — do not use):**
+**Wrong (rejected — too large / free-form):**
 
 ```markdown
+- [ ] 1.1 Implement full OAuth (backend, frontend, tests, docs)
+  - **assignee:** `coder`
+
 ## 1. Add OAuth endpoints
 - **Описание:** …
 - **Исполнитель:** coder
-- **Результат:** …
 ```
 
 Rules:
 - Every task is `- [ ] <id> <title>` (or `- [x]` when done)
 - Nested `  - **assignee:** \`type\`` is mandatory structure (`main`, subagent type, or `unassigned`)
+- Nested `  - **size:** \`xs|s|m\`` — required for good dispatch budgets
 - Optional `  - **reason:** …`
 - Optional `  - **depends_on:** \`1.1, 1.2\`` — execution graph (empty = no explicit deps)
 - Same-section order (1.1 before 1.2) is **inferred** when `depends_on` is empty
 - Parallel work: independent sections (1.x vs 2.x) or shared `depends_on` only
 - Use `sdd_write_artifact(artifact=tasks, …)` only — never invent another schema
+- If write returns size errors → rewrite `tasks.md` with smaller checklist items (do not force L/XL)
 
 Assignees: `main` or a type name from `list_subagent_types` (custom or built-in).
 

@@ -449,11 +449,15 @@ class SubAgentManager:
         wait: bool = False,
         timeout: float | None = None,
         instance_name: str | None = None,
+        max_steps: int | None = None,
     ) -> tuple[SubAgentHandle, SubAgentResult | None]:
         """Spawn a registry sub-agent in a separate process when supported.
 
         ``instance_name`` forces a job id (e.g. ``coder-1``); if that slot is
         busy, falls back to :meth:`allocate_name`.
+
+        ``max_steps`` optionally overrides the type default (used by SDD
+        dispatch to budget small tasks tightly).
         """
         from core.subagents.resolve import resolve_subagent_type
         from core.subagents.spawn import prepare_subagent_config
@@ -472,6 +476,13 @@ class SubAgentManager:
         else:
             instance = self.allocate_name(agent_type)
         sub_cfg = prepare_subagent_config(agent_type, parent_cfg, instance_name=instance)
+        if max_steps is not None:
+            try:
+                steps = int(max_steps)
+            except (TypeError, ValueError):
+                steps = 0
+            if steps > 0:
+                sub_cfg.max_steps = steps
         handle = await self.spawn_sub_agent(sub_cfg, task, agent_type=agent_type)
         if not wait:
             return handle, None

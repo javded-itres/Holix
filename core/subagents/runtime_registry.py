@@ -304,6 +304,126 @@ def take_cancel_requests(profile: str, owner: str) -> list[str]:
     return names
 
 
+def _remove_job_files(profile: str, owner: str, name: str) -> bool:
+    """Delete snapshot + cancel flag for one owner/name pair."""
+    try:
+        prof = validate_profile_name(profile)
+        own = _safe_owner(owner)
+        job_name = _safe_name(name)
+    except ValueError:
+        return False
+    removed = False
+    for path in (
+        _job_path(prof, own, job_name),
+        _cancel_path(prof, own, job_name),
+    ):
+        try:
+            if path.exists():
+                path.unlink(missing_ok=True)
+                removed = True
+        except OSError:
+            pass
+    # Drop empty owner directory to keep the tree tidy.
+    owner_dir = runtime_root(prof) / own
+    try:
+        if owner_dir.is_dir() and not any(owner_dir.iterdir()):
+            owner_dir.rmdir()
+    except OSError:
+        pass
+    return removed
+
+
+def delete_job(
+    profile: str,
+    job_ref: str,
+    *,
+    cancel_if_running: bool = True,
+) -> dict[str, Any]:
+    """Remove a job snapshot so it no longer appears in lists.
+
+    When *cancel_if_running* is true and the job still looks active, a cancel
+    flag is written first so the owning host can stop the worker even after
+    the snapshot file is gone.
+    """
+    ref = (job_ref or "").strip()
+    if not ref:
+        return {"ok": False, "error": "name required", "name": job_ref}
+    try:
+        prof = validate_profile_name(profile)
+    except Exception as exc:
+        return {"ok": False, "error": str(exc), "name": ref}
+
+    owner, name = parse_job_id(ref)
+    if not name:
+        return {"ok": False, "error": "invalid name", "name": ref}
+
+    targets: list[tuple[str, str]] = []
+    if owner:
+        targets.append((owner, name))
+    else:
+        # Bare name: delete every matching snapshot (all owners).
+        for job in list_jobs(prof, include_done=True):
+            if str(job.get("name") or "") != name:
+                continue
+            job_owner = str(job.get("owner") or "")
+            if job_owner:
+                targets.append((job_owner, name))
+        if not targets:
+            # Try get_job for id-style bare refs.
+            found = get_job(prof, ref, include_activity=False, include_result=False)
+            if found:
+                job_owner = str(found.get("owner") or "")
+                job_name = str(found.get("name") or name)
+                if job_owner and job_name:
+                    targets.append((job_owner, job_name))
+
+    if not targets:
+        return {"ok": False, "error": "not found", "name": ref}
+
+    cancelled = False
+    deleted = 0
+    for job_owner, job_name in targets:
+        if cancel_if_running:
+            try:
+                if request_cancel(prof, job_id(job_owner, job_name)):
+                    cancelled = True
+            except Exception:
+                pass
+        if _remove_job_files(prof, job_owner, job_name):
+            deleted += 1
+
+    if deleted <= 0 and not cancelled:
+        return {"ok": False, "error": "not found", "name": ref}
+    return {
+        "ok": True,
+        "name": ref,
+        "deleted": deleted,
+        "cancelled": cancelled,
+    }
+
+
+def delete_done_jobs(profile: str) -> dict[str, Any]:
+    """Remove all finished (non-running) job snapshots for *profile*."""
+    try:
+        prof = validate_profile_name(profile)
+    except Exception as exc:
+        return {"ok": False, "error": str(exc), "deleted": 0}
+
+    deleted = 0
+    for job in list_jobs(prof, include_done=True):
+        if job.get("running") and not job.get("done"):
+            continue
+        if not job.get("done"):
+            continue
+        job_owner = str(job.get("owner") or "")
+        job_name = str(job.get("name") or "")
+        if not job_owner or not job_name:
+            continue
+        if _remove_job_files(prof, job_owner, job_name):
+            deleted += 1
+    return {"ok": True, "deleted": deleted}
+
+
 def get_job(
     profile: str,
     job_ref: str,
@@ -421,7 +541,8 @@ def _normalize_job(
         alive = _pid_alive(owner_pid_i)
         stale = (now - updated) > _STALE_RUNNING_S
         if alive is False or (alive is None and stale and (now - updated) > 600):
-            # Owner process gone — drop as cancelled so Studio does not show ghosts.
+            # Owner process gone — keep a cancelled snapshot so Studio still
+            # lists the job (do not delete; users need to see what ran).
             running = False
             done = True
             status = "cancelled"
@@ -430,13 +551,23 @@ def _normalize_job(
                 "status": status,
                 "running": False,
                 "done": True,
-                "current_activity": raw.get("current_activity") or "Host process exited",
+                "current_activity": raw.get("current_activity")
+                or "Host process exited",
             }
             try:
-                path.unlink(missing_ok=True)
-            except OSError:
+                # Persist cancelled state for retention window instead of unlink.
+                _atomic_write_json(
+                    path,
+                    {
+                        **raw,
+                        "updated_at": now,
+                        "running": False,
+                        "done": True,
+                        "status": "cancelled",
+                    },
+                )
+            except Exception:
                 pass
-            return None
 
     if done and (now - updated) > max_done_age_s:
         try:

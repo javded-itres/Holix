@@ -40,9 +40,12 @@ rules:
   specs: |
     Scenario-first requirements; no implementation detail.
   tasks: |
-    Small checkboxes; group by phase;
+    Small checkboxes only (XS/S preferred); group by phase;
     every task MUST have assignee: main | <subagent-type>;
-    prefer subagents for independent workstreams.
+    every task SHOULD have size: xs|s|m (l/xl forbidden for subagents — split first);
+    one subagent task = one deliverable (one endpoint OR one screen OR one test file);
+    prefer 5–15 small tasks over 1–3 large ones so jobs use fewer steps;
+    wire depends_on for order; prefer subagents for independent workstreams.
 apply:
   ask_execution_mode: true
   default_mode: ask
@@ -95,13 +98,15 @@ _TASKS_STUB = """\
 
 ## 1. Implementation
 
-- [ ] 1.1 First concrete step
+- [ ] 1.1 First small concrete step (one deliverable)
   - **assignee:** `main`
+  - **size:** `s`
   - **reason:** shared / coordination
   - **depends_on:**
 
-- [ ] 1.2 Next step (runs after 1.1; set assignee for parallel multi-agent apply)
+- [ ] 1.2 Next small step (runs after 1.1; set assignee for parallel multi-agent apply)
   - **assignee:** `main`
+  - **size:** `s`
   - **reason:** default to main; change for multi-agent apply
   - **depends_on:** `1.1`
 """
@@ -454,17 +459,30 @@ class SpecStore:
             path = cdir / "design.md"
         elif art in ("tasks", "tasks.md"):
             path = cdir / "tasks.md"
+            from core.sdd.task_sizing import size_summary
             from core.sdd.tasks import ensure_tasks_openspec_format, parse_tasks_markdown
 
             content, norm_notes = ensure_tasks_openspec_format(
-                content, title=f"Tasks: {cid}"
+                content, title=f"Tasks: {cid}", strict_size=True
             )
             tasks_written = parse_tasks_markdown(content)
+            sizing = size_summary(tasks_written)
             extra = {
                 "tasks_total": len(tasks_written),
                 "normalized": bool(norm_notes),
                 "normalize_notes": norm_notes,
                 "format": "openspec-checklist",
+                "size_summary": sizing,
+                "hint": (
+                    "Sub-agent tasks must be XS/S (occasionally M). "
+                    "L/XL are rejected — split into smaller checklist items "
+                    "so each job finishes in fewer steps."
+                    if not sizing.get("ok")
+                    else (
+                        "Task sizes look good. Prefer parallel ready tasks "
+                        "(shared depends_on) over long sequential mega-tasks."
+                    )
+                ),
             }
         elif art in ("specs", "spec", "delta", "spec.md"):
             # Prefer an already-scaffolded delta domain under this change, else resolve.
@@ -582,9 +600,12 @@ class SpecStore:
             return []
         from core.sdd.dispatch import load_task_jobs
 
+        from core.sdd.task_sizing import max_steps_for_size, resolve_task_size
+
         jobs = load_task_jobs(self, cid)
         out: list[dict] = []
         for t in parse_tasks_markdown(path.read_text(encoding="utf-8")):
+            size = resolve_task_size(t)
             out.append(
                 {
                     "id": t.id,
@@ -592,6 +613,8 @@ class SpecStore:
                     "done": t.done,
                     "assignee": t.assignee,
                     "reason": t.reason,
+                    "size": size,
+                    "max_steps": max_steps_for_size(size),
                     "job_id": jobs.get(t.id),
                 }
             )

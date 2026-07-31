@@ -25,6 +25,10 @@ _DEPENDS_RE = re.compile(
     r"^\s*-\s*\*\*(?:depends_on|depends|dependencies|зависит_от|зависимости):\*\*\s*(.*)$",
     re.IGNORECASE,
 )
+_SIZE_RE = re.compile(
+    r"^\s*-\s*\*\*(?:size|volume|estimate|объ[её]м|размер):\*\*\s*`?([^`\n]+?)`?\s*$",
+    re.IGNORECASE,
+)
 _ID_PREFIX_RE = re.compile(r"^(\d+(?:\.\d+)*)\s+")
 
 # Free-form section tasks (not OpenSpec checklist) — common LLM mistake
@@ -51,18 +55,21 @@ TASKS_FORMAT_EXAMPLE = """\
 
 ## 1. Implementation
 
-- [ ] 1.1 Short task title
+- [ ] 1.1 Short task title (one deliverable)
   - **assignee:** `coder`
+  - **size:** `s`
   - **reason:** why this agent
   - **depends_on:**
 
-- [ ] 1.2 Another task (runs after 1.1)
+- [ ] 1.2 Another small task (runs after 1.1)
   - **assignee:** `coder`
+  - **size:** `s`
   - **reason:** needs API from 1.1
   - **depends_on:** `1.1`
 
 - [ ] 1.3 Parallel with 1.2 if both only need 1.1
   - **assignee:** `reviewer`
+  - **size:** `xs`
   - **reason:** review contracts
   - **depends_on:** `1.1`
 """
@@ -95,6 +102,7 @@ def parse_tasks_markdown(content: str) -> list[SpecTask]:
         task_line = i
         assignee = "unassigned"
         reason = ""
+        size = ""
         depends_on: list[str] = []
         j = i + 1
         while j < len(lines):
@@ -121,6 +129,11 @@ def parse_tasks_markdown(content: str) -> list[SpecTask]:
                 reason = rm.group(1).strip()
                 j += 1
                 continue
+            sm = _SIZE_RE.match(lines[j])
+            if sm:
+                size = sm.group(1).strip().strip("`").strip()
+                j += 1
+                continue
             dm = _DEPENDS_RE.match(lines[j])
             if dm:
                 depends_on = parse_depends_on_value(dm.group(1))
@@ -142,6 +155,7 @@ def parse_tasks_markdown(content: str) -> list[SpecTask]:
                 assignee=assignee,
                 reason=reason,
                 depends_on=depends_on,
+                size=size,
                 line_index=task_line,
             )
         )
@@ -177,6 +191,9 @@ def render_tasks_markdown(tasks: Iterable[SpecTask], *, title: str = "Tasks") ->
             text = f"{t.id} {text}".strip()
         lines.append(f"- [{mark}] {text}")
         lines.append(f"  - **assignee:** `{(t.assignee or 'unassigned').strip() or 'unassigned'}`")
+        size = (t.size or "").strip()
+        if size:
+            lines.append(f"  - **size:** `{size}`")
         if t.reason:
             lines.append(f"  - **reason:** {t.reason}")
         deps = [d for d in (t.depends_on or []) if str(d).strip()]
@@ -252,14 +269,31 @@ def normalize_tasks_markdown(content: str, *, title: str | None = None) -> tuple
     return text, notes
 
 
-def ensure_tasks_openspec_format(content: str, *, title: str | None = None) -> tuple[str, list[str]]:
+def ensure_tasks_openspec_format(
+    content: str,
+    *,
+    title: str | None = None,
+    strict_size: bool = True,
+) -> tuple[str, list[str]]:
     """Normalize when possible, then validate. Raises ValueError if still invalid.
 
     Already-valid checklists keep phase headings (``## 1. …``); free-form layouts
     are converted into a clean checklist body.
+
+    When *strict_size* is true, sub-agent tasks estimated as L/XL are rejected so
+    propose must decompose them into smaller checklist items.
     """
     normalized, notes = normalize_tasks_markdown(content, title=title)
+    # Ensure each task has an explicit **size:** line (estimated when missing).
+    sized, size_notes = ensure_task_sizes(normalized)
+    if size_notes:
+        notes.extend(size_notes)
+        normalized = sized
     errors = validate_tasks_markdown(normalized)
+    if strict_size:
+        from core.sdd.task_sizing import validate_task_sizes
+
+        errors.extend(validate_task_sizes(parse_tasks_markdown(normalized)))
     if errors:
         raise ValueError(
             "Invalid tasks.md (OpenSpec Holix format required):\n- "
@@ -268,6 +302,66 @@ def ensure_tasks_openspec_format(content: str, *, title: str | None = None) -> t
     if not normalized.endswith("\n"):
         normalized += "\n"
     return normalized, notes
+
+
+def ensure_task_sizes(content: str) -> tuple[str, list[str]]:
+    """Insert or normalize ``**size:**`` for every checklist task.
+
+    Missing sizes are estimated heuristically and written into the markdown so
+    Studio/dispatch can budget max_steps per job.
+    """
+    from core.sdd.task_sizing import estimate_task_size, normalize_size
+
+    lines = (content or "").splitlines()
+    tasks = parse_tasks_markdown(content)
+    if not tasks:
+        return content, []
+
+    notes: list[str] = []
+    # Work bottom-up so line indices stay valid.
+    for t in reversed(tasks):
+        li = t.line_index
+        if li < 0 or li >= len(lines):
+            continue
+        end = li + 1
+        while end < len(lines):
+            if _TASK_LINE_RE.match(lines[end]) or lines[end].startswith("#"):
+                break
+            if lines[end].strip() and not (
+                lines[end].startswith(" ") or lines[end].startswith("\t")
+            ):
+                break
+            end += 1
+        block = lines[li + 1 : end]
+        estimated = estimate_task_size(
+            t.text, reason=t.reason or "", declared=t.size or None
+        )
+        size_label = normalize_size(t.size) or estimated
+        new_block: list[str] = []
+        wrote_size = False
+        for bl in block:
+            if _SIZE_RE.match(bl):
+                if not wrote_size:
+                    new_block.append(f"  - **size:** `{size_label}`")
+                    wrote_size = True
+                continue
+            new_block.append(bl)
+        if not wrote_size:
+            insert_at = 0
+            for i, bl in enumerate(new_block):
+                if _ASSIGNEE_RE.match(bl) or _ASSIGNEE_LOOSE_RE.match(bl):
+                    insert_at = i + 1
+                    break
+            new_block.insert(insert_at, f"  - **size:** `{size_label}`")
+            notes.append(f"Task {t.id}: added size={size_label}")
+        elif normalize_size(t.size) != size_label and not normalize_size(t.size):
+            notes.append(f"Task {t.id}: size={size_label}")
+        lines = lines[: li + 1] + new_block + lines[end:]
+
+    out = "\n".join(lines)
+    if content.endswith("\n") and not out.endswith("\n"):
+        out += "\n"
+    return out, notes
 
 
 def set_task_done(content: str, *, task_id: str | None = None, index: int | None = None, done: bool = True) -> str:
@@ -401,6 +495,8 @@ def _canonicalize_checklist(content: str) -> str:
         wrote_assignee = False
         wrote_reason = False
         wrote_depends = False
+        wrote_size = False
+        size_val = (t.size or "").strip()
         for bl in block:
             if _ASSIGNEE_RE.match(bl) or _ASSIGNEE_LOOSE_RE.match(bl):
                 if not wrote_assignee:
@@ -408,6 +504,16 @@ def _canonicalize_checklist(content: str) -> str:
                         f"  - **assignee:** `{(t.assignee or 'unassigned').strip() or 'unassigned'}`"
                     )
                     wrote_assignee = True
+                continue
+            if _SIZE_RE.match(bl):
+                if size_val and not wrote_size:
+                    new_block.append(f"  - **size:** `{size_val}`")
+                    wrote_size = True
+                elif not size_val:
+                    continue
+                else:
+                    new_block.append(bl)
+                    wrote_size = True
                 continue
             if _REASON_RE.match(bl):
                 if t.reason and not wrote_reason:
@@ -436,10 +542,17 @@ def _canonicalize_checklist(content: str) -> str:
                 0,
                 f"  - **assignee:** `{(t.assignee or 'unassigned').strip() or 'unassigned'}`",
             )
-        if t.reason and not wrote_reason:
+        if size_val and not wrote_size:
             insert_at = 0
             for i, bl in enumerate(new_block):
                 if _ASSIGNEE_RE.match(bl):
+                    insert_at = i + 1
+                    break
+            new_block.insert(insert_at, f"  - **size:** `{size_val}`")
+        if t.reason and not wrote_reason:
+            insert_at = 0
+            for i, bl in enumerate(new_block):
+                if _ASSIGNEE_RE.match(bl) or _SIZE_RE.match(bl):
                     insert_at = i + 1
                     break
             new_block.insert(insert_at, f"  - **reason:** {t.reason}")
@@ -447,7 +560,7 @@ def _canonicalize_checklist(content: str) -> str:
         if deps and not wrote_depends:
             insert_at = 0
             for i, bl in enumerate(new_block):
-                if _ASSIGNEE_RE.match(bl) or _REASON_RE.match(bl):
+                if _ASSIGNEE_RE.match(bl) or _SIZE_RE.match(bl) or _REASON_RE.match(bl):
                     insert_at = i + 1
             new_block.insert(insert_at, f"  - **depends_on:** `{', '.join(deps)}`")
         # Ensure task text has id prefix

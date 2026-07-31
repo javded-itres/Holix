@@ -134,20 +134,23 @@ Skills (явный запуск или подсказки агенту):
 
 ## 1. Backend
 
-- [ ] 1.1 OAuth endpoints
+- [ ] 1.1 Только OAuth token endpoint
   - **assignee:** `coder`
+  - **size:** `s`
   - **reason:** изолированный API
   - **depends_on:**
 
 - [ ] 1.2 Shared auth config
   - **assignee:** `main`
+  - **size:** `m`
   - **reason:** конфликтный shared-код
   - **depends_on:** `1.1`
 
 ## 2. Frontend
 
-- [ ] 2.1 Login UI
+- [ ] 2.1 Login UI (только экран)
   - **assignee:** `coder`
+  - **size:** `s`
   - **reason:** UI после API
   - **depends_on:** `1.1`
 ```
@@ -155,9 +158,12 @@ Skills (явный запуск или подсказки агенту):
 Правила:
 
 - строка задачи: `- [ ] 1.1 Заголовок`
-- вложенно: `**assignee:**`, опционально `**reason:**`, `**depends_on:**`
+- вложенно: `**assignee:**`, `**size:**` (`xs`/`s`/`m`), опционально `**reason:**`, `**depends_on:**`
 - parallel: одинаковый `depends_on` (или пустой) у независимых задач
 - assignee: `main` | type из `list_subagent_types` | custom agent
+- **объём:** оценивайте и **дробите** крупные задачи; L/XL для субагентов **отклоняются**
+- одна задача субагента = один deliverable (эндпоинт **или** экран **или** тесты — не всё сразу)
+- лучше 5–15 мелких задач, чем 1–3 «эпика» — меньше шагов на job
 
 ### Delta specs (пример)
 
