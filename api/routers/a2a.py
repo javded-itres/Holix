@@ -7,14 +7,6 @@ import logging
 from collections.abc import AsyncIterator
 from typing import Any
 
-from dishka.integrations.fastapi import DishkaRoute, FromDishka
-from fastapi import APIRouter, Depends, Header, HTTPException, Request
-from fastapi.responses import JSONResponse, StreamingResponse
-
-from api.deps import ensure_key_profile_allowed, resolve_profile_name, verify_api_key
-from api.di import GatewayLocks, HostProfileName, ProfileAgentRegistry
-from api.errors import sse_streaming_response
-from api.services.path_visibility import gateway_agent_path_visibility
 from core.a2a.card import build_agent_card
 from core.a2a.config import load_a2a_config
 from core.a2a.server import (
@@ -23,6 +15,14 @@ from core.a2a.server import (
     handle_message_send,
     handle_message_stream,
 )
+from dishka.integrations.fastapi import DishkaRoute, FromDishka
+from fastapi import APIRouter, Depends, Header, HTTPException, Request
+from fastapi.responses import JSONResponse, StreamingResponse
+
+from api.deps import ensure_key_profile_allowed, resolve_profile_name, verify_api_key
+from api.di import GatewayLocks, HostProfileName, ProfileAgentRegistry
+from api.errors import sse_streaming_response
+from api.services.path_visibility import gateway_agent_path_visibility
 
 logger = logging.getLogger(__name__)
 

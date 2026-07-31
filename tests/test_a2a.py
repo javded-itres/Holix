@@ -6,7 +6,6 @@ from types import SimpleNamespace
 from unittest.mock import AsyncMock
 
 import pytest
-
 from core.a2a.card import build_agent_card
 from core.a2a.client import extract_task_text
 from core.a2a.config import load_a2a_config
@@ -147,7 +146,6 @@ async def test_handle_message_stream_events() -> None:
         run=AsyncMock(return_value="fallback"),
     )
 
-    import core.a2a.server as server_mod
 
     # Patch run_holix import path used inside handle_message_stream
     import core.runtime.executor as executor_mod

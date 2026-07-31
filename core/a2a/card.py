@@ -43,9 +43,9 @@ def build_agent_card(
 
     # Optional: surface installed skills as A2A skills (bounded)
     try:
+        from core.di import resolve_runtime_config
         from core.profile import ProfileManager
         from core.skills.manager import SkillsManager
-        from core.di import resolve_runtime_config
 
         prof = ProfileManager().load_profile(profile)
         runtime = resolve_runtime_config(prof)

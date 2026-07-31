@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import threading
-from typing import Any
 
 from core.a2a.models import A2ATask
 
