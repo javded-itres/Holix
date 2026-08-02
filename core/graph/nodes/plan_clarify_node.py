@@ -20,7 +20,7 @@ from core.plan_review.clarification import (
     format_clarification_feedback,
     needs_plan_clarification,
 )
-from core.plan_review.review_guard import PlanReviewChoice, get_plan_review_guard
+from core.plan_review.review_guard import PlanReviewChoice, resolve_plan_review_guard
 
 logger = logging.getLogger(__name__)
 
@@ -58,7 +58,7 @@ async def plan_clarify_node(state: HolixGraphState, config: RunnableConfig) -> d
     except Exception:
         pass
 
-    guard = get_plan_review_guard()
+    guard = resolve_plan_review_guard(agent)
     if guard is None:
         return {"plan_status": "pending_review"}
 

@@ -218,3 +218,26 @@ def get_plan_review_guard(profile_name: str | None = None) -> PlanReviewGuard | 
     if agent_guard is not None:
         return agent_guard
     return _plan_review_guard
+
+
+def resolve_plan_review_guard(agent: Any | None = None) -> PlanReviewGuard | None:
+    """Resolve PlanReviewGuard for graph nodes and channel hosts.
+
+    Prefer the guard attached to the *current* agent instance (Studio multi-tab,
+    Telegram/MAX hosts). Fall back to the profile session registry, then the
+    legacy process-global guard.
+    """
+    if agent is not None:
+        guard = getattr(agent, "_plan_review_guard", None)
+        if guard is not None:
+            return guard
+        try:
+            from core.profile.soul import profile_name_from_agent
+
+            profile = profile_name_from_agent(agent)
+        except Exception:
+            profile = getattr(getattr(agent, "config", None), "profile_name", None)
+        resolved = get_plan_review_guard(profile)
+        if resolved is not None:
+            return resolved
+    return get_plan_review_guard()

@@ -17,6 +17,7 @@ from core.plan_review.review_guard import (
     PlanReviewGuard,
     get_plan_review_guard,
     init_plan_review_guard,
+    resolve_plan_review_guard,
 )
 
 __all__ = [
@@ -24,6 +25,7 @@ __all__ = [
     "PlanReviewGuard",
     "init_plan_review_guard",
     "get_plan_review_guard",
+    "resolve_plan_review_guard",
     "PlanReviewEventType",
     "PlanReviewRequestEvent",
     "PlanReviewResponseEvent",

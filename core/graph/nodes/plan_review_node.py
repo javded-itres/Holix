@@ -71,10 +71,14 @@ async def plan_review_node(state: HolixGraphState, config: RunnableConfig) -> di
     except Exception:
         pass  # If settings unavailable, proceed with review
 
-    # Get the PlanReviewGuard
+    # Get the PlanReviewGuard for *this* agent.
+    # Studio (and multi-tab) keep a guard per HolixAgent instance; the global /
+    # profile session registry only tracks the last agent per profile and is not
+    # reliable for parallel conversations.
     from core.plan_review.markdown_builder import build_plan_markdown
-    from core.plan_review.review_guard import PlanReviewChoice, get_plan_review_guard
-    guard = get_plan_review_guard()
+    from core.plan_review.review_guard import PlanReviewChoice, resolve_plan_review_guard
+
+    guard = resolve_plan_review_guard(agent)
 
     if guard is None:
         # No guard initialized — reject (don't auto-execute without review!)

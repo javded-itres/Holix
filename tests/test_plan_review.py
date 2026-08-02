@@ -166,6 +166,29 @@ class TestPlanReviewGuard:
         retrieved = get_plan_review_guard()
         assert retrieved is guard
 
+    def test_resolve_prefers_agent_instance_guard(self):
+        """Graph nodes must use the agent-bound guard, not only the global."""
+        import core.plan_review.review_guard as rg
+        from core.plan_review.review_guard import resolve_plan_review_guard
+        from core.runtime import agent_sessions
+
+        agent_sessions._sessions.clear()  # noqa: SLF001
+        rg._plan_review_guard = None
+
+        bus = AgentEventBus(name="test")
+        agent_guard = PlanReviewGuard(event_bus=bus, interactive=True, review_timeout=30)
+        global_guard = init_plan_review_guard(
+            AgentEventBus(name="global"), interactive=True, review_timeout=30
+        )
+
+        class _Agent:
+            _plan_review_guard = agent_guard
+            config = type("C", (), {"profile_name": "studio-user"})()
+
+        assert resolve_plan_review_guard(_Agent()) is agent_guard
+        assert resolve_plan_review_guard(None) is global_guard
+        assert resolve_plan_review_guard(type("Empty", (), {})()) is global_guard
+
 
 # ─── Plan Storage ───────────────────────────────────────────────────────────
 
