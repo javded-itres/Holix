@@ -88,3 +88,32 @@ def test_memory_parse() -> None:
     assert rl.parse_memory_to_mb("1g") == 1024
     assert rl.memory_mb_to_docker(2048) == "2g"
     assert rl.memory_mb_to_docker(512) == "512m"
+
+
+def test_wrap_process_argv_skips_when_systemd_scope_unavailable(
+    limits_home: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    rl.reset_systemd_scope_probe()
+    monkeypatch.setenv("HOLIX_DISABLE_SYSTEMD_SCOPE", "1")
+    rl.save_resource_limits(
+        {"enabled": True, "process": {"cpu_percent": 50, "memory_mb": 256}}
+    )
+    argv = ["python", "-m", "http.server", "8000"]
+    out = rl.wrap_process_argv(argv)
+    assert out == argv
+    assert out[0] != "systemd-run"
+
+
+def test_wrap_process_argv_uses_scope_when_probe_ok(
+    limits_home: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    rl.reset_systemd_scope_probe()
+    monkeypatch.delenv("HOLIX_DISABLE_SYSTEMD_SCOPE", raising=False)
+    monkeypatch.setattr(rl, "_resolve_systemd_scope_mode", lambda: "system")
+    rl.save_resource_limits(
+        {"enabled": True, "process": {"cpu_percent": 50, "memory_mb": 256}}
+    )
+    out = rl.wrap_process_argv(["echo", "hi"])
+    assert out[0] == "systemd-run"
+    assert "--scope" in out
+    assert "echo" in out

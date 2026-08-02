@@ -294,8 +294,95 @@ def process_preexec_fn(limits: dict[str, Any] | None = None):
     return _preexec
 
 
+# Cached probe: None=unknown, False=unavailable, "user"|"system"=working mode
+_systemd_scope_mode: str | bool | None = None
+
+
+def reset_systemd_scope_probe() -> None:
+    """Test helper: clear cached systemd-run capability."""
+    global _systemd_scope_mode
+    _systemd_scope_mode = None
+
+
+def can_use_systemd_scope() -> bool:
+    """True if ``systemd-run --scope`` can start a process in this environment.
+
+    When holix-studio runs as a **system** unit without privileges to create
+    transient scopes, systemd-run fails with::
+
+        Failed to start transient scope unit: Access denied
+
+    Spawning then "succeeds" as a short-lived systemd-run process that only
+    writes the error to the job log — the agent never gets a real process and
+    keeps retrying (run never finishes). Prefer plain argv + RLIMIT_AS in that
+    case.
+    """
+    return _resolve_systemd_scope_mode() in {"user", "system"}
+
+
+def _resolve_systemd_scope_mode() -> str | bool:
+    global _systemd_scope_mode
+    if _systemd_scope_mode is not None:
+        return _systemd_scope_mode
+    import os
+    import subprocess
+
+    if (os.getenv("HOLIX_DISABLE_SYSTEMD_SCOPE") or "").strip().lower() in {
+        "1",
+        "true",
+        "yes",
+        "on",
+    }:
+        _systemd_scope_mode = False
+        return False
+    if not shutil.which("systemd-run"):
+        _systemd_scope_mode = False
+        return False
+    try:
+        # Prefer user scope when a user session is available (dev / user service).
+        candidates: list[tuple[str, list[str]]] = []
+        if (os.getenv("XDG_RUNTIME_DIR") or "").strip():
+            candidates.append(
+                (
+                    "user",
+                    ["systemd-run", "--user", "--scope", "--collect", "--quiet", "--", "true"],
+                )
+            )
+        candidates.append(
+            ("system", ["systemd-run", "--scope", "--collect", "--quiet", "--", "true"])
+        )
+        for mode, cmd in candidates:
+            try:
+                r = subprocess.run(
+                    cmd,
+                    capture_output=True,
+                    timeout=4,
+                    check=False,
+                )
+            except Exception:
+                continue
+            if r.returncode == 0:
+                _systemd_scope_mode = mode
+                return mode
+            err = (r.stderr or b"").decode("utf-8", "replace")[:240]
+            logger.info(
+                "systemd-run scope probe failed (%s): %s",
+                mode,
+                err or f"rc={r.returncode}",
+            )
+        _systemd_scope_mode = False
+    except Exception as exc:
+        logger.info("systemd-run probe error: %s — spawning without scope", exc)
+        _systemd_scope_mode = False
+    return _systemd_scope_mode if _systemd_scope_mode is not None else False
+
+
 def wrap_process_argv(argv: list[str], limits: dict[str, Any] | None = None) -> list[str]:
-    """Optionally wrap argv with systemd-run for CPUQuota / MemoryMax."""
+    """Optionally wrap argv with systemd-run for CPUQuota / MemoryMax.
+
+    Falls back to plain argv when systemd-run scopes are not permitted (common
+    for multi-tenant ``holix-studio.service`` on lab/prod).
+    """
     cfg = limits or load_resource_limits()
     if not cfg.get("enabled") or not argv:
         return list(argv)
@@ -304,17 +391,23 @@ def wrap_process_argv(argv: list[str], limits: dict[str, Any] | None = None) -> 
     mem_mb = int(proc.get("memory_mb") or 0)
     if cpu_percent <= 0 and mem_mb <= 0:
         return list(argv)
-    if not shutil.which("systemd-run"):
+    mode = _resolve_systemd_scope_mode()
+    if mode not in {"user", "system"}:
+        # RLIMIT_AS via process_preexec_fn still applies when memory_mb is set.
         return list(argv)
-    # Prefer system scope when running as a service account.
+
     props: list[str] = ["--collect", "--quiet"]
     if cpu_percent > 0:
         props.extend(["-p", f"CPUQuota={cpu_percent}%"])
     if mem_mb > 0:
-        props.extend(["-p", f"MemoryMax={mem_mb}M", "-p", f"MemoryHigh={max(1, mem_mb // 2)}M"])
-    # Try --user first is fragile without lingering; use system scope (needs privileges)
-    # so fall back to plain argv when systemd-run fails at spawn time.
-    return ["systemd-run", "--scope", *props, "--", *argv]
+        props.extend(
+            ["-p", f"MemoryMax={mem_mb}M", "-p", f"MemoryHigh={max(1, mem_mb // 2)}M"]
+        )
+    prefix = ["systemd-run"]
+    if mode == "user":
+        prefix.append("--user")
+    prefix.append("--scope")
+    return [*prefix, *props, "--", *argv]
 
 
 def find_public_db_port_publishes(compose_text: str) -> list[str]:
