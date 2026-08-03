@@ -23,6 +23,10 @@ def holix_home(tmp_path, monkeypatch: pytest.MonkeyPatch):
     profiles = root / "profiles"
     profiles.mkdir(parents=True)
     monkeypatch.setenv("HOLIX_HOME", str(root))
+    # Isolate process env: set_admin_user / save_telegram_env apply keys
+    # into os.environ; load_admin_user_id falls back to process env.
+    monkeypatch.delenv("HOLIX_TELEGRAM_ADMIN_USER_ID", raising=False)
+    monkeypatch.delenv("HOLIX_TELEGRAM_ADMIN_PROFILE", raising=False)
     monkeypatch.setattr(cli_core, "HOLIX_HOME", root)
     monkeypatch.setattr(cli_core, "PROFILES_DIR", profiles)
     return root

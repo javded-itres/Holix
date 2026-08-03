@@ -11,6 +11,37 @@ from pathlib import Path
 from typing import Any
 
 
+def _as_filesystem_path(value: Any) -> Path | None:
+    """Coerce *value* to a Path only for real str/Path values.
+
+    Do **not** treat arbitrary ``os.PathLike`` as valid: ``unittest.mock.MagicMock``
+    implements ``__fspath__`` via auto-attrs, and ``str(MagicMock())`` is truthy —
+    both would create junk directories like ``MagicMock/mock.config…``.
+    """
+    if value is None:
+        return None
+    if isinstance(value, Path):
+        return value.expanduser().resolve()
+    if isinstance(value, bytes):
+        try:
+            text = value.decode(errors="replace").strip()
+        except Exception:
+            return None
+    elif isinstance(value, str):
+        text = value.strip()
+    else:
+        return None
+    if not text or text in {".", "./"}:
+        return None
+    # Reject mock reprs that slipped in as strings
+    if text.startswith("<MagicMock") or text.startswith("<Mock"):
+        return None
+    try:
+        return Path(text).expanduser().resolve()
+    except (OSError, RuntimeError, ValueError):
+        return None
+
+
 def resolve_project_root(
     *,
     agent: Any = None,
@@ -27,15 +58,17 @@ def resolve_project_root(
     4. Execution context ``get_workspace_root()``
     5. ``Path.cwd()`` (last resort)
     """
-    if cwd is not None and str(cwd).strip():
-        return Path(str(cwd)).expanduser().resolve()
+    explicit = _as_filesystem_path(cwd)
+    if explicit is not None:
+        return explicit
 
     cfg = config
     if cfg is None and agent is not None:
         cfg = getattr(agent, "config", None)
-    root = getattr(cfg, "workspace_root", None) if cfg is not None else None
-    if root and str(root).strip():
-        return Path(str(root)).expanduser().resolve()
+    if cfg is not None:
+        root = _as_filesystem_path(getattr(cfg, "workspace_root", None))
+        if root is not None:
+            return root
 
     if host is not None:
         for attr in ("workspace_root", "workspace", "serve_cwd"):
@@ -43,23 +76,22 @@ def resolve_project_root(
             if val is None:
                 continue
             # EffectiveWorkspace may expose .root / .path
-            if hasattr(val, "root") and getattr(val, "root", None):
-                return Path(str(val.root)).expanduser().resolve()
-            if hasattr(val, "path") and getattr(val, "path", None):
-                return Path(str(val.path)).expanduser().resolve()
-            text = str(val).strip()
-            if text and text not in {".", "./"}:
-                try:
-                    return Path(text).expanduser().resolve()
-                except OSError:
-                    pass
+            nested = getattr(val, "root", None) or getattr(val, "path", None)
+            if nested is not None:
+                root = _as_filesystem_path(nested)
+                if root is not None:
+                    return root
+            root = _as_filesystem_path(val)
+            if root is not None:
+                return root
 
     try:
         from core.tools.execution_context import get_workspace_root
 
         ctx = get_workspace_root()
-        if ctx and str(ctx).strip():
-            return Path(str(ctx)).expanduser().resolve()
+        root = _as_filesystem_path(ctx)
+        if root is not None:
+            return root
     except Exception:
         pass
 
