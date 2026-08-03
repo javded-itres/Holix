@@ -62,8 +62,8 @@ def test_reject_pending_plan_reviews_for_conversation_only(
 ) -> None:
     from cli.shared.agent_stop import reject_pending_plan_reviews_for_conversation
     from core.plan_review.review_guard import (
-        _GLOBAL_PENDING,
         _GLOBAL_LOCK,
+        _GLOBAL_PENDING,
         reject_global_pending_reviews_for_conversation,
     )
 
