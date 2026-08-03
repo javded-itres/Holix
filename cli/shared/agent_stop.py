@@ -40,10 +40,16 @@ def deny_all_pending_confirmations(agent: Any | None) -> int:
 
 def reject_all_pending_plan_reviews(*, feedback: str = "stopped by user") -> int:
     """Reject all pending plan-review futures so graph execution can unwind."""
-    from core.plan_review.review_guard import PlanReviewChoice, get_plan_review_guard
+    from core.plan_review.review_guard import (
+        PlanReviewChoice,
+        get_plan_review_guard,
+        reject_all_global_pending_reviews,
+    )
 
+    resolved = reject_all_global_pending_reviews(feedback=feedback)
     guard = get_plan_review_guard()
-    resolved = 0
+    if guard is None:
+        return resolved
     for _ in range(16):
         pending = getattr(guard, "_pending_reviews", None) or {}
         if not pending:

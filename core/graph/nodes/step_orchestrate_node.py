@@ -40,11 +40,67 @@ async def step_orchestrate_node(state: HolixGraphState, config: RunnableConfig) 
         Partial state update with step context or finalization signal.
     """
     agent = get_agent_from_config(config)
-    plan_steps = state.get("plan_steps", [])
+    plan_steps = [dict(s) if isinstance(s, dict) else s for s in (state.get("plan_steps") or [])]
     current_step_idx = state.get("current_plan_step", 0)
     conversation_id = state.get("conversation_id", "default")
+    plan_id = str(state.get("plan_id") or "")
     step_count = state.get("step_count", 0)
     is_step_complete = state.get("is_step_complete", False)
+
+    def _persist_and_emit_progress(
+        *,
+        done_step: int | None = None,
+        in_progress_step: int | None = None,
+        mark_all_done: bool = False,
+        completed_desc: str = "",
+    ) -> list:
+        from core.plan_review.plan_storage import (
+            apply_step_status,
+            persist_plan_steps_progress,
+        )
+
+        updated = apply_step_status(
+            plan_steps,
+            done_step=done_step,
+            in_progress_step=in_progress_step,
+            mark_all_done=mark_all_done,
+        )
+        # Keep local copy in sync for subsequent transitions in this call.
+        plan_steps.clear()
+        plan_steps.extend(updated)
+        cfg = getattr(agent, "config", None) if agent else None
+        if plan_id:
+            persist_plan_steps_progress(
+                plan_id,
+                updated,
+                conversation_id=conversation_id,
+                plan_status="completed" if mark_all_done else "in_progress",
+                config=cfg,
+            )
+        # Always notify UI so checkboxes update (start + complete).
+        if agent and hasattr(agent, "emit"):
+            from core.agent_events import PlanStepCompletedEvent
+
+            done_n = sum(
+                1 for s in updated if str(s.get("status") or "") == "done"
+            )
+            emit_step = (
+                int(done_step)
+                if done_step is not None
+                else int(in_progress_step or 0)
+            )
+            agent.emit(
+                PlanStepCompletedEvent(
+                    step_number=emit_step,
+                    total_steps=len(updated),
+                    step_description=(completed_desc or "")[:200],
+                    conversation_id=conversation_id,
+                    plan_id=plan_id,
+                    plan_steps=updated,
+                    steps_done=done_n,
+                )
+            )
+        return updated
 
     # If no plan steps or index out of range, finalize
     if not plan_steps or current_step_idx >= len(plan_steps):
@@ -58,20 +114,6 @@ async def step_orchestrate_node(state: HolixGraphState, config: RunnableConfig) 
     step_description = current_step.get("description", "")
     step_num = current_step.get("step", current_step_idx + 1)
     success_criteria = current_step.get("success_criteria", "")
-
-    # Check if the previous step just completed
-    if is_step_complete and current_step_idx > 0:
-        # Emit completion event for the previous step
-        prev_idx = current_step_idx - 1
-        prev_step = plan_steps[prev_idx] if prev_idx < len(plan_steps) else None
-        if agent and hasattr(agent, "emit") and prev_step:
-            from core.agent_events import PlanStepCompletedEvent
-            agent.emit(PlanStepCompletedEvent(
-                step_number=prev_step.get("step", prev_idx + 1),
-                total_steps=len(plan_steps),
-                step_description=prev_step.get("description", "")[:200],
-                conversation_id=conversation_id,
-            ))
 
     # Check if current step has been completed by react
     if is_step_complete:
@@ -88,20 +130,18 @@ async def step_orchestrate_node(state: HolixGraphState, config: RunnableConfig) 
         except Exception:
             pass
 
-        # Emit completion event for current step
-        if agent and hasattr(agent, "emit"):
-            from core.agent_events import PlanStepCompletedEvent
-            agent.emit(PlanStepCompletedEvent(
-                step_number=step_num,
-                total_steps=len(plan_steps),
-                step_description=step_description[:200],
-                conversation_id=conversation_id,
-            ))
-
-        logger.info(f"Step orchestrate: step {step_num}/{len(plan_steps)} complete, advancing to step {new_step_idx + 1 if new_step_idx < len(plan_steps) else 'final'}")
+        logger.info(
+            f"Step orchestrate: step {step_num}/{len(plan_steps)} complete, "
+            f"advancing to step {new_step_idx + 1 if new_step_idx < len(plan_steps) else 'final'}"
+        )
 
         # Check if all steps are done
         if new_step_idx >= len(plan_steps):
+            plan_steps = _persist_and_emit_progress(
+                done_step=step_num,
+                mark_all_done=True,
+                completed_desc=step_description,
+            )
             # All steps complete — finalize
             # Disable auto-approve since plan execution is done
             if agent and hasattr(agent, "tools") and hasattr(agent.tools, "_action_guard"):
@@ -111,6 +151,8 @@ async def step_orchestrate_node(state: HolixGraphState, config: RunnableConfig) 
                 agent.emit(PlanCompletedEvent(
                     total_steps=len(plan_steps),
                     conversation_id=conversation_id,
+                    plan_id=plan_id,
+                    plan_steps=plan_steps,
                 ))
 
             clear_orch: dict = {
@@ -121,11 +163,20 @@ async def step_orchestrate_node(state: HolixGraphState, config: RunnableConfig) 
             }
             return {
                 "current_plan_step": new_step_idx,
+                "plan_steps": plan_steps,
                 "is_step_complete": False,
                 "is_final": True,
                 "final_response": state.get("final_response", f"Plan completed: all {len(plan_steps)} steps executed."),
                 **clear_orch,
             }
+
+        # Mark current done, next in progress
+        next_num = plan_steps[new_step_idx].get("step", new_step_idx + 1) if new_step_idx < len(plan_steps) else None
+        plan_steps = _persist_and_emit_progress(
+            done_step=step_num,
+            in_progress_step=int(next_num) if next_num is not None else None,
+            completed_desc=step_description,
+        )
 
         # Inject next step description as a user message
         next_step = plan_steps[new_step_idx]
@@ -170,6 +221,7 @@ async def step_orchestrate_node(state: HolixGraphState, config: RunnableConfig) 
 
         return {
             "current_plan_step": new_step_idx,
+            "plan_steps": plan_steps,
             "is_step_complete": False,
             "current_step_start_count": step_count,
             "messages": messages,
@@ -243,8 +295,9 @@ async def step_orchestrate_node(state: HolixGraphState, config: RunnableConfig) 
             except Exception as e:
                 logger.warning(f"Failed to save plan step message: {e}")
 
-    # Log step start
+    # Log step start + mark checkbox in_progress
     logger.info(f"Step orchestrate: starting step {step_num}/{len(plan_steps)}: {step_description[:80]}...")
+    plan_steps = _persist_and_emit_progress(in_progress_step=step_num)
 
     # Enable auto-approve for plan execution — tools within plan steps
     # don't require individual confirmation since the plan was already approved
@@ -254,6 +307,7 @@ async def step_orchestrate_node(state: HolixGraphState, config: RunnableConfig) 
     return {
         "is_step_complete": False,
         "current_step_start_count": step_count,
+        "plan_steps": plan_steps,
         "messages": messages,
     }
 

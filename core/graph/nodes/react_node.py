@@ -163,6 +163,20 @@ def _non_empty_final(text: str) -> str:
     return (text or "").strip() or MESSENGER_EMPTY_FINAL_RU
 
 
+def _is_reasoning_only_placeholder(text: str) -> bool:
+    """True for i18n 'reasoning without visible answer' placeholders."""
+    lowered = (text or "").strip().lower()
+    if not lowered:
+        return True
+    markers = (
+        "без видимого ответа",
+        "without a visible answer",
+        "finished reasoning without",
+        "reasoning_only",
+    )
+    return any(m in lowered for m in markers)
+
+
 async def _plan_step_result(
     state: HolixGraphState,
     *,
@@ -174,6 +188,26 @@ async def _plan_step_result(
     assistant_already_appended: bool,
 ) -> dict[str, Any]:
     """Return react state for an active plan step (complete or retry)."""
+    # Reasoning-only model reply must never complete a plan step.
+    if _is_reasoning_only_placeholder(final_response):
+        if agent and hasattr(agent, "emit"):
+            from core.agent_events import ThinkingEvent
+
+            agent.emit(
+                ThinkingEvent(
+                    message=(
+                        "Model returned reasoning without tools/text — "
+                        "retrying current plan step with a stronger tool nudge"
+                    ),
+                    conversation_id=conversation_id,
+                )
+            )
+        return plan_step_retry_update(
+            messages=messages,
+            step_count=step_count,
+            final_response="",
+            include_assistant=False,
+        )
     if plan_step_complete(state, final_response=final_response):
         if agent and hasattr(agent, "memory"):
             await agent.memory.save_message(conversation_id, "assistant", final_response)

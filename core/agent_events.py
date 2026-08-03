@@ -391,6 +391,9 @@ class PlanStepCompletedEvent(AgentEvent):
     total_steps: int = 0
     step_description: str = ""
     step_response: str = ""
+    plan_id: str = ""
+    plan_steps: list[dict[str, Any]] = field(default_factory=list)
+    steps_done: int = 0
 
     def __post_init__(self):
         super().__post_init__()
@@ -401,6 +404,9 @@ class PlanStepCompletedEvent(AgentEvent):
             "step_number": self.step_number,
             "total_steps": self.total_steps,
             "step_description": self.step_description,
+            "plan_id": self.plan_id,
+            "plan_steps": self.plan_steps,
+            "steps_done": self.steps_done,
         }
 
 
@@ -408,13 +414,18 @@ class PlanStepCompletedEvent(AgentEvent):
 class PlanCompletedEvent(AgentEvent):
     """Emitted when all plan steps are done."""
     total_steps: int = 0
+    plan_steps: list[dict[str, Any]] = field(default_factory=list)
 
     def __post_init__(self):
         super().__post_init__()
         object.__setattr__(self, 'type', EventType.PLAN_COMPLETED)
 
     def _extra_fields(self) -> dict[str, Any]:
-        return {"total_steps": self.total_steps}
+        return {
+            "total_steps": self.total_steps,
+            "plan_id": self.plan_id,
+            "plan_steps": self.plan_steps,
+        }
 
 
 @dataclass

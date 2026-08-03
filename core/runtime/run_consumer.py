@@ -19,6 +19,7 @@ async def consume_run_holix(
     execution_mode: str | None,
     emit: Callable[[AgentEvent], None],
     timeout_s: float | None = None,
+    state_overrides: dict | None = None,
 ) -> None:
     """Run Holix and forward events; raises TimeoutError if the run exceeds the cap."""
     from core.runtime.executor import run_holix
@@ -33,6 +34,7 @@ async def consume_run_holix(
                 conversation_id,
                 stream=stream,
                 execution_mode=execution_mode,
+                state_overrides=state_overrides,
             ):
                 emit(event)
         except asyncio.CancelledError:

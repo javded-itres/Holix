@@ -33,6 +33,11 @@ async def plan_clarify_node(state: HolixGraphState, config: RunnableConfig) -> d
     conversation_id = state.get("conversation_id", "default")
     user_input = state.get("user_input", "")
     clarification_rounds = int(state.get("plan_clarification_rounds", 0) or 0)
+    plan_status = str(state.get("plan_status") or "").strip().lower()
+
+    # Already approved / resumed plan — do not force pending_review (would re-open modal).
+    if plan_status in ("confirmed", "auto_execute", "in_progress"):
+        return {}
 
     if not needs_plan_clarification(analysis, plan_report=plan_report):
         return {"plan_status": "pending_review"}

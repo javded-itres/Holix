@@ -207,6 +207,18 @@ def parse_text_to_plan(text: str) -> tuple[PlanSteps, PlanAnalysis]:
     return steps, analysis
 
 
+def normalize_step_status(status: Any) -> str:
+    """Normalize step status to pending | in_progress | done."""
+    s = str(status or "pending").strip().lower()
+    if s in ("done", "completed", "complete", "finished", "ok", "success"):
+        return "done"
+    if s in ("in_progress", "active", "running", "current", "doing"):
+        return "in_progress"
+    if s in ("failed", "error", "blocked"):
+        return "failed"
+    return "pending"
+
+
 def _make_step(step_num: int, description: str) -> dict[str, Any]:
     return {
         "step": step_num,
@@ -217,6 +229,7 @@ def _make_step(step_num: int, description: str) -> dict[str, Any]:
         "depends_on": [],
         "parallel_group": None,
         "subagent_type": None,
+        "status": "pending",
     }
 
 
@@ -382,8 +395,11 @@ def _normalize_development_report(raw: Any) -> PlanReport:
 def extract_plan_data(
     data: dict,
 ) -> tuple[PlanSteps, PlanAnalysis, PlanArchitecture, PlanReport, str]:
+    if not isinstance(data, dict):
+        return [], None, None, None, ""
+
     analysis = data.get("analysis", {})
-    if analysis:
+    if analysis and isinstance(analysis, dict):
         analysis = {
             "task_summary": analysis.get("task_summary", ""),
             "complexity": analysis.get("complexity", "medium"),
@@ -397,7 +413,7 @@ def extract_plan_data(
         analysis = None
 
     architecture = data.get("architecture", {})
-    if architecture:
+    if architecture and isinstance(architecture, dict):
         risks = architecture.get("risks", [])
         if isinstance(risks, list) and risks and isinstance(risks[0], dict):
             risks = [
@@ -413,25 +429,330 @@ def extract_plan_data(
     else:
         architecture = None
 
-    report = _normalize_development_report(data.get("development_report"))
+    report = _normalize_development_report(
+        data.get("development_report") or data.get("report") or data.get("dev_report")
+    )
 
-    reasoning = str(data.get("reasoning", "")).strip()
+    reasoning = str(data.get("reasoning", "") or data.get("rationale", "")).strip()
 
-    raw_plan = data.get("plan", [])
+    # LLMs often use alternate keys for the step list.
+    raw_plan = (
+        data.get("plan")
+        or data.get("steps")
+        or data.get("tasks")
+        or data.get("execution_plan")
+        or data.get("plan_steps")
+        or []
+    )
+    if isinstance(raw_plan, dict):
+        # e.g. {"1": "...", "2": "..."}
+        raw_plan = list(raw_plan.values())
     if not isinstance(raw_plan, list):
         raw_plan = []
 
-    steps = []
+    steps: PlanSteps = []
     for i, step in enumerate(raw_plan):
-        steps.append({
-            "step": step.get("step", i + 1),
-            "description": step.get("description", ""),
-            "tools_needed": step.get("tools_needed", []),
-            "expected_output": step.get("expected_output", ""),
-            "success_criteria": step.get("success_criteria", ""),
-            "depends_on": step.get("depends_on", []),
-            "parallel_group": step.get("parallel_group"),
-            "subagent_type": step.get("subagent_type"),
-        })
+        if isinstance(step, str):
+            desc = step.strip()
+            if not desc:
+                continue
+            steps.append(_make_step(i + 1, desc))
+            continue
+        if not isinstance(step, dict):
+            continue
+        desc = str(
+            step.get("description")
+            or step.get("title")
+            or step.get("task")
+            or step.get("name")
+            or step.get("action")
+            or ""
+        ).strip()
+        if not desc:
+            continue
+        tools = step.get("tools_needed") or step.get("tools") or []
+        if not isinstance(tools, list):
+            tools = [str(tools)] if tools else []
+        depends = step.get("depends_on") or step.get("depends") or []
+        if not isinstance(depends, list):
+            depends = []
+        steps.append(
+            {
+                "step": step.get("step", i + 1),
+                "description": desc,
+                "tools_needed": tools or infer_tools_from_text(desc),
+                "expected_output": str(
+                    step.get("expected_output") or step.get("output") or ""
+                ).strip()
+                or f"Step {i + 1} deliverable",
+                "success_criteria": str(
+                    step.get("success_criteria") or step.get("done_when") or ""
+                ).strip()
+                or f"Step {i + 1} verified",
+                "depends_on": depends,
+                "parallel_group": step.get("parallel_group"),
+                "subagent_type": step.get("subagent_type"),
+                "status": normalize_step_status(
+                    step.get("status") or step.get("state") or "pending"
+                ),
+            }
+        )
 
     return steps, analysis, architecture, report, reasoning
+
+
+def plan_is_substantive(plan: PlanSteps, user_input: str = "") -> bool:
+    """True when plan has multiple concrete steps (not a single echo of the task)."""
+    if not plan:
+        return False
+    task = re.sub(r"\s+", " ", (user_input or "").strip().lower())
+    descriptions = [
+        re.sub(r"\s+", " ", str(s.get("description") or "").strip().lower())
+        for s in plan
+        if str(s.get("description") or "").strip()
+    ]
+    if not descriptions:
+        return False
+    if len(descriptions) >= 3:
+        return True
+    if len(descriptions) == 1:
+        only = descriptions[0]
+        if not task:
+            return len(only) > 40
+        # Single step that just repeats the user request is not a real plan.
+        if only == task or task in only or only in task:
+            return False
+        # Near-duplicate (high overlap)
+        if len(only) > 20 and len(task) > 20:
+            shorter, longer = (only, task) if len(only) <= len(task) else (task, only)
+            if shorter in longer and len(shorter) / max(len(longer), 1) > 0.7:
+                return False
+        return len(only) >= 60
+    # 2 steps: OK if neither is a pure echo of the full task
+    return all(d != task for d in descriptions)
+
+
+def synthesize_minimal_report(
+    *,
+    user_input: str,
+    plan: PlanSteps,
+    analysis: PlanAnalysis,
+    architecture: PlanArchitecture,
+) -> PlanReport:
+    """Build a minimal BA report when the LLM omitted development_report."""
+    summary = (analysis or {}).get("task_summary") or user_input[:200]
+    complexity = (analysis or {}).get("complexity") or "medium"
+    tech = (architecture or {}).get("tech_stack") or []
+    approach = (architecture or {}).get("approach") or ""
+    stages = []
+    for s in plan[:8]:
+        stages.append(
+            {
+                "stage": s.get("step", len(stages)),
+                "title": str(s.get("description") or "")[:80],
+                "items": [str(s.get("description") or "")],
+                "duration_hours": "1-4",
+                "story_points": 2,
+            }
+        )
+    return {
+        "title": f"Development Plan: {summary[:60]}",
+        "summary": {
+            "goal": summary,
+            "key_decisions": ([approach] if approach else [])
+            + [str(t) for t in tech[:5]],
+            "critical_risks": [
+                r.get("risk", r) if isinstance(r, dict) else str(r)
+                for r in ((architecture or {}).get("risks") or [])[:5]
+            ]
+            or ["Incomplete requirements may require iteration"],
+        },
+        "development_stages": stages,
+        "priorities": {
+            "mvp": [str(s.get("description") or "")[:80] for s in plan[:3]],
+            "important_later": [str(s.get("description") or "")[:80] for s in plan[3:6]],
+            "optional": [],
+        },
+        "dependencies": [
+            {
+                "task": f"Step {s.get('step', i + 1)}",
+                "depends_on": ", ".join(str(d) for d in (s.get("depends_on") or []))
+                or "—",
+                "unblocks": "Next steps",
+            }
+            for i, s in enumerate(plan)
+        ],
+        "blockers": [
+            {
+                "risk": "Ambiguous requirements",
+                "probability": "medium",
+                "impact": "medium",
+                "mitigation": "Validate each milestone with the user",
+            }
+        ],
+        "manual_actions": [],
+        "estimates": {
+            "stages": [
+                {
+                    "stage": s.get("step", i),
+                    "title": str(s.get("description") or "")[:60],
+                    "hours": 2,
+                    "story_points": 2,
+                }
+                for i, s in enumerate(plan)
+            ],
+            "total_hours": max(4, len(plan) * 2),
+            "total_story_points": max(4, len(plan) * 2),
+            "calendar_time": "1-3 days" if complexity != "complex" else "3-7 days",
+            "buffer_note": "+20% for integration",
+        },
+        "stack": {
+            "technologies": [
+                {"component": "stack", "choice": str(t)} for t in (tech or [])[:8]
+            ],
+            "patterns": [approach] if approach else [],
+            "critical_fixes": [],
+        },
+        "parallel_work_notes": [],
+    }
+
+
+def scaffold_plan_from_task(user_input: str) -> tuple[
+    PlanSteps, PlanAnalysis, PlanArchitecture, PlanReport, str
+]:
+    """Keyword-based multi-step scaffold when LLM plan quality is insufficient."""
+    task = (user_input or "").strip() or "User task"
+    lower = task.lower()
+
+    steps_spec: list[tuple[str, list[str], str, str]] = []
+
+    def add(desc: str, tools: list[str], output: str, criteria: str) -> None:
+        steps_spec.append((desc, tools, output, criteria))
+
+    add(
+        "Explore workspace structure and existing product/catalog code (models, APIs, configs)",
+        ["read_file", "terminal"],
+        "Map of relevant modules and current stack",
+        "Key paths and stack identified in notes",
+    )
+
+    if any(k in lower for k in ("docker", "compose", "elastic", "elasticsearch", "opensearch")):
+        add(
+            "Add/adjust docker-compose for Elasticsearch (or OpenSearch) with healthcheck and volume",
+            ["write_file", "terminal"],
+            "docker-compose.yml with ES service ready",
+            "`docker compose up -d` starts ES healthy",
+        )
+
+    if any(k in lower for k in ("fastapi", "api", "catalog", "товар", "product", "индекс")):
+        add(
+            "Scaffold FastAPI catalog app skeleton (app entrypoint, settings, router layout)",
+            ["write_file", "terminal"],
+            "Runnable FastAPI project skeleton",
+            "App imports and starts without errors",
+        )
+        add(
+            "Define product/catalog domain models and Pydantic schemas for indexing documents",
+            ["write_file"],
+            "Models/schemas for products ready for ES documents",
+            "Schemas cover required product fields",
+        )
+        add(
+            "Implement Elasticsearch client config and index mapping for products",
+            ["write_file"],
+            "ES client + index mapping module",
+            "Client connects; mapping is valid JSON",
+        )
+        add(
+            "Implement product indexing service (bulk/index/update/delete) and API endpoints",
+            ["write_file"],
+            "Indexing service + HTTP routes",
+            "Can index a sample product and query it back",
+        )
+        add(
+            "Wire env/config, seed sample data, document run instructions (compose + API)",
+            ["write_file", "terminal"],
+            "README/env example + smoke test path",
+            "Documented flow: up ES → run API → index → search",
+        )
+    else:
+        add(
+            "Design technical approach and file-level changes for the requested feature",
+            ["write_file", "read_file"],
+            "Concrete design notes and target files list",
+            "Approach and files agreed in plan notes",
+        )
+        add(
+            "Implement core feature changes with tests or smoke checks",
+            ["write_file", "terminal"],
+            "Working implementation of the main path",
+            "Primary acceptance criteria met",
+        )
+        add(
+            "Verify end-to-end and fix regressions",
+            ["terminal", "read_file"],
+            "Verification results",
+            "Smoke checks pass",
+        )
+
+    plan: PlanSteps = []
+    for i, (desc, tools, output, criteria) in enumerate(steps_spec, 1):
+        plan.append(
+            {
+                "step": i,
+                "description": desc,
+                "tools_needed": tools,
+                "expected_output": output,
+                "success_criteria": criteria,
+                "depends_on": list(range(1, i)),
+                "parallel_group": None,
+                "subagent_type": None,
+                "status": "pending",
+            }
+        )
+
+    analysis: PlanAnalysis = {
+        "task_summary": task[:200],
+        "complexity": "medium" if len(plan) >= 4 else "simple",
+        "needs_clarification": False,
+        "ambiguity_level": "low",
+        "clarification_reason": "",
+        "clarifying_questions": [],
+        "constraints": [],
+    }
+    tech: list[str] = []
+    if "fastapi" in lower:
+        tech.append("FastAPI")
+    if any(k in lower for k in ("elastic", "elasticsearch")):
+        tech.append("Elasticsearch")
+    if "docker" in lower or "compose" in lower:
+        tech.append("Docker Compose")
+    if "товар" in lower or "catalog" in lower or "product" in lower:
+        tech.append("Product catalog")
+
+    architecture: PlanArchitecture = {
+        "approach": "Incremental scaffold: infrastructure → domain → indexing → API → verify",
+        "tech_stack": tech or ["Project stack as discovered"],
+        "structure": "Keep existing layout; add compose/ES client/index service/API routers",
+        "risks": [
+            {
+                "risk": "ES mapping mismatch with product fields",
+                "mitigation": "Define explicit mapping and version index names",
+            },
+            {
+                "risk": "Docker networking/auth issues",
+                "mitigation": "Healthchecks + documented env vars",
+            },
+        ],
+    }
+    reasoning = (
+        "Scaffolded multi-step plan because the model returned an incomplete or "
+        "single-step plan. Steps cover infrastructure, domain, indexing, API, and verification."
+    )
+    report = synthesize_minimal_report(
+        user_input=task,
+        plan=plan,
+        analysis=analysis,
+        architecture=architecture,
+    )
+    return plan, analysis, architecture, report, reasoning

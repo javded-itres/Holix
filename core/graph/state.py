@@ -81,6 +81,8 @@ class HolixGraphState(TypedDict, total=False):
     # Plan state (for plan_and_execute and hybrid modes)
     plan_steps: list[dict[str, Any]]         # Ordered list of plan steps
     current_plan_step: int                    # Index of current step
+    # Stable id for .holix/plans filenames (must be a graph channel or it is dropped).
+    plan_id: str
 
     # Plan review state (for plan_and_execute and hybrid modes)
     plan_status: str                         # "pending_review" | "confirmed" | "auto_execute" | "refine" | "rejected"

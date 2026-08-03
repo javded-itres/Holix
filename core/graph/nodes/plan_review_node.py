@@ -131,6 +131,23 @@ async def plan_review_node(state: HolixGraphState, config: RunnableConfig) -> di
             conversation_id=conversation_id,
         ))
 
+    # Keep a stable plan_id so confirm overwrites the draft (not a second file).
+    plan_id = str(state.get("plan_id") or "").strip()
+    if not plan_id:
+        import uuid
+
+        plan_id = f"plan_{uuid.uuid4().hex[:10]}"
+        logger.warning(
+            "Plan review: plan_id missing from graph state — minted %s "
+            "(was dropped from HolixGraphState channels before fix)",
+            plan_id,
+        )
+    if agent and hasattr(agent, "set_plan_id"):
+        try:
+            agent.set_plan_id(plan_id)
+        except Exception:
+            pass
+
     # Route based on choice
     save_kwargs = {
         "plan_steps": plan_steps,
@@ -140,30 +157,57 @@ async def plan_review_node(state: HolixGraphState, config: RunnableConfig) -> di
         "plan_report": state.get("plan_report"),
         "plan_reasoning": plan_reasoning,
         "user_input": user_input,
-        "plan_id": state.get("plan_id", ""),
+        "plan_id": plan_id,
         "rendered_markdown": rendered_markdown,
         "config": getattr(agent, "config", None) if agent else None,
     }
 
     if choice == PlanReviewChoice.CONFIRM_STEP:
         # Save the plan, proceed step-by-step
-        _save_plan_if_possible(status="confirmed", **save_kwargs)
-        logger.info(f"Plan review: confirmed (step-by-step), {len(plan_steps)} steps")
-        return {"plan_status": "confirmed"}
+        saved = _save_plan_if_possible(status="confirmed", **save_kwargs)
+        logger.info(
+            "Plan review: confirmed (step-by-step), %s steps, saved=%s",
+            len(plan_steps),
+            saved,
+        )
+        if agent and hasattr(agent, "emit") and saved:
+            from core.agent_events import ThinkingEvent
+
+            agent.emit(
+                ThinkingEvent(
+                    message=f"Plan saved: {saved}",
+                    conversation_id=conversation_id,
+                )
+            )
+        return {"plan_status": "confirmed", "plan_id": plan_id}
 
     elif choice == PlanReviewChoice.AUTO_EXECUTE:
         # Save the plan, execute all steps automatically
-        _save_plan_if_possible(status="auto_execute", **save_kwargs)
-        logger.info(f"Plan review: auto-execute, {len(plan_steps)} steps")
-        return {"plan_status": "auto_execute"}
+        saved = _save_plan_if_possible(status="auto_execute", **save_kwargs)
+        logger.info(
+            "Plan review: auto-execute, %s steps, saved=%s",
+            len(plan_steps),
+            saved,
+        )
+        if agent and hasattr(agent, "emit") and saved:
+            from core.agent_events import ThinkingEvent
+
+            agent.emit(
+                ThinkingEvent(
+                    message=f"Plan saved: {saved}",
+                    conversation_id=conversation_id,
+                )
+            )
+        return {"plan_status": "auto_execute", "plan_id": plan_id}
 
     elif choice == PlanReviewChoice.REFINE:
-        # Return to plan_node with feedback
+        # Return to plan_node with feedback (keep plan_id so refine overwrites draft)
         logger.info(f"Plan review: refine requested, feedback={feedback[:80]}...")
         return {
             "plan_status": "refine",
             "plan_refinement_feedback": feedback,
             "current_plan_step": 0,
+            "plan_id": plan_id,
         }
 
     else:  # REJECT or timeout fallback
@@ -199,12 +243,12 @@ def _save_plan_if_possible(
     plan_id: str = "",
     rendered_markdown: str = "",
     config=None,
-) -> None:
-    """Save the confirmed plan to `.holix/plans/` in the current project."""
+) -> str | None:
+    """Save the confirmed plan to workspace `.holix/plans/`. Returns JSON path or None."""
     try:
         from core.plan_review.plan_storage import save_plan
 
-        save_plan(
+        md_path = save_plan(
             plan_steps,
             conversation_id,
             metadata={"review_status": status},
@@ -218,5 +262,9 @@ def _save_plan_if_possible(
             rendered_markdown=rendered_markdown,
             config=config,
         )
+        json_path = md_path.with_suffix(".json") if md_path else None
+        logger.info("Plan saved after review status=%s path=%s", status, json_path)
+        return str(json_path) if json_path else str(md_path)
     except Exception as e:
-        logger.warning(f"Failed to save plan: {e}")
+        logger.exception("Failed to save plan after review: %s", e)
+        return None

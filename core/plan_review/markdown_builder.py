@@ -344,6 +344,29 @@ def _build_legacy_plan_markdown(
     return "\n".join(sections)
 
 
+def _step_checkbox(status: object) -> str:
+    """GFM task-list marker: empty at create, checked when done.
+
+    In-progress / failed stay unchecked; a short label is prepended in the
+    step line so progress is visible without non-standard ``[~]`` boxes.
+    """
+    s = str(status or "pending").strip().lower()
+    if s in ("done", "completed", "complete", "finished", "ok", "success"):
+        return "[x]"
+    return "[ ]"
+
+
+def _step_status_label(status: object, locale: str) -> str:
+    s = str(status or "pending").strip().lower()
+    if s in ("done", "completed", "complete", "finished", "ok", "success"):
+        return ""
+    if s in ("in_progress", "active", "running", "current", "doing"):
+        return f"*{t('plan.step_in_progress', locale)}* "
+    if s in ("failed", "error", "blocked"):
+        return f"*{t('plan.step_failed', locale)}* "
+    return ""
+
+
 def _render_execution_steps(plan_steps: list, locale: str) -> list[str]:
     sections: list[str] = []
     for step in plan_steps:
@@ -355,8 +378,14 @@ def _render_execution_steps(plan_steps: list, locale: str) -> list[str]:
         depends_on = step.get("depends_on", [])
         parallel = step.get("parallel_group")
         subagent = (step.get("subagent_type") or "").strip()
+        status = step.get("status") or "pending"
+        box = _step_checkbox(status)
+        status_label = _step_status_label(status, locale)
 
-        sections.append(f"### {t('plan.step', locale, num=num)}: {desc}\n")
+        # Task-list: empty checkbox at create / in progress; [x] when done.
+        sections.append(
+            f"- {box} {status_label}**{t('plan.step', locale, num=num)}:** {desc}\n"
+        )
 
         meta_parts = []
         if tools:
@@ -371,12 +400,12 @@ def _render_execution_steps(plan_steps: list, locale: str) -> list[str]:
             deps = ", ".join(str(d) for d in depends_on)
             meta_parts.append(f"**{t('plan.depends', locale)}** {deps}")
         if meta_parts:
-            sections.append("\n" + " · ".join(meta_parts) + "\n")
+            sections.append("  " + " · ".join(meta_parts) + "\n")
 
         if expected:
-            sections.append(f"- **{t('plan.expected', locale)}** {expected}")
+            sections.append(f"  - **{t('plan.expected', locale)}** {expected}")
         if criteria:
-            sections.append(f"- **{t('plan.success', locale)}** {criteria}")
+            sections.append(f"  - **{t('plan.success', locale)}** {criteria}")
 
         sections.append("")
     return sections

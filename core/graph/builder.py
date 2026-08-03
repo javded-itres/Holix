@@ -39,14 +39,20 @@ def prepare_initial_state(
     conversation_id: str = "default",
     stream: bool = False,
     execution_mode: str = "react",
+    *,
+    state_overrides: dict | None = None,
 ) -> dict:
-    """Prepare initial HolixGraphState for a graph invocation."""
+    """Prepare initial HolixGraphState for a graph invocation.
+
+    ``state_overrides`` merges on top (used to resume a confirmed plan without
+    re-running planning / review).
+    """
     cfg = getattr(agent, "config", None)
     max_steps = cfg.max_steps if cfg else 90
     max_per_step = cfg.max_steps_per_plan_step if cfg else 5
     max_refinement = cfg.max_refinement_iterations if cfg else 2
 
-    return {
+    state: dict[str, Any] = {
         "user_input": user_input,
         "conversation_id": conversation_id,
         "stream": stream,
@@ -95,6 +101,15 @@ def prepare_initial_state(
         "supervisor_log": [],
         "supervisor_last_diagnosis": None,
     }
+    if state_overrides:
+        for key, value in state_overrides.items():
+            if value is not None or key in (
+                "plan_analysis",
+                "plan_architecture",
+                "plan_report",
+            ):
+                state[key] = value
+    return state
 
 
 async def run_graph_loop(
@@ -104,6 +119,7 @@ async def run_graph_loop(
     *,
     stream: bool = False,
     execution_mode: str = "react",
+    state_overrides: dict | None = None,
 ):
     """Run the Holix graph and translate state transitions to AgentEvents."""
     from core.agent_events import (
@@ -126,7 +142,12 @@ async def run_graph_loop(
     messages, _was_compressed = await prepare_session(agent, user_input, conversation_id)
 
     initial_state = prepare_initial_state(
-        agent, user_input, conversation_id, stream, execution_mode
+        agent,
+        user_input,
+        conversation_id,
+        stream,
+        execution_mode,
+        state_overrides=state_overrides,
     )
     initial_state["messages"] = messages
 
