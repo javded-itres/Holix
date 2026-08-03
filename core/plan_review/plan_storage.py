@@ -394,7 +394,6 @@ def persist_plan_steps_progress(
         data["steps"] = plan_steps
         if plan_status:
             data["status"] = plan_status
-        md = str(data.get("markdown_path") or "")
         path = save_plan(
             plan_steps,
             data.get("conversation_id") or conversation_id or "studio",

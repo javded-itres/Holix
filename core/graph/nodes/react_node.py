@@ -39,12 +39,12 @@ from core.graph.plan_step import (
     plan_step_retry_update,
     prefer_non_streaming_for_plan,
 )
-from core.llm.response_text import reasoning_only_user_message
 from core.graph.state import HolixGraphState, get_agent_from_config
 from core.i18n.live_ui import live_reasoning_label, live_thinking_step_label
 from core.llm.max_tokens import profile_agent_max_tokens, resolve_agent_max_tokens
 from core.llm.response_text import (
     assistant_message_parts,
+    reasoning_only_user_message,
     resolve_assistant_text,
     stream_delta_parts,
 )

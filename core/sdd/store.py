@@ -599,7 +599,6 @@ class SpecStore:
         if not path.is_file():
             return []
         from core.sdd.dispatch import load_task_jobs
-
         from core.sdd.task_sizing import max_steps_for_size, resolve_task_size
 
         jobs = load_task_jobs(self, cid)

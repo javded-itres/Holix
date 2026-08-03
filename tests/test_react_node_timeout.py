@@ -97,11 +97,6 @@ async def test_react_node_reasoning_only_abort_emits_final_error() -> None:
     assert result is not None
     assert result["is_final"] is True
     assert "внутренние рассуждения" in result["final_response"]
-    final_events = [
-        call.args[0]
-        for call in agent.emit.call_args_list
-        if call.args and call.args[0].__class__.__name__ == "FinalResponseEvent"
-    ]
 
 
 @pytest.mark.asyncio
