@@ -37,11 +37,12 @@ TASK_CONTEXT_NOTE = (
 )
 
 PLANNING_CONTEXT_NOTE = (
-    "Before planning, check whether `.holix/HOLIX.md` exists in the working directory "
-    "or nested subfolders (up to two levels). If it does, base architecture, module "
-    "boundaries, REST/API layout, and conventions on that document. Cite specific "
-    "sections when reasoning about the plan. Also check `.holix/plans/` for previously "
-    "approved plans (JSON + Markdown) and reuse or extend them when the task matches."
+    "Before planning, load `.holix/HOLIX.md` (working directory or nested folders up "
+    "to two levels) and any `openspec/specs/` requirements. Base architecture, module "
+    "boundaries, APIs, and conventions on that handbook; align product work with specs. "
+    "If HOLIX.md is missing, the planner runs `/init` pre-scan first, then re-reads "
+    "HOLIX.md. Also check `.holix/plans/` for previously approved plans and reuse or "
+    "extend them when the task matches."
 )
 
 

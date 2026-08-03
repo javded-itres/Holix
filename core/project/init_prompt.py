@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+
 from core.project.holix_md import HOLIX_MD_REL_PATH, ensure_holix_dir
 from core.project.init_scan import InitProjectScan, format_init_scan_report, scan_project_for_init
 
@@ -21,12 +23,15 @@ def build_init_user_message(
     profile_name: str | None = None,
     target_dir: str | None = None,
     scan: InitProjectScan | None = None,
+    cwd: str | Path | None = None,
 ) -> str:
     """Prompt sent to the agent when the user runs `/init`.
 
     Uses the profile UI locale (`/lang ru` | `/lang en`) so onboarding stays
     in the user's chosen language. A deterministic pre-scan keeps large repos
     within the agent read budget.
+
+    ``cwd`` is the workspace root (Studio project). Prefer it over process CWD.
     """
     from core.i18n.locale import LocaleStore, normalize_locale
     from core.i18n.messages import t
@@ -37,10 +42,15 @@ def build_init_user_message(
         loc = LocaleStore(profile_name).get()
 
     scope_rel = (target_dir or "").strip().strip("/").replace("\\", "/")
-    ensure_holix_dir(scope_rel or None)
+    # Write .holix under the agent workspace (not Holix/Studio process CWD).
+    if cwd is not None:
+        base = Path(cwd).expanduser().resolve()
+        ensure_holix_dir(str(base / scope_rel) if scope_rel else str(base))
+    else:
+        ensure_holix_dir(scope_rel or None)
     holix_path = _holix_md_rel_path(scope_rel or None)
     if scan is None:
-        scan = scan_project_for_init(target_dir=scope_rel or None)
+        scan = scan_project_for_init(cwd=cwd, target_dir=scope_rel or None)
     scan_report = format_init_scan_report(scan, locale=loc)
     template = t("init.holix_template", loc)
     lang_block = language_instruction_block(locale=loc, profile_name=profile_name)

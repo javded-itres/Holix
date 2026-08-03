@@ -36,17 +36,41 @@ def get_plan_dir(
     *,
     cwd: str | None = None,
 ) -> Path:
-    """Resolve the plan storage dir under the current project (.holix/plans/)."""
+    """Resolve the plan storage dir under the current project (.holix/plans/).
+
+    Prefer the agent workspace root (Studio per-user workspace) so plans are
+    stored next to the project the user is editing — not under Studio install CWD.
+    """
     if _TEST_PLAN_DIR is not None:
         _TEST_PLAN_DIR.mkdir(parents=True, exist_ok=True)
         return _TEST_PLAN_DIR
-    if config and getattr(config, "local_project_dir", None):
-        base = Path(config.local_project_dir)
-        if not base.is_absolute():
-            base = Path.cwd() / base
-        d = base / _PLANS_SUBDIR
-    else:
-        d = get_local_plan_dir(cwd)
+    if config is not None:
+        workspace_root = getattr(config, "workspace_root", None)
+        if workspace_root:
+            base = Path(str(workspace_root)).expanduser()
+            if not base.is_absolute():
+                base = Path.cwd() / base
+            d = base.resolve() / ".holix" / _PLANS_SUBDIR
+            d.mkdir(parents=True, exist_ok=True)
+            return d
+        local = getattr(config, "local_project_dir", None)
+        # Ignore the bare default ".holix" — that relative path lands in process CWD
+        # (Studio install tree) and hides plans from the user's project.
+        if local and str(local).strip() not in {"", ".holix", ".holix/"}:
+            base = Path(str(local)).expanduser()
+            if not base.is_absolute():
+                base = Path.cwd() / base
+            # local_project_dir may already be ".../.holix" or a plans parent
+            base_resolved = base.resolve()
+            if base_resolved.name == "plans":
+                d = base_resolved
+            elif base_resolved.name == ".holix":
+                d = base_resolved / _PLANS_SUBDIR
+            else:
+                d = base_resolved / ".holix" / _PLANS_SUBDIR
+            d.mkdir(parents=True, exist_ok=True)
+            return d
+    d = get_local_plan_dir(cwd)
     d.mkdir(parents=True, exist_ok=True)
     return d
 
@@ -122,8 +146,23 @@ def save_plan(
         enriched_metadata["plan_id"] = plan_id
 
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    safe_id = "".join(c if c.isalnum() or c in "-_" else "_" for c in conversation_id[:8])
-    base_name = f"{timestamp}_{safe_id}"
+    safe_cid = "".join(
+        c if c.isalnum() or c in "-_" else "_" for c in (conversation_id or "studio")[:12]
+    )
+    # Always mint a stable plan_id — timestamp-only names create orphan files
+    # when draft (with id) and confirm (without id) both save.
+    raw_pid = (plan_id or "").strip()
+    if not raw_pid:
+        import uuid
+
+        raw_pid = f"plan_{uuid.uuid4().hex[:10]}"
+        logger.info("save_plan: empty plan_id — minted %s", raw_pid)
+    plan_id = raw_pid
+    safe_pid = "".join(
+        c if c.isalnum() or c in "-_" else "_" for c in plan_id[:24]
+    )
+    # Stable name so draft → confirm → progress all overwrite one pair.
+    base_name = f"{safe_pid}_{safe_cid}" if safe_cid else safe_pid
 
     if rendered_markdown.strip():
         md_content = rendered_markdown.strip() + "\n"
@@ -150,9 +189,11 @@ def save_plan(
 
     json_path = plan_dir / f"{base_name}.json"
     json_data = {
-        "plan_id": plan_id,
+        "plan_id": plan_id or base_name,
         "conversation_id": conversation_id,
         "timestamp": timestamp,
+        # Microseconds so list_plans can order two saves in the same second.
+        "updated_at": datetime.now().isoformat(timespec="microseconds"),
         "status": plan_status,
         "user_input": user_input,
         "steps": plan_steps,
@@ -162,11 +203,15 @@ def save_plan(
         "plan_reasoning": plan_reasoning,
         "metadata": metadata or {},
         "markdown_path": str(md_path),
+        "json_path": str(json_path),
     }
     json_path.write_text(json.dumps(json_data, indent=2, ensure_ascii=False), encoding="utf-8")
 
     logger.info(
-        f"Plan saved to {md_path} ({len(plan_steps)} steps, status={plan_status})"
+        "Plan saved to %s (%s steps, status=%s)",
+        json_path,
+        len(plan_steps),
+        plan_status,
     )
     return md_path
 
@@ -208,11 +253,176 @@ def load_plan(
     return json.loads(plan_path.read_text(encoding="utf-8"))
 
 
+def delete_plan(
+    path: str,
+    config: HolixRuntimeConfig | None = None,
+) -> dict[str, Any]:
+    """Delete a plan JSON and its companion Markdown (if present).
+
+    ``path`` must resolve under project plan directories (same trust rules as load).
+    """
+    plan_path = resolve_trusted_plan_file(path, config)
+    if not plan_path.exists():
+        raise FileNotFoundError(f"Plan file not found: {plan_path}")
+
+    plan_id = ""
+    md_path = plan_path.with_suffix(".md")
+    try:
+        data = json.loads(plan_path.read_text(encoding="utf-8"))
+        plan_id = str(data.get("plan_id") or "")
+        md_hint = str(data.get("markdown_path") or "").strip()
+        if md_hint:
+            candidate = Path(os.path.realpath(os.path.expanduser(md_hint)))
+            allowed = [
+                Path(os.path.realpath(str(d.resolve())))
+                for d in _plan_search_dirs(config)
+            ]
+            if candidate.suffix.lower() == ".md" and any(
+                candidate == root or candidate.is_relative_to(root) for root in allowed
+            ):
+                md_path = candidate
+    except Exception:
+        pass
+
+    removed: list[str] = []
+    for p in (plan_path, md_path):
+        try:
+            if p.exists() and p.is_file():
+                p.unlink()
+                removed.append(str(p))
+        except OSError as exc:
+            logger.warning("Failed to delete plan file %s: %s", p, exc)
+
+    if not removed:
+        raise FileNotFoundError(f"No plan files removed for: {path}")
+
+    logger.info("Deleted plan files: %s", removed)
+    return {
+        "ok": True,
+        "removed": removed,
+        "path": str(plan_path),
+        "plan_id": plan_id,
+    }
+
+
+def apply_step_status(
+    plan_steps: list[dict[str, Any]],
+    *,
+    done_step: int | None = None,
+    in_progress_step: int | None = None,
+    mark_all_done: bool = False,
+) -> list[dict[str, Any]]:
+    """Return a copy of plan_steps with checkbox statuses updated."""
+    from core.plan_review.parser import normalize_step_status
+
+    out: list[dict[str, Any]] = []
+    for i, raw in enumerate(plan_steps or []):
+        step = dict(raw) if isinstance(raw, dict) else {"description": str(raw)}
+        num = int(step.get("step") or (i + 1))
+        cur = normalize_step_status(step.get("status"))
+        if mark_all_done:
+            cur = "done"
+        elif done_step is not None and num == int(done_step):
+            cur = "done"
+        elif in_progress_step is not None and num == int(in_progress_step):
+            if cur != "done":
+                cur = "in_progress"
+        elif (
+            in_progress_step is not None
+            and num != int(in_progress_step)
+            and cur == "in_progress"
+        ):
+            # Only one active step at a time
+            cur = "pending" if done_step is None or num > int(done_step or 0) else cur
+        step["status"] = cur
+        step["step"] = num
+        out.append(step)
+    # When advancing: any step number < in_progress and not done → done (safety)
+    if in_progress_step is not None:
+        ip = int(in_progress_step)
+        for step in out:
+            num = int(step.get("step") or 0)
+            if num < ip and step.get("status") != "done":
+                step["status"] = "done"
+    if done_step is not None:
+        ds = int(done_step)
+        for step in out:
+            num = int(step.get("step") or 0)
+            if num <= ds:
+                step["status"] = "done"
+    return out
+
+
+def persist_plan_steps_progress(
+    plan_id: str,
+    plan_steps: list[dict[str, Any]],
+    *,
+    conversation_id: str = "",
+    plan_status: str | None = None,
+    config: HolixRuntimeConfig | None = None,
+) -> str | None:
+    """Update steps (checkbox progress) on the saved plan file for plan_id."""
+    pid = (plan_id or "").strip()
+    if not pid or not plan_steps:
+        return None
+    entries = list_plans(limit=80, config=config)
+    match = None
+    for e in entries:
+        if str(e.get("plan_id") or "") == pid:
+            match = e
+            break
+        path = str(e.get("path") or "")
+        if pid and pid in path:
+            match = e
+            break
+    if not match:
+        # Still save a fresh progress snapshot
+        try:
+            path = save_plan(
+                plan_steps,
+                conversation_id or "studio",
+                plan_status=plan_status or "in_progress",
+                plan_id=pid,
+                config=config,
+            )
+            return str(path.with_suffix(".json"))
+        except Exception:
+            logger.warning("persist_plan_steps_progress: save failed", exc_info=True)
+            return None
+    try:
+        data = load_plan(match["path"], config=config)
+        data["steps"] = plan_steps
+        if plan_status:
+            data["status"] = plan_status
+        path = save_plan(
+            plan_steps,
+            data.get("conversation_id") or conversation_id or "studio",
+            metadata=data.get("metadata") or {},
+            plan_status=plan_status or data.get("status") or "in_progress",
+            analysis=data.get("analysis"),
+            architecture=data.get("architecture"),
+            plan_report=data.get("plan_report"),
+            plan_reasoning=data.get("plan_reasoning") or "",
+            user_input=data.get("user_input") or "",
+            plan_id=pid,
+            rendered_markdown="",  # rebuild from steps so checkboxes refresh
+            config=config,
+        )
+        return str(path.with_suffix(".json"))
+    except Exception:
+        logger.warning("persist_plan_steps_progress failed for %s", pid, exc_info=True)
+        return None
+
+
 def list_plans(
     limit: int = 20,
     config: HolixRuntimeConfig | None = None,
 ) -> list[dict[str, Any]]:
-    """List saved plans from `.holix/plans/` (and legacy `.holix/plan/`), newest first."""
+    """List saved plans from `.holix/plans/` (and legacy `.holix/plan/`), newest first.
+
+    Dedupes by ``plan_id`` (keeps newest). For the same conversation, prefers
+    confirmed/in_progress over pending_review drafts when timestamps are close.
+    """
     plans: list[dict[str, Any]] = []
     seen_paths: set[str] = set()
 
@@ -227,21 +437,76 @@ def list_plans(
             try:
                 data = json.loads(json_file.read_text(encoding="utf-8"))
                 summary = _plan_summary_from_data(data)
+                steps = data.get("steps") or []
+                done_count = sum(
+                    1
+                    for s in steps
+                    if isinstance(s, dict)
+                    and str(s.get("status") or "").lower()
+                    in ("done", "completed", "complete", "finished")
+                )
                 plans.append({
                     "path": str(json_file),
                     "timestamp": data.get("timestamp", ""),
+                    "updated_at": data.get("updated_at", "") or data.get("timestamp", ""),
                     "status": data.get("status", ""),
-                    "step_count": len(data.get("steps", [])),
+                    "step_count": len(steps),
+                    "steps_done": done_count,
                     "conversation_id": data.get("conversation_id", ""),
-                    "plan_id": data.get("plan_id", ""),
+                    "plan_id": data.get("plan_id", "") or json_file.stem,
                     "title": summary,
                     "user_input": (data.get("user_input") or "")[:200],
                 })
             except Exception:
                 continue
 
-    plans.sort(key=lambda item: item.get("timestamp", ""), reverse=True)
-    return plans[:limit]
+    status_rank = {
+        "completed": 0,
+        "confirmed": 1,
+        "auto_execute": 1,
+        "in_progress": 2,
+        "pending_review": 3,
+        "draft": 4,
+    }
+
+    def _rank(item: dict[str, Any]) -> int:
+        return status_rank.get(str(item.get("status") or "").lower(), 9)
+
+    def _ts(item: dict[str, Any]) -> str:
+        return str(item.get("updated_at") or item.get("timestamp") or "")
+
+    # Better status first; within same status, newest first (string ts sortable).
+    plans.sort(key=lambda p: (_rank(p), _ts(p)), reverse=False)
+    # Among equal ranks, reverse ts: sort rank asc, then re-order by ts desc within groups
+    plans.sort(key=_ts, reverse=True)
+    plans.sort(key=_rank)
+
+    # 1) Unique plan_id (first = best after sort)
+    by_id: dict[str, dict[str, Any]] = {}
+    for p in plans:
+        pid = str(p.get("plan_id") or p.get("path") or "")
+        if pid not in by_id:
+            by_id[pid] = p
+
+    # 2) Collapse same conversation + same non-empty task (orphans from lost plan_id).
+    # Empty user_input: do not collapse — tests and distinct untitled plans stay separate.
+    winners: list[dict[str, Any]] = []
+    seen_task: set[str] = set()
+    ordered = sorted(by_id.values(), key=lambda p: (_rank(p), _ts(p)), reverse=False)
+    ordered.sort(key=_ts, reverse=True)
+    ordered.sort(key=_rank)
+    for p in ordered:
+        cid = str(p.get("conversation_id") or "")
+        task = " ".join(str(p.get("user_input") or "").lower().split())[:120]
+        if task:
+            key = f"{cid}::{task}"
+            if key in seen_task:
+                continue
+            seen_task.add(key)
+        winners.append(p)
+
+    winners.sort(key=_ts, reverse=True)
+    return winners[:limit]
 
 
 def load_latest_plan(
@@ -393,16 +658,24 @@ def _format_plan_markdown(
         expected = step.get("expected_output", "")
         criteria = step.get("success_criteria", "")
         parallel = step.get("parallel_group")
+        status = str(step.get("status") or "pending").strip().lower()
+        box = "[x]" if status in ("done", "completed", "complete", "finished") else "[ ]"
+        label = ""
+        if status in ("in_progress", "active", "running", "current"):
+            label = "*in progress* "
+        elif status in ("failed", "error", "blocked"):
+            label = "*failed* "
 
-        lines.append(f"### [⬜] Step {num}: {desc}")
+        # GFM task list: empty at create, checked when done.
+        lines.append(f"- {box} {label}**Step {num}:** {desc}")
         if tools:
-            lines.append(f"- **Tools**: {', '.join(tools)}")
+            lines.append(f"  - **Tools**: {', '.join(tools)}")
         if expected:
-            lines.append(f"- **Expected**: {expected}")
+            lines.append(f"  - **Expected**: {expected}")
         if criteria:
-            lines.append(f"- **Success Criteria**: {criteria}")
+            lines.append(f"  - **Success Criteria**: {criteria}")
         if parallel is not None:
-            lines.append(f"- **Parallel Group**: {parallel}")
+            lines.append(f"  - **Parallel Group**: {parallel}")
         lines.append("")
 
     return "\n".join(lines)

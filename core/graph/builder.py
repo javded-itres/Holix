@@ -39,14 +39,20 @@ def prepare_initial_state(
     conversation_id: str = "default",
     stream: bool = False,
     execution_mode: str = "react",
+    *,
+    state_overrides: dict | None = None,
 ) -> dict:
-    """Prepare initial HolixGraphState for a graph invocation."""
+    """Prepare initial HolixGraphState for a graph invocation.
+
+    ``state_overrides`` merges on top (used to resume a confirmed plan without
+    re-running planning / review).
+    """
     cfg = getattr(agent, "config", None)
     max_steps = cfg.max_steps if cfg else 90
     max_per_step = cfg.max_steps_per_plan_step if cfg else 5
     max_refinement = cfg.max_refinement_iterations if cfg else 2
 
-    return {
+    state: dict[str, Any] = {
         "user_input": user_input,
         "conversation_id": conversation_id,
         "stream": stream,
@@ -95,6 +101,15 @@ def prepare_initial_state(
         "supervisor_log": [],
         "supervisor_last_diagnosis": None,
     }
+    if state_overrides:
+        for key, value in state_overrides.items():
+            if value is not None or key in (
+                "plan_analysis",
+                "plan_architecture",
+                "plan_report",
+            ):
+                state[key] = value
+    return state
 
 
 async def run_graph_loop(
@@ -104,6 +119,7 @@ async def run_graph_loop(
     *,
     stream: bool = False,
     execution_mode: str = "react",
+    state_overrides: dict | None = None,
 ):
     """Run the Holix graph and translate state transitions to AgentEvents."""
     from core.agent_events import (
@@ -116,19 +132,38 @@ async def run_graph_loop(
     from core.presenters.final_content import is_placeholder_final
     from core.runtime.session import prepare_session
 
-    if execution_mode == "auto":
+    # Resume path: confirmed plan in overrides → always plan_and_execute
+    # (step_orchestrate + checkboxes), even if UI mode is hybrid/auto/react.
+    resume_plan = bool(
+        state_overrides
+        and (state_overrides.get("plan_steps") or [])
+        and str(state_overrides.get("plan_status") or "").lower()
+        in ("confirmed", "auto_execute", "in_progress")
+    )
+    selected_by_auto: str | None = None
+    if resume_plan:
+        execution_mode = "plan_and_execute"
+    elif execution_mode == "auto":
         mode_router = ModeRouter(client=agent.client)
-        execution_mode = await mode_router.select_mode(
+        selected_by_auto = await mode_router.select_mode(
             user_input,
             context={"relevant_strategies": [], "relevant_memories": []},
         )
+        execution_mode = selected_by_auto or "react"
 
     messages, _was_compressed = await prepare_session(agent, user_input, conversation_id)
 
     initial_state = prepare_initial_state(
-        agent, user_input, conversation_id, stream, execution_mode
+        agent,
+        user_input,
+        conversation_id,
+        stream,
+        execution_mode,
+        state_overrides=state_overrides,
     )
     initial_state["messages"] = messages
+    # Keep resolved mode on state so plan_node / react see hybrid vs plan_and_execute.
+    initial_state["execution_mode"] = execution_mode
 
     cfg = getattr(agent, "config", None)
     use_persistent = bool(
@@ -146,12 +181,19 @@ async def run_graph_loop(
         "plan_and_execute": "Plan & Execute",
         "hybrid": "Hybrid",
     }.get(execution_mode, execution_mode)
+    if selected_by_auto:
+        mode_label = f"Auto → {mode_label}"
 
     profile_name = profile_name_from_agent(agent) if agent else "default"
     yield ThinkingEvent(
         message=live_holix_thinking_label(profile_name, mode_label),
         conversation_id=conversation_id,
     )
+    if selected_by_auto:
+        yield ThinkingEvent(
+            message=f"Auto mode selected: {selected_by_auto}",
+            conversation_id=conversation_id,
+        )
 
     from core.domain.graph_runtime import GraphRuntime
 
@@ -246,7 +288,7 @@ from core.graph.routers import (  # noqa: E402
     route_after_plan_clarify,
     route_after_plan_execute,
     route_after_plan_review,
-    route_after_plan_review_hybrid,
+    route_after_plan_review_hybrid,  # legacy alias; hybrid graph uses route_after_plan_review
     route_after_react,
     route_after_react_plan,
     route_after_step_orchestrate,

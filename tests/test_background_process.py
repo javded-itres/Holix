@@ -132,7 +132,7 @@ async def test_registry_start_uses_workspace_root_without_cwd(
     popen = _mock_popen(9001)
     captured_cwd: list[str] = []
 
-    def capture_spawn(argv, *, stdout, stderr, cwd, env=None):
+    def capture_spawn(argv, *, stdout, stderr, cwd, env=None, preexec_fn=None):
         captured_cwd.append(cwd)
         return popen
 

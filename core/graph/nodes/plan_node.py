@@ -26,6 +26,9 @@ from core.plan_review.parser import (
     is_development_report_complete,
     is_truncated_json,
     parse_detailed_plan,
+    plan_is_substantive,
+    scaffold_plan_from_task,
+    synthesize_minimal_report,
 )
 
 # Backward-compatible re-exports for tests
@@ -44,7 +47,7 @@ DETAILED_PLAN_PROMPT = """You are a senior software architect and task planner. 
 ## AVAILABLE TOOLS
 {tools}
 
-## PROJECT HANDBOOK
+## PROJECT HANDBOOK + SPECS
 {project_handbook}
 
 ## CRITICAL RULES
@@ -53,6 +56,10 @@ DETAILED_PLAN_PROMPT = """You are a senior software architect and task planner. 
 3. Each step must be CONCRETE and ACTIONABLE — specify exactly what to do and which tools to use
 4. Fill in ALL fields — empty analysis/architecture is not acceptable
 5. If the task is ambiguous, list clarifying questions but STILL provide a plan
+6. When PROJECT HANDBOOK / openspec specs are present, ground architecture and steps in them
+   (modules, APIs, conventions, requirements). Do not invent a parallel stack.
+7. If the handbook was just created by `/init` pre-scan, still use the scan tree/manifests
+   as the real project map.
 
 ## INSTRUCTIONS
 
@@ -344,26 +351,47 @@ async def plan_node(state: HolixGraphState, config: RunnableConfig) -> dict:
     conversation_id = state.get("conversation_id", "default")
     refinement_feedback = state.get("plan_refinement_feedback", "")
 
-    if not agent:
-        # No agent available — create a simple single-step plan
+    # Resume path: plan already confirmed (e.g. Specs → Continue plan).
+    # Do not re-generate or re-save a draft — that creates duplicates + review modal.
+    existing_steps = state.get("plan_steps") or []
+    existing_status = str(state.get("plan_status") or "").strip().lower()
+    if (
+        existing_steps
+        and existing_status in ("confirmed", "auto_execute", "in_progress")
+        and not (refinement_feedback or "").strip()
+    ):
+        logger.info(
+            "Plan node: reusing %s existing steps (status=%s, plan_id=%s) — skip generation",
+            len(existing_steps),
+            existing_status,
+            state.get("plan_id") or "",
+        )
         return {
-            "plan_steps": [{
-                "step": 1,
-                "description": user_input,
-                "tools_needed": [],
-                "expected_output": "Complete response to the user's request",
-                "success_criteria": "Task completed successfully",
-                "depends_on": [],
-                "parallel_group": None,
-                "subagent_type": None,
-            }],
+            "plan_steps": existing_steps,
+            "current_plan_step": int(state.get("current_plan_step") or 0),
+            "plan_status": existing_status if existing_status != "in_progress" else "confirmed",
+            "plan_id": state.get("plan_id") or "",
+            "plan_refinement_feedback": "",
+            "plan_analysis": state.get("plan_analysis"),
+            "plan_architecture": state.get("plan_architecture"),
+            "plan_report": state.get("plan_report"),
+            "plan_reasoning": state.get("plan_reasoning") or "",
+        }
+
+    if not agent:
+        # No agent available — still produce a multi-step scaffold, not a 1-line echo.
+        plan, analysis, architecture, plan_report, plan_reasoning = scaffold_plan_from_task(
+            user_input
+        )
+        return {
+            "plan_steps": plan,
             "current_plan_step": 0,
             "plan_status": "pending_review",
             "plan_refinement_feedback": "",
-            "plan_analysis": {"task_summary": user_input[:200], "complexity": "medium", "clarifying_questions": [], "constraints": []},
-            "plan_architecture": {"approach": "Direct execution", "tech_stack": [], "structure": "", "risks": []},
-            "plan_report": None,
-            "plan_reasoning": "",
+            "plan_analysis": analysis,
+            "plan_architecture": architecture,
+            "plan_report": plan_report,
+            "plan_reasoning": plan_reasoning,
         }
 
     # Load timeout and retry settings
@@ -406,16 +434,6 @@ async def plan_node(state: HolixGraphState, config: RunnableConfig) -> dict:
 
     context = "\n".join(context_parts) if context_parts else "No relevant context available."
 
-    from core.project.holix_md import format_holix_md_block, planning_context_note
-
-    project_handbook = format_holix_md_block()
-    if not project_handbook:
-        project_handbook = (
-            f"{planning_context_note()} "
-            "No `.holix/HOLIX.md` in the working directory or nested subfolders (up to two "
-            "levels) — run `/init` in this repo to generate it."
-        )
-
     # Build tools description
     tools_desc = _get_tools_description(agent)
 
@@ -424,6 +442,43 @@ async def plan_node(state: HolixGraphState, config: RunnableConfig) -> dict:
 
     profile_name = profile_name_from_agent(agent)
     lang_block = language_instruction_block(profile_name=profile_name)
+
+    # HOLIX.md + openspec/specs; auto /init pre-scan when handbook is missing.
+    # Always use agent workspace_root (Studio project), never process CWD alone.
+    from core.i18n.locale import LocaleStore
+    from core.project.planning_context import ensure_planning_context
+    from core.project.workspace_root import resolve_project_root
+
+    try:
+        ui_locale = LocaleStore(profile_name).get()
+    except Exception:
+        ui_locale = "en"
+    agent_cfg = getattr(agent, "config", None) if agent else None
+    project_root = resolve_project_root(agent=agent, config=agent_cfg)
+    planning_ctx = ensure_planning_context(
+        cwd=project_root,
+        locale=ui_locale or "en",
+        agent=agent,
+        config=agent_cfg,
+    )
+    project_handbook = planning_ctx.handbook_block
+    if planning_ctx.init_ran and hasattr(agent, "emit"):
+        try:
+            from core.agent_events import ThinkingEvent
+
+            agent.emit(
+                ThinkingEvent(
+                    message=(
+                        "Project handbook missing — ran /init pre-scan in "
+                        f"{project_root}, "
+                        f"reloaded HOLIX.md (present={planning_ctx.holix_present}), "
+                        f"specs={len(planning_ctx.specs_paths)}"
+                    ),
+                    conversation_id=conversation_id,
+                )
+            )
+        except Exception:
+            pass
 
     from core.plan_review.plan_storage import format_saved_plans_context
 
@@ -475,12 +530,14 @@ async def plan_node(state: HolixGraphState, config: RunnableConfig) -> dict:
     model = agent.model
     plan_system = (
         "You are a senior software architect and task planner. "
-        "Create comprehensive, detailed execution plans. "
-        "Respond with ONLY valid JSON. "
-        "Write ALL human-readable text fields in the plan (task_summary, descriptions, "
+        "Create comprehensive, detailed execution plans with AT LEAST 3 concrete steps "
+        "for non-trivial work (infra, domain, implement, verify). "
+        "NEVER return a single step that only repeats the user request. "
+        "Each step must include tools_needed, expected_output, success_criteria. "
+        "Respond with ONLY valid JSON (keys in English). "
+        "Write ALL human-readable text fields (task_summary, descriptions, "
         "development_report, analysis, architecture, questions, reasoning) in the language "
-        "required below; "
-        "keep JSON keys in English.\n\n"
+        "required below.\n\n"
         f"{lang_block}"
     )
 
@@ -585,7 +642,39 @@ async def plan_node(state: HolixGraphState, config: RunnableConfig) -> dict:
             parsed_plan, parsed_analysis, _, parsed_report, _ = parse_detailed_plan(result_text)
             complexity = (parsed_analysis or {}).get("complexity", "medium")
             needs_full_report = complexity in ("medium", "complex") or len(parsed_plan) >= 3
+
+            # Reject "1 step = paste user task" plans — force a real breakdown.
+            if not plan_is_substantive(parsed_plan, user_input):
+                last_error = "Non-substantive plan (single-step or echo of task)"
+                logger.warning(
+                    "Plan generation produced non-substantive plan on attempt "
+                    f"{attempt + 1}/{1 + plan_retries} (steps={len(parsed_plan or [])})"
+                )
+                result_text = None
+                if attempt < plan_retries:
+                    prompt += (
+                        "\n\n## IMPORTANT — PLAN QUALITY\n"
+                        "Your previous plan was invalid: it had too few steps or just repeated "
+                        "the user request. Break the work into AT LEAST 3 concrete steps "
+                        "(infra, domain, implementation, verification). "
+                        "Each step must name tools, expected_output, and success_criteria. "
+                        "Do NOT put the whole user message into a single step.\n"
+                    )
+                    api_kwargs["messages"] = [
+                        api_kwargs["messages"][0],
+                        {"role": "user", "content": prompt},
+                    ]
+                    continue
+                break
+
             if needs_full_report and not is_development_report_complete(parsed_report):
+                # Prefer accepting a solid multi-step plan over discarding everything.
+                if plan_is_substantive(parsed_plan, user_input) and len(parsed_plan) >= 3:
+                    logger.warning(
+                        "Plan has solid steps but incomplete development_report — "
+                        "will synthesize minimal report after parse"
+                    )
+                    break
                 last_error = "Incomplete development_report"
                 logger.warning(
                     f"Plan generation missing required development_report sections on attempt "
@@ -633,58 +722,87 @@ async def plan_node(state: HolixGraphState, config: RunnableConfig) -> dict:
             continue
 
     # Parse the LLM response
+    plan = []
+    analysis = None
+    architecture = None
+    plan_report = None
+    plan_reasoning = ""
+
     if result_text and result_text.strip():
         plan, analysis, architecture, plan_report, plan_reasoning = parse_detailed_plan(result_text)
 
-        if not plan:
+        if not plan_is_substantive(plan, user_input):
             logger.warning(
-                f"Plan parsing returned empty despite getting LLM response. "
+                "Plan parsing empty/non-substantive despite LLM response. "
                 f"Raw text (500 chars): {result_text[:500]}"
             )
-            # Fallback: single-step plan
-            plan = [{
-                "step": 1,
-                "description": user_input,
-                "tools_needed": [],
-                "expected_output": "Complete response to the user's request",
-                "success_criteria": "Task completed successfully",
-                "depends_on": [],
-                "parallel_group": None,
-                "subagent_type": None,
-            }]
-            analysis = analysis or {"task_summary": user_input[:200], "complexity": "medium", "clarifying_questions": [], "constraints": []}
-            architecture = architecture or {"approach": "Direct execution", "tech_stack": [], "structure": "", "risks": []}
+            plan, analysis, architecture, plan_report, plan_reasoning = scaffold_plan_from_task(
+                user_input
+            )
+        else:
+            if not is_development_report_complete(plan_report):
+                plan_report = synthesize_minimal_report(
+                    user_input=user_input,
+                    plan=plan,
+                    analysis=analysis,
+                    architecture=architecture,
+                )
     else:
-        # All retries exhausted or no response
+        # All retries exhausted or no response — multi-step scaffold, never 1-line echo
         logger.error(
             f"Plan generation failed after all retries. Last error: {last_error}. "
-            f"Falling back to single-step plan."
+            f"Falling back to scaffolded multi-step plan."
         )
-        plan = [{
-            "step": 1,
-            "description": user_input,
-            "tools_needed": [],
-            "expected_output": "Complete response to the user's request",
-            "success_criteria": "Task completed successfully",
-            "depends_on": [],
-            "parallel_group": None,
-            "subagent_type": None,
-        }]
-        analysis = {"task_summary": user_input[:200], "complexity": "medium", "clarifying_questions": [], "constraints": []}
-        architecture = {"approach": "Direct execution", "tech_stack": [], "structure": "", "risks": []}
-        plan_report = None
-        plan_reasoning = ""
+        plan, analysis, architecture, plan_report, plan_reasoning = scaffold_plan_from_task(
+            user_input
+        )
 
     logger.info(f"Plan generated with {len(plan)} steps for: {user_input[:80]}...")
 
     import uuid
 
-    plan_id = f"plan_{uuid.uuid4().hex[:10]}"
-    if hasattr(agent, "set_plan_id"):
+    # Reuse plan_id across refine/re-plan so draft+confirm overwrite one file
+    # (new UUID every generation was creating N plans in Specs → Plans).
+    plan_id = str(state.get("plan_id") or "").strip()
+    if not plan_id:
+        plan_id = f"plan_{uuid.uuid4().hex[:10]}"
+    if agent and hasattr(agent, "set_plan_id"):
         agent.set_plan_id(plan_id)
 
+    # Persist draft immediately so Specs/Plans UI can show it even before confirm.
+    # Stable plan_id → confirm overwrites the same JSON/MD pair.
+    try:
+        from core.plan_review.markdown_builder import build_plan_markdown
+        from core.plan_review.plan_storage import save_plan
+
+        md = build_plan_markdown(
+            plan_steps=plan,
+            step_count=len(plan),
+            reasoning=plan_reasoning or "",
+            user_input=user_input,
+            analysis=analysis,
+            architecture=architecture,
+            plan_report=plan_report,
+        )
+        save_plan(
+            plan,
+            conversation_id,
+            metadata={"review_status": "pending_review"},
+            plan_status="pending_review",
+            analysis=analysis,
+            architecture=architecture,
+            plan_report=plan_report,
+            plan_reasoning=plan_reasoning or "",
+            user_input=user_input,
+            plan_id=plan_id,
+            rendered_markdown=md,
+            config=getattr(agent, "config", None) if agent else None,
+        )
+    except Exception:
+        logger.warning("Failed to save draft plan", exc_info=True)
+
     # Emit plan generated event
-    if hasattr(agent, "emit"):
+    if agent and hasattr(agent, "emit"):
         from core.agent_events import PlanGeneratedEvent
         agent.emit(PlanGeneratedEvent(
             plan_steps=plan,

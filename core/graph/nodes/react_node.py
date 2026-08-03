@@ -44,6 +44,7 @@ from core.i18n.live_ui import live_reasoning_label, live_thinking_step_label
 from core.llm.max_tokens import profile_agent_max_tokens, resolve_agent_max_tokens
 from core.llm.response_text import (
     assistant_message_parts,
+    reasoning_only_user_message,
     resolve_assistant_text,
     stream_delta_parts,
 )
@@ -59,7 +60,6 @@ from core.llm.usage import (
     usage_dict_from_response,
     usage_dict_from_stream_chunk,
 )
-from core.presenters.final_content import MESSENGER_EMPTY_FINAL_RU
 from core.profile.soul import profile_name_from_agent
 from core.prompt_builder import build_system_prompt, format_tools_description
 
@@ -158,9 +158,31 @@ async def _iter_stream_chunks(stream: Any, timeout_s: float) -> AsyncIterator[An
         await _close_async_stream(stream)
 
 
-def _non_empty_final(text: str) -> str:
-    """Ensure the user always sees something when a react step ends."""
-    return (text or "").strip() or MESSENGER_EMPTY_FINAL_RU
+def _non_empty_final(text: str, *, profile_name: str | None = None) -> str:
+    """Ensure the user always sees something when a react step *truly* ends.
+
+    Empty intermediate results should not become a fake final answer — callers
+    must only use this when they are about to emit FinalResponseEvent.
+    """
+    cleaned = (text or "").strip()
+    if cleaned:
+        return cleaned
+    return reasoning_only_user_message(profile_name=profile_name)
+
+
+def _is_reasoning_only_placeholder(text: str) -> bool:
+    """True for empty or i18n 'reasoning without visible answer' placeholders."""
+    lowered = (text or "").strip().lower()
+    if not lowered:
+        return True
+    markers = (
+        "без видимого ответа",
+        "without a visible answer",
+        "finished reasoning without",
+        "reasoning_only",
+        "без текстового ответа",
+    )
+    return any(m in lowered for m in markers)
 
 
 async def _plan_step_result(
@@ -174,6 +196,26 @@ async def _plan_step_result(
     assistant_already_appended: bool,
 ) -> dict[str, Any]:
     """Return react state for an active plan step (complete or retry)."""
+    # Reasoning-only model reply must never complete a plan step.
+    if _is_reasoning_only_placeholder(final_response):
+        if agent and hasattr(agent, "emit"):
+            from core.agent_events import ThinkingEvent
+
+            agent.emit(
+                ThinkingEvent(
+                    message=(
+                        "Model returned reasoning without tools/text — "
+                        "retrying current plan step with a stronger tool nudge"
+                    ),
+                    conversation_id=conversation_id,
+                )
+            )
+        return plan_step_retry_update(
+            messages=messages,
+            step_count=step_count,
+            final_response="",
+            include_assistant=False,
+        )
     if plan_step_complete(state, final_response=final_response):
         if agent and hasattr(agent, "memory"):
             await agent.memory.save_message(conversation_id, "assistant", final_response)
@@ -490,6 +532,26 @@ async def react_node(state: HolixGraphState, config: RunnableConfig) -> dict:
             model,
             step_count,
         )
+        # During an active plan step: do not end the whole run with a scary chat
+        # message — nudge tools and continue (GPU/tools may still be productive).
+        if plan_step_active(state):
+            if agent and hasattr(agent, "emit"):
+                agent.emit(
+                    ThinkingEvent(
+                        message=(
+                            "Model stuck in reasoning — retrying plan step with tool nudge"
+                        ),
+                        conversation_id=conversation_id,
+                    )
+                )
+            messages = list(state.get("messages", []))
+            retry = plan_step_retry_update(
+                messages=messages,
+                step_count=step_count,
+                final_response="",
+                include_assistant=False,
+            )
+            return _merge_state_patch(retry, messages_patch)
         _emit_final_response(
             agent,
             content=err,
@@ -669,14 +731,36 @@ async def _react_non_streaming(
         # Final answer
         msg_content, msg_reasoning = assistant_message_parts(message)
         finish_reason = response.choices[0].finish_reason if response.choices else None
-        final_response = _non_empty_final(
-            resolve_assistant_text(
-                content=msg_content,
-                reasoning_content=msg_reasoning,
-                finish_reason=finish_reason,
-                model=model,
-                profile_name=profile_name_from_agent(agent) if agent else None,
+        profile_name = profile_name_from_agent(agent) if agent else None
+        final_response = resolve_assistant_text(
+            content=msg_content,
+            reasoning_content=msg_reasoning,
+            finish_reason=finish_reason,
+            model=model,
+            profile_name=profile_name,
+        )
+        # Reasoning-only / empty: keep plan steps open; for free chat still finish
+        # with a clear message only after we have nothing else to try.
+        if plan_step_active(state) and not (final_response or "").strip():
+            if agent and hasattr(agent, "emit"):
+                agent.emit(
+                    ThinkingEvent(
+                        message="Model returned empty/reasoning-only — retrying plan step",
+                        conversation_id=conversation_id,
+                    )
+                )
+            return await _plan_step_result(
+                state,
+                agent=agent,
+                conversation_id=conversation_id,
+                messages=messages,
+                step_count=step_count,
+                final_response="",
+                assistant_already_appended=False,
             )
+
+        final_response = _non_empty_final(
+            final_response, profile_name=profile_name
         )
         msg_dict["content"] = final_response
         messages.append(msg_dict)

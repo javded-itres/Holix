@@ -17,10 +17,13 @@ async def run_holix(
     *,
     stream: bool = False,
     execution_mode: str | None = None,
+    state_overrides: dict | None = None,
 ) -> AsyncGenerator[AgentEvent, None]:
     """Run the agent and yield AgentEvent objects.
 
     Dispatches to LangGraph or the legacy loop based on ``agent._use_langgraph``.
+
+    ``state_overrides`` is merged into the graph initial state (resume confirmed plans).
     """
     cfg = getattr(agent, "config", None)
     mode = execution_mode or (cfg.execution_mode if cfg else "react")
@@ -48,6 +51,7 @@ async def run_holix(
                         conversation_id,
                         stream=stream,
                         execution_mode=mode,
+                        state_overrides=state_overrides,
                     )
                 ) as events:
                     async for event in events:

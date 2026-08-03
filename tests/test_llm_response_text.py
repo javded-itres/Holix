@@ -50,16 +50,17 @@ def test_resolve_does_not_expose_reasoning_when_content_empty(
         reasoning_content="The user is asking what I am doing.",
         profile_name="ru_profile",
     )
+    # Empty → callers retry instead of painting "try again" mid-run.
+    assert text == ""
     assert "The user is asking" not in text
-    assert "размышление" in text.lower()
 
 
-def test_resolve_reasoning_only_defaults_to_english() -> None:
+def test_resolve_reasoning_only_is_empty_for_retry() -> None:
     text = resolve_assistant_text(
         content="",
         reasoning_content="Internal chain of thought.",
     )
-    assert "visible answer" in text.lower()
+    assert text == ""
 
 
 def test_resolve_length_finish_reason_ru(
@@ -82,4 +83,4 @@ def test_assistant_message_parts() -> None:
     assert content == ""
     assert reasoning == "Вывод модели"
     resolved = resolve_assistant_text(content=content, reasoning_content=reasoning)
-    assert "visible answer" in resolved.lower()
+    assert resolved == ""

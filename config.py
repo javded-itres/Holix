@@ -144,7 +144,9 @@ class Settings(BaseSettings):
 
     # Plan Review Configuration
     plan_review_enabled: bool = True
-    plan_review_timeout: int = 600
+    # 0 = wait indefinitely for user confirmation (same as confirmation_timeout).
+    # Positive seconds = auto-reject after timeout (unattended / CI).
+    plan_review_timeout: int = 0
 
     # Plan Execution Configuration
     max_steps_per_plan_step: int = 5

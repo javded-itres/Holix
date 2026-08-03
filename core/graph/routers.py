@@ -64,12 +64,11 @@ def route_after_plan_review(state: HolixGraphState) -> str:
 
 
 def route_after_plan_review_hybrid(state: HolixGraphState) -> str:
-    plan_status = state.get("plan_status", "pending_review")
-    if plan_status == "refine":
-        return "plan"
-    if plan_status == "rejected":
-        return "finalize"
-    return "react"
+    """Legacy hybrid router — same outcomes as plan mode (step orchestration).
+
+    Kept for import compatibility; hybrid graph now uses ``route_after_plan_review``.
+    """
+    return route_after_plan_review(state)
 
 
 def route_after_react_plan(state: HolixGraphState) -> str:

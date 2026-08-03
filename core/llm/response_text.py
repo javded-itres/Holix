@@ -65,11 +65,15 @@ def resolve_assistant_text(
 
     reasoning = (reasoning_content or "").strip()
     if not text and reasoning:
+        # Do NOT surface a user-facing error here. Callers treat empty as
+        # "retry / keep going" (plan step nudge, non-streaming retry). Emitting
+        # llm.reasoning_only as the final answer aborted multi-step work while
+        # tools/GPU were still busy.
         logger.warning(
-            "LLM returned reasoning-only text (model=%s); not exposing to user",
+            "LLM returned reasoning-only text (model=%s); treating as empty for retry",
             model,
         )
-        return t("llm.reasoning_only", locale)
+        return ""
 
     if text:
         return text
@@ -86,3 +90,10 @@ def resolve_assistant_text(
             finish_reason,
         )
     return ""
+
+
+def reasoning_only_user_message(*, profile_name: str | None = None) -> str:
+    """Localized notice when retries are exhausted (not for intermediate steps)."""
+    from core.i18n.messages import t
+
+    return t("llm.reasoning_only", _ui_locale(profile_name))

@@ -26,6 +26,7 @@ from core.plan_review.plan_storage import (
     PLAN_DIR,
     InvalidPlanIdError,
     _format_plan_markdown,
+    apply_step_status,
     list_plans,
     load_plan,
     resolve_plan_path,
@@ -295,7 +296,8 @@ class TestPlanStorage:
             {"step": 1, "description": "Setup", "tools_needed": ["terminal"], "expected_output": "Done"},
         ]
         md = _format_plan_markdown(steps, "test", {"mode": "auto"}, "confirmed")
-        assert "Step 1: Setup" in md
+        assert "- [ ]" in md
+        assert "**Step 1:** Setup" in md
         assert "terminal" in md
         assert "Done" in md
 
@@ -380,14 +382,33 @@ class TestPlanEvents:
             total_steps=3,
             step_description="Do thing",
             conversation_id="test",
+            plan_id="plan_abc",
+            plan_steps=[{"step": 1, "status": "done"}],
+            steps_done=1,
         )
         assert event.type == EventType.PLAN_STEP_COMPLETED
         assert event.step_number == 1
+        d = event.to_dict()
+        assert d["plan_id"] == "plan_abc"
+        assert d["steps_done"] == 1
+        assert d["plan_steps"][0]["status"] == "done"
 
     def test_plan_completed_event(self):
-        event = PlanCompletedEvent(total_steps=3, conversation_id="test")
+        event = PlanCompletedEvent(
+            total_steps=3,
+            conversation_id="test",
+            plan_id="plan_xyz",
+            plan_steps=[
+                {"step": 1, "status": "done"},
+                {"step": 2, "status": "done"},
+                {"step": 3, "status": "done"},
+            ],
+        )
         assert event.type == EventType.PLAN_COMPLETED
         assert event.total_steps == 3
+        d = event.to_dict()
+        assert d["plan_id"] == "plan_xyz"
+        assert len(d["plan_steps"]) == 3
 
 
 # ─── Graph State ────────────────────────────────────────────────────────────
@@ -416,7 +437,8 @@ class TestConfigPlanReview:
         from config import Settings
         s = Settings()
         assert s.plan_review_enabled is True
-        assert s.plan_review_timeout == 600
+        # 0 = wait indefinitely for interactive confirmation (Studio / TUI)
+        assert s.plan_review_timeout == 0
 
 
 # ─── Markdown Builder ────────────────────────────────────────────────────────
@@ -438,7 +460,8 @@ class TestBuildPlanMarkdown:
         )
         assert "Execution Plan" in md
         assert "Build a REST API" in md
-        assert "Step 1: Create project" in md
+        assert "- [ ]" in md
+        assert "**Step 1:** Create project" in md
         assert "`terminal`" in md
 
     def test_with_analysis_and_architecture(self):
@@ -619,3 +642,89 @@ class TestBuildPlanMarkdown:
         assert "Development Plan: API" in md
         assert "1. Executive Summary" in md
         assert "Execution Steps" in md
+
+
+class TestPlanStepCheckboxes:
+    """Steps start as empty GFM checkboxes; status updates mark [x] / in progress."""
+
+    def test_new_steps_are_pending(self):
+        from core.plan_review.parser import _make_step, normalize_step_status
+
+        step = _make_step(1, "Create files")
+        assert step["status"] == "pending"
+        assert normalize_step_status(None) == "pending"
+        assert normalize_step_status("done") == "done"
+        assert normalize_step_status("in_progress") == "in_progress"
+
+    def test_apply_step_status_progress(self):
+        from core.plan_review.parser import _make_step
+
+        steps = [_make_step(1, "A"), _make_step(2, "B"), _make_step(3, "C")]
+        running = apply_step_status(steps, in_progress_step=1)
+        assert [s["status"] for s in running] == ["in_progress", "pending", "pending"]
+        advanced = apply_step_status(running, done_step=1, in_progress_step=2)
+        assert [s["status"] for s in advanced] == ["done", "in_progress", "pending"]
+        finished = apply_step_status(advanced, done_step=3, mark_all_done=True)
+        assert all(s["status"] == "done" for s in finished)
+
+    def test_markdown_uses_task_list_checkboxes(self):
+        from core.plan_review.markdown_builder import build_plan_markdown
+        from core.plan_review.parser import _make_step
+
+        steps = [_make_step(1, "A"), _make_step(2, "B")]
+        md = build_plan_markdown(steps, locale="en")
+        assert md.count("- [ ]") >= 2
+        assert "- [x]" not in md
+
+        steps[0]["status"] = "done"
+        steps[1]["status"] = "in_progress"
+        md2 = build_plan_markdown(steps, locale="en")
+        assert "- [x]" in md2
+        assert "in progress" in md2
+        assert md2.count("- [x]") == 1
+
+        fallback = _format_plan_markdown(steps, "cid", {}, "in_progress")
+        assert "- [x]" in fallback
+        assert "- [ ]" in fallback
+
+    def test_save_plan_preserves_step_status(self):
+        import core.plan_review.plan_storage as ps
+
+        tmp = tempfile.mkdtemp()
+        ps._TEST_PLAN_DIR = Path(tmp)
+        try:
+            steps = [
+                {
+                    "step": 1,
+                    "description": "Done step",
+                    "status": "done",
+                    "tools_needed": [],
+                },
+                {
+                    "step": 2,
+                    "description": "Active step",
+                    "status": "in_progress",
+                    "tools_needed": [],
+                },
+            ]
+            path = save_plan(
+                steps,
+                conversation_id="cbx",
+                plan_status="in_progress",
+                plan_id="plan_cbx1",
+            )
+            data = load_plan(str(path))
+            assert data["steps"][0]["status"] == "done"
+            assert data["steps"][1]["status"] == "in_progress"
+            md_text = path.read_text(encoding="utf-8")
+            assert "- [x]" in md_text
+            assert "- [ ]" in md_text
+            listed = list_plans(limit=5)
+            match = next(p for p in listed if p.get("plan_id") == "plan_cbx1")
+            assert match["steps_done"] == 1
+            assert match["step_count"] == 2
+        finally:
+            import shutil
+
+            ps._TEST_PLAN_DIR = None
+            shutil.rmtree(tmp, ignore_errors=True)
