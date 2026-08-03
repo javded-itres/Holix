@@ -444,14 +444,23 @@ async def plan_node(state: HolixGraphState, config: RunnableConfig) -> dict:
     lang_block = language_instruction_block(profile_name=profile_name)
 
     # HOLIX.md + openspec/specs; auto /init pre-scan when handbook is missing.
+    # Always use agent workspace_root (Studio project), never process CWD alone.
     from core.i18n.locale import LocaleStore
     from core.project.planning_context import ensure_planning_context
+    from core.project.workspace_root import resolve_project_root
 
     try:
         ui_locale = LocaleStore(profile_name).get()
     except Exception:
         ui_locale = "en"
-    planning_ctx = ensure_planning_context(locale=ui_locale or "en")
+    agent_cfg = getattr(agent, "config", None) if agent else None
+    project_root = resolve_project_root(agent=agent, config=agent_cfg)
+    planning_ctx = ensure_planning_context(
+        cwd=project_root,
+        locale=ui_locale or "en",
+        agent=agent,
+        config=agent_cfg,
+    )
     project_handbook = planning_ctx.handbook_block
     if planning_ctx.init_ran and hasattr(agent, "emit"):
         try:
@@ -460,7 +469,8 @@ async def plan_node(state: HolixGraphState, config: RunnableConfig) -> dict:
             agent.emit(
                 ThinkingEvent(
                     message=(
-                        "Project handbook missing — ran /init pre-scan, "
+                        "Project handbook missing — ran /init pre-scan in "
+                        f"{project_root}, "
                         f"reloaded HOLIX.md (present={planning_ctx.holix_present}), "
                         f"specs={len(planning_ctx.specs_paths)}"
                     ),

@@ -233,9 +233,21 @@ def ensure_planning_context(
     *,
     locale: str = "en",
     max_holix_chars: int = DEFAULT_MAX_CHARS,
+    agent: object | None = None,
+    config: object | None = None,
 ) -> PlanningContext:
-    """Load HOLIX.md + openspec specs; auto-run /init pre-scan when handbook missing."""
-    root = _workspace_root(cwd)
+    """Load HOLIX.md + openspec specs; auto-run /init pre-scan when handbook missing.
+
+    Prefer explicit ``cwd`` or agent ``workspace_root`` over process CWD.
+    """
+    if cwd is None:
+        from core.project.workspace_root import resolve_project_root
+
+        root = resolve_project_root(agent=agent, config=config)
+        cwd = root
+    else:
+        root = _workspace_root(cwd)
+        cwd = root
     init_ran = False
     scan_summary = ""
 

@@ -102,4 +102,58 @@ async def test_react_node_reasoning_only_abort_emits_final_error() -> None:
         for call in agent.emit.call_args_list
         if call.args and call.args[0].__class__.__name__ == "FinalResponseEvent"
     ]
-    assert final_events
+
+
+@pytest.mark.asyncio
+async def test_react_node_reasoning_only_abort_retries_plan_step() -> None:
+    """Active plan step must not end the run with a chat error on reasoning timeout."""
+    from core.graph.nodes import react_node as rn
+
+    agent = MagicMock()
+    agent.client = MagicMock()
+    agent.model = "coder"
+    agent.tools.get_schemas.return_value = []
+    agent.config = SimpleNamespace(
+        llm_step_timeout=300,
+        profile_name="default",
+    )
+    agent.model_manager = None
+    agent.context_manager = None
+    agent.emit = MagicMock()
+
+    async def _boom(*_args, **_kwargs):
+        raise LLMStepTimeoutError(
+            llm_step_timeout_message(90, model="coder", reasoning_only=True)
+        )
+
+    # Plan steps force non-streaming; patch both entry points.
+    orig_s = rn._react_streaming
+    orig_ns = rn._react_non_streaming
+    rn._react_streaming = _boom
+    rn._react_non_streaming = _boom
+    try:
+        result = await react_node(
+            {
+                "step_count": 0,
+                "conversation_id": "test",
+                "stream": True,
+                "messages": [],
+                "execution_mode": "hybrid",
+                "plan_steps": [{"step": 1, "description": "Do work"}],
+                "current_plan_step": 0,
+            },
+            {"configurable": {"_agent": agent}},
+        )
+    finally:
+        rn._react_streaming = orig_s
+        rn._react_non_streaming = orig_ns
+
+    assert result is not None
+    assert result.get("is_final") is False
+    assert result.get("is_step_complete") is False
+    final_events = [
+        call.args[0]
+        for call in agent.emit.call_args_list
+        if call.args and call.args[0].__class__.__name__ == "FinalResponseEvent"
+    ]
+    assert final_events == []

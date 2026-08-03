@@ -153,7 +153,17 @@ async def run_project_init(host: Any, *, target_dir: str | None = None) -> None:
     mode_label = choose_init_execution_mode(host)
     await _ack_init_start(host, mode_label, target_dir=scope_rel)
 
-    scan = scan_project_for_init(target_dir=scope_rel)
+    # Prefer Studio/agent workspace — not process CWD (often Holix install tree).
+    from core.project.workspace_root import resolve_project_root
+
+    agent = getattr(host, "agent", None)
+    project_root = resolve_project_root(
+        agent=agent,
+        config=getattr(agent, "config", None) if agent else None,
+        host=host,
+    )
+
+    scan = scan_project_for_init(cwd=project_root, target_dir=scope_rel)
     holix_path = _holix_md_rel_path(scope_rel)
     template = t("init.holix_template", lang)
     write_init_skeleton(scan, holix_rel_path=holix_path, template=template, locale=lang)
@@ -165,5 +175,6 @@ async def run_project_init(host: Any, *, target_dir: str | None = None) -> None:
             profile_name=profile,
             target_dir=scope_rel,
             scan=scan,
+            cwd=project_root,
         ),
     )

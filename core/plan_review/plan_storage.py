@@ -192,7 +192,8 @@ def save_plan(
         "plan_id": plan_id or base_name,
         "conversation_id": conversation_id,
         "timestamp": timestamp,
-        "updated_at": datetime.now().isoformat(timespec="seconds"),
+        # Microseconds so list_plans can order two saves in the same second.
+        "updated_at": datetime.now().isoformat(timespec="microseconds"),
         "status": plan_status,
         "user_input": user_input,
         "steps": plan_steps,
@@ -469,22 +470,17 @@ def list_plans(
         "draft": 4,
     }
 
-    def _sort_key(item: dict[str, Any]) -> tuple:
-        # Better status first, then newest
-        rank = status_rank.get(str(item.get("status") or "").lower(), 9)
-        ts = str(item.get("updated_at") or item.get("timestamp") or "")
-        return (rank, ts)
+    def _rank(item: dict[str, Any]) -> int:
+        return status_rank.get(str(item.get("status") or "").lower(), 9)
 
-    # Prefer better status; within same status, prefer newer timestamps.
-    plans.sort(key=_sort_key)
-    # Stable secondary: reverse timestamp among equal ranks
-    plans.sort(
-        key=lambda item: str(item.get("updated_at") or item.get("timestamp") or ""),
-        reverse=True,
-    )
-    plans.sort(
-        key=lambda item: status_rank.get(str(item.get("status") or "").lower(), 9)
-    )
+    def _ts(item: dict[str, Any]) -> str:
+        return str(item.get("updated_at") or item.get("timestamp") or "")
+
+    # Better status first; within same status, newest first (string ts sortable).
+    plans.sort(key=lambda p: (_rank(p), _ts(p)), reverse=False)
+    # Among equal ranks, reverse ts: sort rank asc, then re-order by ts desc within groups
+    plans.sort(key=_ts, reverse=True)
+    plans.sort(key=_rank)
 
     # 1) Unique plan_id (first = best after sort)
     by_id: dict[str, dict[str, Any]] = {}
@@ -493,22 +489,24 @@ def list_plans(
         if pid not in by_id:
             by_id[pid] = p
 
-    # 2) Collapse same conversation + same task (orphans from lost plan_id)
+    # 2) Collapse same conversation + same non-empty task (orphans from lost plan_id).
+    # Empty user_input: do not collapse — tests and distinct untitled plans stay separate.
     winners: list[dict[str, Any]] = []
     seen_task: set[str] = set()
-    for p in by_id.values():
+    ordered = sorted(by_id.values(), key=lambda p: (_rank(p), _ts(p)), reverse=False)
+    ordered.sort(key=_ts, reverse=True)
+    ordered.sort(key=_rank)
+    for p in ordered:
         cid = str(p.get("conversation_id") or "")
         task = " ".join(str(p.get("user_input") or "").lower().split())[:120]
-        key = f"{cid}::{task}" if (cid or task) else str(p.get("plan_id") or p.get("path"))
-        if key in seen_task:
-            continue
-        seen_task.add(key)
+        if task:
+            key = f"{cid}::{task}"
+            if key in seen_task:
+                continue
+            seen_task.add(key)
         winners.append(p)
 
-    winners.sort(
-        key=lambda item: str(item.get("updated_at") or item.get("timestamp") or ""),
-        reverse=True,
-    )
+    winners.sort(key=_ts, reverse=True)
     return winners[:limit]
 
 

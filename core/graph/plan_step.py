@@ -20,9 +20,11 @@ def plan_step_active(state: dict[str, Any]) -> bool:
 
 
 def prefer_non_streaming_for_plan(state: dict[str, Any]) -> bool:
-    """Reasoning models often hang in streaming during plan step execution."""
-    if state.get("execution_mode") != "plan_and_execute":
-        return False
+    """Reasoning models often hang in streaming during plan step execution.
+
+    True whenever a plan step is active (Plan or Hybrid after orchestrate) or
+    when waiting for sub-agent synthesis — not limited to execution_mode name.
+    """
     return plan_step_active(state) or bool(state.get("subagent_awaiting_synthesis"))
 
 
