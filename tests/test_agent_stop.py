@@ -57,6 +57,43 @@ def test_reject_all_pending_plan_reviews(monkeypatch: pytest.MonkeyPatch) -> Non
         loop.close()
 
 
+def test_reject_pending_plan_reviews_for_conversation_only(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from cli.shared.agent_stop import reject_pending_plan_reviews_for_conversation
+    from core.plan_review.review_guard import (
+        _GLOBAL_LOCK,
+        _GLOBAL_PENDING,
+        reject_global_pending_reviews_for_conversation,
+    )
+
+    loop = asyncio.new_event_loop()
+    try:
+        fut_a = loop.create_future()
+        fut_b = loop.create_future()
+        with _GLOBAL_LOCK:
+            _GLOBAL_PENDING.clear()
+            _GLOBAL_PENDING["plan_review_1_tab_a"] = fut_a
+            _GLOBAL_PENDING["plan_review_2_tab_b"] = fut_b
+        monkeypatch.setattr(
+            "core.plan_review.review_guard.get_plan_review_guard",
+            lambda: None,
+        )
+        n = reject_pending_plan_reviews_for_conversation("tab_a")
+        assert n == 1
+        assert fut_a.done()
+        assert not fut_b.done()
+        choice, feedback = fut_a.result()
+        assert choice == PlanReviewChoice.REJECT
+        assert "stopped" in feedback
+        # Cleanup leftover
+        reject_global_pending_reviews_for_conversation("tab_b")
+    finally:
+        with _GLOBAL_LOCK:
+            _GLOBAL_PENDING.clear()
+        loop.close()
+
+
 @pytest.mark.asyncio
 async def test_cancel_host_run_tasks() -> None:
     host = MagicMock()

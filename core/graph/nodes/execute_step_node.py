@@ -111,12 +111,16 @@ async def execute_step_node(state: HolixGraphState, config: RunnableConfig) -> d
                 {"role": "system", "content": _step_system_prompt(profile_name)},
                 {"role": "user", "content": step_prompt},
             ]
+            import time as _time
+
+            t0 = _time.perf_counter()
             response = await client.chat.completions.create(
                 model=model,
                 messages=step_messages,
                 temperature=temperature,
                 max_tokens=2000,
             )
+            duration_ms = (_time.perf_counter() - t0) * 1000.0
 
             step_response = response.choices[0].message.content or ""
             try:
@@ -142,10 +146,11 @@ async def execute_step_node(state: HolixGraphState, config: RunnableConfig) -> d
                     step=step_num,
                     conversation_id=conversation_id,
                     usage=usage,
+                    duration_ms=duration_ms,
                     estimated=provider_usage is None,
                 )
             except Exception:
-                logger.debug("Execute-step token accounting failed", exc_info=True)
+                logger.warning("Execute-step token accounting failed", exc_info=True)
         except Exception as e:
             logger.warning(f"LLM call failed in execute_step: {e}")
             step_response = f"Error executing step {step_num}: {str(e)}"

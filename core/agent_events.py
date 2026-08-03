@@ -281,6 +281,16 @@ class LLMCallStartedEvent(AgentEvent):
     model: str = ""
     step: int = 0
 
+    def __post_init__(self):
+        super().__post_init__()
+        object.__setattr__(self, "type", EventType.LLM_CALL_STARTED)
+
+    def _extra_fields(self) -> dict[str, Any]:
+        return {
+            "model": self.model,
+            "step": self.step,
+        }
+
 
 @dataclass
 class LLMCallCompletedEvent(AgentEvent):

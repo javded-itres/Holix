@@ -559,6 +559,75 @@ async def plan_node(state: HolixGraphState, config: RunnableConfig) -> dict:
     use_json_mode = True
     attempt_timeout = plan_timeout
 
+    def _account_plan_llm(
+        response: object,
+        *,
+        step: int,
+        duration_ms: float | None = None,
+        finish_reason: str | None = None,
+    ) -> None:
+        """Record tokens + model call for Studio/Grafana (plan bypasses LLM middleware)."""
+        try:
+            from core.llm.usage import (
+                completion_text_from_message,
+                emit_llm_call_usage,
+                resolve_usage,
+                usage_dict_from_response,
+            )
+
+            message = None
+            try:
+                message = response.choices[0].message  # type: ignore[attr-defined]
+            except Exception:
+                message = None
+            provider_usage = usage_dict_from_response(response)
+            usage = resolve_usage(
+                response,
+                messages=list(api_kwargs.get("messages") or []),
+                completion_text=completion_text_from_message(message),
+                model=model,
+            )
+            total = emit_llm_call_usage(
+                agent,
+                model=model,
+                step=step,
+                conversation_id=conversation_id,
+                usage=usage,
+                duration_ms=duration_ms,
+                finish_reason=finish_reason,
+                estimated=provider_usage is None,
+            )
+            if total <= 0:
+                logger.warning(
+                    "Plan LLM usage emitted 0 tokens (model=%s, estimated=%s, usage=%s)",
+                    model,
+                    provider_usage is None,
+                    usage,
+                )
+        except Exception:
+            logger.warning("Plan token accounting failed", exc_info=True)
+
+    # Announce plan LLM work so metrics middleware / dashboards can open a run window.
+    if hasattr(agent, "emit"):
+        try:
+            from core.agent_events import LLMCallStartedEvent, ThinkingEvent
+
+            agent.emit(
+                ThinkingEvent(
+                    message=f"Generating plan with {model}…",
+                    conversation_id=conversation_id,
+                )
+            )
+            agent.emit(
+                LLMCallStartedEvent(
+                    model=model,
+                    step=1,
+                    conversation_id=conversation_id,
+                )
+            )
+        except Exception:
+            logger.debug("Plan LLM start event failed", exc_info=True)
+
     for attempt in range(1 + plan_retries):
         try:
             logger.info(
@@ -566,6 +635,9 @@ async def plan_node(state: HolixGraphState, config: RunnableConfig) -> dict:
                 f"(model={model}, timeout={attempt_timeout}s, "
                 f"max_tokens={api_kwargs['max_tokens']}, json_mode={use_json_mode})"
             )
+            import time as _time
+
+            t0 = _time.perf_counter()
 
             # Try with response_format first, fallback without
             if use_json_mode:
@@ -591,34 +663,19 @@ async def plan_node(state: HolixGraphState, config: RunnableConfig) -> dict:
                     timeout=attempt_timeout,
                 )
 
-            result_text = response.choices[0].message.content or ""
+            duration_ms = (_time.perf_counter() - t0) * 1000.0
+            finish_reason = None
             try:
-                from core.llm.usage import (
-                    completion_text_from_message,
-                    emit_llm_call_usage,
-                    resolve_usage,
-                    usage_dict_from_response,
-                )
-
-                provider_usage = usage_dict_from_response(response)
-                usage = resolve_usage(
-                    response,
-                    messages=list(api_kwargs.get("messages") or []),
-                    completion_text=completion_text_from_message(
-                        response.choices[0].message
-                    ),
-                    model=model,
-                )
-                emit_llm_call_usage(
-                    agent,
-                    model=model,
-                    step=attempt + 1,
-                    conversation_id=conversation_id,
-                    usage=usage,
-                    estimated=provider_usage is None,
-                )
+                finish_reason = getattr(response.choices[0], "finish_reason", None)
             except Exception:
-                logger.debug("Plan token accounting failed", exc_info=True)
+                finish_reason = None
+            result_text = response.choices[0].message.content or ""
+            _account_plan_llm(
+                response,
+                step=attempt + 1,
+                duration_ms=duration_ms,
+                finish_reason=str(finish_reason) if finish_reason else None,
+            )
             logger.info(
                 f"Plan LLM response received: {len(result_text)} chars "
                 f"(first 200: {result_text[:200]})"

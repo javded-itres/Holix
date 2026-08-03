@@ -61,6 +61,36 @@ def reject_all_pending_plan_reviews(*, feedback: str = "stopped by user") -> int
     return resolved
 
 
+def reject_pending_plan_reviews_for_conversation(
+    conversation_id: str | None,
+    *,
+    feedback: str = "stopped by user",
+) -> int:
+    """Reject plan reviews for one conversation tab only (parallel tabs keep theirs)."""
+    from core.plan_review.review_guard import (
+        PlanReviewChoice,
+        get_plan_review_guard,
+        reject_global_pending_reviews_for_conversation,
+    )
+
+    cid = (conversation_id or "").strip()
+    if not cid:
+        return reject_all_pending_plan_reviews(feedback=feedback)
+
+    resolved = reject_global_pending_reviews_for_conversation(cid, feedback=feedback)
+    guard = get_plan_review_guard()
+    if guard is None:
+        return resolved
+    pending = getattr(guard, "_pending_reviews", None) or {}
+    suffix = f"_{cid}"
+    for review_id in list(pending.keys()):
+        rid = str(review_id or "")
+        if rid == cid or rid.endswith(suffix) or f"_{cid}_" in rid:
+            if guard.resolve_review(review_id, PlanReviewChoice.REJECT, feedback):
+                resolved += 1
+    return resolved
+
+
 def dismiss_host_modals(host: Any) -> None:
     """Close TUI confirmation / plan-review waits."""
     from core.security.confirmation import ConfirmationChoice

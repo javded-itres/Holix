@@ -144,10 +144,12 @@ async def run_graph_loop(
     if resume_plan:
         execution_mode = "plan_and_execute"
     elif execution_mode == "auto":
-        mode_router = ModeRouter(client=agent.client)
+        mode_router = ModeRouter(client=agent.client, model=getattr(agent, "model", "") or "")
         selected_by_auto = await mode_router.select_mode(
             user_input,
             context={"relevant_strategies": [], "relevant_memories": []},
+            agent=agent,
+            conversation_id=conversation_id,
         )
         execution_mode = selected_by_auto or "react"
 
