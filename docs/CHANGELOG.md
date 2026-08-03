@@ -2,6 +2,29 @@
 
 ## Unreleased
 
+## 1.0.3 — 2026-08-03
+
+Plan orchestration quality, SDD task sizing, and runtime/resource fixes since 1.0.2.
+
+### Added
+
+- **Stable plan identity** — `plan_id` stays in graph state so draft and confirm overwrite one plan file instead of spawning orphans; progress persists and confirmed plans resume without re-review.
+- **Plan step checkboxes** — GFM checkboxes track step status through execution; markdown builder/parser keep progress in the plan document.
+- **Planning context** — when planning, load `HOLIX.md` and OpenSpec specs; run `/init` pre-scan if the handbook is missing (`core/project/planning_context.py`).
+- **Workspace root resolve** — `/init` and planning context resolve against the project workspace root (`core/project/workspace_root.py`).
+- **SDD task sizing & resource limits** — task sizing helpers, runtime resource limits (including safe skip of `systemd-run --scope` when Access denied), and subagent runtime registry improvements.
+
+### Fixed
+
+- **Hybrid / auto orchestration** — hybrid mode aligned with plan step orchestration; routers and step orchestration share the same plan-step path.
+- **Reasoning-only LLM text** — plan steps no longer treat empty/reasoning-only model responses as final answers.
+- **Plan review guard** — resolve the active review guard from the current agent instance (fixes stale guard after rebinds).
+- **Telegram messenger admin** — fall back to process environment when profile env lacks admin id.
+
+### Tests
+
+- Plan dedupe, resume, review, planning context, workspace root, step orchestrate, resource limits, react timeout/reasoning empty.
+
 ## 1.0.2 — 2026-07-31
 
 Runtime orchestration, Reflexion, A2A, production Docker, and multi-user deploy ergonomics.
