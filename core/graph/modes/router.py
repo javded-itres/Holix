@@ -65,12 +65,17 @@ class ModeRouter:
         self,
         user_input: str,
         context: dict[str, Any] | None = None,
+        *,
+        agent: Any | None = None,
+        conversation_id: str = "",
     ) -> str:
         """Select the best execution mode for a task.
 
         Args:
             user_input: The user's task/query.
             context: Optional context (conversation history, skills, etc.).
+            agent: Optional HolixAgent — when set, router LLM usage is metered.
+            conversation_id: Correlation id for usage events.
 
         Returns:
             One of "react", "plan_and_execute", or "hybrid".
@@ -99,19 +104,56 @@ class ModeRouter:
                         logger.info("Strategic memory suggests hybrid mode")
                         return "hybrid"
 
+        messages = [
+            {
+                "role": "system",
+                "content": "You classify tasks into execution modes. Respond with ONLY the mode name.",
+            },
+            {"role": "user", "content": prompt},
+        ]
         try:
+            import time
+
+            t0 = time.perf_counter()
             response = await self._client.chat.completions.create(
                 model=self._model,
-                messages=[
-                    {
-                        "role": "system",
-                        "content": "You classify tasks into execution modes. Respond with ONLY the mode name.",
-                    },
-                    {"role": "user", "content": prompt},
-                ],
+                messages=messages,
                 temperature=0.0,  # Deterministic classification
                 max_tokens=10,    # Very short response
             )
+            duration_ms = (time.perf_counter() - t0) * 1000.0
+
+            # Meter auto-mode classification like every other model request.
+            if agent is not None:
+                try:
+                    from core.llm.usage import (
+                        completion_text_from_message,
+                        emit_llm_call_usage,
+                        resolve_usage,
+                        usage_dict_from_response,
+                    )
+
+                    provider_usage = usage_dict_from_response(response)
+                    usage = resolve_usage(
+                        response,
+                        messages=messages,
+                        completion_text=completion_text_from_message(
+                            response.choices[0].message
+                        ),
+                        model=self._model,
+                    )
+                    emit_llm_call_usage(
+                        agent,
+                        model=self._model,
+                        step=0,
+                        conversation_id=conversation_id or "",
+                        usage=usage,
+                        duration_ms=duration_ms,
+                        finish_reason="mode_router",
+                        estimated=provider_usage is None,
+                    )
+                except Exception:
+                    logger.debug("Mode router token accounting failed", exc_info=True)
 
             mode_text = response.choices[0].message.content or ""
             mode = mode_text.strip().lower()

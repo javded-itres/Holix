@@ -131,6 +131,37 @@ def reject_all_global_pending_reviews(*, feedback: str = "stopped by user") -> i
     return n
 
 
+def reject_global_pending_reviews_for_conversation(
+    conversation_id: str,
+    *,
+    feedback: str = "stopped by user",
+) -> int:
+    """Reject pending plan reviews whose review_id is bound to *conversation_id*.
+
+    Review ids are ``plan_review_{n}_{conversation_id}`` (see request_review).
+    Other tabs' plan reviews stay open.
+    """
+    cid = (conversation_id or "").strip()
+    if not cid:
+        return 0
+    suffix = f"_{cid}"
+    with _GLOBAL_LOCK:
+        items = list(_GLOBAL_PENDING.items())
+    n = 0
+    for rid, fut in items:
+        rid_s = str(rid or "")
+        if rid_s == cid or rid_s.endswith(suffix) or f"_{cid}_" in rid_s:
+            if _set_future_result(fut, (PlanReviewChoice.REJECT, feedback)):
+                n += 1
+                logger.info(
+                    "PlanReviewGuard: rejected pending id=%s for conversation=%s (%s)",
+                    rid,
+                    cid,
+                    feedback,
+                )
+    return n
+
+
 class PlanReviewGuard:
     """Manages plan review requests using asyncio.Future + event bus.
 
