@@ -2,6 +2,27 @@
 
 ## Unreleased
 
+## 1.0.5 — 2026-08-05
+
+Messenger reliability: no draft-answer spam, think-tag stripping, and UX toggles.
+
+### Added
+
+- **Sub-agents menu toggle** — Telegram/MAX `/status` panel can enable or disable `enable_subagents` for the active profile (persisted + live agent tools sync).
+
+### Fixed
+
+- **Draft FinalResponse spam** — successful ReAct drafts no longer emit `FinalResponseEvent` before Reflexion; messengers receive a single final after the graph finishes (stops TG/MAX monologue spam like «Что сделаю… Начинаю»).
+- **Think/CoT markup in content** — strip `<think>…</think>` and similar tags from assistant text before delivery.
+- **Plan monologue without tools** — honesty nudge when the model only narrates a plan («Что сделаю», «Начинаю») without tool calls.
+- **Subagent metering** — emit `LLMCallCompleted` for model.calls dashboards on sub-agent runs.
+- **Terminal whitelist** — honor profile whitelist toggle over systemd env.
+- **Subagent confirmations** — stamp parent `conversation_id` on tool confirmations.
+
+### Tests
+
+- Strip think markup; plan monologue honesty; react defers FinalResponseEvent; messenger subagents settings.
+
 ## 1.0.4 — 2026-08-04
 
 Plan-mode UX, OpenTelemetry GenAI conventions, and SDD safety during planning.
