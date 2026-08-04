@@ -38,11 +38,17 @@ TASK_CONTEXT_NOTE = (
 
 PLANNING_CONTEXT_NOTE = (
     "Before planning, load `.holix/HOLIX.md` (working directory or nested folders up "
-    "to two levels) and any `openspec/specs/` requirements. Base architecture, module "
-    "boundaries, APIs, and conventions on that handbook; align product work with specs. "
-    "If HOLIX.md is missing, the planner runs `/init` pre-scan first, then re-reads "
-    "HOLIX.md. Also check `.holix/plans/` for previously approved plans and reuse or "
-    "extend them when the task matches."
+    "to two levels) and **read-only** any existing `openspec/specs/` requirements. "
+    "Base architecture, modules, APIs, and conventions on the handbook; ground product "
+    "work in specs **when they already exist**. "
+    "If HOLIX.md is missing, the planner may run `/init` pre-scan only (writes "
+    "`.holix/HOLIX.md` skeleton) — that is the **only** project bootstrap allowed in "
+    "plan mode. "
+    "**Do not** call `sdd_init`, `sdd_apply`, `sdd_propose`, `sdd_write_artifact`, "
+    "`sdd_dispatch`, or `sdd_archive` during plan generation. Plan mode does not start "
+    "SDD workflows or auto-execute Specs changes. "
+    "Also check `.holix/plans/` for previously approved plans and reuse or extend them "
+    "when the task matches."
 )
 
 

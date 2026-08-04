@@ -179,6 +179,7 @@ async def reflect_node(state: HolixGraphState, config: RunnableConfig) -> dict[s
     meta = MetaAgent(
         client=agent.client,
         model=getattr(agent, "model", None) or "",
+        agent=agent,
     )
     try:
         assessment = await meta.evaluate_response(
@@ -188,6 +189,7 @@ async def reflect_node(state: HolixGraphState, config: RunnableConfig) -> dict[s
                 "iteration": reflection_count,
                 "execution_mode": state.get("execution_mode", "react"),
                 "step_count": state.get("step_count", 0),
+                "conversation_id": state.get("conversation_id", "default"),
                 "trajectory": trajectory[:2000],
                 "prior_reflections": len(state.get("reflection_log") or []),
             },

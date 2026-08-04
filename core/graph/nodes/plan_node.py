@@ -18,6 +18,8 @@ regeneration with the user's answers appended as refinement_feedback.
 
 import asyncio
 import logging
+import time
+from typing import Any
 
 from langchain_core.runnables import RunnableConfig
 
@@ -35,6 +37,60 @@ from core.plan_review.parser import (
 _parse_detailed_plan = parse_detailed_plan
 
 logger = logging.getLogger(__name__)
+
+# Heartbeat interval while waiting on plan LLM (seconds).
+_PLAN_LLM_HEARTBEAT_S = 12.0
+
+
+def _emit_plan_progress(
+    agent: Any,
+    conversation_id: str,
+    profile_name: str,
+    phase_key: str,
+    **kwargs,
+) -> None:
+    """Surface plan-building phase to Studio/Telegram (ThinkingEvent)."""
+    if not agent or not hasattr(agent, "emit"):
+        return
+    try:
+        from core.agent_events import ThinkingEvent
+        from core.i18n.live_ui import live_plan_phase
+
+        msg = live_plan_phase(profile_name, phase_key, **kwargs)
+        agent.emit(
+            ThinkingEvent(
+                message=msg,
+                conversation_id=conversation_id or "default",
+            )
+        )
+    except Exception:
+        logger.debug("Plan progress emit failed (%s)", phase_key, exc_info=True)
+
+
+async def _plan_llm_heartbeat(
+    stop: asyncio.Event,
+    *,
+    agent: Any,
+    conversation_id: str,
+    profile_name: str,
+    timeout: float,
+    t0: float,
+) -> None:
+    """Periodic UI updates so the user sees the agent is still working."""
+    while not stop.is_set():
+        try:
+            await asyncio.wait_for(stop.wait(), timeout=_PLAN_LLM_HEARTBEAT_S)
+            return
+        except TimeoutError:
+            elapsed = int(time.monotonic() - t0)
+            _emit_plan_progress(
+                agent,
+                conversation_id,
+                profile_name,
+                "phase_llm_wait",
+                elapsed=elapsed,
+                timeout=int(timeout),
+            )
 
 DETAILED_PLAN_PROMPT = """You are a senior software architect and task planner. Analyze the task and create a comprehensive execution plan.
 
@@ -60,6 +116,13 @@ DETAILED_PLAN_PROMPT = """You are a senior software architect and task planner. 
    (modules, APIs, conventions, requirements). Do not invent a parallel stack.
 7. If the handbook was just created by `/init` pre-scan, still use the scan tree/manifests
    as the real project map.
+8. **Plan mode is not SDD bootstrap.** Never put `sdd_init`, `sdd_propose`, `sdd_apply`,
+   `sdd_write_artifact`, `sdd_dispatch`, or `sdd_archive` in `tools_needed` or step
+   descriptions. OpenSpec/specs content (if present) is **read-only** context for planning.
+   Do not create `openspec/` layout as a plan step. SDD/Specs workflows are separate and
+   only after the user explicitly asks outside pure plan generation.
+9. The only project bootstrap allowed in this phase is the existing `/init` handbook
+   pre-scan (already done when HOLIX.md was missing). Do not re-run SDD init instead.
 
 ## INSTRUCTIONS
 
@@ -416,6 +479,14 @@ async def plan_node(state: HolixGraphState, config: RunnableConfig) -> dict:
         plan_retries = default_retries
         plan_max_tokens = default_max_tokens
 
+    from core.profile.soul import profile_name_from_agent
+    from core.prompt_builder import language_instruction_block
+
+    profile_name = profile_name_from_agent(agent)
+    lang_block = language_instruction_block(profile_name=profile_name)
+
+    _emit_plan_progress(agent, conversation_id, profile_name, "phase_start")
+
     # Build context from memory
     context_parts = []
     relevant_memories = state.get("relevant_memories", [])
@@ -436,12 +507,20 @@ async def plan_node(state: HolixGraphState, config: RunnableConfig) -> dict:
 
     # Build tools description
     tools_desc = _get_tools_description(agent)
-
-    from core.profile.soul import profile_name_from_agent
-    from core.prompt_builder import language_instruction_block
-
-    profile_name = profile_name_from_agent(agent)
-    lang_block = language_instruction_block(profile_name=profile_name)
+    n_tools = 0
+    try:
+        if hasattr(agent, "tools") and agent.tools:
+            n_tools = len(agent.tools.list_tools() or [])
+    except Exception:
+        n_tools = 0
+    _emit_plan_progress(
+        agent,
+        conversation_id,
+        profile_name,
+        "phase_context",
+        memories=len(relevant_memories) + len(relevant_strategies),
+        tools=n_tools,
+    )
 
     # HOLIX.md + openspec/specs; auto /init pre-scan when handbook is missing.
     # Always use agent workspace_root (Studio project), never process CWD alone.
@@ -455,6 +534,13 @@ async def plan_node(state: HolixGraphState, config: RunnableConfig) -> dict:
         ui_locale = "en"
     agent_cfg = getattr(agent, "config", None) if agent else None
     project_root = resolve_project_root(agent=agent, config=agent_cfg)
+    _emit_plan_progress(
+        agent,
+        conversation_id,
+        profile_name,
+        "phase_handbook",
+        path=str(project_root)[:80],
+    )
     planning_ctx = ensure_planning_context(
         cwd=project_root,
         locale=ui_locale or "en",
@@ -462,23 +548,10 @@ async def plan_node(state: HolixGraphState, config: RunnableConfig) -> dict:
         config=agent_cfg,
     )
     project_handbook = planning_ctx.handbook_block
-    if planning_ctx.init_ran and hasattr(agent, "emit"):
-        try:
-            from core.agent_events import ThinkingEvent
-
-            agent.emit(
-                ThinkingEvent(
-                    message=(
-                        "Project handbook missing — ran /init pre-scan in "
-                        f"{project_root}, "
-                        f"reloaded HOLIX.md (present={planning_ctx.holix_present}), "
-                        f"specs={len(planning_ctx.specs_paths)}"
-                    ),
-                    conversation_id=conversation_id,
-                )
-            )
-        except Exception:
-            pass
+    if planning_ctx.init_ran:
+        _emit_plan_progress(
+            agent, conversation_id, profile_name, "phase_handbook_init"
+        )
 
     from core.plan_review.plan_storage import format_saved_plans_context
 
@@ -514,20 +587,17 @@ async def plan_node(state: HolixGraphState, config: RunnableConfig) -> dict:
             "Please generate an improved plan addressing this feedback."
         )
 
-    if hasattr(agent, "emit"):
-        from core.agent_events import ThinkingEvent
-        from core.i18n.live_ui import live_generating_plan_label
-
-        agent.emit(
-            ThinkingEvent(
-                message=live_generating_plan_label(profile_name, timeout=int(plan_timeout)),
-                conversation_id=conversation_id,
-            )
-        )
-
     # Call LLM with timeout + retry
     client = agent.client
     model = agent.model
+    _emit_plan_progress(
+        agent,
+        conversation_id,
+        profile_name,
+        "phase_llm",
+        model=str(model or "?"),
+        timeout=int(plan_timeout),
+    )
     plan_system = (
         "You are a senior software architect and task planner. "
         "Create comprehensive, detailed execution plans with AT LEAST 3 concrete steps "
@@ -610,14 +680,8 @@ async def plan_node(state: HolixGraphState, config: RunnableConfig) -> dict:
     # Announce plan LLM work so metrics middleware / dashboards can open a run window.
     if hasattr(agent, "emit"):
         try:
-            from core.agent_events import LLMCallStartedEvent, ThinkingEvent
+            from core.agent_events import LLMCallStartedEvent
 
-            agent.emit(
-                ThinkingEvent(
-                    message=f"Generating plan with {model}…",
-                    conversation_id=conversation_id,
-                )
-            )
             agent.emit(
                 LLMCallStartedEvent(
                     model=model,
@@ -628,155 +692,248 @@ async def plan_node(state: HolixGraphState, config: RunnableConfig) -> dict:
         except Exception:
             logger.debug("Plan LLM start event failed", exc_info=True)
 
-    for attempt in range(1 + plan_retries):
-        try:
-            logger.info(
-                f"Plan generation attempt {attempt + 1}/{1 + plan_retries} "
-                f"(model={model}, timeout={attempt_timeout}s, "
-                f"max_tokens={api_kwargs['max_tokens']}, json_mode={use_json_mode})"
-            )
-            import time as _time
+    from core.monitoring.genai_otel import genai_plan_span
 
-            t0 = _time.perf_counter()
-
-            # Try with response_format first, fallback without
-            if use_json_mode:
+    with genai_plan_span(
+        agent_name="holix",
+        conversation_id=conversation_id,
+        model=str(model or ""),
+    ):
+        for attempt in range(1 + plan_retries):
+            try:
+                logger.info(
+                    f"Plan generation attempt {attempt + 1}/{1 + plan_retries} "
+                    f"(model={model}, timeout={attempt_timeout}s, "
+                    f"max_tokens={api_kwargs['max_tokens']}, json_mode={use_json_mode})"
+                )
+                _emit_plan_progress(
+                    agent,
+                    conversation_id,
+                    profile_name,
+                    "phase_attempt",
+                    attempt=attempt + 1,
+                    total=1 + plan_retries,
+                )
+                t0 = time.perf_counter()
+                stop_hb = asyncio.Event()
+                hb_task = asyncio.create_task(
+                    _plan_llm_heartbeat(
+                        stop_hb,
+                        agent=agent,
+                        conversation_id=conversation_id,
+                        profile_name=profile_name,
+                        timeout=attempt_timeout,
+                        t0=t0,
+                    )
+                )
                 try:
-                    kwargs = {**api_kwargs, "response_format": {"type": "json_object"}}
-                    response = await asyncio.wait_for(
-                        client.chat.completions.create(**kwargs),
-                        timeout=attempt_timeout,
-                    )
-                except (TypeError, ValueError, NotImplementedError) as fmt_err:
-                    # response_format not supported by this provider
-                    logger.debug(f"response_format not supported: {fmt_err}, retrying without")
-                    use_json_mode = False
-                    response = await asyncio.wait_for(
-                        client.chat.completions.create(**api_kwargs),
-                        timeout=attempt_timeout,
-                    )
-                except TimeoutError:
-                    raise  # Let outer handler catch it
-            else:
-                response = await asyncio.wait_for(
-                    client.chat.completions.create(**api_kwargs),
-                    timeout=attempt_timeout,
+                    # Try with response_format first, fallback without
+                    if use_json_mode:
+                        try:
+                            kwargs = {
+                                **api_kwargs,
+                                "response_format": {"type": "json_object"},
+                            }
+                            response = await asyncio.wait_for(
+                                client.chat.completions.create(**kwargs),
+                                timeout=attempt_timeout,
+                            )
+                        except (TypeError, ValueError, NotImplementedError) as fmt_err:
+                            logger.debug(
+                                "response_format not supported: %s, retrying without",
+                                fmt_err,
+                            )
+                            use_json_mode = False
+                            response = await asyncio.wait_for(
+                                client.chat.completions.create(**api_kwargs),
+                                timeout=attempt_timeout,
+                            )
+                        except TimeoutError:
+                            raise
+                    else:
+                        response = await asyncio.wait_for(
+                            client.chat.completions.create(**api_kwargs),
+                            timeout=attempt_timeout,
+                        )
+                finally:
+                    stop_hb.set()
+                    hb_task.cancel()
+                    try:
+                        await hb_task
+                    except (asyncio.CancelledError, Exception):
+                        pass
+
+                duration_ms = (time.perf_counter() - t0) * 1000.0
+                finish_reason = None
+                try:
+                    finish_reason = getattr(response.choices[0], "finish_reason", None)
+                except Exception:
+                    finish_reason = None
+                result_text = response.choices[0].message.content or ""
+                _account_plan_llm(
+                    response,
+                    step=attempt + 1,
+                    duration_ms=duration_ms,
+                    finish_reason=str(finish_reason) if finish_reason else None,
+                )
+                logger.info(
+                    f"Plan LLM response received: {len(result_text)} chars "
+                    f"(first 200: {result_text[:200]})"
+                )
+                _emit_plan_progress(
+                    agent,
+                    conversation_id,
+                    profile_name,
+                    "phase_received",
+                    chars=len(result_text),
                 )
 
-            duration_ms = (_time.perf_counter() - t0) * 1000.0
-            finish_reason = None
-            try:
-                finish_reason = getattr(response.choices[0], "finish_reason", None)
-            except Exception:
-                finish_reason = None
-            result_text = response.choices[0].message.content or ""
-            _account_plan_llm(
-                response,
-                step=attempt + 1,
-                duration_ms=duration_ms,
-                finish_reason=str(finish_reason) if finish_reason else None,
-            )
-            logger.info(
-                f"Plan LLM response received: {len(result_text)} chars "
-                f"(first 200: {result_text[:200]})"
-            )
+                if not result_text.strip():
+                    logger.warning("Plan LLM returned empty response, retrying...")
+                    _emit_plan_progress(
+                        agent,
+                        conversation_id,
+                        profile_name,
+                        "phase_retry",
+                        reason="empty response",
+                    )
+                    continue
 
-            if not result_text.strip():
-                logger.warning("Plan LLM returned empty response, retrying...")
+                if is_truncated_json(result_text):
+                    last_error = "Truncated JSON response (likely max_tokens or timeout)"
+                    logger.warning(
+                        f"Plan generation produced truncated JSON on attempt "
+                        f"{attempt + 1}/{1 + plan_retries}"
+                    )
+                    result_text = None
+                    if attempt < plan_retries:
+                        _emit_plan_progress(
+                            agent,
+                            conversation_id,
+                            profile_name,
+                            "phase_retry",
+                            reason="truncated JSON",
+                        )
+                        continue
+                    break
+
+                _emit_plan_progress(
+                    agent, conversation_id, profile_name, "phase_quality"
+                )
+                parsed_plan, parsed_analysis, _, parsed_report, _ = parse_detailed_plan(
+                    result_text
+                )
+                complexity = (parsed_analysis or {}).get("complexity", "medium")
+                needs_full_report = (
+                    complexity in ("medium", "complex") or len(parsed_plan) >= 3
+                )
+
+                if not plan_is_substantive(parsed_plan, user_input):
+                    last_error = "Non-substantive plan (single-step or echo of task)"
+                    logger.warning(
+                        "Plan generation produced non-substantive plan on attempt "
+                        f"{attempt + 1}/{1 + plan_retries} "
+                        f"(steps={len(parsed_plan or [])})"
+                    )
+                    result_text = None
+                    if attempt < plan_retries:
+                        _emit_plan_progress(
+                            agent,
+                            conversation_id,
+                            profile_name,
+                            "phase_retry",
+                            reason="too few steps",
+                        )
+                        prompt += (
+                            "\n\n## IMPORTANT — PLAN QUALITY\n"
+                            "Your previous plan was invalid: it had too few steps or just "
+                            "repeated the user request. Break the work into AT LEAST 3 "
+                            "concrete steps (infra, domain, implementation, verification). "
+                            "Each step must name tools, expected_output, and success_criteria. "
+                            "Do NOT put the whole user message into a single step.\n"
+                        )
+                        api_kwargs["messages"] = [
+                            api_kwargs["messages"][0],
+                            {"role": "user", "content": prompt},
+                        ]
+                        continue
+                    break
+
+                if needs_full_report and not is_development_report_complete(parsed_report):
+                    if plan_is_substantive(parsed_plan, user_input) and len(parsed_plan) >= 3:
+                        logger.warning(
+                            "Plan has solid steps but incomplete development_report — "
+                            "will synthesize minimal report after parse"
+                        )
+                        break
+                    last_error = "Incomplete development_report"
+                    logger.warning(
+                        f"Plan generation missing required development_report sections "
+                        f"on attempt {attempt + 1}/{1 + plan_retries}"
+                    )
+                    result_text = None
+                    if attempt < plan_retries:
+                        _emit_plan_progress(
+                            agent,
+                            conversation_id,
+                            profile_name,
+                            "phase_retry",
+                            reason="incomplete development_report",
+                        )
+                        prompt += (
+                            "\n\n## IMPORTANT\n"
+                            "Your previous response was incomplete. Return the FULL JSON with a "
+                            "complete `development_report` (all 8 sections) and at least 3 "
+                            "plan steps."
+                        )
+                        api_kwargs["messages"] = [
+                            api_kwargs["messages"][0],
+                            {"role": "user", "content": prompt},
+                        ]
+                        continue
+                    break
+
+                break
+
+            except TimeoutError:
+                last_error = f"Timeout after {attempt_timeout}s"
+                logger.warning(
+                    f"Plan generation timed out on attempt {attempt + 1}/{1 + plan_retries} "
+                    f"(timeout={attempt_timeout}s)"
+                )
+                result_text = None
+                if attempt < plan_retries:
+                    attempt_timeout = min(attempt_timeout * 1.5, 900.0)
+                    logger.info(
+                        f"Increasing timeout to {attempt_timeout}s for next attempt"
+                    )
+                    _emit_plan_progress(
+                        agent,
+                        conversation_id,
+                        profile_name,
+                        "phase_retry",
+                        reason=f"timeout {int(attempt_timeout)}s",
+                    )
                 continue
 
-            if is_truncated_json(result_text):
-                last_error = "Truncated JSON response (likely max_tokens or timeout)"
+            except Exception as e:
+                last_error = f"{type(e).__name__}: {e}"
                 logger.warning(
-                    f"Plan generation produced truncated JSON on attempt "
-                    f"{attempt + 1}/{1 + plan_retries}"
+                    f"Plan generation failed on attempt {attempt + 1}/{1 + plan_retries}: "
+                    f"{type(e).__name__}: {e}"
                 )
-                result_text = None
                 if attempt < plan_retries:
-                    continue
-                break
-
-            parsed_plan, parsed_analysis, _, parsed_report, _ = parse_detailed_plan(result_text)
-            complexity = (parsed_analysis or {}).get("complexity", "medium")
-            needs_full_report = complexity in ("medium", "complex") or len(parsed_plan) >= 3
-
-            # Reject "1 step = paste user task" plans — force a real breakdown.
-            if not plan_is_substantive(parsed_plan, user_input):
-                last_error = "Non-substantive plan (single-step or echo of task)"
-                logger.warning(
-                    "Plan generation produced non-substantive plan on attempt "
-                    f"{attempt + 1}/{1 + plan_retries} (steps={len(parsed_plan or [])})"
-                )
-                result_text = None
-                if attempt < plan_retries:
-                    prompt += (
-                        "\n\n## IMPORTANT — PLAN QUALITY\n"
-                        "Your previous plan was invalid: it had too few steps or just repeated "
-                        "the user request. Break the work into AT LEAST 3 concrete steps "
-                        "(infra, domain, implementation, verification). "
-                        "Each step must name tools, expected_output, and success_criteria. "
-                        "Do NOT put the whole user message into a single step.\n"
+                    if use_json_mode:
+                        use_json_mode = False
+                        logger.info("Retrying without response_format for next attempt")
+                    _emit_plan_progress(
+                        agent,
+                        conversation_id,
+                        profile_name,
+                        "phase_retry",
+                        reason=type(e).__name__,
                     )
-                    api_kwargs["messages"] = [
-                        api_kwargs["messages"][0],
-                        {"role": "user", "content": prompt},
-                    ]
-                    continue
-                break
-
-            if needs_full_report and not is_development_report_complete(parsed_report):
-                # Prefer accepting a solid multi-step plan over discarding everything.
-                if plan_is_substantive(parsed_plan, user_input) and len(parsed_plan) >= 3:
-                    logger.warning(
-                        "Plan has solid steps but incomplete development_report — "
-                        "will synthesize minimal report after parse"
-                    )
-                    break
-                last_error = "Incomplete development_report"
-                logger.warning(
-                    f"Plan generation missing required development_report sections on attempt "
-                    f"{attempt + 1}/{1 + plan_retries}"
-                )
-                result_text = None
-                if attempt < plan_retries:
-                    prompt += (
-                        "\n\n## IMPORTANT\n"
-                        "Your previous response was incomplete. Return the FULL JSON with a "
-                        "complete `development_report` (all 8 sections) and at least 3 plan steps."
-                    )
-                    api_kwargs["messages"] = [
-                        api_kwargs["messages"][0],
-                        {"role": "user", "content": prompt},
-                    ]
-                    continue
-                break
-
-            break
-
-        except TimeoutError:
-            last_error = f"Timeout after {attempt_timeout}s"
-            logger.warning(
-                f"Plan generation timed out on attempt {attempt + 1}/{1 + plan_retries} "
-                f"(timeout={attempt_timeout}s)"
-            )
-            result_text = None
-            if attempt < plan_retries:
-                attempt_timeout = min(attempt_timeout * 1.5, 900.0)
-                logger.info(f"Increasing timeout to {attempt_timeout}s for next attempt")
-            continue
-
-        except Exception as e:
-            last_error = f"{type(e).__name__}: {e}"
-            logger.warning(
-                f"Plan generation failed on attempt {attempt + 1}/{1 + plan_retries}: "
-                f"{type(e).__name__}: {e}"
-            )
-            if attempt < plan_retries:
-                # On generic error, try without JSON mode
-                if use_json_mode:
-                    use_json_mode = False
-                    logger.info("Retrying without response_format for next attempt")
-            continue
+                continue
 
     # Parse the LLM response
     plan = []
@@ -814,6 +971,9 @@ async def plan_node(state: HolixGraphState, config: RunnableConfig) -> dict:
             user_input
         )
 
+    # Never ship plan steps that bootstrap or run SDD workflows.
+    plan = _sanitize_plan_steps_no_sdd(plan)
+
     logger.info(f"Plan generated with {len(plan)} steps for: {user_input[:80]}...")
 
     import uuid
@@ -828,6 +988,13 @@ async def plan_node(state: HolixGraphState, config: RunnableConfig) -> dict:
 
     # Persist draft immediately so Specs/Plans UI can show it even before confirm.
     # Stable plan_id → confirm overwrites the same JSON/MD pair.
+    _emit_plan_progress(
+        agent,
+        conversation_id,
+        profile_name,
+        "phase_save",
+        steps=len(plan),
+    )
     try:
         from core.plan_review.markdown_builder import build_plan_markdown
         from core.plan_review.plan_storage import save_plan
@@ -867,6 +1034,13 @@ async def plan_node(state: HolixGraphState, config: RunnableConfig) -> dict:
             conversation_id=conversation_id,
             plan_id=plan_id,
         ))
+    _emit_plan_progress(
+        agent,
+        conversation_id,
+        profile_name,
+        "phase_ready",
+        steps=len(plan),
+    )
 
     update: dict = {
         "plan_id": plan_id,
@@ -884,22 +1058,78 @@ async def plan_node(state: HolixGraphState, config: RunnableConfig) -> dict:
     return update
 
 
+# Mutating / workflow SDD tools — never suggested while *generating* a plan.
+_PLAN_FORBIDDEN_TOOLS = frozenset({
+    "sdd_init",
+    "sdd_propose",
+    "sdd_apply",
+    "sdd_write_artifact",
+    "sdd_dispatch",
+    "sdd_archive",
+    "sdd_confirm_proceed",
+    "sdd_set_apply_mode",
+    "sdd_check_task",
+    "sdd_complete_task",
+})
+
+
 def _get_tools_description(agent) -> str:
-    """Get a formatted description of available tools for the plan prompt."""
+    """Get a formatted description of available tools for the plan prompt.
+
+    Omits SDD mutation tools so the planner does not scaffold OpenSpec or
+    auto-start apply during plan generation.
+    """
     try:
         if not hasattr(agent, "tools") or not agent.tools:
-            return "All available tools (terminal, file operations, web search, etc.)"
+            return (
+                "All available tools (terminal, file operations, web search, etc.). "
+                "Do not use sdd_init / sdd_apply / sdd_propose during plan generation."
+            )
 
         tools = agent.tools.list_tools()
         if not tools:
-            return "All available tools (terminal, file operations, web search, etc.)"
+            return (
+                "All available tools (terminal, file operations, web search, etc.). "
+                "Do not use sdd_init / sdd_apply / sdd_propose during plan generation."
+            )
 
         descriptions = []
         for tool in tools:
             name = getattr(tool, "name", str(tool))
+            if str(name) in _PLAN_FORBIDDEN_TOOLS:
+                continue
             desc = getattr(tool, "description", "")[:100]
             descriptions.append(f"- {name}: {desc}")
 
+        descriptions.append(
+            "- (excluded from planning) sdd_init / sdd_apply / sdd_propose / "
+            "sdd_write_artifact / sdd_dispatch / sdd_archive — not for plan generation"
+        )
         return "\n".join(descriptions)
     except Exception:
-        return "All available tools (terminal, file operations, web search, etc.)"
+        return (
+            "All available tools (terminal, file operations, web search, etc.). "
+            "Do not use sdd_init / sdd_apply / sdd_propose during plan generation."
+        )
+
+
+def _sanitize_plan_steps_no_sdd(plan: list) -> list:
+    """Strip forbidden SDD tools from plan steps (defense in depth)."""
+    cleaned: list = []
+    for step in plan or []:
+        if not isinstance(step, dict):
+            cleaned.append(step)
+            continue
+        s = dict(step)
+        tools = s.get("tools_needed") or []
+        if isinstance(tools, list):
+            s["tools_needed"] = [
+                t for t in tools if str(t).strip() not in _PLAN_FORBIDDEN_TOOLS
+            ]
+        desc = str(s.get("description") or "")
+        for bad in _PLAN_FORBIDDEN_TOOLS:
+            if bad in desc:
+                desc = desc.replace(bad, "(SDD tool omitted in plan mode)")
+        s["description"] = desc
+        cleaned.append(s)
+    return cleaned

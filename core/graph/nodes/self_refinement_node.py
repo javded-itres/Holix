@@ -54,7 +54,7 @@ async def self_refinement_node(state: HolixGraphState, config: RunnableConfig) -
         return {"needs_refinement": False}
 
     # Initialize meta-agent and refinement loop
-    meta = MetaAgent(client=agent.client, model=agent.model)
+    meta = MetaAgent(client=agent.client, model=agent.model, agent=agent)
     loop = SelfRefinementLoop(
         meta_agent=meta,
         max_iterations=max_refinement_iterations - refinement_iterations,

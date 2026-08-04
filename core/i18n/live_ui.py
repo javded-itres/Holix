@@ -81,5 +81,11 @@ def live_plan_review_label(profile: str | None, *, step_count: int) -> str:
     return t("live.plan_review", locale_for_profile(profile), count=step_count)
 
 
+def live_plan_phase(profile: str | None, key: str, **kwargs) -> str:
+    """Localized plan-mode progress line (``live.plan.*`` keys)."""
+    full = key if key.startswith("live.plan.") else f"live.plan.{key}"
+    return t(full, locale_for_profile(profile), **kwargs)
+
+
 def live_answer_sent_label(profile: str | None) -> str:
     return t("live.answer_sent", locale_for_profile(profile))

@@ -112,6 +112,25 @@ async def plan_review_node(state: HolixGraphState, config: RunnableConfig) -> di
         locale=ui_locale,
     )
 
+    # Surface that we are waiting (plan LLM is done; user must act).
+    if agent and hasattr(agent, "emit"):
+        try:
+            from core.agent_events import ThinkingEvent
+            from core.i18n.live_ui import live_plan_phase
+            from core.profile.soul import profile_name_from_agent
+
+            pname = profile_name_from_agent(agent) if agent else "default"
+            agent.emit(
+                ThinkingEvent(
+                    message=live_plan_phase(
+                        pname, "phase_waiting_review", steps=len(plan_steps)
+                    ),
+                    conversation_id=conversation_id,
+                )
+            )
+        except Exception:
+            pass
+
     # Request review — this blocks until the user responds
     choice, feedback = await guard.request_review(
         plan_steps=plan_steps,

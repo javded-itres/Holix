@@ -164,13 +164,51 @@ def emit_llm_call_usage(
     duration_ms: float | None = None,
     finish_reason: str | None = None,
     estimated: bool = False,
+    operation_name: str = "chat",
+    provider_name: str = "",
 ) -> int:
     """Emit LLMCallCompletedEvent so Studio can record tokens for all tabs.
 
-    Returns total tokens emitted (0 if skipped).
+    Also records OpenTelemetry GenAI semantic-convention spans/metrics when OTEL
+    is configured (see ``core.monitoring.genai_otel``).
+
+    Returns total tokens emitted (0 if skipped for agent events; OTEL still tried).
     """
     usage = usage or {}
     total = int(usage.get("total_tokens") or 0)
+    prompt = int(usage.get("prompt_tokens") or 0)
+    completion = int(usage.get("completion_tokens") or 0)
+
+    # OpenTelemetry GenAI (no-op when SDK not installed / disabled)
+    try:
+        from core.monitoring.genai_otel import record_llm_call
+
+        base_url = ""
+        if agent is not None:
+            cfg = getattr(agent, "config", None)
+            base_url = str(getattr(cfg, "base_url", "") or "") if cfg else ""
+            if not base_url:
+                try:
+                    from config import settings as app_settings
+
+                    base_url = str(getattr(app_settings, "base_url", "") or "")
+                except Exception:
+                    base_url = ""
+        record_llm_call(
+            model=model or "",
+            usage=usage,
+            duration_ms=duration_ms,
+            finish_reason=finish_reason,
+            conversation_id=conversation_id or "",
+            provider_name=provider_name,
+            operation_name=operation_name or "chat",
+            agent_name="holix",
+            estimated=estimated,
+            base_url=base_url,
+        )
+    except Exception:
+        logger.debug("GenAI OTEL record failed", exc_info=True)
+
     if total <= 0 or agent is None or not hasattr(agent, "emit"):
         return 0
     try:
@@ -182,8 +220,8 @@ def emit_llm_call_usage(
                 step=step,
                 duration_ms=duration_ms,
                 finish_reason=finish_reason,
-                prompt_tokens=int(usage.get("prompt_tokens") or 0),
-                completion_tokens=int(usage.get("completion_tokens") or 0),
+                prompt_tokens=prompt,
+                completion_tokens=completion,
                 total_tokens=total,
                 estimated=estimated,
                 conversation_id=conversation_id or "",
