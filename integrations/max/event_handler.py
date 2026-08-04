@@ -283,16 +283,29 @@ class MaxEventHandler:
                     self._presenter.session.process_callback_tokens,
                     event.process_id,
                 )
-                self._presenter.set_attachments(
-                    background_process_stop_keyboard(token)
-                )
+                markup = background_process_stop_keyboard(token)
+                self._presenter.set_attachments(markup)
                 self._presenter.schedule_edit(force=True)
+                self._presenter.enqueue_outbound(
+                    self._presenter.pin_background_process_notice(
+                        event.process_id,
+                        label,
+                        markup=markup,
+                    )
+                )
 
             elif isinstance(event, BackgroundProcessStoppedEvent):
                 buf.clear_background_process()
                 self._presenter.set_attachments(None)
                 buf.add_note(f"⏹ Process stopped: {event.label}")
                 self._presenter.schedule_edit(force=True)
+                self._presenter.enqueue_outbound(
+                    self._presenter.unpin_background_process_notice(
+                        event.process_id,
+                        label=event.label or event.process_id,
+                        status="stopped",
+                    )
+                )
 
             elif isinstance(event, BackgroundProcessErrorEvent):
                 label = f"{event.label} · pid {event.pid} · {event.status}"
@@ -304,6 +317,14 @@ class MaxEventHandler:
                 summary = (event.error_summary or event.status or "error")[:200]
                 buf.add_note(f"⚠ Process error: {summary}")
                 self._presenter.schedule_edit(force=True)
+                self._presenter.enqueue_outbound(
+                    self._presenter.unpin_background_process_notice(
+                        event.process_id,
+                        label=label,
+                        status="error",
+                        summary=summary,
+                    )
+                )
 
             elif isinstance(event, ErrorEvent):
                 buf.mark_error(str(event.error or "unknown"))

@@ -43,6 +43,8 @@ class ChatSession:
     approval_callback_tokens: dict[str, str] = field(default_factory=dict)
     plan_callback_tokens: dict[str, str] = field(default_factory=dict)
     process_callback_tokens: dict[str, str] = field(default_factory=dict)
+    # process_id -> Telegram message_id of pinned process notice
+    background_process_message_ids: dict[str, int] = field(default_factory=dict)
     agent: Any = None
     subagent_owner: Any = None
     profile_manual_override: bool = False

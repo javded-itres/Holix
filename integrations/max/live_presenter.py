@@ -228,6 +228,119 @@ class MaxLivePresenter:
     async def send_notice(self, text: str) -> None:
         await self._send_outbound(text)
 
+    def _pin_chat_id(self) -> int | None:
+        """Chat id for pin API (groups/channels only; dialogs unsupported)."""
+        raw = self.session.reply_chat_id
+        if raw is None:
+            return None
+        try:
+            return int(raw)
+        except (TypeError, ValueError):
+            return None
+
+    async def pin_background_process_notice(
+        self,
+        process_id: str,
+        label: str,
+        *,
+        markup: dict[str, Any] | None = None,
+    ) -> None:
+        """Send a process notice; pin in group chats when API allows."""
+        from core.i18n.messages import t
+
+        from integrations.max.markdown import escape_html
+        from integrations.max.models import message_id_from_response
+
+        pid = (process_id or "").strip()
+        if not pid:
+            return
+        try:
+            from core.i18n.locale import LocaleStore
+
+            loc = LocaleStore(self.session.profile).get() or "ru"
+        except Exception:
+            loc = "ru"
+        html = t(
+            "live.bg_process_started",
+            loc,
+            label=escape_html(label or pid),
+        )
+        try:
+            attachments = [markup] if markup else None
+            payload = await self._client.send_message(
+                html,
+                fmt="html",
+                attachments=attachments,
+                **self._reply_kwargs(),
+            )
+            mid = message_id_from_response(payload)
+            if mid:
+                self.session.background_process_message_ids[pid] = mid
+                chat_id = self._pin_chat_id()
+                if chat_id is not None:
+                    try:
+                        await self._client.pin_message(
+                            chat_id, mid, notify=False
+                        )
+                    except Exception as exc:
+                        # Dialogs and non-admin group: pin is not available.
+                        logger.info(
+                            "MAX pin background process skipped (chat_id=%s): %s",
+                            chat_id,
+                            exc,
+                        )
+        except Exception:
+            logger.exception("MAX background process notice failed")
+
+    async def unpin_background_process_notice(
+        self,
+        process_id: str,
+        *,
+        label: str = "",
+        status: str = "stopped",
+        summary: str = "",
+    ) -> None:
+        """Update process notice and unpin when pinned (best-effort)."""
+        from core.i18n.messages import t
+
+        from integrations.max.markdown import escape_html
+
+        pid = (process_id or "").strip()
+        mid = self.session.background_process_message_ids.pop(pid, None)
+        if not mid:
+            return
+        try:
+            from core.i18n.locale import LocaleStore
+
+            loc = LocaleStore(self.session.profile).get() or "ru"
+        except Exception:
+            loc = "ru"
+        key = (
+            "live.bg_process_error"
+            if status == "error"
+            else "live.bg_process_stopped"
+        )
+        html = t(
+            key,
+            loc,
+            label=escape_html(label or pid),
+            summary=escape_html((summary or "")[:240]),
+        )
+        try:
+            await self._client.edit_message(mid, html, fmt="html", attachments=None)
+        except Exception as exc:
+            logger.debug("MAX process notice edit failed: %s", exc)
+        chat_id = self._pin_chat_id()
+        if chat_id is not None:
+            try:
+                await self._client.unpin_message(chat_id)
+            except Exception as exc:
+                logger.info(
+                    "MAX unpin background process skipped (chat_id=%s): %s",
+                    chat_id,
+                    exc,
+                )
+
     async def send_tool_progress(self, tool_name: str, detail: str = "") -> None:
         label = (tool_name or "tool").strip()
         extra = f": {detail[:200]}" if detail else ""

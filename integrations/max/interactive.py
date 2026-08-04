@@ -179,6 +179,35 @@ class MaxInteractive:
                         )
                     except Exception:
                         pass
+            # Update/unpin dedicated process notice
+            mid = self._session.background_process_message_ids.pop(process_id, None)
+            if mid:
+                from core.i18n.locale import LocaleStore
+                from core.i18n.messages import t
+
+                from integrations.max.markdown import escape_html
+
+                try:
+                    loc = LocaleStore(self._session.profile).get() or "ru"
+                except Exception:
+                    loc = "ru"
+                html = t(
+                    "live.bg_process_stopped",
+                    loc,
+                    label=escape_html(record.label or process_id),
+                    summary="",
+                )
+                client = self._host._client
+                try:
+                    await client.edit_message(mid, html, fmt="html", attachments=None)
+                except Exception:
+                    pass
+                chat_id = self._session.reply_chat_id
+                if chat_id is not None:
+                    try:
+                        await client.unpin_message(int(chat_id))
+                    except Exception:
+                        pass
             return f"Остановлен: {record.label}"
 
         if action == "m" and value in self._host._execution_modes:

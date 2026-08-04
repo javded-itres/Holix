@@ -4,6 +4,7 @@
 
 ### Added
 
+- **Pin background process notices** — Telegram pins a dedicated process message (stop button) while a background process runs; MAX sends the same notice and pins it in group chats when the bot is admin (dialogs: notice only, API has no pin).
 - **Chat vs plan max_tokens** — free-chat / messenger ReAct steps default to `HOLIX_AGENT_CHAT_MAX_TOKENS=2048` (plan/coding keep `HOLIX_AGENT_MAX_TOKENS=8192`) to shrink degeneration loops.
 - **Content-loop metrics** — `/metrics` reports `content_loop_collapsed` when pathological repeats are scrubbed.
 

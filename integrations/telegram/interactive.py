@@ -433,6 +433,42 @@ class TelegramInteractive:
                         )
                     except Exception:
                         pass
+            # Update/unpin dedicated process notice (survives after agent run).
+            mid = self._session.background_process_message_ids.pop(process_id, None)
+            if mid is not None:
+                from core.i18n.locale import LocaleStore
+                from core.i18n.messages import t
+
+                from integrations.telegram.markdown import escape_html
+
+                try:
+                    loc = LocaleStore(self._session.profile).get() or "ru"
+                except Exception:
+                    loc = "ru"
+                html = t(
+                    "live.bg_process_stopped",
+                    loc,
+                    label=escape_html(record.label or process_id),
+                    summary="",
+                )
+                bot = self._host._bot
+                try:
+                    await bot.edit_message_text(
+                        html,
+                        chat_id=self._session.chat_id,
+                        message_id=mid,
+                        parse_mode="HTML",
+                        reply_markup=None,
+                    )
+                except Exception:
+                    pass
+                try:
+                    await bot.unpin_chat_message(
+                        chat_id=self._session.chat_id,
+                        message_id=mid,
+                    )
+                except Exception:
+                    pass
             return f"Остановлен: {record.label}"
 
         if action == "m" and value in self._host._execution_modes:

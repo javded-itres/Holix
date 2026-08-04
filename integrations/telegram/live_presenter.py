@@ -166,6 +166,110 @@ class TelegramLivePresenter:
             parse_mode="HTML",
         )
 
+    async def pin_background_process_notice(
+        self,
+        process_id: str,
+        label: str,
+        *,
+        markup: Any = None,
+    ) -> None:
+        """Send a process notice and pin it for the user (best-effort)."""
+        from core.i18n.messages import t
+
+        pid = (process_id or "").strip()
+        if not pid:
+            return
+        try:
+            from core.i18n.locale import LocaleStore
+
+            loc = LocaleStore(self.session.profile).get() or "ru"
+        except Exception:
+            loc = "ru"
+        html = t(
+            "live.bg_process_started",
+            loc,
+            label=escape_html(label or pid),
+        )
+        try:
+            msg = await self._bot.send_message(
+                self.session.chat_id,
+                html,
+                parse_mode="HTML",
+                reply_markup=markup,
+            )
+            mid = int(getattr(msg, "message_id", 0) or 0)
+            if mid:
+                self.session.background_process_message_ids[pid] = mid
+                try:
+                    await self._bot.pin_chat_message(
+                        self.session.chat_id,
+                        mid,
+                        disable_notification=True,
+                    )
+                except Exception as exc:
+                    logger.info(
+                        "Telegram pin background process failed (chat=%s): %s",
+                        self.session.chat_id,
+                        exc,
+                    )
+        except Exception:
+            logger.exception("Telegram background process notice failed")
+
+    async def unpin_background_process_notice(
+        self,
+        process_id: str,
+        *,
+        label: str = "",
+        status: str = "stopped",
+        summary: str = "",
+    ) -> None:
+        """Update and unpin the process notice (best-effort)."""
+        from core.i18n.messages import t
+
+        pid = (process_id or "").strip()
+        mid = self.session.background_process_message_ids.pop(pid, None)
+        if not mid:
+            return
+        try:
+            from core.i18n.locale import LocaleStore
+
+            loc = LocaleStore(self.session.profile).get()
+        except Exception:
+            loc = "ru"
+        key = (
+            "live.bg_process_error"
+            if status == "error"
+            else "live.bg_process_stopped"
+        )
+        html = t(
+            key,
+            loc,
+            label=escape_html(label or pid),
+            summary=escape_html((summary or "")[:240]),
+        )
+        try:
+            await self._bot.edit_message_text(
+                html,
+                chat_id=self.session.chat_id,
+                message_id=mid,
+                parse_mode="HTML",
+                reply_markup=None,
+            )
+        except Exception as exc:
+            if not _is_not_modified(exc):
+                logger.debug("Telegram process notice edit failed: %s", exc)
+        try:
+            await self._bot.unpin_chat_message(
+                chat_id=self.session.chat_id,
+                message_id=mid,
+            )
+        except Exception as exc:
+            logger.info(
+                "Telegram unpin background process failed (chat=%s): %s",
+                self.session.chat_id,
+                exc,
+            )
+
     def note_final_content(self, content: str) -> None:
         text = (content or "").strip()
         if text and not is_placeholder_final(text):

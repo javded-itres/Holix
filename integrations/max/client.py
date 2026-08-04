@@ -244,6 +244,30 @@ class MaxClient:
         )
         return result if isinstance(result, dict) else {}
 
+    async def pin_message(
+        self,
+        chat_id: int,
+        message_id: str,
+        *,
+        notify: bool = False,
+    ) -> dict[str, Any]:
+        """Pin a message in a group chat or channel (bot must be admin).
+
+        Personal dialogs do not support pin in MAX API — callers should
+        treat failures as non-fatal.
+        """
+        result = await self._request(
+            "PUT",
+            f"/chats/{chat_id}/pin",
+            json_body={"message_id": message_id, "notify": notify},
+        )
+        return result if isinstance(result, dict) else {}
+
+    async def unpin_message(self, chat_id: int) -> dict[str, Any]:
+        """Unpin the current pin in a group chat or channel."""
+        result = await self._request("DELETE", f"/chats/{chat_id}/pin")
+        return result if isinstance(result, dict) else {}
+
     async def edit_message(
         self,
         message_id: str,

@@ -45,6 +45,8 @@ class MaxChatSession:
     approval_callback_tokens: dict[str, str] = field(default_factory=dict)
     plan_callback_tokens: dict[str, str] = field(default_factory=dict)
     process_callback_tokens: dict[str, str] = field(default_factory=dict)
+    # process_id -> MAX message mid of process notice (pinned in groups when possible)
+    background_process_message_ids: dict[str, str] = field(default_factory=dict)
     pending_admin_broadcast: Any = None
     agent: Any = None
     ui_profiles: list[str] = field(default_factory=list)
