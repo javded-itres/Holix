@@ -49,6 +49,8 @@ def read_whitelist_extra(profile: str) -> list[str]:
 
 
 def set_whitelist_enabled(profile: str, enabled: bool) -> None:
+    import os
+
     value = "true" if enabled else "false"
     remove_profile_env_vars(
         profile,
@@ -56,9 +58,16 @@ def set_whitelist_enabled(profile: str, enabled: bool) -> None:
         WHITELIST_ENABLED_LEGACY_KEY,
     )
     upsert_profile_env_var(profile, WHITELIST_ENABLED_KEY, value)
+    # Studio runs as a long-lived process: update os.environ so the next
+    # terminal call sees the toggle without requiring a full service restart
+    # (systemd EnvironmentFile would otherwise keep a stale true until restart).
+    os.environ[WHITELIST_ENABLED_KEY] = value
+    os.environ[WHITELIST_ENABLED_LEGACY_KEY] = value
 
 
 def add_whitelist_commands(profile: str, commands: str) -> list[str]:
+    import os
+
     merged = read_whitelist_extra(profile)
     seen = set(merged)
     added: list[str] = []
@@ -70,14 +79,21 @@ def add_whitelist_commands(profile: str, commands: str) -> list[str]:
         added.append(cmd)
     if not merged:
         remove_profile_env_vars(profile, WHITELIST_EXTRA_KEY, WHITELIST_EXTRA_LEGACY_KEY)
+        os.environ.pop(WHITELIST_EXTRA_KEY, None)
+        os.environ.pop(WHITELIST_EXTRA_LEGACY_KEY, None)
     else:
         remove_profile_env_vars(profile, WHITELIST_EXTRA_KEY, WHITELIST_EXTRA_LEGACY_KEY)
-        upsert_profile_env_var(profile, WHITELIST_EXTRA_KEY, format_command_list(merged))
+        formatted = format_command_list(merged)
+        upsert_profile_env_var(profile, WHITELIST_EXTRA_KEY, formatted)
+        os.environ[WHITELIST_EXTRA_KEY] = formatted
+        os.environ[WHITELIST_EXTRA_LEGACY_KEY] = formatted
     return added
 
 
 def remove_whitelist_commands(profile: str, commands: str) -> list[str]:
     """Remove commands from profile extras (builtin defaults are never removed)."""
+    import os
+
     current = read_whitelist_extra(profile)
     to_remove = set(parse_command_list(commands))
     if not to_remove:
@@ -93,9 +109,14 @@ def remove_whitelist_commands(profile: str, commands: str) -> list[str]:
         return []
     if not kept:
         remove_profile_env_vars(profile, WHITELIST_EXTRA_KEY, WHITELIST_EXTRA_LEGACY_KEY)
+        os.environ.pop(WHITELIST_EXTRA_KEY, None)
+        os.environ.pop(WHITELIST_EXTRA_LEGACY_KEY, None)
     else:
         remove_profile_env_vars(profile, WHITELIST_EXTRA_KEY, WHITELIST_EXTRA_LEGACY_KEY)
-        upsert_profile_env_var(profile, WHITELIST_EXTRA_KEY, format_command_list(kept))
+        formatted = format_command_list(kept)
+        upsert_profile_env_var(profile, WHITELIST_EXTRA_KEY, formatted)
+        os.environ[WHITELIST_EXTRA_KEY] = formatted
+        os.environ[WHITELIST_EXTRA_LEGACY_KEY] = formatted
     return removed
 
 

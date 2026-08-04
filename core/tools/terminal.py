@@ -20,7 +20,31 @@ def _env_bool(raw: str | None, *, default: bool) -> bool:
 
 
 def terminal_whitelist_enabled() -> bool:
-    """Live check — profile ``.env`` is applied after the Settings singleton is built."""
+    """Whether the terminal allowlist is enforced.
+
+    Priority:
+    1. Profile ``.env`` (Settings UI / ``profile whitelist``) — wins over systemd
+       EnvironmentFile. Studio often sets ``HOLIX_TERMINAL_COMMAND_WHITELIST`` in
+       ``/etc/holix/studio.env`` at process start; those keys are shell-locked and
+       would otherwise ignore profile toggles until restart.
+    2. Process environment (if profile file has no key).
+    3. Settings singleton default.
+    """
+    try:
+        from core.env_loader import active_profile_name
+        from core.terminal_whitelist_config import (
+            WHITELIST_ENABLED_KEY,
+            WHITELIST_ENABLED_LEGACY_KEY,
+            read_whitelist_enabled,
+        )
+        from core.env_loader import read_profile_env_map
+
+        profile = active_profile_name()
+        env_map = read_profile_env_map(profile)
+        if WHITELIST_ENABLED_KEY in env_map or WHITELIST_ENABLED_LEGACY_KEY in env_map:
+            return read_whitelist_enabled(profile)
+    except Exception:
+        pass
     for key in ("HOLIX_TERMINAL_COMMAND_WHITELIST", "TERMINAL_COMMAND_WHITELIST"):
         if key in os.environ:
             return _env_bool(os.environ.get(key), default=True)
@@ -28,6 +52,22 @@ def terminal_whitelist_enabled() -> bool:
 
 
 def terminal_whitelist_extra() -> str:
+    """Extra allowlist prefixes — profile file first (same reason as enabled)."""
+    try:
+        from core.env_loader import active_profile_name, read_profile_env_map
+        from core.terminal_whitelist_config import (
+            WHITELIST_EXTRA_KEY,
+            WHITELIST_EXTRA_LEGACY_KEY,
+            format_command_list,
+            read_whitelist_extra,
+        )
+
+        profile = active_profile_name()
+        env_map = read_profile_env_map(profile)
+        if WHITELIST_EXTRA_KEY in env_map or WHITELIST_EXTRA_LEGACY_KEY in env_map:
+            return format_command_list(read_whitelist_extra(profile))
+    except Exception:
+        pass
     for key in ("HOLIX_TERMINAL_WHITELIST_EXTRA", "TERMINAL_WHITELIST_EXTRA"):
         if key in os.environ and str(os.environ.get(key) or "").strip():
             return str(os.environ.get(key) or "")

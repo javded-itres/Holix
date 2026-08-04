@@ -72,6 +72,25 @@ def test_set_whitelist_enabled_writes_profile_env(profile_env: str) -> None:
     assert f"{WHITELIST_ENABLED_KEY}=false" in path.read_text(encoding="utf-8")
 
 
+def test_terminal_whitelist_enabled_prefers_profile_over_process_env(
+    profile_env: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Studio systemd often injects WHITELIST=true; Settings UI writes profile false."""
+    import os
+    from importlib import reload
+
+    import core.tools.terminal as terminal_mod
+
+    monkeypatch.setenv("HOLIX_PROFILE", profile_env)
+    monkeypatch.setenv("HOLIX_TERMINAL_COMMAND_WHITELIST", "true")
+    monkeypatch.setenv("TERMINAL_COMMAND_WHITELIST", "true")
+    set_whitelist_enabled(profile_env, False)
+    reload(terminal_mod)
+    assert terminal_mod.terminal_whitelist_enabled() is False
+    # Live os.environ also updated by set_whitelist_enabled
+    assert os.environ.get("HOLIX_TERMINAL_COMMAND_WHITELIST") == "false"
+
+
 def test_settings_read_holix_whitelist_env(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("HOLIX_TERMINAL_COMMAND_WHITELIST", "false")
     monkeypatch.setenv("HOLIX_TERMINAL_WHITELIST_EXTRA", "docker,make")
