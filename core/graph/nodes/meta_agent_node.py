@@ -45,13 +45,14 @@ async def meta_agent_node(state: HolixGraphState, config: RunnableConfig) -> dic
         logger.debug("Meta-agent: no agent/client available, skipping")
         return {"meta_decision": None}
 
-    # Initialize meta-agent
-    meta = MetaAgent(client=agent.client, model=agent.model)
+    # Initialize meta-agent (pass agent so LLM usage reaches Studio dashboards)
+    meta = MetaAgent(client=agent.client, model=agent.model, agent=agent)
 
     # Build context from state
     context = {
         "execution_mode": state.get("execution_mode", "react"),
         "step_count": state.get("step_count", 0),
+        "conversation_id": state.get("conversation_id", "default"),
     }
 
     # Build memories dict for the meta-agent

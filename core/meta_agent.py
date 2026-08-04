@@ -112,19 +112,66 @@ class MetaAgent:
         self,
         client: AsyncOpenAI | None = None,
         model: str = "",
+        agent: Any = None,
     ):
         """Initialize the meta-agent.
 
         Args:
             client: OpenAI client (set later if not provided).
             model: Model for meta-agent calls (empty = use default).
+            agent: Optional HolixAgent for token usage events (Studio metrics).
         """
         self._client = client
         self._model = model or settings.model
+        self._agent = agent
 
     def set_client(self, client: AsyncOpenAI) -> None:
         """Set the OpenAI client."""
         self._client = client
+
+    def _emit_usage(
+        self,
+        response: object,
+        *,
+        messages: list[dict[str, Any]],
+        duration_ms: float | None = None,
+        step: int = 0,
+        conversation_id: str = "",
+    ) -> None:
+        agent = self._agent
+        if agent is None or not hasattr(agent, "emit"):
+            return
+        try:
+            from core.llm.usage import (
+                completion_text_from_message,
+                emit_llm_call_usage,
+                resolve_usage,
+                usage_dict_from_response,
+            )
+
+            message = None
+            try:
+                message = response.choices[0].message  # type: ignore[attr-defined]
+            except Exception:
+                message = None
+            provider_usage = usage_dict_from_response(response)
+            usage = resolve_usage(
+                response,
+                messages=messages,
+                completion_text=completion_text_from_message(message),
+                model=self._model,
+            )
+            emit_llm_call_usage(
+                agent,
+                model=self._model,
+                step=step,
+                conversation_id=conversation_id or "",
+                usage=usage,
+                duration_ms=duration_ms,
+                estimated=provider_usage is None,
+            )
+        except Exception:
+            logger.debug("Meta-agent token accounting failed", exc_info=True)
 
     async def analyze_task(
         self,
@@ -161,14 +208,29 @@ Context: {context_str}
 {META_ANALYZE_PROMPT}"""
 
         try:
+            import time
+
+            messages = [
+                {
+                    "role": "system",
+                    "content": "You are a strategic advisor. Respond only with valid JSON.",
+                },
+                {"role": "user", "content": prompt},
+            ]
+            t0 = time.perf_counter()
             response = await self._client.chat.completions.create(
                 model=self._model,
-                messages=[
-                    {"role": "system", "content": "You are a strategic advisor. Respond only with valid JSON."},
-                    {"role": "user", "content": prompt},
-                ],
+                messages=messages,
                 temperature=0.1,
                 max_tokens=200,
+            )
+            duration_ms = (time.perf_counter() - t0) * 1000.0
+            self._emit_usage(
+                response,
+                messages=messages,
+                duration_ms=duration_ms,
+                step=0,
+                conversation_id=str((context or {}).get("conversation_id") or ""),
             )
 
             result_text = response.choices[0].message.content or ""
@@ -216,19 +278,31 @@ Agent response: {response[:1000]}
 {META_EVALUATE_PROMPT}"""
 
         try:
+            import time
+
+            messages = [
+                {
+                    "role": "system",
+                    "content": (
+                        "You are a Reflexion evaluator. Respond only with valid JSON."
+                    ),
+                },
+                {"role": "user", "content": prompt},
+            ]
+            t0 = time.perf_counter()
             response_obj = await self._client.chat.completions.create(
                 model=self._model,
-                messages=[
-                    {
-                        "role": "system",
-                        "content": (
-                            "You are a Reflexion evaluator. Respond only with valid JSON."
-                        ),
-                    },
-                    {"role": "user", "content": prompt},
-                ],
+                messages=messages,
                 temperature=0.1,
                 max_tokens=280,
+            )
+            duration_ms = (time.perf_counter() - t0) * 1000.0
+            self._emit_usage(
+                response_obj,
+                messages=messages,
+                duration_ms=duration_ms,
+                step=int((context or {}).get("step_count") or 0),
+                conversation_id=str((context or {}).get("conversation_id") or ""),
             )
 
             result_text = response_obj.choices[0].message.content or ""
