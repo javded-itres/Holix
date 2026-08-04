@@ -31,13 +31,12 @@ def terminal_whitelist_enabled() -> bool:
     3. Settings singleton default.
     """
     try:
-        from core.env_loader import active_profile_name
+        from core.env_loader import active_profile_name, read_profile_env_map
         from core.terminal_whitelist_config import (
             WHITELIST_ENABLED_KEY,
             WHITELIST_ENABLED_LEGACY_KEY,
             read_whitelist_enabled,
         )
-        from core.env_loader import read_profile_env_map
 
         profile = active_profile_name()
         env_map = read_profile_env_map(profile)
