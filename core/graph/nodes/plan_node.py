@@ -116,6 +116,13 @@ DETAILED_PLAN_PROMPT = """You are a senior software architect and task planner. 
    (modules, APIs, conventions, requirements). Do not invent a parallel stack.
 7. If the handbook was just created by `/init` pre-scan, still use the scan tree/manifests
    as the real project map.
+8. **Plan mode is not SDD bootstrap.** Never put `sdd_init`, `sdd_propose`, `sdd_apply`,
+   `sdd_write_artifact`, `sdd_dispatch`, or `sdd_archive` in `tools_needed` or step
+   descriptions. OpenSpec/specs content (if present) is **read-only** context for planning.
+   Do not create `openspec/` layout as a plan step. SDD/Specs workflows are separate and
+   only after the user explicitly asks outside pure plan generation.
+9. The only project bootstrap allowed in this phase is the existing `/init` handbook
+   pre-scan (already done when HOLIX.md was missing). Do not re-run SDD init instead.
 
 ## INSTRUCTIONS
 
@@ -964,6 +971,9 @@ async def plan_node(state: HolixGraphState, config: RunnableConfig) -> dict:
             user_input
         )
 
+    # Never ship plan steps that bootstrap or run SDD workflows.
+    plan = _sanitize_plan_steps_no_sdd(plan)
+
     logger.info(f"Plan generated with {len(plan)} steps for: {user_input[:80]}...")
 
     import uuid
@@ -1048,22 +1058,78 @@ async def plan_node(state: HolixGraphState, config: RunnableConfig) -> dict:
     return update
 
 
+# Mutating / workflow SDD tools — never suggested while *generating* a plan.
+_PLAN_FORBIDDEN_TOOLS = frozenset({
+    "sdd_init",
+    "sdd_propose",
+    "sdd_apply",
+    "sdd_write_artifact",
+    "sdd_dispatch",
+    "sdd_archive",
+    "sdd_confirm_proceed",
+    "sdd_set_apply_mode",
+    "sdd_check_task",
+    "sdd_complete_task",
+})
+
+
 def _get_tools_description(agent) -> str:
-    """Get a formatted description of available tools for the plan prompt."""
+    """Get a formatted description of available tools for the plan prompt.
+
+    Omits SDD mutation tools so the planner does not scaffold OpenSpec or
+    auto-start apply during plan generation.
+    """
     try:
         if not hasattr(agent, "tools") or not agent.tools:
-            return "All available tools (terminal, file operations, web search, etc.)"
+            return (
+                "All available tools (terminal, file operations, web search, etc.). "
+                "Do not use sdd_init / sdd_apply / sdd_propose during plan generation."
+            )
 
         tools = agent.tools.list_tools()
         if not tools:
-            return "All available tools (terminal, file operations, web search, etc.)"
+            return (
+                "All available tools (terminal, file operations, web search, etc.). "
+                "Do not use sdd_init / sdd_apply / sdd_propose during plan generation."
+            )
 
         descriptions = []
         for tool in tools:
             name = getattr(tool, "name", str(tool))
+            if str(name) in _PLAN_FORBIDDEN_TOOLS:
+                continue
             desc = getattr(tool, "description", "")[:100]
             descriptions.append(f"- {name}: {desc}")
 
+        descriptions.append(
+            "- (excluded from planning) sdd_init / sdd_apply / sdd_propose / "
+            "sdd_write_artifact / sdd_dispatch / sdd_archive — not for plan generation"
+        )
         return "\n".join(descriptions)
     except Exception:
-        return "All available tools (terminal, file operations, web search, etc.)"
+        return (
+            "All available tools (terminal, file operations, web search, etc.). "
+            "Do not use sdd_init / sdd_apply / sdd_propose during plan generation."
+        )
+
+
+def _sanitize_plan_steps_no_sdd(plan: list) -> list:
+    """Strip forbidden SDD tools from plan steps (defense in depth)."""
+    cleaned: list = []
+    for step in plan or []:
+        if not isinstance(step, dict):
+            cleaned.append(step)
+            continue
+        s = dict(step)
+        tools = s.get("tools_needed") or []
+        if isinstance(tools, list):
+            s["tools_needed"] = [
+                t for t in tools if str(t).strip() not in _PLAN_FORBIDDEN_TOOLS
+            ]
+        desc = str(s.get("description") or "")
+        for bad in _PLAN_FORBIDDEN_TOOLS:
+            if bad in desc:
+                desc = desc.replace(bad, "(SDD tool omitted in plan mode)")
+        s["description"] = desc
+        cleaned.append(s)
+    return cleaned

@@ -1,10 +1,12 @@
-"""Gather project handbook + SDD specs for plan generation.
+"""Gather project handbook + openspec specs for plan generation.
 
-Flow for planners:
-1. Load ``.holix/HOLIX.md`` (if any) and ``openspec/specs`` (if any).
+Plan mode is **read-only** for SDD / OpenSpec:
+1. Load ``.holix/HOLIX.md`` (if any) and **read** ``openspec/specs`` (if any).
 2. If HOLIX.md is missing/empty → run the same pre-scan as ``/init``
    (``scan_project_for_init`` + ``write_init_skeleton``), then re-read HOLIX.md.
-3. Build a single markdown block for the plan prompt.
+   That is the **only** write allowed while building a plan.
+3. **Never** call ``sdd_init`` / propose / apply / archive from planning context.
+4. Build a single markdown block for the plan prompt.
 """
 
 from __future__ import annotations
@@ -169,11 +171,53 @@ def load_openspec_specs_context(
     if not chunks:
         return "", []
     header = (
-        "## Project specs (openspec)\n"
+        "## Project specs (openspec) — read-only reference\n"
         "Treat these as product/requirements source of truth when planning. "
-        "Align steps with delta/main requirements; do not invent conflicting APIs.\n\n"
+        "Align architecture and steps with them; do not invent conflicting APIs. "
+        "Do **not** run `sdd_init` or rewrite openspec during plan generation.\n\n"
     )
     return header + "\n".join(chunks), rels
+
+
+def load_openspec_layout_summary(cwd: str | Path | None = None) -> str:
+    """Short read-only inventory of existing ``openspec/`` trees (no init)."""
+    root = _workspace_root(cwd)
+    roots = discover_openspec_roots(cwd)
+    if not roots:
+        return ""
+    lines: list[str] = [
+        "## OpenSpec layout (read-only)\n",
+        "Existing `openspec/` directories found. Plan mode **only reads** this tree; "
+        "it does not create or modify SDD layout.\n",
+    ]
+    for os_root in roots:
+        try:
+            rel_root = str(os_root.resolve().relative_to(root)).replace("\\", "/")
+        except ValueError:
+            rel_root = str(os_root)
+        lines.append(f"- `{rel_root}/`")
+        for sub in ("config.yaml", "specs", "changes"):
+            p = os_root / sub
+            if sub == "config.yaml":
+                if _is_file(p):
+                    lines.append("  - config.yaml present")
+                continue
+            if not _is_dir(p):
+                continue
+            try:
+                children = sorted(
+                    c.name for c in p.iterdir() if not c.name.startswith(".")
+                )[:12]
+            except OSError:
+                children = []
+            if children:
+                shown = ", ".join(f"`{n}`" for n in children)
+                more = "" if len(children) < 12 else ", …"
+                lines.append(f"  - `{sub}/`: {shown}{more}")
+            else:
+                lines.append(f"  - `{sub}/` (empty)")
+    lines.append("")
+    return "\n".join(lines)
 
 
 def _holix_is_usable(text: str | None) -> bool:
@@ -265,6 +309,7 @@ def ensure_planning_context(
         holix_path_obj = resolve_holix_md_read_path(cwd)
 
     specs_block, specs_paths = load_openspec_specs_context(cwd)
+    layout_summary = load_openspec_layout_summary(cwd)
 
     parts: list[str] = [planning_context_note(), ""]
 
@@ -277,7 +322,8 @@ def ensure_planning_context(
         if init_ran:
             parts.append(
                 "_HOLIX.md was missing — ran `/init` pre-scan and re-loaded the handbook. "
-                "Base the plan on this document and the scan summary below._"
+                "Base the plan on this document and the scan summary below. "
+                "This is not SDD init._"
             )
         else:
             parts.append(
@@ -298,7 +344,8 @@ def ensure_planning_context(
     if scan_summary:
         parts.append("## `/init` project scan")
         parts.append(
-            "_Deterministic repo survey (same data `/init` uses before filling HOLIX.md)._"
+            "_Deterministic repo survey (same data `/init` uses before filling HOLIX.md). "
+            "No `openspec/` layout was created by this step._"
         )
         parts.append("")
         parts.append(scan_summary)
@@ -307,11 +354,18 @@ def ensure_planning_context(
     if specs_block:
         parts.append(specs_block)
         parts.append("")
+    elif layout_summary:
+        parts.append(layout_summary)
+        parts.append(
+            "_No domain specs under `openspec/specs/` yet. Continue planning from "
+            "HOLIX.md / task only. **Do not** call `sdd_init` from plan mode._\n"
+        )
     else:
         parts.append(
             "## Project specs (openspec)\n"
-            "_No `openspec/specs/` found under the workspace. "
-            "If the task is product work, consider `sdd_init` / Specs panel after planning._\n"
+            "_No `openspec/` tree found. Plan from HOLIX.md and the task only. "
+            "**Do not** call `sdd_init` during plan mode. SDD/Specs setup is a "
+            "separate user action outside plan generation._\n"
         )
 
     handbook = "\n".join(parts).strip()

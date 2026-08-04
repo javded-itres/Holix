@@ -61,3 +61,32 @@ def test_load_openspec_specs(tmp_path, monkeypatch) -> None:
     # No HOLIX → init runs, but specs still included
     assert ctx.specs_present is True
     assert "Login with email" in ctx.handbook_block
+    # Must forbid SDD bootstrap, not invite it
+    low = ctx.handbook_block.lower()
+    assert "consider `sdd_init`" not in low
+    assert "call sdd_init" not in low or "do not" in low or "do **not**" in low
+
+
+def test_planning_context_never_suggests_sdd_init(tmp_path, monkeypatch) -> None:
+    """No openspec/ → handbook must forbid sdd_init, not recommend it."""
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / "README.md").write_text("# x\n", encoding="utf-8")
+    ctx = ensure_planning_context(locale="en")
+    low = ctx.handbook_block.lower()
+    assert "consider `sdd_init`" not in low
+    assert "sdd_init / specs panel after planning" not in low
+    assert "do not" in low or "do **not**" in low
+
+
+def test_openspec_layout_summary_read_only(tmp_path, monkeypatch) -> None:
+    from core.project.planning_context import load_openspec_layout_summary
+
+    monkeypatch.chdir(tmp_path)
+    os_root = tmp_path / "openspec"
+    (os_root / "specs").mkdir(parents=True)
+    (os_root / "changes").mkdir(parents=True)
+    (os_root / "config.yaml").write_text("schema: openspec\n", encoding="utf-8")
+    summary = load_openspec_layout_summary()
+    assert "openspec" in summary
+    assert "read-only" in summary.lower() or "only reads" in summary.lower()
+    assert "sdd_init" not in summary
