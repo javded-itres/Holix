@@ -20,6 +20,7 @@ from integrations.telegram.keyboards import (
     skills_picker_keyboard,
     status_menu_keyboard,
     stream_picker_keyboard,
+    subagents_picker_keyboard,
     tools_picker_keyboard,
 )
 from integrations.telegram.markdown import escape_html
@@ -447,6 +448,18 @@ class TelegramInteractive:
             state = "on" if self._host.streaming_enabled else "off"
             return t("tg.streaming", lang, state=state)
 
+        if action == "sa":
+            from integrations.messenger.subagents_settings import set_subagents_enabled_for_host
+
+            lang = messenger_host_locale(self._host)
+            try:
+                enabled = set_subagents_enabled_for_host(self._host, value == "1")
+            except Exception as exc:
+                return f"{t('tg.error', lang)}: {exc}"
+            await self.show_subagents_picker()
+            state = "on" if enabled else "off"
+            return t("tg.subagents", lang, state=state)
+
         if action == "pi":
             lang = messenger_host_locale(self._host)
             profiles = self._session.ui_profiles
@@ -604,6 +617,7 @@ class TelegramInteractive:
             "profile": self.show_profile_picker,
             "sessions": self.show_sessions_picker,
             "stream": self.show_stream_picker,
+            "subagents": self.show_subagents_picker,
             "models": self.show_models,
             "tools": self.show_tools_picker,
             "skills": self.show_skills_picker,
@@ -630,6 +644,22 @@ class TelegramInteractive:
             "<i>При включении ответ обновляется в одном сообщении по мере генерации.</i>"
         )
         await self._host._send_html_with_keyboard(text, stream_picker_keyboard(on))
+
+    async def show_subagents_picker(self) -> None:
+        from integrations.messenger.subagents_settings import is_subagents_enabled_for_host
+
+        lang = messenger_host_locale(self._host)
+        on = is_subagents_enabled_for_host(self._host)
+        state = "on" if on else "off"
+        text = (
+            f"<b>{escape_html(t('tg.subagents_picker_title', lang))}</b>\n"
+            f"{escape_html(t('tg.subagents', lang, state=state))}\n\n"
+            f"<i>{escape_html(t('tg.subagents_picker_body', lang))}</i>"
+        )
+        await self._host._send_html_with_keyboard(
+            text,
+            subagents_picker_keyboard(on, lang),
+        )
 
     async def show_profile_picker(self) -> None:
         from integrations.telegram.profile_visibility import is_profile_list_hidden
@@ -951,21 +981,15 @@ class TelegramInteractive:
         )
 
     async def show_status(self) -> None:
+        from integrations.messenger.subagents_settings import is_subagents_enabled_for_host
+
         mode = self._session.execution_mode
         stream = "on" if self._host.streaming_enabled else "off"
         mode_title = MODE_LABELS.get(mode, (mode, ""))[0]
         model_line = current_model_label(self._session)
         if self._host.agent:
             model_line = self._host.agent.model
-        subagents = "—"
-        if self._host.agent:
-            cfg = getattr(self._host.agent, "config", None)
-            from core.config_utils import is_subagents_enabled
-
-            if is_subagents_enabled(cfg):
-                subagents = "вкл"
-            else:
-                subagents = "выкл"
+        subagents = "on" if is_subagents_enabled_for_host(self._host) else "off"
 
         lines = [
             "<b>Holix — статус</b>",

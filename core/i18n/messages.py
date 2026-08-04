@@ -40,6 +40,14 @@ MESSAGES: dict[str, dict[str, str]] = {
         "skill_not_assigned": "Skill /{name} is not assigned to agent '{slot}'",
         "tg.mode": "Mode: {mode}",
         "tg.streaming": "Streaming: {state}",
+        "tg.subagents": "Sub-agents: {state}",
+        "tg.subagents_on": "Sub-agents On",
+        "tg.subagents_off": "Off",
+        "tg.subagents_picker_title": "Sub-agents",
+        "tg.subagents_picker_body": (
+            "When off, the main agent cannot delegate work "
+            "(delegate_to_subagent / plan waves)."
+        ),
         "tg.profile": "Profile: {name}",
         "tg.profile_same": "Already on profile {name}",
         "tg.profile_invalid": "Invalid profile",
@@ -72,6 +80,7 @@ MESSAGES: dict[str, dict[str, str]] = {
         "tg.menu.sessions": "Sessions",
         "tg.menu.streaming": "Streaming",
         "tg.menu.models": "Models",
+        "tg.menu.subagents": "Sub-agents",
         "tg.menu.compress": "Compress context",
         "tg.menu.prev": "Prev",
         "tg.menu.next": "Next",
@@ -80,7 +89,7 @@ MESSAGES: dict[str, dict[str, str]] = {
         "tg.help.chat_body": "Send text — the agent replies in one live message.",
         "tg.help.commands": "Commands (menu left of the input field):",
         "tg.help.buttons": "Buttons",
-        "tg.help.buttons_body": "/mode /profile /sessions /stream — pick with buttons\n/models — switch LLM until next message\n/status /menu — quick actions panel",
+        "tg.help.buttons_body": "/mode /profile /sessions /stream — pick with buttons\n/status /menu — Sub-agents on/off, models, tools\n/models — switch LLM until next message",
         "tg.help.extra": "More",
         "tg.help.extra_body": (
             "• /memory query — semantic search\n"
@@ -549,6 +558,14 @@ When finished, confirm the absolute path written and give a 5–10 line summary 
         "skill_not_assigned": "Навык /{name} не назначен агенту '{slot}'",
         "tg.mode": "Режим: {mode}",
         "tg.streaming": "Стриминг: {state}",
+        "tg.subagents": "Субагенты: {state}",
+        "tg.subagents_on": "Субагенты Вкл",
+        "tg.subagents_off": "Выкл",
+        "tg.subagents_picker_title": "Субагенты",
+        "tg.subagents_picker_body": (
+            "Когда выключено, главный агент не может делегировать задачи "
+            "(delegate_to_subagent / волны в plan)."
+        ),
         "tg.profile": "Профиль: {name}",
         "tg.profile_same": "Уже профиль {name}",
         "tg.profile_invalid": "Неверный профиль",
@@ -581,6 +598,7 @@ When finished, confirm the absolute path written and give a 5–10 line summary 
         "tg.menu.sessions": "Сессии",
         "tg.menu.streaming": "Стриминг",
         "tg.menu.models": "Модели",
+        "tg.menu.subagents": "Субагенты",
         "tg.menu.compress": "Сжать контекст",
         "tg.menu.prev": "Пред.",
         "tg.menu.next": "След.",
@@ -589,7 +607,7 @@ When finished, confirm the absolute path written and give a 5–10 line summary 
         "tg.help.chat_body": "Отправьте текст — агент ответит одним живым сообщением.",
         "tg.help.commands": "Команды (меню слева от поля ввода):",
         "tg.help.buttons": "Кнопки",
-        "tg.help.buttons_body": "/mode /profile /sessions /stream — выбор кнопками\n/models — смена LLM до следующего сообщения\n/status /menu — панель быстрых действий",
+        "tg.help.buttons_body": "/mode /profile /sessions /stream — выбор кнопками\n/status /menu — субагенты вкл/выкл, модели, tools\n/models — смена LLM до следующего сообщения",
         "tg.help.extra": "Дополнительно",
         "tg.help.extra_body": (
             "• /memory запрос — семантический поиск\n"

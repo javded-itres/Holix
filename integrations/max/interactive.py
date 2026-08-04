@@ -26,6 +26,7 @@ from integrations.max.keyboards import (
     sessions_picker_keyboard,
     status_menu_keyboard,
     stream_picker_keyboard,
+    subagents_picker_keyboard,
     tools_picker_keyboard,
 )
 from integrations.messenger.locale import messenger_host_locale
@@ -191,6 +192,18 @@ class MaxInteractive:
             state = "on" if self._host.streaming_enabled else "off"
             return t("tg.streaming", messenger_host_locale(self._host), state=state)
 
+        if action == "sa":
+            from integrations.messenger.subagents_settings import set_subagents_enabled_for_host
+
+            lang = messenger_host_locale(self._host)
+            try:
+                enabled = set_subagents_enabled_for_host(self._host, value == "1")
+            except Exception as exc:
+                return f"{t('tg.error', lang)}: {exc}"
+            await self.show_subagents_picker()
+            state = "on" if enabled else "off"
+            return t("tg.subagents", lang, state=state)
+
         if action == "pi":
             lang = messenger_host_locale(self._host)
             profiles = self._session.ui_profiles
@@ -310,6 +323,7 @@ class MaxInteractive:
             "profile": self.show_profile_picker,
             "sessions": self.show_sessions_picker,
             "stream": self.show_stream_picker,
+            "subagents": self.show_subagents_picker,
             "models": self.show_models,
             "tools": self.show_tools_picker,
             "status": self.show_status,
@@ -335,6 +349,22 @@ class MaxInteractive:
             "_При включении ответ обновляется в одном сообщении по мере генерации._"
         )
         await self._host._send_text_with_keyboard(text, stream_picker_keyboard(on))
+
+    async def show_subagents_picker(self) -> None:
+        from integrations.messenger.subagents_settings import is_subagents_enabled_for_host
+
+        lang = messenger_host_locale(self._host)
+        on = is_subagents_enabled_for_host(self._host)
+        state = "on" if on else "off"
+        text = (
+            f"**{t('tg.subagents_picker_title', lang)}**\n"
+            f"{t('tg.subagents', lang, state=state)}\n\n"
+            f"_{t('tg.subagents_picker_body', lang)}_"
+        )
+        await self._host._send_text_with_keyboard(
+            text,
+            subagents_picker_keyboard(on, lang),
+        )
 
     async def show_profile_picker(self) -> None:
         from integrations.max.profile_visibility import is_profile_list_hidden
@@ -688,19 +718,15 @@ class MaxInteractive:
         from core.session_models import ensure_session_model
 
         ensure_session_model(self._host)
+        from integrations.messenger.subagents_settings import is_subagents_enabled_for_host
+
         mode = self._session.execution_mode
         stream = "on" if self._host.streaming_enabled else "off"
         mode_title = MODE_LABELS.get(mode, (mode, ""))[0]
         model_line = current_model_label(self._session)
         if self._host.agent:
             model_line = self._host.agent.model
-        subagents = "—"
-        if self._host.agent:
-            cfg = getattr(self._host.agent, "config", None)
-            if cfg and getattr(cfg, "enable_subagents", True):
-                subagents = "вкл"
-            else:
-                subagents = "выкл"
+        subagents = "on" if is_subagents_enabled_for_host(self._host) else "off"
 
         headline, rows = profile_model_summary(self._host.profile)
         lines = [

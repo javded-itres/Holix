@@ -89,6 +89,7 @@ def test_status_menu_hides_profile_but_shows_cron_for_non_admin() -> None:
     assert "Profile" not in labels
     assert "Cron" in labels
     assert "Mode" in labels
+    assert "Sub-agents" in labels
 
 
 def test_menu_action_allows_cron_for_non_admin(holix_home) -> None:
