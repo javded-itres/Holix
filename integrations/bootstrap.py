@@ -14,6 +14,13 @@ def register_integration_hooks() -> None:
     _register_companions()
     _register_notify()
     _register_profile_lifecycle()
+    # Optional OpenTelemetry GenAI (no-op unless OTEL_* env + Holix[otel])
+    try:
+        from core.monitoring.genai_otel import configure_otel_from_env
+
+        configure_otel_from_env()
+    except Exception:
+        pass
 
 
 def _register_companions() -> None:
