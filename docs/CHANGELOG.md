@@ -2,6 +2,25 @@
 
 ## Unreleased
 
+## 1.0.4 — 2026-08-04
+
+Plan-mode UX, OpenTelemetry GenAI conventions, and SDD safety during planning.
+
+### Added
+
+- **Plan-build live progress** — `ThinkingEvent` phases while the plan is generated (context, handbook, LLM wait heartbeats every ~12s, quality retries, save/ready) so Studio/Telegram show the agent is working.
+- **OpenTelemetry GenAI** — optional `Holix[otel]` instrumentation (`core/monitoring/genai_otel.py`) with GenAI semantic-convention spans (`chat {model}`, `plan holix`) and token/duration metrics; auto-setup when `OTEL_EXPORTER_OTLP_ENDPOINT` is set. Docs: [OBSERVABILITY.md](en/OBSERVABILITY.md).
+- **Meta/reflect token metering** — MetaAgent analyze/evaluate emit `LLMCallCompletedEvent` with duration for Studio dashboards.
+
+### Fixed
+
+- **Plan mode must not bootstrap SDD** — planning only **reads** `openspec/` and may run `/init` for `HOLIX.md`; no `sdd_init` / `sdd_apply` / `sdd_propose` in plan prompt tools or generated steps.
+- **CI** — drop private `holix-studio` git pin from `uv.lock` so public Actions can `uv sync` without private-repo credentials.
+
+### Tests
+
+- Plan progress, GenAI OTEL no-op, plan SDD guard, planning context (no sdd_init suggestion).
+
 ## 1.0.3 — 2026-08-03
 
 Plan orchestration quality, SDD task sizing, and runtime/resource fixes since 1.0.2.
