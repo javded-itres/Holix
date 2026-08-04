@@ -610,6 +610,10 @@ class SubAgentFinishedEvent(AgentEvent):
     steps_taken: int = 0
     elapsed_ms: float = 0.0
     tokens_used: int = 0
+    llm_calls: int = 0
+    # When True, Studio already recorded tokens/model.calls via LLMCallCompletedEvent.
+    usage_accounted: bool = False
+    model: str = ""
 
     def __post_init__(self):
         super().__post_init__()
@@ -627,6 +631,9 @@ class SubAgentFinishedEvent(AgentEvent):
             "steps_taken": self.steps_taken,
             "elapsed_ms": self.elapsed_ms,
             "tokens_used": self.tokens_used,
+            "llm_calls": self.llm_calls,
+            "usage_accounted": self.usage_accounted,
+            "model": self.model,
         }
 
 

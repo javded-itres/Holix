@@ -357,6 +357,11 @@ class SubAgentManager:
         if len(error) > 400:
             error = error[:399] + "…"
         tokens_used = int((result.tokens_used if result else 0) or 0)
+        llm_calls = int((result.llm_calls if result else 0) or 0)
+        usage_accounted = bool(getattr(result, "usage_accounted", False)) if result else False
+        model = str((getattr(result, "model", None) if result else "") or "")
+        if not model:
+            model = str(getattr(handle.config, "model", None) or "")
         self._emit_agent_event(
             SubAgentFinishedEvent(
                 name=handle.name,
@@ -371,6 +376,9 @@ class SubAgentManager:
                 ),
                 elapsed_ms=float(handle.elapsed_ms or 0),
                 tokens_used=tokens_used,
+                llm_calls=llm_calls,
+                usage_accounted=usage_accounted,
+                model=model,
             )
         )
         # SDD apply/dispatch: mark tasks.md checkbox when job succeeds

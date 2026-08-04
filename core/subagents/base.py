@@ -88,6 +88,10 @@ class SubAgentResult:
     memory_used: int = 0                          # Approximate memory used (bytes)
     steps_taken: int = 0                          # Number of reasoning steps
     tokens_used: int = 0                          # Sum of LLM tokens (prompt+completion) for this run
+    llm_calls: int = 0                            # Number of LLM API calls completed
+    # True when each LLM call already emitted LLMCallCompletedEvent (Studio meters per-call).
+    usage_accounted: bool = False
+    model: str = ""                               # Model id used for this run (if known)
 
     @property
     def status(self) -> SubAgentStatus:

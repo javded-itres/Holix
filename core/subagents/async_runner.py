@@ -164,6 +164,17 @@ class AsyncSubAgentRunner:
 
         # ReAct loop
         tokens_used = 0
+        llm_calls = 0
+        usage_accounted = True  # flipped False if any call fails to emit
+
+        def _usage_fields() -> dict[str, Any]:
+            return {
+                "tokens_used": tokens_used,
+                "llm_calls": llm_calls,
+                "usage_accounted": bool(usage_accounted and llm_calls > 0),
+                "model": str(model or ""),
+            }
+
         try:
             from core.runtime.step_budget import StepBudgetPolicy, evaluate_step_budget
 
@@ -207,6 +218,7 @@ class AsyncSubAgentRunner:
                         )
 
                     # Set up timeout
+                    llm_t0 = time.monotonic()
                     try:
                         response = await asyncio.wait_for(
                             client.chat.completions.create(
@@ -232,14 +244,16 @@ class AsyncSubAgentRunner:
                             duration_ms=(time.monotonic() - start_time) * 1000,
                             steps_taken=steps_taken,
                             tool_calls=tool_calls_made,
-                            tokens_used=tokens_used,
+                            **_usage_fields(),
                         )
                         return handle.result
 
                     message = response.choices[0].message
+                    llm_duration_ms = (time.monotonic() - llm_t0) * 1000
                     try:
                         from core.llm.usage import (
                             completion_text_from_message,
+                            emit_llm_call_usage,
                             resolve_usage,
                         )
 
@@ -250,7 +264,30 @@ class AsyncSubAgentRunner:
                             model=model,
                         )
                         tokens_used += int(usage.get("total_tokens") or 0)
+                        llm_calls += 1
+                        finish_reason = None
+                        try:
+                            choices = getattr(response, "choices", None) or []
+                            if choices:
+                                finish_reason = getattr(
+                                    choices[0], "finish_reason", None
+                                )
+                        except Exception:
+                            finish_reason = None
+                        # Parent bus → Studio token_usage_handler (model.calls + tokens)
+                        emitted = emit_llm_call_usage(
+                            self._parent,
+                            model=str(model or ""),
+                            step=steps_taken,
+                            usage=usage,
+                            duration_ms=llm_duration_ms,
+                            finish_reason=finish_reason,
+                            operation_name="subagent.chat",
+                        )
+                        if emitted <= 0 and int(usage.get("total_tokens") or 0) > 0:
+                            usage_accounted = False
                     except Exception:
+                        usage_accounted = False
                         logger.debug("Sub-agent token accounting failed", exc_info=True)
 
                     if message.tool_calls:
@@ -323,7 +360,7 @@ class AsyncSubAgentRunner:
                             duration_ms=duration_ms,
                             steps_taken=steps_taken,
                             tool_calls=tool_calls_made,
-                            tokens_used=tokens_used,
+                            **_usage_fields(),
                         )
                         logger.info(
                             "Sub-agent '%s' completed (steps=%d, tools=%d, %.0fms)",
@@ -383,7 +420,7 @@ class AsyncSubAgentRunner:
                     duration_ms=duration_ms,
                     steps_taken=steps_taken,
                     tool_calls=tool_calls_made,
-                    tokens_used=tokens_used,
+                    **_usage_fields(),
                 )
                 logger.warning(
                     "Sub-agent '%s' hit max steps (%d): %s",
@@ -407,7 +444,7 @@ class AsyncSubAgentRunner:
                 duration_ms=(time.monotonic() - start_time) * 1000,
                 steps_taken=steps_taken,
                 tool_calls=tool_calls_made,
-                        tokens_used=tokens_used,
+                **_usage_fields(),
             )
             logger.info("Sub-agent '%s' cancelled", config.name)
             return handle.result
@@ -427,7 +464,7 @@ class AsyncSubAgentRunner:
                 duration_ms=duration_ms,
                 steps_taken=steps_taken,
                 tool_calls=tool_calls_made,
-                        tokens_used=tokens_used,
+                **_usage_fields(),
             )
             logger.exception("Sub-agent '%s' failed: %s", config.name, e)
             return handle.result

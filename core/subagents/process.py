@@ -294,10 +294,49 @@ def run_sub_agent_in_process(
     tool_calls_made: list[dict[str, Any]] = []
     steps_taken = 0
     tokens_used = 0
+    llm_calls = 0
+    usage_accounted = True  # flipped False if IPC emit fails
     max_steps = int(config.max_steps or 0)
     base_max_steps = max_steps
     step_budget_extensions = 0
     result = None
+
+    def _usage_fields() -> dict[str, Any]:
+        return {
+            "tokens_used": tokens_used,
+            "llm_calls": llm_calls,
+            "usage_accounted": bool(usage_accounted and llm_calls > 0),
+            "model": str(model or ""),
+        }
+
+    def _send_llm_usage(
+        *,
+        usage: dict[str, int],
+        step: int,
+        duration_ms: float,
+        finish_reason: str | None = None,
+    ) -> None:
+        """Notify parent process so Studio can meter model.calls + tokens live."""
+        nonlocal usage_accounted
+        try:
+            msg = AgentMessage(
+                from_agent=config.name,
+                to_agent="main",
+                msg_type="llm_usage",
+                content="",
+                metadata={
+                    "model": str(model or ""),
+                    "step": int(step or 0),
+                    "prompt_tokens": int(usage.get("prompt_tokens") or 0),
+                    "completion_tokens": int(usage.get("completion_tokens") or 0),
+                    "total_tokens": int(usage.get("total_tokens") or 0),
+                    "duration_ms": float(duration_ms or 0),
+                    "finish_reason": finish_reason,
+                },
+            )
+            output_queue.put(msg.serialize(), timeout=0.5)
+        except Exception:
+            usage_accounted = False
 
     try:
         from core.runtime.step_budget import StepBudgetPolicy, evaluate_step_budget
@@ -346,7 +385,7 @@ def run_sub_agent_in_process(
                                 duration_ms=(time.monotonic() - start_time) * 1000,
                                 steps_taken=steps_taken,
                                 tool_calls=tool_calls_made,
-                                tokens_used=tokens_used,
+                                **_usage_fields(),
                             )
                             _send_result(output_queue, config.name, result)
                             heartbeat_stop.set()
@@ -379,7 +418,7 @@ def run_sub_agent_in_process(
                                 duration_ms=(time.monotonic() - start_time) * 1000,
                                 steps_taken=steps_taken,
                                 tool_calls=tool_calls_made,
-                                tokens_used=tokens_used,
+                                **_usage_fields(),
                             )
                             _send_result(output_queue, config.name, result)
                             heartbeat_stop.set()
@@ -407,6 +446,7 @@ def run_sub_agent_in_process(
                     pass
 
                 # LLM call with timeout
+                llm_t0 = time.monotonic()
                 try:
                     response = loop.run_until_complete(
                         _asyncio.wait_for(
@@ -428,13 +468,14 @@ def run_sub_agent_in_process(
                         duration_ms=(time.monotonic() - start_time) * 1000,
                         steps_taken=steps_taken,
                         tool_calls=tool_calls_made,
-                        tokens_used=tokens_used,
+                        **_usage_fields(),
                     )
                     _send_result(output_queue, config.name, result)
                     heartbeat_stop.set()
                     return
 
                 message = response.choices[0].message
+                llm_duration_ms = (time.monotonic() - llm_t0) * 1000
                 try:
                     from core.llm.usage import (
                         completion_text_from_message,
@@ -448,8 +489,22 @@ def run_sub_agent_in_process(
                         model=model,
                     )
                     tokens_used += int(usage.get("total_tokens") or 0)
+                    llm_calls += 1
+                    finish_reason = None
+                    try:
+                        finish_reason = getattr(
+                            response.choices[0], "finish_reason", None
+                        )
+                    except Exception:
+                        finish_reason = None
+                    _send_llm_usage(
+                        usage=usage,
+                        step=steps_taken,
+                        duration_ms=llm_duration_ms,
+                        finish_reason=finish_reason,
+                    )
                 except Exception:
-                    pass
+                    usage_accounted = False
 
                 if message.tool_calls:
                     msg_dict = {
@@ -531,7 +586,7 @@ def run_sub_agent_in_process(
                         duration_ms=(time.monotonic() - start_time) * 1000,
                         steps_taken=steps_taken,
                         tool_calls=tool_calls_made,
-                        tokens_used=tokens_used,
+                        **_usage_fields(),
                     )
                     _send_result(output_queue, config.name, result)
                     heartbeat_stop.set()
@@ -571,7 +626,7 @@ def run_sub_agent_in_process(
                 duration_ms=(time.monotonic() - start_time) * 1000,
                 steps_taken=steps_taken,
                 tool_calls=tool_calls_made,
-                tokens_used=tokens_used,
+                **_usage_fields(),
             )
             _send_result(output_queue, config.name, result)
             heartbeat_stop.set()
@@ -585,7 +640,7 @@ def run_sub_agent_in_process(
             duration_ms=(time.monotonic() - start_time) * 1000,
             steps_taken=steps_taken,
             tool_calls=tool_calls_made,
-            tokens_used=tokens_used,
+            **_usage_fields(),
         )
         _send_result(output_queue, config.name, result)
 
@@ -843,6 +898,9 @@ def _send_result(
             "steps_taken": result.steps_taken,
             "tool_calls": result.tool_calls,
             "tokens_used": int(result.tokens_used or 0),
+            "llm_calls": int(getattr(result, "llm_calls", 0) or 0),
+            "usage_accounted": bool(getattr(result, "usage_accounted", False)),
+            "model": str(getattr(result, "model", "") or ""),
         },
     )
     try:
@@ -1074,7 +1132,7 @@ class SubAgentProcessManager:
 
             if msg.msg_type == "result":
                     # Final result received
-                    meta = msg.metadata
+                    meta = msg.metadata or {}
                     handle.result = SubAgentResult(
                         name=agent_name,
                         success=meta.get("success", False),
@@ -1084,6 +1142,9 @@ class SubAgentProcessManager:
                         steps_taken=meta.get("steps_taken", 0),
                         tool_calls=meta.get("tool_calls", []),
                         tokens_used=int(meta.get("tokens_used") or 0),
+                        llm_calls=int(meta.get("llm_calls") or 0),
+                        usage_accounted=bool(meta.get("usage_accounted", False)),
+                        model=str(meta.get("model") or ""),
                     )
                     handle.steps_taken = int(meta.get("steps_taken", 0) or 0)
                     handle.status = SubAgentStatus.COMPLETED if handle.result.success else SubAgentStatus.FAILED
@@ -1095,6 +1156,33 @@ class SubAgentProcessManager:
                     self._notify_parent_done(agent_name)
                     self._cleanup_ipc(agent_name)
                     return
+
+            elif msg.msg_type == "llm_usage":
+                # Live model usage from OS-process sub-agent → parent event bus
+                meta = msg.metadata or {}
+                try:
+                    from core.llm.usage import emit_llm_call_usage
+
+                    usage = {
+                        "prompt_tokens": int(meta.get("prompt_tokens") or 0),
+                        "completion_tokens": int(meta.get("completion_tokens") or 0),
+                        "total_tokens": int(meta.get("total_tokens") or 0),
+                    }
+                    emit_llm_call_usage(
+                        self._parent,
+                        model=str(meta.get("model") or ""),
+                        step=int(meta.get("step") or 0),
+                        usage=usage,
+                        duration_ms=float(meta.get("duration_ms") or 0) or None,
+                        finish_reason=meta.get("finish_reason"),
+                        operation_name="subagent.chat",
+                    )
+                except Exception:
+                    logger.debug(
+                        "Sub-agent '%s' llm_usage emit failed",
+                        agent_name,
+                        exc_info=True,
+                    )
 
             elif msg.msg_type == "progress":
                 meta = msg.metadata or {}
