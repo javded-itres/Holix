@@ -54,9 +54,12 @@ class ConfirmationRequestEvent(AgentEvent):
         object.__setattr__(self, 'type', EventType.ERROR)  # Will be overridden below
 
     def _extra_fields(self) -> dict[str, Any]:
+        args = self.arguments if isinstance(self.arguments, dict) else {}
         return {
             "confirmation_id": self.confirmation_id,
             "tool_name": self.tool_name,
+            # Required by Studio confirmation panel (command preview).
+            "arguments": args,
             "risk_level": self.risk_level,
             "reason": self.reason,
             "pattern_matched": self.pattern_matched,

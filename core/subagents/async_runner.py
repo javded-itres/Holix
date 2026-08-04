@@ -509,6 +509,13 @@ class AsyncSubAgentRunner:
         if hasattr(self._parent, "subagents"):
             bridge = getattr(self._parent.subagents, "interactions", None)
 
+        # Inherit parent run conversation so ActionGuard confirmations land on the
+        # correct Studio tab (not ContextVar default "default", which hides the UI).
+        parent_ctx = getattr(self._parent, "_event_context", None)
+        conversation_id = str(
+            getattr(parent_ctx, "conversation_id", None) or ""
+        ).strip() or "default"
+
         tokens = subagent_scope(
             config.name,
             subagent_type=config.agent_type,
@@ -517,6 +524,7 @@ class AsyncSubAgentRunner:
         try:
             return await self._parent.tools.execute(
                 tool_call,
+                conversation_id=conversation_id,
                 memory=getattr(self._parent, "memory", None),
             )
         except Exception as e:
