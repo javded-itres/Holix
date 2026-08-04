@@ -146,6 +146,14 @@ def collapse_repetitive_text(
             len(raw),
             len(collapsed),
         )
+        try:
+            from core.monitoring.metrics import metrics
+
+            metrics.increment("content_loop_collapsed")
+            metrics.record("content_loop_chars_in", float(len(raw)))
+            metrics.record("content_loop_chars_out", float(len(collapsed)))
+        except Exception:
+            pass
     return collapsed.strip()
 
 

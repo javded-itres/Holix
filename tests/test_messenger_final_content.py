@@ -155,7 +155,8 @@ async def test_max_tool_preamble_not_used_as_final() -> None:
 
 
 @pytest.mark.asyncio
-async def test_max_streaming_delta_used_when_final_empty() -> None:
+async def test_max_streaming_delta_not_used_as_final_fallback() -> None:
+    """Status-only mode: monologue deltas must not become the user-facing answer."""
     client = MagicMock()
     client.send_message = AsyncMock(return_value={"message": {"body": {"mid": "m1"}}})
     session = MaxChatSession(user_id=2, profile="admin", conversation_id="max_admin_2")
@@ -168,10 +169,11 @@ async def test_max_streaming_delta_used_when_final_empty() -> None:
     handler.handle(
         AssistantDeltaEvent(
             content=" часть",
-            accumulated="Итоговый ответ",
+            accumulated="Сейчас проверю код и доделаю меню",
             conversation_id=session.conversation_id,
         )
     )
+    assert session.live_buffer.answer == ""
     handler.handle(
         FinalResponseEvent(
             content="No response generated",
@@ -182,4 +184,5 @@ async def test_max_streaming_delta_used_when_final_empty() -> None:
     await presenter.drain_outbound()
 
     texts = [call.args[0] for call in client.send_message.await_args_list]
-    assert any("Итоговый ответ" in t for t in texts)
+    assert not any("проверю код" in t for t in texts)
+

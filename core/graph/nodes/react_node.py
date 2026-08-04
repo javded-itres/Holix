@@ -41,7 +41,11 @@ from core.graph.plan_step import (
 )
 from core.graph.state import HolixGraphState, get_agent_from_config
 from core.i18n.live_ui import live_reasoning_label, live_thinking_step_label
-from core.llm.max_tokens import profile_agent_max_tokens, resolve_agent_max_tokens
+from core.llm.max_tokens import (
+    profile_agent_max_tokens,
+    purpose_from_graph_state,
+    resolve_agent_max_tokens,
+)
 from core.llm.response_text import (
     assistant_message_parts,
     collapse_repetitive_text,
@@ -309,12 +313,19 @@ def _maybe_honesty_retry(
     return None
 
 
-def _llm_max_tokens(agent, model_manager, agent_slot: str) -> int:
+def _llm_max_tokens(
+    agent,
+    model_manager,
+    agent_slot: str,
+    state: dict | None = None,
+) -> int:
     from config import settings
 
     return resolve_agent_max_tokens(
         profile_max_tokens=profile_agent_max_tokens(model_manager, agent_slot),
         default_max_tokens=getattr(settings, "agent_max_tokens", None),
+        chat_max_tokens=getattr(settings, "agent_chat_max_tokens", None),
+        purpose=purpose_from_graph_state(state),
     )
 
 
@@ -481,7 +492,8 @@ async def react_node(state: HolixGraphState, config: RunnableConfig) -> dict:
         getattr(agent, "active_model_config", None) if agent else None
     )
     llm_timeout_s = _llm_step_timeout_s(agent)
-    max_tokens = _llm_max_tokens(agent, model_manager, agent_slot)
+    max_tokens = _llm_max_tokens(agent, model_manager, agent_slot, state)
+
 
     def _on_fallback_switch(cfg) -> None:
         if agent and hasattr(agent, "set_active_model_config"):

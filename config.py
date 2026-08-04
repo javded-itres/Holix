@@ -59,7 +59,18 @@ class Settings(BaseSettings):
     agent_max_tokens: int = Field(
         default=8192,
         validation_alias=AliasChoices("HOLIX_AGENT_MAX_TOKENS", "AGENT_MAX_TOKENS"),
-        description="Default max_tokens for ReAct agent steps (reasoning models need headroom)",
+        description="Default max_tokens for plan/coding agent steps (reasoning models need headroom)",
+    )
+    agent_chat_max_tokens: int = Field(
+        default=2048,
+        validation_alias=AliasChoices(
+            "HOLIX_AGENT_CHAT_MAX_TOKENS",
+            "AGENT_CHAT_MAX_TOKENS",
+        ),
+        description=(
+            "Default max_tokens for free-chat / messenger ReAct steps "
+            "(lower budget reduces content-loop spam)"
+        ),
     )
     llm_step_timeout: float = 300.0
     data_dir: str = "data"

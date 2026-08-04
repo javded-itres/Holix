@@ -816,9 +816,30 @@ def looks_like_plan_monologue(text: str | None) -> bool:
     return bool(_PLAN_MONOLOGUE.search(content))
 
 
+# User asked to *do* something (not pure FAQ / opinion).
+_ACTION_REQUEST = re.compile(
+    r"(?is)("
+    r"\b(сделай|добавь|реализуй|почини|исправь|напиши|создай|удали|внедри|"
+    r"доделай|поправь|перепиши|обнови|настрой|подключи|запусти|проверь\s+и)\b"
+    r"|\b(implement|fix|add|create|build|update|remove|delete|deploy|"
+    r"finish|complete|wire|install)\b"
+    r")"
+)
+
+
+def is_action_request(user_text: str | None) -> bool:
+    """True when the user message looks like a work request (not pure FAQ)."""
+    text = (user_text or "").strip()
+    if not text:
+        return False
+    return bool(_ACTION_REQUEST.search(text))
+
+
 def ends_turn_on_unexecuted_intent(
     text: str | None,
     messages: list[dict[str, Any]] | None,
+    *,
+    user_input: str | None = None,
 ) -> bool:
     """True when the model only promises an action and never called tools."""
     content = (text or "").strip()
@@ -826,11 +847,13 @@ def ends_turn_on_unexecuted_intent(
         return False
     if _tools_attempted_since_last_user(messages):
         return False
+    # "Сейчас сохраню файл" without tools — always nudge.
     if _ACTION_INTENT.search(content):
         return True
-    # Bullet-plan + "Начинаю" style monologue without tools (messenger spam).
+    # Plan monologue ("Что сделаю… Начинаю") only when the user asked for work.
     if looks_like_plan_monologue(content):
-        return True
+        user = (user_input or "").strip() or last_user_text(messages)
+        return is_action_request(user)
     return False
 
 
@@ -918,7 +941,11 @@ def should_nudge_false_completion(
         user_input=user_input,
     ) and (final_response or "").strip():
         return True
-    return ends_turn_on_unexecuted_intent(final_response, messages)
+    return ends_turn_on_unexecuted_intent(
+        final_response,
+        messages,
+        user_input=user_input,
+    )
 
 
 def should_refuse_false_empty_workspace(

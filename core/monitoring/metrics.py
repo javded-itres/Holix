@@ -87,6 +87,7 @@ class MetricsCollector:
             "plan_reviews": sum(
                 v for k, v in self.counters.items() if k.startswith("plan_review.")
             ),
+            "content_loop_collapsed": self.counters.get("content_loop_collapsed", 0),
         }
 
         # Average response time
@@ -117,6 +118,7 @@ def format_metrics_message(summary: dict) -> str:
         f"• Context compressions: {summary.get('context_compressions', 0)}",
         f"• Confirmation denials: {summary.get('confirmation_denials', 0)}",
         f"• Plan reviews: {summary.get('plan_reviews', 0)}",
+        f"• Content loops collapsed: {summary.get('content_loop_collapsed', 0)}",
     ]
     if "avg_response_time" in summary:
         lines.append(f"• Avg response: {summary['avg_response_time']:.2f}s")

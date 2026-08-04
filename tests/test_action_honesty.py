@@ -49,7 +49,9 @@ def test_plan_monologue_without_tools_is_nudged() -> None:
         {"role": "user", "content": "Добавь обработку URL"},
         {"role": "assistant", "content": monologue},
     ]
-    assert ends_turn_on_unexecuted_intent(monologue, messages)
+    assert ends_turn_on_unexecuted_intent(
+        monologue, messages, user_input="Добавь обработку URL"
+    )
     state = {
         "user_input": "Добавь обработку URL",
         "messages": messages,
@@ -74,7 +76,21 @@ def test_check_then_finish_intent_is_nudged() -> None:
         {"role": "user", "content": "Доделай меню"},
         {"role": "assistant", "content": monologue},
     ]
-    assert ends_turn_on_unexecuted_intent(monologue, messages)
+    assert ends_turn_on_unexecuted_intent(
+        monologue, messages, user_input="Доделай меню"
+    )
+
+
+def test_plan_monologue_not_nudged_on_pure_faq() -> None:
+    monologue = "Что сделаю: подумаю и отвечу. Начинаю."
+    messages = [
+        {"role": "user", "content": "Что такое Holix?"},
+        {"role": "assistant", "content": monologue},
+    ]
+    assert looks_like_plan_monologue(monologue)
+    assert not ends_turn_on_unexecuted_intent(
+        monologue, messages, user_input="Что такое Holix?"
+    )
 
 
 def test_no_tools_means_lacks_evidence() -> None:

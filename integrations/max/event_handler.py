@@ -137,11 +137,14 @@ class MaxEventHandler:
                     )
 
             elif isinstance(event, AssistantDeltaEvent):
-                accumulated = (getattr(event, "accumulated", None) or "").strip()
-                if accumulated:
-                    buf.set_answer(accumulated)
-                elif event.content:
-                    buf.append_answer_delta(event.content)
+                # Status-only live message: monologue streams are not painted
+                # (final answer is delivered as a separate message).
+                if not buf.publish_answer_separately:
+                    accumulated = (getattr(event, "accumulated", None) or "").strip()
+                    if accumulated:
+                        buf.set_answer(accumulated)
+                    elif event.content:
+                        buf.append_answer_delta(event.content)
                 self._presenter.schedule_edit()
 
             elif isinstance(event, FinalResponseEvent):

@@ -35,9 +35,10 @@ def handler_setup() -> tuple[TelegramEventHandler, MagicMock, ChatSession]:
     return handler, presenter, session
 
 
-def test_assistant_delta_tracked_for_final_when_published_separately(
+def test_assistant_delta_ignored_when_published_separately(
     handler_setup: tuple[TelegramEventHandler, MagicMock, ChatSession],
 ) -> None:
+    """Messenger status message must not paint streaming monologue."""
     handler, _presenter, session = handler_setup
     handler.handle(
         AssistantDeltaEvent(
@@ -45,7 +46,21 @@ def test_assistant_delta_tracked_for_final_when_published_separately(
             accumulated="The user wants an analysis.",
         )
     )
-    assert session.live_buffer.answer == "The user wants an analysis."
+    assert session.live_buffer.answer == ""
+
+
+def test_assistant_delta_tracked_when_not_separate(
+    handler_setup: tuple[TelegramEventHandler, MagicMock, ChatSession],
+) -> None:
+    handler, _presenter, session = handler_setup
+    session.live_buffer.publish_answer_separately = False
+    handler.handle(
+        AssistantDeltaEvent(
+            content="Hello",
+            accumulated="Hello",
+        )
+    )
+    assert session.live_buffer.answer == "Hello"
 
 
 @pytest.mark.asyncio

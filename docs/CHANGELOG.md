@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+### Added
+
+- **Chat vs plan max_tokens** — free-chat / messenger ReAct steps default to `HOLIX_AGENT_CHAT_MAX_TOKENS=2048` (plan/coding keep `HOLIX_AGENT_MAX_TOKENS=8192`) to shrink degeneration loops.
+- **Content-loop metrics** — `/metrics` reports `content_loop_collapsed` when pathological repeats are scrubbed.
+
+### Fixed
+
+- **Messenger status-only streaming** — Telegram/MAX no longer buffer streaming monologue into the live status message when the answer is posted separately.
+- **Intent-aware monologue nudge** — plan-only text («Что сделаю…») is nudged to tools only when the user asked for work, not on pure FAQ.
+
 ## 1.0.5 — 2026-08-05
 
 Messenger reliability: no draft-answer spam, think-tag stripping, and UX toggles.
