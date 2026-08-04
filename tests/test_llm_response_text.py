@@ -12,6 +12,7 @@ from core.llm.response_text import (
     assistant_message_parts,
     resolve_assistant_text,
     stream_delta_parts,
+    strip_reasoning_markup,
 )
 
 
@@ -22,6 +23,26 @@ def _patch_holix_home(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("HOLIX_HOME", str(root))
     monkeypatch.setattr(cli_core, "HOLIX_HOME", root)
     monkeypatch.setattr(cli_core, "PROFILES_DIR", profiles)
+
+
+def test_strip_reasoning_markup_removes_think_blocks() -> None:
+    raw = (
+        "<think>\nПользователь просит версию.\n</think>\n"
+        "Holix 1.0.4"
+    )
+    assert strip_reasoning_markup(raw) == "Holix 1.0.4"
+    assert "</think>" not in strip_reasoning_markup(
+        "Начинаю.</think>\n…Поняла. Ответ."
+    )
+    assert "Поняла" in strip_reasoning_markup("Начинаю.</think>\n…Поняла. Ответ.")
+
+
+def test_resolve_strips_think_markup_from_content() -> None:
+    text = resolve_assistant_text(
+        content="<think>secret</think>\nГотово: версия 1.0.4",
+    )
+    assert text == "Готово: версия 1.0.4"
+    assert "secret" not in text
 
 
 def test_stream_delta_reasoning_only() -> None:

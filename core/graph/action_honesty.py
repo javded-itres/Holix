@@ -71,6 +71,27 @@ _ACTION_INTENT = re.compile(
     r")"
 )
 
+# Pure planning monologue as the whole reply (no tools) — common spam pattern.
+_PLAN_MONOLOGUE = re.compile(
+    r"(?is)("
+    r"что\s+сделаю"
+    r"|^\s*начинаю\b"
+    r"|\bначинаю\.?\s*$"
+    r"|начну\s+с\b"
+    r"|изучу\s+(структуру|проект|код|репозитор)"
+    r"|найду,?\s+где\b"
+    r"|добавлю\s+(обработку|функц|поддержк)"
+    r"|подключу\s+(агент|web_fetch|инструмент)"
+    r"|сделаю\s+генерац"
+    r"|here'?s\s+(my\s+)?plan\b"
+    r"|i\s+('ll|will)\s+(now\s+)?(start|begin|study|explore|look|add|implement|check)"
+    r"|let\s+me\s+(start|begin|first|explore|look)"
+    r"|план\s+(такой|действий|работы)\b"
+    r"|steps?\s*:\s*$"
+    r"|шаги\s*:\s*$"
+    r")"
+)
+
 _WRITE_CLAIM = re.compile(
     r"(?is)("
     r"сохран|запис|write_file|patch_file|создал\s+файл|создан\s+файл"
@@ -783,15 +804,30 @@ def _tools_attempted_since_last_user(messages: list[dict[str, Any]] | None) -> b
     return False
 
 
+def looks_like_plan_monologue(text: str | None) -> bool:
+    """True for intermediate 'I'll do X / Начинаю' plans without a real answer."""
+    content = (text or "").strip()
+    if not content:
+        return False
+    return bool(_PLAN_MONOLOGUE.search(content))
+
+
 def ends_turn_on_unexecuted_intent(
     text: str | None,
     messages: list[dict[str, Any]] | None,
 ) -> bool:
     """True when the model only promises an action and never called tools."""
     content = (text or "").strip()
-    if not content or not _ACTION_INTENT.search(content):
+    if not content:
         return False
-    return not _tools_attempted_since_last_user(messages)
+    if _tools_attempted_since_last_user(messages):
+        return False
+    if _ACTION_INTENT.search(content):
+        return True
+    # Bullet-plan + "Начинаю" style monologue without tools (messenger spam).
+    if looks_like_plan_monologue(content):
+        return True
+    return False
 
 
 def _max_nudges_for_turn(

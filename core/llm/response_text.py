@@ -3,11 +3,35 @@
 from __future__ import annotations
 
 import logging
+import re
 from typing import Any
 
 logger = logging.getLogger(__name__)
 
 _PLACEHOLDER_FINALS = frozenset({"", "no response generated"})
+
+# Models often dump chain-of-thought into content with XML-like think tags.
+_THINK_BLOCK_RE = re.compile(
+    r"<think(?:ing)?\b[^>]*>[\s\S]*?</think(?:ing)?>",
+    re.IGNORECASE,
+)
+_THINK_TAG_RE = re.compile(r"</?think(?:ing)?\b[^>]*>", re.IGNORECASE)
+# Some providers leak special-token style wrappers into text.
+_THINK_TOKEN_RE = re.compile(
+    r"<\|?(?:redacted_reasoning|thinking|think)_?(?:start|end)?\|>",
+    re.IGNORECASE,
+)
+
+
+def strip_reasoning_markup(text: str | None) -> str:
+    """Remove think/CoT markup that models sometimes embed in ``content``."""
+    if not text:
+        return ""
+    cleaned = _THINK_BLOCK_RE.sub("", str(text))
+    cleaned = _THINK_TAG_RE.sub("", cleaned)
+    cleaned = _THINK_TOKEN_RE.sub("", cleaned)
+    cleaned = re.sub(r"\n{3,}", "\n\n", cleaned)
+    return cleaned.strip()
 
 
 def stream_delta_parts(delta: Any) -> tuple[str, str]:
@@ -59,7 +83,7 @@ def resolve_assistant_text(
     from core.i18n.messages import t
 
     locale = _ui_locale(profile_name)
-    text = (content or "").strip()
+    text = strip_reasoning_markup(content or "")
     if text.lower() in _PLACEHOLDER_FINALS:
         text = ""
 

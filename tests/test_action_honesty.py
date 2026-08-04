@@ -17,6 +17,7 @@ from core.graph.action_honesty import (
     honesty_retry_update,
     is_sdd_fill_request,
     lacks_evidence_for_claim,
+    looks_like_plan_monologue,
     resolve_tool_choice,
     sdd_fill_requires_tools,
     should_nudge_false_completion,
@@ -33,6 +34,35 @@ def test_claims_completion_ru_and_en() -> None:
     assert claims_action_completed("Готово. Заполнил все четыре артефакта.")
     assert not claims_action_completed("Что нужно сделать?")
     assert not claims_action_completed("Сейчас сохраню план через write_file.")
+
+
+def test_plan_monologue_without_tools_is_nudged() -> None:
+    monologue = (
+        "Поняла. Нужно добавить боту функцию.\n\n"
+        "Что сделаю:\n"
+        "• Изучу структуру проекта.\n"
+        "• Найду, где бот генерирует пост.\n\n"
+        "Начинаю."
+    )
+    assert looks_like_plan_monologue(monologue)
+    messages = [
+        {"role": "user", "content": "Добавь обработку URL"},
+        {"role": "assistant", "content": monologue},
+    ]
+    assert ends_turn_on_unexecuted_intent(monologue, messages)
+    state = {
+        "user_input": "Добавь обработку URL",
+        "messages": messages,
+        "tool_results": [],
+        "honesty_nudge_count": 0,
+        "plan_steps": [],
+        "current_plan_step": 0,
+    }
+    assert should_nudge_false_completion(
+        state,
+        final_response=monologue,
+        messages=messages,
+    )
 
 
 def test_no_tools_means_lacks_evidence() -> None:

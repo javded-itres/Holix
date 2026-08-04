@@ -336,6 +336,13 @@ def _emit_final_response(
     steps_taken: int,
     conversation_id: str,
 ) -> None:
+    """Emit a *terminal* final answer (hard errors only).
+
+    Successful ReAct drafts must NOT call this. They set ``is_final`` /
+    ``final_response`` and leave emission to ``run_graph_loop`` after Reflexion
+    finishes. Emitting drafts early spammed messengers with monologue text
+    ("Что сделаю… Начинаю") before tools ran.
+    """
     if agent and hasattr(agent, "emit"):
         agent._final_response_emitted = True
         agent.emit(
@@ -789,13 +796,8 @@ async def _react_non_streaming(
         if agent and hasattr(agent, "memory"):
             await agent.memory.save_message(conversation_id, "assistant", final_response)
 
-        _emit_final_response(
-            agent,
-            content=final_response,
-            steps_taken=step_count,
-            conversation_id=conversation_id,
-        )
-
+        # Do not emit FinalResponseEvent here — Reflexion may retry; the graph
+        # loop emits a single final after the run completes.
         return {
             "messages": messages,
             "step_count": step_count,
@@ -1207,13 +1209,7 @@ async def _react_streaming(
                                 conversation_id=conversation_id,
                             )
                         )
-                _emit_final_response(
-                    agent,
-                    content=final_response,
-                    steps_taken=step_count,
-                    conversation_id=conversation_id,
-                )
-
+                # Defer FinalResponseEvent to run_graph_loop (after Reflexion).
                 return {
                     "messages": messages,
                     "step_count": step_count,
@@ -1305,13 +1301,7 @@ async def _react_streaming(
     if agent and hasattr(agent, "memory"):
         await agent.memory.save_message(conversation_id, "assistant", final_response)
 
-    _emit_final_response(
-        agent,
-        content=final_response,
-        steps_taken=step_count,
-        conversation_id=conversation_id,
-    )
-
+    # Defer FinalResponseEvent to run_graph_loop (after Reflexion).
     return {
         "messages": messages,
         "step_count": step_count,
