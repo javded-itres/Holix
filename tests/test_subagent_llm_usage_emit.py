@@ -3,9 +3,6 @@
 from __future__ import annotations
 
 from types import SimpleNamespace
-from unittest.mock import MagicMock
-
-import pytest
 
 from core.agent_events import AgentEventBus, LLMCallCompletedEvent, SubAgentStartedEvent
 from core.llm.usage import emit_llm_call_usage
