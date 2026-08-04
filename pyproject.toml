@@ -55,7 +55,10 @@ dependencies = [
 
 [project.optional-dependencies]
 demo = ["holix-extension-demo>=0.1.0"]
-studio = ["holix-studio>=0.1.0"]
+# holix-studio is a separate private package (not on public PyPI).
+# Install from its GitHub release / private index; do not pin via git in this lock
+# (CI cannot fetch private git without credentials).
+studio = []
 browser = ["playwright>=1.49.0"]
 telegram = ["aiogram>=3.15.0", "pypdf>=4.0.0"]
 max = ["pypdf>=4.0.0"]
@@ -112,7 +115,6 @@ reinstall-package = ["Holix"]
 
 [tool.uv.sources]
 holix-extension-demo = { workspace = true }
-holix-studio = { git = "https://github.com/javded-itres/holix-studio.git" }
 
 [tool.uv.workspace]
 members = [
