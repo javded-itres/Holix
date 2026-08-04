@@ -10,6 +10,8 @@ import pytest
 from core.i18n import LocaleStore
 from core.llm.response_text import (
     assistant_message_parts,
+    collapse_repetitive_text,
+    is_pathological_repetition,
     resolve_assistant_text,
     stream_delta_parts,
     strip_reasoning_markup,
@@ -43,6 +45,17 @@ def test_resolve_strips_think_markup_from_content() -> None:
     )
     assert text == "Готово: версия 1.0.4"
     assert "secret" not in text
+
+
+def test_collapse_repetitive_loop_phrase() -> None:
+    unit = "Сейчас проверю текущее состояние кода и процесса, а затем доделаю меню.…"
+    looped = unit * 40
+    assert is_pathological_repetition(looped)
+    collapsed = collapse_repetitive_text(looped)
+    assert collapsed.count("Сейчас проверю") <= 2
+    assert len(collapsed) < 300
+    resolved = resolve_assistant_text(content=looped)
+    assert resolved.count("Сейчас проверю") <= 2
 
 
 def test_stream_delta_reasoning_only() -> None:

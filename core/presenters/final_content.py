@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from core.llm.response_text import strip_reasoning_markup
+from core.llm.response_text import sanitize_assistant_visible_text
 from core.presenters.subagent_tool_text import pick_best_tool_final
 
 _PLACEHOLDER_FINALS = frozenset(
@@ -70,11 +70,11 @@ def resolve_messenger_final_content(
     empty_message: str = MESSENGER_EMPTY_FINAL_RU,
 ) -> str:
     """Pick the best user-visible answer for Telegram/MAX delivery."""
-    text = strip_reasoning_markup(content or "")
+    text = sanitize_assistant_visible_text(content or "")
     if is_placeholder_final(text):
         text = ""
 
-    streamed = strip_reasoning_markup(streamed_answer or "")
+    streamed = sanitize_assistant_visible_text(streamed_answer or "")
     if not text and streamed and not is_placeholder_final(streamed):
         text = streamed
 

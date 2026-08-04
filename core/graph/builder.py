@@ -221,9 +221,11 @@ async def run_graph_loop(
             )
             final_state = await compiled_graph.ainvoke(initial_state, config)
 
-        from core.llm.response_text import strip_reasoning_markup
+        from core.llm.response_text import sanitize_assistant_visible_text
 
-        final_text = strip_reasoning_markup(final_state.get("final_response") or "")
+        final_text = sanitize_assistant_visible_text(
+            final_state.get("final_response") or ""
+        )
         if (
             final_text
             and not is_placeholder_final(final_text)

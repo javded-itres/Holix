@@ -44,6 +44,8 @@ from core.i18n.live_ui import live_reasoning_label, live_thinking_step_label
 from core.llm.max_tokens import profile_agent_max_tokens, resolve_agent_max_tokens
 from core.llm.response_text import (
     assistant_message_parts,
+    collapse_repetitive_text,
+    is_pathological_repetition,
     reasoning_only_user_message,
     resolve_assistant_text,
     stream_delta_parts,
@@ -1046,6 +1048,17 @@ async def _react_streaming(
             # Content / reasoning streaming (reasoning models may only fill reasoning_*)
             if content_delta:
                 current_content += content_delta
+                # Abort runaway model loops (same phrase × dozens of times).
+                if is_pathological_repetition(current_content):
+                    current_content = collapse_repetitive_text(current_content)
+                    logger.warning(
+                        "Aborted streaming content loop (model=%s, step=%s, chars=%s)",
+                        model,
+                        step_count,
+                        len(current_content),
+                    )
+                    last_finish_reason = last_finish_reason or "stop"
+                    break
                 # After successful listings, buffer text until the step finishes so
                 # «Список пуст…» is not painted into Studio before we can scrub it.
                 prior_listing = has_successful_workspace_listing(

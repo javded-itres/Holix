@@ -34,6 +34,127 @@ def strip_reasoning_markup(text: str | None) -> str:
     return cleaned.strip()
 
 
+def _norm_unit(text: str) -> str:
+    return re.sub(r"\s+", " ", (text or "").strip()).casefold()
+
+
+def is_pathological_repetition(
+    text: str | None,
+    *,
+    min_unit: int = 20,
+    min_repeats: int = 4,
+) -> bool:
+    """True when the same phrase is repeated many times (model degeneration)."""
+    s = (text or "").strip()
+    if len(s) < min_unit * min_repeats:
+        return False
+    # Consecutive sentence/ellipsis units
+    units = [
+        u
+        for u in re.split(r"(?<=[.!?…])\s*|\n+", s)
+        if _norm_unit(u)
+    ]
+    if len(units) >= min_repeats:
+        norms = [_norm_unit(u) for u in units]
+        run = 1
+        for i in range(1, len(norms)):
+            if norms[i] == norms[i - 1] and len(norms[i]) >= min_unit:
+                run += 1
+                if run >= min_repeats:
+                    return True
+            else:
+                run = 1
+    # Cyclic prefix covering most of the string
+    n = len(s)
+    limit = min(n // min_repeats, 240)
+    for unit_len in range(min_unit, limit + 1):
+        unit = s[:unit_len]
+        if not unit.strip():
+            continue
+        repeats = 0
+        pos = 0
+        while pos + unit_len <= n and s[pos : pos + unit_len] == unit:
+            repeats += 1
+            pos += unit_len
+        if repeats >= min_repeats and pos >= int(n * 0.75):
+            return True
+    return False
+
+
+def collapse_repetitive_text(
+    text: str | None,
+    *,
+    max_repeats: int = 2,
+    min_unit: int = 20,
+) -> str:
+    """Collapse model loops like «фраза…фраза…фраза…» to a short form."""
+    raw = (text or "").strip()
+    if len(raw) < min_unit * 3:
+        return raw
+
+    # 1) Collapse consecutive duplicate sentence / ellipsis units
+    pieces = re.split(r"((?:[.!?…]+|\n+)\s*)", raw)
+    # pieces = [text, sep, text, sep, ...]
+    out: list[str] = []
+    prev_norm = ""
+    run = 0
+    i = 0
+    while i < len(pieces):
+        chunk = pieces[i]
+        sep = pieces[i + 1] if i + 1 < len(pieces) else ""
+        i += 2
+        norm = _norm_unit(chunk)
+        if not norm:
+            if chunk or sep:
+                out.append(chunk + sep)
+            continue
+        if norm == prev_norm and len(norm) >= min_unit:
+            run += 1
+            if run <= max_repeats:
+                out.append(chunk + sep)
+            # else drop
+        else:
+            prev_norm = norm
+            run = 1
+            out.append(chunk + sep)
+    collapsed = "".join(out).strip()
+
+    # 2) Cyclic prefix (identical block glued without clear separators)
+    s = collapsed
+    n = len(s)
+    if n >= min_unit * 3:
+        best = s
+        limit = min(n // 3, 240)
+        for unit_len in range(min_unit, limit + 1):
+            unit = s[:unit_len]
+            if not unit.strip():
+                continue
+            repeats = 0
+            pos = 0
+            while pos + unit_len <= n and s[pos : pos + unit_len] == unit:
+                repeats += 1
+                pos += unit_len
+            if repeats >= 3 and pos >= int(n * 0.75):
+                candidate = (unit * max_repeats).strip()
+                if len(candidate) < len(best):
+                    best = candidate
+        collapsed = best
+
+    if len(collapsed) < len(raw) * 0.9 and len(raw) > 200:
+        logger.warning(
+            "Collapsed pathological model repetition (%d → %d chars)",
+            len(raw),
+            len(collapsed),
+        )
+    return collapsed.strip()
+
+
+def sanitize_assistant_visible_text(text: str | None) -> str:
+    """Strip think tags and collapse looped monologue for user-facing delivery."""
+    cleaned = strip_reasoning_markup(text)
+    return collapse_repetitive_text(cleaned)
+
+
 def stream_delta_parts(delta: Any) -> tuple[str, str]:
     """Return ``(content_delta, reasoning_delta)`` from a streaming chunk delta."""
     if delta is None:
@@ -83,7 +204,7 @@ def resolve_assistant_text(
     from core.i18n.messages import t
 
     locale = _ui_locale(profile_name)
-    text = strip_reasoning_markup(content or "")
+    text = sanitize_assistant_visible_text(content or "")
     if text.lower() in _PLACEHOLDER_FINALS:
         text = ""
 

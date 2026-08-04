@@ -65,6 +65,18 @@ def test_plan_monologue_without_tools_is_nudged() -> None:
     )
 
 
+def test_check_then_finish_intent_is_nudged() -> None:
+    monologue = (
+        "Сейчас проверю текущее состояние кода и процесса, а затем доделаю меню."
+    )
+    assert looks_like_plan_monologue(monologue)
+    messages = [
+        {"role": "user", "content": "Доделай меню"},
+        {"role": "assistant", "content": monologue},
+    ]
+    assert ends_turn_on_unexecuted_intent(monologue, messages)
+
+
 def test_no_tools_means_lacks_evidence() -> None:
     messages = [
         {"role": "user", "content": "Сохрани план"},
