@@ -63,12 +63,30 @@ def test_status_menu_includes_reflexion_button() -> None:
     assert "Reflexion" in labels
 
 
+def test_status_menu_includes_reflexion_button_max() -> None:
+    from integrations.max.keyboards import status_menu_keyboard
+
+    kb = status_menu_keyboard("en", is_admin=True)
+    labels = [btn["text"] for row in kb["payload"]["buttons"] for btn in row]
+    assert "Reflexion" in labels
+
+
 def test_reflexion_picker_keyboard_callback() -> None:
     pytest.importorskip("aiogram.types")
     from integrations.telegram.keyboards import parse_callback, reflexion_picker_keyboard
 
     kb = reflexion_picker_keyboard(False, "en")
     payloads = [btn.callback_data for row in kb.inline_keyboard for btn in row]
+    assert "hx:rf:1" in payloads
+    assert "hx:rf:0" in payloads
+    assert parse_callback("hx:rf:1") == ("rf", "1")
+
+
+def test_reflexion_picker_keyboard_callback_max() -> None:
+    from integrations.max.keyboards import parse_callback, reflexion_picker_keyboard
+
+    kb = reflexion_picker_keyboard(False, "en")
+    payloads = [btn["payload"] for row in kb["payload"]["buttons"] for btn in row]
     assert "hx:rf:1" in payloads
     assert "hx:rf:0" in payloads
     assert parse_callback("hx:rf:1") == ("rf", "1")

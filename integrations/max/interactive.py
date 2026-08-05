@@ -24,6 +24,7 @@ from integrations.max.keyboards import (
     parse_callback,
     profile_picker_keyboard,
     sessions_picker_keyboard,
+    reflexion_picker_keyboard,
     status_menu_keyboard,
     stream_picker_keyboard,
     subagents_picker_keyboard,
@@ -233,6 +234,18 @@ class MaxInteractive:
             state = "on" if enabled else "off"
             return t("tg.subagents", lang, state=state)
 
+        if action == "rf":
+            from integrations.messenger.reflexion_settings import set_reflexion_enabled_for_host
+
+            lang = messenger_host_locale(self._host)
+            try:
+                enabled = set_reflexion_enabled_for_host(self._host, value == "1")
+            except Exception as exc:
+                return f"{t('tg.error', lang)}: {exc}"
+            await self.show_reflexion_picker()
+            state = "on" if enabled else "off"
+            return t("tg.reflexion", lang, state=state)
+
         if action == "pi":
             lang = messenger_host_locale(self._host)
             profiles = self._session.ui_profiles
@@ -353,6 +366,7 @@ class MaxInteractive:
             "sessions": self.show_sessions_picker,
             "stream": self.show_stream_picker,
             "subagents": self.show_subagents_picker,
+            "reflexion": self.show_reflexion_picker,
             "models": self.show_models,
             "tools": self.show_tools_picker,
             "status": self.show_status,
@@ -393,6 +407,22 @@ class MaxInteractive:
         await self._host._send_text_with_keyboard(
             text,
             subagents_picker_keyboard(on, lang),
+        )
+
+    async def show_reflexion_picker(self) -> None:
+        from integrations.messenger.reflexion_settings import is_reflexion_enabled_for_host
+
+        lang = messenger_host_locale(self._host)
+        on = is_reflexion_enabled_for_host(self._host)
+        state = "on" if on else "off"
+        text = (
+            f"**{t('tg.reflexion_picker_title', lang)}**\n"
+            f"{t('tg.reflexion', lang, state=state)}\n\n"
+            f"_{t('tg.reflexion_picker_body', lang)}_"
+        )
+        await self._host._send_text_with_keyboard(
+            text,
+            reflexion_picker_keyboard(on, lang),
         )
 
     async def show_profile_picker(self) -> None:
@@ -747,6 +777,7 @@ class MaxInteractive:
         from core.session_models import ensure_session_model
 
         ensure_session_model(self._host)
+        from integrations.messenger.reflexion_settings import is_reflexion_enabled_for_host
         from integrations.messenger.subagents_settings import is_subagents_enabled_for_host
 
         mode = self._session.execution_mode
@@ -756,6 +787,7 @@ class MaxInteractive:
         if self._host.agent:
             model_line = self._host.agent.model
         subagents = "on" if is_subagents_enabled_for_host(self._host) else "off"
+        reflexion = "on" if is_reflexion_enabled_for_host(self._host) else "off"
 
         headline, rows = profile_model_summary(self._host.profile)
         lines = [
@@ -765,6 +797,7 @@ class MaxInteractive:
             f"Режим: `{mode}` ({mode_title})",
             f"Стриминг: `{stream}`",
             f"Субагенты: `{subagents}`",
+            f"Reflexion: `{reflexion}`",
             f"Сессия: `{self._host.conversation_id}`",
         ]
         if rows:
