@@ -56,6 +56,7 @@ _INTENT_ONLY = re.compile(
 )
 
 # Ending the turn with "I'm doing X now" without any tool call.
+# Includes progressive/future Russian verbs that leave the job half-done.
 _ACTION_INTENT = re.compile(
     r"(?is)("
     r"сейчас\s+(сохран|запис|созда|удал|выполн|напиш|исправ|провер|посмотр|додела|изуч|сдела)"
@@ -63,9 +64,13 @@ _ACTION_INTENT = re.compile(
     r"|выполняю\s+(запись|сохран|удал|операц)"
     r"|записываю\s+(план|файл|пост)"
     r"|сохран[яю]\s+(план|файл|пост)"
-    # Status monologue spam: «Да. Смотрю X…» / «Ищу новости…» without tools.
-    r"|\b(смотрю|чита[юю]|открываю|работаю|изучаю|проверяю|разбираю|пишу|правлю|ищу|найду)\b"
-    r"|\b(looking\s+at|reading|opening|working\s+on|checking|inspecting|searching)\b"
+    # Progressive / future: «Создаю пост…» / «Сделаю…» / «Опубликую…»
+    r"|\b(созда[юёмм]|создам|сдела[юем]|добавл[юю]|напиш[уем]|опублик[уююем]|"
+    r"отправл[юю]|заполн[юю]|исправл[юю]|запущ[уем]|подготовл[юю]|"
+    r"собира[юю]|ищу|найд[уем]|провер[юю]|откро[юю]|прочту|додела[юю])\b"
+    r"|\b(смотрю|чита[юю]|открываю|работаю|изучаю|проверяю|разбираю|пишу|правлю)\b"
+    r"|\b(looking\s+at|reading|opening|working\s+on|checking|inspecting|searching|"
+    r"creating|making|posting|publishing|writing|adding)\b"
     r"|ищу\s+(свеж|новост|информац|статус)"
     r"|тестовый\s+пост"
     r"|через\s+`?write_file`?"
@@ -105,7 +110,9 @@ _PLAN_MONOLOGUE = re.compile(
     r"|найду,?\s+где\b"
     r"|добавлю\s+(обработку|функц|поддержк)"
     r"|подключу\s+(агент|web_fetch|инструмент)"
-    r"|сделаю\s+(генерац|тестов|пост|новост)"
+    r"|сделаю\s+(генерац|тестов|пост|новост|это|так)"
+    r"|\bсделаю\b"
+    r"|\bсозда[юёмм]\b|\bсоздам\b"
     r"|сначала\s+сделаю"
     r"|ищу\s+(свеж|новост)"
     r"|через\s+mcp"
@@ -210,10 +217,11 @@ MONOLOGUE_TOOL_NUDGE = (
 
 # Shown when the model keeps monologuing after forced tool retries.
 MONOLOGUE_HONESTY_REFUSAL = (
-    "Не удалось выполнить запрос: модель только описывала действия "
-    "(«Смотрю…», «Работаю…») и не вызвала инструменты, поэтому файлы и "
-    "команды не выполнялись. Повторите запрос — агент обязан сразу "
-    "вызвать tools (read_file / write_file / run_terminal_command и т.д.)."
+    "Не удалось выполнить запрос: модель только описала, что «сделает» "
+    "(«Создаю…», «Сделаю…», «Ищу…») и не вызвала инструменты — работа "
+    "остановилась на полпути. Повторите запрос; агент должен сразу вызвать "
+    "tools (read_file / write_file / run_terminal_command / search и т.д.), "
+    "а не заканчивать ответ на намерении."
 )
 
 # Model denies tool visibility despite successful list_directory / ls results.
@@ -913,10 +921,10 @@ def looks_like_plan_monologue(text: str | None) -> bool:
 _ACTION_REQUEST = re.compile(
     r"(?is)("
     r"\b(сделай|делай|продолжи|продолжай|добавь|реализуй|почини|исправь|напиши|создай|удали|внедри|"
-    r"доделай|поправь|перепиши|обнови|настрой|подключи|запусти|проверь\s+и|"
-    r"опубликуй|выложи|запости)\b"
+    r"доделай|поправь|перепиши|обнови|настрой|подключи|запусти|запиши|проверь|проверьте|"
+    r"опубликуй|выложи|запости|найди|поищи)\b"
     r"|\b(implement|fix|add|create|build|update|remove|delete|deploy|"
-    r"finish|complete|wire|install|continue|post|publish)\b"
+    r"finish|complete|wire|install|continue|post|publish|check|write|find|search)\b"
     r")"
 )
 
@@ -944,8 +952,13 @@ def ends_turn_on_unexecuted_intent(
     user_input: str | None = None,
     agent_pipeline: str | None = None,
 ) -> bool:
-    """True when the model only promises an action and never called tools."""
-    from core.agent_pipeline import is_classic_pipeline, is_modern_pipeline
+    """True when the model only promises an action and never called tools.
+
+    Applies on **both** classic and modern pipelines: ending with
+    «Создаю/Сделаю/Ищу…» without tool_calls is never a finished task.
+    Modern additionally treats truncation notices and status spam.
+    """
+    from core.agent_pipeline import is_modern_pipeline
 
     content = (text or "").strip()
     if not content:
@@ -953,10 +966,10 @@ def ends_turn_on_unexecuted_intent(
     if _tools_attempted_since_last_user(messages):
         return False
 
-    classic = is_classic_pipeline(agent_pipeline)
-    modern = is_modern_pipeline(agent_pipeline) or not classic
+    user = (user_input or "").strip() or last_user_text(messages)
+    modern = is_modern_pipeline(agent_pipeline)
 
-    # Modern only: truncation notice / status monologue / path loops without tools.
+    # Modern only: truncation notice / path loops / short status spam.
     if modern:
         if is_truncation_notice(content):
             return True
@@ -970,13 +983,33 @@ def ends_turn_on_unexecuted_intent(
         if looks_like_status_monologue(content):
             return True
 
-    # Both pipelines: explicit "I'll do it now" without tools.
-    if _ACTION_INTENT.search(content):
+    action_user = is_action_request(user)
+    # Strong work verbs without tools — always block (even classic).
+    if re.search(
+        r"(?is)\b("
+        r"созда[юёмм]|создам|опублик[уююем]|ищу\s+свеж|тестовый\s+пост|"
+        r"write_file|run_terminal|list_directory"
+        r")\b",
+        content,
+    ):
         return True
-    # Plan monologue only when the user asked for work.
-    if looks_like_plan_monologue(content):
-        user = (user_input or "").strip() or last_user_text(messages)
-        return is_action_request(user)
+    # "I'll do it / Сделаю…" without tools — only when the user asked for work
+    # (avoid blocking pure FAQ answers that say «Что сделаю: объясню»).
+    if action_user and _ACTION_INTENT.search(content):
+        return True
+    if action_user and looks_like_plan_monologue(content):
+        return True
+    # Action request + short pure-intent answer.
+    if action_user and len(content) <= 600:
+        if re.search(
+            r"(?is)^\s*((понял[ао]?|хорошо|ок|ok|да)[,.!?…]?\s*)+"
+            r".{0,200}$",
+            content,
+        ) and re.search(
+            r"(?is)\b(сдела|созда|добав|напиш|опублик|провер|ищу|найд|запуст)\w*",
+            content,
+        ):
+            return True
     return False
 
 
@@ -1123,7 +1156,11 @@ def should_refuse_status_monologue(
     final_response: str | None,
     messages: list[dict[str, Any]] | None,
 ) -> bool:
-    """After max nudges, never accept pure status monologue as the final answer."""
+    """After max nudges, never accept pure intent monologue as the final answer.
+
+    Classic and modern: if the model still only says «сделаю…» without tools
+    after retries, refuse instead of going silent mid-task.
+    """
     if _plan_mode_skips_honesty(state):
         return False
     if _tools_attempted_since_last_user(messages):
@@ -1132,23 +1169,14 @@ def should_refuse_status_monologue(
     if not content:
         return False
     pipeline = str(state.get("agent_pipeline") or "") if isinstance(state, dict) else ""
-    from core.agent_pipeline import is_classic_pipeline
-
-    if is_classic_pipeline(pipeline):
-        # Classic (≈1.0.2): do not refuse pure status monologue / truncation.
-        return False
-    if not (
-        is_truncation_notice(content)
-        or looks_like_status_monologue(content)
-        or ends_turn_on_unexecuted_intent(
-            content,
-            messages,
-            user_input=state.get("user_input") if isinstance(state, dict) else None,
-            agent_pipeline=pipeline,
-        )
+    user_input = state.get("user_input") if isinstance(state, dict) else None
+    if not ends_turn_on_unexecuted_intent(
+        content,
+        messages,
+        user_input=user_input,
+        agent_pipeline=pipeline,
     ):
         return False
-    user_input = state.get("user_input") if isinstance(state, dict) else None
     max_nudges = _max_nudges_for_turn(
         messages, final_response=final_response, user_input=user_input
     )

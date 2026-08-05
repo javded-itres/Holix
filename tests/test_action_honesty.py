@@ -124,6 +124,57 @@ def test_truncation_notice_without_tools_is_nudged_not_final() -> None:
     )
 
 
+def test_classic_blocks_intent_only_halfway_stop() -> None:
+    """Classic must not accept «Создаю пост…» without tools as a finished task."""
+    monologue = "Поняла. Создаю тестовый пост с IT-новостями за сегодня. Ищу свежие новости."
+    messages = [
+        {"role": "user", "content": "Сделай тестовый пост, новости IT за сегодня"},
+        {"role": "assistant", "content": monologue},
+    ]
+    assert ends_turn_on_unexecuted_intent(
+        monologue,
+        messages,
+        user_input="Сделай тестовый пост, новости IT за сегодня",
+        agent_pipeline="classic",
+    )
+    state = {
+        "user_input": "Сделай тестовый пост, новости IT за сегодня",
+        "messages": messages,
+        "tool_results": [],
+        "honesty_nudge_count": 0,
+        "plan_steps": [],
+        "current_plan_step": 0,
+        "agent_pipeline": "classic",
+    }
+    assert should_nudge_false_completion(
+        state, final_response=monologue, messages=messages
+    )
+    out = honesty_retry_update(
+        messages=list(messages),
+        step_count=1,
+        final_response=monologue,
+        honesty_nudge_count=0,
+        user_input="Сделай тестовый пост, новости IT за сегодня",
+        include_assistant=False,
+    )
+    assert out["is_final"] is False
+    tools = [{"type": "function", "function": {"name": "web_search"}}]
+    assert (
+        resolve_tool_choice(
+            {**state, "honesty_nudge_count": 1},
+            out["messages"],
+            tools=tools,
+        )
+        == "required"
+    )
+    from core.graph.action_honesty import _MAX_HONESTY_NUDGES
+
+    refuse_state = {**state, "honesty_nudge_count": _MAX_HONESTY_NUDGES}
+    assert should_refuse_status_monologue(
+        refuse_state, final_response=monologue, messages=messages
+    )
+
+
 def test_action_request_forces_tools_on_first_step() -> None:
     assert is_action_request("Сделай тестовый пост, новости IT за сегодня")
     assert is_action_request("делай")
@@ -159,7 +210,10 @@ def test_status_monologue_poniala_proveryayu_loop_is_nudged() -> None:
         {"role": "assistant", "content": monologue},
     ]
     assert ends_turn_on_unexecuted_intent(
-        monologue, messages, user_input="Проверь статус бота"
+        monologue,
+        messages,
+        user_input="Проверь статус бота",
+        agent_pipeline="classic",
     )
     state = {
         "user_input": "Проверь статус бота",
@@ -168,6 +222,7 @@ def test_status_monologue_poniala_proveryayu_loop_is_nudged() -> None:
         "honesty_nudge_count": 0,
         "plan_steps": [],
         "current_plan_step": 0,
+        "agent_pipeline": "classic",
     }
     assert should_nudge_false_completion(
         state, final_response=monologue, messages=messages
