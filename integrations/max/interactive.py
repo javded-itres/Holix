@@ -184,7 +184,6 @@ class MaxInteractive:
             mid = self._session.background_process_message_ids.pop(process_id, None)
             if mid:
                 from core.i18n.locale import LocaleStore
-                from core.i18n.messages import t
 
                 from integrations.max.markdown import escape_html
 
@@ -192,6 +191,8 @@ class MaxInteractive:
                     loc = LocaleStore(self._session.profile).get() or "ru"
                 except Exception:
                     loc = "ru"
+                # Use module-level ``t`` — a local ``import t`` shadows it for the
+                # whole apply_callback and breaks other actions (sa/rf/…).
                 html = t(
                     "live.bg_process_stopped",
                     loc,
