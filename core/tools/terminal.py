@@ -81,14 +81,30 @@ def _blocked_sensitive_path_access(
 ) -> tuple[bool, str]:
     """Block shell commands that reach Holix profile secrets or runtime caches.
 
-    When jail is on, absolute paths under the profile workspace are allowed even
-    though they live under ``.../profiles/<name>/``. Paths outside the workspace
-    (config, .env, other profiles) stay blocked.
+    The profile **workspace** is always allowed when ``workspace_root`` is known
+    (jail on or off). Without that exception, jail-off admin profiles could not
+    ``mv``/``cp`` into ``.../profiles/<name>/workspace`` because the path still
+    matches the Holix profiles tree — while secrets (``.env``, other profiles)
+    stay blocked either way.
+
+    ``jail_enabled`` is kept for call-site clarity; allowlisting uses
+    ``workspace_root`` only.
     """
+    del jail_enabled  # secrets guard is independent of jail; see allow_under
     normalized = command.replace("\\", "/").lower()
-    allow_under = workspace_root if jail_enabled and workspace_root else None
+    # Always allow the configured workspace, even when jail is disabled.
+    allow_under = workspace_root if workspace_root else None
     if references_holix_profiles(command, allow_under=allow_under):
-        return True, "Access to Holix profile directories and secrets is not allowed."
+        ws_hint = (
+            f" Own workspace is allowed: `{workspace_root}`."
+            if workspace_root
+            else ""
+        )
+        return (
+            True,
+            "Access to Holix profile directories and secrets is not allowed "
+            f"(`.env`, other profiles, profile data — not the workspace).{ws_hint}",
+        )
     if (
         ".holix/memory-cache" in normalized
         or "/memory-cache/" in normalized
@@ -298,17 +314,26 @@ class TerminalTool(BaseTool):
                 return f"Error: Command blocked by safety policy. {reason}"
 
         try:
-            from core.tools.execution_context import is_workspace_jail_enabled
+            from core.tools.execution_context import (
+                get_workspace_root,
+                is_workspace_jail_enabled,
+            )
             from core.workspace import get_effective_workspace_root
 
             jail = is_workspace_jail_enabled()
+            # Jail root (None when jail off) — used for cwd + path escape checks.
             root = get_effective_workspace_root()
             root_s = str(root) if root is not None else None
+            # Configured profile workspace even when jail is off — needed so
+            # commands may touch .../profiles/<name>/workspace without being
+            # treated as a secrets-path hit.
+            configured_ws = (get_workspace_root() or "").strip() or None
+            secrets_allow = root_s or configured_ws
 
             blocked, reason = _blocked_sensitive_path_access(
                 command,
                 jail_enabled=jail,
-                workspace_root=root_s,
+                workspace_root=secrets_allow,
             )
             if blocked:
                 return f"Error: Command blocked. {reason}"

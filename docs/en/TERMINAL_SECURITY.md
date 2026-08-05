@@ -167,21 +167,28 @@ Non-interactive API runs without confirmation deny high-risk tools unless pre-au
 
 ---
 
-## 5. Holix profile paths (always blocked)
+## 5. Holix profile paths (secrets blocked; own workspace allowed)
 
-Regardless of whitelist or workspace jail, commands that reference **Holix profile directories or secrets** are blocked:
+Regardless of whitelist or workspace jail, commands that reference **Holix profile secrets and other profiles** are blocked:
 
-- `~/.holix/profiles/…`, `.holix/profiles/…`, `$HOLIX_HOME`, `$HOME/.holix`
+- `~/.holix/profiles/…/.env`, profile `config.yaml`, other profiles’ trees
+- `$HOLIX_HOME` / `$HOME/.holix` markers that cannot be proven inside the workspace
 - `.holix/memory-cache`, `.runtime-cache` (decrypted memory cache)
+
+The **current profile workspace** (`…/profiles/<name>/workspace`) is **allowed** when
+configured — including when workspace jail is **disabled** (admin/ops profiles).
+Without that exception, jail-off agents could not `mv`/`cp` into their own workspace
+because the path still matches the profiles tree.
 
 Example:
 
 ```text
 cat ~/.holix/profiles/default/.env
 → Access to Holix profile directories and secrets is not allowed.
-```
 
-This applies even when workspace jail is **disabled** — agents cannot read profile `.env`, `telegram.env`, or cron job files via the terminal tool.
+mv /tmp/out.pdf /var/lib/holix/profiles/admin/workspace/
+→ allowed (own workspace root)
+```
 
 ---
 
