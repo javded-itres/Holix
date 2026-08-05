@@ -351,7 +351,7 @@ def _llm_max_tokens(
 
 
 def _agent_pipeline(state: dict | None, agent: Any | None = None) -> str:
-    from core.agent_pipeline import pipeline_from_config, pipeline_from_state
+    from core.agent_pipeline import pipeline_from_state
 
     cfg = getattr(agent, "config", None) if agent else None
     return pipeline_from_state(state if isinstance(state, dict) else None, cfg)

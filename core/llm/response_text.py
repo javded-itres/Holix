@@ -443,7 +443,7 @@ def resolve_assistant_text(
     agent_pipeline: str | None = None,
 ) -> str:
     """Pick user-visible assistant text; empty string means nothing to show."""
-    from core.agent_pipeline import is_classic_pipeline, is_modern_pipeline
+    from core.agent_pipeline import is_classic_pipeline
     from core.i18n.messages import t
 
     locale = _ui_locale(profile_name)

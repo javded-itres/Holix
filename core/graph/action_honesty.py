@@ -1353,7 +1353,7 @@ def resolve_tool_choice(
                 "function": {"name": "sdd_write_artifact"},
             }
         return "required"
-    from core.agent_pipeline import is_classic_pipeline, is_modern_pipeline
+    from core.agent_pipeline import is_classic_pipeline
 
     pipeline = str(state.get("agent_pipeline") or "") if isinstance(state, dict) else ""
     # After honesty retry, tools are mandatory on both pipelines.
