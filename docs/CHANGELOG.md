@@ -2,16 +2,33 @@
 
 ## Unreleased
 
+## 1.0.6 — 2026-08-05
+
+Agent reliability for messengers: anti-monologue pipeline, classic/modern switch, background process history, and workspace access for admin (jail-off) profiles.
+
 ### Added
 
-- **Pin background process notices** — Telegram pins a dedicated process message (stop button) while a background process runs; MAX sends the same notice and pins it in group chats when the bot is admin (dialogs: notice only, API has no pin).
-- **Chat vs plan max_tokens** — free-chat / messenger ReAct steps default to `HOLIX_AGENT_CHAT_MAX_TOKENS=2048` (plan/coding keep `HOLIX_AGENT_MAX_TOKENS=8192`) to shrink degeneration loops.
-- **Content-loop metrics** — `/metrics` reports `content_loop_collapsed` when pathological repeats are scrubbed.
+- **Agent pipeline switch** — `classic` (≈1.0.2 quiet UX) vs `modern` (full anti-monologue honesty); Telegram/MAX menu + `HOLIX_AGENT_PIPELINE` (default classic).
+- **Reflexion / meta toggles** — Telegram and MAX status menus can turn self-refinement on/off (default off on production profiles).
+- **Pin background process notices** — Telegram pins a process message with stop; MAX pins in groups when admin.
+- **Background process history** — stopped rows stay in `background_processes.json` (up to 30 days) with restart command via `list_background_processes`.
+- **Chat max_tokens default 8192** — `HOLIX_AGENT_CHAT_MAX_TOKENS` raised to reduce mid-answer truncation loops.
+- **Content-loop metrics** — `/metrics` reports `content_loop_collapsed`.
 
 ### Fixed
 
-- **Messenger status-only streaming** — Telegram/MAX no longer buffer streaming monologue into the live status message when the answer is posted separately.
-- **Intent-aware monologue nudge** — plan-only text («Что сделаю…») is nudged to tools only when the user asked for work, not on pure FAQ.
+- **Monologue collapse** — harden `collapse_repetitive_text` for `bot.py` dots, mid-loop typos (`bot_bot`), ellipsis-glued spam; stream abort + hard-trim; classic path never ships multi-KB loops.
+- **Classic mid-task stop** — force tools on action requests; never finish on «сделаю/создаю/запускаю» without tool calls; pathological loops nudge on classic too.
+- **Truncation notice not final** — modern does not treat system truncation wall as a completed task.
+- **Own workspace when jail off** — admin/ops may `mv`/`cp` into `…/profiles/<name>/workspace`; secrets and other profiles stay blocked.
+- **Clear access-denied terminal errors** — sudo / Permission denied explained in RU for the agent and user.
+- **Untracked bot launches** — block long-running bots/servers via `run_terminal_command` (use `start_background_process`).
+- **Messenger status streaming** — no live monologue paint when the answer is posted separately.
+- **Ruff I001** — import order in Telegram/MAX interactive pickers (CI).
+
+### Tests
+
+- Monologue collapse with `bot.py` + typo variant; classic patho honesty; terminal workspace allow when jail off; background process stopped history; access-denied messages.
 
 ## 1.0.5 — 2026-08-05
 
