@@ -177,6 +177,28 @@ async def _run_start_or_restart(
     if not allowed:
         return f"Error: Command blocked. {jail_reason}"
 
+    # Guard: Holix gateway already long-polls TELEGRAM_BOT_TOKEN — a second
+    # python-telegram bot with the same token causes TelegramConflictError.
+    cmd_l = (command or "").lower()
+    if any(
+        x in cmd_l
+        for x in (
+            "integrations.telegram",
+            "telegram.main",
+            "holix.*telegram",
+        )
+    ) or (
+        "telegram" in cmd_l
+        and any(x in cmd_l for x in ("polling", "getupdates", "-m integrations"))
+    ):
+        return (
+            "Error: Do not start Holix Telegram companion / getUpdates here — "
+            "holix-gateway already runs `integrations.telegram.main`. "
+            "A second poll on the same bot token causes **TelegramConflictError**. "
+            "For a *separate* product bot use a **different** TELEGRAM_BOT_TOKEN "
+            "and start_background_process with that project's venv/command."
+        )
+
     launch = registry.restart if restart else registry.start
     try:
         record = await launch(
@@ -519,31 +541,86 @@ class ListBackgroundProcessesTool(BaseTool):
         super().__init__()
         self.name = "list_background_processes"
         self.description = (
-            "List background processes for the current chat session with running/stopped status."
+            "List background processes for this profile (running + recently stopped). "
+            "Survives reboot: stopped rows still show command so you can restart. "
+            "Always use start_background_process for bots/servers — not run_terminal_command."
         )
         self.risk_level = "low"
-        self.parameters = {"type": "object", "properties": {}, "required": []}
+        self.parameters = {
+            "type": "object",
+            "properties": {
+                "include_stopped": {
+                    "type": "boolean",
+                    "description": "Include stopped history (default true)",
+                    "default": True,
+                },
+            },
+            "required": [],
+        }
 
-    async def execute(self) -> str:
+    async def execute(self, include_stopped: bool = True) -> str:
+        from core.platform_compat import is_process_alive
         from core.runtime.background_process import get_background_process_registry
+        from core.runtime.background_process_store import list_index_with_status
 
         registry = get_background_process_registry()
         profile = get_profile_name()
         conversation_id = get_conversation_id()
-        records = registry.list_for_scope(
+        # Live in-memory (session) first
+        session_recs = registry.list_for_scope(
             profile=profile,
             conversation_id=conversation_id,
         )
-        if not records:
-            return "No background processes for this session."
-        lines = []
-        for rec in records:
-            running = rec.is_running()
-            status = "running" if running else "stopped"
+        # Full profile disk index (running + stopped after reboot)
+        disk_rows = list_index_with_status(profile, is_alive=is_process_alive)
+
+        lines: list[str] = [f"Profile `{profile}` background processes:"]
+        seen: set[str] = set()
+        for rec in session_recs:
+            seen.add(rec.process_id)
+            status = "running" if rec.is_running() else "stopped"
             lines.append(
-                f"- {rec.process_id}: {rec.label} pid={rec.pid} ({status}) log={rec.log_path}"
+                f"- **{status}** id={rec.process_id} label={rec.label} pid={rec.pid}\n"
+                f"  cmd: `{rec.command}`\n"
+                f"  log: {rec.log_path}"
             )
-        lines.append("Use check_background_process to scan logs for errors.")
+        for row in disk_rows:
+            pid_key = str(row.get("process_id") or "")
+            if not pid_key or pid_key in seen:
+                continue
+            status = str(row.get("status") or "unknown")
+            if status == "stopped" and not include_stopped:
+                continue
+            try:
+                pid = int(row.get("pid") or 0)
+            except (TypeError, ValueError):
+                pid = 0
+            if status == "running" and pid > 0 and not is_process_alive(pid):
+                status = "stopped"
+            cmd = str(row.get("command") or "")
+            label = str(row.get("label") or pid_key)
+            lines.append(
+                f"- **{status}** id={pid_key} label={label} pid={pid}\n"
+                f"  cmd: `{cmd}`\n"
+                f"  log: {row.get('log_path') or ''}"
+            )
+            if status == "stopped" and cmd:
+                lines.append(
+                    f"  restart: start_background_process(command={cmd!r}, label={label!r})"
+                )
+            seen.add(pid_key)
+
+        if len(lines) == 1:
+            return (
+                "No background processes recorded for this profile.\n"
+                "Start long-running work with start_background_process so it is "
+                "tracked after reboot."
+            )
+        lines.append(
+            "\nUse check_background_process / stop_background_process / "
+            "restart_background_process. Never start a second Telegram long-poll "
+            "with the same bot token as holix-gateway."
+        )
         return "\n".join(lines)
 
 

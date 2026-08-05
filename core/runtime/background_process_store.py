@@ -48,7 +48,7 @@ def iter_profile_names_with_index() -> list[str]:
     return names
 
 
-def record_to_dict(rec: Any) -> dict[str, Any]:
+def record_to_dict(rec: Any, *, status: str = "running") -> dict[str, Any]:
     return {
         "process_id": rec.process_id,
         "label": rec.label,
@@ -59,6 +59,8 @@ def record_to_dict(rec: Any) -> dict[str, Any]:
         "chat_id": rec.chat_id,
         "log_path": rec.log_path or "",
         "started_at": float(rec.started_at or time.time()),
+        "status": status,
+        "stopped_at": None,
     }
 
 
@@ -132,36 +134,86 @@ def upsert_record(rec: Any) -> None:
 
 
 def remove_record(profile: str, process_id: str) -> None:
+    """Mark a process as stopped (keep command history for reboot/restart)."""
     name = (profile or "default").strip() or "default"
     pid = (process_id or "").strip()
     if not pid:
         return
     try:
-        items = [i for i in load_index(name) if str(i.get("process_id")) != pid]
-        _write_index(name, items)
+        items = load_index(name)
+        now = time.time()
+        out: list[dict[str, Any]] = []
+        for item in items:
+            if str(item.get("process_id")) == pid:
+                row = dict(item)
+                row["status"] = "stopped"
+                row["stopped_at"] = now
+                out.append(row)
+            else:
+                out.append(item)
+        _write_index(name, out)
     except OSError as exc:
         logger.warning("background process index remove failed profile=%s: %s", name, exc)
 
 
 def prune_dead_records(profile: str, *, is_alive) -> list[dict[str, Any]]:
-    """Drop dead PIDs from the index; return surviving rows."""
+    """Mark dead PIDs as stopped (keep history for reboot/restart), return live rows.
+
+    Stopped entries stay in the index so the agent still knows *what* was
+    started (command/label) after reboot and can restart them explicitly.
+    """
     name = (profile or "default").strip() or "default"
     items = load_index(name)
-    alive: list[dict[str, Any]] = []
+    kept: list[dict[str, Any]] = []
+    live: list[dict[str, Any]] = []
     changed = False
+    now = time.time()
+    # Keep stopped history up to 30 days / half of cap.
+    max_stopped = max(20, _MAX_RECORDS // 2)
+    stopped: list[dict[str, Any]] = []
     for item in items:
         try:
             pid = int(item.get("pid") or 0)
         except (TypeError, ValueError):
             changed = True
             continue
+        status = str(item.get("status") or "running")
         if pid > 0 and is_alive(pid):
-            alive.append(item)
+            if status != "running":
+                item = dict(item)
+                item["status"] = "running"
+                item["stopped_at"] = None
+                changed = True
+            live.append(item)
+            kept.append(item)
         else:
-            changed = True
+            item = dict(item)
+            if status == "running" or not item.get("stopped_at"):
+                item["status"] = "stopped"
+                item["stopped_at"] = float(item.get("stopped_at") or now)
+                changed = True
+            # Drop very old stopped rows
+            stopped_at = float(item.get("stopped_at") or 0)
+            if stopped_at and (now - stopped_at) > 30 * 86400:
+                changed = True
+                continue
+            stopped.append(item)
+    # Prefer newest stopped
+    stopped.sort(key=lambda r: float(r.get("stopped_at") or 0), reverse=True)
+    if len(stopped) > max_stopped:
+        changed = True
+        stopped = stopped[:max_stopped]
+    kept.extend(stopped)
     if changed:
         try:
-            _write_index(name, alive)
+            _write_index(name, kept)
         except OSError as exc:
             logger.warning("background process index prune failed: %s", exc)
-    return alive
+    return live
+
+
+def list_index_with_status(profile: str, *, is_alive) -> list[dict[str, Any]]:
+    """All index rows with live/stopped status (updates index)."""
+    name = (profile or "default").strip() or "default"
+    prune_dead_records(name, is_alive=is_alive)
+    return load_index(name)

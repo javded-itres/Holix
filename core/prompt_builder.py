@@ -425,12 +425,15 @@ Examples:
 - Use `read_file` to examine existing code or configuration
 - Use `write_file` to create or modify files
 - Use `run_terminal_command` for one-shot commands (git, tests, package install) with a timeout
-- Use `start_background_process` (alias `run_project`) for dev servers and long-running apps — never block the chat with `npm run dev`, `uvicorn`, etc. Do **not** use `run_terminal_command` for servers.
+- Use `start_background_process` (alias `run_project`) for dev servers, **Telegram bots**, workers — never block the chat with `npm run dev`, `uvicorn`, long-poll bots, etc. Do **not** use `run_terminal_command` / `nohup` for them (they won't be tracked after reboot).
+- Before starting a bot/server: `list_background_processes` (shows running + stopped history with restart commands).
+- **Never** start a second Holix Telegram getUpdates / `integrations.telegram.main` — gateway already runs it (TelegramConflictError). Product bots need their **own** bot token.
 - Multiple dev servers are allowed on **different ports** (e.g. frontend :3000 + API :8000); only stop or restart when reusing the **same** port
 - Always keep the **same port** from the project config/README — never hop to 8001, 8002… unless the user explicitly asks
 - After `start_background_process`, call `check_background_process` — it reports which PID listens on each expected port (`ours` vs `foreign`)
 - If status is `wrong_process_on_port`, `port_in_use`, `crashed`, `error_in_log`, or `port_not_listening`: read the log, fix code if needed, then `restart_background_process` with the **same command** (same port), and `check_background_process` again until `healthy`
 - Use `stop_background_process` or tell the user about the ⏹ button (Telegram/MAX) or `/process-stop` (TUI) when shutting down a server
+- **Permission errors** (sudo / Operation not permitted): report clearly that holix cannot use root; do not claim the kill/stop succeeded
 - Use `list_directory` to explore project structure
 
 ## Run, debug, and environment setup (mandatory)

@@ -99,6 +99,44 @@ def _blocked_sensitive_path_access(
     return False, ""
 
 
+def _format_access_denial(*, returncode: int, output: str, error: str) -> str | None:
+    """Human-readable explanation for common permission / policy failures."""
+    blob = f"{output or ''}\n{error or ''}".lower()
+    if not blob.strip() and returncode == 0:
+        return None
+
+    # sudo / root
+    if (
+        "i'm afraid i can't do that" in blob
+        or "a password is required" in blob
+        or "sudo: " in blob
+        and ("not allowed" in blob or "password" in blob or "sorry" in blob)
+        or "must be run as root" in blob
+        or "operation not permitted" in blob
+        or "permission denied" in blob
+    ):
+        return (
+            f"Error (exit code {returncode}): **нет прав доступа**.\n"
+            "Команда отклонена ОС (часто: `sudo` недоступен пользователю `holix`, "
+            "нет root, или нет прав на файл/каталог).\n"
+            "Что делать:\n"
+            "- **не** пытаться через sudo от имени holix — это ожидаемо запрещено;\n"
+            "- выполнять только в workspace профиля / то, что разрешено jail;\n"
+            "- для systemctl/kill чужих процессов нужен root **вне** агента "
+            "(ops/SSH), либо отдельный unit, которым holix уже владеет;\n"
+            "- переформулировать задачу без привилегий (остановить *свой* "
+            "background process через stop_background_process).\n"
+            f"STDOUT:\n{output or '(пусто)'}\nSTDERR:\n{error or '(пусто)'}"
+        )
+    if "access denied" in blob or "authentication failed" in blob:
+        return (
+            f"Error (exit code {returncode}): **доступ запрещён** (auth/ACL).\n"
+            "Проверьте токены/ключи, права на API и что команда идёт от holix.\n"
+            f"STDOUT:\n{output or '(пусто)'}\nSTDERR:\n{error or '(пусто)'}"
+        )
+    return None
+
+
 def _format_process_result(
     *,
     returncode: int,
@@ -107,6 +145,9 @@ def _format_process_result(
 ) -> str:
     if returncode == 0:
         return f"Success (exit code 0):\n{output}" if output else "Success (no output)"
+    access = _format_access_denial(returncode=returncode, output=output, error=error)
+    if access:
+        return access
     return f"Error (exit code {returncode}):\nSTDOUT:\n{output}\nSTDERR:\n{error}"
 
 
@@ -184,9 +225,12 @@ class TerminalTool(BaseTool):
         super().__init__()
         self.name = "run_terminal_command"
         self.description = (
-            "Execute a terminal command and return its output. "
+            "Execute a short terminal command and return its output. "
             "Shell operators (&&, |, >, etc.) are supported. "
-            "Use for system operations, package installation, git commands, etc."
+            "Use for system operations, package installation, git commands, etc. "
+            "Do NOT use for long-running bots/servers (telegram bots, uvicorn, npm run dev) — "
+            "use start_background_process so the process is tracked across restarts. "
+            "Permission errors (sudo/root) are returned as clear access-denied messages."
         )
         self.risk_level = "high"
         self.parameters = {
@@ -217,6 +261,35 @@ class TerminalTool(BaseTool):
 
         if is_run_cancelled():
             return "Error: Run cancelled — terminal command not started."
+
+        # Nudge away from untracked long-running bots/servers.
+        cmd_l = (command or "").lower()
+        if any(
+            x in cmd_l
+            for x in (
+                "nohup ",
+                "integrations.telegram",
+                "telegram_channel_publisher",
+                "python -m http.server",
+                "uvicorn ",
+                "npm run dev",
+                "next dev",
+                "gunicorn ",
+            )
+        ) or (
+            "python" in cmd_l
+            and any(x in cmd_l for x in ("bot.py", "polling", "getupdates"))
+        ):
+            if not any(x in cmd_l for x in ("&& echo", "timeout ", "pkill", "pgrep", "ps ")):
+                return (
+                    "Error: This looks like a **long-running** bot/server. "
+                    "Do **not** launch it via run_terminal_command (it will not be "
+                    "tracked after reboot and can conflict with Holix Telegram). "
+                    "Use **start_background_process** with the same command instead, "
+                    "then check_background_process / stop_background_process. "
+                    "Never start a second Telegram long-poll with the same bot token "
+                    "as holix-gateway (TelegramConflictError)."
+                )
 
         if terminal_whitelist_enabled():
             command_whitelist.apply_extra(terminal_whitelist_extra())
