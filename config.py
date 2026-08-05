@@ -117,16 +117,26 @@ class Settings(BaseSettings):
         description="Minimum seconds between interventions for the same job",
     )
 
+    # Agent response pipeline: classic ≈1.0.2 (default) | modern anti-monologue
+    agent_pipeline: str = Field(
+        default="classic",
+        validation_alias=AliasChoices("HOLIX_AGENT_PIPELINE", "AGENT_PIPELINE"),
+        description=(
+            "Response pipeline: 'classic' (≈1.0.2, default) or 'modern' "
+            "(tools-first / monologue honesty). Messenger menu can override per profile."
+        ),
+    )
+
     # Meta-Agent Configuration (pre-thinking advisory — Reflexion setup)
+    # Default off under classic pipeline; enable via menu or HOLIX_ENABLE_META_AGENT.
     enable_meta_agent: bool = Field(
-        default=True,
+        default=False,
         validation_alias=AliasChoices("HOLIX_ENABLE_META_AGENT", "ENABLE_META_AGENT"),
         description="Run meta-agent after memory retrieval for strategic hints",
     )
 
     # Self-Refinement / Reflexion Configuration (evaluate draft → verbal feedback → retry)
-    # Default off: messenger multi-user bots had monologue spam when this was on by default.
-    # Users can enable per profile via Telegram /status → Reflexion.
+    # Default off (classic 1.0.2-quiet path). Enable via menu or HOLIX_ENABLE_SELF_REFINEMENT.
     enable_self_refinement: bool = Field(
         default=False,
         validation_alias=AliasChoices(

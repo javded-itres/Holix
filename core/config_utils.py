@@ -91,6 +91,7 @@ _LOCAL_SYSTEM_KEYS: frozenset[str] = frozenset({
     "auto_allow_threshold", "non_interactive", "confirmation_timeout",
     "plan_review_enabled", "plan_review_timeout",
     "enable_subagents", "enable_meta_agent", "enable_self_refinement",
+    "agent_pipeline",
     "enable_evolution", "context_window",
     # security-ish that must stay global
     "api_key_pepper", "require_auth",

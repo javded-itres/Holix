@@ -328,8 +328,10 @@ def resolve_assistant_text(
     finish_reason: str | None = None,
     model: str | None = None,
     profile_name: str | None = None,
+    agent_pipeline: str | None = None,
 ) -> str:
     """Pick user-visible assistant text; empty string means nothing to show."""
+    from core.agent_pipeline import is_classic_pipeline, is_modern_pipeline
     from core.i18n.messages import t
 
     locale = _ui_locale(profile_name)
@@ -350,9 +352,14 @@ def resolve_assistant_text(
         return ""
 
     if finish_reason == "length":
-        # Truncation mid-thought often becomes a monologue loop if re-prompted
-        # with the same partial text. Prefer a short notice; keep a brief
-        # collapsed prefix only when it still looks useful.
+        # Classic (≈1.0.2): deliver collapsed text only — no system truncation wall.
+        if is_classic_pipeline(agent_pipeline):
+            if not text:
+                return t("llm.truncated", locale)
+            if is_pathological_repetition(text, min_repeats=3):
+                return collapse_repetitive_text(text) or text
+            return text
+        # Modern: explicit truncation notice (anti-spam UX).
         notice = t("llm.truncated", locale)
         if not text:
             return notice
@@ -361,13 +368,10 @@ def resolve_assistant_text(
             if collapsed and len(collapsed) <= 200:
                 return f"{collapsed}\n\n{notice}"
             return notice
-        # Incomplete but non-looping answer: cap and mark truncated.
         short = text if len(text) <= 500 else text[:500].rstrip() + "…"
         return f"{short}\n\n{notice}"
-
     if text:
         return text
-
     if finish_reason == "content_filter":
         return t("llm.content_filter", locale)
 

@@ -350,6 +350,14 @@ def _llm_max_tokens(
     )
 
 
+def _agent_pipeline(state: dict | None, agent: Any | None = None) -> str:
+    from core.agent_pipeline import pipeline_from_config, pipeline_from_state
+
+    cfg = getattr(agent, "config", None) if agent else None
+    return pipeline_from_state(state if isinstance(state, dict) else None, cfg)
+
+
+
 def _llm_step_timeout_s(agent) -> float:
     cfg = getattr(agent, "config", None) if agent else None
     raw = getattr(cfg, "llm_step_timeout", None) if cfg else None
@@ -780,6 +788,7 @@ async def _react_non_streaming(
             finish_reason=finish_reason,
             model=model,
             profile_name=profile_name,
+            agent_pipeline=_agent_pipeline(state, agent),
         )
         # Reasoning-only / empty: keep plan steps open; for free chat still finish
         # with a clear message only after we have nothing else to try.
@@ -1191,12 +1200,14 @@ async def _react_streaming(
             if finish_reason in ("stop", "length"):
                 # finish_reason=length: model hit max_tokens — often mid monologue loop.
                 # Resolve + honesty before accepting as final (same path as stop).
+                _pipe = _agent_pipeline(state, agent)
                 final_response = resolve_assistant_text(
                     content=current_content,
                     reasoning_content=current_reasoning,
                     finish_reason=finish_reason,
                     model=model,
                     profile_name=profile_name_from_agent(agent) if agent else None,
+                    agent_pipeline=_pipe,
                 )
                 if not (final_response or "").strip():
                     if finish_reason == "length":
@@ -1208,6 +1219,7 @@ async def _react_streaming(
                             finish_reason="length",
                             model=model,
                             profile_name=profile_name_from_agent(agent) if agent else None,
+                            agent_pipeline=_pipe,
                         ) or reasoning_only_user_message(
                             profile_name=profile_name_from_agent(agent) if agent else None
                         )
@@ -1324,6 +1336,7 @@ async def _react_streaming(
         finish_reason=last_finish_reason,
         model=model,
         profile_name=profile_name_from_agent(agent) if agent else None,
+        agent_pipeline=_agent_pipeline(state, agent),
     )
     if not (final_response or "").strip():
         logger.warning(

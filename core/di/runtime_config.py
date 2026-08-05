@@ -91,6 +91,8 @@ class HolixRuntimeConfig:
 
     # Profile metadata (optional)
     profile_name: str = "default"
+    # Response pipeline: classic (≈1.0.2) | modern (anti-monologue)
+    agent_pipeline: str = "classic"
     provider_metadata: dict[str, Any] = field(default_factory=dict)
 
     # MCP servers (defs + assignments). Only additive from profile; local .helix may supplement at load time.
@@ -157,6 +159,7 @@ class HolixRuntimeConfig:
             refinement_quality_threshold=s.refinement_quality_threshold,
             enable_evolution=s.enable_evolution,
             evolution_auto_learn=s.evolution_auto_learn,
+            agent_pipeline=str(getattr(s, "agent_pipeline", "classic") or "classic"),
             max_steps_extend_enabled=bool(
                 getattr(s, "max_steps_extend_enabled", True)
             ),
@@ -257,6 +260,10 @@ class HolixRuntimeConfig:
             overrides["enable_meta_agent"] = bool(profile.enable_meta_agent)
         if getattr(profile, "enable_self_refinement", None) is not None:
             overrides["enable_self_refinement"] = bool(profile.enable_self_refinement)
+        if getattr(profile, "agent_pipeline", None):
+            from core.agent_pipeline import normalize_pipeline
+
+            overrides["agent_pipeline"] = normalize_pipeline(str(profile.agent_pipeline))
         if getattr(profile, "max_steps_extend_enabled", None) is not None:
             overrides["max_steps_extend_enabled"] = bool(
                 profile.max_steps_extend_enabled

@@ -80,13 +80,21 @@ def test_collapse_pure_ab_cycle() -> None:
 
 
 def test_resolve_length_finish_stops_pathological_loop() -> None:
-    """finish_reason=length must not deliver monologue spam as the final answer."""
+    """Modern pipeline: finish_reason=length adds truncation notice."""
     cycle = "Поняла. Проверяю статус бота через MCP.…"
     raw = cycle * 40
-    text = resolve_assistant_text(content=raw, finish_reason="length")
+    text = resolve_assistant_text(
+        content=raw, finish_reason="length", agent_pipeline="modern"
+    )
     assert "token" in text.lower() or "токен" in text.lower() or "обрезан" in text.lower()
     assert text.count("Поняла") <= 3
     assert len(text) < 500
+    # Classic: collapsed text only, no truncation wall.
+    classic = resolve_assistant_text(
+        content=raw, finish_reason="length", agent_pipeline="classic"
+    )
+    assert "обрезан" not in classic.lower()
+    assert len(classic) < 200
 
 
 def test_collapse_smotryu_mcp_server_loop() -> None:

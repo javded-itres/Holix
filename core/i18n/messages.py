@@ -91,6 +91,15 @@ MESSAGES: dict[str, dict[str, str]] = {
         "tg.menu.models": "Models",
         "tg.menu.subagents": "Sub-agents",
         "tg.menu.reflexion": "Reflexion",
+        "tg.menu.pipeline": "Pipeline",
+        "tg.pipeline": "Pipeline: {mode}",
+        "tg.pipeline_classic": "Classic (1.0.2)",
+        "tg.pipeline_modern": "Modern (anti-spam)",
+        "tg.pipeline_picker_title": "Agent pipeline",
+        "tg.pipeline_picker_body": (
+            "Classic ≈ Holix 1.0.2: no forced tools-first, no truncation wall, "
+            "Reflexion/meta off by default. Modern: tools-first + monologue honesty."
+        ),
         "tg.menu.compress": "Compress context",
         "tg.menu.prev": "Prev",
         "tg.menu.next": "Next",
@@ -623,6 +632,15 @@ When finished, confirm the absolute path written and give a 5–10 line summary 
         "tg.menu.models": "Модели",
         "tg.menu.subagents": "Субагенты",
         "tg.menu.reflexion": "Reflexion",
+        "tg.menu.pipeline": "Pipeline",
+        "tg.pipeline": "Pipeline: {mode}",
+        "tg.pipeline_classic": "Classic (1.0.2)",
+        "tg.pipeline_modern": "Modern (anti-spam)",
+        "tg.pipeline_picker_title": "Pipeline агента",
+        "tg.pipeline_picker_body": (
+            "Classic ≈ Holix 1.0.2: без forced tools-first и без «обрезан…», "
+            "Reflexion/meta выкл по умолчанию. Modern: tools-first + honesty monologue."
+        ),
         "tg.menu.compress": "Сжать контекст",
         "tg.menu.prev": "Пред.",
         "tg.menu.next": "След.",

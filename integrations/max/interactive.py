@@ -24,6 +24,7 @@ from integrations.max.keyboards import (
     parse_callback,
     profile_picker_keyboard,
     sessions_picker_keyboard,
+    pipeline_picker_keyboard,
     reflexion_picker_keyboard,
     status_menu_keyboard,
     stream_picker_keyboard,
@@ -247,6 +248,17 @@ class MaxInteractive:
             state = "on" if enabled else "off"
             return t("tg.reflexion", lang, state=state)
 
+        if action == "pl":
+            from integrations.messenger.pipeline_settings import set_pipeline_for_host
+
+            lang = messenger_host_locale(self._host)
+            try:
+                mode = set_pipeline_for_host(self._host, value)
+            except Exception as exc:
+                return f"{t('tg.error', lang)}: {exc}"
+            await self.show_pipeline_picker()
+            return t("tg.pipeline", lang, mode=mode)
+
         if action == "pi":
             lang = messenger_host_locale(self._host)
             profiles = self._session.ui_profiles
@@ -368,6 +380,7 @@ class MaxInteractive:
             "stream": self.show_stream_picker,
             "subagents": self.show_subagents_picker,
             "reflexion": self.show_reflexion_picker,
+            "pipeline": self.show_pipeline_picker,
             "models": self.show_models,
             "tools": self.show_tools_picker,
             "status": self.show_status,
@@ -424,6 +437,21 @@ class MaxInteractive:
         await self._host._send_text_with_keyboard(
             text,
             reflexion_picker_keyboard(on, lang),
+        )
+
+    async def show_pipeline_picker(self) -> None:
+        from integrations.messenger.pipeline_settings import is_pipeline_for_host
+
+        lang = messenger_host_locale(self._host)
+        mode = is_pipeline_for_host(self._host)
+        text = (
+            f"**{t('tg.pipeline_picker_title', lang)}**\n"
+            f"{t('tg.pipeline', lang, mode=mode)}\n\n"
+            f"_{t('tg.pipeline_picker_body', lang)}_"
+        )
+        await self._host._send_text_with_keyboard(
+            text,
+            pipeline_picker_keyboard(mode, lang),
         )
 
     async def show_profile_picker(self) -> None:
@@ -778,6 +806,7 @@ class MaxInteractive:
         from core.session_models import ensure_session_model
 
         ensure_session_model(self._host)
+        from integrations.messenger.pipeline_settings import is_pipeline_for_host
         from integrations.messenger.reflexion_settings import is_reflexion_enabled_for_host
         from integrations.messenger.subagents_settings import is_subagents_enabled_for_host
 
@@ -789,6 +818,7 @@ class MaxInteractive:
             model_line = self._host.agent.model
         subagents = "on" if is_subagents_enabled_for_host(self._host) else "off"
         reflexion = "on" if is_reflexion_enabled_for_host(self._host) else "off"
+        pipeline = is_pipeline_for_host(self._host)
 
         headline, rows = profile_model_summary(self._host.profile)
         lines = [
@@ -796,6 +826,7 @@ class MaxInteractive:
             f"Профиль: `{self._host.profile}`",
             f"Модель: `{model_line}`",
             f"Режим: `{mode}` ({mode_title})",
+            f"Pipeline: `{pipeline}`",
             f"Стриминг: `{stream}`",
             f"Субагенты: `{subagents}`",
             f"Reflexion: `{reflexion}`",

@@ -19,6 +19,7 @@ from integrations.telegram.keyboards import (
     sessions_picker_keyboard,
     skills_picker_keyboard,
     status_menu_keyboard,
+    pipeline_picker_keyboard,
     reflexion_picker_keyboard,
     stream_picker_keyboard,
     subagents_picker_keyboard,
@@ -510,6 +511,17 @@ class TelegramInteractive:
             state = "on" if enabled else "off"
             return t("tg.reflexion", lang, state=state)
 
+        if action == "pl":
+            from integrations.messenger.pipeline_settings import set_pipeline_for_host
+
+            lang = messenger_host_locale(self._host)
+            try:
+                mode = set_pipeline_for_host(self._host, value)
+            except Exception as exc:
+                return f"{t('tg.error', lang)}: {exc}"
+            await self.show_pipeline_picker()
+            return t("tg.pipeline", lang, mode=mode)
+
         if action == "pi":
             lang = messenger_host_locale(self._host)
             profiles = self._session.ui_profiles
@@ -669,6 +681,7 @@ class TelegramInteractive:
             "stream": self.show_stream_picker,
             "subagents": self.show_subagents_picker,
             "reflexion": self.show_reflexion_picker,
+            "pipeline": self.show_pipeline_picker,
             "models": self.show_models,
             "tools": self.show_tools_picker,
             "skills": self.show_skills_picker,
@@ -726,6 +739,21 @@ class TelegramInteractive:
         await self._host._send_html_with_keyboard(
             text,
             reflexion_picker_keyboard(on, lang),
+        )
+
+    async def show_pipeline_picker(self) -> None:
+        from integrations.messenger.pipeline_settings import is_pipeline_for_host
+
+        lang = messenger_host_locale(self._host)
+        mode = is_pipeline_for_host(self._host)
+        text = (
+            f"<b>{escape_html(t('tg.pipeline_picker_title', lang))}</b>\n"
+            f"{escape_html(t('tg.pipeline', lang, mode=mode))}\n\n"
+            f"<i>{escape_html(t('tg.pipeline_picker_body', lang))}</i>"
+        )
+        await self._host._send_html_with_keyboard(
+            text,
+            pipeline_picker_keyboard(mode, lang),
         )
 
     async def show_profile_picker(self) -> None:
@@ -1048,6 +1076,7 @@ class TelegramInteractive:
         )
 
     async def show_status(self) -> None:
+        from integrations.messenger.pipeline_settings import is_pipeline_for_host
         from integrations.messenger.reflexion_settings import is_reflexion_enabled_for_host
         from integrations.messenger.subagents_settings import is_subagents_enabled_for_host
 
@@ -1059,12 +1088,14 @@ class TelegramInteractive:
             model_line = self._host.agent.model
         subagents = "on" if is_subagents_enabled_for_host(self._host) else "off"
         reflexion = "on" if is_reflexion_enabled_for_host(self._host) else "off"
+        pipeline = is_pipeline_for_host(self._host)
 
         lines = [
             "<b>Holix — статус</b>",
             f"Профиль: <code>{escape_html(self._host.profile)}</code>",
             f"Модель: <code>{escape_html(model_line)}</code>",
             f"Режим: <code>{escape_html(mode)}</code> ({escape_html(mode_title)})",
+            f"Pipeline: <code>{escape_html(pipeline)}</code>",
             f"Стриминг: <code>{stream}</code>",
             f"Субагенты: <code>{subagents}</code>",
             f"Reflexion: <code>{reflexion}</code>",

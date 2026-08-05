@@ -119,6 +119,32 @@ def reflexion_picker_keyboard(enabled: bool, locale: str | None = None) -> dict[
     )
 
 
+def pipeline_picker_keyboard(current: str, locale: str | None = None) -> dict[str, Any]:
+    from core.agent_pipeline import PIPELINE_CLASSIC, PIPELINE_MODERN, normalize_pipeline
+    from core.i18n.messages import t
+
+    from integrations.messenger.locale import MESSENGER_DEFAULT_LOCALE
+
+    loc = locale or MESSENGER_DEFAULT_LOCALE
+    cur = normalize_pipeline(current)
+    return inline_keyboard(
+        [
+            [
+                _callback_btn(
+                    f"{_mark(cur == PIPELINE_CLASSIC)}{t('tg.pipeline_classic', loc)}",
+                    _cb("pl", PIPELINE_CLASSIC),
+                ),
+            ],
+            [
+                _callback_btn(
+                    f"{_mark(cur == PIPELINE_MODERN)}{t('tg.pipeline_modern', loc)}",
+                    _cb("pl", PIPELINE_MODERN),
+                ),
+            ],
+        ]
+    )
+
+
 def profile_picker_keyboard(profiles: list[str], current: str) -> dict[str, Any]:
     rows: list[list[dict[str, str]]] = []
     row: list[dict[str, str]] = []
@@ -303,6 +329,7 @@ def status_menu_keyboard(locale: str | None = None, *, is_admin: bool = True) ->
             _callback_btn(t("tg.menu.reflexion", loc), _cb("r", "reflexion")),
         ],
         [
+            _callback_btn(t("tg.menu.pipeline", loc), _cb("r", "pipeline")),
             _callback_btn(t("tg.menu.compress", loc), _cb("r", "compress")),
         ],
         [

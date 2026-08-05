@@ -942,32 +942,38 @@ def ends_turn_on_unexecuted_intent(
     messages: list[dict[str, Any]] | None,
     *,
     user_input: str | None = None,
+    agent_pipeline: str | None = None,
 ) -> bool:
     """True when the model only promises an action and never called tools."""
+    from core.agent_pipeline import is_classic_pipeline, is_modern_pipeline
+
     content = (text or "").strip()
     if not content:
         return False
     if _tools_attempted_since_last_user(messages):
         return False
-    # Truncation notice without tools is never a completed task (user saw
-    # monologue cut off, or only the notice after «делай»).
-    if is_truncation_notice(content):
-        return True
-    # Pathological loops («Поняла. Проверяю…» × N) are never a valid final.
-    try:
-        from core.llm.response_text import is_pathological_repetition
 
-        if is_pathological_repetition(content, min_repeats=3):
+    classic = is_classic_pipeline(agent_pipeline)
+    modern = is_modern_pipeline(agent_pipeline) or not classic
+
+    # Modern only: truncation notice / status monologue / path loops without tools.
+    if modern:
+        if is_truncation_notice(content):
             return True
-    except Exception:
-        pass
-    # Status spam («Да. Смотрю…») is never a valid final without tools.
-    if looks_like_status_monologue(content):
-        return True
-    # "Сейчас сохраню файл" / "Ищу новости" without tools — always nudge.
+        try:
+            from core.llm.response_text import is_pathological_repetition
+
+            if is_pathological_repetition(content, min_repeats=3):
+                return True
+        except Exception:
+            pass
+        if looks_like_status_monologue(content):
+            return True
+
+    # Both pipelines: explicit "I'll do it now" without tools.
     if _ACTION_INTENT.search(content):
         return True
-    # Plan monologue ("Что сделаю… Начинаю") only when the user asked for work.
+    # Plan monologue only when the user asked for work.
     if looks_like_plan_monologue(content):
         user = (user_input or "").strip() or last_user_text(messages)
         return is_action_request(user)
@@ -1027,6 +1033,7 @@ def should_nudge_false_completion(
     """Whether to block the final answer and force a tool-use retry."""
     user_input = state.get("user_input") if isinstance(state, dict) else None
     tool_results = state.get("tool_results") if isinstance(state, dict) else None
+    pipeline = str(state.get("agent_pipeline") or "") if isinstance(state, dict) else ""
     max_nudges = _max_nudges_for_turn(
         messages,
         final_response=final_response,
@@ -1062,6 +1069,7 @@ def should_nudge_false_completion(
         final_response,
         messages,
         user_input=user_input,
+        agent_pipeline=pipeline,
     )
 
 
@@ -1123,6 +1131,12 @@ def should_refuse_status_monologue(
     content = (final_response or "").strip()
     if not content:
         return False
+    pipeline = str(state.get("agent_pipeline") or "") if isinstance(state, dict) else ""
+    from core.agent_pipeline import is_classic_pipeline
+
+    if is_classic_pipeline(pipeline):
+        # Classic (≈1.0.2): do not refuse pure status monologue / truncation.
+        return False
     if not (
         is_truncation_notice(content)
         or looks_like_status_monologue(content)
@@ -1130,6 +1144,7 @@ def should_refuse_status_monologue(
             content,
             messages,
             user_input=state.get("user_input") if isinstance(state, dict) else None,
+            agent_pipeline=pipeline,
         )
     ):
         return False
@@ -1303,15 +1318,23 @@ def resolve_tool_choice(
                 "function": {"name": "sdd_write_artifact"},
             }
         return "required"
-    # Radical anti-monologue: after honesty retry, tools are mandatory.
+    from core.agent_pipeline import is_classic_pipeline, is_modern_pipeline
+
+    pipeline = str(state.get("agent_pipeline") or "") if isinstance(state, dict) else ""
+    # After honesty retry, tools are mandatory on both pipelines.
     if int(state.get("honesty_nudge_count") or 0) > 0:
         return "required"
-    # Action turn, no tools yet → force tools on the first step (no status essay).
+
+    # Classic (≈1.0.2): leave tool_choice=auto unless SDD/honesty forced above.
+    if is_classic_pipeline(pipeline):
+        return "auto"
+
+    # Modern anti-monologue path:
+    # Action turn, no tools yet → force tools on the first step.
     if is_action_request(user_input or last_user_text(messages)) and not (
         _tools_attempted_since_last_user(messages)
     ):
         return "required"
-    # First step already monologued in history (e.g. checkpoint resume).
     if messages:
         for msg in reversed(messages):
             if not isinstance(msg, dict):

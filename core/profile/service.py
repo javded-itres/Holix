@@ -87,6 +87,9 @@ class ProfileConfig(BaseModel):
     enable_meta_agent: bool | None = None
     enable_self_refinement: bool | None = None
 
+    # Response pipeline: classic (≈1.0.2) | modern (anti-monologue)
+    agent_pipeline: str | None = None
+
     # When max_steps is hit, allow automatic budget extensions on progress
     max_steps_extend_enabled: bool | None = None
 

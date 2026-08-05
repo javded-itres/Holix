@@ -95,6 +95,10 @@ def prepare_initial_state(
         "pending_subagent": None,
         # Per user turn (must reset: checkpoint otherwise freezes honesty forever)
         "honesty_nudge_count": 0,
+        # classic (≈1.0.2) | modern anti-monologue
+        "agent_pipeline": str(getattr(cfg, "agent_pipeline", "classic") or "classic")
+        if cfg
+        else "classic",
         "supervisor_needs_rework": False,
         "supervisor_rework_tasks": [],
         "supervisor_rework_round": 0,

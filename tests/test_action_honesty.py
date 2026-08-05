@@ -74,7 +74,7 @@ def test_plan_monologue_without_tools_is_nudged() -> None:
 
 
 def test_truncation_notice_without_tools_is_nudged_not_final() -> None:
-    """Bug: finish_reason=length became a final «Ответ обрезан…» with no tools."""
+    """Modern pipeline: finish_reason=length must not be a final without tools."""
     notice = (
         "… Поняла. Ищу свежие IT-новости за сегодня.\n\n"
         "Ответ обрезан лимитом токенов модели. Остановилась, не повторяя фразу — "
@@ -86,7 +86,10 @@ def test_truncation_notice_without_tools_is_nudged_not_final() -> None:
         {"role": "assistant", "content": notice},
     ]
     assert ends_turn_on_unexecuted_intent(
-        notice, messages, user_input="Сделай тестовый пост, новости IT за сегодня"
+        notice,
+        messages,
+        user_input="Сделай тестовый пост, новости IT за сегодня",
+        agent_pipeline="modern",
     )
     state = {
         "user_input": "Сделай тестовый пост, новости IT за сегодня",
@@ -95,6 +98,7 @@ def test_truncation_notice_without_tools_is_nudged_not_final() -> None:
         "honesty_nudge_count": 0,
         "plan_steps": [],
         "current_plan_step": 0,
+        "agent_pipeline": "modern",
     }
     assert should_nudge_false_completion(
         state, final_response=notice, messages=messages
@@ -133,8 +137,12 @@ def test_action_request_forces_tools_on_first_step() -> None:
         "honesty_nudge_count": 0,
         "plan_steps": [],
         "current_plan_step": 0,
+        "agent_pipeline": "modern",
     }
     assert resolve_tool_choice(state, state["messages"], tools=tools) == "required"
+    # Classic pipeline leaves tool_choice auto on first step (≈1.0.2).
+    classic = {**state, "agent_pipeline": "classic"}
+    assert resolve_tool_choice(classic, classic["messages"], tools=tools) == "auto"
 
 
 def test_status_monologue_poniala_proveryayu_loop_is_nudged() -> None:
@@ -185,6 +193,7 @@ def test_status_monologue_mcp_spam_is_nudged_and_forced_tools() -> None:
         "honesty_nudge_count": 0,
         "plan_steps": [],
         "current_plan_step": 0,
+        "agent_pipeline": "modern",
     }
     assert should_nudge_false_completion(
         state, final_response=monologue, messages=messages

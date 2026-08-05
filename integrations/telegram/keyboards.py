@@ -113,6 +113,33 @@ def subagents_picker_keyboard(enabled: bool, locale: str | None = None) -> Any:
     )
 
 
+def pipeline_picker_keyboard(current: str, locale: str | None = None) -> Any:
+    from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
+    from core.agent_pipeline import PIPELINE_CLASSIC, PIPELINE_MODERN, normalize_pipeline
+    from core.i18n.messages import t
+
+    from integrations.messenger.locale import MESSENGER_DEFAULT_LOCALE
+
+    loc = locale or MESSENGER_DEFAULT_LOCALE
+    cur = normalize_pipeline(current)
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(
+                    text=f"{_mark(cur == PIPELINE_CLASSIC)}{t('tg.pipeline_classic', loc)}",
+                    callback_data=_cb("pl", PIPELINE_CLASSIC),
+                ),
+            ],
+            [
+                InlineKeyboardButton(
+                    text=f"{_mark(cur == PIPELINE_MODERN)}{t('tg.pipeline_modern', loc)}",
+                    callback_data=_cb("pl", PIPELINE_MODERN),
+                ),
+            ],
+        ]
+    )
+
+
 def reflexion_picker_keyboard(enabled: bool, locale: str | None = None) -> Any:
     from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
     from core.i18n.messages import t
@@ -417,6 +444,7 @@ def status_menu_keyboard(locale: str | None = None, *, is_admin: bool = True) ->
                 InlineKeyboardButton(text=t("tg.menu.reflexion", loc), callback_data=_cb("r", "reflexion")),
             ],
             [
+                InlineKeyboardButton(text=t("tg.menu.pipeline", loc), callback_data=_cb("r", "pipeline")),
                 InlineKeyboardButton(text=t("tg.menu.compress", loc), callback_data=_cb("r", "compress")),
             ],
         ]
