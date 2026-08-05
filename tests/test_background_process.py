@@ -372,7 +372,8 @@ async def test_list_tool_empty(scope_tokens) -> None:
         return_value=registry,
     ):
         result = await ListBackgroundProcessesTool().execute()
-    assert result == "No background processes for this session."
+    assert "No background processes recorded for this profile" in result
+    assert "start_background_process" in result
 
 
 @pytest.mark.asyncio
