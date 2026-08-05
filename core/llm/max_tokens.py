@@ -4,10 +4,10 @@ from __future__ import annotations
 
 # Plan / coding headroom (long patches, multi-file reasoning).
 DEFAULT_AGENT_MAX_TOKENS = 8192
-# Free-chat / messenger steps. Keep enough room for tool_calls JSON after a
-# short preface; monologue is blocked by tool_choice=required + honesty, not
-# by starving the budget (too-low max_tokens produced empty «обрезан» finals).
-DEFAULT_CHAT_MAX_TOKENS = 3072
+# Free-chat / messenger steps. Same headroom as plan/coding by default so
+# multi-tool turns are not cut mid-call; monologue is blocked by honesty /
+# tool_choice, not by starving the budget.
+DEFAULT_CHAT_MAX_TOKENS = 8192
 
 
 def resolve_agent_max_tokens(
