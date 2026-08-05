@@ -38,109 +38,230 @@ def _norm_unit(text: str) -> str:
     return re.sub(r"\s+", " ", (text or "").strip()).casefold()
 
 
+# Models often glue «…Поняла» without a space after ellipsis — require \s* not \s+.
+_SENTENCE_SPLIT_RE = re.compile(r"(?<=[.!?…])\s*|\n+")
+
+
+def _sentence_units(text: str) -> list[str]:
+    return [u.strip() for u in _SENTENCE_SPLIT_RE.split(text or "") if _norm_unit(u)]
+
+def _find_sentence_cycle(
+    units: list[str],
+    *,
+    min_repeats: int = 4,
+) -> tuple[int, int, int] | None:
+    """Find a repeating sentence cycle.
+
+    Returns ``(start_index, period, run_count)`` when a block of ``period``
+    sentences (period 1–3) repeats ``run_count`` times and covers most units.
+
+    Catches patterns like::
+        A A A A
+        A B A B A B
+        (with optional different prefix before the loop)
+    including short fillers («Поняла.») alternating with longer monologue.
+    """
+    n = len(units)
+    if n < min_repeats:
+        return None
+    norms = [_norm_unit(u) for u in units]
+
+    for period in (1, 2, 3):
+        if n < period * min_repeats:
+            continue
+        # Allow the loop to start after a short non-looping prefix.
+        max_start = min(period + 2, n - period * min_repeats + 1)
+        for start in range(max(0, max_start)):
+            block = tuple(norms[start : start + period])
+            if not block or any(not b for b in block):
+                continue
+            # Require enough signal: one long sentence, or a multi-unit block
+            # whose total length is meaningful (ABAB with short "Поняла.").
+            total_len = sum(len(b) for b in block)
+            longest = max(len(b) for b in block)
+            if period == 1 and longest < 12:
+                continue
+            if period > 1 and longest < 10 and total_len < 20:
+                continue
+            run = 0
+            i = start
+            while i + period <= n and tuple(norms[i : i + period]) == block:
+                run += 1
+                i += period
+            covered = run * period
+            if run >= min_repeats and covered >= max(min_repeats, int(n * 0.55)):
+                return start, period, run
+    return None
+
+
+def _find_char_cycle(
+    s: str,
+    *,
+    min_unit: int = 16,
+    min_repeats: int = 4,
+) -> tuple[str, int] | None:
+    """Find a character-level cycle starting at any offset (not only s[0])."""
+    n = len(s)
+    if n < min_unit * min_repeats:
+        return None
+    # Prefer longer units; cap search for performance on huge degenerations.
+    max_unit = min(n // min_repeats, 280)
+    # Sample start offsets: 0 and after first sentence-ish break.
+    starts = {0}
+    for m in re.finditer(r"[.!?…]\s*", s[: min(n, 400)]):
+        starts.add(m.end())
+        if len(starts) >= 8:
+            break
+    best: tuple[str, int] | None = None
+    for start in sorted(starts):
+        if start >= n // 2:
+            continue
+        tail = s[start:]
+        tn = len(tail)
+        limit = min(tn // min_repeats, max_unit)
+        for unit_len in range(min_unit, limit + 1):
+            unit = tail[:unit_len]
+            if not unit.strip():
+                continue
+            repeats = 0
+            pos = 0
+            while pos + unit_len <= tn and tail[pos : pos + unit_len] == unit:
+                repeats += 1
+                pos += unit_len
+            if repeats >= min_repeats and pos >= int(tn * 0.7):
+                if best is None or repeats * unit_len > len(best[0]) * best[1]:
+                    best = (unit, repeats)
+    return best
+
+
+def _count_phrase_runs(s: str, phrase: str) -> int:
+    if not phrase or len(phrase) < 8:
+        return 0
+    # Overlapping-safe count
+    count = 0
+    start = 0
+    while True:
+        i = s.find(phrase, start)
+        if i < 0:
+            break
+        count += 1
+        start = i + max(1, len(phrase) // 2)
+    return count
+
+
 def is_pathological_repetition(
     text: str | None,
     *,
-    min_unit: int = 20,
+    min_unit: int = 16,
     min_repeats: int = 4,
 ) -> bool:
-    """True when the same phrase is repeated many times (model degeneration)."""
+    """True when the same phrase/cycle is repeated many times (model degeneration)."""
     s = (text or "").strip()
     if len(s) < min_unit * min_repeats:
         return False
-    # Consecutive sentence/ellipsis units
-    units = [
-        u
-        for u in re.split(r"(?<=[.!?…])\s*|\n+", s)
-        if _norm_unit(u)
-    ]
-    if len(units) >= min_repeats:
-        norms = [_norm_unit(u) for u in units]
-        run = 1
-        for i in range(1, len(norms)):
-            if norms[i] == norms[i - 1] and len(norms[i]) >= min_unit:
-                run += 1
-                if run >= min_repeats:
-                    return True
-            else:
-                run = 1
-    # Cyclic prefix covering most of the string
-    n = len(s)
-    limit = min(n // min_repeats, 240)
-    for unit_len in range(min_unit, limit + 1):
-        unit = s[:unit_len]
-        if not unit.strip():
-            continue
-        repeats = 0
-        pos = 0
-        while pos + unit_len <= n and s[pos : pos + unit_len] == unit:
-            repeats += 1
-            pos += unit_len
-        if repeats >= min_repeats and pos >= int(n * 0.75):
-            return True
+
+    units = _sentence_units(s)
+    if _find_sentence_cycle(units, min_repeats=min_repeats) is not None:
+        return True
+
+    if _find_char_cycle(s, min_unit=min_unit, min_repeats=min_repeats) is not None:
+        return True
+
+    # High-frequency mid-string phrase (covers prefix mismatch cases).
+    # Take a candidate window from the middle of the text.
+    if len(s) >= min_unit * min_repeats:
+        mid = len(s) // 3
+        for win in (40, 60, 80, 100, 120):
+            if mid + win > len(s):
+                continue
+            cand = s[mid : mid + win]
+            # Align candidate to a sentence-ish start inside window
+            m = re.search(r"[.!?…]\s*", cand)
+            if m and m.end() < len(cand) - 12:
+                cand = cand[m.end() :]
+            cand = cand.strip()
+            if len(cand) < min_unit:
+                continue
+            if _count_phrase_runs(s, cand) >= min_repeats:
+                return True
     return False
 
 
 def collapse_repetitive_text(
     text: str | None,
     *,
-    max_repeats: int = 2,
-    min_unit: int = 20,
+    max_repeats: int = 1,
+    min_unit: int = 16,
 ) -> str:
-    """Collapse model loops like «фраза…фраза…фраза…» to a short form."""
+    """Collapse model loops like «фраза…фраза…фраза…» to a short form.
+
+    Default ``max_repeats=1`` keeps a single copy of a detected cycle so users
+    never see monologue spam in messengers.
+    """
     raw = (text or "").strip()
     if len(raw) < min_unit * 3:
         return raw
 
-    # 1) Collapse consecutive duplicate sentence / ellipsis units
-    pieces = re.split(r"((?:[.!?…]+|\n+)\s*)", raw)
-    # pieces = [text, sep, text, sep, ...]
-    out: list[str] = []
-    prev_norm = ""
-    run = 0
-    i = 0
-    while i < len(pieces):
-        chunk = pieces[i]
-        sep = pieces[i + 1] if i + 1 < len(pieces) else ""
-        i += 2
-        norm = _norm_unit(chunk)
-        if not norm:
-            if chunk or sep:
-                out.append(chunk + sep)
-            continue
-        if norm == prev_norm and len(norm) >= min_unit:
-            run += 1
-            if run <= max_repeats:
-                out.append(chunk + sep)
-            # else drop
+    collapsed = raw
+    units = _sentence_units(raw)
+    cycle = _find_sentence_cycle(units, min_repeats=3)
+    if cycle is not None:
+        start, period, run = cycle
+        keep = max(1, min(max_repeats, run))
+        # Preserve optional non-looping prefix sentences.
+        prefix = units[:start]
+        block = units[start : start + period]
+        kept_units = prefix + block * keep
+        # Prefer original separators lightly by joining with space after period.
+        collapsed = " ".join(kept_units).strip()
+        # If prefix was empty and we still have a huge string, fall through
+        # to char cycle as a secondary pass.
+        if len(collapsed) <= len(raw) * 0.5 or run >= 4:
+            pass  # good enough
         else:
-            prev_norm = norm
-            run = 1
-            out.append(chunk + sep)
-    collapsed = "".join(out).strip()
+            collapsed = raw
 
-    # 2) Cyclic prefix (identical block glued without clear separators)
-    s = collapsed
-    n = len(s)
-    if n >= min_unit * 3:
-        best = s
-        limit = min(n // 3, 240)
-        for unit_len in range(min_unit, limit + 1):
-            unit = s[:unit_len]
-            if not unit.strip():
+    # Character-level cycle (prefix or mid-string after first break)
+    if len(collapsed) > min_unit * 4:
+        found = _find_char_cycle(collapsed, min_unit=min_unit, min_repeats=3)
+        if found is not None:
+            unit, repeats = found
+            keep = max(1, min(max_repeats, repeats))
+            # If cycle starts mid-string, keep the unique prefix once.
+            idx = collapsed.find(unit)
+            prefix = collapsed[:idx] if idx > 0 else ""
+            # Avoid stacking a near-duplicate first sentence with the loop unit.
+            candidate = (prefix + unit * keep).strip()
+            if len(candidate) < len(collapsed):
+                collapsed = candidate
+
+    # Consecutive identical sentence units (period-1 residual)
+    if len(collapsed) >= min_unit * 3:
+        pieces = re.split(r"((?:[.!?…]+|\n+)\s*)", collapsed)
+        out: list[str] = []
+        prev_norm = ""
+        run = 0
+        i = 0
+        while i < len(pieces):
+            chunk = pieces[i]
+            sep = pieces[i + 1] if i + 1 < len(pieces) else ""
+            i += 2
+            norm = _norm_unit(chunk)
+            if not norm:
+                if chunk or sep:
+                    out.append(chunk + sep)
                 continue
-            repeats = 0
-            pos = 0
-            while pos + unit_len <= n and s[pos : pos + unit_len] == unit:
-                repeats += 1
-                pos += unit_len
-            if repeats >= 3 and pos >= int(n * 0.75):
-                candidate = (unit * max_repeats).strip()
-                if len(candidate) < len(best):
-                    best = candidate
-        collapsed = best
+            if norm == prev_norm and len(norm) >= min(12, min_unit):
+                run += 1
+                if run <= max_repeats:
+                    out.append(chunk + sep)
+            else:
+                prev_norm = norm
+                run = 1
+                out.append(chunk + sep)
+        collapsed = "".join(out).strip()
 
-    if len(collapsed) < len(raw) * 0.9 and len(raw) > 200:
+    if len(collapsed) < len(raw) * 0.9 and len(raw) > 120:
         logger.warning(
             "Collapsed pathological model repetition (%d → %d chars)",
             len(raw),

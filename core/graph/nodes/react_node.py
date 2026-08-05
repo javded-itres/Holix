@@ -1060,8 +1060,10 @@ async def _react_streaming(
             # Content / reasoning streaming (reasoning models may only fill reasoning_*)
             if content_delta:
                 current_content += content_delta
-                # Abort runaway model loops (same phrase × dozens of times).
-                if is_pathological_repetition(current_content):
+                # Abort runaway model loops early (ABAB monologue, glued «…Поняла»).
+                if len(current_content) >= 80 and is_pathological_repetition(
+                    current_content, min_repeats=3
+                ):
                     current_content = collapse_repetitive_text(current_content)
                     logger.warning(
                         "Aborted streaming content loop (model=%s, step=%s, chars=%s)",
@@ -1070,6 +1072,7 @@ async def _react_streaming(
                         len(current_content),
                     )
                     last_finish_reason = last_finish_reason or "stop"
+                    # Do not emit further monologue deltas — final path sanitizes again.
                     break
                 # After successful listings, buffer text until the step finishes so
                 # «Список пуст…» is not painted into Studio before we can scrub it.

@@ -58,6 +58,27 @@ def test_collapse_repetitive_loop_phrase() -> None:
     assert resolved.count("Сейчас проверю") <= 2
 
 
+def test_collapse_alternating_mcp_monologue() -> None:
+    """Real TG spam: short ack + same action phrase, glued ellipsis, different lead-in."""
+    cycle = "Поняла. Проверяю статус бота через MCP.…"
+    raw = "Проверяю статус бота через MCP-инструмент.…" + cycle * 60
+    assert is_pathological_repetition(raw)
+    collapsed = collapse_repetitive_text(raw)
+    assert collapsed.count("Проверяю статус бота") <= 3
+    assert collapsed.count("Поняла") <= 2
+    assert len(collapsed) < 400
+    assert "MCP" in collapsed
+
+
+def test_collapse_pure_ab_cycle() -> None:
+    cycle = "Поняла. Проверяю статус бота через MCP.…"
+    raw = cycle * 50
+    assert is_pathological_repetition(raw)
+    collapsed = collapse_repetitive_text(raw)
+    assert len(collapsed) < 200
+    assert collapsed.count("Поняла") <= 2
+
+
 def test_stream_delta_reasoning_only() -> None:
     delta = SimpleNamespace(content=None, reasoning_content="Размышляю…")
     content, reasoning = stream_delta_parts(delta)
