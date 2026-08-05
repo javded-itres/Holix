@@ -113,6 +113,29 @@ def subagents_picker_keyboard(enabled: bool, locale: str | None = None) -> Any:
     )
 
 
+def reflexion_picker_keyboard(enabled: bool, locale: str | None = None) -> Any:
+    from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
+    from core.i18n.messages import t
+
+    from integrations.messenger.locale import MESSENGER_DEFAULT_LOCALE
+
+    loc = locale or MESSENGER_DEFAULT_LOCALE
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(
+                    text=f"{_mark(enabled)}{t('tg.reflexion_on', loc)}",
+                    callback_data=_cb("rf", "1"),
+                ),
+                InlineKeyboardButton(
+                    text=f"{_mark(not enabled)}{t('tg.reflexion_off', loc)}",
+                    callback_data=_cb("rf", "0"),
+                ),
+            ],
+        ]
+    )
+
+
 def profile_picker_keyboard(profiles: list[str], current: str) -> Any:
     from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 
@@ -391,6 +414,9 @@ def status_menu_keyboard(locale: str | None = None, *, is_admin: bool = True) ->
             ],
             [
                 InlineKeyboardButton(text=t("tg.menu.subagents", loc), callback_data=_cb("r", "subagents")),
+                InlineKeyboardButton(text=t("tg.menu.reflexion", loc), callback_data=_cb("r", "reflexion")),
+            ],
+            [
                 InlineKeyboardButton(text=t("tg.menu.compress", loc), callback_data=_cb("r", "compress")),
             ],
         ]

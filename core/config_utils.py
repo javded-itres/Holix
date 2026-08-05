@@ -37,8 +37,11 @@ def is_meta_agent_enabled(cfg: Any, *, default: bool = True) -> bool:
     return bool(value)
 
 
-def is_self_refinement_enabled(cfg: Any, *, default: bool = True) -> bool:
-    """Whether Reflexion / self-refinement after draft answers is enabled."""
+def is_self_refinement_enabled(cfg: Any, *, default: bool = False) -> bool:
+    """Whether Reflexion / self-refinement after draft answers is enabled.
+
+    Default is off when unset (messenger-safe).
+    """
     if cfg is None:
         return default
     value = getattr(cfg, "enable_self_refinement", None)

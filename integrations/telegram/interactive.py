@@ -19,6 +19,7 @@ from integrations.telegram.keyboards import (
     sessions_picker_keyboard,
     skills_picker_keyboard,
     status_menu_keyboard,
+    reflexion_picker_keyboard,
     stream_picker_keyboard,
     subagents_picker_keyboard,
     tools_picker_keyboard,
@@ -496,6 +497,18 @@ class TelegramInteractive:
             state = "on" if enabled else "off"
             return t("tg.subagents", lang, state=state)
 
+        if action == "rf":
+            from integrations.messenger.reflexion_settings import set_reflexion_enabled_for_host
+
+            lang = messenger_host_locale(self._host)
+            try:
+                enabled = set_reflexion_enabled_for_host(self._host, value == "1")
+            except Exception as exc:
+                return f"{t('tg.error', lang)}: {exc}"
+            await self.show_reflexion_picker()
+            state = "on" if enabled else "off"
+            return t("tg.reflexion", lang, state=state)
+
         if action == "pi":
             lang = messenger_host_locale(self._host)
             profiles = self._session.ui_profiles
@@ -654,6 +667,7 @@ class TelegramInteractive:
             "sessions": self.show_sessions_picker,
             "stream": self.show_stream_picker,
             "subagents": self.show_subagents_picker,
+            "reflexion": self.show_reflexion_picker,
             "models": self.show_models,
             "tools": self.show_tools_picker,
             "skills": self.show_skills_picker,
@@ -695,6 +709,22 @@ class TelegramInteractive:
         await self._host._send_html_with_keyboard(
             text,
             subagents_picker_keyboard(on, lang),
+        )
+
+    async def show_reflexion_picker(self) -> None:
+        from integrations.messenger.reflexion_settings import is_reflexion_enabled_for_host
+
+        lang = messenger_host_locale(self._host)
+        on = is_reflexion_enabled_for_host(self._host)
+        state = "on" if on else "off"
+        text = (
+            f"<b>{escape_html(t('tg.reflexion_picker_title', lang))}</b>\n"
+            f"{escape_html(t('tg.reflexion', lang, state=state))}\n\n"
+            f"<i>{escape_html(t('tg.reflexion_picker_body', lang))}</i>"
+        )
+        await self._host._send_html_with_keyboard(
+            text,
+            reflexion_picker_keyboard(on, lang),
         )
 
     async def show_profile_picker(self) -> None:
@@ -1017,6 +1047,7 @@ class TelegramInteractive:
         )
 
     async def show_status(self) -> None:
+        from integrations.messenger.reflexion_settings import is_reflexion_enabled_for_host
         from integrations.messenger.subagents_settings import is_subagents_enabled_for_host
 
         mode = self._session.execution_mode
@@ -1026,6 +1057,7 @@ class TelegramInteractive:
         if self._host.agent:
             model_line = self._host.agent.model
         subagents = "on" if is_subagents_enabled_for_host(self._host) else "off"
+        reflexion = "on" if is_reflexion_enabled_for_host(self._host) else "off"
 
         lines = [
             "<b>Holix — статус</b>",
@@ -1034,6 +1066,7 @@ class TelegramInteractive:
             f"Режим: <code>{escape_html(mode)}</code> ({escape_html(mode_title)})",
             f"Стриминг: <code>{stream}</code>",
             f"Субагенты: <code>{subagents}</code>",
+            f"Reflexion: <code>{reflexion}</code>",
             f"Сессия: <code>{escape_html(self._host.conversation_id)}</code>",
         ]
         from integrations.telegram.access_approval import is_telegram_admin

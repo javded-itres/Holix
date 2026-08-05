@@ -48,6 +48,15 @@ MESSAGES: dict[str, dict[str, str]] = {
             "When off, the main agent cannot delegate work "
             "(delegate_to_subagent / plan waves)."
         ),
+        "tg.reflexion": "Reflexion: {state}",
+        "tg.reflexion_on": "Reflexion On",
+        "tg.reflexion_off": "Off",
+        "tg.reflexion_picker_title": "Reflexion",
+        "tg.reflexion_picker_body": (
+            "Post-draft self-critique: the agent re-evaluates the answer and may "
+            "retry. Off by default (recommended). Enabling can improve quality but "
+            "may add monologue or extra latency."
+        ),
         "tg.profile": "Profile: {name}",
         "tg.profile_same": "Already on profile {name}",
         "tg.profile_invalid": "Invalid profile",
@@ -81,6 +90,7 @@ MESSAGES: dict[str, dict[str, str]] = {
         "tg.menu.streaming": "Streaming",
         "tg.menu.models": "Models",
         "tg.menu.subagents": "Sub-agents",
+        "tg.menu.reflexion": "Reflexion",
         "tg.menu.compress": "Compress context",
         "tg.menu.prev": "Prev",
         "tg.menu.next": "Next",
@@ -89,7 +99,7 @@ MESSAGES: dict[str, dict[str, str]] = {
         "tg.help.chat_body": "Send text — the agent replies in one live message.",
         "tg.help.commands": "Commands (menu left of the input field):",
         "tg.help.buttons": "Buttons",
-        "tg.help.buttons_body": "/mode /profile /sessions /stream — pick with buttons\n/status /menu — Sub-agents on/off, models, tools\n/models — switch LLM until next message",
+        "tg.help.buttons_body": "/mode /profile /sessions /stream — pick with buttons\n/status /menu — Sub-agents, Reflexion, models, tools\n/models — switch LLM until next message",
         "tg.help.extra": "More",
         "tg.help.extra_body": (
             "• /memory query — semantic search\n"
@@ -569,6 +579,15 @@ When finished, confirm the absolute path written and give a 5–10 line summary 
             "Когда выключено, главный агент не может делегировать задачи "
             "(delegate_to_subagent / волны в plan)."
         ),
+        "tg.reflexion": "Reflexion: {state}",
+        "tg.reflexion_on": "Reflexion Вкл",
+        "tg.reflexion_off": "Выкл",
+        "tg.reflexion_picker_title": "Reflexion",
+        "tg.reflexion_picker_body": (
+            "Самокритика после черновика: агент оценивает ответ и может "
+            "переписать. По умолчанию выкл (рекомендуется). Включение может "
+            "улучшить качество, но иногда даёт монологи и лишнюю задержку."
+        ),
         "tg.profile": "Профиль: {name}",
         "tg.profile_same": "Уже профиль {name}",
         "tg.profile_invalid": "Неверный профиль",
@@ -602,6 +621,7 @@ When finished, confirm the absolute path written and give a 5–10 line summary 
         "tg.menu.streaming": "Стриминг",
         "tg.menu.models": "Модели",
         "tg.menu.subagents": "Субагенты",
+        "tg.menu.reflexion": "Reflexion",
         "tg.menu.compress": "Сжать контекст",
         "tg.menu.prev": "Пред.",
         "tg.menu.next": "След.",
@@ -610,7 +630,7 @@ When finished, confirm the absolute path written and give a 5–10 line summary 
         "tg.help.chat_body": "Отправьте текст — агент ответит одним живым сообщением.",
         "tg.help.commands": "Команды (меню слева от поля ввода):",
         "tg.help.buttons": "Кнопки",
-        "tg.help.buttons_body": "/mode /profile /sessions /stream — выбор кнопками\n/status /menu — субагенты вкл/выкл, модели, tools\n/models — смена LLM до следующего сообщения",
+        "tg.help.buttons_body": "/mode /profile /sessions /stream — выбор кнопками\n/status /menu — субагенты, Reflexion, модели, tools\n/models — смена LLM до следующего сообщения",
         "tg.help.extra": "Дополнительно",
         "tg.help.extra_body": (
             "• /memory запрос — семантический поиск\n"

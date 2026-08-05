@@ -125,8 +125,10 @@ class Settings(BaseSettings):
     )
 
     # Self-Refinement / Reflexion Configuration (evaluate draft → verbal feedback → retry)
+    # Default off: messenger multi-user bots had monologue spam when this was on by default.
+    # Users can enable per profile via Telegram /status → Reflexion.
     enable_self_refinement: bool = Field(
-        default=True,
+        default=False,
         validation_alias=AliasChoices(
             "HOLIX_ENABLE_SELF_REFINEMENT",
             "ENABLE_SELF_REFINEMENT",
