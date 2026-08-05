@@ -17,7 +17,9 @@ from core.graph.action_honesty import (
     has_successful_workspace_listing,
     honesty_refusal_update,
     honesty_retry_update,
+    is_action_request,
     is_sdd_fill_request,
+    is_truncation_notice,
     lacks_evidence_for_claim,
     looks_like_plan_monologue,
     looks_like_status_monologue,
@@ -69,6 +71,70 @@ def test_plan_monologue_without_tools_is_nudged() -> None:
         final_response=monologue,
         messages=messages,
     )
+
+
+def test_truncation_notice_without_tools_is_nudged_not_final() -> None:
+    """Bug: finish_reason=length became a final «Ответ обрезан…» with no tools."""
+    notice = (
+        "… Поняла. Ищу свежие IT-новости за сегодня.\n\n"
+        "Ответ обрезан лимитом токенов модели. Остановилась, не повторяя фразу — "
+        "попросите продолжить, сузьте задачу или выберите модель с большим бюджетом ответа."
+    )
+    assert is_truncation_notice(notice)
+    messages = [
+        {"role": "user", "content": "Сделай тестовый пост, новости IT за сегодня"},
+        {"role": "assistant", "content": notice},
+    ]
+    assert ends_turn_on_unexecuted_intent(
+        notice, messages, user_input="Сделай тестовый пост, новости IT за сегодня"
+    )
+    state = {
+        "user_input": "Сделай тестовый пост, новости IT за сегодня",
+        "messages": messages,
+        "tool_results": [],
+        "honesty_nudge_count": 0,
+        "plan_steps": [],
+        "current_plan_step": 0,
+    }
+    assert should_nudge_false_completion(
+        state, final_response=notice, messages=messages
+    )
+    out = honesty_retry_update(
+        messages=list(messages),
+        step_count=1,
+        final_response=notice,
+        honesty_nudge_count=0,
+        user_input="Сделай тестовый пост, новости IT за сегодня",
+        include_assistant=False,
+    )
+    assert out["is_final"] is False
+    assert out["messages"][-1]["content"] == MONOLOGUE_TOOL_NUDGE
+    tools = [{"type": "function", "function": {"name": "web_search"}}]
+    assert (
+        resolve_tool_choice(
+            {**state, "honesty_nudge_count": 1},
+            out["messages"],
+            tools=tools,
+        )
+        == "required"
+    )
+
+
+def test_action_request_forces_tools_on_first_step() -> None:
+    assert is_action_request("Сделай тестовый пост, новости IT за сегодня")
+    assert is_action_request("делай")
+    tools = [{"type": "function", "function": {"name": "read_file"}}]
+    state = {
+        "user_input": "Сделай тестовый пост, новости IT за сегодня",
+        "messages": [
+            {"role": "user", "content": "Сделай тестовый пост, новости IT за сегодня"},
+        ],
+        "tool_results": [],
+        "honesty_nudge_count": 0,
+        "plan_steps": [],
+        "current_plan_step": 0,
+    }
+    assert resolve_tool_choice(state, state["messages"], tools=tools) == "required"
 
 
 def test_status_monologue_poniala_proveryayu_loop_is_nudged() -> None:

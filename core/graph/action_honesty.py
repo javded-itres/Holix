@@ -58,19 +58,32 @@ _INTENT_ONLY = re.compile(
 # Ending the turn with "I'm doing X now" without any tool call.
 _ACTION_INTENT = re.compile(
     r"(?is)("
-    r"сейчас\s+(сохран|запис|созда|удал|выполн|напиш|исправ|провер|посмотр|додела|изуч)"
+    r"сейчас\s+(сохран|запис|созда|удал|выполн|напиш|исправ|провер|посмотр|додела|изуч|сдела)"
+    r"|сначала\s+(сдела|провер|найд|поиск|ищу|созда)"
     r"|выполняю\s+(запись|сохран|удал|операц)"
-    r"|записываю\s+(план|файл)"
-    r"|сохран[яю]\s+(план|файл)"
-    # Status monologue spam: «Да. Смотрю X…» / «Работаю…» without tools.
-    r"|\b(смотрю|чита[юю]|открываю|работаю|изучаю|проверяю|разбираю|пишу|правлю)\b"
-    r"|\b(looking\s+at|reading|opening|working\s+on|checking|inspecting)\b"
+    r"|записываю\s+(план|файл|пост)"
+    r"|сохран[яю]\s+(план|файл|пост)"
+    # Status monologue spam: «Да. Смотрю X…» / «Ищу новости…» without tools.
+    r"|\b(смотрю|чита[юю]|открываю|работаю|изучаю|проверяю|разбираю|пишу|правлю|ищу|найду)\b"
+    r"|\b(looking\s+at|reading|opening|working\s+on|checking|inspecting|searching)\b"
+    r"|ищу\s+(свеж|новост|информац|статус)"
+    r"|тестовый\s+пост"
     r"|через\s+`?write_file`?"
     r"|call(?:ing)?\s+`?write_file`?"
     r"|i\s+(will|am\s+going\s+to|'ll|'m\s+going\s+to)\s+"
-    r"(save|write|create|delete|remove|run|execute|check|inspect|finish|look)"
+    r"(save|write|create|delete|remove|run|execute|check|inspect|finish|look|search|post)"
     r"|writing\s+(the\s+)?file\s+(now|right\s+now)"
     r"|saving\s+(the\s+)?(plan|file)\s+(now|right\s+now)"
+    r")"
+)
+
+# System truncation notice shown when finish_reason=length (not a real answer).
+_TRUNCATION_NOTICE = re.compile(
+    r"(?is)("
+    r"ответ\s+обрезан\s+лимитом\s+токенов"
+    r"|response\s+truncated\s+by\s+the\s+model\s+token\s+limit"
+    r"|truncated\s+by\s+the\s+model\s+token"
+    r"|лимитом\s+токенов\s+модели"
     r")"
 )
 
@@ -92,7 +105,9 @@ _PLAN_MONOLOGUE = re.compile(
     r"|найду,?\s+где\b"
     r"|добавлю\s+(обработку|функц|поддержк)"
     r"|подключу\s+(агент|web_fetch|инструмент)"
-    r"|сделаю\s+генерац"
+    r"|сделаю\s+(генерац|тестов|пост|новост)"
+    r"|сначала\s+сделаю"
+    r"|ищу\s+(свеж|новост)"
     r"|через\s+mcp"
     r"|mcp[-_ ]?инструмент"
     r"|here'?s\s+(my\s+)?plan\b"
@@ -897,10 +912,11 @@ def looks_like_plan_monologue(text: str | None) -> bool:
 # User asked to *do* something (not pure FAQ / opinion).
 _ACTION_REQUEST = re.compile(
     r"(?is)("
-    r"\b(сделай|добавь|реализуй|почини|исправь|напиши|создай|удали|внедри|"
-    r"доделай|поправь|перепиши|обнови|настрой|подключи|запусти|проверь\s+и)\b"
+    r"\b(сделай|делай|продолжи|продолжай|добавь|реализуй|почини|исправь|напиши|создай|удали|внедри|"
+    r"доделай|поправь|перепиши|обнови|настрой|подключи|запусти|проверь\s+и|"
+    r"опубликуй|выложи|запости)\b"
     r"|\b(implement|fix|add|create|build|update|remove|delete|deploy|"
-    r"finish|complete|wire|install)\b"
+    r"finish|complete|wire|install|continue|post|publish)\b"
     r")"
 )
 
@@ -911,6 +927,14 @@ def is_action_request(user_text: str | None) -> bool:
     if not text:
         return False
     return bool(_ACTION_REQUEST.search(text))
+
+
+def is_truncation_notice(text: str | None) -> bool:
+    """True when the visible reply is (or ends with) the system truncation notice."""
+    content = (text or "").strip()
+    if not content:
+        return False
+    return bool(_TRUNCATION_NOTICE.search(content))
 
 
 def ends_turn_on_unexecuted_intent(
@@ -925,6 +949,10 @@ def ends_turn_on_unexecuted_intent(
         return False
     if _tools_attempted_since_last_user(messages):
         return False
+    # Truncation notice without tools is never a completed task (user saw
+    # monologue cut off, or only the notice after «делай»).
+    if is_truncation_notice(content):
+        return True
     # Pathological loops («Поняла. Проверяю…» × N) are never a valid final.
     try:
         from core.llm.response_text import is_pathological_repetition
@@ -936,7 +964,7 @@ def ends_turn_on_unexecuted_intent(
     # Status spam («Да. Смотрю…») is never a valid final without tools.
     if looks_like_status_monologue(content):
         return True
-    # "Сейчас сохраню файл" without tools — always nudge.
+    # "Сейчас сохраню файл" / "Ищу новости" without tools — always nudge.
     if _ACTION_INTENT.search(content):
         return True
     # Plan monologue ("Что сделаю… Начинаю") only when the user asked for work.
@@ -1096,7 +1124,8 @@ def should_refuse_status_monologue(
     if not content:
         return False
     if not (
-        looks_like_status_monologue(content)
+        is_truncation_notice(content)
+        or looks_like_status_monologue(content)
         or ends_turn_on_unexecuted_intent(
             content,
             messages,
@@ -1137,21 +1166,49 @@ def honesty_retry_update(
         nudge = SDD_FILL_HONESTY_NUDGE
     elif denies_visible_workspace(final_response, updated):
         nudge = WORKSPACE_GROUNDING_NUDGE
-    elif looks_like_status_monologue(final_response) or (
-        looks_like_plan_monologue(final_response)
-        and not claims_action_completed(final_response)
+    elif (
+        is_truncation_notice(final_response)
+        or looks_like_status_monologue(final_response)
+        or (
+            looks_like_plan_monologue(final_response)
+            and not claims_action_completed(final_response)
+        )
     ):
-        # Dedicated monologue nudge — generic "you claimed done" text is ignored.
+        # Dedicated monologue / truncation nudge — generic "done" text is ignored.
+        # Truncation without tools means the model burned the token budget on prose.
         nudge = MONOLOGUE_TOOL_NUDGE
     else:
         nudge = ACTION_HONESTY_NUDGE
+    # Compact assistant history: do not re-feed a monologue wall into the next step.
+    if updated and isinstance(updated[-1], dict) and updated[-1].get("role") == "assistant":
+        prev = str(updated[-1].get("content") or "")
+        if is_truncation_notice(prev) or looks_like_status_monologue(prev) or (
+            looks_like_plan_monologue(prev) and len(prev) > 240
+        ):
+            try:
+                from core.llm.response_text import collapse_repetitive_text
+
+                short = collapse_repetitive_text(prev) or prev
+            except Exception:
+                short = prev
+            if len(short) > 280:
+                short = short[:280].rstrip() + "…"
+            updated[-1] = {
+                "role": "assistant",
+                "content": short or "(status monologue without tools)",
+            }
     updated.append({"role": "user", "content": nudge})
     return {
         "messages": updated,
         "step_count": step_count,
         "is_final": False,
         "tool_calls": [],
-        "final_response": final_response,
+        # Keep internal final_response short so UI does not flash a huge loop.
+        "final_response": (
+            (final_response or "")[:400]
+            if not is_truncation_notice(final_response)
+            else (final_response or "")
+        ),
         "honesty_nudge_count": int(honesty_nudge_count) + 1,
     }
 
@@ -1225,13 +1282,18 @@ def resolve_tool_choice(
     After any honesty nudge — or when the last assistant turn was pure status
     monologue without tools — force ``tool_choice=required`` so the API
     rejects text-only replies.
+
+    For clear action requests (сделай / create / publish…), the **first** LLM
+    step of the turn also requires tools so the model cannot burn max_tokens
+    on «Поняла. Сейчас сделаю…» prose.
     """
     if not tools:
         return "auto"
+    user_input = state.get("user_input") if isinstance(state, dict) else None
     if sdd_fill_requires_tools(
         messages,
         tool_results=state.get("tool_results") if isinstance(state, dict) else None,
-        user_input=state.get("user_input") if isinstance(state, dict) else None,
+        user_input=user_input,
     ):
         # Prefer a forced function call when the schema is available (stronger
         # than tool_choice=required, which some gateways treat loosely).
@@ -1243,6 +1305,11 @@ def resolve_tool_choice(
         return "required"
     # Radical anti-monologue: after honesty retry, tools are mandatory.
     if int(state.get("honesty_nudge_count") or 0) > 0:
+        return "required"
+    # Action turn, no tools yet → force tools on the first step (no status essay).
+    if is_action_request(user_input or last_user_text(messages)) and not (
+        _tools_attempted_since_last_user(messages)
+    ):
         return "required"
     # First step already monologued in history (e.g. checkpoint resume).
     if messages:
@@ -1256,8 +1323,10 @@ def resolve_tool_choice(
                 content = str(msg.get("content") or "")
                 if msg.get("tool_calls"):
                     break
-                if looks_like_status_monologue(content) or looks_like_plan_monologue(
-                    content
+                if (
+                    is_truncation_notice(content)
+                    or looks_like_status_monologue(content)
+                    or looks_like_plan_monologue(content)
                 ):
                     return "required"
                 break
