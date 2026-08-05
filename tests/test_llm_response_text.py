@@ -79,6 +79,16 @@ def test_collapse_pure_ab_cycle() -> None:
     assert collapsed.count("Поняла") <= 2
 
 
+def test_collapse_smotryu_mcp_server_loop() -> None:
+    """Studio spam: «Да. Смотрю mcp_server.py…» glued many times."""
+    unit = "Да. Смотрю mcp_server.py, чтобы добавить publish_news.…"
+    raw = unit * 25
+    assert is_pathological_repetition(raw, min_repeats=3)
+    collapsed = collapse_repetitive_text(raw)
+    assert collapsed.count("Смотрю mcp_server") <= 2
+    assert len(collapsed) < 200
+
+
 def test_stream_delta_reasoning_only() -> None:
     delta = SimpleNamespace(content=None, reasoning_content="Размышляю…")
     content, reasoning = stream_delta_parts(delta)

@@ -23,13 +23,16 @@ from core.agent_events import (
     ToolCallStartEvent,
 )
 from core.graph.action_honesty import (
+    MONOLOGUE_HONESTY_REFUSAL,
     has_successful_workspace_listing,
     honesty_refusal_update,
     honesty_retry_update,
+    looks_like_status_monologue,
     resolve_tool_choice,
     scrub_false_empty_claim_content,
     should_nudge_false_completion,
     should_refuse_false_empty_workspace,
+    should_refuse_status_monologue,
     should_refuse_unproven_sdd_fill,
     workspace_grounding_refusal_text,
 )
@@ -309,6 +312,24 @@ def _maybe_honesty_retry(
             honesty_nudge_count=int(state.get("honesty_nudge_count") or 0),
             include_assistant=not assistant_already_appended,
             final_response=final_response,
+        )
+    if should_refuse_status_monologue(
+        state,
+        final_response=final_response,
+        messages=messages,
+    ):
+        logger.warning(
+            "Action honesty refusal: status monologue without tools "
+            "(conversation_id=%s)",
+            state.get("conversation_id", ""),
+        )
+        return honesty_refusal_update(
+            messages=messages,
+            step_count=step_count,
+            honesty_nudge_count=int(state.get("honesty_nudge_count") or 0),
+            include_assistant=not assistant_already_appended,
+            final_response=final_response,
+            refusal=MONOLOGUE_HONESTY_REFUSAL,
         )
     return None
 
@@ -1080,7 +1101,18 @@ async def _react_streaming(
                     state.get("messages"),
                     tool_results=state.get("tool_results"),
                 )
-                if agent and hasattr(agent, "emit") and not prior_listing:
+                # Buffer pure status monologue («Да. Смотрю…») — do not spam Studio UI.
+                # Honesty will force tools or refuse; painting deltas makes loops look worse.
+                buffer_status_mono = (
+                    not tool_calls_dict
+                    and looks_like_status_monologue(current_content)
+                )
+                if (
+                    agent
+                    and hasattr(agent, "emit")
+                    and not prior_listing
+                    and not buffer_status_mono
+                ):
                     agent.emit(AssistantDeltaEvent(
                         content=content_delta,
                         accumulated=current_content,

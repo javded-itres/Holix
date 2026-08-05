@@ -62,10 +62,13 @@ _ACTION_INTENT = re.compile(
     r"|выполняю\s+(запись|сохран|удал|операц)"
     r"|записываю\s+(план|файл)"
     r"|сохран[яю]\s+(план|файл)"
+    # Status monologue spam: «Да. Смотрю X…» / «Работаю…» without tools.
+    r"|\b(смотрю|чита[юю]|открываю|работаю|изучаю|проверяю|разбираю|пишу|правлю)\b"
+    r"|\b(looking\s+at|reading|opening|working\s+on|checking|inspecting)\b"
     r"|через\s+`?write_file`?"
     r"|call(?:ing)?\s+`?write_file`?"
     r"|i\s+(will|am\s+going\s+to|'ll|'m\s+going\s+to)\s+"
-    r"(save|write|create|delete|remove|run|execute|check|inspect|finish)"
+    r"(save|write|create|delete|remove|run|execute|check|inspect|finish|look)"
     r"|writing\s+(the\s+)?file\s+(now|right\s+now)"
     r"|saving\s+(the\s+)?(plan|file)\s+(now|right\s+now)"
     r")"
@@ -78,6 +81,9 @@ _PLAN_MONOLOGUE = re.compile(
     r"|^\s*начинаю\b"
     r"|\bначинаю\.?\s*$"
     r"|начну\s+с\b"
+    r"|^\s*да[,.]?\s+(работаю|смотрю|читаю|открываю|провер)"
+    r"|^\s*да[,.]?\s*$"
+    r"|\b(работаю|смотрю|читаю|открываю)\b"
     r"|сейчас\s+(провер|посмотр|додела|сдела|изуч|откро|проч|почин|разбер|проверю)"
     r"|проверю\s+(текущ|код|процесс|состоян|файл|меню)"
     r"|доделаю\s+(меню|код|функц|бот)"
@@ -88,12 +94,23 @@ _PLAN_MONOLOGUE = re.compile(
     r"|сделаю\s+генерац"
     r"|here'?s\s+(my\s+)?plan\b"
     r"|i\s+('ll|will)\s+(now\s+)?(start|begin|study|explore|look|add|implement|check)"
-    r"|let\s+me\s+(start|begin|first|explore|look|check)"
-    r"|i('ll|\s+will)\s+(check|verify|inspect|finish)\b"
+    r"|let\s+me\s+(start|begin|first|explore|look|check|read|open)"
+    r"|i('ll|\s+will)\s+(check|verify|inspect|finish|look|read)\b"
+    r"|i\s+am\s+(working|looking|reading|checking)\b"
     r"|план\s+(такой|действий|работы)\b"
     r"|steps?\s*:\s*$"
     r"|шаги\s*:\s*$"
     r")"
+)
+
+# Short status spam as the entire reply (no tools): «Да. Смотрю X…»
+_STATUS_ONLY_MONOLOGUE = re.compile(
+    r"(?is)^\s*"
+    r"(да[,.!?…]?\s*)*"
+    r"("
+    r"(работаю|смотрю|читаю|открываю|изучаю|проверяю|разбираю|пишу|правлю)\b"
+    r"|(looking\s+at|reading|opening|working\s+on|checking|inspecting)\b"
+    r").{0,200}$"
 )
 
 _WRITE_CLAIM = re.compile(
@@ -160,6 +177,22 @@ ACTION_HONESTY_NUDGE = (
     "For SDD: create_change only scaffolds stubs — fill via sdd_write_artifact "
     "and confirm with sdd_status (apply_ready). Main openspec/specs update only "
     "after sdd_archive. If a tool failed, say it failed and show the error."
+)
+
+MONOLOGUE_TOOL_NUDGE = (
+    "[Action honesty — tools] You are only narrating progress "
+    "(\"Смотрю…\", \"Работаю…\", \"Looking at…\") without calling tools. "
+    "That spam is not work. Immediately call the right tools now "
+    "(read_file, list_directory, write_file, run_terminal_command, …). "
+    "Do NOT reply with another status sentence. First tool_calls, then answer."
+)
+
+# Shown when the model keeps monologuing after forced tool retries.
+MONOLOGUE_HONESTY_REFUSAL = (
+    "Не удалось выполнить запрос: модель только описывала действия "
+    "(«Смотрю…», «Работаю…») и не вызвала инструменты, поэтому файлы и "
+    "команды не выполнялись. Повторите запрос — агент обязан сразу "
+    "вызвать tools (read_file / write_file / run_terminal_command и т.д.)."
 )
 
 # Model denies tool visibility despite successful list_directory / ls results.
@@ -270,7 +303,8 @@ SDD_FILL_HONESTY_REFUSAL = (
     "design, specs и tasks — либо заполните артефакты вручную."
 )
 
-_MAX_HONESTY_NUDGES = 1
+# Soft text nudges alone do not stop weak models; pair with tool_choice=required.
+_MAX_HONESTY_NUDGES = 3
 _MAX_SDD_FILL_HONESTY_NUDGES = 3
 
 
@@ -808,11 +842,49 @@ def _tools_attempted_since_last_user(messages: list[dict[str, Any]] | None) -> b
     return False
 
 
+def looks_like_status_monologue(text: str | None) -> bool:
+    """True for short «Да. Смотрю X…» / «Работаю…» spam as the whole reply."""
+    content = (text or "").strip()
+    if not content:
+        return False
+    # Collapse glued loops first so detection still works after stream abort.
+    if len(content) > 240:
+        try:
+            from core.llm.response_text import collapse_repetitive_text
+
+            content = collapse_repetitive_text(content) or content
+        except Exception:
+            pass
+    if _STATUS_ONLY_MONOLOGUE.match(content):
+        return True
+    # Slightly longer status: «Да, работаю. Смотрю mcp_server.py, чтобы …»
+    if len(content) <= 280 and _ACTION_INTENT.search(content):
+        # Pure status verbs, no completion claim, no substantial answer.
+        if claims_action_completed(content):
+            return False
+        # Avoid treating real answers that merely contain «смотрю» mid-paragraph.
+        if content.count("\n") >= 3 and len(content) > 160:
+            return False
+        return bool(
+            re.search(
+                r"(?is)^\s*(да[,.!?…]?\s*)*"
+                r"(работаю|смотрю|читаю|открываю|изучаю|проверяю|разбираю|"
+                r"looking\s+at|reading|opening|working\s+on|checking)\b",
+                content,
+            )
+        )
+    return False
+
+
 def looks_like_plan_monologue(text: str | None) -> bool:
     """True for intermediate 'I'll do X / Начинаю' plans without a real answer."""
     content = (text or "").strip()
     if not content:
         return False
+    if looks_like_status_monologue(content):
+        return True
+    if _STATUS_ONLY_MONOLOGUE.match(content):
+        return True
     return bool(_PLAN_MONOLOGUE.search(content))
 
 
@@ -847,6 +919,9 @@ def ends_turn_on_unexecuted_intent(
         return False
     if _tools_attempted_since_last_user(messages):
         return False
+    # Status spam («Да. Смотрю…») is never a valid final without tools.
+    if looks_like_status_monologue(content):
+        return True
     # "Сейчас сохраню файл" without tools — always nudge.
     if _ACTION_INTENT.search(content):
         return True
@@ -992,6 +1067,36 @@ def should_refuse_unproven_sdd_fill(
     return int(state.get("honesty_nudge_count") or 0) >= max_nudges
 
 
+def should_refuse_status_monologue(
+    state: dict[str, Any],
+    *,
+    final_response: str | None,
+    messages: list[dict[str, Any]] | None,
+) -> bool:
+    """After max nudges, never accept pure status monologue as the final answer."""
+    if _plan_mode_skips_honesty(state):
+        return False
+    if _tools_attempted_since_last_user(messages):
+        return False
+    content = (final_response or "").strip()
+    if not content:
+        return False
+    if not (
+        looks_like_status_monologue(content)
+        or ends_turn_on_unexecuted_intent(
+            content,
+            messages,
+            user_input=state.get("user_input") if isinstance(state, dict) else None,
+        )
+    ):
+        return False
+    user_input = state.get("user_input") if isinstance(state, dict) else None
+    max_nudges = _max_nudges_for_turn(
+        messages, final_response=final_response, user_input=user_input
+    )
+    return int(state.get("honesty_nudge_count") or 0) >= max_nudges
+
+
 def honesty_retry_update(
     *,
     messages: list[dict[str, Any]],
@@ -1018,6 +1123,12 @@ def honesty_retry_update(
         nudge = SDD_FILL_HONESTY_NUDGE
     elif denies_visible_workspace(final_response, updated):
         nudge = WORKSPACE_GROUNDING_NUDGE
+    elif looks_like_status_monologue(final_response) or (
+        looks_like_plan_monologue(final_response)
+        and not claims_action_completed(final_response)
+    ):
+        # Dedicated monologue nudge — generic "you claimed done" text is ignored.
+        nudge = MONOLOGUE_TOOL_NUDGE
     else:
         nudge = ACTION_HONESTY_NUDGE
     updated.append({"role": "user", "content": nudge})
@@ -1044,15 +1155,18 @@ def honesty_refusal_update(
     updated = list(messages)
     body = (refusal or SDD_FILL_HONESTY_REFUSAL).strip()
     last = updated[-1] if updated else None
+    last_content = str(last.get("content") or "") if isinstance(last, dict) else ""
     if (
         isinstance(last, dict)
         and last.get("role") == "assistant"
         and (
             include_assistant
-            or (final_response and (last.get("content") or "") == final_response)
-            or claims_sdd_artifacts_filled(str(last.get("content") or ""))
-            or claims_action_completed(str(last.get("content") or ""))
-            or claims_empty_or_deaf_tools(str(last.get("content") or ""))
+            or (final_response and last_content == final_response)
+            or claims_sdd_artifacts_filled(last_content)
+            or claims_action_completed(last_content)
+            or claims_empty_or_deaf_tools(last_content)
+            or looks_like_status_monologue(last_content)
+            or looks_like_plan_monologue(last_content)
         )
     ):
         updated[-1] = {"role": "assistant", "content": body}
@@ -1091,7 +1205,13 @@ def resolve_tool_choice(
     *,
     tools: list[Any] | None = None,
 ) -> str | dict[str, Any]:
-    """Return OpenAI tool_choice for this ReAct step."""
+    """Return OpenAI tool_choice for this ReAct step.
+
+    Soft honesty nudges alone do not stop monologue loops on weak models.
+    After any honesty nudge — or when the last assistant turn was pure status
+    monologue without tools — force ``tool_choice=required`` so the API
+    rejects text-only replies.
+    """
     if not tools:
         return "auto"
     if sdd_fill_requires_tools(
@@ -1107,4 +1227,29 @@ def resolve_tool_choice(
                 "function": {"name": "sdd_write_artifact"},
             }
         return "required"
+    # Radical anti-monologue: after honesty retry, tools are mandatory.
+    if int(state.get("honesty_nudge_count") or 0) > 0:
+        return "required"
+    # First step already monologued in history (e.g. checkpoint resume).
+    if messages:
+        for msg in reversed(messages):
+            if not isinstance(msg, dict):
+                continue
+            role = msg.get("role")
+            if role == "tool":
+                break
+            if role == "assistant":
+                content = str(msg.get("content") or "")
+                if msg.get("tool_calls"):
+                    break
+                if looks_like_status_monologue(content) or looks_like_plan_monologue(
+                    content
+                ):
+                    return "required"
+                break
+            if role == "user":
+                text = str(msg.get("content") or "")
+                if text.strip().startswith("[Action honesty"):
+                    return "required"
+                break
     return "auto"

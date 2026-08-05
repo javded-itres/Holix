@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from core.graph.action_honesty import (
     ACTION_HONESTY_NUDGE,
+    MONOLOGUE_HONESTY_REFUSAL,
+    MONOLOGUE_TOOL_NUDGE,
     SDD_FILL_HONESTY_NUDGE,
     SDD_FILL_HONESTY_REFUSAL,
     WORKSPACE_GROUNDING_NUDGE,
@@ -18,9 +20,11 @@ from core.graph.action_honesty import (
     is_sdd_fill_request,
     lacks_evidence_for_claim,
     looks_like_plan_monologue,
+    looks_like_status_monologue,
     resolve_tool_choice,
     sdd_fill_requires_tools,
     should_nudge_false_completion,
+    should_refuse_status_monologue,
     should_refuse_unproven_sdd_fill,
     successful_tools_since_last_user,
 )
@@ -65,6 +69,71 @@ def test_plan_monologue_without_tools_is_nudged() -> None:
         final_response=monologue,
         messages=messages,
     )
+
+
+def test_status_monologue_mcp_spam_is_nudged_and_forced_tools() -> None:
+    """Radical anti-spam: «Да. Смотрю mcp_server.py…» without tools."""
+    monologue = "Да. Смотрю mcp_server.py, чтобы добавить publish_news."
+    assert looks_like_status_monologue(monologue)
+    assert looks_like_plan_monologue(monologue)
+    messages = [
+        {"role": "user", "content": "Добавь publish_news в MCP"},
+        {"role": "assistant", "content": monologue},
+    ]
+    assert ends_turn_on_unexecuted_intent(
+        monologue, messages, user_input="Добавь publish_news в MCP"
+    )
+    state = {
+        "user_input": "Добавь publish_news в MCP",
+        "messages": messages,
+        "tool_results": [],
+        "honesty_nudge_count": 0,
+        "plan_steps": [],
+        "current_plan_step": 0,
+    }
+    assert should_nudge_false_completion(
+        state, final_response=monologue, messages=messages
+    )
+    out = honesty_retry_update(
+        messages=messages,
+        step_count=1,
+        final_response=monologue,
+        honesty_nudge_count=0,
+        user_input="Добавь publish_news в MCP",
+        include_assistant=False,
+    )
+    assert out["messages"][-1]["content"] == MONOLOGUE_TOOL_NUDGE
+    assert out["is_final"] is False
+    tools = [{"type": "function", "function": {"name": "read_file"}}]
+    # After honesty nudge, tool_choice must be required (soft text is not enough).
+    assert (
+        resolve_tool_choice(
+            {**state, "honesty_nudge_count": 1},
+            out["messages"],
+            tools=tools,
+        )
+        == "required"
+    )
+    # After max nudges still monologuing → refuse, do not accept spam as final.
+    from core.graph.action_honesty import _MAX_HONESTY_NUDGES
+
+    refuse_state = {**state, "honesty_nudge_count": _MAX_HONESTY_NUDGES}
+    assert not should_nudge_false_completion(
+        refuse_state, final_response=monologue, messages=messages
+    )
+    assert should_refuse_status_monologue(
+        refuse_state, final_response=monologue, messages=messages
+    )
+    refused = honesty_refusal_update(
+        messages=messages,
+        step_count=2,
+        honesty_nudge_count=_MAX_HONESTY_NUDGES,
+        include_assistant=False,
+        final_response=monologue,
+        refusal=MONOLOGUE_HONESTY_REFUSAL,
+    )
+    assert refused["is_final"] is True
+    assert "инструмент" in refused["final_response"].lower()
 
 
 def test_check_then_finish_intent_is_nudged() -> None:
@@ -340,12 +409,14 @@ def test_failed_tool_does_not_count() -> None:
 
 
 def test_nudge_once_then_stop() -> None:
+    from core.graph.action_honesty import _MAX_HONESTY_NUDGES
+
     state = {"honesty_nudge_count": 0, "messages": []}
     messages = [{"role": "user", "content": "save"}]
     assert should_nudge_false_completion(
         state, final_response="Готово, файл создан.", messages=messages
     )
-    state["honesty_nudge_count"] = 1
+    state["honesty_nudge_count"] = _MAX_HONESTY_NUDGES
     assert not should_nudge_false_completion(
         state, final_response="Готово, файл создан.", messages=messages
     )
