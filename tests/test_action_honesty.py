@@ -191,9 +191,9 @@ def test_action_request_forces_tools_on_first_step() -> None:
         "agent_pipeline": "modern",
     }
     assert resolve_tool_choice(state, state["messages"], tools=tools) == "required"
-    # Classic pipeline leaves tool_choice auto on first step (≈1.0.2).
+    # Classic also forces tools on action requests (no mid-task stop).
     classic = {**state, "agent_pipeline": "classic"}
-    assert resolve_tool_choice(classic, classic["messages"], tools=tools) == "auto"
+    assert resolve_tool_choice(classic, classic["messages"], tools=tools) == "required"
 
 
 def test_status_monologue_poniala_proveryayu_loop_is_nudged() -> None:

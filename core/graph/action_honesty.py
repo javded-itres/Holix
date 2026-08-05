@@ -1353,16 +1353,19 @@ def resolve_tool_choice(
     if int(state.get("honesty_nudge_count") or 0) > 0:
         return "required"
 
-    # Classic (≈1.0.2): leave tool_choice=auto unless SDD/honesty forced above.
-    if is_classic_pipeline(pipeline):
-        return "auto"
-
-    # Modern anti-monologue path:
-    # Action turn, no tools yet → force tools on the first step.
+    # Both classic and modern: action request + no tools yet → force tool_calls.
+    # Prevents «Создаю/Сделаю…» and then silence mid-task (classic quiet path
+    # still must finish the job).
     if is_action_request(user_input or last_user_text(messages)) and not (
         _tools_attempted_since_last_user(messages)
     ):
         return "required"
+
+    # Classic: no extra monologue heuristics (no truncation wall / status spam).
+    if is_classic_pipeline(pipeline):
+        return "auto"
+
+    # Modern only: force tools if last assistant turn was pure monologue.
     if messages:
         for msg in reversed(messages):
             if not isinstance(msg, dict):

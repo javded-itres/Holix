@@ -97,8 +97,9 @@ MESSAGES: dict[str, dict[str, str]] = {
         "tg.pipeline_modern": "Modern (anti-spam)",
         "tg.pipeline_picker_title": "Agent pipeline",
         "tg.pipeline_picker_body": (
-            "Classic ≈ Holix 1.0.2: no forced tools-first, no truncation wall, "
-            "Reflexion/meta off by default. Modern: tools-first + monologue honesty."
+            "Classic ≈ 1.0.2 quiet path: Reflexion/meta off, no truncation wall; "
+            "still forces tools on «сделай…» so work does not stop mid-task. "
+            "Modern: full anti-spam monologue honesty."
         ),
         "tg.menu.compress": "Compress context",
         "tg.menu.prev": "Prev",
@@ -638,8 +639,9 @@ When finished, confirm the absolute path written and give a 5–10 line summary 
         "tg.pipeline_modern": "Modern (anti-spam)",
         "tg.pipeline_picker_title": "Pipeline агента",
         "tg.pipeline_picker_body": (
-            "Classic ≈ Holix 1.0.2: без forced tools-first и без «обрезан…», "
-            "Reflexion/meta выкл по умолчанию. Modern: tools-first + honesty monologue."
+            "Classic ≈ 1.0.2: тихо (без Reflexion/meta и «обрезан…»), но на "
+            "«сделай…» tools обязательны — не останавливается на полпути. "
+            "Modern: полный anti-spam honesty."
         ),
         "tg.menu.compress": "Сжать контекст",
         "tg.menu.prev": "Пред.",

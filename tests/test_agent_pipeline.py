@@ -21,16 +21,24 @@ def test_normalize_pipeline_aliases() -> None:
     assert is_modern_pipeline("current")
 
 
-def test_classic_does_not_force_tools_on_action() -> None:
+def test_classic_forces_tools_on_action_not_on_faq() -> None:
     tools = [{"type": "function", "function": {"name": "read_file"}}]
-    state = {
+    action = {
         "user_input": "Сделай пост",
         "messages": [{"role": "user", "content": "Сделай пост"}],
         "tool_results": [],
         "honesty_nudge_count": 0,
         "agent_pipeline": "classic",
     }
-    assert resolve_tool_choice(state, state["messages"], tools=tools) == "auto"
+    assert resolve_tool_choice(action, action["messages"], tools=tools) == "required"
+    faq = {
+        "user_input": "Что такое Holix?",
+        "messages": [{"role": "user", "content": "Что такое Holix?"}],
+        "tool_results": [],
+        "honesty_nudge_count": 0,
+        "agent_pipeline": "classic",
+    }
+    assert resolve_tool_choice(faq, faq["messages"], tools=tools) == "auto"
 
 
 def test_status_menu_includes_pipeline_button() -> None:

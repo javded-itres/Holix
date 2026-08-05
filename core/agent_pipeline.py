@@ -1,15 +1,14 @@
 """Agent response pipeline modes: classic (≈1.0.2) vs modern (anti-monologue).
 
 ``classic`` (default)
-    Behaviour closer to Holix **1.0.2** free-chat path: meta/Reflexion off by
-    default, no forced ``tool_choice=required`` on every action turn, no
-    truncation-notice-as-final, no status-monologue honesty wall.
-    Safety nets kept: think-strip, pathological loop collapse, deferred
-    FinalResponse, false-completion honesty for unproven «готово».
+    Closer to Holix **1.0.2** quiet path: meta/Reflexion off by default, no
+    truncation-notice wall, no status-monologue spam filter.
+    Still **must not stop mid-task**: on clear action requests (сделай/создай…)
+    forces tools until the first tool_call; blocks «Сделаю…» finals without tools.
 
 ``modern``
-    Current anti-spam path: tools-first on action requests, monologue nudges,
-    truncation notice + honesty retry, optional Reflexion/meta via settings.
+    Full anti-spam path: tools-first, monologue/truncation honesty, optional
+    Reflexion/meta via settings.
 
 Switch via env ``HOLIX_AGENT_PIPELINE``, profile field ``agent_pipeline``,
 or messenger menu (Telegram / MAX).
