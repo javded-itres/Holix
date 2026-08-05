@@ -4,8 +4,9 @@ from __future__ import annotations
 
 # Plan / coding headroom (long patches, multi-file reasoning).
 DEFAULT_AGENT_MAX_TOKENS = 8192
-# Free-chat / messenger steps: shorter budget reduces degeneration loops.
-DEFAULT_CHAT_MAX_TOKENS = 2048
+# Free-chat / messenger steps: shorter budget cuts monologue loops early.
+# (Long status spam fills the budget → finish_reason=length → repeat.)
+DEFAULT_CHAT_MAX_TOKENS = 1536
 
 
 def resolve_agent_max_tokens(

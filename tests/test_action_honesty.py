@@ -71,6 +71,35 @@ def test_plan_monologue_without_tools_is_nudged() -> None:
     )
 
 
+def test_status_monologue_poniala_proveryayu_loop_is_nudged() -> None:
+    """User-reported TG spam: «Поняла. Проверяю статус бота через MCP…» × N."""
+    cycle = "Поняла. Проверяю статус бота через MCP.…"
+    monologue = "Проверяю статус бота через MCP-инструмент.…" + cycle * 20
+    assert looks_like_status_monologue(monologue) or ends_turn_on_unexecuted_intent(
+        monologue,
+        [{"role": "user", "content": "Проверь бота"}],
+        user_input="Проверь бота",
+    )
+    messages = [
+        {"role": "user", "content": "Проверь статус бота"},
+        {"role": "assistant", "content": monologue},
+    ]
+    assert ends_turn_on_unexecuted_intent(
+        monologue, messages, user_input="Проверь статус бота"
+    )
+    state = {
+        "user_input": "Проверь статус бота",
+        "messages": messages,
+        "tool_results": [],
+        "honesty_nudge_count": 0,
+        "plan_steps": [],
+        "current_plan_step": 0,
+    }
+    assert should_nudge_false_completion(
+        state, final_response=monologue, messages=messages
+    )
+
+
 def test_status_monologue_mcp_spam_is_nudged_and_forced_tools() -> None:
     """Radical anti-spam: «Да. Смотрю mcp_server.py…» without tools."""
     monologue = "Да. Смотрю mcp_server.py, чтобы добавить publish_news."

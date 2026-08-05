@@ -349,11 +349,25 @@ def resolve_assistant_text(
         )
         return ""
 
+    if finish_reason == "length":
+        # Truncation mid-thought often becomes a monologue loop if re-prompted
+        # with the same partial text. Prefer a short notice; keep a brief
+        # collapsed prefix only when it still looks useful.
+        notice = t("llm.truncated", locale)
+        if not text:
+            return notice
+        if is_pathological_repetition(text, min_repeats=3):
+            collapsed = collapse_repetitive_text(text)
+            if collapsed and len(collapsed) <= 200:
+                return f"{collapsed}\n\n{notice}"
+            return notice
+        # Incomplete but non-looping answer: cap and mark truncated.
+        short = text if len(text) <= 500 else text[:500].rstrip() + "…"
+        return f"{short}\n\n{notice}"
+
     if text:
         return text
 
-    if finish_reason == "length":
-        return t("llm.truncated", locale)
     if finish_reason == "content_filter":
         return t("llm.content_filter", locale)
 

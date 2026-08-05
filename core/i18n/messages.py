@@ -412,7 +412,8 @@ When finished, confirm the absolute path written and give a 5–10 line summary 
         ),
         "llm.truncated": (
             "Response truncated by the model token limit. "
-            "Shorten your request or choose a model with a larger context window."
+            "I stopped instead of repeating myself — ask me to continue, "
+            "or rephrase more narrowly / use a model with a larger output budget."
         ),
         "llm.content_filter": "The model rejected the request (content filter).",
         "llm.reasoning_only": (
@@ -942,7 +943,8 @@ When finished, confirm the absolute path written and give a 5–10 line summary 
         ),
         "llm.truncated": (
             "Ответ обрезан лимитом токенов модели. "
-            "Сократите запрос или выберите модель с большим контекстом."
+            "Остановилась, не повторяя фразу — попросите продолжить, "
+            "сузьте задачу или выберите модель с большим бюджетом ответа."
         ),
         "llm.content_filter": "Модель отклонила запрос (content filter).",
         "llm.reasoning_only": (

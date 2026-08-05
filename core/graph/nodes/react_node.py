@@ -1188,7 +1188,9 @@ async def _react_streaming(
                     finish_reason=finish_reason,
                 )
 
-            if finish_reason == "stop":
+            if finish_reason in ("stop", "length"):
+                # finish_reason=length: model hit max_tokens — often mid monologue loop.
+                # Resolve + honesty before accepting as final (same path as stop).
                 final_response = resolve_assistant_text(
                     content=current_content,
                     reasoning_content=current_reasoning,
@@ -1197,26 +1199,39 @@ async def _react_streaming(
                     profile_name=profile_name_from_agent(agent) if agent else None,
                 )
                 if not (final_response or "").strip():
-                    logger.warning(
-                        "Empty streaming LLM response (model=%s); retrying non-streaming",
-                        model,
-                    )
-                    # Non-streaming retry will emit its own usage event.
-                    return await _react_non_streaming(
-                        state,
-                        agent,
-                        api_messages,
-                        step_count,
-                        client,
-                        model,
-                        tools,
-                        temperature,
-                        model_manager=model_manager,
-                        agent_slot=agent_slot,
-                        on_switch=on_switch,
-                        llm_timeout_s=min(45.0, llm_timeout_s),
-                        max_tokens=max_tokens,
-                    )
+                    if finish_reason == "length":
+                        # Explicit truncation notice already preferred; if empty, stop.
+                        from core.llm.response_text import reasoning_only_user_message
+
+                        final_response = resolve_assistant_text(
+                            content="",
+                            finish_reason="length",
+                            model=model,
+                            profile_name=profile_name_from_agent(agent) if agent else None,
+                        ) or reasoning_only_user_message(
+                            profile_name=profile_name_from_agent(agent) if agent else None
+                        )
+                    else:
+                        logger.warning(
+                            "Empty streaming LLM response (model=%s); retrying non-streaming",
+                            model,
+                        )
+                        # Non-streaming retry will emit its own usage event.
+                        return await _react_non_streaming(
+                            state,
+                            agent,
+                            api_messages,
+                            step_count,
+                            client,
+                            model,
+                            tools,
+                            temperature,
+                            model_manager=model_manager,
+                            agent_slot=agent_slot,
+                            on_switch=on_switch,
+                            llm_timeout_s=min(45.0, llm_timeout_s),
+                            max_tokens=max_tokens,
+                        )
                 messages = list(state.get("messages", []))
                 # If we buffered stream text after listings, scrub before finalizing.
                 final_response = scrub_false_empty_claim_content(

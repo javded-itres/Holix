@@ -85,13 +85,16 @@ _PLAN_MONOLOGUE = re.compile(
     r"|^\s*да[,.]?\s*$"
     r"|\b(работаю|смотрю|читаю|открываю)\b"
     r"|сейчас\s+(провер|посмотр|додела|сдела|изуч|откро|проч|почин|разбер|проверю)"
-    r"|проверю\s+(текущ|код|процесс|состоян|файл|меню)"
+    r"|проверю\s+(текущ|код|процесс|состоян|файл|меню|статус|бот)"
+    r"|проверяю\s+(статус|код|процесс|состоян|файл|бот|mcp)"
     r"|доделаю\s+(меню|код|функц|бот)"
     r"|изучу\s+(структуру|проект|код|репозитор|состоян)"
     r"|найду,?\s+где\b"
     r"|добавлю\s+(обработку|функц|поддержк)"
     r"|подключу\s+(агент|web_fetch|инструмент)"
     r"|сделаю\s+генерац"
+    r"|через\s+mcp"
+    r"|mcp[-_ ]?инструмент"
     r"|here'?s\s+(my\s+)?plan\b"
     r"|i\s+('ll|will)\s+(now\s+)?(start|begin|study|explore|look|add|implement|check)"
     r"|let\s+me\s+(start|begin|first|explore|look|check|read|open)"
@@ -103,14 +106,14 @@ _PLAN_MONOLOGUE = re.compile(
     r")"
 )
 
-# Short status spam as the entire reply (no tools): «Да. Смотрю X…»
+# Short status spam as the entire reply (no tools): «Да. Смотрю X…» / «Поняла. Проверяю…»
 _STATUS_ONLY_MONOLOGUE = re.compile(
     r"(?is)^\s*"
-    r"(да[,.!?…]?\s*)*"
+    r"((да|понял[ао]?|хорошо|ок|ok|alright)[,.!?…]?\s*)*"
     r"("
-    r"(работаю|смотрю|читаю|открываю|изучаю|проверяю|разбираю|пишу|правлю)\b"
+    r"(работаю|смотрю|читаю|открываю|изучаю|проверяю|проверю|разбираю|пишу|правлю)\b"
     r"|(looking\s+at|reading|opening|working\s+on|checking|inspecting)\b"
-    r").{0,200}$"
+    r").{0,280}$"
 )
 
 _WRITE_CLAIM = re.compile(
@@ -181,10 +184,13 @@ ACTION_HONESTY_NUDGE = (
 
 MONOLOGUE_TOOL_NUDGE = (
     "[Action honesty — tools] You are only narrating progress "
-    "(\"Смотрю…\", \"Работаю…\", \"Looking at…\") without calling tools. "
-    "That spam is not work. Immediately call the right tools now "
-    "(read_file, list_directory, write_file, run_terminal_command, …). "
-    "Do NOT reply with another status sentence. First tool_calls, then answer."
+    "(\"Смотрю…\", \"Поняла. Проверяю…\", \"Работаю…\", \"Looking at…\") "
+    "without calling tools. That spam burns tokens and loops forever. "
+    "Hard limits: at most 1–2 short sentences of prose, then tool_calls — "
+    "prefer zero prose. Immediately call the right tools now "
+    "(read_file, list_directory, write_file, run_terminal_command, MCP tools, …). "
+    "Do NOT reply with another status sentence or repeat «Поняла/Проверяю». "
+    "First tool_calls, then answer from tool results only."
 )
 
 # Shown when the model keeps monologuing after forced tool retries.
@@ -867,8 +873,8 @@ def looks_like_status_monologue(text: str | None) -> bool:
             return False
         return bool(
             re.search(
-                r"(?is)^\s*(да[,.!?…]?\s*)*"
-                r"(работаю|смотрю|читаю|открываю|изучаю|проверяю|разбираю|"
+                r"(?is)^\s*((да|понял[ао]?|хорошо|ок|ok)[,.!?…]?\s*)*"
+                r"(работаю|смотрю|читаю|открываю|изучаю|проверяю|проверю|разбираю|"
                 r"looking\s+at|reading|opening|working\s+on|checking)\b",
                 content,
             )
@@ -919,6 +925,14 @@ def ends_turn_on_unexecuted_intent(
         return False
     if _tools_attempted_since_last_user(messages):
         return False
+    # Pathological loops («Поняла. Проверяю…» × N) are never a valid final.
+    try:
+        from core.llm.response_text import is_pathological_repetition
+
+        if is_pathological_repetition(content, min_repeats=3):
+            return True
+    except Exception:
+        pass
     # Status spam («Да. Смотрю…») is never a valid final without tools.
     if looks_like_status_monologue(content):
         return True

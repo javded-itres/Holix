@@ -79,6 +79,16 @@ def test_collapse_pure_ab_cycle() -> None:
     assert collapsed.count("Поняла") <= 2
 
 
+def test_resolve_length_finish_stops_pathological_loop() -> None:
+    """finish_reason=length must not deliver monologue spam as the final answer."""
+    cycle = "Поняла. Проверяю статус бота через MCP.…"
+    raw = cycle * 40
+    text = resolve_assistant_text(content=raw, finish_reason="length")
+    assert "token" in text.lower() or "токен" in text.lower() or "обрезан" in text.lower()
+    assert text.count("Поняла") <= 3
+    assert len(text) < 500
+
+
 def test_collapse_smotryu_mcp_server_loop() -> None:
     """Studio spam: «Да. Смотрю mcp_server.py…» glued many times."""
     unit = "Да. Смотрю mcp_server.py, чтобы добавить publish_news.…"
