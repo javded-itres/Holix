@@ -969,25 +969,32 @@ def ends_turn_on_unexecuted_intent(
     user = (user_input or "").strip() or last_user_text(messages)
     modern = is_modern_pipeline(agent_pipeline)
 
-    # Modern only: truncation notice / path loops / short status spam.
+    # Pathological monologue loops must never end the turn (classic + modern).
+    # Classic previously skipped this and could "finish" on 18KB of «Поняла…».
+    try:
+        from core.llm.response_text import is_pathological_repetition
+
+        if is_pathological_repetition(content, min_repeats=3):
+            return True
+    except Exception:
+        pass
+
+    # Modern: truncation notice / short status spam as incomplete turns.
     if modern:
         if is_truncation_notice(content):
             return True
-        try:
-            from core.llm.response_text import is_pathological_repetition
-
-            if is_pathological_repetition(content, min_repeats=3):
-                return True
-        except Exception:
-            pass
         if looks_like_status_monologue(content):
             return True
+    elif looks_like_status_monologue(content) and len(content) <= 400:
+        # Classic: short pure status («Поняла. Запускаю…») without tools.
+        return True
 
     action_user = is_action_request(user)
     # Strong work verbs without tools — always block (even classic).
     if re.search(
         r"(?is)\b("
         r"созда[юёмм]|создам|опублик[уююем]|ищу\s+свеж|тестовый\s+пост|"
+        r"запуска[юем]|запущу|останавлива[юем]|провер[яюем]|смотрю|"
         r"write_file|run_terminal|list_directory"
         r")\b",
         content,

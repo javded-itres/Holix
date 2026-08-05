@@ -107,6 +107,28 @@ def test_collapse_smotryu_mcp_server_loop() -> None:
     assert len(collapsed) < 200
 
 
+def test_collapse_bot_py_monologue_with_typo_variant() -> None:
+    """Prod admin spam: «…Поняла. Запускаю bot.py…» × N + one bot_bot mutation.
+
+    Dot inside ``bot.py`` must not break detection; one typo must not keep 18KB.
+    """
+    unit = "…Поняла. Запускаю бота `javded_content_bot.py` в фоновом процессе."
+    mutant = "…Поняла. Запускаю бота `javded_content_bot_bot.py` в фоновом процессе."
+    raw = unit * 47 + mutant + unit * 50
+    assert len(raw) > 5000
+    assert is_pathological_repetition(raw, min_repeats=3)
+    collapsed = collapse_repetitive_text(raw)
+    assert len(collapsed) < 300
+    assert collapsed.count("Поняла") <= 2
+    assert "Запускаю" in collapsed
+    # Classic stop finish must not ship the multi-KB loop.
+    resolved = resolve_assistant_text(
+        content=raw, finish_reason="stop", agent_pipeline="classic"
+    )
+    assert len(resolved) < 300
+    assert resolved.count("Поняла") <= 2
+
+
 def test_stream_delta_reasoning_only() -> None:
     delta = SimpleNamespace(content=None, reasoning_content="Размышляю…")
     content, reasoning = stream_delta_parts(delta)

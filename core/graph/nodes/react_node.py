@@ -1094,11 +1094,19 @@ async def _react_streaming(
                 if len(current_content) >= 80 and is_pathological_repetition(
                     current_content, min_repeats=3
                 ):
+                    before = len(current_content)
                     current_content = collapse_repetitive_text(current_content)
+                    if len(current_content) > 400 and is_pathological_repetition(
+                        current_content, min_repeats=3
+                    ):
+                        from core.llm.response_text import _hard_trim_loop
+
+                        current_content = _hard_trim_loop(current_content)
                     logger.warning(
-                        "Aborted streaming content loop (model=%s, step=%s, chars=%s)",
+                        "Aborted streaming content loop (model=%s, step=%s, %s→%s chars)",
                         model,
                         step_count,
+                        before,
                         len(current_content),
                     )
                     last_finish_reason = last_finish_reason or "stop"

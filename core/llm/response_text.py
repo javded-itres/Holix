@@ -38,12 +38,19 @@ def _norm_unit(text: str) -> str:
     return re.sub(r"\s+", " ", (text or "").strip()).casefold()
 
 
-# Models often glue «…Поняла» without a space after ellipsis — require \s* not \s+.
-_SENTENCE_SPLIT_RE = re.compile(r"(?<=[.!?…])\s*|\n+")
+# Split sentences, but do **not** break on ``file.py`` / ``bot.py`` (dot mid-token).
+# Models glue «…Поняла» without space after ellipsis — allow zero whitespace after ….
+_SENTENCE_SPLIT_RE = re.compile(
+    r"(?<=…)\s*"  # ellipsis always ends a unit (even with no following space)
+    r"|(?<=[!?])\s*"  # ! ? always
+    r"|(?<=\.)\s+"  # period only when whitespace follows (not file.py)
+    r"|\n+"
+)
 
 
 def _sentence_units(text: str) -> list[str]:
     return [u.strip() for u in _SENTENCE_SPLIT_RE.split(text or "") if _norm_unit(u)]
+
 
 def _find_sentence_cycle(
     units: list[str],
@@ -53,20 +60,21 @@ def _find_sentence_cycle(
     """Find a repeating sentence cycle.
 
     Returns ``(start_index, period, run_count)`` when a block of ``period``
-    sentences (period 1–3) repeats ``run_count`` times and covers most units.
+    sentences (period 1–6) repeats ``run_count`` times and covers most units.
 
     Catches patterns like::
         A A A A
         A B A B A B
         (with optional different prefix before the loop)
-    including short fillers («Поняла.») alternating with longer monologue.
+    including short fillers («Поняла.») alternating with longer monologue,
+    and 4-unit cycles when a prior split broke ``bot.py`` into two pieces.
     """
     n = len(units)
     if n < min_repeats:
         return None
     norms = [_norm_unit(u) for u in units]
 
-    for period in (1, 2, 3):
+    for period in (1, 2, 3, 4, 5, 6):
         if n < period * min_repeats:
             continue
         # Allow the loop to start after a short non-looping prefix.
@@ -100,7 +108,11 @@ def _find_char_cycle(
     min_unit: int = 16,
     min_repeats: int = 4,
 ) -> tuple[str, int] | None:
-    """Find a character-level cycle starting at any offset (not only s[0])."""
+    """Find a character-level cycle starting at any offset (not only s[0]).
+
+    Tolerates rare mid-loop mutations (e.g. one ``bot_bot`` typo): counts
+    non-consecutive matches of the unit, not only a pure prefix run.
+    """
     n = len(s)
     if n < min_unit * min_repeats:
         return None
@@ -108,10 +120,14 @@ def _find_char_cycle(
     max_unit = min(n // min_repeats, 280)
     # Sample start offsets: 0 and after first sentence-ish break.
     starts = {0}
-    for m in re.finditer(r"[.!?…]\s*", s[: min(n, 400)]):
+    for m in re.finditer(r"(?:…|[.!?]\s+)", s[: min(n, 400)]):
         starts.add(m.end())
-        if len(starts) >= 8:
+        if len(starts) >= 12:
             break
+    # Also try after leading ellipsis glued to text («…Поняла»).
+    if s.startswith("…") and len(s) > 1:
+        starts.add(0)
+
     best: tuple[str, int] | None = None
     for start in sorted(starts):
         if start >= n // 2:
@@ -123,15 +139,92 @@ def _find_char_cycle(
             unit = tail[:unit_len]
             if not unit.strip():
                 continue
+            # Pure consecutive run from start of tail.
             repeats = 0
             pos = 0
             while pos + unit_len <= tn and tail[pos : pos + unit_len] == unit:
                 repeats += 1
                 pos += unit_len
-            if repeats >= min_repeats and pos >= int(tn * 0.7):
+            covered = pos
+            # If a rare mutation breaks the run early, fall back to global count.
+            if repeats < min_repeats or covered < int(tn * 0.7):
+                global_hits = _count_phrase_runs(s, unit)
+                if global_hits >= min_repeats and global_hits * unit_len >= int(n * 0.55):
+                    repeats = global_hits
+                    covered = global_hits * unit_len
+                else:
+                    continue
+            if repeats >= min_repeats and covered >= int(tn * 0.55):
                 if best is None or repeats * unit_len > len(best[0]) * best[1]:
                     best = (unit, repeats)
     return best
+
+
+def _collapse_by_ellipsis_segments(s: str, *, max_repeats: int = 1) -> str | None:
+    """Collapse «…phrase…phrase…» when segments are near-identical.
+
+    Handles rare one-off mutations (``bot_bot``) by keeping the dominant segment.
+    """
+    if "…" not in s:
+        return None
+    segs = [p for p in re.split(r"(?=…)", s) if p]
+    if len(segs) < 4:
+        return None
+    from collections import Counter
+
+    counts = Counter(segs)
+    top, top_n = counts.most_common(1)[0]
+    if top_n < 4 or top_n < len(segs) * 0.5 or len(top.strip()) < 16:
+        # Dominant by length-normalized form (ignore one-char typos in middle).
+        def _soft(x: str) -> str:
+            return re.sub(r"[_\s]+", "", _norm_unit(x))[:80]
+
+        soft_counts: Counter[str] = Counter()
+        soft_example: dict[str, str] = {}
+        for seg in segs:
+            key = _soft(seg)
+            if len(key) < 12:
+                continue
+            soft_counts[key] += 1
+            soft_example.setdefault(key, seg)
+        if not soft_counts:
+            return None
+        key, top_n = soft_counts.most_common(1)[0]
+        if top_n < 4 or top_n < len(segs) * 0.5:
+            return None
+        top = soft_example[key]
+    keep = max(1, max_repeats)
+    prefix: list[str] = []
+    for seg in segs:
+        if seg == top or _norm_unit(seg) == _norm_unit(top):
+            break
+        # Soft match prefix end
+        if len(seg) >= 16 and _norm_unit(seg)[:40] == _norm_unit(top)[:40]:
+            break
+        prefix.append(seg)
+    return ("".join(prefix) + top * keep).strip() or None
+
+
+def _hard_trim_loop(s: str, *, max_len: int = 220) -> str:
+    """Last-resort: keep the first sensible chunk of a looped monologue."""
+    text = (s or "").strip()
+    if len(text) <= max_len:
+        return text
+    # Prefer first ellipsis-delimited segment.
+    if "…" in text[1:]:
+        first = text.split("…", 1)[0]
+        if text.startswith("…"):
+            # «…phrase…phrase» → keep first full segment
+            segs = [p for p in re.split(r"(?=…)", text) if p]
+            if segs:
+                first = segs[0]
+        if 16 <= len(first) <= max_len:
+            return first.strip()
+    cut = text[:max_len]
+    m = re.search(r"[.!?…]\s*", cut[::-1])
+    if m:
+        cut = cut[: len(cut) - m.start()]
+    return cut.rstrip() + "…"
 
 
 def _count_phrase_runs(s: str, phrase: str) -> int:
@@ -197,6 +290,11 @@ def collapse_repetitive_text(
 
     Default ``max_repeats=1`` keeps a single copy of a detected cycle so users
     never see monologue spam in messengers.
+
+    Robust to:
+    - dots inside identifiers (``bot.py``)
+    - rare mid-loop mutations (``bot_bot`` typo once)
+    - ellipsis-glued monologues without spaces
     """
     raw = (text or "").strip()
     if len(raw) < min_unit * 3:
@@ -235,9 +333,15 @@ def collapse_repetitive_text(
             if len(candidate) < len(collapsed):
                 collapsed = candidate
 
+    # Ellipsis-segment mode: dominant «…phrase» even with one mutated copy.
+    if len(collapsed) > min_unit * 6 and "…" in collapsed:
+        seg = _collapse_by_ellipsis_segments(collapsed, max_repeats=max_repeats)
+        if seg is not None and len(seg) < len(collapsed) * 0.5:
+            collapsed = seg
+
     # Consecutive identical sentence units (period-1 residual)
     if len(collapsed) >= min_unit * 3:
-        pieces = re.split(r"((?:[.!?…]+|\n+)\s*)", collapsed)
+        pieces = re.split(r"((?:…+|[!?]+|\.\s+|\n+)\s*)", collapsed)
         out: list[str] = []
         prev_norm = ""
         run = 0
@@ -260,6 +364,14 @@ def collapse_repetitive_text(
                 run = 1
                 out.append(chunk + sep)
         collapsed = "".join(out).strip()
+
+    # Hard safety: still pathological and long → first segment only.
+    if len(collapsed) > min_unit * 8 and is_pathological_repetition(
+        collapsed, min_unit=min_unit, min_repeats=3
+    ):
+        trimmed = _hard_trim_loop(collapsed)
+        if len(trimmed) < len(collapsed):
+            collapsed = trimmed
 
     if len(collapsed) < len(raw) * 0.9 and len(raw) > 120:
         logger.warning(
@@ -357,7 +469,13 @@ def resolve_assistant_text(
             if not text:
                 return t("llm.truncated", locale)
             if is_pathological_repetition(text, min_repeats=3):
-                return collapse_repetitive_text(text) or text
+                collapsed = collapse_repetitive_text(text) or text
+                # Never ship multi-KB monologue spam even if detectors disagree.
+                if len(collapsed) > 400 and is_pathological_repetition(
+                    collapsed, min_repeats=3
+                ):
+                    collapsed = _hard_trim_loop(collapsed)
+                return collapsed
             return text
         # Modern: explicit truncation notice (anti-spam UX).
         notice = t("llm.truncated", locale)
@@ -370,6 +488,12 @@ def resolve_assistant_text(
             return notice
         short = text if len(text) <= 500 else text[:500].rstrip() + "…"
         return f"{short}\n\n{notice}"
+    # Any finish reason: never deliver multi-KB glued monologue.
+    if text and len(text) > 400 and is_pathological_repetition(text, min_repeats=3):
+        collapsed = collapse_repetitive_text(text) or text
+        if len(collapsed) > 400 and is_pathological_repetition(collapsed, min_repeats=3):
+            collapsed = _hard_trim_loop(collapsed)
+        return collapsed
     if text:
         return text
     if finish_reason == "content_filter":

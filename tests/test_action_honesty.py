@@ -215,6 +215,22 @@ def test_status_monologue_poniala_proveryayu_loop_is_nudged() -> None:
         user_input="Проверь статус бота",
         agent_pipeline="classic",
     )
+
+
+def test_classic_blocks_zapuskayu_bot_py_loop() -> None:
+    """Prod: classic finished on 18KB of «…Поняла. Запускаю bot.py…» without tools."""
+    unit = "…Поняла. Запускаю бота `javded_content_bot.py` в фоновом процессе."
+    monologue = unit * 80
+    messages = [
+        {"role": "user", "content": "да"},
+        {"role": "assistant", "content": monologue},
+    ]
+    assert ends_turn_on_unexecuted_intent(
+        monologue,
+        messages,
+        user_input="да",
+        agent_pipeline="classic",
+    )
     state = {
         "user_input": "Проверь статус бота",
         "messages": messages,
