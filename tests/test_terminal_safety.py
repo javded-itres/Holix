@@ -138,3 +138,24 @@ async def test_terminal_tool_blocks_dangerous(monkeypatch: pytest.MonkeyPatch) -
     tool = TerminalTool()
     out = await tool.execute("rm -rf /tmp/test")
     assert "blocked" in out.lower() or "Error" in out
+
+
+@pytest.mark.asyncio
+async def test_terminal_tool_blocks_dangerous_when_whitelist_off(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Allowlist off still blocks rm -rf / curl|sh etc."""
+    from core.tools import terminal as terminal_mod
+    from core.tools.terminal import TerminalTool
+
+    from config import settings
+
+    monkeypatch.setenv("HOLIX_TERMINAL_COMMAND_WHITELIST", "false")
+    monkeypatch.setenv("TERMINAL_COMMAND_WHITELIST", "false")
+    monkeypatch.setattr(settings, "enable_terminal_tool", True)
+    monkeypatch.setattr(settings, "terminal_command_whitelist", False)
+    monkeypatch.setattr(terminal_mod.settings, "enable_terminal_tool", True)
+    monkeypatch.setattr(terminal_mod.settings, "terminal_command_whitelist", False)
+    tool = TerminalTool()
+    out = await tool.execute("rm -rf /tmp/test")
+    assert "blocked" in out.lower() or "dangerous" in out.lower()

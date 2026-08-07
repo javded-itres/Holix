@@ -110,6 +110,19 @@ class CommandWhitelist:
         if IS_WINDOWS:
             self.dangerous_patterns.extend(_WINDOWS_DANGEROUS)
 
+    def blocks_dangerous_patterns(self, command: str) -> tuple[bool, str | None]:
+        """Return ``(blocked, reason)`` for destructive shell patterns only.
+
+        Always applied — even when the command allowlist is disabled.
+        """
+        command_lower = (command or "").lower().strip()
+        if not command_lower:
+            return True, "Empty command"
+        for pattern in self.dangerous_patterns:
+            if re.search(pattern, command_lower):
+                return True, f"Blocked dangerous pattern: {pattern}"
+        return False, None
+
     def is_command_allowed(self, command: str) -> tuple[bool, str | None]:
         """Check if a command is safe to execute.
 
@@ -120,9 +133,9 @@ class CommandWhitelist:
         if not command_lower:
             return False, "Empty command"
 
-        for pattern in self.dangerous_patterns:
-            if re.search(pattern, command_lower):
-                return False, f"Blocked dangerous pattern: {pattern}"
+        blocked, reason = self.blocks_dangerous_patterns(command)
+        if blocked:
+            return False, reason
 
         segments = iter_shell_command_segments(command)
         if not segments:

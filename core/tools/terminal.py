@@ -307,11 +307,18 @@ class TerminalTool(BaseTool):
                     "as holix-gateway (TelegramConflictError)."
                 )
 
+        # Destructive patterns always apply; full command allowlist is optional.
         if terminal_whitelist_enabled():
             command_whitelist.apply_extra(terminal_whitelist_extra())
             allowed, reason = command_whitelist.is_command_allowed(command)
             if not allowed:
                 return f"Error: Command blocked by safety policy. {reason}"
+        else:
+            blocked_danger, danger_reason = command_whitelist.blocks_dangerous_patterns(
+                command
+            )
+            if blocked_danger:
+                return f"Error: Command blocked by safety policy. {danger_reason}"
 
         try:
             from core.tools.execution_context import (
