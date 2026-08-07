@@ -220,7 +220,12 @@ def resolve_trusted_plan_file(
     path: str | Path,
     config: HolixRuntimeConfig | None = None,
 ) -> Path:
-    """Resolve a plan file and ensure it stays under project plan directories."""
+    """Resolve a plan file and ensure it stays under project plan directories.
+
+    Relative paths (e.g. ``.holix/plans/plan_….json`` from Studio list API)
+    are resolved against ``config.workspace_root`` when present — not against
+    process CWD (which is often the Studio install tree).
+    """
     text = str(path).strip()
     if not text or "\0" in text:
         raise InvalidPlanIdError(f"Invalid plan path: {path!r}")
@@ -228,7 +233,23 @@ def resolve_trusted_plan_file(
     if normalized.startswith("../") or "/../" in f"/{normalized}/":
         raise InvalidPlanIdError(f"Plan path outside plan directories: {path}")
     expanded = os.path.expanduser(text)
-    resolved = Path(os.path.realpath(expanded))
+    raw = Path(expanded)
+    if raw.is_absolute():
+        resolved = Path(os.path.realpath(str(raw)))
+    else:
+        workspace_base: Path | None = None
+        if config is not None:
+            wr = getattr(config, "workspace_root", None)
+            if wr:
+                base = Path(str(wr)).expanduser()
+                if not base.is_absolute():
+                    base = Path.cwd() / base
+                workspace_base = base.resolve()
+        if workspace_base is not None:
+            # Join then realpath so missing files still resolve under workspace
+            resolved = Path(os.path.realpath(str(workspace_base / raw)))
+        else:
+            resolved = Path(os.path.realpath(str(raw)))
     if resolved.suffix == ".md":
         resolved = resolved.with_suffix(".json")
     allowed_roots = [Path(os.path.realpath(str(d.resolve()))) for d in _plan_search_dirs(config)]

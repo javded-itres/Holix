@@ -104,6 +104,11 @@ def _apply_section(
     return order
 
 
+def count_delta_requirements(delta_content: str) -> int:
+    """How many Requirement blocks the delta will attempt to apply."""
+    return sum(len(reqs) for _, reqs in _parse_delta_sections(delta_content or ""))
+
+
 def merge_delta_into_main(main_content: str, delta_content: str) -> str:
     """Apply delta requirement sections onto main spec markdown.
 

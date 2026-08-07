@@ -9,7 +9,7 @@ from datetime import date
 from pathlib import Path
 
 from core.sdd.apply_mode import apply_mode_prompt_text, load_apply_mode, save_apply_mode
-from core.sdd.merge import merge_delta_into_main
+from core.sdd.merge import count_delta_requirements, merge_delta_into_main
 from core.sdd.models import ChangeStatus
 from core.sdd.paths import (
     SPEC_FILENAME,
@@ -732,6 +732,13 @@ class SpecStore:
         return domain
 
     def archive(self, change_id: str, *, force: bool = False) -> dict:
+        """Merge delta specs into main library, then move change to archive.
+
+        SDD rule: main ``openspec/specs/<domain>/spec.md`` is updated from
+        ``changes/<id>/specs/<domain>/spec.md`` (ADDED/MODIFIED/REMOVED) **before**
+        the change directory is moved. Without a successful merge, the change is
+        **not** removed unless ``force=True`` (escape hatch).
+        """
         cid = validate_change_id(change_id)
         cdir = change_dir(self.workspace, cid)
         if not cdir.is_dir():
@@ -756,10 +763,6 @@ class SpecStore:
             warnings.append(
                 f"{len(open_tasks)} open task(s) remain; archive will still merge deltas."
             )
-        if warnings and not force:
-            # Soft gate: still allow archive (historical behavior) but surface warnings
-            # so agents/UI do not assume a clean merge of finished work.
-            pass
 
         merged: list[str] = []
         merge_errors: list[str] = []
@@ -776,6 +779,26 @@ class SpecStore:
                     continue
                 domain_deltas.setdefault(domain, []).append(delta_spec)
 
+        # Hard gate: never delete the change if there is nothing to merge (unless force).
+        if not domain_deltas and not force:
+            return {
+                "ok": False,
+                "change_id": cid,
+                "error": (
+                    "No delta specs found to merge. Expected "
+                    f"openspec/changes/{cid}/specs/<domain>/{SPEC_FILENAME} with "
+                    "## ADDED|MODIFIED|REMOVED Requirements and "
+                    "### Requirement: … blocks. Change was NOT archived."
+                ),
+                "merge_errors": merge_errors
+                or [
+                    f"missing changes/{cid}/specs/<domain>/{SPEC_FILENAME}",
+                ],
+                "warnings": warnings,
+                "merged_specs": [],
+            }
+
+        requirements_merged = 0
         for domain, paths in sorted(domain_deltas.items()):
             main_path = domain_spec_path(self.workspace, domain)
             if main_path.is_file():
@@ -783,25 +806,45 @@ class SpecStore:
             else:
                 main_path.parent.mkdir(parents=True, exist_ok=True)
                 main_text = f"# {domain}\n\n"
+            domain_had_delta = False
             for delta_spec in paths:
                 try:
                     delta_text = delta_spec.read_text(encoding="utf-8")
+                    n_reqs = count_delta_requirements(delta_text)
+                    if n_reqs <= 0:
+                        merge_errors.append(
+                            f"{self.tool_relpath(delta_spec)}: "
+                            "no ### Requirement blocks under "
+                            "## ADDED|MODIFIED|REMOVED Requirements"
+                        )
+                        continue
                     main_text = merge_delta_into_main(main_text, delta_text)
+                    requirements_merged += n_reqs
+                    domain_had_delta = True
                 except Exception as exc:
                     merge_errors.append(
                         f"{self.tool_relpath(delta_spec)}: {exc}"
                     )
-            main_path.write_text(main_text, encoding="utf-8")
-            merged.append(self.tool_relpath(main_path))
+            if domain_had_delta:
+                main_path.write_text(main_text, encoding="utf-8")
+                merged.append(self.tool_relpath(main_path))
 
-        if merge_errors and not merged and not force:
-            return {
-                "ok": False,
-                "change_id": cid,
-                "error": "No specs merged",
-                "merge_errors": merge_errors,
-                "warnings": warnings,
-            }
+        if not force:
+            if not merged or requirements_merged <= 0:
+                return {
+                    "ok": False,
+                    "change_id": cid,
+                    "error": (
+                        "Archive refused: delta specs did not merge into main. "
+                        "Fill ## ADDED/MODIFIED/REMOVED Requirements with "
+                        "### Requirement: titles, then retry. Change was NOT removed."
+                    ),
+                    "merge_errors": merge_errors
+                    or ["no mergeable requirements in delta specs"],
+                    "warnings": warnings,
+                    "merged_specs": merged,
+                    "requirements_merged": requirements_merged,
+                }
 
         arch = archive_root(self.workspace)
         arch.mkdir(parents=True, exist_ok=True)
@@ -809,12 +852,14 @@ class SpecStore:
         dest = arch / f"{stamp}-{cid}"
         if dest.exists():
             dest = arch / f"{stamp}-{cid}-{_unique_suffix()}"
+        # Move only after main specs were written successfully
         shutil.move(str(cdir), str(dest))
         result: dict = {
             "ok": True,
             "change_id": cid,
             "archived_to": self.tool_relpath(dest),
             "merged_specs": merged,
+            "requirements_merged": requirements_merged,
         }
         if warnings:
             result["warnings"] = warnings
