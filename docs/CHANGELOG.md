@@ -2,6 +2,20 @@
 
 ## Unreleased
 
+## 1.0.7 — 2026-08-08
+
+Terminal safety when whitelist is off, and SDD archive merge gates.
+
+### Fixed
+
+- **Destructive terminal patterns with whitelist off** — `HOLIX_TERMINAL_COMMAND_WHITELIST=false` still blocks `rm -rf`, `curl|sh`, `mkfs`, `dd`, shutdown/reboot, etc. (`blocks_dangerous_patterns` always applied).
+- **SDD archive without merge** — `archive` refuses to move a change unless delta specs merge into main `openspec/specs/<domain>/spec.md` (unless `force=true`).
+- **Plan path resolution** — relative plan paths resolve against profile `workspace_root`, not process CWD (Studio list/open plans).
+
+### Tests
+
+- Terminal dangerous patterns when whitelist is disabled.
+
 ## 1.0.6 — 2026-08-05
 
 Agent reliability for messengers: anti-monologue pipeline, classic/modern switch, background process history, and workspace access for admin (jail-off) profiles.
