@@ -41,10 +41,13 @@ Architecture overview: [docs/en/ARCHITECTURE.md](docs/en/ARCHITECTURE.md).
 
 ## Conventions
 
+Mandatory patterns (architecture, extensions, security, deploy, PR checklist): **[RULES.md](RULES.md)**.
+
 - Python **3.12+**, async-first for agent code
 - Profiles and user data under `~/.holix/profiles/`, not in the repo
 - New tools extend `BaseTool` in `core/tools/`
-- Agent behavior changes should go through `core/agent_execution.py` and events in `core/agent_events.py`
+- Agent behavior changes should go through graph/events (`core/graph/`, `core/agent_events.py`); prefer not growing the legacy loop
+- Product features (billing, Studio extras, metrics UIs) → **extensions**, not `core/`
 - Document user-facing CLI changes in `docs/en/CLI.md` and `docs/ru/CLI.md`
 
 ## Pull requests

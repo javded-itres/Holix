@@ -1,5 +1,7 @@
 # Agent notes (Helix workspace)
 
+Full development rules (architecture, extensions, security, deploy): **[RULES.md](RULES.md)**.
+
 ## Production / remote policy (Studio and related)
 
 - **Production** installs of Holix Studio stack: **GitHub Actions only**, **branch `main` only** (Helix + holix-studio + holix-license).
