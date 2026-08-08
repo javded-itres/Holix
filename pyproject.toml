@@ -99,6 +99,8 @@ Changelog = "https://github.com/javded-itres/Holix/blob/master/docs/CHANGELOG.md
 
 [dependency-groups]
 dev = [
+    "pre-commit>=4.0.0",
+
     "pytest>=8.0",
     "pytest-asyncio>=0.24.0",
     "ruff>=0.8.0",

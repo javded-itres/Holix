@@ -24,10 +24,10 @@ uv run pytest tests/test_agent_events.py
 Lint (same scope as CI):
 
 ```bash
-./scripts/lint.sh
+./scripts/lint.sh              # same as CI / pre-push
+./scripts/lint.sh --fix       # auto-fix then re-check
 # or:
 uv run ruff check core cli api integrations tests
-uv run ruff format --check core cli api integrations tests
 ```
 
 **Git hooks (required for push):** after clone, install once:
@@ -36,7 +36,10 @@ uv run ruff format --check core cli api integrations tests
 ./scripts/install-git-hooks.sh
 ```
 
-This installs `pre-commit` (auto-fix on commit) and **pre-push** (full ruff gate — push fails if lint fails). See [RULES.md](RULES.md) §9.
+- **pre-commit** — ruff fix + format on staged files  
+- **pre-push** — `./scripts/lint.sh` (blocks push if ruff fails; same paths as CI)  
+
+See [RULES.md](RULES.md) §9. Skip only in emergencies: `git push --no-verify`.
 
 ## Project layout
 

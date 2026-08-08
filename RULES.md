@@ -222,8 +222,8 @@ Layout:
 | Когда | Что |
 |-------|-----|
 | `git commit` | ruff `--fix` + format на staged |
-| `git push` | `./scripts/lint.sh` — full `ruff check` + `format --check` на `core cli api integrations tests` (как CI) |
-| Вручную | `./scripts/lint.sh` или `uv run ruff check core cli api integrations tests` |
+| `git push` | `./scripts/lint.sh` → `ruff check core cli api integrations tests` (**как CI**) |
+| Вручную | `./scripts/lint.sh` или `./scripts/lint.sh --fix` |
 
 Push **блокируется**, если ruff падает. Обход только в аварийных случаях: `git push --no-verify` (не использовать в обычной работе).
 
