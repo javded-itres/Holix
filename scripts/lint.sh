@@ -1,16 +1,12 @@
 #!/usr/bin/env bash
 # Lint gate matching CI "Ruff" step. Used by pre-push hook.
 #   ./scripts/lint.sh
-#   ./scripts/lint.sh --fix   # optional auto-fix
+#   ./scripts/lint.sh --fix
 set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 
 TARGETS=(core cli api integrations tests)
-FIX=()
-if [[ "${1:-}" == "--fix" ]]; then
-  FIX=(--fix)
-fi
 
 run_ruff() {
   if command -v uv >/dev/null 2>&1 && [[ -d "$ROOT/.venv" ]]; then
@@ -23,6 +19,11 @@ run_ruff() {
   fi
 }
 
-echo "[lint] ruff check ${FIX[*]:-} ${TARGETS[*]}"
-run_ruff check "${FIX[@]}" "${TARGETS[@]}"
+if [[ "${1:-}" == "--fix" ]]; then
+  echo "[lint] ruff check --fix ${TARGETS[*]}"
+  run_ruff check --fix "${TARGETS[@]}"
+else
+  echo "[lint] ruff check ${TARGETS[*]}"
+  run_ruff check "${TARGETS[@]}"
+fi
 echo "[lint] OK (same scope as CI)"
