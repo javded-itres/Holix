@@ -204,10 +204,28 @@ Layout:
 | Тема | Правило |
 |------|---------|
 | Python | **3.12+**, async-first agent paths |
-| Lint | `ruff check` (I001 imports, F401, …) |
+| Lint | **Ruff** (E, F, I, UP) — как в CI |
+| Pre-push | **Обязательно** прогонять linter **до** `git push` (git hooks) |
 | Tests | `pytest`; behavior changes → new/updated tests; `-m "not llm"` для локали без API |
 | Boundaries | `tests/test_architecture_boundaries.py` must pass |
 | Naming | Holix (product), not Helix package name on PyPI (`Holix` / CLI `holix`) |
+
+### Linter before push (обязательно)
+
+После clone один раз:
+
+```bash
+./scripts/install-git-hooks.sh
+# ставит pre-commit + pre-push hooks
+```
+
+| Когда | Что |
+|-------|-----|
+| `git commit` | ruff `--fix` + format на staged |
+| `git push` | `./scripts/lint.sh` — full `ruff check` + `format --check` на `core cli api integrations tests` (как CI) |
+| Вручную | `./scripts/lint.sh` или `uv run ruff check core cli api integrations tests` |
+
+Push **блокируется**, если ruff падает. Обход только в аварийных случаях: `git push --no-verify` (не использовать в обычной работе).
 
 ---
 
@@ -218,7 +236,8 @@ Layout:
 - [ ] Product feature? → extension, не core (если не runtime-инфра)
 - [ ] Terminal/long jobs: bg process API, не nohup
 - [ ] Jail / secrets / destructive patterns не ослаблены случайно
-- [ ] Tests + ruff green
+- [ ] `./scripts/lint.sh` green (или pre-push hook)
+- [ ] Tests green
 - [ ] Docs EN/RU при user-facing change
 - [ ] CHANGELOG entry при user-visible fix/feat (перед релизом)
 

@@ -1,16 +1,54 @@
+# Install (once per clone):
+#   ./scripts/install-git-hooks.sh
+#   # or: pre-commit install --hook-type pre-commit --hook-type pre-push
+#
+# Manual lint (same as pre-push / CI):
+#   ./scripts/lint.sh
+#   uv run ruff check core cli api integrations tests
+#
+# Skip hooks (emergency only):
+#   git push --no-verify
+
+default_install_hook_types:
+  - pre-commit
+  - pre-push
+
+default_stages:
+  - pre-commit
+
 repos:
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.8.6
     hooks:
       - id: ruff
+        name: ruff fix (pre-commit)
         args: [--fix]
+        stages: [pre-commit]
       - id: ruff-format
+        name: ruff format (pre-commit)
+        stages: [pre-commit]
 
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v5.0.0
     hooks:
       - id: check-yaml
+        stages: [pre-commit]
       - id: end-of-file-fixer
+        stages: [pre-commit]
       - id: trailing-whitespace
+        stages: [pre-commit]
       - id: detect-private-key
+        stages: [pre-commit, pre-push]
       - id: check-added-large-files
+        stages: [pre-commit]
+
+  # Full tree gate before push (matches CI "Ruff" step)
+  - repo: local
+    hooks:
+      - id: ruff-lint-push
+        name: ruff check + format (pre-push)
+        entry: bash scripts/lint.sh
+        language: system
+        pass_filenames: false
+        stages: [pre-push]
+        always_run: true

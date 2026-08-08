@@ -21,11 +21,22 @@ uv run pytest -m "not llm"
 uv run pytest tests/test_agent_events.py
 ```
 
-Lint:
+Lint (same scope as CI):
 
 ```bash
-uv run ruff check core cli api tests
+./scripts/lint.sh
+# or:
+uv run ruff check core cli api integrations tests
+uv run ruff format --check core cli api integrations tests
 ```
+
+**Git hooks (required for push):** after clone, install once:
+
+```bash
+./scripts/install-git-hooks.sh
+```
+
+This installs `pre-commit` (auto-fix on commit) and **pre-push** (full ruff gate — push fails if lint fails). See [RULES.md](RULES.md) §9.
 
 ## Project layout
 
