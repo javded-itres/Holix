@@ -105,6 +105,62 @@ def write_task_job(
     path.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
 
 
+def clear_task_job(
+    project_root: Path,
+    change_id: str,
+    task_id: str,
+    *,
+    job_id: str | None = None,
+) -> bool:
+    """Remove a stale task↔job mapping so dispatch can re-spawn.
+
+    Returns True when the file was updated.
+    """
+    from core.sdd.paths import change_dir, validate_change_id
+
+    tid = str(task_id or "").strip()
+    if not tid:
+        return False
+    try:
+        cid = validate_change_id(change_id)
+    except Exception:
+        return False
+    path = change_dir(Path(project_root), cid) / ".task-jobs.json"
+    if not path.is_file():
+        return False
+    try:
+        raw = json.loads(path.read_text(encoding="utf-8"))
+    except Exception:
+        return False
+    if not isinstance(raw, dict):
+        return False
+
+    by_task = load_task_jobs_file(path)
+    mapped = by_task.get(tid)
+    if not mapped and not job_id:
+        return False
+    # Always drop the task→job mapping so re-apply can spawn again.
+    by_task.pop(tid, None)
+
+    by_job: dict[str, Any] = {}
+    if isinstance(raw.get("by_job"), dict):
+        by_job = {
+            str(k): dict(v) if isinstance(v, dict) else {"task_id": str(v)}
+            for k, v in raw["by_job"].items()
+        }
+    drop_jobs = {j for j in (str(job_id or "").strip(), str(mapped or "").strip()) if j}
+    for jid in drop_jobs:
+        by_job.pop(jid, None)
+    # Drop reverse entries that still point at this task
+    for jid, meta in list(by_job.items()):
+        if isinstance(meta, dict) and str(meta.get("task_id") or "") == tid:
+            by_job.pop(jid, None)
+
+    payload = {"by_task": by_task, "by_job": by_job}
+    path.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
+    return True
+
+
 def find_job_binding(
     workspace: Path,
     job_id: str,
@@ -144,9 +200,7 @@ def find_job_binding(
                 entry = raw["by_job"].get(job_id)
                 if isinstance(entry, dict) and entry.get("task_id"):
                     return {
-                        "change_id": str(
-                            entry.get("change_id") or change_dir_path.name
-                        ),
+                        "change_id": str(entry.get("change_id") or change_dir_path.name),
                         "task_id": str(entry["task_id"]),
                         "project": str(entry.get("project") or project_rel or ""),
                         "project_root": str(root),

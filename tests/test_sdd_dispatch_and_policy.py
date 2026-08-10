@@ -144,7 +144,7 @@ async def test_dispatch_respects_depends_on_waves(tmp_path: Path):
 
     async def _spawn(agent_type, task, **kwargs):
         h = MagicMock()
-        h.name = f"{agent_type}-{len(handles)+1}"
+        h.name = f"{agent_type}-{len(handles) + 1}"
         h.config.process_mode.value = "async"
         handles.append(h)
         return (h, None)
@@ -168,3 +168,80 @@ async def test_dispatch_respects_depends_on_waves(tmp_path: Path):
     assert any(b.get("id") == "1.2" for b in result.get("blocked") or [])
     assert result.get("graph")
     assert len(result["graph"]["waves"]) >= 2
+
+
+@pytest.mark.asyncio
+async def test_dispatch_respawns_when_mapped_job_not_running(tmp_path: Path):
+    """Stale .task-jobs.json after cancel must not block re-apply."""
+    from core.sdd.task_completion import write_task_job
+
+    store = SpecStore(tmp_path)
+    _ready_change(store)
+    store.set_apply_mode("feat-x", "subagents")
+    # Simulate a previous spawn that was cancelled / finished without marking task done
+    write_task_job(tmp_path, "feat-x", "1.1", "coder-stale")
+
+    handle = MagicMock()
+    handle.name = "coder-fresh"
+    handle.config.process_mode.value = "async"
+    handle.is_running = False
+
+    parent = MagicMock()
+    parent.config = MagicMock()
+    parent.subagents = MagicMock()
+    parent.subagents.spawn_typed = AsyncMock(return_value=(handle, None))
+    # Stale job is not in active handles
+    parent.subagents.get_handle = MagicMock(return_value=None)
+    parent.subagents.list_active = MagicMock(return_value=[])
+
+    from unittest.mock import patch
+
+    with patch("core.config_utils.is_subagents_enabled", return_value=True):
+        result = await dispatch_change_tasks(store, "feat-x", parent_agent=parent)
+
+    assert result.get("ok") is True, result
+    assert len(result.get("spawned") or []) == 1
+    assert result["spawned"][0]["job_id"] == "coder-fresh"
+    assert any(
+        s.get("task_id") == "1.1" and s.get("job_id") == "coder-stale"
+        for s in (result.get("stale_cleared") or [])
+    )
+    assert load_task_jobs(store, "feat-x").get("1.1") == "coder-fresh"
+    parent.subagents.spawn_typed.assert_awaited()
+
+
+@pytest.mark.asyncio
+async def test_dispatch_skips_when_mapped_job_still_running(tmp_path: Path):
+    """Live mapped job must not be double-spawned."""
+    from core.sdd.task_completion import write_task_job
+
+    store = SpecStore(tmp_path)
+    _ready_change(store)
+    store.set_apply_mode("feat-x", "subagents")
+    write_task_job(tmp_path, "feat-x", "1.1", "coder-live")
+
+    live = MagicMock()
+    live.name = "coder-live"
+    live.is_running = True
+    live.status = "running"
+
+    parent = MagicMock()
+    parent.config = MagicMock()
+    parent.subagents = MagicMock()
+    parent.subagents.spawn_typed = AsyncMock()
+    parent.subagents.get_handle = MagicMock(return_value=live)
+    parent.subagents.list_active = MagicMock(return_value=[live])
+
+    from unittest.mock import patch
+
+    with patch("core.config_utils.is_subagents_enabled", return_value=True):
+        result = await dispatch_change_tasks(store, "feat-x", parent_agent=parent)
+
+    assert result.get("ok") is True, result
+    assert result.get("spawned") == []
+    assert any(
+        a.get("task_id") == "1.1" and a.get("job_id") == "coder-live"
+        for a in (result.get("already_running") or [])
+    )
+    parent.subagents.spawn_typed.assert_not_called()
+    assert load_task_jobs(store, "feat-x").get("1.1") == "coder-live"

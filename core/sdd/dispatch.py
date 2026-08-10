@@ -8,7 +8,11 @@ from pathlib import Path
 from typing import Any
 
 from core.sdd.store import SpecStore
-from core.sdd.task_completion import load_task_jobs_file, write_task_job
+from core.sdd.task_completion import (
+    clear_task_job,
+    load_task_jobs_file,
+    write_task_job,
+)
 from core.sdd.task_graph import (
     build_task_graph,
     format_graph_summary,
@@ -98,7 +102,6 @@ async def dispatch_change_tasks(
     graph_summary = format_graph_summary(graph)
 
     existing_jobs = load_task_jobs(store, change_id)
-    already_dispatched = set(existing_jobs.keys())
 
     ready_ids = set(ready_task_ids(graph))
     if not ready_only:
@@ -107,6 +110,7 @@ async def dispatch_change_tasks(
     main_tasks: list[dict[str, Any]] = []
     blocked_tasks: list[dict[str, Any]] = []
     sub_items: list[dict[str, Any]] = []
+    stale_cleared: list[dict[str, str]] = []
 
     for t in tasks:
         if t.done:
@@ -121,16 +125,12 @@ async def dispatch_change_tasks(
                 "id": t.id,
                 "text": t.text,
                 "assignee": t.assignee,
-                "executor": t.assignee
-                if t.assignee not in ("main", "unassigned", "")
-                else "main",
+                "executor": t.assignee if t.assignee not in ("main", "unassigned", "") else "main",
                 "size": size,
                 "max_steps": max_steps_for_size(size),
                 "depends_on": list(graph.depends_on.get(t.id, [])),
                 "blocked_by": [
-                    d
-                    for d in graph.depends_on.get(t.id, [])
-                    if not _task_done(tasks, d)
+                    d for d in graph.depends_on.get(t.id, []) if not _task_done(tasks, d)
                 ],
                 "ready": t.id in ready_ids,
                 "wave": (graph.wave_of.get(t.id, -1) + 1)
@@ -154,11 +154,25 @@ async def dispatch_change_tasks(
             continue
         if only_subagents and executor == "main":
             continue
-        if t.id in already_dispatched:
-            # Already has a job mapping — do not double-spawn
-            item = {**item, "already_dispatched": existing_jobs.get(t.id)}
-            sub_items.append(item)  # track but skip spawn below
-            continue
+        prev_job = existing_jobs.get(t.id)
+        if prev_job:
+            if _job_is_active(parent_agent, prev_job):
+                # Live job still running — do not double-spawn
+                item = {**item, "already_dispatched": prev_job}
+                sub_items.append(item)
+                continue
+            # Stale mapping (cancelled / completed / missing): clear so re-apply
+            # can spawn a fresh subagent for the unfinished task.
+            try:
+                clear_task_job(
+                    Path(store.workspace),
+                    change_id,
+                    str(t.id),
+                    job_id=str(prev_job),
+                )
+                stale_cleared.append({"task_id": str(t.id), "job_id": str(prev_job)})
+            except Exception:
+                pass
         sub_items.append(item)
 
     # Only spawn those without an existing job mapping
@@ -229,9 +243,7 @@ async def dispatch_change_tasks(
                 "size": size,
                 "max_steps": budget,
                 "depends_on": list(deps),
-                "process_mode": getattr(
-                    getattr(h, "config", None), "process_mode", None
-                ),
+                "process_mode": getattr(getattr(h, "config", None), "process_mode", None),
             }
             if job["process_mode"] is not None and hasattr(job["process_mode"], "value"):
                 job["process_mode"] = job["process_mode"].value
@@ -250,9 +262,11 @@ async def dispatch_change_tasks(
                 "error": str(exc),
             }
 
-    results = await asyncio.gather(
-        *[_spawn_one(item, atype, iname) for item, atype, iname in spawn_jobs]
-    ) if spawn_jobs else []
+    results = (
+        await asyncio.gather(*[_spawn_one(item, atype, iname) for item, atype, iname in spawn_jobs])
+        if spawn_jobs
+        else []
+    )
 
     spawned: list[dict[str, Any]] = []
     errors: list[str] = []
@@ -281,6 +295,7 @@ async def dispatch_change_tasks(
         "apply_mode": mode,
         "spawned": spawned,
         "already_running": already,
+        "stale_cleared": stale_cleared,
         "main_tasks": main_tasks,
         "blocked": blocked_tasks,
         "errors": errors,
@@ -289,6 +304,7 @@ async def dispatch_change_tasks(
         "message": (
             f"Wave dispatch: spawned {len(spawned)} subagent(s); "
             f"{len(already)} already dispatched; "
+            f"{len(stale_cleared)} stale job map(s) cleared; "
             f"{len(main_tasks)} ready main task(s); "
             f"{len(blocked_tasks)} blocked by dependencies. "
             "Successful jobs auto-mark tasks.md and re-dispatch the next ready wave. "
@@ -297,6 +313,42 @@ async def dispatch_change_tasks(
         ),
         "plan": plan_result["plan"],
     }
+
+
+def _job_is_active(parent_agent: Any, job_id: str) -> bool:
+    """True when the mapped job is still a live/running subagent."""
+    jid = str(job_id or "").strip()
+    if not jid:
+        return False
+    mgr = getattr(parent_agent, "subagents", None)
+    if mgr is None:
+        return False
+
+    handle = None
+    get_handle = getattr(mgr, "get_handle", None)
+    if callable(get_handle):
+        try:
+            handle = get_handle(jid)
+        except Exception:
+            handle = None
+    if handle is None:
+        # Also match bare name against active list (owner::name vs name)
+        bare = jid.split("::")[-1] if "::" in jid else jid
+        try:
+            for h in list(mgr.list_active() or []):
+                name = str(getattr(h, "name", "") or "")
+                if name == jid or name == bare or name.endswith(f"::{bare}"):
+                    handle = h
+                    break
+        except Exception:
+            handle = None
+    if handle is None:
+        return False
+    if bool(getattr(handle, "is_running", False)):
+        return True
+    status = getattr(handle, "status", None)
+    status_val = (status.value if hasattr(status, "value") else str(status or "")).strip().lower()
+    return status_val in {"running", "pending", "starting"}
 
 
 def _task_done(tasks: list[Any], task_id: str) -> bool:
