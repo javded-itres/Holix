@@ -9,14 +9,15 @@ from typing import Any
 
 from core.mcp.config import MCPServerConfig, validate_server_config
 from core.mcp.tool import MCPTool
+from core.mcp.uvx_compat import normalize_mcp_servers_uvx
 
 logger = logging.getLogger(__name__)
 
 try:
+    from mcp import ClientSession, StdioServerParameters
     from mcp.client.sse import sse_client
     from mcp.client.stdio import stdio_client
 
-    from mcp import ClientSession, StdioServerParameters
     MCP_AVAILABLE = True
 except Exception:  # pragma: no cover
     MCP_AVAILABLE = False
@@ -39,7 +40,8 @@ class MCPManager:
     """
 
     def __init__(self, servers: dict[str, dict[str, Any]]):
-        self._raw = servers or {}
+        # Pin MCP SDK 1.x for uvx reference servers (mcp 2.x renames McpError→MCPError).
+        self._raw = normalize_mcp_servers_uvx(servers or {})
         self._configs: dict[str, MCPServerConfig] = {}
         for name, data in self._raw.items():
             try:
@@ -75,15 +77,14 @@ class MCPManager:
             for name, cfg in list(self._configs.items()):
                 if name in self._keeper_tasks:
                     continue
-                task = asyncio.create_task(
-                    self._keep_server(name, cfg),
-                    name=f"mcp-keeper-{name}"
-                )
+                task = asyncio.create_task(self._keep_server(name, cfg), name=f"mcp-keeper-{name}")
                 self._keeper_tasks[name] = task
             self._connected = True
             logger.info("MCPManager keeper tasks started for %d servers", len(self._keeper_tasks))
 
-    async def wait_ready(self, server_names: list[str] | None = None, timeout: float = 10.0) -> dict[str, bool]:
+    async def wait_ready(
+        self, server_names: list[str] | None = None, timeout: float = 10.0
+    ) -> dict[str, bool]:
         """Wait (up to timeout) for the given servers (or all) to finish initialize + list_tools.
 
         Returns dict of name -> succeeded (reached ready state).
@@ -132,11 +133,14 @@ class MCPManager:
                             tools_resp = await sess.list_tools()
                             tools = []
                             for t in getattr(tools_resp, "tools", []):
-                                tools.append({
-                                    "name": getattr(t, "name", ""),
-                                    "description": getattr(t, "description", "") or "",
-                                    "inputSchema": getattr(t, "inputSchema", {}) or {"type": "object", "properties": {}},
-                                })
+                                tools.append(
+                                    {
+                                        "name": getattr(t, "name", ""),
+                                        "description": getattr(t, "description", "") or "",
+                                        "inputSchema": getattr(t, "inputSchema", {})
+                                        or {"type": "object", "properties": {}},
+                                    }
+                                )
                             self._discovered_tools[name] = tools
                             # Signal ready for waiters
                             ev = self._ready_events.setdefault(name, asyncio.Event())
@@ -172,11 +176,14 @@ class MCPManager:
                             tools_resp = await sess.list_tools()
                             tools = []
                             for t in getattr(tools_resp, "tools", []):
-                                tools.append({
-                                    "name": getattr(t, "name", ""),
-                                    "description": getattr(t, "description", "") or "",
-                                    "inputSchema": getattr(t, "inputSchema", {}) or {"type": "object", "properties": {}},
-                                })
+                                tools.append(
+                                    {
+                                        "name": getattr(t, "name", ""),
+                                        "description": getattr(t, "description", "") or "",
+                                        "inputSchema": getattr(t, "inputSchema", {})
+                                        or {"type": "object", "properties": {}},
+                                    }
+                                )
                             self._discovered_tools[name] = tools
                             ev = self._ready_events.setdefault(name, asyncio.Event())
                             ev.set()
@@ -251,7 +258,9 @@ class MCPManager:
         result = await session.call_tool(tool_name, arguments or {})
 
         # Some MCP SDKs / servers return structured error results
-        is_error = getattr(result, "isError", False) or (isinstance(result, dict) and result.get("isError"))
+        is_error = getattr(result, "isError", False) or (
+            isinstance(result, dict) and result.get("isError")
+        )
         if hasattr(result, "content"):
             contents = []
             for c in result.content:

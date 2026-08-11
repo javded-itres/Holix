@@ -47,7 +47,14 @@ POPULAR_SERVERS: dict[str, PopularMCPServer] = {
         display_name="GitHub (official)",
         description="Official GitHub MCP: repos, issues, PRs, code, Actions, etc. (Docker-based local server).",
         command="docker",
-        args_template=["run", "-i", "--rm", "-e", "GITHUB_PERSONAL_ACCESS_TOKEN", "ghcr.io/github/github-mcp-server"],
+        args_template=[
+            "run",
+            "-i",
+            "--rm",
+            "-e",
+            "GITHUB_PERSONAL_ACCESS_TOKEN",
+            "ghcr.io/github/github-mcp-server",
+        ],
         env={"GITHUB_PERSONAL_ACCESS_TOKEN": ""},  # prompted as secret
         category="dev",
         repo_url="https://github.com/github/github-mcp-server",
@@ -90,12 +97,18 @@ POPULAR_SERVERS: dict[str, PopularMCPServer] = {
         display_name="SQLite",
         description="Query local SQLite database files (official Python reference style via uvx).",
         command="uvx",
-        args_template=["mcp-server-sqlite", "--db-path", "{db_path}"],
-        param_prompts={"db_path": "Absolute path to .sqlite / .db file (e.g. /Users/you/app.db or ./project.db)"},
+        args_template=["--with", "mcp>=1.9.0,<2", "mcp-server-sqlite", "--db-path", "{db_path}"],
+        param_prompts={
+            "db_path": "Absolute path to .sqlite / .db file (e.g. /Users/you/app.db or ./project.db)"
+        },
         default_params={"db_path": "./data.db"},
         category="database",
         repo_url="https://github.com/modelcontextprotocol/servers",
-        notes="Python reference implementation (archived from monorepo but package mcp-server-sqlite still available via uvx/pip). Use absolute paths preferred.",
+        notes=(
+            "Python reference implementation (archived from monorepo but package mcp-server-sqlite "
+            "still available via uvx/pip). Use absolute paths preferred. "
+            "Pinned mcp>=1.9,<2 for SDK 1.x McpError compatibility."
+        ),
     ),
     "brave-search": PopularMCPServer(
         key="brave-search",
@@ -113,22 +126,33 @@ POPULAR_SERVERS: dict[str, PopularMCPServer] = {
         display_name="Web Fetch",
         description="Fetch and extract content from web pages (HTML->Markdown etc.). Caution: can reach internal IPs.",
         command="uvx",
-        args_template=["mcp-server-fetch"],
+        # MCP SDK 2.0 renamed McpError→MCPError; mcp-server-fetch still imports McpError.
+        # Pin SDK 1.x so uvx does not pull mcp 2.x and crash on import.
+        args_template=["--with", "mcp>=1.9.0,<2", "mcp-server-fetch"],
         category="web",
         repo_url="https://github.com/modelcontextprotocol/servers",
-        notes="Active reference (now Python: mcp-server-fetch via uvx). See README for --ignore-robots-txt etc. Security note in upstream.",
+        notes=(
+            "Active reference (Python: mcp-server-fetch via uvx). "
+            "Pinned mcp>=1.9,<2 (SDK 2.x breaks McpError import). "
+            "See README for --ignore-robots-txt etc. Security note in upstream."
+        ),
     ),
     "git": PopularMCPServer(
         key="git",
         display_name="Git (local repo operations)",
         description="Run git commands, view status, diffs, commit, branches, etc. on local repositories.",
         command="uvx",
-        args_template=["mcp-server-git", "--repository", "{repo_path}"],
-        param_prompts={"repo_path": "Path to a git repository (absolute or relative, e.g. . or /path/to/repo)"},
+        args_template=["--with", "mcp>=1.9.0,<2", "mcp-server-git", "--repository", "{repo_path}"],
+        param_prompts={
+            "repo_path": "Path to a git repository (absolute or relative, e.g. . or /path/to/repo)"
+        },
         default_params={"repo_path": "."},
         category="dev",
         repo_url="https://github.com/modelcontextprotocol/servers",
-        notes="Active reference (Python via uvx mcp-server-git). --repository flag is supported.",
+        notes=(
+            "Active reference (Python via uvx mcp-server-git). --repository flag is supported. "
+            "Pinned mcp>=1.9,<2 for SDK 1.x McpError compatibility."
+        ),
     ),
 }
 
