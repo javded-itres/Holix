@@ -25,8 +25,11 @@ async def test_duckduckgo_parses_related_topics() -> None:
     class FakeResp:
         status = 200
 
-        async def json(self):
+        async def json(self, content_type=None):
             return payload
+
+        async def text(self):
+            return json.dumps(payload)
 
         async def __aenter__(self):
             return self

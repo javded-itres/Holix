@@ -20,6 +20,7 @@ Tool confirmation UX, context overflow from huge tool dumps, reasoning-only answ
 - **TUI confirmation modal hang** — `/1`–`/4` or agent stop while a modal is open now releases the lock and pumps the next queued confirmation.
 - **Runaway tool output** — cap terminal stdout/stderr, graph tool messages, and conversation memory; sanitize oversized tool rows on reload, token usage, and compress so one dump cannot report 600%+ context.
 - **DuckDuckGo Instant Answer** — accept HTTP 202 and parse JSON regardless of content-type.
+- **Wheel metadata vs twine** — pin hatchling `<1.30` so builds keep Core-Metadata 2.4 (twine 6.2 rejects 2.5).
 
 ### Tests
 

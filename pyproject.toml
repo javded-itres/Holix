@@ -1,5 +1,6 @@
 [build-system]
-requires = ["hatchling"]
+# hatchling 1.30+ writes Core-Metadata 2.5; twine 6.2.0 cannot validate it.
+requires = ["hatchling>=1.26,<1.30"]
 build-backend = "hatchling.build"
 
 [project]
