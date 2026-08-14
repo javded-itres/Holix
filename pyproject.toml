@@ -1,10 +1,11 @@
 [build-system]
-requires = ["hatchling"]
+# hatchling 1.30+ writes Core-Metadata 2.5; twine 6.2.0 cannot validate it.
+requires = ["hatchling>=1.26,<1.30"]
 build-backend = "hatchling.build"
 
 [project]
 name = "Holix"
-version = "1.0.7"
+version = "1.0.8"
 description = "Self-improving AI agent with memory, skills, MCP, CLI, and TUI"
 readme = "README.md"
 license = "MIT"
@@ -154,7 +155,11 @@ python_functions = "test_*"
 markers = [
     "unit: fast isolated tests (default)",
     "integration: multi-component or graph tests with mocks",
+    "user_case: product journey via UserCaseHarness (scripted LLM + real tools)",
+    "live_llm: real provider E2E under tests/live_llm (run via scripts/test_live_llm.sh)",
+    "tui: full HolixCodeApp launch via Textual Pilot (tests/tui)",
     "llm: requires a live LLM provider (skipped in CI by default)",
+    "slow: optional long-running journeys (excluded from default local quick runs)",
 ]
 filterwarnings = [
     "ignore::DeprecationWarning:chromadb.*",

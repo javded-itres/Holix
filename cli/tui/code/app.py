@@ -193,9 +193,7 @@ class HolixCodeApp(App):
     def _rebuild_transcript_display(self, log: CodeTranscript) -> None:
         log.clear()
         if len(self._transcript_display_chunks) >= _TRANSCRIPT_DISPLAY_MAX:
-            log.write(
-                "[dim]… earlier messages hidden — /open or /copy for full transcript[/dim]\n"
-            )
+            log.write("[dim]… earlier messages hidden — /open or /copy for full transcript[/dim]\n")
         for chunk in self._transcript_display_chunks:
             log.write(chunk)
         if self._auto_scroll:
@@ -433,8 +431,7 @@ class HolixCodeApp(App):
         except Exception:
             pending_q = ""
         line = (
-            f"{self.profile} · {lang} · {model}{stream} · {cwd} · "
-            f"{mode} · {sess}{ctx}{pending_q}"
+            f"{self.profile} · {lang} · {model}{stream} · {cwd} · {mode} · {sess}{ctx}{pending_q}"
         )
         self.set_status_line(line)
 
@@ -529,6 +526,18 @@ class HolixCodeApp(App):
         self.agent.events.subscribe(self._on_agent_event)
         await self._load_conversation_history()
         self.transcript_write("[dim]ready — type a message or /help[/dim]\n")
+        thr = str(getattr(runtime_config, "auto_allow_threshold", "low") or "low").lower()
+        if thr in {"medium", "high"}:
+            self.transcript_write(
+                f"[yellow]⚠ auto_allow_threshold={thr} — tools at or below this risk "
+                "run without a confirmation modal (terminal/python included when high). "
+                "Set AUTO_ALLOW_THRESHOLD=low in profile/.env or shell to re-enable prompts.[/yellow]\n"
+            )
+        elif getattr(runtime_config, "non_interactive", False):
+            self.transcript_write(
+                "[yellow]⚠ non_interactive=true — tools above auto_allow are denied, "
+                "no confirmation UI.[/yellow]\n"
+            )
         self.set_status_line("ready")
         self._agent_init_state = "ready"
         self._set_prompt_enabled(True)
@@ -548,9 +557,7 @@ class HolixCodeApp(App):
         try:
             result = await self.agent.finish_deferred_init()
             if result.get("mcp_tools"):
-                self.transcript_write(
-                    f"[dim]MCP: +{result['mcp_tools']} tools loaded[/dim]"
-                )
+                self.transcript_write(f"[dim]MCP: +{result['mcp_tools']} tools loaded[/dim]")
         except Exception:
             pass
         await self._ensure_session_context()
@@ -643,13 +650,11 @@ class HolixCodeApp(App):
 
         if isinstance(
             event,
-            (
-                ConfirmationRequestEvent,
-                SubAgentQuestionEvent,
-                BackgroundProcessStartedEvent,
-                BackgroundProcessStoppedEvent,
-                BackgroundProcessErrorEvent,
-            ),
+            ConfirmationRequestEvent
+            | SubAgentQuestionEvent
+            | BackgroundProcessStartedEvent
+            | BackgroundProcessStoppedEvent
+            | BackgroundProcessErrorEvent,
         ):
             # Textual: call_later(callback, *args) — delay is not the first arg.
             self.call_later(self._event_handler.handle, event)
@@ -758,9 +763,7 @@ class HolixCodeApp(App):
         try:
             suggestions = self.query_one("#command-suggestions", SlashCommandSuggestions)
             if not (
-                suggestions.is_open
-                and self._slash_suggestion_navigated
-                and suggestions.matches
+                suggestions.is_open and self._slash_suggestion_navigated and suggestions.matches
             ):
                 if suggestions.is_open:
                     self._hide_slash_suggestions()
@@ -1294,7 +1297,9 @@ class HolixCodeApp(App):
 
     async def action_cycle_execution_mode(self, just_set: bool = False) -> None:
         if not just_set:
-            self._execution_mode_index = (self._execution_mode_index + 1) % len(self._execution_modes)
+            self._execution_mode_index = (self._execution_mode_index + 1) % len(
+                self._execution_modes
+            )
         mode = self._execution_modes[self._execution_mode_index]
         from config import settings
 
@@ -1392,9 +1397,7 @@ class HolixCodeApp(App):
                 return
 
             try:
-                messages = await agent.memory.get_conversation(
-                    self.conversation_id, limit=200
-                )
+                messages = await agent.memory.get_conversation(self.conversation_id, limit=200)
             except Exception:
                 messages = []
 
@@ -1411,18 +1414,14 @@ class HolixCodeApp(App):
                 )
             else:
                 conv_id = self.conversation_id
-                usage = agent.context_manager.get_usage(
-                    messages, conversation_id=conv_id
-                )
+                usage = agent.context_manager.get_usage(messages, conversation_id=conv_id)
                 level = agent.context_manager.get_usage_level(
                     messages, conversation_id=conv_id, usage=usage
                 )
                 color = color_map.get(level, "white")
                 used_str = TokenCounter.format_token_count(usage["used"])
                 total_str = TokenCounter.format_token_count(usage["total"])
-                self._cached_context_display = (
-                    f"[{color}]{used_str}/{total_str}[/{color}]"
-                )
+                self._cached_context_display = f"[{color}]{used_str}/{total_str}[/{color}]"
                 self._update_context_bar_widget(usage["percent"], color, usage)
 
             self._refresh_status_bar()
@@ -1474,6 +1473,7 @@ class HolixCodeApp(App):
     async def _mcp_list(self) -> None:
         try:
             from cli.core import get_profile_manager
+
             manager = get_profile_manager()
             cfg = manager.load_profile(self.profile)
             servers = getattr(cfg, "mcp_servers", {}) or {}
@@ -1483,14 +1483,16 @@ class HolixCodeApp(App):
             lines = ["MCP servers:"]
             for name, data in servers.items():
                 src = data.get("_source", "manual")
-                lines.append(f"  • {name} ({data.get('transport','stdio')}) [{src}]")
+                lines.append(f"  • {name} ({data.get('transport', 'stdio')}) [{src}]")
             self.transcript_write("\n".join(lines))
         except Exception as e:
             self.transcript_write(f"[red]MCP list error: {e}[/red]")
 
     async def _mcp_install(self, what: str = "") -> None:
         if not what:
-            self.transcript_write("Usage: /mcp install <key|git-url>\nKeys: compass, context7, filesystem, github...\nOr use terminal `holix mcp install` for full interactive.")
+            self.transcript_write(
+                "Usage: /mcp install <key|git-url>\nKeys: compass, context7, filesystem, github...\nOr use terminal `holix mcp install` for full interactive."
+            )
             return
         self.transcript_write(f"[dim]Installing '{what}'... (using core logic)[/dim]")
         try:
@@ -1517,7 +1519,9 @@ class HolixCodeApp(App):
                     assigns["main"].append(name)
                 cfg.mcp_assignments = assigns
                 manager.save_profile(self.profile, cfg)
-                self.transcript_write(f"Installed from git as {name} (auto to main). Use /mcp list.")
+                self.transcript_write(
+                    f"Installed from git as {name} (auto to main). Use /mcp list."
+                )
                 # Hot reload
                 if getattr(self, "agent", None):
                     try:
@@ -1528,14 +1532,20 @@ class HolixCodeApp(App):
                         self.transcript_write(f"[dim]Hot-reload note: {e}[/dim]")
                 # Show active
                 if getattr(self, "agent", None) and hasattr(self.agent, "tools"):
-                    mcp_ts = [n for n in self.agent.tools.get_tool_names() if str(n).startswith("mcp_")]
+                    mcp_ts = [
+                        n for n in self.agent.tools.get_tool_names() if str(n).startswith("mcp_")
+                    ]
                     if mcp_ts:
-                        self.transcript_write(f"[dim]MCP tools now active ({len(mcp_ts)}): use /mcp tools[/dim]")
+                        self.transcript_write(
+                            f"[dim]MCP tools now active ({len(mcp_ts)}): use /mcp tools[/dim]"
+                        )
                 return
 
             pop = get_popular_by_key(what)
             if not pop:
-                self.transcript_write(f"Unknown key '{what}'. See terminal `holix mcp list-popular`.")
+                self.transcript_write(
+                    f"Unknown key '{what}'. See terminal `holix mcp list-popular`."
+                )
                 return
 
             data = build_config_from_popular(pop, {})
@@ -1554,7 +1564,9 @@ class HolixCodeApp(App):
                 assigns["main"].append(what)
             cfg.mcp_assignments = assigns
             manager.save_profile(self.profile, cfg)
-            self.transcript_write(f"Added popular MCP '{what}' (auto-assigned to main). Use /mcp list or /mcp tools.")
+            self.transcript_write(
+                f"Added popular MCP '{what}' (auto-assigned to main). Use /mcp list or /mcp tools."
+            )
             # Hot-reload into live agent
             if getattr(self, "agent", None):
                 try:
@@ -1567,16 +1579,23 @@ class HolixCodeApp(App):
             if getattr(self, "agent", None) and hasattr(self.agent, "tools"):
                 mcp_ts = [n for n in self.agent.tools.get_tool_names() if str(n).startswith("mcp_")]
                 if mcp_ts:
-                    self.transcript_write(f"[dim]MCP tools now active ({len(mcp_ts)}): use /mcp tools[/dim]")
+                    self.transcript_write(
+                        f"[dim]MCP tools now active ({len(mcp_ts)}): use /mcp tools[/dim]"
+                    )
         except Exception as e:
-            self.transcript_write(f"Install error: {e}. Fall back to terminal: holix mcp install {what}")
+            self.transcript_write(
+                f"Install error: {e}. Fall back to terminal: holix mcp install {what}"
+            )
 
     async def _mcp_assign(self, rest: str = "") -> None:
         if not rest:
-            self.transcript_write("Usage: /mcp assign <server> <roles...>\nExample: /mcp assign context7 main")
+            self.transcript_write(
+                "Usage: /mcp assign <server> <roles...>\nExample: /mcp assign context7 main"
+            )
             return
         try:
             from cli.core import get_profile_manager
+
             manager = get_profile_manager()
             cfg = manager.load_profile(self.profile)
             parts = rest.split(None, 1)
@@ -1609,6 +1628,7 @@ class HolixCodeApp(App):
             from core.mcp.manager import MCPManager
 
             from cli.core import get_profile_manager
+
             manager = get_profile_manager()
             cfg = manager.load_profile(self.profile)
             servers = getattr(cfg, "mcp_servers", {}) or {}
@@ -1623,7 +1643,9 @@ class HolixCodeApp(App):
                 pass
             tools = m.get_tool_adapters([name])
             await m.disconnect_all()
-            self.transcript_write(f"Test {name}: {len(tools)} tools. {[tt.name for tt in tools][:4]}")
+            self.transcript_write(
+                f"Test {name}: {len(tools)} tools. {[tt.name for tt in tools][:4]}"
+            )
             if not tools:
                 errs = getattr(m, "_last_errors", {})
                 if name in errs:
@@ -1638,7 +1660,9 @@ class HolixCodeApp(App):
                 return
             mcp_tools = [n for n in self.agent.tools.get_tool_names() if str(n).startswith("mcp_")]
             if mcp_tools:
-                self.transcript_write("MCP tools available:\n" + "\n".join(f"  • {t}" for t in mcp_tools))
+                self.transcript_write(
+                    "MCP tools available:\n" + "\n".join(f"  • {t}" for t in mcp_tools)
+                )
             else:
                 self.transcript_write("[dim]No MCP tools registered (use /mcp assign)[/dim]")
         except Exception as e:
@@ -1650,6 +1674,7 @@ class HolixCodeApp(App):
             return
         try:
             from cli.core import get_profile_manager
+
             manager = get_profile_manager()
             cfg = manager.load_profile(self.profile)
             servers = dict(getattr(cfg, "mcp_servers", {}) or {})

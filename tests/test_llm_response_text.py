@@ -28,14 +28,9 @@ def _patch_holix_home(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 def test_strip_reasoning_markup_removes_think_blocks() -> None:
-    raw = (
-        "<think>\nПользователь просит версию.\n</think>\n"
-        "Holix 1.0.4"
-    )
+    raw = "<think>\nПользователь просит версию.\n</think>\nHolix 1.0.4"
     assert strip_reasoning_markup(raw) == "Holix 1.0.4"
-    assert "</think>" not in strip_reasoning_markup(
-        "Начинаю.</think>\n…Поняла. Ответ."
-    )
+    assert "</think>" not in strip_reasoning_markup("Начинаю.</think>\n…Поняла. Ответ.")
     assert "Поняла" in strip_reasoning_markup("Начинаю.</think>\n…Поняла. Ответ.")
 
 
@@ -83,16 +78,12 @@ def test_resolve_length_finish_stops_pathological_loop() -> None:
     """Modern pipeline: finish_reason=length adds truncation notice."""
     cycle = "Поняла. Проверяю статус бота через MCP.…"
     raw = cycle * 40
-    text = resolve_assistant_text(
-        content=raw, finish_reason="length", agent_pipeline="modern"
-    )
+    text = resolve_assistant_text(content=raw, finish_reason="length", agent_pipeline="modern")
     assert "token" in text.lower() or "токен" in text.lower() or "обрезан" in text.lower()
     assert text.count("Поняла") <= 3
     assert len(text) < 500
     # Classic: collapsed text only, no truncation wall.
-    classic = resolve_assistant_text(
-        content=raw, finish_reason="length", agent_pipeline="classic"
-    )
+    classic = resolve_assistant_text(content=raw, finish_reason="length", agent_pipeline="classic")
     assert "обрезан" not in classic.lower()
     assert len(classic) < 200
 
@@ -122,9 +113,7 @@ def test_collapse_bot_py_monologue_with_typo_variant() -> None:
     assert collapsed.count("Поняла") <= 2
     assert "Запускаю" in collapsed
     # Classic stop finish must not ship the multi-KB loop.
-    resolved = resolve_assistant_text(
-        content=raw, finish_reason="stop", agent_pipeline="classic"
-    )
+    resolved = resolve_assistant_text(content=raw, finish_reason="stop", agent_pipeline="classic")
     assert len(resolved) < 300
     assert resolved.count("Поняла") <= 2
 
@@ -142,6 +131,19 @@ def test_resolve_prefers_content_over_reasoning() -> None:
         reasoning_content="Длинные размышления",
     )
     assert text == "Ответ"
+
+
+def test_resolve_recovers_explicit_answer_from_reasoning() -> None:
+    from core.llm.response_text import short_answer_from_reasoning
+
+    assert short_answer_from_reasoning("I compute 17+25.\nAnswer: 42") == "42"
+    assert short_answer_from_reasoning("thinking...\n42") == "42"
+    text = resolve_assistant_text(
+        content="",
+        reasoning_content="User asked for sum.\nThe answer is 42",
+        model="test",
+    )
+    assert text == "42"
 
 
 def test_resolve_does_not_expose_reasoning_when_content_empty(

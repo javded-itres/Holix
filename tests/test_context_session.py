@@ -51,3 +51,24 @@ def test_truncate_tool_content_for_memory() -> None:
     out = truncate_tool_content_for_memory(big, max_chars=100)
     assert len(out) < len(big)
     assert "truncated for memory" in out
+
+
+def test_sanitize_messages_tool_content_caps_runaway_terminal() -> None:
+    from core.memory.tool_content import (
+        GRAPH_TOOL_MAX_CHARS,
+        sanitize_messages_tool_content,
+    )
+
+    huge = "Success (exit code 0):\n" + ("line\n" * 500_000)
+    messages = [
+        {"role": "user", "content": "find bug"},
+        {"role": "tool", "content": huge},
+        {"role": "assistant", "content": "ok"},
+    ]
+    out = sanitize_messages_tool_content(messages)
+    assert len(out[1]["content"]) <= GRAPH_TOOL_MAX_CHARS + 120
+    assert "truncated for context" in out[1]["content"]
+    # usage must not report multi-window overflow
+    manager = ContextManager(context_window=8_000, token_counter=TokenCounter())
+    usage = manager.get_usage(messages)
+    assert usage["percent"] < 200  # still bounded; unsanitized would be thousands %

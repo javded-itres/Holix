@@ -2,6 +2,33 @@
 
 ## Unreleased
 
+## 1.0.8 — 2026-08-14
+
+Tool confirmation UX, context overflow from huge tool dumps, reasoning-only answers, and test harnesses.
+
+### Added
+
+- **Confirmation policy on the TUI** — status and ready banner show `auto_allow_threshold` / `non_interactive` so it is clear why the confirmation modal may not appear.
+- **Unattended / bench policy** — `HOLIX_UNATTENDED` / `HOLIX_BENCH` force `auto_allow_threshold=high` and disable plan review without setting `non_interactive` (which would deny high-risk tools).
+- **Env aliases** — `AUTO_ALLOW_THRESHOLD`, `HOLIX_AUTO_ALLOW_THRESHOLD`, `NON_INTERACTIVE`, `HOLIX_NON_INTERACTIVE` documented in `.env.example`.
+- **Reasoning-only short answers** — recover explicit `Answer:` / numeric results when the model returns empty `content`.
+- **User-case journeys** — `tests/user_cases` (scripted LLM + real tools) and `scripts/test_tui.sh` / `scripts/test_live_llm.sh`.
+- **Release skill** — «сделай релиз» / `/make-release` opens a PR, waits for GitHub CI, merges to `main`, and tags the next version.
+
+### Fixed
+
+- **TUI confirmation modal hang** — `/1`–`/4` or agent stop while a modal is open now releases the lock and pumps the next queued confirmation.
+- **Runaway tool output** — cap terminal stdout/stderr, graph tool messages, and conversation memory; sanitize oversized tool rows on reload, token usage, and compress so one dump cannot report 600%+ context.
+- **DuckDuckGo Instant Answer** — accept HTTP 202 and parse JSON regardless of content-type.
+- **Wheel metadata vs twine** — pin hatchling `<1.30` so builds keep Core-Metadata 2.4 (twine 6.2 rejects 2.5).
+
+### Tests
+
+- ConfirmationPresenter queue + external resolve.
+- `sanitize_messages_tool_content` bounds token usage.
+- Recover short answers from reasoning.
+- User-case, TUI Pilot, and live-LLM harnesses (`live_llm` stays out of CI).
+
 ## 1.0.7 — 2026-08-08
 
 Terminal safety when whitelist is off, and SDD archive merge gates.

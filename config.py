@@ -1,6 +1,7 @@
-from core.env_loader import bootstrap_env
 from pydantic import AliasChoices, Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+from core.env_loader import bootstrap_env
 
 bootstrap_env()
 
@@ -161,9 +162,33 @@ class Settings(BaseSettings):
     evolution_auto_learn: bool = True
 
     # Confirmation / Safety Configuration
-    auto_allow_threshold: str = "low"
-    non_interactive: bool = False
+    auto_allow_threshold: str = Field(
+        default="low",
+        validation_alias=AliasChoices(
+            "AUTO_ALLOW_THRESHOLD",
+            "HOLIX_AUTO_ALLOW_THRESHOLD",
+        ),
+        description="Risk ceiling auto-approved without UI: no|low|medium|high",
+    )
+    non_interactive: bool = Field(
+        default=False,
+        validation_alias=AliasChoices(
+            "NON_INTERACTIVE",
+            "HOLIX_NON_INTERACTIVE",
+        ),
+        description=(
+            "No confirmation UI. Tools above auto_allow_threshold are denied "
+            "(not auto-approved). Prefer AUTO_ALLOW_THRESHOLD=high for unattended runs."
+        ),
+    )
     confirmation_timeout: int = 0  # 0 = wait indefinitely for user approval
+    # Benchmarks / CI: force auto_allow=high and disable plan-review prompts.
+    # Does not disable ActionGuard audit logs (auto_allowed still INFO).
+    holix_unattended: bool = Field(
+        default=False,
+        validation_alias=AliasChoices("HOLIX_UNATTENDED", "HOLIX_BENCH"),
+        description="Unattended mode for benches/CI: auto_allow high, no plan review",
+    )
 
     # Plan Review Configuration
     plan_review_enabled: bool = True

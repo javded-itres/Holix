@@ -55,8 +55,10 @@ def resolve_gateway_runtime_config() -> HolixRuntimeConfig:
 
 def resolve_runtime_config(profile: ProfileConfig | None = None) -> HolixRuntimeConfig:
     """Build runtime config from env settings and optional CLI profile."""
+    from core.di.runtime_config import apply_unattended_policy
+
     if profile is None:
-        return HolixRuntimeConfig.from_settings()
+        return apply_unattended_policy(HolixRuntimeConfig.from_settings())
 
     base = HolixRuntimeConfig.from_profile(profile)
 
@@ -66,7 +68,7 @@ def resolve_runtime_config(profile: ProfileConfig | None = None) -> HolixRuntime
         model_manager = ModelManager(profile)
         model_config = model_manager.get_default_model_config()
         if model_config:
-            return base.with_overrides(
+            base = base.with_overrides(
                 model=model_config.model,
                 base_url=model_config.base_url,
                 api_key=model_config.api_key,
@@ -75,7 +77,7 @@ def resolve_runtime_config(profile: ProfileConfig | None = None) -> HolixRuntime
     except Exception:
         pass
 
-    return base
+    return apply_unattended_policy(base)
 
 
 async def create_agent(

@@ -80,10 +80,13 @@ mcp_registry_tool.sh
 mcp_system_config.json
 MCP_REGISTRY_SYSTEM_REPORT.md
 
-# Helix local runtime
+# Helix / Holix local runtime
 .helix/
+.holix/
 .langgraph_api/
 .pid
 
 # Local design plans (not versioned)
 plans/
+node_modules/
+presentations/

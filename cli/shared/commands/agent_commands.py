@@ -264,6 +264,30 @@ class AgentCommands:
         h.transcript_write(
             f"[dim]{t('status_line', lang, profile=h.profile, mode=mode, session=h.conversation_id)}[/dim]"
         )
+        # Confirmation / safety policy (why the TUI modal may not appear)
+        thr = "low"
+        non_interactive = False
+        agent = getattr(h, "agent", None)
+        cfg = getattr(agent, "config", None) or getattr(h, "config", None)
+        if cfg is not None:
+            thr = str(getattr(cfg, "auto_allow_threshold", thr) or thr)
+            non_interactive = bool(getattr(cfg, "non_interactive", False))
+        guard = None
+        if agent is not None and getattr(agent, "tools", None) is not None:
+            guard = getattr(agent.tools, "_action_guard", None)
+        if guard is not None:
+            g_thr = getattr(guard, "_auto_allow_threshold", None)
+            if g_thr is not None:
+                thr = getattr(g_thr, "value", str(g_thr))
+            non_interactive = not bool(getattr(guard, "_interactive", True))
+        note = ""
+        if str(thr).lower() in {"medium", "high"}:
+            note = "  [yellow]→ no modal for risks ≤ threshold[/yellow]"
+        elif non_interactive:
+            note = "  [yellow]→ confirmations disabled (deny above threshold)[/yellow]"
+        h.transcript_write(
+            f"[dim]confirmations: auto_allow={thr}  non_interactive={non_interactive}{note}[/dim]"
+        )
 
     async def _metrics(self) -> None:
         h = self.host
@@ -468,6 +492,7 @@ class AgentCommands:
                 # Fallback: try to read from current config
                 try:
                     from cli.core import get_current_config
+
                     cfg = get_current_config()
                     servers = getattr(cfg, "mcp_servers", {}) or {}
                     if not servers:
@@ -476,7 +501,7 @@ class AgentCommands:
                         lines = ["MCP servers:"]
                         for name, data in servers.items():
                             src = data.get("_source", "manual")
-                            lines.append(f"  • {name} ({data.get('transport','stdio')}) [{src}]")
+                            lines.append(f"  • {name} ({data.get('transport', 'stdio')}) [{src}]")
                         h.transcript_write("\n".join(lines))
                 except Exception as e:
                     h.transcript_write(f"MCP list error: {e}")
@@ -488,13 +513,23 @@ class AgentCommands:
             else:
                 # List tools from registry that look like mcp_
                 try:
-                    agent = getattr(h, "agent", None) or getattr(h, "_session", None) and getattr(h._session, "agent", None)
+                    agent = (
+                        getattr(h, "agent", None)
+                        or getattr(h, "_session", None)
+                        and getattr(h._session, "agent", None)
+                    )
                     if agent and hasattr(agent, "tools"):
-                        mcp_tools = [n for n in agent.tools.get_tool_names() if n.startswith("mcp_")]
+                        mcp_tools = [
+                            n for n in agent.tools.get_tool_names() if n.startswith("mcp_")
+                        ]
                         if mcp_tools:
-                            h.transcript_write("MCP tools available:\n" + "\n".join(f"  • {t}" for t in mcp_tools))
+                            h.transcript_write(
+                                "MCP tools available:\n" + "\n".join(f"  • {t}" for t in mcp_tools)
+                            )
                         else:
-                            h.transcript_write("No MCP tools currently registered (assign servers first).")
+                            h.transcript_write(
+                                "No MCP tools currently registered (assign servers first)."
+                            )
                     else:
                         h.transcript_write("Agent/tools not ready.")
                 except Exception as e:
@@ -507,7 +542,9 @@ class AgentCommands:
                 h.run_worker(h._mcp_install(arg))
             else:
                 h.transcript_write("Use CLI for install: holix mcp install [name|git-url]")
-                h.transcript_write("Example: holix mcp install compass  (or context7, filesystem, etc.)")
+                h.transcript_write(
+                    "Example: holix mcp install compass  (or context7, filesystem, etc.)"
+                )
             return
 
         if sub in ("assign", "enable"):
@@ -536,5 +573,7 @@ class AgentCommands:
             return
 
         # Unknown subcommand
-        h.transcript_write("MCP commands: /mcp, /mcp list, /mcp install <name|url>, /mcp assign, /mcp remove <name>, /mcp test <name>, /mcp tools")
+        h.transcript_write(
+            "MCP commands: /mcp, /mcp list, /mcp install <name|url>, /mcp assign, /mcp remove <name>, /mcp test <name>, /mcp tools"
+        )
         h.transcript_write("For full UI use Telegram menus or TUI, or run `holix mcp` in terminal.")
