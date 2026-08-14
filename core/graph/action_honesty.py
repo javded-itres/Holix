@@ -206,7 +206,7 @@ ACTION_HONESTY_NUDGE = (
 
 MONOLOGUE_TOOL_NUDGE = (
     "[Action honesty — tools] You are only narrating progress "
-    "(\"Смотрю…\", \"Поняла. Проверяю…\", \"Работаю…\", \"Looking at…\") "
+    '("Смотрю…", "Поняла. Проверяю…", "Работаю…", "Looking at…") '
     "without calling tools. That spam burns tokens and loops forever. "
     "Hard limits: at most 1–2 short sentences of prose, then tool_calls — "
     "prefer zero prose. Immediately call the right tools now "
@@ -395,9 +395,7 @@ def workspace_grounding_refusal_text(
     tool_results: list[dict[str, Any]] | None = None,
 ) -> str:
     """User-visible correction when the model keeps denying visible tool listings."""
-    evidence = extract_workspace_listing_evidence(
-        messages, tool_results=tool_results
-    )
+    evidence = extract_workspace_listing_evidence(messages, tool_results=tool_results)
     head = (
         "Инструменты в этом ходе **уже вернули непустой результат** "
         "(list_directory / terminal). Утверждение «tools пустые / workspace пуст / "
@@ -405,9 +403,13 @@ def workspace_grounding_refusal_text(
         "Ниже — фактические ответы tools из этого хода:\n\n"
     )
     if evidence:
-        return head + evidence + (
-            "\n\nПродолжаю задачу, опираясь на эти listing'и "
-            "(относительные пути, без `~` / `$HOLIX_HOME`)."
+        return (
+            head
+            + evidence
+            + (
+                "\n\nПродолжаю задачу, опираясь на эти listing'и "
+                "(относительные пути, без `~` / `$HOLIX_HOME`)."
+            )
         )
     return head + "(listing evidence present but could not be formatted)."
 
@@ -435,7 +437,8 @@ def _listing_evidence_from_content(content: str) -> bool:
     ):
         # at least one non-meta line that looks like a filename/dirname
         if any(
-            re.match(r"^[A-Za-z0-9_.][A-Za-z0-9_.\-]*$", ln) and ln not in {"Success", "STDOUT:", "STDERR:"}
+            re.match(r"^[A-Za-z0-9_.][A-Za-z0-9_.\-]*$", ln)
+            and ln not in {"Success", "STDOUT:", "STDERR:"}
             for ln in lines
         ):
             return True
@@ -460,17 +463,21 @@ def has_successful_workspace_listing(
             raw = msg.get("content")
             content = raw if isinstance(raw, str) else str(raw or "")
             name = _tool_name_from_message(msg, id_to_name).lower()
-            if name in {
-                "list_directory",
-                "run_terminal_command",
-                "terminal",
-                "read_file",
-                "sdd_list_projects",
-                "sdd_list_specs",
-                "sdd_list_changes",
-                "sdd_status",
-                "sdd_init",
-            } or not name:
+            if (
+                name
+                in {
+                    "list_directory",
+                    "run_terminal_command",
+                    "terminal",
+                    "read_file",
+                    "sdd_list_projects",
+                    "sdd_list_specs",
+                    "sdd_list_changes",
+                    "sdd_status",
+                    "sdd_init",
+                }
+                or not name
+            ):
                 if _listing_evidence_from_content(content):
                     return True
     if tool_results:
@@ -480,17 +487,21 @@ def has_successful_workspace_listing(
             raw = tr.get("result")
             content = raw if isinstance(raw, str) else str(raw or "")
             name = str(tr.get("tool_name") or "").lower()
-            if name in {
-                "list_directory",
-                "run_terminal_command",
-                "terminal",
-                "read_file",
-                "sdd_list_projects",
-                "sdd_list_specs",
-                "sdd_list_changes",
-                "sdd_status",
-                "sdd_init",
-            } or not name:
+            if (
+                name
+                in {
+                    "list_directory",
+                    "run_terminal_command",
+                    "terminal",
+                    "read_file",
+                    "sdd_list_projects",
+                    "sdd_list_specs",
+                    "sdd_list_changes",
+                    "sdd_status",
+                    "sdd_init",
+                }
+                or not name
+            ):
                 if _listing_evidence_from_content(content):
                     return True
     return False
@@ -640,6 +651,7 @@ def _has_sdd_or_json_listing(
     tool_results: list[dict[str, Any]] | None = None,
 ) -> bool:
     """True for successful sdd_list_* / JSON project listings this turn."""
+
     def _ok(content: str, name: str = "") -> bool:
         c = (content or "").strip()
         if not c or _tool_result_failed(c):
@@ -1030,9 +1042,7 @@ def _max_nudges_for_turn(
     user = (user_input or "").strip() or last_user_text(messages)
     if is_sdd_fill_request(user) or claims_sdd_artifacts_filled(final_response):
         return _MAX_SDD_FILL_HONESTY_NUDGES
-    if denies_visible_workspace(
-        final_response, messages, tool_results=tool_results
-    ):
+    if denies_visible_workspace(final_response, messages, tool_results=tool_results):
         return _MAX_WORKSPACE_GROUNDING_NUDGES
     return _MAX_HONESTY_NUDGES
 
@@ -1099,11 +1109,14 @@ def should_nudge_false_completion(
     ):
         return True
     # SDD fill turn: never end with pure text before any sdd_write_artifact.
-    if sdd_fill_requires_tools(
-        messages,
-        tool_results=tool_results,
-        user_input=user_input,
-    ) and (final_response or "").strip():
+    if (
+        sdd_fill_requires_tools(
+            messages,
+            tool_results=tool_results,
+            user_input=user_input,
+        )
+        and (final_response or "").strip()
+    ):
         return True
     return ends_turn_on_unexecuted_intent(
         final_response,
@@ -1123,9 +1136,7 @@ def should_refuse_false_empty_workspace(
     if _plan_mode_skips_honesty(state):
         return False
     tool_results = state.get("tool_results") if isinstance(state, dict) else None
-    if not denies_visible_workspace(
-        final_response, messages, tool_results=tool_results
-    ):
+    if not denies_visible_workspace(final_response, messages, tool_results=tool_results):
         return False
     max_nudges = _max_nudges_for_turn(
         messages,
@@ -1145,9 +1156,7 @@ def should_refuse_unproven_sdd_fill(
     """After max SDD nudges, never accept a final that had no sdd_write_artifact."""
     if _plan_mode_skips_honesty(state):
         return False
-    if not _unproven_sdd_fill_final(
-        state, final_response=final_response, messages=messages
-    ):
+    if not _unproven_sdd_fill_final(state, final_response=final_response, messages=messages):
         return False
     user_input = state.get("user_input") if isinstance(state, dict) else None
     max_nudges = _max_nudges_for_turn(
@@ -1232,8 +1241,10 @@ def honesty_retry_update(
     # Compact assistant history: do not re-feed a monologue wall into the next step.
     if updated and isinstance(updated[-1], dict) and updated[-1].get("role") == "assistant":
         prev = str(updated[-1].get("content") or "")
-        if is_truncation_notice(prev) or looks_like_status_monologue(prev) or (
-            looks_like_plan_monologue(prev) and len(prev) > 240
+        if (
+            is_truncation_notice(prev)
+            or looks_like_status_monologue(prev)
+            or (looks_like_plan_monologue(prev) and len(prev) > 240)
         ):
             try:
                 from core.llm.response_text import collapse_repetitive_text
@@ -1253,12 +1264,10 @@ def honesty_retry_update(
         "step_count": step_count,
         "is_final": False,
         "tool_calls": [],
-        # Keep internal final_response short so UI does not flash a huge loop.
-        "final_response": (
-            (final_response or "")[:400]
-            if not is_truncation_notice(final_response)
-            else (final_response or "")
-        ),
+        # Do not put a 400-char prefix into final_response: hosts (Studio) may
+        # emit it as the user-visible final while Holix memory already has the
+        # full answer. Clear the field on honesty retry (is_final stays False).
+        "final_response": ((final_response or "") if is_truncation_notice(final_response) else ""),
         "honesty_nudge_count": int(honesty_nudge_count) + 1,
     }
 
@@ -1291,9 +1300,7 @@ def honesty_refusal_update(
         )
     ):
         updated[-1] = {"role": "assistant", "content": body}
-    elif include_assistant or not (
-        isinstance(last, dict) and last.get("role") == "assistant"
-    ):
+    elif include_assistant or not (isinstance(last, dict) and last.get("role") == "assistant"):
         updated.append({"role": "assistant", "content": body})
     else:
         updated[-1] = {"role": "assistant", "content": body}
