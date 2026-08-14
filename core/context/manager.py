@@ -91,6 +91,10 @@ class ContextManager:
     ) -> int:
         if not messages:
             return 0
+        # Count after tool-output caps so a single multi-MB dump cannot report 600%+.
+        from core.memory.tool_content import sanitize_messages_tool_content
+
+        messages = sanitize_messages_tool_content(messages)
         if not conversation_id:
             return self.token_counter.count_message_tokens(messages)
 
@@ -254,22 +258,27 @@ class ContextManager:
         Returns:
             Tuple of (compressed_messages, was_compressed).
         """
+        from core.memory.tool_content import sanitize_messages_tool_content
+        from core.profile.soul import strip_soul_messages
+
+        # Drop multi-MB tool payloads before keep-recent / summarization.
+        original = messages
+        messages = sanitize_messages_tool_content(messages)
+        sanitized_only = messages is not original
+
         if not self.compressor:
             logger.warning("ContextCompressor not available — cannot compress")
-            return messages, False
+            return messages, sanitized_only
 
         keep = keep_recent if keep_recent is not None else self._adaptive_keep_recent(messages)
         if len(messages) <= keep:
-            return messages, False
+            # Short session with a runaway tool dump: capping alone is the fix.
+            return messages, sanitized_only
 
         tokens_before = self.token_counter.count_message_tokens(messages)
 
-        from core.profile.soul import strip_soul_messages
-
         to_compress = strip_soul_messages(messages)
-        compressed, summary = await self.compressor.compress(
-            to_compress, keep_recent=keep
-        )
+        compressed, summary = await self.compressor.compress(to_compress, keep_recent=keep)
 
         if not summary.strip():
             return messages, False
@@ -323,8 +332,11 @@ class ContextManager:
         Returns:
             Tuple of (messages, was_compressed).
         """
-        current = messages
-        any_compressed = False
+        from core.memory.tool_content import sanitize_messages_tool_content
+
+        original = messages
+        current = sanitize_messages_tool_content(messages)
+        any_compressed = current is not original
 
         for round_idx in range(_MAX_AUTO_COMPRESS_ROUNDS):
             usage = self.get_usage(
@@ -334,7 +346,10 @@ class ContextManager:
             )
             percent = usage["percent"]
 
-            if percent >= self.warning_threshold * 100 and percent < self.compression_threshold * 100:
+            if (
+                percent >= self.warning_threshold * 100
+                and percent < self.compression_threshold * 100
+            ):
                 self._emit_warning_event(usage, level="warning")
                 break
 
@@ -375,13 +390,15 @@ class ContextManager:
         try:
             from core.agent_events import ContextCompressedEvent
 
-            self.event_bus.emit(ContextCompressedEvent(
-                original_tokens=tokens_before,
-                compressed_tokens=tokens_after,
-                messages_before=messages_before,
-                messages_after=messages_after,
-                summary_preview=summary_preview,
-            ))
+            self.event_bus.emit(
+                ContextCompressedEvent(
+                    original_tokens=tokens_before,
+                    compressed_tokens=tokens_after,
+                    messages_before=messages_before,
+                    messages_after=messages_after,
+                    summary_preview=summary_preview,
+                )
+            )
         except Exception as e:
             logger.warning(f"Failed to emit ContextCompressedEvent: {e}")
 
@@ -393,11 +410,13 @@ class ContextManager:
         try:
             from core.agent_events import ContextWarningEvent
 
-            self.event_bus.emit(ContextWarningEvent(
-                usage_percent=usage["percent"],
-                tokens_used=usage["used"],
-                tokens_total=usage["total"],
-                level=level,
-            ))
+            self.event_bus.emit(
+                ContextWarningEvent(
+                    usage_percent=usage["percent"],
+                    tokens_used=usage["used"],
+                    tokens_total=usage["total"],
+                    level=level,
+                )
+            )
         except Exception as e:
             logger.warning(f"Failed to emit ContextWarningEvent: {e}")

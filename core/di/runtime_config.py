@@ -150,9 +150,7 @@ class HolixRuntimeConfig:
             subagent_max_concurrent=s.subagent_max_concurrent,
             subagent_process_timeout=s.subagent_process_timeout,
             subagent_heartbeat_interval=s.subagent_heartbeat_interval,
-            subagent_supervisor_enabled=bool(
-                getattr(s, "subagent_supervisor_enabled", True)
-            ),
+            subagent_supervisor_enabled=bool(getattr(s, "subagent_supervisor_enabled", True)),
             enable_meta_agent=s.enable_meta_agent,
             enable_self_refinement=s.enable_self_refinement,
             max_refinement_iterations=s.max_refinement_iterations,
@@ -160,13 +158,9 @@ class HolixRuntimeConfig:
             enable_evolution=s.enable_evolution,
             evolution_auto_learn=s.evolution_auto_learn,
             agent_pipeline=str(getattr(s, "agent_pipeline", "classic") or "classic"),
-            max_steps_extend_enabled=bool(
-                getattr(s, "max_steps_extend_enabled", True)
-            ),
+            max_steps_extend_enabled=bool(getattr(s, "max_steps_extend_enabled", True)),
             max_steps_extend_by=int(getattr(s, "max_steps_extend_by", 30) or 30),
-            max_steps_max_extensions=int(
-                getattr(s, "max_steps_max_extensions", 3) or 3
-            ),
+            max_steps_max_extensions=int(getattr(s, "max_steps_max_extensions", 3) or 3),
             max_steps_hard_cap=int(getattr(s, "max_steps_hard_cap", 0) or 0),
             auto_allow_threshold=s.auto_allow_threshold,
             non_interactive=s.non_interactive,
@@ -253,9 +247,7 @@ class HolixRuntimeConfig:
         if getattr(profile, "subagent_max_concurrent", None) is not None:
             overrides["subagent_max_concurrent"] = profile.subagent_max_concurrent
         if getattr(profile, "subagent_supervisor_enabled", None) is not None:
-            overrides["subagent_supervisor_enabled"] = bool(
-                profile.subagent_supervisor_enabled
-            )
+            overrides["subagent_supervisor_enabled"] = bool(profile.subagent_supervisor_enabled)
         if getattr(profile, "enable_meta_agent", None) is not None:
             overrides["enable_meta_agent"] = bool(profile.enable_meta_agent)
         if getattr(profile, "enable_self_refinement", None) is not None:
@@ -265,9 +257,7 @@ class HolixRuntimeConfig:
 
             overrides["agent_pipeline"] = normalize_pipeline(str(profile.agent_pipeline))
         if getattr(profile, "max_steps_extend_enabled", None) is not None:
-            overrides["max_steps_extend_enabled"] = bool(
-                profile.max_steps_extend_enabled
-            )
+            overrides["max_steps_extend_enabled"] = bool(profile.max_steps_extend_enabled)
         if getattr(profile, "search", None):
             overrides["search"] = profile.search
         overrides["workspace_jail_enabled"] = bool(
@@ -299,3 +289,38 @@ class HolixRuntimeConfig:
         """Return a copy with selective field overrides."""
         valid = {k: v for k, v in kwargs.items() if v is not None}
         return replace(self, **valid)
+
+
+def unattended_requested() -> bool:
+    """True when env or Settings asks for unattended (bench/CI) tool policy."""
+    import os
+
+    raw = (
+        (os.environ.get("HOLIX_UNATTENDED") or os.environ.get("HOLIX_BENCH") or "").strip().lower()
+    )
+    if raw in {"1", "true", "yes", "on"}:
+        return True
+    try:
+        from config import Settings
+
+        return bool(getattr(Settings(_env_file=None), "holix_unattended", False))
+    except Exception:
+        return False
+
+
+def apply_unattended_policy(cfg: HolixRuntimeConfig) -> HolixRuntimeConfig:
+    """Force no interactive tool/plan confirmations for benches / CI.
+
+    Sets ``auto_allow_threshold=high`` (all tool risks auto-run) and disables
+    plan review. Does **not** set ``non_interactive`` — that would *deny*
+    high-risk tools instead of approving them.
+
+    ActionGuard still logs ``auto_allowed`` at INFO (audit only, no UI).
+    """
+    if not unattended_requested():
+        return cfg
+    return cfg.with_overrides(
+        auto_allow_threshold="high",
+        plan_review_enabled=False,
+        non_interactive=False,
+    )

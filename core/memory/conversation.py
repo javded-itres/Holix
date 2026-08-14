@@ -99,6 +99,12 @@ class ConversationStore:
         content: str,
         metadata: dict[str, Any] | None = None,
     ) -> int:
+        # Hard cap tool payloads at the storage boundary (classic loop, graph, etc.)
+        if role == "tool" and isinstance(content, str):
+            from core.memory.tool_content import truncate_tool_content_for_memory
+
+            content = truncate_tool_content_for_memory(content)
+
         async with connect_aiosqlite(self.db_path) as db:
             cursor = await db.execute(
                 """INSERT INTO conversations (conversation_id, role, content, metadata)
@@ -164,7 +170,10 @@ class ConversationStore:
                         pass
                 messages.append(msg)
 
-            return messages
+            # Cap legacy oversized tool rows so reloads do not blow the context window.
+            from core.memory.tool_content import sanitize_messages_tool_content
+
+            return sanitize_messages_tool_content(messages)
 
     async def search(
         self,
@@ -188,11 +197,15 @@ class ConversationStore:
             if results["documents"] and results["documents"][0]:
                 for i, doc in enumerate(results["documents"][0]):
                     metadata = results["metadatas"][0][i] if results["metadatas"] else {}
-                    memories.append({
-                        "content": doc,
-                        "metadata": metadata,
-                        "distance": results["distances"][0][i] if results.get("distances") else None,
-                    })
+                    memories.append(
+                        {
+                            "content": doc,
+                            "metadata": metadata,
+                            "distance": results["distances"][0][i]
+                            if results.get("distances")
+                            else None,
+                        }
+                    )
             return _filter_searchable_hits(memories, top_k=top_k)
         except Exception as e:
             logger.warning("Error during semantic search: %s", e)
@@ -208,9 +221,13 @@ class ConversationStore:
                 "DELETE FROM conversations WHERE conversation_id = ?",
                 (conversation_id,),
             )
+            from core.memory.tool_content import truncate_tool_content_for_memory
+
             for msg in new_messages:
                 role = msg.get("role", "user")
                 content = msg.get("content", "")
+                if role == "tool" and isinstance(content, str):
+                    content = truncate_tool_content_for_memory(content)
                 metadata = msg.get("metadata")
                 metadata_json = json.dumps(metadata) if metadata else None
                 await db.execute(

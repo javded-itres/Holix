@@ -44,9 +44,14 @@ async def search_duckduckgo(
 
     async with aiohttp.ClientSession() as session:
         async with session.get(url, params=params, timeout=aiohttp.ClientTimeout(total=12)) as resp:
-            if resp.status != 200:
+            # Instant Answer API may return 200 or 202 with JSON/JS content-type.
+            if resp.status not in (200, 202):
                 raise RuntimeError(f"DuckDuckGo HTTP {resp.status}")
-            data = await resp.json()
+            try:
+                data = await resp.json(content_type=None)
+            except Exception:
+                raw = await resp.text()
+                data = json.loads(raw)
 
     if data.get("Abstract"):
         hits.append(
@@ -121,7 +126,9 @@ async def search_searxng(
         url = str(item.get("url") or "").strip()
         snippet = str(item.get("content") or item.get("snippet") or "").strip()
         if title or url:
-            hits.append(SearchHit(title=title or url, url=url, snippet=snippet[:500], source="searxng"))
+            hits.append(
+                SearchHit(title=title or url, url=url, snippet=snippet[:500], source="searxng")
+            )
 
     return hits
 
@@ -183,10 +190,7 @@ async def search_firecrawl(
         title = str(item.get("title") or "").strip()
         url = str(item.get("url") or "").strip()
         snippet = str(
-            item.get("description")
-            or item.get("markdown")
-            or item.get("snippet")
-            or ""
+            item.get("description") or item.get("markdown") or item.get("snippet") or ""
         ).strip()
         if title or url:
             hits.append(

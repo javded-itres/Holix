@@ -73,15 +73,11 @@ async def run_agent_loop(
     # ------------------------------------------------------------------
     from core.runtime.session import prepare_session
 
-    messages, _was_compressed = await prepare_session(
-        agent, user_input, conversation_id
-    )
+    messages, _was_compressed = await prepare_session(agent, user_input, conversation_id)
 
     # Retrieve relevant skills
     agent_slot = getattr(agent, "agent_slot", "main")
-    relevant_skills = agent.skills.get_relevant_skills(
-        user_input, top_k=3, agent_slot=agent_slot
-    )
+    relevant_skills = agent.skills.get_relevant_skills(user_input, top_k=3, agent_slot=agent_slot)
     skills_formatted = agent.skills.format_skills_for_prompt(relevant_skills)
 
     # Retrieve relevant memories from past conversations
@@ -166,102 +162,318 @@ async def run_agent_loop(
     )
 
     while True:
-      while step_count < max_steps:
-        step_count += 1
+        while step_count < max_steps:
+            step_count += 1
 
-        # Build API messages: system prompt + recent messages
-        # Use context_manager to determine how many messages fit, or fallback to last 20
-        if hasattr(agent, 'context_manager') and agent.context_manager:
-            # Context-aware message selection: fit as many messages as possible
-            # while staying within the context window (minus system prompt tokens)
-            api_messages = _build_api_messages(
-                system_prompt, messages, agent.context_manager
-            )
-        else:
-            # Legacy fallback: just last 20 messages
-            from core.llm.api_messages import prepare_conversation_for_llm
+            # Build API messages: system prompt + recent messages
+            # Use context_manager to determine how many messages fit, or fallback to last 20
+            if hasattr(agent, "context_manager") and agent.context_manager:
+                # Context-aware message selection: fit as many messages as possible
+                # while staying within the context window (minus system prompt tokens)
+                api_messages = _build_api_messages(system_prompt, messages, agent.context_manager)
+            else:
+                # Legacy fallback: just last 20 messages
+                from core.llm.api_messages import prepare_conversation_for_llm
 
-            api_messages = [
-                {"role": "system", "content": system_prompt}
-            ] + prepare_conversation_for_llm(messages[-20:])
+                api_messages = [
+                    {"role": "system", "content": system_prompt}
+                ] + prepare_conversation_for_llm(messages[-20:])
 
-        try:
-            if stream:
-                # ==================== STREAMING PATH ====================
-                from core.models.fallback import run_with_provider_fallback
+            try:
+                if stream:
+                    # ==================== STREAMING PATH ====================
+                    from core.models.fallback import run_with_provider_fallback
 
-                if model_manager:
-                    stream_response = await run_with_provider_fallback(
-                        model_manager,
-                        agent_name=agent_slot,
-                        primary_override=primary_override,
-                        on_switch=_on_fallback_switch,
-                        factory=lambda cfg, llm_client: llm_client.chat.completions.create(
-                            model=cfg.model,
+                    if model_manager:
+                        stream_response = await run_with_provider_fallback(
+                            model_manager,
+                            agent_name=agent_slot,
+                            primary_override=primary_override,
+                            on_switch=_on_fallback_switch,
+                            factory=lambda cfg, llm_client: llm_client.chat.completions.create(
+                                model=cfg.model,
+                                messages=api_messages,
+                                tools=agent.tools.get_schemas(),
+                                tool_choice="auto",
+                                temperature=temperature,
+                                stream=True,
+                            ),
+                        )
+                    else:
+                        stream_response = await client.chat.completions.create(
+                            model=model,
                             messages=api_messages,
                             tools=agent.tools.get_schemas(),
                             tool_choice="auto",
                             temperature=temperature,
                             stream=True,
-                        ),
-                    )
-                else:
-                    stream_response = await client.chat.completions.create(
-                        model=model,
-                        messages=api_messages,
-                        tools=agent.tools.get_schemas(),
-                        tool_choice="auto",
-                        temperature=temperature,
-                        stream=True,
-                    )
-
-                current_content = ""
-                tool_calls_dict: dict[int, dict[str, Any]] = {}
-
-                async for chunk in stream_response:
-                    delta = chunk.choices[0].delta
-
-                    # --- Content streaming ---
-                    if delta.content:
-                        current_content += delta.content
-                        yield AssistantDeltaEvent(
-                            content=delta.content,
-                            accumulated=current_content,
-                            conversation_id=conversation_id,
                         )
 
-                    # --- Tool call streaming (accumulate deltas) ---
-                    if delta.tool_calls:
-                        for tc_delta in delta.tool_calls:
-                            idx = tc_delta.index
-                            if idx not in tool_calls_dict:
-                                tool_calls_dict[idx] = {
-                                    "id": "",
-                                    "type": "function",
-                                    "function": {"name": "", "arguments": ""},
+                    current_content = ""
+                    tool_calls_dict: dict[int, dict[str, Any]] = {}
+
+                    async for chunk in stream_response:
+                        delta = chunk.choices[0].delta
+
+                        # --- Content streaming ---
+                        if delta.content:
+                            current_content += delta.content
+                            yield AssistantDeltaEvent(
+                                content=delta.content,
+                                accumulated=current_content,
+                                conversation_id=conversation_id,
+                            )
+
+                        # --- Tool call streaming (accumulate deltas) ---
+                        if delta.tool_calls:
+                            for tc_delta in delta.tool_calls:
+                                idx = tc_delta.index
+                                if idx not in tool_calls_dict:
+                                    tool_calls_dict[idx] = {
+                                        "id": "",
+                                        "type": "function",
+                                        "function": {"name": "", "arguments": ""},
+                                    }
+
+                                if tc_delta.id:
+                                    tool_calls_dict[idx]["id"] = tc_delta.id
+                                if tc_delta.function:
+                                    if tc_delta.function.name:
+                                        tool_calls_dict[idx]["function"]["name"] = (
+                                            tc_delta.function.name
+                                        )
+                                    if tc_delta.function.arguments:
+                                        tool_calls_dict[idx]["function"]["arguments"] += (
+                                            tc_delta.function.arguments
+                                        )
+
+                        finish_reason = chunk.choices[0].finish_reason
+                        has_stream_tools = bool(tool_calls_dict) and any(
+                            (tc.get("function") or {}).get("name", "").strip()
+                            for tc in tool_calls_dict.values()
+                        )
+
+                        if finish_reason == "stop" and not has_stream_tools:
+                            # Final answer arrived via streaming
+                            final_response = current_content or "No response generated"
+
+                            # Save assistant message
+                            assistant_msg = {"role": "assistant", "content": final_response}
+                            messages.append(assistant_msg)
+                            await agent.memory.save_message(
+                                conversation_id, "assistant", final_response
+                            )
+
+                            yield FinalResponseEvent(
+                                content=final_response,
+                                steps_taken=step_count,
+                                conversation_id=conversation_id,
+                            )
+
+                            await _maybe_self_improve(
+                                agent, conversation_id, messages, final_response
+                            )
+                            return
+
+                        elif finish_reason == "tool_calls" or (
+                            finish_reason == "stop" and has_stream_tools
+                        ):
+                            # Tool calls arrived via streaming (some providers use finish_reason=stop)
+                            tool_calls = list(tool_calls_dict.values())
+                            assistant_msg = {
+                                "role": "assistant",
+                                "content": current_content,
+                                "tool_calls": tool_calls,
+                            }
+                            messages.append(assistant_msg)
+
+                            # Execute tools
+                            for tc_data in tool_calls:
+                                tool_name = tc_data["function"]["name"]
+
+                                # Create a minimal tool call object compatible with execute()
+                                class _ToolCall:
+                                    def __init__(self, data):
+                                        self.id = data.get("id", "")
+                                        self.type = data.get("type", "function")
+                                        self.function = type(
+                                            "obj",
+                                            (object,),
+                                            {
+                                                "name": data["function"]["name"],
+                                                "arguments": data["function"]["arguments"],
+                                            },
+                                        )()
+
+                                tool_call_obj = _ToolCall(tc_data)
+
+                                yield ToolCallStartEvent(
+                                    tool_name=tool_name,
+                                    tool_id=tool_call_obj.id,
+                                    arguments_raw=tc_data["function"]["arguments"],
+                                    conversation_id=conversation_id,
+                                )
+
+                                start = time.time()
+                                try:
+                                    result = await agent.tools.execute(
+                                        tool_call_obj,
+                                        conversation_id=conversation_id,
+                                        memory=agent.memory,
+                                    )
+                                    duration = (time.time() - start) * 1000
+
+                                    yield ToolCallResultEvent(
+                                        tool_name=tool_name,
+                                        tool_id=tool_call_obj.id,
+                                        result=result,
+                                        duration_ms=duration,
+                                        conversation_id=conversation_id,
+                                    )
+                                except Exception as tool_err:
+                                    yield ToolCallErrorEvent(
+                                        tool_name=tool_name,
+                                        tool_id=tool_call_obj.id,
+                                        error=str(tool_err),
+                                        conversation_id=conversation_id,
+                                    )
+                                    result = f"Error: {tool_err}"
+
+                                from core.memory.tool_content import (
+                                    truncate_tool_content_for_graph,
+                                    truncate_tool_content_for_memory,
+                                )
+
+                                graph_result = truncate_tool_content_for_graph(
+                                    result if isinstance(result, str) else str(result)
+                                )
+                                tool_msg = {
+                                    "role": "tool",
+                                    "tool_call_id": tool_call_obj.id,
+                                    "content": graph_result,
                                 }
+                                messages.append(tool_msg)
+                                await agent.memory.save_message(
+                                    conversation_id,
+                                    "tool",
+                                    truncate_tool_content_for_memory(
+                                        result if isinstance(result, str) else str(result)
+                                    ),
+                                    metadata={"tool_name": tool_name},
+                                )
 
-                            if tc_delta.id:
-                                tool_calls_dict[idx]["id"] = tc_delta.id
-                            if tc_delta.function:
-                                if tc_delta.function.name:
-                                    tool_calls_dict[idx]["function"]["name"] = tc_delta.function.name
-                                if tc_delta.function.arguments:
-                                    tool_calls_dict[idx]["function"]["arguments"] += tc_delta.function.arguments
+                            # Continue to next reasoning step with tool results
+                            break  # exit the async for chunk loop
 
-                    finish_reason = chunk.choices[0].finish_reason
-                    has_stream_tools = bool(tool_calls_dict) and any(
-                        (tc.get("function") or {}).get("name", "").strip()
-                        for tc in tool_calls_dict.values()
-                    )
+                else:
+                    # ==================== NON-STREAMING PATH ====================
+                    from core.models.fallback import chat_completions_with_fallback
 
-                    if finish_reason == "stop" and not has_stream_tools:
-                        # Final answer arrived via streaming
-                        final_response = current_content or "No response generated"
+                    if model_manager:
+                        response = await chat_completions_with_fallback(
+                            model_manager,
+                            agent_name=agent_slot,
+                            primary_override=primary_override,
+                            on_switch=_on_fallback_switch,
+                            messages=api_messages,
+                            tools=agent.tools.get_schemas(),
+                            tool_choice="auto",
+                            temperature=temperature,
+                        )
+                    else:
+                        response = await client.chat.completions.create(
+                            model=model,
+                            messages=api_messages,
+                            tools=agent.tools.get_schemas(),
+                            tool_choice="auto",
+                            temperature=temperature,
+                        )
 
-                        # Save assistant message
-                        assistant_msg = {"role": "assistant", "content": final_response}
-                        messages.append(assistant_msg)
+                    message = response.choices[0].message
+                    msg_dict = {"role": "assistant", "content": message.content or ""}
+
+                    if message.tool_calls:
+                        msg_dict["tool_calls"] = [
+                            {
+                                "id": tc.id,
+                                "type": tc.type,
+                                "function": {
+                                    "name": tc.function.name,
+                                    "arguments": tc.function.arguments,
+                                },
+                            }
+                            for tc in message.tool_calls
+                        ]
+                        messages.append(msg_dict)
+
+                        for tool_call in message.tool_calls:
+                            tool_name = tool_call.function.name
+                            tool_id = tool_call.id
+                            args_raw = tool_call.function.arguments
+
+                            yield ToolCallStartEvent(
+                                tool_name=tool_name,
+                                tool_id=tool_id,
+                                arguments_raw=args_raw,
+                                conversation_id=conversation_id,
+                            )
+
+                            start = time.time()
+                            try:
+                                result = await agent.tools.execute(
+                                    tool_call,
+                                    conversation_id=conversation_id,
+                                    memory=agent.memory,
+                                )
+                                duration = (time.time() - start) * 1000
+
+                                yield ToolCallResultEvent(
+                                    tool_name=tool_name,
+                                    tool_id=tool_id,
+                                    result=result,
+                                    duration_ms=duration,
+                                    conversation_id=conversation_id,
+                                    truncated=len(result) > 200,
+                                )
+                            except Exception as tool_err:
+                                yield ToolCallErrorEvent(
+                                    tool_name=tool_name,
+                                    tool_id=tool_id,
+                                    error=str(tool_err),
+                                    conversation_id=conversation_id,
+                                )
+                                result = f"Error: {tool_err}"
+
+                            from core.memory.tool_content import (
+                                truncate_tool_content_for_graph,
+                                truncate_tool_content_for_memory,
+                            )
+
+                            graph_result = truncate_tool_content_for_graph(
+                                result if isinstance(result, str) else str(result)
+                            )
+                            tool_msg = {
+                                "role": "tool",
+                                "tool_call_id": tool_call.id,
+                                "content": graph_result,
+                            }
+                            messages.append(tool_msg)
+                            await agent.memory.save_message(
+                                conversation_id,
+                                "tool",
+                                truncate_tool_content_for_memory(
+                                    result if isinstance(result, str) else str(result)
+                                ),
+                                metadata={"tool_name": tool_name},
+                            )
+
+                        continue  # next reasoning iteration
+
+                    else:
+                        # Final answer (non-streaming)
+                        final_response = message.content or "No response generated"
+                        messages.append(msg_dict)
+
                         await agent.memory.save_message(
                             conversation_id, "assistant", final_response
                         )
@@ -275,243 +487,59 @@ async def run_agent_loop(
                         await _maybe_self_improve(agent, conversation_id, messages, final_response)
                         return
 
-                    elif finish_reason == "tool_calls" or (
-                        finish_reason == "stop" and has_stream_tools
-                    ):
-                        # Tool calls arrived via streaming (some providers use finish_reason=stop)
-                        tool_calls = list(tool_calls_dict.values())
-                        assistant_msg = {
-                            "role": "assistant",
-                            "content": current_content,
-                            "tool_calls": tool_calls,
-                        }
-                        messages.append(assistant_msg)
+            except Exception as e:
+                yield ErrorEvent(
+                    error=f"Error during agent step: {str(e)}",
+                    error_type="execution",
+                    recoverable=False,
+                    conversation_id=conversation_id,
+                )
+                return
 
-                        # Execute tools
-                        for tc_data in tool_calls:
-                            tool_name = tc_data["function"]["name"]
+        # Inner budget exhausted — health-check before hard stop
+        from core.runtime.step_budget import StepBudgetPolicy, evaluate_step_budget
 
-                            # Create a minimal tool call object compatible with execute()
-                            class _ToolCall:
-                                def __init__(self, data):
-                                    self.id = data.get("id", "")
-                                    self.type = data.get("type", "function")
-                                    self.function = type("obj", (object,), {
-                                        "name": data["function"]["name"],
-                                        "arguments": data["function"]["arguments"],
-                                    })()
-
-                            tool_call_obj = _ToolCall(tc_data)
-
-                            yield ToolCallStartEvent(
-                                tool_name=tool_name,
-                                tool_id=tool_call_obj.id,
-                                arguments_raw=tc_data["function"]["arguments"],
-                                conversation_id=conversation_id,
-                            )
-
-                            start = time.time()
-                            try:
-                                result = await agent.tools.execute(
-                                    tool_call_obj,
-                                    conversation_id=conversation_id,
-                                    memory=agent.memory,
-                                )
-                                duration = (time.time() - start) * 1000
-
-                                yield ToolCallResultEvent(
-                                    tool_name=tool_name,
-                                    tool_id=tool_call_obj.id,
-                                    result=result,
-                                    duration_ms=duration,
-                                    conversation_id=conversation_id,
-                                )
-                            except Exception as tool_err:
-                                yield ToolCallErrorEvent(
-                                    tool_name=tool_name,
-                                    tool_id=tool_call_obj.id,
-                                    error=str(tool_err),
-                                    conversation_id=conversation_id,
-                                )
-                                result = f"Error: {tool_err}"
-
-                            tool_msg = {
-                                "role": "tool",
-                                "tool_call_id": tool_call_obj.id,
-                                "content": result,
-                            }
-                            messages.append(tool_msg)
-                            await agent.memory.save_message(
-                                conversation_id, "tool", result,
-                                metadata={"tool_name": tool_name}
-                            )
-
-                        # Continue to next reasoning step with tool results
-                        break  # exit the async for chunk loop
-
-            else:
-                # ==================== NON-STREAMING PATH ====================
-                from core.models.fallback import chat_completions_with_fallback
-
-                if model_manager:
-                    response = await chat_completions_with_fallback(
-                        model_manager,
-                        agent_name=agent_slot,
-                        primary_override=primary_override,
-                        on_switch=_on_fallback_switch,
-                        messages=api_messages,
-                        tools=agent.tools.get_schemas(),
-                        tool_choice="auto",
-                        temperature=temperature,
-                    )
-                else:
-                    response = await client.chat.completions.create(
-                        model=model,
-                        messages=api_messages,
-                        tools=agent.tools.get_schemas(),
-                        tool_choice="auto",
-                        temperature=temperature,
-                    )
-
-                message = response.choices[0].message
-                msg_dict = {"role": "assistant", "content": message.content or ""}
-
-                if message.tool_calls:
-                    msg_dict["tool_calls"] = [
-                        {
-                            "id": tc.id,
-                            "type": tc.type,
-                            "function": {
-                                "name": tc.function.name,
-                                "arguments": tc.function.arguments,
-                            },
-                        }
-                        for tc in message.tool_calls
-                    ]
-                    messages.append(msg_dict)
-
-                    for tool_call in message.tool_calls:
-                        tool_name = tool_call.function.name
-                        tool_id = tool_call.id
-                        args_raw = tool_call.function.arguments
-
-                        yield ToolCallStartEvent(
-                            tool_name=tool_name,
-                            tool_id=tool_id,
-                            arguments_raw=args_raw,
-                            conversation_id=conversation_id,
-                        )
-
-                        start = time.time()
-                        try:
-                            result = await agent.tools.execute(
-                                tool_call,
-                                conversation_id=conversation_id,
-                                memory=agent.memory,
-                            )
-                            duration = (time.time() - start) * 1000
-
-                            yield ToolCallResultEvent(
-                                tool_name=tool_name,
-                                tool_id=tool_id,
-                                result=result,
-                                duration_ms=duration,
-                                conversation_id=conversation_id,
-                                truncated=len(result) > 200,
-                            )
-                        except Exception as tool_err:
-                            yield ToolCallErrorEvent(
-                                tool_name=tool_name,
-                                tool_id=tool_id,
-                                error=str(tool_err),
-                                conversation_id=conversation_id,
-                            )
-                            result = f"Error: {tool_err}"
-
-                        tool_msg = {
-                            "role": "tool",
-                            "tool_call_id": tool_call.id,
-                            "content": result,
-                        }
-                        messages.append(tool_msg)
-                        await agent.memory.save_message(
-                            conversation_id, "tool", result,
-                            metadata={"tool_name": tool_name}
-                        )
-
-                    continue  # next reasoning iteration
-
-                else:
-                    # Final answer (non-streaming)
-                    final_response = message.content or "No response generated"
-                    messages.append(msg_dict)
-
-                    await agent.memory.save_message(
-                        conversation_id, "assistant", final_response
-                    )
-
-                    yield FinalResponseEvent(
-                        content=final_response,
-                        steps_taken=step_count,
-                        conversation_id=conversation_id,
-                    )
-
-                    await _maybe_self_improve(agent, conversation_id, messages, final_response)
-                    return
-
-        except Exception as e:
-            yield ErrorEvent(
-                error=f"Error during agent step: {str(e)}",
-                error_type="execution",
-                recoverable=False,
+        decision = evaluate_step_budget(
+            step_count=step_count,
+            max_steps=max_steps,
+            extensions_used=step_budget_extensions,
+            messages=messages,
+            task=str(user_input or "")[:2000],
+            policy=StepBudgetPolicy.from_config(agent_config),
+            base_max_steps=base_max_steps,
+        )
+        if decision.extend:
+            prev_max = max_steps
+            max_steps = decision.new_max_steps
+            step_budget_extensions = decision.extensions_used
+            yield MaxStepsExtendedEvent(
+                max_steps=max_steps,
+                previous_max_steps=prev_max,
+                extra_steps=decision.extra_steps,
+                extensions=step_budget_extensions,
+                reason=decision.reason,
                 conversation_id=conversation_id,
             )
-            return
+            yield ThinkingEvent(
+                message=(
+                    f"Step budget extended by {decision.extra_steps} "
+                    f"(now max {max_steps}): still working"
+                ),
+                conversation_id=conversation_id,
+            )
+            continue
 
-      # Inner budget exhausted — health-check before hard stop
-      from core.runtime.step_budget import StepBudgetPolicy, evaluate_step_budget
-
-      decision = evaluate_step_budget(
-          step_count=step_count,
-          max_steps=max_steps,
-          extensions_used=step_budget_extensions,
-          messages=messages,
-          task=str(user_input or "")[:2000],
-          policy=StepBudgetPolicy.from_config(agent_config),
-          base_max_steps=base_max_steps,
-      )
-      if decision.extend:
-          prev_max = max_steps
-          max_steps = decision.new_max_steps
-          step_budget_extensions = decision.extensions_used
-          yield MaxStepsExtendedEvent(
-              max_steps=max_steps,
-              previous_max_steps=prev_max,
-              extra_steps=decision.extra_steps,
-              extensions=step_budget_extensions,
-              reason=decision.reason,
-              conversation_id=conversation_id,
-          )
-          yield ThinkingEvent(
-              message=(
-                  f"Step budget extended by {decision.extra_steps} "
-                  f"(now max {max_steps}): still working"
-              ),
-              conversation_id=conversation_id,
-          )
-          continue
-
-      # Max steps reached (hung / no progress / extension cap)
-      yield MaxStepsReachedEvent(
-          max_steps=max_steps,
-          conversation_id=conversation_id,
-      )
-      timeout_msg = (
-          f"Agent reached maximum steps ({max_steps}). "
-          f"{decision.reason or 'Task may be too complex.'}"
-      )
-      await agent.memory.save_message(conversation_id, "assistant", timeout_msg)
-      return
+        # Max steps reached (hung / no progress / extension cap)
+        yield MaxStepsReachedEvent(
+            max_steps=max_steps,
+            conversation_id=conversation_id,
+        )
+        timeout_msg = (
+            f"Agent reached maximum steps ({max_steps}). "
+            f"{decision.reason or 'Task may be too complex.'}"
+        )
+        await agent.memory.save_message(conversation_id, "assistant", timeout_msg)
+        return
 
 
 async def _maybe_self_improve(
@@ -583,7 +611,9 @@ async def _maybe_self_improve(
             )
 
     # Auto-summarize conversation into episodic memory (LTM)
-    if settings.auto_summarize_conversations and hasattr(agent.memory, 'auto_summarize_conversation'):
+    if settings.auto_summarize_conversations and hasattr(
+        agent.memory, "auto_summarize_conversation"
+    ):
         try:
             await agent.memory.auto_summarize_conversation(
                 conversation_id=conversation_id,

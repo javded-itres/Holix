@@ -433,6 +433,36 @@ def _ui_locale(profile_name: str | None) -> str:
     return "en"
 
 
+def short_answer_from_reasoning(reasoning: str) -> str:
+    """Extract an explicit short answer from CoT when ``content`` is empty.
+
+    Only recovers **clear** terminal answers (``Answer: 42``, pure numbers).
+    Generic monologue lines are left empty so callers can retry.
+    """
+    lines = [ln.strip() for ln in (reasoning or "").splitlines() if ln.strip()]
+    if not lines:
+        return ""
+    for line in reversed(lines[-16:]):
+        clean = line.strip().strip("*`\"'“”«»")
+        if not clean or len(clean) > 80:
+            continue
+        # "answer is 42" / "Answer: Paris" / "Ответ: 42" / "Результат = 221"
+        m = re.search(
+            r"(?:final\s+)?(?:answer|result|output|ответ|результат)"
+            r"(?:\s+is)?\s*[:=\-—]?\s*(.+)$",
+            clean,
+            flags=re.IGNORECASE,
+        )
+        if m:
+            candidate = m.group(1).strip().strip("*`\"'“”«».")
+            if candidate and len(candidate) <= 80:
+                return candidate
+        # Bare numeric / arithmetic result line
+        if re.fullmatch(r"[-+]?\d+(?:[.,]\d+)?", clean):
+            return clean
+    return ""
+
+
 def resolve_assistant_text(
     *,
     content: str = "",
@@ -453,6 +483,13 @@ def resolve_assistant_text(
 
     reasoning = (reasoning_content or "").strip()
     if not text and reasoning:
+        recovered = short_answer_from_reasoning(reasoning)
+        if recovered:
+            logger.info(
+                "Recovered short answer from reasoning-only response (model=%s)",
+                model,
+            )
+            return recovered
         # Do NOT surface a user-facing error here. Callers treat empty as
         # "retry / keep going" (plan step nudge, non-streaming retry). Emitting
         # llm.reasoning_only as the final answer aborted multi-step work while
@@ -471,9 +508,7 @@ def resolve_assistant_text(
             if is_pathological_repetition(text, min_repeats=3):
                 collapsed = collapse_repetitive_text(text) or text
                 # Never ship multi-KB monologue spam even if detectors disagree.
-                if len(collapsed) > 400 and is_pathological_repetition(
-                    collapsed, min_repeats=3
-                ):
+                if len(collapsed) > 400 and is_pathological_repetition(collapsed, min_repeats=3):
                     collapsed = _hard_trim_loop(collapsed)
                 return collapsed
             return text

@@ -19,6 +19,26 @@ Run tests:
 uv run pytest
 uv run pytest -m "not llm"
 uv run pytest tests/test_agent_events.py
+uv run pytest tests/user_cases -q          # product journeys (scripted LLM + real tools)
+uv run pytest -m user_case
+
+# Live LLM (real provider — NOT in CI; needs model endpoint)
+./scripts/test_live_llm.sh
+# HOLIX_LIVE_MODEL=… HOLIX_LIVE_BASE_URL=… HOLIX_LIVE_API_KEY=… ./scripts/test_live_llm.sh -k live_01
+```
+
+**User cases** (`tests/user_cases/`): end-to-end agent journeys via `UserCaseHarness`
+(scripted LLM, real tools under an isolated workspace). See
+`tests/user_cases/catalog/README.md`.
+
+**Live LLM** (`tests/live_llm/`): real OpenAI-compatible API calls, temp workspace wiped
+after each test. See `tests/live_llm/README.md`. Always excluded by `-m "not llm"`.
+
+**TUI pilot** (`tests/tui/`): full `HolixCodeApp` launch via Textual Pilot (mock agent).
+
+```bash
+./scripts/test_tui.sh
+uv run python -m pytest tests/tui -m tui -v
 ```
 
 Lint (same scope as CI):
@@ -36,8 +56,8 @@ uv run ruff check core cli api integrations tests
 ./scripts/install-git-hooks.sh
 ```
 
-- **pre-commit** — ruff fix + format on staged files  
-- **pre-push** — `./scripts/lint.sh` (blocks push if ruff fails; same paths as CI)  
+- **pre-commit** — ruff fix + format on staged files
+- **pre-push** — `./scripts/lint.sh` (blocks push if ruff fails; same paths as CI)
 
 See [RULES.md](RULES.md) §9. Skip only in emergencies: `git push --no-verify`.
 

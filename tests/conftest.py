@@ -27,16 +27,46 @@ def _unique_chroma_collection(request: pytest.FixtureRequest) -> str:
 
 
 def pytest_collection_modifyitems(config, items):
-    """Auto-apply unit/integration/llm markers from path and names."""
+    """Auto-apply unit/integration/llm/user_case markers from path and names."""
     for item in items:
         if item.get_closest_marker("llm"):
             continue
+
+        nodeid = item.nodeid
+        in_live_llm = "live_llm/" in nodeid or "live_llm\\" in nodeid
+        if in_live_llm or item.get_closest_marker("live_llm"):
+            if not item.get_closest_marker("live_llm"):
+                item.add_marker(pytest.mark.live_llm)
+            if not item.get_closest_marker("llm"):
+                item.add_marker(pytest.mark.llm)
+            continue
+
+        in_tui = (
+            "tests/tui/" in nodeid
+            or "tests\\tui\\" in nodeid
+            or "/tui/" in nodeid
+            or "\\tui\\" in nodeid
+        )
+        if in_tui or item.get_closest_marker("tui"):
+            if not item.get_closest_marker("tui"):
+                item.add_marker(pytest.mark.tui)
+            if not item.get_closest_marker("integration"):
+                item.add_marker(pytest.mark.integration)
+            continue
+
+        in_user_cases = "user_cases/" in nodeid or "user_cases\\" in nodeid
+        if in_user_cases or item.get_closest_marker("user_case"):
+            if not item.get_closest_marker("user_case"):
+                item.add_marker(pytest.mark.user_case)
+            if not item.get_closest_marker("integration"):
+                item.add_marker(pytest.mark.integration)
+            continue
+
         if item.get_closest_marker("integration"):
             continue
         if item.get_closest_marker("unit"):
             continue
 
-        nodeid = item.nodeid
         if "test_graph_e2e" in nodeid or "TestRunAgentLoopWithMocks" in nodeid:
             item.add_marker(pytest.mark.integration)
         elif "llm" in item.name.lower():
@@ -91,9 +121,8 @@ def tools_registry():
 @pytest.fixture
 def skills_manager(temp_dir):
     """Create skills manager with temp directory."""
-    from core.skills.manager import SkillsManager
-
     from config import settings
+    from core.skills.manager import SkillsManager
 
     original_skills_dir = settings.skills_dir
     settings.skills_dir = f"{temp_dir}/skills"
@@ -121,6 +150,8 @@ def gateway_client(gateway_auth_headers, monkeypatch: pytest.MonkeyPatch):
     import api.deps
     import api.gateway
     import api.state
+    from fastapi.testclient import TestClient
+
     from core.gateway.companions import CompanionManager
     from core.gateway.locks import GatewayLocks
     from core.gateway.profile_registry import ProfileAgentRegistry
@@ -129,7 +160,6 @@ def gateway_client(gateway_auth_headers, monkeypatch: pytest.MonkeyPatch):
     from core.gateway.sessions_store import SessionsStore
     from core.gateway.types import HostProfileName
     from core.security.auth import APIKeyManager, RateLimiter
-    from fastapi.testclient import TestClient
 
     mock_agent = AsyncMock()
     mock_agent._initialized = True
@@ -177,10 +207,7 @@ def gateway_client(gateway_auth_headers, monkeypatch: pytest.MonkeyPatch):
         async def get(self, dependency_type, component: str | None = ""):
             if dependency_type in self._overrides:
                 return self._overrides[dependency_type]
-            if (
-                dependency_type is APIKeyManager
-                and api.state.api_key_manager is not None
-            ):
+            if dependency_type is APIKeyManager and api.state.api_key_manager is not None:
                 return api.state.api_key_manager
             return await self._base.get(dependency_type, component)
 
@@ -246,6 +273,7 @@ def _reset_env_loader_state() -> None:
 def _isolated_holix_home(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """Keep profile paths off the developer/CI machine (~/.holix)."""
     import cli.core as cli_core
+
     from core.profile import service as profile_service
 
     holix_home = tmp_path / ".holix"
@@ -269,7 +297,9 @@ def _isolated_holix_home(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Non
 
 
 @pytest.fixture(autouse=True)
-def _encryption_mode_for_crypto_tests(monkeypatch: pytest.MonkeyPatch, request: pytest.FixtureRequest):
+def _encryption_mode_for_crypto_tests(
+    monkeypatch: pytest.MonkeyPatch, request: pytest.FixtureRequest
+):
     """Default tests to HOLIX_ENCRYPTION_MODE=on; policy tests control their own mode."""
     if request.node.path.name == "test_encryption_policy.py":
         return

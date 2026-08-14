@@ -95,11 +95,7 @@ def _blocked_sensitive_path_access(
     # Always allow the configured workspace, even when jail is disabled.
     allow_under = workspace_root if workspace_root else None
     if references_holix_profiles(command, allow_under=allow_under):
-        ws_hint = (
-            f" Own workspace is allowed: `{workspace_root}`."
-            if workspace_root
-            else ""
-        )
+        ws_hint = f" Own workspace is allowed: `{workspace_root}`." if workspace_root else ""
         return (
             True,
             "Access to Holix profile directories and secrets is not allowed "
@@ -292,10 +288,7 @@ class TerminalTool(BaseTool):
                 "next dev",
                 "gunicorn ",
             )
-        ) or (
-            "python" in cmd_l
-            and any(x in cmd_l for x in ("bot.py", "polling", "getupdates"))
-        ):
+        ) or ("python" in cmd_l and any(x in cmd_l for x in ("bot.py", "polling", "getupdates"))):
             if not any(x in cmd_l for x in ("&& echo", "timeout ", "pkill", "pgrep", "ps ")):
                 return (
                     "Error: This looks like a **long-running** bot/server. "
@@ -314,9 +307,7 @@ class TerminalTool(BaseTool):
             if not allowed:
                 return f"Error: Command blocked by safety policy. {reason}"
         else:
-            blocked_danger, danger_reason = command_whitelist.blocks_dangerous_patterns(
-                command
-            )
+            blocked_danger, danger_reason = command_whitelist.blocks_dangerous_patterns(command)
             if blocked_danger:
                 return f"Error: Command blocked by safety policy. {danger_reason}"
 
@@ -354,9 +345,7 @@ class TerminalTool(BaseTool):
                 return f"Error: Command blocked. {jail_reason}"
 
             if jail and root is None:
-                return (
-                    "Error: Workspace jail is enabled but no workspace root is configured."
-                )
+                return "Error: Workspace jail is enabled but no workspace root is configured."
 
             cwd: str | None = str(root) if root is not None else None
             use_shell = command_needs_shell(command)
@@ -392,11 +381,14 @@ class TerminalTool(BaseTool):
                     process, timeout=float(timeout or 30)
                 )
 
-                output = sanitize_paths_in_text(
-                    stdout.decode("utf-8", errors="replace")
+                from core.memory.tool_content import truncate_terminal_output
+
+                output = truncate_terminal_output(
+                    sanitize_paths_in_text(stdout.decode("utf-8", errors="replace"))
                 )
-                error = sanitize_paths_in_text(
-                    stderr.decode("utf-8", errors="replace")
+                error = truncate_terminal_output(
+                    sanitize_paths_in_text(stderr.decode("utf-8", errors="replace")),
+                    max_chars=8_192,
                 )
                 return _format_process_result(
                     returncode=process.returncode or 0,
