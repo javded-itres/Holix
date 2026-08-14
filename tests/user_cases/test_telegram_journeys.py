@@ -5,10 +5,10 @@ from __future__ import annotations
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
+from core.security.confirmation_events import ConfirmationRequestEvent
 from integrations.telegram.approvals import TelegramApprovals, _register_callback_token
 from integrations.telegram.session import ChatSession
 
-from core.security.confirmation_events import ConfirmationRequestEvent
 from tests.user_cases.harness import UserCaseHarness
 from tests.user_cases.scripted_llm import Final, ToolCall
 

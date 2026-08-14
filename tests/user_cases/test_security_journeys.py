@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 import pytest
-
 from core.security.confirmation import ConfirmationChoice
+
 from tests.user_cases.harness import UserCaseHarness
 from tests.user_cases.scripted_llm import Final, ToolCall
 

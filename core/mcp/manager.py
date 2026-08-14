@@ -14,9 +14,10 @@ from core.mcp.uvx_compat import normalize_mcp_servers_uvx
 logger = logging.getLogger(__name__)
 
 try:
-    from mcp import ClientSession, StdioServerParameters
     from mcp.client.sse import sse_client
     from mcp.client.stdio import stdio_client
+
+    from mcp import ClientSession, StdioServerParameters
 
     MCP_AVAILABLE = True
 except Exception:  # pragma: no cover

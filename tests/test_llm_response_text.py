@@ -7,7 +7,6 @@ from types import SimpleNamespace
 
 import cli.core as cli_core
 import pytest
-
 from core.i18n import LocaleStore
 from core.llm.response_text import (
     assistant_message_parts,

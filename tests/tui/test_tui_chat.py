@@ -33,9 +33,9 @@ async def test_tui_20_send_message_calls_agent():
             await pilot.pause(0.40)
             if agent.run.await_count:
                 break
-        assert (
-            agent.run.await_count >= 1
-        ), f"agent.run not called; transcript={app.transcript_plain()[-400:]!r}"
+        assert agent.run.await_count >= 1, (
+            f"agent.run not called; transcript={app.transcript_plain()[-400:]!r}"
+        )
         text = app.transcript_plain()
         assert "hello holix tui" in text or "❯" in text
 

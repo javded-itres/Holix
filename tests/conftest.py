@@ -121,8 +121,9 @@ def tools_registry():
 @pytest.fixture
 def skills_manager(temp_dir):
     """Create skills manager with temp directory."""
-    from config import settings
     from core.skills.manager import SkillsManager
+
+    from config import settings
 
     original_skills_dir = settings.skills_dir
     settings.skills_dir = f"{temp_dir}/skills"
@@ -150,8 +151,6 @@ def gateway_client(gateway_auth_headers, monkeypatch: pytest.MonkeyPatch):
     import api.deps
     import api.gateway
     import api.state
-    from fastapi.testclient import TestClient
-
     from core.gateway.companions import CompanionManager
     from core.gateway.locks import GatewayLocks
     from core.gateway.profile_registry import ProfileAgentRegistry
@@ -160,6 +159,7 @@ def gateway_client(gateway_auth_headers, monkeypatch: pytest.MonkeyPatch):
     from core.gateway.sessions_store import SessionsStore
     from core.gateway.types import HostProfileName
     from core.security.auth import APIKeyManager, RateLimiter
+    from fastapi.testclient import TestClient
 
     mock_agent = AsyncMock()
     mock_agent._initialized = True
@@ -273,7 +273,6 @@ def _reset_env_loader_state() -> None:
 def _isolated_holix_home(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """Keep profile paths off the developer/CI machine (~/.holix)."""
     import cli.core as cli_core
-
     from core.profile import service as profile_service
 
     holix_home = tmp_path / ".holix"

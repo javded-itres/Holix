@@ -33,9 +33,9 @@ async def test_live_11_write_file(live_harness):
         conversation_id="live_11",
         timeout_s=300,
     )
-    assert live_harness.exists(
-        "notes/hello.txt"
-    ), f"file missing; workspace={live_harness.list_workspace()}; answer={r.text!r}"
+    assert live_harness.exists("notes/hello.txt"), (
+        f"file missing; workspace={live_harness.list_workspace()}; answer={r.text!r}"
+    )
     content = live_harness.read("notes/hello.txt")
     assert "hello-from-live-llm" in content, content
 

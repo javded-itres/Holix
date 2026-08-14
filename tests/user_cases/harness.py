@@ -11,6 +11,7 @@ from core.di.runtime_config import HolixRuntimeConfig
 from core.persistence import create_checkpointer
 from core.security.confirmation import ConfirmationChoice
 from core.security.confirmation_events import ConfirmationRequestEvent
+
 from tests.factories import make_runtime_config
 from tests.user_cases.assertions import JourneyResult, collect_final_text
 from tests.user_cases.scripted_llm import ScriptedLLM, Turn

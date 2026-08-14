@@ -5,9 +5,9 @@ from __future__ import annotations
 from unittest.mock import MagicMock
 
 import pytest
-
 from core.security.confirmation import ConfirmationChoice
 from core.security.confirmation_events import ConfirmationRequestEvent
+
 from tests.tui.harness import launch_tui, make_mock_agent
 
 pytestmark = [pytest.mark.tui, pytest.mark.integration, pytest.mark.asyncio]

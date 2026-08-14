@@ -8,8 +8,8 @@ import pytest
 from api.models import ChatCompletionRequest, Message
 from api.routers.legacy_v1 import chat_completions
 from cli.shared.commands.agent_commands import AgentCommands
-
 from core.gateway.locks import GatewayLocks
+
 from tests.user_cases.fake_host import FakeAgentHost
 from tests.user_cases.scripted_llm import Final, ToolCall
 

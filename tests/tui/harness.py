@@ -11,7 +11,6 @@ from unittest.mock import AsyncMock, MagicMock
 from cli.core import ProfileConfig, ProfileManager, init_profile
 from cli.tui.code.app import HolixCodeApp
 from cli.tui.code.widgets import CodePrompt
-
 from core.agent_events import AgentEventBus
 
 

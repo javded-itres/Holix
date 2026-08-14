@@ -5,11 +5,12 @@ from __future__ import annotations
 import asyncio
 from typing import Any
 
-from cli.shared.commands.registry import SLASH_COMMANDS
-from cli.shared.slash_input import is_mode_slash, is_models_slash, normalize_slash_input
 from core.i18n import host_locale, set_host_locale, t
 from core.plan_review.review_guard import PlanReviewChoice
 from core.security.confirmation import ConfirmationChoice
+
+from cli.shared.commands.registry import SLASH_COMMANDS
+from cli.shared.slash_input import is_mode_slash, is_models_slash, normalize_slash_input
 
 
 class AgentCommands:
@@ -319,8 +320,9 @@ class AgentCommands:
             await h._sync_telegram_menu()
 
     async def _profile(self, command: str) -> None:
-        from cli.core import ProfileManager
         from core.profile_keys import profile_has_access_key
+
+        from cli.core import ProfileManager
 
         h = self.host
         lang = host_locale(h)

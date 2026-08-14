@@ -12,7 +12,7 @@ pytestmark = [pytest.mark.live_llm, pytest.mark.llm]
 @pytest.mark.asyncio
 async def test_live_20_terminal_echo(live_harness):
     r = await live_harness.run(
-        "Run the terminal command: echo LIVE_TERMINAL_OK\n" "Report the command output.",
+        "Run the terminal command: echo LIVE_TERMINAL_OK\nReport the command output.",
         conversation_id="live_20",
         timeout_s=300,
     )

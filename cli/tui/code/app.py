@@ -14,6 +14,11 @@ from collections import deque
 from pathlib import Path
 from typing import Any
 
+from core.agent import HolixAgent
+from core.agent_events import AgentEvent
+from core.plan_review.review_events import PlanReviewRequestEvent
+from core.security.confirmation import ConfirmationChoice
+from core.security.confirmation_events import ConfirmationRequestEvent
 from rich.panel import Panel
 from rich.syntax import Syntax
 from textual import events, on, work
@@ -61,11 +66,6 @@ from cli.tui.shared.slash_suggestions import (
     match_slash_commands,
 )
 from cli.tui.shared.transcript_store import TranscriptStore, plain_from_rich_write
-from core.agent import HolixAgent
-from core.agent_events import AgentEvent
-from core.plan_review.review_events import PlanReviewRequestEvent
-from core.security.confirmation import ConfirmationChoice
-from core.security.confirmation_events import ConfirmationRequestEvent
 
 _TRANSCRIPT_DISPLAY_MAX = 400
 _TRANSCRIPT_REBUILD_EVERY = 40
@@ -933,8 +933,9 @@ class HolixCodeApp(App):
             event.stop()
 
     def _slash_commands_pool(self) -> list[tuple[str, str]]:
-        from cli.shared.commands.registry import slash_commands_for_locale
         from core.i18n import LocaleStore
+
+        from cli.shared.commands.registry import slash_commands_for_locale
 
         return slash_commands_for_locale(LocaleStore(self.profile).get())
 
@@ -1495,9 +1496,10 @@ class HolixCodeApp(App):
             return
         self.transcript_write(f"[dim]Installing '{what}'... (using core logic)[/dim]")
         try:
-            from cli.core import get_profile_manager
             from core.mcp.installer import build_config_from_popular, install_from_git
             from core.mcp.popular import get_popular_by_key
+
+            from cli.core import get_profile_manager
 
             manager = get_profile_manager()
             cfg = manager.load_profile(self.profile)
@@ -1623,8 +1625,9 @@ class HolixCodeApp(App):
             return
         self.transcript_write(f"[dim]Testing {name}...[/dim]")
         try:
-            from cli.core import get_profile_manager
             from core.mcp.manager import MCPManager
+
+            from cli.core import get_profile_manager
 
             manager = get_profile_manager()
             cfg = manager.load_profile(self.profile)

@@ -4,10 +4,11 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
-from cli.tui.modals.confirmation import ConfirmationModal
 from core.security.confirmation import ConfirmationChoice, get_action_guard
 from core.security.confirmation_events import ConfirmationRequestEvent
 from core.subagents.interaction import resolve_any_confirmation
+
+from cli.tui.modals.confirmation import ConfirmationModal
 
 if TYPE_CHECKING:
     from cli.tui.modals.stack import ModalStack

@@ -45,7 +45,7 @@ async def test_live_40_web_search_known_topic(live_harness):
 @pytest.mark.asyncio
 async def test_live_41_fetch_public_info(live_harness):
     r = await live_harness.run(
-        "What is HTTP status code 404? One sentence. " "You may use web search tools if helpful.",
+        "What is HTTP status code 404? One sentence. You may use web search tools if helpful.",
         conversation_id="live_41",
         timeout_s=300,
     )

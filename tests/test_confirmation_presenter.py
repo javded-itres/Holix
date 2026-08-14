@@ -8,7 +8,6 @@ from types import SimpleNamespace
 
 import pytest
 from cli.tui.modals.stack import ModalStack
-
 from core.agent_events import AgentEventBus
 from core.security.confirmation import (
     ActionGuard,
