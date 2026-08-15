@@ -21,7 +21,7 @@ PREDEFINED_SUBAGENTS = {
             "search the web for relevant data, read files, and synthesize findings into "
             "clear, actionable insights. Focus on accuracy and thoroughness."
         ),
-        tools=["web_search", "web_fetch", "read_file", "list_directory"],
+        tools=["web_search", "web_fetch", "read_file", "list_directory", "grep", "glob"],
         max_steps=150,
         mode="react",
         process_mode="async",
@@ -29,7 +29,6 @@ PREDEFINED_SUBAGENTS = {
         description="Research specialist — analyzes information and searches for data",
         tags=["research", "analysis", "web"],
     ),
-
     "web_researcher": SubAgentConfig(
         name="web_researcher",
         system_prompt=(
@@ -55,7 +54,6 @@ PREDEFINED_SUBAGENTS = {
         description="Smart web researcher — expands queries, searches, and synthesizes results",
         tags=["research", "web", "search", "synthesis"],
     ),
-
     "coder": SubAgentConfig(
         name="coder",
         system_prompt=(
@@ -67,7 +65,16 @@ PREDEFINED_SUBAGENTS = {
             "assuming a path is missing. Always verify your code works before "
             "reporting completion."
         ),
-        tools=["read_file", "write_file", "list_directory", "terminal", "code_executor"],
+        tools=[
+            "read_file",
+            "write_file",
+            "list_directory",
+            "grep",
+            "glob",
+            "delete_file",
+            "terminal",
+            "code_executor",
+        ],
         max_steps=150,
         mode="react",
         process_mode="async",
@@ -75,7 +82,6 @@ PREDEFINED_SUBAGENTS = {
         description="Code generation specialist — writes, edits, and debugs code",
         tags=["coding", "development", "debugging"],
     ),
-
     "analyst": SubAgentConfig(
         name="analyst",
         system_prompt=(
@@ -91,7 +97,6 @@ PREDEFINED_SUBAGENTS = {
         description="Data analysis specialist — queries databases and analyzes data",
         tags=["data", "analysis", "sql"],
     ),
-
     "reviewer": SubAgentConfig(
         name="reviewer",
         system_prompt=(
@@ -99,7 +104,7 @@ PREDEFINED_SUBAGENTS = {
             "bugs, security issues, performance problems, and style violations. "
             "Provide specific, actionable feedback with file paths and line numbers."
         ),
-        tools=["read_file", "list_directory", "terminal"],
+        tools=["read_file", "list_directory", "grep", "glob", "terminal"],
         max_steps=150,
         mode="react",
         process_mode="async",
@@ -107,7 +112,6 @@ PREDEFINED_SUBAGENTS = {
         description="Code review specialist — identifies bugs and quality issues",
         tags=["review", "quality", "security"],
     ),
-
     "writer": SubAgentConfig(
         name="writer",
         system_prompt=(
@@ -115,7 +119,7 @@ PREDEFINED_SUBAGENTS = {
             "clear, well-structured documentation, comments, README files, and "
             "user guides. Focus on clarity, completeness, and proper formatting."
         ),
-        tools=["read_file", "write_file", "list_directory"],
+        tools=["read_file", "write_file", "list_directory", "grep", "glob", "delete_file"],
         max_steps=150,
         mode="react",
         process_mode="async",

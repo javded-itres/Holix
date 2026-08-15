@@ -96,13 +96,14 @@ def wrap_holix_tool(holix_tool: BaseTool) -> StructuredTool:
 
     async def _arun(**kwargs) -> str:
         """Async executor that delegates to the Holix tool."""
-        return await holix_tool.execute(**kwargs)
+        from core.tools.base import filter_execute_kwargs
+
+        return await holix_tool.execute(**filter_execute_kwargs(holix_tool.execute, kwargs))
 
     def _run(**kwargs) -> str:
         """Sync executor — raises error since Holix tools are async."""
         raise NotImplementedError(
-            f"Tool '{holix_tool.name}' only supports async execution. "
-            "Use the async interface."
+            f"Tool '{holix_tool.name}' only supports async execution. Use the async interface."
         )
 
     return StructuredTool.from_function(

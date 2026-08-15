@@ -37,12 +37,19 @@ def default_embedding_function() -> EmbeddingFunction:
 
 
 def get_or_create_collection(client: Any, *, name: str, metadata: dict[str, str]) -> Any:
-    """Open an existing collection or create one with the shared embedder."""
+    """Open an existing collection or create one with the shared embedder.
+
+    Always pass our CPU embedder. Chroma's ``get_collection(name)`` default is
+    ``DefaultEmbeddingFunction`` → ``ONNXMiniLM_L6_V2()`` with **all** ONNX
+    providers. On Apple Silicon that picks ``CoreMLExecutionProvider`` and
+    wakes the local GPU on every memory/skill query (every chat turn).
+    """
+    embedder = default_embedding_function()
     try:
-        return client.get_collection(name)
+        return client.get_collection(name, embedding_function=embedder)
     except Exception:
         return client.create_collection(
             name=name,
             metadata=metadata,
-            embedding_function=default_embedding_function(),
+            embedding_function=embedder,
         )

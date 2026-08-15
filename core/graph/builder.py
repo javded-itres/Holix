@@ -178,6 +178,12 @@ async def run_graph_loop(
         and getattr(cfg, "langgraph_checkpoint_db_path", None)
     )
     db_path = cfg.langgraph_checkpoint_db_path if cfg else None
+    checkpoint_auto_prune = bool(getattr(cfg, "checkpoint_auto_prune", True)) if cfg else True
+    checkpoint_max_bytes = (
+        int(getattr(cfg, "checkpoint_max_bytes", 200 * 1024 * 1024) or 0)
+        if cfg
+        else 200 * 1024 * 1024
+    )
 
     from core.i18n.live_ui import live_holix_thinking_label
     from core.profile.soul import profile_name_from_agent
@@ -216,6 +222,8 @@ async def run_graph_loop(
         async with async_checkpointer(
             use_persistent=use_persistent,
             db_path=db_path,
+            max_bytes=checkpoint_max_bytes,
+            auto_prune=checkpoint_auto_prune,
         ) as checkpointer:
             compiled_graph = build_holix_graph(
                 agent=agent,
@@ -227,9 +235,7 @@ async def run_graph_loop(
 
         from core.llm.response_text import sanitize_assistant_visible_text
 
-        final_text = sanitize_assistant_visible_text(
-            final_state.get("final_response") or ""
-        )
+        final_text = sanitize_assistant_visible_text(final_state.get("final_response") or "")
         if (
             final_text
             and not is_placeholder_final(final_text)

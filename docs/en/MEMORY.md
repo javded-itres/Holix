@@ -15,6 +15,7 @@ Data path: `~/.holix/profiles/<name>/data/memory/` (encrypted when [profile encr
 | Reflexion episodes | Quality critiques / retries (`metadata.type=reflexion` or `self_refinement`) |
 | Semantic (Chroma) | Embeddings for `/memory` and `holix memory search` |
 | Skills index | Chroma index for `holix skills search` (related, not chat memory) |
+| LangGraph checkpoints | Technical graph-state snapshots in `checkpoints.db` (not chat/LTM knowledge) |
 
 The agent retrieves relevant past context automatically during runs; you can also search explicitly.
 
@@ -22,10 +23,30 @@ The agent retrieves relevant past context automatically during runs; you can als
 
 When **self-refinement** is enabled (default), each evaluate/retry cycle may store:
 
-- **Episodic** — quality score, improvement areas, accept vs retry  
-- **Strategic** (on retry) — short “when quality is low on X, apply …” tips  
+- **Episodic** — quality score, improvement areas, accept vs retry
+- **Strategic** (on retry) — short “when quality is low on X, apply …” tips
 
 See [EXECUTION_MODES.md](EXECUTION_MODES.md#reflexion-self-critique).
+
+### LangGraph `checkpoints.db` size guard
+
+Each graph run may append state to `data/memory/checkpoints.db`. This file is **not** conversation or LTM memory; it only stores LangGraph thread state.
+
+When the on-disk bundle (`checkpoints.db` + WAL/SHM) exceeds a limit, Holix **deletes it and recreates an empty DB** on the next graph open. Defaults:
+
+| Setting | Env | Default |
+|---------|-----|---------|
+| Auto prune | `HOLIX_CHECKPOINT_AUTO_PRUNE` | `true` |
+| Max size (MiB) | `HOLIX_CHECKPOINT_MAX_MB` | `200` |
+
+Set `HOLIX_CHECKPOINT_MAX_MB=0` to disable size-based reset. Example in profile `.env`:
+
+```bash
+HOLIX_CHECKPOINT_MAX_MB=200
+HOLIX_CHECKPOINT_AUTO_PRUNE=true
+```
+
+Manual wipe (agent idle): `rm -f ~/.holix/profiles/<name>/data/memory/checkpoints.db*`. Full profile data wipe: `holix clear`.
 
 ---
 

@@ -62,6 +62,11 @@ from core.llm.step_timeout import (
     llm_step_timeout_message,
     reasoning_only_abort_s,
 )
+from core.llm.tool_calls import (
+    extract_textual_tool_calls,
+    looks_like_leaked_tool_markup,
+    strip_tool_call_markup,
+)
 from core.llm.usage import (
     completion_text_from_message,
     emit_llm_call_usage,
@@ -263,8 +268,7 @@ def _maybe_honesty_retry(
         messages=messages,
     ):
         logger.warning(
-            "Action honesty nudge: blocking unproven/empty-tools claim "
-            "(conversation_id=%s)",
+            "Action honesty nudge: blocking unproven/empty-tools claim (conversation_id=%s)",
             state.get("conversation_id", ""),
         )
         return honesty_retry_update(
@@ -281,8 +285,7 @@ def _maybe_honesty_retry(
         messages=messages,
     ):
         logger.warning(
-            "Action honesty refusal: model denied visible tool listings "
-            "(conversation_id=%s)",
+            "Action honesty refusal: model denied visible tool listings (conversation_id=%s)",
             state.get("conversation_id", ""),
         )
         return honesty_refusal_update(
@@ -302,8 +305,7 @@ def _maybe_honesty_retry(
         messages=messages,
     ):
         logger.warning(
-            "Action honesty refusal: SDD fill without sdd_write_artifact "
-            "(conversation_id=%s)",
+            "Action honesty refusal: SDD fill without sdd_write_artifact (conversation_id=%s)",
             state.get("conversation_id", ""),
         )
         return honesty_refusal_update(
@@ -319,8 +321,7 @@ def _maybe_honesty_retry(
         messages=messages,
     ):
         logger.warning(
-            "Action honesty refusal: status monologue without tools "
-            "(conversation_id=%s)",
+            "Action honesty refusal: status monologue without tools (conversation_id=%s)",
             state.get("conversation_id", ""),
         )
         return honesty_refusal_update(
@@ -355,7 +356,6 @@ def _agent_pipeline(state: dict | None, agent: Any | None = None) -> str:
 
     cfg = getattr(agent, "config", None) if agent else None
     return pipeline_from_state(state if isinstance(state, dict) else None, cfg)
-
 
 
 def _llm_step_timeout_s(agent) -> float:
@@ -459,9 +459,7 @@ async def react_node(state: HolixGraphState, config: RunnableConfig) -> dict:
 
     # Auto-compress before each LLM step (tool-heavy runs can skip compress between react hops)
     messages = list(state.get("messages", []))
-    messages, messages_patch = await _compress_messages_if_needed(
-        agent, conversation_id, messages
-    )
+    messages, messages_patch = await _compress_messages_if_needed(agent, conversation_id, messages)
 
     # Build API messages
     if agent and hasattr(agent, "context_manager") and agent.context_manager:
@@ -469,9 +467,9 @@ async def react_node(state: HolixGraphState, config: RunnableConfig) -> dict:
     else:
         from core.llm.api_messages import prepare_conversation_for_llm
 
-        api_messages = [{"role": "system", "content": system_prompt}] + prepare_conversation_for_llm(
-            messages[-20:]
-        )
+        api_messages = [
+            {"role": "system", "content": system_prompt}
+        ] + prepare_conversation_for_llm(messages[-20:])
 
     # Get runtime config
     client: AsyncOpenAI = agent.client if agent else None
@@ -517,12 +515,9 @@ async def react_node(state: HolixGraphState, config: RunnableConfig) -> dict:
 
     agent_slot = getattr(agent, "agent_slot", "main") if agent else "main"
     model_manager = getattr(agent, "model_manager", None) if agent else None
-    primary_override = (
-        getattr(agent, "active_model_config", None) if agent else None
-    )
+    primary_override = getattr(agent, "active_model_config", None) if agent else None
     llm_timeout_s = _llm_step_timeout_s(agent)
     max_tokens = _llm_max_tokens(agent, model_manager, agent_slot, state)
-
 
     def _on_fallback_switch(cfg) -> None:
         if agent and hasattr(agent, "set_active_model_config"):
@@ -588,9 +583,7 @@ async def react_node(state: HolixGraphState, config: RunnableConfig) -> dict:
             if agent and hasattr(agent, "emit"):
                 agent.emit(
                     ThinkingEvent(
-                        message=(
-                            "Model stuck in reasoning — retrying plan step with tool nudge"
-                        ),
+                        message=("Model stuck in reasoning — retrying plan step with tool nudge"),
                         conversation_id=conversation_id,
                     )
                 )
@@ -681,7 +674,7 @@ async def _react_non_streaming(
     conversation_id = state.get("conversation_id", "default")
     choice: str | dict[str, Any] = tool_choice or "auto"
 
-    async def _call_llm():
+    async def _call_llm(active_choice: str | dict[str, Any]):
         if model_manager:
             from core.models.fallback import chat_completions_with_fallback
 
@@ -692,7 +685,7 @@ async def _react_non_streaming(
                 on_switch=on_switch,
                 messages=api_messages,
                 tools=tools,
-                tool_choice=choice,
+                tool_choice=active_choice,
                 temperature=temperature,
                 max_tokens=max_tokens,
             )
@@ -700,14 +693,37 @@ async def _react_non_streaming(
             model=model,
             messages=api_messages,
             tools=tools,
-            tool_choice=choice,
+            tool_choice=active_choice,
             temperature=temperature,
             max_tokens=max_tokens,
         )
 
     t0 = time.monotonic()
     async with asyncio.timeout(llm_timeout_s):
-        response = await _call_llm()
+        try:
+            response = await _call_llm(choice)
+        except Exception as exc:
+            if not _is_unsupported_tool_choice_error(exc, choice):
+                raise
+            logger.warning(
+                "Backend rejected tool_choice=%r (model=%s); retrying with auto",
+                choice,
+                model,
+            )
+            choice = "auto"
+            response = await _call_llm(choice)
+        if (response is None or not getattr(response, "choices", None)) and _is_forced_tool_choice(
+            choice
+        ):
+            logger.warning(
+                "Empty LLM response for tool_choice=%r (model=%s); retrying with auto",
+                choice,
+                model,
+            )
+            choice = "auto"
+            response = await _call_llm(choice)
+    if response is None or not getattr(response, "choices", None):
+        raise RuntimeError("LLM returned empty response")
     duration_ms = (time.monotonic() - t0) * 1000.0
 
     message = response.choices[0].message
@@ -764,12 +780,14 @@ async def _react_non_streaming(
         # Emit tool call start events
         for tc in message.tool_calls:
             if agent and hasattr(agent, "emit"):
-                agent.emit(ToolCallStartEvent(
-                    tool_name=tc.function.name,
-                    tool_id=tc.id,
-                    arguments_raw=tc.function.arguments,
-                    conversation_id=conversation_id,
-                ))
+                agent.emit(
+                    ToolCallStartEvent(
+                        tool_name=tc.function.name,
+                        tool_id=tc.id,
+                        arguments_raw=tc.function.arguments,
+                        conversation_id=conversation_id,
+                    )
+                )
 
         return {
             "messages": messages,
@@ -777,6 +795,18 @@ async def _react_non_streaming(
             "step_count": step_count,
             "is_final": False,
         }
+
+    recovered = _textual_tool_step_result(
+        state=state,
+        agent=agent,
+        conversation_id=conversation_id,
+        step_count=step_count,
+        content=raw_assistant,
+        tools=tools,
+    )
+    if recovered is not None:
+        return recovered
+
     else:
         # Final answer
         msg_content, msg_reasoning = assistant_message_parts(message)
@@ -810,9 +840,7 @@ async def _react_non_streaming(
                 assistant_already_appended=False,
             )
 
-        final_response = _non_empty_final(
-            final_response, profile_name=profile_name
-        )
+        final_response = _non_empty_final(final_response, profile_name=profile_name)
         msg_dict["content"] = final_response
         messages.append(msg_dict)
 
@@ -853,8 +881,65 @@ async def _react_non_streaming(
 
 def _has_streaming_tool_calls(tool_calls_dict: dict[int, dict[str, Any]]) -> bool:
     return any(
-        (tc.get("function") or {}).get("name", "").strip()
-        for tc in tool_calls_dict.values()
+        (tc.get("function") or {}).get("name", "").strip() for tc in tool_calls_dict.values()
+    )
+
+
+def _is_forced_tool_choice(choice: str | dict[str, Any] | None) -> bool:
+    if isinstance(choice, dict):
+        return True
+    return str(choice or "").strip().lower() not in {"", "auto", "none"}
+
+
+def _is_unsupported_tool_choice_error(
+    exc: BaseException,
+    choice: str | dict[str, Any] | None,
+) -> bool:
+    """True when the backend rejected tool_choice=required / a forced function."""
+    if not _is_forced_tool_choice(choice):
+        return False
+    status = getattr(exc, "status_code", None)
+    if status in (400, 422):
+        return True
+    msg = str(exc).lower()
+    return any(
+        token in msg
+        for token in (
+            "tool_choice",
+            "synthesised arguments",
+            "schema-invalid tool call",
+            "does not support",
+            "invalid parameter",
+        )
+    )
+
+
+def _textual_tool_step_result(
+    *,
+    state,
+    agent,
+    conversation_id: str,
+    step_count: int,
+    content: str,
+    tools: list[Any] | None,
+) -> dict[str, Any] | None:
+    """Recover tool calls leaked as assistant text (Qwen/Hermes XML)."""
+    calls = extract_textual_tool_calls(content, tools=tools)
+    if not calls:
+        return None
+    visible = strip_tool_call_markup(content)
+    logger.info(
+        "Recovered %s textual tool call(s) from assistant content (conversation_id=%s)",
+        len(calls),
+        conversation_id,
+    )
+    return _streaming_tool_calls_step_result(
+        state=state,
+        agent=agent,
+        conversation_id=conversation_id,
+        step_count=step_count,
+        current_content=visible,
+        tool_calls_dict={idx: call for idx, call in enumerate(calls)},
     )
 
 
@@ -993,7 +1078,8 @@ async def _react_streaming(
     choice: str | dict[str, Any] = tool_choice or "auto"
 
     async def _open_stream():
-        kwargs = {
+        nonlocal choice
+        kwargs: dict[str, Any] = {
             "messages": api_messages,
             "tools": tools,
             "tool_choice": choice,
@@ -1004,23 +1090,27 @@ async def _react_streaming(
         }
 
         async def _create(llm_client, model_name: str):
+            nonlocal choice
             try:
-                return await llm_client.chat.completions.create(
-                    model=model_name, **kwargs
-                )
+                return await llm_client.chat.completions.create(model=model_name, **kwargs)
             except TypeError:
                 # Older/local clients may not accept stream_options
                 kwargs.pop("stream_options", None)
-                return await llm_client.chat.completions.create(
-                    model=model_name, **kwargs
-                )
+                return await llm_client.chat.completions.create(model=model_name, **kwargs)
             except Exception as exc:
                 # Some OpenAI-compatible servers reject stream_options
                 if "stream_options" in kwargs and "stream_options" in str(exc).lower():
                     kwargs.pop("stream_options", None)
-                    return await llm_client.chat.completions.create(
-                        model=model_name, **kwargs
+                    return await llm_client.chat.completions.create(model=model_name, **kwargs)
+                if _is_unsupported_tool_choice_error(exc, kwargs.get("tool_choice")):
+                    logger.warning(
+                        "Backend rejected streaming tool_choice=%r (model=%s); retrying with auto",
+                        kwargs.get("tool_choice"),
+                        model_name,
                     )
+                    kwargs["tool_choice"] = "auto"
+                    choice = "auto"
+                    return await llm_client.chat.completions.create(model=model_name, **kwargs)
                 raise
 
         if model_manager:
@@ -1079,251 +1169,271 @@ async def _react_streaming(
 
     stream_response = await _open_stream()
     async for chunk in _iter_stream_chunks(stream_response, llm_timeout_s):
-            chunk_usage = usage_dict_from_stream_chunk(chunk)
-            if chunk_usage:
-                stream_usage = chunk_usage
-            if not getattr(chunk, "choices", None):
-                continue
-            delta = chunk.choices[0].delta
-            content_delta, reasoning_delta = stream_delta_parts(delta)
+        chunk_usage = usage_dict_from_stream_chunk(chunk)
+        if chunk_usage:
+            stream_usage = chunk_usage
+        if not getattr(chunk, "choices", None):
+            continue
+        delta = chunk.choices[0].delta
+        content_delta, reasoning_delta = stream_delta_parts(delta)
 
-            # Content / reasoning streaming (reasoning models may only fill reasoning_*)
-            if content_delta:
-                current_content += content_delta
-                # Abort runaway model loops early (ABAB monologue, glued «…Поняла»).
-                if len(current_content) >= 80 and is_pathological_repetition(
+        # Content / reasoning streaming (reasoning models may only fill reasoning_*)
+        if content_delta:
+            current_content += content_delta
+            # Abort runaway model loops early (ABAB monologue, glued «…Поняла»).
+            if len(current_content) >= 80 and is_pathological_repetition(
+                current_content, min_repeats=3
+            ):
+                before = len(current_content)
+                current_content = collapse_repetitive_text(current_content)
+                if len(current_content) > 400 and is_pathological_repetition(
                     current_content, min_repeats=3
                 ):
-                    before = len(current_content)
-                    current_content = collapse_repetitive_text(current_content)
-                    if len(current_content) > 400 and is_pathological_repetition(
-                        current_content, min_repeats=3
-                    ):
-                        from core.llm.response_text import _hard_trim_loop
+                    from core.llm.response_text import _hard_trim_loop
 
-                        current_content = _hard_trim_loop(current_content)
-                    logger.warning(
-                        "Aborted streaming content loop (model=%s, step=%s, %s→%s chars)",
-                        model,
-                        step_count,
-                        before,
-                        len(current_content),
-                    )
-                    last_finish_reason = last_finish_reason or "stop"
-                    # Do not emit further monologue deltas — final path sanitizes again.
-                    break
-                # After successful listings, buffer text until the step finishes so
-                # «Список пуст…» is not painted into Studio before we can scrub it.
-                prior_listing = has_successful_workspace_listing(
-                    state.get("messages"),
-                    tool_results=state.get("tool_results"),
+                    current_content = _hard_trim_loop(current_content)
+                logger.warning(
+                    "Aborted streaming content loop (model=%s, step=%s, %s→%s chars)",
+                    model,
+                    step_count,
+                    before,
+                    len(current_content),
                 )
-                # Buffer pure status monologue («Да. Смотрю…») — do not spam Studio UI.
-                # Honesty will force tools or refuse; painting deltas makes loops look worse.
-                buffer_status_mono = (
-                    not tool_calls_dict
-                    and looks_like_status_monologue(current_content)
-                )
-                if (
-                    agent
-                    and hasattr(agent, "emit")
-                    and not prior_listing
-                    and not buffer_status_mono
-                ):
-                    agent.emit(AssistantDeltaEvent(
+                last_finish_reason = last_finish_reason or "stop"
+                # Do not emit further monologue deltas — final path sanitizes again.
+                break
+            # After successful listings, buffer text until the step finishes so
+            # «Список пуст…» is not painted into Studio before we can scrub it.
+            prior_listing = has_successful_workspace_listing(
+                state.get("messages"),
+                tool_results=state.get("tool_results"),
+            )
+            # Buffer pure status monologue («Да. Смотрю…») — do not spam Studio UI.
+            # Honesty will force tools or refuse; painting deltas makes loops look worse.
+            buffer_status_mono = not tool_calls_dict and looks_like_status_monologue(
+                current_content
+            )
+            # Do not paint ``tool_call`` / ``<tool_call>`` fences into Studio.
+            buffer_tool_markup = looks_like_leaked_tool_markup(current_content)
+            if (
+                agent
+                and hasattr(agent, "emit")
+                and not prior_listing
+                and not buffer_status_mono
+                and not buffer_tool_markup
+            ):
+                agent.emit(
+                    AssistantDeltaEvent(
                         content=content_delta,
                         accumulated=current_content,
                         conversation_id=conversation_id,
-                    ))
-            if reasoning_delta:
-                # Reasoning is internal; do not stream it to messenger progress UIs.
-                current_reasoning += reasoning_delta
-                if reasoning_only_deadline is None:
-                    reasoning_only_deadline = (
-                        time.monotonic() + reasoning_only_abort_s(llm_timeout_s)
                     )
-                if (
-                    not current_content.strip()
-                    and not tool_calls_dict
-                    and reasoning_only_deadline is not None
-                    and time.monotonic() > reasoning_only_deadline
-                ):
-                    raise LLMStepTimeoutError(
-                        llm_step_timeout_message(
-                            reasoning_only_abort_s(llm_timeout_s),
-                            model=model,
-                            reasoning_only=True,
-                        )
-                    )
-                if (
-                    not current_content.strip()
-                    and agent
-                    and hasattr(agent, "emit")
-                    and not reasoning_status_emitted
-                ):
-                    agent.emit(
-                        ThinkingEvent(
-                            message=live_reasoning_label(profile_name_from_agent(agent)),
-                            conversation_id=conversation_id,
-                        )
-                    )
-                    reasoning_status_emitted = True
-
-            # Tool call streaming (accumulate deltas)
-            if delta.tool_calls:
-                for tc_delta in delta.tool_calls:
-                    idx = tc_delta.index
-                    if idx not in tool_calls_dict:
-                        tool_calls_dict[idx] = {
-                            "id": "",
-                            "type": "function",
-                            "function": {"name": "", "arguments": ""},
-                        }
-                    if tc_delta.id:
-                        tool_calls_dict[idx]["id"] = tc_delta.id
-                    if tc_delta.function:
-                        if tc_delta.function.name:
-                            tool_calls_dict[idx]["function"]["name"] = tc_delta.function.name
-                        if tc_delta.function.arguments:
-                            tool_calls_dict[idx]["function"]["arguments"] += tc_delta.function.arguments
-
-            finish_reason = chunk.choices[0].finish_reason
-            if finish_reason:
-                last_finish_reason = finish_reason
-
-            if finish_reason in ("stop", "tool_calls", "length") and _has_streaming_tool_calls(
-                tool_calls_dict
+                )
+        if reasoning_delta:
+            # Reasoning is internal; do not stream it to messenger progress UIs.
+            current_reasoning += reasoning_delta
+            if reasoning_only_deadline is None:
+                reasoning_only_deadline = time.monotonic() + reasoning_only_abort_s(llm_timeout_s)
+            if (
+                not current_content.strip()
+                and not tool_calls_dict
+                and reasoning_only_deadline is not None
+                and time.monotonic() > reasoning_only_deadline
             ):
+                raise LLMStepTimeoutError(
+                    llm_step_timeout_message(
+                        reasoning_only_abort_s(llm_timeout_s),
+                        model=model,
+                        reasoning_only=True,
+                    )
+                )
+            if (
+                not current_content.strip()
+                and agent
+                and hasattr(agent, "emit")
+                and not reasoning_status_emitted
+            ):
+                agent.emit(
+                    ThinkingEvent(
+                        message=live_reasoning_label(profile_name_from_agent(agent)),
+                        conversation_id=conversation_id,
+                    )
+                )
+                reasoning_status_emitted = True
+
+        # Tool call streaming (accumulate deltas)
+        if delta.tool_calls:
+            for tc_delta in delta.tool_calls:
+                idx = tc_delta.index
+                if idx not in tool_calls_dict:
+                    tool_calls_dict[idx] = {
+                        "id": "",
+                        "type": "function",
+                        "function": {"name": "", "arguments": ""},
+                    }
+                if tc_delta.id:
+                    tool_calls_dict[idx]["id"] = tc_delta.id
+                if tc_delta.function:
+                    if tc_delta.function.name:
+                        tool_calls_dict[idx]["function"]["name"] = tc_delta.function.name
+                    if tc_delta.function.arguments:
+                        tool_calls_dict[idx]["function"]["arguments"] += tc_delta.function.arguments
+
+        finish_reason = chunk.choices[0].finish_reason
+        if finish_reason:
+            last_finish_reason = finish_reason
+
+        if finish_reason in ("stop", "tool_calls", "length") and _has_streaming_tool_calls(
+            tool_calls_dict
+        ):
+            _emit_stream_usage_once()
+            return _streaming_tool_step_or_nudge(
+                state=state,
+                agent=agent,
+                conversation_id=conversation_id,
+                step_count=step_count,
+                current_content=current_content,
+                tool_calls_dict=tool_calls_dict,
+                finish_reason=finish_reason,
+            )
+
+        if finish_reason in ("stop", "length"):
+            recovered = _textual_tool_step_result(
+                state=state,
+                agent=agent,
+                conversation_id=conversation_id,
+                step_count=step_count,
+                content=current_content,
+                tools=tools,
+            )
+            if recovered is not None:
                 _emit_stream_usage_once()
-                return _streaming_tool_step_or_nudge(
-                    state=state,
-                    agent=agent,
-                    conversation_id=conversation_id,
-                    step_count=step_count,
-                    current_content=current_content,
-                    tool_calls_dict=tool_calls_dict,
-                    finish_reason=finish_reason,
-                )
+                return recovered
+            # finish_reason=length: model hit max_tokens — often mid monologue loop.
+            # Resolve + honesty before accepting as final (same path as stop).
+            _pipe = _agent_pipeline(state, agent)
+            visible_content = strip_tool_call_markup(current_content) or current_content
+            final_response = resolve_assistant_text(
+                content=visible_content,
+                reasoning_content=current_reasoning,
+                finish_reason=finish_reason,
+                model=model,
+                profile_name=profile_name_from_agent(agent) if agent else None,
+                agent_pipeline=_pipe,
+            )
+            if not (final_response or "").strip():
+                if finish_reason == "length":
+                    # Explicit truncation notice already preferred; if empty, stop.
+                    from core.llm.response_text import reasoning_only_user_message
 
-            if finish_reason in ("stop", "length"):
-                # finish_reason=length: model hit max_tokens — often mid monologue loop.
-                # Resolve + honesty before accepting as final (same path as stop).
-                _pipe = _agent_pipeline(state, agent)
-                final_response = resolve_assistant_text(
-                    content=current_content,
-                    reasoning_content=current_reasoning,
-                    finish_reason=finish_reason,
-                    model=model,
-                    profile_name=profile_name_from_agent(agent) if agent else None,
-                    agent_pipeline=_pipe,
-                )
-                if not (final_response or "").strip():
-                    if finish_reason == "length":
-                        # Explicit truncation notice already preferred; if empty, stop.
-                        from core.llm.response_text import reasoning_only_user_message
-
-                        final_response = resolve_assistant_text(
-                            content="",
-                            finish_reason="length",
-                            model=model,
-                            profile_name=profile_name_from_agent(agent) if agent else None,
-                            agent_pipeline=_pipe,
-                        ) or reasoning_only_user_message(
-                            profile_name=profile_name_from_agent(agent) if agent else None
-                        )
-                    else:
-                        logger.warning(
-                            "Empty streaming LLM response (model=%s); retrying non-streaming",
-                            model,
-                        )
-                        # Non-streaming retry will emit its own usage event.
-                        return await _react_non_streaming(
-                            state,
-                            agent,
-                            api_messages,
-                            step_count,
-                            client,
-                            model,
-                            tools,
-                            temperature,
-                            model_manager=model_manager,
-                            agent_slot=agent_slot,
-                            on_switch=on_switch,
-                            llm_timeout_s=min(45.0, llm_timeout_s),
-                            max_tokens=max_tokens,
-                        )
-                messages = list(state.get("messages", []))
-                # If we buffered stream text after listings, scrub before finalizing.
-                final_response = scrub_false_empty_claim_content(
+                    final_response = resolve_assistant_text(
+                        content="",
+                        finish_reason="length",
+                        model=model,
+                        profile_name=profile_name_from_agent(agent) if agent else None,
+                        agent_pipeline=_pipe,
+                    ) or reasoning_only_user_message(
+                        profile_name=profile_name_from_agent(agent) if agent else None
+                    )
+                else:
+                    logger.warning(
+                        "Empty streaming LLM response (model=%s); retrying non-streaming",
+                        model,
+                    )
+                    # Non-streaming retry will emit its own usage event.
+                    return await _react_non_streaming(
+                        state,
+                        agent,
+                        api_messages,
+                        step_count,
+                        client,
+                        model,
+                        tools,
+                        temperature,
+                        model_manager=model_manager,
+                        agent_slot=agent_slot,
+                        on_switch=on_switch,
+                        llm_timeout_s=min(45.0, llm_timeout_s),
+                        max_tokens=max_tokens,
+                    )
+            messages = list(state.get("messages", []))
+            # If we buffered stream text after listings, scrub before finalizing.
+            final_response = (
+                scrub_false_empty_claim_content(
                     final_response,
                     state.get("messages"),
                     tool_results=state.get("tool_results"),
-                ) or final_response
-                messages.append({"role": "assistant", "content": final_response})
+                )
+                or final_response
+            )
+            messages.append({"role": "assistant", "content": final_response})
 
-                if agent and hasattr(agent, "memory"):
-                    await agent.memory.save_message(conversation_id, "assistant", final_response)
+            if agent and hasattr(agent, "memory"):
+                await agent.memory.save_message(conversation_id, "assistant", final_response)
 
-                if plan_step_active(state):
-                    _emit_stream_usage_once(completion_text=final_response)
-                    return await _plan_step_result(
-                        state,
-                        agent=agent,
-                        conversation_id=conversation_id,
-                        messages=messages,
-                        step_count=step_count,
-                        final_response=final_response,
-                        assistant_already_appended=True,
-                    )
-
-                honesty = _maybe_honesty_retry(
+            if plan_step_active(state):
+                _emit_stream_usage_once(completion_text=final_response)
+                return await _plan_step_result(
                     state,
+                    agent=agent,
+                    conversation_id=conversation_id,
                     messages=messages,
                     step_count=step_count,
                     final_response=final_response,
                     assistant_already_appended=True,
                 )
-                if honesty is not None:
-                    _emit_stream_usage_once(completion_text=final_response)
-                    return honesty
 
-                if agent and hasattr(agent, "memory"):
-                    await agent.memory.save_message(conversation_id, "assistant", final_response)
-
+            honesty = _maybe_honesty_retry(
+                state,
+                messages=messages,
+                step_count=step_count,
+                final_response=final_response,
+                assistant_already_appended=True,
+            )
+            if honesty is not None:
                 _emit_stream_usage_once(completion_text=final_response)
-                # Emit full text now if we suppressed live deltas after tool listings.
-                if has_successful_workspace_listing(
+                return honesty
+
+            if agent and hasattr(agent, "memory"):
+                await agent.memory.save_message(conversation_id, "assistant", final_response)
+
+            _emit_stream_usage_once(completion_text=final_response)
+            # Emit full text now if we suppressed live deltas after tool listings.
+            if (
+                has_successful_workspace_listing(
                     state.get("messages"),
                     tool_results=state.get("tool_results"),
-                ) and (final_response or "").strip():
-                    if agent and hasattr(agent, "emit"):
-                        agent.emit(
-                            AssistantDeltaEvent(
-                                content=final_response,
-                                accumulated=final_response,
-                                conversation_id=conversation_id,
-                            )
-                        )
-                # Defer FinalResponseEvent to run_graph_loop (after Reflexion).
-                return {
-                    "messages": messages,
-                    "step_count": step_count,
-                    "is_final": True,
-                    "final_response": final_response,
-                    "tool_calls": [],
-                }
-
-            elif finish_reason == "tool_calls":
-                _emit_stream_usage_once()
-                return _streaming_tool_step_or_nudge(
-                    state=state,
-                    agent=agent,
-                    conversation_id=conversation_id,
-                    step_count=step_count,
-                    current_content=current_content,
-                    tool_calls_dict=tool_calls_dict,
-                    finish_reason=finish_reason,
                 )
+                and (final_response or "").strip()
+            ):
+                if agent and hasattr(agent, "emit"):
+                    agent.emit(
+                        AssistantDeltaEvent(
+                            content=final_response,
+                            accumulated=final_response,
+                            conversation_id=conversation_id,
+                        )
+                    )
+            # Defer FinalResponseEvent to run_graph_loop (after Reflexion).
+            return {
+                "messages": messages,
+                "step_count": step_count,
+                "is_final": True,
+                "final_response": final_response,
+                "tool_calls": [],
+            }
+
+        elif finish_reason == "tool_calls":
+            _emit_stream_usage_once()
+            return _streaming_tool_step_or_nudge(
+                state=state,
+                agent=agent,
+                conversation_id=conversation_id,
+                step_count=step_count,
+                current_content=current_content,
+                tool_calls_dict=tool_calls_dict,
+                finish_reason=finish_reason,
+            )
 
     if _has_streaming_tool_calls(tool_calls_dict):
         _emit_stream_usage_once()
@@ -1337,9 +1447,22 @@ async def _react_streaming(
             finish_reason=last_finish_reason,
         )
 
-    # Stream ended without an explicit finish_reason — treat as final
-    final_response = resolve_assistant_text(
+    recovered = _textual_tool_step_result(
+        state=state,
+        agent=agent,
+        conversation_id=conversation_id,
+        step_count=step_count,
         content=current_content,
+        tools=tools,
+    )
+    if recovered is not None:
+        _emit_stream_usage_once()
+        return recovered
+
+    # Stream ended without an explicit finish_reason — treat as final
+    visible_content = strip_tool_call_markup(current_content) or current_content
+    final_response = resolve_assistant_text(
+        content=visible_content,
         reasoning_content=current_reasoning,
         finish_reason=last_finish_reason,
         model=model,
@@ -1436,14 +1559,14 @@ def _build_system_prompt_from_state(state: HolixGraphState, agent=None) -> str:
     relevant_strategies = state.get("relevant_strategies", [])
     strategies_text = ""
     if relevant_strategies and agent and hasattr(agent, "memory"):
-        strategies_text = agent.memory.strategic.format_strategies_for_prompt(
-            relevant_strategies
-        )
+        strategies_text = agent.memory.strategic.format_strategies_for_prompt(relevant_strategies)
 
     # Combine memories
     combined_memories = memories_text
     if strategies_text:
-        combined_memories = f"{memories_text}\n\n{strategies_text}" if memories_text else strategies_text
+        combined_memories = (
+            f"{memories_text}\n\n{strategies_text}" if memories_text else strategies_text
+        )
 
     # Inject plan step context if in plan_and_execute/hybrid mode
     plan_context = ""
@@ -1465,12 +1588,14 @@ def _build_system_prompt_from_state(state: HolixGraphState, agent=None) -> str:
             prev_steps = []
             for i in range(current_step_idx):
                 s = plan_steps[i]
-                prev_steps.append(f"  Step {s.get('step', i+1)}: {s.get('description', '')[:80]}")
+                prev_steps.append(f"  Step {s.get('step', i + 1)}: {s.get('description', '')[:80]}")
             plan_context += "\n## Previous Steps Completed\n" + "\n".join(prev_steps) + "\n"
 
     # Append plan context to combined memories
     if plan_context:
-        combined_memories = f"{combined_memories}\n{plan_context}" if combined_memories else plan_context
+        combined_memories = (
+            f"{combined_memories}\n{plan_context}" if combined_memories else plan_context
+        )
 
     # Meta-agent strategic hint (pre-thinking)
     meta = state.get("meta_decision") or {}
@@ -1478,7 +1603,9 @@ def _build_system_prompt_from_state(state: HolixGraphState, agent=None) -> str:
         hint = str(meta.get("context_hint") or "").strip()
         if hint:
             block = f"\n\n## Meta-agent guidance\n{hint}\n"
-            combined_memories = f"{combined_memories}{block}" if combined_memories else block.strip()
+            combined_memories = (
+                f"{combined_memories}{block}" if combined_memories else block.strip()
+            )
 
     # Prior Reflexion notes this turn (verbal self-reflection memory)
     reflection_log = list(state.get("reflection_log") or [])

@@ -196,6 +196,7 @@ def run_sub_agent_in_process(
     if mcp_servers and getattr(config, "mcp_servers", None):
         try:
             from core.mcp.manager import MCPManager
+
             mcp_mgr = MCPManager({k: v for k, v in mcp_servers.items() if k in config.mcp_servers})
             loop.run_until_complete(mcp_mgr.connect_all())
             loop.run_until_complete(
@@ -217,6 +218,7 @@ def run_sub_agent_in_process(
             # Override settings paths before creating manager
             from config import settings
             from core.memory.manager import LongTermMemoryManager
+
             settings.ltm_db_path = ltm_db_path
             if vector_db_path:
                 settings.vector_db_path = vector_db_path
@@ -272,10 +274,12 @@ def run_sub_agent_in_process(
             for ep in context.get("episodic", []):
                 memory_parts.append(f"[Past experience]: {ep.get('content', '')[:200]}")
             if memory_parts:
-                messages.append({
-                    "role": "system",
-                    "content": "Relevant context:\n" + "\n".join(memory_parts),
-                })
+                messages.append(
+                    {
+                        "role": "system",
+                        "content": "Relevant context:\n" + "\n".join(memory_parts),
+                    }
+                )
         except Exception:
             pass
 
@@ -367,6 +371,7 @@ def run_sub_agent_in_process(
                 heartbeat_stop.wait(HEARTBEAT_INTERVAL)
 
         import threading
+
         hb_thread = threading.Thread(target=heartbeat_worker, daemon=True)
         hb_thread.start()
 
@@ -492,9 +497,7 @@ def run_sub_agent_in_process(
                     llm_calls += 1
                     finish_reason = None
                     try:
-                        finish_reason = getattr(
-                            response.choices[0], "finish_reason", None
-                        )
+                        finish_reason = getattr(response.choices[0], "finish_reason", None)
                     except Exception:
                         finish_reason = None
                     _send_llm_usage(
@@ -526,10 +529,12 @@ def run_sub_agent_in_process(
 
                     for tc in message.tool_calls:
                         tool_name = tc.function.name
-                        tool_calls_made.append({
-                            "name": tool_name,
-                            "arguments": tc.function.arguments,
-                        })
+                        tool_calls_made.append(
+                            {
+                                "name": tool_name,
+                                "arguments": tc.function.arguments,
+                            }
+                        )
                         _send_progress(
                             output_queue,
                             config.name,
@@ -571,11 +576,13 @@ def run_sub_agent_in_process(
                             details=preview,
                         )
 
-                        messages.append({
-                            "role": "tool",
-                            "tool_call_id": tc.id,
-                            "content": tool_result,
-                        })
+                        messages.append(
+                            {
+                                "role": "tool",
+                                "tool_call_id": tc.id,
+                                "content": tool_result,
+                            }
+                        )
                 else:
                     # Final answer
                     final_response = message.content or "No response"
@@ -663,7 +670,7 @@ def _execute_tool_guarded(
     from core.tools.aliases import get_registered_tool, resolve_tool_name
 
     tool_name = tool_call.function.name
-    resolved = resolve_tool_name(tool_name)
+    resolved = resolve_tool_name(tool_name, getattr(registry, "tools", None))
     tool = get_registered_tool(registry, tool_name)
     if tool is None:
         return f"Error: Tool '{tool_name}' not found"
@@ -699,6 +706,7 @@ def _execute_tool_guarded(
 
     run_loop = loop or _ensure_event_loop()
 
+    from core.tools.base import filter_execute_kwargs
     from core.tools.execution_context import (
         profile_scope,
         reset_profile_scope,
@@ -706,6 +714,7 @@ def _execute_tool_guarded(
         subagent_scope,
     )
 
+    args = filter_execute_kwargs(tool.execute, args)
     scope_tokens = subagent_scope(config.name, subagent_type=config.agent_type)
     profile_token = profile_scope(profile_name)
     try:
@@ -713,9 +722,7 @@ def _execute_tool_guarded(
             return run_loop.run_until_complete(tool.execute(**args))
 
         permissions = PermissionManager(data_dir=data_dir or None)
-        if permissions.is_allowed(
-            resolved, assessment.risk_level, assessment.pattern_matched
-        ):
+        if permissions.is_allowed(resolved, assessment.risk_level, assessment.pattern_matched):
             return run_loop.run_until_complete(tool.execute(**args))
 
         if not interactive:
@@ -954,7 +961,9 @@ class SubAgentProcessManager:
             "mode": config.mode,
             "process_mode": "process",
             "timeout": config.timeout,
-            "memory_access": config.memory_access.value if isinstance(config.memory_access, MemoryAccess) else config.memory_access,
+            "memory_access": config.memory_access.value
+            if isinstance(config.memory_access, MemoryAccess)
+            else config.memory_access,
             "temperature": config.temperature,
             "description": config.description,
             "tags": config.tags,
@@ -974,9 +983,7 @@ class SubAgentProcessManager:
                 parent_api_key = mc.api_key
                 if mc.base_url:
                     parent_base_url = mc.base_url
-        auto_allow_threshold = str(
-            getattr(parent_cfg, "auto_allow_threshold", "low") or "low"
-        )
+        auto_allow_threshold = str(getattr(parent_cfg, "auto_allow_threshold", "low") or "low")
         from core.security.confirmation import normalize_confirmation_timeout
 
         confirmation_timeout = float(
@@ -989,7 +996,11 @@ class SubAgentProcessManager:
         ltm_db_path = ""
         vector_db_path = ""
         data_dir = str(getattr(parent_cfg, "data_dir", "") or "") if parent_cfg else ""
-        if config.memory_access != MemoryAccess.ISOLATED and hasattr(self._parent, "memory") and parent_cfg:
+        if (
+            config.memory_access != MemoryAccess.ISOLATED
+            and hasattr(self._parent, "memory")
+            and parent_cfg
+        ):
             ltm_db_path = str(getattr(parent_cfg, "ltm_db_path", "") or "")
             vector_db_path = str(getattr(parent_cfg, "vector_db_path", "") or "")
 
@@ -1018,7 +1029,9 @@ class SubAgentProcessManager:
             ltm_db_path,
             vector_db_path,
             data_dir,
-            getattr(self._parent.config, "mcp_servers", None) if hasattr(self._parent, "config") else None,
+            getattr(self._parent.config, "mcp_servers", None)
+            if hasattr(self._parent, "config")
+            else None,
             str(getattr(self._parent.config, "skills_dir", "") or ""),
             dict(getattr(self._parent.config, "skill_assignments", None) or {}),
             auto_allow_threshold,
@@ -1113,7 +1126,8 @@ class SubAgentProcessManager:
                         name=agent_name,
                         success=False,
                         error="Sub-agent process terminated unexpectedly",
-                        duration_ms=(time.monotonic() - (handle.started_at or time.monotonic())) * 1000,
+                        duration_ms=(time.monotonic() - (handle.started_at or time.monotonic()))
+                        * 1000,
                     )
                     handle.status = SubAgentStatus.FAILED
                     self._notify_parent_done(agent_name)
@@ -1131,31 +1145,33 @@ class SubAgentProcessManager:
                 continue
 
             if msg.msg_type == "result":
-                    # Final result received
-                    meta = msg.metadata or {}
-                    handle.result = SubAgentResult(
-                        name=agent_name,
-                        success=meta.get("success", False),
-                        response=msg.content,
-                        error=meta.get("error"),
-                        duration_ms=meta.get("duration_ms", 0),
-                        steps_taken=meta.get("steps_taken", 0),
-                        tool_calls=meta.get("tool_calls", []),
-                        tokens_used=int(meta.get("tokens_used") or 0),
-                        llm_calls=int(meta.get("llm_calls") or 0),
-                        usage_accounted=bool(meta.get("usage_accounted", False)),
-                        model=str(meta.get("model") or ""),
-                    )
-                    handle.steps_taken = int(meta.get("steps_taken", 0) or 0)
-                    handle.status = SubAgentStatus.COMPLETED if handle.result.success else SubAgentStatus.FAILED
-                    handle.record_activity(
-                        "status",
-                        "Completed" if handle.result.success else "Failed",
-                        steps_taken=handle.steps_taken,
-                    )
-                    self._notify_parent_done(agent_name)
-                    self._cleanup_ipc(agent_name)
-                    return
+                # Final result received
+                meta = msg.metadata or {}
+                handle.result = SubAgentResult(
+                    name=agent_name,
+                    success=meta.get("success", False),
+                    response=msg.content,
+                    error=meta.get("error"),
+                    duration_ms=meta.get("duration_ms", 0),
+                    steps_taken=meta.get("steps_taken", 0),
+                    tool_calls=meta.get("tool_calls", []),
+                    tokens_used=int(meta.get("tokens_used") or 0),
+                    llm_calls=int(meta.get("llm_calls") or 0),
+                    usage_accounted=bool(meta.get("usage_accounted", False)),
+                    model=str(meta.get("model") or ""),
+                )
+                handle.steps_taken = int(meta.get("steps_taken", 0) or 0)
+                handle.status = (
+                    SubAgentStatus.COMPLETED if handle.result.success else SubAgentStatus.FAILED
+                )
+                handle.record_activity(
+                    "status",
+                    "Completed" if handle.result.success else "Failed",
+                    steps_taken=handle.steps_taken,
+                )
+                self._notify_parent_done(agent_name)
+                self._cleanup_ipc(agent_name)
+                return
 
             elif msg.msg_type == "llm_usage":
                 # Live model usage from OS-process sub-agent → parent event bus

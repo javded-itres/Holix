@@ -558,7 +558,7 @@ class ListBackgroundProcessesTool(BaseTool):
             "required": [],
         }
 
-    async def execute(self, include_stopped: bool = True) -> str:
+    async def execute(self, include_stopped: bool = True, **_: object) -> str:
         from core.platform_compat import is_process_alive
         from core.runtime.background_process import get_background_process_registry
         from core.runtime.background_process_store import list_index_with_status

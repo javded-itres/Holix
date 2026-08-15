@@ -16,6 +16,19 @@ except ImportError:  # py < 3.11
 if TYPE_CHECKING:
     from core.profile import ProfileConfig
 
+_DEFAULT_CHECKPOINT_MAX_BYTES = 200 * 1024 * 1024
+
+
+def _checkpoint_max_bytes_from_settings(s: Settings | Any) -> int:
+    """Convert Settings.checkpoint_max_mb to bytes (0 disables prune)."""
+    try:
+        mb = int(getattr(s, "checkpoint_max_mb", 200) or 0)
+    except (TypeError, ValueError):
+        mb = 200
+    if mb <= 0:
+        return 0
+    return mb * 1024 * 1024
+
 
 @dataclass(frozen=True, slots=True)
 class HolixRuntimeConfig:
@@ -118,6 +131,10 @@ class HolixRuntimeConfig:
     # False for Telegram/MAX multi-user agents.
     self_extensions_enabled: bool = True
 
+    # LangGraph checkpoint size guard (bytes; 0 = never auto-reset)
+    checkpoint_auto_prune: bool = True
+    checkpoint_max_bytes: int = 200 * 1024 * 1024
+
     @classmethod
     def from_settings(cls, source: Settings | None = None) -> Self:
         """Build config from pydantic Settings (env / .env).
@@ -145,6 +162,8 @@ class HolixRuntimeConfig:
             use_langgraph=s.use_langgraph,
             execution_mode=s.execution_mode,
             langgraph_checkpoint_db_path=s.langgraph_checkpoint_db_path,
+            checkpoint_auto_prune=bool(getattr(s, "checkpoint_auto_prune", True)),
+            checkpoint_max_bytes=_checkpoint_max_bytes_from_settings(s),
             enable_subagents=s.enable_subagents,
             subagent_default_process_mode=s.subagent_default_process_mode,
             subagent_max_concurrent=s.subagent_max_concurrent,

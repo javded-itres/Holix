@@ -1,8 +1,8 @@
 import json
 from typing import Any
 
-from core.tools.aliases import resolve_tool_name
-from core.tools.base import BaseTool
+from core.tools.aliases import apply_aliases_to_registry, resolve_tool_name
+from core.tools.base import BaseTool, filter_execute_kwargs
 
 
 class ToolRegistry:
@@ -60,6 +60,9 @@ class ToolRegistry:
         from core.tools.code_executor import MathCalculatorTool, PythonExecutorTool
         from core.tools.database import SQLQueryTool, SQLSchemaTool
         from core.tools.file_ops import (
+            DeleteFileTool,
+            GlobTool,
+            GrepTool,
             ListDirectoryTool,
             PatchFileTool,
             ReadFileTool,
@@ -74,7 +77,12 @@ class ToolRegistry:
         self.register(ReadFileTool())
         self.register(WriteFileTool())
         self.register(PatchFileTool())
-        self.register(ListDirectoryTool())
+        list_dir_tool = ListDirectoryTool()
+        self.register(list_dir_tool)
+        self.register_alias("list_dir", list_dir_tool)
+        self.register(GrepTool())
+        self.register(GlobTool())
+        self.register(DeleteFileTool())
 
         from core.tools.holix_init import register_holix_init_tools
 
@@ -84,6 +92,7 @@ class ToolRegistry:
         terminal_tool = TerminalTool()
         self.register(terminal_tool)
         self.register_alias("terminal", terminal_tool)
+        self.register_alias("execute_terminal_command", terminal_tool)
         from core.external_cli.platform import launch_supported
 
         if launch_supported():
@@ -149,6 +158,8 @@ class ToolRegistry:
         except ImportError:
             pass
 
+        apply_aliases_to_registry(self)
+
     async def register_mcp(
         self,
         mcp_servers: dict[str, Any],
@@ -165,6 +176,7 @@ class ToolRegistry:
             return 0
         try:
             from core.mcp.manager import MCPManager
+
             mgr = MCPManager(mcp_servers)
             await mgr.connect_all()
             enabled = []
@@ -255,7 +267,7 @@ class ToolRegistry:
             ValueError: If tool is not found
         """
         tool_name = tool_call.function.name
-        resolved = resolve_tool_name(tool_name)
+        resolved = resolve_tool_name(tool_name, self.tools)
 
         if resolved not in self.tools:
             return f"Error: Tool '{tool_name}' not found"
@@ -315,7 +327,7 @@ class ToolRegistry:
                     return sanitize_paths_in_text(result) if isinstance(result, str) else result
 
                 # No guard: execute directly (backward compatible)
-                result = await tool.execute(**args)
+                result = await tool.execute(**filter_execute_kwargs(tool.execute, args))
                 return sanitize_paths_in_text(result) if isinstance(result, str) else result
             except Exception as e:
                 return sanitize_paths_in_text(f"Error executing {tool_name}: {str(e)}")

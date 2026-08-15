@@ -33,12 +33,14 @@ logger = logging.getLogger(__name__)
 
 # ─── Risk Levels ──────────────────────────────────────────────────────────
 
+
 class RiskLevel(StrEnum):
     """Risk classification for tool calls."""
-    NO = "no"          # Safe: read-only, no side effects
-    LOW = "low"        # Minor side effects: network reads
+
+    NO = "no"  # Safe: read-only, no side effects
+    LOW = "low"  # Minor side effects: network reads
     MEDIUM = "medium"  # Destructive potential: file writes, SQL mutations
-    HIGH = "high"      # Unrestricted: shell commands, code execution
+    HIGH = "high"  # Unrestricted: shell commands, code execution
 
 
 # Ordering for comparison: NO < LOW < MEDIUM < HIGH
@@ -99,6 +101,7 @@ def _unattended_tool_block_reason(
 @dataclass
 class RiskAssessment:
     """Result of risk classification for a tool call."""
+
     risk_level: RiskLevel = RiskLevel.MEDIUM
     reason: str = ""
     tool_name: str = ""
@@ -107,6 +110,7 @@ class RiskAssessment:
 
 
 # ─── Risk Classifier ──────────────────────────────────────────────────────
+
 
 class RiskClassifier:
     """Classifies tool calls by risk level.
@@ -122,6 +126,7 @@ class RiskClassifier:
     def __init__(self):
         # Import lazily to avoid circular imports at module level
         from core.security.safety import ConfirmationRequired
+
         self._confirmation_checker = ConfirmationRequired()
 
         # Sensitive file path patterns that escalate write_file to HIGH
@@ -137,9 +142,19 @@ class RiskClassifier:
         ]
 
         # SQL mutation keywords that escalate sql_query to HIGH
-        self._sql_mutation_keywords = {"INSERT", "UPDATE", "DELETE", "DROP", "ALTER", "CREATE", "TRUNCATE"}
+        self._sql_mutation_keywords = {
+            "INSERT",
+            "UPDATE",
+            "DELETE",
+            "DROP",
+            "ALTER",
+            "CREATE",
+            "TRUNCATE",
+        }
 
-    def classify(self, tool_name: str, tool_instance: Any, arguments: dict[str, Any]) -> RiskAssessment:
+    def classify(
+        self, tool_name: str, tool_instance: Any, arguments: dict[str, Any]
+    ) -> RiskAssessment:
         """Classify a tool call by risk level.
 
         Args:
@@ -201,7 +216,11 @@ class RiskClassifier:
             command = arguments.get("command", "")
             # Check dangerous patterns from ConfirmationRequired
             if self._confirmation_checker.requires_confirmation(command):
-                return RiskLevel.HIGH, f"Dangerous terminal command: {command[:60]}", "terminal_dangerous_pattern"
+                return (
+                    RiskLevel.HIGH,
+                    f"Dangerous terminal command: {command[:60]}",
+                    "terminal_dangerous_pattern",
+                )
             return RiskLevel.HIGH, "Terminal command execution", None
 
         # PythonExecutorTool: always HIGH
@@ -219,7 +238,11 @@ class RiskClassifier:
             ]
             for pattern, reason in dangerous_patterns:
                 if re.search(pattern, code):
-                    return RiskLevel.HIGH, f"Dangerous code pattern: {reason}", f"code_dangerous:{pattern}"
+                    return (
+                        RiskLevel.HIGH,
+                        f"Dangerous code pattern: {reason}",
+                        f"code_dangerous:{pattern}",
+                    )
             return RiskLevel.HIGH, "Python code execution (exec/eval)", None
 
         # WriteFileTool: escalate if writing to sensitive paths
@@ -257,9 +280,22 @@ class RiskClassifier:
                 return RiskLevel.MEDIUM, "HTTP POST request", "web_post_method"
             return RiskLevel.LOW, "HTTP GET request", None
 
-        # ReadFileTool, ListDirectoryTool: always NO
-        if tool_name in ("read_file", "list_directory"):
+        # Read-only filesystem tools
+        if tool_name in ("read_file", "list_directory", "grep", "glob"):
             return RiskLevel.NO, "Read-only operation", None
+
+        if tool_name == "delete_file":
+            path = arguments.get("path", "")
+            if self._is_env_file_path(path) or self._is_holix_env_path(path):
+                return RiskLevel.HIGH, "Deleting env / Holix secret file", "delete_sensitive_path"
+            for pattern, reason in self._sensitive_path_patterns:
+                if re.search(pattern, path):
+                    return (
+                        RiskLevel.HIGH,
+                        f"Deleting sensitive path: {reason}",
+                        f"delete_sensitive_path:{pattern}",
+                    )
+            return RiskLevel.MEDIUM, "Delete file", None
 
         # WebSearchTool: always LOW
         if tool_name == "web_search":
@@ -304,16 +340,19 @@ class RiskClassifier:
 
 # ─── Permission Management ────────────────────────────────────────────────
 
+
 class PermissionScope(StrEnum):
     """How long a permission grant lasts."""
-    ONCE = "once"          # Only this invocation (not stored)
-    SESSION = "session"    # Until the agent process exits
-    ALWAYS = "always"      # Persisted across restarts
+
+    ONCE = "once"  # Only this invocation (not stored)
+    SESSION = "session"  # Until the agent process exits
+    ALWAYS = "always"  # Persisted across restarts
 
 
 @dataclass
 class PermissionGrant:
     """A stored permission decision."""
+
     tool_name: str
     scope: PermissionScope
     risk_level: RiskLevel
@@ -366,7 +405,9 @@ class PermissionManager:
         return self.data_dir / "security" / "confirmation_audit.jsonl"
 
     @staticmethod
-    def _grant_key(tool_name: str, risk_level: RiskLevel, argument_pattern: str | None = None) -> str:
+    def _grant_key(
+        tool_name: str, risk_level: RiskLevel, argument_pattern: str | None = None
+    ) -> str:
         """Create a unique key for a permission grant."""
         if argument_pattern:
             return f"{tool_name}:{risk_level.value}:{argument_pattern}"
@@ -409,7 +450,9 @@ class PermissionManager:
         }
         self.PERMISSIONS_FILE.write_text(json.dumps(data, indent=2))
 
-    def is_allowed(self, tool_name: str, risk_level: RiskLevel, argument_pattern: str | None = None) -> bool:
+    def is_allowed(
+        self, tool_name: str, risk_level: RiskLevel, argument_pattern: str | None = None
+    ) -> bool:
         """Check if a tool call is pre-authorized by a session or persistent grant.
 
         For ALWAYS grants, also matches if the granted level is >= the requested level
@@ -427,13 +470,21 @@ class PermissionManager:
                     # If we have a grant for this tool at a higher risk level, it covers lower ones
                     if _RISK_ORDER.get(grant.risk_level, 0) >= _RISK_ORDER.get(risk_level, 0):
                         # But only if the argument pattern matches or is broader
-                        if grant.argument_pattern is None or grant.argument_pattern == argument_pattern:
+                        if (
+                            grant.argument_pattern is None
+                            or grant.argument_pattern == argument_pattern
+                        ):
                             return True
 
             return False
 
-    def grant(self, tool_name: str, scope: PermissionScope, risk_level: RiskLevel,
-              argument_pattern: str | None = None) -> None:
+    def grant(
+        self,
+        tool_name: str,
+        scope: PermissionScope,
+        risk_level: RiskLevel,
+        argument_pattern: str | None = None,
+    ) -> None:
         """Record a permission grant."""
         self._ensure_loaded()
         grant = PermissionGrant(
@@ -452,8 +503,13 @@ class PermissionManager:
                 self.save()
             # ONCE is not stored — it only applies to the current invocation
 
-    def revoke(self, tool_name: str, scope: PermissionScope, risk_level: RiskLevel,
-               argument_pattern: str | None = None) -> None:
+    def revoke(
+        self,
+        tool_name: str,
+        scope: PermissionScope,
+        risk_level: RiskLevel,
+        argument_pattern: str | None = None,
+    ) -> None:
         """Revoke a permission grant."""
         self._ensure_loaded()
         key = self._grant_key(tool_name, risk_level, argument_pattern)
@@ -474,11 +530,21 @@ class PermissionManager:
         self._ensure_loaded()
         with self._lock:
             session = [
-                {"tool": g.tool_name, "scope": "session", "risk": g.risk_level.value, "pattern": g.argument_pattern}
+                {
+                    "tool": g.tool_name,
+                    "scope": "session",
+                    "risk": g.risk_level.value,
+                    "pattern": g.argument_pattern,
+                }
                 for g in self._session_grants.values()
             ]
             always = [
-                {"tool": g.tool_name, "scope": "always", "risk": g.risk_level.value, "pattern": g.argument_pattern}
+                {
+                    "tool": g.tool_name,
+                    "scope": "always",
+                    "risk": g.risk_level.value,
+                    "pattern": g.argument_pattern,
+                }
                 for g in self._always_grants.values()
             ]
         return {"session": session, "always": always}
@@ -495,12 +561,14 @@ permission_manager = PermissionManager()
 
 # ─── Confirmation Choice ──────────────────────────────────────────────────
 
+
 class ConfirmationChoice(StrEnum):
     """User choices for a confirmation request."""
-    ALLOW_ONCE = "allow_once"        # Allow this one invocation only
+
+    ALLOW_ONCE = "allow_once"  # Allow this one invocation only
     ALLOW_SESSION = "allow_session"  # Allow for the rest of this session
-    ALLOW_ALWAYS = "allow_always"    # Persist permission
-    DENY = "deny"                    # Block this tool call
+    ALLOW_ALWAYS = "allow_always"  # Persist permission
+    DENY = "deny"  # Block this tool call
 
 
 def normalize_confirmation_timeout(value: int | float | None, *, default: int = 0) -> int:
@@ -514,6 +582,7 @@ def normalize_confirmation_timeout(value: int | float | None, *, default: int = 
 
 
 # ─── Action Guard ──────────────────────────────────────────────────────────
+
 
 class ActionGuard:
     """Intercepts tool calls and enforces confirmation policy.
@@ -538,12 +607,12 @@ class ActionGuard:
         data_dir: str | Path | None = None,
     ):
         self._event_bus = event_bus
-        self._permission_manager = permission_manager or PermissionManager(
-            data_dir=data_dir
-        )
+        self._permission_manager = permission_manager or PermissionManager(data_dir=data_dir)
         self._risk_classifier = risk_classifier or RiskClassifier()
         if data_dir is not None:
-            self._audit_log_path = Path(data_dir).expanduser().resolve() / "security" / "confirmation_audit.jsonl"
+            self._audit_log_path = (
+                Path(data_dir).expanduser().resolve() / "security" / "confirmation_audit.jsonl"
+            )
         else:
             self._audit_log_path = self._permission_manager.audit_log_path
         self._auto_allow_threshold = auto_allow_threshold
@@ -599,6 +668,10 @@ class ActionGuard:
         Returns:
             The tool's result string, or a denial message.
         """
+        from core.tools.base import filter_execute_kwargs
+
+        arguments = filter_execute_kwargs(execute_fn, arguments)
+
         # Step 1: Classify risk
         assessment = self._risk_classifier.classify(tool_name, tool_instance, arguments)
 
@@ -637,7 +710,9 @@ class ActionGuard:
             # fall through — HIGH requires confirmation / stored permission
 
         # Step 2: Check if auto-allowed by config threshold
-        if _RISK_ORDER.get(assessment.risk_level, 0) <= _RISK_ORDER.get(self._auto_allow_threshold, 1):
+        if _RISK_ORDER.get(assessment.risk_level, 0) <= _RISK_ORDER.get(
+            self._auto_allow_threshold, 1
+        ):
             self._log_audit("auto_allowed", assessment, "below_threshold")
             return await execute_fn(**arguments)
 
@@ -770,11 +845,14 @@ class ActionGuard:
         # Emit response event for logging/UI feedback
         if self._event_bus:
             from core.security.confirmation_events import ConfirmationResponseEvent
-            self._event_bus.emit(ConfirmationResponseEvent(
-                confirmation_id=confirmation_id,
-                choice=choice.value,
-                conversation_id="",
-            ))
+
+            self._event_bus.emit(
+                ConfirmationResponseEvent(
+                    confirmation_id=confirmation_id,
+                    choice=choice.value,
+                    conversation_id="",
+                )
+            )
 
         return True
 
@@ -815,9 +893,7 @@ class ActionGuard:
                     choice.value,
                 )
         if woken:
-            logger.info(
-                "ActionGuard: unblocked %d concurrent confirmation waiter(s)", woken
-            )
+            logger.info("ActionGuard: unblocked %d concurrent confirmation waiter(s)", woken)
         return woken
 
     def _log_audit(self, action: str, assessment: RiskAssessment, detail: str | None) -> None:
@@ -831,7 +907,9 @@ class ActionGuard:
             "pattern_matched": assessment.pattern_matched,
             "detail": detail,
         }
-        logger.info(f"ActionGuard: {action} for {assessment.tool_name} (risk={assessment.risk_level.value})")
+        logger.info(
+            f"ActionGuard: {action} for {assessment.tool_name} (risk={assessment.risk_level.value})"
+        )
 
         # Write to audit log file
         try:
