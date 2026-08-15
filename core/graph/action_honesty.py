@@ -981,6 +981,17 @@ def ends_turn_on_unexecuted_intent(
     user = (user_input or "").strip() or last_user_text(messages)
     modern = is_modern_pipeline(agent_pipeline)
 
+    # Qwen/Hermes often dump ``tool_call`` / ``<tool_call>`` as prose instead
+    # of structured tool_calls — never accept that as a finished turn.
+    try:
+        from core.llm.tool_calls import looks_like_leaked_tool_markup
+
+        if looks_like_leaked_tool_markup(content):
+            return True
+    except Exception:
+        if re.search(r"(?is)\btool_calls?\b|</?tool_call\b", content):
+            return True
+
     # Pathological monologue loops must never end the turn (classic + modern).
     # Classic previously skipped this and could "finish" on 18KB of «Поняла…».
     try:

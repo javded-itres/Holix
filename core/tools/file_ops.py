@@ -1,5 +1,7 @@
+import fnmatch
 import mimetypes
-from pathlib import Path
+import re
+from pathlib import Path, PurePosixPath
 
 from core.crypto.profile_crypto import ProfileCryptoLockedError
 from core.project.holix_md import HOLIX_MD_FILENAME, HOLIX_MD_LEGACY_FILENAME
@@ -122,10 +124,10 @@ class ReadFileTool(BaseTool):
             "properties": {
                 "path": {
                     "type": "string",
-                    "description": "Path to the file to read (relative or absolute)"
+                    "description": "Path to the file to read (relative or absolute)",
                 }
             },
-            "required": ["path"]
+            "required": ["path"],
         }
 
     async def execute(self, path: str) -> str:
@@ -182,16 +184,10 @@ class WriteFileTool(BaseTool):
         self.parameters = {
             "type": "object",
             "properties": {
-                "path": {
-                    "type": "string",
-                    "description": "Path to the file to write"
-                },
-                "content": {
-                    "type": "string",
-                    "description": "Content to write to the file"
-                }
+                "path": {"type": "string", "description": "Path to the file to write"},
+                "content": {"type": "string", "description": "Content to write to the file"},
             },
-            "required": ["path", "content"]
+            "required": ["path", "content"],
         }
 
     async def execute(self, path: str, content: str) -> str:
@@ -364,9 +360,9 @@ class ListDirectoryTool(BaseTool):
                 "path": {
                     "type": "string",
                     "description": "Path to directory to list (default: current directory)",
-                    "default": "."
+                    "default": ".",
                 }
-            }
+            },
         }
 
     async def execute(self, path: str = ".") -> str:
@@ -401,3 +397,314 @@ class ListDirectoryTool(BaseTool):
             return f"Error: {e}"
         except Exception as e:
             return f"Error listing directory: {str(e)}"
+
+
+_SKIP_DIR_NAMES = frozenset(
+    {
+        ".git",
+        ".hg",
+        ".svn",
+        "node_modules",
+        ".venv",
+        "venv",
+        "__pycache__",
+        ".mypy_cache",
+        ".ruff_cache",
+        ".pytest_cache",
+        ".tox",
+        "dist",
+        "build",
+        ".holix",
+        ".next",
+        ".turbo",
+        "coverage",
+        ".idea",
+    }
+)
+_MAX_GREP_MATCHES = 80
+_MAX_GREP_SCAN_FILES = 4000
+_MAX_GREP_FILE_BYTES = 1_000_000
+_MAX_GLOB_HITS = 200
+
+
+def _is_skipped_dir(name: str) -> bool:
+    return name in _SKIP_DIR_NAMES or name.endswith(".egg-info")
+
+
+def _is_probably_binary(path: Path) -> bool:
+    if _is_binary_image_path(path):
+        return True
+    try:
+        with path.open("rb") as handle:
+            chunk = handle.read(8192)
+    except OSError:
+        return True
+    return b"\x00" in chunk
+
+
+def _match_glob(rel_posix: str, pattern: str) -> bool:
+    pat = (pattern or "").replace("\\", "/").strip().lstrip("./")
+    rel = (rel_posix or "").replace("\\", "/")
+    if not pat:
+        return True
+    try:
+        if PurePosixPath(rel).match(pat):
+            return True
+    except ValueError:
+        pass
+    name = Path(rel).name
+    if "/" not in pat and fnmatch.fnmatch(name, pat):
+        return True
+    if pat.startswith("**/") and fnmatch.fnmatch(name, pat[3:]):
+        return True
+    return fnmatch.fnmatch(rel, pat)
+
+
+def _iter_workspace_files(root: Path, *, glob_pat: str | None = None):
+    if root.is_file():
+        yield root
+        return
+    if not root.is_dir():
+        return
+    scanned = 0
+    for dirpath, dirnames, filenames in root.walk() if hasattr(root, "walk") else _os_walk(root):
+        dirnames[:] = [name for name in dirnames if not _is_skipped_dir(name)]
+        for name in filenames:
+            scanned += 1
+            if scanned > _MAX_GREP_SCAN_FILES:
+                return
+            path = dirpath / name
+            if glob_pat:
+                try:
+                    rel = path.relative_to(root).as_posix()
+                except ValueError:
+                    rel = name
+                if not _match_glob(rel, glob_pat):
+                    continue
+            yield path
+
+
+def _os_walk(root: Path):
+    import os
+
+    for dirpath, dirnames, filenames in os.walk(root):
+        yield Path(dirpath), dirnames, filenames
+
+
+class GrepTool(BaseTool):
+    """Search file contents (Claude Grep / ripgrep-style)."""
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.name = "grep"
+        self.description = (
+            "Search file contents with a regular expression. "
+            "Prefer this over run_terminal_command + grep/rg. "
+            "Skips .git, node_modules, venv and other junk directories."
+        )
+        self.risk_level = "no"
+        self.parameters = {
+            "type": "object",
+            "properties": {
+                "pattern": {
+                    "type": "string",
+                    "description": "Regular expression to search for",
+                },
+                "path": {
+                    "type": "string",
+                    "description": "File or directory to search (default: workspace root / .)",
+                    "default": ".",
+                },
+                "glob": {
+                    "type": "string",
+                    "description": "Optional file filter, e.g. '*.py' or '**/*.ts'",
+                },
+                "max_results": {
+                    "type": "integer",
+                    "description": "Maximum matches to return (default 80)",
+                    "default": _MAX_GREP_MATCHES,
+                },
+            },
+            "required": ["pattern"],
+        }
+
+    async def execute(
+        self,
+        pattern: str,
+        path: str = ".",
+        glob: str = "",
+        max_results: int = _MAX_GREP_MATCHES,
+    ) -> str:
+        raw = (pattern or "").strip()
+        if not raw:
+            return "Error: pattern is required"
+        try:
+            compiled = re.compile(raw)
+        except re.error as exc:
+            return f"Error: invalid regular expression: {exc}"
+        try:
+            root = resolve_tool_path(path or ".")
+        except WorkspaceJailError as exc:
+            return f"Error: {exc}"
+        if not root.exists():
+            return f"Error: Path '{path}' does not exist"
+
+        limit = max(1, min(int(max_results or _MAX_GREP_MATCHES), 200))
+        hits: list[str] = []
+        files_hit = 0
+        truncated = False
+        glob_pat = (glob or "").strip() or None
+
+        for file_path in _iter_workspace_files(root, glob_pat=glob_pat):
+            if not file_path.is_file():
+                continue
+            try:
+                if file_path.stat().st_size > _MAX_GREP_FILE_BYTES:
+                    continue
+            except OSError:
+                continue
+            if _is_probably_binary(file_path):
+                continue
+            try:
+                text = file_path.read_text(encoding="utf-8", errors="replace")
+            except OSError:
+                continue
+            file_had = False
+            display = display_path_for_user(file_path, input_path=str(file_path))
+            for lineno, line in enumerate(text.splitlines(), start=1):
+                if compiled.search(line):
+                    if not file_had:
+                        files_hit += 1
+                        file_had = True
+                    hits.append(f"{display}:{lineno}:{line.rstrip()[:240]}")
+                    if len(hits) >= limit:
+                        truncated = True
+                        break
+            if truncated:
+                break
+
+        if not hits:
+            where = display_path_for_user(root, input_path=path)
+            extra = f" (glob={glob_pat})" if glob_pat else ""
+            return f"No matches for `{raw}` in {where}{extra}."
+
+        header = f"{len(hits)} match(es) in {files_hit} file(s)"
+        if truncated:
+            header += f" (truncated at {limit})"
+        return header + "\n" + "\n".join(hits)
+
+
+class GlobTool(BaseTool):
+    """Find files by name pattern (Claude Glob)."""
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.name = "glob"
+        self.description = (
+            "Find files by glob pattern (e.g. '**/*.py', 'src/**/*.ts'). "
+            "Prefer this over run_terminal_command + find. "
+            "Skips .git, node_modules, venv and other junk directories."
+        )
+        self.risk_level = "no"
+        self.parameters = {
+            "type": "object",
+            "properties": {
+                "pattern": {
+                    "type": "string",
+                    "description": "Glob pattern, e.g. '**/*.py' or 'README.md'",
+                },
+                "path": {
+                    "type": "string",
+                    "description": "Directory to search (default: .)",
+                    "default": ".",
+                },
+            },
+            "required": ["pattern"],
+        }
+
+    async def execute(self, pattern: str, path: str = ".") -> str:
+        pat = (pattern or "").strip()
+        if not pat:
+            return "Error: pattern is required"
+        try:
+            root = resolve_tool_path(path or ".")
+        except WorkspaceJailError as exc:
+            return f"Error: {exc}"
+        if not root.exists():
+            return f"Error: Path '{path}' does not exist"
+        if root.is_file():
+            rel = root.name
+            if _match_glob(rel, pat):
+                return display_path_for_user(root, input_path=path)
+            return f"No files matching `{pat}`."
+
+        hits: list[str] = []
+        truncated = False
+        for file_path in _iter_workspace_files(root):
+            if not file_path.is_file():
+                continue
+            try:
+                rel = file_path.relative_to(root).as_posix()
+            except ValueError:
+                rel = file_path.name
+            if not _match_glob(rel, pat):
+                continue
+            hits.append(display_path_for_user(file_path, input_path=rel))
+            if len(hits) >= _MAX_GLOB_HITS:
+                truncated = True
+                break
+
+        if not hits:
+            where = display_path_for_user(root, input_path=path)
+            return f"No files matching `{pat}` in {where}."
+        header = f"{len(hits)} file(s)"
+        if truncated:
+            header += f" (truncated at {_MAX_GLOB_HITS})"
+        return header + "\n" + "\n".join(hits)
+
+
+class DeleteFileTool(BaseTool):
+    """Delete a single file (not a directory)."""
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.name = "delete_file"
+        self.description = (
+            "Delete one file. Directories are refused — do not use this to rm -rf a tree. "
+            "Prefer this over run_terminal_command + rm for a single file."
+        )
+        self.risk_level = "medium"
+        self.parameters = {
+            "type": "object",
+            "properties": {
+                "path": {
+                    "type": "string",
+                    "description": "Path of the file to delete",
+                },
+            },
+            "required": ["path"],
+        }
+
+    async def execute(self, path: str) -> str:
+        raw = (path or "").strip()
+        if not raw:
+            return "Error: path is required"
+        try:
+            file_path = resolve_tool_path(raw)
+        except WorkspaceJailError as exc:
+            return f"Error: {exc}"
+        if not file_path.exists():
+            return f"Error: File '{path}' does not exist"
+        if file_path.is_dir():
+            return (
+                f"Error: '{path}' is a directory. delete_file only removes a single file. "
+                "Do not recursively delete trees with this tool."
+            )
+        if not file_path.is_file():
+            return f"Error: '{path}' is not a regular file"
+        try:
+            file_path.unlink()
+        except OSError as exc:
+            return f"Error deleting file: {exc}"
+        display = display_path_for_user(file_path, input_path=path)
+        return f"Deleted {display}"

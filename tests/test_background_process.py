@@ -77,13 +77,17 @@ async def test_registry_start_and_stop(registry: BackgroundProcessRegistry, tmp_
 
 
 @pytest.mark.asyncio
-async def test_registry_keeps_other_sessions_alive(registry: BackgroundProcessRegistry, tmp_path) -> None:
+async def test_registry_keeps_other_sessions_alive(
+    registry: BackgroundProcessRegistry, tmp_path
+) -> None:
     first = _mock_popen(100)
     second = _mock_popen(200)
     third = _mock_popen(300)
 
     with (
-        patch("core.runtime.background_process.popen_background", side_effect=[first, second, third]),
+        patch(
+            "core.runtime.background_process.popen_background", side_effect=[first, second, third]
+        ),
         patch("core.runtime.background_process.terminate_process") as terminate,
         patch("core.runtime.background_process.is_process_alive", return_value=True),
         patch("core.runtime.port_utils.find_busy_ports", return_value=[]),
@@ -164,7 +168,9 @@ async def test_registry_start_uses_workspace_root_without_cwd(
 
 
 @pytest.mark.asyncio
-async def test_registry_allows_multiple_same_session(registry: BackgroundProcessRegistry, tmp_path) -> None:
+async def test_registry_allows_multiple_same_session(
+    registry: BackgroundProcessRegistry, tmp_path
+) -> None:
     first = _mock_popen(100)
     second = _mock_popen(200)
 
@@ -199,7 +205,9 @@ async def test_registry_allows_multiple_same_session(registry: BackgroundProcess
 
 
 @pytest.mark.asyncio
-async def test_registry_replaces_process_on_same_port(registry: BackgroundProcessRegistry, tmp_path) -> None:
+async def test_registry_replaces_process_on_same_port(
+    registry: BackgroundProcessRegistry, tmp_path
+) -> None:
     first = _mock_popen(100)
     second = _mock_popen(200)
 
@@ -299,7 +307,9 @@ async def test_check_tool_reports_error(scope_tokens, tmp_path) -> None:
     )
 
     with (
-        patch("core.runtime.background_process.get_background_process_registry", return_value=registry),
+        patch(
+            "core.runtime.background_process.get_background_process_registry", return_value=registry
+        ),
         patch.object(registry, "check_health", return_value=bad),
     ):
         result = await CheckBackgroundProcessTool().execute(wait_seconds=0)
@@ -377,6 +387,17 @@ async def test_list_tool_empty(scope_tokens) -> None:
 
 
 @pytest.mark.asyncio
+async def test_list_tool_ignores_unknown_kwargs(scope_tokens) -> None:
+    registry = BackgroundProcessRegistry()
+    with patch(
+        "core.runtime.background_process.get_background_process_registry",
+        return_value=registry,
+    ):
+        result = await ListBackgroundProcessesTool().execute(project_key="catalog")
+    assert "No background processes recorded for this profile" in result
+
+
+@pytest.mark.asyncio
 async def test_start_tool_rejects_busy_port(scope_tokens, tmp_path) -> None:
     tool = StartBackgroundProcessTool()
     with (
@@ -415,6 +436,7 @@ def test_live_buffer_renders_background_process() -> None:
     buf.set_background_process(label="uvicorn :8000 · pid 1234", process_id="proc_abc")
     text = buf.render_plain()
     assert "🟢 Process: uvicorn :8000 · pid 1234" in text
+
 
 @pytest.mark.asyncio
 async def test_registry_persists_and_hydrates_across_instances(tmp_path, monkeypatch) -> None:

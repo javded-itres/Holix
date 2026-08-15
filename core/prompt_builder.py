@@ -170,7 +170,9 @@ def format_studio_workspace_block(
     )
 
 
-def language_instruction_block(*, locale: str | None = None, profile_name: str | None = None) -> str:
+def language_instruction_block(
+    *, locale: str | None = None, profile_name: str | None = None
+) -> str:
     """Locale-aware language rule for system prompts (/lang en | /lang ru)."""
     from core.i18n.locale import LocaleStore, normalize_locale
     from core.i18n.messages import t
@@ -327,6 +329,52 @@ def format_studio_preview_block(
     return "\n".join(lines)
 
 
+def format_studio_runtime_targets_block(
+    *,
+    workspace_root: str | None = None,
+    workspace_jail_enabled: bool | None = None,
+) -> str:
+    """Remote Docker / SSH targets (Цели запуска) — Studio-only mandatory rules.
+
+    Empty for TUI/Telegram so local agents keep raw docker/ssh habits when needed.
+    """
+    del workspace_root, workspace_jail_enabled
+    if not _studio_session_active():
+        return ""
+
+    return "\n".join(
+        [
+            "## Holix Studio remote run targets (mandatory)",
+            "",
+            "Studio has **built-in MCP `holix_studio`** for remote Docker/Podman/SSH hosts "
+            "(«Цели запуска» / Run targets). Tools appear as `mcp_holix_studio_runtime_*`.",
+            "",
+            "### When the user names a server / host / remote Docker / containers on X",
+            "Examples: `itres-app`, `itres-apps`, VPS, «удалённый Docker», «контейнеры на сервере».",
+            "",
+            "1. Call `mcp_holix_studio_runtime_targets_list_tool` **first** — never claim "
+            "there is no connection without this result.",
+            "2. Match by **name** (fuzzy ok: `itres-app` ↔ `itres-apps`) or ask if several.",
+            "3. List containers with `mcp_holix_studio_runtime_list_containers_tool(target_id=…)`.",
+            "4. Logs/inspect/exec/compose/sync only via matching `mcp_holix_studio_runtime_*` tools.",
+            "",
+            "### Absolute forbidden",
+            "- Asking the user for SSH keys, passwords, ports, or «как подключиться» when "
+            "a matching target exists or before listing targets.",
+            "- Running local `docker ps` / `docker context` / raw `ssh user@host` and "
+            "presenting that as the remote server inventory.",
+            "- Inventing that the profile has no remote connection without calling "
+            "`runtime_targets_list_tool`.",
+            "",
+            "### Prod targets",
+            "If `is_prod=true`, ask the user to confirm, then pass `confirm_prod=true`.",
+            "",
+            "Skill: **remote_runtime_docker** (always prefer over auto-generated "
+            "docker/ssh audit skills).",
+        ]
+    )
+
+
 def build_system_prompt(
     tools_description: str,
     active_skills: list[dict[str, Any]],
@@ -392,7 +440,7 @@ When the user asks for status (what you are doing, open tasks, progress) — cal
 Ending the turn with «Сделаю…», «Создаю…», «Ищу…», «Сейчас…» **without** `tool_calls` is a failed turn. The user sees silence mid-task.
 
 1. **At most 1–2 short sentences before the first tool call.** Prefer **zero** prose and go straight to `tool_calls`.
-2. **Call tools immediately** when work needs files, shell, MCP, network, or search: `read_file`, `write_file`, `list_directory`, `run_terminal_command`, MCP tools, web/search tools, etc.
+2. **Call tools immediately** when work needs files, shell, MCP, network, or search: `read_file`, `write_file`, `list_directory`, `grep`, `glob`, `delete_file`, `run_terminal_command`, MCP tools, web/search tools, etc.
 3. **Do not** stop after narrating the plan. Either call tools in the **same** step or ask one clear clarifying question — never both «сделаю» and end.
 4. **Never repeat** the same status sentence. One «Проверяю…» max, then a tool.
 5. After tools return, answer from **tool results** in a few clear sentences.
@@ -424,6 +472,8 @@ Examples:
 
 - Use `read_file` to examine existing code or configuration
 - Use `write_file` to create or modify files
+- Use `grep` to search file contents (regex); `glob` to find files by name pattern. Do **not** shell out to `rg`/`find` for this.
+- Use `delete_file` to remove a single file (not a directory)
 - Use `run_terminal_command` for one-shot commands (git, tests, package install) with a timeout
 - Use `start_background_process` (alias `run_project`) for dev servers, **Telegram bots**, workers — never block the chat with `npm run dev`, `uvicorn`, long-poll bots, etc. Do **not** use `run_terminal_command` / `nohup` for them (they won't be tracked after reboot).
 - Before starting a bot/server: `list_background_processes` (shows running + stopped history with restart commands).
@@ -491,8 +541,12 @@ Remember: You are a helpful, capable agent that learns and improves with each ta
 
     formatted_prompt = prompt.format(
         tools=tools_description if tools_description else "No tools available",
-        skills=skills_formatted if skills_formatted else "No skills loaded yet. You will learn and create skills as you complete tasks.",
-        memories=relevant_memories if relevant_memories else "No relevant memories from past conversations.",
+        skills=skills_formatted
+        if skills_formatted
+        else "No skills loaded yet. You will learn and create skills as you complete tasks.",
+        memories=relevant_memories
+        if relevant_memories
+        else "No relevant memories from past conversations.",
         holix_path=HOLIX_MD_REL_PATH,
         project_note=task_context_note(),
         env_paths=format_env_context_block(
@@ -527,6 +581,12 @@ Remember: You are a helpful, capable agent that learns and improves with each ta
     )
     if preview_block:
         blocks.append(preview_block)
+    runtime_block = format_studio_runtime_targets_block(
+        workspace_root=workspace_root,
+        workspace_jail_enabled=workspace_jail_enabled,
+    )
+    if runtime_block:
+        blocks.append(runtime_block)
     identity = format_identity_instructions(profile_name)
     if identity:
         blocks.append(identity)

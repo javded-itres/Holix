@@ -18,6 +18,9 @@ SUBAGENT_TOOL_CHOICES: tuple[str, ...] = (
     "read_file",
     "write_file",
     "list_directory",
+    "grep",
+    "glob",
+    "delete_file",
     "terminal",
     "web_search",
     "web_fetch",
@@ -27,7 +30,7 @@ SUBAGENT_TOOL_CHOICES: tuple[str, ...] = (
     "sql_schema",
 )
 
-DEFAULT_CUSTOM_TOOLS: list[str] = ["read_file", "list_directory", "terminal"]
+DEFAULT_CUSTOM_TOOLS: list[str] = ["read_file", "list_directory", "grep", "glob", "terminal"]
 
 
 def subagents_dir(profile: str) -> Path:
@@ -60,7 +63,9 @@ class CustomSubAgentType:
             system_prompt=str(data.get("system_prompt") or ""),
             tools=tools or list(DEFAULT_CUSTOM_TOOLS),
             max_steps=int(data.get("max_steps") or 150),
-            temperature=float(data.get("temperature") if data.get("temperature") is not None else 0.3),
+            temperature=float(
+                data.get("temperature") if data.get("temperature") is not None else 0.3
+            ),
             skills=[str(s) for s in (data.get("skills") or []) if str(s).strip()],
             mcp_servers=[str(m) for m in (data.get("mcp_servers") or []) if str(m).strip()],
             model_slot=str(data.get("model_slot") or ""),
@@ -151,9 +156,7 @@ class SubAgentTypeStore:
         return removed
 
 
-def resolve_model_slot_binding(
-    profile: str, model_slot: str
-) -> tuple[str, str] | None:
+def resolve_model_slot_binding(profile: str, model_slot: str) -> tuple[str, str] | None:
     """Map a Studio/CLI model slot id to (provider, model).
 
     Empty / main / inherit → None (use parent main agent model).
@@ -195,6 +198,7 @@ def sync_custom_type_profile_bindings(
     from core.external_cli.assignment import assign_cli_to_subagent, unassign_cli_subagent
     from core.external_cli.store import ExternalCliStore
     from core.profile import get_profile_manager
+
     manager = get_profile_manager()
     config = manager.load_profile(profile)
     agent_slot = custom.name

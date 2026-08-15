@@ -69,7 +69,7 @@ def _split_search_and_analysis(text: str) -> tuple[str, str]:
     if not match:
         return stripped, stripped
     search_part = stripped[: match.start()].strip()
-    analysis_part = stripped[match.start():].strip()
+    analysis_part = stripped[match.start() :].strip()
     return search_part or stripped, analysis_part or stripped
 
 
@@ -119,7 +119,9 @@ async def try_direct_tool_dispatch(host: Any, message: str) -> tuple[bool, str]:
         from core.direct_dispatch.work_status import build_work_status_reply
 
         logger.info("MAX direct dispatch: work status")
-        profile = str(getattr(host, "profile", None) or getattr(agent, "profile", None) or "default")
+        profile = str(
+            getattr(host, "profile", None) or getattr(agent, "profile", None) or "default"
+        )
         body = build_work_status_reply(
             agent,
             profile_name=profile,
@@ -149,8 +151,7 @@ async def try_direct_tool_dispatch(host: Any, message: str) -> tuple[bool, str]:
         query = await _last_search_query(host, agent, conversation_id)
         if not query:
             return True, (
-                "Уточните поисковый запрос, например:\n"
-                'web_search("SaaS AI agents launch")'
+                'Уточните поисковый запрос, например:\nweb_search("SaaS AI agents launch")'
             )
 
     if query:
@@ -202,8 +203,7 @@ async def _run_search_and_analyze(
     except Exception as exc:
         logger.exception("MAX search analysis failed")
         return True, (
-            f"Поиск выполнен, но анализ не удался: {exc}\n\n"
-            f"Сырые результаты:\n{raw[:2000]}"
+            f"Поиск выполнен, но анализ не удался: {exc}\n\nСырые результаты:\n{raw[:2000]}"
         )
 
     logger.info("MAX search analysis done (%d chars)", len(analysis))
@@ -299,7 +299,9 @@ async def _run_tool(
                     conversation_id=conversation_id,
                 )
             else:
-                result = await tool.execute(**args)
+                from core.tools.base import filter_execute_kwargs
+
+                result = await tool.execute(**filter_execute_kwargs(tool.execute, args))
         finally:
             reset_conversation_scope(token)
     except Exception as exc:

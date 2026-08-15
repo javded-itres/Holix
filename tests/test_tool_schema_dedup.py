@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from collections import Counter
 
-from core.tools.aliases import resolve_tool_name
+from core.tools.aliases import get_registered_tool, resolve_tool_name
 from core.tools.registry import ToolRegistry
 
 
@@ -16,6 +16,9 @@ def test_get_schemas_has_no_duplicate_function_names() -> None:
     assert dupes == {}
     assert "start_background_process" in names
     assert "check_background_process" in names
+    assert "grep" in names
+    assert "glob" in names
+    assert "delete_file" in names
 
 
 def test_run_project_alias_resolves() -> None:
@@ -23,3 +26,58 @@ def test_run_project_alias_resolves() -> None:
     registry.register_all()
     assert resolve_tool_name("run_project") == "start_background_process"
     assert "start_background_process" in registry.tools
+
+
+def test_execute_terminal_command_alias_resolves() -> None:
+    registry = ToolRegistry(profile_name="default")
+    registry.register_all()
+    assert resolve_tool_name("execute_terminal_command") == "run_terminal_command"
+    assert resolve_tool_name("list_dir") == "list_directory"
+    assert "execute_terminal_command" in registry.tools
+    assert registry.tools["execute_terminal_command"] is registry.tools["run_terminal_command"]
+
+
+def test_cross_agent_tool_name_aliases() -> None:
+    registry = ToolRegistry(profile_name="default")
+    registry.register_all()
+    expected = {
+        "Bash": "run_terminal_command",
+        "execute_terminal_command": "run_terminal_command",
+        "execute_command": "run_terminal_command",
+        "run_terminal_cmd": "run_terminal_command",
+        "execute_bash": "run_terminal_command",
+        "Read": "read_file",
+        "Write": "write_file",
+        "write_to_file": "write_file",
+        "LS": "list_directory",
+        "list_dir": "list_directory",
+        "list_files": "list_directory",
+        "Grep": "grep",
+        "search_files": "grep",
+        "Glob": "glob",
+        "find_files": "glob",
+        "remove_file": "delete_file",
+        "WebFetch": "fetch_url",
+        "WebSearch": "web_search",
+        "run_project": "start_background_process",
+        "list_processes": "list_background_processes",
+        "Task": "delegate_to_subagent",
+    }
+    for foreign, canonical in expected.items():
+        assert resolve_tool_name(foreign) == canonical, foreign
+        tool = registry.tools.get(canonical)
+        if tool is None:
+            continue  # registered later on the live agent (sub-agents, …)
+        assert get_registered_tool(registry, foreign) is tool, foreign
+
+
+def test_registered_name_wins_over_alias() -> None:
+    """MCP/extension tools keep their own name if it collides with an alias."""
+
+    class _Stub:
+        name = "search"
+
+    registry = ToolRegistry(profile_name="default")
+    registry.tools["search"] = _Stub()
+    assert resolve_tool_name("search", registry.tools) == "search"
+    assert resolve_tool_name("search") == "web_search"

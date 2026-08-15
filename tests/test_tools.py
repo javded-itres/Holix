@@ -4,7 +4,15 @@ import tempfile
 import pytest
 from core.project.holix_md import HOLIX_MD_FILENAME
 from core.tools.code_executor import MathCalculatorTool
-from core.tools.file_ops import ListDirectoryTool, PatchFileTool, ReadFileTool, WriteFileTool
+from core.tools.file_ops import (
+    DeleteFileTool,
+    GlobTool,
+    GrepTool,
+    ListDirectoryTool,
+    PatchFileTool,
+    ReadFileTool,
+    WriteFileTool,
+)
 
 
 @pytest.mark.asyncio
@@ -117,14 +125,59 @@ async def test_list_directory():
 
     with tempfile.TemporaryDirectory() as temp_dir:
         # Create some files
-        open(os.path.join(temp_dir, "file1.txt"), 'w').close()
-        open(os.path.join(temp_dir, "file2.txt"), 'w').close()
+        open(os.path.join(temp_dir, "file1.txt"), "w").close()
+        open(os.path.join(temp_dir, "file2.txt"), "w").close()
         os.mkdir(os.path.join(temp_dir, "subdir"))
 
         result = await list_tool.execute(temp_dir)
         assert "file1.txt" in result
         assert "file2.txt" in result
         assert "subdir" in result
+
+
+@pytest.mark.asyncio
+async def test_grep_finds_regex_matches(tmp_path):
+    (tmp_path / "app.py").write_text("def foo():\n    return 1\n", encoding="utf-8")
+    (tmp_path / "skip.bin").write_bytes(b"\x00foo")
+    nested = tmp_path / "pkg"
+    nested.mkdir()
+    (nested / "util.py").write_text("foo = 2\nbar = 3\n", encoding="utf-8")
+
+    result = await GrepTool().execute(pattern="foo", path=str(tmp_path), glob="*.py")
+    assert "app.py" in result
+    assert "util.py" in result
+    assert "skip.bin" not in result
+    assert "def foo" in result
+
+
+@pytest.mark.asyncio
+async def test_glob_finds_by_pattern(tmp_path):
+    (tmp_path / "README.md").write_text("x", encoding="utf-8")
+    src = tmp_path / "src"
+    src.mkdir()
+    (src / "main.py").write_text("x", encoding="utf-8")
+    (src / "main.ts").write_text("x", encoding="utf-8")
+
+    result = await GlobTool().execute(pattern="**/*.py", path=str(tmp_path))
+    assert "main.py" in result
+    assert "main.ts" not in result
+    assert "README.md" not in result
+
+
+@pytest.mark.asyncio
+async def test_delete_file_removes_file_not_directory(tmp_path):
+    target = tmp_path / "gone.txt"
+    target.write_text("bye", encoding="utf-8")
+    folder = tmp_path / "keep"
+    folder.mkdir()
+
+    deleted = await DeleteFileTool().execute(str(target))
+    assert "Deleted" in deleted
+    assert not target.exists()
+
+    refused = await DeleteFileTool().execute(str(folder))
+    assert "directory" in refused.lower()
+    assert folder.exists()
 
 
 @pytest.mark.asyncio
@@ -143,3 +196,38 @@ async def test_math_calculator():
     # Pi
     result = await calc.execute("pi")
     assert "3.14" in result
+
+
+def test_filter_execute_kwargs_drops_unknown() -> None:
+    from core.tools.base import filter_execute_kwargs
+
+    async def execute(include_stopped: bool = True) -> str:
+        return str(include_stopped)
+
+    filtered = filter_execute_kwargs(
+        execute,
+        {"include_stopped": False, "project_key": "catalog"},
+    )
+    assert filtered == {"include_stopped": False}
+
+
+def test_filter_execute_kwargs_remaps_foreign_args() -> None:
+    from core.tools.base import filter_execute_kwargs
+
+    async def read_file(path: str) -> str:
+        return path
+
+    async def list_directory(path: str = ".") -> str:
+        return path
+
+    async def run_terminal(command: str, timeout: int = 30) -> str:
+        return command
+
+    assert filter_execute_kwargs(read_file, {"file_path": "README.md", "project_key": "x"}) == {
+        "path": "README.md"
+    }
+    assert filter_execute_kwargs(list_directory, {"target_directory": "src"}) == {"path": "src"}
+    assert filter_execute_kwargs(run_terminal, {"cmd": "git status", "timeout_seconds": 10}) == {
+        "command": "git status",
+        "timeout": 10,
+    }

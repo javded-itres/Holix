@@ -31,6 +31,7 @@ from core.security.confirmation_events import (
 
 # ─── RiskClassifier Tests ─────────────────────────────────────────────────
 
+
 class TestRiskClassifier:
     """Test risk classification for all tool types."""
 
@@ -39,8 +40,10 @@ class TestRiskClassifier:
 
     def _make_tool(self, name: str, risk_level: str = "medium"):
         """Create a minimal tool-like object with risk_level."""
+
         class FakeTool:
             pass
+
         tool = FakeTool()
         tool.name = name
         tool.risk_level = risk_level
@@ -57,6 +60,22 @@ class TestRiskClassifier:
         tool = self._make_tool("list_directory", "no")
         assessment = self.classifier.classify("list_directory", tool, {"path": "."})
         assert assessment.risk_level == RiskLevel.NO
+
+    def test_grep_and_glob_are_no_risk(self):
+        grep = self._make_tool("grep", "no")
+        assert self.classifier.classify("grep", grep, {"pattern": "foo"}).risk_level == RiskLevel.NO
+        glob_tool = self._make_tool("glob", "no")
+        assert (
+            self.classifier.classify("glob", glob_tool, {"pattern": "*.py"}).risk_level
+            == RiskLevel.NO
+        )
+
+    def test_delete_file_is_medium_unless_sensitive(self):
+        tool = self._make_tool("delete_file", "medium")
+        ordinary = self.classifier.classify("delete_file", tool, {"path": "tmp/out.txt"})
+        assert ordinary.risk_level == RiskLevel.MEDIUM
+        secret = self.classifier.classify("delete_file", tool, {"path": ".env"})
+        assert secret.risk_level == RiskLevel.HIGH
 
     def test_math_calculator_is_no_risk(self):
         tool = self._make_tool("calculate", "no")
@@ -79,7 +98,9 @@ class TestRiskClassifier:
 
     def test_write_file_is_medium_risk(self):
         tool = self._make_tool("write_file", "medium")
-        assessment = self.classifier.classify("write_file", tool, {"path": "test.py", "content": "print('hi')"})
+        assessment = self.classifier.classify(
+            "write_file", tool, {"path": "test.py", "content": "print('hi')"}
+        )
         assert assessment.risk_level == RiskLevel.MEDIUM
 
     def test_sql_query_select_is_medium(self):
@@ -143,12 +164,16 @@ class TestRiskClassifier:
 
     def test_write_config_py_escalates_to_high(self):
         tool = self._make_tool("write_file", "medium")
-        assessment = self.classifier.classify("write_file", tool, {"path": "config.py", "content": "DB_URL=..."})
+        assessment = self.classifier.classify(
+            "write_file", tool, {"path": "config.py", "content": "DB_URL=..."}
+        )
         assert assessment.risk_level == RiskLevel.HIGH
 
     def test_sql_delete_escalates_to_high(self):
         tool = self._make_tool("sql_query", "medium")
-        assessment = self.classifier.classify("sql_query", tool, {"query": "DELETE FROM users WHERE id=1"})
+        assessment = self.classifier.classify(
+            "sql_query", tool, {"query": "DELETE FROM users WHERE id=1"}
+        )
         assert assessment.risk_level == RiskLevel.HIGH
         assert "DELETE" in assessment.reason
 
@@ -159,13 +184,17 @@ class TestRiskClassifier:
 
     def test_terminal_dangerous_pattern_escalates(self):
         tool = self._make_tool("run_terminal_command", "high")
-        assessment = self.classifier.classify("run_terminal_command", tool, {"command": "git push --force"})
+        assessment = self.classifier.classify(
+            "run_terminal_command", tool, {"command": "git push --force"}
+        )
         assert assessment.risk_level == RiskLevel.HIGH
         assert assessment.pattern_matched is not None
 
     def test_python_os_import_escalates(self):
         tool = self._make_tool("execute_python", "high")
-        assessment = self.classifier.classify("execute_python", tool, {"code": "import os; os.listdir('.')"})
+        assessment = self.classifier.classify(
+            "execute_python", tool, {"code": "import os; os.listdir('.')"}
+        )
         assert assessment.risk_level == RiskLevel.HIGH
         assert "OS module" in assessment.reason
 
@@ -179,6 +208,7 @@ class TestRiskClassifier:
 
 
 # ─── PermissionManager Tests ──────────────────────────────────────────────
+
 
 class TestPermissionManager:
     """Test permission grant storage and retrieval."""
@@ -246,6 +276,7 @@ class TestPermissionManager:
 
 # ─── ConfirmationEvents Tests ──────────────────────────────────────────────
 
+
 class TestConfirmationEvents:
     """Test event creation and fields."""
 
@@ -293,6 +324,7 @@ class TestConfirmationEvents:
 
 
 # ─── ActionGuard Tests ──────────────────────────────────────────────────────
+
 
 class TestActionGuard:
     """Test the ActionGuard orchestration."""
@@ -480,12 +512,14 @@ class TestActionGuard:
         class FakeTool:
             risk_level = "high"
 
-        task = asyncio.create_task(guard.check_and_execute(
-            tool_name="run_terminal_command",
-            tool_instance=FakeTool(),
-            arguments={"command": "ls"},
-            execute_fn=fake_execute,
-        ))
+        task = asyncio.create_task(
+            guard.check_and_execute(
+                tool_name="run_terminal_command",
+                tool_instance=FakeTool(),
+                arguments={"command": "ls"},
+                execute_fn=fake_execute,
+            )
+        )
 
         await asyncio.sleep(0.1)
         confirmation_id = list(guard._pending_confirmations.keys())[0]
@@ -516,12 +550,14 @@ class TestActionGuard:
         class FakeTool:
             risk_level = "high"
 
-        task = asyncio.create_task(guard.check_and_execute(
-            tool_name="run_terminal_command",
-            tool_instance=FakeTool(),
-            arguments={"command": "rm -rf /"},
-            execute_fn=fake_execute,
-        ))
+        task = asyncio.create_task(
+            guard.check_and_execute(
+                tool_name="run_terminal_command",
+                tool_instance=FakeTool(),
+                arguments={"command": "rm -rf /"},
+                execute_fn=fake_execute,
+            )
+        )
 
         await asyncio.sleep(0.1)
         confirmation_id = list(guard._pending_confirmations.keys())[0]
@@ -623,6 +659,7 @@ class TestPlanExecutionAutoApprove:
     def test_auto_approve_flag_default_off(self):
         """By default, auto_approve_plan_execution is False."""
         from core.security.confirmation import ActionGuard
+
         guard = ActionGuard(interactive=True)
         assert guard._auto_approve_plan_execution is False
 
@@ -649,6 +686,7 @@ class TestPlanExecutionAutoApprove:
     def test_auto_approve_flag_resets(self):
         """Setting auto_approve_plan_execution back to False restores confirmation."""
         from core.security.confirmation import ActionGuard
+
         guard = ActionGuard(interactive=True)
         guard._auto_approve_plan_execution = True
         assert guard._auto_approve_plan_execution is True

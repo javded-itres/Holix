@@ -244,15 +244,18 @@ def infer_tools_from_brief(brief: str) -> list[str]:
             "read_file",
             "write_file",
             "list_directory",
+            "grep",
+            "glob",
+            "delete_file",
             "terminal",
             "code_executor",
         ]
     elif any(h in text for h in _REVIEW_HINTS):
-        tools = ["read_file", "list_directory", "terminal"]
+        tools = ["read_file", "list_directory", "grep", "glob", "terminal"]
     elif any(h in text for h in _RESEARCH_HINTS):
-        tools = ["web_search", "web_fetch", "read_file", "list_directory"]
+        tools = ["web_search", "web_fetch", "read_file", "list_directory", "grep", "glob"]
     elif any(h in text for h in _WRITE_HINTS):
-        tools = ["read_file", "write_file", "list_directory"]
+        tools = ["read_file", "write_file", "list_directory", "grep", "glob", "delete_file"]
     if any(h in text for h in _WEB_HINTS):
         for t in ("web_search", "web_fetch"):
             if t not in tools:
@@ -281,11 +284,7 @@ def _role_archetype(brief: str) -> str:
 
 
 def _key_terms(brief: str, *, limit: int = 12) -> list[str]:
-    words = [
-        w
-        for w in _WORD_RE.findall(brief or "")
-        if w.lower() not in _STOP and len(w) > 2
-    ]
+    words = [w for w in _WORD_RE.findall(brief or "") if w.lower() not in _STOP and len(w) > 2]
     seen: set[str] = set()
     out: list[str] = []
     for w in words:
@@ -324,12 +323,15 @@ def expand_system_prompt(brief: str) -> str:
         body = "a capable specialized assistant for the assigned task"
 
     # Drop leading second-person fluff so we rewrite into a proper role block
-    cleaned = re.sub(
-        r"^(ты|you are|you're|you|агент|agent)\s+",
-        "",
-        body,
-        flags=re.IGNORECASE,
-    ).strip() or body
+    cleaned = (
+        re.sub(
+            r"^(ты|you are|you're|you|агент|agent)\s+",
+            "",
+            body,
+            flags=re.IGNORECASE,
+        ).strip()
+        or body
+    )
 
     archetype = _role_archetype(body)
     terms = _key_terms(body)
@@ -338,8 +340,7 @@ def expand_system_prompt(brief: str) -> str:
 
     if ru:
         role_line = (
-            f"Ты специализированный субагент Holix ({archetype}). "
-            f"Твоя предметная роль: {cleaned}."
+            f"Ты специализированный субагент Holix ({archetype}). Твоя предметная роль: {cleaned}."
         )
         expertise_h = "## Экспертиза"
         work_h = "## Как ты работаешь"
@@ -368,8 +369,7 @@ def expand_system_prompt(brief: str) -> str:
         ]
     else:
         role_line = (
-            f"You are a specialized Holix sub-agent ({archetype}). "
-            f"Your domain role: {cleaned}."
+            f"You are a specialized Holix sub-agent ({archetype}). Your domain role: {cleaned}."
         )
         expertise_h = "## Expertise"
         work_h = "## How you work"
