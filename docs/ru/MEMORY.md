@@ -15,6 +15,7 @@ Holix хранит историю диалогов и долгосрочные �
 | Reflexion | Критики качества / retry (`metadata.type=reflexion` или `self_refinement`) |
 | Семантика (Chroma) | Эмбеддинги для `/memory` и `holix memory search` |
 | Индекс навыков | Поиск по skills (отдельно от чата) |
+| LangGraph checkpoints | Тех. снимки state графа в `checkpoints.db` (не знания чата/LTM) |
 
 Агент подтягивает контекст автоматически; можно искать явно.
 
@@ -22,10 +23,30 @@ Holix хранит историю диалогов и долгосрочные �
 
 При включённом **self-refinement** (по умолчанию) каждый evaluate/retry может писать:
 
-- **эпизодическую** память — score, areas, accept vs retry  
-- **стратегическую** (при retry) — короткие советы «когда quality low on X…»  
+- **эпизодическую** память — score, areas, accept vs retry
+- **стратегическую** (при retry) — короткие советы «когда quality low on X…»
 
 См. [EXECUTION_MODES.md](EXECUTION_MODES.md).
+
+### Автоочистка `checkpoints.db` по размеру
+
+Каждый run графа может дописывать state в `data/memory/checkpoints.db`. Это **не** диалоги и **не** LTM — только LangGraph.
+
+Если суммарный размер (`checkpoints.db` + WAL/SHM) превышает лимит, Holix **удаляет файл и создаёт пустой** при следующем открытии графа. По умолчанию:
+
+| Параметр | Env | По умолчанию |
+|----------|-----|--------------|
+| Автоочистка | `HOLIX_CHECKPOINT_AUTO_PRUNE` | `true` |
+| Лимит (МиБ) | `HOLIX_CHECKPOINT_MAX_MB` | `200` |
+
+`HOLIX_CHECKPOINT_MAX_MB=0` — отключить. В `.env` профиля:
+
+```bash
+HOLIX_CHECKPOINT_MAX_MB=200
+HOLIX_CHECKPOINT_AUTO_PRUNE=true
+```
+
+Вручную (агент не пишет в профиль): `rm -f ~/.holix/profiles/<имя>/data/memory/checkpoints.db*`. Полная очистка data: `holix clear`.
 
 ---
 

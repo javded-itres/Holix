@@ -1,7 +1,6 @@
+from core.env_loader import bootstrap_env
 from pydantic import AliasChoices, Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
-
-from core.env_loader import bootstrap_env
 
 bootstrap_env()
 
@@ -81,6 +80,27 @@ class Settings(BaseSettings):
     use_langgraph: bool = True
     execution_mode: str = "react"
     langgraph_checkpoint_db_path: str = "data/memory/checkpoints.db"
+    # Auto-reset checkpoints.db (+ WAL/SHM) when over size limit (per profile).
+    # Does not touch memory.db / ltm.db. 0 MiB disables size-based prune.
+    checkpoint_auto_prune: bool = Field(
+        default=True,
+        validation_alias=AliasChoices(
+            "HOLIX_CHECKPOINT_AUTO_PRUNE",
+            "CHECKPOINT_AUTO_PRUNE",
+        ),
+        description="Reset LangGraph checkpoints.db when over checkpoint_max_mb",
+    )
+    checkpoint_max_mb: int = Field(
+        default=200,
+        validation_alias=AliasChoices(
+            "HOLIX_CHECKPOINT_MAX_MB",
+            "CHECKPOINT_MAX_MB",
+        ),
+        description=(
+            "Max size of checkpoints.db including WAL/SHM in MiB before auto-reset "
+            "(delete and recreate empty). 0 disables. Default 200."
+        ),
+    )
 
     # Sub-Agent Configuration
     enable_subagents: bool = True
