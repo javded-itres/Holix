@@ -419,19 +419,21 @@ def test_memory_paths_live_under_profile_not_project(temp_dir, monkeypatch):
 
     memory_db = Path(resolved.memory_db_path)
     ltm_db = Path(resolved.ltm_db_path)
-    vector_db = Path(resolved.vector_db_path)
     workspace = Path(resolved.workspace_root)
 
     assert memory_db.name == "memory.db"
-    assert "data" in memory_db.parts
-    assert "memory" in memory_db.parts
-    assert str(profile_dir) in str(memory_db)
-    assert ltm_db.parent == memory_db.parent
+    # Layout under profile (avoid str-contains path: Windows short 8.3 vs long form).
+    memory_resolved = memory_db.resolve()
+    assert "profiles" in memory_resolved.parts
+    assert "demo" in memory_resolved.parts
+    assert "data" in memory_resolved.parts
+    assert "memory" in memory_resolved.parts
+    assert ltm_db.resolve().parent == memory_resolved.parent
     assert ltm_db.name == "ltm.db"
-    assert "memory" in vector_db.parts
+    assert "memory" in Path(resolved.vector_db_path).resolve().parts
     # Memory must not live under the workspace tree (not per-project .holix).
     with pytest.raises(ValueError):
-        memory_db.resolve().relative_to(workspace.resolve())
+        memory_resolved.relative_to(workspace.resolve())
     assert workspace.name == "workspace"
 
 

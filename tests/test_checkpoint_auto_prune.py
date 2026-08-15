@@ -20,6 +20,7 @@ def _clear_cooldown():
 
 
 def _write_fake_checkpoint(root: Path, *, main_bytes: int, wal_bytes: int = 0) -> Path:
+    root.mkdir(parents=True, exist_ok=True)
     db = root / "checkpoints.db"
     db.write_bytes(b"x" * main_bytes)
     if wal_bytes:
@@ -77,14 +78,17 @@ def test_force_resets_even_under_limit(tmp_path: Path) -> None:
 
 
 def test_cooldown_skips_second_call(tmp_path: Path) -> None:
-    db = _write_fake_checkpoint(tmp_path, main_bytes=1000)
-    first = maybe_reset_checkpoint_db(db, max_bytes=100, enabled=True, cooldown_s=60)
-    assert first["pruned"] is True
+    clear_checkpoint_prune_cooldown()
+    db = _write_fake_checkpoint(tmp_path / "cooldown_case", main_bytes=1000)
+    # First call: no cooldown window so prune always applies (avoids cross-test key bleed).
+    first = maybe_reset_checkpoint_db(db, max_bytes=100, enabled=True, cooldown_s=0)
+    assert first["pruned"] is True, first
+    assert first["size_before"] >= 1000
 
     # Recreate oversized file immediately; cooldown should skip.
     db.write_bytes(b"z" * 1000)
     second = maybe_reset_checkpoint_db(db, max_bytes=100, enabled=True, cooldown_s=60)
-    assert second["pruned"] is False
+    assert second["pruned"] is False, second
     assert second["reason"] == "cooldown"
     assert db.is_file()
 
