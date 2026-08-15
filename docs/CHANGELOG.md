@@ -2,6 +2,29 @@
 
 ## Unreleased
 
+## 1.0.9 — 2026-08-15
+
+Tool-call recovery and aliases, CPU-safe Chroma embeddings, LangGraph checkpoint size guard, and LTM context-recall tests.
+
+### Added
+
+- **Tool name aliases** — map foreign / leaked tool names to Holix tools so models that invent alternate names still dispatch correctly.
+- **Textual tool-call recovery** — recover tool calls embedded in assistant text when the provider omits structured `tool_calls`.
+- **File tools** — `grep_files`, `glob_files`, and `delete_file` for safer workspace search and removal workflows.
+- **Checkpoint size auto-reset** — when `checkpoints.db` (+ WAL/SHM) exceeds `HOLIX_CHECKPOINT_MAX_MB` (default **200**), Holix deletes and recreates an empty DB on the next graph open; `HOLIX_CHECKPOINT_AUTO_PRUNE` toggles the guard. Does not touch `memory.db` / LTM.
+- **reg.ru DNS-01 hooks** — deploy helpers for ACME DNS challenge (`holix-studio-deploy/scripts/dns-hooks/`).
+
+### Fixed
+
+- **Chroma embeddings on weak/CPU hosts** — force ONNX MiniLM on CPU and avoid CoreML paths that stall or misbehave on macOS.
+- **Confirmation / tool schema** — tighter alias dedup and confirmation handling for recovered tool calls.
+
+### Tests
+
+- LTM context recall: paraphrase semantic/episodic/strategic search, `memory_retrieval_node` injection, `/forget` vs LTM, profile isolation, path layout.
+- Checkpoint auto-prune (over/under limit, cooldown, settings → runtime bytes).
+- Tool schema dedup, textual tool-call recovery, chroma embeddings CPU path.
+
 ## 1.0.8 — 2026-08-14
 
 Tool confirmation UX, context overflow from huge tool dumps, reasoning-only answers, and test harnesses.
