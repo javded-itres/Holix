@@ -14,7 +14,10 @@ from core.subagents.supervisor import (
     SupervisorPolicy,
     assess_handle,
     build_loop_guidance,
+    diagnose_loop_fix,
     format_guidance_system_message,
+    format_human_loop_context,
+    format_human_loop_question,
 )
 
 
@@ -169,6 +172,9 @@ def test_assess_loop() -> None:
     assert d.needs_intervention
     assert "GUIDANCE" in d.guidance
     assert "What to fix" in d.guidance
+    assert "same.py" in str(d.signals.get("user_question") or "")
+    assert "same content again" in str(d.signals.get("user_question") or "")
+    assert "What is stuck" in str(d.signals.get("user_context") or "")
 
 
 def test_assess_thrash() -> None:
@@ -221,6 +227,37 @@ def test_build_loop_guidance_points_to_read_file() -> None:
     )
     assert "LAST CHANCE" in last
     assert "ask_user" in last
+
+
+def test_human_loop_question_includes_path_and_last_result() -> None:
+    q = format_human_loop_question(
+        "The coder keeps re-reading the same file.",
+        details='{"path": "projects/data_address/app/container.py"}',
+        last_result="class AddressProvider:\n    def __init__(self): ...",
+    )
+    assert "container.py" in q
+    assert "AddressProvider" in q
+    ctx = format_human_loop_context(
+        problem="re-reading the same file",
+        tool="read_file",
+        details='{"path": "projects/data_address/app/container.py"}',
+        last_result="class AddressProvider:\n    def __init__(self): ...",
+        next_move="write_file a change",
+        known="you already have this file contents.",
+    )
+    assert "What is stuck: re-reading the same file" in ctx
+    assert "container.py" in ctx
+    assert "AddressProvider" in ctx
+    assert "write_file a change" in ctx
+
+
+def test_diagnose_read_file_names_the_path() -> None:
+    fix = diagnose_loop_fix(
+        tool="read_file",
+        details='{"path": "app/container.py"}',
+        last_result="from dishka import Provider",
+    )
+    assert "app/container.py" in fix["user_question"]
 
 
 def test_build_loop_guidance_venv_hunt_says_what_to_fix() -> None:
@@ -391,6 +428,14 @@ async def test_supervisor_asks_human_then_injects_reply() -> None:
     await asyncio.sleep(0)
     manager.interactions.ask_user.assert_awaited()
     manager.terminate.assert_not_awaited()
+    asked = manager.interactions.ask_user.await_args
+    asked_question = str(
+        asked.args[1] if len(asked.args) > 1 else asked.kwargs.get("question") or ""
+    )
+    asked_context = str(asked.kwargs.get("context") or "")
+    assert "site-packages" in asked_question or "grep mako" in asked_question
+    assert "Last result" in asked_question or "Last tool result" in asked_context
+    assert "none" in (asked_question + asked_context).lower()
     assert "human" in async_bus.send.await_args.args[0].content.lower()
     assert sup._interventions["ask-job"] == 0
 

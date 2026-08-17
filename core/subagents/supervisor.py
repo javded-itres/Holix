@@ -237,6 +237,83 @@ def _tool_path(details: Any) -> str:
     return hit.group(1) if hit else ""
 
 
+def _loop_target(details: Any) -> str:
+    """Human-facing path / command / query from the looping tool call."""
+    path = _tool_path(details)
+    if path:
+        return path
+    text = str(details or "").strip()
+    if text.startswith("{") or text.startswith("["):
+        try:
+            import json
+
+            obj = json.loads(text)
+            if isinstance(obj, dict):
+                for key in ("command", "query", "pattern", "url"):
+                    val = str(obj.get(key) or "").strip()
+                    if val:
+                        return val
+        except Exception:
+            pass
+    cmd = _extract_command(details).strip()
+    if cmd:
+        return " ".join(cmd.split())[:240]
+    return ""
+
+
+def _result_excerpt(result: str, limit: int = 360) -> str:
+    text = " ".join(str(result or "").split())
+    if not text:
+        return ""
+    if len(text) <= limit:
+        return text
+    return text[: max(0, limit - 1)] + "…"
+
+
+def format_human_loop_question(
+    base: str,
+    *,
+    details: str = "",
+    last_result: str = "",
+) -> str:
+    """Question the human sees: what is stuck, which call, last result."""
+    parts = [str(base or "").strip()]
+    target = _loop_target(details)
+    if target:
+        parts.append(f"Repeating: {target}")
+    excerpt = _result_excerpt(last_result)
+    if excerpt:
+        parts.append(f"Last result: {excerpt}")
+    return "\n".join(p for p in parts if p)
+
+
+def format_human_loop_context(
+    *,
+    problem: str,
+    tool: str,
+    details: str = "",
+    last_result: str = "",
+    next_move: str = "",
+    known: str = "",
+) -> str:
+    """Structured evidence for the ask_user dialog (not raw supervisor guidance)."""
+    lines = [
+        f"What is stuck: {problem}",
+        f"Tool: {tool}",
+    ]
+    target = _loop_target(details)
+    if target:
+        lines.append(f"Repeating: {target}")
+    if known:
+        lines.append(f"Already known: {known}")
+    excerpt = _result_excerpt(last_result, 480)
+    if excerpt:
+        lines.append(f"Last tool result: {excerpt}")
+    if next_move:
+        lines.append(f"What the supervisor already asked the agent to do: {next_move}")
+    return "\n".join(lines)
+
+
 def _same_path_search_loop(traces: list[dict[str, Any]]) -> bool:
     """True when grep/glob keeps hitting the same file with tweaked patterns."""
     search = [t for t in traces if _is_search_tool(str(t.get("name") or ""))]
@@ -300,6 +377,8 @@ def diagnose_loop_fix(
     """What is stuck, what is already known, and what to fix next."""
     tool_l = (tool or "tool").strip() or "tool"
     blob = (details or "").lower()
+    target = _loop_target(details)
+    target_s = f" (`{target}`)" if target else ""
     available = [str(t).strip() for t in (available_tools or []) if str(t).strip()]
     read = _prefer_tool(available, "read_file", "grep", "glob", "list_directory")
     write = _prefer_tool(available, "write_file", "delete_file")
@@ -319,7 +398,8 @@ def diagnose_loop_fix(
                 "Do not introspect another library method"
             ),
             "user_question": (
-                "The coder is stuck inspecting libraries instead of writing files. "
+                "The coder is stuck inspecting libraries instead of writing files"
+                f"{target_s}. "
                 "Should it implement from known FastAPI/Dishka APIs, skip this step, "
                 "or do you want a different approach?"
             ),
@@ -334,7 +414,8 @@ def diagnose_loop_fix(
                 "then the next message must be the final answer with NO tool calls"
             ),
             "user_question": (
-                "The coder keeps rewriting files that already match disk. "
+                "The coder keeps rewriting files that already match disk"
+                f"{target_s}. "
                 "Should it stop and finalize, run tests once, or change a specific file?"
             ),
         }
@@ -358,8 +439,8 @@ def diagnose_loop_fix(
                 ),
                 "user_question": (
                     "The coder keeps launching the server in terminal instead of "
-                    "start_background_process. Should it switch to the background tool, "
-                    "skip the server, or stop?"
+                    f"start_background_process{target_s}. "
+                    "Should it switch to the background tool, skip the server, or stop?"
                 ),
             }
         if _looks_like_venv_package_hunt(details):
@@ -378,8 +459,8 @@ def diagnose_loop_fix(
                     f"and run pytest. Searching .venv is not a fix"
                 ),
                 "user_question": (
-                    "The coder is looping on `ls/grep` inside .venv (mako/alembic/etc. "
-                    "are not installed). Should it implement without those packages, "
+                    f"The coder is looping on `ls/grep` inside .venv{target_s}. "
+                    "Those packages are not installed. Should it implement without them, "
                     "`uv add` a specific package, or stop and wait for you?"
                 ),
             }
@@ -392,7 +473,7 @@ def diagnose_loop_fix(
                     "and continue implementation or run tests once"
                 ),
                 "user_question": (
-                    "The coder is retrying the same install command. "
+                    f"The coder is retrying the same install command{target_s}. "
                     "Should it continue with current deps, install a named package, or stop?"
                 ),
             }
@@ -409,7 +490,7 @@ def diagnose_loop_fix(
                 "the fix or write the final answer"
             ),
             "user_question": (
-                "The coder is repeating the same terminal command. "
+                f"The coder is repeating the same terminal command{target_s}. "
                 "What should it do instead (which file to edit, which command, or stop)?"
             ),
         }
@@ -423,7 +504,7 @@ def diagnose_loop_fix(
                 "different path — do not re-read the same file"
             ),
             "user_question": (
-                "The coder keeps re-reading the same file. "
+                f"The coder keeps re-reading the same file{target_s}. "
                 "Which change should it make, or should it stop?"
             ),
         }
@@ -436,7 +517,7 @@ def diagnose_loop_fix(
                 "or answer; do not repeat the same search"
             ),
             "user_question": (
-                "The coder is stuck repeating grep/glob. "
+                f"The coder is stuck repeating grep/glob{target_s}. "
                 "Which path should it open, or should it stop searching?"
             ),
         }
@@ -449,7 +530,7 @@ def diagnose_loop_fix(
                 "move to the next deliverable / final answer"
             ),
             "user_question": (
-                "The coder keeps rewriting the same file. "
+                f"The coder keeps rewriting the same file{target_s}. "
                 "Should it finalize, edit a different file, or stop?"
             ),
         }
@@ -462,7 +543,7 @@ def diagnose_loop_fix(
                 "you already have — do not repeat the same fetch/search"
             ),
             "user_question": (
-                "The coder is looping on web_search/web_fetch. "
+                f"The coder is looping on web_search/web_fetch{target_s}. "
                 "Should it write from current evidence, try a specific URL, or stop?"
             ),
         }
@@ -475,7 +556,7 @@ def diagnose_loop_fix(
             "or produce a partial final result"
         ),
         "user_question": (
-            f"The coder is looping on `{tool_l}`. "
+            f"The coder is looping on `{tool_l}`{target_s}. "
             f"What should it do next, or should it stop? (You can reply via {ask}.)"
         ),
     }
@@ -661,6 +742,14 @@ def assess_handle(
             summary = f"repeated search on the same path ({tool})"
         else:
             summary = f"repeated identical tool calls ({tool})"
+        fix = diagnose_loop_fix(
+            tool=str(tool),
+            details=details,
+            last_result=last_result,
+            available_tools=available,
+            inspect_loop=inspect_hit,
+            noop_write_loop=noop_write_hit,
+        )
         return Diagnosis(
             kind="loop",
             severity="warn" if search_only else "critical",
@@ -684,14 +773,19 @@ def assess_handle(
                 "path_loop": path_loop,
                 "inspect_loop": inspect_hit,
                 "noop_write_loop": noop_write_hit,
-                "user_question": diagnose_loop_fix(
+                "user_question": format_human_loop_question(
+                    fix["user_question"],
+                    details=details,
+                    last_result=last_result,
+                ),
+                "user_context": format_human_loop_context(
+                    problem=fix["problem"],
                     tool=str(tool),
                     details=details,
                     last_result=last_result,
-                    available_tools=available,
-                    inspect_loop=inspect_hit,
-                    noop_write_loop=noop_write_hit,
-                )["user_question"],
+                    next_move=fix["next_move"],
+                    known=fix["known"],
+                ),
             },
         )
 
@@ -1046,10 +1140,19 @@ class SubagentSupervisor:
                     notify(name, force=True)
                 except Exception:
                     pass
+            context = str(diagnosis.signals.get("user_context") or "").strip()
+            if not context:
+                context = format_human_loop_context(
+                    problem=diagnosis.summary,
+                    tool=str(diagnosis.signals.get("loop_tool") or ""),
+                    details=str(diagnosis.signals.get("loop_details") or ""),
+                    last_result=str(diagnosis.signals.get("last_result") or ""),
+                    next_move=diagnosis.guidance,
+                )
             answer = await ask(
                 name,
                 question,
-                context=f"{diagnosis.summary}\n{diagnosis.guidance}",
+                context=context,
             )
         except Exception:
             logger.exception("supervisor: ask_user failed for %s", name)
