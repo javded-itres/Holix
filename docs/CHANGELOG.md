@@ -2,6 +2,25 @@
 
 ## Unreleased
 
+## 1.0.10 — 2026-08-17
+
+MCP tools per agent slot, fewer coder tool-loops, and live provider model lists without stale catalog aliases.
+
+### Added
+
+- **MCP by slot** — connect the union of assigned MCP servers, fill popular configs (e.g. Context7), harvest tools when a slow `npx` server becomes ready, and filter tool schemas by agent slot.
+- **Process-mode MCP** — child processes start assigned MCP even when the parent profile only had a stub manager.
+- **Supervisor loop diagnosis** — structured “what is stuck / what is known / what to fix”; escalate to `ask_user` before stopping a looping sub-agent.
+
+### Fixed
+
+- **Coder loops** — detect service launches across languages; treat inspect/`python -c` and no-op rewrites as non-progress; tighten step-budget and supervisor guidance (venv package hunts, inspect, noop writes).
+- **Stale model aliases** — do not inject `default_model` / catalog `popular_models` that `/v1/models` did not return (drops leftovers like `qwen3.8-27b-mac1`).
+
+### Tests
+
+- MCP assignment, service/introspect/test-run signals, step budget, supervisor `ask_user` escalation, live model-id filter.
+
 ## 1.0.9 — 2026-08-15
 
 Tool-call recovery and aliases, CPU-safe Chroma embeddings, LangGraph checkpoint size guard, and LTM context-recall tests.
