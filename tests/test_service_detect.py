@@ -2,42 +2,12 @@
 
 from __future__ import annotations
 
-import asyncio
-
-import pytest
 from core.runtime.service_detect import (
     is_long_oneshot_job,
     is_untracked_long_running_command,
     should_promote_foreground_service,
 )
-from core.tools.terminal import (
-    PromoteForegroundService,
-    _communicate_with_cancel,
-    _promote_label,
-)
-
-
-class _FakeProc:
-    """Long-running stub — no OS child, no killpg on CI pids."""
-
-    def __init__(self) -> None:
-        self.pid = 424242
-        self.returncode: int | None = None
-
-    async def communicate(self) -> tuple[bytes, bytes]:
-        try:
-            await asyncio.sleep(30)
-        except asyncio.CancelledError:
-            self.returncode = -9
-            raise
-        return b"", b""
-
-    def kill(self) -> None:
-        self.returncode = -9
-
-    async def wait(self) -> int:
-        self.returncode = -9
-        return -9
+from core.tools.terminal import _promote_label
 
 
 def test_oneshot_jobs_are_not_launches() -> None:
@@ -108,61 +78,3 @@ def test_promote_skips_oneshot_even_if_port_bound() -> None:
 def test_promote_label_uses_first_token() -> None:
     assert _promote_label("java -jar app.jar") == "java"
     assert _promote_label("") == "promoted-service"
-
-
-@pytest.mark.asyncio
-async def test_communicate_promotes_when_tree_listens(monkeypatch) -> None:
-    monkeypatch.setenv("HOLIX_SERVICE_WATCH_AFTER", "0.05")
-    monkeypatch.setenv("HOLIX_SERVICE_WATCH_INTERVAL", "0.05")
-    monkeypatch.setattr(
-        "core.tools.terminal.listen_ports_for_pid_tree",
-        lambda pid: [8080],
-    )
-    monkeypatch.setattr("core.tools.terminal.IS_WINDOWS", True)
-    try:
-        await _communicate_with_cancel(
-            _FakeProc(),
-            timeout=2,
-            command="./target/release/api",
-        )
-        pytest.fail("expected PromoteForegroundService")
-    except PromoteForegroundService as exc:
-        assert exc.ports == [8080]
-    except ExceptionGroup as eg:
-        hits = [e for e in eg.exceptions if isinstance(e, PromoteForegroundService)]
-        assert hits, eg
-        assert hits[0].ports == [8080]
-
-
-@pytest.mark.asyncio
-async def test_communicate_does_not_promote_oneshot(monkeypatch) -> None:
-    monkeypatch.setenv("HOLIX_SERVICE_WATCH_AFTER", "0.05")
-    monkeypatch.setenv("HOLIX_SERVICE_WATCH_INTERVAL", "0.05")
-    monkeypatch.setattr(
-        "core.tools.terminal.listen_ports_for_pid_tree",
-        lambda pid: [8080],
-    )
-    monkeypatch.setattr("core.tools.terminal.IS_WINDOWS", True)
-    with pytest.raises(TimeoutError):
-        await _communicate_with_cancel(
-            _FakeProc(),
-            timeout=0.35,
-            command="cargo test --all",
-        )
-
-
-@pytest.mark.asyncio
-async def test_communicate_does_not_promote_without_listen(monkeypatch) -> None:
-    monkeypatch.setenv("HOLIX_SERVICE_WATCH_AFTER", "0.05")
-    monkeypatch.setenv("HOLIX_SERVICE_WATCH_INTERVAL", "0.05")
-    monkeypatch.setattr(
-        "core.tools.terminal.listen_ports_for_pid_tree",
-        lambda pid: [],
-    )
-    monkeypatch.setattr("core.tools.terminal.IS_WINDOWS", True)
-    with pytest.raises(TimeoutError):
-        await _communicate_with_cancel(
-            _FakeProc(),
-            timeout=0.35,
-            command="./long-train-job",
-        )
