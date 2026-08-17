@@ -68,9 +68,7 @@ def build_models_menu(profile: str) -> ModelsMenuState:
         if key in seen:
             continue
         seen.add(key)
-        presets.append(
-            ModelChoice(slot_id=name, label=name, provider=mc.provider, model=mc.model)
-        )
+        presets.append(ModelChoice(slot_id=name, label=name, provider=mc.provider, model=mc.model))
 
     providers: list[ProviderMenu] = []
     for pname, pdata in sorted((cfg.providers or {}).items()):
@@ -79,10 +77,8 @@ def build_models_menu(profile: str) -> ModelsMenuState:
         for mid in pdata.get("available_models") or []:
             if mid and mid not in models:
                 models.append(mid)
-        if default_model and default_model not in models:
-            models.insert(0, default_model)
-        if not models and default_model:
-            models = [default_model]
+        # Do not inject default_model if it is not in the live available list —
+        # that re-surfaces stale aliases (qwen3.8-27b-mac1, etc.).
         if models:
             providers.append(
                 ProviderMenu(

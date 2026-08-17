@@ -32,14 +32,8 @@ def _inject_external_cli_tools(
 
 def resolve_process_mode(parent_config: Any) -> ProcessMode:
     """Pick async vs OS-process mode from parent runtime config."""
-    raw = str(
-        getattr(parent_config, "subagent_default_process_mode", "async") or "async"
-    ).lower()
-    if (
-        raw == "process"
-        and process_subagents_supported()
-        and not prefer_async_subagents()
-    ):
+    raw = str(getattr(parent_config, "subagent_default_process_mode", "async") or "async").lower()
+    if raw == "process" and process_subagents_supported() and not prefer_async_subagents():
         return ProcessMode.PROCESS
     return ProcessMode.ASYNC
 
@@ -74,9 +68,7 @@ def resolve_subagent_model_id(
             if mc and (mc.model or "").strip():
                 return str(mc.model).strip()
         except Exception:
-            logger.debug(
-                "agent_models lookup failed for slot %r", slot, exc_info=True
-            )
+            logger.debug("agent_models lookup failed for slot %r", slot, exc_info=True)
 
     # 2) Studio provider slots and named presets (reads profile menu from disk).
     binding = resolve_model_slot_binding(profile, slot)
@@ -113,8 +105,7 @@ def resolve_subagent_model_id(
             return slot
 
     logger.warning(
-        "Could not resolve sub-agent model_slot %r for profile %r — "
-        "inheriting parent model",
+        "Could not resolve sub-agent model_slot %r for profile %r — inheriting parent model",
         slot,
         profile,
     )
@@ -138,8 +129,11 @@ def prepare_subagent_config(
         cfg.timeout = float(timeout)
 
     mcp_assigns = getattr(parent_config, "mcp_assignments", None) or {}
-    if not cfg.mcp_servers and agent_type in mcp_assigns:
-        cfg.mcp_servers = list(mcp_assigns[agent_type])
+    if agent_type in mcp_assigns:
+        cfg.mcp_servers = list(mcp_assigns[agent_type] or [])
+        cfg.mcp_inherit = False
+    elif not cfg.mcp_servers:
+        cfg.mcp_inherit = True
 
     from core.subagents.store import SubAgentTypeStore
 
@@ -167,5 +161,15 @@ def prepare_subagent_config(
     tools = list(cfg.tools or [])
     if "ask_user" not in tools:
         tools.append("ask_user")
+    if "terminal" in tools or "run_terminal_command" in tools:
+        for bg in (
+            "start_background_process",
+            "check_background_process",
+            "stop_background_process",
+            "list_background_processes",
+            "restart_background_process",
+        ):
+            if bg not in tools:
+                tools.append(bg)
     cfg.tools = _inject_external_cli_tools(agent_type, profile, tools)
     return cfg

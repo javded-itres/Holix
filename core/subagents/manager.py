@@ -332,7 +332,9 @@ class SubAgentManager:
             SubAgentProgressEvent(
                 name=handle.name,
                 agent_type=handle.agent_type or handle.config.agent_type or "",
-                status=handle.status.value if hasattr(handle.status, "value") else str(handle.status),
+                status=handle.status.value
+                if hasattr(handle.status, "value")
+                else str(handle.status),
                 steps_taken=int(handle.steps_taken or 0),
                 max_steps=int(handle.max_steps or handle.config.max_steps or 0),
                 current_activity=handle.current_activity or "",
@@ -366,14 +368,14 @@ class SubAgentManager:
             SubAgentFinishedEvent(
                 name=handle.name,
                 agent_type=handle.agent_type or handle.config.agent_type or "",
-                status=handle.status.value if hasattr(handle.status, "value") else str(handle.status),
+                status=handle.status.value
+                if hasattr(handle.status, "value")
+                else str(handle.status),
                 task_preview=handle.task_preview or "",
                 success=success,
                 error=error,
                 response_preview=response,
-                steps_taken=int(
-                    (result.steps_taken if result else 0) or handle.steps_taken or 0
-                ),
+                steps_taken=int((result.steps_taken if result else 0) or handle.steps_taken or 0),
                 elapsed_ms=float(handle.elapsed_ms or 0),
                 tokens_used=tokens_used,
                 llm_calls=llm_calls,
@@ -385,9 +387,7 @@ class SubAgentManager:
         self._maybe_complete_sdd_task(handle, success=success)
         self._publish_runtime(handle)
 
-    def _maybe_complete_sdd_task(
-        self, handle: SubAgentHandle, *, success: bool
-    ) -> None:
+    def _maybe_complete_sdd_task(self, handle: SubAgentHandle, *, success: bool) -> None:
         try:
             from core.sdd.task_completion import try_complete_sdd_task_for_subagent
 
@@ -421,9 +421,7 @@ class SubAgentManager:
                     from core.sdd.store import SpecStore
 
                     store = SpecStore(project_root)
-                    await dispatch_change_tasks(
-                        store, str(change_id), parent_agent=self._parent
-                    )
+                    await dispatch_change_tasks(store, str(change_id), parent_agent=self._parent)
                 except Exception:
                     logger.debug("SDD next-wave dispatch skipped", exc_info=True)
 
@@ -477,9 +475,7 @@ class SubAgentManager:
         if wanted:
             existing = self._handles.get(wanted)
             instance = (
-                wanted
-                if existing is None or existing.is_done
-                else self.allocate_name(agent_type)
+                wanted if existing is None or existing.is_done else self.allocate_name(agent_type)
             )
         else:
             instance = self.allocate_name(agent_type)
@@ -543,9 +539,7 @@ class SubAgentManager:
         if cfg_timeout > 0:
             return cfg_timeout
         parent_cfg = getattr(self._parent, "config", None)
-        parent_timeout = float(
-            getattr(parent_cfg, "subagent_process_timeout", 0) or 0
-        )
+        parent_timeout = float(getattr(parent_cfg, "subagent_process_timeout", 0) or 0)
         if parent_timeout > 0:
             return parent_timeout
         return _DEFAULT_WAIT_TIMEOUT_S
@@ -631,9 +625,7 @@ class SubAgentManager:
 
         if handle.is_done:
             if handle.result is None:
-                raise TimeoutError(
-                    f"sub-agent '{name}' finished without a result"
-                )
+                raise TimeoutError(f"sub-agent '{name}' finished without a result")
             return handle.result
 
         chunk = float(timeout) if timeout is not None else self._default_wait_timeout(handle)
@@ -649,9 +641,7 @@ class SubAgentManager:
 
         def _result_or_raise() -> SubAgentResult:
             if handle.result is None:
-                raise TimeoutError(
-                    f"sub-agent '{name}' finished without a result"
-                )
+                raise TimeoutError(f"sub-agent '{name}' finished without a result")
             return handle.result
 
         while True:
@@ -662,9 +652,7 @@ class SubAgentManager:
             primary = chunk - grace if chunk > grace else 0.0
             if primary > 0:
                 try:
-                    await asyncio.wait_for(
-                        self._wait_for_handle(handle), timeout=primary
-                    )
+                    await asyncio.wait_for(self._wait_for_handle(handle), timeout=primary)
                 except TimeoutError:
                     pass
                 waited += primary
@@ -692,9 +680,7 @@ class SubAgentManager:
             tail = min(grace, chunk) if primary > 0 else chunk
             if tail > 0:
                 try:
-                    await asyncio.wait_for(
-                        self._wait_for_handle(handle), timeout=tail
-                    )
+                    await asyncio.wait_for(self._wait_for_handle(handle), timeout=tail)
                 except TimeoutError:
                     pass
                 waited += tail
@@ -751,11 +737,7 @@ class SubAgentManager:
         except TimeoutError:
             logger.warning("wait_all timed out — some sub-agents may still be running")
 
-        return {
-            name: h.result
-            for name, h in self._handles.items()
-            if h.result is not None
-        }
+        return {name: h.result for name, h in self._handles.items() if h.result is not None}
 
     def list_active(self) -> list[SubAgentHandle]:
         """List all currently running sub-agents.
@@ -811,9 +793,7 @@ class SubAgentManager:
         if probe is None:
             owner, bare = parse_job_id(text)
             if bare and bare != text:
-                probe = get_job(
-                    profile, bare, include_activity=False, include_result=True
-                )
+                probe = get_job(profile, bare, include_activity=False, include_result=True)
             if probe is None:
                 return None
 
@@ -829,15 +809,19 @@ class SubAgentManager:
                     SubAgentStatus.FAILED.value,
                     SubAgentStatus.CANCELLED.value,
                     SubAgentStatus.TIMED_OUT.value,
+                    SubAgentStatus.LOOP.value,
                 }:
                     res = last.get("result") if isinstance(last.get("result"), dict) else {}
-                    success = bool(res.get("success")) if res else status == (
-                        SubAgentStatus.COMPLETED.value
+                    success = (
+                        bool(res.get("success"))
+                        if res
+                        else status == (SubAgentStatus.COMPLETED.value)
                     )
                     if status in {
                         SubAgentStatus.FAILED.value,
                         SubAgentStatus.CANCELLED.value,
                         SubAgentStatus.TIMED_OUT.value,
+                        SubAgentStatus.LOOP.value,
                     }:
                         success = False
                     return SubAgentResult(
@@ -845,27 +829,20 @@ class SubAgentManager:
                         success=success,
                         response=str(res.get("response") or last.get("response") or ""),
                         error=str(res.get("error") or last.get("error") or ""),
-                        duration_ms=float(
-                            res.get("duration_ms") or last.get("elapsed_ms") or 0
-                        ),
-                        steps_taken=int(
-                            res.get("steps_taken") or last.get("steps_taken") or 0
-                        ),
+                        duration_ms=float(res.get("duration_ms") or last.get("elapsed_ms") or 0),
+                        steps_taken=int(res.get("steps_taken") or last.get("steps_taken") or 0),
                     )
             now = asyncio.get_running_loop().time()
             if now >= deadline:
                 raise TimeoutError(
-                    f"timed out waiting for sub-agent '{text}' "
-                    f"(registry job still running)"
+                    f"timed out waiting for sub-agent '{text}' (registry job still running)"
                 )
             await asyncio.sleep(0.5)
             last = get_job(profile, text, include_activity=False, include_result=True)
             if last is None:
                 owner, bare = parse_job_id(text)
                 if bare:
-                    last = get_job(
-                        profile, bare, include_activity=False, include_result=True
-                    )
+                    last = get_job(profile, bare, include_activity=False, include_result=True)
 
     async def terminate(self, name: str) -> bool:
         """Terminate a specific sub-agent.
@@ -984,15 +961,11 @@ class SubAgentManager:
             mode = h.config.process_mode.value
             elapsed = int(h.elapsed_ms)
             if html:
-                lines.append(
-                    f"• <code>{h.name}</code> [{h.status.value}] {mode}{pid} {elapsed}ms"
-                )
+                lines.append(f"• <code>{h.name}</code> [{h.status.value}] {mode}{pid} {elapsed}ms")
                 if preview:
                     lines.append(f"  <i>{preview}</i>")
             else:
-                lines.append(
-                    f"  {h.name} [{h.status.value}] {mode}{pid} {elapsed}ms — {preview}"
-                )
+                lines.append(f"  {h.name} [{h.status.value}] {mode}{pid} {elapsed}ms — {preview}")
 
         pending = self.interactions.list_pending_questions()
         if pending:
@@ -1050,9 +1023,7 @@ class SubAgentManager:
         except Exception:
             profile_agents = []
 
-        agents = merge_local_and_profile(
-            local_agents, profile_agents, local_owner=owner
-        )
+        agents = merge_local_and_profile(local_agents, profile_agents, local_owner=owner)
         # Ensure source label is present for local-only fallback.
         for row in agents:
             if row.get("local") and not row.get("source"):
@@ -1079,7 +1050,9 @@ class SubAgentManager:
         handle = self._handles.get(name)
         if handle:
             if handle.is_done and not handle.current_activity:
-                status = handle.status.value if hasattr(handle.status, "value") else str(handle.status)
+                status = (
+                    handle.status.value if hasattr(handle.status, "value") else str(handle.status)
+                )
                 handle.record_activity("status", f"Finished ({status})")
             self._mark_done(handle)
             self._emit_finished_once(handle)

@@ -155,10 +155,12 @@ class AsyncSubAgentRunner:
                 for fact in context.get("semantic", []):
                     memory_parts.append(f"[Fact]: {fact.get('content', '')[:200]}")
                 if memory_parts:
-                    messages.append({
-                        "role": "system",
-                        "content": "Relevant context from memory:\n" + "\n".join(memory_parts),
-                    })
+                    messages.append(
+                        {
+                            "role": "system",
+                            "content": "Relevant context from memory:\n" + "\n".join(memory_parts),
+                        }
+                    )
             except Exception as e:
                 logger.debug(f"Memory injection failed for sub-agent: {e}")
 
@@ -220,12 +222,16 @@ class AsyncSubAgentRunner:
                     # Set up timeout
                     llm_t0 = time.monotonic()
                     try:
+                        force_final = bool(getattr(handle, "_force_final_answer", False))
+                        use_tools = tools_schemas if tools_schemas and not force_final else None
                         response = await asyncio.wait_for(
                             client.chat.completions.create(
                                 model=model,
                                 messages=messages,
-                                tools=tools_schemas if tools_schemas else None,
-                                tool_choice="auto" if tools_schemas else None,
+                                tools=use_tools,
+                                tool_choice=("none" if force_final else "auto")
+                                if use_tools
+                                else None,
                                 temperature=config.temperature,
                             ),
                             timeout=config.timeout,
@@ -269,9 +275,7 @@ class AsyncSubAgentRunner:
                         try:
                             choices = getattr(response, "choices", None) or []
                             if choices:
-                                finish_reason = getattr(
-                                    choices[0], "finish_reason", None
-                                )
+                                finish_reason = getattr(choices[0], "finish_reason", None)
                         except Exception:
                             finish_reason = None
                         # Parent bus → Studio token_usage_handler (model.calls + tokens)
@@ -311,10 +315,12 @@ class AsyncSubAgentRunner:
 
                         for tc in message.tool_calls:
                             tool_name = tc.function.name
-                            tool_calls_made.append({
-                                "name": tool_name,
-                                "arguments": tc.function.arguments,
-                            })
+                            tool_calls_made.append(
+                                {
+                                    "name": tool_name,
+                                    "arguments": tc.function.arguments,
+                                }
+                            )
                             handle.record_activity(
                                 "tool_start",
                                 f"Calling {tool_name}",
@@ -336,11 +342,112 @@ class AsyncSubAgentRunner:
                                 steps_taken=steps_taken,
                             )
                             self._notify_progress(config.name)
-                            messages.append({
-                                "role": "tool",
-                                "tool_call_id": tc.id,
-                                "content": result,
-                            })
+                            messages.append(
+                                {
+                                    "role": "tool",
+                                    "tool_call_id": tc.id,
+                                    "content": result,
+                                }
+                            )
+                        try:
+                            from core.runtime.test_run_signals import (
+                                extract_command,
+                                is_green_test_output,
+                                is_test_command,
+                            )
+
+                            green_n = 0
+                            for call in tool_calls_made:
+                                name = str(call.get("name") or "").lower()
+                                if name not in {"terminal", "run_terminal_command"}:
+                                    continue
+                                if is_test_command(extract_command(call.get("arguments"))):
+                                    if is_green_test_output(str(call.get("result") or "")):
+                                        green_n += 1
+                            if green_n >= 1:
+                                messages.append(
+                                    {
+                                        "role": "system",
+                                        "content": (
+                                            "### Tests already passed\n"
+                                            "Automated tests succeeded. Do not run pytest "
+                                            "or grep tests again. If the task is done, "
+                                            "reply with the final answer and NO tool calls "
+                                            "so the Studio process can continue."
+                                        ),
+                                    }
+                                )
+                            if green_n >= 2:
+                                handle._force_final_answer = True
+                                handle.record_activity(
+                                    "status",
+                                    "Tests already green — forcing final answer",
+                                    steps_taken=steps_taken,
+                                )
+                            from core.runtime.write_signals import is_noop_write_result
+
+                            noop_n = 0
+                            for call in tool_calls_made[-6:]:
+                                name = str(call.get("name") or "").lower()
+                                if name in {"write_file", "patch_file"} and is_noop_write_result(
+                                    str(call.get("result") or "")
+                                ):
+                                    noop_n += 1
+                            if noop_n >= 2:
+                                messages.append(
+                                    {
+                                        "role": "system",
+                                        "content": (
+                                            "### Files already match disk\n"
+                                            "write_file returned «no content changes». "
+                                            "Do not rewrite those files. "
+                                            "Run pytest once if needed, then the final "
+                                            "answer with NO tool calls."
+                                        ),
+                                    }
+                                )
+                            if noop_n >= 3:
+                                handle._force_final_answer = True
+                                handle.record_activity(
+                                    "status",
+                                    "No-op write_file loop — forcing final answer",
+                                    steps_taken=steps_taken,
+                                )
+                            # Same terminal command failing over and over (e.g. false
+                            # "use start_background_process" reject) — stop the spin.
+                            tails = [
+                                (
+                                    str(c.get("name") or ""),
+                                    str(c.get("arguments") or ""),
+                                    str(c.get("result") or "")[:80],
+                                )
+                                for c in tool_calls_made[-3:]
+                            ]
+                            if (
+                                len(tails) >= 3
+                                and tails[-1] == tails[-2] == tails[-3]
+                                and tails[-1][0].lower() in {"terminal", "run_terminal_command"}
+                                and tails[-1][2].lower().startswith("error")
+                            ):
+                                handle._force_final_answer = True
+                                messages.append(
+                                    {
+                                        "role": "system",
+                                        "content": (
+                                            "### Stop repeating the same terminal command\n"
+                                            "It already failed the same way. Do not call it again. "
+                                            "Write the final answer (what is done / what is blocked) "
+                                            "with NO tool calls so the process can continue."
+                                        ),
+                                    }
+                                )
+                                handle.record_activity(
+                                    "status",
+                                    "Identical terminal error — forcing final answer",
+                                    steps_taken=steps_taken,
+                                )
+                        except Exception:
+                            logger.debug("green-test finish hint failed", exc_info=True)
                     else:
                         # Final response
                         final_response = message.content or "No response"
@@ -431,6 +538,30 @@ class AsyncSubAgentRunner:
                 return handle.result
 
         except asyncio.CancelledError:
+            forced = getattr(handle, "forced_status", None)
+            if forced == SubAgentStatus.LOOP:
+                handle.status = SubAgentStatus.LOOP
+                if handle.result is None or not handle.result.error:
+                    handle.result = SubAgentResult(
+                        name=config.name,
+                        success=False,
+                        error="loop: stopped by supervisor",
+                        duration_ms=(time.monotonic() - start_time) * 1000,
+                        steps_taken=steps_taken,
+                        tool_calls=tool_calls_made,
+                        **_usage_fields(),
+                    )
+                else:
+                    handle.result.steps_taken = steps_taken
+                    handle.result.tool_calls = tool_calls_made
+                    handle.result.duration_ms = (time.monotonic() - start_time) * 1000
+                handle.record_activity(
+                    "status",
+                    "loop",
+                    steps_taken=steps_taken,
+                )
+                logger.warning("Sub-agent '%s' stopped as loop", config.name)
+                return handle.result
             handle.status = SubAgentStatus.CANCELLED
             handle.record_activity(
                 "status",
@@ -487,7 +618,8 @@ class AsyncSubAgentRunner:
             return False
 
         handle.task.cancel()
-        handle.status = SubAgentStatus.CANCELLED
+        forced = getattr(handle, "forced_status", None)
+        handle.status = forced if forced else SubAgentStatus.CANCELLED
         return True
 
     def get_handle(self, name: str) -> SubAgentHandle | None:
@@ -522,10 +654,28 @@ class AsyncSubAgentRunner:
         from core.tools.aliases import get_registered_tool, tool_schema_for_name
 
         schemas = []
+        seen: set[str] = set()
         for tool_name in config.tools:
             tool = get_registered_tool(self._parent.tools, tool_name)
             if tool:
                 schemas.append(tool_schema_for_name(tool, tool_name))
+                seen.add(str(tool_name))
+
+        # MCP tools live on the parent as mcp_<server>_<tool>.
+        inherit_mcp = bool(getattr(config, "mcp_inherit", True))
+        allowed_servers = [str(s).strip() for s in (config.mcp_servers or []) if str(s).strip()]
+        parent_tools = getattr(self._parent.tools, "tools", None) or {}
+        for name, tool in parent_tools.items():
+            key = str(name or "")
+            if not key.startswith("mcp_") or key in seen:
+                continue
+            if not inherit_mcp:
+                if not allowed_servers or not any(
+                    key.startswith(f"mcp_{srv}_") for srv in allowed_servers
+                ):
+                    continue
+            schemas.append(tool_schema_for_name(tool, key))
+            seen.add(key)
 
         return schemas
 
@@ -549,9 +699,9 @@ class AsyncSubAgentRunner:
         # Inherit parent run conversation so ActionGuard confirmations land on the
         # correct Studio tab (not ContextVar default "default", which hides the UI).
         parent_ctx = getattr(self._parent, "_event_context", None)
-        conversation_id = str(
-            getattr(parent_ctx, "conversation_id", None) or ""
-        ).strip() or "default"
+        conversation_id = (
+            str(getattr(parent_ctx, "conversation_id", None) or "").strip() or "default"
+        )
 
         tokens = subagent_scope(
             config.name,
@@ -568,4 +718,3 @@ class AsyncSubAgentRunner:
             return f"Error: {e}"
         finally:
             reset_subagent_scope(tokens)
-

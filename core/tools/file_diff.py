@@ -80,7 +80,14 @@ def summarize_file_write(path: str, old: str | None, new: str) -> str:
             line_count = 1
         return f"Created {path} (+{line_count} lines)"
     if old == new:
-        return f"Updated {path} (no content changes)"
+        return (
+            f"Updated {path} (no content changes)\n\n"
+            "STOP: The file on disk is already exactly this text. "
+            "Do NOT call write_file on it again. "
+            "If the project files exist, run pytest once (if you have not) "
+            "or give the final answer with NO tool calls so the Studio process "
+            "can continue. Rewriting the same bytes is not progress."
+        )
 
     diff = unified_diff_text(path, old, new)
     added, removed = _count_diff_lines(diff)
@@ -123,10 +130,7 @@ def format_write_file_result(path: str, old: str | None, new: str) -> str:
     old_s = old or ""
     if len(old_s) + len(new) <= _STUDIO_SIDES_MAX_CHARS:
         # No extra newline between old and CONTENT_NEW so old bytes stay exact.
-        body += (
-            f"\n\n{CONTENT_OLD_SEPARATOR}\n{old_s}"
-            f"{CONTENT_NEW_SEPARATOR}\n{new}"
-        )
+        body += f"\n\n{CONTENT_OLD_SEPARATOR}\n{old_s}{CONTENT_NEW_SEPARATOR}\n{new}"
     return body
 
 

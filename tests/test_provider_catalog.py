@@ -45,13 +45,9 @@ def test_ollama_litellm_vllm_configurable_host():
 def test_parse_host_value():
     assert parse_host_value("192.168.1.5", default_port=11434) == "http://192.168.1.5:11434/v1"
     assert (
-        parse_host_value("http://gpu.local:8000", default_port=8000)
-        == "http://gpu.local:8000/v1"
+        parse_host_value("http://gpu.local:8000", default_port=8000) == "http://gpu.local:8000/v1"
     )
-    assert (
-        parse_host_value("http://nas:4000/v1", default_port=4000)
-        == "http://nas:4000/v1"
-    )
+    assert parse_host_value("http://nas:4000/v1", default_port=4000) == "http://nas:4000/v1"
 
 
 def test_resolve_preset_base_url_from_host():
@@ -139,3 +135,34 @@ def test_build_provider_entry_merges_popular_models():
     entry = build_provider_entry(preset, api_key="${DEEPSEEK_API_KEY}", discovered_models=[])
     assert "deepseek-chat" in entry["available_models"]
     assert entry["metadata"]["preset_id"] == "deepseek"
+
+
+def test_apply_live_model_ids_drops_stale_visible():
+    from core.models.setup_helpers import apply_live_model_ids
+
+    out = apply_live_model_ids(
+        {
+            "available_models": ["old-a", "qwen3.8-27b-mac1"],
+            "user_visible_models": ["qwen3.8-27b", "qwen3.8-27b-mac1", "qwen3.6-35b"],
+            "premium_models": ["qwen3.8-27b-mac1"],
+            "default_model": "qwen3.8-27b-mac1",
+        },
+        ["qwen3.6-35b", "coder"],
+    )
+    assert out["available_models"] == ["qwen3.6-35b", "coder"]
+    assert out["user_visible_models"] == ["qwen3.6-35b"]
+    assert out["premium_models"] == []
+    assert out["default_model"] == "qwen3.6-35b"
+
+
+def test_build_provider_entry_does_not_add_undiscovered_popular():
+    preset = get_provider_preset("litellm")
+    assert preset is not None
+    entry = build_provider_entry(
+        preset,
+        api_key="sk-test",
+        discovered_models=[{"id": "qwen3.6-35b"}, {"id": "coder"}],
+    )
+    assert entry["available_models"] == ["qwen3.6-35b", "coder"]
+    assert "smart" not in entry["available_models"]
+    assert "fast" not in entry["available_models"]

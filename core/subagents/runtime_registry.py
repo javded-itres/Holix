@@ -525,6 +525,7 @@ def _normalize_job(
         "failed",
         "cancelled",
         "timed_out",
+        "loop",
     }
     if running and done:
         done = False
@@ -551,8 +552,7 @@ def _normalize_job(
                 "status": status,
                 "running": False,
                 "done": True,
-                "current_activity": raw.get("current_activity")
-                or "Host process exited",
+                "current_activity": raw.get("current_activity") or "Host process exited",
             }
             try:
                 # Persist cancelled state for retention window instead of unlink.

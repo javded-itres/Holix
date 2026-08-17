@@ -80,22 +80,42 @@ def resolve_env_refs(value: Any) -> Any:
 
 from pathlib import Path
 
-_LOCAL_SYSTEM_KEYS: frozenset[str] = frozenset({
-    "model", "base_url", "api_key", "temperature", "max_steps",
-    "max_steps_extend_enabled", "max_steps_extend_by",
-    "max_steps_max_extensions", "max_steps_hard_cap",
-    "subagent_supervisor_enabled", "subagent_supervisor_poll_s",
-    "subagent_supervisor_idle_s", "subagent_supervisor_max_interventions",
-    "subagent_supervisor_cooldown_s",
-    "providers", "agent_models", "default_provider",
-    "auto_allow_threshold", "non_interactive", "confirmation_timeout",
-    "plan_review_enabled", "plan_review_timeout",
-    "enable_subagents", "enable_meta_agent", "enable_self_refinement",
-    "agent_pipeline",
-    "enable_evolution", "context_window",
-    # security-ish that must stay global
-    "api_key_pepper", "require_auth",
-})
+_LOCAL_SYSTEM_KEYS: frozenset[str] = frozenset(
+    {
+        "model",
+        "base_url",
+        "api_key",
+        "temperature",
+        "max_steps",
+        "max_steps_extend_enabled",
+        "max_steps_extend_by",
+        "max_steps_max_extensions",
+        "max_steps_hard_cap",
+        "subagent_supervisor_enabled",
+        "subagent_supervisor_poll_s",
+        "subagent_supervisor_idle_s",
+        "subagent_supervisor_max_interventions",
+        "subagent_supervisor_cooldown_s",
+        "subagent_supervisor_loop_cooldown_s",
+        "providers",
+        "agent_models",
+        "default_provider",
+        "auto_allow_threshold",
+        "non_interactive",
+        "confirmation_timeout",
+        "plan_review_enabled",
+        "plan_review_timeout",
+        "enable_subagents",
+        "enable_meta_agent",
+        "enable_self_refinement",
+        "agent_pipeline",
+        "enable_evolution",
+        "context_window",
+        # security-ish that must stay global
+        "api_key_pepper",
+        "require_auth",
+    }
+)
 
 
 def _path_is_dir(path: Path) -> bool:
@@ -125,6 +145,7 @@ def load_local_overlay(cwd: str | None = None) -> dict[str, Any]:
         return {}
     try:
         import yaml  # lazy
+
         with open(cfg_file, encoding="utf-8") as f:
             data = yaml.safe_load(f) or {}
         return resolve_env_refs(data)

@@ -114,7 +114,9 @@ async def run_agent_loop(
         logger.warning(f"Memory search failed: {e}")
 
     # Build system prompt
-    tools_desc = format_tools_description(agent.tools.get_schemas())
+    tools_desc = format_tools_description(
+        agent.tools.get_schemas(for_agent_slot=getattr(agent, "agent_slot", "main"))
+    )
     agent_config = getattr(agent, "config", None)
     profile_name = getattr(agent_config, "profile_name", None)
     persona_name = getattr(agent, "studio_agent_type", None)
@@ -193,7 +195,7 @@ async def run_agent_loop(
                             factory=lambda cfg, llm_client: llm_client.chat.completions.create(
                                 model=cfg.model,
                                 messages=api_messages,
-                                tools=agent.tools.get_schemas(),
+                                tools=agent.tools.get_schemas(for_agent_slot=agent_slot),
                                 tool_choice="auto",
                                 temperature=temperature,
                                 stream=True,
@@ -376,7 +378,7 @@ async def run_agent_loop(
                             primary_override=primary_override,
                             on_switch=_on_fallback_switch,
                             messages=api_messages,
-                            tools=agent.tools.get_schemas(),
+                            tools=agent.tools.get_schemas(for_agent_slot=agent_slot),
                             tool_choice="auto",
                             temperature=temperature,
                         )
@@ -384,7 +386,7 @@ async def run_agent_loop(
                         response = await client.chat.completions.create(
                             model=model,
                             messages=api_messages,
-                            tools=agent.tools.get_schemas(),
+                            tools=agent.tools.get_schemas(for_agent_slot=agent_slot),
                             tool_choice="auto",
                             temperature=temperature,
                         )

@@ -34,7 +34,7 @@ def build_subagent_system_prompt(
 {task}
 
 ## Available Tools
-{', '.join(config.tools) if config.tools else 'No tools available'}
+{", ".join(config.tools) if config.tools else "No tools available"}
 
 ## Instructions
 1. Focus on your specific task
@@ -42,6 +42,7 @@ def build_subagent_system_prompt(
 3. Provide a clear, concise final answer
 4. If you cannot complete the task, explain why
 5. File paths and shell commands run in the shared working directory below — same as the main agent
+6. When automated tests already pass, stop calling tools and write the final answer so the parent process can continue. Do not re-run the same passing pytest.
 
 Remember: You are {config.name}. Stay focused on your specialized role.
 """

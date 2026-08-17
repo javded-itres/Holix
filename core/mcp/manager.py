@@ -62,10 +62,47 @@ class MCPManager:
         self._last_errors: dict[str, str] = {}
         self._connected = False
         self._lock = asyncio.Lock()
+        # Optional sync callback(name) after list_tools (or failure). Used to
+        # harvest adapters when a slow npx server becomes ready after timeout.
+        self.on_tools_ready: Any = None
 
     @property
     def available_servers(self) -> list[str]:
         return list(self._configs.keys())
+
+    def server_status(self) -> list[dict[str, Any]]:
+        """Per-server ready/error/tool-count snapshot for /mcp tools."""
+        rows: list[dict[str, Any]] = []
+        for name in self._configs:
+            ready = bool(self._ready_events.get(name) and self._ready_events[name].is_set())
+            rows.append(
+                {
+                    "name": name,
+                    "ready": ready,
+                    "connected": name in self._sessions,
+                    "tools": len(self._discovered_tools.get(name) or []),
+                    "error": self._last_errors.get(name) or "",
+                }
+            )
+        return rows
+
+    def _mark_ready(
+        self,
+        name: str,
+        tools: list[dict[str, Any]],
+        error: str | None = None,
+    ) -> None:
+        self._discovered_tools[name] = tools
+        if error:
+            self._last_errors[name] = error
+        ev = self._ready_events.setdefault(name, asyncio.Event())
+        ev.set()
+        cb = self.on_tools_ready
+        if callable(cb):
+            try:
+                cb(name)
+            except Exception:
+                logger.debug("on_tools_ready failed for %s", name, exc_info=True)
 
     async def connect_all(self) -> None:
         if not MCP_AVAILABLE:
@@ -142,16 +179,10 @@ class MCPManager:
                                         or {"type": "object", "properties": {}},
                                     }
                                 )
-                            self._discovered_tools[name] = tools
-                            # Signal ready for waiters
-                            ev = self._ready_events.setdefault(name, asyncio.Event())
-                            ev.set()
+                            self._mark_ready(name, tools)
                         except Exception as disc_err:
                             logger.warning("MCP tool discovery failed for %s: %s", name, disc_err)
-                            self._discovered_tools[name] = []
-                            self._last_errors[name] = f"discovery: {disc_err}"
-                            ev = self._ready_events.setdefault(name, asyncio.Event())
-                            ev.set()  # signal even on discovery failure so waiters unblock
+                            self._mark_ready(name, [], error=f"discovery: {disc_err}")
                         # Park until cancelled. Use a simple event that never sets.
                         await asyncio.Event().wait()
             else:  # sse
@@ -185,15 +216,10 @@ class MCPManager:
                                         or {"type": "object", "properties": {}},
                                     }
                                 )
-                            self._discovered_tools[name] = tools
-                            ev = self._ready_events.setdefault(name, asyncio.Event())
-                            ev.set()
+                            self._mark_ready(name, tools)
                         except Exception as disc_err:
                             logger.warning("MCP tool discovery failed for %s: %s", name, disc_err)
-                            self._discovered_tools[name] = []
-                            self._last_errors[name] = f"discovery: {disc_err}"
-                            ev = self._ready_events.setdefault(name, asyncio.Event())
-                            ev.set()
+                            self._mark_ready(name, [], error=f"discovery: {disc_err}")
                         await asyncio.Event().wait()
         except asyncio.CancelledError:
             logger.info("MCP keeper for %s cancelled (normal shutdown)", name)
@@ -203,9 +229,7 @@ class MCPManager:
 
             msg = format_mcp_error(exc)
             logger.error("MCP keeper for %s failed: %s", name, msg)
-            self._last_errors[name] = msg
-            ev = self._ready_events.setdefault(name, asyncio.Event())
-            ev.set()
+            self._mark_ready(name, [], error=msg)
         finally:
             self._sessions.pop(name, None)
             self._discovered_tools.pop(name, None)

@@ -262,9 +262,7 @@ def _build_safe_builtins(allowed_modules: frozenset[str]) -> dict:
         root = (name or "").split(".", 1)[0]
         if root not in allowed_modules:
             allowed = ", ".join(sorted(allowed_modules))
-            raise ImportError(
-                f"Import of '{name}' is not allowed. Allowed modules: {allowed}"
-            )
+            raise ImportError(f"Import of '{name}' is not allowed. Allowed modules: {allowed}")
         return _builtins.__import__(name, globals, locals, fromlist, level)
 
     mapping: dict = {
@@ -314,6 +312,10 @@ class PythonExecutorTool(BaseTool):
     async def execute(self, code: str, timeout: int = 10) -> str:
         if not settings.enable_code_executor:
             return "Error: Code executor is disabled (HOLIX_ENABLE_CODE_EXECUTOR=false)"
+        from core.runtime.introspect_signals import INTROSPECT_REFUSAL, is_introspect_code
+
+        if is_introspect_code(code):
+            return INTROSPECT_REFUSAL
         try:
             timeout_s = max(1, int(timeout or 10))
         except (TypeError, ValueError):
@@ -333,10 +335,7 @@ class PythonExecutorTool(BaseTool):
                 "HOLIX_PROFILE",
             }:
                 # Keep home/profile for path resolution if needed; drop API keys etc.
-                if any(
-                    s in key.upper()
-                    for s in ("KEY", "TOKEN", "SECRET", "PASSWORD", "PEPPER")
-                ):
+                if any(s in key.upper() for s in ("KEY", "TOKEN", "SECRET", "PASSWORD", "PEPPER")):
                     env.pop(key, None)
 
         # Own process group so killpg reaps nested children.
@@ -374,9 +373,7 @@ class PythonExecutorTool(BaseTool):
                 if remaining <= 0:
                     await self._kill_process(proc)
                     comm.cancel()
-                    return (
-                        f"Error: Code execution timed out after {timeout_s} seconds"
-                    )
+                    return f"Error: Code execution timed out after {timeout_s} seconds"
                 try:
                     stdout, stderr = await asyncio.wait_for(
                         asyncio.shield(comm), timeout=min(0.2, remaining)

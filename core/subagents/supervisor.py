@@ -16,11 +16,15 @@ import time
 from dataclasses import dataclass, field
 from typing import Any
 
+from core.runtime.introspect_signals import introspect_loop
 from core.runtime.step_budget import (
     _looks_like_error,
     _looks_like_progress,
+    _signatures_loop,
     _tool_signature,
 )
+from core.runtime.test_run_signals import tests_already_green_loop
+from core.runtime.write_signals import noop_write_loop
 
 logger = logging.getLogger(__name__)
 
@@ -28,6 +32,7 @@ DEFAULT_POLL_S = 4.0
 DEFAULT_IDLE_S = 90.0
 DEFAULT_MAX_INTERVENTIONS = 3
 DEFAULT_COOLDOWN_S = 45.0
+DEFAULT_LOOP_COOLDOWN_S = 8.0
 DEFAULT_MIN_STEPS_BEFORE_STALL = 4
 
 
@@ -38,6 +43,7 @@ class SupervisorPolicy:
     idle_s: float = DEFAULT_IDLE_S
     max_interventions: int = DEFAULT_MAX_INTERVENTIONS
     cooldown_s: float = DEFAULT_COOLDOWN_S
+    loop_cooldown_s: float = DEFAULT_LOOP_COOLDOWN_S
     min_steps_before_stall: int = DEFAULT_MIN_STEPS_BEFORE_STALL
 
     @classmethod
@@ -51,17 +57,11 @@ class SupervisorPolicy:
             enabled=bool(enabled),
             poll_s=max(
                 1.0,
-                float(
-                    getattr(cfg, "subagent_supervisor_poll_s", DEFAULT_POLL_S)
-                    or DEFAULT_POLL_S
-                ),
+                float(getattr(cfg, "subagent_supervisor_poll_s", DEFAULT_POLL_S) or DEFAULT_POLL_S),
             ),
             idle_s=max(
                 5.0,
-                float(
-                    getattr(cfg, "subagent_supervisor_idle_s", DEFAULT_IDLE_S)
-                    or DEFAULT_IDLE_S
-                ),
+                float(getattr(cfg, "subagent_supervisor_idle_s", DEFAULT_IDLE_S) or DEFAULT_IDLE_S),
             ),
             max_interventions=max(
                 0,
@@ -79,6 +79,17 @@ class SupervisorPolicy:
                 float(
                     getattr(cfg, "subagent_supervisor_cooldown_s", DEFAULT_COOLDOWN_S)
                     or DEFAULT_COOLDOWN_S
+                ),
+            ),
+            loop_cooldown_s=max(
+                0.0,
+                float(
+                    getattr(
+                        cfg,
+                        "subagent_supervisor_loop_cooldown_s",
+                        DEFAULT_LOOP_COOLDOWN_S,
+                    )
+                    or DEFAULT_LOOP_COOLDOWN_S
                 ),
             ),
             min_steps_before_stall=max(
@@ -105,14 +116,15 @@ class Diagnosis:
 
     @property
     def needs_intervention(self) -> bool:
-        return self.kind in {"loop", "thrash", "hung", "stall"}
+        return self.kind in {"loop", "thrash", "hung", "stall", "launch", "tests_green"}
 
 
-def _activity_tool_traces(handle: Any, *, lookback: int = 8) -> list[dict[str, Any]]:
+def _activity_tool_traces(handle: Any, *, lookback: int = 12) -> list[dict[str, Any]]:
     """Build tool-like traces from handle.activity_log."""
     log = list(getattr(handle, "activity_log", None) or [])
     traces: list[dict[str, Any]] = []
-    for entry in log[-lookback * 2 :]:
+    # step + tool_start + tool_result ≈ 3 rows per call
+    for entry in log[-lookback * 3 :]:
         kind = str(entry.get("kind") or "")
         tool = str(entry.get("tool_name") or "")
         details = str(entry.get("details") or "")
@@ -148,6 +160,466 @@ def _activity_tool_traces(handle: Any, *, lookback: int = 8) -> list[dict[str, A
     return traces[-lookback:]
 
 
+_SEARCH_TOOLS = frozenset({"grep", "glob", "list_directory"})
+
+
+def _is_search_tool(name: str) -> bool:
+    return str(name or "").strip().lower() in _SEARCH_TOOLS
+
+
+def _extract_command(details: Any) -> str:
+    text = str(details or "").strip()
+    if text.startswith("{") or text.startswith("["):
+        try:
+            import json
+
+            obj = json.loads(text)
+            if isinstance(obj, dict) and obj.get("command"):
+                return str(obj.get("command") or "")
+        except Exception:
+            pass
+    return text
+
+
+def _looks_like_project_launch(details: Any) -> bool:
+    try:
+        from core.tools.terminal import _is_untracked_long_running_command
+    except Exception:
+        return False
+    return bool(_is_untracked_long_running_command(_extract_command(details)))
+
+
+def _looks_like_port_kill(details: Any) -> bool:
+    blob = _extract_command(details).lower()
+    if "kill" not in blob and "pkill" not in blob:
+        return False
+    return any(x in blob for x in ("lsof", "fuser", ":8000", ":3000", ":5173", "ti:"))
+
+
+def _alternating_launch_kill(traces: list[dict[str, Any]]) -> bool:
+    terms = [
+        t
+        for t in traces
+        if str(t.get("name") or "").lower() in {"terminal", "run_terminal_command"}
+    ]
+    if len(terms) < 4:
+        return False
+    flags = []
+    for t in terms[-4:]:
+        args = t.get("arguments")
+        flags.append(
+            "launch"
+            if _looks_like_project_launch(args)
+            else ("kill" if _looks_like_port_kill(args) else "other")
+        )
+    return flags in (["launch", "kill", "launch", "kill"], ["kill", "launch", "kill", "launch"])
+
+
+def _tool_path(details: Any) -> str:
+    text = str(details or "").strip()
+    if not text:
+        return ""
+    if text.startswith("{") or text.startswith("["):
+        try:
+            import json
+
+            obj = json.loads(text)
+            if isinstance(obj, dict):
+                for key in ("path", "file", "target", "root"):
+                    val = str(obj.get(key) or "").strip()
+                    if val:
+                        return val
+        except Exception:
+            pass
+    import re
+
+    hit = re.search(r'"path"\s*:\s*"([^"]+)"', text)
+    return hit.group(1) if hit else ""
+
+
+def _loop_target(details: Any) -> str:
+    """Human-facing path / command / query from the looping tool call."""
+    path = _tool_path(details)
+    if path:
+        return path
+    text = str(details or "").strip()
+    if text.startswith("{") or text.startswith("["):
+        try:
+            import json
+
+            obj = json.loads(text)
+            if isinstance(obj, dict):
+                for key in ("command", "query", "pattern", "url"):
+                    val = str(obj.get(key) or "").strip()
+                    if val:
+                        return val
+        except Exception:
+            pass
+    cmd = _extract_command(details).strip()
+    if cmd:
+        return " ".join(cmd.split())[:240]
+    return ""
+
+
+def _result_excerpt(result: str, limit: int = 360) -> str:
+    text = " ".join(str(result or "").split())
+    if not text:
+        return ""
+    if len(text) <= limit:
+        return text
+    return text[: max(0, limit - 1)] + "…"
+
+
+def format_human_loop_question(
+    base: str,
+    *,
+    details: str = "",
+    last_result: str = "",
+) -> str:
+    """Question the human sees: what is stuck, which call, last result."""
+    parts = [str(base or "").strip()]
+    target = _loop_target(details)
+    if target:
+        parts.append(f"Repeating: {target}")
+    excerpt = _result_excerpt(last_result)
+    if excerpt:
+        parts.append(f"Last result: {excerpt}")
+    return "\n".join(p for p in parts if p)
+
+
+def format_human_loop_context(
+    *,
+    problem: str,
+    tool: str,
+    details: str = "",
+    last_result: str = "",
+    next_move: str = "",
+    known: str = "",
+) -> str:
+    """Structured evidence for the ask_user dialog (not raw supervisor guidance)."""
+    lines = [
+        f"What is stuck: {problem}",
+        f"Tool: {tool}",
+    ]
+    target = _loop_target(details)
+    if target:
+        lines.append(f"Repeating: {target}")
+    if known:
+        lines.append(f"Already known: {known}")
+    excerpt = _result_excerpt(last_result, 480)
+    if excerpt:
+        lines.append(f"Last tool result: {excerpt}")
+    if next_move:
+        lines.append(f"What the supervisor already asked the agent to do: {next_move}")
+    return "\n".join(lines)
+
+
+def _same_path_search_loop(traces: list[dict[str, Any]]) -> bool:
+    """True when grep/glob keeps hitting the same file with tweaked patterns."""
+    search = [t for t in traces if _is_search_tool(str(t.get("name") or ""))]
+    if len(search) < 4:
+        return False
+    paths = [_tool_path(t.get("arguments")) for t in search[-6:]]
+    paths = [p for p in paths if p]
+    if len(paths) < 4:
+        return False
+    last = paths[-1]
+    return paths.count(last) >= 4
+
+
+def _prefer_tool(available: list[str], *candidates: str) -> str | None:
+    have = {str(t).strip() for t in available if str(t).strip()}
+    if not have:
+        return candidates[0] if candidates else None
+    for name in candidates:
+        if name in have:
+            return name
+    return None
+
+
+def _looks_like_venv_package_hunt(details: str) -> bool:
+    blob = (details or "").lower()
+    in_venv = any(token in blob for token in ("site-packages", ".venv/", "venv/lib", "/lib/python"))
+    hunts = any(token in blob for token in ("grep", "find ", "ls ", "rg ", "pip show", "pip list"))
+    return in_venv and hunts
+
+
+def _looks_like_absence_result(result: str) -> bool:
+    blob = (result or "").lower()
+    if not blob.strip():
+        return False
+    return any(
+        token in blob
+        for token in (
+            "not found",
+            "no such",
+            "none\n",
+            "none of",
+            "no mako",
+            "no alemb",
+            "really none",
+            "exit code 1",
+            "0 match",
+            "no matches",
+        )
+    )
+
+
+def diagnose_loop_fix(
+    *,
+    tool: str,
+    details: str = "",
+    last_result: str = "",
+    available_tools: list[str] | None = None,
+    inspect_loop: bool = False,
+    noop_write_loop: bool = False,
+) -> dict[str, str]:
+    """What is stuck, what is already known, and what to fix next."""
+    tool_l = (tool or "tool").strip() or "tool"
+    blob = (details or "").lower()
+    target = _loop_target(details)
+    target_s = f" (`{target}`)" if target else ""
+    available = [str(t).strip() for t in (available_tools or []) if str(t).strip()]
+    read = _prefer_tool(available, "read_file", "grep", "glob", "list_directory")
+    write = _prefer_tool(available, "write_file", "delete_file")
+    search = _prefer_tool(available, "grep", "glob", "read_file")
+    ask = _prefer_tool(available, "ask_user") or "ask_user"
+
+    if inspect_loop or (
+        tool_l in {"terminal", "run_terminal_command"}
+        and any(x in blob for x in ("inspect.", "python -c", "__init__", "protocol"))
+    ):
+        return {
+            "problem": "library introspection via terminal",
+            "known": "inspect/python -c on third-party packages will not write the project.",
+            "next_move": (
+                f"stop inspect.getsource / python -c. Write the app with "
+                f"{write or 'write_file'} (or {read or 'read_file'} a local file you will edit). "
+                "Do not introspect another library method"
+            ),
+            "user_question": (
+                "The coder is stuck inspecting libraries instead of writing files"
+                f"{target_s}. "
+                "Should it implement from known FastAPI/Dishka APIs, skip this step, "
+                "or do you want a different approach?"
+            ),
+        }
+
+    if noop_write_loop or (tool_l == "write_file" and "no content changes" in blob):
+        return {
+            "problem": "rewriting files that already match disk",
+            "known": "write_file already reported no content changes.",
+            "next_move": (
+                "STOP rewriting those paths. Run pytest once if you have not, "
+                "then the next message must be the final answer with NO tool calls"
+            ),
+            "user_question": (
+                "The coder keeps rewriting files that already match disk"
+                f"{target_s}. "
+                "Should it stop and finalize, run tests once, or change a specific file?"
+            ),
+        }
+
+    if tool_l in {"terminal", "run_terminal_command"}:
+        if _looks_like_project_launch(details) or any(
+            x in blob for x in ("uvicorn", "gunicorn", "npm run dev", "fastapi run", ".main")
+        ):
+            bg = _prefer_tool(
+                available,
+                "start_background_process",
+                "run_project",
+                "check_background_process",
+            )
+            return {
+                "problem": "starting a long-running server in the foreground terminal",
+                "known": "foreground uvicorn/npm/etc. blocks the agent and is not how Studio tracks processes.",
+                "next_move": (
+                    f"use {bg or 'start_background_process'} with the same command, "
+                    "then check_background_process. Do not use &, nohup, or python -m *.main in terminal"
+                ),
+                "user_question": (
+                    "The coder keeps launching the server in terminal instead of "
+                    f"start_background_process{target_s}. "
+                    "Should it switch to the background tool, skip the server, or stop?"
+                ),
+            }
+        if _looks_like_venv_package_hunt(details):
+            absence = (
+                "The venv listing already shows those packages are not installed. "
+                "Repeating ls/grep will not install them."
+                if _looks_like_absence_result(last_result) or "grep" in blob
+                else "Hunting site-packages does not implement the task."
+            )
+            return {
+                "problem": "searching the virtualenv for missing packages",
+                "known": absence,
+                "next_move": (
+                    f"do not ls/grep site-packages again. If you need a package, "
+                    f"`uv add <name>` once; otherwise {write or 'write_file'} the app "
+                    f"and run pytest. Searching .venv is not a fix"
+                ),
+                "user_question": (
+                    f"The coder is looping on `ls/grep` inside .venv{target_s}. "
+                    "Those packages are not installed. Should it implement without them, "
+                    "`uv add` a specific package, or stop and wait for you?"
+                ),
+            }
+        if any(x in blob for x in ("pip install", "uv add", "uv sync")):
+            return {
+                "problem": "repeating a package-install command",
+                "known": "the install command already ran; retrying it is not progress.",
+                "next_move": (
+                    f"stop re-running the installer; {read or 'read_file'} the project "
+                    "and continue implementation or run tests once"
+                ),
+                "user_question": (
+                    f"The coder is retrying the same install command{target_s}. "
+                    "Should it continue with current deps, install a named package, or stop?"
+                ),
+            }
+        return {
+            "problem": f"repeating the same `{tool_l}` command",
+            "known": (
+                "The last command already returned an answer (including empty / not found)."
+                if last_result
+                else "Repeating the same shell command will not change the result."
+            ),
+            "next_move": (
+                f"do not re-run this terminal command. {read or 'read_file'} / "
+                f"{search or 'grep'} project source, then {write or 'write_file'} "
+                "the fix or write the final answer"
+            ),
+            "user_question": (
+                f"The coder is repeating the same terminal command{target_s}. "
+                "What should it do instead (which file to edit, which command, or stop)?"
+            ),
+        }
+
+    if tool_l == "read_file":
+        return {
+            "problem": "re-reading the same file",
+            "known": "you already have this file contents.",
+            "next_move": (
+                f"next {write or 'write_file'} a change or {search or 'grep'} a "
+                "different path — do not re-read the same file"
+            ),
+            "user_question": (
+                f"The coder keeps re-reading the same file{target_s}. "
+                "Which change should it make, or should it stop?"
+            ),
+        }
+    if tool_l in {"grep", "glob"}:
+        return {
+            "problem": "repeating the same search",
+            "known": "the search already returned its hits (or none).",
+            "next_move": (
+                f"open one hit with {read or 'read_file'}, then {write or 'write_file'} "
+                "or answer; do not repeat the same search"
+            ),
+            "user_question": (
+                f"The coder is stuck repeating grep/glob{target_s}. "
+                "Which path should it open, or should it stop searching?"
+            ),
+        }
+    if tool_l == "write_file":
+        return {
+            "problem": "rewriting the same file",
+            "known": "another rewrite of the same path is not new work.",
+            "next_move": (
+                f"stop rewriting the same file; {read or 'read_file'} to verify or "
+                "move to the next deliverable / final answer"
+            ),
+            "user_question": (
+                f"The coder keeps rewriting the same file{target_s}. "
+                "Should it finalize, edit a different file, or stop?"
+            ),
+        }
+    if tool_l in {"web_search", "web_fetch"}:
+        return {
+            "problem": "repeating the same web search/fetch",
+            "known": "you already have that page/query result.",
+            "next_move": (
+                "use a different query/URL once, then write the answer from evidence "
+                "you already have — do not repeat the same fetch/search"
+            ),
+            "user_question": (
+                f"The coder is looping on web_search/web_fetch{target_s}. "
+                "Should it write from current evidence, try a specific URL, or stop?"
+            ),
+        }
+    return {
+        "problem": f"repeating `{tool_l}`",
+        "known": "the same tool call will not produce new information.",
+        "next_move": (
+            f"call a different tool or different arguments "
+            f"({read or 'read_file'} / {write or 'write_file'}), "
+            "or produce a partial final result"
+        ),
+        "user_question": (
+            f"The coder is looping on `{tool_l}`{target_s}. "
+            f"What should it do next, or should it stop? (You can reply via {ask}.)"
+        ),
+    }
+
+
+def build_loop_guidance(
+    *,
+    tool: str,
+    details: str = "",
+    available_tools: list[str] | None = None,
+    attempt: int = 1,
+    max_attempts: int = DEFAULT_MAX_INTERVENTIONS,
+    last_result: str = "",
+    inspect_loop: bool = False,
+    noop_write_loop: bool = False,
+) -> str:
+    """Concrete next-step guidance so the model can leave a tool loop."""
+    tool_l = (tool or "tool").strip() or "tool"
+    available = [str(t).strip() for t in (available_tools or []) if str(t).strip()]
+    read = _prefer_tool(available, "read_file", "grep", "glob", "list_directory")
+    ask = _prefer_tool(available, "ask_user") or "ask_user"
+    fix = diagnose_loop_fix(
+        tool=tool_l,
+        details=details,
+        last_result=last_result,
+        available_tools=available,
+        inspect_loop=inspect_loop,
+        noop_write_loop=noop_write_loop,
+    )
+
+    tools_line = ""
+    if available:
+        tools_line = " Allowed tools: " + ", ".join(available) + "."
+
+    last = attempt >= max(1, int(max_attempts or 1))
+    if last and _is_search_tool(tool_l):
+        warning = (
+            " Stop refining the same search — open the file with "
+            f"{read or 'read_file'} now. Search tweaks are not a failure, "
+            "but they will not find new facts."
+        )
+    elif last:
+        warning = (
+            f" LAST CHANCE: apply the fix above. If you cannot, call `{ask}` "
+            f"now with this question (do not run another `{tool_l}`): "
+            f"{fix['user_question']} "
+            "If you repeat the same call instead, the supervisor will ask the "
+            "human and then stop the job."
+        )
+    else:
+        warning = (
+            f" Attempt {attempt}/{max_attempts}. If you cannot apply the fix, "
+            f"call `{ask}` instead of repeating `{tool_l}`."
+        )
+    return (
+        f"SUPERVISOR GUIDANCE: You are looping on `{tool_l}` "
+        f"({fix['problem']}). {fix['known']} "
+        f"Do NOT call `{tool_l}` with the same arguments again. "
+        f"What to fix: {fix['next_move']}.{tools_line}"
+        f"{warning}"
+    )
+
+
 def assess_handle(
     handle: Any,
     *,
@@ -157,9 +629,7 @@ def assess_handle(
     """Classify sub-agent health from live handle state."""
     pol = policy or SupervisorPolicy()
     status = getattr(handle, "status", None)
-    status_val = (
-        status.value if hasattr(status, "value") else str(status or "")
-    ).lower()
+    status_val = (status.value if hasattr(status, "value") else str(status or "")).lower()
     is_running = bool(getattr(handle, "is_running", False)) or status_val == "running"
     if not is_running:
         return Diagnosis(
@@ -173,18 +643,20 @@ def assess_handle(
     traces = _activity_tool_traces(handle)
     sigs = [str(t.get("signature") or "") for t in traces if t.get("signature")]
     error_count = sum(1 for t in traces if t.get("is_error"))
-    progress_count = sum(
-        1 for t in traces if _looks_like_progress(str(t.get("result") or ""))
-    )
+    progress_count = sum(1 for t in traces if _looks_like_progress(str(t.get("result") or "")))
     steps = int(getattr(handle, "steps_taken", 0) or 0)
     last_tool = str(getattr(handle, "last_tool", "") or "")
     activity = str(getattr(handle, "current_activity", "") or "")
 
-    loop_hit = False
-    if len(sigs) >= 3 and sigs[-1] and sigs[-1] == sigs[-2] == sigs[-3]:
-        loop_hit = True
-    elif len(sigs) >= 4 and sigs[-1] and sigs[-4:].count(sigs[-1]) >= 3:
-        loop_hit = True
+    path_loop = _same_path_search_loop(traces)
+    inspect_hit = introspect_loop(traces)
+    noop_write_hit = noop_write_loop(traces)
+    loop_hit = _signatures_loop(sigs) or path_loop or inspect_hit or noop_write_hit
+    last_args = str((traces[-1] or {}).get("arguments") or "") if traces else ""
+    last_result = str((traces[-1] or {}).get("result") or "") if traces else ""
+    launch_hit = str(last_tool).lower() in {"terminal", "run_terminal_command"} and (
+        _looks_like_project_launch(last_args) or _alternating_launch_kill(traces)
+    )
 
     actively = True
     if hasattr(handle, "is_actively_working"):
@@ -204,20 +676,117 @@ def assess_handle(
         "activity": activity[:120],
     }
 
+    if tests_already_green_loop(traces):
+        available = list(getattr(getattr(handle, "config", None), "tools", None) or [])
+        return Diagnosis(
+            kind="tests_green",
+            severity="warning",
+            summary="tests already passed — finish so the process can continue",
+            guidance=(
+                "SUPERVISOR GUIDANCE: Automated tests already passed. "
+                "Do NOT run pytest/grep on tests again. "
+                "Your next message must be the final answer with NO tool calls "
+                "so the Studio process can continue to the next node. "
+                "Summarize what you fixed and stop."
+            ),
+            signals={
+                **signals,
+                "loop_tool": last_tool or "terminal",
+                "loop_details": last_args[:240],
+                "search_loop": True,
+                "tests_green": True,
+            },
+        )
+
+    if launch_hit:
+        available = list(getattr(getattr(handle, "config", None), "tools", None) or [])
+        bg = _prefer_tool(
+            available,
+            "start_background_process",
+            "run_project",
+            "check_background_process",
+        )
+        return Diagnosis(
+            kind="launch",
+            severity="warning",
+            summary="project launch via terminal — use start_background_process",
+            guidance=(
+                "SUPERVISOR GUIDANCE: You are starting a long-running project/server "
+                "via terminal. Stop that. Call "
+                f"{bg or 'start_background_process'} with the same command "
+                "(label the app), then check_background_process. "
+                "Do not use `&`, nohup, python -m *.main, or uvicorn in terminal — "
+                "those hang the tool and are not tracked."
+            ),
+            signals={
+                **signals,
+                "loop_tool": last_tool or "terminal",
+                "loop_details": last_args[:240],
+                "search_loop": False,
+                "launch_via_terminal": True,
+            },
+        )
+
     if loop_hit:
         tool = last_tool or (traces[-1].get("name") if traces else "tool")
+        details = str((traces[-1] or {}).get("arguments") or "") if traces else ""
+        if noop_write_hit:
+            details = str((traces[-1] or {}).get("result") or details)
+        available = list(getattr(getattr(handle, "config", None), "tools", None) or [])
+        search_only = _is_search_tool(str(tool)) or path_loop
+        if noop_write_hit:
+            summary = f"write_file no-op loop ({tool})"
+        elif inspect_hit:
+            summary = f"library introspection loop via terminal ({tool})"
+        elif path_loop and not _signatures_loop(sigs):
+            summary = f"repeated search on the same path ({tool})"
+        else:
+            summary = f"repeated identical tool calls ({tool})"
+        fix = diagnose_loop_fix(
+            tool=str(tool),
+            details=details,
+            last_result=last_result,
+            available_tools=available,
+            inspect_loop=inspect_hit,
+            noop_write_loop=noop_write_hit,
+        )
         return Diagnosis(
             kind="loop",
-            severity="critical",
-            summary=f"repeated identical tool calls ({tool})",
-            guidance=(
-                f"SUPERVISOR GUIDANCE: You are looping on the same tool call "
-                f"({tool}). Stop repeating it. Change approach: try a different "
-                f"tool, different arguments, read a related file, or summarize "
-                f"what you already know and produce a partial result. Do not "
-                f"call the same tool with the same arguments again."
+            severity="warn" if search_only else "critical",
+            summary=summary,
+            guidance=build_loop_guidance(
+                tool=str(tool),
+                details=details,
+                available_tools=available,
+                attempt=1,
+                max_attempts=pol.max_interventions,
+                last_result=last_result,
+                inspect_loop=inspect_hit,
+                noop_write_loop=noop_write_hit,
             ),
-            signals=signals,
+            signals={
+                **signals,
+                "loop_tool": str(tool),
+                "loop_details": details[:240],
+                "last_result": last_result[:400],
+                "search_loop": search_only,
+                "path_loop": path_loop,
+                "inspect_loop": inspect_hit,
+                "noop_write_loop": noop_write_hit,
+                "user_question": format_human_loop_question(
+                    fix["user_question"],
+                    details=details,
+                    last_result=last_result,
+                ),
+                "user_context": format_human_loop_context(
+                    problem=fix["problem"],
+                    tool=str(tool),
+                    details=details,
+                    last_result=last_result,
+                    next_move=fix["next_move"],
+                    known=fix["known"],
+                ),
+            },
         )
 
     if len(traces) >= 3 and error_count == len(traces) and progress_count == 0:
@@ -294,6 +863,8 @@ class SubagentSupervisor:
         self._interventions: dict[str, int] = {}
         self._last_intervene_at: dict[str, float] = {}
         self._last_kind: dict[str, str] = {}
+        self._escalating: set[str] = set()
+        self._escalated: set[str] = set()
 
     @property
     def policy(self) -> SupervisorPolicy:
@@ -339,6 +910,8 @@ class SubagentSupervisor:
         self._interventions.pop(name, None)
         self._last_intervene_at.pop(name, None)
         self._last_kind.pop(name, None)
+        self._escalating.discard(name)
+        self._escalated.discard(name)
 
     async def _watch_loop(self) -> None:
         try:
@@ -376,38 +949,91 @@ class SubagentSupervisor:
         name = str(getattr(handle, "name", "") or "")
         if not name:
             return
+        if name in self._escalating:
+            return
         diagnosis = assess_handle(handle, policy=self._policy)
         if not diagnosis.needs_intervention:
             return
 
         count = int(self._interventions.get(name, 0))
         if count >= self._policy.max_interventions:
-            # Emit once per "exhausted" transition
+            search_loop = (
+                bool(diagnosis.signals.get("search_loop"))
+                or _is_search_tool(
+                    str(diagnosis.signals.get("loop_tool") or handle.last_tool or "")
+                )
+                or diagnosis.kind == "launch"
+                or diagnosis.kind == "tests_green"
+                or bool(diagnosis.signals.get("launch_via_terminal"))
+                or bool(diagnosis.signals.get("tests_green"))
+            )
             if self._last_kind.get(name) != "exhausted":
                 self._last_kind[name] = "exhausted"
+                fatal = diagnosis.kind == "loop" and not search_loop
                 self._emit(
                     handle,
                     diagnosis,
                     attempt=count,
                     message=(
                         f"Supervisor: max interventions ({count}) reached for "
-                        f"`{name}` ({diagnosis.kind}); waiting for natural stop"
+                        f"`{name}` ({diagnosis.kind}); asking the human"
+                        if fatal
+                        else f"Supervisor: max interventions ({count}) reached for "
+                        f"`{name}` ({diagnosis.kind}); "
+                        + (
+                            "search tweaks are not a failure — waiting for a read/write"
+                            if search_loop
+                            else "waiting for natural stop"
+                        )
                     ),
                     exhausted=True,
                 )
+                if fatal:
+                    if name in self._escalated:
+                        await self._stop_loop(handle, diagnosis)
+                    else:
+                        asyncio.create_task(
+                            self._ask_human_then_retry_or_stop(handle, diagnosis),
+                            name=f"supervisor-ask-{name[:24]}",
+                        )
             return
 
         now = time.monotonic()
         last = float(self._last_intervene_at.get(name, 0.0))
-        if last and (now - last) < self._policy.cooldown_s:
+        cooldown = (
+            self._policy.loop_cooldown_s
+            if diagnosis.kind in {"loop", "launch", "tests_green"}
+            else self._policy.cooldown_s
+        )
+        if last and (now - last) < cooldown:
             return
 
-        # Don't spam same kind every poll without cooldown already covered
-        ok = await self._send_guidance(handle, diagnosis, attempt=count + 1)
+        attempt = count + 1
+        if diagnosis.kind == "loop":
+            diagnosis = Diagnosis(
+                kind=diagnosis.kind,
+                severity=diagnosis.severity,
+                summary=diagnosis.summary,
+                guidance=build_loop_guidance(
+                    tool=str(diagnosis.signals.get("loop_tool") or handle.last_tool or "tool"),
+                    details=str(diagnosis.signals.get("loop_details") or ""),
+                    available_tools=list(
+                        getattr(getattr(handle, "config", None), "tools", None) or []
+                    ),
+                    attempt=attempt,
+                    max_attempts=self._policy.max_interventions,
+                    last_result=str(diagnosis.signals.get("last_result") or ""),
+                    inspect_loop=bool(diagnosis.signals.get("inspect_loop")),
+                    noop_write_loop=bool(diagnosis.signals.get("noop_write_loop")),
+                ),
+                signals=diagnosis.signals,
+            )
+
+        ok = await self._send_guidance(handle, diagnosis, attempt=attempt)
         if not ok:
             return
 
-        self._interventions[name] = count + 1
+        self._interventions[name] = attempt
         self._last_intervene_at[name] = now
         self._last_kind[name] = diagnosis.kind
         self._emit(
@@ -481,6 +1107,124 @@ class SubagentSupervisor:
             diagnosis.summary,
         )
         return True
+
+    async def _ask_human_then_retry_or_stop(self, handle: Any, diagnosis: Diagnosis) -> None:
+        """When the model cannot leave a loop, ask the human what to do."""
+        name = str(getattr(handle, "name", "") or "")
+        if not name or name in self._escalating:
+            return
+        self._escalating.add(name)
+        question = str(diagnosis.signals.get("user_question") or "").strip() or (
+            f"Sub-agent `{name}` is stuck in a tool loop ({diagnosis.summary}). "
+            "What should it do next, or should it stop?"
+        )
+        interactions = getattr(self._manager, "interactions", None)
+        ask = getattr(interactions, "ask_user", None)
+        if not callable(ask):
+            self._escalating.discard(name)
+            await self._stop_loop(handle, diagnosis)
+            return
+        try:
+            try:
+                handle.record_activity(
+                    "status",
+                    "awaiting user (supervisor)",
+                    details=question,
+                    steps_taken=int(getattr(handle, "steps_taken", 0) or 0),
+                )
+            except Exception:
+                pass
+            notify = getattr(self._manager, "notify_progress", None)
+            if callable(notify):
+                try:
+                    notify(name, force=True)
+                except Exception:
+                    pass
+            context = str(diagnosis.signals.get("user_context") or "").strip()
+            if not context:
+                context = format_human_loop_context(
+                    problem=diagnosis.summary,
+                    tool=str(diagnosis.signals.get("loop_tool") or ""),
+                    details=str(diagnosis.signals.get("loop_details") or ""),
+                    last_result=str(diagnosis.signals.get("last_result") or ""),
+                    next_move=diagnosis.guidance,
+                )
+            answer = await ask(
+                name,
+                question,
+                context=context,
+            )
+        except Exception:
+            logger.exception("supervisor: ask_user failed for %s", name)
+            self._escalating.discard(name)
+            await self._stop_loop(handle, diagnosis)
+            return
+
+        self._escalating.discard(name)
+        self._escalated.add(name)
+        text = str(answer or "").strip()
+        low = text.lower()
+        if not text or low.startswith("error:") or low in {"stop", "cancel", "abort", "kill"}:
+            await self._stop_loop(handle, diagnosis)
+            return
+
+        self._interventions[name] = max(0, int(self._policy.max_interventions) - 1)
+        self._last_kind[name] = "user_reply"
+        reply = Diagnosis(
+            kind="loop",
+            severity="warning",
+            summary="human answered supervisor question",
+            guidance=(
+                "SUPERVISOR GUIDANCE: The human answered because you could not "
+                "leave the tool loop yourself. Follow this and do not repeat "
+                f"the previous command:\n{text}"
+            ),
+            signals=diagnosis.signals,
+        )
+        await self._send_guidance(handle, reply, attempt=self._interventions[name])
+        try:
+            handle.record_activity(
+                "supervisor_guidance",
+                "Supervisor: human reply",
+                details=text[:300],
+                steps_taken=int(getattr(handle, "steps_taken", 0) or 0),
+            )
+        except Exception:
+            pass
+
+    async def _stop_loop(self, handle: Any, diagnosis: Diagnosis) -> None:
+        """Stop a looping job with status=loop (not cancelled)."""
+        from core.subagents.base import SubAgentResult, SubAgentStatus
+
+        name = str(getattr(handle, "name", "") or "")
+        error = (
+            "loop: repeated identical tool calls after "
+            f"{self._policy.max_interventions} supervisor interventions"
+        )
+        handle.forced_status = SubAgentStatus.LOOP
+        handle.result = SubAgentResult(
+            name=name,
+            success=False,
+            error=error,
+            steps_taken=int(getattr(handle, "steps_taken", 0) or 0),
+            duration_ms=float(getattr(handle, "elapsed_ms", 0) or 0),
+        )
+        try:
+            handle.record_activity(
+                "status",
+                "loop",
+                details=error,
+                steps_taken=int(getattr(handle, "steps_taken", 0) or 0),
+            )
+        except Exception:
+            pass
+        terminate = getattr(self._manager, "terminate", None)
+        if callable(terminate):
+            try:
+                await terminate(name)
+            except Exception:
+                logger.exception("supervisor: failed to stop looping job %s", name)
+        logger.warning("Supervisor stopped %s with status=loop (%s)", name, diagnosis.summary)
 
     def _emit(
         self,

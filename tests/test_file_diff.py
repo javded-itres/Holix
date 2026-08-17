@@ -37,6 +37,16 @@ def test_new_file_summary():
     assert "Created" in summarize_file_write("new.py", None, "line1\nline2\n")
 
 
+def test_identical_rewrite_tells_agent_to_stop():
+    text = summarize_file_write("app/ioc.py", "same\n", "same\n")
+    assert text.startswith("Updated app/ioc.py (no content changes)")
+    assert "STOP" in text
+    assert "Do NOT call write_file" in text
+    body = format_write_file_result("app/ioc.py", "same\n", "same\n")
+    assert "STOP" in body
+    assert DIFF_SEPARATOR not in body
+
+
 @pytest.mark.asyncio
 async def test_write_file_returns_diff():
     tool = WriteFileTool()

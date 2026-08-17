@@ -51,6 +51,8 @@ class CustomSubAgentType:
     temperature: float = 0.3
     skills: list[str] = field(default_factory=list)
     mcp_servers: list[str] = field(default_factory=list)
+    skills_inherit: bool = True
+    mcp_inherit: bool = True
     model_slot: str = ""
     external_cli_id: str = ""
 
@@ -68,6 +70,8 @@ class CustomSubAgentType:
             ),
             skills=[str(s) for s in (data.get("skills") or []) if str(s).strip()],
             mcp_servers=[str(m) for m in (data.get("mcp_servers") or []) if str(m).strip()],
+            skills_inherit=bool(data.get("skills_inherit", True)),
+            mcp_inherit=bool(data.get("mcp_inherit", True)),
             model_slot=str(data.get("model_slot") or ""),
             external_cli_id=str(data.get("external_cli_id") or ""),
         )
@@ -214,17 +218,19 @@ def sync_custom_type_profile_bindings(
             config.mcp_assignments = old_mcp
 
     assigns = dict(getattr(config, "skill_assignments", None) or {})
-    if custom.skills:
-        assigns[agent_slot] = list(dict.fromkeys(custom.skills))
-    elif agent_slot in assigns:
-        del assigns[agent_slot]
+    explicit_skills = list(dict.fromkeys(custom.skills))
+    if getattr(custom, "skills_inherit", True) and not explicit_skills:
+        assigns.pop(agent_slot, None)
+    else:
+        assigns[agent_slot] = explicit_skills
     config.skill_assignments = assigns
 
     mcp_assigns = dict(getattr(config, "mcp_assignments", None) or {})
-    if custom.mcp_servers:
-        mcp_assigns[agent_slot] = list(dict.fromkeys(custom.mcp_servers))
-    elif agent_slot in mcp_assigns:
-        del mcp_assigns[agent_slot]
+    explicit_mcp = list(dict.fromkeys(custom.mcp_servers))
+    if getattr(custom, "mcp_inherit", True) and not explicit_mcp:
+        mcp_assigns.pop(agent_slot, None)
+    else:
+        mcp_assigns[agent_slot] = explicit_mcp
     config.mcp_assignments = mcp_assigns
 
     model_slot = (custom.model_slot or "").strip()

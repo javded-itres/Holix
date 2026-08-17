@@ -73,7 +73,9 @@ class StepBudgetPolicy:
             enabled = True
         return cls(
             enabled=bool(enabled),
-            extend_by=max(1, int(getattr(cfg, "max_steps_extend_by", DEFAULT_EXTEND_BY) or DEFAULT_EXTEND_BY)),
+            extend_by=max(
+                1, int(getattr(cfg, "max_steps_extend_by", DEFAULT_EXTEND_BY) or DEFAULT_EXTEND_BY)
+            ),
             max_extensions=max(
                 0,
                 int(
@@ -82,7 +84,9 @@ class StepBudgetPolicy:
                 ),
             ),
             hard_cap=max(0, int(getattr(cfg, "max_steps_hard_cap", DEFAULT_HARD_CAP) or 0)),
-            lookback=max(3, int(getattr(cfg, "max_steps_lookback", DEFAULT_LOOKBACK) or DEFAULT_LOOKBACK)),
+            lookback=max(
+                3, int(getattr(cfg, "max_steps_lookback", DEFAULT_LOOKBACK) or DEFAULT_LOOKBACK)
+            ),
         )
 
 
@@ -121,6 +125,25 @@ def _tool_signature(name: str, arguments: Any = None) -> str:
     return f"{(name or '').strip().lower()}::{_norm_args(arguments)}"
 
 
+def identical_tool_loop(
+    tool_calls_log: list[dict[str, Any]] | None,
+    *,
+    lookback: int = DEFAULT_LOOKBACK,
+) -> bool:
+    """True when the same tool+args signature repeats 3× in a row (or 3 of last 4)."""
+    traces = collect_tool_traces(tool_calls_log=tool_calls_log, lookback=lookback)
+    sigs = [str(t.get("signature") or "") for t in traces if t.get("signature")]
+    return _signatures_loop(sigs)
+
+
+def _signatures_loop(sigs: list[str]) -> bool:
+    if len(sigs) >= 3 and sigs[-1] and sigs[-1] == sigs[-2] == sigs[-3]:
+        return True
+    if len(sigs) >= 4 and sigs[-1] and sigs[-4:].count(sigs[-1]) >= 3:
+        return True
+    return False
+
+
 def _looks_like_error(text: str) -> bool:
     low = (text or "").strip().lower()
     if not low:
@@ -136,6 +159,9 @@ def _looks_like_progress(text: str) -> bool:
         return False
     if _looks_like_error(low):
         return False
+    # Identical rewrite is not progress even though the summary says "Updated".
+    if "no content changes" in low:
+        return False
     if any(m in low for m in _PROGRESS_MARKERS):
         return True
     # Non-trivial payload without error markers counts as progress
@@ -144,6 +170,7 @@ def _looks_like_progress(text: str) -> bool:
 
 def _token_overlap(a: str, b: str) -> float:
     """Jaccard-ish overlap on alphanumeric tokens (relevance proxy)."""
+
     def toks(s: str) -> set[str]:
         return {t for t in re.findall(r"[a-zA-Zа-яА-Я0-9_]{3,}", (s or "").lower()) if t}
 
@@ -305,28 +332,38 @@ def evaluate_step_budget(
         lookback=pol.lookback,
     )
 
+    from core.runtime.introspect_signals import (
+        introspect_loop,
+        is_introspect_trace,
+    )
+
     sigs = [t.get("signature") or "" for t in traces if t.get("signature")]
     unique_sigs = {s for s in sigs if s}
     error_count = sum(1 for t in traces if t.get("is_error"))
     progress_count = sum(
-        1 for t in traces if _looks_like_progress(str(t.get("result") or ""))
+        1
+        for t in traces
+        if _looks_like_progress(str(t.get("result") or "")) and not is_introspect_trace(t)
     )
     recent_names = " ".join(str(t.get("name") or "") for t in traces)
     recent_results = " ".join(str(t.get("result") or "")[:200] for t in traces)
-    relevance = max(
-        _token_overlap(task, recent_names),
-        _token_overlap(task, recent_results),
-    ) if task else 0.0
+    relevance = (
+        max(
+            _token_overlap(task, recent_names),
+            _token_overlap(task, recent_results),
+        )
+        if task
+        else 0.0
+    )
 
-    # Detect tight loops: same signature thrice in a row (or 3+ of last 4)
-    loop_hit = False
-    if len(sigs) >= 3:
-        if sigs[-1] and sigs[-1] == sigs[-2] == sigs[-3]:
-            loop_hit = True
-        elif len(sigs) >= 4:
-            last4 = sigs[-4:]
-            if last4 and last4.count(last4[-1]) >= 3:
-                loop_hit = True
+    loop_hit = _signatures_loop([str(s) for s in sigs])
+    from core.runtime.test_run_signals import tests_already_green_loop
+
+    green_repeat = tests_already_green_loop(traces)
+    inspect_repeat = introspect_loop(traces)
+    from core.runtime.write_signals import noop_write_loop
+
+    noop_writes = noop_write_loop(traces)
 
     signals = {
         "pending_tools": len(pending),
@@ -335,6 +372,9 @@ def evaluate_step_budget(
         "error_count": error_count,
         "progress_count": progress_count,
         "loop_hit": loop_hit,
+        "tests_green_repeat": green_repeat,
+        "inspect_repeat": inspect_repeat,
+        "noop_write_repeat": noop_writes,
         "relevance": round(relevance, 3),
         "extensions_used": ext_used,
         "hard_cap": hard,
@@ -345,6 +385,36 @@ def evaluate_step_budget(
         return StepBudgetDecision(
             extend=False,
             reason="hung: repeated identical tool calls (loop)",
+            status="hung",
+            extensions_used=ext_used,
+            new_max_steps=ms,
+            signals=signals,
+        )
+
+    if green_repeat:
+        return StepBudgetDecision(
+            extend=False,
+            reason="tests already passed — re-running is not progress",
+            status="hung",
+            extensions_used=ext_used,
+            new_max_steps=ms,
+            signals=signals,
+        )
+
+    if inspect_repeat:
+        return StepBudgetDecision(
+            extend=False,
+            reason="hung: inspect.getsource / python -c introspection is not progress",
+            status="hung",
+            extensions_used=ext_used,
+            new_max_steps=ms,
+            signals=signals,
+        )
+
+    if noop_writes:
+        return StepBudgetDecision(
+            extend=False,
+            reason="hung: write_file with no content changes is not progress",
             status="hung",
             extensions_used=ext_used,
             new_max_steps=ms,
@@ -405,10 +475,7 @@ def evaluate_step_budget(
     new_max = ms + extra
     return StepBudgetDecision(
         extend=True,
-        reason=(
-            f"working with relevant progress; +{extra} steps "
-            f"({sc}/{ms} → max {new_max})"
-        ),
+        reason=(f"working with relevant progress; +{extra} steps ({sc}/{ms} → max {new_max})"),
         status="working",
         extra_steps=extra,
         new_max_steps=new_max,

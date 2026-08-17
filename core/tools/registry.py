@@ -170,34 +170,44 @@ class ToolRegistry:
     ) -> int:
         """Dynamically register MCP tools for this registry (called from agent init).
 
-        Returns number of tools registered.
+        ``slot`` is kept for callers; allow-lists are applied later in
+        :meth:`get_schemas` / subagent runners so every assigned server
+        is connected once.
         """
-        if not mcp_servers:
+        del slot
+        if not mcp_servers and not assignments:
             return 0
         try:
+            from core.mcp.assign import fill_assigned_mcp_servers
             from core.mcp.manager import MCPManager
 
-            mgr = MCPManager(mcp_servers)
+            servers = fill_assigned_mcp_servers(mcp_servers, assignments)
+            if not servers:
+                return 0
+            mgr = MCPManager(servers)
+            enabled = list(servers.keys())
+            self._mcp_assignments = dict(assignments or {})  # type: ignore[attr-defined]
+            self._mcp_enabled_servers = list(enabled)  # type: ignore[attr-defined]
+            self._mcp_manager = mgr  # type: ignore[attr-defined]
+
+            def _harvest(server_name: str | None = None) -> None:
+                names = [server_name] if server_name else enabled
+                for tool in mgr.get_tool_adapters(names):
+                    if tool.name not in self.tools:
+                        self.register(tool)
+
+            mgr.on_tools_ready = _harvest
             await mgr.connect_all()
-            enabled = []
-            if assignments and slot in assignments:
-                enabled = assignments[slot]
-            elif assignments:
-                enabled = list(assignments.get("main", mcp_servers.keys()))
-            else:
-                enabled = list(mcp_servers.keys())
-            self._mcp_enabled_servers = list(enabled or mcp_servers.keys())  # type: ignore[attr-defined]
+            # Register every connected server. Slot allow-lists are applied in
+            # get_schemas / subagent runners so python-coder can use Context7
+            # even when ``main`` only has holix_studio.
             # Give slow stdio servers (npx/uvx downloads, Context7 auth, etc.) time to initialize + list_tools
             try:
                 await mgr.wait_ready(enabled or None, timeout=ready_timeout)
             except Exception:
                 pass
-            tools = mgr.get_tool_adapters(enabled or None)
-            for t in tools:
-                self.register(t)
-            # keep ref on registry for shutdown if needed
-            self._mcp_manager = mgr  # type: ignore[attr-defined]
-            return len(tools)
+            _harvest()
+            return len([n for n in self.tools if str(n).startswith("mcp_")])
         except Exception as exc:
             # do not break agent if MCP misconfigured
             print(f"Warning: MCP registration skipped: {exc}")
@@ -220,21 +230,37 @@ class ToolRegistry:
                 added += 1
         return added
 
+    def mcp_status(self) -> list[dict[str, Any]]:
+        """Ready/error snapshot for each MCP server this registry started."""
+        mgr = getattr(self, "_mcp_manager", None)
+        if mgr is None:
+            return []
+        status = getattr(mgr, "server_status", None)
+        if callable(status):
+            return list(status() or [])
+        return []
+
     def get_schemas(self, *, for_agent_slot: str = "main") -> list[dict[str, Any]]:
         """Get OpenAI-compatible schemas for all registered tools.
 
         Returns:
             List of tool schemas
         """
+        from core.mcp.assign import mcp_tool_allowed
+
+        slot = (for_agent_slot or "main").strip().lower() or "main"
+        assigns = getattr(self, "_mcp_assignments", None)
         seen: set[str] = set()
         schemas: list[dict[str, Any]] = []
         for tool in self.tools.values():
             name = getattr(tool, "name", "") or ""
             if not name or name in seen:
                 continue
+            if not mcp_tool_allowed(name, slot=slot, assignments=assigns):
+                continue
             seen.add(name)
             schemas.append(tool.to_openai_schema())
-        if (for_agent_slot or "main").strip().lower() == "main":
+        if slot == "main":
             hidden_for_main = frozenset({"external_cli", "ask_user"})
             schemas = [
                 schema
