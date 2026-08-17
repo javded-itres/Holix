@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import asyncio
-import sys
 
 import pytest
 from core.runtime.service_detect import (
@@ -14,9 +13,31 @@ from core.runtime.service_detect import (
 from core.tools.terminal import (
     PromoteForegroundService,
     _communicate_with_cancel,
-    _kill_process_tree,
     _promote_label,
 )
+
+
+class _FakeProc:
+    """Long-running stub — no OS child, no killpg on CI pids."""
+
+    def __init__(self) -> None:
+        self.pid = 424242
+        self.returncode: int | None = None
+
+    async def communicate(self) -> tuple[bytes, bytes]:
+        try:
+            await asyncio.sleep(30)
+        except asyncio.CancelledError:
+            self.returncode = -9
+            raise
+        return b"", b""
+
+    def kill(self) -> None:
+        self.returncode = -9
+
+    async def wait(self) -> int:
+        self.returncode = -9
+        return -9
 
 
 def test_oneshot_jobs_are_not_launches() -> None:
@@ -91,81 +112,51 @@ def test_promote_label_uses_first_token() -> None:
 
 @pytest.mark.asyncio
 async def test_communicate_promotes_when_tree_listens(monkeypatch) -> None:
-    monkeypatch.setenv("HOLIX_SERVICE_WATCH_AFTER", "0.15")
+    monkeypatch.setenv("HOLIX_SERVICE_WATCH_AFTER", "0.05")
     monkeypatch.setenv("HOLIX_SERVICE_WATCH_INTERVAL", "0.05")
     monkeypatch.setattr(
         "core.tools.terminal.listen_ports_for_pid_tree",
         lambda pid: [8080],
     )
-    process = await asyncio.create_subprocess_exec(
-        sys.executable,
-        "-c",
-        "import time; time.sleep(8)",
-        stdout=asyncio.subprocess.PIPE,
-        stderr=asyncio.subprocess.PIPE,
-        start_new_session=True,
-    )
-    try:
-        with pytest.raises(PromoteForegroundService) as exc:
-            await _communicate_with_cancel(
-                process,
-                timeout=3,
-                command="./target/release/api",
-            )
-        assert exc.value.ports == [8080]
-    finally:
-        await _kill_process_tree(process)
+    monkeypatch.setattr("core.tools.terminal.IS_WINDOWS", True)
+    with pytest.raises(PromoteForegroundService) as exc:
+        await _communicate_with_cancel(
+            _FakeProc(),
+            timeout=2,
+            command="./target/release/api",
+        )
+    assert exc.value.ports == [8080]
 
 
 @pytest.mark.asyncio
 async def test_communicate_does_not_promote_oneshot(monkeypatch) -> None:
-    monkeypatch.setenv("HOLIX_SERVICE_WATCH_AFTER", "0.1")
+    monkeypatch.setenv("HOLIX_SERVICE_WATCH_AFTER", "0.05")
     monkeypatch.setenv("HOLIX_SERVICE_WATCH_INTERVAL", "0.05")
     monkeypatch.setattr(
         "core.tools.terminal.listen_ports_for_pid_tree",
         lambda pid: [8080],
     )
-    process = await asyncio.create_subprocess_exec(
-        sys.executable,
-        "-c",
-        "import time; time.sleep(8)",
-        stdout=asyncio.subprocess.PIPE,
-        stderr=asyncio.subprocess.PIPE,
-        start_new_session=True,
-    )
-    try:
-        with pytest.raises(TimeoutError):
-            await _communicate_with_cancel(
-                process,
-                timeout=0.35,
-                command="cargo test --all",
-            )
-    finally:
-        await _kill_process_tree(process)
+    monkeypatch.setattr("core.tools.terminal.IS_WINDOWS", True)
+    with pytest.raises(TimeoutError):
+        await _communicate_with_cancel(
+            _FakeProc(),
+            timeout=0.35,
+            command="cargo test --all",
+        )
 
 
 @pytest.mark.asyncio
 async def test_communicate_does_not_promote_without_listen(monkeypatch) -> None:
-    monkeypatch.setenv("HOLIX_SERVICE_WATCH_AFTER", "0.1")
+    monkeypatch.setenv("HOLIX_SERVICE_WATCH_AFTER", "0.05")
     monkeypatch.setenv("HOLIX_SERVICE_WATCH_INTERVAL", "0.05")
     monkeypatch.setattr(
         "core.tools.terminal.listen_ports_for_pid_tree",
         lambda pid: [],
     )
-    process = await asyncio.create_subprocess_exec(
-        sys.executable,
-        "-c",
-        "import time; time.sleep(8)",
-        stdout=asyncio.subprocess.PIPE,
-        stderr=asyncio.subprocess.PIPE,
-        start_new_session=True,
-    )
-    try:
-        with pytest.raises(TimeoutError):
-            await _communicate_with_cancel(
-                process,
-                timeout=0.35,
-                command="./long-train-job",
-            )
-    finally:
-        await _kill_process_tree(process)
+    monkeypatch.setattr("core.tools.terminal.IS_WINDOWS", True)
+    with pytest.raises(TimeoutError):
+        await _communicate_with_cancel(
+            _FakeProc(),
+            timeout=0.35,
+            command="./long-train-job",
+        )
