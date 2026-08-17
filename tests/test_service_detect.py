@@ -119,13 +119,19 @@ async def test_communicate_promotes_when_tree_listens(monkeypatch) -> None:
         lambda pid: [8080],
     )
     monkeypatch.setattr("core.tools.terminal.IS_WINDOWS", True)
-    with pytest.raises(PromoteForegroundService) as exc:
+    try:
         await _communicate_with_cancel(
             _FakeProc(),
             timeout=2,
             command="./target/release/api",
         )
-    assert exc.value.ports == [8080]
+        pytest.fail("expected PromoteForegroundService")
+    except PromoteForegroundService as exc:
+        assert exc.ports == [8080]
+    except ExceptionGroup as eg:
+        hits = [e for e in eg.exceptions if isinstance(e, PromoteForegroundService)]
+        assert hits, eg
+        assert hits[0].ports == [8080]
 
 
 @pytest.mark.asyncio

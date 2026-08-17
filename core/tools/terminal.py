@@ -264,6 +264,10 @@ async def _communicate_with_cancel(
                 if ports:
                     if not comm.done():
                         comm.cancel()
+                        try:
+                            await comm
+                        except (asyncio.CancelledError, Exception):
+                            pass
                     await _kill_process_tree(process)
                     raise PromoteForegroundService(ports)
 
