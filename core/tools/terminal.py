@@ -262,6 +262,7 @@ async def _communicate_with_cancel(
                 pid = int(process.pid or 0)
                 ports = await asyncio.to_thread(listen_ports_for_pid_tree, pid)
                 if ports:
+                    await _kill_process_tree(process)
                     raise PromoteForegroundService(ports)
 
             wait_s = min(poll, remaining)

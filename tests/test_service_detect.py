@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import sys
 
 import pytest
 from core.runtime.service_detect import (
@@ -97,8 +98,9 @@ async def test_communicate_promotes_when_tree_listens(monkeypatch) -> None:
         lambda pid: [8080],
     )
     process = await asyncio.create_subprocess_exec(
-        "sleep",
-        "8",
+        sys.executable,
+        "-c",
+        "import time; time.sleep(8)",
         stdout=asyncio.subprocess.PIPE,
         stderr=asyncio.subprocess.PIPE,
         start_new_session=True,
@@ -124,8 +126,9 @@ async def test_communicate_does_not_promote_oneshot(monkeypatch) -> None:
         lambda pid: [8080],
     )
     process = await asyncio.create_subprocess_exec(
-        "sleep",
-        "8",
+        sys.executable,
+        "-c",
+        "import time; time.sleep(8)",
         stdout=asyncio.subprocess.PIPE,
         stderr=asyncio.subprocess.PIPE,
         start_new_session=True,
@@ -150,8 +153,9 @@ async def test_communicate_does_not_promote_without_listen(monkeypatch) -> None:
         lambda pid: [],
     )
     process = await asyncio.create_subprocess_exec(
-        "sleep",
-        "8",
+        sys.executable,
+        "-c",
+        "import time; time.sleep(8)",
         stdout=asyncio.subprocess.PIPE,
         stderr=asyncio.subprocess.PIPE,
         start_new_session=True,

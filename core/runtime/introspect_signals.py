@@ -18,7 +18,8 @@ _INTROSPECT_RE = re.compile(
     r"|import\s+inspect\b"
     r"|\bdis\.dis\b"
     r"|__code__"
-    r"|__(?:name|doc|annotations|defaults|kwdefaults|qualname|module|"
+    # Not ``__name__``: ``type(exc).__name__`` is normal error handling.
+    r"|__(?:doc|annotations|defaults|kwdefaults|qualname|module|"
     r"dict|mro|globals|func__)__"
     r"|python\d*\s+-c\b[^;\n]*\b(?:dir|vars|type|help|getattr|hasattr)\s*\(",
     re.I,

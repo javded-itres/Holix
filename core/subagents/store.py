@@ -218,17 +218,19 @@ def sync_custom_type_profile_bindings(
             config.mcp_assignments = old_mcp
 
     assigns = dict(getattr(config, "skill_assignments", None) or {})
-    if getattr(custom, "skills_inherit", True):
+    explicit_skills = list(dict.fromkeys(custom.skills))
+    if getattr(custom, "skills_inherit", True) and not explicit_skills:
         assigns.pop(agent_slot, None)
     else:
-        assigns[agent_slot] = list(dict.fromkeys(custom.skills))
+        assigns[agent_slot] = explicit_skills
     config.skill_assignments = assigns
 
     mcp_assigns = dict(getattr(config, "mcp_assignments", None) or {})
-    if getattr(custom, "mcp_inherit", True):
+    explicit_mcp = list(dict.fromkeys(custom.mcp_servers))
+    if getattr(custom, "mcp_inherit", True) and not explicit_mcp:
         mcp_assigns.pop(agent_slot, None)
     else:
-        mcp_assigns[agent_slot] = list(dict.fromkeys(custom.mcp_servers))
+        mcp_assigns[agent_slot] = explicit_mcp
     config.mcp_assignments = mcp_assigns
 
     model_slot = (custom.model_slot or "").strip()

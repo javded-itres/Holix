@@ -7,6 +7,7 @@ import time
 import pytest
 from core.runtime.introspect_signals import (
     introspect_loop,
+    is_introspect_code,
     is_introspect_command,
 )
 from core.runtime.step_budget import StepBudgetPolicy, evaluate_step_budget
@@ -33,6 +34,9 @@ def test_detects_inspect_getsource() -> None:
     assert not is_introspect_command("python -m pytest tests")
     assert not is_introspect_command("pip install dadata")
     assert not is_introspect_command('python -c "print(1)"')
+    assert not is_introspect_code(
+        "try:\n    1/0\nexcept ZeroDivisionError as e:\n    print(type(e).__name__)"
+    )
 
 
 def test_introspect_loop_on_rotating_methods() -> None:
