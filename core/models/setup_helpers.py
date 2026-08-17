@@ -106,9 +106,7 @@ def resolve_preset_api_key_interactive(
         return preset.api_key_placeholder
 
     out = console or Console()
-    out.print(
-        f"[dim]Set {preset.api_key_env} in .env or enter key now to list models.[/dim]"
-    )
+    out.print(f"[dim]Set {preset.api_key_env} in .env or enter key now to list models.[/dim]")
     entered = Prompt.ask(
         f"API key ({preset.api_key_env})",
         password=True,
@@ -131,7 +129,11 @@ def resolve_api_key_for_preset(
     """Pick API key: explicit value, live env, or ${ENV} placeholder for YAML."""
     if custom_key is not None and custom_key.strip():
         return custom_key.strip()
-    if use_env_value and preset.api_key_env in os.environ and os.environ[preset.api_key_env].strip():
+    if (
+        use_env_value
+        and preset.api_key_env in os.environ
+        and os.environ[preset.api_key_env].strip()
+    ):
         return preset.api_key_placeholder
     if preset.auth_type == "none":
         return "EMPTY" if preset.id == "vllm" else "ollama"
@@ -148,7 +150,9 @@ def prompt_host_for_preset(preset: ProviderPreset, *, console: Any = None) -> st
     if preset.host_env and os.environ.get(preset.host_env, "").strip():
         base = resolve_preset_base_url(preset)
         if console:
-            console.print(f"[dim]Using {preset.host_env}={os.environ[preset.host_env].strip()}[/dim]")
+            console.print(
+                f"[dim]Using {preset.host_env}={os.environ[preset.host_env].strip()}[/dim]"
+            )
         return base
 
     default_hint = f"{preset.default_host}:{preset.default_port}"
@@ -333,15 +337,18 @@ def build_provider_entry(
             ctx = m.get("context_length")
             if mid and ctx:
                 model_contexts[mid] = int(ctx)
-
-    for mid in preset.popular_models:
-        if mid not in available:
-            available.append(mid)
+    else:
+        # Probe failed or skipped — fall back to the catalog shortlist only.
+        for mid in preset.popular_models:
+            if mid not in available:
+                available.append(mid)
 
     if not available and preset.default_model:
         available = [preset.default_model]
 
-    resolved_default = default_model or preset.default_model or (available[0] if available else None)
+    resolved_default = (
+        default_model or preset.default_model or (available[0] if available else None)
+    )
     resolved_url = base_url or preset.base_url
     meta = merge_provider_metadata(preset.default_metadata(), metadata_extra)
     if preset.configurable_host and preset.host_env:
@@ -357,6 +364,33 @@ def build_provider_entry(
         metadata=meta,
     )
     return cfg.model_dump()
+
+
+def apply_live_model_ids(provider_data: dict[str, Any], live_ids: list[str]) -> dict[str, Any]:
+    """Replace catalog lists with ids the provider actually returned.
+
+    Drops stale ``user_visible_models`` / ``premium_models`` / default that
+    are not in the live ``/v1/models`` set.
+    """
+    out = dict(provider_data or {})
+    live: list[str] = []
+    seen: set[str] = set()
+    for raw in live_ids:
+        mid = str(raw or "").strip()
+        if not mid or mid in seen:
+            continue
+        seen.add(mid)
+        live.append(mid)
+    out["available_models"] = live
+    live_set = set(live)
+    for key in ("user_visible_models", "premium_models"):
+        if key not in out:
+            continue
+        out[key] = [str(m).strip() for m in (out.get(key) or []) if str(m).strip() in live_set]
+    default = str(out.get("default_model") or "").strip()
+    if default and default not in live_set:
+        out["default_model"] = live[0] if live else ""
+    return out
 
 
 async def add_preset_to_config(

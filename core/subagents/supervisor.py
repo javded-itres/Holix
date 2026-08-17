@@ -260,38 +260,87 @@ def _prefer_tool(available: list[str], *candidates: str) -> str | None:
     return None
 
 
-def build_loop_guidance(
+def _looks_like_venv_package_hunt(details: str) -> bool:
+    blob = (details or "").lower()
+    in_venv = any(token in blob for token in ("site-packages", ".venv/", "venv/lib", "/lib/python"))
+    hunts = any(token in blob for token in ("grep", "find ", "ls ", "rg ", "pip show", "pip list"))
+    return in_venv and hunts
+
+
+def _looks_like_absence_result(result: str) -> bool:
+    blob = (result or "").lower()
+    if not blob.strip():
+        return False
+    return any(
+        token in blob
+        for token in (
+            "not found",
+            "no such",
+            "none\n",
+            "none of",
+            "no mako",
+            "no alemb",
+            "really none",
+            "exit code 1",
+            "0 match",
+            "no matches",
+        )
+    )
+
+
+def diagnose_loop_fix(
     *,
     tool: str,
     details: str = "",
+    last_result: str = "",
     available_tools: list[str] | None = None,
-    attempt: int = 1,
-    max_attempts: int = DEFAULT_MAX_INTERVENTIONS,
-) -> str:
-    """Concrete next-step guidance so the model can leave a tool loop."""
+    inspect_loop: bool = False,
+    noop_write_loop: bool = False,
+) -> dict[str, str]:
+    """What is stuck, what is already known, and what to fix next."""
     tool_l = (tool or "tool").strip() or "tool"
     blob = (details or "").lower()
     available = [str(t).strip() for t in (available_tools or []) if str(t).strip()]
     read = _prefer_tool(available, "read_file", "grep", "glob", "list_directory")
     write = _prefer_tool(available, "write_file", "delete_file")
     search = _prefer_tool(available, "grep", "glob", "read_file")
+    ask = _prefer_tool(available, "ask_user") or "ask_user"
+
+    if inspect_loop or (
+        tool_l in {"terminal", "run_terminal_command"}
+        and any(x in blob for x in ("inspect.", "python -c", "__init__", "protocol"))
+    ):
+        return {
+            "problem": "library introspection via terminal",
+            "known": "inspect/python -c on third-party packages will not write the project.",
+            "next_move": (
+                f"stop inspect.getsource / python -c. Write the app with "
+                f"{write or 'write_file'} (or {read or 'read_file'} a local file you will edit). "
+                "Do not introspect another library method"
+            ),
+            "user_question": (
+                "The coder is stuck inspecting libraries instead of writing files. "
+                "Should it implement from known FastAPI/Dishka APIs, skip this step, "
+                "or do you want a different approach?"
+            ),
+        }
+
+    if noop_write_loop or (tool_l == "write_file" and "no content changes" in blob):
+        return {
+            "problem": "rewriting files that already match disk",
+            "known": "write_file already reported no content changes.",
+            "next_move": (
+                "STOP rewriting those paths. Run pytest once if you have not, "
+                "then the next message must be the final answer with NO tool calls"
+            ),
+            "user_question": (
+                "The coder keeps rewriting files that already match disk. "
+                "Should it stop and finalize, run tests once, or change a specific file?"
+            ),
+        }
 
     if tool_l in {"terminal", "run_terminal_command"}:
-        if (
-            "inspect." in blob
-            or "import inspect" in blob
-            or "python -c" in blob
-            or "__init__" in blob
-            or "protocol" in blob
-        ):
-            next_move = (
-                f"stop inspect.getsource / python -c on libraries. "
-                f"You already have enough API surface. Next call must be "
-                f"{write or 'write_file'} for the project files "
-                f"(or {read or 'read_file'} a local .py you will edit) — "
-                f"do not introspect another method"
-            )
-        elif _looks_like_project_launch(details) or any(
+        if _looks_like_project_launch(details) or any(
             x in blob for x in ("uvicorn", "gunicorn", "npm run dev", "fastapi run", ".main")
         ):
             bg = _prefer_tool(
@@ -300,57 +349,162 @@ def build_loop_guidance(
                 "run_project",
                 "check_background_process",
             )
-            next_move = (
-                f"stop launching the server via terminal. Use "
-                f"{bg or 'start_background_process'} with the same command "
-                f"(then check_background_process). Do not use `&`, nohup, or "
-                f"python -m *.main in terminal"
+            return {
+                "problem": "starting a long-running server in the foreground terminal",
+                "known": "foreground uvicorn/npm/etc. blocks the agent and is not how Studio tracks processes.",
+                "next_move": (
+                    f"use {bg or 'start_background_process'} with the same command, "
+                    "then check_background_process. Do not use &, nohup, or python -m *.main in terminal"
+                ),
+                "user_question": (
+                    "The coder keeps launching the server in terminal instead of "
+                    "start_background_process. Should it switch to the background tool, "
+                    "skip the server, or stop?"
+                ),
+            }
+        if _looks_like_venv_package_hunt(details):
+            absence = (
+                "The venv listing already shows those packages are not installed. "
+                "Repeating ls/grep will not install them."
+                if _looks_like_absence_result(last_result) or "grep" in blob
+                else "Hunting site-packages does not implement the task."
             )
-        elif any(x in blob for x in ("pip install",)):
-            next_move = (
-                f"stop re-running that command; {read or 'read_file'} the project "
-                "files you already have and continue implementation"
-            )
-        else:
-            next_move = (
-                f"do not re-run this terminal command; {read or 'read_file'} / "
-                f"{search or 'grep'} the relevant source, then "
-                f"{write or 'write_file'} or finish with what you know"
-            )
-    elif tool_l == "read_file":
-        next_move = (
-            f"you already have this file; next {write or 'write_file'} a change "
-            f"or {search or 'grep'} a different path — do not re-read the same file"
-        )
-    elif tool_l in {"grep", "glob"}:
-        next_move = (
-            f"open one hit with {read or 'read_file'}, then {write or 'write_file'} "
-            "or answer; do not repeat the same search"
-        )
-    elif tool_l == "write_file":
-        if "no content changes" in blob:
-            next_move = (
-                "STOP rewriting files that already match disk. "
-                "Do not call write_file again on those paths. "
-                "Run pytest once if you have not, then the next message must be "
-                "the final answer with NO tool calls so the process can continue"
-            )
-        else:
-            next_move = (
+            return {
+                "problem": "searching the virtualenv for missing packages",
+                "known": absence,
+                "next_move": (
+                    f"do not ls/grep site-packages again. If you need a package, "
+                    f"`uv add <name>` once; otherwise {write or 'write_file'} the app "
+                    f"and run pytest. Searching .venv is not a fix"
+                ),
+                "user_question": (
+                    "The coder is looping on `ls/grep` inside .venv (mako/alembic/etc. "
+                    "are not installed). Should it implement without those packages, "
+                    "`uv add` a specific package, or stop and wait for you?"
+                ),
+            }
+        if any(x in blob for x in ("pip install", "uv add", "uv sync")):
+            return {
+                "problem": "repeating a package-install command",
+                "known": "the install command already ran; retrying it is not progress.",
+                "next_move": (
+                    f"stop re-running the installer; {read or 'read_file'} the project "
+                    "and continue implementation or run tests once"
+                ),
+                "user_question": (
+                    "The coder is retrying the same install command. "
+                    "Should it continue with current deps, install a named package, or stop?"
+                ),
+            }
+        return {
+            "problem": f"repeating the same `{tool_l}` command",
+            "known": (
+                "The last command already returned an answer (including empty / not found)."
+                if last_result
+                else "Repeating the same shell command will not change the result."
+            ),
+            "next_move": (
+                f"do not re-run this terminal command. {read or 'read_file'} / "
+                f"{search or 'grep'} project source, then {write or 'write_file'} "
+                "the fix or write the final answer"
+            ),
+            "user_question": (
+                "The coder is repeating the same terminal command. "
+                "What should it do instead (which file to edit, which command, or stop)?"
+            ),
+        }
+
+    if tool_l == "read_file":
+        return {
+            "problem": "re-reading the same file",
+            "known": "you already have this file contents.",
+            "next_move": (
+                f"next {write or 'write_file'} a change or {search or 'grep'} a "
+                "different path — do not re-read the same file"
+            ),
+            "user_question": (
+                "The coder keeps re-reading the same file. "
+                "Which change should it make, or should it stop?"
+            ),
+        }
+    if tool_l in {"grep", "glob"}:
+        return {
+            "problem": "repeating the same search",
+            "known": "the search already returned its hits (or none).",
+            "next_move": (
+                f"open one hit with {read or 'read_file'}, then {write or 'write_file'} "
+                "or answer; do not repeat the same search"
+            ),
+            "user_question": (
+                "The coder is stuck repeating grep/glob. "
+                "Which path should it open, or should it stop searching?"
+            ),
+        }
+    if tool_l == "write_file":
+        return {
+            "problem": "rewriting the same file",
+            "known": "another rewrite of the same path is not new work.",
+            "next_move": (
                 f"stop rewriting the same file; {read or 'read_file'} to verify or "
                 "move to the next deliverable / final answer"
-            )
-    elif tool_l in {"web_search", "web_fetch"}:
-        next_move = (
-            "use a different query/URL once, then write the answer from evidence "
-            "you already have — do not repeat the same fetch/search"
-        )
-    else:
-        next_move = (
+            ),
+            "user_question": (
+                "The coder keeps rewriting the same file. "
+                "Should it finalize, edit a different file, or stop?"
+            ),
+        }
+    if tool_l in {"web_search", "web_fetch"}:
+        return {
+            "problem": "repeating the same web search/fetch",
+            "known": "you already have that page/query result.",
+            "next_move": (
+                "use a different query/URL once, then write the answer from evidence "
+                "you already have — do not repeat the same fetch/search"
+            ),
+            "user_question": (
+                "The coder is looping on web_search/web_fetch. "
+                "Should it write from current evidence, try a specific URL, or stop?"
+            ),
+        }
+    return {
+        "problem": f"repeating `{tool_l}`",
+        "known": "the same tool call will not produce new information.",
+        "next_move": (
             f"call a different tool or different arguments "
             f"({read or 'read_file'} / {write or 'write_file'}), "
             "or produce a partial final result"
-        )
+        ),
+        "user_question": (
+            f"The coder is looping on `{tool_l}`. "
+            f"What should it do next, or should it stop? (You can reply via {ask}.)"
+        ),
+    }
+
+
+def build_loop_guidance(
+    *,
+    tool: str,
+    details: str = "",
+    available_tools: list[str] | None = None,
+    attempt: int = 1,
+    max_attempts: int = DEFAULT_MAX_INTERVENTIONS,
+    last_result: str = "",
+    inspect_loop: bool = False,
+    noop_write_loop: bool = False,
+) -> str:
+    """Concrete next-step guidance so the model can leave a tool loop."""
+    tool_l = (tool or "tool").strip() or "tool"
+    available = [str(t).strip() for t in (available_tools or []) if str(t).strip()]
+    read = _prefer_tool(available, "read_file", "grep", "glob", "list_directory")
+    ask = _prefer_tool(available, "ask_user") or "ask_user"
+    fix = diagnose_loop_fix(
+        tool=tool_l,
+        details=details,
+        last_result=last_result,
+        available_tools=available,
+        inspect_loop=inspect_loop,
+        noop_write_loop=noop_write_loop,
+    )
 
     tools_line = ""
     if available:
@@ -365,14 +519,22 @@ def build_loop_guidance(
         )
     elif last:
         warning = (
-            " LAST CHANCE: if you repeat the same call, the job will be stopped with status loop."
+            f" LAST CHANCE: apply the fix above. If you cannot, call `{ask}` "
+            f"now with this question (do not run another `{tool_l}`): "
+            f"{fix['user_question']} "
+            "If you repeat the same call instead, the supervisor will ask the "
+            "human and then stop the job."
         )
     else:
-        warning = f" Attempt {attempt}/{max_attempts}."
+        warning = (
+            f" Attempt {attempt}/{max_attempts}. If you cannot apply the fix, "
+            f"call `{ask}` instead of repeating `{tool_l}`."
+        )
     return (
-        f"SUPERVISOR GUIDANCE: You are looping on `{tool_l}`. "
+        f"SUPERVISOR GUIDANCE: You are looping on `{tool_l}` "
+        f"({fix['problem']}). {fix['known']} "
         f"Do NOT call `{tool_l}` with the same arguments again. "
-        f"Required next move: {next_move}.{tools_line}"
+        f"What to fix: {fix['next_move']}.{tools_line}"
         f"{warning}"
     )
 
@@ -410,6 +572,7 @@ def assess_handle(
     noop_write_hit = noop_write_loop(traces)
     loop_hit = _signatures_loop(sigs) or path_loop or inspect_hit or noop_write_hit
     last_args = str((traces[-1] or {}).get("arguments") or "") if traces else ""
+    last_result = str((traces[-1] or {}).get("result") or "") if traces else ""
     launch_hit = str(last_tool).lower() in {"terminal", "run_terminal_command"} and (
         _looks_like_project_launch(last_args) or _alternating_launch_kill(traces)
     )
@@ -508,15 +671,27 @@ def assess_handle(
                 available_tools=available,
                 attempt=1,
                 max_attempts=pol.max_interventions,
+                last_result=last_result,
+                inspect_loop=inspect_hit,
+                noop_write_loop=noop_write_hit,
             ),
             signals={
                 **signals,
                 "loop_tool": str(tool),
                 "loop_details": details[:240],
+                "last_result": last_result[:400],
                 "search_loop": search_only,
                 "path_loop": path_loop,
                 "inspect_loop": inspect_hit,
                 "noop_write_loop": noop_write_hit,
+                "user_question": diagnose_loop_fix(
+                    tool=str(tool),
+                    details=details,
+                    last_result=last_result,
+                    available_tools=available,
+                    inspect_loop=inspect_hit,
+                    noop_write_loop=noop_write_hit,
+                )["user_question"],
             },
         )
 
@@ -594,6 +769,8 @@ class SubagentSupervisor:
         self._interventions: dict[str, int] = {}
         self._last_intervene_at: dict[str, float] = {}
         self._last_kind: dict[str, str] = {}
+        self._escalating: set[str] = set()
+        self._escalated: set[str] = set()
 
     @property
     def policy(self) -> SupervisorPolicy:
@@ -639,6 +816,8 @@ class SubagentSupervisor:
         self._interventions.pop(name, None)
         self._last_intervene_at.pop(name, None)
         self._last_kind.pop(name, None)
+        self._escalating.discard(name)
+        self._escalated.discard(name)
 
     async def _watch_loop(self) -> None:
         try:
@@ -676,6 +855,8 @@ class SubagentSupervisor:
         name = str(getattr(handle, "name", "") or "")
         if not name:
             return
+        if name in self._escalating:
+            return
         diagnosis = assess_handle(handle, policy=self._policy)
         if not diagnosis.needs_intervention:
             return
@@ -701,7 +882,7 @@ class SubagentSupervisor:
                     attempt=count,
                     message=(
                         f"Supervisor: max interventions ({count}) reached for "
-                        f"`{name}` ({diagnosis.kind}); stopping with status loop"
+                        f"`{name}` ({diagnosis.kind}); asking the human"
                         if fatal
                         else f"Supervisor: max interventions ({count}) reached for "
                         f"`{name}` ({diagnosis.kind}); "
@@ -714,7 +895,13 @@ class SubagentSupervisor:
                     exhausted=True,
                 )
                 if fatal:
-                    await self._stop_loop(handle, diagnosis)
+                    if name in self._escalated:
+                        await self._stop_loop(handle, diagnosis)
+                    else:
+                        asyncio.create_task(
+                            self._ask_human_then_retry_or_stop(handle, diagnosis),
+                            name=f"supervisor-ask-{name[:24]}",
+                        )
             return
 
         now = time.monotonic()
@@ -741,6 +928,9 @@ class SubagentSupervisor:
                     ),
                     attempt=attempt,
                     max_attempts=self._policy.max_interventions,
+                    last_result=str(diagnosis.signals.get("last_result") or ""),
+                    inspect_loop=bool(diagnosis.signals.get("inspect_loop")),
+                    noop_write_loop=bool(diagnosis.signals.get("noop_write_loop")),
                 ),
                 signals=diagnosis.signals,
             )
@@ -823,6 +1013,81 @@ class SubagentSupervisor:
             diagnosis.summary,
         )
         return True
+
+    async def _ask_human_then_retry_or_stop(self, handle: Any, diagnosis: Diagnosis) -> None:
+        """When the model cannot leave a loop, ask the human what to do."""
+        name = str(getattr(handle, "name", "") or "")
+        if not name or name in self._escalating:
+            return
+        self._escalating.add(name)
+        question = str(diagnosis.signals.get("user_question") or "").strip() or (
+            f"Sub-agent `{name}` is stuck in a tool loop ({diagnosis.summary}). "
+            "What should it do next, or should it stop?"
+        )
+        interactions = getattr(self._manager, "interactions", None)
+        ask = getattr(interactions, "ask_user", None)
+        if not callable(ask):
+            self._escalating.discard(name)
+            await self._stop_loop(handle, diagnosis)
+            return
+        try:
+            try:
+                handle.record_activity(
+                    "status",
+                    "awaiting user (supervisor)",
+                    details=question,
+                    steps_taken=int(getattr(handle, "steps_taken", 0) or 0),
+                )
+            except Exception:
+                pass
+            notify = getattr(self._manager, "notify_progress", None)
+            if callable(notify):
+                try:
+                    notify(name, force=True)
+                except Exception:
+                    pass
+            answer = await ask(
+                name,
+                question,
+                context=f"{diagnosis.summary}\n{diagnosis.guidance}",
+            )
+        except Exception:
+            logger.exception("supervisor: ask_user failed for %s", name)
+            self._escalating.discard(name)
+            await self._stop_loop(handle, diagnosis)
+            return
+
+        self._escalating.discard(name)
+        self._escalated.add(name)
+        text = str(answer or "").strip()
+        low = text.lower()
+        if not text or low.startswith("error:") or low in {"stop", "cancel", "abort", "kill"}:
+            await self._stop_loop(handle, diagnosis)
+            return
+
+        self._interventions[name] = max(0, int(self._policy.max_interventions) - 1)
+        self._last_kind[name] = "user_reply"
+        reply = Diagnosis(
+            kind="loop",
+            severity="warning",
+            summary="human answered supervisor question",
+            guidance=(
+                "SUPERVISOR GUIDANCE: The human answered because you could not "
+                "leave the tool loop yourself. Follow this and do not repeat "
+                f"the previous command:\n{text}"
+            ),
+            signals=diagnosis.signals,
+        )
+        await self._send_guidance(handle, reply, attempt=self._interventions[name])
+        try:
+            handle.record_activity(
+                "supervisor_guidance",
+                "Supervisor: human reply",
+                details=text[:300],
+                steps_taken=int(getattr(handle, "steps_taken", 0) or 0),
+            )
+        except Exception:
+            pass
 
     async def _stop_loop(self, handle: Any, diagnosis: Diagnosis) -> None:
         """Stop a looping job with status=loop (not cancelled)."""

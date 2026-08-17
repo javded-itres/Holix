@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import time
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock
@@ -167,7 +168,7 @@ def test_assess_loop() -> None:
     assert d.kind == "loop"
     assert d.needs_intervention
     assert "GUIDANCE" in d.guidance
-    assert "Required next move" in d.guidance
+    assert "What to fix" in d.guidance
 
 
 def test_assess_thrash() -> None:
@@ -214,12 +215,30 @@ def test_build_loop_guidance_points_to_read_file() -> None:
     last = build_loop_guidance(
         tool="terminal",
         details="same",
-        available_tools=["read_file"],
+        available_tools=["read_file", "ask_user"],
         attempt=3,
         max_attempts=3,
     )
     assert "LAST CHANCE" in last
-    assert "status loop" in last
+    assert "ask_user" in last
+
+
+def test_build_loop_guidance_venv_hunt_says_what_to_fix() -> None:
+    text = build_loop_guidance(
+        tool="terminal",
+        details=(
+            '{"command": "cd projects/data_address && '
+            "ls .venv/lib/python3.12/site-packages/ | grep -iE 'mako|alemb'\"}"
+        ),
+        last_result="none\n---\n63",
+        available_tools=["read_file", "write_file", "terminal", "ask_user"],
+        attempt=1,
+        max_attempts=3,
+    )
+    assert "site-packages" in text or "virtualenv" in text or "venv" in text
+    assert "write_file" in text
+    assert "Do NOT call `terminal`" in text
+    assert "ask_user" in text
 
 
 def test_format_guidance_system_message() -> None:
@@ -255,6 +274,7 @@ async def test_supervisor_sends_guidance_with_cap() -> None:
     manager._emit_agent_event = MagicMock()
     manager.notify_progress = MagicMock()
     manager.terminate = AsyncMock(return_value=True)
+    manager.interactions = SimpleNamespace(ask_user=AsyncMock(return_value="stop"))
 
     policy = SupervisorPolicy(
         enabled=True,
@@ -274,9 +294,11 @@ async def test_supervisor_sends_guidance_with_cap() -> None:
     assert async_bus.send.await_count == 2
     assert sup._interventions["loop-job"] == 2
 
-    # Cap reached — stop with status loop, no more guidance
+    # Cap reached — ask the human, then stop if they say stop
     await sup._maybe_intervene(h)
     assert async_bus.send.await_count == 2
+    await asyncio.sleep(0)
+    manager.interactions.ask_user.assert_awaited()
     manager.terminate.assert_awaited_once_with("loop-job")
     assert h.forced_status == SubAgentStatus.LOOP
     assert h.result is not None
@@ -328,6 +350,49 @@ async def test_supervisor_does_not_stop_grep_search_loop() -> None:
 
     # Exhausted event emitted
     assert manager._emit_agent_event.call_count >= 2
+
+
+@pytest.mark.asyncio
+async def test_supervisor_asks_human_then_injects_reply() -> None:
+    h = _running_handle("ask-job")
+    for _ in range(3):
+        h.record_activity(
+            "tool_start",
+            "Calling terminal",
+            tool_name="terminal",
+            details='{"command": "ls .venv/lib/python3.12/site-packages | grep mako"}',
+        )
+        h.record_activity(
+            "tool_result",
+            "terminal finished",
+            tool_name="terminal",
+            details="none",
+        )
+    h.last_tool = "terminal"
+
+    async_bus = MagicMock()
+    async_bus.send = AsyncMock()
+    manager = MagicMock()
+    manager._handles = {"ask-job": h}
+    manager._comm_bus = SimpleNamespace(async_bus=async_bus, process_bus=MagicMock())
+    manager._emit_agent_event = MagicMock()
+    manager.notify_progress = MagicMock()
+    manager.terminate = AsyncMock(return_value=True)
+    manager.interactions = SimpleNamespace(
+        ask_user=AsyncMock(return_value="uv add nothing; write the FastAPI files")
+    )
+
+    sup = SubagentSupervisor(
+        manager,
+        policy=SupervisorPolicy(max_interventions=1, cooldown_s=0.0, loop_cooldown_s=0.0),
+    )
+    await sup._maybe_intervene(h)
+    await sup._maybe_intervene(h)
+    await asyncio.sleep(0)
+    manager.interactions.ask_user.assert_awaited()
+    manager.terminate.assert_not_awaited()
+    assert "human" in async_bus.send.await_args.args[0].content.lower()
+    assert sup._interventions["ask-job"] == 0
 
 
 @pytest.mark.asyncio
