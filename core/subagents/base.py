@@ -16,26 +16,30 @@ _ACTIVITY_DETAILS_MAX = 400
 
 class ProcessMode(StrEnum):
     """How a sub-agent should be executed."""
-    ASYNC = "async"          # In-process asyncio.Task (default, I/O-bound)
-    PROCESS = "process"      # Separate OS process (CPU-bound, isolation)
-    THREAD = "thread"        # In-process thread (rarely needed)
+
+    ASYNC = "async"  # In-process asyncio.Task (default, I/O-bound)
+    PROCESS = "process"  # Separate OS process (CPU-bound, isolation)
+    THREAD = "thread"  # In-process thread (rarely needed)
 
 
 class MemoryAccess(StrEnum):
     """How a sub-agent accesses the parent's memory."""
-    SHARED = "shared"        # Read/write access to parent's LTM
-    READONLY = "readonly"    # Read-only access to parent's LTM
-    ISOLATED = "isolated"    # Own separate memory stores
+
+    SHARED = "shared"  # Read/write access to parent's LTM
+    READONLY = "readonly"  # Read-only access to parent's LTM
+    ISOLATED = "isolated"  # Own separate memory stores
 
 
 class SubAgentStatus(StrEnum):
     """Status of a sub-agent."""
+
     PENDING = "pending"
     RUNNING = "running"
     COMPLETED = "completed"
     FAILED = "failed"
     CANCELLED = "cancelled"
     TIMED_OUT = "timed_out"
+    LOOP = "loop"
 
 
 @dataclass
@@ -46,23 +50,24 @@ class SubAgentConfig:
     which tools, what system prompt, and how it runs.
     """
 
-    name: str                                    # Unique name (e.g., "researcher")
-    agent_type: str = ""                         # Registry type (researcher, coder, …)
-    system_prompt: str = ""                      # Specialized system prompt
-    model: str = ""                              # Model override (empty = inherit from parent)
+    name: str  # Unique name (e.g., "researcher")
+    agent_type: str = ""  # Registry type (researcher, coder, …)
+    system_prompt: str = ""  # Specialized system prompt
+    model: str = ""  # Model override (empty = inherit from parent)
     tools: list[str] = field(default_factory=list)  # Subset of tool names
-    max_steps: int = 150                         # Max reasoning steps
-    mode: str = "react"                          # Execution mode
+    max_steps: int = 150  # Max reasoning steps
+    mode: str = "react"  # Execution mode
     process_mode: ProcessMode = ProcessMode.ASYNC  # How to run
-    timeout: float = 900.0                       # Wait / job budget (seconds)
+    timeout: float = 900.0  # Wait / job budget (seconds)
     memory_access: MemoryAccess = MemoryAccess.SHARED  # Memory access level
-    temperature: float = 0.7                     # LLM temperature
-    description: str = ""                        # Human-readable description
+    temperature: float = 0.7  # LLM temperature
+    description: str = ""  # Human-readable description
     tags: list[str] = field(default_factory=list)  # Tags for categorization
 
     # MCP servers enabled for this sub-agent (by server name). Their tools must also
     # be listed in `tools` (or auto-included by runners) for the names to be usable.
     mcp_servers: list[str] = field(default_factory=list)
+    mcp_inherit: bool = True
 
     def __post_init__(self):
         if isinstance(self.process_mode, str):
@@ -79,27 +84,30 @@ class SubAgentResult:
     and performance metrics.
     """
 
-    name: str                                    # Sub-agent name
-    success: bool                                 # Whether the task completed successfully
-    response: str = ""                            # The sub-agent's final response
+    name: str  # Sub-agent name
+    success: bool  # Whether the task completed successfully
+    response: str = ""  # The sub-agent's final response
     tool_calls: list[dict[str, Any]] = field(default_factory=list)  # Tool calls made
-    error: str | None = None                   # Error message if failed
-    duration_ms: float = 0.0                      # Execution time in ms
-    memory_used: int = 0                          # Approximate memory used (bytes)
-    steps_taken: int = 0                          # Number of reasoning steps
-    tokens_used: int = 0                          # Sum of LLM tokens (prompt+completion) for this run
-    llm_calls: int = 0                            # Number of LLM API calls completed
+    error: str | None = None  # Error message if failed
+    duration_ms: float = 0.0  # Execution time in ms
+    memory_used: int = 0  # Approximate memory used (bytes)
+    steps_taken: int = 0  # Number of reasoning steps
+    tokens_used: int = 0  # Sum of LLM tokens (prompt+completion) for this run
+    llm_calls: int = 0  # Number of LLM API calls completed
     # True when each LLM call already emitted LLMCallCompletedEvent (Studio meters per-call).
     usage_accounted: bool = False
-    model: str = ""                               # Model id used for this run (if known)
+    model: str = ""  # Model id used for this run (if known)
 
     @property
     def status(self) -> SubAgentStatus:
         """Derive status from result data."""
         if self.error:
-            if "timeout" in (self.error or "").lower():
+            err = (self.error or "").lower()
+            if "timeout" in err:
                 return SubAgentStatus.TIMED_OUT
-            elif "cancel" in (self.error or "").lower():
+            if err.startswith("loop:") or "tool calls (loop)" in err:
+                return SubAgentStatus.LOOP
+            if "cancel" in err:
                 return SubAgentStatus.CANCELLED
             return SubAgentStatus.FAILED
         return SubAgentStatus.COMPLETED if self.success else SubAgentStatus.FAILED
@@ -112,16 +120,16 @@ class SubAgentHandle:
     Provides methods to check status, get results, and cancel.
     """
 
-    name: str                                    # Sub-agent name
+    name: str  # Sub-agent name
     config: SubAgentConfig = field(default_factory=SubAgentConfig)
     status: SubAgentStatus = SubAgentStatus.PENDING
-    task: Any | None = None                   # asyncio.Task or multiprocessing.Process
+    task: Any | None = None  # asyncio.Task or multiprocessing.Process
     result: SubAgentResult | None = None
-    started_at: float | None = None           # time.monotonic timestamp
-    process_id: int | None = None             # OS PID for process-mode agents
-    task_preview: str = ""                       # Short task description for UI
-    agent_type: str = ""                         # Registry type (researcher, coder, …)
-    spawn_fallback_reason: str = ""              # Set when OS-process spawn fell back to async
+    started_at: float | None = None  # time.monotonic timestamp
+    process_id: int | None = None  # OS PID for process-mode agents
+    task_preview: str = ""  # Short task description for UI
+    agent_type: str = ""  # Registry type (researcher, coder, …)
+    spawn_fallback_reason: str = ""  # Set when OS-process spawn fell back to async
     done_event: Any = field(default=None, repr=False)  # asyncio.Event set on completion
     # Live progress for Studio / status UIs
     steps_taken: int = 0
@@ -142,6 +150,7 @@ class SubAgentHandle:
             SubAgentStatus.FAILED,
             SubAgentStatus.CANCELLED,
             SubAgentStatus.TIMED_OUT,
+            SubAgentStatus.LOOP,
         )
 
     @property

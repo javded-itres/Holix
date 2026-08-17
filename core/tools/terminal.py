@@ -4,6 +4,17 @@ import shlex
 
 from config import settings
 from core.platform_compat import IS_WINDOWS, subprocess_shell_kwargs
+from core.runtime.introspect_signals import (
+    INTROSPECT_REFUSAL,
+    is_introspect_command,
+)
+from core.runtime.service_detect import (
+    is_long_oneshot_job,
+    is_untracked_long_running_command,
+    listen_ports_for_pid_tree,
+    service_watch_after,
+    service_watch_interval,
+)
 from core.security.safety import command_needs_shell, command_whitelist
 from core.security.workspace_command_guard import (
     references_holix_profiles,
@@ -11,6 +22,17 @@ from core.security.workspace_command_guard import (
 )
 from core.tools.base import BaseTool
 from core.workspace import sanitize_paths_in_text
+
+# Re-exports so supervisor / tests keep importing from this module.
+_is_untracked_long_running_command = is_untracked_long_running_command
+
+
+class PromoteForegroundService(Exception):
+    """Foreground command is a listening service — move it to the registry."""
+
+    def __init__(self, ports: list[int]):
+        self.ports = list(ports)
+        super().__init__(f"foreground service on ports {self.ports}")
 
 
 def _env_bool(raw: str | None, *, default: bool) -> bool:
@@ -195,14 +217,28 @@ async def _communicate_with_cancel(
     process: asyncio.subprocess.Process,
     *,
     timeout: float,
+    command: str = "",
 ) -> tuple[bytes, bytes]:
-    """Wait for process output, honouring cooperative cancel and hard timeout."""
+    """Wait for process output, honouring cooperative cancel and hard timeout.
+
+    After ~60s, if the command is still running and the process tree has a
+    TCP LISTEN socket, raise :class:`PromoteForegroundService` so the caller
+    can restart it as a tracked background process. Long one-shots
+    (``cargo test``, ``mvn package``, ``pytest``) are never promoted.
+    """
     from core.tools.execution_context import is_run_cancelled
 
     comm = asyncio.create_task(process.communicate())
     loop = asyncio.get_running_loop()
-    deadline = loop.time() + max(0.1, float(timeout))
+    started = loop.time()
+    deadline = started + max(0.1, float(timeout))
     poll = 0.2
+    watch_after = service_watch_after()
+    watch_interval = service_watch_interval()
+    # First listen-check fires as soon as ``watch_after`` elapses.
+    last_watch = started - watch_interval
+    watch_command = (command or "").strip()
+    allow_watch = bool(watch_command) and not is_long_oneshot_job(watch_command)
 
     try:
         while not comm.done():
@@ -210,10 +246,23 @@ async def _communicate_with_cancel(
                 await _kill_process_tree(process)
                 raise asyncio.CancelledError("run cancelled")
 
-            remaining = deadline - loop.time()
+            now = loop.time()
+            remaining = deadline - now
             if remaining <= 0:
                 await _kill_process_tree(process)
                 raise TimeoutError()
+
+            if (
+                allow_watch
+                and process.returncode is None
+                and (now - started) >= watch_after
+                and (now - last_watch) >= watch_interval
+            ):
+                last_watch = now
+                pid = int(process.pid or 0)
+                ports = await asyncio.to_thread(listen_ports_for_pid_tree, pid)
+                if ports:
+                    raise PromoteForegroundService(ports)
 
             wait_s = min(poll, remaining)
             try:
@@ -230,6 +279,69 @@ async def _communicate_with_cancel(
                 pass
 
 
+def _promote_label(command: str) -> str:
+    text = (command or "").strip()
+    if not text:
+        return "promoted-service"
+    token = text.split()[0]
+    return (token or "promoted-service")[:120]
+
+
+async def _promote_to_background(
+    command: str,
+    *,
+    cwd: str | None,
+    ports: list[int],
+) -> str:
+    """Kill already happened; start the same command via the bg registry."""
+    from core.runtime.port_utils import force_free_ports
+    from core.tools.background_process import _chat_id_from_bridge, _run_start_or_restart
+    from core.tools.execution_context import get_conversation_id, get_profile_name
+
+    if ports:
+        await asyncio.to_thread(force_free_ports, ports)
+
+    from core.runtime.background_process import get_background_process_registry
+
+    registry = get_background_process_registry()
+    port_txt = ", ".join(str(p) for p in ports) if ports else "unknown"
+    try:
+        body = await _run_start_or_restart(
+            registry,
+            command=command,
+            label=_promote_label(command),
+            working_directory=cwd or "",
+            conversation_id=get_conversation_id(),
+            profile=get_profile_name(),
+            chat_id=_chat_id_from_bridge(),
+            startup_wait_seconds=3.0,
+            restart=False,
+        )
+    except Exception as exc:
+        return (
+            f"Error: Command ran in the foreground for over a minute and "
+            f"opened TCP listen port(s) {port_txt} — this is a service, not "
+            f"a one-shot job. It was stopped. Restart it with "
+            f"start_background_process using the same command.\n"
+            f"Auto-restart failed: {exc}"
+        )
+    if body.startswith("Error:"):
+        return (
+            f"The foreground command was a service (listen on {port_txt} "
+            f"after ~1 min) and was stopped. Restart it with "
+            f"start_background_process.\n{body}"
+        )
+    return (
+        f"The command kept running for over a minute and opened TCP listen "
+        f"port(s) {port_txt} — this is a service, not a long one-shot "
+        f"(compile/test). It was stopped in the foreground and restarted "
+        f"via start_background_process.\n\n"
+        f"{body}\n\n"
+        "Use check_background_process / stop_background_process from now on. "
+        "Do not launch this command via run_terminal_command again."
+    )
+
+
 class TerminalTool(BaseTool):
     """Tool for executing terminal commands safely."""
 
@@ -239,9 +351,12 @@ class TerminalTool(BaseTool):
         self.description = (
             "Execute a short terminal command and return its output. "
             "Shell operators (&&, |, >, etc.) are supported. "
-            "Use for system operations, package installation, git commands, etc. "
-            "Do NOT use for long-running bots/servers (telegram bots, uvicorn, npm run dev) — "
+            "Use for system operations, package installation, git commands, tests, builds. "
+            "Do NOT use for long-running bots/servers "
+            "(uvicorn, cargo run, go run, java -jar, dotnet run, npm run dev, …) — "
             "use start_background_process so the process is tracked across restarts. "
+            "If a missed server stays in the foreground for over a minute and "
+            "opens a listen port, this tool stops it and restarts it in the background. "
             "Permission errors (sudo/root) are returned as clear access-denied messages."
         )
         self.risk_level = "high"
@@ -274,31 +389,26 @@ class TerminalTool(BaseTool):
         if is_run_cancelled():
             return "Error: Run cancelled — terminal command not started."
 
+        if is_introspect_command(command):
+            return INTROSPECT_REFUSAL
+
         # Nudge away from untracked long-running bots/servers.
-        cmd_l = (command or "").lower()
-        if any(
-            x in cmd_l
-            for x in (
-                "nohup ",
-                "integrations.telegram",
-                "telegram_channel_publisher",
-                "python -m http.server",
-                "uvicorn ",
-                "npm run dev",
-                "next dev",
-                "gunicorn ",
+        # Do not treat `pip install uvicorn` as launching uvicorn.
+        if _is_untracked_long_running_command(command):
+            return (
+                "Error: This looks like a **long-running** bot/server "
+                "(uvicorn, cargo run, go run, java -jar, dotnet run, "
+                "npm run dev, docker compose up, …). "
+                "Do **not** launch it via run_terminal_command (it will not be "
+                "tracked after reboot and can conflict with Holix Telegram). "
+                "Use **start_background_process** with the same command instead, "
+                "then check_background_process / stop_background_process. "
+                "Never start a second Telegram long-poll with the same bot token "
+                "as holix-gateway (TelegramConflictError). "
+                "Installing packages and running tests/builds "
+                "(`pip install`, `cargo test`, `go test`, `mvn package`) is fine "
+                "here; only *starting* the server belongs in start_background_process."
             )
-        ) or ("python" in cmd_l and any(x in cmd_l for x in ("bot.py", "polling", "getupdates"))):
-            if not any(x in cmd_l for x in ("&& echo", "timeout ", "pkill", "pgrep", "ps ")):
-                return (
-                    "Error: This looks like a **long-running** bot/server. "
-                    "Do **not** launch it via run_terminal_command (it will not be "
-                    "tracked after reboot and can conflict with Holix Telegram). "
-                    "Use **start_background_process** with the same command instead, "
-                    "then check_background_process / stop_background_process. "
-                    "Never start a second Telegram long-poll with the same bot token "
-                    "as holix-gateway (TelegramConflictError)."
-                )
 
         # Destructive patterns always apply; full command allowlist is optional.
         if terminal_whitelist_enabled():
@@ -378,7 +488,9 @@ class TerminalTool(BaseTool):
 
             try:
                 stdout, stderr = await _communicate_with_cancel(
-                    process, timeout=float(timeout or 30)
+                    process,
+                    timeout=float(timeout or 30),
+                    command=command,
                 )
 
                 from core.memory.tool_content import truncate_terminal_output
@@ -396,6 +508,13 @@ class TerminalTool(BaseTool):
                     error=error,
                 )
 
+            except PromoteForegroundService as promo:
+                await _kill_process_tree(process)
+                return await _promote_to_background(
+                    command,
+                    cwd=cwd,
+                    ports=promo.ports,
+                )
             except TimeoutError:
                 await _kill_process_tree(process)
                 return f"Error: Command timed out after {timeout} seconds"

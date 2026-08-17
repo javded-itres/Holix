@@ -192,22 +192,20 @@ def run_sub_agent_in_process(
     )
     registry.register_all()
 
-    # MCP for this sub (if any servers listed in its config and defs passed)
-    if mcp_servers and getattr(config, "mcp_servers", None):
+    # MCP for this sub: assigned names + parent defs, filling popular catalogs
+    # (Context7 may be assigned on python-coder but missing from parent mcp_servers).
+    assigned_mcp = [
+        str(s).strip() for s in (getattr(config, "mcp_servers", None) or []) if str(s).strip()
+    ]
+    if assigned_mcp:
         try:
-            from core.mcp.manager import MCPManager
+            from core.mcp.assign import mcp_defs_for_names
 
-            mcp_mgr = MCPManager({k: v for k, v in mcp_servers.items() if k in config.mcp_servers})
-            loop.run_until_complete(mcp_mgr.connect_all())
-            loop.run_until_complete(
-                registry.register_mcp(
-                    {k: v for k, v in mcp_servers.items() if k in config.mcp_servers},
-                    {"main": list(config.mcp_servers)},
-                    slot="main",
+            subset = mcp_defs_for_names(mcp_servers, assigned_mcp)
+            if subset:
+                loop.run_until_complete(
+                    registry.register_mcp(subset, {"main": assigned_mcp}, slot="main")
                 )
-            )
-            # stash for cleanup if needed
-            registry._mcp_manager = mcp_mgr  # type: ignore
         except Exception as e:
             print(f"[sub-process] MCP init skipped: {e}")
 
@@ -375,6 +373,7 @@ def run_sub_agent_in_process(
         hb_thread = threading.Thread(target=heartbeat_worker, daemon=True)
         hb_thread.start()
 
+        force_final = False
         while True:
             while steps_taken < max_steps:
                 # Check for cancel signal
@@ -458,8 +457,10 @@ def run_sub_agent_in_process(
                             client.chat.completions.create(
                                 model=model,
                                 messages=messages,
-                                tools=tools_schemas if tools_schemas else None,
-                                tool_choice="auto" if tools_schemas else None,
+                                tools=tools_schemas if tools_schemas and not force_final else None,
+                                tool_choice=(
+                                    "none" if force_final else ("auto" if tools_schemas else None)
+                                ),
                                 temperature=config.temperature,
                             ),
                             timeout=config.timeout,
@@ -583,6 +584,65 @@ def run_sub_agent_in_process(
                                 "content": tool_result,
                             }
                         )
+
+                    try:
+                        from core.runtime.test_run_signals import (
+                            extract_command,
+                            is_green_test_output,
+                            is_test_command,
+                        )
+
+                        green_n = 0
+                        for call in tool_calls_made:
+                            name = str(call.get("name") or "").lower()
+                            if name not in {"terminal", "run_terminal_command"}:
+                                continue
+                            if is_test_command(extract_command(call.get("arguments"))):
+                                if is_green_test_output(str(call.get("result") or "")):
+                                    green_n += 1
+                        if green_n >= 1:
+                            messages.append(
+                                {
+                                    "role": "system",
+                                    "content": (
+                                        "### Tests already passed\n"
+                                        "Automated tests succeeded. Do not run pytest "
+                                        "or grep tests again. If the task is done, "
+                                        "reply with the final answer and NO tool calls "
+                                        "so the Studio process can continue."
+                                    ),
+                                }
+                            )
+                        if green_n >= 2:
+                            force_final = True
+                        tails = [
+                            (
+                                str(c.get("name") or ""),
+                                str(c.get("arguments") or ""),
+                                str(c.get("result") or "")[:80],
+                            )
+                            for c in tool_calls_made[-3:]
+                        ]
+                        if (
+                            len(tails) >= 3
+                            and tails[-1] == tails[-2] == tails[-3]
+                            and tails[-1][0].lower() in {"terminal", "run_terminal_command"}
+                            and tails[-1][2].lower().startswith("error")
+                        ):
+                            force_final = True
+                            messages.append(
+                                {
+                                    "role": "system",
+                                    "content": (
+                                        "### Stop repeating the same terminal command\n"
+                                        "It already failed the same way. Do not call it again. "
+                                        "Write the final answer with NO tool calls."
+                                    ),
+                                }
+                            )
+                    except Exception:
+                        pass
+
                 else:
                     # Final answer
                     final_response = message.content or "No response"
@@ -1145,6 +1205,23 @@ class SubAgentProcessManager:
                 continue
 
             if msg.msg_type == "result":
+                forced = getattr(handle, "forced_status", None)
+                if forced:
+                    handle.status = forced
+                    if handle.result is None or not getattr(handle.result, "error", None):
+                        meta = msg.metadata or {}
+                        handle.result = SubAgentResult(
+                            name=agent_name,
+                            success=False,
+                            error=str(getattr(forced, "value", forced)),
+                            response=msg.content,
+                            duration_ms=meta.get("duration_ms", 0),
+                            steps_taken=meta.get("steps_taken", 0),
+                            tool_calls=meta.get("tool_calls", []),
+                        )
+                    self._notify_parent_done(agent_name)
+                    self._cleanup_ipc(agent_name)
+                    return
                 # Final result received
                 meta = msg.metadata or {}
                 handle.result = SubAgentResult(
@@ -1323,13 +1400,24 @@ class SubAgentProcessManager:
                 terminate_process(process.pid, grace=1.0)
             process.join(timeout=1)
 
-        handle.status = SubAgentStatus.CANCELLED
-        handle.result = SubAgentResult(
-            name=name,
-            success=False,
-            error="Cancelled by parent",
-            duration_ms=(time.monotonic() - (handle.started_at or time.monotonic())) * 1000,
-        )
+        forced = getattr(handle, "forced_status", None)
+        if forced:
+            handle.status = forced
+            if handle.result is None:
+                handle.result = SubAgentResult(
+                    name=name,
+                    success=False,
+                    error="loop: stopped by supervisor",
+                    duration_ms=(time.monotonic() - (handle.started_at or time.monotonic())) * 1000,
+                )
+        else:
+            handle.status = SubAgentStatus.CANCELLED
+            handle.result = SubAgentResult(
+                name=name,
+                success=False,
+                error="Cancelled by parent",
+                duration_ms=(time.monotonic() - (handle.started_at or time.monotonic())) * 1000,
+            )
         self._notify_parent_done(name)
         return True
 

@@ -341,26 +341,44 @@ class HolixAgent:
         except Exception:
             pass
         # Register MCP tools (if configured in profile/runtime). Non-fatal.
+        # Fill popular-catalog defs for assigned-but-not-installed servers
+        # (e.g. context7 on python-coder) so process-mode children inherit them.
         mcp_count = 0
-        if getattr(self.config, "mcp_enabled", True) and getattr(self.config, "mcp_servers", None):
+        if getattr(self.config, "mcp_enabled", True):
             try:
-                mcp_count = await self.tools.register_mcp(
-                    self.config.mcp_servers,
-                    getattr(self.config, "mcp_assignments", None),
-                    slot="main",
-                    ready_timeout=mcp_ready_timeout,
+                from core.mcp.assign import fill_assigned_mcp_servers
+
+                assignments = getattr(self.config, "mcp_assignments", None)
+                servers = fill_assigned_mcp_servers(
+                    getattr(self.config, "mcp_servers", None),
+                    assignments,
                 )
+                if servers != (getattr(self.config, "mcp_servers", None) or {}):
+                    try:
+                        self.config = self.config.with_overrides(mcp_servers=servers)
+                    except Exception:
+                        try:
+                            self.config.mcp_servers = servers  # type: ignore[misc]
+                        except Exception:
+                            pass
+                if servers:
+                    mcp_count = await self.tools.register_mcp(
+                        servers,
+                        assignments,
+                        slot="main",
+                        ready_timeout=mcp_ready_timeout,
+                    )
             except Exception as e:
                 self.emit(ThinkingEvent(message=f"MCP init warning: {e}"))
-        self.emit(ThinkingEvent(
-            message=f"Registered {len(self.tools.tools)} tools: {', '.join(self.tools.get_tool_names())}"
-            + (f" (+{mcp_count} MCP)" if mcp_count else "")
-        ))
+        self.emit(
+            ThinkingEvent(
+                message=f"Registered {len(self.tools.tools)} tools: {', '.join(self.tools.get_tool_names())}"
+                + (f" (+{mcp_count} MCP)" if mcp_count else "")
+            )
+        )
 
         self.skills.load_all_skills(defer_index=defer_skill_index)
-        self.emit(ThinkingEvent(
-            message=f"Loaded {len(self.skills.all_skills)} skills"
-        ))
+        self.emit(ThinkingEvent(message=f"Loaded {len(self.skills.all_skills)} skills"))
 
         if hasattr(self.memory, "set_skills_manager"):
             self.memory.set_skills_manager(self.skills)
@@ -435,9 +453,7 @@ class HolixAgent:
         loaded = result.get("loaded") or []
         self.emit(
             ThinkingEvent(
-                message=(
-                    f"Agent extensions reloaded: {', '.join(loaded) if loaded else '(none)'}"
-                )
+                message=(f"Agent extensions reloaded: {', '.join(loaded) if loaded else '(none)'}")
             )
         )
         return result
@@ -479,6 +495,12 @@ class HolixAgent:
             mcp_servers = getattr(self.config, "mcp_servers", {}) or {}
         if mcp_assignments is None:
             mcp_assignments = getattr(self.config, "mcp_assignments", {}) or {}
+        try:
+            from core.mcp.assign import fill_assigned_mcp_servers
+
+            mcp_servers = fill_assigned_mcp_servers(mcp_servers, mcp_assignments)
+        except Exception:
+            mcp_servers = dict(mcp_servers or {})
 
         # Cleanup old MCP
         try:

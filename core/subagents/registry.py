@@ -74,6 +74,11 @@ PREDEFINED_SUBAGENTS = {
             "delete_file",
             "terminal",
             "code_executor",
+            "start_background_process",
+            "check_background_process",
+            "stop_background_process",
+            "list_background_processes",
+            "restart_background_process",
         ],
         max_steps=150,
         mode="react",
@@ -157,6 +162,7 @@ def _copy_config(original: SubAgentConfig) -> SubAgentConfig:
         description=original.description,
         tags=list(original.tags),
         mcp_servers=list(original.mcp_servers),
+        mcp_inherit=bool(getattr(original, "mcp_inherit", True)),
     )
 
 

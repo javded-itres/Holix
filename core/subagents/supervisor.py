@@ -16,11 +16,15 @@ import time
 from dataclasses import dataclass, field
 from typing import Any
 
+from core.runtime.introspect_signals import introspect_loop
 from core.runtime.step_budget import (
     _looks_like_error,
     _looks_like_progress,
+    _signatures_loop,
     _tool_signature,
 )
+from core.runtime.test_run_signals import tests_already_green_loop
+from core.runtime.write_signals import noop_write_loop
 
 logger = logging.getLogger(__name__)
 
@@ -28,6 +32,7 @@ DEFAULT_POLL_S = 4.0
 DEFAULT_IDLE_S = 90.0
 DEFAULT_MAX_INTERVENTIONS = 3
 DEFAULT_COOLDOWN_S = 45.0
+DEFAULT_LOOP_COOLDOWN_S = 8.0
 DEFAULT_MIN_STEPS_BEFORE_STALL = 4
 
 
@@ -38,6 +43,7 @@ class SupervisorPolicy:
     idle_s: float = DEFAULT_IDLE_S
     max_interventions: int = DEFAULT_MAX_INTERVENTIONS
     cooldown_s: float = DEFAULT_COOLDOWN_S
+    loop_cooldown_s: float = DEFAULT_LOOP_COOLDOWN_S
     min_steps_before_stall: int = DEFAULT_MIN_STEPS_BEFORE_STALL
 
     @classmethod
@@ -51,17 +57,11 @@ class SupervisorPolicy:
             enabled=bool(enabled),
             poll_s=max(
                 1.0,
-                float(
-                    getattr(cfg, "subagent_supervisor_poll_s", DEFAULT_POLL_S)
-                    or DEFAULT_POLL_S
-                ),
+                float(getattr(cfg, "subagent_supervisor_poll_s", DEFAULT_POLL_S) or DEFAULT_POLL_S),
             ),
             idle_s=max(
                 5.0,
-                float(
-                    getattr(cfg, "subagent_supervisor_idle_s", DEFAULT_IDLE_S)
-                    or DEFAULT_IDLE_S
-                ),
+                float(getattr(cfg, "subagent_supervisor_idle_s", DEFAULT_IDLE_S) or DEFAULT_IDLE_S),
             ),
             max_interventions=max(
                 0,
@@ -79,6 +79,17 @@ class SupervisorPolicy:
                 float(
                     getattr(cfg, "subagent_supervisor_cooldown_s", DEFAULT_COOLDOWN_S)
                     or DEFAULT_COOLDOWN_S
+                ),
+            ),
+            loop_cooldown_s=max(
+                0.0,
+                float(
+                    getattr(
+                        cfg,
+                        "subagent_supervisor_loop_cooldown_s",
+                        DEFAULT_LOOP_COOLDOWN_S,
+                    )
+                    or DEFAULT_LOOP_COOLDOWN_S
                 ),
             ),
             min_steps_before_stall=max(
@@ -105,14 +116,15 @@ class Diagnosis:
 
     @property
     def needs_intervention(self) -> bool:
-        return self.kind in {"loop", "thrash", "hung", "stall"}
+        return self.kind in {"loop", "thrash", "hung", "stall", "launch", "tests_green"}
 
 
-def _activity_tool_traces(handle: Any, *, lookback: int = 8) -> list[dict[str, Any]]:
+def _activity_tool_traces(handle: Any, *, lookback: int = 12) -> list[dict[str, Any]]:
     """Build tool-like traces from handle.activity_log."""
     log = list(getattr(handle, "activity_log", None) or [])
     traces: list[dict[str, Any]] = []
-    for entry in log[-lookback * 2 :]:
+    # step + tool_start + tool_result ≈ 3 rows per call
+    for entry in log[-lookback * 3 :]:
         kind = str(entry.get("kind") or "")
         tool = str(entry.get("tool_name") or "")
         details = str(entry.get("details") or "")
@@ -148,6 +160,223 @@ def _activity_tool_traces(handle: Any, *, lookback: int = 8) -> list[dict[str, A
     return traces[-lookback:]
 
 
+_SEARCH_TOOLS = frozenset({"grep", "glob", "list_directory"})
+
+
+def _is_search_tool(name: str) -> bool:
+    return str(name or "").strip().lower() in _SEARCH_TOOLS
+
+
+def _extract_command(details: Any) -> str:
+    text = str(details or "").strip()
+    if text.startswith("{") or text.startswith("["):
+        try:
+            import json
+
+            obj = json.loads(text)
+            if isinstance(obj, dict) and obj.get("command"):
+                return str(obj.get("command") or "")
+        except Exception:
+            pass
+    return text
+
+
+def _looks_like_project_launch(details: Any) -> bool:
+    try:
+        from core.tools.terminal import _is_untracked_long_running_command
+    except Exception:
+        return False
+    return bool(_is_untracked_long_running_command(_extract_command(details)))
+
+
+def _looks_like_port_kill(details: Any) -> bool:
+    blob = _extract_command(details).lower()
+    if "kill" not in blob and "pkill" not in blob:
+        return False
+    return any(x in blob for x in ("lsof", "fuser", ":8000", ":3000", ":5173", "ti:"))
+
+
+def _alternating_launch_kill(traces: list[dict[str, Any]]) -> bool:
+    terms = [
+        t
+        for t in traces
+        if str(t.get("name") or "").lower() in {"terminal", "run_terminal_command"}
+    ]
+    if len(terms) < 4:
+        return False
+    flags = []
+    for t in terms[-4:]:
+        args = t.get("arguments")
+        flags.append(
+            "launch"
+            if _looks_like_project_launch(args)
+            else ("kill" if _looks_like_port_kill(args) else "other")
+        )
+    return flags in (["launch", "kill", "launch", "kill"], ["kill", "launch", "kill", "launch"])
+
+
+def _tool_path(details: Any) -> str:
+    text = str(details or "").strip()
+    if not text:
+        return ""
+    if text.startswith("{") or text.startswith("["):
+        try:
+            import json
+
+            obj = json.loads(text)
+            if isinstance(obj, dict):
+                for key in ("path", "file", "target", "root"):
+                    val = str(obj.get(key) or "").strip()
+                    if val:
+                        return val
+        except Exception:
+            pass
+    import re
+
+    hit = re.search(r'"path"\s*:\s*"([^"]+)"', text)
+    return hit.group(1) if hit else ""
+
+
+def _same_path_search_loop(traces: list[dict[str, Any]]) -> bool:
+    """True when grep/glob keeps hitting the same file with tweaked patterns."""
+    search = [t for t in traces if _is_search_tool(str(t.get("name") or ""))]
+    if len(search) < 4:
+        return False
+    paths = [_tool_path(t.get("arguments")) for t in search[-6:]]
+    paths = [p for p in paths if p]
+    if len(paths) < 4:
+        return False
+    last = paths[-1]
+    return paths.count(last) >= 4
+
+
+def _prefer_tool(available: list[str], *candidates: str) -> str | None:
+    have = {str(t).strip() for t in available if str(t).strip()}
+    if not have:
+        return candidates[0] if candidates else None
+    for name in candidates:
+        if name in have:
+            return name
+    return None
+
+
+def build_loop_guidance(
+    *,
+    tool: str,
+    details: str = "",
+    available_tools: list[str] | None = None,
+    attempt: int = 1,
+    max_attempts: int = DEFAULT_MAX_INTERVENTIONS,
+) -> str:
+    """Concrete next-step guidance so the model can leave a tool loop."""
+    tool_l = (tool or "tool").strip() or "tool"
+    blob = (details or "").lower()
+    available = [str(t).strip() for t in (available_tools or []) if str(t).strip()]
+    read = _prefer_tool(available, "read_file", "grep", "glob", "list_directory")
+    write = _prefer_tool(available, "write_file", "delete_file")
+    search = _prefer_tool(available, "grep", "glob", "read_file")
+
+    if tool_l in {"terminal", "run_terminal_command"}:
+        if (
+            "inspect." in blob
+            or "import inspect" in blob
+            or "python -c" in blob
+            or "__init__" in blob
+            or "protocol" in blob
+        ):
+            next_move = (
+                f"stop inspect.getsource / python -c on libraries. "
+                f"You already have enough API surface. Next call must be "
+                f"{write or 'write_file'} for the project files "
+                f"(or {read or 'read_file'} a local .py you will edit) — "
+                f"do not introspect another method"
+            )
+        elif _looks_like_project_launch(details) or any(
+            x in blob for x in ("uvicorn", "gunicorn", "npm run dev", "fastapi run", ".main")
+        ):
+            bg = _prefer_tool(
+                available,
+                "start_background_process",
+                "run_project",
+                "check_background_process",
+            )
+            next_move = (
+                f"stop launching the server via terminal. Use "
+                f"{bg or 'start_background_process'} with the same command "
+                f"(then check_background_process). Do not use `&`, nohup, or "
+                f"python -m *.main in terminal"
+            )
+        elif any(x in blob for x in ("pip install",)):
+            next_move = (
+                f"stop re-running that command; {read or 'read_file'} the project "
+                "files you already have and continue implementation"
+            )
+        else:
+            next_move = (
+                f"do not re-run this terminal command; {read or 'read_file'} / "
+                f"{search or 'grep'} the relevant source, then "
+                f"{write or 'write_file'} or finish with what you know"
+            )
+    elif tool_l == "read_file":
+        next_move = (
+            f"you already have this file; next {write or 'write_file'} a change "
+            f"or {search or 'grep'} a different path — do not re-read the same file"
+        )
+    elif tool_l in {"grep", "glob"}:
+        next_move = (
+            f"open one hit with {read or 'read_file'}, then {write or 'write_file'} "
+            "or answer; do not repeat the same search"
+        )
+    elif tool_l == "write_file":
+        if "no content changes" in blob:
+            next_move = (
+                "STOP rewriting files that already match disk. "
+                "Do not call write_file again on those paths. "
+                "Run pytest once if you have not, then the next message must be "
+                "the final answer with NO tool calls so the process can continue"
+            )
+        else:
+            next_move = (
+                f"stop rewriting the same file; {read or 'read_file'} to verify or "
+                "move to the next deliverable / final answer"
+            )
+    elif tool_l in {"web_search", "web_fetch"}:
+        next_move = (
+            "use a different query/URL once, then write the answer from evidence "
+            "you already have — do not repeat the same fetch/search"
+        )
+    else:
+        next_move = (
+            f"call a different tool or different arguments "
+            f"({read or 'read_file'} / {write or 'write_file'}), "
+            "or produce a partial final result"
+        )
+
+    tools_line = ""
+    if available:
+        tools_line = " Allowed tools: " + ", ".join(available) + "."
+
+    last = attempt >= max(1, int(max_attempts or 1))
+    if last and _is_search_tool(tool_l):
+        warning = (
+            " Stop refining the same search — open the file with "
+            f"{read or 'read_file'} now. Search tweaks are not a failure, "
+            "but they will not find new facts."
+        )
+    elif last:
+        warning = (
+            " LAST CHANCE: if you repeat the same call, the job will be stopped with status loop."
+        )
+    else:
+        warning = f" Attempt {attempt}/{max_attempts}."
+    return (
+        f"SUPERVISOR GUIDANCE: You are looping on `{tool_l}`. "
+        f"Do NOT call `{tool_l}` with the same arguments again. "
+        f"Required next move: {next_move}.{tools_line}"
+        f"{warning}"
+    )
+
+
 def assess_handle(
     handle: Any,
     *,
@@ -157,9 +386,7 @@ def assess_handle(
     """Classify sub-agent health from live handle state."""
     pol = policy or SupervisorPolicy()
     status = getattr(handle, "status", None)
-    status_val = (
-        status.value if hasattr(status, "value") else str(status or "")
-    ).lower()
+    status_val = (status.value if hasattr(status, "value") else str(status or "")).lower()
     is_running = bool(getattr(handle, "is_running", False)) or status_val == "running"
     if not is_running:
         return Diagnosis(
@@ -173,18 +400,19 @@ def assess_handle(
     traces = _activity_tool_traces(handle)
     sigs = [str(t.get("signature") or "") for t in traces if t.get("signature")]
     error_count = sum(1 for t in traces if t.get("is_error"))
-    progress_count = sum(
-        1 for t in traces if _looks_like_progress(str(t.get("result") or ""))
-    )
+    progress_count = sum(1 for t in traces if _looks_like_progress(str(t.get("result") or "")))
     steps = int(getattr(handle, "steps_taken", 0) or 0)
     last_tool = str(getattr(handle, "last_tool", "") or "")
     activity = str(getattr(handle, "current_activity", "") or "")
 
-    loop_hit = False
-    if len(sigs) >= 3 and sigs[-1] and sigs[-1] == sigs[-2] == sigs[-3]:
-        loop_hit = True
-    elif len(sigs) >= 4 and sigs[-1] and sigs[-4:].count(sigs[-1]) >= 3:
-        loop_hit = True
+    path_loop = _same_path_search_loop(traces)
+    inspect_hit = introspect_loop(traces)
+    noop_write_hit = noop_write_loop(traces)
+    loop_hit = _signatures_loop(sigs) or path_loop or inspect_hit or noop_write_hit
+    last_args = str((traces[-1] or {}).get("arguments") or "") if traces else ""
+    launch_hit = str(last_tool).lower() in {"terminal", "run_terminal_command"} and (
+        _looks_like_project_launch(last_args) or _alternating_launch_kill(traces)
+    )
 
     actively = True
     if hasattr(handle, "is_actively_working"):
@@ -204,20 +432,92 @@ def assess_handle(
         "activity": activity[:120],
     }
 
+    if tests_already_green_loop(traces):
+        available = list(getattr(getattr(handle, "config", None), "tools", None) or [])
+        return Diagnosis(
+            kind="tests_green",
+            severity="warning",
+            summary="tests already passed — finish so the process can continue",
+            guidance=(
+                "SUPERVISOR GUIDANCE: Automated tests already passed. "
+                "Do NOT run pytest/grep on tests again. "
+                "Your next message must be the final answer with NO tool calls "
+                "so the Studio process can continue to the next node. "
+                "Summarize what you fixed and stop."
+            ),
+            signals={
+                **signals,
+                "loop_tool": last_tool or "terminal",
+                "loop_details": last_args[:240],
+                "search_loop": True,
+                "tests_green": True,
+            },
+        )
+
+    if launch_hit:
+        available = list(getattr(getattr(handle, "config", None), "tools", None) or [])
+        bg = _prefer_tool(
+            available,
+            "start_background_process",
+            "run_project",
+            "check_background_process",
+        )
+        return Diagnosis(
+            kind="launch",
+            severity="warning",
+            summary="project launch via terminal — use start_background_process",
+            guidance=(
+                "SUPERVISOR GUIDANCE: You are starting a long-running project/server "
+                "via terminal. Stop that. Call "
+                f"{bg or 'start_background_process'} with the same command "
+                "(label the app), then check_background_process. "
+                "Do not use `&`, nohup, python -m *.main, or uvicorn in terminal — "
+                "those hang the tool and are not tracked."
+            ),
+            signals={
+                **signals,
+                "loop_tool": last_tool or "terminal",
+                "loop_details": last_args[:240],
+                "search_loop": False,
+                "launch_via_terminal": True,
+            },
+        )
+
     if loop_hit:
         tool = last_tool or (traces[-1].get("name") if traces else "tool")
+        details = str((traces[-1] or {}).get("arguments") or "") if traces else ""
+        if noop_write_hit:
+            details = str((traces[-1] or {}).get("result") or details)
+        available = list(getattr(getattr(handle, "config", None), "tools", None) or [])
+        search_only = _is_search_tool(str(tool)) or path_loop
+        if noop_write_hit:
+            summary = f"write_file no-op loop ({tool})"
+        elif inspect_hit:
+            summary = f"library introspection loop via terminal ({tool})"
+        elif path_loop and not _signatures_loop(sigs):
+            summary = f"repeated search on the same path ({tool})"
+        else:
+            summary = f"repeated identical tool calls ({tool})"
         return Diagnosis(
             kind="loop",
-            severity="critical",
-            summary=f"repeated identical tool calls ({tool})",
-            guidance=(
-                f"SUPERVISOR GUIDANCE: You are looping on the same tool call "
-                f"({tool}). Stop repeating it. Change approach: try a different "
-                f"tool, different arguments, read a related file, or summarize "
-                f"what you already know and produce a partial result. Do not "
-                f"call the same tool with the same arguments again."
+            severity="warn" if search_only else "critical",
+            summary=summary,
+            guidance=build_loop_guidance(
+                tool=str(tool),
+                details=details,
+                available_tools=available,
+                attempt=1,
+                max_attempts=pol.max_interventions,
             ),
-            signals=signals,
+            signals={
+                **signals,
+                "loop_tool": str(tool),
+                "loop_details": details[:240],
+                "search_loop": search_only,
+                "path_loop": path_loop,
+                "inspect_loop": inspect_hit,
+                "noop_write_loop": noop_write_hit,
+            },
         )
 
     if len(traces) >= 3 and error_count == len(traces) and progress_count == 0:
@@ -382,32 +682,74 @@ class SubagentSupervisor:
 
         count = int(self._interventions.get(name, 0))
         if count >= self._policy.max_interventions:
-            # Emit once per "exhausted" transition
+            search_loop = (
+                bool(diagnosis.signals.get("search_loop"))
+                or _is_search_tool(
+                    str(diagnosis.signals.get("loop_tool") or handle.last_tool or "")
+                )
+                or diagnosis.kind == "launch"
+                or diagnosis.kind == "tests_green"
+                or bool(diagnosis.signals.get("launch_via_terminal"))
+                or bool(diagnosis.signals.get("tests_green"))
+            )
             if self._last_kind.get(name) != "exhausted":
                 self._last_kind[name] = "exhausted"
+                fatal = diagnosis.kind == "loop" and not search_loop
                 self._emit(
                     handle,
                     diagnosis,
                     attempt=count,
                     message=(
                         f"Supervisor: max interventions ({count}) reached for "
-                        f"`{name}` ({diagnosis.kind}); waiting for natural stop"
+                        f"`{name}` ({diagnosis.kind}); stopping with status loop"
+                        if fatal
+                        else f"Supervisor: max interventions ({count}) reached for "
+                        f"`{name}` ({diagnosis.kind}); "
+                        + (
+                            "search tweaks are not a failure — waiting for a read/write"
+                            if search_loop
+                            else "waiting for natural stop"
+                        )
                     ),
                     exhausted=True,
                 )
+                if fatal:
+                    await self._stop_loop(handle, diagnosis)
             return
 
         now = time.monotonic()
         last = float(self._last_intervene_at.get(name, 0.0))
-        if last and (now - last) < self._policy.cooldown_s:
+        cooldown = (
+            self._policy.loop_cooldown_s
+            if diagnosis.kind in {"loop", "launch", "tests_green"}
+            else self._policy.cooldown_s
+        )
+        if last and (now - last) < cooldown:
             return
 
-        # Don't spam same kind every poll without cooldown already covered
-        ok = await self._send_guidance(handle, diagnosis, attempt=count + 1)
+        attempt = count + 1
+        if diagnosis.kind == "loop":
+            diagnosis = Diagnosis(
+                kind=diagnosis.kind,
+                severity=diagnosis.severity,
+                summary=diagnosis.summary,
+                guidance=build_loop_guidance(
+                    tool=str(diagnosis.signals.get("loop_tool") or handle.last_tool or "tool"),
+                    details=str(diagnosis.signals.get("loop_details") or ""),
+                    available_tools=list(
+                        getattr(getattr(handle, "config", None), "tools", None) or []
+                    ),
+                    attempt=attempt,
+                    max_attempts=self._policy.max_interventions,
+                ),
+                signals=diagnosis.signals,
+            )
+
+        ok = await self._send_guidance(handle, diagnosis, attempt=attempt)
         if not ok:
             return
 
-        self._interventions[name] = count + 1
+        self._interventions[name] = attempt
         self._last_intervene_at[name] = now
         self._last_kind[name] = diagnosis.kind
         self._emit(
@@ -481,6 +823,40 @@ class SubagentSupervisor:
             diagnosis.summary,
         )
         return True
+
+    async def _stop_loop(self, handle: Any, diagnosis: Diagnosis) -> None:
+        """Stop a looping job with status=loop (not cancelled)."""
+        from core.subagents.base import SubAgentResult, SubAgentStatus
+
+        name = str(getattr(handle, "name", "") or "")
+        error = (
+            "loop: repeated identical tool calls after "
+            f"{self._policy.max_interventions} supervisor interventions"
+        )
+        handle.forced_status = SubAgentStatus.LOOP
+        handle.result = SubAgentResult(
+            name=name,
+            success=False,
+            error=error,
+            steps_taken=int(getattr(handle, "steps_taken", 0) or 0),
+            duration_ms=float(getattr(handle, "elapsed_ms", 0) or 0),
+        )
+        try:
+            handle.record_activity(
+                "status",
+                "loop",
+                details=error,
+                steps_taken=int(getattr(handle, "steps_taken", 0) or 0),
+            )
+        except Exception:
+            pass
+        terminate = getattr(self._manager, "terminate", None)
+        if callable(terminate):
+            try:
+                await terminate(name)
+            except Exception:
+                logger.exception("supervisor: failed to stop looping job %s", name)
+        logger.warning("Supervisor stopped %s with status=loop (%s)", name, diagnosis.summary)
 
     def _emit(
         self,

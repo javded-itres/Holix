@@ -54,3 +54,42 @@ def test_registry_mcp_hook_exists():
 
     reg = ToolRegistry()
     assert hasattr(reg, "register_mcp")
+    assert hasattr(reg, "mcp_status")
+    assert reg.mcp_status() == []
+
+
+def test_mcp_manager_mark_ready_harvests():
+    from core.mcp.manager import MCPManager
+
+    seen: list[str] = []
+    mgr = MCPManager({})
+    mgr.on_tools_ready = seen.append
+    mgr._mark_ready(
+        "context7",
+        [{"name": "resolve-library-id", "description": "", "inputSchema": {}}],
+    )
+    assert seen == ["context7"]
+    status = {row["name"]: row for row in mgr.server_status()}
+    # no configs → empty status; still discovered
+    assert status == {}
+    assert mgr._discovered_tools["context7"][0]["name"] == "resolve-library-id"
+
+
+def test_mcp_manager_status_includes_configured_servers():
+    from core.mcp.manager import MCPManager
+
+    mgr = MCPManager({"context7": {"transport": "stdio", "command": "npx", "args": ["-y", "x"]}})
+    rows = mgr.server_status()
+    assert rows[0]["name"] == "context7"
+    assert rows[0]["ready"] is False
+    assert rows[0]["tools"] == 0
+    mgr._mark_ready(
+        "context7",
+        [
+            {"name": "resolve-library-id", "description": "", "inputSchema": {}},
+            {"name": "query-docs", "description": "", "inputSchema": {}},
+        ],
+    )
+    rows = mgr.server_status()
+    assert rows[0]["ready"] is True
+    assert rows[0]["tools"] == 2

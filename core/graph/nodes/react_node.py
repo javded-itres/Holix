@@ -490,7 +490,12 @@ async def react_node(state: HolixGraphState, config: RunnableConfig) -> dict:
             },
             messages_patch,
         )
-    tools = agent.tools.get_schemas() if agent and hasattr(agent, "tools") else []
+    agent_slot = getattr(agent, "agent_slot", "main") if agent else "main"
+    tools = (
+        agent.tools.get_schemas(for_agent_slot=agent_slot)
+        if agent and hasattr(agent, "tools")
+        else []
+    )
     tool_choice = resolve_tool_choice(state, messages, tools=tools)
     temperature = 0.7
     if agent and hasattr(agent, "config"):
@@ -512,8 +517,6 @@ async def react_node(state: HolixGraphState, config: RunnableConfig) -> dict:
             },
             messages_patch,
         )
-
-    agent_slot = getattr(agent, "agent_slot", "main") if agent else "main"
     model_manager = getattr(agent, "model_manager", None) if agent else None
     primary_override = getattr(agent, "active_model_config", None) if agent else None
     llm_timeout_s = _llm_step_timeout_s(agent)
@@ -1535,7 +1538,8 @@ def _build_system_prompt_from_state(state: HolixGraphState, agent=None) -> str:
     # Format tools
     tools_desc = ""
     if agent and hasattr(agent, "tools"):
-        tools_desc = format_tools_description(agent.tools.get_schemas())
+        slot = getattr(agent, "agent_slot", "main")
+        tools_desc = format_tools_description(agent.tools.get_schemas(for_agent_slot=slot))
 
     # Format skills
     skills_formatted = ""

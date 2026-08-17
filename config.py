@@ -137,6 +137,11 @@ class Settings(BaseSettings):
         validation_alias=AliasChoices("HOLIX_SUBAGENT_SUPERVISOR_COOLDOWN_S"),
         description="Minimum seconds between interventions for the same job",
     )
+    subagent_supervisor_loop_cooldown_s: float = Field(
+        default=8.0,
+        validation_alias=AliasChoices("HOLIX_SUBAGENT_SUPERVISOR_LOOP_COOLDOWN_S"),
+        description="Minimum seconds between loop-break guidance for the same job",
+    )
 
     # Agent response pipeline: classic ≈1.0.2 (default) | modern anti-monologue
     agent_pipeline: str = Field(
