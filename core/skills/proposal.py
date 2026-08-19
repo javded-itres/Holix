@@ -3,12 +3,16 @@
 from __future__ import annotations
 
 import json
+import re
 import secrets
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
+from core.skills.paths import join_under, resolve_under
+
 PENDING_DIRNAME = "_pending"
+_PROPOSAL_ID_RE = re.compile(r"^psp-\d{8}-[a-f0-9]{8}$")
 MAX_PENDING = 30
 TTL_DAYS = 14
 _ACTIONS = frozenset({"create", "patch", "reuse"})
@@ -102,16 +106,15 @@ class SkillProposalStore:
         self.root = pending_root(self.skills_dir)
 
     def _dir(self, proposal_id: str) -> Path:
-        safe = Path(proposal_id).name
-        if not safe.startswith("psp-") or "/" in proposal_id or "\\" in proposal_id:
+        if not _PROPOSAL_ID_RE.fullmatch(str(proposal_id or "")):
             raise ValueError(f"invalid proposal id: {proposal_id!r}")
-        return self.root / safe
+        return join_under(self.root, proposal_id)
 
     def _meta_path(self, proposal_id: str) -> Path:
-        return self._dir(proposal_id) / "proposal.json"
+        return resolve_under(self.root, self._dir(proposal_id) / "proposal.json")
 
     def _skill_path(self, proposal_id: str) -> Path:
-        return self._dir(proposal_id) / "SKILL.md"
+        return resolve_under(self.root, self._dir(proposal_id) / "SKILL.md")
 
     def _write_json(self, path: Path, data: dict[str, Any]) -> None:
         path.parent.mkdir(parents=True, exist_ok=True)
@@ -147,7 +150,7 @@ class SkillProposalStore:
     def _drop(self, proposal_id: str) -> None:
         import shutil
 
-        folder = self._dir(proposal_id)
+        folder = resolve_under(self.root, self._dir(proposal_id))
         if folder.is_dir():
             shutil.rmtree(folder, ignore_errors=True)
 
@@ -188,7 +191,10 @@ class SkillProposalStore:
         return rows
 
     def get(self, proposal_id: str) -> dict[str, Any] | None:
-        return self._load(proposal_id)
+        try:
+            return self._load(proposal_id)
+        except ValueError:
+            return None
 
     def stage(
         self,

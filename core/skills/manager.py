@@ -9,6 +9,7 @@ import yaml
 from core.di.runtime_config import HolixRuntimeConfig
 from core.memory.chroma_embeddings import get_or_create_collection
 from core.skills.assignments import is_skill_allowed_for_agent
+from core.skills.paths import join_under, resolve_under_any
 
 
 def tool_names_from_messages(messages: list[dict[str, Any]]) -> set[str]:
@@ -62,6 +63,23 @@ class SkillsManager:
             metadata={"hnsw:space": "cosine"},
         )
         self._index_hashes: dict[str, str] = {}
+
+    def _skill_roots(self) -> list[Path]:
+        roots = [self.skills_dir]
+        if self._local_skills_dir is not None:
+            roots.append(self._local_skills_dir)
+        return roots
+
+    def _confine_skill_path(self, filepath: Path | str) -> Path:
+        return resolve_under_any(filepath, self._skill_roots())
+
+    def _profile_skill_path(self, name: str) -> Path:
+        from core.hub.normalize import slugify_skill_name
+
+        safe = slugify_skill_name(name)
+        if not safe:
+            raise ValueError("invalid skill name")
+        return join_under(self.skills_dir, f"{safe}.md")
 
     @property
     def skill_assignments(self) -> dict[str, list[str]]:
@@ -196,6 +214,7 @@ class SkillsManager:
         Returns:
             Skill dictionary or None
         """
+        filepath = self._confine_skill_path(filepath)
         with open(filepath, encoding="utf-8") as f:
             content = f.read()
 
@@ -382,11 +401,13 @@ class SkillsManager:
             self.load_all_skills()
         dup = find_duplicate_skill(self.all_skills, name=name, description=description or "")
         if dup:
-            existing_path = Path(str(dup.get("filepath") or ""))
+            try:
+                existing_path = self._confine_skill_path(str(dup.get("filepath") or ""))
+            except ValueError:
+                existing_path = Path()
             if existing_path.is_file():
                 return existing_path
-            existing_name = slugify_skill_name(str(dup.get("name") or name))
-            existing_path = self.skills_dir / f"{existing_name}.md"
+            existing_path = self._profile_skill_path(str(dup.get("name") or name))
             if existing_path.is_file():
                 return existing_path
 
@@ -410,7 +431,7 @@ class SkillsManager:
             metadata["examples"] = examples
 
         # Create skill file
-        filepath = self.skills_dir / f"{name}.md"
+        filepath = self._profile_skill_path(name)
 
         with open(filepath, "w", encoding="utf-8") as f:
             # Write YAML frontmatter
@@ -457,9 +478,12 @@ class SkillsManager:
         skill = self.all_skills.get(name)
         if not skill:
             raise FileNotFoundError(name)
-        filepath = Path(str(skill.get("filepath") or ""))
+        try:
+            filepath = self._confine_skill_path(str(skill.get("filepath") or ""))
+        except ValueError:
+            filepath = self._profile_skill_path(name)
         if not filepath.is_file():
-            filepath = self.skills_dir / f"{name}.md"
+            filepath = self._profile_skill_path(name)
         if not filepath.is_file():
             raise FileNotFoundError(name)
         current = self._load_skill_file(filepath) or dict(skill)
@@ -491,7 +515,10 @@ class SkillsManager:
             skill_name: Name of the skill
             success: Whether the skill was used successfully
         """
-        filepath = self.skills_dir / f"{skill_name}.md"
+        try:
+            filepath = self._profile_skill_path(skill_name)
+        except ValueError:
+            return
 
         if not filepath.exists():
             return
@@ -565,7 +592,10 @@ class SkillsManager:
                 )
             except Exception:
                 pass
-        filepath = Path(str(skill.get("filepath") or ""))
+        try:
+            filepath = self._confine_skill_path(str(skill.get("filepath") or ""))
+        except ValueError:
+            return
         if not filepath.is_file():
             return
         current = self._load_skill_file(filepath)

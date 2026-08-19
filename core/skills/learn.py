@@ -5,10 +5,13 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
-from urllib.request import Request, urlopen
+
+import httpx
 
 from core.hub.normalize import slugify_skill_name
+from core.skills.paths import resolve_under
 from core.skills.proposal import SkillProposalStore
+from core.tools.browser.policy import validate_fetch_url
 
 MAX_SOURCE_CHARS = 40_000
 _MAX_FILES = 12
@@ -58,13 +61,27 @@ def _read_path_blob(path: Path) -> str:
 
 
 def _read_url(url: str) -> str:
-    parsed = urlparse(url)
-    if parsed.scheme not in {"http", "https"}:
-        raise ValueError("only http(s) URLs are allowed")
-    req = Request(url, headers={"User-Agent": "Holix-Learn/1.0"})
-    with urlopen(req, timeout=20) as resp:  # noqa: S310 — scheme checked
-        raw = resp.read(MAX_SOURCE_CHARS + 1024)
-    return raw.decode("utf-8", errors="replace")[:MAX_SOURCE_CHARS]
+    safe = validate_fetch_url(url)
+    parsed = urlparse(safe)
+    if parsed.scheme not in {"http", "https"} or not parsed.hostname:
+        raise ValueError("only http(s) URLs with a host are allowed")
+    if parsed.username or parsed.password:
+        raise ValueError("URL userinfo is not allowed")
+    rebuilt = f"{parsed.scheme}://{parsed.hostname}"
+    if parsed.port:
+        rebuilt += f":{parsed.port}"
+    rebuilt += parsed.path or "/"
+    if parsed.query:
+        rebuilt += f"?{parsed.query}"
+    rebuilt = validate_fetch_url(rebuilt)
+    with httpx.Client(
+        timeout=20.0,
+        follow_redirects=False,
+        headers={"User-Agent": "Holix-Learn/1.0"},
+    ) as client:
+        resp = client.get(rebuilt)
+        resp.raise_for_status()
+        return (resp.text or "")[:MAX_SOURCE_CHARS]
 
 
 def _draft_markdown(*, hint: str, source_label: str, blob: str) -> str:
@@ -100,9 +117,11 @@ def stage_learn_proposal(
     blob = (text or "").strip()
     label = "text"
     if path:
-        root = Path(path).expanduser()
-        if not root.is_absolute() and workspace_root:
-            root = Path(workspace_root) / root
+        if not workspace_root:
+            raise ValueError("path learn requires workspace_root")
+        raw = Path(path).expanduser()
+        candidate = raw if raw.is_absolute() else Path(workspace_root) / raw
+        root = resolve_under(workspace_root, candidate)
         blob = _read_path_blob(root)
         label = str(root)
         hint = hint or root.name

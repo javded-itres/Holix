@@ -58,6 +58,9 @@ def test_stage_does_not_write_live_skill(tmp_path: Path) -> None:
     )
     assert rec["status"] == "pending"
     assert rec["id"].startswith("psp-")
+    with pytest.raises(ValueError, match="invalid proposal id"):
+        store._dir("../psp-escape")
+    assert store.get("psp-not-a-real-id") is None
     assert not (mgr.skills_dir / "fastapi-crud.md").exists()
     assert store._skill_path(rec["id"]).is_file()
     listed = store.list_pending()
