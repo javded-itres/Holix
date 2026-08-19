@@ -70,6 +70,7 @@ class ToolRegistry:
         )
         from core.tools.send_chat_files import SendChatFilesTool
         from core.tools.session_memory import ReadSessionTool, SearchSessionsTool
+        from core.tools.skills import SkillManageTool, SkillViewTool
         from core.tools.terminal import TerminalTool
         from core.tools.web_search import WebFetchTool, WebSearchTool
 
@@ -127,6 +128,10 @@ class ToolRegistry:
         # Cross-session memory
         self.register(SearchSessionsTool())
         self.register(ReadSessionTool())
+
+        # Skills (progressive disclosure + staged writes)
+        self.register(SkillViewTool())
+        self.register(SkillManageTool())
 
         from core.tools.profile_identity import register_profile_identity_tools
 

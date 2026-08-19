@@ -61,11 +61,14 @@ async def finalize_node(state: HolixGraphState, config: RunnableConfig) -> dict:
         # Emit the final response as a regular message
         if hasattr(agent, "emit"):
             from core.agent_events import FinalResponseEvent
-            agent.emit(FinalResponseEvent(
-                content=final_response,
-                steps_taken=state.get("step_count", 0),
-                conversation_id=conversation_id,
-            ))
+
+            agent.emit(
+                FinalResponseEvent(
+                    content=final_response,
+                    steps_taken=state.get("step_count", 0),
+                    conversation_id=conversation_id,
+                )
+            )
 
         # Save the rejection message to memory
         if hasattr(agent, "memory"):
@@ -74,7 +77,9 @@ async def finalize_node(state: HolixGraphState, config: RunnableConfig) -> dict:
             except Exception as e:
                 logger.warning(f"Failed to save rejection message: {e}")
 
-        logger.info(f"Plan rejected for conversation {conversation_id}. Switching to react mode for next message.")
+        logger.info(
+            f"Plan rejected for conversation {conversation_id}. Switching to react mode for next message."
+        )
 
     # Self-improvement check (skip if plan was rejected — nothing to learn from)
     if plan_status != "rejected":
@@ -86,8 +91,10 @@ async def finalize_node(state: HolixGraphState, config: RunnableConfig) -> dict:
     # Auto-summarize into episodic memory
     try:
         cfg = getattr(agent, "config", None)
-        if cfg and cfg.auto_summarize_conversations and hasattr(
-            agent.memory, "auto_summarize_conversation"
+        if (
+            cfg
+            and cfg.auto_summarize_conversations
+            and hasattr(agent.memory, "auto_summarize_conversation")
         ):
             await agent.memory.auto_summarize_conversation(
                 conversation_id=conversation_id,
@@ -102,53 +109,10 @@ async def finalize_node(state: HolixGraphState, config: RunnableConfig) -> dict:
 
 
 async def _maybe_self_improve(agent, conversation_id, messages, final_response):
-    """Check if a skill should be created from this session."""
+    """Stage a skill proposal from this session (does not write live skills)."""
     try:
-        should_create = await agent.skills.should_create_skill(messages, final_response)
-        if not should_create:
-            return
+        from core.skills.self_improve import maybe_propose_skill
 
-        user_messages = [m for m in messages if m.get("role") == "user"]
-        if not user_messages:
-            return
-
-        task_description = user_messages[0].get("content", "")
-
-        if hasattr(agent, "emit"):
-            from core.agent_events import SelfImprovementStartedEvent
-            agent.emit(SelfImprovementStartedEvent(
-                conversation_id=conversation_id,
-                task_description=task_description[:200],
-            ))
-
-        from core.skills.generator import SkillGenerator
-        generator = SkillGenerator(agent.client, model=agent.model)
-        skill_data = await generator.create_skill_from_session(messages, task_description)
-
-        if skill_data and skill_data.get("name"):
-            agent_slot = getattr(agent, "agent_slot", "main")
-            filepath = agent.skills.save_skill(
-                name=skill_data["name"],
-                description=skill_data.get("description", ""),
-                content=skill_data["content"],
-                tags=skill_data.get("tags", []),
-                examples=skill_data.get("examples", []),
-                agent_slot=agent_slot,
-            )
-            if hasattr(agent, "config"):
-                agent.config = agent.config.with_overrides(
-                    skill_assignments=agent.skills.skill_assignments
-                )
-
-            if hasattr(agent, "emit"):
-                from core.agent_events import SkillCreatedEvent
-                agent.emit(SkillCreatedEvent(
-                    skill_name=skill_data["name"],
-                    description=skill_data.get("description", ""),
-                    filepath=str(filepath),
-                    tags=skill_data.get("tags", []),
-                    conversation_id=conversation_id,
-                ))
-
+        await maybe_propose_skill(agent, conversation_id, messages, final_response)
     except Exception as e:
         logger.warning(f"Self-improvement failed: {e}")

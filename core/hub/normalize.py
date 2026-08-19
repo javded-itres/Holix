@@ -33,6 +33,8 @@ def discover_skill_files(root: Path) -> list[Path]:
     found: list[Path] = []
     seen: set[Path] = set()
     for path in root.rglob("SKILL.md"):
+        if any(part.startswith("_archive") or part.startswith("_pending") for part in path.parts):
+            continue
         if path.name.lower() in _SKIP_FILENAMES:
             continue
         if path not in seen:

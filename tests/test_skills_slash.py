@@ -24,8 +24,7 @@ def test_main_agent_not_limited_by_skill_assignments(tmp_path, monkeypatch) -> N
         )
 
     (profile_dir / "config.yaml").write_text(
-        "profile_name: default\nmodel: test\n"
-        "skill_assignments:\n  main:\n    - allowed-skill\n",
+        "profile_name: default\nmodel: test\nskill_assignments:\n  main:\n    - allowed-skill\n",
         encoding="utf-8",
     )
 
@@ -57,7 +56,9 @@ async def test_run_skills_command_lists_profile_skills(tmp_path, monkeypatch) ->
         "---\nname: demo-skill\ndescription: Demo\n---\n",
         encoding="utf-8",
     )
-    (profile_dir / "config.yaml").write_text("profile_name: default\nmodel: test\n", encoding="utf-8")
+    (profile_dir / "config.yaml").write_text(
+        "profile_name: default\nmodel: test\n", encoding="utf-8"
+    )
 
     host_cfg = manager.load_profile(profile)
 
@@ -100,6 +101,7 @@ def test_save_skill_auto_assigns_to_agent(tmp_path, monkeypatch) -> None:
         description="Created by agent",
         content="steps",
         agent_slot="main",
+        assign=True,
     )
 
     assert "agent-made" in mgr.skill_assignments.get("main", [])
