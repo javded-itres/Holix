@@ -12,6 +12,7 @@ from core.subagents.base import SubAgentConfig, SubAgentHandle, SubAgentStatus
 from core.subagents.supervisor import (
     SubagentSupervisor,
     SupervisorPolicy,
+    _ui_locale,
     assess_handle,
     build_loop_guidance,
     diagnose_loop_fix,
@@ -31,6 +32,17 @@ def _running_handle(name: str = "coder-1") -> SubAgentHandle:
     )
     h.touch_activity()
     return h
+
+
+def test_assess_empty_model_reply_tells_agent_to_continue() -> None:
+    h = _running_handle()
+    h.touch_activity()
+    h.record_activity("status", "Empty model reply — continue 1/3")
+    d = assess_handle(h, policy=SupervisorPolicy(idle_s=90))
+    assert d.kind == "empty_reply"
+    assert d.needs_intervention
+    assert "empty" in d.guidance.lower()
+    assert "continue" in d.guidance.lower()
 
 
 def test_assess_ok_when_fresh_activity() -> None:
@@ -251,6 +263,52 @@ def test_human_loop_question_includes_path_and_last_result() -> None:
     assert "write_file a change" in ctx
 
 
+def test_diagnose_loop_question_follows_locale() -> None:
+    ru = diagnose_loop_fix(
+        tool="write_file",
+        details='{"path": "app/di.py"}',
+        locale="ru",
+    )
+    assert "Кодер" in ru["user_question"]
+    assert "app/di.py" in ru["user_question"]
+    q = format_human_loop_question(
+        ru["user_question"],
+        details='{"path": "app/di.py"}',
+        last_result="no content changes",
+        locale="ru",
+    )
+    assert "Повтор:" in q
+    assert "Последний результат:" in q
+    ctx = format_human_loop_context(
+        problem=ru["problem"],
+        tool="write_file",
+        details='{"path": "app/di.py"}',
+        locale="ru",
+    )
+    assert "Что застряло:" in ctx
+    assert "Инструмент:" in ctx
+
+    en = diagnose_loop_fix(
+        tool="write_file",
+        details='{"path": "app/di.py"}',
+        locale="en",
+    )
+    assert "The coder keeps rewriting" in en["user_question"]
+
+
+def test_supervisor_locale_from_profile(_isolated_holix_home) -> None:
+    from types import SimpleNamespace
+
+    from core.i18n.locale import LocaleStore
+
+    LocaleStore("default").set("ru")
+    parent = SimpleNamespace(config=SimpleNamespace(profile_name="default"))
+    manager = SimpleNamespace(_parent=parent)
+    assert _ui_locale(manager) == "ru"
+    LocaleStore("default").set("en")
+    assert _ui_locale(manager) == "en"
+
+
 def test_diagnose_read_file_names_the_path() -> None:
     fix = diagnose_loop_fix(
         tool="read_file",
@@ -438,6 +496,12 @@ async def test_supervisor_asks_human_then_injects_reply() -> None:
     assert "none" in (asked_question + asked_context).lower()
     assert "human" in async_bus.send.await_args.args[0].content.lower()
     assert sup._interventions["ask-job"] == 0
+    manager.terminate.assert_not_awaited()
+
+    # Immediate next exhausted tick must not kill — human reply needs time.
+    sup._interventions["ask-job"] = 3
+    await sup._maybe_intervene(h)
+    manager.terminate.assert_not_awaited()
 
 
 @pytest.mark.asyncio

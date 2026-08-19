@@ -14,6 +14,18 @@ def register_integration_hooks() -> None:
     _register_companions()
     _register_notify()
     _register_profile_lifecycle()
+    try:
+        from integrations.telegram.skill_notice import register as _tg_skill
+
+        _tg_skill()
+    except Exception:
+        pass
+    try:
+        from integrations.max.skill_notice import register as _max_skill
+
+        _max_skill()
+    except Exception:
+        pass
     # Optional OpenTelemetry GenAI (no-op unless OTEL_* env + Holix[otel])
     try:
         from core.monitoring.genai_otel import configure_otel_from_env

@@ -9,6 +9,30 @@ import yaml
 from core.di.runtime_config import HolixRuntimeConfig
 from core.memory.chroma_embeddings import get_or_create_collection
 from core.skills.assignments import is_skill_allowed_for_agent
+from core.skills.paths import join_under, resolve_under_any
+
+
+def tool_names_from_messages(messages: list[dict[str, Any]]) -> set[str]:
+    """Unique tool names from tool rows and assistant tool_calls.
+
+    Sub-agent loops often store ``role=tool`` without ``name`` — only
+    ``tool_call_id``. Fall back to the preceding assistant ``tool_calls``.
+    """
+    names: set[str] = set()
+    for msg in messages:
+        role = str(msg.get("role") or "")
+        if role == "tool":
+            names.add(str(msg.get("name") or msg.get("tool") or "").strip())
+            continue
+        if role != "assistant":
+            continue
+        for tc in msg.get("tool_calls") or []:
+            if not isinstance(tc, dict):
+                continue
+            fn = tc.get("function") if isinstance(tc.get("function"), dict) else {}
+            names.add(str((fn or {}).get("name") or tc.get("name") or "").strip())
+    names.discard("")
+    return names
 
 
 class SkillsManager:
@@ -24,6 +48,7 @@ class SkillsManager:
 
         # Local project supplement (./.holix/skills) — loaded in addition to profile skills_dir
         from core.config_utils import get_local_skills_dir
+
         self._local_skills_dir: Path | None = get_local_skills_dir()
         if self._local_skills_dir:
             self._local_skills_dir.mkdir(parents=True, exist_ok=True)
@@ -38,6 +63,23 @@ class SkillsManager:
             metadata={"hnsw:space": "cosine"},
         )
         self._index_hashes: dict[str, str] = {}
+
+    def _skill_roots(self) -> list[Path]:
+        roots = [self.skills_dir]
+        if self._local_skills_dir is not None:
+            roots.append(self._local_skills_dir)
+        return roots
+
+    def _confine_skill_path(self, filepath: Path | str) -> Path:
+        return resolve_under_any(filepath, self._skill_roots())
+
+    def _profile_skill_path(self, name: str) -> Path:
+        from core.hub.normalize import slugify_skill_name
+
+        safe = slugify_skill_name(name)
+        if not safe:
+            raise ValueError("invalid skill name")
+        return join_under(self.skills_dir, f"{safe}.md")
 
     @property
     def skill_assignments(self) -> dict[str, list[str]]:
@@ -146,14 +188,16 @@ class SkillsManager:
             # Add to collection
             self.skills_collection.upsert(
                 documents=[searchable_text],
-                metadatas=[{
-                    "name": skill.get("name", ""),
-                    "description": skill.get("description", ""),
-                    "tags": ",".join(skill.get("tags", [])),
-                    "success_count": skill.get("success_count", 0),
-                    "failure_count": skill.get("failure_count", 0),
-                }],
-                ids=[name]
+                metadatas=[
+                    {
+                        "name": skill.get("name", ""),
+                        "description": skill.get("description", ""),
+                        "tags": ",".join(skill.get("tags", [])),
+                        "success_count": skill.get("success_count", 0),
+                        "failure_count": skill.get("failure_count", 0),
+                    }
+                ],
+                ids=[name],
             )
             self._index_hashes[name] = content_hash
             return True
@@ -170,12 +214,13 @@ class SkillsManager:
         Returns:
             Skill dictionary or None
         """
-        with open(filepath, encoding='utf-8') as f:
+        filepath = self._confine_skill_path(filepath)
+        with open(filepath, encoding="utf-8") as f:
             content = f.read()
 
         # Split YAML frontmatter and markdown content
-        if content.startswith('---'):
-            parts = content.split('---', 2)
+        if content.startswith("---"):
+            parts = content.split("---", 2)
             if len(parts) >= 3:
                 try:
                     metadata = yaml.safe_load(parts[1])
@@ -185,7 +230,7 @@ class SkillsManager:
                     return {
                         **(metadata or {}),
                         "content": markdown_content,
-                        "filepath": str(filepath)
+                        "filepath": str(filepath),
                     }
                 except yaml.YAMLError as e:
                     print(f"Error parsing YAML in {filepath}: {e}")
@@ -218,8 +263,7 @@ class SkillsManager:
         try:
             # Use ChromaDB for semantic search
             results = self.skills_collection.query(
-                query_texts=[query],
-                n_results=min(top_k, len(self.all_skills))
+                query_texts=[query], n_results=min(top_k, len(self.all_skills))
             )
 
             relevant = []
@@ -239,7 +283,7 @@ class SkillsManager:
             relevant.sort(
                 key=lambda x: (
                     x.get("relevance_distance", 1.0),  # Lower distance = more relevant
-                    -(x.get("success_count", 0) / max(x.get("failure_count", 0) + 1, 1))
+                    -(x.get("success_count", 0) / max(x.get("failure_count", 0) + 1, 1)),
                 )
             )
 
@@ -250,11 +294,7 @@ class SkillsManager:
             # Fallback to empty list
             return []
 
-    async def should_create_skill(
-        self,
-        messages: list[dict[str, Any]],
-        final_result: str
-    ) -> bool:
+    async def should_create_skill(self, messages: list[dict[str, Any]], final_result: str) -> bool:
         """Determine if a skill should be created from this session.
 
         Args:
@@ -264,26 +304,39 @@ class SkillsManager:
         Returns:
             True if skill should be created
         """
-        # Heuristics for skill creation:
-        # 1. Multiple tool calls were made
-        # 2. Task was complex (more than 3 messages)
-        # 3. Task completed successfully
-
-        tool_calls_count = sum(
-            1 for msg in messages
-            if msg.get("role") == "tool"
+        from core.skills.dedup import (
+            find_duplicate_skill,
+            is_transient_failure_lesson,
+            is_trivial_session,
         )
 
+        tool_calls_count = sum(1 for msg in messages if msg.get("role") == "tool")
+        tool_names = tool_names_from_messages(messages)
         message_count = len([m for m in messages if m.get("role") in ["user", "assistant"]])
-
-        # Create skill if there were multiple tool calls and reasonable complexity
-        should_create = (
-            tool_calls_count >= 2 and
-            message_count >= 3 and
-            "error" not in final_result.lower()
-        )
-
-        return should_create
+        result = final_result or ""
+        if "error" in result.lower():
+            return False
+        if is_trivial_session(messages, result):
+            return False
+        if is_transient_failure_lesson(messages, result):
+            return False
+        # Require a real workflow, not a two-call ping that still wrote a file.
+        if tool_calls_count < 4 or message_count < 4 or len(tool_names) < 2:
+            return False
+        users = [
+            str(m.get("content") or "")
+            for m in messages
+            if m.get("role") == "user" and str(m.get("content") or "").strip()
+        ]
+        if not self.all_skills:
+            self.load_all_skills()
+        if find_duplicate_skill(
+            self.all_skills,
+            name=users[0][:80] if users else "",
+            description=users[0][:240] if users else "",
+        ):
+            return False
+        return True
 
     def _attach_skill_to_agent(self, name: str, agent_slot: str) -> None:
         """Add skill to the creating agent's allowlist (runtime + profile when applicable)."""
@@ -321,6 +374,10 @@ class SkillsManager:
         examples: list[str] | None = None,
         *,
         agent_slot: str = "main",
+        assign: bool = False,
+        origin: str = "user",
+        source_session: str = "",
+        quality_score: int = 0,
     ) -> Path:
         """Save a new skill to disk.
 
@@ -335,8 +392,24 @@ class SkillsManager:
             Path to saved skill file
         """
         from core.hub.normalize import slugify_skill_name
+        from core.skills.dedup import find_duplicate_skill, looks_like_junk_skill
 
         name = slugify_skill_name(name)
+        if looks_like_junk_skill(name=name, description=description, tags=tags):
+            raise ValueError(f"refusing junk skill {name!r}")
+        if not self.all_skills:
+            self.load_all_skills()
+        dup = find_duplicate_skill(self.all_skills, name=name, description=description or "")
+        if dup:
+            try:
+                existing_path = self._confine_skill_path(str(dup.get("filepath") or ""))
+            except ValueError:
+                existing_path = Path()
+            if existing_path.is_file():
+                return existing_path
+            existing_path = self._profile_skill_path(str(dup.get("name") or name))
+            if existing_path.is_file():
+                return existing_path
 
         # Prepare metadata
         metadata = {
@@ -346,16 +419,21 @@ class SkillsManager:
             "success_count": 0,
             "failure_count": 0,
             "created_at": datetime.now().isoformat(),
-            "last_used": None
+            "last_used": None,
+            "origin": origin or "user",
+            "use_count": 0,
+            "quality_score": int(quality_score or 0),
         }
+        if source_session:
+            metadata["source_session"] = source_session
 
         if examples:
             metadata["examples"] = examples
 
         # Create skill file
-        filepath = self.skills_dir / f"{name}.md"
+        filepath = self._profile_skill_path(name)
 
-        with open(filepath, 'w', encoding='utf-8') as f:
+        with open(filepath, "w", encoding="utf-8") as f:
             # Write YAML frontmatter
             f.write("---\n")
             f.write(yaml.dump(metadata, default_flow_style=False))
@@ -371,7 +449,8 @@ class SkillsManager:
             self.all_skills[name] = skill_data
             self._index_skill(skill_data)
 
-        self._attach_skill_to_agent(name, agent_slot)
+        if assign:
+            self._attach_skill_to_agent(name, agent_slot)
 
         try:
             from core.hub.slash_registry import rebuild_slash_registry
@@ -382,18 +461,64 @@ class SkillsManager:
 
         return filepath
 
-    def update_skill_metrics(
+    def patch_skill(
         self,
-        skill_name: str,
-        success: bool
-    ) -> None:
+        name: str,
+        *,
+        description: str | None = None,
+        content: str | None = None,
+        tags: list[str] | None = None,
+    ) -> Path:
+        """Update an existing skill in place (no new slug, no auto-assign)."""
+        from core.hub.normalize import slugify_skill_name
+
+        name = slugify_skill_name(name)
+        if not self.all_skills:
+            self.load_all_skills(defer_index=True)
+        skill = self.all_skills.get(name)
+        if not skill:
+            raise FileNotFoundError(name)
+        try:
+            filepath = self._confine_skill_path(str(skill.get("filepath") or ""))
+        except ValueError:
+            filepath = self._profile_skill_path(name)
+        if not filepath.is_file():
+            filepath = self._profile_skill_path(name)
+        if not filepath.is_file():
+            raise FileNotFoundError(name)
+        current = self._load_skill_file(filepath) or dict(skill)
+        if description:
+            current["description"] = description
+        if tags is not None:
+            current["tags"] = tags
+        if content is not None:
+            current["content"] = content
+        current["updated_at"] = datetime.now().isoformat()
+        current.pop("filepath", None)
+        body = current.pop("content", "") or ""
+        with open(filepath, "w", encoding="utf-8") as f:
+            f.write("---\n")
+            f.write(yaml.dump(current, default_flow_style=False))
+            f.write("---\n\n")
+            f.write(body)
+        reloaded = self._load_skill_file(filepath)
+        if reloaded:
+            reloaded["_source"] = skill.get("_source") or "profile"
+            self.all_skills[name] = reloaded
+            self._index_skill(reloaded)
+        return filepath
+
+    def update_skill_metrics(self, skill_name: str, success: bool) -> None:
         """Update skill usage metrics.
 
         Args:
             skill_name: Name of the skill
             success: Whether the skill was used successfully
         """
-        filepath = self.skills_dir / f"{skill_name}.md"
+        try:
+            filepath = self._profile_skill_path(skill_name)
+        except ValueError:
+            return
 
         if not filepath.exists():
             return
@@ -411,7 +536,7 @@ class SkillsManager:
         skill["last_used"] = datetime.now().isoformat()
 
         # Save updated skill
-        with open(filepath, 'w', encoding='utf-8') as f:
+        with open(filepath, "w", encoding="utf-8") as f:
             # Extract metadata
             metadata = {k: v for k, v in skill.items() if k not in ["content", "filepath"]}
 
@@ -423,32 +548,110 @@ class SkillsManager:
         # Reload
         self.load_all_skills()
 
+    def is_inline_skill(self, skill: dict[str, Any]) -> bool:
+        """True if this skill is short/load-bearing and may be inlined in the prompt."""
+        name = str(skill.get("name") or "")
+        origin = str(skill.get("origin") or "").strip().lower()
+        if origin in {"bundled", "hub"}:
+            return True
+        try:
+            from core.skills.bundled import bundled_skill_names
+
+            if name in set(bundled_skill_names()):
+                return True
+        except Exception:
+            pass
+        return False
+
+    def mark_skill_used(self, name: str, *, conversation_id: str = "") -> None:
+        """Bump use_count / last_used when a skill is viewed or inlined."""
+        if not name:
+            return
+        if not self.all_skills:
+            self.load_all_skills(defer_index=True)
+        skill = self.all_skills.get(name)
+        if not skill:
+            return
+        origin = str(skill.get("origin") or skill.get("_source") or "")
+        source_session = str(skill.get("source_session") or "")
+        skill["use_count"] = int(skill.get("use_count") or 0) + 1
+        skill["last_used"] = datetime.now().isoformat()
+        if (
+            conversation_id
+            and origin in {"agent", "learn"}
+            and source_session
+            and source_session != conversation_id
+        ):
+            try:
+                from core.achievements.engine import record_skill_signal
+
+                record_skill_signal(
+                    self.skills_dir,
+                    "reused",
+                    evidence={"skill_name": name, "conversation_id": conversation_id},
+                )
+            except Exception:
+                pass
+        try:
+            filepath = self._confine_skill_path(str(skill.get("filepath") or ""))
+        except ValueError:
+            return
+        if not filepath.is_file():
+            return
+        current = self._load_skill_file(filepath)
+        if not current:
+            return
+        current["use_count"] = skill["use_count"]
+        current["last_used"] = skill["last_used"]
+        body = current.pop("content", "") or ""
+        current.pop("filepath", None)
+        try:
+            with open(filepath, "w", encoding="utf-8") as f:
+                f.write("---\n")
+                f.write(yaml.dump(current, default_flow_style=False))
+                f.write("---\n\n")
+                f.write(body)
+        except OSError:
+            return
+
     def format_skills_for_prompt(
         self,
-        skills: list[dict[str, Any]]
+        skills: list[dict[str, Any]],
+        *,
+        include_body: bool = False,
     ) -> str:
-        """Format skills for inclusion in the system prompt.
+        """Format skills for the system prompt.
 
-        Args:
-            skills: List of skills
-
-        Returns:
-            Formatted string for prompt
+        Default is progressive disclosure: name + description (+ full body
+        only for bundled/hub skills). Call ``skill_view`` for the rest.
         """
         if not skills:
             return ""
 
         output = "## Available Skills\n\n"
-        output += "You have access to these learned patterns from previous successful tasks:\n\n"
+        output += (
+            "Index of relevant skills. Load a non-bundled skill with "
+            "`skill_view(name)` before following it. "
+            "To save a new procedure, call `skill_manage` "
+            "(it stages a draft for approval — it does not write live skills).\n\n"
+        )
 
         for i, skill in enumerate(skills, 1):
-            output += f"### {i}. {skill.get('name', 'Unnamed')}\n"
+            name = skill.get("name", "Unnamed")
+            output += f"### {i}. {name}\n"
             output += f"**Description:** {skill.get('description', 'No description')}\n"
-
-            if skill.get('tags'):
+            if skill.get("tags"):
                 output += f"**Tags:** {', '.join(skill['tags'])}\n"
-
-            output += f"\n{skill.get('content', '')}\n\n"
-            output += "---\n\n"
+            origin = skill.get("origin") or skill.get("_source") or ""
+            if origin:
+                output += f"**Origin:** {origin}\n"
+            inline = include_body or self.is_inline_skill(skill)
+            if inline:
+                body = (skill.get("content") or "").strip()
+                if body:
+                    output += f"\n{body}\n"
+            else:
+                output += f"\nCall `skill_view({name})` for the full procedure.\n"
+            output += "\n---\n\n"
 
         return output

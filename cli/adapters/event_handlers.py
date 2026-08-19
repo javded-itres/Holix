@@ -10,6 +10,7 @@ from core.agent_events import (
     MaxStepsReachedEvent,
     SelfImprovementStartedEvent,
     SkillCreatedEvent,
+    SkillProposedEvent,
     ThinkingEvent,
     ToolCallErrorEvent,
     ToolCallResultEvent,
@@ -41,6 +42,11 @@ def create_rich_cli_handler() -> EventHandler:
             print_info("Analyzing session for new skill creation...")
         elif isinstance(event, SkillCreatedEvent):
             print_success(f"New skill learned: {event.skill_name}")
+        elif isinstance(event, SkillProposedEvent):
+            print_info(
+                f"Skill proposed for review: {event.skill_name} "
+                f"({event.action}) — holix skills pending"
+            )
         elif isinstance(event, ThinkingEvent):
             if "thinking" in event.message.lower():
                 console.print(f"[dim]{event.message}[/dim]")
@@ -51,8 +57,6 @@ def create_rich_cli_handler() -> EventHandler:
         elif isinstance(event, FinalResponseEvent):
             pass
         elif isinstance(event, MaxStepsReachedEvent):
-            console.print(
-                f"[yellow]Agent reached maximum steps ({event.max_steps}).[/yellow]"
-            )
+            console.print(f"[yellow]Agent reached maximum steps ({event.max_steps}).[/yellow]")
 
     return handler

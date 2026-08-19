@@ -18,6 +18,8 @@ _ABORTED_FINAL_MARKERS = (
     "не ответила за",
     "error:",
     "error during agent step",
+    "request timed out",
+    "timed out",
     "no llm model configured",
     "no llm client available",
     "agent reached maximum steps",
@@ -25,8 +27,7 @@ _ABORTED_FINAL_MARKERS = (
 )
 
 MESSENGER_EMPTY_FINAL_RU = (
-    "Агент завершил работу без текстового ответа.\n"
-    "Проверьте модель (/models) или повторите запрос."
+    "Агент завершил работу без текстового ответа.\nПроверьте модель (/models) или повторите запрос."
 )
 
 _UNSUCCESSFUL_FINAL_MARKERS = (

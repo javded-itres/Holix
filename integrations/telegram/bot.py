@@ -31,7 +31,9 @@ def _seed_admin_profile_background() -> None:
 
 
 class HolixTelegramBot:
-    def __init__(self, settings: TelegramSettings | None = None, *, profile: str = "default") -> None:
+    def __init__(
+        self, settings: TelegramSettings | None = None, *, profile: str = "default"
+    ) -> None:
         self.settings = settings or load_telegram_settings(profile)
         self._sessions: dict[int, ChatSession] = {}
         self._dp: Any = None
@@ -315,9 +317,7 @@ class HolixTelegramBot:
                     session._agent_init_lock = lock
                 async with lock:
                     if session.agent is None:
-                        await self._switch_session_profile(
-                            session, session.profile, bot=bot
-                        )
+                        await self._switch_session_profile(session, session.profile, bot=bot)
             return session
         except Exception as exc:
             if bot is not None:
@@ -351,9 +351,7 @@ class HolixTelegramBot:
 
         await self._send_typing(bot, message.chat.id)
 
-        session = await self._get_session(
-            message.chat.id, message.from_user.id, bot=bot
-        )
+        session = await self._get_session(message.chat.id, message.from_user.id, bot=bot)
         try:
             transcribed = await process_voice_message(
                 bot,
@@ -370,8 +368,7 @@ class HolixTelegramBot:
             return
         except Exception as exc:
             await message.answer(
-                f"🎙️ <b>Голосовое сообщение</b>\n\n"
-                f"❌ Ошибка распознавания: {escape_html(str(exc))}",
+                f"🎙️ <b>Голосовое сообщение</b>\n\n❌ Ошибка распознавания: {escape_html(str(exc))}",
                 parse_mode="HTML",
             )
             return
@@ -552,8 +549,7 @@ class HolixTelegramBot:
         count = len(saved_files)
         await bot.send_message(
             chat_id,
-            preview
-            + f"\n\nСохранено файлов: {count}. Напишите задачу "
+            preview + f"\n\nСохранено файлов: {count}. Напишите задачу "
             "(можно добавить ещё файлы, затем одно сообщение с инструкцией).",
             parse_mode="HTML",
         )
@@ -566,9 +562,7 @@ class HolixTelegramBot:
         user_text: str,
         settings: TelegramSettings,
     ) -> bool:
-        session = await self._get_session(
-            message.chat.id, message.from_user.id, bot=bot
-        )
+        session = await self._get_session(message.chat.id, message.from_user.id, bot=bot)
         if not session.pending_files:
             return False
 
@@ -587,9 +581,7 @@ class HolixTelegramBot:
             from aiogram.filters import Command, CommandStart
             from aiogram.types import CallbackQuery, Message
         except ImportError as e:
-            raise ImportError(
-                "Telegram support requires aiogram: uv sync --extra telegram"
-            ) from e
+            raise ImportError("Telegram support requires aiogram: uv sync --extra telegram") from e
 
         from integrations.telegram.voice_handler import suffix_for_audio
 
@@ -610,9 +602,7 @@ class HolixTelegramBot:
             bot=bot,
             dispatcher=dp,
             get_session=self._get_session,
-            make_host=lambda b, s: TelegramHost(
-                b, s, edit_interval_ms=settings.edit_interval_ms
-            ),
+            make_host=lambda b, s: TelegramHost(b, s, edit_interval_ms=settings.edit_interval_ms),
         )
         load_telegram_plugins(plugin_api)
         self._plugin_api = plugin_api
@@ -721,9 +711,7 @@ class HolixTelegramBot:
                 )
                 return
             await self._ensure_authorized_menu(bot, message.chat.id, message.from_user.id)
-            session = await self._get_session(
-                message.chat.id, message.from_user.id, bot=bot
-            )
+            session = await self._get_session(message.chat.id, message.from_user.id, bot=bot)
             host = TelegramHost(bot, session, edit_interval_ms=settings.edit_interval_ms)
             await host.handle_user_text(text)
 
@@ -760,9 +748,7 @@ class HolixTelegramBot:
             ):
                 return
             try:
-                session = await self._get_session(
-                    message.chat.id, message.from_user.id, bot=bot
-                )
+                session = await self._get_session(message.chat.id, message.from_user.id, bot=bot)
             except Exception:
                 return
             try:
@@ -775,9 +761,7 @@ class HolixTelegramBot:
                     flush=True,
                 )
                 try:
-                    await message.answer(
-                        "⚠️ Не удалось обработать сообщение. Попробуйте ещё раз."
-                    )
+                    await message.answer("⚠️ Не удалось обработать сообщение. Попробуйте ещё раз.")
                 except Exception:
                     pass
 
@@ -865,6 +849,31 @@ class HolixTelegramBot:
                 settings=settings,
             )
 
+        @dp.callback_query(F.data.startswith("sk:"))
+        async def on_skill_cb(query: CallbackQuery) -> None:
+            if query.from_user is None or not query.data:
+                return
+            if not self._allowed(query.from_user.id):
+                await query.answer("Access pending approval.", show_alert=True)
+                return
+            parts = query.data.split(":")
+            if len(parts) != 3 or parts[1] not in {"a", "r"}:
+                await query.answer("Invalid.", show_alert=True)
+                return
+            session = await self._get_session(query.message.chat.id, query.from_user.id, bot=bot)
+            from core.i18n.locale import LocaleStore
+            from core.skills.decisions import decide_skill_proposal
+
+            profile = getattr(session, "profile", None) or self.settings.profile
+            loc = LocaleStore(profile).get()
+            result = decide_skill_proposal(
+                profile,
+                parts[2],
+                approve=parts[1] == "a",
+                locale=loc,
+            )
+            await query.answer(result.get("message") or "OK", show_alert=not result.get("ok"))
+
         @dp.callback_query(F.data.startswith("cfm:"))
         async def on_confirm_cb(query: CallbackQuery) -> None:
             if query.from_user is None or not query.data:
@@ -877,9 +886,7 @@ class HolixTelegramBot:
                 await query.answer("Invalid.", show_alert=True)
                 return
             _, cid, code = parts
-            session = await self._get_session(
-                query.message.chat.id, query.from_user.id, bot=bot
-            )
+            session = await self._get_session(query.message.chat.id, query.from_user.id, bot=bot)
             approvals = TelegramApprovals(bot, session)
             if approvals.resolve_confirmation_callback(cid, code):
                 await approvals.dismiss_confirmation_ui()
@@ -897,9 +904,7 @@ class HolixTelegramBot:
             if not self._allowed(query.from_user.id):
                 await query.answer("Access denied.", show_alert=True)
                 return
-            session = await self._get_session(
-                query.message.chat.id, query.from_user.id, bot=bot
-            )
+            session = await self._get_session(query.message.chat.id, query.from_user.id, bot=bot)
             host = TelegramHost(bot, session, edit_interval_ms=settings.edit_interval_ms)
             value = query.data.split(":", 1)[1] if ":" in query.data else ""
             try:
@@ -946,9 +951,7 @@ class HolixTelegramBot:
             if not self._allowed(query.from_user.id):
                 await query.answer("Access denied.", show_alert=True)
                 return
-            session = await self._get_session(
-                query.message.chat.id, query.from_user.id, bot=bot
-            )
+            session = await self._get_session(query.message.chat.id, query.from_user.id, bot=bot)
             host = TelegramHost(bot, session, edit_interval_ms=settings.edit_interval_ms)
             try:
                 msg = await dispatch_callback(host, query.data)
@@ -968,9 +971,7 @@ class HolixTelegramBot:
                 await query.answer("Invalid.", show_alert=True)
                 return
             _, rid, action = parts
-            session = await self._get_session(
-                query.message.chat.id, query.from_user.id, bot=bot
-            )
+            session = await self._get_session(query.message.chat.id, query.from_user.id, bot=bot)
             approvals = TelegramApprovals(bot, session)
             if approvals.resolve_plan_callback(rid, action):
                 await approvals.dismiss_plan_review_ui()

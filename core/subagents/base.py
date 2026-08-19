@@ -58,7 +58,7 @@ class SubAgentConfig:
     max_steps: int = 150  # Max reasoning steps
     mode: str = "react"  # Execution mode
     process_mode: ProcessMode = ProcessMode.ASYNC  # How to run
-    timeout: float = 900.0  # Wait / job budget (seconds)
+    timeout: float = 3600.0  # Wait / job budget (seconds, 60 min)
     memory_access: MemoryAccess = MemoryAccess.SHARED  # Memory access level
     temperature: float = 0.7  # LLM temperature
     description: str = ""  # Human-readable description

@@ -373,7 +373,30 @@ def run_sub_agent_in_process(
         hb_thread = threading.Thread(target=heartbeat_worker, daemon=True)
         hb_thread.start()
 
+        react_out = _try_process_react_run(
+            loop=loop,
+            config=config,
+            task=task,
+            client=client,
+            model=str(model or ""),
+            registry=registry,
+            skills_dir=skills_dir,
+            skill_assignments=skill_assignments,
+            profile_name=profile_name,
+            system_prompt=system_prompt,
+            start_time=start_time,
+            output_queue=output_queue,
+            input_queue=input_queue,
+        )
+        if react_out is not None:
+            heartbeat_stop.set()
+            _send_result(output_queue, config.name, react_out)
+            return
+
         force_final = False
+        force_native = False
+        leak_retries = 0
+        empty_final_retries = 0
         while True:
             while steps_taken < max_steps:
                 # Check for cancel signal
@@ -452,20 +475,56 @@ def run_sub_agent_in_process(
                 # LLM call with timeout
                 llm_t0 = time.monotonic()
                 try:
-                    response = loop.run_until_complete(
-                        _asyncio.wait_for(
-                            client.chat.completions.create(
-                                model=model,
-                                messages=messages,
-                                tools=tools_schemas if tools_schemas and not force_final else None,
-                                tool_choice=(
-                                    "none" if force_final else ("auto" if tools_schemas else None)
-                                ),
-                                temperature=config.temperature,
-                            ),
-                            timeout=config.timeout,
-                        )
+                    use_tools = tools_schemas if tools_schemas and not force_final else None
+                    if force_final:
+                        choice = "none"
+                    elif force_native and use_tools:
+                        choice = "required"
+                    elif use_tools:
+                        choice = "auto"
+                    else:
+                        choice = None
+                    from core.llm.completion import (
+                        EMPTY_LLM_ERROR,
+                        first_choice_message,
+                        is_empty_llm_response,
                     )
+
+                    def _llm_once(tool_choice: str | None):
+                        return loop.run_until_complete(
+                            _asyncio.wait_for(
+                                client.chat.completions.create(
+                                    model=model,
+                                    messages=messages,
+                                    tools=use_tools,
+                                    tool_choice=tool_choice,
+                                    temperature=config.temperature,
+                                ),
+                                timeout=config.timeout,
+                            )
+                        )
+
+                    response = None
+                    last_choice = choice
+                    for attempt in range(3):
+                        try:
+                            response = _llm_once(last_choice)
+                        except Exception:
+                            if attempt == 0 and last_choice == "required" and use_tools:
+                                last_choice = "auto"
+                                response = _llm_once("auto")
+                            else:
+                                raise
+                        if not is_empty_llm_response(response):
+                            break
+                        _send_progress(
+                            output_queue,
+                            config.name,
+                            kind="status",
+                            message=f"Empty LLM response, retry {attempt + 1}/3",
+                            steps_taken=steps_taken,
+                        )
+                        time.sleep(0.4 * (attempt + 1))
                 except TimeoutError:
                     result = SubAgentResult(
                         name=config.name,
@@ -480,7 +539,20 @@ def run_sub_agent_in_process(
                     heartbeat_stop.set()
                     return
 
-                message = response.choices[0].message
+                message = first_choice_message(response)
+                if message is None:
+                    result = SubAgentResult(
+                        name=config.name,
+                        success=False,
+                        error=EMPTY_LLM_ERROR,
+                        duration_ms=(time.monotonic() - start_time) * 1000,
+                        steps_taken=steps_taken,
+                        tool_calls=tool_calls_made,
+                        **_usage_fields(),
+                    )
+                    _send_result(output_queue, config.name, result)
+                    heartbeat_stop.set()
+                    return
                 llm_duration_ms = (time.monotonic() - llm_t0) * 1000
                 try:
                     from core.llm.usage import (
@@ -510,7 +582,63 @@ def run_sub_agent_in_process(
                 except Exception:
                     usage_accounted = False
 
-                if message.tool_calls:
+                native_calls = list(message.tool_calls or [])
+                final_override = None
+                if not native_calls:
+                    from core.llm.tool_calls import resolve_textual_turn, tool_call_objects
+
+                    turn = resolve_textual_turn(
+                        message.content,
+                        tools=tools_schemas,
+                        force_final=force_final,
+                    )
+                    if turn.kind == "tools":
+                        native_calls = tool_call_objects(turn.tool_calls)
+                        force_native = False
+                        _send_progress(
+                            output_queue,
+                            config.name,
+                            kind="status",
+                            message=f"Recovered {len(native_calls)} textual tool call(s)",
+                            steps_taken=steps_taken,
+                        )
+                    elif turn.kind == "retry":
+                        leak_retries += 1
+                        force_native = True
+                        messages.append({"role": "assistant", "content": message.content or ""})
+                        messages.append({"role": "system", "content": turn.nudge})
+                        _send_progress(
+                            output_queue,
+                            config.name,
+                            kind="status",
+                            message="Rejected leaked/broken tool_call as final",
+                            steps_taken=steps_taken,
+                            details=(message.content or "")[:240],
+                        )
+                        if leak_retries >= 2:
+                            result = SubAgentResult(
+                                name=config.name,
+                                success=False,
+                                error=(
+                                    "leaked tool_call: model emitted broken "
+                                    "<tool_call> text instead of a native tool "
+                                    "call or a final answer"
+                                ),
+                                response=str(message.content or ""),
+                                duration_ms=(time.monotonic() - start_time) * 1000,
+                                steps_taken=steps_taken,
+                                tool_calls=tool_calls_made,
+                                **_usage_fields(),
+                            )
+                            _send_result(output_queue, config.name, result)
+                            heartbeat_stop.set()
+                            return
+                        continue
+                    else:
+                        final_override = turn.final_text
+
+                if native_calls:
+                    force_native = False
                     msg_dict = {
                         "role": "assistant",
                         "content": message.content or "",
@@ -523,12 +651,12 @@ def run_sub_agent_in_process(
                                     "arguments": tc.function.arguments,
                                 },
                             }
-                            for tc in message.tool_calls
+                            for tc in native_calls
                         ],
                     }
                     messages.append(msg_dict)
 
-                    for tc in message.tool_calls:
+                    for tc in native_calls:
                         tool_name = tc.function.name
                         tool_calls_made.append(
                             {
@@ -581,6 +709,7 @@ def run_sub_agent_in_process(
                             {
                                 "role": "tool",
                                 "tool_call_id": tc.id,
+                                "name": tool_name,
                                 "content": tool_result,
                             }
                         )
@@ -645,7 +774,44 @@ def run_sub_agent_in_process(
 
                 else:
                     # Final answer
-                    final_response = message.content or "No response"
+                    from core.llm.completion import EMPTY_FINAL_CONTINUE, is_blank_final_text
+
+                    final_response = (
+                        final_override if final_override is not None else (message.content or "")
+                    )
+                    if is_blank_final_text(final_response) or is_blank_final_text(
+                        getattr(message, "content", None)
+                    ):
+                        empty_final_retries += 1
+                        messages.append(
+                            {
+                                "role": "assistant",
+                                "content": str(getattr(message, "content", "") or "").strip(),
+                            }
+                        )
+                        messages.append({"role": "system", "content": EMPTY_FINAL_CONTINUE})
+                        _send_progress(
+                            output_queue,
+                            config.name,
+                            kind="status",
+                            message=f"Empty model reply — continue {empty_final_retries}/3",
+                            steps_taken=steps_taken,
+                        )
+                        if empty_final_retries >= 3:
+                            result = SubAgentResult(
+                                name=config.name,
+                                success=False,
+                                error="empty LLM reply (no text, no tools)",
+                                duration_ms=(time.monotonic() - start_time) * 1000,
+                                steps_taken=steps_taken,
+                                tool_calls=tool_calls_made,
+                                **_usage_fields(),
+                            )
+                            _send_result(output_queue, config.name, result)
+                            heartbeat_stop.set()
+                            return
+                        continue
+
                     result = SubAgentResult(
                         name=config.name,
                         success=True,
@@ -654,6 +820,17 @@ def run_sub_agent_in_process(
                         steps_taken=steps_taken,
                         tool_calls=tool_calls_made,
                         **_usage_fields(),
+                    )
+                    _propose_skill_in_subprocess(
+                        loop=loop,
+                        skills_dir=skills_dir,
+                        skill_assignments=skill_assignments,
+                        client=client,
+                        model=str(model or ""),
+                        messages=messages,
+                        final_response=final_response,
+                        profile_name=profile_name,
+                        config=config,
                     )
                     _send_result(output_queue, config.name, result)
                     heartbeat_stop.set()
@@ -710,6 +887,209 @@ def run_sub_agent_in_process(
             **_usage_fields(),
         )
         _send_result(output_queue, config.name, result)
+
+
+def _try_process_react_run(
+    *,
+    loop: Any,
+    config: SubAgentConfig,
+    task: str,
+    client: Any,
+    model: str,
+    registry: Any,
+    skills_dir: str,
+    skill_assignments: dict[str, list[str]] | None,
+    profile_name: str,
+    system_prompt: str,
+    start_time: float,
+    output_queue: Any,
+    input_queue: Any | None = None,
+) -> SubAgentResult | None:
+    """Best-effort LangGraph ReAct in the worker process."""
+    try:
+        from types import SimpleNamespace
+
+        from core.agent import HolixAgent
+        from core.agent_events import ToolCallResultEvent, ToolCallStartEvent
+        from core.di.runtime_config import HolixRuntimeConfig
+        from core.skills.manager import SkillsManager
+        from core.subagents.react_agent import resolve_subagent_context_window
+
+        base_cfg = HolixRuntimeConfig.from_settings()
+        mm = None
+        try:
+            from core.models.manager import ModelManager
+            from core.profile import ProfileManager
+
+            mm = ModelManager(ProfileManager().load_profile(profile_name or "default"))
+        except Exception:
+            mm = None
+        window = resolve_subagent_context_window(
+            SimpleNamespace(
+                config=base_cfg,
+                model=model,
+                active_model_config=None,
+                model_manager=mm,
+            ),
+            config,
+        )
+
+        overrides: dict[str, Any] = {
+            "model": model,
+            "max_steps": int(config.max_steps or 150),
+            "execution_mode": "react",
+            "use_langgraph": True,
+            "enable_subagents": False,
+            "enable_meta_agent": False,
+            "enable_self_refinement": False,
+            "enable_evolution": False,
+            "plan_review_enabled": False,
+            "context_window": window,
+            "skill_assignments": skill_assignments or {},
+            "profile_name": profile_name or "default",
+        }
+        if skills_dir:
+            overrides["skills_dir"] = skills_dir
+        cfg = HolixRuntimeConfig.from_settings().with_overrides(**overrides)
+        skills = None
+        if skills_dir:
+            skills = SkillsManager(cfg)
+        child = HolixAgent(
+            config=cfg,
+            client=client,
+            tools=registry,
+            skills=skills,
+            enable_monitoring=False,
+            allow_defaults=True,
+        )
+        child.model = model
+        child.agent_slot = str(config.agent_type or config.name or "main")
+        child.subagent_system_prompt = system_prompt
+        child._initialized = True
+        child._use_langgraph = True
+        child._subagent_manager = None
+        if getattr(child, "context_manager", None) is not None:
+            child.context_manager.context_window = window
+
+        from core.subagents.react_agent import attach_subagent_runtime
+
+        def _on_guidance() -> None:
+            _send_progress(
+                output_queue,
+                config.name,
+                kind="status",
+                message="Applied supervisor guidance",
+            )
+
+        attach_subagent_runtime(
+            child,
+            name=config.name,
+            input_queue=input_queue,
+            on_guidance=_on_guidance,
+        )
+
+        def _progress(event: Any) -> None:
+            if isinstance(event, ToolCallStartEvent):
+                _send_progress(
+                    output_queue,
+                    config.name,
+                    kind="tool_start",
+                    message=f"Calling {event.tool_name}",
+                    tool_name=event.tool_name,
+                    details=str(event.arguments_raw or event.arguments or "")[:300],
+                )
+            elif isinstance(event, ToolCallResultEvent):
+                preview = (event.result or "")[:240]
+                _send_progress(
+                    output_queue,
+                    config.name,
+                    kind="tool_result",
+                    message=f"{event.tool_name} finished",
+                    tool_name=event.tool_name,
+                    details=preview,
+                )
+
+        child.events.subscribe(_progress)
+        text = loop.run_until_complete(
+            child.run(task, conversation_id=f"subagent:{config.name}", execution_mode="react")
+        )
+        from core.graph.nodes.react_node import SUBAGENT_CANCELLED_FINAL
+        from core.subagents.react_agent import is_failed_react_result
+
+        if (text or "").strip() == SUBAGENT_CANCELLED_FINAL:
+            return SubAgentResult(
+                name=config.name,
+                success=False,
+                error="Cancelled by parent",
+                duration_ms=(time.monotonic() - start_time) * 1000,
+                model=model,
+            )
+        failed = is_failed_react_result(text)
+        if failed:
+            return SubAgentResult(
+                name=config.name,
+                success=False,
+                error=failed,
+                response=text or "",
+                duration_ms=(time.monotonic() - start_time) * 1000,
+                model=model,
+            )
+        return SubAgentResult(
+            name=config.name,
+            success=True,
+            response=text or "",
+            duration_ms=(time.monotonic() - start_time) * 1000,
+            model=model,
+        )
+    except Exception:
+        logger = logging.getLogger(__name__)
+        logger.exception("process-mode Holix ReAct failed; using legacy loop")
+        return None
+
+
+def _propose_skill_in_subprocess(
+    *,
+    loop: Any,
+    skills_dir: str,
+    skill_assignments: dict[str, list[str]] | None,
+    client: Any,
+    model: str,
+    messages: list[dict[str, Any]],
+    final_response: str,
+    profile_name: str,
+    config: SubAgentConfig,
+) -> None:
+    """Best-effort pending skill from a process-mode job (same disk as parent)."""
+    if not skills_dir or client is None or not (model or "").strip():
+        return
+    try:
+        from core.di.runtime_config import HolixRuntimeConfig
+        from core.skills.manager import SkillsManager
+        from core.skills.self_improve import maybe_propose_skill_from_subagent
+
+        sk_cfg = HolixRuntimeConfig.from_settings().with_overrides(
+            skills_dir=skills_dir,
+            skill_assignments=skill_assignments or {},
+            profile_name=profile_name,
+        )
+        skills = SkillsManager(sk_cfg)
+        loop.run_until_complete(
+            maybe_propose_skill_from_subagent(
+                skills=skills,
+                client=client,
+                model=model,
+                messages=messages,
+                final_response=final_response,
+                conversation_id=f"subagent:{config.name}",
+                profile=profile_name or "default",
+                agent_slot=str(config.agent_type or config.name or "main"),
+                emit=None,
+                run_id=str(config.name or ""),
+                config=sk_cfg,
+            )
+        )
+    except Exception:
+        pass
 
 
 def _execute_tool_guarded(

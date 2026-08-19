@@ -98,6 +98,19 @@ class AsyncSubAgentRunner:
         base_max_steps = max_steps
         step_budget_extensions = 0
 
+        from core.agent import HolixAgent
+
+        if isinstance(self._parent, HolixAgent):
+            try:
+                return await self._run_via_react(config, task, handle, start_time)
+            except asyncio.CancelledError:
+                raise
+            except Exception:
+                logger.exception(
+                    "Holix ReAct sub-agent '%s' failed; falling back to legacy loop",
+                    config.name,
+                )
+
         # Build client (inherit from parent or use config override)
         model = config.model or self._parent.model
         client = self._parent.client
@@ -167,6 +180,8 @@ class AsyncSubAgentRunner:
         # ReAct loop
         tokens_used = 0
         llm_calls = 0
+        leak_retries = 0
+        empty_final_retries = 0
         usage_accounted = True  # flipped False if any call fails to emit
 
         def _usage_fields() -> dict[str, Any]:
@@ -223,19 +238,57 @@ class AsyncSubAgentRunner:
                     llm_t0 = time.monotonic()
                     try:
                         force_final = bool(getattr(handle, "_force_final_answer", False))
+                        force_native = bool(getattr(handle, "_force_native_tools", False))
                         use_tools = tools_schemas if tools_schemas and not force_final else None
-                        response = await asyncio.wait_for(
-                            client.chat.completions.create(
-                                model=model,
-                                messages=messages,
-                                tools=use_tools,
-                                tool_choice=("none" if force_final else "auto")
-                                if use_tools
-                                else None,
-                                temperature=config.temperature,
-                            ),
-                            timeout=config.timeout,
+                        if force_final:
+                            choice: str | None = "none"
+                        elif force_native and use_tools:
+                            choice = "required"
+                        elif use_tools:
+                            choice = "auto"
+                        else:
+                            choice = None
+                        from core.llm.completion import (
+                            EMPTY_LLM_ERROR,
+                            first_choice_message,
+                            is_empty_llm_response,
                         )
+
+                        async def _llm_once(tool_choice: str | None):
+                            return await asyncio.wait_for(
+                                client.chat.completions.create(
+                                    model=model,
+                                    messages=messages,
+                                    tools=use_tools,
+                                    tool_choice=tool_choice,
+                                    temperature=config.temperature,
+                                ),
+                                timeout=config.timeout,
+                            )
+
+                        response = None
+                        last_choice = choice
+                        for attempt in range(3):
+                            try:
+                                response = await _llm_once(last_choice)
+                            except Exception as exc:
+                                if attempt == 0 and last_choice == "required" and use_tools:
+                                    logger.debug(
+                                        "tool_choice=required rejected, falling back to auto: %s",
+                                        exc,
+                                    )
+                                    last_choice = "auto"
+                                    response = await _llm_once("auto")
+                                else:
+                                    raise
+                            if not is_empty_llm_response(response):
+                                break
+                            handle.record_activity(
+                                "status",
+                                f"Empty LLM response, retry {attempt + 1}/3",
+                                steps_taken=steps_taken,
+                            )
+                            await asyncio.sleep(0.4 * (attempt + 1))
                     except TimeoutError:
                         handle.status = SubAgentStatus.TIMED_OUT
                         handle.record_activity(
@@ -254,7 +307,24 @@ class AsyncSubAgentRunner:
                         )
                         return handle.result
 
-                    message = response.choices[0].message
+                    message = first_choice_message(response)
+                    if message is None:
+                        handle.status = SubAgentStatus.FAILED
+                        handle.record_activity(
+                            "status",
+                            "Failed: empty LLM response",
+                            steps_taken=steps_taken,
+                        )
+                        handle.result = SubAgentResult(
+                            name=config.name,
+                            success=False,
+                            error=EMPTY_LLM_ERROR,
+                            duration_ms=(time.monotonic() - start_time) * 1000,
+                            steps_taken=steps_taken,
+                            tool_calls=tool_calls_made,
+                            **_usage_fields(),
+                        )
+                        return handle.result
                     llm_duration_ms = (time.monotonic() - llm_t0) * 1000
                     try:
                         from core.llm.usage import (
@@ -294,7 +364,76 @@ class AsyncSubAgentRunner:
                         usage_accounted = False
                         logger.debug("Sub-agent token accounting failed", exc_info=True)
 
-                    if message.tool_calls:
+                    native_calls = list(message.tool_calls or [])
+                    final_override: str | None = None
+                    if not native_calls:
+                        from core.llm.tool_calls import (
+                            resolve_textual_turn,
+                            tool_call_objects,
+                        )
+
+                        turn = resolve_textual_turn(
+                            message.content,
+                            tools=tools_schemas,
+                            force_final=force_final,
+                        )
+                        if turn.kind == "tools":
+                            native_calls = tool_call_objects(turn.tool_calls)
+                            handle._force_native_tools = False
+                            handle.record_activity(
+                                "status",
+                                f"Recovered {len(native_calls)} textual tool call(s)",
+                                steps_taken=steps_taken,
+                            )
+                        elif turn.kind == "retry":
+                            leak_retries += 1
+                            handle._force_native_tools = True
+                            messages.append(
+                                {
+                                    "role": "assistant",
+                                    "content": message.content or "",
+                                }
+                            )
+                            messages.append(
+                                {
+                                    "role": "system",
+                                    "content": turn.nudge,
+                                }
+                            )
+                            handle.record_activity(
+                                "status",
+                                "Rejected leaked/broken tool_call as final",
+                                details=(message.content or "")[:240],
+                                steps_taken=steps_taken,
+                            )
+                            if leak_retries >= 2:
+                                handle.status = SubAgentStatus.FAILED
+                                handle.result = SubAgentResult(
+                                    name=config.name,
+                                    success=False,
+                                    error=(
+                                        "leaked tool_call: model emitted broken "
+                                        "<tool_call> text instead of a native tool "
+                                        "call or a final answer"
+                                    ),
+                                    response=str(message.content or ""),
+                                    duration_ms=(time.monotonic() - start_time) * 1000,
+                                    steps_taken=steps_taken,
+                                    tool_calls=tool_calls_made,
+                                    **_usage_fields(),
+                                )
+                                handle.record_activity(
+                                    "status",
+                                    "Failed: leaked tool_call",
+                                    steps_taken=steps_taken,
+                                )
+                                return handle.result
+                            continue
+                        else:
+                            final_override = turn.final_text
+
+                    if native_calls:
+                        handle._force_native_tools = False
                         # Execute tool calls
                         msg_dict = {
                             "role": "assistant",
@@ -308,12 +447,12 @@ class AsyncSubAgentRunner:
                                         "arguments": tc.function.arguments,
                                     },
                                 }
-                                for tc in message.tool_calls
+                                for tc in native_calls
                             ],
                         }
                         messages.append(msg_dict)
 
-                        for tc in message.tool_calls:
+                        for tc in native_calls:
                             tool_name = tc.function.name
                             tool_calls_made.append(
                                 {
@@ -346,6 +485,7 @@ class AsyncSubAgentRunner:
                                 {
                                     "role": "tool",
                                     "tool_call_id": tc.id,
+                                    "name": tool_name,
                                     "content": result,
                                 }
                             )
@@ -450,7 +590,56 @@ class AsyncSubAgentRunner:
                             logger.debug("green-test finish hint failed", exc_info=True)
                     else:
                         # Final response
-                        final_response = message.content or "No response"
+                        from core.llm.completion import (
+                            EMPTY_FINAL_CONTINUE,
+                            is_blank_final_text,
+                        )
+
+                        final_response = (
+                            final_override
+                            if final_override is not None
+                            else (message.content or "")
+                        )
+                        if is_blank_final_text(final_response) or is_blank_final_text(
+                            message.content
+                        ):
+                            empty_final_retries += 1
+                            messages.append(
+                                {
+                                    "role": "assistant",
+                                    "content": (message.content or "").strip(),
+                                }
+                            )
+                            messages.append(
+                                {
+                                    "role": "system",
+                                    "content": EMPTY_FINAL_CONTINUE,
+                                }
+                            )
+                            handle.record_activity(
+                                "status",
+                                f"Empty model reply — continue {empty_final_retries}/3",
+                                steps_taken=steps_taken,
+                            )
+                            if empty_final_retries >= 3:
+                                handle.status = SubAgentStatus.FAILED
+                                handle.result = SubAgentResult(
+                                    name=config.name,
+                                    success=False,
+                                    error="empty LLM reply (no text, no tools)",
+                                    duration_ms=(time.monotonic() - start_time) * 1000,
+                                    steps_taken=steps_taken,
+                                    tool_calls=tool_calls_made,
+                                    **_usage_fields(),
+                                )
+                                handle.record_activity(
+                                    "status",
+                                    "Failed: empty LLM reply",
+                                    steps_taken=steps_taken,
+                                )
+                                return handle.result
+                            continue
+
                         messages.append({"role": "assistant", "content": final_response})
 
                         duration_ms = (time.monotonic() - start_time) * 1000
@@ -468,6 +657,14 @@ class AsyncSubAgentRunner:
                             steps_taken=steps_taken,
                             tool_calls=tool_calls_made,
                             **_usage_fields(),
+                        )
+                        await self._propose_skill_after_success(
+                            config=config,
+                            client=client,
+                            model=str(model or ""),
+                            messages=messages,
+                            final_response=final_response,
+                            handle=handle,
                         )
                         logger.info(
                             "Sub-agent '%s' completed (steps=%d, tools=%d, %.0fms)",
@@ -617,6 +814,14 @@ class AsyncSubAgentRunner:
         if not handle or not handle.is_running or not handle.task:
             return False
 
+        child = getattr(handle, "_react_child", None)
+        if child is not None:
+            stop = getattr(child, "request_stop", None)
+            if callable(stop):
+                try:
+                    stop()
+                except Exception:
+                    logger.debug("react child request_stop failed", exc_info=True)
         handle.task.cancel()
         forced = getattr(handle, "forced_status", None)
         handle.status = forced if forced else SubAgentStatus.CANCELLED
@@ -629,6 +834,188 @@ class AsyncSubAgentRunner:
     def list_active(self) -> list[SubAgentHandle]:
         """List all active (running) sub-agents."""
         return [h for h in self._active_handles.values() if h.is_running]
+
+    async def _run_via_react(
+        self,
+        config: SubAgentConfig,
+        task: str,
+        handle: SubAgentHandle,
+        start_time: float,
+    ) -> SubAgentResult:
+        """Run the sub-agent on the same LangGraph ReAct engine as main."""
+        from core.subagents.react_agent import (
+            attach_subagent_runtime,
+            build_react_subagent,
+            record_handle_event,
+        )
+
+        child = build_react_subagent(self._parent, config, task)
+        handle._react_child = child
+        receive = getattr(self._comm_bus, "receive", None) if self._comm_bus is not None else None
+
+        def _on_guidance() -> None:
+            handle.record_activity(
+                "status",
+                "Applied supervisor guidance",
+                steps_taken=handle.steps_taken,
+            )
+            self._notify_progress(config.name)
+
+        attach_subagent_runtime(
+            child,
+            name=config.name,
+            receive=receive,
+            on_guidance=_on_guidance,
+        )
+        conv_id = f"subagent:{config.name}"
+
+        def _on_event(event: Any) -> None:
+            record_handle_event(handle, event)
+            self._notify_progress(config.name)
+            emit = getattr(self._parent, "emit", None)
+            if callable(emit):
+                try:
+                    emit(event)
+                except Exception:
+                    logger.debug("forward sub-agent event failed", exc_info=True)
+
+        child.events.subscribe(_on_event)
+        try:
+            from core.graph.nodes.react_node import SUBAGENT_CANCELLED_FINAL
+            from core.subagents.react_agent import is_failed_react_result
+
+            text = await child.run(task, conversation_id=conv_id, execution_mode="react")
+            duration_ms = (time.monotonic() - start_time) * 1000
+            if (text or "").strip() == SUBAGENT_CANCELLED_FINAL:
+                handle.status = SubAgentStatus.CANCELLED
+                handle.result = SubAgentResult(
+                    name=config.name,
+                    success=False,
+                    error="cancelled",
+                    duration_ms=duration_ms,
+                    steps_taken=int(handle.steps_taken or 0),
+                    model=str(child.model or ""),
+                )
+                handle.record_activity(
+                    "status",
+                    "Cancelled",
+                    steps_taken=handle.steps_taken,
+                )
+                return handle.result
+            failed = is_failed_react_result(text)
+            if failed:
+                handle.status = SubAgentStatus.FAILED
+                handle.result = SubAgentResult(
+                    name=config.name,
+                    success=False,
+                    error=failed,
+                    response=text or "",
+                    duration_ms=duration_ms,
+                    steps_taken=int(handle.steps_taken or 0),
+                    model=str(child.model or ""),
+                )
+                handle.record_activity(
+                    "status",
+                    f"Failed: {failed}",
+                    steps_taken=handle.steps_taken,
+                )
+                logger.warning(
+                    "Sub-agent '%s' ReAct finished unsuccessfully: %s (steps=%d)",
+                    config.name,
+                    failed,
+                    handle.steps_taken,
+                )
+                return handle.result
+            handle.status = SubAgentStatus.COMPLETED
+            handle.result = SubAgentResult(
+                name=config.name,
+                success=True,
+                response=text or "",
+                duration_ms=duration_ms,
+                steps_taken=int(handle.steps_taken or 0),
+                model=str(child.model or ""),
+            )
+            handle.record_activity(
+                "status",
+                "Completed",
+                steps_taken=handle.steps_taken,
+            )
+            logger.info(
+                "Sub-agent '%s' completed via ReAct (steps=%d, %.0fms)",
+                config.name,
+                handle.steps_taken,
+                duration_ms,
+            )
+            return handle.result
+        except asyncio.CancelledError:
+            handle.status = SubAgentStatus.CANCELLED
+            handle.result = SubAgentResult(
+                name=config.name,
+                success=False,
+                error="cancelled",
+                duration_ms=(time.monotonic() - start_time) * 1000,
+                steps_taken=int(handle.steps_taken or 0),
+            )
+            raise
+        except Exception as exc:
+            handle.status = SubAgentStatus.FAILED
+            handle.result = SubAgentResult(
+                name=config.name,
+                success=False,
+                error=str(exc),
+                duration_ms=(time.monotonic() - start_time) * 1000,
+                steps_taken=int(handle.steps_taken or 0),
+            )
+            logger.exception("Sub-agent '%s' ReAct run failed: %s", config.name, exc)
+            return handle.result
+        finally:
+            try:
+                child.events.unsubscribe(_on_event)
+            except Exception:
+                pass
+            mgr = getattr(self._parent, "subagents", None)
+            if mgr is not None:
+                try:
+                    mgr.notify_handle_finished(config.name)
+                except Exception:
+                    pass
+
+    async def _propose_skill_after_success(
+        self,
+        *,
+        config: SubAgentConfig,
+        client: Any,
+        model: str,
+        messages: list[dict[str, Any]],
+        final_response: str,
+        handle: SubAgentHandle,
+    ) -> None:
+        """Stage a skill from a finished sub-agent job (same pending path as main)."""
+        try:
+            from core.skills.self_improve import maybe_propose_skill_from_subagent
+
+            parent_cfg = getattr(self._parent, "config", None)
+            rec = await maybe_propose_skill_from_subagent(
+                skills=getattr(self._parent, "skills", None),
+                client=client,
+                model=model,
+                messages=messages,
+                final_response=final_response,
+                conversation_id=f"subagent:{config.name}",
+                profile=str(getattr(parent_cfg, "profile_name", None) or "default"),
+                agent_slot=str(config.agent_type or config.name or "main"),
+                emit=getattr(self._parent, "emit", None),
+                run_id=str(getattr(self._parent, "run_id", "") or handle.name),
+                config=parent_cfg,
+            )
+            if rec:
+                handle.record_activity(
+                    "status",
+                    f"Skill proposed: {rec.get('name')}",
+                    steps_taken=handle.steps_taken,
+                )
+        except Exception:
+            logger.debug("sub-agent skill proposal failed", exc_info=True)
 
     def _notify_progress(self, name: str) -> None:
         mgr = getattr(self._parent, "subagents", None)

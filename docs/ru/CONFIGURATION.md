@@ -79,7 +79,7 @@ holix -p alice profile crypto status
 
 Вложения в Telegram перед отправкой материализуются в plaintext при включённом шифровании.
 
-Полный гайд (политика по ОС, модель угроз, unlock gateway): [PROFILE_ENCRYPTION.md](PROFILE_ENCRYPTION.md).  
+Полный гайд (политика по ОС, модель угроз, unlock gateway): [PROFILE_ENCRYPTION.md](PROFILE_ENCRYPTION.md).
 См. также [SECURITY.md](SECURITY.md#шифрование-на-диске) и `holix profile crypto --help`.
 
 ## Workspace jail (опционально)
@@ -215,7 +215,7 @@ providers:
 | `enable_subagents` | `true` | Делегирование / волны |
 | `subagent_default_process_mode` | `async` | `async` или `process` |
 | `subagent_max_concurrent` | `4` | Параллельные jobs |
-| `subagent_process_timeout` | `900` | Бюджет ожидания (сек) |
+| `subagent_process_timeout` | `3600` | Бюджет ожидания (сек, 60 мин) |
 | `HOLIX_SUBAGENT_SUPERVISOR_ENABLED` | `true` | Runtime + graph supervisor |
 | `HOLIX_SUBAGENT_SUPERVISOR_POLL_S` | `4` | Интервал опроса |
 | `HOLIX_SUBAGENT_SUPERVISOR_IDLE_S` | `90` | Порог hang |

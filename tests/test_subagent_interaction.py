@@ -64,6 +64,35 @@ async def test_question_reply_routes_to_subagent() -> None:
 
 
 @pytest.mark.asyncio
+async def test_question_event_uses_parent_conversation() -> None:
+    from core.agent_events import EventContext
+
+    bridge = _bridge()
+    parent = bridge._parent
+    parent._event_context = EventContext(conversation_id="studio_proc_tab")
+    seen: list[object] = []
+
+    def emit(event: object) -> None:
+        seen.append(event)
+
+    parent.emit = emit
+    task = asyncio.create_task(
+        bridge.handle_ipc_question(
+            "coder",
+            {"request_id": "subq_cid", "question": "next step?"},
+        )
+    )
+    await asyncio.sleep(0.02)
+    assert seen
+    ev = seen[0]
+    assert getattr(ev, "conversation_id", "") == "studio_proc_tab"
+    assert getattr(ev, "request_id", "") == "subq_cid"
+    assert bridge._question_meta["subq_cid"]["conversation_id"] == "studio_proc_tab"
+    bridge.resolve_question("subq_cid", "continue")
+    assert await task == "continue"
+
+
+@pytest.mark.asyncio
 async def test_try_route_subagent_reply_explicit() -> None:
     bridge = _bridge()
     parent = bridge._parent

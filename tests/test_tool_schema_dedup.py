@@ -19,6 +19,8 @@ def test_get_schemas_has_no_duplicate_function_names() -> None:
     assert "grep" in names
     assert "glob" in names
     assert "delete_file" in names
+    assert "skill_view" in names
+    assert "skill_manage" in names
 
 
 def test_run_project_alias_resolves() -> None:

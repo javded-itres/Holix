@@ -35,8 +35,6 @@ from core.agent_events import (
     FinalResponseEvent,
     MaxStepsExtendedEvent,
     MaxStepsReachedEvent,
-    SelfImprovementStartedEvent,
-    SkillCreatedEvent,
     ThinkingEvent,
     ToolCallErrorEvent,
     ToolCallResultEvent,
@@ -552,54 +550,9 @@ async def _maybe_self_improve(
 ) -> None:
     """Internal helper for self-improvement (skill creation) and LTM auto-summarization."""
     try:
-        should_create = await agent.skills.should_create_skill(messages, final_response)
-        if not should_create:
-            return
+        from core.skills.self_improve import maybe_propose_skill
 
-        user_messages = [m for m in messages if m.get("role") == "user"]
-        if not user_messages:
-            return
-
-        task_description = user_messages[0].get("content", "")
-
-        if hasattr(agent, "emit"):
-            agent.emit(
-                SelfImprovementStartedEvent(
-                    conversation_id=conversation_id,
-                    task_description=task_description[:200],
-                )
-            )
-
-        from core.skills.generator import SkillGenerator
-
-        generator = SkillGenerator(agent.client, model=agent.model)
-        skill_data = await generator.create_skill_from_session(messages, task_description)
-
-        if skill_data and skill_data.get("name"):
-            agent_slot = getattr(agent, "agent_slot", "main")
-            filepath = agent.skills.save_skill(
-                name=skill_data["name"],
-                description=skill_data.get("description", ""),
-                content=skill_data["content"],
-                tags=skill_data.get("tags", []),
-                examples=skill_data.get("examples", []),
-                agent_slot=agent_slot,
-            )
-            if hasattr(agent, "config"):
-                agent.config = agent.config.with_overrides(
-                    skill_assignments=agent.skills.skill_assignments
-                )
-
-            if hasattr(agent, "emit"):
-                agent.emit(
-                    SkillCreatedEvent(
-                        skill_name=skill_data["name"],
-                        description=skill_data.get("description", ""),
-                        filepath=str(filepath),
-                        tags=skill_data.get("tags", []),
-                        conversation_id=conversation_id,
-                    )
-                )
+        await maybe_propose_skill(agent, conversation_id, messages, final_response)
 
     except Exception as e:
         if hasattr(agent, "emit"):

@@ -12,6 +12,7 @@ MaxShouldPoll = Callable[[str], bool]
 MaxRunner = Callable[[str], Awaitable[None]]
 TelegramNotify = Callable[..., Awaitable[bool]]
 MaxNotify = Callable[..., Awaitable[bool]]
+SkillNoticeHook = Callable[[dict[str, Any]], Any]
 ListTelegramUsers = Callable[[str], list[tuple[str, int]]]
 NotifyProfileDeleted = Callable[[str, int, str], None]
 RemoveTelegramBindings = Callable[[str], int]
@@ -30,6 +31,7 @@ class CompanionHooks:
 class NotifyHooks:
     send_telegram: TelegramNotify | None = None
     send_max: MaxNotify | None = None
+    skill_notice_listeners: list[SkillNoticeHook] = field(default_factory=list)
 
 
 @dataclass
@@ -55,8 +57,16 @@ def register_companion_hooks(**kwargs: Any) -> None:
 
 def register_notify_hooks(**kwargs: Any) -> None:
     for key, value in kwargs.items():
+        if key == "skill_notice_listeners":
+            continue
         if hasattr(notify_hooks, key):
             setattr(notify_hooks, key, value)
+
+
+def register_skill_notice_listener(fn: SkillNoticeHook) -> None:
+    listeners = notify_hooks.skill_notice_listeners
+    if fn not in listeners:
+        listeners.append(fn)
 
 
 def register_profile_lifecycle_hooks(**kwargs: Any) -> None:

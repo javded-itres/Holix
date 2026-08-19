@@ -45,6 +45,10 @@ class EventType(StrEnum):
     # Self-improvement / skills
     SELF_IMPROVEMENT_STARTED = "self_improvement_started"
     SKILL_CREATED = "skill_created"
+    SKILL_PROPOSED = "skill_proposed"
+    SKILL_PROPOSAL_REJECTED = "skill_proposal_rejected"
+    SKILL_APPROVED = "skill_approved"
+    SKILL_PATCHED = "skill_patched"
     SELF_IMPROVEMENT_ERROR = "self_improvement_error"
 
     # Generic / infrastructure
@@ -89,7 +93,7 @@ class EventContext:
 class AgentEvent:
     """Base class for all agent events."""
 
-    type: EventType = field(init=False)   # Set by subclasses
+    type: EventType = field(init=False)  # Set by subclasses
     timestamp: datetime = field(default_factory=datetime.now)
     conversation_id: str = "default"
     run_id: str = ""
@@ -98,9 +102,9 @@ class AgentEvent:
 
     def __post_init__(self):
         # Subclasses should set self.type in their own __post_init__
-        if not hasattr(self, 'type') or self.type is None:
+        if not hasattr(self, "type") or self.type is None:
             # Fallback for direct use of base class
-            object.__setattr__(self, 'type', EventType.ERROR)
+            object.__setattr__(self, "type", EventType.ERROR)
 
     def to_dict(self) -> dict[str, Any]:
         """Simple dict representation (useful for logging / SSE)."""
@@ -123,9 +127,11 @@ class AgentEvent:
 # Concrete event types (matching and extending the original TUI design)
 # ---------------------------------------------------------------------
 
+
 @dataclass
 class UserMessageEvent(AgentEvent):
     """User sent a message."""
+
     content: str = ""
 
     def _extra_fields(self) -> dict[str, Any]:
@@ -135,11 +141,12 @@ class UserMessageEvent(AgentEvent):
 @dataclass
 class ThinkingEvent(AgentEvent):
     """Agent is thinking / about to call the LLM."""
+
     message: str = "Holix is thinking..."
 
     def __post_init__(self):
         super().__post_init__()
-        object.__setattr__(self, 'type', EventType.THINKING)
+        object.__setattr__(self, "type", EventType.THINKING)
 
     def _extra_fields(self) -> dict[str, Any]:
         return {"message": self.message}
@@ -148,12 +155,13 @@ class ThinkingEvent(AgentEvent):
 @dataclass
 class AssistantDeltaEvent(AgentEvent):
     """A chunk of assistant response (token-by-token streaming)."""
+
     content: str = ""
     accumulated: str = ""
 
     def __post_init__(self):
         super().__post_init__()
-        object.__setattr__(self, 'type', EventType.ASSISTANT_DELTA)
+        object.__setattr__(self, "type", EventType.ASSISTANT_DELTA)
 
     def _extra_fields(self) -> dict[str, Any]:
         return {"content": self.content, "accumulated": self.accumulated}
@@ -162,13 +170,14 @@ class AssistantDeltaEvent(AgentEvent):
 @dataclass
 class FinalResponseEvent(AgentEvent):
     """Final complete response from the agent."""
+
     content: str = ""
     tool_calls_used: list[dict[str, Any]] = field(default_factory=list)
     steps_taken: int = 0
 
     def __post_init__(self):
         super().__post_init__()
-        object.__setattr__(self, 'type', EventType.FINAL_RESPONSE)
+        object.__setattr__(self, "type", EventType.FINAL_RESPONSE)
 
     def _extra_fields(self) -> dict[str, Any]:
         return {
@@ -181,6 +190,7 @@ class FinalResponseEvent(AgentEvent):
 @dataclass
 class ToolCallStartEvent(AgentEvent):
     """Agent decided to call a tool."""
+
     tool_name: str = ""
     tool_id: str = ""
     arguments: dict[str, Any] = field(default_factory=dict)
@@ -188,7 +198,7 @@ class ToolCallStartEvent(AgentEvent):
 
     def __post_init__(self):
         super().__post_init__()
-        object.__setattr__(self, 'type', EventType.TOOL_CALL_START)
+        object.__setattr__(self, "type", EventType.TOOL_CALL_START)
 
     def _extra_fields(self) -> dict[str, Any]:
         return {
@@ -202,6 +212,7 @@ class ToolCallStartEvent(AgentEvent):
 @dataclass
 class ToolCallResultEvent(AgentEvent):
     """Tool finished successfully."""
+
     tool_name: str = ""
     tool_id: str = ""
     result: str = ""
@@ -221,6 +232,7 @@ class ToolCallResultEvent(AgentEvent):
 @dataclass
 class ToolCallErrorEvent(AgentEvent):
     """Tool execution failed."""
+
     tool_name: str = ""
     tool_id: str = ""
     error: str = ""
@@ -236,6 +248,7 @@ class ToolCallErrorEvent(AgentEvent):
 @dataclass
 class MaxStepsReachedEvent(AgentEvent):
     """Agent reached the configured max_steps limit."""
+
     max_steps: int = 90
 
 
@@ -266,18 +279,20 @@ class MaxStepsExtendedEvent(AgentEvent):
 @dataclass
 class ErrorEvent(AgentEvent):
     """Generic error during agent execution."""
+
     error: str = ""
     error_type: str = "unknown"
     recoverable: bool = True
 
     def __post_init__(self):
         super().__post_init__()
-        object.__setattr__(self, 'type', EventType.ERROR)
+        object.__setattr__(self, "type", EventType.ERROR)
 
 
 @dataclass
 class LLMCallStartedEvent(AgentEvent):
     """About to call the LLM (useful for timing / cost tracking)."""
+
     model: str = ""
     step: int = 0
 
@@ -295,6 +310,7 @@ class LLMCallStartedEvent(AgentEvent):
 @dataclass
 class LLMCallCompletedEvent(AgentEvent):
     """LLM call finished (before tool execution or final answer)."""
+
     model: str = ""
     step: int = 0
     duration_ms: float | None = None
@@ -324,12 +340,14 @@ class LLMCallCompletedEvent(AgentEvent):
 @dataclass
 class SelfImprovementStartedEvent(AgentEvent):
     """Agent decided to analyze the session for skill creation."""
+
     task_description: str = ""
 
 
 @dataclass
 class SkillCreatedEvent(AgentEvent):
     """A new skill was successfully created and saved."""
+
     skill_name: str = ""
     description: str = ""
     filepath: str = ""
@@ -337,8 +355,89 @@ class SkillCreatedEvent(AgentEvent):
 
 
 @dataclass
+class SkillProposedEvent(AgentEvent):
+    """A skill draft was staged for human approval."""
+
+    skill_name: str = ""
+    description: str = ""
+    proposal_id: str = ""
+    action: str = "create"
+    filepath: str = ""
+    quality_score: int = 0
+    auto_applied: bool = False
+
+    def __post_init__(self):
+        super().__post_init__()
+        object.__setattr__(self, "type", EventType.SKILL_PROPOSED)
+
+    def _extra_fields(self) -> dict[str, Any]:
+        return {
+            "skill_name": self.skill_name,
+            "description": self.description,
+            "proposal_id": self.proposal_id,
+            "action": self.action,
+            "filepath": self.filepath,
+            "quality_score": int(self.quality_score or 0),
+            "auto_applied": bool(self.auto_applied),
+        }
+
+
+@dataclass
+class SkillProposalRejectedEvent(AgentEvent):
+    """Generator or gate refused to stage/apply a skill."""
+
+    skill_name: str = ""
+    reason: str = ""
+
+    def __post_init__(self):
+        super().__post_init__()
+        object.__setattr__(self, "type", EventType.SKILL_PROPOSAL_REJECTED)
+
+    def _extra_fields(self) -> dict[str, Any]:
+        return {"skill_name": self.skill_name, "reason": self.reason}
+
+
+@dataclass
+class SkillApprovedEvent(AgentEvent):
+    """A staged skill proposal was applied."""
+
+    skill_name: str = ""
+    proposal_id: str = ""
+    filepath: str = ""
+    action: str = "create"
+
+    def __post_init__(self):
+        super().__post_init__()
+        object.__setattr__(self, "type", EventType.SKILL_APPROVED)
+
+    def _extra_fields(self) -> dict[str, Any]:
+        return {
+            "skill_name": self.skill_name,
+            "proposal_id": self.proposal_id,
+            "filepath": self.filepath,
+            "action": self.action,
+        }
+
+
+@dataclass
+class SkillPatchedEvent(AgentEvent):
+    """An existing skill was updated in place."""
+
+    skill_name: str = ""
+    filepath: str = ""
+
+    def __post_init__(self):
+        super().__post_init__()
+        object.__setattr__(self, "type", EventType.SKILL_PATCHED)
+
+    def _extra_fields(self) -> dict[str, Any]:
+        return {"skill_name": self.skill_name, "filepath": self.filepath}
+
+
+@dataclass
 class ContextCompressedEvent(AgentEvent):
     """Context was compressed to fit within the model's context window."""
+
     original_tokens: int = 0
     compressed_tokens: int = 0
     messages_before: int = 0
@@ -347,7 +446,7 @@ class ContextCompressedEvent(AgentEvent):
 
     def __post_init__(self):
         super().__post_init__()
-        object.__setattr__(self, 'type', EventType.CONTEXT_COMPRESSED)
+        object.__setattr__(self, "type", EventType.CONTEXT_COMPRESSED)
 
     def _extra_fields(self) -> dict[str, Any]:
         return {
@@ -362,6 +461,7 @@ class ContextCompressedEvent(AgentEvent):
 @dataclass
 class ContextWarningEvent(AgentEvent):
     """Warning about context window usage approaching the limit."""
+
     usage_percent: float = 0.0
     tokens_used: int = 0
     tokens_total: int = 0
@@ -369,7 +469,7 @@ class ContextWarningEvent(AgentEvent):
 
     def __post_init__(self):
         super().__post_init__()
-        object.__setattr__(self, 'type', EventType.CONTEXT_WARNING)
+        object.__setattr__(self, "type", EventType.CONTEXT_WARNING)
 
     def _extra_fields(self) -> dict[str, Any]:
         return {
@@ -383,12 +483,13 @@ class ContextWarningEvent(AgentEvent):
 @dataclass
 class PlanGeneratedEvent(AgentEvent):
     """Emitted when plan_node generates a plan (before review)."""
+
     plan_steps: list[dict[str, Any]] = field(default_factory=list)
     step_count: int = 0
 
     def __post_init__(self):
         super().__post_init__()
-        object.__setattr__(self, 'type', EventType.PLAN_GENERATED)
+        object.__setattr__(self, "type", EventType.PLAN_GENERATED)
 
     def _extra_fields(self) -> dict[str, Any]:
         return {"plan_steps": self.plan_steps, "step_count": self.step_count}
@@ -397,6 +498,7 @@ class PlanGeneratedEvent(AgentEvent):
 @dataclass
 class PlanStepCompletedEvent(AgentEvent):
     """Emitted when a plan step finishes executing."""
+
     step_number: int = 0
     total_steps: int = 0
     step_description: str = ""
@@ -407,7 +509,7 @@ class PlanStepCompletedEvent(AgentEvent):
 
     def __post_init__(self):
         super().__post_init__()
-        object.__setattr__(self, 'type', EventType.PLAN_STEP_COMPLETED)
+        object.__setattr__(self, "type", EventType.PLAN_STEP_COMPLETED)
 
     def _extra_fields(self) -> dict[str, Any]:
         return {
@@ -423,12 +525,13 @@ class PlanStepCompletedEvent(AgentEvent):
 @dataclass
 class PlanCompletedEvent(AgentEvent):
     """Emitted when all plan steps are done."""
+
     total_steps: int = 0
     plan_steps: list[dict[str, Any]] = field(default_factory=list)
 
     def __post_init__(self):
         super().__post_init__()
-        object.__setattr__(self, 'type', EventType.PLAN_COMPLETED)
+        object.__setattr__(self, "type", EventType.PLAN_COMPLETED)
 
     def _extra_fields(self) -> dict[str, Any]:
         return {
@@ -441,6 +544,7 @@ class PlanCompletedEvent(AgentEvent):
 @dataclass
 class SubAgentWaveStartedEvent(AgentEvent):
     """Emitted when a sub-agent orchestration wave begins."""
+
     wave_id: int = 0
     total_waves: int = 0
     job_ids: list[str] = field(default_factory=list)
@@ -460,6 +564,7 @@ class SubAgentWaveStartedEvent(AgentEvent):
 @dataclass
 class SubAgentWaveCompletedEvent(AgentEvent):
     """Emitted when a sub-agent orchestration wave is collected."""
+
     wave_id: int = 0
     total_waves: int = 0
     completed: int = 0
@@ -640,6 +745,7 @@ class SubAgentFinishedEvent(AgentEvent):
 @dataclass
 class BackgroundProcessStartedEvent(AgentEvent):
     """A long-running project process was started in the background."""
+
     process_id: str = ""
     label: str = ""
     command: str = ""
@@ -663,6 +769,7 @@ class BackgroundProcessStartedEvent(AgentEvent):
 @dataclass
 class BackgroundProcessStoppedEvent(AgentEvent):
     """A background project process was stopped."""
+
     process_id: str = ""
     label: str = ""
     pid: int = 0
@@ -682,6 +789,7 @@ class BackgroundProcessStoppedEvent(AgentEvent):
 @dataclass
 class BackgroundProcessErrorEvent(AgentEvent):
     """Background process failed health check (crashed or errors in log)."""
+
     process_id: str = ""
     label: str = ""
     pid: int = 0
@@ -805,6 +913,7 @@ class HasEventBus(Protocol):
 # Helper to create common events quickly
 # ---------------------------------------------------------------------
 
+
 def make_event(
     event_type: EventType | str,
     conversation_id: str = "default",
@@ -830,6 +939,10 @@ def make_event(
         EventType.MAX_STEPS_EXTENDED: MaxStepsExtendedEvent,
         EventType.THINKING: ThinkingEvent,
         EventType.SKILL_CREATED: SkillCreatedEvent,
+        EventType.SKILL_PROPOSED: SkillProposedEvent,
+        EventType.SKILL_PROPOSAL_REJECTED: SkillProposalRejectedEvent,
+        EventType.SKILL_APPROVED: SkillApprovedEvent,
+        EventType.SKILL_PATCHED: SkillPatchedEvent,
         EventType.CONTEXT_COMPRESSED: ContextCompressedEvent,
         EventType.CONTEXT_WARNING: ContextWarningEvent,
         EventType.PLAN_GENERATED: PlanGeneratedEvent,
@@ -846,6 +959,7 @@ def make_event(
 # Compatibility handlers (restore old print behavior for legacy consumers)
 # ---------------------------------------------------------------------
 
+
 def create_compatibility_print_handler() -> EventHandler:
     """
     Returns a handler that prints events in the old style.
@@ -855,6 +969,7 @@ def create_compatibility_print_handler() -> EventHandler:
     - transitional period while modern CLI is being updated to rich event rendering
     - tests that expect console output
     """
+
     def handler(event: AgentEvent) -> None:
         if isinstance(event, ToolCallStartEvent):
             print(f"\n[Tool Call] {event.tool_name}")
@@ -868,12 +983,21 @@ def create_compatibility_print_handler() -> EventHandler:
         elif isinstance(event, SkillCreatedEvent):
             print(f"[Self-Improvement] Created new skill: {event.skill_name}")
             print(f"[Self-Improvement] Saved to: {event.filepath}")
+        elif isinstance(event, SkillProposedEvent):
+            print(
+                f"[Self-Improvement] Proposed skill {event.skill_name} "
+                f"({event.action}) id={event.proposal_id}"
+            )
+        elif isinstance(event, SkillProposalRejectedEvent):
+            print(f"[Self-Improvement] Skill proposal rejected {event.skill_name}: {event.reason}")
         elif isinstance(event, ErrorEvent) and event.error_type == "self_improvement":
             print(f"[Self-Improvement] Error during self-improvement: {event.error}")
         elif isinstance(event, ThinkingEvent):
             msg = event.message
             # Print important messages, and also generic "thinking" so user sees activity
-            if any(kw in msg for kw in ["Initializing", "Registered", "Loaded", "ready", "thinking"]):
+            if any(
+                kw in msg for kw in ["Initializing", "Registered", "Loaded", "ready", "thinking"]
+            ):
                 print(msg)
         elif isinstance(event, AssistantDeltaEvent):
             # For compatibility mode we just print the delta (will look a bit raw)
@@ -892,6 +1016,7 @@ def create_compatibility_print_handler() -> EventHandler:
 # ---------------------------------------------------------------------
 # Default monitoring wiring (used by HolixAgent)
 # ---------------------------------------------------------------------
+
 
 def wire_default_monitoring(bus: AgentEventBus) -> None:
     """
@@ -931,6 +1056,10 @@ __all__ = [
     "LLMCallCompletedEvent",
     "SelfImprovementStartedEvent",
     "SkillCreatedEvent",
+    "SkillProposedEvent",
+    "SkillProposalRejectedEvent",
+    "SkillApprovedEvent",
+    "SkillPatchedEvent",
     "ContextCompressedEvent",
     "ContextWarningEvent",
     "PlanGeneratedEvent",

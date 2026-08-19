@@ -10,7 +10,17 @@ from __future__ import annotations
 import json
 import re
 import uuid
+from dataclasses import dataclass, field
+from types import SimpleNamespace
 from typing import Any
+
+LEAKED_TOOL_NUDGE = (
+    "STOP. You printed a textual <tool_call> block. That is not executed. "
+    "Do not write XML, JSON fences, or </tool_call>. "
+    "Call the tool through the function-calling API on this turn "
+    "(the next request forces a native tool call). "
+    "If the work is already done, reply in plain text with no tool_call markup."
+)
 
 _TOOL_BLOCK_RE = re.compile(
     r"<tool_call\b[^>]*>([\s\S]*?)</tool_call>",
@@ -50,6 +60,87 @@ def strip_tool_call_markup(text: str | None) -> str:
     cleaned = _BARE_TOOL_LINE_RE.sub("", cleaned)
     cleaned = re.sub(r"\n{3,}", "\n\n", cleaned)
     return cleaned.strip()
+
+
+@dataclass(slots=True)
+class TextualTurn:
+    """How a sub-agent should treat assistant text that may leak tool XML."""
+
+    kind: str  # tools | retry | final
+    tool_calls: list[dict[str, Any]] = field(default_factory=list)
+    final_text: str = ""
+    nudge: str = ""
+
+
+def resolve_textual_turn(
+    content: str | None,
+    *,
+    tools: list[Any] | None = None,
+    force_final: bool = False,
+) -> TextualTurn:
+    """Recover leaked Qwen/Hermes tool XML, or refuse to treat it as a finish.
+
+    - ``tools``: parseable leaked calls — execute them (unless ``force_final``).
+    - ``retry``: markup / degeneration without a usable call — do not finish.
+    - ``final``: plain text that may be the sub-agent result.
+    """
+    text = str(content or "")
+    calls = extract_textual_tool_calls(text, tools=tools)
+    leak = looks_like_leaked_tool_markup(text)
+    degenerate = False
+    try:
+        from core.llm.response_text import is_pathological_repetition
+
+        degenerate = is_pathological_repetition(text, min_repeats=3)
+    except Exception:
+        degenerate = False
+
+    if calls and not force_final:
+        return TextualTurn(
+            kind="tools",
+            tool_calls=calls,
+            final_text=strip_tool_call_markup(text),
+        )
+    if leak or degenerate:
+        visible = strip_tool_call_markup(text)
+        if (
+            force_final
+            and visible.strip()
+            and not looks_like_leaked_tool_markup(visible)
+            and not degenerate
+        ):
+            return TextualTurn(kind="final", final_text=visible)
+        return TextualTurn(
+            kind="retry",
+            final_text=visible,
+            nudge=LEAKED_TOOL_NUDGE,
+        )
+    return TextualTurn(kind="final", final_text=text or "No response")
+
+
+def tool_call_objects(calls: list[dict[str, Any]]) -> list[Any]:
+    """OpenAI-shaped objects so ``tools.execute`` can run recovered calls."""
+    out: list[Any] = []
+    for call in calls:
+        if not isinstance(call, dict):
+            continue
+        fn = call.get("function") if isinstance(call.get("function"), dict) else {}
+        name = str((fn or {}).get("name") or "").strip()
+        if not name:
+            continue
+        if not tool_call_has_required_args(call):
+            continue
+        args = (fn or {}).get("arguments")
+        if not isinstance(args, str):
+            args = json.dumps(args or {}, ensure_ascii=False)
+        out.append(
+            SimpleNamespace(
+                id=str(call.get("id") or f"call_{uuid.uuid4().hex[:12]}"),
+                type=str(call.get("type") or "function"),
+                function=SimpleNamespace(name=name, arguments=args),
+            )
+        )
+    return out
 
 
 def extract_textual_tool_calls(
@@ -96,7 +187,156 @@ def extract_textual_tool_calls(
             seen.add(key)
             found.append(call)
 
-    return found
+    if not found:
+        for call in extract_truncated_tool_calls(raw, tools=tools):
+            key = (call["function"]["name"], call["function"]["arguments"])
+            if key in seen:
+                continue
+            seen.add(key)
+            found.append(call)
+
+    return [call for call in found if tool_call_has_required_args(call)]
+
+
+_WRITE_TOOLS = frozenset({"write_file", "patch_file"})
+_PATH_TOOLS = frozenset({"read_file", "list_directory", "delete_file"})
+_SEARCH_TOOLS = frozenset({"grep", "glob"})
+_SHELL_TOOLS = frozenset({"terminal", "run_terminal_command"})
+
+
+def tool_call_has_required_args(call: dict[str, Any] | None) -> bool:
+    """False for recovered ``write_file`` / path tools with empty arguments."""
+    if not isinstance(call, dict):
+        return False
+    fn = call.get("function") if isinstance(call.get("function"), dict) else {}
+    name = str((fn or {}).get("name") or "").strip()
+    if not name:
+        return False
+    raw = (fn or {}).get("arguments")
+    args: Any = {}
+    if isinstance(raw, dict):
+        args = raw
+    elif isinstance(raw, str) and raw.strip():
+        parsed = _load_json_blob(raw)
+        args = parsed if isinstance(parsed, dict) else {}
+    if name in _WRITE_TOOLS:
+        return bool(str(args.get("path") or "").strip()) and "content" in args
+    if name in _PATH_TOOLS:
+        return any(str(args.get(k) or "").strip() for k in ("path", "file", "target_directory"))
+    if name in _SEARCH_TOOLS:
+        return bool(str(args.get("pattern") or args.get("query") or "").strip())
+    if name in _SHELL_TOOLS:
+        return bool(str(args.get("command") or "").strip())
+    return True
+
+
+_TRUNC_NAME_RE = re.compile(r'"name"\s*:\s*"([A-Za-z_][A-Za-z0-9_\-.]{0,80})"')
+_TRUNC_STR_RE = re.compile(
+    r'"(path|file|target_directory|command|query|pattern|url)"\s*:\s*"((?:\\.|[^"\\])*)"'
+)
+_TRUNC_CONTENT_RE = re.compile(r'"content"\s*:\s*"')
+
+
+def extract_truncated_tool_calls(
+    text: str | None,
+    *,
+    tools: list[Any] | None = None,
+) -> list[dict[str, Any]]:
+    """Best-effort recovery of an unclosed / degenerated ``<tool_call>`` JSON.
+
+    Qwen often starts a valid ``write_file`` and then loops on the content.
+    If we can still read ``name`` + ``path`` (and a content prefix), execute it
+    instead of failing the job.
+    """
+    raw = str(text or "")
+    if not raw.strip():
+        return []
+    known = _known_tool_names(tools)
+    name_hit = _TRUNC_NAME_RE.search(raw)
+    name = name_hit.group(1) if name_hit else _first_ident_line(raw, known=known)
+    if not name or not _accept_name(name, known):
+        return []
+
+    args: dict[str, Any] = {}
+    for key, value in _TRUNC_STR_RE.findall(raw):
+        args[str(key)] = _unescape_json_string_prefix(value)
+
+    content_hit = _TRUNC_CONTENT_RE.search(raw)
+    if content_hit:
+        content = _unescape_json_string_prefix(raw[content_hit.end() :])
+        content = _cut_repeated_tail(content)
+        args["content"] = content
+
+    if name in {"write_file", "patch_file"}:
+        if not args.get("path") or "content" not in args:
+            return []
+    elif name in {"read_file", "list_directory", "delete_file"}:
+        if not any(args.get(k) for k in ("path", "file", "target_directory")):
+            return []
+    elif name in {"grep", "glob"}:
+        if not args.get("pattern") and not args.get("query"):
+            return []
+    elif name in {"terminal", "run_terminal_command"}:
+        if not args.get("command"):
+            return []
+    elif not args:
+        return []
+    return [_make_call(name, args)]
+
+
+def _unescape_json_string_prefix(raw: str) -> str:
+    """Decode a JSON string that may be missing its closing quote."""
+    out: list[str] = []
+    i = 0
+    text = str(raw or "")
+    while i < len(text):
+        ch = text[i]
+        if ch == "\\" and i + 1 < len(text):
+            nxt = text[i + 1]
+            mapped = {"n": "\n", "t": "\t", "r": "\r", '"': '"', "\\": "\\", "/": "/"}
+            if nxt in mapped:
+                out.append(mapped[nxt])
+                i += 2
+                continue
+            if nxt == "u" and i + 6 <= len(text):
+                try:
+                    out.append(chr(int(text[i + 2 : i + 6], 16)))
+                    i += 6
+                    continue
+                except ValueError:
+                    pass
+            out.append(nxt)
+            i += 2
+            continue
+        if ch == '"':
+            break
+        out.append(ch)
+        i += 1
+    return "".join(out)
+
+
+def _cut_repeated_tail(text: str) -> str:
+    """Drop a Qwen-style repeated suffix (gitignore / comment loops)."""
+    body = str(text or "")
+    degenerate = False
+    try:
+        from core.llm.response_text import is_pathological_repetition
+
+        degenerate = is_pathological_repetition(body, min_repeats=3)
+    except Exception:
+        degenerate = False
+    if not degenerate:
+        return body
+    lines = body.splitlines(keepends=True)
+    counts: dict[str, int] = {}
+    for i, line in enumerate(lines):
+        key = line.strip()
+        if len(key) < 3 or len(key) > 64:
+            continue
+        counts[key] = counts.get(key, 0) + 1
+        if counts[key] >= 3:
+            return "".join(lines[:i]).rstrip() + "\n"
+    return body.rstrip() + "\n"
 
 
 def _known_tool_names(tools: list[Any] | None) -> set[str]:

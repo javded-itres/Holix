@@ -10,7 +10,7 @@ In the profile `config.yaml` or global `.env`:
 enable_subagents: true
 subagent_default_process_mode: async   # async | process
 subagent_max_concurrent: 4
-subagent_process_timeout: 900
+subagent_process_timeout: 3600
 # Runtime supervisor (mid-job guidance) + graph rework caps
 subagent_supervisor_enabled: true
 subagent_supervisor_max_interventions: 3
@@ -19,6 +19,18 @@ subagent_supervisor_max_interventions: 3
 Default in Holix: `enable_subagents: true`, default process mode **`async`** (OS process available with fallback).
 
 If disabled, `delegate_to_subagent` and `/subagent-spawn` return an error.
+
+## Execution (same ReAct as main)
+
+Each spawned job is a child `HolixAgent` on the **same LangGraph ReAct graph** as the main chat (`memory_retrieval → react → tools → finalize`):
+
+- same `react_node` (compression, action honesty, unfinished-step nudge)
+- filtered tools (`FilteredToolRegistry`) — the child cannot spawn more sub-agents
+- context window is the **model's** (`model_contexts` / slot / profile), same as main — compression runs at 85% of that window
+- empty model reply is **not** a finished step: ReAct injects a continue nudge (3×), then the job fails with `empty LLM reply`
+- the runtime supervisor drains `guidance` / `revise` into the same ReAct turn (and honors `cancel`)
+
+If the child ReAct engine cannot start, the runner falls back to the legacy loop.
 
 ---
 
@@ -168,10 +180,10 @@ Async and process workers both apply guidance **before the next LLM step**.
 
 In `plan_and_execute`, after `collect_subagent`:
 
-1. Inspect wave results.  
-2. For **failed** jobs, schedule **rework** of the same agent type with repair instructions.  
-3. Keep successful jobs; supersede failed `prior_job` ids.  
-4. Cap rework rounds with the same max-interventions setting.  
+1. Inspect wave results.
+2. For **failed** jobs, schedule **rework** of the same agent type with repair instructions.
+3. Keep successful jobs; supersede failed `prior_job` ids.
+4. Cap rework rounds with the same max-interventions setting.
 5. Then synthesize in `react`.
 
 Design notes: [SUBAGENT_SUPERVISOR.md](SUBAGENT_SUPERVISOR.md).
@@ -233,7 +245,7 @@ Sub-agent coder (claude assigned to coder slot):
 - Structured log: `logs/subagent.jsonl` — see [LOGS.md](LOGS.md)
 - CLI: `holix logs -s subagent`
 - Concurrent limit: `subagent_max_concurrent` (default 4)
-- Timeout per job: `subagent_process_timeout` (seconds; default often `900`)
+- Timeout per job: `subagent_process_timeout` (seconds; default `3600`, 60 min)
 - Wait budgets can extend while a job is still active (activity heartbeat)
 - Supervisor interventions appear as activity (`supervisor_guidance`) and agent events
 

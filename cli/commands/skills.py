@@ -189,7 +189,9 @@ def skills_assign(
         print_info("Known roles: " + ", ".join(slots))
         val = Prompt.ask(
             f"Agents for '{skill_name}' (comma-separated)",
-            default=", ".join(agents_for_skill(getattr(config, "skill_assignments", {}) or {}, skill_name)),
+            default=", ".join(
+                agents_for_skill(getattr(config, "skill_assignments", {}) or {}, skill_name)
+            ),
         )
         agent_list = [a.strip() for a in val.split(",") if a.strip()]
 
@@ -320,3 +322,166 @@ def skills_seed_bundled(
         print_success(f"Assigned to main agent: {', '.join(assigned)}")
     print_info(f"Profile: {profile} · dir: {skills_dir}")
     print_info("Invoke in chat: /holix-cron  or ask about scheduling — skill is auto-retrieved.")
+
+
+def _curator(config):
+    from core.di import resolve_runtime_config
+    from core.skills.curator import SkillCurator
+    from core.skills.manager import SkillsManager
+
+    mgr = SkillsManager(resolve_runtime_config(config))
+    mgr.load_all_skills(defer_index=True)
+    return SkillCurator(mgr)
+
+
+@app.command("curator")
+def skills_curator(ctx: typer.Context):
+    """Show prune status: stale / archive candidates (no writes)."""
+    config = ctx.obj["config"]
+    report = _curator(config).status()
+    print_info(
+        f"curatable {report['curatable']}/{report['total']} · "
+        f"stale≥{report['stale_after_days']}d archive≥{report['archive_after_days']}d"
+    )
+    if report["would_stale"]:
+        print_info("would stale: " + ", ".join(report["would_stale"]))
+    if report["would_archive"]:
+        print_info("would archive: " + ", ".join(report["would_archive"]))
+    if report["pinned"]:
+        print_info("pinned: " + ", ".join(report["pinned"]))
+    archived = report.get("archived") or []
+    if archived:
+        print_info(f"already archived: {len(archived)}")
+    if not report["would_stale"] and not report["would_archive"]:
+        print_success("Nothing to prune.")
+
+
+@app.command("prune")
+def skills_prune(
+    ctx: typer.Context,
+    dry_run: bool = typer.Option(True, "--dry-run/--apply", help="Preview (default) or apply"),
+    days: int | None = typer.Option(None, "--days", help="Override archive_after_days"),
+):
+    """Mark stale / archive unused agent-created skills. Bundled and pinned are skipped."""
+    config = ctx.obj["config"]
+    curator = _curator(config)
+    if days:
+        curator.archive_after_days = max(curator.stale_after_days, days)
+    report = curator.run(dry_run=dry_run)
+    verb = "would archive" if report["dry_run"] else "archived"
+    print_info(f"stale: {', '.join(report['stale']) or '—'}")
+    print_info(f"{verb}: {', '.join(report['archived']) or '—'}")
+    if report["dry_run"]:
+        print_info("Re-run with --apply to write changes.")
+
+
+@app.command("restore")
+def skills_restore(
+    ctx: typer.Context,
+    name: str = typer.Argument(..., help="Archived skill name"),
+):
+    """Move an archived skill back to the live skills dir."""
+    config = ctx.obj["config"]
+    try:
+        path = _curator(config).restore(name)
+    except (FileNotFoundError, ValueError) as exc:
+        print_error(str(exc))
+        raise typer.Exit(1)
+    print_success(f"Restored {name} → {path}")
+
+
+@app.command("pin")
+def skills_pin(
+    ctx: typer.Context,
+    name: str = typer.Argument(..., help="Skill name"),
+    unpin: bool = typer.Option(False, "--unpin", help="Allow curator to manage this skill again"),
+):
+    """Pin a skill so the curator will never stale/archive it."""
+    config = ctx.obj["config"]
+    try:
+        _curator(config).pin(name, pinned=not unpin)
+    except FileNotFoundError:
+        print_error(f"Skill '{name}' not found")
+        raise typer.Exit(1)
+    print_success(("Unpinned " if unpin else "Pinned ") + name)
+
+
+def _pending_store(config):
+    from core.skills.proposal import SkillProposalStore
+
+    return SkillProposalStore(config.skills_dir)
+
+
+@app.command("pending")
+def skills_pending(ctx: typer.Context):
+    """List staged auto-skill proposals waiting for approval."""
+    config = ctx.obj["config"]
+    store = _pending_store(config)
+    store.expire_stale()
+    rows = store.list_pending()
+    if not rows:
+        print_info("No pending skill proposals.")
+        return
+    print_table(
+        "Pending skill proposals",
+        ["id", "action", "name", "description", "created"],
+        [
+            [
+                r.get("id"),
+                r.get("action"),
+                r.get("name"),
+                (r.get("description") or "")[:60],
+                r.get("created_at"),
+            ]
+            for r in rows
+        ],
+    )
+
+
+@app.command("approve")
+def skills_approve(
+    ctx: typer.Context,
+    proposal_id: str = typer.Argument(..., help="Pending proposal id (psp-…)"),
+    assign: str | None = typer.Option(
+        None,
+        "--assign",
+        help="Comma-separated agent slots to assign after apply (default: none)",
+    ),
+):
+    """Apply a staged skill proposal to the profile skills dir."""
+    config = ctx.obj["config"]
+    from core.di import resolve_runtime_config
+
+    store = _pending_store(config)
+    mgr = SkillsManager(resolve_runtime_config(config))
+    mgr.load_all_skills(defer_index=True)
+    slots = [a.strip() for a in (assign or "").split(",") if a.strip()]
+    try:
+        rec = store.approve(proposal_id, manager=mgr, assign_to=slots)
+    except FileNotFoundError:
+        print_error(f"Proposal '{proposal_id}' not found")
+        raise typer.Exit(1)
+    except ValueError as exc:
+        print_error(str(exc))
+        raise typer.Exit(1)
+    print_success(
+        f"{rec.get('action')} '{rec.get('name')}' → {rec.get('filepath') or rec.get('merged_into') or 'ok'}"
+    )
+
+
+@app.command("reject")
+def skills_reject(
+    ctx: typer.Context,
+    proposal_id: str = typer.Argument(..., help="Pending proposal id (psp-…)"),
+):
+    """Drop a staged skill proposal without applying it."""
+    config = ctx.obj["config"]
+    try:
+        rec = _pending_store(config).reject(proposal_id)
+    except FileNotFoundError:
+        print_error(f"Proposal '{proposal_id}' not found")
+        raise typer.Exit(1)
+    except ValueError as exc:
+        print_error(str(exc))
+        raise typer.Exit(1)
+    print_success(f"Rejected {rec.get('name')} ({rec.get('id')})")

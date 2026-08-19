@@ -75,9 +75,7 @@ class DelegateToSubAgentTool(BaseTool):
             task = task.strip()
             from core.subagents.resolve import resolve_subagent_type
 
-            agent_type = resolve_subagent_type(
-                agent_type, profile=_profile_name(agent)
-            )
+            agent_type = resolve_subagent_type(agent_type, profile=_profile_name(agent))
             existing = agent.subagents.find_running_duplicate(agent_type, task)
             if existing is not None:
                 return json.dumps(
@@ -164,7 +162,7 @@ class WaitSubAgentResultTool(BaseTool):
             if handle is not None:
                 timeout = timeout_seconds or handle.config.timeout
             elif timeout is None:
-                timeout = 900.0
+                timeout = 3600.0
             # wait_for resolves owner::name and can poll the profile registry.
             result = await mgr.wait_for(job_id, timeout=timeout)
             return json.dumps(
@@ -182,8 +180,7 @@ class WaitSubAgentResultTool(BaseTool):
             try:
                 summary = mgr.get_status_summary()
                 known = [
-                    str(a.get("id") or a.get("name") or "")
-                    for a in (summary.get("agents") or [])
+                    str(a.get("id") or a.get("name") or "") for a in (summary.get("agents") or [])
                 ]
                 known = [k for k in known if k][:12]
             except Exception:
