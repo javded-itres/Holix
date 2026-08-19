@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+### Fixed
+
+- **`holix --version` / `-V`** — print the installed package version and exit (no profile required). `holix version` still shows the panel.
+- **`Holix[all]` on PyPI** — drop unpublished `holix-extension-demo` from the `all` extra so `uv tool install "Holix[all]"` resolves to the latest release instead of backtracking to 0.1.21.
+
 ## 1.0.11 — 2026-08-19
 
 Staged skill proposals (no live write until approve), child jobs on the same ReAct engine as main, and skill-review UX in CLI, API, Telegram, and MAX.

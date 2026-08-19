@@ -13,6 +13,7 @@ install(show_locals=True)
 from core.profile_keys import ProfileNotFoundError
 from integrations.bootstrap import register_integration_hooks
 
+from cli import __version__ as _CLI_VERSION
 from cli.core import get_profile_manager, init_profile, resolve_active_profile_name
 from cli.utils.rich_console import print_info
 
@@ -23,7 +24,7 @@ app = typer.Typer(
     name="holix",
     help="Holix - Self-Improving AI Agent with Memory and Skills",
     add_completion=False,
-    rich_markup_mode="rich"
+    rich_markup_mode="rich",
 )
 
 _BASE_COMMANDS_REGISTERED = False
@@ -113,12 +114,30 @@ def _register_commands(argv: list[str] | None = None) -> None:
         _register_heavy_commands()
 
 
+def _version_callback(value: bool) -> None:
+    """Print the installed package version and exit (no profile init)."""
+    if value:
+        typer.echo(f"Holix {_package_version()}")
+        raise typer.Exit()
+
+
+def _package_version() -> str:
+    """Version of the running Holix distribution (PyPI metadata, else cli.__version__)."""
+    try:
+        from importlib.metadata import version
+
+        return version("Holix")
+    except Exception:
+        return _CLI_VERSION
+
+
 @app.callback()
 def _app_callback(
     ctx: typer.Context,
     profile: str | None = typer.Option(
         None,
-        "--profile", "-p",
+        "--profile",
+        "-p",
         help="Profile name (required in production; implicit default is dev-only)",
     ),
     profile_key: str | None = typer.Option(
@@ -133,16 +152,25 @@ def _app_callback(
         envvar="HOLIX_UNLOCK_KEY",
         help="Encryption unlock key for an encrypted profile",
     ),
-    verbose: bool = typer.Option(
+    verbose: bool = typer.Option(False, "--verbose", "-v", help="Enable verbose output"),
+    version: bool = typer.Option(
         False,
-        "--verbose", "-v",
-        help="Enable verbose output"
+        "--version",
+        "-V",
+        help="Show Holix package version and exit",
+        is_eager=True,
+        callback=_version_callback,
     ),
 ):
     """Holix AI Agent CLI.
 
     A powerful, self-improving AI agent with memory, skills, and tool-calling capabilities.
     """
+    del version
+    # ``holix version`` / ``holix --help`` must not require a profile.
+    if ctx.invoked_subcommand in {"version"} or ctx.resilient_parsing:
+        return
+
     # Initialize profile
     from core.crypto.profile_crypto import ProfileCryptoError
     from core.profile_keys import ProfileKeyError
@@ -184,7 +212,9 @@ def _app_callback(
 def chat_command(
     ctx: typer.Context,
     model: str | None = typer.Option(None, "--model", "-m", help="Override model"),
-    temperature: float | None = typer.Option(None, "--temperature", "-t", help="Override temperature"),
+    temperature: float | None = typer.Option(
+        None, "--temperature", "-t", help="Override temperature"
+    ),
     max_steps: int | None = typer.Option(None, "--max-steps", help="Override max steps"),
     exec_command: str | None = typer.Option(
         None,
@@ -240,8 +270,12 @@ def run_command(
     ctx: typer.Context,
     query: str = typer.Argument(..., help="Query to execute"),
     model: str | None = typer.Option(None, "--model", "-m", help="Override model"),
-    temperature: float | None = typer.Option(None, "--temperature", "-t", help="Override temperature"),
-    conversation_id: str = typer.Option("cli_oneshot", "--conversation-id", "-c", help="Conversation ID"),
+    temperature: float | None = typer.Option(
+        None, "--temperature", "-t", help="Override temperature"
+    ),
+    conversation_id: str = typer.Option(
+        "cli_oneshot", "--conversation-id", "-c", help="Conversation ID"
+    ),
 ):
     """Execute a single query and exit.
 
@@ -350,11 +384,11 @@ def clear(
 @app.command()
 def version():
     """Show Holix version information."""
-    from cli import __version__
     from cli.utils.rich_console import print_panel
 
+    ver = _package_version()
     info = f"""[bold cyan]Holix AI Agent[/bold cyan]
-Version: {__version__}
+Version: {ver}
 Homepage: https://github.com/javded-itres/Holix
 License: MIT
 """
@@ -365,10 +399,7 @@ License: MIT
 def tui(
     ctx: typer.Context,
     profile: str = typer.Option(
-        "default",
-        "--profile", "-p",
-        help="Profile to use",
-        show_default=True
+        "default", "--profile", "-p", help="Profile to use", show_default=True
     ),
     web: bool = typer.Option(
         False,
@@ -438,6 +469,7 @@ def tui(
         return
 
     from cli.tui.app import run_tui
+
     run_tui(profile=profile)
 
 
