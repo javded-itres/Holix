@@ -70,11 +70,15 @@ class ProfileConfig(BaseModel):
 
     # MCP (Model Context Protocol) servers — stored under ~/.holix only
     mcp_servers: dict[str, dict[str, Any]] = Field(default_factory=dict)
-    mcp_assignments: dict[str, list[str]] = Field(default_factory=dict)  # e.g. {"main": ["fs"], "researcher": ["fs", "git"]}
+    mcp_assignments: dict[str, list[str]] = Field(
+        default_factory=dict
+    )  # e.g. {"main": ["fs"], "researcher": ["fs", "git"]}
     mcp_enabled: bool = True
 
     # Skills: which skill names each agent/subagent may use (empty dict = all skills)
-    skill_assignments: dict[str, list[str]] = Field(default_factory=dict)  # e.g. {"main": ["git"], "coder": ["git", "docker"]}
+    skill_assignments: dict[str, list[str]] = Field(
+        default_factory=dict
+    )  # e.g. {"main": ["git"], "coder": ["git", "docker"]}
 
     # Sub-agents
     enable_subagents: bool | None = None
@@ -82,6 +86,11 @@ class ProfileConfig(BaseModel):
     subagent_max_concurrent: int | None = None
     # Runtime supervisor: watch stuck sub-agent jobs and inject guidance
     subagent_supervisor_enabled: bool | None = None
+    subagent_supervisor_poll_s: float | None = None
+    subagent_supervisor_idle_s: float | None = None
+    subagent_supervisor_max_interventions: int | None = None
+    subagent_supervisor_cooldown_s: float | None = None
+    subagent_supervisor_loop_cooldown_s: float | None = None
 
     # Meta-agent (pre-thinking) and Reflexion self-refinement
     enable_meta_agent: bool | None = None
@@ -155,8 +164,7 @@ def resolve_active_profile_name(explicit: str | None = None) -> str:
     if default_profile_allowed():
         return "default"
     raise ProfileNotFoundError(
-        "Profile name is required when HOLIX_ENV=production. "
-        "Example: holix -p alice gateway start"
+        "Profile name is required when HOLIX_ENV=production. Example: holix -p alice gateway start"
     )
 
 
@@ -471,7 +479,9 @@ class ProfileManager:
         local = load_local_overlay()
         data = merge_profile_with_local(data, local)
         config = ProfileConfig(**data)
-        return resolve_profile_storage_paths(profile, config, profile_dir=self.get_profile_dir(profile))
+        return resolve_profile_storage_paths(
+            profile, config, profile_dir=self.get_profile_dir(profile)
+        )
 
     def _write_profile_yaml(self, profile: str, data: dict[str, Any]) -> None:
         config_file = self.get_profile_dir(profile) / "config.yaml"
@@ -533,6 +543,7 @@ class ProfileManager:
         profile_dir = self.get_profile_dir(profile)
         if profile_dir.exists():
             import shutil
+
             shutil.rmtree(profile_dir)
             return True
 
@@ -639,7 +650,9 @@ def init_profile(
         profile_has_crypto_metadata,
     )
 
-    if getattr(_current_config, "encryption_enabled", False) and not profile_has_crypto_metadata(profile):
+    if getattr(_current_config, "encryption_enabled", False) and not profile_has_crypto_metadata(
+        profile
+    ):
         _current_config.encryption_enabled = False
         try:
             _profile_manager.save_profile(profile, _current_config)

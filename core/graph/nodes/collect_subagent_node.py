@@ -55,8 +55,8 @@ async def collect_subagent_node(
     timeouts = []
     for job_id in pending:
         handle = manager.get_handle(job_id)
-        timeouts.append(handle.config.timeout if handle else 900.0)
-    timeout = max(timeouts) if timeouts else 900.0
+        timeouts.append(handle.config.timeout if handle else 3600.0)
+    timeout = max(timeouts) if timeouts else 3600.0
 
     try:
         payloads = await asyncio.gather(

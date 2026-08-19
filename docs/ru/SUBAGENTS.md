@@ -10,7 +10,7 @@
 enable_subagents: true
 subagent_default_process_mode: async   # async | process
 subagent_max_concurrent: 4
-subagent_process_timeout: 900
+subagent_process_timeout: 3600
 subagent_supervisor_enabled: true
 subagent_supervisor_max_interventions: 3
 ```
@@ -18,6 +18,18 @@ subagent_supervisor_max_interventions: 3
 По умолчанию: `enable_subagents: true`, режим процесса **`async`** (OS process доступен с fallback).
 
 Если выключено — `delegate_to_subagent` и `/subagent-spawn` вернут ошибку.
+
+## Исполнение (тот же ReAct, что у main)
+
+Каждый джоб — дочерний `HolixAgent` на **том же LangGraph ReAct**, что и основной чат (`memory_retrieval → react → tools → finalize`):
+
+- тот же `react_node` (сжатие контекста, action honesty, nudge «шаг не закончен»)
+- урезанный набор tools (`FilteredToolRegistry`) — ребёнок не спавнит субагентов
+- окно контекста — **модели** (`model_contexts` / слот / профиль), как у main; сжатие на 85% этого окна
+- пустой ответ модели **не** завершает шаг: ReAct трижды говорит «продолжай», затем джоб падает с `empty LLM reply`
+- runtime-супервизор вшивает `guidance` / `revise` в тот же шаг ReAct (и уважает `cancel`)
+
+Если дочерний ReAct не стартовал — fallback на старый цикл.
 
 ---
 
@@ -157,7 +169,7 @@ delegate → collect → supervisor → (rework failed?) → react synthesis
 |------------|---------|--------|
 | `HOLIX_SUBAGENT_SUPERVISOR_ENABLED` | `true` | Вкл/выкл |
 | `HOLIX_SUBAGENT_SUPERVISOR_POLL_S` | `4` | Интервал опроса |
-| `HOLIX_SUBAGENT_SUPERVISOR_IDLE_S` | `90` | Порог hang |
+| `HOLIX_SUBAGENT_SUPERVISOR_IDLE_S` | `300` | Порог hang (долгий LLM ≠ hang) |
 | `HOLIX_SUBAGENT_SUPERVISOR_MAX_INTERVENTIONS` | `3` | Лимит на job / rework |
 | `HOLIX_SUBAGENT_SUPERVISOR_COOLDOWN_S` | `45` | Пауза между вмешательствами |
 
@@ -165,12 +177,12 @@ delegate → collect → supervisor → (rework failed?) → react synthesis
 
 После `collect_subagent` в plan mode:
 
-1. Смотрит результаты волны.  
-2. Failed jobs → **rework** того же `agent_type` с инструкциями.  
-3. Успешные jobs сохраняются; failed `prior_job` заменяется.  
+1. Смотрит результаты волны.
+2. Failed jobs → **rework** того же `agent_type` с инструкциями.
+3. Успешные jobs сохраняются; failed `prior_job` заменяется.
 4. Синтез в `react`.
 
-План: [SUBAGENT_SUPERVISOR.md](../en/SUBAGENT_SUPERVISOR.md).  
+План: [SUBAGENT_SUPERVISOR.md](../en/SUBAGENT_SUPERVISOR.md).
 Общий step-budget: [EXECUTION_MODES.md](EXECUTION_MODES.md).
 
 ---
@@ -214,7 +226,7 @@ delegate → collect → supervisor → (rework failed?) → react synthesis
 - Лог: `logs/subagent.jsonl` — см. [LOGS.md](LOGS.md)
 - CLI: `holix logs -s subagent`
 - Параллельно: не больше `subagent_max_concurrent` (по умолчанию 4)
-- Таймаут job: `subagent_process_timeout` (секунды; часто `900`)
+- Таймаут job: `subagent_process_timeout` (секунды; по умолчанию `3600`, 60 мин)
 - Wait-бюджет может продлеваться при активной работе
 - Вмешательства supervisor видны в activity и agent events
 

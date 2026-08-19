@@ -108,6 +108,44 @@ def _merge_state_patch(update: dict[str, Any], patch: dict[str, Any]) -> dict[st
     return {**patch, **update}
 
 
+SUBAGENT_CANCELLED_FINAL = "Cancelled by parent"
+
+
+async def _apply_supervisor_guidance(
+    agent: Any,
+    messages: list[dict[str, Any]],
+    *,
+    conversation_id: str,
+) -> tuple[list[dict[str, Any]], dict[str, Any], bool]:
+    """Inject runtime supervisor guidance into a child ReAct turn."""
+    if not _is_subagent_agent(agent):
+        return messages, {}, False
+    try:
+        from core.subagents.supervisor import (
+            collect_subagent_guidance,
+            format_guidance_system_message,
+        )
+
+        texts, cancelled = await collect_subagent_guidance(agent)
+    except Exception:
+        logger.debug("sub-agent guidance drain failed", exc_info=True)
+        return messages, {}, False
+    if cancelled:
+        return messages, {}, True
+    gmsg = format_guidance_system_message(texts)
+    if not gmsg:
+        return messages, {}, False
+    updated = list(messages)
+    updated.append({"role": "system", "content": gmsg})
+    cb = getattr(agent, "_subagent_on_guidance", None)
+    if callable(cb):
+        try:
+            cb()
+        except Exception:
+            logger.debug("sub-agent guidance callback failed", exc_info=True)
+    return updated, {"messages": updated}, False
+
+
 async def _close_async_stream(stream: Any) -> None:
     """Best-effort close of an OpenAI/httpx streaming response."""
     for method_name in ("aclose", "close"):
@@ -197,6 +235,87 @@ def _is_reasoning_only_placeholder(text: str) -> bool:
         "без текстового ответа",
     )
     return any(m in lowered for m in markers)
+
+
+_SUBAGENT_EMPTY_RETRIES = 3
+
+
+def _is_subagent_agent(agent: Any) -> bool:
+    return bool(str(getattr(agent, "subagent_system_prompt", "") or "").strip()) if agent else False
+
+
+def _is_empty_subagent_final(text: str | None) -> bool:
+    from core.llm.completion import is_blank_final_text
+
+    raw = text or ""
+    if is_blank_final_text(raw) or _is_reasoning_only_placeholder(raw):
+        return True
+    lowered = raw.strip().lower()
+    return "agent completed without producing a final response" in lowered
+
+
+def _empty_final_retry_count(messages: list[dict[str, Any]]) -> int:
+    from core.llm.completion import EMPTY_FINAL_CONTINUE
+
+    n = 0
+    for msg in messages:
+        if (
+            isinstance(msg, dict)
+            and msg.get("role") == "system"
+            and (msg.get("content") or "") == EMPTY_FINAL_CONTINUE
+        ):
+            n += 1
+    return n
+
+
+def _maybe_subagent_empty_retry(
+    *,
+    agent: Any,
+    conversation_id: str,
+    messages: list[dict[str, Any]],
+    step_count: int,
+    final_response: str,
+) -> dict[str, Any] | None:
+    """Keep a child ReAct turn open when the model returned an empty final."""
+    if not _is_subagent_agent(agent) or not _is_empty_subagent_final(final_response):
+        return None
+    retries = _empty_final_retry_count(messages) + 1
+    if retries > _SUBAGENT_EMPTY_RETRIES:
+        return {
+            "messages": messages,
+            "step_count": step_count,
+            "is_final": True,
+            "final_response": "",
+            "tool_calls": [],
+        }
+    from core.llm.completion import EMPTY_FINAL_CONTINUE
+
+    if agent and hasattr(agent, "emit"):
+        from core.agent_events import ThinkingEvent
+
+        agent.emit(
+            ThinkingEvent(
+                message=f"Empty model reply — continue {retries}/{_SUBAGENT_EMPTY_RETRIES}",
+                conversation_id=conversation_id,
+            )
+        )
+    updated = list(messages)
+    last = updated[-1] if updated else None
+    if not (
+        isinstance(last, dict)
+        and last.get("role") == "assistant"
+        and not (last.get("content") or "").strip()
+        and not last.get("tool_calls")
+    ):
+        updated.append({"role": "assistant", "content": (final_response or "").strip()})
+    updated.append({"role": "system", "content": EMPTY_FINAL_CONTINUE})
+    return {
+        "messages": updated,
+        "step_count": step_count,
+        "is_final": False,
+        "final_response": "",
+        "tool_calls": [],
+    }
 
 
 async def _plan_step_result(
@@ -460,6 +579,23 @@ async def react_node(state: HolixGraphState, config: RunnableConfig) -> dict:
     # Auto-compress before each LLM step (tool-heavy runs can skip compress between react hops)
     messages = list(state.get("messages", []))
     messages, messages_patch = await _compress_messages_if_needed(agent, conversation_id, messages)
+    messages, guidance_patch, cancelled = await _apply_supervisor_guidance(
+        agent,
+        messages,
+        conversation_id=conversation_id,
+    )
+    if guidance_patch:
+        messages_patch = {**messages_patch, **guidance_patch}
+    if cancelled:
+        return _merge_state_patch(
+            {
+                "step_count": step_count,
+                "is_final": True,
+                "final_response": SUBAGENT_CANCELLED_FINAL,
+                "messages": messages,
+            },
+            messages_patch,
+        )
 
     # Build API messages
     if agent and hasattr(agent, "context_manager") and agent.context_manager:
@@ -823,6 +959,16 @@ async def _react_non_streaming(
             profile_name=profile_name,
             agent_pipeline=_agent_pipeline(state, agent),
         )
+        empty_retry = _maybe_subagent_empty_retry(
+            agent=agent,
+            conversation_id=conversation_id,
+            messages=messages,
+            step_count=step_count,
+            final_response=final_response,
+        )
+        if empty_retry is not None:
+            return empty_retry
+
         # Reasoning-only / empty: keep plan steps open; for free chat still finish
         # with a clear message only after we have nothing else to try.
         if plan_step_active(state) and not (final_response or "").strip():
@@ -1494,6 +1640,15 @@ async def _react_streaming(
             llm_timeout_s=min(45.0, llm_timeout_s),
             max_tokens=max_tokens,
         )
+    empty_retry = _maybe_subagent_empty_retry(
+        agent=agent,
+        conversation_id=str(state.get("conversation_id") or ""),
+        messages=list(state.get("messages", [])),
+        step_count=step_count,
+        final_response=final_response,
+    )
+    if empty_retry is not None:
+        return empty_retry
     final_response = _non_empty_final(final_response)
     messages = list(state.get("messages", []))
     messages.append({"role": "assistant", "content": final_response})
@@ -1625,6 +1780,16 @@ def _build_system_prompt_from_state(state: HolixGraphState, agent=None) -> str:
 
     profile_name = profile_name_from_agent(agent) if agent else "default"
     agent_config = getattr(agent, "config", None) if agent else None
+    sub_prompt = str(getattr(agent, "subagent_system_prompt", "") or "").strip() if agent else ""
+    if sub_prompt:
+        parts = [sub_prompt]
+        if tools_desc:
+            parts.append("## Available tool schemas\n" + tools_desc)
+        if skills_formatted:
+            parts.append("## Relevant skills\n" + skills_formatted)
+        if combined_memories:
+            parts.append(str(combined_memories).strip())
+        return "\n\n".join(parts)
     persona_name = getattr(agent, "studio_agent_type", None) if agent else None
     persona_prompt = getattr(agent, "studio_persona_prompt", None) if agent else None
     if persona_name in (None, "", "main"):

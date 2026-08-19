@@ -58,6 +58,11 @@ class HolixRuntimeConfig:
     subagent_process_timeout: float
     subagent_heartbeat_interval: float
     subagent_supervisor_enabled: bool
+    subagent_supervisor_poll_s: float
+    subagent_supervisor_idle_s: float
+    subagent_supervisor_max_interventions: int
+    subagent_supervisor_cooldown_s: float
+    subagent_supervisor_loop_cooldown_s: float
 
     # Meta-agent / refinement / evolution
     enable_meta_agent: bool
@@ -170,6 +175,19 @@ class HolixRuntimeConfig:
             subagent_process_timeout=s.subagent_process_timeout,
             subagent_heartbeat_interval=s.subagent_heartbeat_interval,
             subagent_supervisor_enabled=bool(getattr(s, "subagent_supervisor_enabled", True)),
+            subagent_supervisor_poll_s=float(getattr(s, "subagent_supervisor_poll_s", 4.0) or 4.0),
+            subagent_supervisor_idle_s=float(
+                getattr(s, "subagent_supervisor_idle_s", 300.0) or 300.0
+            ),
+            subagent_supervisor_max_interventions=int(
+                getattr(s, "subagent_supervisor_max_interventions", 3) or 3
+            ),
+            subagent_supervisor_cooldown_s=float(
+                getattr(s, "subagent_supervisor_cooldown_s", 45.0) or 45.0
+            ),
+            subagent_supervisor_loop_cooldown_s=float(
+                getattr(s, "subagent_supervisor_loop_cooldown_s", 8.0) or 8.0
+            ),
             enable_meta_agent=s.enable_meta_agent,
             enable_self_refinement=s.enable_self_refinement,
             max_refinement_iterations=s.max_refinement_iterations,
@@ -267,6 +285,16 @@ class HolixRuntimeConfig:
             overrides["subagent_max_concurrent"] = profile.subagent_max_concurrent
         if getattr(profile, "subagent_supervisor_enabled", None) is not None:
             overrides["subagent_supervisor_enabled"] = bool(profile.subagent_supervisor_enabled)
+        for _sk in (
+            "subagent_supervisor_poll_s",
+            "subagent_supervisor_idle_s",
+            "subagent_supervisor_max_interventions",
+            "subagent_supervisor_cooldown_s",
+            "subagent_supervisor_loop_cooldown_s",
+        ):
+            _sv = getattr(profile, _sk, None)
+            if _sv is not None:
+                overrides[_sk] = _sv
         if getattr(profile, "enable_meta_agent", None) is not None:
             overrides["enable_meta_agent"] = bool(profile.enable_meta_agent)
         if getattr(profile, "enable_self_refinement", None) is not None:

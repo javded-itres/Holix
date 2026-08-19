@@ -29,7 +29,7 @@ from core.runtime.write_signals import noop_write_loop
 logger = logging.getLogger(__name__)
 
 DEFAULT_POLL_S = 4.0
-DEFAULT_IDLE_S = 90.0
+DEFAULT_IDLE_S = 300.0
 DEFAULT_MAX_INTERVENTIONS = 3
 DEFAULT_COOLDOWN_S = 45.0
 DEFAULT_LOOP_COOLDOWN_S = 8.0
@@ -116,7 +116,33 @@ class Diagnosis:
 
     @property
     def needs_intervention(self) -> bool:
-        return self.kind in {"loop", "thrash", "hung", "stall", "launch", "tests_green"}
+        return self.kind in {
+            "loop",
+            "thrash",
+            "hung",
+            "stall",
+            "launch",
+            "tests_green",
+            "empty_reply",
+        }
+
+
+def _activity_message(item: Any) -> str:
+    if isinstance(item, dict):
+        return str(item.get("message") or "")
+    return str(getattr(item, "message", "") or "")
+
+
+def _activity_looks_empty(handle: Any) -> bool:
+    """True when the runner just recorded an empty model reply."""
+    log = getattr(handle, "activity_log", None) or []
+    for item in reversed(list(log)[-8:]):
+        low = _activity_message(item).lower()
+        if "empty model reply" in low or (
+            "empty llm" in low and ("retry" in low or "response" in low)
+        ):
+            return True
+    return False
 
 
 def _activity_tool_traces(handle: Any, *, lookback: int = 12) -> list[dict[str, Any]]:
@@ -270,20 +296,47 @@ def _result_excerpt(result: str, limit: int = 360) -> str:
     return text[: max(0, limit - 1)] + "…"
 
 
+def _ui_locale(source: Any = None) -> str:
+    """Studio / Holix UI locale for human-facing supervisor questions."""
+    from core.i18n.locale import LocaleStore, normalize_locale
+
+    profile = ""
+    if isinstance(source, str):
+        profile = source.strip()
+    elif source is not None:
+        parent = getattr(source, "_parent", None)
+        cfg = getattr(parent, "config", None) if parent is not None else None
+        if cfg is None:
+            cfg = getattr(source, "config", None)
+        raw = getattr(cfg, "profile_name", None) if cfg is not None else None
+        if isinstance(raw, str):
+            profile = raw.strip()
+    if not profile:
+        return "en"
+    try:
+        return normalize_locale(LocaleStore(profile).get())
+    except Exception:
+        return "ru"
+
+
 def format_human_loop_question(
     base: str,
     *,
     details: str = "",
     last_result: str = "",
+    locale: str | None = None,
 ) -> str:
     """Question the human sees: what is stuck, which call, last result."""
+    from core.i18n import t
+
+    loc = locale or "en"
     parts = [str(base or "").strip()]
     target = _loop_target(details)
     if target:
-        parts.append(f"Repeating: {target}")
+        parts.append(t("supervisor.repeating", loc, target=target))
     excerpt = _result_excerpt(last_result)
     if excerpt:
-        parts.append(f"Last result: {excerpt}")
+        parts.append(t("supervisor.last_result", loc, result=excerpt))
     return "\n".join(p for p in parts if p)
 
 
@@ -295,22 +348,26 @@ def format_human_loop_context(
     last_result: str = "",
     next_move: str = "",
     known: str = "",
+    locale: str | None = None,
 ) -> str:
     """Structured evidence for the ask_user dialog (not raw supervisor guidance)."""
+    from core.i18n import t
+
+    loc = locale or "en"
     lines = [
-        f"What is stuck: {problem}",
-        f"Tool: {tool}",
+        t("supervisor.stuck", loc, problem=problem),
+        t("supervisor.tool", loc, tool=tool),
     ]
     target = _loop_target(details)
     if target:
-        lines.append(f"Repeating: {target}")
+        lines.append(t("supervisor.repeating", loc, target=target))
     if known:
-        lines.append(f"Already known: {known}")
+        lines.append(t("supervisor.known", loc, known=known))
     excerpt = _result_excerpt(last_result, 480)
     if excerpt:
-        lines.append(f"Last tool result: {excerpt}")
+        lines.append(t("supervisor.last_tool_result", loc, result=excerpt))
     if next_move:
-        lines.append(f"What the supervisor already asked the agent to do: {next_move}")
+        lines.append(t("supervisor.asked_agent", loc, next=next_move))
     return "\n".join(lines)
 
 
@@ -373,8 +430,12 @@ def diagnose_loop_fix(
     available_tools: list[str] | None = None,
     inspect_loop: bool = False,
     noop_write_loop: bool = False,
+    locale: str | None = None,
 ) -> dict[str, str]:
     """What is stuck, what is already known, and what to fix next."""
+    from core.i18n import t
+
+    loc = locale or "en"
     tool_l = (tool or "tool").strip() or "tool"
     blob = (details or "").lower()
     target = _loop_target(details)
@@ -383,41 +444,31 @@ def diagnose_loop_fix(
     read = _prefer_tool(available, "read_file", "grep", "glob", "list_directory")
     write = _prefer_tool(available, "write_file", "delete_file")
     search = _prefer_tool(available, "grep", "glob", "read_file")
-    ask = _prefer_tool(available, "ask_user") or "ask_user"
 
     if inspect_loop or (
         tool_l in {"terminal", "run_terminal_command"}
         and any(x in blob for x in ("inspect.", "python -c", "__init__", "protocol"))
     ):
         return {
-            "problem": "library introspection via terminal",
-            "known": "inspect/python -c on third-party packages will not write the project.",
+            "problem": t("supervisor.p.inspect", loc),
+            "known": t("supervisor.k.inspect", loc),
             "next_move": (
                 f"stop inspect.getsource / python -c. Write the app with "
                 f"{write or 'write_file'} (or {read or 'read_file'} a local file you will edit). "
                 "Do not introspect another library method"
             ),
-            "user_question": (
-                "The coder is stuck inspecting libraries instead of writing files"
-                f"{target_s}. "
-                "Should it implement from known FastAPI/Dishka APIs, skip this step, "
-                "or do you want a different approach?"
-            ),
+            "user_question": t("supervisor.q.inspect", loc, target=target_s),
         }
 
     if noop_write_loop or (tool_l == "write_file" and "no content changes" in blob):
         return {
-            "problem": "rewriting files that already match disk",
-            "known": "write_file already reported no content changes.",
+            "problem": t("supervisor.p.noop_write", loc),
+            "known": t("supervisor.k.noop_write", loc),
             "next_move": (
                 "STOP rewriting those paths. Run pytest once if you have not, "
                 "then the next message must be the final answer with NO tool calls"
             ),
-            "user_question": (
-                "The coder keeps rewriting files that already match disk"
-                f"{target_s}. "
-                "Should it stop and finalize, run tests once, or change a specific file?"
-            ),
+            "user_question": t("supervisor.q.noop_write", loc, target=target_s),
         }
 
     if tool_l in {"terminal", "run_terminal_command"}:
@@ -431,134 +482,104 @@ def diagnose_loop_fix(
                 "check_background_process",
             )
             return {
-                "problem": "starting a long-running server in the foreground terminal",
-                "known": "foreground uvicorn/npm/etc. blocks the agent and is not how Studio tracks processes.",
+                "problem": t("supervisor.p.launch", loc),
+                "known": t("supervisor.k.launch", loc),
                 "next_move": (
                     f"use {bg or 'start_background_process'} with the same command, "
                     "then check_background_process. Do not use &, nohup, or python -m *.main in terminal"
                 ),
-                "user_question": (
-                    "The coder keeps launching the server in terminal instead of "
-                    f"start_background_process{target_s}. "
-                    "Should it switch to the background tool, skip the server, or stop?"
-                ),
+                "user_question": t("supervisor.q.launch", loc, target=target_s),
             }
         if _looks_like_venv_package_hunt(details):
             absence = (
-                "The venv listing already shows those packages are not installed. "
-                "Repeating ls/grep will not install them."
+                t("supervisor.k.venv_absent", loc)
                 if _looks_like_absence_result(last_result) or "grep" in blob
-                else "Hunting site-packages does not implement the task."
+                else t("supervisor.k.venv", loc)
             )
             return {
-                "problem": "searching the virtualenv for missing packages",
+                "problem": t("supervisor.p.venv", loc),
                 "known": absence,
                 "next_move": (
                     f"do not ls/grep site-packages again. If you need a package, "
                     f"`uv add <name>` once; otherwise {write or 'write_file'} the app "
                     f"and run pytest. Searching .venv is not a fix"
                 ),
-                "user_question": (
-                    f"The coder is looping on `ls/grep` inside .venv{target_s}. "
-                    "Those packages are not installed. Should it implement without them, "
-                    "`uv add` a specific package, or stop and wait for you?"
-                ),
+                "user_question": t("supervisor.q.venv", loc, target=target_s),
             }
         if any(x in blob for x in ("pip install", "uv add", "uv sync")):
             return {
-                "problem": "repeating a package-install command",
-                "known": "the install command already ran; retrying it is not progress.",
+                "problem": t("supervisor.p.install", loc),
+                "known": t("supervisor.k.install", loc),
                 "next_move": (
                     f"stop re-running the installer; {read or 'read_file'} the project "
                     "and continue implementation or run tests once"
                 ),
-                "user_question": (
-                    f"The coder is retrying the same install command{target_s}. "
-                    "Should it continue with current deps, install a named package, or stop?"
-                ),
+                "user_question": t("supervisor.q.install", loc, target=target_s),
             }
         return {
-            "problem": f"repeating the same `{tool_l}` command",
+            "problem": t("supervisor.p.terminal", loc, tool=tool_l),
             "known": (
-                "The last command already returned an answer (including empty / not found)."
+                t("supervisor.k.terminal_result", loc)
                 if last_result
-                else "Repeating the same shell command will not change the result."
+                else t("supervisor.k.terminal", loc)
             ),
             "next_move": (
                 f"do not re-run this terminal command. {read or 'read_file'} / "
                 f"{search or 'grep'} project source, then {write or 'write_file'} "
                 "the fix or write the final answer"
             ),
-            "user_question": (
-                f"The coder is repeating the same terminal command{target_s}. "
-                "What should it do instead (which file to edit, which command, or stop)?"
-            ),
+            "user_question": t("supervisor.q.terminal", loc, target=target_s),
         }
 
     if tool_l == "read_file":
         return {
-            "problem": "re-reading the same file",
-            "known": "you already have this file contents.",
+            "problem": t("supervisor.p.read", loc),
+            "known": t("supervisor.k.read", loc),
             "next_move": (
                 f"next {write or 'write_file'} a change or {search or 'grep'} a "
                 "different path — do not re-read the same file"
             ),
-            "user_question": (
-                f"The coder keeps re-reading the same file{target_s}. "
-                "Which change should it make, or should it stop?"
-            ),
+            "user_question": t("supervisor.q.read", loc, target=target_s),
         }
     if tool_l in {"grep", "glob"}:
         return {
-            "problem": "repeating the same search",
-            "known": "the search already returned its hits (or none).",
+            "problem": t("supervisor.p.search", loc),
+            "known": t("supervisor.k.search", loc),
             "next_move": (
                 f"open one hit with {read or 'read_file'}, then {write or 'write_file'} "
                 "or answer; do not repeat the same search"
             ),
-            "user_question": (
-                f"The coder is stuck repeating grep/glob{target_s}. "
-                "Which path should it open, or should it stop searching?"
-            ),
+            "user_question": t("supervisor.q.search", loc, target=target_s),
         }
     if tool_l == "write_file":
         return {
-            "problem": "rewriting the same file",
-            "known": "another rewrite of the same path is not new work.",
+            "problem": t("supervisor.p.write", loc),
+            "known": t("supervisor.k.write", loc),
             "next_move": (
                 f"stop rewriting the same file; {read or 'read_file'} to verify or "
                 "move to the next deliverable / final answer"
             ),
-            "user_question": (
-                f"The coder keeps rewriting the same file{target_s}. "
-                "Should it finalize, edit a different file, or stop?"
-            ),
+            "user_question": t("supervisor.q.write", loc, target=target_s),
         }
     if tool_l in {"web_search", "web_fetch"}:
         return {
-            "problem": "repeating the same web search/fetch",
-            "known": "you already have that page/query result.",
+            "problem": t("supervisor.p.web", loc),
+            "known": t("supervisor.k.web", loc),
             "next_move": (
                 "use a different query/URL once, then write the answer from evidence "
                 "you already have — do not repeat the same fetch/search"
             ),
-            "user_question": (
-                f"The coder is looping on web_search/web_fetch{target_s}. "
-                "Should it write from current evidence, try a specific URL, or stop?"
-            ),
+            "user_question": t("supervisor.q.web", loc, target=target_s),
         }
     return {
-        "problem": f"repeating `{tool_l}`",
-        "known": "the same tool call will not produce new information.",
+        "problem": t("supervisor.p.generic", loc, tool=tool_l),
+        "known": t("supervisor.k.generic", loc),
         "next_move": (
             f"call a different tool or different arguments "
             f"({read or 'read_file'} / {write or 'write_file'}), "
             "or produce a partial final result"
         ),
-        "user_question": (
-            f"The coder is looping on `{tool_l}`{target_s}. "
-            f"What should it do next, or should it stop? (You can reply via {ask}.)"
-        ),
+        "user_question": t("supervisor.q.generic", loc, tool=tool_l, target=target_s),
     }
 
 
@@ -625,6 +646,7 @@ def assess_handle(
     *,
     policy: SupervisorPolicy | None = None,
     now: float | None = None,
+    locale: str | None = None,
 ) -> Diagnosis:
     """Classify sub-agent health from live handle state."""
     pol = policy or SupervisorPolicy()
@@ -749,6 +771,7 @@ def assess_handle(
             available_tools=available,
             inspect_loop=inspect_hit,
             noop_write_loop=noop_write_hit,
+            locale=locale,
         )
         return Diagnosis(
             kind="loop",
@@ -777,6 +800,7 @@ def assess_handle(
                     fix["user_question"],
                     details=details,
                     last_result=last_result,
+                    locale=locale,
                 ),
                 "user_context": format_human_loop_context(
                     problem=fix["problem"],
@@ -785,6 +809,7 @@ def assess_handle(
                     last_result=last_result,
                     next_move=fix["next_move"],
                     known=fix["known"],
+                    locale=locale,
                 ),
             },
         )
@@ -802,6 +827,17 @@ def assess_handle(
                 "same failing call."
             ),
             signals=signals,
+        )
+
+    if _activity_looks_empty(handle):
+        from core.llm.completion import EMPTY_FINAL_CONTINUE
+
+        return Diagnosis(
+            kind="empty_reply",
+            severity="critical",
+            summary="empty model reply is not a finished step",
+            guidance=EMPTY_FINAL_CONTINUE,
+            signals={**signals, "empty_reply": True},
         )
 
     if not actively:
@@ -874,6 +910,9 @@ class SubagentSupervisor:
     def is_running(self) -> bool:
         return self._task is not None and not self._task.done()
 
+    def _locale(self) -> str:
+        return _ui_locale(self._manager)
+
     def ensure_running(self) -> None:
         if not self._policy.enabled:
             return
@@ -933,6 +972,16 @@ class SubagentSupervisor:
             logger.info("SubagentSupervisor stopped")
 
     async def _tick(self) -> None:
+        try:
+            from core.subagents.runtime_registry import take_cancel_requests
+
+            owner, _src = self._manager._runtime_meta()
+            for cancel_name in take_cancel_requests(self._manager._profile_name(), owner):
+                term = getattr(self._manager, "terminate", None)
+                if callable(term):
+                    await term(cancel_name)
+        except Exception:
+            logger.debug("supervisor cancel-file drain failed", exc_info=True)
         handles = getattr(self._manager, "_handles", None) or {}
         running = [
             h
@@ -951,7 +1000,7 @@ class SubagentSupervisor:
             return
         if name in self._escalating:
             return
-        diagnosis = assess_handle(handle, policy=self._policy)
+        diagnosis = assess_handle(handle, policy=self._policy, locale=self._locale())
         if not diagnosis.needs_intervention:
             return
 
@@ -990,6 +1039,12 @@ class SubagentSupervisor:
                 )
                 if fatal:
                     if name in self._escalated:
+                        last = float(self._last_intervene_at.get(name, 0.0))
+                        grace = max(float(self._policy.loop_cooldown_s), 20.0)
+                        # Human just answered — do not kill on the next poll.
+                        if last and (time.monotonic() - last) < grace:
+                            self._last_kind[name] = "user_reply"
+                            return
                         await self._stop_loop(handle, diagnosis)
                     else:
                         asyncio.create_task(
@@ -1005,6 +1060,9 @@ class SubagentSupervisor:
             if diagnosis.kind in {"loop", "launch", "tests_green"}
             else self._policy.cooldown_s
         )
+        # One slow LLM call (qwen reasoning) must not stack 3× hung nudges.
+        if diagnosis.kind == "hung":
+            cooldown = max(cooldown, float(self._policy.idle_s))
         if last and (now - last) < cooldown:
             return
 
@@ -1114,9 +1172,14 @@ class SubagentSupervisor:
         if not name or name in self._escalating:
             return
         self._escalating.add(name)
-        question = str(diagnosis.signals.get("user_question") or "").strip() or (
-            f"Sub-agent `{name}` is stuck in a tool loop ({diagnosis.summary}). "
-            "What should it do next, or should it stop?"
+        from core.i18n import t
+
+        loc = self._locale()
+        question = str(diagnosis.signals.get("user_question") or "").strip() or t(
+            "supervisor.fallback_q",
+            loc,
+            name=name,
+            summary=diagnosis.summary,
         )
         interactions = getattr(self._manager, "interactions", None)
         ask = getattr(interactions, "ask_user", None)
@@ -1148,6 +1211,7 @@ class SubagentSupervisor:
                     details=str(diagnosis.signals.get("loop_details") or ""),
                     last_result=str(diagnosis.signals.get("last_result") or ""),
                     next_move=diagnosis.guidance,
+                    locale=loc,
                 )
             answer = await ask(
                 name,
@@ -1168,8 +1232,10 @@ class SubagentSupervisor:
             await self._stop_loop(handle, diagnosis)
             return
 
-        self._interventions[name] = max(0, int(self._policy.max_interventions) - 1)
+        # Fresh budget + cooldown so the reply can actually change the next tool.
+        self._interventions[name] = 0
         self._last_kind[name] = "user_reply"
+        self._last_intervene_at[name] = time.monotonic()
         reply = Diagnosis(
             kind="loop",
             severity="warning",
@@ -1265,6 +1331,56 @@ class SubagentSupervisor:
             )
         except Exception:
             logger.debug("supervisor emit failed", exc_info=True)
+
+
+def drain_guidance_from_input_queue(
+    input_queue: Any,
+    *,
+    max_messages: int = 8,
+) -> tuple[list[str], bool]:
+    """Drain process-mode supervisor inbox (guidance/revise + cancel)."""
+    texts: list[str] = []
+    cancelled = False
+    if input_queue is None:
+        return texts, cancelled
+    from core.subagents.communication import AgentMessage
+
+    for _ in range(max_messages):
+        try:
+            data = input_queue.get_nowait()
+        except Exception:
+            break
+        try:
+            msg = data if isinstance(data, AgentMessage) else AgentMessage.deserialize(data)
+        except Exception:
+            continue
+        kind = str(getattr(msg, "msg_type", "") or "")
+        if kind == "cancel":
+            cancelled = True
+            continue
+        if kind in {"guidance", "revise"}:
+            content = str(getattr(msg, "content", "") or "").strip()
+            if content:
+                texts.append(content)
+    return texts, cancelled
+
+
+async def collect_subagent_guidance(agent: Any) -> tuple[list[str], bool]:
+    """Drain supervisor inbox attached to a child HolixAgent."""
+    texts: list[str] = []
+    cancelled = False
+    if agent is None:
+        return texts, cancelled
+    name = str(getattr(agent, "_subagent_name", "") or "").strip()
+    receive = getattr(agent, "_subagent_guidance_receive", None)
+    if callable(receive) and name:
+        texts.extend(await drain_guidance_messages(receive, name))
+    queue = getattr(agent, "_subagent_input_queue", None)
+    if queue is not None:
+        q_texts, q_cancel = drain_guidance_from_input_queue(queue)
+        texts.extend(q_texts)
+        cancelled = cancelled or q_cancel
+    return texts, cancelled
 
 
 async def drain_guidance_messages(

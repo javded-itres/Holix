@@ -45,8 +45,7 @@ MESSAGES: dict[str, dict[str, str]] = {
         "tg.subagents_off": "Off",
         "tg.subagents_picker_title": "Sub-agents",
         "tg.subagents_picker_body": (
-            "When off, the main agent cannot delegate work "
-            "(delegate_to_subagent / plan waves)."
+            "When off, the main agent cannot delegate work (delegate_to_subagent / plan waves)."
         ),
         "tg.reflexion": "Reflexion: {state}",
         "tg.reflexion_on": "Reflexion On",
@@ -282,10 +281,7 @@ MESSAGES: dict[str, dict[str, str]] = {
             "Treat it as the project root for this onboarding. "
             "Do not scan sibling directories unless needed for context."
         ),
-        "init.busy": (
-            "Agent is busy with a previous request. "
-            "Wait for the reply or send /stop."
-        ),
+        "init.busy": ("Agent is busy with a previous request. Wait for the reply or send /stop."),
         "init.not_ready": "Agent not ready. Configure a model first (holix models add).",
         "init.large_hint": (
             "This is a **large repository**. Follow the read budget strictly — "
@@ -439,8 +435,7 @@ When finished, confirm the absolute path written and give a 5–10 line summary 
         "work_status.action_unknown": "(no recent assistant reply)",
         "work_status.subagents_disabled": "**Sub-agents:** disabled in profile",
         "work_status.subagents_empty": (
-            "**Sub-agents:** none running.\n"
-            "To start one: `/subagent-spawn coder <task>`"
+            "**Sub-agents:** none running.\nTo start one: `/subagent-spawn coder <task>`"
         ),
         "work_status.subagents_header": "**Sub-agents:** {total} total (running: {running})",
         "work_status.subagent_line": "• `{name}` — {status}{preview}",
@@ -470,7 +465,6 @@ When finished, confirm the absolute path written and give a 5–10 line summary 
         "live.plan.phase_save": "📋 Saving draft plan ({steps} steps) for your review…",
         "live.plan.phase_ready": "📋 Plan ready: {steps} steps — waiting for your approval",
         "live.plan.phase_waiting_review": "⏸ Waiting for you to approve or refine the plan ({steps} steps)…",
-
         "plan.title": "📋 Execution Plan — {count} steps",
         "plan.task_label": "Task:",
         "plan.analysis": "📊 Analysis",
@@ -546,6 +540,97 @@ When finished, confirm the absolute path written and give a 5–10 line summary 
         "plan.report.stack_fixes": "Critical architectural fixes (vs original spec)",
         "studio.wait_for_run": "Wait for the reply or press Stop.",
         "studio.timeout": "Execution timed out. Try again or use /models.",
+        "supervisor.repeating": "Repeating: {target}",
+        "supervisor.last_result": "Last result: {result}",
+        "supervisor.stuck": "What is stuck: {problem}",
+        "supervisor.tool": "Tool: {tool}",
+        "supervisor.known": "Already known: {known}",
+        "supervisor.last_tool_result": "Last tool result: {result}",
+        "supervisor.asked_agent": "What the supervisor already asked the agent to do: {next}",
+        "supervisor.fallback_q": (
+            "Sub-agent `{name}` is stuck in a tool loop ({summary}). "
+            "What should it do next, or should it stop?"
+        ),
+        "supervisor.q.inspect": (
+            "The coder is stuck inspecting libraries instead of writing files{target}. "
+            "Should it implement from known FastAPI/Dishka APIs, skip this step, "
+            "or do you want a different approach?"
+        ),
+        "supervisor.q.noop_write": (
+            "The coder keeps rewriting files that already match disk{target}. "
+            "Should it stop and finalize, run tests once, or change a specific file?"
+        ),
+        "supervisor.q.launch": (
+            "The coder keeps launching the server in terminal instead of "
+            "start_background_process{target}. "
+            "Should it switch to the background tool, skip the server, or stop?"
+        ),
+        "supervisor.q.venv": (
+            "The coder is looping on `ls/grep` inside .venv{target}. "
+            "Those packages are not installed. Should it implement without them, "
+            "`uv add` a specific package, or stop and wait for you?"
+        ),
+        "supervisor.q.install": (
+            "The coder is retrying the same install command{target}. "
+            "Should it continue with current deps, install a named package, or stop?"
+        ),
+        "supervisor.q.terminal": (
+            "The coder is repeating the same terminal command{target}. "
+            "What should it do instead (which file to edit, which command, or stop)?"
+        ),
+        "supervisor.q.read": (
+            "The coder keeps re-reading the same file{target}. "
+            "Which change should it make, or should it stop?"
+        ),
+        "supervisor.q.search": (
+            "The coder is stuck repeating grep/glob{target}. "
+            "Which path should it open, or should it stop searching?"
+        ),
+        "supervisor.q.write": (
+            "The coder keeps rewriting the same file{target}. "
+            "Should it finalize, edit a different file, or stop?"
+        ),
+        "supervisor.q.web": (
+            "The coder is looping on web_search/web_fetch{target}. "
+            "Should it write from current evidence, try a specific URL, or stop?"
+        ),
+        "supervisor.q.generic": (
+            "The coder is looping on `{tool}`{target}. What should it do next, or should it stop?"
+        ),
+        "supervisor.p.inspect": "library introspection via terminal",
+        "supervisor.p.noop_write": "rewriting files that already match disk",
+        "supervisor.p.launch": "starting a long-running server in the foreground terminal",
+        "supervisor.p.venv": "searching the virtualenv for missing packages",
+        "supervisor.p.install": "repeating a package-install command",
+        "supervisor.p.terminal": "repeating the same `{tool}` command",
+        "supervisor.p.read": "re-reading the same file",
+        "supervisor.p.search": "repeating the same search",
+        "supervisor.p.write": "rewriting the same file",
+        "supervisor.p.web": "repeating the same web search/fetch",
+        "supervisor.p.generic": "repeating `{tool}`",
+        "supervisor.k.inspect": "inspect/python -c on third-party packages will not write the project.",
+        "supervisor.k.noop_write": "write_file already reported no content changes.",
+        "supervisor.k.launch": "foreground uvicorn/npm/etc. blocks the agent and is not how Studio tracks processes.",
+        "supervisor.k.venv_absent": "The venv listing already shows those packages are not installed. Repeating ls/grep will not install them.",
+        "supervisor.k.venv": "Hunting site-packages does not implement the task.",
+        "supervisor.k.install": "the install command already ran; retrying it is not progress.",
+        "supervisor.k.terminal_result": "The last command already returned an answer (including empty / not found).",
+        "supervisor.k.terminal": "Repeating the same shell command will not change the result.",
+        "supervisor.k.read": "you already have this file contents.",
+        "supervisor.k.search": "the search already returned its hits (or none).",
+        "supervisor.k.write": "another rewrite of the same path is not new work.",
+        "supervisor.k.web": "you already have that page/query result.",
+        "supervisor.k.generic": "the same tool call will not produce new information.",
+        "skill.notice.pending": "New skill proposed: {name}",
+        "skill.notice.auto": "New skill auto-accepted: {name}",
+        "skill.notice.score": "Quality {score}/100 · {tier} — {hint}",
+        "skill.notice.actions": "Approve or reject below, or open Settings → Skills.",
+        "skill.btn.approve": "Approve",
+        "skill.btn.reject": "Reject",
+        "skill.cb.approved": "Skill approved",
+        "skill.cb.rejected": "Skill rejected",
+        "skill.cb.missing": "Proposal not found (already decided?)",
+        "skill.cb.error": "Could not apply: {error}",
     },
     "ru": {
         "lang.current": "Язык интерфейса: {code}",
@@ -824,10 +909,7 @@ When finished, confirm the absolute path written and give a 5–10 line summary 
             "Считай его корнем проекта для этой инициализации. "
             "Не сканируй соседние каталоги, если они не нужны для контекста."
         ),
-        "init.busy": (
-            "Агент занят предыдущим запросом. "
-            "Дождитесь ответа или отправьте /stop."
-        ),
+        "init.busy": ("Агент занят предыдущим запросом. Дождитесь ответа или отправьте /stop."),
         "init.not_ready": "Агент не готов. Сначала настройте модель (holix models add).",
         "init.large_hint": (
             "Это **большой репозиторий**. Строго соблюдай лимит чтения — "
@@ -980,8 +1062,7 @@ When finished, confirm the absolute path written and give a 5–10 line summary 
         "work_status.action_unknown": "(не было недавнего ответа ассистента)",
         "work_status.subagents_disabled": "**Субагенты:** отключены в профиле",
         "work_status.subagents_empty": (
-            "**Субагенты:** сейчас нет запущенных.\n"
-            "Запуск: `/subagent-spawn coder <задача>`"
+            "**Субагенты:** сейчас нет запущенных.\nЗапуск: `/subagent-spawn coder <задача>`"
         ),
         "work_status.subagents_header": "**Субагенты:** всего {total} (в работе: {running})",
         "work_status.subagent_line": "• `{name}` — {status}{preview}",
@@ -1011,7 +1092,6 @@ When finished, confirm the absolute path written and give a 5–10 line summary 
         "live.plan.phase_save": "📋 Сохраняю черновик плана ({steps} шагов) для проверки…",
         "live.plan.phase_ready": "📋 План готов: {steps} шагов — жду вашего подтверждения",
         "live.plan.phase_waiting_review": "⏸ Жду, пока вы одобрите или уточните план ({steps} шагов)…",
-
         "plan.title": "📋 План выполнения — {count} шагов",
         "plan.task_label": "Задача:",
         "plan.analysis": "📊 Анализ",
@@ -1087,6 +1167,97 @@ When finished, confirm the absolute path written and give a 5–10 line summary 
         "plan.report.stack_fixes": "Критические архитектурные исправления (по сравнению с ТЗ)",
         "studio.wait_for_run": "Дождитесь ответа или нажмите Stop.",
         "studio.timeout": "Превышено время выполнения. Попробуйте ещё раз или /models.",
+        "supervisor.repeating": "Повтор: {target}",
+        "supervisor.last_result": "Последний результат: {result}",
+        "supervisor.stuck": "Что застряло: {problem}",
+        "supervisor.tool": "Инструмент: {tool}",
+        "supervisor.known": "Уже известно: {known}",
+        "supervisor.last_tool_result": "Последний результат инструмента: {result}",
+        "supervisor.asked_agent": "Что супервизор уже просил агента сделать: {next}",
+        "supervisor.fallback_q": (
+            "Субагент `{name}` зациклился на одном инструменте ({summary}). "
+            "Что ему делать дальше — или остановить?"
+        ),
+        "supervisor.q.inspect": (
+            "Кодер застрял на инспекции библиотек вместо того, чтобы писать файлы{target}. "
+            "Реализовать на известных API FastAPI/Dishka, пропустить шаг "
+            "или нужен другой подход?"
+        ),
+        "supervisor.q.noop_write": (
+            "Кодер снова перезаписывает файлы, которые уже совпадают с диском{target}. "
+            "Остановить и финализировать, один раз прогнать тесты или править конкретный файл?"
+        ),
+        "supervisor.q.launch": (
+            "Кодер снова поднимает сервер в terminal вместо "
+            "start_background_process{target}. "
+            "Переключить на фоновый инструмент, пропустить сервер или остановить?"
+        ),
+        "supervisor.q.venv": (
+            "Кодер крутит `ls/grep` внутри .venv{target}. "
+            "Этих пакетов нет. Реализовать без них, сделать `uv add` конкретного пакета "
+            "или остановиться и ждать вас?"
+        ),
+        "supervisor.q.install": (
+            "Кодер повторяет одну и ту же команду установки{target}. "
+            "Продолжить с текущими зависимостями, поставить названный пакет или остановить?"
+        ),
+        "supervisor.q.terminal": (
+            "Кодер повторяет одну и ту же команду terminal{target}. "
+            "Что сделать вместо этого (какой файл править, какую команду, или остановить)?"
+        ),
+        "supervisor.q.read": (
+            "Кодер снова читает один и тот же файл{target}. "
+            "Какое изменение сделать — или остановить?"
+        ),
+        "supervisor.q.search": (
+            "Кодер застрял на повторном grep/glob{target}. "
+            "Какой путь открыть — или прекратить поиск?"
+        ),
+        "supervisor.q.write": (
+            "Кодер снова перезаписывает один и тот же файл{target}. "
+            "Финализировать, править другой файл или остановить?"
+        ),
+        "supervisor.q.web": (
+            "Кодер крутит web_search/web_fetch{target}. "
+            "Писать по уже найденному, открыть конкретный URL или остановить?"
+        ),
+        "supervisor.q.generic": (
+            "Кодер зациклился на `{tool}`{target}. Что делать дальше — или остановить?"
+        ),
+        "supervisor.p.inspect": "инспекция библиотек через terminal",
+        "supervisor.p.noop_write": "перезапись файлов, которые уже совпадают с диском",
+        "supervisor.p.launch": "запуск долгоживущего сервера в обычном terminal",
+        "supervisor.p.venv": "поиск пакетов внутри виртуального окружения",
+        "supervisor.p.install": "повтор одной и той же команды установки",
+        "supervisor.p.terminal": "повтор одной и той же команды `{tool}`",
+        "supervisor.p.read": "повторное чтение одного и того же файла",
+        "supervisor.p.search": "повтор одного и того же поиска",
+        "supervisor.p.write": "повторная перезапись одного и того же файла",
+        "supervisor.p.web": "повтор одного и того же web_search/web_fetch",
+        "supervisor.p.generic": "повтор `{tool}`",
+        "supervisor.k.inspect": "inspect/python -c по сторонним пакетам не пишет проект.",
+        "supervisor.k.noop_write": "write_file уже ответил, что содержимое не изменилось.",
+        "supervisor.k.launch": "uvicorn/npm в foreground блокирует агента и не попадает в процессы Studio.",
+        "supervisor.k.venv_absent": "Список .venv уже показал, что этих пакетов нет. Повторный ls/grep их не установит.",
+        "supervisor.k.venv": "Поиск в site-packages не выполняет задачу.",
+        "supervisor.k.install": "команда установки уже выполнялась; повтор — не прогресс.",
+        "supervisor.k.terminal_result": "Последняя команда уже вернула ответ (включая пустой / not found).",
+        "supervisor.k.terminal": "Повтор той же shell-команды результат не изменит.",
+        "supervisor.k.read": "содержимое этого файла уже есть.",
+        "supervisor.k.search": "поиск уже вернул совпадения (или их нет).",
+        "supervisor.k.write": "ещё одна перезапись того же пути — не новая работа.",
+        "supervisor.k.web": "результат этой страницы/запроса уже есть.",
+        "supervisor.k.generic": "тот же вызов инструмента новой информации не даст.",
+        "skill.notice.pending": "Предложен новый skill: {name}",
+        "skill.notice.auto": "Новый skill принят автоматически: {name}",
+        "skill.notice.score": "Качество {score}/100 · {tier} — {hint}",
+        "skill.notice.actions": "Примите или отклоните кнопками ниже, либо откройте Настройки → Skills.",
+        "skill.btn.approve": "Принять",
+        "skill.btn.reject": "Отклонить",
+        "skill.cb.approved": "Skill принят",
+        "skill.cb.rejected": "Skill отклонён",
+        "skill.cb.missing": "Черновик не найден (уже решили?)",
+        "skill.cb.error": "Не удалось применить: {error}",
     },
 }
 

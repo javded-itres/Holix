@@ -38,7 +38,7 @@ WAIT_GRACE_S = 30.0
 WAIT_ACTIVE_IDLE_S = 90.0
 # Safety cap so a runaway job cannot extend forever.
 WAIT_MAX_EXTENSIONS = 20
-_DEFAULT_WAIT_TIMEOUT_S = 900.0
+_DEFAULT_WAIT_TIMEOUT_S = 3600.0
 
 
 def _process_spawn_should_fallback(exc: BaseException) -> bool:
@@ -797,7 +797,7 @@ class SubAgentManager:
             if probe is None:
                 return None
 
-        budget = float(timeout) if timeout is not None and timeout > 0 else 900.0
+        budget = float(timeout) if timeout is not None and timeout > 0 else _DEFAULT_WAIT_TIMEOUT_S
         deadline = asyncio.get_running_loop().time() + budget
         last = probe
         while True:

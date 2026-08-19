@@ -63,9 +63,7 @@ class SubAgentInteractionBridge:
         event_bus = getattr(self._parent, "events", None)
         if event_bus:
             parent_ctx = getattr(self._parent, "_event_context", None)
-            parent_cid = str(
-                getattr(parent_ctx, "conversation_id", None) or ""
-            ).strip()
+            parent_cid = str(getattr(parent_ctx, "conversation_id", None) or "").strip()
             event = ConfirmationRequestEvent(
                 confirmation_id=request_id,
                 tool_name=metadata.get("tool_name", ""),
@@ -109,22 +107,29 @@ class SubAgentInteractionBridge:
         self._pending_questions[request_id] = future
         if not hasattr(self, "_question_meta"):
             self._question_meta: dict[str, dict] = {}
+        parent_ctx = getattr(self._parent, "_event_context", None)
+        parent_cid = str(getattr(parent_ctx, "conversation_id", None) or "").strip()
         self._question_meta[request_id] = {
             "subagent_name": subagent_name,
             "question": question,
             "context": context,
+            "conversation_id": parent_cid,
         }
 
         event_bus = getattr(self._parent, "events", None)
         if event_bus:
-            event_bus.emit(
-                SubAgentQuestionEvent(
-                    request_id=request_id,
-                    subagent_name=subagent_name,
-                    question=question,
-                    context=context,
-                )
+            event = SubAgentQuestionEvent(
+                request_id=request_id,
+                subagent_name=subagent_name,
+                question=question,
+                context=context,
+                conversation_id=parent_cid or "default",
             )
+            emit = getattr(self._parent, "emit", None)
+            if callable(emit):
+                emit(event)
+            else:
+                event_bus.emit(event)
             q_preview = (question or "").replace("\n", " ").strip()
             if len(q_preview) > 240:
                 q_preview = q_preview[:239] + "…"

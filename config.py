@@ -106,7 +106,7 @@ class Settings(BaseSettings):
     enable_subagents: bool = True
     subagent_default_process_mode: str = "async"
     subagent_max_concurrent: int = 4
-    subagent_process_timeout: float = 900.0
+    subagent_process_timeout: float = 3600.0
     subagent_heartbeat_interval: float = 5.0
     # Runtime supervisor: watch stuck jobs and inject guidance (same job)
     subagent_supervisor_enabled: bool = Field(
@@ -123,7 +123,7 @@ class Settings(BaseSettings):
         description="Supervisor poll interval seconds",
     )
     subagent_supervisor_idle_s: float = Field(
-        default=90.0,
+        default=300.0,
         validation_alias=AliasChoices("HOLIX_SUBAGENT_SUPERVISOR_IDLE_S"),
         description="Seconds without activity before treating a job as hung",
     )

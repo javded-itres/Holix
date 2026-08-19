@@ -79,7 +79,7 @@ holix -p alice profile crypto status
 
 Delivered files (Telegram attachments) are materialized as plaintext before send when encryption is enabled.
 
-Full guide (OS policy, threat model, gateway unlock): [PROFILE_ENCRYPTION.md](PROFILE_ENCRYPTION.md).  
+Full guide (OS policy, threat model, gateway unlock): [PROFILE_ENCRYPTION.md](PROFILE_ENCRYPTION.md).
 See also [SECURITY.md](SECURITY.md#encryption-at-rest) and `holix profile crypto --help`.
 
 ## Workspace jail (optional)
@@ -161,7 +161,7 @@ See [.env.example](../../.env.example).
 | `HOLIX_LOG_BACKUP_COUNT` | `10` | Rotating backup files to keep |
 | `HOLIX_LOG_ROTATION_DAYS` | `14` | Purge backups older than N days |
 
-CLI: `holix logs debug on|off` persists to `logs/logging.json`.  
+CLI: `holix logs debug on|off` persists to `logs/logging.json`.
 Details: [LOGS.md](LOGS.md).
 
 ## Profile secrets
@@ -330,7 +330,7 @@ When `max_steps` is hit, Holix may grant more steps if the agent is still making
 | `enable_subagents` | `true` | Allow delegation / waves |
 | `subagent_default_process_mode` | `async` | `async` or `process` |
 | `subagent_max_concurrent` | `4` | Parallel jobs |
-| `subagent_process_timeout` | `900` | Wait / job budget (seconds) |
+| `subagent_process_timeout` | `3600` | Wait / job budget (seconds, 60 min) |
 | `HOLIX_SUBAGENT_SUPERVISOR_ENABLED` | `true` | Mid-job + graph rework supervisor |
 | `HOLIX_SUBAGENT_SUPERVISOR_POLL_S` | `4` | Runtime poll interval |
 | `HOLIX_SUBAGENT_SUPERVISOR_IDLE_S` | `90` | Hung threshold |
