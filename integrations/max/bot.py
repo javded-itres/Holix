@@ -347,9 +347,7 @@ class HelixMaxBot:
             return
         meta = user_meta_from_update(update)
         if not self._allowed(uid):
-            granted = await self._handle_unauthorized(
-                client, uid, meta=meta, is_start=True
-            )
+            granted = await self._handle_unauthorized(client, uid, meta=meta, is_start=True)
             if not granted:
                 return
             # billing auto-onboard already messaged user — still show help below
@@ -600,8 +598,7 @@ class HelixMaxBot:
         count = len(saved)
         await client.send_message(
             plain_to_max_html(
-                preview
-                + f"\n\nСохранено файлов: {count}. Напишите задачу "
+                preview + f"\n\nСохранено файлов: {count}. Напишите задачу "
                 "(можно добавить ещё файлы, затем одно сообщение с инструкцией)."
             ),
             fmt="html",
@@ -716,7 +713,24 @@ class HelixMaxBot:
         approvals = MaxApprovals(client, session)
         notification = ""
 
-        if payload.startswith("cfm:"):
+        if payload.startswith("sk:"):
+            parts = payload.split(":")
+            if len(parts) == 3 and parts[1] in {"a", "r"}:
+                from core.i18n.locale import LocaleStore
+                from core.skills.decisions import decide_skill_proposal
+
+                profile = getattr(session, "profile", None) or self.settings.profile
+                loc = LocaleStore(profile).get()
+                result = decide_skill_proposal(
+                    profile,
+                    parts[2],
+                    approve=parts[1] == "a",
+                    locale=loc,
+                )
+                notification = result.get("message") or ("✓" if result.get("ok") else "?")
+            else:
+                notification = "?"
+        elif payload.startswith("cfm:"):
             parts = payload.split(":", 2)
             if len(parts) == 3 and approvals.resolve_confirmation_callback(parts[1], parts[2]):
                 await approvals.dismiss_confirmation_ui()
