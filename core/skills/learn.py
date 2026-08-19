@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
@@ -9,7 +10,6 @@ from urllib.parse import urlparse
 import httpx
 
 from core.hub.normalize import slugify_skill_name
-from core.skills.paths import resolve_under
 from core.skills.proposal import SkillProposalStore
 from core.tools.browser.policy import validate_fetch_url
 
@@ -119,9 +119,13 @@ def stage_learn_proposal(
     if path:
         if not workspace_root:
             raise ValueError("path learn requires workspace_root")
-        raw = Path(path).expanduser()
-        candidate = raw if raw.is_absolute() else Path(workspace_root) / raw
-        root = resolve_under(workspace_root, candidate)
+        base = os.path.realpath(os.path.expanduser(str(workspace_root)))
+        raw = os.path.expanduser(str(path))
+        joined = raw if os.path.isabs(raw) else os.path.join(base, raw)
+        target = os.path.realpath(joined)
+        if target != base and not target.startswith(base + os.sep):
+            raise ValueError(f"path escapes {base}: {path}")
+        root = Path(target)
         blob = _read_path_blob(root)
         label = str(root)
         hint = hint or root.name
