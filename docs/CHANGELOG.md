@@ -2,10 +2,14 @@
 
 ## Unreleased
 
+## 1.0.12 — 2026-08-20
+
+`uv tool install "Holix[all]"` installs the latest release, and `holix --version` prints the package version.
+
 ### Fixed
 
+- **`Holix[all]` on PyPI** — drop unpublished `holix-extension-demo` from the `all` extra so the resolver no longer backtracks to 0.1.21.
 - **`holix --version` / `-V`** — print the installed package version and exit (no profile required). `holix version` still shows the panel.
-- **`Holix[all]` on PyPI** — drop unpublished `holix-extension-demo` from the `all` extra so `uv tool install "Holix[all]"` resolves to the latest release instead of backtracking to 0.1.21.
 
 ## 1.0.11 — 2026-08-19
 
