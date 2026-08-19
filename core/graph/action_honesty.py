@@ -215,6 +215,16 @@ MONOLOGUE_TOOL_NUDGE = (
     "First tool_calls, then answer from tool results only."
 )
 
+# After tools already ran: the model still only announces the next file it will write.
+UNFINISHED_STEP_NUDGE = (
+    "[Action honesty — unfinished] Your last message only announces the next work "
+    '("Let me start with…", «Начну с…», «сейчас создам все файлы») '
+    "and is not a finished result. That must not close the step. "
+    "Continue with tools now: write or patch the remaining files, run tests, "
+    "then report what actually exists on disk. "
+    "Do not end the turn with a plan of what you will do next."
+)
+
 # Shown when the model keeps monologuing after forced tool retries.
 MONOLOGUE_HONESTY_REFUSAL = (
     "Не удалось выполнить запрос: модель только описала, что «сделает» "
@@ -917,6 +927,43 @@ def looks_like_status_monologue(text: str | None) -> bool:
     return False
 
 
+_UNFINISHED_ANNOUNCE = re.compile(
+    r"(?is)("
+    r"let\s+me\s+(take\s+a\s+step\s+back|start|begin|first|"
+    r"now\s+(create|write|build|fix|implement))"
+    r"|let\s+me\s+start\s+with"
+    r"|take\s+a\s+step\s+back\s+and\s+(create|write|rebuild|implement)"
+    r"|create\s+all\s+the\s+files\s+properly"
+    r"|i('ll|\s+will)\s+(now\s+)?(create|write|build|start|begin|add|implement)\s+"
+    r"(all\s+)?(the\s+)?(files|models|routers|tests|app)"
+    r"|начн[уём]\s+с\b"
+    r"|сейчас\s+(создам|напишу|соберу|перепишу)\s+(все\s+)?(файл|модел|проект)"
+    r"|перепишу\s+вс[её]\s+заново"
+    r"|начну\s+(заново|с\s+нуля|с\s+модел)"
+    r"|давай\s+(создам|напишу|соберу)\s+(все\s+)?"
+    r")"
+)
+
+
+def looks_like_unfinished_work_announcement(text: str | None) -> bool:
+    """True when the reply only announces the next write, not a finished step.
+
+    Covers the process-coder pattern: tools already ran, then the model ends
+    with «Let me start with the models:» and the parent treats that as done.
+    """
+    content = (text or "").strip()
+    if not content:
+        return False
+    if not _UNFINISHED_ANNOUNCE.search(content):
+        return False
+    last = "\n".join(content.splitlines()[-3:])
+    if len(content) > 1200 and not _UNFINISHED_ANNOUNCE.search(last):
+        return False
+    if claims_action_completed(content) and not _UNFINISHED_ANNOUNCE.search(last):
+        return False
+    return True
+
+
 def looks_like_plan_monologue(text: str | None) -> bool:
     """True for intermediate 'I'll do X / Начинаю' plans without a real answer."""
     content = (text or "").strip()
@@ -1129,6 +1176,8 @@ def should_nudge_false_completion(
         and (final_response or "").strip()
     ):
         return True
+    if looks_like_unfinished_work_announcement(final_response):
+        return True
     return ends_turn_on_unexecuted_intent(
         final_response,
         messages,
@@ -1236,6 +1285,8 @@ def honesty_retry_update(
         nudge = SDD_FILL_HONESTY_NUDGE
     elif denies_visible_workspace(final_response, updated):
         nudge = WORKSPACE_GROUNDING_NUDGE
+    elif looks_like_unfinished_work_announcement(final_response):
+        nudge = UNFINISHED_STEP_NUDGE
     elif (
         is_truncation_notice(final_response)
         or looks_like_status_monologue(final_response)

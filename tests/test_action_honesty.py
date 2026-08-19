@@ -8,6 +8,7 @@ from core.graph.action_honesty import (
     MONOLOGUE_TOOL_NUDGE,
     SDD_FILL_HONESTY_NUDGE,
     SDD_FILL_HONESTY_REFUSAL,
+    UNFINISHED_STEP_NUDGE,
     WORKSPACE_GROUNDING_NUDGE,
     claims_action_completed,
     claims_empty_or_deaf_tools,
@@ -23,6 +24,7 @@ from core.graph.action_honesty import (
     lacks_evidence_for_claim,
     looks_like_plan_monologue,
     looks_like_status_monologue,
+    looks_like_unfinished_work_announcement,
     resolve_tool_choice,
     sdd_fill_requires_tools,
     should_nudge_false_completion,
@@ -55,9 +57,7 @@ def test_plan_monologue_without_tools_is_nudged() -> None:
         {"role": "user", "content": "Добавь обработку URL"},
         {"role": "assistant", "content": monologue},
     ]
-    assert ends_turn_on_unexecuted_intent(
-        monologue, messages, user_input="Добавь обработку URL"
-    )
+    assert ends_turn_on_unexecuted_intent(monologue, messages, user_input="Добавь обработку URL")
     state = {
         "user_input": "Добавь обработку URL",
         "messages": messages,
@@ -100,9 +100,7 @@ def test_truncation_notice_without_tools_is_nudged_not_final() -> None:
         "current_plan_step": 0,
         "agent_pipeline": "modern",
     }
-    assert should_nudge_false_completion(
-        state, final_response=notice, messages=messages
-    )
+    assert should_nudge_false_completion(state, final_response=notice, messages=messages)
     out = honesty_retry_update(
         messages=list(messages),
         step_count=1,
@@ -146,9 +144,7 @@ def test_classic_blocks_intent_only_halfway_stop() -> None:
         "current_plan_step": 0,
         "agent_pipeline": "classic",
     }
-    assert should_nudge_false_completion(
-        state, final_response=monologue, messages=messages
-    )
+    assert should_nudge_false_completion(state, final_response=monologue, messages=messages)
     out = honesty_retry_update(
         messages=list(messages),
         step_count=1,
@@ -170,9 +166,7 @@ def test_classic_blocks_intent_only_halfway_stop() -> None:
     from core.graph.action_honesty import _MAX_HONESTY_NUDGES
 
     refuse_state = {**state, "honesty_nudge_count": _MAX_HONESTY_NUDGES}
-    assert should_refuse_status_monologue(
-        refuse_state, final_response=monologue, messages=messages
-    )
+    assert should_refuse_status_monologue(refuse_state, final_response=monologue, messages=messages)
 
 
 def test_action_request_forces_tools_on_first_step() -> None:
@@ -240,9 +234,7 @@ def test_classic_blocks_zapuskayu_bot_py_loop() -> None:
         "current_plan_step": 0,
         "agent_pipeline": "classic",
     }
-    assert should_nudge_false_completion(
-        state, final_response=monologue, messages=messages
-    )
+    assert should_nudge_false_completion(state, final_response=monologue, messages=messages)
 
 
 def test_status_monologue_mcp_spam_is_nudged_and_forced_tools() -> None:
@@ -266,9 +258,7 @@ def test_status_monologue_mcp_spam_is_nudged_and_forced_tools() -> None:
         "current_plan_step": 0,
         "agent_pipeline": "modern",
     }
-    assert should_nudge_false_completion(
-        state, final_response=monologue, messages=messages
-    )
+    assert should_nudge_false_completion(state, final_response=monologue, messages=messages)
     out = honesty_retry_update(
         messages=messages,
         step_count=1,
@@ -296,9 +286,7 @@ def test_status_monologue_mcp_spam_is_nudged_and_forced_tools() -> None:
     assert not should_nudge_false_completion(
         refuse_state, final_response=monologue, messages=messages
     )
-    assert should_refuse_status_monologue(
-        refuse_state, final_response=monologue, messages=messages
-    )
+    assert should_refuse_status_monologue(refuse_state, final_response=monologue, messages=messages)
     refused = honesty_refusal_update(
         messages=messages,
         step_count=2,
@@ -312,17 +300,13 @@ def test_status_monologue_mcp_spam_is_nudged_and_forced_tools() -> None:
 
 
 def test_check_then_finish_intent_is_nudged() -> None:
-    monologue = (
-        "Сейчас проверю текущее состояние кода и процесса, а затем доделаю меню."
-    )
+    monologue = "Сейчас проверю текущее состояние кода и процесса, а затем доделаю меню."
     assert looks_like_plan_monologue(monologue)
     messages = [
         {"role": "user", "content": "Доделай меню"},
         {"role": "assistant", "content": monologue},
     ]
-    assert ends_turn_on_unexecuted_intent(
-        monologue, messages, user_input="Доделай меню"
-    )
+    assert ends_turn_on_unexecuted_intent(monologue, messages, user_input="Доделай меню")
 
 
 def test_plan_monologue_not_nudged_on_pure_faq() -> None:
@@ -332,9 +316,7 @@ def test_plan_monologue_not_nudged_on_pure_faq() -> None:
         {"role": "assistant", "content": monologue},
     ]
     assert looks_like_plan_monologue(monologue)
-    assert not ends_turn_on_unexecuted_intent(
-        monologue, messages, user_input="Что такое Holix?"
-    )
+    assert not ends_turn_on_unexecuted_intent(monologue, messages, user_input="Что такое Holix?")
 
 
 def test_no_tools_means_lacks_evidence() -> None:
@@ -479,10 +461,7 @@ def test_studio_sdd_fill_claim_without_write_is_blocked() -> None:
 
 
 def test_sdd_fill_tool_choice_required_until_write() -> None:
-    user = (
-        "SDD change `x` created in project `p`.\n"
-        "Please fill proposal via sdd_write_artifact."
-    )
+    user = "SDD change `x` created in project `p`.\nPlease fill proposal via sdd_write_artifact."
     messages = [{"role": "user", "content": user}]
     state = {"user_input": user, "tool_results": []}
     # Without sdd_write_artifact in schemas → required
@@ -648,6 +627,47 @@ def test_promise_without_tools_is_nudged() -> None:
     )
 
 
+def test_let_me_start_after_tools_is_not_a_finished_step() -> None:
+    reply = (
+        "Let me take a step back and create all the files properly. Let me start with the models:"
+    )
+    assert looks_like_unfinished_work_announcement(reply)
+    messages = [
+        {"role": "user", "content": "Собери FastAPI каталог"},
+        {
+            "role": "assistant",
+            "content": "",
+            "tool_calls": [{"id": "c1", "function": {"name": "write_file"}}],
+        },
+        {"role": "tool", "name": "write_file", "content": "created app/config.py"},
+        {"role": "assistant", "content": reply},
+    ]
+    # Tools already ran — the old intent check would have accepted this.
+    assert not ends_turn_on_unexecuted_intent(reply, messages, user_input="Собери FastAPI каталог")
+    state = {
+        "user_input": "Собери FastAPI каталог",
+        "messages": messages,
+        "tool_results": [{"name": "write_file", "result": "created"}],
+        "honesty_nudge_count": 0,
+        "plan_steps": [],
+        "current_plan_step": 0,
+    }
+    assert should_nudge_false_completion(state, final_response=reply, messages=messages)
+    out = honesty_retry_update(
+        messages=list(messages),
+        step_count=4,
+        final_response=reply,
+        honesty_nudge_count=0,
+        user_input="Собери FastAPI каталог",
+        include_assistant=False,
+    )
+    assert out["is_final"] is False
+    assert out["messages"][-1]["content"] == UNFINISHED_STEP_NUDGE
+    assert not looks_like_unfinished_work_announcement(
+        "Created app/models.py and tests. pytest: 8 passed."
+    )
+
+
 def test_empty_workspace_claim_denied_when_listing_succeeded() -> None:
     messages = [
         {"role": "user", "content": "Запусти it-resources-site"},
@@ -705,10 +725,7 @@ def test_empty_claim_without_listing_is_not_workspace_nudge() -> None:
 def test_spisok_pust_scrubbed_when_listing_exists() -> None:
     from core.graph.action_honesty import scrub_false_empty_claim_content
 
-    claim = (
-        "Список пуст. Проверю рабочую директорию напрямую. "
-        "Похоже, текущая сессия ограничена и"
-    )
+    claim = "Список пуст. Проверю рабочую директорию напрямую. Похоже, текущая сессия ограничена и"
     messages = [
         {"role": "user", "content": "ls"},
         {
@@ -750,11 +767,7 @@ def test_prod_phrases_returned_empty_and_zero_dirs() -> None:
             "role": "tool",
             "tool_call_id": "c1",
             "name": "list_directory",
-            "content": (
-                "Contents of workspace:\n"
-                "[DIR]  it-resources-site\n"
-                "[DIR]  openspec"
-            ),
+            "content": ("Contents of workspace:\n[DIR]  it-resources-site\n[DIR]  openspec"),
         },
         {
             "role": "tool",
@@ -803,19 +816,13 @@ def test_empty_result_phrase_and_hard_refusal() -> None:
             "role": "tool",
             "tool_call_id": "c1",
             "name": "list_directory",
-            "content": (
-                "Contents of workspace:\n"
-                "[DIR]  it-resources-site\n"
-                "[DIR]  openspec"
-            ),
+            "content": ("Contents of workspace:\n[DIR]  it-resources-site\n[DIR]  openspec"),
         },
     ]
     assert claims_empty_or_deaf_tools(claim)
     assert denies_visible_workspace(claim, messages)
     state = {"honesty_nudge_count": 2}
-    assert should_refuse_false_empty_workspace(
-        state, final_response=claim, messages=messages
-    )
+    assert should_refuse_false_empty_workspace(state, final_response=claim, messages=messages)
     text = workspace_grounding_refusal_text(messages)
     assert "it-resources-site" in text
     assert "openspec" in text
