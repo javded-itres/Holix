@@ -35,9 +35,11 @@ if TYPE_CHECKING:
     from core.agent import HolixAgent
 
 # Prompt style
-prompt_style = Style.from_dict({
-    'prompt': '#00d7ff bold',  # Cyan
-})
+prompt_style = Style.from_dict(
+    {
+        "prompt": "#00d7ff bold",  # Cyan
+    }
+)
 
 
 class ChatSession:
@@ -69,7 +71,7 @@ class ChatSession:
         self.session = PromptSession(
             history=FileHistory(str(history_file)),
             auto_suggest=AutoSuggestFromHistory(),
-            style=prompt_style
+            style=prompt_style,
         )
 
     async def initialize_agent(self):
@@ -124,7 +126,7 @@ class ChatSession:
             self.event_history.append(event)
             # Keep only the last N events
             if len(self.event_history) > self.max_event_history:
-                self.event_history = self.event_history[-self.max_event_history:]
+                self.event_history = self.event_history[-self.max_event_history :]
 
         try:
             self.agent.events.subscribe(record_event)
@@ -138,6 +140,7 @@ class ChatSession:
             ErrorEvent,
             FinalResponseEvent,
             SkillCreatedEvent,
+            SkillProposedEvent,
             ThinkingEvent,
             ToolCallResultEvent,
             ToolCallStartEvent,
@@ -146,7 +149,11 @@ class ChatSession:
         if isinstance(event, ToolCallStartEvent):
             return f"→ {event.tool_name}"
         elif isinstance(event, ToolCallResultEvent):
-            return f"✓ {event.tool_name} ({event.duration_ms:.0f}ms)" if event.duration_ms else f"✓ {event.tool_name}"
+            return (
+                f"✓ {event.tool_name} ({event.duration_ms:.0f}ms)"
+                if event.duration_ms
+                else f"✓ {event.tool_name}"
+            )
         elif isinstance(event, AssistantDeltaEvent):
             preview = event.content[:60].replace("\n", " ")
             return f"delta: {preview}..."
@@ -158,6 +165,8 @@ class ChatSession:
             return f"error: {event.error[:50]}"
         elif isinstance(event, SkillCreatedEvent):
             return f"new skill: {event.skill_name}"
+        elif isinstance(event, SkillProposedEvent):
+            return f"proposed skill: {event.skill_name}"
         else:
             return str(event)[:80]
 
@@ -186,7 +195,9 @@ class ChatSession:
             from core.security.confirmation import ConfirmationChoice
             from core.subagents.interaction import resolve_any_confirmation
 
-            if self.agent and resolve_any_confirmation(self.agent, ConfirmationChoice.ALLOW_SESSION):
+            if self.agent and resolve_any_confirmation(
+                self.agent, ConfirmationChoice.ALLOW_SESSION
+            ):
                 print_success("Allowed for this session")
             else:
                 print_info("No pending confirmation")
@@ -284,8 +295,13 @@ class ChatSession:
             if self.agent:
                 skills = self.agent.get_skills()
                 if skills:
-                    rows = [[name, s.get("description", "")[:50]] for name, s in list(skills.items())[:10]]
-                    print_table(f"Active Skills ({len(skills)} total)", ["Skill", "Description"], rows)
+                    rows = [
+                        [name, s.get("description", "")[:50]]
+                        for name, s in list(skills.items())[:10]
+                    ]
+                    print_table(
+                        f"Active Skills ({len(skills)} total)", ["Skill", "Description"], rows
+                    )
                 else:
                     print_info("No skills available yet")
             return True
@@ -326,7 +342,7 @@ class ChatSession:
             console.print(f"  Temperature: {self.config.temperature}")
             console.print(f"  Conversation ID: {self.conversation_id}")
             # Show context usage
-            if self.agent and hasattr(self.agent, 'context_manager'):
+            if self.agent and hasattr(self.agent, "context_manager"):
                 messages = await self.agent.memory.get_conversation(self.conversation_id, limit=200)
                 usage = self.agent.context_manager.get_usage(messages)
                 level = self.agent.context_manager.get_usage_level(messages)
@@ -342,6 +358,7 @@ class ChatSession:
         elif cmd_lower == "/metrics":
             try:
                 from core.monitoring.metrics import metrics
+
                 summary = metrics.get_summary()
 
                 lines = [
@@ -351,10 +368,16 @@ class ChatSession:
                     f"[cyan]Errors:[/cyan] {summary.get('total_errors', 0)}",
                 ]
 
-                if 'avg_response_time' in summary:
-                    lines.append(f"[cyan]Avg Response Time:[/cyan] {summary['avg_response_time']:.2f}s")
+                if "avg_response_time" in summary:
+                    lines.append(
+                        f"[cyan]Avg Response Time:[/cyan] {summary['avg_response_time']:.2f}s"
+                    )
 
-                print_panel("\n".join(lines), title="Holix Metrics (via Event System)", border_style="magenta")
+                print_panel(
+                    "\n".join(lines),
+                    title="Holix Metrics (via Event System)",
+                    border_style="magenta",
+                )
             except Exception as e:
                 print_error(f"Could not load metrics: {e}")
             return True
@@ -371,7 +394,9 @@ class ChatSession:
             if not events_to_show:
                 print_info("No events recorded in this session yet.")
             else:
-                console.print(f"\n[bold magenta]Recent Events ({len(events_to_show)} of {len(self.event_history)} total)[/bold magenta]\n")
+                console.print(
+                    f"\n[bold magenta]Recent Events ({len(events_to_show)} of {len(self.event_history)} total)[/bold magenta]\n"
+                )
                 for i, ev in enumerate(events_to_show, 1):
                     ts = ev.timestamp.strftime("%H:%M:%S")
                     summary = self._event_summary(ev)
@@ -517,7 +542,9 @@ class ChatSession:
 
                     elif isinstance(event, FinalResponseEvent):
                         if self._progress and self._spinner_task is not None:
-                            self._progress.update(self._spinner_task, description="Finalizing response...")
+                            self._progress.update(
+                                self._spinner_task, description="Finalizing response..."
+                            )
 
                     elif isinstance(event, SubAgentQuestionEvent):
                         name = event.subagent_name or "sub-agent"
@@ -554,16 +581,18 @@ class ChatSession:
                 # Get user input
                 user_input = await asyncio.get_event_loop().run_in_executor(
                     None,
-                    lambda: self.session.prompt([
-                        ('class:prompt', '❯ '),
-                    ])
+                    lambda: self.session.prompt(
+                        [
+                            ("class:prompt", "❯ "),
+                        ]
+                    ),
                 )
 
                 if not user_input.strip():
                     continue
 
                 # Handle special commands
-                if user_input.startswith('/'):
+                if user_input.startswith("/"):
                     result = await self.handle_special_command(user_input)
                     if result == "exit":
                         break
@@ -613,8 +642,7 @@ class ChatSession:
                         else:
                             # Classic non-streaming path
                             response = await self.agent.run(
-                                user_input=user_input,
-                                conversation_id=self.conversation_id
+                                user_input=user_input, conversation_id=self.conversation_id
                             )
                     finally:
                         progress.remove_task(self._spinner_task)
@@ -628,7 +656,7 @@ class ChatSession:
             except KeyboardInterrupt:
                 console.print("\n")
                 confirm = input("Exit chat? (y/n): ")
-                if confirm.lower() == 'y':
+                if confirm.lower() == "y":
                     print_info("Goodbye! 👋")
                     break
                 console.print()

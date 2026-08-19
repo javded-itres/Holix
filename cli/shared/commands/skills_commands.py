@@ -125,8 +125,7 @@ def format_skills_message(
         )
     elif slot == "main":
         lines.append(
-            "[dim]Main agent: all profile skills. "
-            "Sub-agents: `holix skills assign`.[/dim]"
+            "[dim]Main agent: all profile skills. Sub-agents: `holix skills assign`.[/dim]"
         )
 
     return "\n".join(lines)
@@ -246,10 +245,118 @@ async def run_skill_invoke_command(host: Any, command: str) -> None:
         )
 
 
+async def run_learn_command(host: Any, command: str = "/learn") -> None:
+    """Author a skill from a source via a normal agent turn (or stage a path/text)."""
+    from core.skills.learn import learn_turn_prompt, stage_learn_proposal
+
+    from cli.shared.slash_input import normalize_slash_input
+
+    normalized = normalize_slash_input(command).strip()
+    rest = normalized[6:].strip() if len(normalized) > 6 else ""
+    if not rest:
+        host.transcript_write(
+            "[dim]Usage: /learn <what to capture>\n"
+            "Examples:\n"
+            "  /learn how we just deployed staging\n"
+            "  /learn https://docs.example.com/api\n"
+            "  /learn ./docs/runbook.md[/dim]"
+        )
+        return
+
+    looks_like_path = rest.startswith(("./", "/", "~")) or rest.endswith((".md", ".txt", ".rst"))
+    looks_like_url = rest.startswith(("http://", "https://"))
+    if (looks_like_path or looks_like_url) and hasattr(host, "config"):
+        try:
+            rec = stage_learn_proposal(
+                getattr(host.config, "skills_dir", ""),
+                hint=rest,
+                path=rest if looks_like_path else "",
+                url=rest if looks_like_url else "",
+                workspace_root=getattr(host, "workspace_root", None)
+                or getattr(getattr(host, "config", None), "workspace_root", None),
+            )
+            host.transcript_write(
+                f"[green]Staged learn draft {rec.get('id')} ({rec.get('name')}). "
+                "Approve in Settings → Skills or `holix skills approve`.[/green]"
+            )
+            return
+        except Exception as exc:
+            host.transcript_write(
+                f"[yellow]Could not stage from source ({exc}). Asking the agent…[/yellow]"
+            )
+
+    if not hasattr(host, "_send_message"):
+        host.transcript_write("[yellow]/learn needs an active chat session.[/yellow]")
+        return
+    host.transcript_write(f"[dim]▸ /learn {rest[:80]}[/dim]")
+    await host._send_message(learn_turn_prompt(rest))
+
+
 async def run_skills_command(host: Any, command: str = "/skills") -> None:
     """Show loaded skills for the current profile and agent slot."""
     parts = command.strip().split(maxsplit=1)
     slot_arg = parts[1].strip() if len(parts) > 1 else None
+    if slot_arg and slot_arg.lower() == "pending":
+        from core.skills.proposal import SkillProposalStore
+
+        config = getattr(host, "config", None)
+        skills_dir = getattr(config, "skills_dir", None) if config else None
+        if not skills_dir:
+            host.transcript_write("[yellow]No skills directory on this host.[/yellow]")
+            return
+        store = SkillProposalStore(skills_dir)
+        store.expire_stale()
+        rows = store.list_pending()
+        if not rows:
+            host.transcript_write("[dim]No pending skill proposals.[/dim]")
+            return
+        lines = ["[bold]Pending skill proposals[/bold]", ""]
+        for rec in rows:
+            lines.append(
+                f"  [cyan]{rec.get('id')}[/cyan] {rec.get('action')} "
+                f"[bold]{rec.get('name')}[/bold] — {(rec.get('description') or '')[:60]}"
+            )
+        lines.append("[dim]Approve: holix skills approve <id>[/dim]")
+        host.transcript_write("\n".join(lines))
+        return
+    if slot_arg and slot_arg.lower() in {"quality", "score", "achievements"}:
+        from core.skills.proposal import SkillProposalStore
+        from core.skills.quality import score_tier
+
+        config = getattr(host, "config", None)
+        skills_dir = getattr(config, "skills_dir", None) if config else None
+        if not skills_dir:
+            host.transcript_write("[yellow]No skills directory.[/yellow]")
+            return
+        store = SkillProposalStore(skills_dir)
+        store.expire_stale()
+        rows = store.list_pending()
+        lines = ["[bold]Skill quality[/bold]", ""]
+        if not rows:
+            lines.append("[dim]No pending drafts.[/dim]")
+        for rec in rows:
+            score = int(rec.get("quality_score") or 0)
+            tier = rec.get("tier") or score_tier(score)
+            label = tier.get("label_en") if isinstance(tier, dict) else ""
+            auto = " auto" if rec.get("auto_applied") else ""
+            lines.append(f"  {score:>3}/100 [{label}] {rec.get('name')} ({rec.get('id')}){auto}")
+        lines.append("[dim]/learn or session drafts. Approve: holix skills approve <id>[/dim]")
+        host.transcript_write("\n".join(lines))
+        return
+    if slot_arg and slot_arg.lower() == "curator":
+        from core.skills.curator import SkillCurator
+
+        mgr, _slot, config = _load_skills(host)
+        report = SkillCurator(mgr).status()
+        lines = [
+            "[bold]Skill curator[/bold] (preview only)",
+            f"curatable {report['curatable']}/{report['total']}",
+            f"would stale: {', '.join(report['would_stale']) or '—'}",
+            f"would archive: {', '.join(report['would_archive']) or '—'}",
+            "[dim]Apply: holix skills prune --apply[/dim]",
+        ]
+        host.transcript_write("\n".join(lines))
+        return
 
     if hasattr(host, "_interactive") and not slot_arg:
         await host._interactive.show_skills_picker()

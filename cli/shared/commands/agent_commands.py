@@ -216,6 +216,11 @@ class AgentCommands:
             elif lower.startswith("/hub") or lower in ("/plugins", "/marketplace"):
                 await self._hub(cmd)
 
+            elif lower.startswith("/learn"):
+                from cli.shared.commands.skills_commands import run_learn_command
+
+                await run_learn_command(h, cmd)
+
             elif lower == "/skills" or lower.startswith("/skills "):
                 from cli.shared.commands.skills_commands import run_skills_command
 
