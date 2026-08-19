@@ -5,7 +5,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "Holix"
-version = "1.0.11"
+version = "1.0.12"
 description = "Self-improving AI agent with memory, skills, MCP, CLI, and TUI"
 readme = "README.md"
 license = "MIT"
@@ -55,6 +55,8 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+# Workspace-only package (not on PyPI). Do not add to ``all`` — uv/pip would
+# backtrack to the last public release whose extras still resolve (0.1.21).
 demo = ["holix-extension-demo>=0.1.0"]
 # holix-studio is a separate private package (not on public PyPI).
 # Install from its GitHub release / private index; do not pin via git in this lock
@@ -72,7 +74,6 @@ otel = [
     "opentelemetry-exporter-otlp-proto-http>=1.27.0",
 ]
 all = [
-    "holix-extension-demo>=0.1.0",
     "playwright>=1.49.0",
     "aiogram>=3.15.0",
     "textual-serve>=1.1.3",
