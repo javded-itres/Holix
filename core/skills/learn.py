@@ -14,7 +14,7 @@ from core.skills.proposal import SkillProposalStore
 from core.tools.browser.policy import validate_fetch_url
 
 MAX_SOURCE_CHARS = 40_000
-_MAX_FILES = 12
+_LEARN_NAMES = ("SKILL.md", "README.md", "README", "AGENTS.md")
 
 LEARN_TURN_PROMPT = """\
 You are authoring a reusable Holix skill from the source below.
@@ -34,30 +34,33 @@ Source / request:
 """
 
 
-def _read_path_blob(path: Path) -> str:
-    if path.is_file():
-        return path.read_text(encoding="utf-8", errors="replace")[:MAX_SOURCE_CHARS]
-    if not path.is_dir():
+def _read_workspace_source(workspace_root: str | Path, path: str) -> tuple[str, str]:
+    """Read a workspace file/dir. Returns (blob, label)."""
+    base = os.path.realpath(os.path.expanduser(str(workspace_root)))
+    raw = os.path.expanduser(str(path))
+    joined = raw if os.path.isabs(raw) else os.path.join(base, raw)
+    target = os.path.realpath(joined)
+    if target != base and not target.startswith(base + os.sep):
+        raise ValueError(f"path escapes {base}: {path}")
+    if os.path.isfile(target):
+        with open(target, encoding="utf-8", errors="replace") as fh:
+            return fh.read()[:MAX_SOURCE_CHARS], target
+    if not os.path.isdir(target):
         raise FileNotFoundError(str(path))
     parts: list[str] = []
-    names = ("SKILL.md", "README.md", "README", "AGENTS.md")
-    for name in names:
-        candidate = path / name
-        if candidate.is_file():
-            parts.append(f"# {name}\n{candidate.read_text(encoding='utf-8', errors='replace')}")
+    for name in _LEARN_NAMES:
+        candidate = os.path.realpath(os.path.join(target, name))
+        if candidate != target and not candidate.startswith(target + os.sep):
+            continue
+        if not os.path.isfile(candidate):
+            continue
+        with open(candidate, encoding="utf-8", errors="replace") as fh:
+            parts.append(f"# {name}\n{fh.read()}")
         if sum(len(p) for p in parts) >= MAX_SOURCE_CHARS:
             break
-    extras = sorted(p for p in path.rglob("*.md") if p.is_file() and p.name not in names)
-    for extra in extras[:_MAX_FILES]:
-        if sum(len(p) for p in parts) >= MAX_SOURCE_CHARS:
-            break
-        parts.append(
-            f"# {extra.relative_to(path)}\n"
-            f"{extra.read_text(encoding='utf-8', errors='replace')[:8000]}"
-        )
     if not parts:
         raise ValueError(f"no readable markdown under {path}")
-    return "\n\n".join(parts)[:MAX_SOURCE_CHARS]
+    return "\n\n".join(parts)[:MAX_SOURCE_CHARS], target
 
 
 def _read_url(url: str) -> str:
@@ -119,16 +122,8 @@ def stage_learn_proposal(
     if path:
         if not workspace_root:
             raise ValueError("path learn requires workspace_root")
-        base = os.path.realpath(os.path.expanduser(str(workspace_root)))
-        raw = os.path.expanduser(str(path))
-        joined = raw if os.path.isabs(raw) else os.path.join(base, raw)
-        target = os.path.realpath(joined)
-        if target != base and not target.startswith(base + os.sep):
-            raise ValueError(f"path escapes {base}: {path}")
-        root = Path(target)
-        blob = _read_path_blob(root)
-        label = str(root)
-        hint = hint or root.name
+        blob, label = _read_workspace_source(workspace_root, path)
+        hint = hint or Path(label).name
     elif url:
         blob = _read_url(url)
         label = url
