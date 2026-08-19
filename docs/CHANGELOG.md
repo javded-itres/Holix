@@ -10,7 +10,7 @@ Staged skill proposals (no live write until approve), child jobs on the same ReA
 
 - **Skill staging** — session self-improve and `skill_manage` open a pending draft; live `SKILL.md` is written only after approve (or auto-apply for high-quality patches). Tools: `skill_view` / `skill_manage`.
 - **Quality + curator** — heuristic quality score/tier, duplicate/junk gates, and a deterministic archive of stale agent-created skills (`_archive`, no deletes of protected skills).
-- **Learn** — `/learn <hint|url|path>` and `holix skills pending|approve|reject`.
+- **Learn** — `/learn <hint|url>` (a local path is handed to the agent to read via tools) and `holix skills pending|approve|reject`.
 - **Achievements** — skill-hygiene counters next to the skills dir.
 - **ReAct sub-agents** — process/async jobs run a filtered `HolixAgent` on the parent graph (honesty, compression, empty-reply continue). Runtime supervisor drains `guidance` / `revise` / `cancel` into the same turn.
 - **Messenger review** — Telegram and MAX post staged-skill notices with approve/reject buttons.

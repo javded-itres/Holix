@@ -263,17 +263,13 @@ async def run_learn_command(host: Any, command: str = "/learn") -> None:
         )
         return
 
-    looks_like_path = rest.startswith(("./", "/", "~")) or rest.endswith((".md", ".txt", ".rst"))
     looks_like_url = rest.startswith(("http://", "https://"))
-    if (looks_like_path or looks_like_url) and hasattr(host, "config"):
+    if looks_like_url and hasattr(host, "config"):
         try:
             rec = stage_learn_proposal(
                 getattr(host.config, "skills_dir", ""),
                 hint=rest,
-                path=rest if looks_like_path else "",
-                url=rest if looks_like_url else "",
-                workspace_root=getattr(host, "workspace_root", None)
-                or getattr(getattr(host, "config", None), "workspace_root", None),
+                url=rest,
             )
             host.transcript_write(
                 f"[green]Staged learn draft {rec.get('id')} ({rec.get('name')}). "

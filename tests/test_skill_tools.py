@@ -74,27 +74,6 @@ def test_learn_stages_from_text(tmp_path: Path) -> None:
     assert "skill_manage" in learn_turn_prompt("this conversation")
 
 
-def test_learn_path_stays_in_workspace(tmp_path: Path) -> None:
-    workspace = tmp_path / "ws"
-    workspace.mkdir()
-    (workspace / "runbook.md").write_text("# deploy\n1. ship\n", encoding="utf-8")
-    rec = stage_learn_proposal(
-        tmp_path / "skills",
-        hint="deploy",
-        path="runbook.md",
-        workspace_root=workspace,
-    )
-    assert rec["status"] == "pending"
-    assert "ship" in rec["content"]
-    with pytest.raises(ValueError, match="escapes"):
-        stage_learn_proposal(
-            tmp_path / "skills",
-            hint="escape",
-            path="../secrets.md",
-            workspace_root=workspace,
-        )
-
-
 def test_learn_url_rejects_localhost() -> None:
     from core.skills.learn import _read_url
 
