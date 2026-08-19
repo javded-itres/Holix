@@ -2,6 +2,31 @@
 
 ## Unreleased
 
+## 1.0.11 — 2026-08-19
+
+Staged skill proposals (no live write until approve), child jobs on the same ReAct engine as main, and skill-review UX in CLI, API, Telegram, and MAX.
+
+### Added
+
+- **Skill staging** — session self-improve and `skill_manage` open a pending draft; live `SKILL.md` is written only after approve (or auto-apply for high-quality patches). Tools: `skill_view` / `skill_manage`.
+- **Quality + curator** — heuristic quality score/tier, duplicate/junk gates, and a deterministic archive of stale agent-created skills (`_archive`, no deletes of protected skills).
+- **Learn** — `/learn <hint|url|path>` and `holix skills pending|approve|reject`.
+- **Achievements** — skill-hygiene counters next to the skills dir.
+- **ReAct sub-agents** — process/async jobs run a filtered `HolixAgent` on the parent graph (honesty, compression, empty-reply continue). Runtime supervisor drains `guidance` / `revise` / `cancel` into the same turn.
+- **Messenger review** — Telegram and MAX post staged-skill notices with approve/reject buttons.
+
+### Fixed
+
+- **Unfinished announcements** — «Let me start with…» / «Начну с…» after tools is not a finished step.
+- **Empty child replies** — blank LLM output retries instead of closing the job.
+- **Timeouts** — `subagent_process_timeout` default 3600s; supervisor idle 300s so a slow model call is not hung. Supervisor knobs are on the runtime config and profile.
+- **Textual tool calls** — broader Qwen/Hermes XML recovery; timeout markers treated as aborted finals.
+
+### Tests
+
+- Skill proposal, quality, curator, dedup, live path, tools, slash `assign=True`, live-LLM lifecycle (not in CI).
+- Sub-agent ReAct runner, supervisor empty-reply, unfinished-work honesty, textual tool-call recovery, achievements.
+
 ## 1.0.10 — 2026-08-17
 
 MCP tools per agent slot, fewer coder tool-loops, and live provider model lists without stale catalog aliases.

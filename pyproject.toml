@@ -5,7 +5,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "Holix"
-version = "1.0.10"
+version = "1.0.11"
 description = "Self-improving AI agent with memory, skills, MCP, CLI, and TUI"
 readme = "README.md"
 license = "MIT"
