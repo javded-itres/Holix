@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 from core.sdd.apply_mode import apply_mode_prompt_text, normalize_apply_mode, save_apply_mode
-from core.sdd.merge import merge_delta_into_main
+from core.sdd.merge import merge_delta_into_main, patch_delta_spec
 from core.sdd.store import SpecStore
 from core.sdd.tasks import parse_tasks_markdown, set_task_assignee, set_task_done
 
@@ -183,6 +183,45 @@ Third
     assert "First" not in out
 
 
+def test_patch_delta_spec_add_modify_remove():
+    stub = """# Delta: auth
+
+## ADDED Requirements
+
+### Requirement: login-flow capability
+The system SHALL …
+
+#### Scenario: Happy path
+- **GIVEN** …
+- **WHEN** …
+- **THEN** …
+"""
+    added = patch_delta_spec(
+        stub,
+        op="add",
+        title="OAuth login",
+        body="The system SHALL support OAuth.\n\n#### Scenario: Redirect\n- **GIVEN** a\n- **WHEN** b\n- **THEN** c\n",
+    )
+    assert "OAuth login" in added
+    assert "login-flow capability" not in added
+    assert "## ADDED Requirements" in added
+    modified = patch_delta_spec(
+        added,
+        op="modify",
+        title="Login exists",
+        body="The system SHALL support password and OAuth.\n",
+    )
+    assert "## MODIFIED Requirements" in modified
+    assert "password and OAuth" in modified
+    removed = patch_delta_spec(modified, op="remove", title="Logout exists")
+    assert "## REMOVED Requirements" in removed
+    assert "Logout exists" in removed
+    # Cancelling an ADDED req must not emit REMOVED
+    cancelled = patch_delta_spec(added, op="remove", title="OAuth login")
+    assert "OAuth login" not in cancelled
+    assert "## REMOVED Requirements" not in cancelled
+
+
 def test_archive_nested_spec_merges_into_parent_domain(tmp_path: Path):
     store = SpecStore(tmp_path)
     store.init(example_domain="auth")
@@ -199,14 +238,7 @@ def test_archive_nested_spec_merges_into_parent_domain(tmp_path: Path):
         domain="auth",
     )
     nested = (
-        tmp_path
-        / "openspec"
-        / "changes"
-        / "nested-merge"
-        / "specs"
-        / "auth"
-        / "notes"
-        / "spec.md"
+        tmp_path / "openspec" / "changes" / "nested-merge" / "specs" / "auth" / "notes" / "spec.md"
     )
     nested.parent.mkdir(parents=True, exist_ok=True)
     nested.write_text(
@@ -518,24 +550,18 @@ def test_accept_request_understanding_unlock_modes(tmp_path: Path):
     assert und is not None
     assert und.status == "clarifying" and und.score == 0
 
-    seeded = accept_request_understanding(
-        tmp_path, "feat", request="Add feature X", unlock=False
-    )
+    seeded = accept_request_understanding(tmp_path, "feat", request="Add feature X", unlock=False)
     assert seeded.status == "clarifying"
     assert seeded.score == 0
     assert gate_blocks_propose(tmp_path, "feat") is not None
 
-    unlocked = accept_request_understanding(
-        tmp_path, "feat", request="Add feature X", unlock=True
-    )
+    unlocked = accept_request_understanding(tmp_path, "feat", request="Add feature X", unlock=True)
     assert unlocked.status == "confirmed"
     assert unlocked.score >= unlocked.threshold
     assert gate_blocks_propose(tmp_path, "feat") is None
 
     # create with request already seeds history via init_understanding
-    init_understanding(
-        tmp_path, "other", enabled=True, threshold=75, request="Need Y"
-    )
+    init_understanding(tmp_path, "other", enabled=True, threshold=75, request="Need Y")
     other = load_understanding(tmp_path, "other")
     assert other is not None
     assert other.score == 0 and other.status == "clarifying"
@@ -543,6 +569,8 @@ def test_accept_request_understanding_unlock_modes(tmp_path: Path):
 
 @pytest.mark.asyncio
 async def test_sdd_tools_register_and_init(tmp_path: Path):
+    import json
+
     from core.tools.execution_context import reset_workspace_scope, workspace_scope
     from core.tools.registry import ToolRegistry
 
@@ -559,6 +587,34 @@ async def test_sdd_tools_register_and_init(tmp_path: Path):
         result = await reg.tools["sdd_init"].execute()
         assert '"ok"' in result
         assert (tmp_path / "openspec" / "config.yaml").is_file()
+        assert "sdd_read_artifact" in reg.tools
+        store = SpecStore(tmp_path)
+        store.create_change("read-me", domain="example", request="demo")
+        store.write_artifact(
+            "read-me",
+            "proposal",
+            "# Proposal\n\n## Why\nNeed it.\n\n## What\nDo it.\n\n## Impact\nLow.\n",
+        )
+        raw = await reg.tools["sdd_read_artifact"].execute(change_id="read-me", artifact="proposal")
+        data = json.loads(raw)
+        assert data["ok"] is True
+        assert "Need it." in data["content"]
+        all_raw = await reg.tools["sdd_read_artifact"].execute(change_id="read-me")
+        all_data = json.loads(all_raw)
+        assert all_data["ok"] is True
+        assert "Need it." in all_data["artifacts"]["proposal"]["content"]
+        assert "sdd_update_spec" in reg.tools
+        patched = json.loads(
+            await reg.tools["sdd_update_spec"].execute(
+                change_id="read-me",
+                op="add",
+                title="OAuth login",
+                body="The system SHALL support OAuth.\n\n#### Scenario: OK\n- **GIVEN** a\n- **WHEN** b\n- **THEN** c\n",
+            )
+        )
+        assert patched["ok"] is True
+        assert "OAuth login" in patched["content"]
+        assert "main_preview" in patched
     finally:
         reset_workspace_scope(tokens)
 

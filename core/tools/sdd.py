@@ -84,9 +84,7 @@ class SddInitTool(BaseTool):
         try:
             root = resolve_project_root(workspace_from_context(), project)
             root.mkdir(parents=True, exist_ok=True)
-            result = SpecStore(root).init(
-                example_domain=example_domain, force=bool(force)
-            )
+            result = SpecStore(root).init(example_domain=example_domain, force=bool(force))
             result["project"] = project or ""
             return result_json(result)
         except Exception as exc:
@@ -121,7 +119,11 @@ class SddReadSpecTool(BaseTool):
     def __init__(self) -> None:
         super().__init__()
         self.name = "sdd_read_spec"
-        self.description = "Read a main domain spec.md by domain name."
+        self.description = (
+            "Read a main domain spec.md under openspec/specs/<domain>/ "
+            "(source of truth, not a change). For a change's proposal / design / "
+            "tasks / delta specs use sdd_read_artifact."
+        )
         self.risk_level = "no"
         self.parameters = {
             "type": "object",
@@ -159,17 +161,13 @@ class SddListChangesTool(BaseTool):
             },
         }
 
-    async def execute(
-        self, project: str = "", include_archive: bool = False, **_: Any
-    ) -> str:
+    async def execute(self, project: str = "", include_archive: bool = False, **_: Any) -> str:
         try:
             return result_json(
                 {
                     "ok": True,
                     "project": project or "",
-                    "changes": _store(project).list_changes(
-                        include_archive=bool(include_archive)
-                    ),
+                    "changes": _store(project).list_changes(include_archive=bool(include_archive)),
                 }
             )
         except Exception as exc:
@@ -311,10 +309,7 @@ class SddStatusTool(BaseTool):
                 cdir = change_dir(store.workspace, change_id)
                 rel = store.tool_relpath(cdir)
                 delta_specs = (
-                    sorted(
-                        store.tool_relpath(p)
-                        for p in (cdir / "specs").rglob("spec.md")
-                    )
+                    sorted(store.tool_relpath(p) for p in (cdir / "specs").rglob("spec.md"))
                     if (cdir / "specs").is_dir()
                     else []
                 )
@@ -336,6 +331,148 @@ class SddStatusTool(BaseTool):
             return _err(exc)
 
 
+class SddReadArtifactTool(BaseTool):
+    def __init__(self) -> None:
+        super().__init__()
+        self.name = "sdd_read_artifact"
+        self.description = (
+            "Read a change artifact: proposal | design | tasks | specs. "
+            "PREFERRED way to inspect a change — do NOT use read_file for "
+            "openspec/changes/<id> files. Omit artifact to get all files "
+            "(proposal.md, design.md, tasks.md, and delta specs/<domain>/spec.md). "
+            "sdd_read_spec is only for main openspec/specs/, not change deltas."
+        )
+        self.risk_level = "no"
+        self.parameters = {
+            "type": "object",
+            "properties": {
+                "project": _PROJECT_PROP,
+                "change_id": {"type": "string"},
+                "artifact": {
+                    "type": "string",
+                    "description": ("proposal | design | tasks | specs. Empty = all artifacts."),
+                },
+                "domain": {
+                    "type": "string",
+                    "description": "When artifact=specs, delta domain folder name",
+                },
+            },
+            "required": ["change_id"],
+        }
+
+    async def execute(
+        self,
+        change_id: str,
+        artifact: str = "",
+        domain: str = "",
+        project: str = "",
+        **_: Any,
+    ) -> str:
+        try:
+            return result_json(
+                _store(project).read_artifact(
+                    change_id,
+                    artifact,
+                    domain=domain or None,
+                )
+            )
+        except Exception as exc:
+            return _err(exc)
+
+
+class SddUpdateSpecTool(BaseTool):
+    def __init__(self) -> None:
+        super().__init__()
+        self.name = "sdd_update_spec"
+        self.description = (
+            "Incrementally update a change's delta spec: add, modify, or remove "
+            "one requirement without rewriting the whole file. "
+            "Use this when requirements change — the spec is patched "
+            "(## ADDED / MODIFIED / REMOVED), not replaced. "
+            "Main openspec/specs/<domain>/spec.md is updated later by sdd_archive; "
+            "the tool returns main_preview. "
+            "Pass op+title+body for one requirement, or content= markdown with "
+            "## ADDED/MODIFIED/REMOVED Requirements sections to merge. "
+            "Do NOT use write_file for specs."
+        )
+        self.risk_level = "no"
+        self.parameters = {
+            "type": "object",
+            "properties": {
+                "project": _PROJECT_PROP,
+                "change_id": {"type": "string"},
+                "op": {
+                    "type": "string",
+                    "description": "add | modify | remove (or ADDED/MODIFIED/REMOVED)",
+                },
+                "title": {
+                    "type": "string",
+                    "description": "Requirement title (without the 'Requirement:' prefix)",
+                },
+                "body": {
+                    "type": "string",
+                    "description": (
+                        "Requirement text: SHALL + scenarios. Heading is optional — "
+                        "it is added from title when missing."
+                    ),
+                },
+                "content": {
+                    "type": "string",
+                    "description": (
+                        "Optional full delta snippet to merge "
+                        "(## ADDED/MODIFIED/REMOVED Requirements)."
+                    ),
+                },
+                "domain": {
+                    "type": "string",
+                    "description": "Delta domain under the change (omit if only one)",
+                },
+            },
+            "required": ["change_id"],
+        }
+
+    async def execute(
+        self,
+        change_id: str,
+        op: str = "",
+        title: str = "",
+        body: str = "",
+        content: str = "",
+        domain: str = "",
+        project: str = "",
+        **_: Any,
+    ) -> str:
+        try:
+            from core.sdd.understanding import gate_blocks_propose
+
+            store = _store(project)
+            block = gate_blocks_propose(store.project_root, change_id)
+            if block:
+                return result_json(
+                    {
+                        "ok": False,
+                        "error": block,
+                        "hint": (
+                            "Research specs first, sdd_update_understanding until "
+                            "score ≥ threshold, then sdd_confirm_understanding "
+                            "before updating specs."
+                        ),
+                    }
+                )
+            return result_json(
+                store.update_spec(
+                    change_id,
+                    op=op,
+                    title=title,
+                    body=body,
+                    content=content,
+                    domain=domain or None,
+                )
+            )
+        except Exception as exc:
+            return _err(exc)
+
+
 class SddWriteArtifactTool(BaseTool):
     def __init__(self) -> None:
         super().__init__()
@@ -343,7 +480,10 @@ class SddWriteArtifactTool(BaseTool):
         self.description = (
             "Write a change artifact: proposal | design | tasks | specs. "
             "PREFERRED way to fill a change — do NOT use write_file/read_file for "
-            "openspec artifacts. There is NO file openspec/changes/<id>/specs.md; "
+            "openspec artifacts. Read them with sdd_read_artifact. "
+            "To add/change/remove individual spec requirements without rewriting "
+            "the whole delta, use sdd_update_spec. "
+            "There is NO file openspec/changes/<id>/specs.md; "
             "artifact=specs writes openspec/changes/<id>/specs/<domain>/spec.md "
             "(pass domain= or omit to use the scaffolded domain). "
             "Other paths: proposal.md, design.md, tasks.md under the change folder. "
@@ -590,9 +730,7 @@ class SddSetApplyModeTool(BaseTool):
             "required": ["change_id", "mode"],
         }
 
-    async def execute(
-        self, change_id: str, mode: str, project: str = "", **_: Any
-    ) -> str:
+    async def execute(self, change_id: str, mode: str, project: str = "", **_: Any) -> str:
         try:
             return result_json(_store(project).set_apply_mode(change_id, mode))
         except Exception as exc:
@@ -643,11 +781,7 @@ class SddApplyTool(BaseTool):
             if not plan.get("ok"):
                 return result_json(plan)
             mode = (plan.get("apply_mode") or "").strip().lower()
-            if (
-                auto_dispatch
-                and mode in ("subagents", "hybrid")
-                and self._parent is not None
-            ):
+            if auto_dispatch and mode in ("subagents", "hybrid") and self._parent is not None:
                 from core.sdd.dispatch import dispatch_change_tasks
 
                 dispatch = await dispatch_change_tasks(
@@ -854,6 +988,8 @@ def register_sdd_tools(registry: Any) -> None:
     registry.register(SddListChangesTool())
     registry.register(SddCreateChangeTool())
     registry.register(SddStatusTool())
+    registry.register(SddReadArtifactTool())
+    registry.register(SddUpdateSpecTool())
     registry.register(SddWriteArtifactTool())
     registry.register(SddSetTaskAssigneeTool())
     registry.register(SddCheckTaskTool())

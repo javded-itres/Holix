@@ -28,6 +28,9 @@ SUBAGENT_TOOL_CHOICES: tuple[str, ...] = (
     "math_calculator",
     "sql_query",
     "sql_schema",
+    "sdd_status",
+    "sdd_write_artifact",
+    "sdd_update_spec",
 )
 
 DEFAULT_CUSTOM_TOOLS: list[str] = ["read_file", "list_directory", "grep", "glob", "terminal"]

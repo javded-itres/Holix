@@ -343,12 +343,8 @@ class SpecStore:
             (dest / "proposal.md").write_text(
                 _PROPOSAL_STUB.format(change_id=cid), encoding="utf-8"
             )
-        (dest / "design.md").write_text(
-            _DESIGN_STUB.format(change_id=cid), encoding="utf-8"
-        )
-        (dest / "tasks.md").write_text(
-            _TASKS_STUB.format(change_id=cid), encoding="utf-8"
-        )
+        (dest / "design.md").write_text(_DESIGN_STUB.format(change_id=cid), encoding="utf-8")
+        (dest / "tasks.md").write_text(_TASKS_STUB.format(change_id=cid), encoding="utf-8")
         delta_dir = dest / "specs" / domain
         delta_dir.mkdir(parents=True)
         (delta_dir / SPEC_FILENAME).write_text(
@@ -395,19 +391,15 @@ class SpecStore:
         mode = load_apply_mode(self.workspace, cid)
         tasks_ok = self._tasks_ready_for_apply(tasks, apply_mode=mode)
         delta_specs = (
-            list((cdir / "specs").rglob(SPEC_FILENAME))
-            if (cdir / "specs").is_dir()
-            else []
+            list((cdir / "specs").rglob(SPEC_FILENAME)) if (cdir / "specs").is_dir() else []
         )
         artifacts = {
             "proposal": (cdir / "proposal.md").is_file()
             and self._artifact_filled(cdir / "proposal.md"),
-            "design": (cdir / "design.md").is_file()
-            and self._artifact_filled(cdir / "design.md"),
+            "design": (cdir / "design.md").is_file() and self._artifact_filled(cdir / "design.md"),
             "tasks": tasks_path.is_file() and tasks_ok,
             # File existence alone is not enough — create_change writes stubs.
-            "specs": bool(delta_specs)
-            and all(self._artifact_filled(p) for p in delta_specs),
+            "specs": bool(delta_specs) and all(self._artifact_filled(p) for p in delta_specs),
         }
         missing: list[str] = []
         if not artifacts["proposal"]:
@@ -420,10 +412,7 @@ class SpecStore:
             missing.append(self._tasks_missing_reason(tasks, apply_mode=mode))
         # design is reported for honesty/UI but not required to start apply
         apply_ready = (
-            artifacts["proposal"]
-            and artifacts["specs"]
-            and artifacts["tasks"]
-            and len(tasks) > 0
+            artifacts["proposal"] and artifacts["specs"] and artifacts["tasks"] and len(tasks) > 0
         )
         return ChangeStatus(
             change_id=cid,
@@ -504,9 +493,7 @@ class SpecStore:
             path = cdir / "specs" / dom / SPEC_FILENAME
             path.parent.mkdir(parents=True, exist_ok=True)
         else:
-            raise ValueError(
-                f"unknown artifact {artifact!r}; use proposal|design|tasks|specs"
-            )
+            raise ValueError(f"unknown artifact {artifact!r}; use proposal|design|tasks|specs")
 
         before = path.read_text(encoding="utf-8") if path.is_file() else None
         path.write_text(content, encoding="utf-8")
@@ -521,6 +508,180 @@ class SpecStore:
         if file_diff:
             out["file_diff"] = file_diff
         return out
+
+    def update_spec(
+        self,
+        change_id: str,
+        *,
+        op: str = "",
+        title: str = "",
+        body: str = "",
+        content: str = "",
+        domain: str | None = None,
+    ) -> dict:
+        """Incrementally patch a change delta spec (ADDED / MODIFIED / REMOVED).
+
+        Main ``openspec/specs/<domain>/spec.md`` is not written here — archive
+        merges the delta. ``main_preview`` shows the result after archive.
+        """
+        from core.sdd.merge import merge_delta_into_main, merge_delta_patches, patch_delta_spec
+        from core.tools.file_diff import build_file_diff_payload
+
+        cid = validate_change_id(change_id)
+        cdir = change_dir(self.workspace, cid)
+        if not cdir.is_dir():
+            raise FileNotFoundError(f"change not found: {cid}")
+        if domain and str(domain).strip():
+            dom = self.resolve_delta_domain(domain)
+        else:
+            existing_deltas = (
+                sorted(p.name for p in (cdir / "specs").iterdir() if p.is_dir())
+                if (cdir / "specs").is_dir()
+                else []
+            )
+            if len(existing_deltas) == 1:
+                dom = existing_deltas[0]
+            elif existing_deltas:
+                resolved = self.resolve_delta_domain(None)
+                dom = resolved if resolved in existing_deltas else existing_deltas[0]
+            else:
+                dom = self.resolve_delta_domain(None)
+        path = cdir / "specs" / dom / SPEC_FILENAME
+        path.parent.mkdir(parents=True, exist_ok=True)
+        before = path.read_text(encoding="utf-8") if path.is_file() else ""
+        patch = (content or "").strip()
+        if patch:
+            after = merge_delta_patches(before, patch)
+        else:
+            if not (op or "").strip() or not (title or "").strip():
+                raise ValueError(
+                    "pass op+title+body for one requirement, or content= delta markdown"
+                )
+            after = patch_delta_spec(before, op=op, title=title, body=body)
+        path.write_text(after, encoding="utf-8")
+        rel = self.tool_relpath(path)
+        main_path = domain_spec_path(self.workspace, dom)
+        main = main_path.read_text(encoding="utf-8") if main_path.is_file() else ""
+        preview = merge_delta_into_main(main, after)
+        out: dict = {
+            "ok": True,
+            "change_id": cid,
+            "domain": dom,
+            "path": rel,
+            "op": (op or "").strip() or "content",
+            "title": (title or "").strip(),
+            "chars": len(after),
+            "content": after,
+            "main_path": self.tool_relpath(main_path),
+            "main_preview": preview,
+            "hint": (
+                "Delta spec updated. Main openspec/specs/ changes only on sdd_archive. "
+                "main_preview is the merged source of truth after archive."
+            ),
+        }
+        file_diff = build_file_diff_payload(rel, before or None, after)
+        if file_diff:
+            out["file_diff"] = file_diff
+        return out
+
+    def read_artifact(
+        self,
+        change_id: str,
+        artifact: str = "",
+        *,
+        domain: str | None = None,
+    ) -> dict:
+        """Read proposal / design / tasks / delta specs for a change.
+
+        Empty ``artifact`` returns an index of all change artifacts (and
+        contents when the file exists).
+        """
+        cid = validate_change_id(change_id)
+        cdir = change_dir(self.workspace, cid)
+        if not cdir.is_dir():
+            raise FileNotFoundError(f"change not found: {cid}")
+        art = (artifact or "").strip().lower()
+        if art in ("proposal.md",):
+            art = "proposal"
+        elif art in ("design.md",):
+            art = "design"
+        elif art in ("tasks.md",):
+            art = "tasks"
+        elif art in ("spec", "delta", "spec.md"):
+            art = "specs"
+
+        def _file_payload(path: Path, *, kind: str, extra: dict | None = None) -> dict:
+            exists = path.is_file()
+            text = path.read_text(encoding="utf-8") if exists else ""
+            payload = {
+                "artifact": kind,
+                "path": self.tool_relpath(path),
+                "exists": exists,
+                "chars": len(text),
+                "filled": bool(exists and self._artifact_filled(path)),
+                "content": text,
+            }
+            if extra:
+                payload.update(extra)
+            return payload
+
+        if not art or art in {"all", "*"}:
+            specs_dir = cdir / "specs"
+            spec_items: list[dict] = []
+            if specs_dir.is_dir():
+                for d in sorted(p for p in specs_dir.iterdir() if p.is_dir()):
+                    spec_path = d / SPEC_FILENAME
+                    spec_items.append(
+                        _file_payload(spec_path, kind="specs", extra={"domain": d.name})
+                    )
+            return {
+                "ok": True,
+                "change_id": cid,
+                "path": self.tool_relpath(cdir),
+                "artifacts": {
+                    "proposal": _file_payload(cdir / "proposal.md", kind="proposal"),
+                    "design": _file_payload(cdir / "design.md", kind="design"),
+                    "tasks": _file_payload(cdir / "tasks.md", kind="tasks"),
+                    "specs": spec_items,
+                },
+            }
+
+        extra: dict = {}
+        if art == "proposal":
+            path = cdir / "proposal.md"
+        elif art == "design":
+            path = cdir / "design.md"
+        elif art == "tasks":
+            path = cdir / "tasks.md"
+        elif art == "specs":
+            specs_dir = cdir / "specs"
+            existing = (
+                sorted(p.name for p in specs_dir.iterdir() if p.is_dir())
+                if specs_dir.is_dir()
+                else []
+            )
+            extra["delta_domains"] = existing
+            if domain and str(domain).strip():
+                dom = self.resolve_delta_domain(domain)
+            elif len(existing) == 1:
+                dom = existing[0]
+            elif existing:
+                resolved = self.resolve_delta_domain(None)
+                dom = resolved if resolved in existing else existing[0]
+            else:
+                raise FileNotFoundError(f"no delta specs for change {cid}")
+            extra["domain"] = dom
+            path = cdir / "specs" / dom / SPEC_FILENAME
+        else:
+            raise ValueError(f"unknown artifact {artifact!r}; use proposal|design|tasks|specs")
+        if not path.is_file():
+            return {
+                "ok": False,
+                "error": f"{art} not found",
+                "change_id": cid,
+                **_file_payload(path, kind=art, extra=extra),
+            }
+        return {"ok": True, "change_id": cid, **_file_payload(path, kind=art, extra=extra)}
 
     def check_task(
         self,
@@ -747,9 +908,7 @@ class SpecStore:
         st = self.change_status(cid)
         warnings: list[str] = []
         if not st.apply_ready:
-            warnings.append(
-                "Change is not apply_ready (proposal/specs/tasks incomplete)."
-            )
+            warnings.append("Change is not apply_ready (proposal/specs/tasks incomplete).")
         open_tasks = [
             t
             for t in parse_tasks_markdown(
@@ -822,9 +981,7 @@ class SpecStore:
                     requirements_merged += n_reqs
                     domain_had_delta = True
                 except Exception as exc:
-                    merge_errors.append(
-                        f"{self.tool_relpath(delta_spec)}: {exc}"
-                    )
+                    merge_errors.append(f"{self.tool_relpath(delta_spec)}: {exc}")
             if domain_had_delta:
                 main_path.write_text(main_text, encoding="utf-8")
                 merged.append(self.tool_relpath(main_path))
@@ -839,8 +996,7 @@ class SpecStore:
                         "Fill ## ADDED/MODIFIED/REMOVED Requirements with "
                         "### Requirement: titles, then retry. Change was NOT removed."
                     ),
-                    "merge_errors": merge_errors
-                    or ["no mergeable requirements in delta specs"],
+                    "merge_errors": merge_errors or ["no mergeable requirements in delta specs"],
                     "warnings": warnings,
                     "merged_specs": merged,
                     "requirements_merged": requirements_merged,
