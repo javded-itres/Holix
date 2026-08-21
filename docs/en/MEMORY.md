@@ -86,7 +86,9 @@ Plan/Hybrid modes may also trigger summarization during long runs — [EXECUTION
 | TUI | Session id (switch with `/switch`) |
 | Telegram / MAX | Per chat + profile binding |
 | `holix run -c` | Your `--conversation-id` |
-| Cron jobs | `cron-<job-id>` (isolated from user chat) |
+| Cron (log) | `cron-<job-id>` (hidden in Telegram / MAX session lists) |
+| Cron → Telegram / MAX | Active chat session |
+| Cron → Studio | New session `studio_cron-…` |
 | API gateway | Client-supplied or server-generated session |
 
 ---

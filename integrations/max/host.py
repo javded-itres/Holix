@@ -291,7 +291,11 @@ class MaxHost:
         if not self.agent:
             return
         try:
-            self._session.known_sessions = await self.agent.list_conversations(limit=12)
+            from core.cron.delivery import without_internal_cron_sessions
+
+            self._session.known_sessions = without_internal_cron_sessions(
+                await self.agent.list_conversations(limit=24)
+            )
         except Exception:
             self._session.known_sessions = []
         if not self._session.known_sessions:

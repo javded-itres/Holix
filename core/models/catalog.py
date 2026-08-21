@@ -39,8 +39,8 @@ class ProviderPreset:
             meta["x_title"] = "Holix"
         if self.id == "ollama":
             # Native /api/chat — same path LiteLLM ollama_chat/ uses.
+            # Do not set think here: non-thinking models 400 on ``think: false``.
             meta["native_chat"] = True
-            meta["think"] = False
         if self.extra_env:
             meta["extra_env"] = list(self.extra_env)
         if self.configurable_host:

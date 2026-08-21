@@ -7,6 +7,9 @@ import asyncio
 import sys
 
 from core.cron.scheduler import CronScheduler, GlobalCronScheduler
+from integrations.bootstrap import register_integration_hooks
+
+register_integration_hooks()
 
 
 def main(argv: list[str] | None = None) -> int:

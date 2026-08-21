@@ -45,6 +45,17 @@ def test_thinking_opt_in_skips_think_off() -> None:
     assert "extra_body" not in out
 
 
+def test_non_thinking_ollama_skips_think_flag() -> None:
+    cfg = ModelConfig(
+        provider="ollama",
+        model="qwen2.5-coder:32b",
+        base_url="http://127.0.0.1:11434/v1",
+        api_key="ollama",
+    )
+    out = with_provider_completion_options(cfg, {"messages": []})
+    assert "extra_body" not in out
+
+
 def test_openai_provider_untouched() -> None:
     cfg = ModelConfig(
         provider="openai",

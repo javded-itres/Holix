@@ -316,6 +316,7 @@ class TelegramInteractive:
         profile = host.profile
         try:
             from cli.core import get_profile_manager
+
             manager = get_profile_manager()
             cfg = manager.load_profile(profile)
         except Exception:
@@ -354,10 +355,14 @@ class TelegramInteractive:
             kb_rows = [
                 [
                     InlineKeyboardButton(text="📋 List", callback_data="mcp:list"),
-                    InlineKeyboardButton(text="🛠 Install popular", callback_data="mcp:install-popular"),
+                    InlineKeyboardButton(
+                        text="🛠 Install popular", callback_data="mcp:install-popular"
+                    ),
                 ],
                 [
-                    InlineKeyboardButton(text="➕ Install from git", callback_data="mcp:install-git"),
+                    InlineKeyboardButton(
+                        text="➕ Install from git", callback_data="mcp:install-git"
+                    ),
                     InlineKeyboardButton(text="🔗 Assign to agents", callback_data="mcp:assign"),
                 ],
                 [
@@ -553,9 +558,7 @@ class TelegramInteractive:
                 title = sessions[idx].get("title") or cid
                 lang = messenger_host_locale(self._host)
                 model_line = (
-                    f"\n{escape_html(t('tg.model', lang, label=restored))}"
-                    if restored
-                    else ""
+                    f"\n{escape_html(t('tg.model', lang, label=restored))}" if restored else ""
                 )
                 await self._host._send_html(
                     f"{escape_html(t('tg.session', lang, title='', model=''))}"
@@ -850,17 +853,18 @@ class TelegramInteractive:
         popular = get_popular_list()
         rows = []
         for p in popular[:6]:  # limit buttons
-            rows.append([
-                InlineKeyboardButton(
-                    text=f"{p.display_name} ({p.category})",
-                    callback_data=f"mcp:install:{p.key}"
-                )
-            ])
+            rows.append(
+                [
+                    InlineKeyboardButton(
+                        text=f"{p.display_name} ({p.category})",
+                        callback_data=f"mcp:install:{p.key}",
+                    )
+                ]
+            )
         rows.append([InlineKeyboardButton(text="« Назад", callback_data="mcp:refresh")])
         kb = InlineKeyboardMarkup(inline_keyboard=rows)
         await self._host._send_html_with_keyboard(
-            "<b>Популярные MCP серверы</b>\nВыбери для установки (defaults):",
-            kb
+            "<b>Популярные MCP серверы</b>\nВыбери для установки (defaults):", kb
         )
 
     async def _show_mcp_assign_picker(self) -> None:
@@ -901,21 +905,24 @@ class TelegramInteractive:
 
         rows = []
         for s in servers[:6]:
-            rows.append([
-                InlineKeyboardButton(text=f"🗑 {escape_html(s)}", callback_data=f"mcp:remove-confirm:{s}")
-            ])
+            rows.append(
+                [
+                    InlineKeyboardButton(
+                        text=f"🗑 {escape_html(s)}", callback_data=f"mcp:remove-confirm:{s}"
+                    )
+                ]
+            )
         rows.append([InlineKeyboardButton(text="« Назад", callback_data="mcp:refresh")])
         kb = InlineKeyboardMarkup(inline_keyboard=rows)
-        await self._host._send_html_with_keyboard(
-            "<b>Выберите MCP сервер для удаления:</b>",
-            kb
-        )
+        await self._host._send_html_with_keyboard("<b>Выберите MCP сервер для удаления:</b>", kb)
 
     async def show_sessions_picker(self, *, page: int = 0) -> None:
         if self._host.agent:
             try:
-                self._session.ui_sessions = await self._host.agent.list_conversations(
-                    limit=24
+                from core.cron.delivery import without_internal_cron_sessions
+
+                self._session.ui_sessions = without_internal_cron_sessions(
+                    await self._host.agent.list_conversations(limit=24)
                 )
             except Exception:
                 self._session.ui_sessions = []

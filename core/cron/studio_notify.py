@@ -19,11 +19,6 @@ _MAX_TEXT_LEN = 12_000
 _CONVERSATION_SAFE_RE = re.compile(r"[^\w.-]+")
 
 
-def _is_studio_session(session_id: str | None) -> bool:
-    raw = (session_id or "").strip()
-    return raw == "studio" or raw.startswith("studio_")
-
-
 def _safe_conversation_id(conversation_id: str) -> str:
     raw = (conversation_id or "studio").strip() or "studio"
     safe = _CONVERSATION_SAFE_RE.sub("_", raw).strip("._")
@@ -42,34 +37,13 @@ def _studio_history_path(
     return realpath_under(base, f"{_safe_conversation_id(conversation_id)}.json")
 
 
-def _append_studio_message(
+def _write_studio_session(
     profile: str,
     *,
     workspace_mode: str,
     conversation_id: str,
-    text: str,
+    messages: list[dict],
 ) -> None:
-    path = _studio_history_path(
-        profile,
-        workspace_mode=workspace_mode,
-        conversation_id=conversation_id,
-    )
-    try:
-        if path.is_file():
-            data = json.loads(path.read_text(encoding="utf-8"))
-        else:
-            data = {}
-    except (OSError, json.JSONDecodeError):
-        data = {}
-
-    messages = list(data.get("messages") or [])
-    messages.append(
-        {
-            "cls": "system",
-            "text": text[:_MAX_TEXT_LEN],
-            "ts": datetime.now(UTC).isoformat(),
-        }
-    )
     allowed = frozenset({"user", "assistant", "system", "tool", "error", "subagent"})
     trimmed: list[dict] = []
     for msg in messages[-_MAX_MESSAGES:]:
@@ -78,7 +52,13 @@ def _append_studio_message(
         if cls not in allowed or not body:
             continue
         trimmed.append({"cls": cls, "text": body, "ts": msg.get("ts")})
-
+    if not trimmed:
+        return
+    path = _studio_history_path(
+        profile,
+        workspace_mode=workspace_mode,
+        conversation_id=conversation_id,
+    )
     payload = {
         "profile": profile,
         "workspace_mode": workspace_mode,
@@ -90,21 +70,41 @@ def _append_studio_message(
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
     except OSError:
-        logger.exception("Failed to mirror cron result to Studio chat (%s)", path)
+        logger.exception("Failed to write Studio cron session (%s)", path)
 
 
-def mirror_cron_to_studio_chat(job: CronJob, response: str) -> None:
-    """Append cron summary to Studio chat history files for active sessions."""
-    session_id = (job.session_id or "").strip()
-    if not _is_studio_session(session_id):
-        return
+def open_studio_cron_session(job: CronJob, response: str) -> str | None:
+    """Create a **new** Studio chat session for this cron run (not the open tab)."""
+    from core.cron.delivery import new_studio_cron_conversation_id
+
     summary = format_cron_summary(job, response)
     if not summary.strip():
-        return
+        return None
+    cid = new_studio_cron_conversation_id(job)
+    ts = datetime.now(UTC).isoformat()
+    task = (job.task or job.name or job.id).strip() or job.id
+    messages = [
+        {
+            "cls": "user",
+            "text": f"[Cron · {job.name or job.id}]\n{task}"[:_MAX_TEXT_LEN],
+            "ts": ts,
+        },
+        {"cls": "assistant", "text": summary[:_MAX_TEXT_LEN], "ts": ts},
+    ]
     for mode in ("cwd", "profile"):
-        _append_studio_message(
+        _write_studio_session(
             job.profile,
             workspace_mode=mode,
-            conversation_id=session_id,
-            text=summary,
+            conversation_id=cid,
+            messages=messages,
         )
+    return cid
+
+
+def mirror_cron_to_studio_chat(job: CronJob, response: str) -> str | None:
+    """Open a new Studio session for this run. Returns the conversation id."""
+    from core.cron.delivery import delivery_channel
+
+    if delivery_channel(job) != "studio":
+        return None
+    return open_studio_cron_session(job, response)

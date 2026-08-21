@@ -82,7 +82,9 @@ class MaxInteractive:
         if is_mode_slash(cmd):
             if len(parts) > 1 and parts[1] in self._host._execution_modes:
                 self._host._execution_mode_index = self._host._execution_modes.index(parts[1])
-                await self._host._send_text(t("mode_set", messenger_host_locale(self._host), mode=parts[1]))
+                await self._host._send_text(
+                    t("mode_set", messenger_host_locale(self._host), mode=parts[1])
+                )
             else:
                 await self.show_mode_picker()
             return True
@@ -91,7 +93,9 @@ class MaxInteractive:
             if len(parts) > 1:
                 self._host.streaming_enabled = parts[1] in ("on", "true", "1")
                 state = "on" if self._host.streaming_enabled else "off"
-                await self._host._send_text(t("streaming", messenger_host_locale(self._host), state=state))
+                await self._host._send_text(
+                    t("streaming", messenger_host_locale(self._host), state=state)
+                )
             else:
                 await self.show_stream_picker()
             return True
@@ -288,7 +292,11 @@ class MaxInteractive:
 
                 restored = restore_session_model(self._host)
                 title = sessions[idx].get("title") or cid
-                model_line = f"\n{t('tg.model', messenger_host_locale(self._host), label=restored)}" if restored else ""
+                model_line = (
+                    f"\n{t('tg.model', messenger_host_locale(self._host), label=restored)}"
+                    if restored
+                    else ""
+                )
                 await self._host._send_text(f"**Сессия:** `{title}`{model_line}")
                 return t("tg.session_switched", messenger_host_locale(self._host))
             return t("tg.session_invalid", messenger_host_locale(self._host))
@@ -484,7 +492,11 @@ class MaxInteractive:
     async def show_sessions_picker(self, *, page: int = 0) -> None:
         if self._host.agent:
             try:
-                self._session.ui_sessions = await self._host.agent.list_conversations(limit=24)
+                from core.cron.delivery import without_internal_cron_sessions
+
+                self._session.ui_sessions = without_internal_cron_sessions(
+                    await self._host.agent.list_conversations(limit=24)
+                )
             except Exception:
                 self._session.ui_sessions = []
         sessions = self._session.ui_sessions
@@ -736,7 +748,10 @@ class MaxInteractive:
             rows.append(
                 [
                     _callback_btn(f"{flag} {short[:18]}", _cb("cr", f"v:{job.id}")),
-                    _callback_btn("Вкл" if not job.enabled else "Выкл", _cb("cr", f"{'e' if not job.enabled else 'd'}:{job.id}")),
+                    _callback_btn(
+                        "Вкл" if not job.enabled else "Выкл",
+                        _cb("cr", f"{'e' if not job.enabled else 'd'}:{job.id}"),
+                    ),
                     _callback_btn("🗑", _cb("cr", f"x:{job.id}")),
                 ]
             )
@@ -792,11 +807,7 @@ class MaxInteractive:
             await self.show_cron_menu()
             return
         if action == "v":
-            detail = (
-                f"**{job.name}**\n"
-                f"`{job.cron_expression}`\n"
-                f"Задача: {job.task[:400]}"
-            )
+            detail = f"**{job.name}**\n`{job.cron_expression}`\nЗадача: {job.task[:400]}"
             await host._send_text(detail)
             return
 

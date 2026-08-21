@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+### Fixed
+
+- **Ollama 400 on `/api/chat`** — do not send `think: false` for models that do not support thinking (that 400s the native API). Normalize tool schemas and message content. Fall back to OpenAI `/v1` if native chat still rejects the request.
+- **Cron delivery** — Telegram / MAX results go to the **active** chat session (not `cron-<id>` in `/sessions`). Studio opens a **new** chat session per run. Telegram notify uses real HTML (no `<br>`). Cron worker registers messenger hooks.
+
+### Tests
+
+- Cron delivery channels, active-session pick, Studio new-session file, Telegram HTML without `<br>`.
+
 ## 1.0.15 — 2026-08-22
 
 ### Fixed
