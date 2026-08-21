@@ -7,8 +7,25 @@ from pathlib import Path
 import pytest
 from core.sdd.apply_mode import apply_mode_prompt_text, normalize_apply_mode, save_apply_mode
 from core.sdd.merge import merge_delta_into_main, patch_delta_spec
+from core.sdd.paths import confined_under, validate_change_id
 from core.sdd.store import SpecStore
 from core.sdd.tasks import parse_tasks_markdown, set_task_assignee, set_task_done
+
+
+def test_validate_change_id_rejects_path_escape() -> None:
+    with pytest.raises(ValueError):
+        validate_change_id("../etc")
+    with pytest.raises(ValueError):
+        validate_change_id("foo/bar")
+
+
+def test_confined_under_rejects_escape(tmp_path: Path) -> None:
+    root = tmp_path / "openspec"
+    root.mkdir()
+    inside = confined_under(root, root / "changes" / "ok")
+    assert str(inside).startswith(str(root.resolve()))
+    with pytest.raises(ValueError, match="escapes"):
+        confined_under(root, tmp_path / "outside")
 
 
 def test_parse_tasks_with_assignees():
