@@ -20,6 +20,7 @@ from core.subagents.react_agent import (
     attach_subagent_runtime,
     is_empty_react_result,
     is_failed_react_result,
+    recover_empty_react_text,
     resolve_subagent_context_window,
 )
 from core.subagents.supervisor import (
@@ -193,6 +194,62 @@ def test_main_agent_empty_reply_is_not_subagent_retry() -> None:
         )
         is None
     )
+
+
+def test_subagent_empty_reply_completes_after_writes() -> None:
+    agent = SimpleNamespace(
+        subagent_system_prompt="You are analysis-coder", emit=lambda *_a, **_k: None
+    )
+    messages = [
+        {"role": "user", "content": "Write analysis.md"},
+        {
+            "role": "assistant",
+            "content": "",
+            "tool_calls": [
+                {
+                    "id": "w1",
+                    "function": {"name": "write_file", "arguments": "{}"},
+                }
+            ],
+        },
+        {
+            "role": "tool",
+            "tool_call_id": "w1",
+            "content": "Wrote 15230 bytes to analysis.md",
+        },
+        {"role": "system", "content": EMPTY_FINAL_CONTINUE},
+        {"role": "system", "content": EMPTY_FINAL_CONTINUE},
+        {"role": "system", "content": EMPTY_FINAL_CONTINUE},
+    ]
+    out = _maybe_subagent_empty_retry(
+        agent=agent,
+        conversation_id="subagent:analysis-coder",
+        messages=messages,
+        step_count=6,
+        final_response="",
+    )
+    assert out is not None
+    assert out["is_final"] is True
+    assert "write_file" in (out["final_response"] or "")
+    assert "analysis.md" in (out["final_response"] or "")
+
+
+def test_recover_empty_react_text_from_handle_writes() -> None:
+    handle = SubAgentHandle(name="analysis-coder", config=SubAgentConfig(name="analysis-coder"))
+    handle.activity_log = [
+        {
+            "kind": "tool_result",
+            "tool_name": "write_file",
+            "details": "Wrote 15230 bytes to analysis-coder.md",
+        }
+    ]
+    text = recover_empty_react_text(
+        "Agent completed without producing a final response.",
+        handle=handle,
+    )
+    assert text
+    assert "write_file" in text
+    assert is_failed_react_result(text) is None
 
 
 def test_subagent_empty_reply_fails_after_three_continues() -> None:

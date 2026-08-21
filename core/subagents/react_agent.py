@@ -8,6 +8,7 @@ from typing import Any
 from core.agent_events import (
     AgentEventBus,
     FinalResponseEvent,
+    MaxStepsExtendedEvent,
     ThinkingEvent,
     ToolCallResultEvent,
     ToolCallStartEvent,
@@ -196,6 +197,40 @@ def is_failed_react_result(text: str | None) -> str | None:
     return None
 
 
+def recover_empty_react_text(
+    text: str | None,
+    *,
+    messages: list[dict[str, Any]] | None = None,
+    handle: Any | None = None,
+) -> str | None:
+    """If the model ended empty after successful writes, return a completion summary."""
+    if not is_empty_react_result(text):
+        return None
+    from core.graph.action_honesty import summarize_persist_tools
+
+    summary = summarize_persist_tools(messages)
+    if summary:
+        return summary
+    log = getattr(handle, "activity_log", None) or []
+    writes: list[str] = []
+    persist = {"write_file", "patch_file", "sdd_write_artifact", "sdd_update_spec"}
+    for item in log:
+        if not isinstance(item, dict):
+            continue
+        tool = str(item.get("tool_name") or "").strip()
+        kind = str(item.get("kind") or item.get("type") or "")
+        if tool not in persist:
+            continue
+        if kind not in {"tool_result", "tool"}:
+            continue
+        details = str(item.get("details") or item.get("message") or "").strip()
+        preview = " ".join(details.split())[:240]
+        writes.append(f"- {tool}: {preview}" if preview else f"- {tool}")
+    if not writes:
+        return None
+    return "Work completed via tools (model returned no final text):\n" + "\n".join(writes[-8:])
+
+
 def build_react_subagent(parent: Any, config: SubAgentConfig, task: str) -> Any:
     """Child HolixAgent on LangGraph ReAct; reuses parent services."""
     from core.agent import HolixAgent
@@ -272,6 +307,14 @@ def build_react_subagent(parent: Any, config: SubAgentConfig, task: str) -> Any:
 
 def record_handle_event(handle: SubAgentHandle, event: Any) -> None:
     """Mirror ReAct events onto the sub-agent activity log."""
+    if isinstance(event, MaxStepsExtendedEvent):
+        handle.max_steps = int(event.max_steps or handle.max_steps or 0)
+        handle.record_activity(
+            "step_budget_extended",
+            (f"Step budget +{event.extra_steps} ({event.previous_max_steps} → {event.max_steps})"),
+            steps_taken=handle.steps_taken,
+        )
+        return
     if isinstance(event, ToolCallStartEvent):
         args = event.arguments_raw or str(event.arguments or "")
         handle.record_activity(
