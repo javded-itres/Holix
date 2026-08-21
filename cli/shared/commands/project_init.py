@@ -11,26 +11,6 @@ from core.project.init_prompt import _holix_md_rel_path, build_init_user_message
 from core.project.init_scan import scan_project_for_init, write_init_skeleton
 
 
-def _is_messenger_host(host: Any) -> bool:
-    """Telegram / MAX hosts — not Studio/TUI (they also expose `_session`)."""
-    session = getattr(host, "_session", None)
-    if session is None:
-        return False
-    from integrations.max.session import MaxChatSession
-    from integrations.telegram.session import ChatSession
-
-    return isinstance(session, (ChatSession, MaxChatSession))
-
-
-def _is_studio_host(host: Any) -> bool:
-    """Holix Studio — structured init prompt, no plan-review gate."""
-    session = getattr(host, "_session", None)
-    if session is None:
-        return False
-    mod = getattr(type(session), "__module__", "") or ""
-    return mod.startswith("holix_studio.") or type(session).__name__ == "StudioSession"
-
-
 def _agent_busy(host: Any) -> bool:
     session = getattr(host, "_session", None)
     if session is None:
@@ -45,31 +25,8 @@ def _agent_busy(host: Any) -> bool:
     return False
 
 
-def prefer_plan_mode(host: Any) -> str | None:
-    """Switch host to plan_and_execute for structured onboarding (TUI)."""
-    modes = getattr(host, "_execution_modes", None)
-    if not modes or "plan_and_execute" not in modes:
-        return None
-    host._execution_mode_index = modes.index("plan_and_execute")
-    refresh = getattr(host, "_refresh_status_bar", None)
-    if refresh:
-        try:
-            refresh()
-        except Exception:
-            pass
-    cycle = getattr(host, "action_cycle_execution_mode", None)
-    if cycle and hasattr(host, "config"):
-        try:
-            from config import settings
-
-            settings.execution_mode = "plan_and_execute"
-        except Exception:
-            pass
-    return "plan_and_execute"
-
-
 def prefer_react_mode(host: Any) -> str | None:
-    """Switch host to react — avoids plan-review blocking in messengers."""
+    """Switch host to react — /init writes HOLIX.md via tools, not a plan gate."""
     modes = getattr(host, "_execution_modes", None)
     if not modes or "react" not in modes:
         return None
@@ -84,10 +41,12 @@ def prefer_react_mode(host: Any) -> str | None:
 
 
 def choose_init_execution_mode(host: Any) -> str:
-    """Pick execution mode for /init based on host type."""
-    if _is_messenger_host(host) or _is_studio_host(host):
-        return prefer_react_mode(host) or "react"
-    return prefer_plan_mode(host) or "plan_and_execute"
+    """``/init`` always runs in ReAct.
+
+    Plan & Execute would open a plan-review gate before writing ``HOLIX.md``.
+    The init prompt already has a fixed checklist (scan → fill sections).
+    """
+    return prefer_react_mode(host) or "react"
 
 
 async def _ack_init_start(host: Any, mode_label: str, *, target_dir: str | None = None) -> None:

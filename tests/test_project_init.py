@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import asyncio
 from types import SimpleNamespace
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 from cli.shared.commands.project_init import (
@@ -27,17 +27,17 @@ def test_choose_init_execution_mode_react_for_telegram() -> None:
     assert host._execution_mode_index == 0
 
 
-def test_choose_init_execution_mode_plan_for_tui() -> None:
+def test_choose_init_execution_mode_react_for_tui() -> None:
+    """TUI /init must not switch into plan_and_execute (no plan-review gate)."""
     host = SimpleNamespace(
         _execution_modes=["react", "plan_and_execute", "hybrid"],
-        _execution_mode_index=0,
+        _execution_mode_index=1,
         _refresh_status_bar=lambda: None,
         config=SimpleNamespace(),
     )
-    with patch("cli.shared.commands.project_init.settings", create=True):
-        mode = choose_init_execution_mode(host)
-    assert mode == "plan_and_execute"
-    assert host._execution_mode_index == 1
+    mode = choose_init_execution_mode(host)
+    assert mode == "react"
+    assert host._execution_mode_index == 0
 
 
 def test_choose_init_execution_mode_react_for_studio_host() -> None:

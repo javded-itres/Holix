@@ -39,8 +39,14 @@ Focus ONLY on completing this step. Do not try to do the entire task at once.
 Use the available tools as needed. Provide a clear, complete result for this step.
 """
 
-def _step_system_prompt(profile_name: str | None = None) -> str:
+
+def _step_system_prompt(
+    profile_name: str | None = None,
+    *,
+    agent: object | None = None,
+) -> str:
     from core.project.holix_md import append_holix_project_context, task_context_note
+    from core.project.workspace_root import resolve_project_root
     from core.prompt_builder import language_instruction_block
 
     base = (
@@ -49,7 +55,8 @@ def _step_system_prompt(profile_name: str | None = None) -> str:
         f"{task_context_note()}"
     )
     lang_block = language_instruction_block(profile_name=profile_name)
-    return append_holix_project_context(f"{base}\n\n{lang_block}")
+    cwd = resolve_project_root(agent=agent)
+    return append_holix_project_context(f"{base}\n\n{lang_block}", cwd=cwd)
 
 
 async def execute_step_node(state: HolixGraphState, config: RunnableConfig) -> dict:
@@ -92,7 +99,8 @@ async def execute_step_node(state: HolixGraphState, config: RunnableConfig) -> d
     if agent and hasattr(agent, "memory"):
         try:
             await agent.memory.save_message(
-                conversation_id, "user",
+                conversation_id,
+                "user",
                 f"[Plan Step {step_num}] {step_description}",
                 metadata={"type": "plan_step", "step": step_num},
             )
@@ -108,7 +116,7 @@ async def execute_step_node(state: HolixGraphState, config: RunnableConfig) -> d
 
             profile_name = getattr(getattr(agent, "config", None), "profile_name", None)
             step_messages = [
-                {"role": "system", "content": _step_system_prompt(profile_name)},
+                {"role": "system", "content": _step_system_prompt(profile_name, agent=agent)},
                 {"role": "user", "content": step_prompt},
             ]
             import time as _time
@@ -135,9 +143,7 @@ async def execute_step_node(state: HolixGraphState, config: RunnableConfig) -> d
                 usage = resolve_usage(
                     response,
                     messages=step_messages,
-                    completion_text=completion_text_from_message(
-                        response.choices[0].message
-                    ),
+                    completion_text=completion_text_from_message(response.choices[0].message),
                     model=model,
                 )
                 emit_llm_call_usage(
@@ -161,7 +167,9 @@ async def execute_step_node(state: HolixGraphState, config: RunnableConfig) -> d
     if agent and hasattr(agent, "memory"):
         try:
             await agent.memory.save_message(
-                conversation_id, "assistant", step_response,
+                conversation_id,
+                "assistant",
+                step_response,
                 metadata={"type": "plan_step", "step": step_num},
             )
         except Exception as e:
@@ -180,13 +188,16 @@ async def execute_step_node(state: HolixGraphState, config: RunnableConfig) -> d
     if agent and hasattr(agent, "emit"):
         try:
             from core.agent_events import PlanStepCompletedEvent
-            agent.emit(PlanStepCompletedEvent(
-                step_number=step_num,
-                total_steps=len(plan_steps),
-                step_description=step_description[:200],
-                step_response=step_response[:200],
-                conversation_id=conversation_id,
-            ))
+
+            agent.emit(
+                PlanStepCompletedEvent(
+                    step_number=step_num,
+                    total_steps=len(plan_steps),
+                    step_description=step_description[:200],
+                    step_response=step_response[:200],
+                    conversation_id=conversation_id,
+                )
+            )
         except Exception as e:
             logger.warning(f"Failed to emit PlanStepCompletedEvent: {e}")
 
@@ -203,10 +214,13 @@ async def execute_step_node(state: HolixGraphState, config: RunnableConfig) -> d
         if agent and hasattr(agent, "emit"):
             try:
                 from core.agent_events import PlanCompletedEvent
-                agent.emit(PlanCompletedEvent(
-                    total_steps=len(plan_steps),
-                    conversation_id=conversation_id,
-                ))
+
+                agent.emit(
+                    PlanCompletedEvent(
+                        total_steps=len(plan_steps),
+                        conversation_id=conversation_id,
+                    )
+                )
             except Exception as e:
                 logger.warning(f"Failed to emit PlanCompletedEvent: {e}")
 
@@ -254,6 +268,10 @@ def _build_step_prompt(
         total_steps=total_steps,
         description=description,
         tools_needed=", ".join(tools_needed) if tools_needed else "All available tools",
-        expected_output=expected_output if expected_output else "Complete the task described above.",
-        previous_results="\n".join(previous_results) if previous_results else "None (this is the first step).",
+        expected_output=expected_output
+        if expected_output
+        else "Complete the task described above.",
+        previous_results="\n".join(previous_results)
+        if previous_results
+        else "None (this is the first step).",
     )

@@ -2,9 +2,15 @@
 
 ## Unreleased
 
+### Fixed
+
+- **`/init` runs in ReAct** — TUI no longer switches the session to Plan & Execute (that opened a plan-review gate instead of writing `.holix/HOLIX.md`). Same as Studio / Telegram / MAX.
+
 ### Added
 
 - **Custom slash commands** — markdown files in `.holix/commands/` (project) and `~/.holix/commands/` (user). `review.md` → `/review`; nested `test/unit.md` → `/test:unit`. Supports YAML frontmatter (`description`, `argument-hint`, `allowed-tools`, `model`), `$ARGUMENTS` / `$1` placeholders, `/commands` and `/commands reload`, and listing in `/help`. Project files override user files.
+- **Project instruction files** — `AGENTS.md`, `CLAUDE.md`, and `rules.md` / `RULES.md` at the repo root (and nested packages) are loaded with `.holix/HOLIX.md`.
+- **HOLIX.md bootstrap** — search four levels (Studio `projects/<slug>/<repo>`), create a skeleton when missing, and migrate a repo-root `HOLIX.md` into `.holix/HOLIX.md`.
 
 ## 1.0.13 — 2026-08-21
 

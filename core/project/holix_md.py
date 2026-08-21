@@ -2,43 +2,68 @@
 
 from __future__ import annotations
 
+import logging
 from pathlib import Path
 
 from core.config_utils import get_local_holix_dir
+
+logger = logging.getLogger(__name__)
 
 HOLIX_MD_FILENAME = "HOLIX.md"
 HOLIX_MD_LEGACY_FILENAME = "HELIX.md"
 HOLIX_MD_REL_PATH = f".holix/{HOLIX_MD_FILENAME}"
 DEFAULT_MAX_CHARS = 24_000
-HOLIX_MD_SEARCH_DEPTH = 2
-_SKIP_SEARCH_DIRS = frozenset({
-    ".git",
-    ".holix",
-    ".helix",
-    ".hg",
-    ".svn",
-    "node_modules",
-    ".venv",
-    "venv",
-    "__pycache__",
-    "dist",
-    "build",
-    ".tox",
-    ".mypy_cache",
-    ".pytest_cache",
-    ".ruff_cache",
-})
+# Studio product projects live at projects/<slug>/<repo> (3 levels from workspace).
+HOLIX_MD_SEARCH_DEPTH = 4
+_SKIP_SEARCH_DIRS = frozenset(
+    {
+        ".git",
+        ".holix",
+        ".helix",
+        ".hg",
+        ".svn",
+        "node_modules",
+        ".venv",
+        "venv",
+        "__pycache__",
+        "dist",
+        "build",
+        ".tox",
+        ".mypy_cache",
+        ".pytest_cache",
+        ".ruff_cache",
+    }
+)
+
+_MINIMAL_HOLIX_TEMPLATE = """# Project handbook
+
+This file (`.holix/HOLIX.md`) is the primary source of truth about this codebase.
+Holix loads it on every agent turn. If it was missing, it was created automatically.
+
+When present at the repository root, also follow:
+- `AGENTS.md`
+- `CLAUDE.md`
+- `rules.md` / `RULES.md`
+
+## Overview
+
+## Stack
+
+## Commands
+"""
 
 TASK_CONTEXT_NOTE = (
-    "When `.holix/HOLIX.md` exists in the working directory or nested subfolders "
-    "(up to two levels), treat it as the primary source of truth about this codebase. "
-    "Read it (or refresh with `read_file`) before exploring blindly. Prefer facts from "
-    "HOLIX.md over assumptions."
+    "`.holix/HOLIX.md` is the primary source of truth about this codebase "
+    "(working directory or nested folders up to four levels). Prefer facts from "
+    "HOLIX.md over assumptions. If the file is missing, Holix creates a skeleton "
+    "at start. Standard agent files are loaded automatically when present: "
+    "`AGENTS.md`, `CLAUDE.md`, `rules.md` / `RULES.md`."
 )
 
 PLANNING_CONTEXT_NOTE = (
     "Before planning, load `.holix/HOLIX.md` (working directory or nested folders up "
-    "to two levels) and **read-only** any existing `openspec/specs/` requirements. "
+    "to four levels) and **read-only** any existing `openspec/specs/` requirements. "
+    "Also follow `AGENTS.md`, `CLAUDE.md`, and `rules.md` / `RULES.md` when present. "
     "Base architecture, modules, APIs, and conventions on the handbook; ground product "
     "work in specs **when they already exist**. "
     "If HOLIX.md is missing, the planner may run `/init` pre-scan only (writes "
@@ -70,6 +95,13 @@ def _is_dir(path: Path) -> bool:
         return False
 
 
+def _is_dot_holix_handbook(path: Path) -> bool:
+    return path.name in {HOLIX_MD_FILENAME, HOLIX_MD_LEGACY_FILENAME} and path.parent.name in {
+        ".holix",
+        ".helix",
+    }
+
+
 def _holix_md_file_in_dir(base: Path) -> Path | None:
     try:
         holix_dir = get_local_holix_dir(base)
@@ -79,6 +111,10 @@ def _holix_md_file_in_dir(base: Path) -> Path | None:
         legacy = holix_dir / HOLIX_MD_LEGACY_FILENAME
         if _is_file(legacy):
             return legacy
+        # Legacy Studio / hand-authored handbook at the repo root.
+        root_md = base / HOLIX_MD_FILENAME
+        if _is_file(root_md):
+            return root_md
     except OSError:
         return None
     return None
@@ -183,10 +219,7 @@ def load_holix_md(
         return None
     rel_path = holix_md_relative_path(path, cwd)
     if len(text) > max_chars:
-        text = (
-            text[:max_chars]
-            + f"\n\n… [truncated for context; full file: {rel_path}]"
-        )
+        text = text[:max_chars] + f"\n\n… [truncated for context; full file: {rel_path}]"
     return text
 
 
@@ -205,16 +238,104 @@ def format_holix_md_block(cwd: str | Path | None = None) -> str:
     if not body or path is None:
         return ""
     rel_path = holix_md_relative_path(path, cwd)
-    return (
-        f"## Project knowledge ({rel_path})\n"
-        f"{TASK_CONTEXT_NOTE}\n\n"
-        f"{body}"
-    )
+    return f"## Project knowledge ({rel_path})\n{TASK_CONTEXT_NOTE}\n\n{body}"
+
+
+def _migrate_root_handbook(path: Path) -> Path:
+    """Copy a repo-root HOLIX.md into ``.holix/HOLIX.md`` (canonical location)."""
+    dest = path.parent / ".holix" / HOLIX_MD_FILENAME
+    if _is_file(dest):
+        return dest
+    try:
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        dest.write_text(path.read_text(encoding="utf-8", errors="replace"), encoding="utf-8")
+        logger.info("migrated root HOLIX.md → %s", dest)
+    except OSError:
+        logger.warning("could not migrate root HOLIX.md to %s", dest, exc_info=True)
+        return path
+    return dest if _is_file(dest) else path
+
+
+def _write_init_skeleton_at(cwd: Path, *, locale: str = "en") -> Path | None:
+    from core.project.init_scan import scan_project_for_init, write_init_skeleton
+
+    try:
+        from core.i18n.messages import t
+
+        loc = locale if locale in ("en", "ru") else "en"
+        template = t("init.holix_template", loc)
+    except Exception:
+        loc = "en"
+        template = _MINIMAL_HOLIX_TEMPLATE
+    try:
+        scan = scan_project_for_init(cwd=cwd)
+        return write_init_skeleton(
+            scan,
+            holix_rel_path=HOLIX_MD_REL_PATH,
+            template=template,
+            locale=loc,
+        )
+    except Exception:
+        logger.warning("HOLIX.md /init skeleton failed under %s", cwd, exc_info=True)
+        return None
+
+
+def ensure_holix_md_exists(
+    cwd: str | Path | None = None,
+    *,
+    locale: str = "en",
+) -> Path | None:
+    """Return handbook path, creating ``.holix/HOLIX.md`` when none exists.
+
+    Migrates a legacy repo-root ``HOLIX.md`` into ``.holix/`` instead of writing
+    an empty skeleton over it.
+    """
+    existing = resolve_holix_md_read_path(cwd)
+    if existing is not None:
+        if not _is_dot_holix_handbook(existing):
+            return _migrate_root_handbook(existing)
+        return existing
+
+    root = _workspace_root(cwd)
+    written = _write_init_skeleton_at(root, locale=locale)
+    if written is not None and _is_file(written):
+        return written
+    dest = get_holix_md_path(root)
+    try:
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        if not _is_file(dest):
+            dest.write_text(_MINIMAL_HOLIX_TEMPLATE, encoding="utf-8")
+            logger.info("created HOLIX.md skeleton at %s", dest)
+        return dest if _is_file(dest) else None
+    except OSError:
+        logger.warning("could not create %s", dest, exc_info=True)
+        return None
+
+
+def format_project_context_block(cwd: str | Path | None = None) -> str:
+    """HOLIX.md plus AGENTS.md / CLAUDE.md / rules.md when present."""
+    from core.project.instruction_files import format_instruction_files_block
+
+    parts: list[str] = []
+    holix_block = format_holix_md_block(cwd)
+    if holix_block:
+        parts.append(holix_block)
+    extra = format_instruction_files_block(cwd)
+    if extra:
+        parts.append(extra)
+    return "\n\n".join(parts)
 
 
 def append_holix_project_context(prompt: str, cwd: str | Path | None = None) -> str:
-    """Append HOLIX.md block to a system prompt when the file exists."""
-    block = format_holix_md_block(cwd)
+    """Append project handbook + standard agent files to a system prompt.
+
+    Creates ``.holix/HOLIX.md`` when missing so every turn has a handbook.
+    """
+    try:
+        ensure_holix_md_exists(cwd)
+    except OSError:
+        logger.warning("ensure_holix_md_exists failed", exc_info=True)
+    block = format_project_context_block(cwd)
     if not block:
         return prompt
     return f"{prompt.rstrip()}\n\n{block}\n"
