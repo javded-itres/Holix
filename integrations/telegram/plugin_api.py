@@ -20,6 +20,7 @@ TELEGRAM_ENTRYPOINT_GROUP = "holix.telegram.extensions"
 MessageGate = Callable[..., Any]
 HandlerRegistrar = Callable[["TelegramPluginAPI"], None]
 AccessCheck = Callable[[int], "bool | None"]
+VisibleProfilesProvider = Callable[..., "list[str] | None"]
 
 
 @dataclass(frozen=True, slots=True)
@@ -65,6 +66,7 @@ class TelegramPluginAPI:
     message_gates: list[MessageGate] = field(default_factory=list)
     handler_registrars: list[HandlerRegistrar] = field(default_factory=list)
     access_checks: list[AccessCheck] = field(default_factory=list)
+    visible_profiles_providers: list[VisibleProfilesProvider] = field(default_factory=list)
     _extensions_loaded: list[str] = field(default_factory=list)
 
     def add_command(self, command: str, description: str) -> None:
@@ -86,6 +88,10 @@ class TelegramPluginAPI:
     def add_access_check(self, check: AccessCheck) -> None:
         """Optional: return False to deny bot access, True to allow, None to abstain."""
         self.access_checks.append(check)
+
+    def add_visible_profiles_provider(self, provider: VisibleProfilesProvider) -> None:
+        """Optional: return Holix profile names this Telegram user may use, or None."""
+        self.visible_profiles_providers.append(provider)
 
 
 # Last API built for the active bot process (used by command menu merge).
@@ -235,6 +241,35 @@ async def run_message_gates(
         except Exception:
             logger.exception("telegram message gate failed")
     return MessageGateResult(allow=True)
+
+
+def resolve_plugin_visible_profiles(
+    *,
+    user_id: int | None,
+    current: str,
+    bot_profile: str | None = None,
+) -> list[str] | None:
+    """First provider that returns a list wins. None = use Holix defaults."""
+    api = get_active_telegram_plugin_api()
+    if api is None or not api.visible_profiles_providers:
+        return None
+    profile = (bot_profile or api.bot_profile or "").strip()
+    for provider in api.visible_profiles_providers:
+        try:
+            result = provider(
+                user_id=user_id,
+                current=current,
+                bot_profile=profile,
+            )
+            if result is None:
+                continue
+            names = [str(n).strip() for n in result if str(n).strip()]
+            if current and current not in names:
+                names.insert(0, current)
+            return names
+        except Exception:
+            logger.exception("telegram visible-profiles provider failed")
+    return None
 
 
 def extension_access_allows(api: TelegramPluginAPI | None, user_id: int) -> bool | None:

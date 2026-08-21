@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+## 1.0.17 — 2026-08-22
+
+### Added
+
+- **Telegram visible-profiles plugin hook** — Studio (and other extensions) can restrict `/profile` to the profiles a messenger user is allowed to use. Switching persists the Telegram user→profile map.
+
 ## 1.0.16 — 2026-08-22
 
 ### Fixed

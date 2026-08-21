@@ -294,6 +294,16 @@ class TelegramHost:
         from core.profile_keys import ProfileKeyError, profile_has_access_key
 
         from integrations.telegram.agent_setup import create_agent
+        from integrations.telegram.plugin_api import resolve_plugin_visible_profiles
+
+        allowed = resolve_plugin_visible_profiles(
+            user_id=self._session.user_id,
+            current=self._session.profile,
+            bot_profile=self._session.bot_profile,
+        )
+        if allowed is not None and new_profile not in allowed:
+            await self._send_html(f"Нет доступа к профилю <code>{new_profile}</code>.")
+            return
 
         try:
             init_profile(new_profile, profile_key=profile_key, prompt_key=False)
@@ -308,6 +318,17 @@ class TelegramHost:
         self._session.profile_manual_override = True
         self._session.profile = new_profile
         self._session.conversation_id = f"tg_{new_profile}_{self._session.chat_id}"
+        if self._session.user_id:
+            try:
+                from integrations.telegram.user_profiles import set_user_profile
+
+                set_user_profile(
+                    self._session.bot_profile,
+                    int(self._session.user_id),
+                    new_profile,
+                )
+            except Exception:
+                logger.exception("persist telegram user→profile map failed")
         self._session.agent = await create_agent(
             new_profile,
             bot_profile=self._session.bot_profile,

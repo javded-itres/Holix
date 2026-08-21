@@ -26,6 +26,20 @@ def list_visible_profiles(
     """Profiles the user may pick from UI or `/profile` without a key."""
     from cli.core import ProfileManager
 
+    from integrations.telegram.plugin_api import resolve_plugin_visible_profiles
+
+    plugin = resolve_plugin_visible_profiles(
+        user_id=user_id,
+        current=current,
+        bot_profile=bot_profile,
+    )
+    if plugin is not None:
+        existing = set(ProfileManager().list_profiles())
+        names = [n for n in plugin if n in existing]
+        if current and current in existing and current not in names:
+            names.insert(0, current)
+        return names or ([current] if current else [])
+
     if not is_profile_list_hidden(bot_profile, user_id):
         return ProfileManager().list_profiles()
 

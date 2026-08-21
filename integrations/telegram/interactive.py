@@ -534,11 +534,22 @@ class TelegramInteractive:
             if 0 <= idx < len(profiles):
                 name = profiles[idx]
                 if name != self._host.profile:
+                    from integrations.telegram.plugin_api import (
+                        resolve_plugin_visible_profiles,
+                    )
                     from integrations.telegram.profile_visibility import is_profile_list_hidden
 
-                    if is_profile_list_hidden(
-                        self._session.bot_profile,
-                        self._session.user_id,
+                    plugin = resolve_plugin_visible_profiles(
+                        user_id=self._session.user_id,
+                        current=self._host.profile,
+                        bot_profile=self._session.bot_profile,
+                    )
+                    if (
+                        is_profile_list_hidden(
+                            self._session.bot_profile,
+                            self._session.user_id,
+                        )
+                        and plugin is None
                     ):
                         return t("tg.profile_switch_by_key", lang)
                     await self._host._switch_profile(name)
@@ -760,14 +771,23 @@ class TelegramInteractive:
         )
 
     async def show_profile_picker(self) -> None:
+        from integrations.telegram.plugin_api import resolve_plugin_visible_profiles
         from integrations.telegram.profile_visibility import is_profile_list_hidden
 
         profiles = self._host._get_available_profiles()
         self._session.ui_profiles = profiles
         lang = messenger_host_locale(self._host)
         current = self._host.profile
+        plugin = resolve_plugin_visible_profiles(
+            user_id=self._session.user_id,
+            current=current,
+            bot_profile=self._session.bot_profile,
+        )
 
-        if is_profile_list_hidden(self._session.bot_profile, self._session.user_id):
+        if (
+            is_profile_list_hidden(self._session.bot_profile, self._session.user_id)
+            and plugin is None
+        ):
             await self._host._send_html(
                 f"<b>{escape_html(t('profiles_title', lang))}</b>\n"
                 f"{escape_html(t('tg.profile_current', lang, name=current))}\n\n"

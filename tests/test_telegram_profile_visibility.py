@@ -72,6 +72,30 @@ def test_visible_profiles_for_mapped_user(holix_home) -> None:
     assert visible == ["alice"]
 
 
+def test_plugin_overrides_visible_profiles_even_for_admin(holix_home) -> None:
+    from integrations.telegram.plugin_api import (
+        TelegramPluginAPI,
+        set_active_telegram_plugin_api,
+    )
+
+    _isolated_bot_env()
+    manager = ProfileManager()
+    manager.create_profile("alice", inherit_global=True)
+    manager.create_profile("bob", inherit_global=True)
+    manager.create_profile("other-tenant", inherit_global=True)
+    set_admin_user("shared", 900)
+
+    api = TelegramPluginAPI(bot_profile="shared", settings=MagicMock())
+    api.add_visible_profiles_provider(lambda **_kw: ["alice", "bob"])
+    set_active_telegram_plugin_api(api)
+    try:
+        visible = list_visible_profiles("shared", 900, current="alice")
+        assert visible == ["alice", "bob"]
+        assert "other-tenant" not in visible
+    finally:
+        set_active_telegram_plugin_api(None)
+
+
 def test_admin_sees_all_profiles(holix_home) -> None:
     _isolated_bot_env()
     manager = ProfileManager()
