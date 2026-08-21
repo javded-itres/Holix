@@ -31,6 +31,31 @@ from core.sdd.tasks import (
     set_task_done,
 )
 
+
+def _openspec_target(workspace: Path, path: Path) -> str:
+    """Real path under openspec/, or raise if it would escape."""
+    root = os.path.realpath(str(openspec_root(workspace)))
+    target = os.path.realpath(os.path.expanduser(str(path)))
+    if target != root and not target.startswith(root + os.sep):
+        raise ValueError(f"path escapes {root}: {path}")
+    return target
+
+
+def _write_openspec_file(workspace: Path, path: Path, text: str) -> None:
+    target = _openspec_target(workspace, path)
+    parent = os.path.dirname(target)
+    if parent:
+        os.makedirs(parent, exist_ok=True)
+    with open(target, "w", encoding="utf-8") as fh:
+        fh.write(text)
+
+
+def _read_openspec_file(workspace: Path, path: Path) -> str:
+    target = _openspec_target(workspace, path)
+    with open(target, encoding="utf-8") as fh:
+        return fh.read()
+
+
 _DEFAULT_CONFIG = """\
 schema: holix-spec
 context: |
@@ -329,9 +354,10 @@ class SpecStore:
         dest.mkdir(parents=True)
         req = (request or "").strip()
         if req:
-            (dest / "request.md").write_text(
+            _write_openspec_file(
+                self.workspace,
+                dest / "request.md",
                 f"# Request: {cid}\n\n{req}\n",
-                encoding="utf-8",
             )
             proposal = (
                 f"# Proposal: {cid}\n\n"
@@ -339,17 +365,29 @@ class SpecStore:
                 "## What Changes\n\n<!-- fill after understanding confirmed -->\n\n"
                 "## Impact\n\n<!-- risks, migrations -->\n"
             )
-            (dest / "proposal.md").write_text(proposal, encoding="utf-8")
+            _write_openspec_file(self.workspace, dest / "proposal.md", proposal)
         else:
-            (dest / "proposal.md").write_text(
-                _PROPOSAL_STUB.format(change_id=cid), encoding="utf-8"
+            _write_openspec_file(
+                self.workspace,
+                dest / "proposal.md",
+                _PROPOSAL_STUB.format(change_id=cid),
             )
-        (dest / "design.md").write_text(_DESIGN_STUB.format(change_id=cid), encoding="utf-8")
-        (dest / "tasks.md").write_text(_TASKS_STUB.format(change_id=cid), encoding="utf-8")
+        _write_openspec_file(
+            self.workspace,
+            dest / "design.md",
+            _DESIGN_STUB.format(change_id=cid),
+        )
+        _write_openspec_file(
+            self.workspace,
+            dest / "tasks.md",
+            _TASKS_STUB.format(change_id=cid),
+        )
         delta_dir = dest / "specs" / domain
         delta_dir.mkdir(parents=True)
-        (delta_dir / SPEC_FILENAME).write_text(
-            _DELTA_STUB.format(domain=domain, change_id=cid), encoding="utf-8"
+        _write_openspec_file(
+            self.workspace,
+            delta_dir / SPEC_FILENAME,
+            _DELTA_STUB.format(domain=domain, change_id=cid),
         )
         from core.sdd.understanding import init_understanding
 
@@ -388,12 +426,17 @@ class SpecStore:
         tasks: list = []
         tasks_path = cdir / "tasks.md"
         if tasks_path.is_file():
-            tasks = parse_tasks_markdown(tasks_path.read_text(encoding="utf-8"))
+            tasks = parse_tasks_markdown(_read_openspec_file(self.workspace, tasks_path))
         mode = load_apply_mode(self.workspace, cid)
         tasks_ok = self._tasks_ready_for_apply(tasks, apply_mode=mode)
-        delta_specs = (
-            list((cdir / "specs").rglob(SPEC_FILENAME)) if (cdir / "specs").is_dir() else []
-        )
+        specs_dir = cdir / "specs"
+        delta_specs: list[Path] = []
+        if specs_dir.is_dir():
+            root = os.path.realpath(str(openspec_root(self.workspace)))
+            for p in specs_dir.rglob(SPEC_FILENAME):
+                target = os.path.realpath(str(p))
+                if target == root or target.startswith(root + os.sep):
+                    delta_specs.append(Path(target))
         artifacts = {
             "proposal": (cdir / "proposal.md").is_file()
             and self._artifact_filled(cdir / "proposal.md"),
@@ -496,8 +539,12 @@ class SpecStore:
         else:
             raise ValueError(f"unknown artifact {artifact!r}; use proposal|design|tasks|specs")
 
-        before = path.read_text(encoding="utf-8") if path.is_file() else None
-        path.write_text(content, encoding="utf-8")
+        before = None
+        try:
+            before = _read_openspec_file(self.workspace, path)
+        except (FileNotFoundError, ValueError):
+            before = None
+        _write_openspec_file(self.workspace, path, content)
         rel = self.tool_relpath(path)
         out: dict = {
             "ok": True,
@@ -553,7 +600,10 @@ class SpecStore:
             raise ValueError(f"path escapes {root}")
         path = Path(target)
         path.parent.mkdir(parents=True, exist_ok=True)
-        before = path.read_text(encoding="utf-8") if path.is_file() else ""
+        try:
+            before = _read_openspec_file(self.workspace, path)
+        except (FileNotFoundError, ValueError):
+            before = ""
         patch = (content or "").strip()
         if patch:
             after = merge_delta_patches(before, patch)
@@ -563,7 +613,7 @@ class SpecStore:
                     "pass op+title+body for one requirement, or content= delta markdown"
                 )
             after = patch_delta_spec(before, op=op, title=title, body=body)
-        path.write_text(after, encoding="utf-8")
+        _write_openspec_file(self.workspace, path, after)
         rel = self.tool_relpath(path)
         main_target = os.path.realpath(str(domain_spec_path(self.workspace, dom)))
         if main_target != root and not main_target.startswith(root + os.sep):
