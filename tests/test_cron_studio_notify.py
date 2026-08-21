@@ -9,7 +9,7 @@ from core.cron.models import CronJob
 from core.cron.studio_notify import mirror_cron_to_studio_chat
 
 
-def test_mirror_cron_to_studio_chat_appends_system_message(tmp_path: Path, monkeypatch) -> None:
+def test_mirror_cron_to_studio_chat_opens_new_session(tmp_path: Path, monkeypatch) -> None:
     profile = "cron_studio"
 
     def fake_data_dir(name: str) -> Path:
@@ -30,11 +30,14 @@ def test_mirror_cron_to_studio_chat_appends_system_message(tmp_path: Path, monke
         profile=profile,
         session_id="studio",
     )
-    mirror_cron_to_studio_chat(job, "Пора работать!")
+    cid = mirror_cron_to_studio_chat(job, "Пора работать!")
+    assert cid and cid.startswith("studio_cron_job1_")
 
-    path = tmp_path / profile / "data" / "studio" / "cwd" / "studio.json"
+    path = tmp_path / profile / "data" / "studio" / "cwd" / f"{cid}.json"
     assert path.is_file()
     data = json.loads(path.read_text(encoding="utf-8"))
-    assert data["messages"][-1]["cls"] == "system"
+    assert data["conversation_id"] == cid
+    assert data["messages"][-1]["cls"] == "assistant"
     assert "Пора работать" in data["messages"][-1]["text"]
     assert "[Cron · Reminder]" in data["messages"][-1]["text"]
+    assert not (tmp_path / profile / "data" / "studio" / "cwd" / "studio.json").exists()

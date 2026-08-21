@@ -112,7 +112,8 @@ holix cron remove <job-id>
 ## Как выполняется задача
 
 - Планировщик тикает внутри **gateway** (~30 с); просроченные задачи стартуют в фоне.
-- У каждого запуска свой `conversation_id`: `cron-<job-id>`.
+- Лог прогона пишется в `cron-<job-id>` (служебная сессия, **не** показывается в `/sessions` Telegram / MAX).
+- **Доставка:** Telegram — в **активную** сессию чата + сообщение бота; MAX — в активную MAX-сессию; Studio — **новая** сессия чата (`studio_cron_<job>_<время>`). TUI — саммари в привязанный `session_id`.
 - Агент получает контекст автоматического запуска и должен **завершить задачу и кратко отчитаться**.
 - Поля: `last_run_at`, `last_status` (`success` / `error` / `running`), `next_run_at`, `run_count`.
 - **Уведомления** в Telegram (`notify_chat_id`) или MAX (`notify_max_user_id` / `notify_max_chat_id`).

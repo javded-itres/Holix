@@ -84,7 +84,9 @@ holix memory search "конфигурация nginx"
 | TUI | id сессии (`/switch`) |
 | Telegram / MAX | Чат + профиль |
 | `holix run -c` | Ваш id |
-| Cron | `cron-<job-id>` |
+| Cron (лог) | `cron-<job-id>` (скрыт в Telegram / MAX) |
+| Cron → Telegram / MAX | активная сессия чата |
+| Cron → Studio | новая сессия `studio_cron-…` |
 | Gateway API | От клиента или сервера |
 
 ---

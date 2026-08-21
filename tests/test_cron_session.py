@@ -102,7 +102,9 @@ async def test_persist_cron_result_mirrors_to_studio_session(tmp_path, monkeypat
         run_conversation_id="cron-j-studio",
     )
 
-    path = Path(tmp_path) / profile / "data" / "studio" / "cwd" / "studio.json"
-    assert path.is_file()
-    data = json.loads(path.read_text(encoding="utf-8"))
+    studio_dir = Path(tmp_path) / profile / "data" / "studio" / "cwd"
+    files = list(studio_dir.glob("studio_cron_*.json"))
+    assert len(files) == 1
+    data = json.loads(files[0].read_text(encoding="utf-8"))
     assert "Studio cron hello" in data["messages"][-1]["text"]
+    assert data["messages"][-1]["cls"] == "assistant"

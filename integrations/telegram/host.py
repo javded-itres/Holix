@@ -228,7 +228,9 @@ class TelegramHost:
     async def _create_new_session(self) -> None:
         import time
 
-        self._session.conversation_id = f"tg_{self._session.profile}_{self._session.chat_id}_{int(time.time())}"
+        self._session.conversation_id = (
+            f"tg_{self._session.profile}_{self._session.chat_id}_{int(time.time())}"
+        )
         self._session.session_display_name = "new"
         self._session._transcript_store.clear()
         from core.session_models import restore_session_model
@@ -241,7 +243,11 @@ class TelegramHost:
         if not self.agent:
             return
         try:
-            self._session.known_sessions = await self.agent.list_conversations(limit=12)
+            from core.cron.delivery import without_internal_cron_sessions
+
+            self._session.known_sessions = without_internal_cron_sessions(
+                await self.agent.list_conversations(limit=24)
+            )
         except Exception:
             self._session.known_sessions = []
         if not self._session.known_sessions:
@@ -293,8 +299,7 @@ class TelegramHost:
             init_profile(new_profile, profile_key=profile_key, prompt_key=False)
         except ProfileKeyError as exc:
             await self._send_html(
-                f"{exc}<br><br>"
-                "Отправьте: <code>/profile имя ключ</code>"
+                f"{exc}<br><br>Отправьте: <code>/profile имя ключ</code>"
                 if profile_has_access_key(new_profile) and not profile_key
                 else str(exc)
             )
@@ -362,12 +367,15 @@ class TelegramHost:
         """List MCP servers from current profile config."""
         try:
             from cli.core import get_profile_manager
+
             manager = get_profile_manager()
             cfg = manager.load_profile(self.profile)
             servers = getattr(cfg, "mcp_servers", {}) or {}
             assignments = getattr(cfg, "mcp_assignments", {}) or {}
             if not servers:
-                self.transcript_write("No MCP servers in this profile.\nUse /mcp install or `holix mcp install` in terminal.")
+                self.transcript_write(
+                    "No MCP servers in this profile.\nUse /mcp install or `holix mcp install` in terminal."
+                )
                 return
             lines = ["MCP servers:"]
             for name, data in servers.items():
@@ -385,16 +393,20 @@ class TelegramHost:
             await self._send_html(t("tg.mcp_read_only", messenger_host_locale(self)))
             return
         if not what:
-            self.transcript_write("Usage: /mcp install <popular-key|git-url>\nPopular: context7, filesystem, github, ... \nOr use the /mcp menu buttons.")
+            self.transcript_write(
+                "Usage: /mcp install <popular-key|git-url>\nPopular: context7, filesystem, github, ... \nOr use the /mcp menu buttons."
+            )
             return
         try:
             # Direct logic to avoid heavy CLI import side effects
             from cli.core import get_profile_manager
+
             manager = get_profile_manager()
             cfg = manager.load_profile(self.profile)
 
             if what.startswith(("http", "git@")):
                 from core.mcp.installer import install_from_git
+
                 data = install_from_git(what)
                 name = what.rstrip("/").split("/")[-1].removesuffix(".git")
                 data["_source"] = "git"
@@ -410,7 +422,10 @@ class TelegramHost:
                 cfg.mcp_assignments = assigns
                 manager.save_profile(self.profile, cfg)
                 from integrations.telegram.markdown import escape_html
-                await self._send_html(f"Installed from git as <code>{escape_html(name)}</code> (to main). Review with /mcp list")
+
+                await self._send_html(
+                    f"Installed from git as <code>{escape_html(name)}</code> (to main). Review with /mcp list"
+                )
                 if self.agent:
                     try:
                         fresh = getattr(cfg, "mcp_servers", {}) or {}
@@ -419,18 +434,26 @@ class TelegramHost:
                     except Exception as e:
                         self.transcript_write(f"[dim]Hot MCP reload: {e}[/dim]")
                 if self.agent and hasattr(self.agent, "tools"):
-                    mcp_ts = [n for n in self.agent.tools.get_tool_names() if str(n).startswith("mcp_")]
-                    self.transcript_write(f"[dim]MCP tools active: {len(mcp_ts)} ( /mcp tools )[/dim]")
+                    mcp_ts = [
+                        n for n in self.agent.tools.get_tool_names() if str(n).startswith("mcp_")
+                    ]
+                    self.transcript_write(
+                        f"[dim]MCP tools active: {len(mcp_ts)} ( /mcp tools )[/dim]"
+                    )
                 return
 
             # Popular
             from core.mcp.popular import get_popular_by_key
+
             pop = get_popular_by_key(what)
             if not pop:
-                self.transcript_write(f"Unknown popular key '{what}'. See /mcp list-popular or use git url.")
+                self.transcript_write(
+                    f"Unknown popular key '{what}'. See /mcp list-popular or use git url."
+                )
                 return
 
             from core.mcp.installer import build_config_from_popular
+
             data = build_config_from_popular(pop, {})
             if pop.env:
                 data["env"] = dict(pop.env)  # user can set later via CLI or edit
@@ -448,7 +471,10 @@ class TelegramHost:
             cfg.mcp_assignments = assigns
             manager.save_profile(self.profile, cfg)
             from integrations.telegram.markdown import escape_html
-            await self._send_html(f"Added popular MCP <code>{escape_html(what)}</code> (auto to main). Use /mcp list or /mcp tools.")
+
+            await self._send_html(
+                f"Added popular MCP <code>{escape_html(what)}</code> (auto to main). Use /mcp list or /mcp tools."
+            )
             if self.agent:
                 try:
                     fresh = getattr(cfg, "mcp_servers", {}) or {}
@@ -468,7 +494,9 @@ class TelegramHost:
             await self._send_html(t("tg.mcp_read_only", messenger_host_locale(self)))
             return
         if not rest:
-            self.transcript_write("Usage: /mcp assign <server-name> <role1,role2>\nExample: /mcp assign context7 main")
+            self.transcript_write(
+                "Usage: /mcp assign <server-name> <role1,role2>\nExample: /mcp assign context7 main"
+            )
             return
         try:
             parts = rest.split(None, 1)
@@ -479,6 +507,7 @@ class TelegramHost:
             roles = [r.strip() for r in roles_str.replace(",", " ").split() if r.strip()]
 
             from cli.core import get_profile_manager
+
             manager = get_profile_manager()
             cfg = manager.load_profile(self.profile)
             assigns = dict(getattr(cfg, "mcp_assignments", {}) or {})
@@ -509,6 +538,7 @@ class TelegramHost:
         try:
             from cli.core import get_profile_manager
             from core.mcp.manager import MCPManager
+
             manager = get_profile_manager()
             cfg = manager.load_profile(self.profile)
             servers = getattr(cfg, "mcp_servers", {}) or {}
@@ -520,7 +550,9 @@ class TelegramHost:
             await m.connect_all()
             tools = m.get_tool_adapters([name])
             await m.disconnect_all()
-            self.transcript_write(f"Test OK for {name}: {len(tools)} tools found. Names: {[t.name for t in tools][:5]}")
+            self.transcript_write(
+                f"Test OK for {name}: {len(tools)} tools found. Names: {[t.name for t in tools][:5]}"
+            )
         except Exception as e:
             self.transcript_write(f"Test failed for {name}: {e}")
 
@@ -532,7 +564,9 @@ class TelegramHost:
                 return
             mcp_tools = [n for n in agent.tools.get_tool_names() if str(n).startswith("mcp_")]
             if not mcp_tools:
-                self.transcript_write("No MCP tools registered yet. Assign servers with /mcp assign or holix mcp assign.")
+                self.transcript_write(
+                    "No MCP tools registered yet. Assign servers with /mcp assign or holix mcp assign."
+                )
             else:
                 self.transcript_write("MCP tools:\n" + "\n".join(f"  • {t}" for t in mcp_tools))
         except Exception as e:
@@ -547,6 +581,7 @@ class TelegramHost:
             return
         try:
             from cli.core import get_profile_manager
+
             manager = get_profile_manager()
             cfg = manager.load_profile(self.profile)
             servers = dict(getattr(cfg, "mcp_servers", {}) or {})
