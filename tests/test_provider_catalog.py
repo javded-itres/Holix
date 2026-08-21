@@ -31,15 +31,52 @@ def test_catalog_includes_major_providers():
     assert "xai" in ids
     assert "groq" in ids
     assert "vllm" in ids
+    assert "lmstudio" in ids
 
 
 def test_ollama_litellm_vllm_configurable_host():
-    for pid in ("ollama", "litellm", "vllm"):
+    for pid in ("ollama", "litellm", "vllm", "lmstudio"):
         p = get_provider_preset(pid)
         assert p is not None
         assert p.configurable_host
         assert p.host_env
         assert p.default_port > 0
+
+
+def test_lmstudio_preset_stays_openai_v1():
+    from core.models.catalog import detect_preset_from_url
+    from core.models.completion_options import (
+        is_ollama_like,
+        with_provider_completion_options,
+    )
+    from core.models.manager import ModelConfig
+    from core.models.ollama_native import native_chat_enabled, wrap_ollama_native_client
+
+    preset = get_provider_preset("lmstudio")
+    assert preset is not None
+    assert preset.default_port == 1234
+    assert preset.base_url.endswith("/v1")
+    assert detect_preset_from_url("http://127.0.0.1:1234/v1") == "lmstudio"
+
+    cfg = ModelConfig(
+        provider="lmstudio",
+        model="local-model",
+        base_url="http://127.0.0.1:1234/v1",
+        api_key="lm-studio",
+    )
+    assert not is_ollama_like(cfg)
+    assert "extra_body" not in with_provider_completion_options(cfg, {"messages": []})
+    assert not native_chat_enabled(provider="lmstudio", base_url="http://127.0.0.1:1234/v1")
+    sentinel = object()
+    assert (
+        wrap_ollama_native_client(
+            sentinel,
+            provider="lmstudio",
+            base_url="http://127.0.0.1:1234/v1",
+            metadata={},
+        )
+        is sentinel
+    )
 
 
 def test_parse_host_value():

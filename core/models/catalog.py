@@ -37,6 +37,10 @@ class ProviderPreset:
         if self.auth_type == "openrouter":
             meta["http_referer"] = "${OPENROUTER_HTTP_REFERER}"
             meta["x_title"] = "Holix"
+        if self.id == "ollama":
+            # Native /api/chat — same path LiteLLM ollama_chat/ uses.
+            meta["native_chat"] = True
+            meta["think"] = False
         if self.extra_env:
             meta["extra_env"] = list(self.extra_env)
         if self.configurable_host:
@@ -194,7 +198,7 @@ def resolve_preset_base_url(
     return preset.base_url
 
 
-HOST_CAPABLE_PRESET_IDS: frozenset[str] = frozenset({"ollama", "litellm", "vllm"})
+HOST_CAPABLE_PRESET_IDS: frozenset[str] = frozenset({"ollama", "litellm", "vllm", "lmstudio"})
 
 
 PROVIDER_PRESETS: tuple[ProviderPreset, ...] = (
@@ -212,7 +216,11 @@ PROVIDER_PRESETS: tuple[ProviderPreset, ...] = (
             "mistral",
         ),
         docs_url="https://ollama.com",
-        notes="Set host (default 127.0.0.1:11434) or OLLAMA_HOST=http://host:11434 in .env",
+        notes=(
+            "Native /api/chat by default (metadata.native_chat). "
+            "Set native_chat: false to use OpenAI /v1. "
+            "Host default 127.0.0.1:11434 or OLLAMA_HOST."
+        ),
         configurable_host=True,
         default_host="127.0.0.1",
         default_port=11434,
@@ -387,6 +395,26 @@ PROVIDER_PRESETS: tuple[ProviderPreset, ...] = (
         host_env="VLLM_HOST",
         host_placeholder="${VLLM_HOST}",
     ),
+    _preset(
+        "lmstudio",
+        "LM Studio",
+        "http://127.0.0.1:1234/v1",
+        "LMSTUDIO_API_KEY",
+        auth_type="none",
+        default_model="",
+        popular_models=(),
+        docs_url="https://lmstudio.ai/docs/app/api/endpoints/openai",
+        notes=(
+            "LM Studio local OpenAI server (Developer → Start server). "
+            "Stays on /v1 — not Ollama /api/chat. "
+            "Host default 127.0.0.1:1234 or LMSTUDIO_HOST."
+        ),
+        configurable_host=True,
+        default_host="127.0.0.1",
+        default_port=1234,
+        host_env="LMSTUDIO_HOST",
+        host_placeholder="${LMSTUDIO_HOST}",
+    ),
 )
 
 
@@ -408,7 +436,10 @@ def detect_preset_from_url(base_url: str) -> str | None:
 
     for preset in PROVIDER_PRESETS:
         preset_host = url_hostname(preset.base_url)
+        preset_port = url_port(preset.base_url)
         if preset_host and host_is(host, preset_host):
+            if preset_port is not None and port is not None and preset_port != port:
+                continue
             return preset.id
 
     if host_is(host, "openrouter.ai"):
@@ -439,4 +470,6 @@ def detect_preset_from_url(base_url: str) -> str | None:
         return "litellm"
     if port == 8000:
         return "vllm"
+    if port == 1234:
+        return "lmstudio"
     return None

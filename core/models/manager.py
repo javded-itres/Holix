@@ -139,9 +139,7 @@ class ModelManager:
             model_id = provider_data.get("default_model", "") or ""
             model_contexts = provider_data.get("model_contexts", {}) or {}
             context_window = model_contexts.get(model_id)
-            if not context_window and getattr(
-                self.profile_config, "context_window", None
-            ):
+            if not context_window and getattr(self.profile_config, "context_window", None):
                 context_window = self.profile_config.context_window
             base_url = (provider_data.get("base_url") or "").strip()
             if not base_url:
@@ -233,12 +231,23 @@ class ModelManager:
         Returns:
             AsyncOpenAI client
         """
-        cache_key = f"{model_config.base_url}|{model_config.provider}"
+        cache_key = (
+            f"{model_config.base_url}|{model_config.provider}|"
+            f"{(model_config.metadata or {}).get('native_chat', 'default')}"
+        )
 
         if cache_key not in self._clients:
-            self._clients[cache_key] = create_openai_client(
+            from core.models.ollama_native import wrap_ollama_native_client
+
+            raw = create_openai_client(
                 base_url=model_config.base_url,
                 api_key=model_config.api_key,
+                metadata=model_config.metadata,
+            )
+            self._clients[cache_key] = wrap_ollama_native_client(
+                raw,
+                provider=model_config.provider,
+                base_url=model_config.base_url,
                 metadata=model_config.metadata,
             )
 

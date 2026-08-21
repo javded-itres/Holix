@@ -20,6 +20,14 @@ from core.models.discovery import ModelDiscovery
 from core.models.provider import ProviderConfig
 
 
+def _none_auth_placeholder(preset_id: str) -> str:
+    if preset_id == "vllm":
+        return "EMPTY"
+    if preset_id == "lmstudio":
+        return "lm-studio"
+    return "ollama"
+
+
 def prompt_verify_ssl(
     base_url: str,
     *,
@@ -97,7 +105,7 @@ def resolve_preset_api_key_interactive(
 ) -> str:
     """Resolve or prompt API key before probing external providers."""
     if preset.auth_type == "none":
-        return "EMPTY" if preset.id == "vllm" else "ollama"
+        return _none_auth_placeholder(preset.id)
 
     if preset.api_key_env in os.environ and os.environ[preset.api_key_env].strip():
         return resolve_api_key_for_preset(preset, use_env_value=True)
@@ -136,7 +144,7 @@ def resolve_api_key_for_preset(
     ):
         return preset.api_key_placeholder
     if preset.auth_type == "none":
-        return "EMPTY" if preset.id == "vllm" else "ollama"
+        return _none_auth_placeholder(preset.id)
     return preset.api_key_placeholder
 
 

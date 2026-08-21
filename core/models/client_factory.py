@@ -13,6 +13,7 @@ from core.config_utils import resolve_env_refs
 _LOCAL_PRESET_PLACEHOLDER_KEYS = {
     "ollama": "ollama",
     "vllm": "EMPTY",
+    "lmstudio": "lm-studio",
 }
 
 
@@ -25,7 +26,7 @@ def resolve_provider_api_key(api_key: str, *, preset_id: str | None = None) -> s
             return stripped
     if preset_id in _LOCAL_PRESET_PLACEHOLDER_KEYS:
         return _LOCAL_PRESET_PLACEHOLDER_KEYS[preset_id]
-    if api_key in ("ollama", "EMPTY"):
+    if api_key in ("ollama", "EMPTY", "lm-studio"):
         return api_key
     return ""
 

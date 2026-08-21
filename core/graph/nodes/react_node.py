@@ -1250,28 +1250,34 @@ async def _react_streaming(
             "stream_options": {"include_usage": True},
         }
 
-        async def _create(llm_client, model_name: str):
+        async def _create(llm_client, model_name: str, cfg=None):
+            from core.models.completion_options import with_provider_completion_options
+
             nonlocal choice
+            call_kwargs = (
+                with_provider_completion_options(cfg, kwargs) if cfg is not None else dict(kwargs)
+            )
             try:
-                return await llm_client.chat.completions.create(model=model_name, **kwargs)
+                return await llm_client.chat.completions.create(model=model_name, **call_kwargs)
             except TypeError:
                 # Older/local clients may not accept stream_options
-                kwargs.pop("stream_options", None)
-                return await llm_client.chat.completions.create(model=model_name, **kwargs)
+                call_kwargs.pop("stream_options", None)
+                return await llm_client.chat.completions.create(model=model_name, **call_kwargs)
             except Exception as exc:
                 # Some OpenAI-compatible servers reject stream_options
-                if "stream_options" in kwargs and "stream_options" in str(exc).lower():
-                    kwargs.pop("stream_options", None)
-                    return await llm_client.chat.completions.create(model=model_name, **kwargs)
-                if _is_unsupported_tool_choice_error(exc, kwargs.get("tool_choice")):
+                if "stream_options" in call_kwargs and "stream_options" in str(exc).lower():
+                    call_kwargs.pop("stream_options", None)
+                    return await llm_client.chat.completions.create(model=model_name, **call_kwargs)
+                if _is_unsupported_tool_choice_error(exc, call_kwargs.get("tool_choice")):
                     logger.warning(
                         "Backend rejected streaming tool_choice=%r (model=%s); retrying with auto",
-                        kwargs.get("tool_choice"),
+                        call_kwargs.get("tool_choice"),
                         model_name,
                     )
+                    call_kwargs["tool_choice"] = "auto"
                     kwargs["tool_choice"] = "auto"
                     choice = "auto"
-                    return await llm_client.chat.completions.create(model=model_name, **kwargs)
+                    return await llm_client.chat.completions.create(model=model_name, **call_kwargs)
                 raise
 
         if model_manager:
@@ -1282,7 +1288,7 @@ async def _react_streaming(
                 agent_name=agent_slot,
                 primary_override=primary_override,
                 on_switch=on_switch,
-                factory=lambda cfg, llm_client: _create(llm_client, cfg.model),
+                factory=lambda cfg, llm_client: _create(llm_client, cfg.model, cfg),
             )
         return await _create(client, model)
 

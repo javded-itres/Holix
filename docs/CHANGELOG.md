@@ -4,6 +4,9 @@
 
 ### Fixed
 
+- **Ollama native `/api/chat`** — Ollama providers use the same native chat path as LiteLLM `ollama_chat/` (not OpenAI `/v1`). Set `metadata.native_chat: false` to keep `/v1`. Optional `metadata.num_ctx` / `think`.
+- **LM Studio preset** — `lmstudio` is OpenAI `/v1` on port 1234 (`LMSTUDIO_HOST`). It is not wrapped in Ollama native chat.
+- **Ollama reasoning models empty Telegram replies** — Kimi K2 / Qwen3 put tokens in `message.reasoning` and leave `content` empty unless thinking is off. Holix now sends `think: false` (and `enable_thinking: false`) to Ollama-like endpoints. Opt in with provider `metadata.enable_thinking: true`.
 - **`/init` runs in ReAct** — TUI no longer switches the session to Plan & Execute (that opened a plan-review gate instead of writing `.holix/HOLIX.md`). Same as Studio / Telegram / MAX.
 
 ### Added
