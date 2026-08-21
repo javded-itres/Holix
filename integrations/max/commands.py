@@ -101,6 +101,18 @@ def help_message_markdown(
     ]
     for spec in specs:
         lines.append(f"• `{spec.slash}` — {spec.description}")
+    try:
+        from core.commands.help import list_custom_commands
+
+        custom = list_custom_commands()
+    except Exception:
+        custom = []
+    if custom:
+        lines.append("")
+        lines.append("**Custom commands:**")
+        for command in custom:
+            desc = command.description or "custom"
+            lines.append(f"• `/{command.name}` — {desc} [{command.source}]")
     lines.extend(
         [
             "",

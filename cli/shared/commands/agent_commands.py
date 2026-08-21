@@ -54,6 +54,9 @@ class AgentCommands:
 
                 await run_project_init(h)
 
+            elif lower == "/commands" or lower.startswith("/commands "):
+                await self._custom_commands(cmd)
+
             elif lower.startswith("/stream"):
                 parts = lower.split()
                 if len(parts) > 1:
@@ -248,6 +251,9 @@ class AgentCommands:
 
                 await run_search_command(h, cmd)
 
+            elif await self._try_custom_command(h, cmd):
+                pass
+
             elif await self._try_skill_slash(h, cmd):
                 pass
 
@@ -384,6 +390,56 @@ class AgentCommands:
         if user_id is None:
             return False
         return is_profile_list_hidden(bot_profile, int(user_id))
+
+    async def _custom_commands(self, command: str) -> None:
+        from core.commands.expand import reload_command_loader
+        from core.commands.help import format_custom_commands_help, list_custom_commands
+
+        h = self.host
+        parts = command.strip().split()
+        if len(parts) > 1 and parts[1].lower() == "reload":
+            reload_command_loader(host=h, agent=getattr(h, "agent", None))
+            h.transcript_write("[dim]Custom commands reloaded.[/dim]")
+        rows = list_custom_commands(host=h, agent=getattr(h, "agent", None))
+        text = format_custom_commands_help(rows)
+        if text:
+            h.transcript_write(text.strip())
+        else:
+            h.transcript_write(
+                "[dim]No custom commands. Add markdown files under "
+                ".holix/commands/ or ~/.holix/commands/ "
+                "(review.md → /review).[/dim]"
+            )
+
+    async def _try_custom_command(self, h: Any, command: str) -> bool:
+        from core.commands.expand import resolve_custom_slash
+        from core.commands.runtime import (
+            reset_custom_command_run,
+            set_custom_command_run,
+            stash_custom_command,
+        )
+
+        invocation = resolve_custom_slash(
+            command,
+            host=h,
+            agent=getattr(h, "agent", None),
+        )
+        if invocation is None:
+            return False
+        send = getattr(h, "_send_message", None)
+        if not callable(send):
+            h.transcript_write(invocation.prompt)
+            return True
+        h.transcript_write(f"[dim]▸ /{invocation.name} [{invocation.source}][/dim]")
+        stash_custom_command(getattr(h, "agent", None), invocation)
+        token = set_custom_command_run(invocation)
+        try:
+            result = send(invocation.prompt)
+            if asyncio.iscoroutine(result):
+                await result
+        finally:
+            reset_custom_command_run(token)
+        return True
 
     async def _try_skill_slash(self, h: Any, command: str) -> bool:
         """Legacy: run a skill via /skill-name [args] (prefer /skill <name>)."""

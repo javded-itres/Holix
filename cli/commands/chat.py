@@ -492,6 +492,17 @@ class ChatSession:
                 await run_subagents_command(host, command)
             return True
 
+        if cmd_lower == "/commands" or cmd_lower.startswith("/commands "):
+            from core.commands.expand import reload_command_loader
+            from core.commands.help import format_custom_commands_help, list_custom_commands
+
+            if cmd_lower.startswith("/commands reload"):
+                reload_command_loader(agent=self.agent)
+                print_info("Custom commands reloaded.")
+            text = format_custom_commands_help(list_custom_commands(agent=self.agent))
+            print_info(text.strip() if text.strip() else "No custom commands found.")
+            return True
+
         return False
 
     async def chat_loop(self):
@@ -596,7 +607,9 @@ class ChatSession:
                     result = await self.handle_special_command(user_input)
                     if result == "exit":
                         break
-                    continue
+                    if result:
+                        continue
+                    # Unknown slash — custom commands fall through to the agent.
 
                 if self.agent:
                     from core.subagents.interaction import try_route_subagent_reply

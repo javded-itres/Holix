@@ -30,12 +30,11 @@ def all_command_specs(locale: str | None = None) -> list[TelegramCommandSpec]:
         from integrations.telegram.plugin_api import extension_bot_commands
 
         for cmd in extension_bot_commands():
-            specs.append(
-                TelegramCommandSpec.from_pair(cmd.command, cmd.description)
-            )
+            specs.append(TelegramCommandSpec.from_pair(cmd.command, cmd.description))
     except Exception:
         pass
     return specs
+
 
 def _bot_commands_for_locale(locale: str | None = None) -> list[Any]:
     try:
@@ -111,10 +110,7 @@ def _bot_commands_for_user(
         from aiogram.types import BotCommand
     except ImportError:
         return []
-    return [
-        BotCommand(command=spec.command, description=spec.description[:256])
-        for spec in specs
-    ]
+    return [BotCommand(command=spec.command, description=spec.description[:256]) for spec in specs]
 
 
 async def enable_chat_menu(
@@ -150,9 +146,7 @@ async def enable_chat_menu(
             timeout=15.0,
         )
     except Exception as exc:
-        logging.getLogger(__name__).warning(
-            "set_my_commands failed for chat %s: %s", cid, exc
-        )
+        logging.getLogger(__name__).warning("set_my_commands failed for chat %s: %s", cid, exc)
         return []
     try:
         await asyncio.wait_for(
@@ -252,9 +246,22 @@ def help_message_html(
         f"<b>{escape_html_simple(t('tg.help.commands', loc))}</b>",
     ]
     for spec in specs:
-        lines.append(
-            f"• <code>/{spec.command}</code> — {escape_html_simple(spec.description)}"
-        )
+        lines.append(f"• <code>/{spec.command}</code> — {escape_html_simple(spec.description)}")
+    try:
+        from core.commands.help import list_custom_commands
+
+        custom = list_custom_commands()
+    except Exception:
+        custom = []
+    if custom:
+        lines.append("")
+        lines.append("<b>Custom commands</b>")
+        for command in custom:
+            desc = escape_html_simple(command.description or "custom")
+            lines.append(
+                f"• <code>/{escape_html_simple(command.name)}</code> — {desc} "
+                f"[{escape_html_simple(command.source)}]"
+            )
     lines.extend(
         [
             "",

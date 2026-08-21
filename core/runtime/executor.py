@@ -30,6 +30,25 @@ async def run_holix(
     use_graph = getattr(agent, "_use_langgraph", True)
 
     from core.application.run_scope import enter_run_scope, run_context_from_agent
+    from core.commands.expand import resolve_custom_slash
+    from core.commands.runtime import (
+        apply_command_overrides,
+        peek_custom_command_run,
+        take_stashed_custom_command,
+    )
+
+    invocation = peek_custom_command_run()
+    if invocation is None:
+        invocation = take_stashed_custom_command(agent, user_input)
+    if invocation is None:
+        try:
+            invocation = resolve_custom_slash(user_input, agent=agent)
+        except Exception:
+            invocation = None
+    undo_overrides = None
+    if invocation is not None:
+        user_input = invocation.prompt
+        undo_overrides = apply_command_overrides(agent, invocation)
 
     begin = getattr(agent, "begin_run", None)
     end = getattr(agent, "end_run", None)
@@ -76,5 +95,7 @@ async def run_holix(
     except asyncio.CancelledError:
         raise
     finally:
+        if undo_overrides is not None:
+            undo_overrides()
         if end:
             end()

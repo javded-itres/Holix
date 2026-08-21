@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Added
+
+- **Custom slash commands** — markdown files in `.holix/commands/` (project) and `~/.holix/commands/` (user). `review.md` → `/review`; nested `test/unit.md` → `/test:unit`. Supports YAML frontmatter (`description`, `argument-hint`, `allowed-tools`, `model`), `$ARGUMENTS` / `$1` placeholders, `/commands` and `/commands reload`, and listing in `/help`. Project files override user files.
+
 ## 1.0.13 — 2026-08-21
 
 SDD artifact read/patch, persist-tool honesty, empty ReAct recovery after writes, and a higher step-budget default.

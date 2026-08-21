@@ -935,9 +935,17 @@ class HolixCodeApp(App):
     def _slash_commands_pool(self) -> list[tuple[str, str]]:
         from core.i18n import LocaleStore
 
-        from cli.shared.commands.registry import slash_commands_for_locale
+        from cli.shared.commands.registry import all_slash_commands
 
-        return slash_commands_for_locale(LocaleStore(self.profile).get())
+        skills_dir = getattr(self.config, "skills_dir", None) if self.config else None
+        slot = getattr(self.agent, "agent_slot", "main") if self.agent else "main"
+        assigns = getattr(self.config, "skill_assignments", None) if self.config else None
+        return all_slash_commands(
+            Path(skills_dir) if skills_dir else None,
+            agent_slot=slot,
+            skill_assignments=assigns,
+            locale=LocaleStore(self.profile).get(),
+        )
 
     def _skill_invoke_pool(self) -> list[tuple[str, str]]:
         if not self.config or not getattr(self.config, "skills_dir", None):
@@ -1180,6 +1188,14 @@ class HolixCodeApp(App):
                 ]
             )
         lines.extend(["", t("tui.help.slash", lang)])
+        try:
+            from core.commands.help import format_custom_commands_help
+
+            extra = format_custom_commands_help(host=self, agent=getattr(self, "agent", None))
+            if extra:
+                lines.append(extra)
+        except Exception:
+            pass
         self.transcript_write("\n".join(lines) + "\n")
 
     def _transcript_scroll(self, *, lines: int = 0, page: bool = False, home: bool = False) -> None:
