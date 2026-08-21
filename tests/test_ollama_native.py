@@ -51,6 +51,58 @@ def test_payload_think_false_and_num_predict() -> None:
     assert payload["tools"]
 
 
+def test_payload_omits_think_for_non_thinking_models() -> None:
+    payload = build_chat_payload(
+        {
+            "model": "qwen2.5-coder:32b",
+            "messages": [{"role": "user", "content": "hi"}],
+            "extra_body": {"think": False},
+        },
+        {"think": False},
+    )
+    assert "think" not in payload
+
+
+def test_payload_normalizes_messages_and_schema_types() -> None:
+    payload = build_chat_payload(
+        {
+            "model": "qwen2.5-coder:32b",
+            "messages": [
+                {
+                    "role": "assistant",
+                    "content": None,
+                    "tool_calls": [
+                        {
+                            "id": "call_1",
+                            "function": {"name": "glob", "arguments": '{"pattern": "*.py"}'},
+                        }
+                    ],
+                }
+            ],
+            "tools": [
+                {
+                    "type": "function",
+                    "function": {
+                        "name": "glob",
+                        "description": "find files",
+                        "parameters": {
+                            "type": "object",
+                            "properties": {"pattern": {"type": ["string", "null"]}},
+                        },
+                    },
+                }
+            ],
+        },
+        {},
+    )
+    msg = payload["messages"][0]
+    assert msg["content"] == ""
+    assert msg["tool_calls"][0]["function"]["arguments"] == {"pattern": "*.py"}
+    assert (
+        payload["tools"][0]["function"]["parameters"]["properties"]["pattern"]["type"] == "string"
+    )
+
+
 def test_to_openai_response_maps_thinking_and_tool_args() -> None:
     data = {
         "message": {
@@ -102,6 +154,9 @@ async def test_native_create_posts_api_chat(monkeypatch: pytest.MonkeyPatch) -> 
     posted: dict[str, Any] = {}
 
     class _Resp:
+        status_code = 200
+        text = ""
+
         def raise_for_status(self) -> None:
             return None
 

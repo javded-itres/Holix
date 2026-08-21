@@ -23,6 +23,23 @@ _NOT_OLLAMA_PROVIDERS = frozenset(
     }
 )
 
+# Ollama 400s ``think`` on models that do not support thinking.
+_THINKING_MODEL_MARKERS = (
+    "kimi",
+    "qwen3",
+    "qwq",
+    "deepseek-r1",
+    "gpt-oss",
+    "magistral",
+    "cogito",
+    "thinking",
+)
+
+
+def model_supports_thinking(model: str) -> bool:
+    name = (model or "").strip().lower()
+    return any(marker in name for marker in _THINKING_MODEL_MARKERS)
+
 
 def is_ollama_like(cfg: Any) -> bool:
     name = str(getattr(cfg, "provider", "") or "").strip().lower()
@@ -50,6 +67,8 @@ def with_provider_completion_options(cfg: Any, kwargs: dict[str, Any]) -> dict[s
     if not is_ollama_like(cfg):
         return out
     if _thinking_enabled(getattr(cfg, "metadata", None)):
+        return out
+    if not model_supports_thinking(str(getattr(cfg, "model", "") or "")):
         return out
     extra = dict(out.get("extra_body") or {})
     extra.setdefault("think", False)
