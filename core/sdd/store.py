@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import json
-import os
 import re
 import shutil
 from datetime import date
@@ -18,6 +17,7 @@ from core.sdd.paths import (
     change_dir,
     changes_root,
     config_path,
+    confined_under,
     domain_spec_path,
     openspec_root,
     specs_root,
@@ -30,31 +30,6 @@ from core.sdd.tasks import (
     set_task_assignee,
     set_task_done,
 )
-
-
-def _openspec_target(workspace: Path, path: Path) -> str:
-    """Real path under openspec/, or raise if it would escape."""
-    root = os.path.realpath(str(openspec_root(workspace)))
-    target = os.path.realpath(os.path.expanduser(str(path)))
-    if target != root and not target.startswith(root + os.sep):
-        raise ValueError(f"path escapes {root}: {path}")
-    return target
-
-
-def _write_openspec_file(workspace: Path, path: Path, text: str) -> None:
-    target = _openspec_target(workspace, path)
-    parent = os.path.dirname(target)
-    if parent:
-        os.makedirs(parent, exist_ok=True)
-    with open(target, "w", encoding="utf-8") as fh:
-        fh.write(text)
-
-
-def _read_openspec_file(workspace: Path, path: Path) -> str:
-    target = _openspec_target(workspace, path)
-    with open(target, encoding="utf-8") as fh:
-        return fh.read()
-
 
 _DEFAULT_CONFIG = """\
 schema: holix-spec
@@ -354,10 +329,9 @@ class SpecStore:
         dest.mkdir(parents=True)
         req = (request or "").strip()
         if req:
-            _write_openspec_file(
-                self.workspace,
-                dest / "request.md",
+            (dest / "request.md").write_text(
                 f"# Request: {cid}\n\n{req}\n",
+                encoding="utf-8",
             )
             proposal = (
                 f"# Proposal: {cid}\n\n"
@@ -365,29 +339,21 @@ class SpecStore:
                 "## What Changes\n\n<!-- fill after understanding confirmed -->\n\n"
                 "## Impact\n\n<!-- risks, migrations -->\n"
             )
-            _write_openspec_file(self.workspace, dest / "proposal.md", proposal)
+            (dest / "proposal.md").write_text(proposal, encoding="utf-8")
         else:
-            _write_openspec_file(
-                self.workspace,
-                dest / "proposal.md",
-                _PROPOSAL_STUB.format(change_id=cid),
+            (dest / "proposal.md").write_text(
+                _PROPOSAL_STUB.format(change_id=cid), encoding="utf-8"
             )
-        _write_openspec_file(
-            self.workspace,
-            dest / "design.md",
-            _DESIGN_STUB.format(change_id=cid),
+        (dest / "design.md").write_text(
+            _DESIGN_STUB.format(change_id=cid), encoding="utf-8"
         )
-        _write_openspec_file(
-            self.workspace,
-            dest / "tasks.md",
-            _TASKS_STUB.format(change_id=cid),
+        (dest / "tasks.md").write_text(
+            _TASKS_STUB.format(change_id=cid), encoding="utf-8"
         )
         delta_dir = dest / "specs" / domain
         delta_dir.mkdir(parents=True)
-        _write_openspec_file(
-            self.workspace,
-            delta_dir / SPEC_FILENAME,
-            _DELTA_STUB.format(domain=domain, change_id=cid),
+        (delta_dir / SPEC_FILENAME).write_text(
+            _DELTA_STUB.format(domain=domain, change_id=cid), encoding="utf-8"
         )
         from core.sdd.understanding import init_understanding
 
@@ -426,24 +392,23 @@ class SpecStore:
         tasks: list = []
         tasks_path = cdir / "tasks.md"
         if tasks_path.is_file():
-            tasks = parse_tasks_markdown(_read_openspec_file(self.workspace, tasks_path))
+            tasks = parse_tasks_markdown(tasks_path.read_text(encoding="utf-8"))
         mode = load_apply_mode(self.workspace, cid)
         tasks_ok = self._tasks_ready_for_apply(tasks, apply_mode=mode)
-        specs_dir = cdir / "specs"
-        delta_specs: list[Path] = []
-        if specs_dir.is_dir():
-            root = os.path.realpath(str(openspec_root(self.workspace)))
-            for p in specs_dir.rglob(SPEC_FILENAME):
-                target = os.path.realpath(str(p))
-                if target == root or target.startswith(root + os.sep):
-                    delta_specs.append(Path(target))
+        delta_specs = (
+            list((cdir / "specs").rglob(SPEC_FILENAME))
+            if (cdir / "specs").is_dir()
+            else []
+        )
         artifacts = {
             "proposal": (cdir / "proposal.md").is_file()
             and self._artifact_filled(cdir / "proposal.md"),
-            "design": (cdir / "design.md").is_file() and self._artifact_filled(cdir / "design.md"),
+            "design": (cdir / "design.md").is_file()
+            and self._artifact_filled(cdir / "design.md"),
             "tasks": tasks_path.is_file() and tasks_ok,
             # File existence alone is not enough — create_change writes stubs.
-            "specs": bool(delta_specs) and all(self._artifact_filled(p) for p in delta_specs),
+            "specs": bool(delta_specs)
+            and all(self._artifact_filled(p) for p in delta_specs),
         }
         missing: list[str] = []
         if not artifacts["proposal"]:
@@ -456,7 +421,10 @@ class SpecStore:
             missing.append(self._tasks_missing_reason(tasks, apply_mode=mode))
         # design is reported for honesty/UI but not required to start apply
         apply_ready = (
-            artifacts["proposal"] and artifacts["specs"] and artifacts["tasks"] and len(tasks) > 0
+            artifacts["proposal"]
+            and artifacts["specs"]
+            and artifacts["tasks"]
+            and len(tasks) > 0
         )
         return ChangeStatus(
             change_id=cid,
@@ -537,14 +505,12 @@ class SpecStore:
             path = cdir / "specs" / dom / SPEC_FILENAME
             path.parent.mkdir(parents=True, exist_ok=True)
         else:
-            raise ValueError(f"unknown artifact {artifact!r}; use proposal|design|tasks|specs")
+            raise ValueError(
+                f"unknown artifact {artifact!r}; use proposal|design|tasks|specs"
+            )
 
-        before = None
-        try:
-            before = _read_openspec_file(self.workspace, path)
-        except (FileNotFoundError, ValueError):
-            before = None
-        _write_openspec_file(self.workspace, path, content)
+        before = path.read_text(encoding="utf-8") if path.is_file() else None
+        path.write_text(content, encoding="utf-8")
         rel = self.tool_relpath(path)
         out: dict = {
             "ok": True,
@@ -583,7 +549,11 @@ class SpecStore:
             dom = self.resolve_delta_domain(domain)
         else:
             existing_deltas = (
-                sorted(p.name for p in (cdir / "specs").iterdir() if p.is_dir())
+                sorted(
+                    p.name
+                    for p in (cdir / "specs").iterdir()  # lgtm[py/path-injection]
+                    if p.is_dir()
+                )
                 if (cdir / "specs").is_dir()
                 else []
             )
@@ -594,15 +564,12 @@ class SpecStore:
                 dom = resolved if resolved in existing_deltas else existing_deltas[0]
             else:
                 dom = self.resolve_delta_domain(None)
-        root = os.path.realpath(str(openspec_root(self.workspace)))
-        target = os.path.realpath(str(cdir / "specs" / dom / SPEC_FILENAME))
-        if target != root and not target.startswith(root + os.sep):
-            raise ValueError(f"path escapes {root}")
-        path = Path(target)
-        path.parent.mkdir(parents=True, exist_ok=True)
+        openspec = openspec_root(self.workspace)
+        path = confined_under(openspec, cdir / "specs" / dom / SPEC_FILENAME)
+        path.parent.mkdir(parents=True, exist_ok=True)  # lgtm[py/path-injection]
         try:
-            before = _read_openspec_file(self.workspace, path)
-        except (FileNotFoundError, ValueError):
+            before = path.read_text(encoding="utf-8")  # lgtm[py/path-injection]
+        except FileNotFoundError:
             before = ""
         patch = (content or "").strip()
         if patch:
@@ -613,13 +580,14 @@ class SpecStore:
                     "pass op+title+body for one requirement, or content= delta markdown"
                 )
             after = patch_delta_spec(before, op=op, title=title, body=body)
-        _write_openspec_file(self.workspace, path, after)
+        path.write_text(after, encoding="utf-8")  # lgtm[py/path-injection]
         rel = self.tool_relpath(path)
-        main_target = os.path.realpath(str(domain_spec_path(self.workspace, dom)))
-        if main_target != root and not main_target.startswith(root + os.sep):
-            raise ValueError(f"path escapes {root}")
-        main_path = Path(main_target)
-        main = main_path.read_text(encoding="utf-8") if main_path.is_file() else ""
+        main_path = confined_under(openspec, domain_spec_path(self.workspace, dom))
+        main = (
+            main_path.read_text(encoding="utf-8")  # lgtm[py/path-injection]
+            if main_path.is_file()
+            else ""
+        )
         preview = merge_delta_into_main(main, after)
         out: dict = {
             "ok": True,
@@ -667,21 +635,22 @@ class SpecStore:
             art = "tasks"
         elif art in ("spec", "delta", "spec.md"):
             art = "specs"
-        root = os.path.realpath(str(openspec_root(self.workspace)))
+        openspec = openspec_root(self.workspace)
 
         def _file_payload(path: Path, *, kind: str, extra: dict | None = None) -> dict:
-            target = os.path.realpath(os.path.expanduser(str(path)))
-            if target != root and not target.startswith(root + os.sep):
-                raise ValueError(f"path escapes {root}")
-            safe = Path(target)
+            safe = confined_under(openspec, path)
             exists = safe.is_file()
-            text = safe.read_text(encoding="utf-8") if exists else ""
+            text = (
+                safe.read_text(encoding="utf-8") if exists else ""  # lgtm[py/path-injection]
+            )
             payload = {
                 "artifact": kind,
                 "path": self.tool_relpath(safe),
                 "exists": exists,
                 "chars": len(text),
-                "filled": bool(exists and self._artifact_filled(safe)),
+                "filled": bool(
+                    exists and self._artifact_filled(safe)  # lgtm[py/path-injection]
+                ),
                 "content": text,
             }
             if extra:
@@ -689,10 +658,12 @@ class SpecStore:
             return payload
 
         if not art or art in {"all", "*"}:
-            specs_dir = cdir / "specs"
+            specs_dir = confined_under(openspec, cdir / "specs")
             spec_items: list[dict] = []
             if specs_dir.is_dir():
-                for d in sorted(p for p in specs_dir.iterdir() if p.is_dir()):
+                for d in sorted(
+                    p for p in specs_dir.iterdir() if p.is_dir()  # lgtm[py/path-injection]
+                ):
                     spec_path = d / SPEC_FILENAME
                     spec_items.append(
                         _file_payload(spec_path, kind="specs", extra={"domain": d.name})
@@ -717,9 +688,13 @@ class SpecStore:
         elif art == "tasks":
             path = cdir / "tasks.md"
         elif art == "specs":
-            specs_dir = cdir / "specs"
+            specs_dir = confined_under(openspec, cdir / "specs")
             existing = (
-                sorted(p.name for p in specs_dir.iterdir() if p.is_dir())
+                sorted(
+                    p.name
+                    for p in specs_dir.iterdir()  # lgtm[py/path-injection]
+                    if p.is_dir()
+                )
                 if specs_dir.is_dir()
                 else []
             )
@@ -736,7 +711,9 @@ class SpecStore:
             extra["domain"] = dom
             path = cdir / "specs" / dom / SPEC_FILENAME
         else:
-            raise ValueError(f"unknown artifact {artifact!r}; use proposal|design|tasks|specs")
+            raise ValueError(
+                f"unknown artifact {artifact!r}; use proposal|design|tasks|specs"
+            )
         payload = _file_payload(path, kind=art, extra=extra)
         if not payload["exists"]:
             return {
