@@ -357,7 +357,7 @@ When the agent hits `max_steps`, Holix does not always stop immediately:
 | `max_steps` | `90` (runtime; profile may override) | Base ReAct/graph step budget |
 | `HOLIX_MAX_STEPS_EXTEND_ENABLED` | `true` | Allow auto-extension |
 | `HOLIX_MAX_STEPS_EXTEND_BY` | `30` | Steps added per extension |
-| `HOLIX_MAX_STEPS_MAX_EXTENSIONS` | `3` | Max extensions per run |
+| `HOLIX_MAX_STEPS_MAX_EXTENSIONS` | `10` | Max extensions per run |
 | `HOLIX_MAX_STEPS_HARD_CAP` | `0` | Absolute cap (`0` = base + extend×N) |
 
 ---
@@ -370,8 +370,8 @@ With `enable_subagents: true`, `plan_and_execute` can run **waves** of sub-agent
 delegate → collect → supervisor → (rework failed jobs?) → react synthesis
 ```
 
-- **Runtime supervisor** — mid-job loop/hang → inject guidance into the same job.  
-- **Graph supervisor** — after collect, re-delegate failed types with repair instructions.  
+- **Runtime supervisor** — mid-job loop/hang → inject guidance into the same job.
+- **Graph supervisor** — after collect, re-delegate failed types with repair instructions.
 
 Details: [SUBAGENTS.md](SUBAGENTS.md#supervisor).
 

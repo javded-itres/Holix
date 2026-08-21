@@ -1,6 +1,6 @@
 # Spec-Driven Development (SDD) в Holix
 
-> **Идея:** сначала спецификация и задачи, потом код, в конце — merge в main specs.  
+> **Идея:** сначала спецификация и задачи, потом код, в конце — merge в main specs.
 > Формат совместим с [OpenSpec](https://github.com/javded-itres/OpenSpec).
 
 На этой странице: зачем SDD, дерево `openspec/`, все tools `sdd_*`, slash `/spec`, skills, **режимы apply**, пошаговые **примеры** (CLI/TUI и через агента), multi-project, understanding gate, troubleshooting.
@@ -72,9 +72,11 @@ repo/
 |------|------------|
 | `sdd_list_projects` | Список project roots с `openspec/` |
 | `sdd_init` | Scaffold `openspec/` (+ example domain) |
-| `sdd_list_specs` / `sdd_read_spec` | Main specs (source of truth) |
+| `sdd_list_specs` / `sdd_read_spec` | Main specs (`openspec/specs/`) |
 | `sdd_list_changes` | Активные (и archive) changes |
 | `sdd_create_change` | Scaffold change (stubs only!) |
+| `sdd_read_artifact` | Читать proposal / design / tasks / delta specs change |
+| `sdd_update_spec` | Дополнить / изменить / удалить требование в delta-спеке change |
 | `sdd_write_artifact` | proposal / design / tasks / specs |
 | `sdd_status` | Overview или один change + paths |
 | `sdd_update_understanding` / `sdd_confirm_understanding` | Understanding gate |

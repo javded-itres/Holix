@@ -882,10 +882,16 @@ class AsyncSubAgentRunner:
         child.events.subscribe(_on_event)
         try:
             from core.graph.nodes.react_node import SUBAGENT_CANCELLED_FINAL
-            from core.subagents.react_agent import is_failed_react_result
+            from core.subagents.react_agent import (
+                is_failed_react_result,
+                recover_empty_react_text,
+            )
 
             text = await child.run(task, conversation_id=conv_id, execution_mode="react")
             duration_ms = (time.monotonic() - start_time) * 1000
+            recovered = recover_empty_react_text(text, handle=handle)
+            if recovered:
+                text = recovered
             if (text or "").strip() == SUBAGENT_CANCELLED_FINAL:
                 handle.status = SubAgentStatus.CANCELLED
                 handle.result = SubAgentResult(

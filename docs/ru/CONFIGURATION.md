@@ -205,7 +205,7 @@ providers:
 |------------|---------|--------|
 | `HOLIX_MAX_STEPS_EXTEND_ENABLED` | `true` | Авто-расширение при прогрессе |
 | `HOLIX_MAX_STEPS_EXTEND_BY` | `30` | Шагов за расширение |
-| `HOLIX_MAX_STEPS_MAX_EXTENSIONS` | `3` | Сколько раз |
+| `HOLIX_MAX_STEPS_MAX_EXTENSIONS` | `10` | Сколько раз |
 | `HOLIX_MAX_STEPS_HARD_CAP` | `0` | Жёсткий потолок (`0` = вычисляется) |
 
 ## Субагенты и supervisor

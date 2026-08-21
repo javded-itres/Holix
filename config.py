@@ -44,7 +44,7 @@ class Settings(BaseSettings):
         description="How many steps to add when progress check passes",
     )
     max_steps_max_extensions: int = Field(
-        default=3,
+        default=10,
         validation_alias=AliasChoices(
             "HOLIX_MAX_STEPS_MAX_EXTENSIONS",
             "MAX_STEPS_MAX_EXTENSIONS",

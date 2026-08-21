@@ -197,7 +197,7 @@ class HolixRuntimeConfig:
             agent_pipeline=str(getattr(s, "agent_pipeline", "classic") or "classic"),
             max_steps_extend_enabled=bool(getattr(s, "max_steps_extend_enabled", True)),
             max_steps_extend_by=int(getattr(s, "max_steps_extend_by", 30) or 30),
-            max_steps_max_extensions=int(getattr(s, "max_steps_max_extensions", 3) or 3),
+            max_steps_max_extensions=int(getattr(s, "max_steps_max_extensions", 10) or 10),
             max_steps_hard_cap=int(getattr(s, "max_steps_hard_cap", 0) or 0),
             auto_allow_threshold=s.auto_allow_threshold,
             non_interactive=s.non_interactive,
@@ -305,6 +305,12 @@ class HolixRuntimeConfig:
             overrides["agent_pipeline"] = normalize_pipeline(str(profile.agent_pipeline))
         if getattr(profile, "max_steps_extend_enabled", None) is not None:
             overrides["max_steps_extend_enabled"] = bool(profile.max_steps_extend_enabled)
+        if getattr(profile, "max_steps_extend_by", None) is not None:
+            overrides["max_steps_extend_by"] = int(profile.max_steps_extend_by)
+        if getattr(profile, "max_steps_max_extensions", None) is not None:
+            overrides["max_steps_max_extensions"] = int(profile.max_steps_max_extensions)
+        if getattr(profile, "max_steps_hard_cap", None) is not None:
+            overrides["max_steps_hard_cap"] = int(profile.max_steps_hard_cap)
         if getattr(profile, "search", None):
             overrides["search"] = profile.search
         overrides["workspace_jail_enabled"] = bool(

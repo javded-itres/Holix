@@ -122,6 +122,51 @@ async def test_terminal_runs_shell_chaining(
 
 
 @pytest.mark.asyncio
+async def test_terminal_whitelist_follows_execution_profile(
+    tmp_path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Studio serve HOLIX_PROFILE=saas must not override the user profile toggle."""
+    from cli.core import ProfileManager
+    from core.tools.execution_context import (
+        conversation_scope,
+        profile_scope,
+        reset_conversation_scope,
+        reset_profile_scope,
+    )
+    from core.tools.terminal import TerminalTool
+
+    from config import settings
+
+    monkeypatch.setenv("HOLIX_HOME", str(tmp_path))
+    manager = ProfileManager()
+    manager.create_profile("alice", inherit_global=False)
+    env = tmp_path / "profiles" / "alice" / ".env"
+    env.parent.mkdir(parents=True, exist_ok=True)
+    env.write_text("HOLIX_TERMINAL_COMMAND_WHITELIST=false\n", encoding="utf-8")
+
+    monkeypatch.setenv("HOLIX_PROFILE", "saas")
+    monkeypatch.setenv("HOLIX_TERMINAL_COMMAND_WHITELIST", "true")
+    monkeypatch.setenv("TERMINAL_COMMAND_WHITELIST", "true")
+    monkeypatch.setattr(settings, "enable_terminal_tool", True)
+    monkeypatch.setattr(settings, "terminal_command_whitelist", True)
+    from core.tools import terminal as terminal_mod
+
+    monkeypatch.setattr(terminal_mod.settings, "enable_terminal_tool", True)
+    monkeypatch.setattr(terminal_mod.settings, "terminal_command_whitelist", True)
+
+    prof_tok = profile_scope("alice")
+    conv_tok = conversation_scope("studio-tab")
+    try:
+        tool = TerminalTool()
+        out = await tool.execute("docker ps")
+        assert "not in whitelist" not in out.lower()
+    finally:
+        reset_conversation_scope(conv_tok)
+        reset_profile_scope(prof_tok)
+
+
+@pytest.mark.asyncio
 async def test_terminal_tool_blocks_dangerous(monkeypatch: pytest.MonkeyPatch) -> None:
     from core.tools import terminal as terminal_mod
     from core.tools.terminal import TerminalTool

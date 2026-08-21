@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 import re
 from pathlib import Path
 
@@ -48,9 +49,18 @@ def apply_mode_path(workspace: Path, change_id: str) -> Path:
     return change_dir(workspace, change_id) / APPLY_MODE_FILE
 
 
+def confined_under(root: Path | str, path: Path | str) -> Path:
+    """Return the real path if it stays inside *root*; otherwise raise."""
+    base = os.path.realpath(os.path.expanduser(str(root)))
+    resolved = os.path.realpath(os.path.expanduser(str(path)))
+    if resolved != base and not resolved.startswith(base + os.sep):
+        raise ValueError(f"path escapes {base}: {path}")
+    return Path(resolved)
+
+
 def validate_change_id(change_id: str) -> str:
     cid = (change_id or "").strip().lower().replace(" ", "-")
-    if not _CHANGE_ID_RE.match(cid):
+    if not _CHANGE_ID_RE.fullmatch(cid):
         raise ValueError(
             "change_id must be 1–64 chars: lowercase letters, digits, hyphen, underscore "
             f"(got {change_id!r})"
@@ -62,6 +72,6 @@ def validate_change_id(change_id: str) -> str:
 
 def validate_domain(domain: str) -> str:
     d = (domain or "").strip().lower().replace(" ", "-")
-    if not _CHANGE_ID_RE.match(d):
+    if not _CHANGE_ID_RE.fullmatch(d):
         raise ValueError(f"invalid domain name: {domain!r}")
     return d

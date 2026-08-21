@@ -34,6 +34,7 @@ from core.graph.action_honesty import (
     should_refuse_false_empty_workspace,
     should_refuse_status_monologue,
     should_refuse_unproven_sdd_fill,
+    summarize_persist_tools,
     workspace_grounding_refusal_text,
 )
 from core.graph.plan_step import (
@@ -281,6 +282,17 @@ def _maybe_subagent_empty_retry(
         return None
     retries = _empty_final_retry_count(messages) + 1
     if retries > _SUBAGENT_EMPTY_RETRIES:
+        summary = summarize_persist_tools(messages)
+        if summary:
+            updated = list(messages)
+            updated.append({"role": "assistant", "content": summary})
+            return {
+                "messages": updated,
+                "step_count": step_count,
+                "is_final": True,
+                "final_response": summary,
+                "tool_calls": [],
+            }
         return {
             "messages": messages,
             "step_count": step_count,

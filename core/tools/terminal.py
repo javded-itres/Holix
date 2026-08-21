@@ -41,6 +41,31 @@ def _env_bool(raw: str | None, *, default: bool) -> bool:
     return str(raw).strip().lower() in {"1", "true", "yes", "on"}
 
 
+def _runtime_whitelist_profile() -> str:
+    """Profile whose ``.env`` owns the terminal allowlist.
+
+    Studio SaaS: the serve process ``HOLIX_PROFILE`` is often ``saas`` while the
+    chat run is bound to the user's Holix profile via ContextVar. Prefer the
+    execution-context name so Settings toggles match ``run_terminal_command``.
+    """
+    try:
+        from core.tools.execution_context import get_conversation_id, get_profile_name
+
+        scoped = (get_profile_name() or "").strip()
+        conv = (get_conversation_id() or "").strip()
+        in_run = bool(conv and conv != "default")
+        if scoped and (in_run or scoped != "default"):
+            return scoped
+    except Exception:
+        pass
+    try:
+        from core.env_loader import active_profile_name
+
+        return active_profile_name()
+    except Exception:
+        return "default"
+
+
 def terminal_whitelist_enabled() -> bool:
     """Whether the terminal allowlist is enforced.
 
@@ -53,14 +78,14 @@ def terminal_whitelist_enabled() -> bool:
     3. Settings singleton default.
     """
     try:
-        from core.env_loader import active_profile_name, read_profile_env_map
+        from core.env_loader import read_profile_env_map
         from core.terminal_whitelist_config import (
             WHITELIST_ENABLED_KEY,
             WHITELIST_ENABLED_LEGACY_KEY,
             read_whitelist_enabled,
         )
 
-        profile = active_profile_name()
+        profile = _runtime_whitelist_profile()
         env_map = read_profile_env_map(profile)
         if WHITELIST_ENABLED_KEY in env_map or WHITELIST_ENABLED_LEGACY_KEY in env_map:
             return read_whitelist_enabled(profile)
@@ -75,7 +100,7 @@ def terminal_whitelist_enabled() -> bool:
 def terminal_whitelist_extra() -> str:
     """Extra allowlist prefixes — profile file first (same reason as enabled)."""
     try:
-        from core.env_loader import active_profile_name, read_profile_env_map
+        from core.env_loader import read_profile_env_map
         from core.terminal_whitelist_config import (
             WHITELIST_EXTRA_KEY,
             WHITELIST_EXTRA_LEGACY_KEY,
@@ -83,7 +108,7 @@ def terminal_whitelist_extra() -> str:
             read_whitelist_extra,
         )
 
-        profile = active_profile_name()
+        profile = _runtime_whitelist_profile()
         env_map = read_profile_env_map(profile)
         if WHITELIST_EXTRA_KEY in env_map or WHITELIST_EXTRA_LEGACY_KEY in env_map:
             return format_command_list(read_whitelist_extra(profile))

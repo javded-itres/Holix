@@ -24,7 +24,7 @@ _COMPLETION_CLAIM = re.compile(
 # Studio / user asks to fill SDD change artifacts (UI auto-prompt after create).
 _SDD_FILL_REQUEST = re.compile(
     r"(?is)("
-    r"sdd_write_artifact"
+    r"sdd_write_artifact|sdd_update_spec"
     r"|please\s+fill\s+(proposal|delta\s+specs|tasks|artifacts)"
     r"|fill\s+proposal"
     r"|заполни\s+(proposal|спек|tasks|артефакт)"
@@ -41,6 +41,7 @@ _SDD_FILL_CLAIM = re.compile(
     r"|filled\s+(proposal|tasks|specs|design|delta)"
     r"|proposal\.md|tasks\.md|openspec/changes/"
     r"|sdd_write_artifact"
+    r"|sdd_update_spec"
     r")"
 )
 
@@ -165,10 +166,20 @@ _WRITE_TOOLS = frozenset(
         # SDD: tools that persist real content (create_change alone is stubs only)
         "sdd_init",
         "sdd_write_artifact",
+        "sdd_update_spec",
         "sdd_check_task",
         "sdd_set_task_assignee",
         "sdd_set_apply_mode",
         "sdd_archive",
+    }
+)
+# Persisted artifact content (analysis docs, specs). Scaffold-only tools stay out.
+_ARTIFACT_WRITE_TOOLS = frozenset(
+    {
+        "write_file",
+        "patch_file",
+        "sdd_write_artifact",
+        "sdd_update_spec",
     }
 )
 _DELETE_TOOLS = frozenset(
@@ -754,6 +765,28 @@ def _tool_call_id_names(messages: list[dict[str, Any]]) -> dict[str, str]:
     return id_to_name
 
 
+def _is_honesty_nudge_message(msg: dict[str, Any] | None) -> bool:
+    if not isinstance(msg, dict) or msg.get("role") != "user":
+        return False
+    raw = msg.get("content")
+    text = raw if isinstance(raw, str) else str(raw or "")
+    return text.strip().startswith("[Action honesty")
+
+
+def _last_real_user_index(messages: list[dict[str, Any]] | None) -> int:
+    """Index of the last real user turn (honesty injects are not a new request)."""
+    last = -1
+    if not messages:
+        return last
+    for i, msg in enumerate(messages):
+        if msg.get("role") != "user":
+            continue
+        if _is_honesty_nudge_message(msg):
+            continue
+        last = i
+    return last
+
+
 def successful_tools_since_last_user(
     messages: list[dict[str, Any]] | None,
     *,
@@ -762,10 +795,7 @@ def successful_tools_since_last_user(
     """Tool names with non-error results after the last user message."""
     names: list[str] = []
     if messages:
-        last_user = -1
-        for i, msg in enumerate(messages):
-            if msg.get("role") == "user":
-                last_user = i
+        last_user = _last_real_user_index(messages)
         id_to_name = _tool_call_id_names(messages)
         for msg in messages[last_user + 1 :]:
             if msg.get("role") != "tool":
@@ -796,17 +826,11 @@ def successful_tools_since_last_user(
 
 def last_user_text(messages: list[dict[str, Any]] | None) -> str:
     """Content of the last real user message (skip honesty nudge injects)."""
-    if not messages:
+    idx = _last_real_user_index(messages)
+    if idx < 0 or not messages:
         return ""
-    for msg in reversed(messages):
-        if msg.get("role") != "user":
-            continue
-        content = msg.get("content")
-        text = content if isinstance(content, str) else str(content or "")
-        if text.strip().startswith("[Action honesty"):
-            continue
-        return text
-    return ""
+    raw = messages[idx].get("content")
+    return raw if isinstance(raw, str) else str(raw or "")
 
 
 def is_sdd_fill_request(text: str | None) -> bool:
@@ -819,15 +843,80 @@ def claims_sdd_artifacts_filled(text: str | None) -> bool:
     return bool(text and _SDD_FILL_CLAIM.search(text))
 
 
+def has_successful_artifact_write(
+    messages: list[dict[str, Any]] | None,
+    *,
+    tool_results: list[dict[str, Any]] | None = None,
+) -> bool:
+    """True if a persist tool wrote content after the last real user message.
+
+    ``sdd_write_artifact`` is preferred for OpenSpec, but analysis/docs agents
+    often only have ``write_file``. Scaffold-only ``sdd_create_change`` does not
+    count.
+    """
+    success = set(successful_tools_since_last_user(messages, tool_results=tool_results))
+    return bool(success.intersection(_ARTIFACT_WRITE_TOOLS))
+
+
 def has_successful_sdd_write(
     messages: list[dict[str, Any]] | None,
     *,
     tool_results: list[dict[str, Any]] | None = None,
 ) -> bool:
-    """True if sdd_write_artifact succeeded after the last real user message."""
-    return "sdd_write_artifact" in successful_tools_since_last_user(
-        messages, tool_results=tool_results
-    )
+    """True if SDD/docs content was persisted (sdd_write_artifact or write_file)."""
+    return has_successful_artifact_write(messages, tool_results=tool_results)
+
+
+def persist_tool_summaries(
+    messages: list[dict[str, Any]] | None,
+    *,
+    tool_results: list[dict[str, Any]] | None = None,
+) -> list[str]:
+    """Short lines for successful persist tools (for empty-final recovery)."""
+    lines: list[str] = []
+    if not has_successful_artifact_write(messages, tool_results=tool_results):
+        return lines
+    id_to_name = _tool_call_id_names(messages or [])
+    last_user = _last_real_user_index(messages)
+    if messages:
+        for msg in messages[last_user + 1 :]:
+            if msg.get("role") != "tool":
+                continue
+            raw = msg.get("content")
+            content = raw if isinstance(raw, str) else str(raw or "")
+            if _tool_result_failed(content):
+                continue
+            name = _tool_name_from_message(msg, id_to_name) or "tool"
+            if name not in _ARTIFACT_WRITE_TOOLS:
+                continue
+            preview = " ".join(content.split())[:240]
+            lines.append(f"- {name}: {preview}")
+    if not lines and tool_results:
+        for tr in tool_results:
+            if not isinstance(tr, dict):
+                continue
+            name = str(tr.get("tool_name") or tr.get("name") or "").strip()
+            if name not in _ARTIFACT_WRITE_TOOLS:
+                continue
+            raw = tr.get("result") or tr.get("content") or ""
+            content = raw if isinstance(raw, str) else str(raw)
+            if _tool_result_failed(content):
+                continue
+            preview = " ".join(content.split())[:240]
+            lines.append(f"- {name}: {preview}")
+    return lines[-8:]
+
+
+def summarize_persist_tools(
+    messages: list[dict[str, Any]] | None,
+    *,
+    tool_results: list[dict[str, Any]] | None = None,
+) -> str:
+    """Human summary when the model wrote files but returned no final text."""
+    lines = persist_tool_summaries(messages, tool_results=tool_results)
+    if not lines:
+        return ""
+    return "Work completed via tools (model returned no final text):\n" + "\n".join(lines)
 
 
 def sdd_fill_requires_tools(
@@ -856,11 +945,12 @@ def lacks_evidence_for_claim(
     successes = successful_tools_since_last_user(messages, tool_results=tool_results)
     success_set = set(successes)
 
-    # SDD fill: claiming filled artifacts requires sdd_write_artifact this turn.
+    # SDD/docs fill: claiming artifacts written requires a persist tool this turn.
+    # write_file counts — analysis subagents often lack sdd_write_artifact.
     if claims_sdd_artifacts_filled(content) or (
         is_sdd_fill_request(user) and claims_action_completed(content)
     ):
-        if "sdd_write_artifact" not in success_set:
+        if not has_successful_artifact_write(messages, tool_results=tool_results):
             return True
 
     if not claims_action_completed(text):
@@ -881,10 +971,7 @@ def lacks_evidence_for_claim(
 def _tools_attempted_since_last_user(messages: list[dict[str, Any]] | None) -> bool:
     if not messages:
         return False
-    last_user = -1
-    for i, msg in enumerate(messages):
-        if msg.get("role") == "user":
-            last_user = i
+    last_user = _last_real_user_index(messages)
     for msg in messages[last_user + 1 :]:
         if msg.get("role") == "tool":
             return True

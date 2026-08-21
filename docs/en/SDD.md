@@ -1,6 +1,6 @@
 # Spec-Driven Development (SDD) in Holix
 
-> **Idea:** specify first, implement second, archive into main specs last.  
+> **Idea:** specify first, implement second, archive into main specs last.
 > Layout is compatible with [OpenSpec](https://github.com/javded-itres/OpenSpec).
 
 This page covers: why SDD, the `openspec/` tree, `sdd_*` tools, `/spec` slash commands, skills, **apply modes**, step-by-step **examples** (CLI/TUI and agent-driven), multi-project, understanding gate, and troubleshooting.
@@ -62,9 +62,11 @@ repo/
 |------|---------|
 | `sdd_list_projects` | Projects that already have `openspec/` |
 | `sdd_init` | Scaffold layout |
-| `sdd_list_specs` / `sdd_read_spec` | Main specs |
+| `sdd_list_specs` / `sdd_read_spec` | Main specs (`openspec/specs/`) |
 | `sdd_list_changes` | Active / archived changes |
 | `sdd_create_change` | Scaffold change (**stubs only**) |
+| `sdd_read_artifact` | Read change proposal / design / tasks / delta specs |
+| `sdd_update_spec` | Add / modify / remove a requirement in the change delta spec |
 | `sdd_write_artifact` | proposal \| design \| tasks \| specs |
 | `sdd_status` | Overview or one change + paths |
 | `sdd_update_understanding` / `sdd_confirm_understanding` | Understanding gate |
@@ -243,11 +245,11 @@ Main does 1.1; 2.1 and 2.2 run in parallel afterward.
 
 Before full propose (when enabled):
 
-1. Read main + archived specs  
-2. Project context / `HOLIX.md` (run `/init` if weak)  
-3. `sdd_update_understanding` with honest score  
-4. Residual questions only  
-5. `sdd_confirm_understanding` when score ≥ threshold  
+1. Read main + archived specs
+2. Project context / `HOLIX.md` (run `/init` if weak)
+3. `sdd_update_understanding` with honest score
+4. Residual questions only
+5. `sdd_confirm_understanding` when score ≥ threshold
 6. Then `sdd_write_artifact`
 
 ---

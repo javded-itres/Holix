@@ -72,8 +72,8 @@ flowchart LR
 memory → meta → react ⇄ tools → reflect ⇄ react → finalize
 ```
 
-1. **Meta-agent** (по умолчанию вкл.) — короткая стратегическая подсказка.  
-2. Цикл ReAct / tools.  
+1. **Meta-agent** (по умолчанию вкл.) — короткая стратегическая подсказка.
+2. Цикл ReAct / tools.
 3. **Reflexion** — оценка черновика; при низком качестве — verbal feedback и повтор ReAct (до `max_refinement_iterations`).
 
 ### Когда использовать
@@ -332,9 +332,9 @@ memory → meta → react ⇄ tools → reflect ⇄ react → finalize
 
 Holix использует цикл в стиле **Reflexion** (не Tree/Graph of Thoughts):
 
-1. Черновик финального ответа.  
-2. Оценка качества (+ опционально траектория tools).  
-3. Ниже порога → **verbal reflection** в сообщения и ещё один проход ReAct.  
+1. Черновик финального ответа.
+2. Оценка качества (+ опционально траектория tools).
+3. Ниже порога → **verbal reflection** в сообщения и ещё один проход ReAct.
 4. Эпизоды reflection в LTM при доступной памяти.
 
 | Переменная | По умолчанию | Эффект |
@@ -352,8 +352,8 @@ Holix использует цикл в стиле **Reflexion** (не Tree/Graph
 
 При достижении `max_steps` Holix не всегда останавливается сразу:
 
-1. Проверка прогресса (tools, loop, ошибки).  
-2. **Работает + релевантно** → +шаги (`max_steps_extend_by`).  
+1. Проверка прогресса (tools, loop, ошибки).
+2. **Работает + релевантно** → +шаги (`max_steps_extend_by`).
 3. **Завис / thrash** → стоп (или guidance supervisor у субагентов).
 
 | Переменная | По умолчанию | Эффект |
@@ -361,7 +361,7 @@ Holix использует цикл в стиле **Reflexion** (не Tree/Graph
 | `max_steps` | `90` (runtime; профиль может переопределить) | Базовый бюджет |
 | `HOLIX_MAX_STEPS_EXTEND_ENABLED` | `true` | Авто-расширение |
 | `HOLIX_MAX_STEPS_EXTEND_BY` | `30` | Шагов за раз |
-| `HOLIX_MAX_STEPS_MAX_EXTENSIONS` | `3` | Сколько раз |
+| `HOLIX_MAX_STEPS_MAX_EXTENSIONS` | `10` | Сколько раз |
 | `HOLIX_MAX_STEPS_HARD_CAP` | `0` | Жёсткий потолок (`0` = base+extend×N) |
 
 ---

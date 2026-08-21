@@ -1014,8 +1014,14 @@ def _try_process_react_run(
             child.run(task, conversation_id=f"subagent:{config.name}", execution_mode="react")
         )
         from core.graph.nodes.react_node import SUBAGENT_CANCELLED_FINAL
-        from core.subagents.react_agent import is_failed_react_result
+        from core.subagents.react_agent import (
+            is_failed_react_result,
+            recover_empty_react_text,
+        )
 
+        recovered = recover_empty_react_text(text)
+        if recovered:
+            text = recovered
         if (text or "").strip() == SUBAGENT_CANCELLED_FINAL:
             return SubAgentResult(
                 name=config.name,

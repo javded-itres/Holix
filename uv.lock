@@ -1059,7 +1059,7 @@ wheels = [
 
 [[package]]
 name = "holix"
-version = "1.0.12"
+version = "1.0.13"
 source = { editable = "." }
 dependencies = [
     { name = "aiohttp" },

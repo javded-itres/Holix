@@ -142,3 +142,134 @@ def merge_delta_into_main(main_content: str, delta_content: str) -> str:
 
     result = "\n".join(parts).rstrip() + "\n"
     return result
+
+
+_STUB_MARKERS = (
+    "The system SHALL …",
+    "The system SHALL ...",
+    "- **GIVEN** …",
+    "- **GIVEN** ...",
+    "<!-- fill after understanding confirmed -->",
+)
+
+
+def normalize_delta_op(op: str) -> str:
+    raw = (op or "").strip().lower()
+    if raw in {"add", "added", "create", "new", "+"}:
+        return "ADDED"
+    if raw in {"modify", "modified", "change", "update", "patch", "~"}:
+        return "MODIFIED"
+    if raw in {"remove", "removed", "delete", "drop", "-"}:
+        return "REMOVED"
+    raise ValueError(f"unknown op {op!r}; use add | modify | remove (ADDED/MODIFIED/REMOVED)")
+
+
+def _is_stub_requirement(req: _Requirement) -> bool:
+    return any(m in req.body for m in _STUB_MARKERS)
+
+
+def _make_requirement(title: str, body: str) -> _Requirement:
+    title = (title or "").strip()
+    text = (body or "").strip()
+    first = text.split("\n", 1)[0] if text else ""
+    if first and _REQ_HEADER_RE.match(first):
+        m = _REQ_HEADER_RE.match(first)
+        if m:
+            title = m.group(2).strip() or title
+        return _Requirement(title=title, body=text.rstrip() + "\n")
+    if not title:
+        raise ValueError("requirement title is required")
+    heading = f"### Requirement: {title}\n"
+    rest = text + ("\n" if text and not text.endswith("\n") else "")
+    block = heading + (("\n" + rest) if rest else "\n")
+    return _Requirement(title=title, body=block)
+
+
+def _delta_preamble(delta: str) -> str:
+    m = _SECTION_RE.search(delta or "")
+    if m:
+        return delta[: m.start()].rstrip()
+    matches = list(_REQ_HEADER_RE.finditer(delta or ""))
+    if matches:
+        return delta[: matches[0].start()].rstrip()
+    return (delta or "").rstrip()
+
+
+def _load_delta_buckets(
+    delta: str,
+) -> tuple[str, dict[str, list[_Requirement]]]:
+    preamble = _delta_preamble(delta or "")
+    buckets: dict[str, list[_Requirement]] = {
+        "ADDED": [],
+        "MODIFIED": [],
+        "REMOVED": [],
+    }
+    for kind, reqs in _parse_delta_sections(delta or ""):
+        key_kind = kind if kind in buckets else "ADDED"
+        for r in reqs:
+            nk = _normalize_title(r.title)
+            for name in list(buckets):
+                buckets[name] = [x for x in buckets[name] if _normalize_title(x.title) != nk]
+            buckets[key_kind].append(r)
+    return preamble, buckets
+
+
+def _serialize_delta(
+    preamble: str,
+    buckets: dict[str, list[_Requirement]],
+) -> str:
+    parts: list[str] = []
+    if (preamble or "").strip():
+        parts.append(preamble.rstrip())
+        parts.append("")
+    for kind in ("ADDED", "MODIFIED", "REMOVED"):
+        reqs = buckets.get(kind) or []
+        if not reqs:
+            continue
+        parts.append(f"## {kind} Requirements")
+        parts.append("")
+        for r in reqs:
+            parts.append(r.body.rstrip())
+            parts.append("")
+    text = "\n".join(parts).rstrip()
+    return (text + "\n") if text else ""
+
+
+def patch_delta_spec(
+    existing: str,
+    *,
+    op: str,
+    title: str,
+    body: str = "",
+) -> str:
+    """Patch one requirement into a change delta spec (ADDED/MODIFIED/REMOVED)."""
+    kind = normalize_delta_op(op)
+    req = _make_requirement(title, body)
+    preamble, buckets = _load_delta_buckets(existing or "")
+    key = _normalize_title(req.title)
+    was_added = any(_normalize_title(r.title) == key for r in buckets["ADDED"])
+    for name in list(buckets):
+        buckets[name] = [x for x in buckets[name] if _normalize_title(x.title) != key]
+    if kind == "ADDED":
+        buckets["ADDED"] = [r for r in buckets["ADDED"] if not _is_stub_requirement(r)]
+        buckets["ADDED"].append(req)
+    elif kind == "MODIFIED":
+        if was_added:
+            buckets["ADDED"].append(req)
+        else:
+            buckets["MODIFIED"].append(req)
+    else:
+        if not was_added:
+            buckets["REMOVED"].append(req)
+    return _serialize_delta(preamble, buckets)
+
+
+def merge_delta_patches(base_delta: str, patch_delta: str) -> str:
+    """Apply a delta snippet onto an existing change delta document."""
+    result = base_delta or ""
+    for kind, reqs in _parse_delta_sections(patch_delta or ""):
+        for r in reqs:
+            body = r.body
+            # Avoid doubling the heading inside patch_delta_spec.
+            result = patch_delta_spec(result, op=kind, title=r.title, body=body)
+    return result

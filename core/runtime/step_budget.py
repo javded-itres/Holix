@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 
 # Defaults (overridable via Settings / agent config)
 DEFAULT_EXTEND_BY = 30
-DEFAULT_MAX_EXTENSIONS = 3
+DEFAULT_MAX_EXTENSIONS = 10
 DEFAULT_HARD_CAP = 0  # 0 → derive from base max_steps + extend_by * max_extensions
 DEFAULT_LOOKBACK = 6
 

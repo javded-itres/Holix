@@ -123,7 +123,14 @@ class TestRiskClassifier:
     # ── SDD: auto-allow all except task launch ──
 
     def test_sdd_read_tools_are_no_risk(self):
-        for name in ("sdd_list_projects", "sdd_status", "sdd_read_spec", "sdd_write_artifact"):
+        for name in (
+            "sdd_list_projects",
+            "sdd_status",
+            "sdd_read_spec",
+            "sdd_read_artifact",
+            "sdd_update_spec",
+            "sdd_write_artifact",
+        ):
             tool = self._make_tool(name, "medium")  # classifier overrides declarative
             assessment = self.classifier.classify(name, tool, {})
             assert assessment.risk_level == RiskLevel.NO, name
