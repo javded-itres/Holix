@@ -539,6 +539,69 @@ def test_write_file_success_allows_claim() -> None:
     assert successful_tools_since_last_user(messages) == ["write_file"]
 
 
+def test_write_file_counts_as_sdd_artifact_evidence() -> None:
+    """Analysis agents persist docs with write_file — that is enough for SDD claims."""
+    user = (
+        "SDD change `shopapi-1` created in project `shop_api`.\n"
+        "MUST call sdd_write_artifact for proposal, design, delta specs, and tasks."
+    )
+    messages = [
+        {"role": "user", "content": user},
+        {
+            "role": "assistant",
+            "content": "",
+            "tool_calls": [
+                {
+                    "id": "w1",
+                    "type": "function",
+                    "function": {"name": "write_file", "arguments": "{}"},
+                }
+            ],
+        },
+        {
+            "role": "tool",
+            "tool_call_id": "w1",
+            "content": "Wrote 15230 bytes to openspec/changes/shopapi-1/analysis/analysis-coder.md",
+        },
+    ]
+    claim = "Готово. Заполнил analysis в openspec/changes/shopapi-1/analysis/analysis-coder.md"
+    assert is_sdd_fill_request(user)
+    assert claims_sdd_artifacts_filled(claim)
+    assert not lacks_evidence_for_claim(claim, messages)
+    assert not sdd_fill_requires_tools(messages, user_input=user)
+    assert not should_nudge_false_completion(
+        {"honesty_nudge_count": 0, "user_input": user},
+        final_response=claim,
+        messages=messages,
+    )
+
+
+def test_honesty_nudge_does_not_wipe_write_file_evidence() -> None:
+    messages = [
+        {"role": "user", "content": "Write the analysis docs"},
+        {
+            "role": "assistant",
+            "content": "",
+            "tool_calls": [
+                {
+                    "id": "w1",
+                    "type": "function",
+                    "function": {"name": "write_file", "arguments": "{}"},
+                }
+            ],
+        },
+        {
+            "role": "tool",
+            "tool_call_id": "w1",
+            "content": "Wrote 2000 bytes to analysis.md",
+        },
+        {"role": "user", "content": "[Action honesty] You stated that work was completed"},
+        {"role": "assistant", "content": "Готово, файл analysis.md создан."},
+    ]
+    assert successful_tools_since_last_user(messages) == ["write_file"]
+    assert not lacks_evidence_for_claim("Готово, файл analysis.md создан.", messages)
+
+
 def test_failed_tool_does_not_count() -> None:
     messages = [
         {"role": "user", "content": "Удали проекты"},
