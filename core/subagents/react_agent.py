@@ -45,6 +45,11 @@ class FilteredToolRegistry:
             return False
         if key in self._allowed:
             return True
+        from core.tools.aliases import resolve_tool_name
+
+        resolved = resolve_tool_name(key, getattr(self._inner, "tools", None))
+        if resolved in self._allowed:
+            return True
         if key.startswith("mcp_"):
             if self._inherit_mcp:
                 return True

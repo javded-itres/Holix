@@ -33,6 +33,7 @@ def test_detect_preset_from_url_openai():
 def test_detect_preset_from_url_local_ports():
     assert detect_preset_from_url("http://127.0.0.1:11434") == "ollama"
     assert detect_preset_from_url("http://localhost:4000/v1") == "litellm"
+    assert detect_preset_from_url("http://127.0.0.1:1234/v1") == "lmstudio"
 
 
 def test_url_hostname_git_scp_style():

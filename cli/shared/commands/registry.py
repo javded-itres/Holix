@@ -15,6 +15,8 @@ _STATIC_SLASH_COMMANDS: list[tuple[str, str]] = [
     ("/forget", "Clear session memory (DB + search index)"),
     ("/memory wipe", "Clear session memory (alias)"),
     ("/init", "Deep project analysis → .holix/HOLIX.md"),
+    ("/commands", "List custom slash commands (.holix/commands)"),
+    ("/commands reload", "Rescan custom command markdown files"),
     ("/stream", "Toggle streaming"),
     ("/mode", "Cycle execution mode"),
     ("/models", "Switch LLM model (runtime)"),
@@ -126,8 +128,19 @@ def all_slash_commands(
     skill_assignments: dict | None = None,
     locale: str | None = None,
 ) -> list[tuple[str, str]]:
-    """Static commands plus dynamic hub skill slash commands."""
+    """Static commands plus custom markdown commands and hub skill slashes."""
     out = slash_commands_for_locale(locale)
+    try:
+        from core.commands.help import custom_slash_pairs
+
+        seen = {c.split()[0] for c, _ in out}
+        for cmd, desc in custom_slash_pairs():
+            token = cmd.split()[0]
+            if token not in seen:
+                out.append((cmd, desc))
+                seen.add(token)
+    except Exception:
+        pass
     if skills_dir is None:
         return out
     try:

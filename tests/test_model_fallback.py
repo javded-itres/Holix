@@ -92,6 +92,29 @@ async def test_chat_completions_falls_back_on_connection_error() -> None:
 
 
 @pytest.mark.asyncio
+async def test_chat_completions_adds_ollama_think_off() -> None:
+    cfg = ProfileConfig(
+        profile_name="ollama",
+        default_provider="ollama",
+        providers={
+            "ollama": {
+                "base_url": "http://127.0.0.1:11434/v1",
+                "api_key": "ollama",
+                "default_model": "kimi-k2.7-code:cloud",
+            }
+        },
+    )
+    mm = ModelManager(cfg)
+    client = MagicMock()
+    client.chat.completions.create = AsyncMock(return_value=MagicMock())
+    with patch.object(mm, "get_client", return_value=client):
+        await chat_completions_with_fallback(mm, messages=[{"role": "user", "content": "hi"}])
+    kwargs = client.chat.completions.create.await_args.kwargs
+    assert kwargs["extra_body"]["think"] is False
+    assert kwargs["extra_body"]["chat_template_kwargs"]["enable_thinking"] is False
+
+
+@pytest.mark.asyncio
 async def test_chat_completions_raises_when_no_fallback() -> None:
     cfg = ProfileConfig(
         profile_name="solo",
@@ -106,9 +129,7 @@ async def test_chat_completions_raises_when_no_fallback() -> None:
     )
     mm = ModelManager(cfg)
     client = MagicMock()
-    client.chat.completions.create = AsyncMock(
-        side_effect=APIConnectionError(request=MagicMock())
-    )
+    client.chat.completions.create = AsyncMock(side_effect=APIConnectionError(request=MagicMock()))
     with patch.object(mm, "get_client", return_value=client):
         with pytest.raises(APIConnectionError):
             await chat_completions_with_fallback(mm, messages=[])

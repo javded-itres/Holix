@@ -190,7 +190,8 @@ MESSAGES: dict[str, dict[str, str]] = {
             "  /profile [name|N]  /memory <q>  /last [/N]  /tools\n"
             "  /yes /no  /plan-confirm|auto|refine|reject\n"
             "  /launch [/list]  /mcp [/list|/install <key|url>|/assign|/test|/tools]\n"
-            "  /spec [/init|/create|/show|/apply|/archive|/fill]"
+            "  /spec [/init|/create|/show|/apply|/archive|/fill]\n"
+            "  /commands [/reload]  — custom slash commands (.holix/commands)"
         ),
         "tui.launch.title": "External CLI launch",
         "tui.launch.assign": "Assign sub-agent",
@@ -818,7 +819,8 @@ When finished, confirm the absolute path written and give a 5–10 line summary 
             "  /profile [имя|N]  /memory <запрос>  /last [/N]  /tools\n"
             "  /yes /no  /plan-confirm|auto|refine|reject\n"
             "  /launch [/list]  /mcp [/list|/install <key|url>|/assign|/test|/tools]\n"
-            "  /spec [/init|/create|/show|/apply|/archive|/fill]"
+            "  /spec [/init|/create|/show|/apply|/archive|/fill]\n"
+            "  /commands [/reload]  — пользовательские slash-команды (.holix/commands)"
         ),
         "tui.launch.title": "Внешние CLI (launch)",
         "tui.launch.assign": "Назначить субагента",

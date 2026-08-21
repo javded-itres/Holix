@@ -8,11 +8,13 @@ from typing import Any
 
 from openai import APIConnectionError, APIStatusError, APITimeoutError, AsyncOpenAI, RateLimitError
 
+from core.models.completion_options import with_provider_completion_options
 from core.models.manager import ModelConfig, ModelManager
 
 logger = logging.getLogger(__name__)
 
 _RETRIABLE_HTTP = frozenset({408, 429, 500, 502, 503, 504, 529})
+
 
 def is_llm_unavailable_error(exc: BaseException) -> bool:
     """Return True when switching to a fallback provider may help."""
@@ -30,7 +32,16 @@ def is_llm_unavailable_error(exc: BaseException) -> bool:
         token in msg for token in ("not found", "does not exist", "unknown model", "invalid model")
     ):
         return True
-    if any(token in msg for token in ("connection refused", "connection error", "timed out", "unavailable", "econnrefused")):
+    if any(
+        token in msg
+        for token in (
+            "connection refused",
+            "connection error",
+            "timed out",
+            "unavailable",
+            "econnrefused",
+        )
+    ):
         return True
     return False
 
@@ -75,7 +86,7 @@ async def chat_completions_with_fallback(
         try:
             return await client.chat.completions.create(
                 model=cfg.model,
-                **create_kwargs,
+                **with_provider_completion_options(cfg, create_kwargs),
             )
         except Exception as exc:
             last_error = exc

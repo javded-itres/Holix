@@ -2,6 +2,29 @@
 
 ## Unreleased
 
+## 1.0.14 — 2026-08-21
+
+Custom slash commands, HOLIX.md bootstrap with AGENTS.md/CLAUDE.md/rules.md, native Ollama chat, and an LM Studio preset.
+
+### Added
+
+- **Custom slash commands** — markdown files in `.holix/commands/` (project) and `~/.holix/commands/` (user). `review.md` → `/review`; nested `test/unit.md` → `/test:unit`. Supports YAML frontmatter (`description`, `argument-hint`, `allowed-tools`, `model`), `$ARGUMENTS` / `$1` placeholders, `/commands` and `/commands reload`, and listing in `/help`. Project files override user files.
+- **Project instruction files** — `AGENTS.md`, `CLAUDE.md`, and `rules.md` / `RULES.md` at the repo root (and nested packages) are loaded with `.holix/HOLIX.md`.
+- **HOLIX.md bootstrap** — search four levels (Studio `projects/<slug>/<repo>`), create a skeleton when missing, and migrate a repo-root `HOLIX.md` into `.holix/HOLIX.md`.
+
+### Fixed
+
+- **Ollama native `/api/chat`** — Ollama providers use the same native chat path as LiteLLM `ollama_chat/` (not OpenAI `/v1`). Set `metadata.native_chat: false` to keep `/v1`. Optional `metadata.num_ctx` / `think`.
+- **LM Studio preset** — `lmstudio` is OpenAI `/v1` on port 1234 (`LMSTUDIO_HOST`). It is not wrapped in Ollama native chat.
+- **Ollama reasoning models empty Telegram replies** — Kimi K2 / Qwen3 put tokens in `message.reasoning` and leave `content` empty unless thinking is off. Holix now sends `think: false` (and `enable_thinking: false`) to Ollama-like endpoints. Opt in with provider `metadata.enable_thinking: true`.
+- **`/init` runs in ReAct** — TUI no longer switches the session to Plan & Execute (that opened a plan-review gate instead of writing `.holix/HOLIX.md`). Same as Studio / Telegram / MAX.
+
+### Tests
+
+- Custom slash parse/expand, `/commands`, reserved names, allowed-tools aliases.
+- Instruction-file discovery and HOLIX.md skeleton / migrate.
+- Ollama native client, think-off extras, LM Studio stays on `/v1`.
+
 ## 1.0.13 — 2026-08-21
 
 SDD artifact read/patch, persist-tool honesty, empty ReAct recovery after writes, and a higher step-budget default.

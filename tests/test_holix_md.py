@@ -8,6 +8,7 @@ from core.project.holix_md import (
     HOLIX_MD_REL_PATH,
     append_holix_project_context,
     discover_holix_md_paths,
+    ensure_holix_md_exists,
     format_holix_md_block,
     get_holix_md_path,
     holix_md_exists,
@@ -83,10 +84,23 @@ def test_prefers_root_holix_md_over_nested(tmp_path: Path) -> None:
     assert len(paths) == 2
 
 
-def test_ignores_holix_md_deeper_than_two_levels(tmp_path: Path) -> None:
+def test_discovers_holix_md_at_four_levels(tmp_path: Path) -> None:
+    """Studio layout: workspace / projects / slug / repo / .holix / HOLIX.md."""
+    project = tmp_path / "workspace"
+    repo = project / "projects" / "shop" / "api"
+    repo.mkdir(parents=True)
+    holix = repo / ".holix"
+    holix.mkdir()
+    (holix / "HOLIX.md").write_text("# Shop API\n", encoding="utf-8")
+
+    assert resolve_holix_md_read_path(project) == holix / "HOLIX.md"
+    assert "Shop API" in load_holix_md(project)
+
+
+def test_ignores_holix_md_deeper_than_four_levels(tmp_path: Path) -> None:
     project = tmp_path / "repo"
     project.mkdir()
-    deep = project / "a" / "b" / "c"
+    deep = project / "a" / "b" / "c" / "d" / "e"
     deep.mkdir(parents=True)
     holix = deep / ".holix"
     holix.mkdir()
@@ -94,6 +108,73 @@ def test_ignores_holix_md_deeper_than_two_levels(tmp_path: Path) -> None:
 
     assert resolve_holix_md_read_path(project) is None
     assert not holix_md_exists(project)
+
+
+def test_reads_legacy_root_holix_md(tmp_path: Path) -> None:
+    project = tmp_path / "repo"
+    project.mkdir()
+    (project / "HOLIX.md").write_text("# Root handbook\n", encoding="utf-8")
+    assert resolve_holix_md_read_path(project) == project / "HOLIX.md"
+
+
+def test_ensure_creates_holix_md_when_missing(tmp_path: Path, monkeypatch) -> None:
+    project = tmp_path / "repo"
+    project.mkdir()
+    (project / "README.md").write_text("# App\n", encoding="utf-8")
+    monkeypatch.chdir(project)
+
+    path = ensure_holix_md_exists(project)
+    assert path is not None
+    assert path == project / ".holix" / "HOLIX.md"
+    assert path.is_file()
+    assert path.read_text(encoding="utf-8").strip()
+
+
+def test_ensure_migrates_root_holix_md(tmp_path: Path) -> None:
+    project = tmp_path / "repo"
+    project.mkdir()
+    (project / "HOLIX.md").write_text("# Legacy root\n\nStack: FastAPI\n", encoding="utf-8")
+
+    path = ensure_holix_md_exists(project)
+    assert path == project / ".holix" / "HOLIX.md"
+    assert "FastAPI" in path.read_text(encoding="utf-8")
+    assert (project / "HOLIX.md").is_file()  # original kept
+
+
+def test_append_injects_agents_claude_and_rules(tmp_path: Path, monkeypatch) -> None:
+    project = tmp_path / "repo"
+    project.mkdir()
+    monkeypatch.chdir(project)
+    holix = project / ".holix"
+    holix.mkdir()
+    (holix / "HOLIX.md").write_text("# Handbook\n\nAPI service\n", encoding="utf-8")
+    (project / "AGENTS.md").write_text("# Agents\n\nUse uv.\n", encoding="utf-8")
+    (project / "CLAUDE.md").write_text("# Claude\n\nNo secrets.\n", encoding="utf-8")
+    (project / "rules.md").write_text("# Rules\n\nSOLID.\n", encoding="utf-8")
+
+    out = append_holix_project_context("BASE", project)
+    assert "BASE" in out
+    assert "API service" in out
+    assert "Use uv." in out
+    assert "No secrets." in out
+    assert "SOLID." in out
+    assert "AGENTS.md" in out
+    assert "CLAUDE.md" in out
+    assert "rules.md" in out
+
+
+def test_append_reads_RULES_md_when_rules_md_missing(tmp_path: Path, monkeypatch) -> None:
+    project = tmp_path / "repo"
+    project.mkdir()
+    monkeypatch.chdir(project)
+    holix = project / ".holix"
+    holix.mkdir()
+    (holix / "HOLIX.md").write_text("# Handbook\n", encoding="utf-8")
+    (project / "RULES.md").write_text("# RULES\n\nLint before push.\n", encoding="utf-8")
+
+    out = append_holix_project_context("BASE", project)
+    assert "Lint before push." in out
+    assert "RULES.md" in out
 
 
 def test_discover_skips_unreadable_subdirs(tmp_path: Path) -> None:

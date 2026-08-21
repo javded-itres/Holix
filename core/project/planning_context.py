@@ -28,27 +28,30 @@ from core.project.init_scan import (
     scan_project_for_init,
     write_init_skeleton,
 )
+from core.project.instruction_files import format_instruction_files_block
 
 logger = logging.getLogger(__name__)
 
 _SPECS_MAX_CHARS = 16_000
 _SPEC_FILE_MAX = 4_000
-_SKIP_DIRS = frozenset({
-    ".git",
-    ".holix",
-    ".helix",
-    "node_modules",
-    ".venv",
-    "venv",
-    "__pycache__",
-    "dist",
-    "build",
-    ".next",
-    ".turbo",
-    "coverage",
-    "target",
-    "vendor",
-})
+_SKIP_DIRS = frozenset(
+    {
+        ".git",
+        ".holix",
+        ".helix",
+        "node_modules",
+        ".venv",
+        "venv",
+        "__pycache__",
+        "dist",
+        "build",
+        ".next",
+        ".turbo",
+        "coverage",
+        "target",
+        "vendor",
+    }
+)
 
 
 @dataclass
@@ -205,9 +208,7 @@ def load_openspec_layout_summary(cwd: str | Path | None = None) -> str:
             if not _is_dir(p):
                 continue
             try:
-                children = sorted(
-                    c.name for c in p.iterdir() if not c.name.startswith(".")
-                )[:12]
+                children = sorted(c.name for c in p.iterdir() if not c.name.startswith("."))[:12]
             except OSError:
                 children = []
             if children:
@@ -310,6 +311,7 @@ def ensure_planning_context(
 
     specs_block, specs_paths = load_openspec_specs_context(cwd)
     layout_summary = load_openspec_layout_summary(cwd)
+    instruction_block = format_instruction_files_block(cwd)
 
     parts: list[str] = [planning_context_note(), ""]
 
@@ -339,6 +341,10 @@ def ensure_planning_context(
             "_No HOLIX.md was available even after `/init` pre-scan. "
             "Use the scan summary as the project map._"
         )
+        parts.append("")
+
+    if instruction_block:
+        parts.append(instruction_block)
         parts.append("")
 
     if scan_summary:

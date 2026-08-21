@@ -182,6 +182,7 @@ async def run_agent_loop(
             try:
                 if stream:
                     # ==================== STREAMING PATH ====================
+                    from core.models.completion_options import with_provider_completion_options
                     from core.models.fallback import run_with_provider_fallback
 
                     if model_manager:
@@ -192,11 +193,16 @@ async def run_agent_loop(
                             on_switch=_on_fallback_switch,
                             factory=lambda cfg, llm_client: llm_client.chat.completions.create(
                                 model=cfg.model,
-                                messages=api_messages,
-                                tools=agent.tools.get_schemas(for_agent_slot=agent_slot),
-                                tool_choice="auto",
-                                temperature=temperature,
-                                stream=True,
+                                **with_provider_completion_options(
+                                    cfg,
+                                    {
+                                        "messages": api_messages,
+                                        "tools": agent.tools.get_schemas(for_agent_slot=agent_slot),
+                                        "tool_choice": "auto",
+                                        "temperature": temperature,
+                                        "stream": True,
+                                    },
+                                ),
                             ),
                         )
                     else:
