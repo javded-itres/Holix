@@ -2,6 +2,28 @@
 
 ## Unreleased
 
+## 1.0.13 — 2026-08-21
+
+SDD artifact read/patch, persist-tool honesty, empty ReAct recovery after writes, and a higher step-budget default.
+
+### Added
+
+- **SDD tools** — `sdd_read_artifact` (proposal/design/tasks/delta specs) and `sdd_update_spec` (add/modify/remove a requirement with a main-spec preview). Status/write/update tools are available to sub-agents.
+- **Step budget** — default `HOLIX_MAX_STEPS_MAX_EXTENSIONS` 3→10; profile can set `max_steps_extend_by` / `max_steps_max_extensions` / `max_steps_hard_cap`.
+
+### Fixed
+
+- **Honesty persist evidence** — `write_file` / `patch_file` / `sdd_update_spec` count as filled artifacts; honesty-nudge user turns no longer wipe that evidence.
+- **Empty ReAct sub-agents** — after successful writes, an empty model reply is summarized as the final instead of failing the job.
+- **Terminal whitelist** — `HOLIX_TERMINAL_COMMAND_WHITELIST` comes from the execution profile `.env`, not the Studio process env.
+
+### Tests
+
+- Delta spec patch add/modify/remove, `sdd_read_artifact` / `sdd_update_spec` tools.
+- Honesty `write_file` evidence and nudge-not-a-new-request.
+- Sub-agent empty-final recovery after persist tools.
+- Terminal whitelist follows the conversation profile.
+
 ## 1.0.12 — 2026-08-20
 
 `uv tool install "Holix[all]"` installs the latest release, and `holix --version` prints the package version.
