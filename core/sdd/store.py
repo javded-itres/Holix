@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 import re
 import shutil
 from datetime import date
@@ -17,7 +18,6 @@ from core.sdd.paths import (
     change_dir,
     changes_root,
     config_path,
-    confined_under,
     domain_spec_path,
     openspec_root,
     specs_root,
@@ -139,9 +139,6 @@ class SpecStore:
 
     def __init__(self, workspace: Path | str):
         self.workspace = Path(workspace).expanduser().resolve()
-
-    def _safe(self, path: Path) -> Path:
-        return confined_under(openspec_root(self.workspace), path)
 
     @property
     def root(self) -> Path:
@@ -326,13 +323,13 @@ class SpecStore:
             raise RuntimeError("SDD not initialized — call sdd_init first")
         cid = validate_change_id(change_id)
         domain = self.resolve_delta_domain(domain)
-        dest = self._safe(change_dir(self.workspace, cid))
+        dest = change_dir(self.workspace, cid)
         if dest.exists():
             raise FileExistsError(f"change already exists: {cid}")
         dest.mkdir(parents=True)
         req = (request or "").strip()
         if req:
-            self._safe(dest / "request.md").write_text(
+            (dest / "request.md").write_text(
                 f"# Request: {cid}\n\n{req}\n",
                 encoding="utf-8",
             )
@@ -342,20 +339,16 @@ class SpecStore:
                 "## What Changes\n\n<!-- fill after understanding confirmed -->\n\n"
                 "## Impact\n\n<!-- risks, migrations -->\n"
             )
-            self._safe(dest / "proposal.md").write_text(proposal, encoding="utf-8")
+            (dest / "proposal.md").write_text(proposal, encoding="utf-8")
         else:
-            self._safe(dest / "proposal.md").write_text(
+            (dest / "proposal.md").write_text(
                 _PROPOSAL_STUB.format(change_id=cid), encoding="utf-8"
             )
-        self._safe(dest / "design.md").write_text(
-            _DESIGN_STUB.format(change_id=cid), encoding="utf-8"
-        )
-        self._safe(dest / "tasks.md").write_text(
-            _TASKS_STUB.format(change_id=cid), encoding="utf-8"
-        )
-        delta_dir = self._safe(dest / "specs" / domain)
+        (dest / "design.md").write_text(_DESIGN_STUB.format(change_id=cid), encoding="utf-8")
+        (dest / "tasks.md").write_text(_TASKS_STUB.format(change_id=cid), encoding="utf-8")
+        delta_dir = dest / "specs" / domain
         delta_dir.mkdir(parents=True)
-        self._safe(delta_dir / SPEC_FILENAME).write_text(
+        (delta_dir / SPEC_FILENAME).write_text(
             _DELTA_STUB.format(domain=domain, change_id=cid), encoding="utf-8"
         )
         from core.sdd.understanding import init_understanding
@@ -388,25 +381,23 @@ class SpecStore:
 
     def change_status(self, change_id: str) -> ChangeStatus:
         cid = validate_change_id(change_id)
-        cdir = self._safe(change_dir(self.workspace, cid))
+        cdir = change_dir(self.workspace, cid)
         if not cdir.is_dir():
             raise FileNotFoundError(f"change not found: {cid}")
         rel = self.tool_relpath(cdir)
         tasks: list = []
-        tasks_path = self._safe(cdir / "tasks.md")
+        tasks_path = cdir / "tasks.md"
         if tasks_path.is_file():
             tasks = parse_tasks_markdown(tasks_path.read_text(encoding="utf-8"))
         mode = load_apply_mode(self.workspace, cid)
         tasks_ok = self._tasks_ready_for_apply(tasks, apply_mode=mode)
-        specs_dir = self._safe(cdir / "specs")
         delta_specs = (
-            [self._safe(p) for p in specs_dir.rglob(SPEC_FILENAME)] if specs_dir.is_dir() else []
+            list((cdir / "specs").rglob(SPEC_FILENAME)) if (cdir / "specs").is_dir() else []
         )
         artifacts = {
-            "proposal": self._safe(cdir / "proposal.md").is_file()
-            and self._artifact_filled(self._safe(cdir / "proposal.md")),
-            "design": self._safe(cdir / "design.md").is_file()
-            and self._artifact_filled(self._safe(cdir / "design.md")),
+            "proposal": (cdir / "proposal.md").is_file()
+            and self._artifact_filled(cdir / "proposal.md"),
+            "design": (cdir / "design.md").is_file() and self._artifact_filled(cdir / "design.md"),
             "tasks": tasks_path.is_file() and tasks_ok,
             # File existence alone is not enough — create_change writes stubs.
             "specs": bool(delta_specs) and all(self._artifact_filled(p) for p in delta_specs),
@@ -447,7 +438,7 @@ class SpecStore:
         from core.tools.file_diff import build_file_diff_payload
 
         cid = validate_change_id(change_id)
-        cdir = self._safe(change_dir(self.workspace, cid))
+        cdir = change_dir(self.workspace, cid)
         if not cdir.is_dir():
             raise FileNotFoundError(f"change not found: {cid}")
         art = artifact.strip().lower()
@@ -505,7 +496,6 @@ class SpecStore:
         else:
             raise ValueError(f"unknown artifact {artifact!r}; use proposal|design|tasks|specs")
 
-        path = self._safe(path)
         before = path.read_text(encoding="utf-8") if path.is_file() else None
         path.write_text(content, encoding="utf-8")
         rel = self.tool_relpath(path)
@@ -539,7 +529,7 @@ class SpecStore:
         from core.tools.file_diff import build_file_diff_payload
 
         cid = validate_change_id(change_id)
-        cdir = self._safe(change_dir(self.workspace, cid))
+        cdir = change_dir(self.workspace, cid)
         if not cdir.is_dir():
             raise FileNotFoundError(f"change not found: {cid}")
         if domain and str(domain).strip():
@@ -557,7 +547,11 @@ class SpecStore:
                 dom = resolved if resolved in existing_deltas else existing_deltas[0]
             else:
                 dom = self.resolve_delta_domain(None)
-        path = self._safe(cdir / "specs" / dom / SPEC_FILENAME)
+        root = os.path.realpath(str(openspec_root(self.workspace)))
+        target = os.path.realpath(str(cdir / "specs" / dom / SPEC_FILENAME))
+        if target != root and not target.startswith(root + os.sep):
+            raise ValueError(f"path escapes {root}")
+        path = Path(target)
         path.parent.mkdir(parents=True, exist_ok=True)
         before = path.read_text(encoding="utf-8") if path.is_file() else ""
         patch = (content or "").strip()
@@ -571,7 +565,10 @@ class SpecStore:
             after = patch_delta_spec(before, op=op, title=title, body=body)
         path.write_text(after, encoding="utf-8")
         rel = self.tool_relpath(path)
-        main_path = self._safe(domain_spec_path(self.workspace, dom))
+        main_target = os.path.realpath(str(domain_spec_path(self.workspace, dom)))
+        if main_target != root and not main_target.startswith(root + os.sep):
+            raise ValueError(f"path escapes {root}")
+        main_path = Path(main_target)
         main = main_path.read_text(encoding="utf-8") if main_path.is_file() else ""
         preview = merge_delta_into_main(main, after)
         out: dict = {
@@ -608,7 +605,7 @@ class SpecStore:
         contents when the file exists).
         """
         cid = validate_change_id(change_id)
-        cdir = self._safe(change_dir(self.workspace, cid))
+        cdir = change_dir(self.workspace, cid)
         if not cdir.is_dir():
             raise FileNotFoundError(f"change not found: {cid}")
         art = (artifact or "").strip().lower()
@@ -620,17 +617,21 @@ class SpecStore:
             art = "tasks"
         elif art in ("spec", "delta", "spec.md"):
             art = "specs"
+        root = os.path.realpath(str(openspec_root(self.workspace)))
 
         def _file_payload(path: Path, *, kind: str, extra: dict | None = None) -> dict:
-            path = self._safe(path)
-            exists = path.is_file()
-            text = path.read_text(encoding="utf-8") if exists else ""
+            target = os.path.realpath(os.path.expanduser(str(path)))
+            if target != root and not target.startswith(root + os.sep):
+                raise ValueError(f"path escapes {root}")
+            safe = Path(target)
+            exists = safe.is_file()
+            text = safe.read_text(encoding="utf-8") if exists else ""
             payload = {
                 "artifact": kind,
-                "path": self.tool_relpath(path),
+                "path": self.tool_relpath(safe),
                 "exists": exists,
                 "chars": len(text),
-                "filled": bool(exists and self._artifact_filled(path)),
+                "filled": bool(exists and self._artifact_filled(safe)),
                 "content": text,
             }
             if extra:
@@ -686,14 +687,15 @@ class SpecStore:
             path = cdir / "specs" / dom / SPEC_FILENAME
         else:
             raise ValueError(f"unknown artifact {artifact!r}; use proposal|design|tasks|specs")
-        if not path.is_file():
+        payload = _file_payload(path, kind=art, extra=extra)
+        if not payload["exists"]:
             return {
                 "ok": False,
                 "error": f"{art} not found",
                 "change_id": cid,
-                **_file_payload(path, kind=art, extra=extra),
+                **payload,
             }
-        return {"ok": True, "change_id": cid, **_file_payload(path, kind=art, extra=extra)}
+        return {"ok": True, "change_id": cid, **payload}
 
     def check_task(
         self,
