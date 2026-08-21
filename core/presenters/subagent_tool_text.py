@@ -68,36 +68,170 @@ def extract_subagent_tool_text(tool_name: str, body: str) -> str:
     return text
 
 
+def _tool_entry_name_body(entry: dict[str, Any]) -> tuple[str, str]:
+    name = str(entry.get("name") or entry.get("tool_name") or "").strip()
+    body = str(
+        entry.get("full_result") or entry.get("result") or entry.get("content") or ""
+    ).strip()
+    return name, body
+
+
+def graph_tool_results_as_recent(tool_results: list[dict[str, Any]] | None) -> list[dict[str, Any]]:
+    """Normalize LangGraph tool_results to messenger {name, full_result} rows."""
+    recent: list[dict[str, Any]] = []
+    for entry in tool_results or []:
+        if not isinstance(entry, dict):
+            continue
+        name, body = _tool_entry_name_body(entry)
+        if name or body:
+            recent.append({"name": name, "full_result": body})
+    return recent
+
+
+def _item_label(item: Any) -> str:
+    if isinstance(item, str):
+        return item.strip()
+    if not isinstance(item, dict):
+        return str(item).strip()
+    return str(
+        item.get("label")
+        or item.get("name")
+        or item.get("path")
+        or item.get("remote_id")
+        or item.get("id")
+        or ""
+    ).strip()
+
+
+def _format_named_list(title: str, items: list[Any], *, limit: int = 30) -> list[str]:
+    lines = [f"**{title}:**"]
+    shown = 0
+    for item in items:
+        label = _item_label(item)
+        if not label:
+            continue
+        extra = ""
+        if isinstance(item, dict):
+            kind = str(item.get("kind") or item.get("path") or "").strip()
+            if kind and kind != label:
+                extra = f" (`{kind}`)"
+        lines.append(f"- {label}{extra}")
+        shown += 1
+        if shown >= limit:
+            remaining = len(items) - shown
+            if remaining > 0:
+                lines.append(f"- …ещё {remaining}")
+            break
+    return lines if shown else []
+
+
+def format_tool_body_for_messenger(body: str, *, name: str = "") -> str:
+    """Turn raw tool output (MCP JSON, listings) into a short chat answer."""
+    text = (body or "").strip()
+    if not text:
+        return ""
+    data = _loads_json(text)
+    if data is None:
+        if len(text) > 3500:
+            return text[:3490].rstrip() + "…"
+        return text
+
+    if data.get("ok") is False:
+        err = str(data.get("error") or data.get("detail") or "ошибка").strip()
+        tool = name or "tool"
+        return f"Ошибка `{tool}`: {err}"
+
+    share = data.get("share") if isinstance(data.get("share"), dict) else {}
+    item = data.get("item") if isinstance(data.get("item"), dict) else {}
+    url = str(
+        share.get("public_url")
+        or data.get("public_url")
+        or item.get("web_view_url")
+        or data.get("web_view_url")
+        or ""
+    ).strip()
+    title = str(share.get("name") or item.get("name") or data.get("name") or name or "Файл").strip()
+    if url:
+        return f"**{title}**\n{url}"
+
+    lines: list[str] = []
+    for key, heading in (
+        ("sdd_projects", "SDD-проекты"),
+        ("projects", "Проекты Studio"),
+        ("ide_projects", "IDE-проекты"),
+        ("items", "Файлы и папки"),
+        ("agents", "Субагенты"),
+    ):
+        raw_items = data.get(key)
+        if isinstance(raw_items, list) and raw_items:
+            lines.extend(_format_named_list(heading, raw_items))
+    if lines:
+        return "\n".join(lines)
+
+    if name in _SUBAGENT_RESULT_TOOLS:
+        return extract_subagent_tool_text(name, text) or text
+
+    compact = json.dumps(data, ensure_ascii=False)
+    if len(compact) > 1200:
+        compact = compact[:1190].rstrip() + "…"
+    return compact
+
+
+def _looks_like_tool_error(name: str, body: str, formatted: str) -> bool:
+    if formatted.lower().startswith("ошибка"):
+        return True
+    if body.lower().startswith("error"):
+        return True
+    if '"ok": false' in body[:200].lower():
+        return True
+    if name == "delegate_to_subagent" and '"status": "spawned"' in body.lower():
+        return True
+    return False
+
+
 def pick_best_tool_final(recent_tools: list[dict[str, Any]]) -> str:
     """Pick the best tool output to use when the model returns no final text."""
     if not recent_tools:
         return ""
 
+    errors: list[str] = []
     for entry in reversed(recent_tools):
-        name = str(entry.get("name") or "").strip()
-        body = str(entry.get("full_result") or "").strip()
+        if not isinstance(entry, dict):
+            continue
+        name, body = _tool_entry_name_body(entry)
         if not body:
             continue
         if name == "wait_subagent_result":
             text = extract_subagent_tool_text(name, body)
             if text:
                 return text
-        if name not in _SUBAGENT_RESULT_TOOLS and name != "send_chat_files":
-            text = extract_subagent_tool_text(name, body) or body
-            if text:
-                return text
+        if name == "send_chat_files":
+            continue
+        formatted = format_tool_body_for_messenger(body, name=name)
+        if not formatted:
+            continue
+        if _looks_like_tool_error(name, body, formatted):
+            errors.append(formatted)
+            continue
+        return formatted
 
     for entry in reversed(recent_tools):
-        name = str(entry.get("name") or "").strip()
-        body = str(entry.get("full_result") or "").strip()
+        if not isinstance(entry, dict):
+            continue
+        name, body = _tool_entry_name_body(entry)
         if not body:
             continue
         text = extract_subagent_tool_text(name, body)
         if text:
             return text
 
+    if errors:
+        return errors[0]
     last = recent_tools[-1]
-    return str(last.get("full_result") or "").strip()
+    if not isinstance(last, dict):
+        return ""
+    _, body = _tool_entry_name_body(last)
+    return format_tool_body_for_messenger(body) if body else ""
 
 
 def _format_wait_result(raw: str) -> str:

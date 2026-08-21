@@ -322,8 +322,16 @@ class TelegramLivePresenter:
                 )
                 return 1
             except Exception:
-                logger.exception("Telegram final answer fallback failed")
-                return 0
+                logger.exception("Telegram final answer HTML fallback failed")
+                try:
+                    await self._bot.send_message(
+                        self.session.chat_id,
+                        content.strip()[:3800],
+                    )
+                    return 1
+                except Exception:
+                    logger.exception("Telegram final answer plain fallback failed")
+                    return 0
 
     def _content_for_final_delivery(self) -> str:
         if self._final_content and not is_placeholder_final(self._final_content):

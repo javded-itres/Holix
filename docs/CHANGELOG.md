@@ -2,13 +2,18 @@
 
 ## Unreleased
 
+## 1.0.16 — 2026-08-22
+
 ### Fixed
 
+- **Telegram empty final after tools** — honesty retries still left `final_response` empty after MCP/tools succeeded (project list, Yandex share). The graph now fills the final from tool results, and messengers format MCP JSON (`sdd_projects`, public URLs) instead of dumping JSON or showing «Агент завершился без ответа». Telegram also sends a plain-text fallback if HTML parse fails.
 - **Ollama 400 on `/api/chat`** — do not send `think: false` for models that do not support thinking (that 400s the native API). Normalize tool schemas and message content. Fall back to OpenAI `/v1` if native chat still rejects the request.
 - **Cron delivery** — Telegram / MAX results go to the **active** chat session (not `cron-<id>` in `/sessions`). Studio opens a **new** chat session per run. Telegram notify uses real HTML (no `<br>`). Cron worker registers messenger hooks.
 
 ### Tests
 
+- Graph loop copies MCP project-list tool output into `FinalResponseEvent`.
+- `pick_best_tool_final` formats Studio project JSON and prefers share URLs over earlier errors.
 - Cron delivery channels, active-session pick, Studio new-session file, Telegram HTML without `<br>`.
 
 ## 1.0.15 — 2026-08-22

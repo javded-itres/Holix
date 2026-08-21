@@ -75,6 +75,62 @@ def test_resolve_final_uses_wait_subagent_json() -> None:
     assert "Черновик документа готов" in text
 
 
+def test_pick_best_formats_studio_projects_json() -> None:
+    recent = [
+        {
+            "tool_name": "mcp_holix_studio_projects_list_tool",
+            "result": json.dumps(
+                {
+                    "ok": True,
+                    "projects": [],
+                    "sdd_projects": [
+                        {
+                            "path": "projects/shop_api",
+                            "label": "shop_api",
+                            "kind": "sdd",
+                            "initialized": True,
+                        }
+                    ],
+                },
+                ensure_ascii=False,
+            ),
+        }
+    ]
+    text = pick_best_tool_final(recent)
+    assert "shop_api" in text
+    assert "SDD-проекты" in text
+    assert "{" not in text
+
+
+def test_pick_best_prefers_share_url_over_error() -> None:
+    recent = [
+        {
+            "name": "mcp_holix_studio_documents_upload_file_tool",
+            "full_result": json.dumps(
+                {"ok": False, "error": "Connection not found"},
+                ensure_ascii=False,
+            ),
+        },
+        {
+            "name": "mcp_holix_studio_documents_share_tool",
+            "full_result": json.dumps(
+                {
+                    "ok": True,
+                    "share": {
+                        "name": "КП.docx",
+                        "public_url": "https://yadi.sk/i/abc",
+                    },
+                },
+                ensure_ascii=False,
+            ),
+        },
+    ]
+    text = pick_best_tool_final(recent)
+    assert "https://yadi.sk/i/abc" in text
+    assert "КП.docx" in text
+    assert "Connection not found" not in text
+
+
 def test_delegate_spawn_notice_is_human_readable() -> None:
     raw = json.dumps(
         {"status": "spawned", "job_id": "analyst-2", "agent_type": "analyst"},

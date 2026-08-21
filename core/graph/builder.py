@@ -233,8 +233,21 @@ async def run_graph_loop(
             final_state = await compiled_graph.ainvoke(initial_state, config)
 
         from core.llm.response_text import sanitize_assistant_visible_text
+        from core.presenters.final_content import is_placeholder_final
+        from core.presenters.subagent_tool_text import (
+            graph_tool_results_as_recent,
+            pick_best_tool_final,
+        )
 
         final_text = sanitize_assistant_visible_text(final_state.get("final_response") or "")
+        if is_placeholder_final(final_text):
+            final_text = ""
+        if not (final_text or "").strip():
+            picked = pick_best_tool_final(
+                graph_tool_results_as_recent(final_state.get("tool_results"))
+            )
+            if picked:
+                final_text = picked
         if not getattr(agent, "_final_response_emitted", False):
             if agent is not None:
                 agent._final_response_emitted = True
