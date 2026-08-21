@@ -8,7 +8,10 @@ import time
 from collections.abc import Coroutine
 from typing import TYPE_CHECKING, Any
 
-from core.presenters.final_content import is_placeholder_final
+from core.presenters.final_content import (
+    is_placeholder_final,
+    resolve_messenger_final_content,
+)
 
 from integrations.telegram.markdown import (
     escape_html,
@@ -236,11 +239,7 @@ class TelegramLivePresenter:
             loc = LocaleStore(self.session.profile).get()
         except Exception:
             loc = "ru"
-        key = (
-            "live.bg_process_error"
-            if status == "error"
-            else "live.bg_process_stopped"
-        )
+        key = "live.bg_process_error" if status == "error" else "live.bg_process_stopped"
         html = t(
             key,
             loc,
@@ -315,9 +314,7 @@ class TelegramLivePresenter:
             return sent
         except Exception:
             try:
-                fallback = truncate_telegram_html(
-                    plain_to_telegram_html(content[:3800])
-                )
+                fallback = truncate_telegram_html(plain_to_telegram_html(content[:3800]))
                 await self._bot.send_message(
                     self.session.chat_id,
                     fallback,
@@ -364,6 +361,17 @@ class TelegramLivePresenter:
                 logger.exception("Telegram error notice failed")
             return
         if buf is not None and buf.status == "running":
+            recent = getattr(self.session, "_recent_tool_results", None) or []
+            fallback = resolve_messenger_final_content(
+                "",
+                streamed_answer=buf.answer or "",
+                recent_tool_results=list(recent) if recent else None,
+            )
+            if fallback:
+                buf.mark_done()
+                await self.deliver_final_answer(fallback)
+                if self._final_delivered:
+                    return
             buf.mark_error("агент завершился без ответа")
             try:
                 await self.send_notice(

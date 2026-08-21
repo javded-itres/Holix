@@ -133,7 +133,6 @@ async def run_graph_loop(
         ThinkingEvent,
     )
     from core.graph.modes.router import ModeRouter
-    from core.presenters.final_content import is_placeholder_final
     from core.runtime.session import prepare_session
 
     # Resume path: confirmed plan in overrides → always plan_and_execute
@@ -236,13 +235,13 @@ async def run_graph_loop(
         from core.llm.response_text import sanitize_assistant_visible_text
 
         final_text = sanitize_assistant_visible_text(final_state.get("final_response") or "")
-        if (
-            final_text
-            and not is_placeholder_final(final_text)
-            and not getattr(agent, "_final_response_emitted", False)
-        ):
+        if not getattr(agent, "_final_response_emitted", False):
             if agent is not None:
                 agent._final_response_emitted = True
+            # Always emit, even when honesty retries left final_response empty.
+            # Telegram/MAX only post a user-visible answer on FinalResponseEvent
+            # (they do not keep streamed deltas). Hosts then fill from tools or
+            # a fallback empty-message.
             yield FinalResponseEvent(
                 content=final_text,
                 steps_taken=final_state.get("step_count", 0),

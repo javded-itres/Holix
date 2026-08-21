@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+## 1.0.15 — 2026-08-22
+
+### Fixed
+
+- **Telegram empty final** — ReAct honesty retries can finish a run with empty `final_response`. The graph now always emits `FinalResponseEvent` so Telegram/MAX deliver tool output or a fallback instead of «Агент завершился без ответа». Presenter also fills from recent tools if the live buffer is still `running`.
+
+### Tests
+
+- Graph loop emits an empty final when honesty cleared the answer.
+
 ## 1.0.14 — 2026-08-21
 
 Custom slash commands, HOLIX.md bootstrap with AGENTS.md/CLAUDE.md/rules.md, native Ollama chat, and an LM Studio preset.
