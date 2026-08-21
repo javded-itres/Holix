@@ -320,7 +320,7 @@ When `max_steps` is hit, Holix may grant more steps if the agent is still making
 |----------|---------|--------|
 | `HOLIX_MAX_STEPS_EXTEND_ENABLED` | `true` | Enable auto-extension |
 | `HOLIX_MAX_STEPS_EXTEND_BY` | `30` | Steps per extension |
-| `HOLIX_MAX_STEPS_MAX_EXTENSIONS` | `3` | Max extensions per run |
+| `HOLIX_MAX_STEPS_MAX_EXTENSIONS` | `10` | Max extensions per run |
 | `HOLIX_MAX_STEPS_HARD_CAP` | `0` | Absolute cap (`0` = derived) |
 
 ## Subagents & supervisor
