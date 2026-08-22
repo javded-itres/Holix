@@ -17,6 +17,11 @@ def route_after_react(state: HolixGraphState) -> str:
 
     if tool_calls and not is_final and step_count < max_steps:
         return "tool_execution"
+    # Honesty / empty-final retries keep the turn open (is_final=False, no tools).
+    # Sending those to reflect immediately finalizes: reflect_node treats an
+    # empty final_response as "nothing to evaluate" and clears needs_refinement.
+    if not is_final and not tool_calls and step_count < max_steps:
+        return "react"
     # Draft answer or step budget exhausted → Reflexion evaluate (may loop to react)
     if is_final or step_count >= max_steps or not tool_calls:
         return "reflect"

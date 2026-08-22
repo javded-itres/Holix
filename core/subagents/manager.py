@@ -26,6 +26,70 @@ from core.subagents.process import SubAgentProcessManager, SubAgentProcessSpawnE
 
 logger = logging.getLogger(__name__)
 
+
+def format_jobs_status_text(
+    jobs: list[dict[str, Any]],
+    *,
+    html: bool = False,
+    pending_questions: list[dict[str, Any]] | None = None,
+    profile: str | None = None,
+) -> str:
+    """Render sub-agent job dicts (local handles or profile registry) as text."""
+    profile_name = (profile or "").strip()
+    if not jobs:
+        empty = f"No sub-agents for profile '{profile_name}'." if profile_name else "No sub-agents."
+        return f"<i>{empty}</i>" if html else empty
+
+    title = f"Sub-agents (profile {profile_name})" if profile_name else "Sub-agents"
+    lines: list[str] = [f"<b>{title}</b>" if html else title]
+
+    for job in jobs:
+        if not isinstance(job, dict):
+            continue
+        label = str(job.get("id") or job.get("name") or "?").strip() or "?"
+        status = str(job.get("status") or "?").strip() or "?"
+        mode = str(job.get("process_mode") or "").strip()
+        pid_raw = job.get("process_id")
+        pid = f" pid={pid_raw}" if pid_raw not in (None, "", 0) else ""
+        source = str(job.get("source") or "").strip()
+        src = f" {source}" if source and source not in {"host", "local"} else ""
+        try:
+            elapsed = int(float(job.get("elapsed_ms") or 0))
+        except (TypeError, ValueError):
+            elapsed = 0
+        preview = " ".join(str(job.get("task_preview") or "").split())[:60]
+        if html:
+            extra = f" {mode}{pid}{src} {elapsed}ms".rstrip()
+            lines.append(f"• <code>{label}</code> [{status}]{extra}")
+            if preview:
+                lines.append(f"  <i>{preview}</i>")
+        else:
+            extra = f"{mode}{pid}{src}".strip()
+            suffix = f" {extra}" if extra else ""
+            line = f"  {label} [{status}]{suffix} {elapsed}ms"
+            if preview:
+                line += f" — {preview}"
+            lines.append(line)
+
+    if pending_questions:
+        if html:
+            lines.append("")
+            lines.append("<b>Pending questions</b>")
+            for item in pending_questions:
+                q = str(item.get("question") or "")[:120]
+                name = str(item.get("subagent_name") or "sub-agent")
+                lines.append(f"• <code>{name}</code>: {q}")
+        else:
+            lines.append("")
+            lines.append("Pending questions")
+            for item in pending_questions:
+                q = str(item.get("question") or "")[:120]
+                name = str(item.get("subagent_name") or "sub-agent")
+                lines.append(f"  ? {name}: {q}")
+
+    return "\n".join(lines)
+
+
 _PROCESS_SPAWN_FALLBACK_MARKERS = (
     "fds_to_keep",
     "bad file descriptor",
@@ -943,48 +1007,23 @@ class SubAgentManager:
                     break
 
     def format_status_text(self, *, html: bool = False) -> str:
-        """Human-readable list of sub-agents for UI / slash commands."""
-        handles = self.list_all()
-        if not handles:
-            empty = "No sub-agents."
-            return f"<i>{empty}</i>" if html else empty
+        """Human-readable list of sub-agents for UI / slash commands.
 
-        lines: list[str] = []
-        if html:
-            lines.append("<b>Sub-agents</b>")
-        else:
-            lines.append("Sub-agents")
-
-        for h in handles:
-            preview = (h.task_preview or "")[:60]
-            pid = f" pid={h.process_id}" if h.process_id else ""
-            mode = h.config.process_mode.value
-            elapsed = int(h.elapsed_ms)
-            if html:
-                lines.append(f"• <code>{h.name}</code> [{h.status.value}] {mode}{pid} {elapsed}ms")
-                if preview:
-                    lines.append(f"  <i>{preview}</i>")
-            else:
-                lines.append(f"  {h.name} [{h.status.value}] {mode}{pid} {elapsed}ms — {preview}")
-
-        pending = self.interactions.list_pending_questions()
-        if pending:
-            if html:
-                lines.append("")
-                lines.append("<b>Pending questions</b>")
-                for item in pending:
-                    q = (item.get("question") or "")[:120]
-                    name = item.get("subagent_name") or "sub-agent"
-                    lines.append(f"• <code>{name}</code>: {q}")
-            else:
-                lines.append("")
-                lines.append("Pending questions")
-                for item in pending:
-                    q = (item.get("question") or "")[:120]
-                    name = item.get("subagent_name") or "sub-agent"
-                    lines.append(f"  ? {name}: {q}")
-
-        return "\n".join(lines)
+        Profile-scoped: includes jobs from Telegram, Studio, MAX, and other
+        CLI processes on the same Holix profile, not only this process.
+        """
+        summary = self.get_status_summary()
+        pending: list[dict[str, Any]] = []
+        try:
+            pending = list(self.interactions.list_pending_questions() or [])
+        except Exception:
+            pending = []
+        return format_jobs_status_text(
+            list(summary.get("agents") or []),
+            html=html,
+            pending_questions=pending,
+            profile=str(summary.get("profile") or self._profile_name() or ""),
+        )
 
     def get_status_summary(self) -> dict[str, Any]:
         """Get a summary of all sub-agents' status.

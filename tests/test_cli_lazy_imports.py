@@ -19,6 +19,10 @@ def test_bootstrap_argv_skips_heavy_modules() -> None:
     assert _needs_heavy_commands(["run", "hello"])
     assert _needs_heavy_commands(["skills", "list"])
     assert _needs_heavy_commands(["memory", "search", "test"])
+    assert _needs_heavy_commands(["-p", "admin", "subagent", "list"])
+    assert _needs_heavy_commands(["--profile", "admin", "subagent", "list"])
+    assert _needs_heavy_commands(["--verbose", "subagent", "list"])
+    assert not _needs_heavy_commands(["-p", "admin", "gateway", "status"])
 
 
 def test_register_bootstrap_without_chromadb(monkeypatch: pytest.MonkeyPatch) -> None:

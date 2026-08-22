@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+### Added
+
+- **Messenger live sub-agent watch** — `/subagents` in Telegram and MAX lists jobs with buttons. Tapping one shows the last 5 steps, refreshed every 5 seconds, with Stop and Exit. Only one sub-agent can be watched per chat.
+- **Background process pins** — Telegram/MAX pin by script. The same script replaces the previous pin; different scripts stay pinned together. Dead or stopped processes unpin automatically.
+
+### Fixed
+
+- **Honesty empty final** — a ReAct honesty retry (`is_final=False`, no tools) no longer goes to Reflexion and finalize with an empty answer. The graph loops back to `react`.
+- **`holix subagent list`** — lists jobs for the whole profile (Telegram, Studio, CLI), not only the current process. `holix -p PROFILE subagent …` registers the command (lazy CLI load).
+
 ## 1.0.17 — 2026-08-22
 
 ### Added

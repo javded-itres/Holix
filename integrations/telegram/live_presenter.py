@@ -175,13 +175,36 @@ class TelegramLivePresenter:
         label: str,
         *,
         markup: Any = None,
+        command: str = "",
+        os_pid: int = 0,
     ) -> None:
-        """Send a process notice and pin it for the user (best-effort)."""
+        """Send a process notice and pin it for the user (best-effort).
+
+        The same script in this chat replaces the previous pin; different
+        scripts stay pinned together.
+        """
         from core.i18n.messages import t
+        from core.runtime.process_script_key import process_script_key
+
+        from integrations.messenger.process_pins import (
+            same_script_process_ids,
+            save_pin,
+        )
 
         pid = (process_id or "").strip()
         if not pid:
             return
+        script_key = process_script_key(command)
+        bot_profile = getattr(self.session, "bot_profile", None) or self.session.profile
+        chat_id = self.session.chat_id
+        for old_pid in same_script_process_ids(
+            bot_profile, "telegram", chat_id, script_key, exclude=pid
+        ):
+            await self.unpin_background_process_notice(old_pid, label=label, status="stopped")
+        in_session = getattr(self.session, "background_process_script_keys", None) or {}
+        for old_pid, old_key in list(in_session.items()):
+            if old_pid != pid and old_key == script_key:
+                await self.unpin_background_process_notice(old_pid, label=label, status="stopped")
         try:
             from core.i18n.locale import LocaleStore
 
@@ -203,6 +226,22 @@ class TelegramLivePresenter:
             mid = int(getattr(msg, "message_id", 0) or 0)
             if mid:
                 self.session.background_process_message_ids[pid] = mid
+                keys = getattr(self.session, "background_process_script_keys", None)
+                if keys is not None:
+                    keys[pid] = script_key
+                try:
+                    save_pin(
+                        bot_profile,
+                        "telegram",
+                        chat_id,
+                        process_id=pid,
+                        message_id=mid,
+                        script_key=script_key,
+                        label=label or pid,
+                        os_pid=os_pid,
+                    )
+                except Exception:
+                    logger.debug("persist telegram process pin failed", exc_info=True)
                 try:
                     await self._bot.pin_chat_message(
                         self.session.chat_id,
@@ -231,6 +270,16 @@ class TelegramLivePresenter:
 
         pid = (process_id or "").strip()
         mid = self.session.background_process_message_ids.pop(pid, None)
+        keys = getattr(self.session, "background_process_script_keys", None)
+        if keys is not None:
+            keys.pop(pid, None)
+        try:
+            from integrations.messenger.process_pins import remove_pin
+
+            bot_profile = getattr(self.session, "bot_profile", None) or self.session.profile
+            remove_pin(bot_profile, "telegram", self.session.chat_id, pid)
+        except Exception:
+            logger.debug("remove telegram process pin failed", exc_info=True)
         if not mid:
             return
         try:

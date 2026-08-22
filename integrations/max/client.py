@@ -263,9 +263,10 @@ class MaxClient:
         )
         return result if isinstance(result, dict) else {}
 
-    async def unpin_message(self, chat_id: int) -> dict[str, Any]:
-        """Unpin the current pin in a group chat or channel."""
-        result = await self._request("DELETE", f"/chats/{chat_id}/pin")
+    async def unpin_message(self, chat_id: int, message_id: str | None = None) -> dict[str, Any]:
+        """Unpin a chat pin (optionally a specific message)."""
+        params = {"message_id": message_id} if message_id else None
+        result = await self._request("DELETE", f"/chats/{chat_id}/pin", params=params)
         return result if isinstance(result, dict) else {}
 
     async def edit_message(
@@ -363,7 +364,9 @@ class MaxClient:
                 payload = await resp.json(content_type=None)
             except aiohttp.ContentTypeError:
                 text = await resp.text()
-                raise MaxApiError(f"Upload {resp.status}: {text[:200]}", status=resp.status) from None
+                raise MaxApiError(
+                    f"Upload {resp.status}: {text[:200]}", status=resp.status
+                ) from None
             if resp.status >= 400:
                 detail = payload
                 if isinstance(payload, dict):

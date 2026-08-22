@@ -38,6 +38,23 @@ def test_route_after_react_tools_still_preferred() -> None:
     )
 
 
+def test_route_after_react_honesty_retry_returns_to_react() -> None:
+    """Empty-tools honesty retry must not finalize via reflect."""
+    assert (
+        route_after_react(
+            {
+                "is_final": False,
+                "tool_calls": [],
+                "step_count": 1,
+                "max_steps": 90,
+                "honesty_nudge_count": 1,
+                "final_response": "",
+            }
+        )
+        == "react"
+    )
+
+
 def test_route_after_reflect_retry() -> None:
     assert (
         route_after_reflect(

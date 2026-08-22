@@ -305,6 +305,17 @@ class HolixTelegramBot:
                     conversation_id=f"tg_{profile}_{chat_id}",
                     bot_profile=self.settings.profile,
                 )
+                try:
+                    from integrations.messenger.process_pins import hydrate_session_pins
+
+                    hydrate_session_pins(
+                        self._sessions[chat_id],
+                        platform="telegram",
+                        chat_id=chat_id,
+                        bot_profile=self.settings.profile,
+                    )
+                except Exception:
+                    pass
             session = self._sessions[chat_id]
             if not session.profile_manual_override:
                 target = self._default_profile_for_user(user_id)
@@ -986,6 +997,57 @@ class HolixTelegramBot:
         self._dp = dp
         return bot, dp
 
+    async def _unpin_stored_pin(
+        self,
+        bot: Any,
+        chat_id: str,
+        process_id: str,
+        rec: dict[str, Any],
+    ) -> None:
+        session = None
+        try:
+            session = self._sessions.get(int(chat_id))
+        except (TypeError, ValueError):
+            session = None
+        if session is not None:
+            from integrations.telegram.live_presenter import TelegramLivePresenter
+
+            presenter = TelegramLivePresenter(bot, session)
+            await presenter.unpin_background_process_notice(
+                process_id,
+                label=str(rec.get("label") or process_id),
+                status="stopped",
+            )
+            return
+        mid = rec.get("message_id")
+        if mid:
+            try:
+                await bot.unpin_chat_message(chat_id=int(chat_id), message_id=int(mid))
+            except Exception:
+                pass
+        from integrations.messenger.process_pins import remove_pin
+
+        remove_pin(self.settings.profile, "telegram", chat_id, process_id)
+
+    async def _unpin_stopped_record(self, bot: Any, rec: Any) -> None:
+        process_id = str(getattr(rec, "process_id", "") or "")
+        if not process_id:
+            return
+        chat_id = getattr(rec, "chat_id", None)
+        if chat_id:
+            await self._unpin_stored_pin(
+                bot,
+                str(chat_id),
+                process_id,
+                {"label": getattr(rec, "label", "")},
+            )
+            return
+        from integrations.messenger.process_pins import iter_platform_pins
+
+        for cid, pid, pin in iter_platform_pins(self.settings.profile, "telegram"):
+            if pid == process_id:
+                await self._unpin_stored_pin(bot, cid, pid, pin)
+
     async def run_polling(self) -> None:
         from config import settings
 
@@ -1006,4 +1068,31 @@ class HolixTelegramBot:
         if not self.settings.bot_token:
             raise RuntimeError("Set TELEGRAM_BOT_TOKEN in environment or .env")
         bot, dp = self.build()
-        await dp.start_polling(bot)
+        from core.runtime.background_process import (
+            register_process_stop_hook,
+            unregister_process_stop_hook,
+        )
+
+        from integrations.messenger.process_pin_watch import watch_dead_pins
+
+        def _on_stopped(rec: Any) -> None:
+            try:
+                loop = asyncio.get_running_loop()
+            except RuntimeError:
+                return
+            loop.create_task(self._unpin_stopped_record(bot, rec), name="tg-unpin-stopped")
+
+        register_process_stop_hook(_on_stopped)
+        watch = asyncio.create_task(
+            watch_dead_pins(
+                bot_profile=self.settings.profile,
+                platform="telegram",
+                unpin=lambda chat_id, pid, rec: self._unpin_stored_pin(bot, chat_id, pid, rec),
+            ),
+            name="tg-process-pin-watch",
+        )
+        try:
+            await dp.start_polling(bot)
+        finally:
+            watch.cancel()
+            unregister_process_stop_hook(_on_stopped)

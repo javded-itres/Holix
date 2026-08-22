@@ -36,17 +36,19 @@ _HEAVY_ROOT_COMMANDS = frozenset({"chat", "run", "tui", "skills", "memory", "sub
 
 def _needs_heavy_commands(argv: list[str]) -> bool:
     """Return True when argv invokes agent/memory-heavy CLI modules."""
-    if not argv or argv[0].startswith("-"):
+    if not argv:
         return False
-    root = argv[0]
-    if root in _HEAVY_ROOT_COMMANDS:
-        return True
-    # ``holix --profile X chat`` / ``holix -p X run ...``
-    for index, token in enumerate(argv):
-        if token in {"--profile", "-p"} and index + 1 < len(argv):
+    skip_next = False
+    for token in argv:
+        if skip_next:
+            skip_next = False
             continue
-        if token in _HEAVY_ROOT_COMMANDS:
-            return True
+        if token in {"--profile", "-p", "--profile-key", "--unlock-key"}:
+            skip_next = True
+            continue
+        if token.startswith("-"):
+            continue
+        return token in _HEAVY_ROOT_COMMANDS
     return False
 
 
@@ -138,6 +140,7 @@ def _app_callback(
         None,
         "--profile",
         "-p",
+        envvar="HOLIX_PROFILE",
         help="Profile name (required in production; implicit default is dev-only)",
     ),
     profile_key: str | None = typer.Option(

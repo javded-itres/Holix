@@ -150,9 +150,7 @@ class MaxEventHandler:
             elif isinstance(event, FinalResponseEvent):
                 buf.set_thinking(None)
                 recent = self._presenter.session._recent_tool_results
-                last_tool = (
-                    str(recent[-1].get("full_result") or "").strip() if recent else ""
-                )
+                last_tool = str(recent[-1].get("full_result") or "").strip() if recent else ""
                 content = resolve_messenger_final_content(
                     event.content,
                     streamed_answer=buf.answer,
@@ -167,9 +165,7 @@ class MaxEventHandler:
                     )
                     buf.result_posted_separately = True
                     self._presenter.note_final_content(content)
-                    self._presenter.enqueue_outbound(
-                        self._presenter.deliver_final_answer(content)
-                    )
+                    self._presenter.enqueue_outbound(self._presenter.deliver_final_answer(content))
                 buf.set_answer("")
                 buf.mark_done()
                 self._presenter.schedule_edit(force=True)
@@ -182,9 +178,7 @@ class MaxEventHandler:
             elif isinstance(event, ConfirmationRequestEvent):
                 buf.set_thinking(None)
                 self._presenter.schedule_edit(force=True)
-                self._presenter.enqueue_outbound(
-                    self._approvals.on_confirmation_request(event)
-                )
+                self._presenter.enqueue_outbound(self._approvals.on_confirmation_request(event))
 
             elif isinstance(event, SubAgentWaveStartedEvent):
                 buf.set_thinking(None)
@@ -206,19 +200,14 @@ class MaxEventHandler:
                 total = int(getattr(event, "total_waves", 0)) or 1
                 completed = int(getattr(event, "completed", 0))
                 total_jobs = int(getattr(event, "total", 0))
-                buf.add_note(
-                    f"✓ subagents wave {wave}/{total}: {completed}/{total_jobs}"
-                )
+                buf.add_note(f"✓ subagents wave {wave}/{total}: {completed}/{total_jobs}")
                 self._presenter.schedule_edit(force=True)
                 if summary:
-                    self._presenter.enqueue_outbound(
-                        self._presenter.send_notice(summary)
-                    )
+                    self._presenter.enqueue_outbound(self._presenter.send_notice(summary))
                 else:
                     self._presenter.enqueue_outbound(
                         self._presenter.send_notice(
-                            f"✓ Субагенты: волна {wave}/{total} — "
-                            f"{completed}/{total_jobs} готово"
+                            f"✓ Субагенты: волна {wave}/{total} — {completed}/{total_jobs} готово"
                         )
                     )
 
@@ -227,17 +216,12 @@ class MaxEventHandler:
                 added = int(round(float(event.added_timeout_s or 0)))
                 note = (
                     event.message
-                    or (
-                        f"⏱ Таймаут для субагента `{name}` увеличен на {added}s — "
-                        "ещё работает"
-                    )
+                    or (f"⏱ Таймаут для субагента `{name}` увеличен на {added}s — ещё работает")
                 ).strip()
                 buf.add_note(note[:500])
                 self._presenter.schedule_edit()
                 if note:
-                    self._presenter.enqueue_outbound(
-                        self._presenter.send_notice(note)
-                    )
+                    self._presenter.enqueue_outbound(self._presenter.send_notice(note))
 
             elif isinstance(event, SubAgentQuestionEvent):
                 buf.set_thinking(None)
@@ -250,9 +234,7 @@ class MaxEventHandler:
             elif isinstance(event, PlanReviewRequestEvent):
                 buf.set_thinking(None)
                 self._presenter.schedule_edit(force=True)
-                self._presenter.enqueue_outbound(
-                    self._approvals.on_plan_review_request(event)
-                )
+                self._presenter.enqueue_outbound(self._approvals.on_plan_review_request(event))
 
             elif isinstance(event, (PlanStepCompletedEvent, PlanCompletedEvent)):
                 msg = getattr(event, "message", "") or type(event).__name__
@@ -291,6 +273,8 @@ class MaxEventHandler:
                         event.process_id,
                         label,
                         markup=markup,
+                        command=getattr(event, "command", "") or "",
+                        os_pid=int(getattr(event, "pid", 0) or 0),
                     )
                 )
 
@@ -345,10 +329,7 @@ class MaxEventHandler:
     async def _send_subagent_question(self, event: SubAgentQuestionEvent) -> None:
         name = event.subagent_name or "sub-agent"
         question = (event.question or "").strip()
-        text = (
-            f"❓ Sub-agent {name} asks:\n{question}\n\n"
-            f"Reply in chat or /subagent-reply {name} …"
-        )
+        text = f"❓ Sub-agent {name} asks:\n{question}\n\nReply in chat or /subagent-reply {name} …"
         await self._presenter.send_notice(text)
 
     @staticmethod

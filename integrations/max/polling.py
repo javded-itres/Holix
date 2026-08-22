@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
 
 from integrations.max.bot import HelixMaxBot
@@ -39,8 +40,6 @@ async def run_polling(settings: MaxSettings | None = None, *, profile: str = "de
             raise
 
         try:
-            import asyncio
-
             from integrations.max.commands import register_bot_commands
             from integrations.messenger.locale import (
                 bootstrap_messenger_locales,
@@ -61,31 +60,63 @@ async def run_polling(settings: MaxSettings | None = None, *, profile: str = "de
             logger.exception("Failed to sync MAX command menu")
 
         logger.info("MAX Long Polling started (profile=%s)", settings.profile)
-        while True:
+        from core.runtime.background_process import (
+            register_process_stop_hook,
+            unregister_process_stop_hook,
+        )
+
+        from integrations.messenger.process_pin_watch import watch_dead_pins
+
+        def _on_stopped(rec: object) -> None:
             try:
-                payload = await poll_client.get_updates(
-                    marker=marker,
-                    limit=100,
-                    timeout=settings.poll_timeout_s,
-                    types=POLL_TYPES,
-                )
-            except MaxApiError as exc:
-                logger.warning("MAX polling error: %s", exc)
-                await asyncio.sleep(2.0)
-                continue
+                loop = asyncio.get_running_loop()
+            except RuntimeError:
+                return
+            loop.create_task(
+                bot._unpin_stopped_record(api_client, rec),
+                name="max-unpin-stopped",
+            )
 
-            next_marker = payload.get("marker")
-            if isinstance(next_marker, int):
-                marker = next_marker
+        register_process_stop_hook(_on_stopped)
+        watch = asyncio.create_task(
+            watch_dead_pins(
+                bot_profile=settings.profile,
+                platform="max",
+                unpin=lambda chat_id, pid, rec: bot._unpin_stored_pin(
+                    api_client, chat_id, pid, rec
+                ),
+            ),
+            name="max-process-pin-watch",
+        )
+        try:
+            while True:
+                try:
+                    payload = await poll_client.get_updates(
+                        marker=marker,
+                        limit=100,
+                        timeout=settings.poll_timeout_s,
+                        types=POLL_TYPES,
+                    )
+                except MaxApiError as exc:
+                    logger.warning("MAX polling error: %s", exc)
+                    await asyncio.sleep(2.0)
+                    continue
 
-            updates = payload.get("updates")
-            if not isinstance(updates, list):
-                continue
-            if updates:
-                logger.info("MAX received %d update(s)", len(updates))
-            for update in updates:
-                if isinstance(update, dict):
-                    try:
-                        await bot.handle_update(api_client, update)
-                    except Exception:
-                        logger.exception("Failed to handle MAX update")
+                next_marker = payload.get("marker")
+                if isinstance(next_marker, int):
+                    marker = next_marker
+
+                updates = payload.get("updates")
+                if not isinstance(updates, list):
+                    continue
+                if updates:
+                    logger.info("MAX received %d update(s)", len(updates))
+                for update in updates:
+                    if isinstance(update, dict):
+                        try:
+                            await bot.handle_update(api_client, update)
+                        except Exception:
+                            logger.exception("Failed to handle MAX update")
+        finally:
+            watch.cancel()
+            unregister_process_stop_hook(_on_stopped)
