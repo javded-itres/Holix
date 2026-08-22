@@ -327,10 +327,36 @@ class MaxEventHandler:
         return bool(agent.subagents.list_active())
 
     async def _send_subagent_question(self, event: SubAgentQuestionEvent) -> None:
+        from core.i18n.messages import t
+
+        from integrations.max.keyboards import subagent_reply_keyboard
+        from integrations.max.models import message_id_from_response
+        from integrations.messenger.locale import messenger_locale
+        from integrations.messenger.subagent_reply import (
+            remember_question_message,
+            tokens_for_jobs,
+        )
+
+        session = self._presenter.session
+        lang = messenger_locale(session.profile)
         name = event.subagent_name or "sub-agent"
         question = (event.question or "").strip()
-        text = f"❓ Sub-agent {name} asks:\n{question}\n\nReply in chat or /subagent-reply {name} …"
-        await self._presenter.send_notice(text)
+        context = (event.context or "").strip()
+        text = f"{t('tg.subagent_q.title', lang, name=name)}\n{question}"
+        if context:
+            text += f"\n\n{context}"
+        text += f"\n\n{t('tg.subagent_q.hint', lang)}"
+        tokens = tokens_for_jobs(session.subagent_reply_tokens, [name])
+        kb = subagent_reply_keyboard(tokens, lang)
+        try:
+            payload = await self._presenter._client.send_message(
+                text,
+                attachments=[kb] if kb else None,
+                **self._presenter._reply_kwargs(),
+            )
+            remember_question_message(session, message_id_from_response(payload), name)
+        except Exception:
+            await self._presenter.send_notice(text)
 
     @staticmethod
     def _tool_detail(name: str, args: object) -> str:

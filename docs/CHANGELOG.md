@@ -11,6 +11,7 @@
 
 - **Honesty empty final** — a ReAct honesty retry (`is_final=False`, no tools) no longer goes to Reflexion and finalize with an empty answer. The graph loops back to `react`.
 - **`holix subagent list`** — lists jobs for the whole profile (Telegram, Studio, CLI), not only the current process. `holix -p PROFILE subagent …` registers the command (lazy CLI load).
+- **Telegram/MAX sub-agent questions** — when several jobs wait (`coder-1`, `coder`, …) the bot no longer dumps CLI `/subagent-reply`. Each question has a Reply button; free text opens a picker; a Telegram reply to the question message goes to that job.
 
 ## 1.0.17 — 2026-08-22
 

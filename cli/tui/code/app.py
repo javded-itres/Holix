@@ -786,6 +786,13 @@ class HolixCodeApp(App):
             if handled:
                 self.transcript_write(f"\n[bold]❯[/bold] {message}\n")
                 if feedback:
+                    from core.subagents.interaction import (
+                        SUBAGENT_REPLY_NEED_TARGET,
+                        format_need_target_hint,
+                    )
+
+                    if feedback == SUBAGENT_REPLY_NEED_TARGET:
+                        feedback = format_need_target_hint(self.agent)
                     self.transcript_write(f"[dim]{feedback}[/dim]")
                 # Drop queue entries already answered outside the modal
                 try:

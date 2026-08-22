@@ -504,13 +504,18 @@ class MaxHost:
             self._session.pending_files.clear()
             message = build_agent_prompt(message, files)
 
-        if self.agent:
-            from core.subagents.interaction import try_route_subagent_reply
+        normalized = normalize_slash_input(message)
+        is_slash = is_slash_command(normalized) or normalized.startswith("/")
+        skip_subagent = is_slash and not normalized.lower().startswith("/subagent-reply")
 
-            handled, feedback = try_route_subagent_reply(self.agent, message)
-            if handled:
-                if feedback:
-                    await self._send_text(feedback)
+        if not skip_subagent and (
+            self.agent or getattr(self._session, "subagent_reply_job_id", None)
+        ):
+            from integrations.messenger.subagent_reply import route_messenger_text
+
+            routed = route_messenger_text(self.agent, self._session, message)
+            if routed.kind != "none":
+                await self._interactive.present_subagent_reply_route(routed)
                 return
 
         self._session._transcript_store.append("user", message)
@@ -523,8 +528,7 @@ class MaxHost:
                 await self._send_text(tool_text)
             return
 
-        normalized = normalize_slash_input(message)
-        if is_slash_command(normalized) or normalized.startswith("/"):
+        if is_slash:
             if await self._interactive.handle_slash(normalized):
                 return
             await self._commands.handle(normalized)

@@ -49,6 +49,10 @@ class MaxChatSession:
     background_process_message_ids: dict[str, str] = field(default_factory=dict)
     background_process_script_keys: dict[str, str] = field(default_factory=dict)
     subagent_callback_tokens: dict[str, str] = field(default_factory=dict)
+    subagent_reply_tokens: dict[str, str] = field(default_factory=dict)
+    subagent_question_message_ids: dict[str, str] = field(default_factory=dict)
+    subagent_reply_job_id: str | None = None
+    subagent_pending_answer: str | None = None
     subagent_watch_job_id: str | None = None
     subagent_watch_message_id: str | None = None
     subagent_watch_task: Any = None

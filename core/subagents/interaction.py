@@ -20,6 +20,9 @@ from core.subagents.interaction_events import SubAgentQuestionEvent
 
 logger = logging.getLogger(__name__)
 
+# Messengers replace this with a button picker; CLI/TUI format a typed hint.
+SUBAGENT_REPLY_NEED_TARGET = "NEED_SUBAGENT_TARGET"
+
 
 class SubAgentInteractionBridge:
     """Routes sub-agent IPC prompts to the parent event bus and awaits replies."""
@@ -301,8 +304,17 @@ def try_route_subagent_reply(agent: Any, message: str) -> tuple[bool, str]:
         name = pending[0]["subagent_name"] if pending else "sub-agent"
         return True, f"reply sent to {name}"
 
-    names = ", ".join(q["subagent_name"] for q in bridge.list_pending_questions())
-    return True, (
+    return True, SUBAGENT_REPLY_NEED_TARGET
+
+
+def format_need_target_hint(agent: Any) -> str:
+    """CLI/TUI copy when several sub-agents wait and the text was not addressed."""
+    bridge = get_interaction_bridge(agent)
+    names = ", ".join(
+        q.get("subagent_name") or "sub-agent"
+        for q in (bridge.list_pending_questions() if bridge else [])
+    )
+    return (
         f"sub-agent(s) waiting for input: {names}. "
         "Reply with /subagent-reply <job_id> <answer> or @<job_id> answer"
     )

@@ -764,7 +764,13 @@ class HolixTelegramBot:
                 return
             try:
                 host = TelegramHost(bot, session, edit_interval_ms=settings.edit_interval_ms)
-                await host.handle_user_text(message.text)
+                reply_id = None
+                if message.reply_to_message is not None:
+                    reply_id = getattr(message.reply_to_message, "message_id", None)
+                await host.handle_user_text(
+                    message.text,
+                    reply_to_message_id=reply_id,
+                )
             except Exception as exc:
                 print(
                     f"Telegram on_text failed (chat={message.chat.id}): "

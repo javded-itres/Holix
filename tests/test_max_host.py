@@ -27,7 +27,7 @@ async def test_handle_user_text_starts_agent_run_in_background() -> None:
     host._run_agent = fake_run  # type: ignore[method-assign]
 
     with patch(
-        "core.subagents.interaction.try_route_subagent_reply",
+        "integrations.messenger.subagent_reply.try_route_subagent_reply",
         return_value=(False, ""),
     ):
         await host.handle_user_text("hello")

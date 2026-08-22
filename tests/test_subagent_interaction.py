@@ -110,6 +110,31 @@ async def test_try_route_subagent_reply_explicit() -> None:
     assert "reply sent" in feedback
 
 
+@pytest.mark.asyncio
+async def test_try_route_subagent_reply_need_target_when_several_wait() -> None:
+    from core.subagents.interaction import SUBAGENT_REPLY_NEED_TARGET, format_need_target_hint
+
+    bridge = _bridge()
+    parent = bridge._parent
+    parent.subagents = MagicMock()
+    parent.subagents.interactions = bridge
+    loop = asyncio.get_running_loop()
+    bridge._pending_questions["subq_1"] = loop.create_future()
+    bridge._pending_questions["subq_2"] = loop.create_future()
+    bridge._question_meta = {
+        "subq_1": {"subagent_name": "coder-1", "question": "a?"},
+        "subq_2": {"subagent_name": "coder", "question": "b?"},
+    }
+
+    handled, feedback = try_route_subagent_reply(parent, "use pytest")
+    assert handled
+    assert feedback == SUBAGENT_REPLY_NEED_TARGET
+    hint = format_need_target_hint(parent)
+    assert "coder-1" in hint
+    assert "coder" in hint
+    assert "/subagent-reply" in hint
+
+
 def test_resolve_any_confirmation_prefers_bridge() -> None:
     bridge = _bridge()
     loop = asyncio.new_event_loop()

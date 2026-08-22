@@ -209,6 +209,14 @@ class MaxInteractive:
             state = "on" if self._host.streaming_enabled else "off"
             return t("tg.streaming", messenger_host_locale(self._host), state=state)
 
+        if action == "sr":
+            from integrations.messenger.subagent_reply import apply_reply_button
+            from integrations.messenger.subagent_watch import resolve_job_token
+
+            job_id = resolve_job_token(self._session.subagent_reply_tokens, value)
+            routed = apply_reply_button(self._host.agent, self._session, job_id)
+            return await self.present_subagent_reply_route(routed)
+
         if action == "sw":
             from integrations.messenger.subagent_watch import resolve_job_token
 
@@ -413,6 +421,48 @@ class MaxInteractive:
         from integrations.messenger.subagent_watch import cancel_session_watch
 
         cancel_session_watch(self._session)
+
+    async def present_subagent_reply_route(self, routed: Any) -> str:
+        lang = messenger_host_locale(self._host)
+        kind = getattr(routed, "kind", "")
+        name = getattr(routed, "job_id", "") or "sub-agent"
+        if kind == "delivered":
+            msg = t("tg.subagent_q.sent", lang, name=name)
+            await self._host._send_text(msg)
+            return msg
+        if kind == "gone":
+            msg = t("tg.subagent_q.gone", lang)
+            await self._host._send_text(msg)
+            return msg
+        if kind == "awaiting":
+            msg = t("tg.subagent_q.awaiting", lang, name=name)
+            await self._host._send_text(msg)
+            return msg
+        if kind == "need_target":
+            await self.show_subagent_reply_picker(with_text=True)
+            return t("tg.subagent_q.pick_with_text", lang)
+        feedback = str(getattr(routed, "feedback", "") or "").strip()
+        if feedback:
+            await self._host._send_text(feedback)
+        return feedback or "OK"
+
+    async def show_subagent_reply_picker(self, *, with_text: bool = False) -> None:
+        from integrations.max.keyboards import subagent_reply_keyboard
+        from integrations.messenger.subagent_reply import pending_job_ids, tokens_for_jobs
+
+        lang = messenger_host_locale(self._host)
+        jobs = pending_job_ids(self._host.agent)
+        if not jobs:
+            await self._host._send_text(t("tg.subagent_q.gone", lang))
+            return
+        tokens = tokens_for_jobs(self._session.subagent_reply_tokens, jobs)
+        key = "tg.subagent_q.pick_with_text" if with_text else "tg.subagent_q.pick"
+        text = t(key, lang)
+        kb = subagent_reply_keyboard(tokens, lang)
+        if kb is None:
+            await self._host._send_text(text)
+            return
+        await self._host._send_text_with_keyboard(text, kb)
 
     async def show_subagent_live_list(self) -> None:
         from integrations.max.keyboards import subagent_list_keyboard

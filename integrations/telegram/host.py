@@ -672,7 +672,12 @@ class TelegramHost:
         else:
             self.transcript_write("plan review failed")
 
-    async def handle_user_text(self, text: str) -> None:
+    async def handle_user_text(
+        self,
+        text: str,
+        *,
+        reply_to_message_id: int | None = None,
+    ) -> None:
         message = text.strip()
         if not message:
             return
@@ -693,17 +698,26 @@ class TelegramHost:
                 await self._send_plain("could not apply plan response")
             return
 
-        if self.agent:
-            from core.subagents.interaction import try_route_subagent_reply
+        normalized = normalize_slash_input(message)
+        is_slash = is_slash_command(normalized) or normalized.startswith("/")
+        skip_subagent = is_slash and not normalized.lower().startswith("/subagent-reply")
 
-            handled, feedback = try_route_subagent_reply(self.agent, message)
-            if handled:
-                if feedback:
-                    await self._send_plain(feedback)
+        if not skip_subagent and (
+            self.agent or getattr(self._session, "subagent_reply_job_id", None)
+        ):
+            from integrations.messenger.subagent_reply import route_messenger_text
+
+            routed = route_messenger_text(
+                self.agent,
+                self._session,
+                message,
+                reply_to_message_id=reply_to_message_id,
+            )
+            if routed.kind != "none":
+                await self._interactive.present_subagent_reply_route(routed)
                 return
 
-        normalized = normalize_slash_input(message)
-        if is_slash_command(normalized) or normalized.startswith("/"):
+        if is_slash:
             if await self._interactive.handle_slash(normalized):
                 return
             await self._commands.handle(normalized)
