@@ -93,9 +93,7 @@ class TelegramEventHandler:
                 if name == "delegate_to_subagent" and body.strip():
                     notice = format_subagent_tool_notice(name, body)
                     if notice and "already_running" not in body:
-                        self._presenter.enqueue_outbound(
-                            self._presenter.send_notice(notice)
-                        )
+                        self._presenter.enqueue_outbound(self._presenter.send_notice(notice))
                     job_id = extract_delegate_job_id(body)
                     if job_id and "already_running" not in body:
                         agent = getattr(self._presenter.session, "agent", None)
@@ -137,9 +135,7 @@ class TelegramEventHandler:
             elif isinstance(event, FinalResponseEvent):
                 buf.set_thinking(None)
                 recent = self._presenter.session._recent_tool_results
-                last_tool = (
-                    str(recent[-1].get("full_result") or "").strip() if recent else ""
-                )
+                last_tool = str(recent[-1].get("full_result") or "").strip() if recent else ""
                 content = resolve_messenger_final_content(
                     event.content,
                     streamed_answer=buf.answer,
@@ -154,9 +150,7 @@ class TelegramEventHandler:
                     )
                     buf.result_posted_separately = True
                     self._presenter.note_final_content(content)
-                    self._presenter.enqueue_outbound(
-                        self._presenter.deliver_final_answer(content)
-                    )
+                    self._presenter.enqueue_outbound(self._presenter.deliver_final_answer(content))
                 buf.set_answer("")
                 buf.mark_done()
                 self._presenter.schedule_edit(force=True)
@@ -175,17 +169,12 @@ class TelegramEventHandler:
                 added = int(round(float(event.added_timeout_s or 0)))
                 note = (
                     event.message
-                    or (
-                        f"⏱ Таймаут для субагента `{name}` увеличен на {added}s — "
-                        "ещё работает"
-                    )
+                    or (f"⏱ Таймаут для субагента `{name}` увеличен на {added}s — ещё работает")
                 ).strip()
                 buf.add_note(note[:500])
                 self._presenter.schedule_edit()
                 if note:
-                    self._presenter.enqueue_outbound(
-                        self._presenter.send_notice(note)
-                    )
+                    self._presenter.enqueue_outbound(self._presenter.send_notice(note))
 
             elif isinstance(event, SubAgentQuestionEvent):
                 buf.set_thinking(None)
@@ -197,9 +186,7 @@ class TelegramEventHandler:
 
             elif isinstance(event, PlanReviewRequestEvent):
                 buf.set_thinking(None)
-                buf.add_note(
-                    live_plan_review_label(buf.profile, step_count=event.step_count)
-                )
+                buf.add_note(live_plan_review_label(buf.profile, step_count=event.step_count))
                 self._presenter.schedule_edit(force=True)
                 asyncio.create_task(self._approvals.on_plan_review_request(event))
 
@@ -251,6 +238,8 @@ class TelegramEventHandler:
                         event.process_id,
                         label,
                         markup=markup,
+                        command=getattr(event, "command", "") or "",
+                        os_pid=int(getattr(event, "pid", 0) or 0),
                     )
                 )
 

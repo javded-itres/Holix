@@ -38,6 +38,7 @@ def build_react_graph(
         route_after_react,
         {
             "tool_execution": "tool_execution",
+            "react": "react",
             "reflect": "reflect",
             "finalize": "finalize",
         },

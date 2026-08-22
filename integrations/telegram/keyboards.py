@@ -21,6 +21,41 @@ def _cb(action: str, value: str) -> str:
     return data
 
 
+def subagent_list_keyboard(job_tokens: dict[str, str], labels: dict[str, str]) -> Any:
+    """One button per sub-agent (token -> job). labels keyed by job_id."""
+    from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
+
+    rows: list[list[Any]] = []
+    for job_id, token in job_tokens.items():
+        text = (labels.get(job_id) or job_id)[:40]
+        rows.append([InlineKeyboardButton(text=text, callback_data=_cb("sw", token))])
+    if not rows:
+        return None
+    return InlineKeyboardMarkup(inline_keyboard=rows)
+
+
+def subagent_watch_keyboard(*, running: bool = True, locale: str | None = None) -> Any:
+    from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
+    from core.i18n.messages import t
+
+    loc = locale or "ru"
+    buttons = []
+    if running:
+        buttons.append(
+            InlineKeyboardButton(
+                text=t("tg.subagent_watch.stop", loc),
+                callback_data=_cb("ss", "x"),
+            )
+        )
+    buttons.append(
+        InlineKeyboardButton(
+            text=t("tg.subagent_watch.exit", loc),
+            callback_data=_cb("se", "x"),
+        )
+    )
+    return InlineKeyboardMarkup(inline_keyboard=[buttons])
+
+
 def background_process_stop_keyboard(process_token: str) -> Any:
     from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 
@@ -212,18 +247,12 @@ def sessions_picker_keyboard(
         )
     nav: list[Any] = []
     if page > 0:
-        nav.append(
-            InlineKeyboardButton(text="◀", callback_data=_cb("sp", str(page - 1)))
-        )
+        nav.append(InlineKeyboardButton(text="◀", callback_data=_cb("sp", str(page - 1))))
     if start + page_size < len(sessions):
-        nav.append(
-            InlineKeyboardButton(text="▶", callback_data=_cb("sp", str(page + 1)))
-        )
+        nav.append(InlineKeyboardButton(text="▶", callback_data=_cb("sp", str(page + 1))))
     if nav:
         rows.append(nav)
-    rows.append(
-        [InlineKeyboardButton(text="＋ Новая сессия", callback_data=_cb("sn", "1"))]
-    )
+    rows.append([InlineKeyboardButton(text="＋ Новая сессия", callback_data=_cb("sn", "1"))])
     return InlineKeyboardMarkup(inline_keyboard=rows)
 
 
@@ -259,18 +288,12 @@ def skills_picker_keyboard(
 
     nav: list[Any] = []
     if page > 0:
-        nav.append(
-            InlineKeyboardButton(text="◀", callback_data=_cb("skp", str(page - 1)))
-        )
+        nav.append(InlineKeyboardButton(text="◀", callback_data=_cb("skp", str(page - 1))))
     if start + page_size < len(skills):
-        nav.append(
-            InlineKeyboardButton(text="▶", callback_data=_cb("skp", str(page + 1)))
-        )
+        nav.append(InlineKeyboardButton(text="▶", callback_data=_cb("skp", str(page + 1))))
     if nav:
         rows.append(nav)
-    rows.append(
-        [InlineKeyboardButton(text="↻ Обновить", callback_data=_cb("skp", str(page)))]
-    )
+    rows.append([InlineKeyboardButton(text="↻ Обновить", callback_data=_cb("skp", str(page)))])
     return InlineKeyboardMarkup(inline_keyboard=rows)
 
 
@@ -398,9 +421,13 @@ def models_provider_keyboard(
 
     nav: list[Any] = []
     if page > 0:
-        nav.append(InlineKeyboardButton(text="◀", callback_data=_cb("mv", f"{provider_idx}:{page - 1}")))
+        nav.append(
+            InlineKeyboardButton(text="◀", callback_data=_cb("mv", f"{provider_idx}:{page - 1}"))
+        )
     if start + page_size < len(models):
-        nav.append(InlineKeyboardButton(text="▶", callback_data=_cb("mv", f"{provider_idx}:{page + 1}")))
+        nav.append(
+            InlineKeyboardButton(text="▶", callback_data=_cb("mv", f"{provider_idx}:{page + 1}"))
+        )
     if nav:
         rows.append(nav)
 
@@ -432,20 +459,34 @@ def status_menu_keyboard(locale: str | None = None, *, is_admin: bool = True) ->
     rows.extend(
         [
             [
-                InlineKeyboardButton(text=t("tg.menu.sessions", loc), callback_data=_cb("r", "sessions")),
-                InlineKeyboardButton(text=t("tg.menu.streaming", loc), callback_data=_cb("r", "stream")),
+                InlineKeyboardButton(
+                    text=t("tg.menu.sessions", loc), callback_data=_cb("r", "sessions")
+                ),
+                InlineKeyboardButton(
+                    text=t("tg.menu.streaming", loc), callback_data=_cb("r", "stream")
+                ),
             ],
             [
-                InlineKeyboardButton(text=t("tg.menu.models", loc), callback_data=_cb("r", "models")),
+                InlineKeyboardButton(
+                    text=t("tg.menu.models", loc), callback_data=_cb("r", "models")
+                ),
                 InlineKeyboardButton(text="Tools", callback_data=_cb("r", "tools")),
             ],
             [
-                InlineKeyboardButton(text=t("tg.menu.subagents", loc), callback_data=_cb("r", "subagents")),
-                InlineKeyboardButton(text=t("tg.menu.reflexion", loc), callback_data=_cb("r", "reflexion")),
+                InlineKeyboardButton(
+                    text=t("tg.menu.subagents", loc), callback_data=_cb("r", "subagents")
+                ),
+                InlineKeyboardButton(
+                    text=t("tg.menu.reflexion", loc), callback_data=_cb("r", "reflexion")
+                ),
             ],
             [
-                InlineKeyboardButton(text=t("tg.menu.pipeline", loc), callback_data=_cb("r", "pipeline")),
-                InlineKeyboardButton(text=t("tg.menu.compress", loc), callback_data=_cb("r", "compress")),
+                InlineKeyboardButton(
+                    text=t("tg.menu.pipeline", loc), callback_data=_cb("r", "pipeline")
+                ),
+                InlineKeyboardButton(
+                    text=t("tg.menu.compress", loc), callback_data=_cb("r", "compress")
+                ),
             ],
         ]
     )

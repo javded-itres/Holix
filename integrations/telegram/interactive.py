@@ -167,7 +167,10 @@ class TelegramInteractive:
             await run_skills_command(self._host, cmd)
             return True
 
-        if lower.startswith("/subagent") or lower == "/subagents":
+        if lower in ("/subagents", "/subagent-list") or lower == "/subagent list":
+            await self.show_subagent_live_list()
+            return True
+        if lower.startswith("/subagent"):
             from cli.shared.commands.subagent_commands import run_subagents_command
 
             await run_subagents_command(self._host, cmd)
@@ -441,42 +444,14 @@ class TelegramInteractive:
                     except Exception:
                         pass
             # Update/unpin dedicated process notice (survives after agent run).
-            mid = self._session.background_process_message_ids.pop(process_id, None)
-            if mid is not None:
-                from core.i18n.locale import LocaleStore
+            from integrations.telegram.live_presenter import TelegramLivePresenter
 
-                from integrations.telegram.markdown import escape_html
-
-                try:
-                    loc = LocaleStore(self._session.profile).get() or "ru"
-                except Exception:
-                    loc = "ru"
-                # Use module-level ``t`` — a local ``import t`` shadows it for the
-                # whole apply_callback and breaks other actions (sa/rf/…).
-                html = t(
-                    "live.bg_process_stopped",
-                    loc,
-                    label=escape_html(record.label or process_id),
-                    summary="",
-                )
-                bot = self._host._bot
-                try:
-                    await bot.edit_message_text(
-                        html,
-                        chat_id=self._session.chat_id,
-                        message_id=mid,
-                        parse_mode="HTML",
-                        reply_markup=None,
-                    )
-                except Exception:
-                    pass
-                try:
-                    await bot.unpin_chat_message(
-                        chat_id=self._session.chat_id,
-                        message_id=mid,
-                    )
-                except Exception:
-                    pass
+            presenter = TelegramLivePresenter(self._host._bot, self._session)
+            await presenter.unpin_background_process_notice(
+                process_id,
+                label=record.label or process_id,
+                status="stopped",
+            )
             return f"Остановлен: {record.label}"
 
         if action == "m" and value in self._host._execution_modes:
@@ -491,6 +466,21 @@ class TelegramInteractive:
             lang = messenger_host_locale(self._host)
             state = "on" if self._host.streaming_enabled else "off"
             return t("tg.streaming", lang, state=state)
+
+        if action == "sw":
+            from integrations.messenger.subagent_watch import resolve_job_token
+
+            job_id = resolve_job_token(self._session.subagent_callback_tokens, value)
+            toast = await self.start_subagent_watch(job_id)
+            return toast
+
+        if action == "ss":
+            return await self.stop_watched_subagent()
+
+        if action == "se":
+            await self.exit_subagent_watch()
+            lang = messenger_host_locale(self._host)
+            return t("tg.subagent_watch.closed", lang)
 
         if action == "sa":
             from integrations.messenger.subagents_settings import set_subagents_enabled_for_host
@@ -722,6 +712,166 @@ class TelegramInteractive:
             "<i>При включении ответ обновляется в одном сообщении по мере генерации.</i>"
         )
         await self._host._send_html_with_keyboard(text, stream_picker_keyboard(on))
+
+    def _cancel_subagent_watch_task(self) -> None:
+        from integrations.messenger.subagent_watch import cancel_session_watch
+
+        cancel_session_watch(self._session)
+
+    async def show_subagent_live_list(self) -> None:
+        from integrations.messenger.subagent_watch import (
+            format_list_text,
+            list_watchable_jobs,
+            map_job_tokens,
+        )
+        from integrations.telegram.keyboards import subagent_list_keyboard
+
+        lang = messenger_host_locale(self._host)
+        jobs = list_watchable_jobs(self._session.profile, self._host.agent)
+        html = format_list_text(jobs, html=True, locale=lang)
+        tokens: dict[str, str] = {}
+        labels: dict[str, str] = {}
+        ids: list[str] = []
+        for job in jobs:
+            jid = str(job.get("id") or job.get("name") or "")
+            if not jid:
+                continue
+            ids.append(jid)
+            status = str(job.get("status") or "")
+            name = str(job.get("name") or jid)
+            labels[jid] = f"{name} · {status}"[:40]
+        if ids:
+            tokens = map_job_tokens(self._session.subagent_callback_tokens, ids)
+        kb = subagent_list_keyboard(tokens, labels) if tokens else None
+        if kb is None:
+            await self._host._send_html(html)
+            return
+        await self._host._send_html_with_keyboard(html, kb)
+
+    async def start_subagent_watch(self, job_id: str) -> str:
+        import asyncio
+
+        from integrations.messenger.subagent_watch import format_watch_text, load_watch_job
+        from integrations.telegram.keyboards import subagent_watch_keyboard
+
+        lang = messenger_host_locale(self._host)
+        jid = (job_id or "").strip()
+        job = load_watch_job(self._session.profile, jid, self._host.agent)
+        if not job:
+            return t("tg.subagent_watch.gone", lang)
+
+        switched = bool(
+            self._session.subagent_watch_job_id and self._session.subagent_watch_job_id != jid
+        )
+        if self._session.subagent_watch_job_id:
+            await self.exit_subagent_watch(silent=True)
+
+        running = bool(job.get("running"))
+        html = format_watch_text(job, html=True, locale=lang)
+        kb = subagent_watch_keyboard(running=running, locale=lang)
+        msg = await self._host._bot.send_message(
+            self._session.chat_id,
+            html,
+            parse_mode="HTML",
+            reply_markup=kb,
+        )
+        mid = int(getattr(msg, "message_id", 0) or 0)
+        self._session.subagent_watch_job_id = jid
+        self._session.subagent_watch_message_id = mid or None
+        if running and mid:
+            self._session.subagent_watch_task = asyncio.create_task(
+                self._subagent_watch_loop(),
+                name=f"tg-sa-watch-{jid[:24]}",
+            )
+        if switched:
+            return t("tg.subagent_watch.busy", lang)
+        return str(job.get("name") or jid)
+
+    async def _subagent_watch_loop(self) -> None:
+        import asyncio
+
+        from integrations.messenger.subagent_watch import WATCH_INTERVAL_S
+
+        try:
+            while True:
+                await asyncio.sleep(WATCH_INTERVAL_S)
+                if not self._session.subagent_watch_job_id:
+                    return
+                still = await self._edit_subagent_watch_message()
+                if not still:
+                    return
+        except asyncio.CancelledError:
+            return
+
+    async def _edit_subagent_watch_message(self) -> bool:
+        from integrations.messenger.subagent_watch import format_watch_text, load_watch_job
+        from integrations.telegram.keyboards import subagent_watch_keyboard
+        from integrations.telegram.live_presenter import _is_not_modified
+
+        lang = messenger_host_locale(self._host)
+        jid = self._session.subagent_watch_job_id
+        mid = self._session.subagent_watch_message_id
+        if not jid or not mid:
+            return False
+        job = load_watch_job(self._session.profile, jid, self._host.agent)
+        html = format_watch_text(job, html=True, locale=lang)
+        running = bool(job and job.get("running"))
+        kb = subagent_watch_keyboard(running=running, locale=lang)
+        try:
+            await self._host._bot.edit_message_text(
+                html,
+                chat_id=self._session.chat_id,
+                message_id=mid,
+                parse_mode="HTML",
+                reply_markup=kb,
+            )
+        except Exception as exc:
+            if not _is_not_modified(exc):
+                return False
+        return running
+
+    async def stop_watched_subagent(self) -> str:
+        from integrations.messenger.subagent_watch import terminate_watch_job
+
+        lang = messenger_host_locale(self._host)
+        jid = self._session.subagent_watch_job_id
+        if not jid:
+            return t("tg.subagent_watch.gone", lang)
+        await terminate_watch_job(self._host.agent, jid, profile=self._session.profile)
+        await self._edit_subagent_watch_message()
+        return t("tg.subagent_watch.stopped", lang)
+
+    async def exit_subagent_watch(self, *, silent: bool = False) -> None:
+        from integrations.messenger.subagent_watch import format_watch_text, load_watch_job
+        from integrations.telegram.live_presenter import _is_not_modified
+
+        lang = messenger_host_locale(self._host)
+        jid = self._session.subagent_watch_job_id
+        mid = self._session.subagent_watch_message_id
+        self._cancel_subagent_watch_task()
+        self._session.subagent_watch_job_id = None
+        self._session.subagent_watch_message_id = None
+        if silent or not mid:
+            return
+        job = load_watch_job(self._session.profile, jid or "", self._host.agent) if jid else None
+        closed = t("tg.subagent_watch.closed", lang)
+        if job:
+            html = (
+                format_watch_text(job, html=True, locale=lang) + f"\n\n<i>{escape_html(closed)}</i>"
+            )
+        else:
+            html = f"<i>{escape_html(closed)}</i>"
+        try:
+            await self._host._bot.edit_message_text(
+                html,
+                chat_id=self._session.chat_id,
+                message_id=mid,
+                parse_mode="HTML",
+                reply_markup=None,
+            )
+        except Exception as exc:
+            if not _is_not_modified(exc):
+                pass
 
     async def show_subagents_picker(self) -> None:
         from integrations.messenger.subagents_settings import is_subagents_enabled_for_host

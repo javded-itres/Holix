@@ -45,6 +45,12 @@ class ChatSession:
     process_callback_tokens: dict[str, str] = field(default_factory=dict)
     # process_id -> Telegram message_id of pinned process notice
     background_process_message_ids: dict[str, int] = field(default_factory=dict)
+    # process_id -> script identity (same script replaces the pin)
+    background_process_script_keys: dict[str, str] = field(default_factory=dict)
+    subagent_callback_tokens: dict[str, str] = field(default_factory=dict)
+    subagent_watch_job_id: str | None = None
+    subagent_watch_message_id: int | None = None
+    subagent_watch_task: Any = None
     agent: Any = None
     subagent_owner: Any = None
     profile_manual_override: bool = False

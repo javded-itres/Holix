@@ -47,6 +47,16 @@ MESSAGES: dict[str, dict[str, str]] = {
         "tg.subagents_picker_body": (
             "When off, the main agent cannot delegate work (delegate_to_subagent / plan waves)."
         ),
+        "tg.subagent_watch.pick": "Sub-agents — tap one to watch live",
+        "tg.subagent_watch.none": "No sub-agents in this profile.",
+        "tg.subagent_watch.title": "Watching {name} [{status}] · steps {steps}",
+        "tg.subagent_watch.no_steps": "No steps yet…",
+        "tg.subagent_watch.stop": "⏹ Stop sub-agent",
+        "tg.subagent_watch.exit": "✕ Exit watch",
+        "tg.subagent_watch.closed": "Watch closed.",
+        "tg.subagent_watch.gone": "Sub-agent is no longer available.",
+        "tg.subagent_watch.stopped": "Sub-agent stop requested.",
+        "tg.subagent_watch.busy": "Already watching another sub-agent — switched.",
         "tg.reflexion": "Reflexion: {state}",
         "tg.reflexion_on": "Reflexion On",
         "tg.reflexion_off": "Off",
@@ -676,6 +686,16 @@ When finished, confirm the absolute path written and give a 5–10 line summary 
             "Когда выключено, главный агент не может делегировать задачи "
             "(delegate_to_subagent / волны в plan)."
         ),
+        "tg.subagent_watch.pick": "Субагенты — нажмите, чтобы смотреть вживую",
+        "tg.subagent_watch.none": "В этом профиле нет субагентов.",
+        "tg.subagent_watch.title": "Просмотр {name} [{status}] · шаги {steps}",
+        "tg.subagent_watch.no_steps": "Шагов пока нет…",
+        "tg.subagent_watch.stop": "⏹ Остановить субагента",
+        "tg.subagent_watch.exit": "✕ Выйти из просмотра",
+        "tg.subagent_watch.closed": "Просмотр закрыт.",
+        "tg.subagent_watch.gone": "Субагент больше недоступен.",
+        "tg.subagent_watch.stopped": "Остановка субагента запрошена.",
+        "tg.subagent_watch.busy": "Уже смотрите другого субагента — переключили.",
         "tg.reflexion": "Reflexion: {state}",
         "tg.reflexion_on": "Reflexion Вкл",
         "tg.reflexion_off": "Выкл",

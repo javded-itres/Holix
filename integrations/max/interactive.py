@@ -132,7 +132,10 @@ class MaxInteractive:
             await run_skills_command(self._host, cmd)
             return True
 
-        if lower.startswith("/subagent") or lower == "/subagents":
+        if lower in ("/subagents", "/subagent-list") or lower == "/subagent list":
+            await self.show_subagent_live_list()
+            return True
+        if lower.startswith("/subagent"):
             from cli.shared.commands.subagent_commands import run_subagents_command
 
             await run_subagents_command(self._host, cmd)
@@ -185,36 +188,14 @@ class MaxInteractive:
                         )
                     except Exception:
                         pass
-            # Update/unpin dedicated process notice
-            mid = self._session.background_process_message_ids.pop(process_id, None)
-            if mid:
-                from core.i18n.locale import LocaleStore
+            from integrations.max.live_presenter import MaxLivePresenter
 
-                from integrations.max.markdown import escape_html
-
-                try:
-                    loc = LocaleStore(self._session.profile).get() or "ru"
-                except Exception:
-                    loc = "ru"
-                # Use module-level ``t`` — a local ``import t`` shadows it for the
-                # whole apply_callback and breaks other actions (sa/rf/…).
-                html = t(
-                    "live.bg_process_stopped",
-                    loc,
-                    label=escape_html(record.label or process_id),
-                    summary="",
-                )
-                client = self._host._client
-                try:
-                    await client.edit_message(mid, html, fmt="html", attachments=None)
-                except Exception:
-                    pass
-                chat_id = self._session.reply_chat_id
-                if chat_id is not None:
-                    try:
-                        await client.unpin_message(int(chat_id))
-                    except Exception:
-                        pass
+            presenter = MaxLivePresenter(self._host._client, self._session)
+            await presenter.unpin_background_process_notice(
+                process_id,
+                label=record.label or process_id,
+                status="stopped",
+            )
             return f"Остановлен: {record.label}"
 
         if action == "m" and value in self._host._execution_modes:
@@ -227,6 +208,19 @@ class MaxInteractive:
             await self.show_stream_picker()
             state = "on" if self._host.streaming_enabled else "off"
             return t("tg.streaming", messenger_host_locale(self._host), state=state)
+
+        if action == "sw":
+            from integrations.messenger.subagent_watch import resolve_job_token
+
+            job_id = resolve_job_token(self._session.subagent_callback_tokens, value)
+            return await self.start_subagent_watch(job_id)
+
+        if action == "ss":
+            return await self.stop_watched_subagent()
+
+        if action == "se":
+            await self.exit_subagent_watch()
+            return t("tg.subagent_watch.closed", messenger_host_locale(self._host))
 
         if action == "sa":
             from integrations.messenger.subagents_settings import set_subagents_enabled_for_host
@@ -414,6 +408,151 @@ class MaxInteractive:
             "_При включении ответ обновляется в одном сообщении по мере генерации._"
         )
         await self._host._send_text_with_keyboard(text, stream_picker_keyboard(on))
+
+    def _cancel_subagent_watch_task(self) -> None:
+        from integrations.messenger.subagent_watch import cancel_session_watch
+
+        cancel_session_watch(self._session)
+
+    async def show_subagent_live_list(self) -> None:
+        from integrations.max.keyboards import subagent_list_keyboard
+        from integrations.messenger.subagent_watch import (
+            format_list_text,
+            list_watchable_jobs,
+            map_job_tokens,
+        )
+
+        lang = messenger_host_locale(self._host)
+        jobs = list_watchable_jobs(self._session.profile, self._host.agent)
+        html = format_list_text(jobs, html=True, locale=lang)
+        ids: list[str] = []
+        labels: dict[str, str] = {}
+        for job in jobs:
+            jid = str(job.get("id") or job.get("name") or "")
+            if not jid:
+                continue
+            ids.append(jid)
+            labels[jid] = f"{job.get('name') or jid} · {job.get('status') or ''}"[:40]
+        tokens = map_job_tokens(self._session.subagent_callback_tokens, ids) if ids else {}
+        kb = subagent_list_keyboard(tokens, labels) if tokens else None
+        if kb is None:
+            await self._host._send_html(html)
+            return
+        try:
+            await self._host._client.send_message(
+                html,
+                fmt="html",
+                attachments=[kb],
+                **self._host._reply_kwargs(),
+            )
+        except Exception:
+            await self._host._send_text_with_keyboard(html, kb)
+
+    async def start_subagent_watch(self, job_id: str) -> str:
+        import asyncio
+
+        from integrations.max.keyboards import subagent_watch_keyboard
+        from integrations.max.models import message_id_from_response
+        from integrations.messenger.subagent_watch import format_watch_text, load_watch_job
+
+        lang = messenger_host_locale(self._host)
+        jid = (job_id or "").strip()
+        job = load_watch_job(self._session.profile, jid, self._host.agent)
+        if not job:
+            return t("tg.subagent_watch.gone", lang)
+        switched = bool(
+            self._session.subagent_watch_job_id and self._session.subagent_watch_job_id != jid
+        )
+        if self._session.subagent_watch_job_id:
+            await self.exit_subagent_watch(silent=True)
+        running = bool(job.get("running"))
+        html = format_watch_text(job, html=True, locale=lang)
+        kb = subagent_watch_keyboard(running=running, locale=lang)
+        payload = await self._host._client.send_message(
+            html,
+            fmt="html",
+            attachments=[kb],
+            **self._host._reply_kwargs(),
+        )
+        mid = message_id_from_response(payload)
+        self._session.subagent_watch_job_id = jid
+        self._session.subagent_watch_message_id = mid
+        if running and mid:
+            self._session.subagent_watch_task = asyncio.create_task(
+                self._subagent_watch_loop(),
+                name=f"max-sa-watch-{jid[:24]}",
+            )
+        if switched:
+            return t("tg.subagent_watch.busy", lang)
+        return str(job.get("name") or jid)
+
+    async def _subagent_watch_loop(self) -> None:
+        import asyncio
+
+        from integrations.messenger.subagent_watch import WATCH_INTERVAL_S
+
+        try:
+            while True:
+                await asyncio.sleep(WATCH_INTERVAL_S)
+                if not self._session.subagent_watch_job_id:
+                    return
+                still = await self._edit_subagent_watch_message()
+                if not still:
+                    return
+        except asyncio.CancelledError:
+            return
+
+    async def _edit_subagent_watch_message(self) -> bool:
+        from integrations.max.keyboards import subagent_watch_keyboard
+        from integrations.messenger.subagent_watch import format_watch_text, load_watch_job
+
+        lang = messenger_host_locale(self._host)
+        jid = self._session.subagent_watch_job_id
+        mid = self._session.subagent_watch_message_id
+        if not jid or not mid:
+            return False
+        job = load_watch_job(self._session.profile, jid, self._host.agent)
+        html = format_watch_text(job, html=True, locale=lang)
+        running = bool(job and job.get("running"))
+        kb = subagent_watch_keyboard(running=running, locale=lang)
+        try:
+            await self._host._client.edit_message(mid, html, fmt="html", attachments=[kb])
+        except Exception:
+            return False
+        return running
+
+    async def stop_watched_subagent(self) -> str:
+        from integrations.messenger.subagent_watch import terminate_watch_job
+
+        lang = messenger_host_locale(self._host)
+        jid = self._session.subagent_watch_job_id
+        if not jid:
+            return t("tg.subagent_watch.gone", lang)
+        await terminate_watch_job(self._host.agent, jid, profile=self._session.profile)
+        await self._edit_subagent_watch_message()
+        return t("tg.subagent_watch.stopped", lang)
+
+    async def exit_subagent_watch(self, *, silent: bool = False) -> None:
+        from integrations.messenger.subagent_watch import format_watch_text, load_watch_job
+
+        lang = messenger_host_locale(self._host)
+        jid = self._session.subagent_watch_job_id
+        mid = self._session.subagent_watch_message_id
+        self._cancel_subagent_watch_task()
+        self._session.subagent_watch_job_id = None
+        self._session.subagent_watch_message_id = None
+        if silent or not mid:
+            return
+        job = load_watch_job(self._session.profile, jid or "", self._host.agent) if jid else None
+        closed = t("tg.subagent_watch.closed", lang)
+        if job:
+            html = format_watch_text(job, html=True, locale=lang) + f"\n\n<i>{closed}</i>"
+        else:
+            html = f"<i>{closed}</i>"
+        try:
+            await self._host._client.edit_message(mid, html, fmt="html", attachments=None)
+        except Exception:
+            pass
 
     async def show_subagents_picker(self) -> None:
         from integrations.messenger.subagents_settings import is_subagents_enabled_for_host

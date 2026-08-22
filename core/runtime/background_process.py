@@ -26,6 +26,29 @@ from core.runtime.background_process_health import (
 
 logger = logging.getLogger(__name__)
 
+_process_stop_hooks: list[Any] = []
+
+
+def register_process_stop_hook(hook: Any) -> None:
+    """Notify messengers when a background process is stopped (any registry)."""
+    if hook not in _process_stop_hooks:
+        _process_stop_hooks.append(hook)
+
+
+def unregister_process_stop_hook(hook: Any) -> None:
+    try:
+        _process_stop_hooks.remove(hook)
+    except ValueError:
+        pass
+
+
+def _notify_process_stopped(rec: BackgroundProcessRecord) -> None:
+    for hook in list(_process_stop_hooks):
+        try:
+            hook(rec)
+        except Exception:
+            logger.debug("background process stop hook failed", exc_info=True)
+
 
 @dataclass(slots=True)
 class BackgroundProcessRecord:
@@ -95,9 +118,7 @@ class BackgroundProcessRegistry:
         for rec in candidates:
             if rec.process_id in seen_ids:
                 continue
-            port_conflict = bool(
-                target_ports and set(self._ports_for_record(rec)) & target_ports
-            )
+            port_conflict = bool(target_ports and set(self._ports_for_record(rec)) & target_ports)
             if port_conflict:
                 to_stop.append(rec)
                 seen_ids.add(rec.process_id)
@@ -265,7 +286,9 @@ class BackgroundProcessRegistry:
         await self._stop_all_records([rec])
         return rec
 
-    async def stop_for_scope(self, *, profile: str, conversation_id: str) -> BackgroundProcessRecord | None:
+    async def stop_for_scope(
+        self, *, profile: str, conversation_id: str
+    ) -> BackgroundProcessRecord | None:
         """Stop the newest running process in this chat session (or most recent if all stopped)."""
         rec = self.active_for_scope(profile=profile, conversation_id=conversation_id)
         if rec is None:
@@ -308,7 +331,9 @@ class BackgroundProcessRegistry:
             await asyncio.to_thread(force_free_ports, all_ports)
         return candidates[0]
 
-    def active_for_scope(self, *, profile: str, conversation_id: str) -> BackgroundProcessRecord | None:
+    def active_for_scope(
+        self, *, profile: str, conversation_id: str
+    ) -> BackgroundProcessRecord | None:
         for rec in self.list_for_scope(profile=profile, conversation_id=conversation_id):
             if rec.is_running():
                 return rec
@@ -422,6 +447,7 @@ class BackgroundProcessRegistry:
             logger.warning("Failed to remove background process from index: %s", exc)
         async with self._lock:
             self._records.pop(rec.process_id, None)
+        _notify_process_stopped(rec)
 
     def hydrate_from_disk(self, profile: str | None = None) -> int:
         """Load process rows started by other Holix processes (Telegram/Studio/CLI).
@@ -439,8 +465,7 @@ class BackgroundProcessRegistry:
             profiles.add((profile or "").strip() or "default")
         else:
             profiles.update(
-                (rec.profile or "default").strip() or "default"
-                for rec in self._records.values()
+                (rec.profile or "default").strip() or "default" for rec in self._records.values()
             )
             if not profiles:
                 profiles.update(iter_profile_names_with_index())
@@ -489,7 +514,9 @@ class BackgroundProcessRegistry:
         self.hydrate_from_disk(profile)
         return sorted(self._records_for_profile(profile), key=lambda r: r.started_at, reverse=True)
 
-    def list_for_scope(self, *, profile: str, conversation_id: str) -> list[BackgroundProcessRecord]:
+    def list_for_scope(
+        self, *, profile: str, conversation_id: str
+    ) -> list[BackgroundProcessRecord]:
         self.hydrate_from_disk(profile)
         scope = self._scope_key(profile, conversation_id)
         out: list[BackgroundProcessRecord] = []

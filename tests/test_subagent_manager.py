@@ -16,6 +16,7 @@ def _manager(max_concurrent: int = 4) -> SubAgentManager:
         subagent_max_concurrent=max_concurrent,
         subagent_process_timeout=60.0,
         subagent_default_process_mode="async",
+        profile_name="default",
     )
     return SubAgentManager(parent)
 
@@ -73,3 +74,41 @@ def test_format_status_text_lists_jobs() -> None:
     text = mgr.format_status_text()
     assert "researcher-2" in text
     assert "find docs" in text
+    assert "profile default" in text
+
+
+def test_format_status_text_includes_profile_registry_jobs(
+    tmp_path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """CLI / /subagents must see jobs published by other hosts on this profile."""
+    from core.subagents import runtime_registry as rr
+    from core.subagents.manager import format_jobs_status_text
+
+    monkeypatch.setenv("HOLIX_HOME", str(tmp_path))
+    monkeypatch.setattr(
+        rr,
+        "profile_dir_for_name",
+        lambda name, default="default": tmp_path / "profiles" / (name or default),
+    )
+    owner = rr.owner_key(source="telegram", pid=999)
+    handle = SubAgentHandle(
+        name="coder",
+        status=SubAgentStatus.RUNNING,
+        task_preview="fix gateway",
+        agent_type="coder",
+        config=SubAgentConfig(name="coder", process_mode=ProcessMode.ASYNC),
+    )
+    rr.publish_handle("admin", handle, owner=owner, source="telegram")
+
+    mgr = _manager()
+    mgr._parent.config.profile_name = "admin"
+    text = mgr.format_status_text()
+    assert "coder" in text
+    assert "fix gateway" in text
+    assert "telegram" in text
+    assert "profile admin" in text
+
+    jobs = rr.list_jobs("admin", include_done=True)
+    cli_text = format_jobs_status_text(jobs, profile="admin")
+    assert "coder" in cli_text
+    assert "telegram" in cli_text

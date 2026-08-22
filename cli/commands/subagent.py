@@ -7,7 +7,7 @@ from typing import Any
 
 import typer
 
-from cli.utils.rich_console import print_error, print_info, print_success
+from cli.utils.rich_console import console, print_error, print_info, print_success
 
 app = typer.Typer(help="Spawn and manage background sub-agents", no_args_is_help=True)
 
@@ -85,7 +85,9 @@ def subagent_spawn(
                 if text:
                     print_info(text)
             elif wait:
-                print_info(f"Job {handle.name} still running. Try: holix subagent result {handle.name} --wait")
+                print_info(
+                    f"Job {handle.name} still running. Try: holix subagent result {handle.name} --wait"
+                )
             return 0
         except Exception as exc:
             print_error(f"spawn failed: {exc}")
@@ -99,22 +101,13 @@ def subagent_spawn(
 
 @app.command("list")
 def subagent_list(ctx: typer.Context) -> None:
-    """List running sub-agents."""
+    """List running sub-agents for this profile (Telegram, Studio, CLI, gateway)."""
     profile = _profile(ctx)
-    config = _config(ctx)
+    from core.subagents.manager import format_jobs_status_text
+    from core.subagents.runtime_registry import list_jobs
 
-    async def _run() -> None:
-        from cli.shared.commands.subagent_commands import run_subagents_command
-
-        agent, container = await _with_agent(config)
-        try:
-            host = _CliSubagentHost(agent, profile)
-            await run_subagents_command(host, "/subagents")
-        finally:
-            if container is not None:
-                await container.close()
-
-    asyncio.run(_run())
+    jobs = list_jobs(profile, include_done=True)
+    console.print(format_jobs_status_text(jobs, profile=profile), markup=False)
 
 
 @app.command("result")

@@ -105,9 +105,7 @@ class MaxLivePresenter:
         self._attachments = None
         self._outbound_queue = asyncio.Queue()
         self._outbound_worker = asyncio.create_task(self._outbound_worker_loop())
-        payload = await self._send_outbound(
-            f"⏳ {live_processing_label(self.session.profile)}"
-        )
+        payload = await self._send_outbound(f"⏳ {live_processing_label(self.session.profile)}")
         self._progress_message_id = message_id_from_response(payload)
         self.session.live_message_id = self._progress_message_id
         logger.info(
@@ -244,16 +242,34 @@ class MaxLivePresenter:
         label: str,
         *,
         markup: dict[str, Any] | None = None,
+        command: str = "",
+        os_pid: int = 0,
     ) -> None:
-        """Send a process notice; pin in group chats when API allows."""
+        """Send a process notice; pin in group chats when API allows.
+
+        Same script in this chat replaces the previous pin; other scripts stay.
+        """
         from core.i18n.messages import t
+        from core.runtime.process_script_key import process_script_key
 
         from integrations.max.markdown import escape_html
         from integrations.max.models import message_id_from_response
+        from integrations.messenger.process_pins import same_script_process_ids, save_pin
 
         pid = (process_id or "").strip()
         if not pid:
             return
+        script_key = process_script_key(command)
+        bot_profile = getattr(self.session, "bot_profile", None) or self.session.profile
+        chat_id_raw = self._pin_chat_id() or self.session.reply_chat_id or self.session.user_id
+        for old_pid in same_script_process_ids(
+            bot_profile, "max", chat_id_raw, script_key, exclude=pid
+        ):
+            await self.unpin_background_process_notice(old_pid, label=label, status="stopped")
+        in_session = getattr(self.session, "background_process_script_keys", None) or {}
+        for old_pid, old_key in list(in_session.items()):
+            if old_pid != pid and old_key == script_key:
+                await self.unpin_background_process_notice(old_pid, label=label, status="stopped")
         try:
             from core.i18n.locale import LocaleStore
 
@@ -276,12 +292,26 @@ class MaxLivePresenter:
             mid = message_id_from_response(payload)
             if mid:
                 self.session.background_process_message_ids[pid] = mid
+                keys = getattr(self.session, "background_process_script_keys", None)
+                if keys is not None:
+                    keys[pid] = script_key
+                try:
+                    save_pin(
+                        bot_profile,
+                        "max",
+                        chat_id_raw,
+                        process_id=pid,
+                        message_id=mid,
+                        script_key=script_key,
+                        label=label or pid,
+                        os_pid=os_pid,
+                    )
+                except Exception:
+                    logger.debug("persist MAX process pin failed", exc_info=True)
                 chat_id = self._pin_chat_id()
                 if chat_id is not None:
                     try:
-                        await self._client.pin_message(
-                            chat_id, mid, notify=False
-                        )
+                        await self._client.pin_message(chat_id, mid, notify=False)
                     except Exception as exc:
                         # Dialogs and non-admin group: pin is not available.
                         logger.info(
@@ -307,6 +337,17 @@ class MaxLivePresenter:
 
         pid = (process_id or "").strip()
         mid = self.session.background_process_message_ids.pop(pid, None)
+        keys = getattr(self.session, "background_process_script_keys", None)
+        if keys is not None:
+            keys.pop(pid, None)
+        chat_id_raw = self._pin_chat_id() or self.session.reply_chat_id or self.session.user_id
+        try:
+            from integrations.messenger.process_pins import remove_pin
+
+            bot_profile = getattr(self.session, "bot_profile", None) or self.session.profile
+            remove_pin(bot_profile, "max", chat_id_raw, pid)
+        except Exception:
+            logger.debug("remove MAX process pin failed", exc_info=True)
         if not mid:
             return
         try:
@@ -315,11 +356,7 @@ class MaxLivePresenter:
             loc = LocaleStore(self.session.profile).get() or "ru"
         except Exception:
             loc = "ru"
-        key = (
-            "live.bg_process_error"
-            if status == "error"
-            else "live.bg_process_stopped"
-        )
+        key = "live.bg_process_error" if status == "error" else "live.bg_process_stopped"
         html = t(
             key,
             loc,
@@ -333,13 +370,31 @@ class MaxLivePresenter:
         chat_id = self._pin_chat_id()
         if chat_id is not None:
             try:
-                await self._client.unpin_message(chat_id)
+                await self._client.unpin_message(chat_id, message_id=str(mid))
             except Exception as exc:
                 logger.info(
                     "MAX unpin background process skipped (chat_id=%s): %s",
                     chat_id,
                     exc,
                 )
+            await self._repin_remaining_max()
+
+    async def _repin_remaining_max(self) -> None:
+        chat_id = self._pin_chat_id()
+        if chat_id is None:
+            return
+        remaining = list(self.session.background_process_message_ids.values())
+        if not remaining:
+            return
+        mid = remaining[-1]
+        try:
+            await self._client.pin_message(chat_id, str(mid), notify=False)
+        except Exception as exc:
+            logger.info(
+                "MAX re-pin remaining process skipped (chat_id=%s): %s",
+                chat_id,
+                exc,
+            )
 
     async def send_tool_progress(self, tool_name: str, detail: str = "") -> None:
         label = (tool_name or "tool").strip()

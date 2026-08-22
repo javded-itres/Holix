@@ -294,6 +294,17 @@ class HelixMaxBot:
                 reply_chat_id=reply_chat_id,
                 chat_type=chat_type or "",
             )
+            try:
+                from integrations.messenger.process_pins import hydrate_session_pins
+
+                hydrate_session_pins(
+                    self._sessions[key],
+                    platform="max",
+                    chat_id=reply_chat_id or user_id,
+                    bot_profile=self.settings.profile,
+                )
+            except Exception:
+                pass
         session = self._sessions[key]
         session.reply_user_id = reply_user_id
         session.reply_chat_id = reply_chat_id
@@ -306,6 +317,65 @@ class HelixMaxBot:
         if session.agent is None:
             await self._switch_session_profile(session, session.profile)
         return session
+
+    def _session_for_pin_chat(self, chat_id: str) -> MaxChatSession | None:
+        for session in self._sessions.values():
+            if session.reply_chat_id is not None and str(session.reply_chat_id) == str(chat_id):
+                return session
+            if str(session.user_id) == str(chat_id):
+                return session
+        return None
+
+    async def _unpin_stored_pin(
+        self,
+        client: MaxClient,
+        chat_id: str,
+        process_id: str,
+        rec: dict[str, Any],
+    ) -> None:
+        session = self._session_for_pin_chat(chat_id)
+        if session is not None:
+            from integrations.max.live_presenter import MaxLivePresenter
+
+            presenter = MaxLivePresenter(client, session)
+            await presenter.unpin_background_process_notice(
+                process_id,
+                label=str(rec.get("label") or process_id),
+                status="stopped",
+            )
+            return
+        from integrations.messenger.process_pins import remove_pin
+
+        mid = rec.get("message_id")
+        try:
+            cid = int(chat_id)
+        except (TypeError, ValueError):
+            cid = None
+        if cid is not None and mid:
+            try:
+                await client.unpin_message(cid, message_id=str(mid))
+            except Exception:
+                pass
+        remove_pin(self.settings.profile, "max", chat_id, process_id)
+
+    async def _unpin_stopped_record(self, client: MaxClient, rec: Any) -> None:
+        process_id = str(getattr(rec, "process_id", "") or "")
+        if not process_id:
+            return
+        chat_id = getattr(rec, "chat_id", None)
+        if chat_id:
+            await self._unpin_stored_pin(
+                client,
+                str(chat_id),
+                process_id,
+                {"label": getattr(rec, "label", "")},
+            )
+            return
+        from integrations.messenger.process_pins import iter_platform_pins
+
+        for cid, pid, pin in iter_platform_pins(self.settings.profile, "max"):
+            if pid == process_id:
+                await self._unpin_stored_pin(client, cid, pid, pin)
 
     def _restore_session_model(self, session: MaxChatSession) -> None:
         from core.session_models import restore_session_model

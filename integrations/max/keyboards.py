@@ -18,6 +18,29 @@ def _cb(action: str, value: str) -> str:
     return f"{PREFIX}:{action}:{value}"
 
 
+def subagent_list_keyboard(
+    job_tokens: dict[str, str], labels: dict[str, str]
+) -> dict[str, Any] | None:
+    rows: list[list[dict[str, str]]] = []
+    for job_id, token in job_tokens.items():
+        text = (labels.get(job_id) or job_id)[:40]
+        rows.append([_callback_btn(text, _cb("sw", token))])
+    if not rows:
+        return None
+    return inline_keyboard(rows)
+
+
+def subagent_watch_keyboard(*, running: bool = True, locale: str | None = None) -> dict[str, Any]:
+    from core.i18n.messages import t
+
+    loc = locale or "ru"
+    buttons: list[dict[str, str]] = []
+    if running:
+        buttons.append(_callback_btn(t("tg.subagent_watch.stop", loc), _cb("ss", "x")))
+    buttons.append(_callback_btn(t("tg.subagent_watch.exit", loc), _cb("se", "x")))
+    return inline_keyboard([buttons])
+
+
 def background_process_stop_keyboard(process_token: str) -> dict[str, Any]:
     return inline_keyboard(
         [
@@ -176,7 +199,12 @@ def sessions_picker_keyboard(
             label = label[:26] + "…"
         global_idx = start + i
         rows.append(
-            [_callback_btn(f"{_mark(cid == current_id)}{global_idx + 1}. {label}", _cb("s", str(global_idx)))]
+            [
+                _callback_btn(
+                    f"{_mark(cid == current_id)}{global_idx + 1}. {label}",
+                    _cb("s", str(global_idx)),
+                )
+            ]
         )
     nav: list[dict[str, str]] = []
     if page > 0:
