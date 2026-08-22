@@ -467,6 +467,14 @@ class TelegramInteractive:
             state = "on" if self._host.streaming_enabled else "off"
             return t("tg.streaming", lang, state=state)
 
+        if action == "sr":
+            from integrations.messenger.subagent_reply import apply_reply_button
+            from integrations.messenger.subagent_watch import resolve_job_token
+
+            job_id = resolve_job_token(self._session.subagent_reply_tokens, value)
+            routed = apply_reply_button(self._host.agent, self._session, job_id)
+            return await self.present_subagent_reply_route(routed)
+
         if action == "sw":
             from integrations.messenger.subagent_watch import resolve_job_token
 
@@ -717,6 +725,48 @@ class TelegramInteractive:
         from integrations.messenger.subagent_watch import cancel_session_watch
 
         cancel_session_watch(self._session)
+
+    async def present_subagent_reply_route(self, routed: Any) -> str:
+        lang = messenger_host_locale(self._host)
+        kind = getattr(routed, "kind", "")
+        name = getattr(routed, "job_id", "") or "sub-agent"
+        if kind == "delivered":
+            msg = t("tg.subagent_q.sent", lang, name=name)
+            await self._host._send_plain(msg)
+            return msg
+        if kind == "gone":
+            msg = t("tg.subagent_q.gone", lang)
+            await self._host._send_plain(msg)
+            return msg
+        if kind == "awaiting":
+            msg = t("tg.subagent_q.awaiting", lang, name=name)
+            await self._host._send_plain(msg)
+            return msg
+        if kind == "need_target":
+            await self.show_subagent_reply_picker(with_text=True)
+            return t("tg.subagent_q.pick_with_text", lang)
+        feedback = str(getattr(routed, "feedback", "") or "").strip()
+        if feedback:
+            await self._host._send_plain(feedback)
+        return feedback or "OK"
+
+    async def show_subagent_reply_picker(self, *, with_text: bool = False) -> None:
+        from integrations.messenger.subagent_reply import pending_job_ids, tokens_for_jobs
+        from integrations.telegram.keyboards import subagent_reply_keyboard
+
+        lang = messenger_host_locale(self._host)
+        jobs = pending_job_ids(self._host.agent)
+        if not jobs:
+            await self._host._send_plain(t("tg.subagent_q.gone", lang))
+            return
+        tokens = tokens_for_jobs(self._session.subagent_reply_tokens, jobs)
+        key = "tg.subagent_q.pick_with_text" if with_text else "tg.subagent_q.pick"
+        html = escape_html(t(key, lang))
+        kb = subagent_reply_keyboard(tokens, lang)
+        if kb is None:
+            await self._host._send_html(html)
+            return
+        await self._host._send_html_with_keyboard(html, kb)
 
     async def show_subagent_live_list(self) -> None:
         from integrations.messenger.subagent_watch import (

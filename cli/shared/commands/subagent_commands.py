@@ -92,7 +92,9 @@ async def _deliver_subagent_result_when_ready(host: Any, job_id: str) -> None:
     agent = _resolve_subagent_agent(host)
     if not agent or not hasattr(agent, "subagents"):
         logger.warning("Sub-agent %s: agent not available for delivery", job_id)
-        _host_notify(host, f"[red]Sub-agent {job_id}: agent not available for result delivery[/red]")
+        _host_notify(
+            host, f"[red]Sub-agent {job_id}: agent not available for result delivery[/red]"
+        )
         return
     mgr = agent.subagents
     handle = mgr.get_handle(job_id)
@@ -146,9 +148,7 @@ async def run_subagents_command(host: Any, command: str) -> None:
     mgr = agent.subagents
     cfg = getattr(agent, "config", None)
     if not is_subagents_enabled(cfg):
-        host.transcript_write(
-            "Sub-agents disabled. Set enable_subagents: true in profile config."
-        )
+        host.transcript_write("Sub-agents disabled. Set enable_subagents: true in profile config.")
         return
 
     if cmd in ("/subagents", "/subagent-list", "/subagent list"):
@@ -163,9 +163,7 @@ async def run_subagents_command(host: Any, command: str) -> None:
         task = command.split(maxsplit=2)[2] if len(parts) >= 3 else ""
         if not task.strip():
             profile = str(getattr(host, "profile", None) or "default")
-            types = ", ".join(
-                item["name"] for item in list_available_subagents(profile=profile)
-            )
+            types = ", ".join(item["name"] for item in list_available_subagents(profile=profile))
             host.transcript_write(
                 "Usage: /subagent-spawn <type> <task>\n"
                 f"Types: {types}\n"
@@ -199,6 +197,13 @@ async def run_subagents_command(host: Any, command: str) -> None:
         from core.subagents.interaction import try_route_subagent_reply
 
         handled, feedback = try_route_subagent_reply(agent, command.strip())
+        from core.subagents.interaction import (
+            SUBAGENT_REPLY_NEED_TARGET,
+            format_need_target_hint,
+        )
+
+        if feedback == SUBAGENT_REPLY_NEED_TARGET:
+            feedback = format_need_target_hint(agent)
         host.transcript_write(feedback or "reply sent")
         # Keep TUI question queue in sync when answered via slash
         modals = getattr(host, "_modals", None)

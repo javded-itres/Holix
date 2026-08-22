@@ -618,6 +618,13 @@ class ChatSession:
                     if handled:
                         print_user_message(user_input)
                         if feedback:
+                            from core.subagents.interaction import (
+                                SUBAGENT_REPLY_NEED_TARGET,
+                                format_need_target_hint,
+                            )
+
+                            if feedback == SUBAGENT_REPLY_NEED_TARGET:
+                                feedback = format_need_target_hint(self.agent)
                             print_info(feedback)
                         continue
 

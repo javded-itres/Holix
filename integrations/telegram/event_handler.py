@@ -288,25 +288,37 @@ class TelegramEventHandler:
             self._presenter.schedule_edit()
 
     async def _send_subagent_question(self, event: SubAgentQuestionEvent) -> None:
+        from core.i18n.messages import t
+
+        from integrations.messenger.locale import messenger_locale
+        from integrations.messenger.subagent_reply import (
+            remember_question_message,
+            tokens_for_jobs,
+        )
+        from integrations.telegram.keyboards import subagent_reply_keyboard
         from integrations.telegram.markdown import escape_html
 
-        name = escape_html(event.subagent_name or "sub-agent")
+        session = self._presenter.session
+        lang = messenger_locale(session.profile)
+        name = event.subagent_name or "sub-agent"
+        title = escape_html(t("tg.subagent_q.title", lang, name=name))
         question = escape_html((event.question or "").strip())
         context = escape_html((event.context or "").strip())
-        text = f"<b>❓ Sub-agent <code>{name}</code> asks:</b>\n{question}"
+        hint = escape_html(t("tg.subagent_q.hint", lang))
+        text = f"<b>{title}</b>\n{question}"
         if context:
             text += f"\n\n<i>{context}</i>"
-        text += (
-            f"\n\n<i>Reply with your answer, "
-            f"<code>/subagent-reply {event.subagent_name} …</code>, "
-            f"or <code>@{event.subagent_name} …</code></i>"
-        )
+        text += f"\n\n<i>{hint}</i>"
+        tokens = tokens_for_jobs(session.subagent_reply_tokens, [name])
+        kb = subagent_reply_keyboard(tokens, lang)
         try:
-            await self._presenter._bot.send_message(
-                self._presenter.session.chat_id,
+            msg = await self._presenter._bot.send_message(
+                session.chat_id,
                 text,
                 parse_mode="HTML",
+                reply_markup=kb,
             )
+            remember_question_message(session, getattr(msg, "message_id", None), name)
         except Exception:
             pass
 

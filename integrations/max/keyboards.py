@@ -30,6 +30,21 @@ def subagent_list_keyboard(
     return inline_keyboard(rows)
 
 
+def subagent_reply_keyboard(
+    job_tokens: dict[str, str], locale: str | None = None
+) -> dict[str, Any] | None:
+    from core.i18n.messages import t
+
+    loc = locale or "ru"
+    rows: list[list[dict[str, str]]] = []
+    for job_id, token in job_tokens.items():
+        label = t("tg.subagent_q.reply_btn", loc, name=job_id)[:40]
+        rows.append([_callback_btn(label, _cb("sr", token))])
+    if not rows:
+        return None
+    return inline_keyboard(rows)
+
+
 def subagent_watch_keyboard(*, running: bool = True, locale: str | None = None) -> dict[str, Any]:
     from core.i18n.messages import t
 
