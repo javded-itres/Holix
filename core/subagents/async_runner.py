@@ -6,6 +6,7 @@ Zero overhead on startup, shared memory access, fast communication.
 """
 
 import asyncio
+import inspect
 import logging
 import time
 from typing import Any
@@ -200,7 +201,7 @@ class AsyncSubAgentRunner:
             while True:
                 while steps_taken < max_steps:
                     wait_pause = getattr(handle, "wait_while_paused", None)
-                    if callable(wait_pause):
+                    if inspect.iscoroutinefunction(wait_pause):
                         await wait_pause()
                     steps_taken += 1
                     handle.max_steps = max_steps

@@ -9,6 +9,7 @@ import pytest
 from core.graph.nodes.react_node import (
     _apply_supervisor_guidance,
     _build_system_prompt_from_state,
+    _is_subagent_agent,
     _maybe_subagent_empty_retry,
 )
 from core.llm.completion import EMPTY_FINAL_CONTINUE
@@ -374,6 +375,23 @@ async def test_main_agent_does_not_drain_guidance() -> None:
         agent,
         [{"role": "user", "content": "hi"}],
         conversation_id="default",
+    )
+    assert messages[0]["content"] == "hi"
+    assert patch == {}
+    assert cancelled is False
+
+
+def test_magicmock_agent_is_not_subagent() -> None:
+    assert _is_subagent_agent(MagicMock()) is False
+    assert _is_subagent_agent(SimpleNamespace(subagent_system_prompt="You are coder")) is True
+
+
+@pytest.mark.asyncio
+async def test_magicmock_agent_does_not_await_pause() -> None:
+    messages, patch, cancelled = await _apply_supervisor_guidance(
+        MagicMock(),
+        [{"role": "user", "content": "hi"}],
+        conversation_id="test",
     )
     assert messages[0]["content"] == "hi"
     assert patch == {}

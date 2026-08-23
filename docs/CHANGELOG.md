@@ -21,6 +21,13 @@
 - **Honesty empty final** — a ReAct honesty retry (`is_final=False`, no tools) no longer goes to Reflexion and finalize with an empty answer. The graph loops back to `react`.
 - **`holix subagent list`** — lists jobs for the whole profile (Telegram, Studio, CLI), not only the current process. `holix -p PROFILE subagent …` registers the command (lazy CLI load).
 - **Telegram/MAX sub-agent questions** — when several jobs wait (`coder-1`, `coder`, …) the bot no longer dumps CLI `/subagent-reply`. Each question has a Reply button; free text opens a picker; a Telegram reply to the question message goes to that job.
+- **MAX profile switch** — session profile change attaches background listeners with the polling/webhook client, not a missing `HelixMaxBot._client`.
+- **ReAct pause gate** — `wait_while_paused` is awaited only for a real coroutine (not a `MagicMock` handle on test agents). Sub-agent detection requires a string `subagent_system_prompt`.
+
+### Tests
+
+- MagicMock agents are not treated as sub-agents; `_apply_supervisor_guidance` does not await mock pause.
+- MAX `_get_session` mapped/fallback profiles no longer require `HelixMaxBot._client`.
 
 ## 1.0.17 — 2026-08-22
 
