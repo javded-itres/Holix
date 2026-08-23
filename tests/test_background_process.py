@@ -240,6 +240,16 @@ async def test_registry_replaces_process_on_same_port(
 
 
 @pytest.mark.asyncio
+async def test_start_tool_refuses_pytest(scope_tokens) -> None:
+    tool = StartBackgroundProcessTool()
+    with patch("config.settings.enable_terminal_tool", True):
+        result = await tool.execute(command="uv run pytest -q")
+    assert result.startswith("Error:")
+    assert "run_terminal_command" in result
+    assert "pytest" in result
+
+
+@pytest.mark.asyncio
 async def test_start_tool_disabled_without_terminal(scope_tokens) -> None:
     tool = StartBackgroundProcessTool()
     with patch("config.settings.enable_terminal_tool", False):

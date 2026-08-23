@@ -56,14 +56,31 @@ def subagent_watch_keyboard(*, running: bool = True, locale: str | None = None) 
     return inline_keyboard([buttons])
 
 
-def background_process_stop_keyboard(process_token: str) -> dict[str, Any]:
+def background_process_stop_keyboard(
+    process_token: str, locale: str | None = None
+) -> dict[str, Any]:
+    from core.i18n.messages import t
+
+    loc = locale or "ru"
     return inline_keyboard(
         [
-            [
-                _callback_btn("⏹ Остановить процесс", _cb("ps", process_token)),
-            ],
+            [_callback_btn(t("tg.process.logs", loc), _cb("pl", process_token))],
+            [_callback_btn(t("tg.process.stop", loc), _cb("ps", process_token))],
         ]
     )
+
+
+def process_log_watch_keyboard(
+    process_token: str, *, running: bool = True, locale: str | None = None
+) -> dict[str, Any]:
+    from core.i18n.messages import t
+
+    loc = locale or "ru"
+    row: list[dict[str, str]] = []
+    if running:
+        row.append(_callback_btn(t("tg.process.stop", loc), _cb("ps", process_token)))
+    row.append(_callback_btn(t("tg.process.watch_exit", loc), _cb("pe", "x")))
+    return inline_keyboard([row])
 
 
 def parse_callback(payload: str) -> tuple[str, str] | None:

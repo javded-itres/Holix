@@ -20,6 +20,8 @@ def test_pip_install_uvicorn_is_not_a_server_launch() -> None:
         ),
         "uv pip install uvicorn",
         "python -m pytest tests",
+        "uv run pytest -q",
+        "poetry run pytest",
         "python -m ruff check .",
         (
             "cd projects/data_address && source .venv/bin/activate && "

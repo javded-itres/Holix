@@ -35,23 +35,25 @@ async def compress_session_if_needed(
     compressed = inject_soul_into_messages(compressed, profile)
 
     try:
-        count = await agent.memory.replace_conversation_messages(
-            conversation_id, compressed
-        )
-        logger.info(
-            "Compressed conversation persisted: %s messages in DB", count
-        )
+        from core.memory.conversation import is_stored_honesty_nudge
+
+        to_store = [
+            m
+            for m in compressed
+            if not (
+                isinstance(m, dict) and is_stored_honesty_nudge(m.get("role"), m.get("content"))
+            )
+        ]
+        count = await agent.memory.replace_conversation_messages(conversation_id, to_store)
+        logger.info("Compressed conversation persisted: %s messages in DB", count)
     except Exception as persist_err:
-        logger.warning(
-            "Failed to persist compressed conversation: %s", persist_err
-        )
+        logger.warning("Failed to persist compressed conversation: %s", persist_err)
         if cm.last_summary:
             try:
                 await agent.memory.save_message(
                     conversation_id,
                     "system",
-                    "Context compressed. Summary of previous conversation:\n\n"
-                    f"{cm.last_summary}",
+                    f"Context compressed. Summary of previous conversation:\n\n{cm.last_summary}",
                     metadata={"type": "context_compression"},
                 )
             except Exception:
@@ -73,7 +75,5 @@ async def ensure_conversation_context(
         return False
     if not messages:
         return False
-    _, was_compressed = await compress_session_if_needed(
-        agent, conversation_id, messages
-    )
+    _, was_compressed = await compress_session_if_needed(agent, conversation_id, messages)
     return was_compressed

@@ -196,6 +196,8 @@ class MaxInteractive:
                 label=record.label or process_id,
                 status="stopped",
             )
+            if getattr(self._session, "process_log_watch_id", None) == process_id:
+                await self._edit_process_log_watch_message()
             return f"Остановлен: {record.label}"
 
         if action == "m" and value in self._host._execution_modes:
@@ -208,6 +210,19 @@ class MaxInteractive:
             await self.show_stream_picker()
             state = "on" if self._host.streaming_enabled else "off"
             return t("tg.streaming", messenger_host_locale(self._host), state=state)
+
+        if action == "pl":
+            from integrations.max.approvals import _lookup_callback_token
+
+            process_id = _lookup_callback_token(
+                self._session.process_callback_tokens,
+                value,
+            )
+            return await self.start_process_log_watch(process_id)
+
+        if action == "pe":
+            await self.exit_process_log_watch()
+            return t("tg.process.watch_closed", messenger_host_locale(self._host))
 
         if action == "sr":
             from integrations.messenger.subagent_reply import apply_reply_button
@@ -597,6 +612,134 @@ class MaxInteractive:
         closed = t("tg.subagent_watch.closed", lang)
         if job:
             html = format_watch_text(job, html=True, locale=lang) + f"\n\n<i>{closed}</i>"
+        else:
+            html = f"<i>{closed}</i>"
+        try:
+            await self._host._client.edit_message(mid, html, fmt="html", attachments=None)
+        except Exception:
+            pass
+
+    def _cancel_process_log_watch_task(self) -> None:
+        from integrations.messenger.process_log_watch import cancel_process_log_watch
+
+        cancel_process_log_watch(self._session)
+
+    def _process_watch_token(self, process_id: str) -> str:
+        from integrations.max.approvals import _register_callback_token
+
+        mapping = self._session.process_callback_tokens
+        for token, stored in mapping.items():
+            if stored == process_id:
+                return token
+        return _register_callback_token(mapping, process_id)
+
+    async def start_process_log_watch(self, process_id: str) -> str:
+        import asyncio
+
+        from integrations.max.keyboards import process_log_watch_keyboard
+        from integrations.max.models import message_id_from_response
+        from integrations.messenger.process_log_watch import (
+            format_process_log_watch,
+            load_process_record,
+        )
+
+        lang = messenger_host_locale(self._host)
+        pid = (process_id or "").strip()
+        rec = load_process_record(pid)
+        if rec is None:
+            return t("tg.process.watch_gone", lang)
+
+        switched = bool(
+            self._session.process_log_watch_id and self._session.process_log_watch_id != pid
+        )
+        if self._session.process_log_watch_id:
+            await self.exit_process_log_watch(silent=True)
+
+        token = self._process_watch_token(pid)
+        running = rec.is_running()
+        html = format_process_log_watch(rec, html=True, locale=lang)
+        kb = process_log_watch_keyboard(token, running=running, locale=lang)
+        payload = await self._host._client.send_message(
+            html,
+            fmt="html",
+            attachments=[kb],
+            **self._host._reply_kwargs(),
+        )
+        mid = message_id_from_response(payload)
+        self._session.process_log_watch_id = pid
+        self._session.process_log_watch_message_id = mid
+        if running and mid:
+            self._session.process_log_watch_task = asyncio.create_task(
+                self._process_log_watch_loop(),
+                name=f"max-proc-log-{pid[:24]}",
+            )
+        if switched:
+            return t("tg.process.watch_busy", lang)
+        return rec.label or pid
+
+    async def _process_log_watch_loop(self) -> None:
+        import asyncio
+
+        from integrations.messenger.process_log_watch import WATCH_INTERVAL_S
+
+        try:
+            while True:
+                await asyncio.sleep(WATCH_INTERVAL_S)
+                if not self._session.process_log_watch_id:
+                    return
+                still = await self._edit_process_log_watch_message()
+                if not still:
+                    return
+        except asyncio.CancelledError:
+            return
+
+    async def _edit_process_log_watch_message(self) -> bool:
+        from integrations.max.keyboards import process_log_watch_keyboard
+        from integrations.messenger.process_log_watch import (
+            format_process_log_watch,
+            load_process_record,
+        )
+
+        lang = messenger_host_locale(self._host)
+        pid = self._session.process_log_watch_id
+        mid = self._session.process_log_watch_message_id
+        if not pid or not mid:
+            return False
+        rec = load_process_record(pid)
+        html = format_process_log_watch(rec, html=True, locale=lang)
+        running = bool(rec and rec.is_running())
+        kb = process_log_watch_keyboard(
+            self._process_watch_token(pid),
+            running=running,
+            locale=lang,
+        )
+        try:
+            await self._host._client.edit_message(
+                mid,
+                html,
+                fmt="html",
+                attachments=[kb] if rec is not None else None,
+            )
+        except Exception:
+            return False
+        return running
+
+    async def exit_process_log_watch(self, *, silent: bool = False) -> None:
+        from integrations.messenger.process_log_watch import (
+            format_process_log_watch,
+            load_process_record,
+        )
+
+        lang = messenger_host_locale(self._host)
+        pid = self._session.process_log_watch_id
+        mid = self._session.process_log_watch_message_id
+        self._cancel_process_log_watch_task()
+        if silent or not mid:
+            return
+        rec = load_process_record(pid or "") if pid else None
+        closed = t("tg.process.watch_closed", lang)
+        if rec:
+            html = format_process_log_watch(rec, html=True, locale=lang) + f"\n\n<i>{closed}</i>"
         else:
             html = f"<i>{closed}</i>"
         try:

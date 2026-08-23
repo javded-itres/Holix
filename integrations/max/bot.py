@@ -245,7 +245,13 @@ class HelixMaxBot:
         mapped = resolve_user_profile(self.settings.profile, user_id)
         return mapped or self.settings.profile
 
-    async def _switch_session_profile(self, session: MaxChatSession, profile: str) -> None:
+    async def _switch_session_profile(
+        self,
+        session: MaxChatSession,
+        profile: str,
+        *,
+        client: MaxClient | None = None,
+    ) -> None:
         session.profile = profile
         session.conversation_id = conversation_id_for_max(
             self.settings.profile,
@@ -258,6 +264,10 @@ class HelixMaxBot:
             bot_profile=self.settings.profile,
             max_user_id=session.user_id,
         )
+        if client is not None:
+            from integrations.max.background_events import attach_max_background_events
+
+            attach_max_background_events(client, session)
         session.pending_files.clear()
         session.pending_plan_review_id = None
         session.pending_confirmation_message_id = None
@@ -275,6 +285,7 @@ class HelixMaxBot:
         reply_user_id: int | None,
         reply_chat_id: int | None,
         chat_type: str | None = None,
+        client: MaxClient | None = None,
     ) -> MaxChatSession:
         key = _session_key(user_id, reply_chat_id)
         if key not in self._sessions:
@@ -313,9 +324,9 @@ class HelixMaxBot:
         if not session.profile_manual_override:
             target = self._default_profile_for_user(user_id)
             if target != session.profile:
-                await self._switch_session_profile(session, target)
+                await self._switch_session_profile(session, target, client=client)
         if session.agent is None:
-            await self._switch_session_profile(session, session.profile)
+            await self._switch_session_profile(session, session.profile, client=client)
         return session
 
     def _session_for_pin_chat(self, chat_id: str) -> MaxChatSession | None:
@@ -448,7 +459,7 @@ class HelixMaxBot:
             api = getattr(self, "_plugin_api", None) or get_active_max_plugin_api()
             if api is not None:
                 api.client = client
-                session = await self._get_session(uid, reply_user_id=uid)
+                session = await self._get_session(uid, reply_user_id=uid, client=client)
                 host = MaxHost(client, session)
                 handled = await self._run_extension_command(
                     api,
@@ -479,6 +490,10 @@ class HelixMaxBot:
         msg = message_from_update(update)
         if msg is None:
             return
+        from integrations.max.forwards import flatten_max_forward, is_max_forward
+
+        msg = flatten_max_forward(msg)
+        forwarded = is_max_forward(msg)
         uid = sender_user_id(msg)
         if uid is None:
             return
@@ -510,6 +525,7 @@ class HelixMaxBot:
                 reply_chat_id=reply_chat_id,
                 caption=text,
                 message=msg,
+                process_now=forwarded,
             )
             return
 
@@ -535,6 +551,7 @@ class HelixMaxBot:
             reply_user_id=reply_user_id,
             reply_chat_id=reply_chat_id,
             chat_type=chat_type,
+            client=client,
         )
         session.incoming_message_id = incoming_mid
         host = MaxHost(client, session)
@@ -610,6 +627,7 @@ class HelixMaxBot:
         reply_chat_id: int | None,
         caption: str,
         message: dict,
+        process_now: bool = False,
     ) -> None:
         from config import settings
 
@@ -636,6 +654,7 @@ class HelixMaxBot:
             reply_user_id=reply_user_id,
             reply_chat_id=reply_chat_id,
             chat_type=chat_type,
+            client=client,
         )
         host = MaxHost(client, session)
         saved, errors = await self._save_attachments(
@@ -654,7 +673,7 @@ class HelixMaxBot:
             return
 
         preview = format_files_preview_markdown(saved, errors=errors)
-        if caption:
+        if caption or process_now:
             await client.send_message(
                 plain_to_max_html(preview),
                 fmt="html",
@@ -778,6 +797,7 @@ class HelixMaxBot:
             reply_user_id=reply_user_id,
             reply_chat_id=reply_chat_id,
             chat_type=chat_type_from_update(update),
+            client=client,
         )
         host = MaxHost(client, session)
         approvals = MaxApprovals(client, session)

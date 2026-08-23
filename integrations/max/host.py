@@ -350,6 +350,9 @@ class MaxHost:
 
         self._session.profile = new_profile
         self._session.agent = await create_agent(new_profile)
+        from integrations.max.background_events import attach_max_background_events
+
+        attach_max_background_events(self._client, self._session)
         self._session.active_model_slot = "main"
         self._session.active_model_label = "main"
         await self._create_new_session()
@@ -584,6 +587,9 @@ class MaxHost:
             handler.handle(event)
 
         self.agent.events.subscribe(on_event)
+        from integrations.max.background_events import attach_max_background_events
+
+        attach_max_background_events(self._client, self._session)
 
         from core.tools.execution_context import (
             agent_emit_scope,

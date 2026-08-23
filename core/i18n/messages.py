@@ -57,6 +57,13 @@ MESSAGES: dict[str, dict[str, str]] = {
         "tg.subagent_watch.gone": "Sub-agent is no longer available.",
         "tg.subagent_watch.stopped": "Sub-agent stop requested.",
         "tg.subagent_watch.busy": "Already watching another sub-agent — switched.",
+        "tg.process.logs": "📜 Watch logs",
+        "tg.process.stop": "⏹ Stop process",
+        "tg.process.watch_title": "Logs {label} [{status}] · pid {pid}",
+        "tg.process.watch_gone": "Process is no longer available.",
+        "tg.process.watch_closed": "Log watch closed.",
+        "tg.process.watch_exit": "✕ Close logs",
+        "tg.process.watch_busy": "Already watching another process — switched.",
         "tg.subagent_q.title": "❓ Sub-agent {name} asks:",
         "tg.subagent_q.reply_btn": "Reply to {name}",
         "tg.subagent_q.hint": "Tap the button or reply to this message.",
@@ -68,6 +75,14 @@ MESSAGES: dict[str, dict[str, str]] = {
         "tg.subagent_q.sent": "Answer sent to {name}.",
         "tg.subagent_q.gone": "That sub-agent is no longer waiting.",
         "tg.subagent_q.need_text": "Send the answer as a chat message.",
+        "msg.forward.from": "Forwarded from: {origin}",
+        "msg.forward.anon": "Forwarded message",
+        "msg.forward.comment": "Comment: {text}",
+        "msg.forward.instruction": (
+            "Process this forwarded message: read the text and attachments "
+            "(photo, video, file), summarize the content, and do anything useful "
+            "that follows from it."
+        ),
         "tg.reflexion": "Reflexion: {state}",
         "tg.reflexion_on": "Reflexion On",
         "tg.reflexion_off": "Off",
@@ -569,55 +584,56 @@ When finished, confirm the absolute path written and give a 5–10 line summary 
         "supervisor.known": "Already known: {known}",
         "supervisor.last_tool_result": "Last tool result: {result}",
         "supervisor.asked_agent": "What the supervisor already asked the agent to do: {next}",
+        "supervisor.awaiting_user": "Waiting for your answer ({name})",
         "supervisor.fallback_q": (
             "Sub-agent `{name}` is stuck in a tool loop ({summary}). "
             "What should it do next, or should it stop?"
         ),
         "supervisor.q.inspect": (
-            "The coder is stuck inspecting libraries instead of writing files{target}. "
+            "Sub-agent `{name}` is stuck inspecting libraries instead of writing files{target}. "
             "Should it implement from known FastAPI/Dishka APIs, skip this step, "
             "or do you want a different approach?"
         ),
         "supervisor.q.noop_write": (
-            "The coder keeps rewriting files that already match disk{target}. "
+            "Sub-agent `{name}` keeps rewriting files that already match disk{target}. "
             "Should it stop and finalize, run tests once, or change a specific file?"
         ),
         "supervisor.q.launch": (
-            "The coder keeps launching the server in terminal instead of "
+            "Sub-agent `{name}` keeps launching the server in terminal instead of "
             "start_background_process{target}. "
             "Should it switch to the background tool, skip the server, or stop?"
         ),
         "supervisor.q.venv": (
-            "The coder is looping on `ls/grep` inside .venv{target}. "
+            "Sub-agent `{name}` is looping on `ls/grep` inside .venv{target}. "
             "Those packages are not installed. Should it implement without them, "
             "`uv add` a specific package, or stop and wait for you?"
         ),
         "supervisor.q.install": (
-            "The coder is retrying the same install command{target}. "
+            "Sub-agent `{name}` is retrying the same install command{target}. "
             "Should it continue with current deps, install a named package, or stop?"
         ),
         "supervisor.q.terminal": (
-            "The coder is repeating the same terminal command{target}. "
+            "Sub-agent `{name}` is repeating the same terminal command{target}. "
             "What should it do instead (which file to edit, which command, or stop)?"
         ),
         "supervisor.q.read": (
-            "The coder keeps re-reading the same file{target}. "
+            "Sub-agent `{name}` keeps re-reading the same file{target}. "
             "Which change should it make, or should it stop?"
         ),
         "supervisor.q.search": (
-            "The coder is stuck repeating grep/glob{target}. "
+            "Sub-agent `{name}` is stuck repeating grep/glob{target}. "
             "Which path should it open, or should it stop searching?"
         ),
         "supervisor.q.write": (
-            "The coder keeps rewriting the same file{target}. "
+            "Sub-agent `{name}` keeps rewriting the same file{target}. "
             "Should it finalize, edit a different file, or stop?"
         ),
         "supervisor.q.web": (
-            "The coder is looping on web_search/web_fetch{target}. "
+            "Sub-agent `{name}` is looping on web_search/web_fetch{target}. "
             "Should it write from current evidence, try a specific URL, or stop?"
         ),
         "supervisor.q.generic": (
-            "The coder is looping on `{tool}`{target}. What should it do next, or should it stop?"
+            "Sub-agent `{name}` is looping on `{tool}`{target}. What should it do next, or should it stop?"
         ),
         "supervisor.p.inspect": "library introspection via terminal",
         "supervisor.p.noop_write": "rewriting files that already match disk",
@@ -707,6 +723,13 @@ When finished, confirm the absolute path written and give a 5–10 line summary 
         "tg.subagent_watch.gone": "Субагент больше недоступен.",
         "tg.subagent_watch.stopped": "Остановка субагента запрошена.",
         "tg.subagent_watch.busy": "Уже смотрите другого субагента — переключили.",
+        "tg.process.logs": "📜 Смотреть логи",
+        "tg.process.stop": "⏹ Остановить процесс",
+        "tg.process.watch_title": "Логи {label} [{status}] · pid {pid}",
+        "tg.process.watch_gone": "Процесс больше недоступен.",
+        "tg.process.watch_closed": "Просмотр логов закрыт.",
+        "tg.process.watch_exit": "✕ Закрыть логи",
+        "tg.process.watch_busy": "Уже смотрите другой процесс — переключили.",
         "tg.subagent_q.title": "❓ Субагент {name} спрашивает:",
         "tg.subagent_q.reply_btn": "Ответить {name}",
         "tg.subagent_q.hint": "Нажмите кнопку или ответьте на это сообщение.",
@@ -718,6 +741,14 @@ When finished, confirm the absolute path written and give a 5–10 line summary 
         "tg.subagent_q.sent": "Ответ отправлен субагенту {name}.",
         "tg.subagent_q.gone": "Этот субагент уже не ждёт ответ.",
         "tg.subagent_q.need_text": "Напишите ответ сообщением в чат.",
+        "msg.forward.from": "Переслано от: {origin}",
+        "msg.forward.anon": "Пересланное сообщение",
+        "msg.forward.comment": "Комментарий: {text}",
+        "msg.forward.instruction": (
+            "Обработай пересланное сообщение: разбери текст и вложения "
+            "(фото, видео, файл), кратко опиши содержимое и выполни то, "
+            "что из него следует."
+        ),
         "tg.reflexion": "Reflexion: {state}",
         "tg.reflexion_on": "Reflexion Вкл",
         "tg.reflexion_off": "Выкл",
@@ -1218,55 +1249,56 @@ When finished, confirm the absolute path written and give a 5–10 line summary 
         "supervisor.known": "Уже известно: {known}",
         "supervisor.last_tool_result": "Последний результат инструмента: {result}",
         "supervisor.asked_agent": "Что супервизор уже просил агента сделать: {next}",
+        "supervisor.awaiting_user": "Ждёт ваш ответ ({name})",
         "supervisor.fallback_q": (
             "Субагент `{name}` зациклился на одном инструменте ({summary}). "
             "Что ему делать дальше — или остановить?"
         ),
         "supervisor.q.inspect": (
-            "Кодер застрял на инспекции библиотек вместо того, чтобы писать файлы{target}. "
+            "Субагент `{name}` застрял на инспекции библиотек вместо того, чтобы писать файлы{target}. "
             "Реализовать на известных API FastAPI/Dishka, пропустить шаг "
             "или нужен другой подход?"
         ),
         "supervisor.q.noop_write": (
-            "Кодер снова перезаписывает файлы, которые уже совпадают с диском{target}. "
+            "Субагент `{name}` снова перезаписывает файлы, которые уже совпадают с диском{target}. "
             "Остановить и финализировать, один раз прогнать тесты или править конкретный файл?"
         ),
         "supervisor.q.launch": (
-            "Кодер снова поднимает сервер в terminal вместо "
+            "Субагент `{name}` снова поднимает сервер в terminal вместо "
             "start_background_process{target}. "
             "Переключить на фоновый инструмент, пропустить сервер или остановить?"
         ),
         "supervisor.q.venv": (
-            "Кодер крутит `ls/grep` внутри .venv{target}. "
+            "Субагент `{name}` крутит `ls/grep` внутри .venv{target}. "
             "Этих пакетов нет. Реализовать без них, сделать `uv add` конкретного пакета "
             "или остановиться и ждать вас?"
         ),
         "supervisor.q.install": (
-            "Кодер повторяет одну и ту же команду установки{target}. "
+            "Субагент `{name}` повторяет одну и ту же команду установки{target}. "
             "Продолжить с текущими зависимостями, поставить названный пакет или остановить?"
         ),
         "supervisor.q.terminal": (
-            "Кодер повторяет одну и ту же команду terminal{target}. "
+            "Субагент `{name}` повторяет одну и ту же команду terminal{target}. "
             "Что сделать вместо этого (какой файл править, какую команду, или остановить)?"
         ),
         "supervisor.q.read": (
-            "Кодер снова читает один и тот же файл{target}. "
+            "Субагент `{name}` снова читает один и тот же файл{target}. "
             "Какое изменение сделать — или остановить?"
         ),
         "supervisor.q.search": (
-            "Кодер застрял на повторном grep/glob{target}. "
+            "Субагент `{name}` застрял на повторном grep/glob{target}. "
             "Какой путь открыть — или прекратить поиск?"
         ),
         "supervisor.q.write": (
-            "Кодер снова перезаписывает один и тот же файл{target}. "
+            "Субагент `{name}` снова перезаписывает один и тот же файл{target}. "
             "Финализировать, править другой файл или остановить?"
         ),
         "supervisor.q.web": (
-            "Кодер крутит web_search/web_fetch{target}. "
+            "Субагент `{name}` крутит web_search/web_fetch{target}. "
             "Писать по уже найденному, открыть конкретный URL или остановить?"
         ),
         "supervisor.q.generic": (
-            "Кодер зациклился на `{tool}`{target}. Что делать дальше — или остановить?"
+            "Субагент `{name}` зациклился на `{tool}`{target}. Что делать дальше — или остановить?"
         ),
         "supervisor.p.inspect": "инспекция библиотек через terminal",
         "supervisor.p.noop_write": "перезапись файлов, которые уже совпадают с диском",

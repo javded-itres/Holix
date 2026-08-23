@@ -88,3 +88,31 @@ async def test_conversation_store_contract(temp_dir):
     messages = await store.get_conversation("ord", limit=10)
     assert messages[0]["content"] == "first"
     assert messages[1]["content"] == "second"
+
+
+@pytest.mark.asyncio
+async def test_conversation_skips_honesty_nudges(temp_dir):
+    cfg = HolixRuntimeConfig.from_settings().with_overrides(
+        memory_db_path=f"{temp_dir}/conv-honesty.db",
+        vector_db_path=f"{temp_dir}/vec-honesty",
+    )
+    store = ConversationStore(cfg)
+    await store.initialize_db()
+    nudge = "[Action honesty — tools] You are only narrating progress without calling tools."
+    assert await store.save_message("s1", "user", "сделай пост") == 1
+    assert await store.save_message("s1", "assistant", "Создаю пост…") > 0
+    assert await store.save_message("s1", "user", nudge) == 0
+
+    loaded = await store.get_conversation("s1", limit=10)
+    assert [m["content"] for m in loaded] == ["сделай пост", "Создаю пост…"]
+
+    await store.replace_conversation_messages(
+        "s1",
+        [
+            {"role": "user", "content": "продолжи"},
+            {"role": "user", "content": nudge},
+            {"role": "assistant", "content": "Ищу новости…"},
+        ],
+    )
+    loaded2 = await store.get_conversation("s1", limit=10)
+    assert [m["content"] for m in loaded2] == ["продолжи", "Ищу новости…"]

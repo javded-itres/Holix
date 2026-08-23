@@ -1,6 +1,6 @@
 # Holix development rules
 
-Обязательные подходы и паттерны для разработки **Holix** (agent core, gateway, CLI) и экосистемы (extensions, deploy).  
+Обязательные подходы и паттерны для разработки **Holix** (agent core, gateway, CLI) и экосистемы (extensions, deploy).
 Нарушение архитектурных правил ломает CI (`tests/test_architecture_boundaries.py`) и прод-безопасность.
 
 Связанные документы: [CONTRIBUTING.md](CONTRIBUTING.md) · [docs/en/ARCHITECTURE.md](docs/en/ARCHITECTURE.md) · [docs/en/EXTENSIONS.md](docs/en/EXTENSIONS.md) · [docs/en/SECURITY.md](docs/en/SECURITY.md) · [AGENTS.md](AGENTS.md)
@@ -80,7 +80,7 @@ $HOLIX_HOME/profiles/<name>/
 
 ### Tools
 
-1. Долгоживущие процессы (bots, `uvicorn`, `npm run dev`) → **`start_background_process`**, не `run_terminal` + `nohup`.
+1. Тесты/сборки (`pytest`, `npm test`, `cargo test`) → **`run_terminal_command`**, не `start_background_process`. Фон — только по явной просьбе «в фоне» / запустить сервер (bots, `uvicorn`, `npm run dev`).
 2. Background index (`background_processes.json`) — running **и** stopped history (restart после reboot).
 3. Не поднимать второй long-poll Telegram на том же bot token, что holix-gateway.
 4. High-risk tools → confirmation flow (`core/security/confirmation.py`).

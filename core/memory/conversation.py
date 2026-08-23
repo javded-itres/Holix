@@ -23,6 +23,15 @@ _SEARCHABLE_ROLES = frozenset({"user", "assistant", "system"})
 _MIN_INDEX_CHARS = 10
 _SEARCH_OVERFETCH_FACTOR = 5
 _SEARCH_OVERFETCH_MAX = 60
+_HONESTY_NUDGE_PREFIX = "[Action honesty"
+
+
+def is_stored_honesty_nudge(role: str | None, content: Any) -> bool:
+    """True for graph-only honesty injects that must not poison session history."""
+    if (role or "") != "user":
+        return False
+    text = content if isinstance(content, str) else str(content or "")
+    return text.strip().startswith(_HONESTY_NUDGE_PREFIX)
 
 
 def _should_index_for_search(role: str) -> bool:
@@ -100,6 +109,9 @@ class ConversationStore:
         metadata: dict[str, Any] | None = None,
     ) -> int:
         # Hard cap tool payloads at the storage boundary (classic loop, graph, etc.)
+        if is_stored_honesty_nudge(role, content):
+            return 0
+
         if role == "tool" and isinstance(content, str):
             from core.memory.tool_content import truncate_tool_content_for_memory
 
@@ -142,6 +154,8 @@ class ConversationStore:
         conversation_id: str,
         limit: int = 30,
     ) -> list[dict[str, Any]]:
+        # Over-fetch so dropping graph-only honesty injects still fills `limit`.
+        fetch_limit = min(max(int(limit), int(limit) * 2), 500)
         async with connect_aiosqlite(self.db_path) as db:
             db.row_factory = aiosqlite.Row
             cursor = await db.execute(
@@ -154,12 +168,14 @@ class ConversationStore:
                        LIMIT ?
                    ) AS recent
                    ORDER BY recent.id ASC""",
-                (conversation_id, limit),
+                (conversation_id, fetch_limit),
             )
             rows = await cursor.fetchall()
 
             messages = []
             for row in rows:
+                if is_stored_honesty_nudge(row["role"], row["content"]):
+                    continue
                 msg: dict[str, Any] = {"role": row["role"], "content": row["content"]}
                 if row["metadata"]:
                     try:
@@ -169,6 +185,9 @@ class ConversationStore:
                     except json.JSONDecodeError:
                         pass
                 messages.append(msg)
+
+            if len(messages) > limit:
+                messages = messages[-limit:]
 
             # Cap legacy oversized tool rows so reloads do not blow the context window.
             from core.memory.tool_content import sanitize_messages_tool_content
@@ -226,6 +245,8 @@ class ConversationStore:
             for msg in new_messages:
                 role = msg.get("role", "user")
                 content = msg.get("content", "")
+                if is_stored_honesty_nudge(role, content):
+                    continue
                 if role == "tool" and isinstance(content, str):
                     content = truncate_tool_content_for_memory(content)
                 metadata = msg.get("metadata")
@@ -247,6 +268,8 @@ class ConversationStore:
             for msg in new_messages:
                 role = msg.get("role", "")
                 content = msg.get("content", "")
+                if is_stored_honesty_nudge(role, content):
+                    continue
                 meta = msg.get("metadata", {})
                 if content and len(content) > _MIN_INDEX_CHARS and _should_index_for_search(role):
                     try:

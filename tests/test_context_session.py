@@ -13,6 +13,47 @@ from core.runtime.context_session import compress_session_if_needed
 
 
 @pytest.mark.asyncio
+async def test_compress_session_does_not_persist_honesty_nudges() -> None:
+    from unittest.mock import AsyncMock, MagicMock
+
+    class _CM:
+        last_summary = ""
+
+        async def auto_compress_if_needed(self, messages, conversation_id=None):
+            return list(messages), True
+
+        def invalidate_usage_cache(self, conversation_id):
+            return None
+
+    agent = MagicMock()
+    agent.config.profile_name = "default"
+    agent.context_manager = _CM()
+    agent.memory.replace_conversation_messages = AsyncMock(return_value=2)
+    messages = [
+        {"role": "user", "content": "сделай пост"},
+        {"role": "assistant", "content": "Создаю…"},
+        {
+            "role": "user",
+            "content": "[Action honesty — tools] You are only narrating progress",
+        },
+    ]
+    out, was = await compress_session_if_needed(agent, "c1", messages)
+    assert was is True
+    stored = agent.memory.replace_conversation_messages.await_args.args[1]
+    assert any(
+        isinstance(m, dict) and str(m.get("content") or "").startswith("[Action honesty")
+        for m in out
+    )
+    assert all(
+        not (
+            isinstance(m, dict)
+            and str(m.get("content") or "").strip().startswith("[Action honesty")
+        )
+        for m in stored
+    )
+
+
+@pytest.mark.asyncio
 async def test_compress_session_at_95_percent() -> None:
     counter = TokenCounter()
     manager = ContextManager(

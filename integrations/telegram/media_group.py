@@ -22,6 +22,7 @@ class MediaGroupBatch:
     media_group_id: str
     items: list[PendingAttachment] = field(default_factory=list)
     caption: str = ""
+    process_now: bool = False
     flush_task: asyncio.Task | None = None
 
 
@@ -47,6 +48,7 @@ class MediaGroupBuffer:
         item: PendingAttachment,
         caption: str = "",
         on_flush: FlushCallback,
+        process_now: bool = False,
     ) -> None:
         key = self._key(chat_id, media_group_id)
         batch = self._batches.get(key)
@@ -61,6 +63,8 @@ class MediaGroupBuffer:
         batch.items.append(item)
         if caption and not batch.caption:
             batch.caption = caption.strip()
+        if process_now:
+            batch.process_now = True
 
         if batch.flush_task and not batch.flush_task.done():
             batch.flush_task.cancel()

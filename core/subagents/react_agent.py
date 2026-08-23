@@ -163,12 +163,14 @@ def attach_subagent_runtime(
     receive: Any | None = None,
     input_queue: Any | None = None,
     on_guidance: Any | None = None,
+    handle: Any | None = None,
 ) -> None:
     """Let react_node drain supervisor guidance for this child."""
     child._subagent_name = str(name or "").strip()
     child._subagent_guidance_receive = receive
     child._subagent_input_queue = input_queue
     child._subagent_on_guidance = on_guidance
+    child._subagent_handle = handle
 
 
 def is_empty_react_result(text: str | None) -> bool:

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 from core.external_cli.assignment import assign_cli_to_subagent
@@ -112,6 +113,7 @@ def test_prepare_subagent_custom_mcp_and_cli(holix_home, monkeypatch: pytest.Mon
     assert "filesystem" in cfg.mcp_servers
     assert "external_cli" in cfg.tools
 
+
 def test_prepare_subagent_applies_provider_model_slot(
     holix_home, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -172,7 +174,68 @@ def test_prepare_subagent_applies_provider_model_slot(
         model_slot="",
     )
     SubAgentTypeStore("default").upsert(custom2)
-    cfg2 = prepare_subagent_config(
-        "inherit-worker", parent, instance_name="inherit-worker"
-    )
+    cfg2 = prepare_subagent_config("inherit-worker", parent, instance_name="inherit-worker")
     assert not cfg2.model
+
+
+def test_prepare_builtin_coder_uses_agent_models_slot(holix_home) -> None:
+    """Built-in coder picks agent_models.coder; types without a slot inherit parent."""
+    parent = SimpleNamespace(
+        subagent_default_process_mode="async",
+        subagent_process_timeout=None,
+        profile_name="default",
+        mcp_assignments={},
+        agent_models={
+            "main": {"provider": "ollama", "model": "kimi-k2.7-code:cloud"},
+            "coder": {"provider": "ollama", "model": "ornith-1.5:35b"},
+        },
+        providers={
+            "ollama": {
+                "base_url": "http://127.0.0.1:11434/v1",
+                "api_key": "dummy",
+                "default_model": "kimi-k2.7-code:cloud",
+                "available_models": ["kimi-k2.7-code:cloud", "ornith-1.5:35b"],
+            }
+        },
+        default_provider="ollama",
+        model="kimi-k2.7-code:cloud",
+    )
+    cfg = prepare_subagent_config("coder", parent, instance_name="coder")
+    assert cfg.model == "ornith-1.5:35b"
+
+    researcher = prepare_subagent_config("researcher", parent, instance_name="researcher")
+    assert not researcher.model
+
+
+def test_prepare_custom_model_slot_wins_over_agent_models_type_key(
+    holix_home,
+) -> None:
+    custom = CustomSubAgentType(
+        name="kimi-worker",
+        description="Uses explicit slot",
+        system_prompt="You code carefully with tests.",
+        model_slot="main",
+    )
+    SubAgentTypeStore("default").upsert(custom)
+    parent = SimpleNamespace(
+        subagent_default_process_mode="async",
+        subagent_process_timeout=None,
+        profile_name="default",
+        mcp_assignments={},
+        agent_models={
+            "main": {"provider": "ollama", "model": "kimi-k2.7-code:cloud"},
+            "kimi-worker": {"provider": "ollama", "model": "ornith-1.5:35b"},
+        },
+        providers={
+            "ollama": {
+                "base_url": "http://127.0.0.1:11434/v1",
+                "api_key": "dummy",
+                "default_model": "kimi-k2.7-code:cloud",
+                "available_models": ["kimi-k2.7-code:cloud", "ornith-1.5:35b"],
+            }
+        },
+        default_provider="ollama",
+        model="kimi-k2.7-code:cloud",
+    )
+    cfg = prepare_subagent_config("kimi-worker", parent, instance_name="kimi-worker")
+    assert not cfg.model

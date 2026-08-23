@@ -7,6 +7,7 @@ the event bus as side effects.
 """
 
 import asyncio
+import inspect
 import json
 import logging
 import time
@@ -121,6 +122,10 @@ async def _apply_supervisor_guidance(
     """Inject runtime supervisor guidance into a child ReAct turn."""
     if not _is_subagent_agent(agent):
         return messages, {}, False
+    handle = getattr(agent, "_subagent_handle", None)
+    wait_pause = getattr(handle, "wait_while_paused", None) if handle is not None else None
+    if inspect.iscoroutinefunction(wait_pause):
+        await wait_pause()
     try:
         from core.subagents.supervisor import (
             collect_subagent_guidance,
@@ -242,7 +247,10 @@ _SUBAGENT_EMPTY_RETRIES = 3
 
 
 def _is_subagent_agent(agent: Any) -> bool:
-    return bool(str(getattr(agent, "subagent_system_prompt", "") or "").strip()) if agent else False
+    if not agent:
+        return False
+    prompt = getattr(agent, "subagent_system_prompt", None)
+    return isinstance(prompt, str) and bool(prompt.strip())
 
 
 def _is_empty_subagent_final(text: str | None) -> bool:
@@ -1534,9 +1542,6 @@ async def _react_streaming(
                 or final_response
             )
             messages.append({"role": "assistant", "content": final_response})
-
-            if agent and hasattr(agent, "memory"):
-                await agent.memory.save_message(conversation_id, "assistant", final_response)
 
             if plan_step_active(state):
                 _emit_stream_usage_once(completion_text=final_response)

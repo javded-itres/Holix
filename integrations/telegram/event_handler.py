@@ -60,6 +60,20 @@ class TelegramEventHandler:
             logger.warning("Telegram handler: no event loop; skipped async delivery")
 
     def handle(self, event: AgentEvent) -> None:
+        if isinstance(event, SubAgentQuestionEvent):
+            self._schedule_task(self._send_subagent_question(event))
+            buf = self._presenter.buffer
+            if buf is not None:
+                try:
+                    buf.set_thinking(None)
+                    name = event.subagent_name or "sub-agent"
+                    q = (event.question or "").strip()
+                    buf.add_note(f"❓ {name}: {q[:500]}")
+                    self._presenter.schedule_edit(force=True)
+                except Exception:
+                    logger.debug("live note for sub-agent question failed", exc_info=True)
+            return
+
         buf = self._presenter.buffer
         if buf is None:
             return
@@ -176,14 +190,6 @@ class TelegramEventHandler:
                 if note:
                     self._presenter.enqueue_outbound(self._presenter.send_notice(note))
 
-            elif isinstance(event, SubAgentQuestionEvent):
-                buf.set_thinking(None)
-                name = event.subagent_name or "sub-agent"
-                q = (event.question or "").strip()
-                buf.add_note(f"❓ {name}: {q[:500]}")
-                self._presenter.schedule_edit(force=True)
-                asyncio.create_task(self._send_subagent_question(event))
-
             elif isinstance(event, PlanReviewRequestEvent):
                 buf.set_thinking(None)
                 buf.add_note(live_plan_review_label(buf.profile, step_count=event.step_count))
@@ -222,6 +228,7 @@ class TelegramEventHandler:
             elif isinstance(event, BackgroundProcessStartedEvent):
                 label = f"{event.label} · pid {event.pid}"
                 buf.set_background_process(label=label, process_id=event.process_id)
+                from integrations.messenger.locale import messenger_locale
                 from integrations.telegram.approvals import _register_callback_token
                 from integrations.telegram.keyboards import background_process_stop_keyboard
 
@@ -229,7 +236,10 @@ class TelegramEventHandler:
                     self._presenter.session.process_callback_tokens,
                     event.process_id,
                 )
-                markup = background_process_stop_keyboard(token)
+                markup = background_process_stop_keyboard(
+                    token,
+                    messenger_locale(self._presenter.session.profile),
+                )
                 self._presenter.set_reply_markup(markup)
                 self._presenter.schedule_edit(force=True)
                 # Dedicated pinned notice (survives run end / scroll).
@@ -288,39 +298,13 @@ class TelegramEventHandler:
             self._presenter.schedule_edit()
 
     async def _send_subagent_question(self, event: SubAgentQuestionEvent) -> None:
-        from core.i18n.messages import t
+        from integrations.telegram.background_events import deliver_telegram_subagent_question
 
-        from integrations.messenger.locale import messenger_locale
-        from integrations.messenger.subagent_reply import (
-            remember_question_message,
-            tokens_for_jobs,
+        await deliver_telegram_subagent_question(
+            self._presenter._bot,
+            self._presenter.session,
+            event,
         )
-        from integrations.telegram.keyboards import subagent_reply_keyboard
-        from integrations.telegram.markdown import escape_html
-
-        session = self._presenter.session
-        lang = messenger_locale(session.profile)
-        name = event.subagent_name or "sub-agent"
-        title = escape_html(t("tg.subagent_q.title", lang, name=name))
-        question = escape_html((event.question or "").strip())
-        context = escape_html((event.context or "").strip())
-        hint = escape_html(t("tg.subagent_q.hint", lang))
-        text = f"<b>{title}</b>\n{question}"
-        if context:
-            text += f"\n\n<i>{context}</i>"
-        text += f"\n\n<i>{hint}</i>"
-        tokens = tokens_for_jobs(session.subagent_reply_tokens, [name])
-        kb = subagent_reply_keyboard(tokens, lang)
-        try:
-            msg = await self._presenter._bot.send_message(
-                session.chat_id,
-                text,
-                parse_mode="HTML",
-                reply_markup=kb,
-            )
-            remember_question_message(session, getattr(msg, "message_id", None), name)
-        except Exception:
-            pass
 
     @staticmethod
     def _store_tool(session, name: str, body: str, duration_s: float | None) -> None:

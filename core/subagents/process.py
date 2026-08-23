@@ -986,6 +986,7 @@ def _try_process_react_run(
             name=config.name,
             input_queue=input_queue,
             on_guidance=_on_guidance,
+            handle=None,
         )
 
         def _progress(event: Any) -> None:

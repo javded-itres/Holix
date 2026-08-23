@@ -334,6 +334,9 @@ class TelegramHost:
             bot_profile=self._session.bot_profile,
             telegram_user_id=self._session.user_id,
         )
+        from integrations.telegram.background_events import attach_telegram_background_events
+
+        attach_telegram_background_events(self._bot, self._session)
         self._session.active_model_slot = "main"
         self._session.active_model_label = "main"
         await self._create_new_session()
@@ -767,6 +770,9 @@ class TelegramHost:
             handler.handle(event)
 
         self.agent.events.subscribe(on_event)
+        from integrations.telegram.background_events import attach_telegram_background_events
+
+        attach_telegram_background_events(self._bot, self._session)
 
         from core.tools.execution_context import (
             agent_emit_scope,

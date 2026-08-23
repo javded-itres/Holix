@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from core.runtime.service_detect import (
     is_long_oneshot_job,
+    is_test_or_build_command,
     is_untracked_long_running_command,
     should_promote_foreground_service,
 )
@@ -26,6 +27,10 @@ def test_oneshot_jobs_are_not_launches() -> None:
         "g++ main.cpp -o app",
         "pytest -q",
         "python -m pytest tests",
+        "uv run pytest -q",
+        "uv run python -m pytest tests",
+        "poetry run pytest",
+        "python tests/test_main.py",
         "npm run build",
         "make test",
     ]
@@ -73,6 +78,30 @@ def test_promote_skips_oneshot_even_if_port_bound() -> None:
         listen_ports=[8000],
     )
     assert ok is False
+
+    ok, _ = should_promote_foreground_service(
+        "uv run pytest -q",
+        pid=1,
+        elapsed_s=180,
+        listen_ports=[8000],
+    )
+    assert ok is False
+
+
+def test_test_commands_are_oneshots_not_services() -> None:
+    for cmd in (
+        "pytest",
+        "uv run pytest tests/test_api.py",
+        "poetry run pytest -q",
+        "npm test",
+        "pnpm run test",
+        "cargo test --all",
+        "python tests/test_foo.py",
+    ):
+        assert is_test_or_build_command(cmd) is True, cmd
+        assert is_untracked_long_running_command(cmd) is False, cmd
+    assert is_test_or_build_command("uvicorn app:app --reload") is False
+    assert is_test_or_build_command("sleep 30") is False
 
 
 def test_promote_label_uses_first_token() -> None:
