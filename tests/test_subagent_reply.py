@@ -93,6 +93,40 @@ def test_ensure_job_token_stable() -> None:
     assert tokens["coder"] == b
 
 
+def test_format_subagent_question_includes_job_and_locale() -> None:
+    from integrations.messenger.subagent_question_ui import (
+        format_subagent_question_message,
+        mark_question_posted,
+    )
+
+    text = format_subagent_question_message(
+        job_id="coder-2",
+        question="Какое изменение сделать?",
+        context="tool: read_file",
+        locale="ru",
+        html=False,
+    )
+    assert "coder-2" in text
+    assert "Субагент" in text
+    assert "Какое изменение сделать?" in text
+    assert "Нажмите кнопку" in text
+    assert "Sub-agent" not in text
+
+    html = format_subagent_question_message(
+        job_id="coder-2",
+        question="<b>x</b>",
+        locale="ru",
+        html=True,
+    )
+    assert "&lt;b&gt;x&lt;/b&gt;" in html
+    assert "<b>" in html
+
+    session = SimpleNamespace()
+    assert mark_question_posted(session, "subq_1") is True
+    assert mark_question_posted(session, "subq_1") is False
+    assert mark_question_posted(session, "subq_2") is True
+
+
 def test_telegram_reply_keyboard_uses_sr_callback() -> None:
     pytest.importorskip("aiogram.types")
     from integrations.telegram.keyboards import subagent_reply_keyboard

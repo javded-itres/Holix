@@ -177,6 +177,17 @@ async def _run_start_or_restart(
     if not allowed:
         return f"Error: Command blocked. {jail_reason}"
 
+    from core.runtime.service_detect import is_test_or_build_command
+
+    if is_test_or_build_command(command):
+        return (
+            "Error: Tests, builds and other one-shot commands must run via "
+            "run_terminal_command (so you see the full output in this turn). "
+            "start_background_process is only for long-running servers/bots when "
+            "the user asked to run them in the background or keep them running. "
+            f"Refused command: {command}"
+        )
+
     # Guard: Holix gateway already long-polls TELEGRAM_BOT_TOKEN — a second
     # python-telegram bot with the same token causes TelegramConflictError.
     cmd_l = (command or "").lower()
@@ -274,11 +285,14 @@ class StartBackgroundProcessTool(BaseTool):
         super().__init__()
         self.name = "start_background_process"
         self.description = (
-            "Start a long-running project command (dev server, API, worker) as a "
-            "separate background OS process. Use for `npm run dev`, `uvicorn`, "
-            "`python manage.py runserver`, etc. Returns immediately with pid and log path. "
-            "Prefer this over run_terminal_command for servers that keep running. "
-            "Automatically runs a startup health check; if unhealthy, fix errors and restart."
+            "Start a long-running server/bot/worker as a detached OS process. "
+            "Use ONLY when the user explicitly asked to run in the background "
+            "(«в фоне», «background», keep it running) or to start a persistent "
+            "dev server / API / Telegram bot (`npm run dev`, `uvicorn`, "
+            "`python manage.py runserver`). Returns immediately with pid and log path. "
+            "Do NOT use for tests, builds, linters, or one-shot CLI "
+            "(`pytest`, `npm test`, `cargo test`, `uv run pytest`) — those must go "
+            "through run_terminal_command so stdout/stderr come back in this turn."
         )
         self.risk_level = "low"
         self.parameters = {
@@ -543,7 +557,8 @@ class ListBackgroundProcessesTool(BaseTool):
         self.description = (
             "List background processes for this profile (running + recently stopped). "
             "Survives reboot: stopped rows still show command so you can restart. "
-            "Always use start_background_process for bots/servers — not run_terminal_command."
+            "Always use start_background_process for bots/servers the user asked to "
+            "keep running — not run_terminal_command. Tests/builds stay in the terminal."
         )
         self.risk_level = "low"
         self.parameters = {

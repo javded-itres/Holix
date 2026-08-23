@@ -72,7 +72,7 @@ CLI: `holix models agents`
 
 In chat: `/models` (TUI) or `/model <name>` (`chat-command`).
 
-Sub-agents use the **parent model** by default unless the sub-agent type sets a model slot — [SUBAGENTS.md](SUBAGENTS.md).
+Sub-agents use `agent_models.<type>` when that slot is set; otherwise the **parent model** — [SUBAGENTS.md](SUBAGENTS.md).
 
 ---
 

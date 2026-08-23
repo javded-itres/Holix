@@ -112,6 +112,30 @@ def resolve_subagent_model_id(
     return None
 
 
+def spawn_model_slot(
+    agent_type: str,
+    parent_config: Any,
+    profile: str,
+) -> str:
+    """Which ``agent_models`` / Studio slot to use when spawning this type.
+
+    Custom type ``model_slot`` wins (including ``main`` / ``inherit`` → parent).
+    Otherwise, if the profile has ``agent_models.<type>`` (built-in ``coder``,
+    …), use that slot. Empty means inherit the parent model.
+    """
+    from core.subagents.store import SubAgentTypeStore
+
+    custom = SubAgentTypeStore(profile).get(agent_type)
+    if custom is not None:
+        raw = (custom.model_slot or "").strip()
+        if raw:
+            return raw
+    agent_models = getattr(parent_config, "agent_models", None) or {}
+    if agent_type in agent_models:
+        return agent_type
+    return ""
+
+
 def prepare_subagent_config(
     agent_type: str,
     parent_config: Any,
@@ -135,12 +159,9 @@ def prepare_subagent_config(
     elif not cfg.mcp_servers:
         cfg.mcp_inherit = True
 
-    from core.subagents.store import SubAgentTypeStore
-
-    custom = SubAgentTypeStore(profile).get(agent_type)
+    slot = spawn_model_slot(agent_type, parent_config, profile)
     # Empty / main → inherit parent model (cfg.model stays unset)
-    if custom and (custom.model_slot or "").strip():
-        slot = (custom.model_slot or "").strip()
+    if slot:
         try:
             resolved = resolve_subagent_model_id(parent_config, profile, slot)
             if resolved:

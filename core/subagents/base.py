@@ -138,6 +138,36 @@ class SubAgentHandle:
     last_tool: str = ""
     activity_log: list[dict[str, Any]] = field(default_factory=list)
     last_activity_at: float | None = None  # time.monotonic of last progress / heartbeat
+    awaiting_user: bool = False
+    user_resume: Any = field(default=None, repr=False)
+    steps_at_user_reply: int = 0
+
+    def begin_wait_for_user(self) -> None:
+        """Pause further ReAct steps until ``end_wait_for_user``."""
+        import asyncio
+
+        self.awaiting_user = True
+        ev = self.user_resume
+        if ev is None:
+            ev = asyncio.Event()
+            self.user_resume = ev
+        ev.clear()
+
+    def end_wait_for_user(self) -> None:
+        """Resume after the human answered; ignore stale loop traces until a new step."""
+        self.awaiting_user = False
+        self.steps_at_user_reply = int(self.steps_taken or 0)
+        ev = self.user_resume
+        if ev is not None:
+            ev.set()
+
+    async def wait_while_paused(self) -> None:
+        if not self.awaiting_user:
+            return
+        ev = self.user_resume
+        if ev is None:
+            return
+        await ev.wait()
 
     @property
     def is_running(self) -> bool:

@@ -312,7 +312,7 @@ def _ui_locale(source: Any = None) -> str:
         if isinstance(raw, str):
             profile = raw.strip()
     if not profile:
-        return "en"
+        return "ru"
     try:
         return normalize_locale(LocaleStore(profile).get())
     except Exception:
@@ -329,14 +329,12 @@ def format_human_loop_question(
     """Question the human sees: what is stuck, which call, last result."""
     from core.i18n import t
 
-    loc = locale or "en"
+    loc = locale or "ru"
     parts = [str(base or "").strip()]
     target = _loop_target(details)
     if target:
         parts.append(t("supervisor.repeating", loc, target=target))
-    excerpt = _result_excerpt(last_result)
-    if excerpt:
-        parts.append(t("supervisor.last_result", loc, result=excerpt))
+    # Keep the question short — dump tool output in context, not here.
     return "\n".join(p for p in parts if p)
 
 
@@ -353,7 +351,7 @@ def format_human_loop_context(
     """Structured evidence for the ask_user dialog (not raw supervisor guidance)."""
     from core.i18n import t
 
-    loc = locale or "en"
+    loc = locale or "ru"
     lines = [
         t("supervisor.stuck", loc, problem=problem),
         t("supervisor.tool", loc, tool=tool),
@@ -431,11 +429,13 @@ def diagnose_loop_fix(
     inspect_loop: bool = False,
     noop_write_loop: bool = False,
     locale: str | None = None,
+    job_name: str = "",
 ) -> dict[str, str]:
     """What is stuck, what is already known, and what to fix next."""
     from core.i18n import t
 
-    loc = locale or "en"
+    loc = locale or "ru"
+    name = (job_name or "").strip() or "coder"
     tool_l = (tool or "tool").strip() or "tool"
     blob = (details or "").lower()
     target = _loop_target(details)
@@ -457,7 +457,7 @@ def diagnose_loop_fix(
                 f"{write or 'write_file'} (or {read or 'read_file'} a local file you will edit). "
                 "Do not introspect another library method"
             ),
-            "user_question": t("supervisor.q.inspect", loc, target=target_s),
+            "user_question": t("supervisor.q.inspect", loc, target=target_s, name=name),
         }
 
     if noop_write_loop or (tool_l == "write_file" and "no content changes" in blob):
@@ -468,7 +468,7 @@ def diagnose_loop_fix(
                 "STOP rewriting those paths. Run pytest once if you have not, "
                 "then the next message must be the final answer with NO tool calls"
             ),
-            "user_question": t("supervisor.q.noop_write", loc, target=target_s),
+            "user_question": t("supervisor.q.noop_write", loc, target=target_s, name=name),
         }
 
     if tool_l in {"terminal", "run_terminal_command"}:
@@ -488,7 +488,7 @@ def diagnose_loop_fix(
                     f"use {bg or 'start_background_process'} with the same command, "
                     "then check_background_process. Do not use &, nohup, or python -m *.main in terminal"
                 ),
-                "user_question": t("supervisor.q.launch", loc, target=target_s),
+                "user_question": t("supervisor.q.launch", loc, target=target_s, name=name),
             }
         if _looks_like_venv_package_hunt(details):
             absence = (
@@ -504,7 +504,7 @@ def diagnose_loop_fix(
                     f"`uv add <name>` once; otherwise {write or 'write_file'} the app "
                     f"and run pytest. Searching .venv is not a fix"
                 ),
-                "user_question": t("supervisor.q.venv", loc, target=target_s),
+                "user_question": t("supervisor.q.venv", loc, target=target_s, name=name),
             }
         if any(x in blob for x in ("pip install", "uv add", "uv sync")):
             return {
@@ -514,7 +514,7 @@ def diagnose_loop_fix(
                     f"stop re-running the installer; {read or 'read_file'} the project "
                     "and continue implementation or run tests once"
                 ),
-                "user_question": t("supervisor.q.install", loc, target=target_s),
+                "user_question": t("supervisor.q.install", loc, target=target_s, name=name),
             }
         return {
             "problem": t("supervisor.p.terminal", loc, tool=tool_l),
@@ -528,7 +528,7 @@ def diagnose_loop_fix(
                 f"{search or 'grep'} project source, then {write or 'write_file'} "
                 "the fix or write the final answer"
             ),
-            "user_question": t("supervisor.q.terminal", loc, target=target_s),
+            "user_question": t("supervisor.q.terminal", loc, target=target_s, name=name),
         }
 
     if tool_l == "read_file":
@@ -539,7 +539,7 @@ def diagnose_loop_fix(
                 f"next {write or 'write_file'} a change or {search or 'grep'} a "
                 "different path — do not re-read the same file"
             ),
-            "user_question": t("supervisor.q.read", loc, target=target_s),
+            "user_question": t("supervisor.q.read", loc, target=target_s, name=name),
         }
     if tool_l in {"grep", "glob"}:
         return {
@@ -549,7 +549,7 @@ def diagnose_loop_fix(
                 f"open one hit with {read or 'read_file'}, then {write or 'write_file'} "
                 "or answer; do not repeat the same search"
             ),
-            "user_question": t("supervisor.q.search", loc, target=target_s),
+            "user_question": t("supervisor.q.search", loc, target=target_s, name=name),
         }
     if tool_l == "write_file":
         return {
@@ -559,7 +559,7 @@ def diagnose_loop_fix(
                 f"stop rewriting the same file; {read or 'read_file'} to verify or "
                 "move to the next deliverable / final answer"
             ),
-            "user_question": t("supervisor.q.write", loc, target=target_s),
+            "user_question": t("supervisor.q.write", loc, target=target_s, name=name),
         }
     if tool_l in {"web_search", "web_fetch"}:
         return {
@@ -569,7 +569,7 @@ def diagnose_loop_fix(
                 "use a different query/URL once, then write the answer from evidence "
                 "you already have — do not repeat the same fetch/search"
             ),
-            "user_question": t("supervisor.q.web", loc, target=target_s),
+            "user_question": t("supervisor.q.web", loc, target=target_s, name=name),
         }
     return {
         "problem": t("supervisor.p.generic", loc, tool=tool_l),
@@ -579,7 +579,7 @@ def diagnose_loop_fix(
             f"({read or 'read_file'} / {write or 'write_file'}), "
             "or produce a partial final result"
         ),
-        "user_question": t("supervisor.q.generic", loc, tool=tool_l, target=target_s),
+        "user_question": t("supervisor.q.generic", loc, tool=tool_l, target=target_s, name=name),
     }
 
 
@@ -734,9 +734,11 @@ def assess_handle(
             summary="project launch via terminal — use start_background_process",
             guidance=(
                 "SUPERVISOR GUIDANCE: You are starting a long-running project/server "
-                "via terminal. Stop that. Call "
+                "via terminal. If the user asked to run it in the background or to "
+                "keep a server/bot running, call "
                 f"{bg or 'start_background_process'} with the same command "
                 "(label the app), then check_background_process. "
+                "Tests (`pytest`, `npm test`) must stay in run_terminal_command. "
                 "Do not use `&`, nohup, python -m *.main, or uvicorn in terminal — "
                 "those hang the tool and are not tracked."
             ),
@@ -772,6 +774,7 @@ def assess_handle(
             inspect_loop=inspect_hit,
             noop_write_loop=noop_write_hit,
             locale=locale,
+            job_name=str(getattr(handle, "name", "") or ""),
         )
         return Diagnosis(
             kind="loop",
@@ -994,15 +997,37 @@ class SubagentSupervisor:
         for handle in running:
             await self._maybe_intervene(handle)
 
+    def _job_waiting_for_user(self, name: str, handle: Any) -> bool:
+        if getattr(handle, "awaiting_user", False) or name in self._escalating:
+            return True
+        interactions = getattr(self._manager, "interactions", None)
+        list_q = getattr(interactions, "list_pending_questions", None)
+        if not callable(list_q):
+            return False
+        try:
+            pending = list_q() or []
+        except Exception:
+            return False
+        if not isinstance(pending, (list, tuple)):
+            return False
+        return any(
+            isinstance(item, dict) and str(item.get("subagent_name") or "") == name
+            for item in pending
+        )
+
     async def _maybe_intervene(self, handle: Any) -> None:
         name = str(getattr(handle, "name", "") or "")
         if not name:
             return
-        if name in self._escalating:
+        if self._job_waiting_for_user(name, handle):
             return
         diagnosis = assess_handle(handle, policy=self._policy, locale=self._locale())
         if not diagnosis.needs_intervention:
             return
+        pinned = int(getattr(handle, "steps_at_user_reply", 0) or 0)
+        if pinned and int(getattr(handle, "steps_taken", 0) or 0) <= pinned:
+            if diagnosis.kind in {"loop", "launch"}:
+                return
 
         count = int(self._interventions.get(name, 0))
         if count >= self._policy.max_interventions:
@@ -1047,6 +1072,9 @@ class SubagentSupervisor:
                             return
                         await self._stop_loop(handle, diagnosis)
                     else:
+                        begin = getattr(handle, "begin_wait_for_user", None)
+                        if callable(begin):
+                            begin()
                         asyncio.create_task(
                             self._ask_human_then_retry_or_stop(handle, diagnosis),
                             name=f"supervisor-ask-{name[:24]}",
@@ -1172,6 +1200,9 @@ class SubagentSupervisor:
         if not name or name in self._escalating:
             return
         self._escalating.add(name)
+        begin = getattr(handle, "begin_wait_for_user", None)
+        if callable(begin) and not getattr(handle, "awaiting_user", False):
+            begin()
         from core.i18n import t
 
         loc = self._locale()
@@ -1185,13 +1216,16 @@ class SubagentSupervisor:
         ask = getattr(interactions, "ask_user", None)
         if not callable(ask):
             self._escalating.discard(name)
+            end = getattr(handle, "end_wait_for_user", None)
+            if callable(end):
+                end()
             await self._stop_loop(handle, diagnosis)
             return
         try:
             try:
                 handle.record_activity(
                     "status",
-                    "awaiting user (supervisor)",
+                    t("supervisor.awaiting_user", loc, name=name),
                     details=question,
                     steps_taken=int(getattr(handle, "steps_taken", 0) or 0),
                 )
@@ -1221,6 +1255,9 @@ class SubagentSupervisor:
         except Exception:
             logger.exception("supervisor: ask_user failed for %s", name)
             self._escalating.discard(name)
+            end = getattr(handle, "end_wait_for_user", None)
+            if callable(end):
+                end()
             await self._stop_loop(handle, diagnosis)
             return
 
@@ -1229,6 +1266,9 @@ class SubagentSupervisor:
         text = str(answer or "").strip()
         low = text.lower()
         if not text or low.startswith("error:") or low in {"stop", "cancel", "abort", "kill"}:
+            end = getattr(handle, "end_wait_for_user", None)
+            if callable(end):
+                end()
             await self._stop_loop(handle, diagnosis)
             return
 
@@ -1257,6 +1297,9 @@ class SubagentSupervisor:
             )
         except Exception:
             pass
+        end = getattr(handle, "end_wait_for_user", None)
+        if callable(end):
+            end()
 
     async def _stop_loop(self, handle: Any, diagnosis: Diagnosis) -> None:
         """Stop a looping job with status=loop (not cancelled)."""

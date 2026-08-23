@@ -69,6 +69,20 @@ class MaxEventHandler:
         self._approvals = approvals
 
     def handle(self, event: AgentEvent) -> None:
+        if isinstance(event, SubAgentQuestionEvent):
+            self._presenter.enqueue_outbound(self._send_subagent_question(event))
+            buf = self._presenter.buffer
+            if buf is not None:
+                try:
+                    buf.set_thinking(None)
+                    name = event.subagent_name or "sub-agent"
+                    q = (event.question or "").strip()
+                    buf.add_note(f"❓ {name}: {q[:500]}")
+                    self._presenter.schedule_edit(force=True)
+                except Exception:
+                    logger.debug("MAX live note for sub-agent question failed", exc_info=True)
+            return
+
         buf = self._presenter.buffer
         if buf is None:
             return
@@ -223,14 +237,6 @@ class MaxEventHandler:
                 if note:
                     self._presenter.enqueue_outbound(self._presenter.send_notice(note))
 
-            elif isinstance(event, SubAgentQuestionEvent):
-                buf.set_thinking(None)
-                name = event.subagent_name or "sub-agent"
-                q = (event.question or "").strip()
-                buf.add_note(f"❓ {name}: {q[:500]}")
-                self._presenter.schedule_edit(force=True)
-                self._presenter.enqueue_outbound(self._send_subagent_question(event))
-
             elif isinstance(event, PlanReviewRequestEvent):
                 buf.set_thinking(None)
                 self._presenter.schedule_edit(force=True)
@@ -260,12 +266,16 @@ class MaxEventHandler:
                 buf.set_background_process(label=label, process_id=event.process_id)
                 from integrations.max.approvals import _register_callback_token
                 from integrations.max.keyboards import background_process_stop_keyboard
+                from integrations.messenger.locale import messenger_locale
 
                 token = _register_callback_token(
                     self._presenter.session.process_callback_tokens,
                     event.process_id,
                 )
-                markup = background_process_stop_keyboard(token)
+                markup = background_process_stop_keyboard(
+                    token,
+                    messenger_locale(self._presenter.session.profile),
+                )
                 self._presenter.set_attachments(markup)
                 self._presenter.schedule_edit(force=True)
                 self._presenter.enqueue_outbound(
@@ -327,36 +337,13 @@ class MaxEventHandler:
         return bool(agent.subagents.list_active())
 
     async def _send_subagent_question(self, event: SubAgentQuestionEvent) -> None:
-        from core.i18n.messages import t
+        from integrations.max.background_events import deliver_max_subagent_question
 
-        from integrations.max.keyboards import subagent_reply_keyboard
-        from integrations.max.models import message_id_from_response
-        from integrations.messenger.locale import messenger_locale
-        from integrations.messenger.subagent_reply import (
-            remember_question_message,
-            tokens_for_jobs,
+        await deliver_max_subagent_question(
+            self._presenter._client,
+            self._presenter.session,
+            event,
         )
-
-        session = self._presenter.session
-        lang = messenger_locale(session.profile)
-        name = event.subagent_name or "sub-agent"
-        question = (event.question or "").strip()
-        context = (event.context or "").strip()
-        text = f"{t('tg.subagent_q.title', lang, name=name)}\n{question}"
-        if context:
-            text += f"\n\n{context}"
-        text += f"\n\n{t('tg.subagent_q.hint', lang)}"
-        tokens = tokens_for_jobs(session.subagent_reply_tokens, [name])
-        kb = subagent_reply_keyboard(tokens, lang)
-        try:
-            payload = await self._presenter._client.send_message(
-                text,
-                attachments=[kb] if kb else None,
-                **self._presenter._reply_kwargs(),
-            )
-            remember_question_message(session, message_id_from_response(payload), name)
-        except Exception:
-            await self._presenter.send_notice(text)
 
     @staticmethod
     def _tool_detail(name: str, args: object) -> str:

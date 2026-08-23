@@ -199,6 +199,9 @@ class AsyncSubAgentRunner:
 
             while True:
                 while steps_taken < max_steps:
+                    wait_pause = getattr(handle, "wait_while_paused", None)
+                    if callable(wait_pause):
+                        await wait_pause()
                     steps_taken += 1
                     handle.max_steps = max_steps
                     handle.record_activity(
@@ -866,6 +869,7 @@ class AsyncSubAgentRunner:
             name=config.name,
             receive=receive,
             on_guidance=_on_guidance,
+            handle=handle,
         )
         conv_id = f"subagent:{config.name}"
 

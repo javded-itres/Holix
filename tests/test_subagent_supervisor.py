@@ -179,13 +179,14 @@ def test_assess_loop() -> None:
             tool_name="read_file",
             details="same content again",
         )
-    d = assess_handle(h)
+    d = assess_handle(h, locale="en")
     assert d.kind == "loop"
     assert d.needs_intervention
     assert "GUIDANCE" in d.guidance
     assert "What to fix" in d.guidance
     assert "same.py" in str(d.signals.get("user_question") or "")
-    assert "same content again" in str(d.signals.get("user_question") or "")
+    assert "same content again" not in str(d.signals.get("user_question") or "")
+    assert "same content again" in str(d.signals.get("user_context") or "")
     assert "What is stuck" in str(d.signals.get("user_context") or "")
 
 
@@ -246,9 +247,10 @@ def test_human_loop_question_includes_path_and_last_result() -> None:
         "The coder keeps re-reading the same file.",
         details='{"path": "projects/data_address/app/container.py"}',
         last_result="class AddressProvider:\n    def __init__(self): ...",
+        locale="en",
     )
     assert "container.py" in q
-    assert "AddressProvider" in q
+    assert "AddressProvider" not in q
     ctx = format_human_loop_context(
         problem="re-reading the same file",
         tool="read_file",
@@ -256,6 +258,7 @@ def test_human_loop_question_includes_path_and_last_result() -> None:
         last_result="class AddressProvider:\n    def __init__(self): ...",
         next_move="write_file a change",
         known="you already have this file contents.",
+        locale="en",
     )
     assert "What is stuck: re-reading the same file" in ctx
     assert "container.py" in ctx
@@ -268,8 +271,10 @@ def test_diagnose_loop_question_follows_locale() -> None:
         tool="write_file",
         details='{"path": "app/di.py"}',
         locale="ru",
+        job_name="coder-2",
     )
-    assert "Кодер" in ru["user_question"]
+    assert "coder-2" in ru["user_question"]
+    assert "Субагент" in ru["user_question"]
     assert "app/di.py" in ru["user_question"]
     q = format_human_loop_question(
         ru["user_question"],
@@ -278,22 +283,25 @@ def test_diagnose_loop_question_follows_locale() -> None:
         locale="ru",
     )
     assert "Повтор:" in q
-    assert "Последний результат:" in q
+    assert "Последний результат:" not in q
     ctx = format_human_loop_context(
         problem=ru["problem"],
         tool="write_file",
         details='{"path": "app/di.py"}',
+        last_result="no content changes",
         locale="ru",
     )
     assert "Что застряло:" in ctx
     assert "Инструмент:" in ctx
+    assert "no content changes" in ctx
 
     en = diagnose_loop_fix(
         tool="write_file",
         details='{"path": "app/di.py"}',
         locale="en",
+        job_name="coder-2",
     )
-    assert "The coder keeps rewriting" in en["user_question"]
+    assert "Sub-agent `coder-2`" in en["user_question"]
 
 
 def test_supervisor_locale_from_profile(_isolated_holix_home) -> None:
@@ -448,6 +456,61 @@ async def test_supervisor_does_not_stop_grep_search_loop() -> None:
 
 
 @pytest.mark.asyncio
+async def test_handle_pauses_until_user_reply() -> None:
+    h = _running_handle("pause-job")
+    h.steps_taken = 4
+    h.begin_wait_for_user()
+    done = False
+
+    async def waiter() -> None:
+        nonlocal done
+        await h.wait_while_paused()
+        done = True
+
+    task = asyncio.create_task(waiter())
+    await asyncio.sleep(0)
+    assert done is False
+    assert h.awaiting_user is True
+    h.end_wait_for_user()
+    await task
+    assert done is True
+    assert h.awaiting_user is False
+    assert h.steps_at_user_reply == 4
+
+
+@pytest.mark.asyncio
+async def test_supervisor_does_not_kill_while_waiting_for_user() -> None:
+    h = _running_handle("wait-job")
+    for _ in range(3):
+        h.record_activity(
+            "tool_result",
+            "read_file finished",
+            tool_name="read_file",
+            details='{"path":"same.py"}',
+            steps_taken=8,
+        )
+    h.last_tool = "read_file"
+    h.begin_wait_for_user()
+    manager = MagicMock()
+    manager._handles = {"wait-job": h}
+    manager.terminate = AsyncMock(return_value=True)
+    manager.interactions = SimpleNamespace(list_pending_questions=lambda: [])
+    sup = SubagentSupervisor(
+        manager,
+        policy=SupervisorPolicy(max_interventions=1, cooldown_s=0.0, loop_cooldown_s=0.0),
+    )
+    sup._interventions["wait-job"] = 3
+    await sup._maybe_intervene(h)
+    manager.terminate.assert_not_awaited()
+    h.end_wait_for_user()
+    await sup._maybe_intervene(h)
+    manager.terminate.assert_not_awaited()
+    h.steps_taken = 9
+    await sup._maybe_intervene(h)
+    manager.terminate.assert_not_awaited()
+
+
+@pytest.mark.asyncio
 async def test_supervisor_asks_human_then_injects_reply() -> None:
     h = _running_handle("ask-job")
     for _ in range(3):
@@ -492,7 +555,9 @@ async def test_supervisor_asks_human_then_injects_reply() -> None:
     )
     asked_context = str(asked.kwargs.get("context") or "")
     assert "site-packages" in asked_question or "grep mako" in asked_question
-    assert "Last result" in asked_question or "Last tool result" in asked_context
+    assert "ask-job" in asked_question
+    blob = asked_question + asked_context
+    assert "Last result" in blob or "Last tool result" in blob or "Последний результат" in blob
     assert "none" in (asked_question + asked_context).lower()
     assert "human" in async_bus.send.await_args.args[0].content.lower()
     assert sup._interventions["ask-job"] == 0

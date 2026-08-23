@@ -48,9 +48,13 @@ class MaxChatSession:
     # process_id -> MAX message mid of process notice (pinned in groups when possible)
     background_process_message_ids: dict[str, str] = field(default_factory=dict)
     background_process_script_keys: dict[str, str] = field(default_factory=dict)
+    process_log_watch_id: str | None = None
+    process_log_watch_message_id: str | None = None
+    process_log_watch_task: Any = None
     subagent_callback_tokens: dict[str, str] = field(default_factory=dict)
     subagent_reply_tokens: dict[str, str] = field(default_factory=dict)
     subagent_question_message_ids: dict[str, str] = field(default_factory=dict)
+    posted_subagent_question_ids: set[str] = field(default_factory=set)
     subagent_reply_job_id: str | None = None
     subagent_pending_answer: str | None = None
     subagent_watch_job_id: str | None = None

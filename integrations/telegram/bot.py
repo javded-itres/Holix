@@ -251,6 +251,12 @@ class HolixTelegramBot:
                 bot_profile=self.settings.profile,
                 telegram_user_id=session.user_id,
             )
+            if bot is not None:
+                from integrations.telegram.background_events import (
+                    attach_telegram_background_events,
+                )
+
+                attach_telegram_background_events(bot, session)
 
         if bot is not None:
             async with TypingIndicator(bot, session.chat_id):
@@ -398,6 +404,21 @@ class HolixTelegramBot:
             parse_mode="HTML",
         )
 
+        from integrations.messenger.forwards import combine_forward_text
+        from integrations.messenger.locale import messenger_locale
+        from integrations.telegram.forwards import (
+            is_telegram_forward,
+            telegram_forward_origin_label,
+        )
+
+        if is_telegram_forward(message):
+            transcribed = combine_forward_text(
+                forwarded=transcribed,
+                origin=telegram_forward_origin_label(message),
+                locale=messenger_locale(session.profile),
+                has_media=True,
+            )
+
         host = TelegramHost(bot, session, edit_interval_ms=settings.edit_interval_ms)
         await host.handle_user_text(transcribed)
 
@@ -434,6 +455,8 @@ class HolixTelegramBot:
         *,
         attachment: PendingAttachment,
         settings: TelegramSettings,
+        caption: str | None = None,
+        process_now: bool = False,
     ) -> None:
         from config import settings as app_settings
 
@@ -443,7 +466,9 @@ class HolixTelegramBot:
             )
             return
 
-        caption = (getattr(message, "caption", None) or "").strip()
+        caption_text = (
+            caption if caption is not None else (getattr(message, "caption", None) or "")
+        ).strip()
         media_group_id = getattr(message, "media_group_id", None)
 
         if not media_group_id:
@@ -452,8 +477,9 @@ class HolixTelegramBot:
                 chat_id=message.chat.id,
                 user_id=message.from_user.id,
                 items=[attachment],
-                caption=caption,
+                caption=caption_text,
                 settings=settings,
+                process_now=process_now,
             )
             return
 
@@ -465,6 +491,7 @@ class HolixTelegramBot:
                 items=list(batch.items),
                 caption=batch.caption,
                 settings=settings,
+                process_now=batch.process_now,
             )
 
         await self._media_groups.add(
@@ -472,8 +499,9 @@ class HolixTelegramBot:
             user_id=message.from_user.id,
             media_group_id=str(media_group_id),
             item=attachment,
-            caption=caption,
+            caption=caption_text,
             on_flush=_flush,
+            process_now=process_now,
         )
 
     async def _finalize_attachments(
@@ -485,6 +513,7 @@ class HolixTelegramBot:
         items: list[PendingAttachment],
         caption: str,
         settings: TelegramSettings,
+        process_now: bool = False,
     ) -> None:
         from integrations.telegram.file_handler import (
             SavedTelegramFile,
@@ -535,7 +564,7 @@ class HolixTelegramBot:
         host = TelegramHost(bot, session, edit_interval_ms=settings.edit_interval_ms)
         preview = format_files_preview(saved_files, errors=errors)
 
-        if caption:
+        if caption or process_now:
             await bot.send_message(chat_id, preview, parse_mode="HTML")
             prompt = build_agent_prompt(caption, saved_files)
 
@@ -751,16 +780,29 @@ class HolixTelegramBot:
             )
             if message.text.strip().startswith("/"):
                 return
-            if await self._flush_pending_files(
-                bot,
-                message,
-                user_text=message.text,
-                settings=settings,
-            ):
-                return
             try:
                 session = await self._get_session(message.chat.id, message.from_user.id, bot=bot)
             except Exception:
+                return
+            from integrations.messenger.locale import messenger_locale
+            from integrations.telegram.forwards import (
+                compose_telegram_forward_prompt,
+                is_telegram_forward,
+            )
+
+            user_text = message.text
+            if is_telegram_forward(message):
+                user_text = compose_telegram_forward_prompt(
+                    message,
+                    locale=messenger_locale(session.profile),
+                    has_media=False,
+                )
+            if await self._flush_pending_files(
+                bot,
+                message,
+                user_text=user_text,
+                settings=settings,
+            ):
                 return
             try:
                 host = TelegramHost(bot, session, edit_interval_ms=settings.edit_interval_ms)
@@ -768,7 +810,7 @@ class HolixTelegramBot:
                 if message.reply_to_message is not None:
                     reply_id = getattr(message.reply_to_message, "message_id", None)
                 await host.handle_user_text(
-                    message.text,
+                    user_text,
                     reply_to_message_id=reply_id,
                 )
             except Exception as exc:
@@ -827,43 +869,41 @@ class HolixTelegramBot:
                 settings=settings,
             )
 
-        @dp.message(F.photo)
-        async def on_photo(message: Message) -> None:
-            if message.from_user is None or not message.photo:
-                return
-            if not await _admit_or_onboard(message, text="[photo]"):
-                return
-            photo = message.photo[-1]
-            await self._enqueue_file_attachment(
-                bot,
-                message,
-                attachment=PendingAttachment(
-                    file_id=photo.file_id,
-                    file_name=f"photo_{photo.file_unique_id}.jpg",
-                    mime_type="image/jpeg",
-                    file_size=int(photo.file_size or 0),
-                ),
-                settings=settings,
+        @dp.message(F.photo | F.document | F.video | F.animation | F.video_note)
+        async def on_media(message: Message) -> None:
+            from integrations.messenger.locale import messenger_locale
+            from integrations.telegram.forwards import (
+                compose_telegram_forward_prompt,
+                is_telegram_forward,
+                pending_attachment_from_message,
             )
 
-        @dp.message(F.document)
-        async def on_document(message: Message) -> None:
-            if message.from_user is None or message.document is None:
+            if message.from_user is None:
                 return
-            if not await _admit_or_onboard(message, text="[document]"):
+            attachment = pending_attachment_from_message(message)
+            if attachment is None:
                 return
-            doc = message.document
-            file_name = doc.file_name or f"document_{doc.file_unique_id}"
+            if not await _admit_or_onboard(message, text="[media]"):
+                return
+
+            forwarded = is_telegram_forward(message)
+            caption = (getattr(message, "caption", None) or "").strip()
+            if forwarded:
+                try:
+                    session = await self._get_session(
+                        message.chat.id, message.from_user.id, bot=bot
+                    )
+                    locale = messenger_locale(session.profile)
+                except Exception:
+                    locale = "ru"
+                caption = compose_telegram_forward_prompt(message, locale=locale, has_media=True)
             await self._enqueue_file_attachment(
                 bot,
                 message,
-                attachment=PendingAttachment(
-                    file_id=doc.file_id,
-                    file_name=file_name,
-                    mime_type=str(doc.mime_type or ""),
-                    file_size=int(doc.file_size or 0),
-                ),
+                attachment=attachment,
                 settings=settings,
+                caption=caption,
+                process_now=forwarded,
             )
 
         @dp.callback_query(F.data.startswith("sk:"))

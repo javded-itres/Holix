@@ -73,19 +73,55 @@ def subagent_watch_keyboard(*, running: bool = True, locale: str | None = None) 
     return InlineKeyboardMarkup(inline_keyboard=[buttons])
 
 
-def background_process_stop_keyboard(process_token: str) -> Any:
+def background_process_stop_keyboard(process_token: str, locale: str | None = None) -> Any:
     from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
+    from core.i18n.messages import t
 
+    from integrations.messenger.locale import MESSENGER_DEFAULT_LOCALE
+
+    loc = locale or MESSENGER_DEFAULT_LOCALE
     return InlineKeyboardMarkup(
         inline_keyboard=[
             [
                 InlineKeyboardButton(
-                    text="⏹ Остановить процесс",
+                    text=t("tg.process.logs", loc),
+                    callback_data=_cb("pl", process_token),
+                )
+            ],
+            [
+                InlineKeyboardButton(
+                    text=t("tg.process.stop", loc),
                     callback_data=_cb("ps", process_token),
                 )
             ],
         ]
     )
+
+
+def process_log_watch_keyboard(
+    process_token: str, *, running: bool = True, locale: str | None = None
+) -> Any:
+    from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
+    from core.i18n.messages import t
+
+    from integrations.messenger.locale import MESSENGER_DEFAULT_LOCALE
+
+    loc = locale or MESSENGER_DEFAULT_LOCALE
+    row: list[Any] = []
+    if running:
+        row.append(
+            InlineKeyboardButton(
+                text=t("tg.process.stop", loc),
+                callback_data=_cb("ps", process_token),
+            )
+        )
+    row.append(
+        InlineKeyboardButton(
+            text=t("tg.process.watch_exit", loc),
+            callback_data=_cb("pe", "x"),
+        )
+    )
+    return InlineKeyboardMarkup(inline_keyboard=[row])
 
 
 def parse_callback(data: str) -> tuple[str, str] | None:

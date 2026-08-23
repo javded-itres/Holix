@@ -196,7 +196,7 @@ delegate → collect → supervisor → (rework failed?) → react synthesis
 
 Настраивается через `subagent_default_process_mode`.
 
-Субагент использует **модель родителя** (`config.model`), не слоты `agent_models` (если не расширять реестр).
+По умолчанию субагент использует **модель родителя**. Если в профиле есть слот `agent_models.<тип>` (например `coder`) или у кастомного типа задан **слот модели**, берётся он.
 
 ---
 
@@ -215,7 +215,7 @@ delegate → collect → supervisor → (rework failed?) → react synthesis
 |---|---|---|
 | **Что** | Фоновые воркеры Holix | Внешние CLI (Claude Code, OpenCode, …) |
 | **Старт** | `delegate_to_subagent` / `/subagent-spawn` | `holix launch <id>` или `external_cli` у назначенного субагента |
-| **Модель** | Модель родительского профиля | Слот (`agent_models.coder`, …) |
+| **Модель** | Слот `agent_models.<тип>` если задан, иначе модель родителя | Слот (`agent_models.coder`, …) |
 
 Главный агент **не** получает `external_cli` напрямую — только субагент с назначением в `holix launch setup` или TUI `/launch`.
 

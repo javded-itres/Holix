@@ -38,6 +38,12 @@ _LAUNCH_PREFIX = re.compile(
     r"|time\s+"
     r"|nice\s+"
     r"|env\s+(?:-[\w]+\s+|[\w.]+=\S+\s+)*"
+    r"|uv\s+run\s+(?:--\S+\s+)*"
+    r"|poetry\s+run\s+"
+    r"|pipenv\s+run\s+"
+    r"|hatch\s+run\s+"
+    r"|pdm\s+run\s+"
+    r"|bundle\s+exec\s+"
     r")*",
     re.I,
 )
@@ -60,7 +66,10 @@ _INSPECT_HEAD = re.compile(
     r"(?:run\s+)?(?:test|build|lint|typecheck|check|ci))\b|"
     r"npx\s+(?:tsc|eslint|jest|vitest|prettier)\b|"
     r"ruff|pytest|py\.test|mypy|black|isort|coverage|"
+    r"tox\b|nox\b|hatch\s+test\b|"
+    r"bun\s+test\b|deno\s+test\b|"
     r"python\d*\s+-m\s+(?:pytest|unittest|mypy|ruff|compileall)\b|"
+    r"python\d*(?:\s+-\S+)*\s+\S*test[^/\s]*\.py\b|"
     r"cargo\s+(?:-\S+\s+)*(?:build|test|check|clippy|fmt|bench|doc|clean|update|fetch)\b|"
     r"go\s+(?:-\S+\s+)*(?:test|build|vet|fmt|mod|generate|install)\b|"
     r"(?:[\w./-]+/)?(?:mvn|mvnw)\b(?!.*(?:spring-boot:run|quarkus:dev))"
@@ -227,6 +236,30 @@ def is_untracked_long_running_command(command: str) -> bool:
         if _is_launch_head(head):
             return True
     return False
+
+
+_TEST_BUILD_TOKEN = re.compile(
+    r"(?i)\b("
+    r"pytest|py\.test|unittest|tox|nox|"
+    r"jest|vitest|cypress|playwright|mocha|"
+    r"cargo\s+test|go\s+test|dotnet\s+test|"
+    r"mvn\s+\S*test|gradlew?\s+\S*test|"
+    r"npm\s+(?:run\s+)?test|pnpm\s+(?:run\s+)?test|yarn\s+(?:run\s+)?test|"
+    r"coverage\s+run"
+    r")\b"
+)
+
+
+def is_test_or_build_command(command: str) -> bool:
+    """True for pytest / npm test / cargo test / builds — never a background service."""
+    if is_long_oneshot_job(command):
+        return True
+    text = (command or "").strip()
+    if not text:
+        return False
+    if is_untracked_long_running_command(text):
+        return False
+    return bool(_TEST_BUILD_TOKEN.search(text))
 
 
 def is_long_oneshot_job(command: str) -> bool:

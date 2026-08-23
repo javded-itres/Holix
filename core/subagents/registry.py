@@ -63,7 +63,11 @@ PREDEFINED_SUBAGENTS = {
             "Always work in the shared working directory from your system prompt "
             "(same as the main agent). Prefer list_directory / read_file before "
             "assuming a path is missing. Always verify your code works before "
-            "reporting completion."
+            "reporting completion. Run tests and builds with the terminal tool "
+            "(`pytest`, `uv run pytest`, `npm test`) and wait for the output — "
+            "do not start them as a background process. Use "
+            "start_background_process only when the user explicitly asked to "
+            "run something in the background or to start a long-lived server/bot."
         ),
         tools=[
             "read_file",

@@ -60,7 +60,7 @@ agent_models:
 
 CLI: `holix models agents`. В чате: `/models` (TUI).
 
-Субагенты по умолчанию используют **модель родителя** — [SUBAGENTS.md](SUBAGENTS.md).
+Субагенты берут слот `agent_models.<тип>` если он задан, иначе **модель родителя** — [SUBAGENTS.md](SUBAGENTS.md).
 
 ---
 

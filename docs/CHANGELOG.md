@@ -4,11 +4,18 @@
 
 ### Added
 
+- **Forwarded Telegram / MAX messages** — the agent processes reposts: text, photos, videos, animations, video notes, and files. MAX flattens `link.type=forward` (original text/attachments live on the linked message). Forwards without a caption still run the agent instead of waiting for a follow-up task.
 - **Messenger live sub-agent watch** — `/subagents` in Telegram and MAX lists jobs with buttons. Tapping one shows the last 5 steps, refreshed every 5 seconds, with Stop and Exit. Only one sub-agent can be watched per chat.
+- **Background process logs** — the pinned process notice in Telegram/MAX has **Watch logs** and **Stop process**. Watch logs opens a live tail (every 5 seconds) of the process log file.
 - **Background process pins** — Telegram/MAX pin by script. The same script replaces the previous pin; different scripts stay pinned together. Dead or stopped processes unpin automatically.
 
 ### Fixed
 
+- **Sub-agent waits for the human** — when the supervisor (or `ask_user`) asks a question, the job pauses ReAct steps until the reply. After the answer, stale tool-loop traces are ignored until a new step, so the supervisor no longer kills the job as `loop` before the model can follow the answer.
+- **Tests stay in the terminal** — `pytest` / `uv run pytest` / `npm test` / builds are refused by `start_background_process` and must use `run_terminal_command`. Background processes start only when the user asked to run in the background or to start a long-lived server/bot.
+- **Telegram/MAX sub-agent questions after the main turn** — `ask_user` / supervisor prompts were emitted, but the messenger unsubscribed from the event bus when the parent run finished, so waiting jobs never showed a question in the chat. A session-lifetime listener now posts a dedicated message (job id in the title and Reply button), truncates huge tool dumps, logs send failures, and uses the profile locale (ru). Supervisor copy names the job (`coder-2`) instead of a generic «Кодер».
+- **Long-session honesty loop** — action-honesty nudges (`[Action honesty…]`) are graph-only and no longer saved into conversation history. Streaming also no longer writes «Сделаю…» to memory before the honesty check. A fat Telegram session was few-shotting the model to narrate without tools, then refusing after 3 retries; a new chat worked because it had a clean context.
+- **Built-in sub-agent models** — `coder` / `researcher` / … now use `agent_models.<type>` when that slot is set (e.g. `coder` → `ornith-1.5:35b`). Previously only custom types with `model_slot` could leave the parent model, so switching `main` to kimi also moved Holix `coder` workers onto kimi.
 - **Honesty empty final** — a ReAct honesty retry (`is_final=False`, no tools) no longer goes to Reflexion and finalize with an empty answer. The graph loops back to `react`.
 - **`holix subagent list`** — lists jobs for the whole profile (Telegram, Studio, CLI), not only the current process. `holix -p PROFILE subagent …` registers the command (lazy CLI load).
 - **Telegram/MAX sub-agent questions** — when several jobs wait (`coder-1`, `coder`, …) the bot no longer dumps CLI `/subagent-reply`. Each question has a Reply button; free text opens a picker; a Telegram reply to the question message goes to that job.

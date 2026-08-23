@@ -258,6 +258,9 @@ class HelixMaxBot:
             bot_profile=self.settings.profile,
             max_user_id=session.user_id,
         )
+        from integrations.max.background_events import attach_max_background_events
+
+        attach_max_background_events(self._client, session)
         session.pending_files.clear()
         session.pending_plan_review_id = None
         session.pending_confirmation_message_id = None
@@ -479,6 +482,10 @@ class HelixMaxBot:
         msg = message_from_update(update)
         if msg is None:
             return
+        from integrations.max.forwards import flatten_max_forward, is_max_forward
+
+        msg = flatten_max_forward(msg)
+        forwarded = is_max_forward(msg)
         uid = sender_user_id(msg)
         if uid is None:
             return
@@ -510,6 +517,7 @@ class HelixMaxBot:
                 reply_chat_id=reply_chat_id,
                 caption=text,
                 message=msg,
+                process_now=forwarded,
             )
             return
 
@@ -610,6 +618,7 @@ class HelixMaxBot:
         reply_chat_id: int | None,
         caption: str,
         message: dict,
+        process_now: bool = False,
     ) -> None:
         from config import settings
 
@@ -654,7 +663,7 @@ class HelixMaxBot:
             return
 
         preview = format_files_preview_markdown(saved, errors=errors)
-        if caption:
+        if caption or process_now:
             await client.send_message(
                 plain_to_max_html(preview),
                 fmt="html",

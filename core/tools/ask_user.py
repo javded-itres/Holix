@@ -22,7 +22,8 @@ class AskUserTool(BaseTool):
             "state what you need, offer concrete options when possible, and put "
             "background in `context` (not in the question). Prefer making a "
             "reasonable choice yourself over asking when the task already implies "
-            "the answer."
+            "the answer. Write `question` and `context` in the user's Holix UI "
+            "language (Russian when the profile locale is ru)."
         )
         self.risk_level = "no"
         self.parameters = {

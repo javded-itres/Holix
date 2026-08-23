@@ -201,7 +201,7 @@ Sub-agents also share **step-budget extension** with the main agent (extra steps
 
 Configured via `subagent_default_process_mode` in profile config.
 
-Sub-agents use the **parent model** (`config.model`), not per-slot `agent_models` (unless you extend the registry).
+Sub-agents use the **parent model** by default. If the profile has `agent_models.<type>` (for example `coder`) or a custom type sets a **model slot**, that model is used instead.
 
 ---
 
@@ -220,7 +220,7 @@ Setup: [LAUNCH.md](LAUNCH.md). TUI: `/launch` to assign CLI to a sub-agent type.
 |---|---|---|
 | **What** | Background Holix workers | Separate terminal agents (Claude Code, OpenCode, …) |
 | **Start** | `delegate_to_subagent` / `/subagent-spawn` | `holix launch <id>` or `external_cli` from assigned sub-agent |
-| **Model** | Parent profile model | Slot model (`agent_models.coder`, …) |
+| **Model** | `agent_models.<type>` when set, otherwise the parent model | Slot model (`agent_models.coder`, …) |
 | **Tools** | Holix tool registry (+ `external_cli` when assigned) | CLI's own tools |
 
 The main agent does **not** get `external_cli` directly — only a sub-agent whose type is assigned in `holix launch setup` or TUI `/launch`.
