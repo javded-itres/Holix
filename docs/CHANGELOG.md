@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 1.0.18 — 2026-08-24
+
 ### Added
 
 - **Forwarded Telegram / MAX messages** — the agent processes reposts: text, photos, videos, animations, video notes, and files. MAX flattens `link.type=forward` (original text/attachments live on the linked message). Forwards without a caption still run the agent instead of waiting for a follow-up task.
