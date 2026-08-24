@@ -277,9 +277,7 @@ async def _run_supervisor_async(
         "telegram": tg_proc,
         "max": max_proc,
     }
-    sidecar_procs = start_extension_sidecars(
-        profile, gateway_host=host, gateway_port=port
-    )
+    sidecar_procs = start_extension_sidecars(profile, gateway_host=host, gateway_port=port)
     if sidecar_procs:
         update_sidecars(sidecars_to_state(sidecar_procs), profile=profile)
         companions_extra = ", ".join(s.label for s in sidecar_procs)
@@ -336,10 +334,14 @@ def _max_subprocess(profile: str) -> subprocess.Popen[bytes] | None:
     _terminate_stray_module_workers("integrations.max.main", profile)
     env = os.environ.copy()
     env["HOLIX_PROFILE"] = profile
+    from core.project.workspace_root import profile_workspace_cwd
+
+    companion_cwd = profile_workspace_cwd(profile)
     print_success(f"MAX bot starting in subprocess (polling, profile={profile})")
     proc = popen_background(
         [sys.executable, "-m", "integrations.max.main", "--profile", profile],
         env=env,
+        cwd=companion_cwd,
     )
     if proc.pid:
         update_max_pid(proc.pid, profile=profile)
@@ -362,8 +364,11 @@ def _terminate_stray_module_workers(module: str, profile: str) -> None:
             if pid == os.getpid() or not is_process_alive(pid):
                 continue
             try:
-                cmd = (proc_dir / "cmdline").read_bytes().replace(b"\0", b" ").decode(
-                    errors="replace"
+                cmd = (
+                    (proc_dir / "cmdline")
+                    .read_bytes()
+                    .replace(b"\0", b" ")
+                    .decode(errors="replace")
                 )
             except (OSError, PermissionError):
                 continue
@@ -393,10 +398,14 @@ def _telegram_subprocess(profile: str) -> subprocess.Popen[bytes] | None:
     _terminate_stray_module_workers("integrations.telegram.main", profile)
     env = os.environ.copy()
     env["HOLIX_PROFILE"] = profile
+    from core.project.workspace_root import profile_workspace_cwd
+
+    companion_cwd = profile_workspace_cwd(profile)
     print_success(f"Telegram bot starting in subprocess (profile={profile})")
     proc = popen_background(
         [sys.executable, "-m", "integrations.telegram.main", "--profile", profile],
         env=env,
+        cwd=companion_cwd,
     )
     if proc.pid:
         update_telegram_pid(proc.pid, profile=profile)
@@ -432,9 +441,7 @@ def _start_with_reload(
         if with_docs
         else None
     )
-    sidecar_procs = start_extension_sidecars(
-        profile, gateway_host=host, gateway_port=port
-    )
+    sidecar_procs = start_extension_sidecars(profile, gateway_host=host, gateway_port=port)
     if sidecar_procs:
         update_sidecars(sidecars_to_state(sidecar_procs), profile=profile)
 

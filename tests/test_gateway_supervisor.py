@@ -59,6 +59,39 @@ def test_docs_should_start_when_site_configured(
     assert docs_should_start() is True
 
 
+def test_telegram_subprocess_sets_workspace_cwd(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    ws = tmp_path / "Develop"
+    ws.mkdir()
+    captured: dict[str, object] = {}
+
+    class _Proc:
+        pid = 4242
+
+    monkeypatch.setattr("cli.services.supervisor.telegram_enabled", lambda profile: True)
+    monkeypatch.setattr("cli.services.supervisor.telegram_aiogram_available", lambda: True)
+    monkeypatch.setattr(
+        "cli.services.supervisor._terminate_stray_module_workers", lambda *a, **k: None
+    )
+    monkeypatch.setattr("cli.services.supervisor.update_telegram_pid", lambda *a, **k: None)
+    monkeypatch.setattr(
+        "core.project.workspace_root.profile_workspace_cwd", lambda profile: str(ws)
+    )
+
+    def fake_popen(cmd, env=None, cwd=None, **kwargs):
+        captured["cwd"] = cwd
+        captured["cmd"] = cmd
+        return _Proc()
+
+    monkeypatch.setattr("cli.services.supervisor.popen_background", fake_popen)
+    from cli.services.supervisor import _telegram_subprocess
+
+    proc = _telegram_subprocess("admin")
+    assert proc is not None
+    assert captured["cwd"] == str(ws)
+
+
 def test_load_telegram_settings_profile(monkeypatch: pytest.MonkeyPatch) -> None:
     _block_telegram_env_files(monkeypatch)
     settings = load_telegram_settings("work")

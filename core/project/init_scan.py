@@ -2,63 +2,72 @@
 
 from __future__ import annotations
 
+import os
 from dataclasses import dataclass, field
 from pathlib import Path
 
 from core.project.holix_md import HOLIX_MD_FILENAME
+from core.project.scan_safety import SKIP_SEARCH_DIR_NAMES, is_unsafe_project_scan_root
 
-_SKIP_DIRS = frozenset({
-    ".git",
-    ".holix",
-    ".helix",
-    ".hg",
-    ".svn",
-    "node_modules",
-    ".venv",
-    "venv",
-    "__pycache__",
-    "dist",
-    "build",
-    ".tox",
-    ".mypy_cache",
-    ".pytest_cache",
-    ".ruff_cache",
-    ".next",
-    ".turbo",
-    "coverage",
-    ".idea",
-    ".vscode",
-    "target",
-    "vendor",
-})
+_SKIP_DIRS = frozenset(
+    {
+        ".git",
+        ".holix",
+        ".helix",
+        ".hg",
+        ".svn",
+        "node_modules",
+        ".venv",
+        "venv",
+        "__pycache__",
+        "dist",
+        "build",
+        ".tox",
+        ".mypy_cache",
+        ".pytest_cache",
+        ".ruff_cache",
+        ".next",
+        ".turbo",
+        "coverage",
+        ".idea",
+        ".vscode",
+        "target",
+        "vendor",
+        *SKIP_SEARCH_DIR_NAMES,
+    }
+)
 
-_MANIFEST_NAMES = frozenset({
-    "package.json",
-    "pyproject.toml",
-    "Cargo.toml",
-    "go.mod",
-    "pom.xml",
-    "build.gradle",
-    "build.gradle.kts",
-    "requirements.txt",
-    "Pipfile",
-    "setup.py",
-    "Makefile",
-    "CMakeLists.txt",
-    "docker-compose.yml",
-    "docker-compose.yaml",
-    "compose.yml",
-    "compose.yaml",
-})
+_MANIFEST_NAMES = frozenset(
+    {
+        "package.json",
+        "pyproject.toml",
+        "Cargo.toml",
+        "go.mod",
+        "pom.xml",
+        "build.gradle",
+        "build.gradle.kts",
+        "requirements.txt",
+        "Pipfile",
+        "setup.py",
+        "Makefile",
+        "CMakeLists.txt",
+        "docker-compose.yml",
+        "docker-compose.yaml",
+        "compose.yml",
+        "compose.yaml",
+    }
+)
 
-_README_NAMES = frozenset({
-    "readme.md",
-    "readme.rst",
-    "readme.txt",
-    "readme",
-    "contributing.md",
-    "changelog.md",
-})
+_README_NAMES = frozenset(
+    {
+        "readme.md",
+        "readme.rst",
+        "readme.txt",
+        "readme",
+        "contributing.md",
+        "changelog.md",
+    }
+)
 
 _DOC_DIR_NAMES = frozenset({"docs", "doc", "documentation"})
 
@@ -102,23 +111,49 @@ def _should_skip_dir(name: str) -> bool:
     return name in _SKIP_DIRS or name.startswith(".")
 
 
+def _walk_project(root: Path, *, file_limit: int | None = 5000):
+    """Yield ``(path, is_dir)`` skipping poison dirs before descending.
+
+    Never uses ``Path.rglob`` — that still enters ``Library`` / iCloud.
+    """
+    stack = [root]
+    files = 0
+    while stack:
+        current = stack.pop()
+        try:
+            with os.scandir(current) as entries:
+                children = list(entries)
+        except OSError:
+            continue
+        for entry in children:
+            name = entry.name
+            if name.startswith(".") or name in _SKIP_DIRS:
+                continue
+            try:
+                if entry.is_symlink():
+                    continue
+                path = Path(entry.path)
+                if entry.is_dir(follow_symlinks=False):
+                    yield path, True
+                    stack.append(path)
+                elif entry.is_file(follow_symlinks=False):
+                    yield path, False
+                    files += 1
+                    if file_limit is not None and files >= file_limit:
+                        return
+            except OSError:
+                continue
+
+
 def _count_files(root: Path, *, limit: int = 5000) -> tuple[int, dict[str, int]]:
     total = 0
     ext_counts: dict[str, int] = {}
-    try:
-        for path in root.rglob("*"):
-            if total >= limit:
-                break
-            if not path.is_file():
-                continue
-            parts = path.relative_to(root).parts
-            if any(_should_skip_dir(part) for part in parts[:-1]):
-                continue
-            total += 1
-            ext = path.suffix.lower() or "(no ext)"
-            ext_counts[ext] = ext_counts.get(ext, 0) + 1
-    except OSError:
-        pass
+    for path, is_dir in _walk_project(root, file_limit=limit):
+        if is_dir:
+            continue
+        total += 1
+        ext = path.suffix.lower() or "(no ext)"
+        ext_counts[ext] = ext_counts.get(ext, 0) + 1
     return total, ext_counts
 
 
@@ -133,7 +168,11 @@ def _format_tree(root: Path, *, workspace_root: Path) -> str:
             children = sorted(directory.iterdir(), key=lambda p: (not p.is_dir(), p.name.lower()))
         except OSError:
             return
-        dirs = [c for c in children if c.is_dir() and not _should_skip_dir(c.name)]
+        dirs = [
+            c
+            for c in children
+            if c.is_dir() and not c.is_symlink() and not _should_skip_dir(c.name)
+        ]
         files = [c for c in children if c.is_file()]
         entries = dirs + files[:12]
         for index, child in enumerate(entries):
@@ -154,18 +193,19 @@ def _format_tree(root: Path, *, workspace_root: Path) -> str:
     return "\n".join(lines)
 
 
-def _collect_paths(root: Path, *, workspace_root: Path) -> tuple[list[str], list[str], list[str], list[str]]:
+def _collect_paths(
+    root: Path, *, workspace_root: Path
+) -> tuple[list[str], list[str], list[str], list[str]]:
     manifests: list[str] = []
     readmes: list[str] = []
     docs: list[str] = []
     compose: list[str] = []
     try:
-        for path in sorted(root.rglob("*")):
+        for path, is_dir in _walk_project(root, file_limit=20_000):
             rel = _rel_path(path, root=workspace_root)
-            parts = Path(rel).parts
-            if any(_should_skip_dir(part) for part in parts[:-1]):
-                continue
-            if not path.is_file() and not (path.is_dir() and path.name in _DOC_DIR_NAMES):
+            if is_dir:
+                if path.name in _DOC_DIR_NAMES:
+                    docs.append(rel)
                 continue
             name = path.name
             lower = name.lower()
@@ -175,8 +215,6 @@ def _collect_paths(root: Path, *, workspace_root: Path) -> tuple[list[str], list
                     compose.append(rel)
             elif lower in _README_NAMES:
                 readmes.append(rel)
-            elif path.is_dir() and path.name in _DOC_DIR_NAMES:
-                docs.append(rel)
     except OSError:
         pass
     return (
@@ -218,6 +256,14 @@ def scan_project_for_init(
     scope_rel = (target_dir or "").strip().strip("/").replace("\\", "/")
     scope_root = workspace_root / scope_rel if scope_rel else workspace_root
     scope_root = scope_root.resolve()
+    if is_unsafe_project_scan_root(workspace_root) or is_unsafe_project_scan_root(scope_root):
+        return InitProjectScan(
+            scope_rel=scope_rel,
+            scope_root=scope_root,
+            workspace_root=workspace_root,
+            is_large=False,
+            file_count=0,
+        )
 
     try:
         top_dirs = sorted(
@@ -232,12 +278,14 @@ def scan_project_for_init(
         top_dirs = []
 
     file_count, ext_counts = _count_files(scope_root)
-    manifests, readmes, doc_dirs, compose_paths = _collect_paths(scope_root, workspace_root=workspace_root)
-    subprojects = _detect_subprojects(scope_root, workspace_root=workspace_root, manifests=manifests)
+    manifests, readmes, doc_dirs, compose_paths = _collect_paths(
+        scope_root, workspace_root=workspace_root
+    )
+    subprojects = _detect_subprojects(
+        scope_root, workspace_root=workspace_root, manifests=manifests
+    )
     is_large = (
-        file_count >= _LARGE_FILE_COUNT
-        or len(top_dirs) >= _LARGE_TOP_DIRS
-        or len(subprojects) >= 4
+        file_count >= _LARGE_FILE_COUNT or len(top_dirs) >= _LARGE_TOP_DIRS or len(subprojects) >= 4
     )
 
     return InitProjectScan(
@@ -253,7 +301,9 @@ def scan_project_for_init(
         doc_dirs=doc_dirs,
         subprojects=subprojects,
         compose_paths=compose_paths,
-        extension_counts=dict(sorted(ext_counts.items(), key=lambda item: (-item[1], item[0]))[:12]),
+        extension_counts=dict(
+            sorted(ext_counts.items(), key=lambda item: (-item[1], item[0]))[:12]
+        ),
     )
 
 
@@ -274,7 +324,9 @@ def format_init_scan_report(scan: InitProjectScan, *, locale: str = "en") -> str
         lines.append("")
 
     if scan.subprojects:
-        lines.append(t("init.scan.subprojects", loc, items="\n".join(f"- `{p}`" for p in scan.subprojects)))
+        lines.append(
+            t("init.scan.subprojects", loc, items="\n".join(f"- `{p}`" for p in scan.subprojects))
+        )
         lines.append("")
 
     if scan.manifest_paths:

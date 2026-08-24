@@ -72,6 +72,37 @@ def test_write_init_skeleton_creates_holix_md(tmp_path, monkeypatch) -> None:
     assert "apps/" in text
 
 
+def test_scan_skips_library_without_descending(tmp_path) -> None:
+    src = tmp_path / "src"
+    src.mkdir()
+    (src / "app.py").write_text("x = 1\n", encoding="utf-8")
+    poison = tmp_path / "Library" / "Caches"
+    poison.mkdir(parents=True)
+    (poison / "huge.py").write_text("y = 2\n", encoding="utf-8")
+
+    scan = scan_project_for_init(cwd=tmp_path)
+
+    assert scan.file_count == 1
+    assert "Library" not in scan.top_level_dirs
+    assert all("Library" not in p for p in scan.manifest_paths)
+
+
+def test_scan_refuses_home_directory(tmp_path, monkeypatch) -> None:
+    from pathlib import Path
+
+    home = tmp_path / "home"
+    docs = home / "Documents"
+    docs.mkdir(parents=True)
+    (docs / "notes.py").write_text("x = 1\n", encoding="utf-8")
+    monkeypatch.setattr(Path, "home", classmethod(lambda cls: home))
+
+    scan = scan_project_for_init(cwd=home)
+
+    assert scan.file_count == 0
+    assert scan.manifest_paths == []
+    assert scan.directory_tree == ""
+
+
 def test_scan_marks_large_repo_by_file_count(tmp_path, monkeypatch) -> None:
     monkeypatch.chdir(tmp_path)
     pkg = tmp_path / "src"

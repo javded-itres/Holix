@@ -7,6 +7,7 @@ repo — never use bare ``Path.cwd()`` when a workspace is known.
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
 from typing import Any
 
@@ -96,3 +97,43 @@ def resolve_project_root(
         pass
 
     return Path.cwd().resolve()
+
+
+def profile_workspace_cwd(profile: str) -> str | None:
+    """Directory OS companions should use instead of LaunchAgent ``$HOME``.
+
+    Returns ``None`` when the profile has no usable ``workspace_root`` (missing,
+    not a directory, or an unsafe scan root such as ``$HOME``).
+    """
+    from core.project.scan_safety import is_unsafe_project_scan_root
+
+    name = (profile or "").strip() or "default"
+    try:
+        from core.profile import ProfileManager
+
+        cfg = ProfileManager().load_profile(name)
+    except Exception:
+        return None
+    root = _as_filesystem_path(getattr(cfg, "workspace_root", None))
+    if root is None:
+        return None
+    try:
+        if not root.is_dir():
+            return None
+    except OSError:
+        return None
+    if is_unsafe_project_scan_root(root):
+        return None
+    return str(root)
+
+
+def chdir_to_profile_workspace(profile: str) -> str | None:
+    """``os.chdir`` to :func:`profile_workspace_cwd` when it exists."""
+    cwd = profile_workspace_cwd(profile)
+    if not cwd:
+        return None
+    try:
+        os.chdir(cwd)
+    except OSError:
+        return None
+    return cwd

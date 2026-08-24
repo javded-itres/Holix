@@ -107,6 +107,20 @@ def test_discover_skips_macos_library(tmp_path: Path) -> None:
     assert resolve_holix_md_read_path(project) is None
 
 
+def test_discover_and_ensure_refuse_home_directory(tmp_path: Path, monkeypatch) -> None:
+    home = tmp_path / "home"
+    nested = home / "Documents" / "proj"
+    nested.mkdir(parents=True)
+    holix = nested / ".holix"
+    holix.mkdir()
+    (holix / "HOLIX.md").write_text("# nested under home\n", encoding="utf-8")
+    monkeypatch.setattr(Path, "home", classmethod(lambda cls: home))
+
+    assert resolve_holix_md_read_path(home) is None
+    assert ensure_holix_md_exists(home) is None
+    assert not (home / ".holix").exists()
+
+
 def test_ignores_holix_md_deeper_than_four_levels(tmp_path: Path) -> None:
     project = tmp_path / "repo"
     project.mkdir()

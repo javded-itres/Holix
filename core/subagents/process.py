@@ -1474,12 +1474,12 @@ class SubAgentProcessManager:
             max_steps=int(config.max_steps or 0),
         )
 
-        try:
-            from pathlib import Path as _Path
+        from core.prompt_builder import resolve_agent_working_directory
 
-            parent_cwd = str(_Path.cwd().resolve())
-        except OSError:
-            parent_cwd = os.getcwd()
+        parent_cwd = resolve_agent_working_directory(
+            workspace_root=getattr(parent_cfg, "workspace_root", None),
+            workspace_jail_enabled=getattr(parent_cfg, "workspace_jail_enabled", None),
+        )
 
         process_args = (
             config_dict,

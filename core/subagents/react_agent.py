@@ -327,13 +327,6 @@ def build_react_subagent(parent: Any, config: SubAgentConfig, task: str) -> Any:
     child.model = model or child.model
     child.agent_slot = slot
     profile_name = str(getattr(parent_cfg, "profile_name", None) or "default")
-    working_directory = ""
-    try:
-        from pathlib import Path
-
-        working_directory = str(Path.cwd().resolve())
-    except OSError:
-        working_directory = ""
     child.subagent_system_prompt = build_subagent_system_prompt(
         config,
         task,
@@ -341,7 +334,6 @@ def build_react_subagent(parent: Any, config: SubAgentConfig, task: str) -> Any:
         profile_name=profile_name,
         workspace_root=getattr(parent_cfg, "workspace_root", None),
         workspace_jail_enabled=getattr(parent_cfg, "workspace_jail_enabled", None),
-        working_directory=working_directory or None,
     )
     child._initialized = True
     child._use_langgraph = True

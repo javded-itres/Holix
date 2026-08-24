@@ -132,14 +132,7 @@ class AsyncSubAgentRunner:
 
         parent_cfg = getattr(self._parent, "config", None)
         profile_name = str(getattr(parent_cfg, "profile_name", None) or "default")
-        from pathlib import Path
-
         from core.subagents.prompt import build_subagent_system_prompt
-
-        try:
-            working_directory = str(Path.cwd().resolve())
-        except OSError:
-            working_directory = str(Path.cwd())
 
         system_prompt = build_subagent_system_prompt(
             config,
@@ -148,7 +141,6 @@ class AsyncSubAgentRunner:
             profile_name=profile_name,
             workspace_root=getattr(parent_cfg, "workspace_root", None),
             workspace_jail_enabled=getattr(parent_cfg, "workspace_jail_enabled", None),
-            working_directory=working_directory,
         )
 
         # Build messages

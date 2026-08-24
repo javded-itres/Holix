@@ -38,6 +38,12 @@ def main(argv: list[str] | None = None) -> int:
 
     bootstrap_profile_unlock_from_env(args.profile)
     bootstrap_profile_env(args.profile)
+    try:
+        from core.project.workspace_root import chdir_to_profile_workspace
+
+        chdir_to_profile_workspace(args.profile)
+    except Exception:
+        pass
 
     from cli.services.gateway_singleton import assert_can_start_gateway
 
@@ -71,8 +77,8 @@ def main(argv: list[str] | None = None) -> int:
         except FileNotFoundError:
             pass
 
-    with_docs = args.with_docs or _env_bool("HOLIX_GATEWAY_WITH_DOCS") or _env_bool(
-        "HOLIX_GATEWAY_DOCS"
+    with_docs = (
+        args.with_docs or _env_bool("HOLIX_GATEWAY_WITH_DOCS") or _env_bool("HOLIX_GATEWAY_DOCS")
     )
     docs_host = args.docs_host or os.getenv("HOLIX_DOCS_HOST", "127.0.0.1")
     docs_port = args.docs_port

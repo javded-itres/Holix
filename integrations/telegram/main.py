@@ -32,4 +32,10 @@ if __name__ == "__main__":
         default=(os.getenv("HOLIX_PROFILE") or "default").strip() or "default",
     )
     args = parser.parse_args()
+    try:
+        from core.project.workspace_root import chdir_to_profile_workspace
+
+        chdir_to_profile_workspace(args.profile)
+    except Exception:
+        pass
     main(args.profile)

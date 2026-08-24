@@ -76,6 +76,28 @@ def test_subagent_prompt_jail_mode_uses_workspace_root(tmp_path: Path) -> None:
     assert str((tmp_path / "other").resolve()) in prompt or str(ws.resolve()) in prompt
 
 
+def test_subagent_prompt_uses_workspace_root_not_process_cwd(tmp_path: Path, monkeypatch) -> None:
+    home = tmp_path / "home"
+    ws = tmp_path / "ws"
+    home.mkdir()
+    ws.mkdir()
+    (ws / ".holix").mkdir()
+    (ws / ".holix" / "HOLIX.md").write_text("# Workspace handbook\n", encoding="utf-8")
+    (home / ".holix").mkdir()
+    (home / ".holix" / "HOLIX.md").write_text("# HOME handbook\n", encoding="utf-8")
+    monkeypatch.chdir(home)
+    cfg = SubAgentConfig(name="coder", system_prompt="You code.")
+    prompt = build_subagent_system_prompt(
+        cfg,
+        "task",
+        workspace_root=str(ws),
+        workspace_jail_enabled=False,
+    )
+    assert "Workspace handbook" in prompt
+    assert "HOME handbook" not in prompt
+    assert str(ws.resolve()) in prompt
+
+
 def test_format_working_directory_block_nonempty() -> None:
     block = format_working_directory_block(workspace_jail_enabled=False)
     assert "Working directory" in block

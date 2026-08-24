@@ -6,6 +6,7 @@ import logging
 from pathlib import Path
 
 from core.config_utils import get_local_holix_dir
+from core.project.scan_safety import SKIP_SEARCH_DIR_NAMES, is_unsafe_project_scan_root
 
 logger = logging.getLogger(__name__)
 
@@ -15,35 +16,7 @@ HOLIX_MD_REL_PATH = f".holix/{HOLIX_MD_FILENAME}"
 DEFAULT_MAX_CHARS = 24_000
 # Studio product projects live at projects/<slug>/<repo> (3 levels from workspace).
 HOLIX_MD_SEARCH_DEPTH = 4
-_SKIP_SEARCH_DIRS = frozenset(
-    {
-        ".git",
-        ".holix",
-        ".helix",
-        ".hg",
-        ".svn",
-        "node_modules",
-        ".venv",
-        "venv",
-        "__pycache__",
-        "dist",
-        "build",
-        ".tox",
-        ".mypy_cache",
-        ".pytest_cache",
-        ".ruff_cache",
-        # macOS home / volume poison — scandir here blocks the Telegram loop
-        "Library",
-        "Applications",
-        "System",
-        "Volumes",
-        "Network",
-        "Movies",
-        "Pictures",
-        "Music",
-        "CloudStorage",
-    }
-)
+_SKIP_SEARCH_DIRS = SKIP_SEARCH_DIR_NAMES
 
 _MINIMAL_HOLIX_TEMPLATE = """# Project handbook
 
@@ -139,6 +112,9 @@ def discover_holix_md_paths(
     root = _workspace_root(cwd)
     depth_limit = max(0, int(max_depth))
     found: list[tuple[int, str, Path]] = []
+    if is_unsafe_project_scan_root(root):
+        hit = _holix_md_file_in_dir(root)
+        return [hit] if hit is not None else []
 
     def consider(directory: Path, depth: int) -> None:
         try:
@@ -168,6 +144,11 @@ def discover_holix_md_paths(
                 continue
             name = child.name
             if name in _SKIP_SEARCH_DIRS or name.startswith("."):
+                continue
+            try:
+                if child.is_symlink():
+                    continue
+            except OSError:
                 continue
             next_depth = depth + 1
             consider(child, next_depth)
@@ -307,6 +288,9 @@ def ensure_holix_md_exists(
         return existing
 
     root = _workspace_root(cwd)
+    if is_unsafe_project_scan_root(root):
+        logger.warning("refusing to create HOLIX.md under %s", root)
+        return None
     written = _write_init_skeleton_at(root, locale=locale)
     if written is not None and _is_file(written):
         return written
