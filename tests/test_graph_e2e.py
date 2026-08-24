@@ -41,6 +41,7 @@ async def test_react_graph_completes_with_mock_llm(temp_dir, monkeypatch):
     agent.memory.search = AsyncMock(return_value=[])
     agent.skills.get_relevant_skills = MagicMock(return_value=[])
     agent.skills.format_skills_for_prompt = MagicMock(return_value="")
+    agent.skills.skills_prompt_block = MagicMock(return_value="")
     agent.tools.get_schemas = MagicMock(return_value=[])
     mock_response = _mock_llm_response("E2E graph completed successfully.")
     agent.client.chat.completions.create = AsyncMock(return_value=mock_response)
@@ -60,9 +61,7 @@ async def test_react_graph_completes_with_mock_llm(temp_dir, monkeypatch):
         stream=False,
     )
 
-    state = prepare_initial_state(
-        agent, "Hello graph", "e2e_conv", execution_mode="react"
-    )
+    state = prepare_initial_state(agent, "Hello graph", "e2e_conv", execution_mode="react")
     state["messages"] = []
 
     config = {
@@ -103,6 +102,7 @@ async def test_run_holix_graph_path_yields_events(temp_dir, monkeypatch):
     agent.memory.search = AsyncMock(return_value=[])
     agent.skills.get_relevant_skills = MagicMock(return_value=[])
     agent.skills.format_skills_for_prompt = MagicMock(return_value="")
+    agent.skills.skills_prompt_block = MagicMock(return_value="")
     agent.tools.get_schemas = MagicMock(return_value=[])
     agent.client.chat.completions.create = AsyncMock(
         return_value=_mock_llm_response("Holix unified runtime OK.")

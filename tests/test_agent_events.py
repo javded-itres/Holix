@@ -181,6 +181,7 @@ class TestHolixAgentEventIntegration:
 # Tests for the unified execution engine (with heavy mocking)
 # =============================================================================
 
+
 @pytest.mark.integration
 class TestRunAgentLoopWithMocks:
     """
@@ -205,6 +206,7 @@ class TestRunAgentLoopWithMocks:
         # Mock skills
         agent.skills.get_relevant_skills = MagicMock(return_value=[])
         agent.skills.format_skills_for_prompt = MagicMock(return_value="")
+        agent.skills.skills_prompt_block = MagicMock(return_value="")
 
         # Mock tools
         agent.tools.get_schemas = MagicMock(return_value=[])

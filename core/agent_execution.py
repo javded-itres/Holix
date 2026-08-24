@@ -73,10 +73,9 @@ async def run_agent_loop(
 
     messages, _was_compressed = await prepare_session(agent, user_input, conversation_id)
 
-    # Retrieve relevant skills
+    # Compact skill index (bodies load via skill_view)
     agent_slot = getattr(agent, "agent_slot", "main")
-    relevant_skills = agent.skills.get_relevant_skills(user_input, top_k=3, agent_slot=agent_slot)
-    skills_formatted = agent.skills.format_skills_for_prompt(relevant_skills)
+    skills_formatted = agent.skills.skills_prompt_block(user_input, agent_slot=agent_slot)
 
     # Retrieve relevant memories from past conversations
     relevant_memories = ""
@@ -124,7 +123,7 @@ async def run_agent_loop(
         persona_prompt = None
     system_prompt = build_system_prompt(
         tools_description=tools_desc,
-        active_skills=relevant_skills,
+        active_skills=[],
         skills_formatted=skills_formatted,
         relevant_memories=relevant_memories,
         profile_name=profile_name,

@@ -2,6 +2,8 @@
 
 Install skills and Claude Code plugins from public catalogs into the active profile.
 
+The agent prompt lists installed skills as a compact index. Full `SKILL.md` bodies are loaded on demand with `skill_view`.
+
 Data layout:
 
 - Bundles: `{profile}/data/skills/_hub/<slug>/`
@@ -70,5 +72,5 @@ Skill frontmatter may include `agents:` / `agent_roles:` for defaults.
 
 ## MCP env in plugins
 
-`${VAR}` and `${ENV:VAR}` in Claude plugin MCP configs are resolved at load time.  
+`${VAR}` and `${ENV:VAR}` in Claude plugin MCP configs are resolved at load time.
 `holix doctor` reports `mcp.unresolved_env` when variables are missing.

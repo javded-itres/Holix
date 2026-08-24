@@ -86,9 +86,9 @@ holix tui --web --allow-lan --token "$(openssl rand -hex 32)"
 
 ## `holix status` / `clear` / `version`
 
-- **status** — модель, URL, каталоги, список профилей  
-- **clear** — удаление памяти и навыков (`-y` без подтверждения)  
-- **version** — версия пакета  
+- **status** — модель, URL, каталоги, список профилей
+- **clear** — удаление памяти и навыков (`-y` без подтверждения)
+- **version** — версия пакета
 
 ---
 
@@ -157,6 +157,8 @@ holix models fallback list
 ---
 
 ## `holix skills`
+
+Навыки — markdown с YAML-frontmatter. В системный промпт попадает компактный индекс (имя + описание); полное `SKILL.md` агент читает через `skill_view`.
 
 | Подкоманда | Описание |
 |------------|----------|
@@ -307,8 +309,8 @@ holix cron add "every day at 9 :: Проверить логи"
 holix cron list
 ```
 
-TUI/Telegram/MAX: `/cron`, `/cron add …`, `/cron bind <id>`.  
-**Автосоздание (0.1.16+):** повторяющиеся запросы на RU/EN в чате создают задачи без `/cron add` — см. [CRON.md](CRON.md).  
+TUI/Telegram/MAX: `/cron`, `/cron add …`, `/cron bind <id>`.
+**Автосоздание (0.1.16+):** повторяющиеся запросы на RU/EN в чате создают задачи без `/cron add` — см. [CRON.md](CRON.md).
 Лог запусков: `profiles/<p>/data/cron/runs.log` · навык: `holix-cron`.
 
 ---
@@ -324,7 +326,7 @@ holix logs rotate
 holix logs debug on
 ```
 
-Источники `-s`: `all`, `agent`, `gateway`, `cron`, `subagent`, `system`.  
+Источники `-s`: `all`, `agent`, `gateway`, `cron`, `subagent`, `system`.
 Опции: `-n`, `-l`, `-g`, `-f`, `--debug`, `-v`. Полная версия: [LOGS.md](LOGS.md).
 
 ---
@@ -401,7 +403,7 @@ holix -p shared telegram map set 123456789 alice   # ручная альтерн
 holix -p shared gateway start
 ```
 
-Один бот на несколько изолированных профилей: [TELEGRAM.md](TELEGRAM.md).  
+Один бот на несколько изолированных профилей: [TELEGRAM.md](TELEGRAM.md).
 Общее: [TELEGRAM.md](TELEGRAM.md).
 
 ---
@@ -422,7 +424,7 @@ holix max
 holix max status
 ```
 
-Продакшен: `holix gateway start` (webhook через `POST /subscriptions`).  
+Продакшен: `holix gateway start` (webhook через `POST /subscriptions`).
 См. [MAX.md](MAX.md).
 
 ---

@@ -34,6 +34,59 @@ def test_format_skills_prompt_is_index_unless_bundled(tmp_path: Path) -> None:
     assert "skill_view" in formatted
 
 
+def test_format_skills_prompt_never_inlines_bundled(tmp_path: Path) -> None:
+    mgr = _mgr(tmp_path)
+    mgr.save_skill(
+        name="holix-bundled-demo",
+        description="Bundled workflow",
+        content="## Procedure\nBUNDLED_BODY_MUST_STAY_OUT\n",
+        origin="bundled",
+    )
+    formatted = mgr.format_skills_for_prompt(list(mgr.all_skills.values()))
+    assert "holix-bundled-demo" in formatted
+    assert "BUNDLED_BODY_MUST_STAY_OUT" not in formatted
+    dumped = mgr.format_skills_for_prompt(list(mgr.all_skills.values()), include_body=True)
+    assert "BUNDLED_BODY_MUST_STAY_OUT" in dumped
+
+
+def test_skills_prompt_block_suggests_without_bodies(tmp_path: Path) -> None:
+    mgr = _mgr(tmp_path)
+    mgr.save_skill(
+        name="alpha-skill",
+        description="Alpha flow",
+        content="ALPHA_SECRET_BODY",
+        origin="agent",
+    )
+    mgr.save_skill(
+        name="beta-skill",
+        description="Beta flow",
+        content="BETA_SECRET_BODY",
+        origin="bundled",
+    )
+    block = mgr.skills_prompt_block("alpha", agent_slot="main")
+    assert "`alpha-skill`" in block
+    assert "`beta-skill`" in block
+    assert "ALPHA_SECRET_BODY" not in block
+    assert "BETA_SECRET_BODY" not in block
+    assert "skill_view" in block
+
+
+def test_skills_prompt_block_truncates_catalog(tmp_path: Path) -> None:
+    mgr = _mgr(tmp_path)
+    for i in range(4):
+        mgr.save_skill(
+            name=f"skill-{i}",
+            description=f"desc {i}",
+            content=f"BODY{i}",
+            origin="agent",
+        )
+    block = mgr.skills_prompt_block("", agent_slot="main", cap=2)
+    assert "truncated" in block.lower()
+    listed = sum(1 for i in range(4) if f"`skill-{i}`" in block)
+    assert listed == 2
+    assert "BODY0" not in block
+
+
 @pytest.mark.asyncio
 async def test_skill_view_and_manage_stage(tmp_path: Path, monkeypatch) -> None:
     mgr = _mgr(tmp_path)

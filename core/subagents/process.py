@@ -237,12 +237,10 @@ def run_sub_agent_in_process(
                 skill_assignments=skill_assignments or {},
             )
             sk_mgr = SkillsManager(sk_cfg)
-            relevant = sk_mgr.get_relevant_skills(
+            skills_block = sk_mgr.skills_prompt_block(
                 task,
-                top_k=3,
                 agent_slot=config.agent_type or config.name,
             )
-            skills_block = sk_mgr.format_skills_for_prompt(relevant)
         except Exception:
             pass
 

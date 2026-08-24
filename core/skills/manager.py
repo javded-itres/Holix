@@ -11,6 +11,31 @@ from core.memory.chroma_embeddings import get_or_create_collection
 from core.skills.assignments import is_skill_allowed_for_agent
 from core.skills.paths import join_under, resolve_under_any
 
+# One-liners in the system prompt; extra skills stay behind skill_view().
+_SKILLS_PROMPT_CAP = 48
+_SKILL_DESC_LIMIT = 160
+
+
+def _one_line(text: str, limit: int = _SKILL_DESC_LIMIT) -> str:
+    compact = " ".join(str(text or "").split())
+    if len(compact) > limit:
+        return compact[: limit - 3] + "..."
+    return compact or "No description"
+
+
+def _skill_index_line(skill: dict[str, Any]) -> str:
+    name = skill.get("name") or "Unnamed"
+    desc = _one_line(skill.get("description") or "")
+    extra: list[str] = []
+    origin = str(skill.get("origin") or skill.get("_source") or "").strip()
+    if origin:
+        extra.append(origin)
+    tags = skill.get("tags") or []
+    if tags:
+        extra.append(", ".join(str(t) for t in tags[:6]))
+    suffix = f" ({'; '.join(extra)})" if extra else ""
+    return f"- `{name}`: {desc}{suffix}"
+
 
 def tool_names_from_messages(messages: list[dict[str, Any]]) -> set[str]:
     """Unique tool names from tool rows and assistant tool_calls.
@@ -549,18 +574,8 @@ class SkillsManager:
         self.load_all_skills()
 
     def is_inline_skill(self, skill: dict[str, Any]) -> bool:
-        """True if this skill is short/load-bearing and may be inlined in the prompt."""
-        name = str(skill.get("name") or "")
-        origin = str(skill.get("origin") or "").strip().lower()
-        if origin in {"bundled", "hub"}:
-            return True
-        try:
-            from core.skills.bundled import bundled_skill_names
-
-            if name in set(bundled_skill_names()):
-                return True
-        except Exception:
-            pass
+        """Deprecated: skill bodies are never auto-inlined (use skill_view)."""
+        del skill
         return False
 
     def mark_skill_used(self, name: str, *, conversation_id: str = "") -> None:
@@ -619,39 +634,113 @@ class SkillsManager:
         skills: list[dict[str, Any]],
         *,
         include_body: bool = False,
+        suggested_names: list[str] | None = None,
+        catalog_total: int | None = None,
     ) -> str:
-        """Format skills for the system prompt.
+        """Compact skill index for the system prompt.
 
-        Default is progressive disclosure: name + description (+ full body
-        only for bundled/hub skills). Call ``skill_view`` for the rest.
+        Bodies are omitted unless ``include_body`` is True. The model must call
+        ``skill_view(name)`` before following a procedure.
         """
         if not skills:
             return ""
 
-        output = "## Available Skills\n\n"
-        output += (
-            "Index of relevant skills. Load a non-bundled skill with "
-            "`skill_view(name)` before following it. "
-            "To save a new procedure, call `skill_manage` "
-            "(it stages a draft for approval — it does not write live skills).\n\n"
-        )
+        suggested_order = [str(n) for n in (suggested_names or []) if n]
+        suggested_set = set(suggested_order)
+        by_name: dict[str, dict[str, Any]] = {}
+        rest: list[dict[str, Any]] = []
+        for skill in skills:
+            name = str(skill.get("name") or "")
+            if name:
+                by_name[name] = skill
+            if name and name in suggested_set:
+                continue
+            rest.append(skill)
+        rest.sort(key=lambda s: str(s.get("name") or "").lower())
+        suggested_skills = [by_name[n] for n in suggested_order if n in by_name]
 
-        for i, skill in enumerate(skills, 1):
-            name = skill.get("name", "Unnamed")
-            output += f"### {i}. {name}\n"
-            output += f"**Description:** {skill.get('description', 'No description')}\n"
-            if skill.get("tags"):
-                output += f"**Tags:** {', '.join(skill['tags'])}\n"
-            origin = skill.get("origin") or skill.get("_source") or ""
-            if origin:
-                output += f"**Origin:** {origin}\n"
-            inline = include_body or self.is_inline_skill(skill)
-            if inline:
+        lines = [
+            "## Available Skills",
+            "",
+            "Compact index only — no SKILL.md bodies. "
+            "Call `skill_view(name)` before following a skill. "
+            "`skill_view()` with no name lists every installed skill. "
+            "To save a procedure, call `skill_manage` "
+            "(it stages a draft for approval — it does not write live skills).",
+            "",
+        ]
+        if suggested_skills:
+            lines.append("Suggested for this turn:")
+            for skill in suggested_skills:
+                lines.append(_skill_index_line(skill))
+            lines.append("")
+        if rest:
+            lines.append("Installed:")
+            for skill in rest:
+                lines.append(_skill_index_line(skill))
+            lines.append("")
+        if catalog_total and catalog_total > len(skills):
+            lines.append(
+                f"Index truncated ({len(skills)} of {catalog_total}). "
+                "Call `skill_view()` with no name for the rest."
+            )
+            lines.append("")
+        if include_body:
+            lines.append("Full bodies (debug):")
+            for skill in [*suggested_skills, *rest]:
+                name = skill.get("name", "Unnamed")
                 body = (skill.get("content") or "").strip()
                 if body:
-                    output += f"\n{body}\n"
-            else:
-                output += f"\nCall `skill_view({name})` for the full procedure.\n"
-            output += "\n---\n\n"
+                    lines.append(f"### {name}\n{body}")
+            lines.append("")
+        return "\n".join(lines).rstrip() + "\n"
 
-        return output
+    def skills_prompt_block(
+        self,
+        query: str,
+        *,
+        agent_slot: str = "main",
+        top_k: int = 5,
+        cap: int | None = None,
+    ) -> str:
+        """Index of skills allowed for *agent_slot*, with query-relevant names first."""
+        limit = _SKILLS_PROMPT_CAP if cap is None else cap
+        if not self.all_skills:
+            self.load_all_skills(defer_index=True)
+        allowed = [
+            skill
+            for skill in self.all_skills.values()
+            if self.is_allowed_for_agent(skill, agent_slot)
+        ]
+        if not allowed:
+            return ""
+        allowed.sort(key=lambda s: str(s.get("name") or "").lower())
+        suggested = self.get_relevant_skills(
+            query or "",
+            top_k=top_k,
+            agent_slot=agent_slot,
+        )
+        suggested_names = [str(skill.get("name") or "") for skill in suggested if skill.get("name")]
+        catalog_total = len(allowed)
+        shown = allowed
+        if catalog_total > limit:
+            by_name = {str(s.get("name") or ""): s for s in allowed}
+            ordered: list[str] = []
+            for name in suggested_names:
+                if name in by_name and name not in ordered:
+                    ordered.append(name)
+                if len(ordered) >= limit:
+                    break
+            for skill in allowed:
+                name = str(skill.get("name") or "")
+                if name and name not in ordered:
+                    ordered.append(name)
+                if len(ordered) >= limit:
+                    break
+            shown = [by_name[n] for n in ordered if n in by_name][:limit]
+        shown_names = {str(s.get("name") or "") for s in shown}
+        return self.format_skills_for_prompt(
+            shown,
+            suggested_names=[n for n in suggested_names if n in shown_names],
+            catalog_total=catalog_total if catalog_total > len(shown) else None,
+        )

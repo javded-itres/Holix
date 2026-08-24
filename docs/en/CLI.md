@@ -68,7 +68,7 @@ holix chat-command --temperature 0.3 --max-steps 20
 | `--temperature`, `-t` | Sampling temperature |
 | `--max-steps` | Max agent loop steps |
 
-Built-in slash commands: `/help`, `/exit`, `/clear`, `/model`, `/profile`, `/skills`, `/memory`, `/status`, `/metrics`, `/stream`, `/debug`, `/compress`.  
+Built-in slash commands: `/help`, `/exit`, `/clear`, `/model`, `/profile`, `/skills`, `/memory`, `/status`, `/metrics`, `/stream`, `/debug`, `/compress`.
 Full list: [SLASH_COMMANDS.md](SLASH_COMMANDS.md#holix-chat-command-only).
 
 ---
@@ -271,7 +271,7 @@ agent_models:
 
 ## `holix skills`
 
-Skills are markdown with YAML frontmatter under `{profile}/data/skills/`, indexed in ChromaDB.
+Skills are markdown with YAML frontmatter under `{profile}/data/skills/`, indexed in ChromaDB. The agent prompt lists a compact index (name + description); full `SKILL.md` is loaded with `skill_view`.
 
 | Subcommand | Description |
 |------------|-------------|
@@ -392,7 +392,7 @@ holix gateway reload
 # other profile: holix -p alice gateway start
 ```
 
-State: `~/.holix/profiles/<profile>/gateway/state.json` · Logs: `profiles/<profile>/gateway/gateway.log`  
+State: `~/.holix/profiles/<profile>/gateway/state.json` · Logs: `profiles/<profile>/gateway/gateway.log`
 API details: [GATEWAY.md](GATEWAY.md).
 
 ### Gateway API keys
@@ -458,8 +458,8 @@ holix cron list
 holix cron disable job-id
 ```
 
-TUI/Telegram/MAX: `/cron`, `/cron add …`, `/cron bind <id>`.  
-**Auto-create (0.1.16+):** recurring natural-language chat (RU/EN) creates jobs without `/cron add` — see [CRON.md](CRON.md).  
+TUI/Telegram/MAX: `/cron`, `/cron add …`, `/cron bind <id>`.
+**Auto-create (0.1.16+):** recurring natural-language chat (RU/EN) creates jobs without `/cron add` — see [CRON.md](CRON.md).
 Run log: `~/.holix/profiles/<profile>/data/cron/runs.log` · Skill: bundled `holix-cron`.
 
 ---
@@ -513,7 +513,7 @@ holix doctor --no-llm
 holix -p prod doctor
 ```
 
-Checks: `~/.holix` writable, profile YAML, providers, hub lockfile, MCP env placeholders, skill assignments, gateway state, Telegram, platform (OS, PATH tools), production security.  
+Checks: `~/.holix` writable, profile YAML, providers, hub lockfile, MCP env placeholders, skill assignments, gateway state, Telegram, platform (OS, PATH tools), production security.
 Details: [DOCTOR.md](DOCTOR.md).
 
 ---
@@ -540,7 +540,7 @@ holix mcp install filesystem
 holix mcp test my-server
 ```
 
-Tools appear as `mcp_<server>_<toolname>` in the agent.  
+Tools appear as `mcp_<server>_<toolname>` in the agent.
 In TUI: `/mcp` — [SLASH_COMMANDS.md](SLASH_COMMANDS.md#mcp-in-session).
 
 ---
@@ -603,7 +603,7 @@ holix -p shared telegram map set 123456789 alice   # manual alternative
 holix -p shared gateway start
 ```
 
-Shared bot with isolated profiles: [TELEGRAM.md](TELEGRAM.md#multi-profile-topologies).  
+Shared bot with isolated profiles: [TELEGRAM.md](TELEGRAM.md#multi-profile-topologies).
 See also [TELEGRAM.md](TELEGRAM.md).
 
 ---
@@ -624,7 +624,7 @@ holix max
 holix max status
 ```
 
-Production: `holix gateway start` (webhook via `POST /subscriptions`).  
+Production: `holix gateway start` (webhook via `POST /subscriptions`).
 See [MAX.md](MAX.md).
 
 ---

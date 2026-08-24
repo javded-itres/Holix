@@ -9,6 +9,7 @@
 - **Process-exit wakeup (TUI)** — when a live background process disappears, Holix queues a turn (or runs one if idle) so the agent can inspect the log instead of busy-polling. User `/process-stop` does not auto-wake. Cap: 3 consecutive wakes until the next real user prompt.
 - **Session trajectory** — append-only JSONL of agent events (tools, finals, subprocesses, todos) under `profiles/<name>/data/trajectory/`. `/trace` (optional `N` or `search <query>`) in TUI/Telegram/MAX. Streaming token deltas are not stored. Secrets in tool args are redacted.
 - **OS sandbox + `/permission`** — session presets `workspace-write` (Seatbelt/bwrap, writes only in workspace/tmp), `read-only` (no mutating tools), `danger-full-access` (unconfined, auto-allow HIGH). Default: workspace-write when jail is on, otherwise danger-full-access. Restricted modes fail closed if no backend. `HOLIX_PERMISSION_MODE` overrides the default. Not written to `config.yaml`.
+- **Skills on-demand** — the system prompt gets a compact name+description index (suggested first). Full `SKILL.md` bodies load only via `skill_view`. Bundled/hub skills are no longer inlined.
 - **Code mode (opt-in)** — `tools_presentation: native | code | both` in profile `config.yaml` (default `native`). In `code` the model calls only `run_code` and writes a Python program against a generated SDK; each inner `tools.name(...)` still goes through ActionGuard and the workspace jail. Isolated subprocess; no nested `run_code` / `execute_python`. See `docs/en/CODE_MODE.md`.
 
 ### Fixed

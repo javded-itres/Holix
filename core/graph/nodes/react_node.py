@@ -1746,11 +1746,21 @@ def _build_system_prompt_from_state(state: HolixGraphState, agent=None) -> str:
             )
             tools_desc = f"{tools_desc}\n\n{sdk}" if tools_desc else sdk
 
-    # Format skills
+    # Compact skill index (bodies load via skill_view)
     skills_formatted = ""
     relevant_skills = state.get("relevant_skills", [])
-    if relevant_skills and agent and hasattr(agent, "skills"):
-        skills_formatted = agent.skills.format_skills_for_prompt(relevant_skills)
+    if agent and hasattr(agent, "skills"):
+        block = getattr(agent.skills, "skills_prompt_block", None)
+        if callable(block):
+            try:
+                skills_formatted = block(
+                    state.get("user_input") or "",
+                    agent_slot=getattr(agent, "agent_slot", "main"),
+                )
+            except Exception:
+                skills_formatted = ""
+        if not skills_formatted and relevant_skills:
+            skills_formatted = agent.skills.format_skills_for_prompt(relevant_skills)
 
     # Format memories
     relevant_memories = state.get("relevant_memories", [])

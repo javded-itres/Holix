@@ -123,12 +123,10 @@ class AsyncSubAgentRunner:
         skills_block = ""
         if hasattr(self._parent, "skills"):
             try:
-                relevant = self._parent.skills.get_relevant_skills(
+                skills_block = self._parent.skills.skills_prompt_block(
                     task,
-                    top_k=3,
                     agent_slot=config.agent_type or config.name,
                 )
-                skills_block = self._parent.skills.format_skills_for_prompt(relevant)
             except Exception as e:
                 logger.debug(f"Skill injection failed for sub-agent: {e}")
 
