@@ -550,6 +550,17 @@ class BackgroundProcessRegistry:
         """OS-alive processes only — dead/crashed records are omitted."""
         return [rec for rec in self.list_for_profile(profile=profile) if rec.is_running()]
 
+    def list_for_scope(
+        self, *, profile: str, conversation_id: str
+    ) -> list[BackgroundProcessRecord]:
+        self.hydrate_from_disk(profile)
+        scope = self._scope_key(profile, conversation_id)
+        out: list[BackgroundProcessRecord] = []
+        for rec in self._records.values():
+            if self._scope_key(rec.profile, rec.conversation_id) == scope:
+                out.append(rec)
+        return sorted(out, key=lambda r: r.started_at, reverse=True)
+
 
 PROCESS_EXIT_WAKE_MAX = 3
 
@@ -585,17 +596,6 @@ def format_process_exit_wakeup(
         "restart only if the user still wants the server. Do not busy-poll with "
         "check_background_process; you will be notified again if it dies."
     )
-
-    def list_for_scope(
-        self, *, profile: str, conversation_id: str
-    ) -> list[BackgroundProcessRecord]:
-        self.hydrate_from_disk(profile)
-        scope = self._scope_key(profile, conversation_id)
-        out: list[BackgroundProcessRecord] = []
-        for rec in self._records.values():
-            if self._scope_key(rec.profile, rec.conversation_id) == scope:
-                out.append(rec)
-        return sorted(out, key=lambda r: r.started_at, reverse=True)
 
 
 _default_registry: BackgroundProcessRegistry | None = None
