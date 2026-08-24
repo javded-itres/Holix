@@ -112,6 +112,9 @@ class AgentCommands:
                 body = format_todo_checklist(get_todos(profile, cid)) or "no todos"
                 h.transcript_write(body)
 
+            elif lower.startswith("/trace") or lower.startswith("/trajectory"):
+                await self._trace(h, cmd)
+
             elif lower == "/new":
                 h.run_worker(h._create_new_session())
 
@@ -271,6 +274,26 @@ class AgentCommands:
 
         except Exception as e:
             h.transcript_write(f"[red]{t('command_failed', lang, error=e)}[/red]")
+
+    async def _trace(self, h: Any, cmd: str) -> None:
+        from core.runtime.trajectory import TrajectoryLog, format_trace_report
+
+        profile = str(getattr(h, "profile", None) or "default")
+        cid = str(getattr(h, "conversation_id", None) or "default")
+        parts = cmd.split(maxsplit=2)
+        query = ""
+        limit = 40
+        if len(parts) >= 2 and parts[1].isdigit():
+            limit = int(parts[1])
+        elif len(parts) >= 3 and parts[1].lower() == "search":
+            query = parts[2]
+        elif len(parts) >= 2 and parts[1].lower() == "search":
+            query = ""
+        elif len(parts) >= 2:
+            query = " ".join(parts[1:])
+        log = TrajectoryLog(profile)
+        rows = log.search(cid, query, limit=limit) if query else log.tail(cid, limit=limit)
+        h.transcript_write(format_trace_report(rows, conversation_id=cid))
 
     async def _status(self, h: Any) -> None:
         if hasattr(h, "action_status"):

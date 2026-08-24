@@ -71,6 +71,10 @@ If a listed process **dies on its own**, TUI injects a notice and runs (or queue
 
 Cwd follows `working_directory` → workspace jail → profile workspace. Venv is on `PATH`; `PYTHONUNBUFFERED=1`.
 
+## Trajectory
+
+`/trace` prints an append-only timeline of this session (tools, finals, background processes, todos). `/trace 80` shows more rows; `/trace search grep` filters. Files live in `~/.holix/profiles/<name>/data/trajectory/`. Token-stream deltas are not stored.
+
 ## Copy
 
 - **Chat:** select text → bottom **Copy** bar (⌃C/⌘C do not copy the last answer).

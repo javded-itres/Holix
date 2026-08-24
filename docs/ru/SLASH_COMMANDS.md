@@ -70,6 +70,7 @@
 | `/memory-clear`, `/memory clear` | Сброс UI поиска |
 | `/last`, `/last N` | Полный вывод инструмента |
 | `/tools` | Недавние результаты tools |
+| `/trace` | Траектория сессии (tools / модель). `/trace 80` или `/trace search grep` |
 
 ---
 

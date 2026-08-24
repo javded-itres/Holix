@@ -104,6 +104,12 @@ class HolixAgent:
 
         if enable_monitoring:
             wire_default_monitoring(self.events)
+        try:
+            from core.runtime.trajectory import attach_trajectory_logger
+
+            attach_trajectory_logger(self)
+        except Exception:
+            pass
 
         def _req(name: str, value: Any, factory):
             if value is not None:

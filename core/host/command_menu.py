@@ -26,6 +26,7 @@ _HOST_COMMAND_KEYS: list[tuple[str, str]] = [
     ("skills", "tg.cmd.skills"),
     ("subagents", "tg.cmd.subagents"),
     ("todos", "tg.cmd.todos"),
+    ("trace", "tg.cmd.trace"),
     ("tools", "tg.cmd.tools"),
     ("last", "tg.cmd.last"),
     ("metrics", "tg.cmd.metrics"),

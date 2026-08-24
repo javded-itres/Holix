@@ -72,6 +72,7 @@ On Russian macOS layout, `,help` and `.help` are normalized to `/help`. Type `/`
 | `/last` | Full output of last tool |
 | `/last N` | Full output of tool *N* back in history |
 | `/tools` | List recent tool results |
+| `/trace` | Session trajectory (what tools/the model did). `/trace 80` or `/trace search grep` |
 
 ---
 

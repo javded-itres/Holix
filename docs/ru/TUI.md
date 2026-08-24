@@ -71,6 +71,10 @@ export HOLIX_TUI_WEB_TOKEN="..."
 
 Рабочая директория: `working_directory` → workspace jail → workspace профиля. Venv в `PATH`, `PYTHONUNBUFFERED=1`.
 
+## Траектория
+
+`/trace` — append-only таймлайн этой сессии (tools, финалы, фоновые процессы, todos). `/trace 80` — больше строк; `/trace search grep` — фильтр. Файлы: `~/.holix/profiles/<name>/data/trajectory/`. Стрим токенов не пишется.
+
 ## Копирование
 
 - **Чат:** выделите текст → кнопка **Copy** внизу (⌃C/⌘C не копируют последний ответ).
