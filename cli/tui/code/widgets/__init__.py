@@ -7,6 +7,7 @@ from cli.tui.code.widgets.prompt_queue import PromptQueue, QueuedPrompt
 from cli.tui.code.widgets.slash_suggestions import SlashCommandSuggestions
 from cli.tui.code.widgets.status_bar import CodeStatusBar
 from cli.tui.code.widgets.stream_line import CodeStreamLine
+from cli.tui.code.widgets.todo_list import CodeTodoList
 from cli.tui.code.widgets.transcript import CodeTranscript
 from cli.tui.code.widgets.transcript_panel import TranscriptPanel
 
@@ -14,6 +15,7 @@ __all__ = [
     "CodeTranscript",
     "CodeContextBar",
     "CodeProcessBar",
+    "CodeTodoList",
     "CodeStatusBar",
     "CodePrompt",
     "PromptHistorySuggestions",

@@ -17,6 +17,7 @@ from core.agent_events import (
     PlanCompletedEvent,
     PlanStepCompletedEvent,
     ThinkingEvent,
+    TodoListUpdatedEvent,
     ToolCallErrorEvent,
     ToolCallResultEvent,
     ToolCallStartEvent,
@@ -131,6 +132,7 @@ class CodeEventHandler:
                 )
 
             elif isinstance(event, BackgroundProcessStoppedEvent):
+                self.app.suppress_process_wake(event.process_id)
                 self.app.sync_background_process_bar()
                 self.app.transcript_write(
                     f"[dim]⏹ Process stopped: {event.label} (pid {event.pid})[/dim]"
@@ -143,6 +145,15 @@ class CodeEventHandler:
                     f"[red]⚠ Background process error ({event.status}):[/red] {summary}\n"
                     f"[dim]  Fix the issue, restart, then check_background_process[/dim]"
                 )
+                self.app.wake_on_process_exit(
+                    event.process_id,
+                    event.label,
+                    pid=int(event.pid or 0),
+                    reason=event.status or "error",
+                )
+
+            elif isinstance(event, TodoListUpdatedEvent):
+                self.app.sync_todo_list(event.todos)
 
             elif isinstance(event, ErrorEvent):
                 if self.app._is_streaming and self.app._stream_buffer:
@@ -257,6 +268,8 @@ class CodeEventHandler:
             self.app._store_tool_result(name, body, duration_s)
             if name in ("start_background_process", "run_project"):
                 self._sync_process_bar_from_tool_result(body)
+            if name in ("todo_write", "todowrite", "todo"):
+                self.app.sync_todo_list()
 
         self.app._maybe_refresh_context_display()
         self.app.transcript_scroll_bottom()

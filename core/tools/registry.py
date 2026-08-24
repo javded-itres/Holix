@@ -109,6 +109,7 @@ class ToolRegistry:
         from core.tools.session_memory import ReadSessionTool, SearchSessionsTool
         from core.tools.skills import SkillManageTool, SkillViewTool
         from core.tools.terminal import TerminalTool
+        from core.tools.todo import TodoWriteTool
         from core.tools.web_search import WebFetchTool, WebSearchTool
 
         # File operations
@@ -158,6 +159,9 @@ class ToolRegistry:
 
         # Sub-agent ↔ user bridge
         self.register(AskUserTool())
+
+        # Session checklist (TUI / Telegram / MAX)
+        self.register(TodoWriteTool())
 
         # Chat file delivery (Telegram; no-op without delivery bridge)
         self.register(SendChatFilesTool())

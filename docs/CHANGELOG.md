@@ -4,6 +4,9 @@
 
 ### Added
 
+- **Session todos** — `todo_write` replaces a per-conversation checklist (pending / in_progress / completed / cancelled). The list is sticky at the top of TUI (under the process bar) and in Telegram/MAX live status. `/todos` reprints it. Not proof of work — real tools still required. See [TUI.md](en/TUI.md).
+- **Search-replace first** — edit existing files with `patch_file` (`old_string`/`new_string` or `replacements`). `write_file` is for new files or a full rewrite. Coder/writer types now include `patch_file`; Code mode SDK says the same. Claude-style `StrReplace` args work.
+- **Process-exit wakeup (TUI)** — when a live background process disappears, Holix queues a turn (or runs one if idle) so the agent can inspect the log instead of busy-polling. User `/process-stop` does not auto-wake. Cap: 3 consecutive wakes until the next real user prompt.
 - **Code mode (opt-in)** — `tools_presentation: native | code | both` in profile `config.yaml` (default `native`). In `code` the model calls only `run_code` and writes a Python program against a generated SDK; each inner `tools.name(...)` still goes through ActionGuard and the workspace jail. Isolated subprocess; no nested `run_code` / `execute_python`. See `docs/en/CODE_MODE.md`.
 
 ### Fixed

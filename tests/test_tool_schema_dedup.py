@@ -21,6 +21,7 @@ def test_get_schemas_has_no_duplicate_function_names() -> None:
     assert "delete_file" in names
     assert "skill_view" in names
     assert "skill_manage" in names
+    assert "todo_write" in names
 
 
 def test_run_project_alias_resolves() -> None:
@@ -64,6 +65,7 @@ def test_cross_agent_tool_name_aliases() -> None:
         "run_project": "start_background_process",
         "list_processes": "list_background_processes",
         "Task": "delegate_to_subagent",
+        "TodoWrite": "todo_write",
     }
     for foreign, canonical in expected.items():
         assert resolve_tool_name(foreign) == canonical, foreign

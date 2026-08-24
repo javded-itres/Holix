@@ -9,12 +9,16 @@ from core.env_loader import format_env_context_block, profile_env_path
 from core.prompt_builder import build_system_prompt
 
 
-def test_format_env_context_block_lists_paths(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_format_env_context_block_lists_paths(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     monkeypatch.setenv("HOLIX_HOME", str(tmp_path))
     monkeypatch.setenv("HOLIX_PROFILE", "work")
     (tmp_path / "profiles" / "work").mkdir(parents=True)
     profile_env_path("work").write_text("MODEL=test\n", encoding="utf-8")
-    (tmp_path / "profiles" / "work" / "config.yaml").write_text("profile_name: work\n", encoding="utf-8")
+    (tmp_path / "profiles" / "work" / "config.yaml").write_text(
+        "profile_name: work\n", encoding="utf-8"
+    )
 
     block = format_env_context_block()
     assert str(tmp_path) in block
@@ -24,7 +28,9 @@ def test_format_env_context_block_lists_paths(tmp_path: Path, monkeypatch: pytes
     assert "holix gateway reload" in block
 
 
-def test_build_system_prompt_includes_env_paths(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_build_system_prompt_includes_env_paths(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     monkeypatch.setenv("HOLIX_HOME", str(tmp_path))
     (tmp_path / "profiles" / "default").mkdir(parents=True)
     profile_env_path("default").write_text("# env\n", encoding="utf-8")
@@ -38,7 +44,9 @@ def test_build_system_prompt_includes_env_paths(tmp_path: Path, monkeypatch: pyt
     assert str(profile_env_path("default")) in prompt
 
 
-def test_build_system_prompt_requires_run_and_debug(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_build_system_prompt_requires_run_and_debug(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     monkeypatch.setenv("HOLIX_HOME", str(tmp_path))
     (tmp_path / "profiles" / "default").mkdir(parents=True)
 
@@ -48,6 +56,8 @@ def test_build_system_prompt_requires_run_and_debug(tmp_path: Path, monkeypatch:
         profile_name="default",
     )
     assert "## Run, debug, and environment setup (mandatory)" in prompt
+    assert "patch_file" in prompt
+    assert "create a new file" in prompt.lower() or "new file" in prompt
     assert "writing files is not enough" in prompt.lower()
     assert "check_background_process" in prompt
     assert "never claim" in prompt.lower() and "done" in prompt.lower()

@@ -179,7 +179,10 @@ class WriteFileTool(BaseTool):
     def __init__(self):
         super().__init__()
         self.name = "write_file"
-        self.description = "Write content to a file, creating it if it doesn't exist"
+        self.description = (
+            "Create a new file or replace an entire file. For edits to an existing "
+            "file, use patch_file (exact old_string → new_string) so the diff stays small."
+        )
         self.risk_level = "medium"
         self.parameters = {
             "type": "object",
@@ -250,10 +253,12 @@ class PatchFileTool(BaseTool):
         super().__init__()
         self.name = "patch_file"
         self.description = (
-            "Apply one or more exact string replacements in a text file. "
-            "Prefer this over write_file for large docs like HOLIX.md. "
+            "Primary way to edit an existing text file: exact unique substring "
+            "replacement (Claude-style StrReplace / search-replace). Prefer this "
+            "over write_file so diffs stay small. Pass replacements=[{old_string, "
+            "new_string}, …] or a single old_string + new_string. "
             f"Each new_string max {_PATCH_MAX_NEW_CHARS} chars "
-            f"({_PATCH_MAX_NEW_CHARS_HOLIX} for HOLIX.md) — split large edits."
+            f"({_PATCH_MAX_NEW_CHARS_HOLIX} for HOLIX.md)."
         )
         self.risk_level = "medium"
         self.parameters = {
@@ -262,6 +267,14 @@ class PatchFileTool(BaseTool):
                 "path": {
                     "type": "string",
                     "description": "Path to the file to patch",
+                },
+                "old_string": {
+                    "type": "string",
+                    "description": "Exact text to find (must be unique). Use with new_string for a single edit.",
+                },
+                "new_string": {
+                    "type": "string",
+                    "description": "Replacement text for old_string",
                 },
                 "replacements": {
                     "type": "array",
@@ -284,13 +297,28 @@ class PatchFileTool(BaseTool):
                     "maxItems": _PATCH_MAX_REPLACEMENTS,
                 },
             },
-            "required": ["path", "replacements"],
+            "required": ["path"],
         }
 
-    async def execute(self, path: str, replacements: list[dict]) -> str:
+    async def execute(
+        self,
+        path: str,
+        replacements: list[dict] | None = None,
+        old_string: str = "",
+        new_string: str = "",
+        **_: object,
+    ) -> str:
         try:
             if not replacements:
-                return "Error: replacements must be a non-empty list"
+                if str(old_string or "").strip():
+                    replacements = [
+                        {"old_string": old_string, "new_string": new_string},
+                    ]
+                else:
+                    return (
+                        "Error: pass replacements=[{old_string, new_string}, …] "
+                        "or old_string + new_string"
+                    )
             if len(replacements) > _PATCH_MAX_REPLACEMENTS:
                 return f"Error: at most {_PATCH_MAX_REPLACEMENTS} replacements per call"
 

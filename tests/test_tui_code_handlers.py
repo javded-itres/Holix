@@ -33,6 +33,18 @@ class TestFormatters:
         text = format_tool_args({"path": "/tmp/a"})
         assert "path" in text
 
+    def test_todo_write_args_are_summary(self):
+        text = format_tool_args(
+            {
+                "todos": [
+                    {"content": "a", "status": "in_progress"},
+                    {"content": "b", "status": "pending"},
+                ]
+            }
+        )
+        assert "▶" in text
+        assert "2 tasks" in text
+
     def test_run_code_args_hide_body(self):
         text = format_tool_args({"code": "print('secret-body')", "description": "list workspace"})
         assert "list workspace" in text

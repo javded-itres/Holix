@@ -19,6 +19,10 @@ def format_tool_args(arguments: Any, *, max_len: int = 500) -> str:
     if isinstance(arguments, dict) and "code" in arguments and "description" in arguments:
         # run_code: never dump the program body into TUI / messenger cards.
         return truncate_text(str(arguments.get("description") or "").strip(), max_len)
+    if isinstance(arguments, dict) and "todos" in arguments:
+        from core.runtime.todo_list import format_todo_summary
+
+        return truncate_text(format_todo_summary(arguments.get("todos") or []), max_len)
     if isinstance(arguments, str):
         body = arguments
     else:

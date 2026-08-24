@@ -21,6 +21,7 @@ from core.agent_events import (
     PlanStepCompletedEvent,
     SubAgentTimeoutExtendedEvent,
     ThinkingEvent,
+    TodoListUpdatedEvent,
     ToolCallErrorEvent,
     ToolCallResultEvent,
     ToolCallStartEvent,
@@ -104,6 +105,11 @@ class TelegramEventHandler:
                 duration_s = (duration / 1000.0) if duration else None
                 body = getattr(event, "result", "") or ""
                 buf.add_tool_result(event.tool_name, body, duration_s=duration_s)
+                if (event.tool_name or "") in ("todo_write", "todowrite", "todo"):
+                    buf.hydrate_todos(
+                        profile=self._presenter.session.profile,
+                        conversation_id=self._presenter.session.conversation_id,
+                    )
                 self._store_tool(self._presenter.session, event.tool_name, body, duration_s)
                 if (event.tool_name or "") == "send_chat_files" and body.startswith("Sent "):
                     buf.add_note(f"📎 {body[:240]}")
@@ -289,6 +295,10 @@ class TelegramEventHandler:
                         summary=summary,
                     )
                 )
+
+            elif isinstance(event, TodoListUpdatedEvent):
+                buf.set_todos(event.todos)
+                self._presenter.schedule_edit(force=True)
 
             elif isinstance(event, ErrorEvent):
                 err = str(event.error or "unknown")

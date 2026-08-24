@@ -44,6 +44,7 @@ On Russian macOS layout, `,help` and `.help` are normalized to `/help`. Type `/`
 | `/stop` | Cancel running agent, sub-agents, pending confirmations, and plan reviews (TUI, Telegram, MAX) |
 | `/process` | List background processes (**TUI**; live rows are also on the **top** bar) |
 | `/process-stop` | Stop a background dev server / long-running process (**TUI**) |
+| `/todos` | Show the session checklist from `todo_write` (TUI, Telegram, MAX) |
 
 ---
 

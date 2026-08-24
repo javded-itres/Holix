@@ -88,6 +88,14 @@ def test_spawn_model_slot_uses_overlay(holix_home: Path) -> None:
     assert spawn_model_slot("coder", cfg, "alice") == "prov:litellm:smart"
 
 
+def test_builtin_coder_uses_patch_file() -> None:
+    cfg = get_subagent_config("coder")
+    assert "patch_file" in cfg.tools
+    assert "patch_file" in cfg.system_prompt
+    writer = get_subagent_config("writer")
+    assert "patch_file" in writer.tools
+
+
 def test_overlay_tools_replace_builtin(holix_home: Path) -> None:
     mgr = ProfileManager()
     mgr.create_profile("alice", inherit_global=False)

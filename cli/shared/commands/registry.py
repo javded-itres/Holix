@@ -24,6 +24,7 @@ _STATIC_SLASH_COMMANDS: list[tuple[str, str]] = [
     ("/stop", "Stop running tasks"),
     ("/process-stop", "Stop background dev server / long-running process"),
     ("/process", "List background processes for this session"),
+    ("/todos", "Show the session checklist"),
     ("/new", "New session"),
     ("/sessions", "List sessions"),
     ("/switch", "Switch session by number"),

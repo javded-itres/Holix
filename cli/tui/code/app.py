@@ -37,6 +37,7 @@ from cli.tui.code.widgets import (
     CodePrompt,
     CodeStatusBar,
     CodeStreamLine,
+    CodeTodoList,
     CodeTranscript,
     CopySelectionBar,
     PromptHistorySuggestions,
@@ -141,12 +142,18 @@ class HolixCodeApp(App):
         self._stream_update_timer = None
         self._background_process_id: str | None = None
         self._background_process_ids: list[str] = []
+        self._background_process_labels: dict[str, str] = {}
+        self._background_process_os_pids: dict[str, int] = {}
+        self._suppress_process_wake: set[str] = set()
+        self._woken_process_ids: set[str] = set()
+        self._process_wake_count = 0
         self._prompt_queue: list[QueuedPrompt] = []
         self._prompt_run_active = False
 
     def compose(self) -> ComposeResult:
         process_bar = CodeProcessBar()
         yield process_bar
+        yield CodeTodoList()
         yield TranscriptPanel()
         stream = CodeStreamLine()
         yield stream
@@ -387,12 +394,17 @@ class HolixCodeApp(App):
 
     def sync_background_process_bar(self) -> None:
         """Top bar shows OS-alive background processes only (this profile)."""
-        from core.runtime.background_process import get_background_process_registry
+        from core.runtime.background_process import (
+            get_background_process_registry,
+            vanished_process_ids,
+        )
         from core.runtime.port_utils import parse_listen_ports
 
         registry = get_background_process_registry(self.profile)
         records = registry.list_running_for_profile(profile=self.profile)
         items: list[tuple[str, str]] = []
+        labels: dict[str, str] = {}
+        pids: dict[str, int] = {}
         for rec in records[:8]:
             extra = ""
             try:
@@ -402,12 +414,86 @@ class HolixCodeApp(App):
             except Exception:
                 extra = ""
             items.append((rec.process_id, f"{rec.label} · pid {rec.pid}{extra}"))
+            labels[rec.process_id] = rec.label
+            pids[rec.process_id] = rec.pid
         try:
             self.query_one("#process-bar", CodeProcessBar).set_processes(items)
         except Exception:
             pass
-        self._background_process_ids = [pid for pid, _ in items]
-        self._background_process_id = self._background_process_ids[0] if items else None
+        previous = list(self._background_process_ids)
+        current_ids = [pid for pid, _ in items]
+        gone = vanished_process_ids(previous, current_ids)
+        self._background_process_ids = current_ids
+        self._background_process_id = current_ids[0] if current_ids else None
+        for process_id in gone:
+            label = self._background_process_labels.get(process_id) or process_id
+            os_pid = self._background_process_os_pids.get(process_id, 0)
+            self.wake_on_process_exit(process_id, label, pid=os_pid, reason="exited")
+        self._background_process_labels = labels
+        self._background_process_os_pids = pids
+        for process_id in labels:
+            self._woken_process_ids.discard(process_id)
+
+    def suppress_process_wake(self, process_id: str) -> None:
+        pid = (process_id or "").strip()
+        if pid:
+            self._suppress_process_wake.add(pid)
+
+    def wake_on_process_exit(
+        self,
+        process_id: str,
+        label: str = "",
+        *,
+        pid: int = 0,
+        reason: str = "stopped",
+    ) -> None:
+        """Queue a turn so the agent sees an unexpected process death."""
+        from core.runtime.background_process import (
+            PROCESS_EXIT_WAKE_MAX,
+            format_process_exit_wakeup,
+        )
+
+        key = (process_id or "").strip()
+        if not key:
+            return
+        if key in self._suppress_process_wake:
+            self._suppress_process_wake.discard(key)
+            return
+        if key in self._woken_process_ids:
+            return
+        if self._process_wake_count >= PROCESS_EXIT_WAKE_MAX:
+            self.transcript_write(
+                f"[dim]process {label or key} stopped — wake cap, not auto-running[/dim]"
+            )
+            return
+        self._woken_process_ids.add(key)
+        self._process_wake_count += 1
+        text = format_process_exit_wakeup(
+            label=label or key,
+            process_id=key,
+            pid=pid,
+            reason=reason,
+        )
+        self.transcript_write(f"[yellow]⏹ {text.splitlines()[0]}[/yellow]")
+        if self._prompt_run_active or self._prompt_queue:
+            self._enqueue_prompt(text)
+            return
+        self._prompt_run_active = True
+        self.run_worker(self._send_message(text))
+
+    def sync_todo_list(self, items: object | None = None) -> None:
+        """Sticky checklist from the session store (or an explicit payload)."""
+        from core.runtime.todo_list import get_todos, items_as_dicts
+
+        rows = (
+            items_as_dicts(items)
+            if items is not None
+            else items_as_dicts(get_todos(self.profile, self.conversation_id))
+        )
+        try:
+            self.query_one("#todo-list", CodeTodoList).set_todos(rows)
+        except Exception:
+            pass
 
     def _refresh_status_bar(self) -> None:
         cwd = os.path.basename(os.getcwd()) or "."
@@ -547,6 +633,7 @@ class HolixCodeApp(App):
         self._agent_init_state = "ready"
         self._set_prompt_enabled(True)
         self.sync_background_process_bar()
+        self.sync_todo_list()
         from core.session_models import restore_session_model
 
         restored = restore_session_model(self)
@@ -761,6 +848,8 @@ class HolixCodeApp(App):
                     self._pump_prompt_queue()
                 self._restore_prompt_focus(delay=0.05)
                 return
+            if not message.startswith("Background process `"):
+                self._process_wake_count = 0
             if not self._is_immediate_control_message(message):
                 self._prompt_run_active = True
             self.run_worker(self._send_message(message))
@@ -1489,6 +1578,8 @@ class HolixCodeApp(App):
 
         registry = get_background_process_registry()
         target = (process_id or self._background_process_id or "").strip()
+        if target:
+            self.suppress_process_wake(target)
         record = None
         if target:
             record = await registry.stop(target)
@@ -1923,6 +2014,7 @@ class HolixCodeApp(App):
         self._transcript_store.clear()
         self._last_assistant_plain = None
         self.transcript_write(f"\n[bold]session {self.session_display_name}[/bold]\n")
+        self.sync_todo_list()
         self._save_ui_state()
         from core.session_models import restore_session_model
 
@@ -1950,6 +2042,7 @@ class HolixCodeApp(App):
         if self.agent and getattr(self.agent, "context_manager", None):
             self.agent.context_manager.invalidate_usage_cache()
         self.transcript_write(f"[dim]switched → {new_id}[/dim]\n")
+        self.sync_todo_list()
         await self._load_conversation_history()
         await self._ensure_session_context()
         self._save_ui_state()

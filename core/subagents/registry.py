@@ -62,7 +62,9 @@ PREDEFINED_SUBAGENTS = {
             "execute code for testing, and use the terminal for running commands. "
             "Always work in the shared working directory from your system prompt "
             "(same as the main agent). Prefer list_directory / read_file before "
-            "assuming a path is missing. Always verify your code works before "
+            "assuming a path is missing. **Edit existing files with patch_file** "
+            "(exact old_string → new_string). Use write_file only for new files "
+            "or a full rewrite. Always verify your code works before "
             "reporting completion. Run tests and builds with the terminal tool "
             "(`pytest`, `uv run pytest`, `npm test`) and wait for the output — "
             "do not start them as a background process. Use "
@@ -72,6 +74,7 @@ PREDEFINED_SUBAGENTS = {
         tools=[
             "read_file",
             "write_file",
+            "patch_file",
             "list_directory",
             "grep",
             "glob",
@@ -83,6 +86,7 @@ PREDEFINED_SUBAGENTS = {
             "stop_background_process",
             "list_background_processes",
             "restart_background_process",
+            "todo_write",
         ],
         max_steps=150,
         mode="react",
@@ -126,9 +130,18 @@ PREDEFINED_SUBAGENTS = {
         system_prompt=(
             "You are a writing and documentation specialist. Your job is to create "
             "clear, well-structured documentation, comments, README files, and "
-            "user guides. Focus on clarity, completeness, and proper formatting."
+            "user guides. Focus on clarity, completeness, and proper formatting. "
+            "Edit existing docs with patch_file; write_file only for new files."
         ),
-        tools=["read_file", "write_file", "list_directory", "grep", "glob", "delete_file"],
+        tools=[
+            "read_file",
+            "write_file",
+            "patch_file",
+            "list_directory",
+            "grep",
+            "glob",
+            "delete_file",
+        ],
         max_steps=150,
         mode="react",
         process_mode="async",

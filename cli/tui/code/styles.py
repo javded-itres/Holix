@@ -28,6 +28,31 @@ Screen {
     text-style: bold;
 }
 
+#todo-list {
+    display: none;
+    height: auto;
+    max-height: 8;
+    overflow-y: auto;
+    background: $primary 12%;
+    color: $text;
+    padding: 0 0 1 0;
+}
+
+#todo-list.visible {
+    display: block;
+}
+
+#todo-list .todo-header {
+    height: 1;
+    padding: 0 1;
+    color: $primary;
+}
+
+#todo-list .todo-row {
+    height: 1;
+    padding: 0 1;
+}
+
 #transcript {
     height: 1fr;
     border: none;

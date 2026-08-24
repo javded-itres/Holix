@@ -17,6 +17,20 @@ class _BarApp(App):
         yield CodeProcessBar()
 
 
+def test_vanished_process_ids_and_wakeup_text() -> None:
+    from core.runtime.background_process import (
+        format_process_exit_wakeup,
+        vanished_process_ids,
+    )
+
+    assert vanished_process_ids(["a", "b"], ["b"]) == ["a"]
+    assert vanished_process_ids(["a"], ["a"]) == []
+    text = format_process_exit_wakeup(label="api", process_id="proc_1", pid=9, reason="exited")
+    assert "proc_1" in text
+    assert "api" in text
+    assert "busy-poll" in text
+
+
 @pytest.mark.asyncio
 async def test_process_bar_shows_running_and_hides_when_empty() -> None:
     app = _BarApp()

@@ -96,5 +96,6 @@ class ChatSession:
             session_label=self.session_display_name,
             compact_tools=True,
         )
+        buf.hydrate_todos(profile=self.profile, conversation_id=self.conversation_id)
         self.live_buffer = buf
         return buf

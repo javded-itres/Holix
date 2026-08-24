@@ -33,6 +33,7 @@ class LiveTranscriptBuffer:
     max_tool_lines: int = 8
     max_answer_chars: int = 2800
     compact_tools: bool = False
+    todos: list[dict[str, str]] = field(default_factory=list)
     _code_runs: dict[str, dict] = field(default_factory=dict)
 
     def set_header(
@@ -63,6 +64,16 @@ class LiveTranscriptBuffer:
         self.background_process = None
         self.background_process_id = None
         self.background_process_healthy = True
+
+    def set_todos(self, items: object = None) -> None:
+        from core.runtime.todo_list import items_as_dicts
+
+        self.todos = items_as_dicts(items or [])
+
+    def hydrate_todos(self, *, profile: str, conversation_id: str) -> None:
+        from core.runtime.todo_list import get_todos, items_as_dicts
+
+        self.todos = items_as_dicts(get_todos(profile, conversation_id))
 
     def add_tool_start(self, name: str, args: object, *, tool_id: str = "") -> None:
         # Partial assistant text before a tool call is preamble, not the final answer.
@@ -168,6 +179,12 @@ class LiveTranscriptBuffer:
         if self.background_process:
             icon = "🟢" if self.background_process_healthy else "🔴"
             parts.append(f"{icon} Process: {self.background_process}")
+        if self.todos:
+            from core.runtime.todo_list import format_todo_checklist
+
+            block = format_todo_checklist(self.todos)
+            if block:
+                parts.append(block)
         if self.thinking:
             from core.i18n.live_ui import live_thinking_label
 

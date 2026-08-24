@@ -55,6 +55,9 @@ def test_sdk_omits_run_code_and_sorts() -> None:
     assert "**read_file**" in available
     assert "**grep**" in available
     assert "execute_python" not in available
+    assert "patch_file" in text
+    assert "write_file" in text
+    assert "existing files" in text.lower() or "old_string" in text
 
 
 def test_native_schemas_hide_run_code(tmp_path) -> None:
@@ -133,6 +136,7 @@ def test_indent_preserves_multiline_string() -> None:
 
 
 def test_background_process_allowed_in_program() -> None:
+    assert not is_forbidden_in_program("todo_write")
     assert not is_forbidden_in_program("start_background_process")
     assert not is_forbidden_in_program("check_background_process")
     assert not is_forbidden_in_program("stop_background_process")

@@ -31,12 +31,17 @@ export HOLIX_TUI_WEB_TOKEN="..."
 | Region | What you see |
 |--------|----------------|
 | **Process bar** | Only **OS-alive** background servers. Hidden when none are running. Click a row for its log. |
+| **Todos** | Session checklist from `todo_write`. Hidden when empty. |
 | **Transcript** | Chat, tools, confirmations |
 | **Prompt queue** | Yellow strip **between** transcript and input — prompts waiting while the agent is busy |
 | **Status / context** | Mode, model, tokens |
 | **Input** | Multiline prompt. Enter sends; Shift+Enter newline |
 
 The bar at the top is **not** a history of crashed jobs. When a process stops or dies, its row disappears (polled about every 2 seconds).
+
+## Todos
+
+On multi-step work the agent should call `todo_write` with the **entire** list each time (it replaces the previous list). Statuses: `pending`, `in_progress`, `completed`, `cancelled`. The checklist sits under the process bar until cleared (empty list). `/todos` reprints it. The list is a plan, not proof of work.
 
 ## Prompt queue
 
@@ -61,6 +66,8 @@ Long-running work (dev server, bot, watch) belongs in `start_background_process`
 | List | `/process` or `/process list` |
 | Stop a server | `/process-stop` |
 | Stop the agent only | `/stop` — does **not** kill servers |
+
+If a listed process **dies on its own**, TUI injects a notice and runs (or queues) a turn so the agent can check the log. `/process-stop` does not auto-wake. At most three automatic wakes until you send a real prompt.
 
 Cwd follows `working_directory` → workspace jail → profile workspace. Venv is on `PATH`; `PYTHONUNBUFFERED=1`.
 

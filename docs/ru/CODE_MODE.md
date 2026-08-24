@@ -52,6 +52,7 @@ return {"n": len(hits)}
 - В контекст возвращаются только `print()` и `return`. Внутренние дампы обрезаются.
 - Относительные пути и `run_terminal_command` стартуют в `workspace_root` профиля, не в cwd процесса.
 - Сервер: `tools.start_background_process(...)`, не `run_terminal_command`.
+- Правки существующих файлов: `tools.patch_file(path=..., old_string=..., new_string=...)`. `write_file` — новый файл или полная перезапись.
 - Локальный HTTP проверяйте `curl` через `run_terminal_command`. `fetch_url` localhost отклоняет.
 - Не импортируйте `os`, `subprocess`, `pathlib`. Файлы и shell — через `tools.*`.
 
@@ -59,7 +60,7 @@ return {"n": len(hits)}
 
 Программа в изолированном **subprocess** (`python -I`), как `execute_python`. Каждый `tools.name(...)` идёт через `ToolRegistry`: ActionGuard, jail, allow-list. Запись в файлы — с подтверждением.
 
-Внутри программы нельзя: `run_code`, `execute_python`, `ask_user`, `external_cli`, `delegate_to_subagent`, cron, browser-tools.
+Внутри программы нельзя: `run_code`, `execute_python`, `ask_user`, `external_cli`, `delegate_to_subagent`, cron, browser-tools. `todo_write` разрешён.
 
 В TUI и Telegram/MAX — **свёрнутая карточка**: `description` и имена внутренних tools, без тела программы.
 

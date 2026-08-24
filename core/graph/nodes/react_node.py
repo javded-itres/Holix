@@ -1831,6 +1831,17 @@ def _build_system_prompt_from_state(state: HolixGraphState, agent=None) -> str:
     profile_name = profile_name_from_agent(agent) if agent else "default"
     agent_config = getattr(agent, "config", None) if agent else None
     sub_prompt = str(getattr(agent, "subagent_system_prompt", "") or "").strip() if agent else ""
+    try:
+        from core.runtime.todo_list import format_todo_prompt_block, get_todos
+
+        cid = str(state.get("conversation_id") or "default")
+        todo_block = format_todo_prompt_block(get_todos(profile_name, cid))
+        if todo_block:
+            combined_memories = (
+                f"{combined_memories}\n\n{todo_block}" if combined_memories else todo_block
+            )
+    except Exception:
+        pass
     if sub_prompt:
         parts = [sub_prompt]
         if tools_desc:

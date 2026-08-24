@@ -52,6 +52,7 @@ return {"n": len(hits)}
 - Only `print()` and `return` come back. Inner dumps are truncated and stay out of history.
 - Relative paths and `run_terminal_command` start in profile `workspace_root` (shown in the SDK), not process CWD.
 - Persistent servers: `tools.start_background_process(...)`, not `run_terminal_command`.
+- Edit existing files with `tools.patch_file(path=..., old_string=..., new_string=...)`. `write_file` is for new files or a full rewrite.
 - Probe localhost with `curl` via `run_terminal_command`. Browser `fetch_url` rejects localhost.
 - Do not `import os`, `subprocess`, `pathlib`. File and shell work goes through `tools.*`.
 
@@ -59,7 +60,7 @@ return {"n": len(hits)}
 
 The program runs in an isolated **subprocess** (`python -I`), same idea as `execute_python`. Each `tools.name(...)` still goes through `ToolRegistry`: ActionGuard, workspace jail, allow-lists. Mutating tools still ask for confirmation.
 
-Forbidden inside a program: `run_code`, `execute_python`, `ask_user`, `external_cli`, `delegate_to_subagent`, cron, browser tools.
+Forbidden inside a program: `run_code`, `execute_python`, `ask_user`, `external_cli`, `delegate_to_subagent`, cron, browser tools. `todo_write` is allowed.
 
 TUI and Telegram/MAX show a **collapsed card**: `description` plus inner tool names — not the program body.
 

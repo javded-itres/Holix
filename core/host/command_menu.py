@@ -25,6 +25,7 @@ _HOST_COMMAND_KEYS: list[tuple[str, str]] = [
     ("memory", "tg.cmd.memory"),
     ("skills", "tg.cmd.skills"),
     ("subagents", "tg.cmd.subagents"),
+    ("todos", "tg.cmd.todos"),
     ("tools", "tg.cmd.tools"),
     ("last", "tg.cmd.last"),
     ("metrics", "tg.cmd.metrics"),
@@ -57,7 +58,4 @@ def host_menu_commands(locale: str | None = None) -> list[tuple[str, str]]:
 
 
 def command_specs(locale: str | None = None) -> list[HostCommandSpec]:
-    return [
-        HostCommandSpec.from_pair(cmd, desc)
-        for cmd, desc in host_menu_commands(locale)
-    ]
+    return [HostCommandSpec.from_pair(cmd, desc) for cmd, desc in host_menu_commands(locale)]

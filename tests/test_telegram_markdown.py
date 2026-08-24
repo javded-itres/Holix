@@ -69,6 +69,17 @@ def test_split_telegram_html_multiple_chunks() -> None:
     assert all(len(c) <= 500 for c in chunks)
 
 
+def test_buffer_keeps_todos_when_done() -> None:
+    buf = LiveTranscriptBuffer(profile="default", mode="react")
+    buf.set_todos([{"content": "Ship it", "status": "in_progress"}])
+    buf.set_answer("**Done**")
+    buf.mark_done()
+    html = buffer_to_telegram_html(buf)
+    assert "Todos" in html
+    assert "Ship it" in html
+    assert "<b>Done</b>" in html
+
+
 def test_compact_tools_show_header_only() -> None:
     buf = LiveTranscriptBuffer(profile="default", mode="react", compact_tools=True)
     buf.add_tool_start("read_file", {"path": "/very/long/path/file.py"})

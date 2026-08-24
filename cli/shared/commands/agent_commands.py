@@ -104,6 +104,14 @@ class AgentCommands:
                 else:
                     h.transcript_write("[yellow]/process — TUI only[/yellow]")
 
+            elif lower in ("/todos", "/todo"):
+                from core.runtime.todo_list import format_todo_checklist, get_todos
+
+                profile = str(getattr(h, "profile", None) or "default")
+                cid = str(getattr(h, "conversation_id", None) or "default")
+                body = format_todo_checklist(get_todos(profile, cid)) or "no todos"
+                h.transcript_write(body)
+
             elif lower == "/new":
                 h.run_worker(h._create_new_session())
 

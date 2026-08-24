@@ -17,6 +17,7 @@ _NAME_RE = re.compile(r"^[a-z][a-z0-9_-]{1,47}$")
 SUBAGENT_TOOL_CHOICES: tuple[str, ...] = (
     "read_file",
     "write_file",
+    "patch_file",
     "list_directory",
     "grep",
     "glob",
@@ -31,6 +32,7 @@ SUBAGENT_TOOL_CHOICES: tuple[str, ...] = (
     "sdd_status",
     "sdd_write_artifact",
     "sdd_update_spec",
+    "todo_write",
 )
 
 DEFAULT_CUSTOM_TOOLS: list[str] = ["read_file", "list_directory", "grep", "glob", "terminal"]

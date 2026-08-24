@@ -14,6 +14,7 @@ from core.agent_events import (
     BackgroundProcessStartedEvent,
     BackgroundProcessStoppedEvent,
     FinalResponseEvent,
+    TodoListUpdatedEvent,
 )
 
 
@@ -57,6 +58,7 @@ class FakeApp:
         self.background_process_id: str | None = None
         self.background_process_healthy = True
         self.process_bar_syncs = 0
+        self.todo_list_syncs = 0
 
     def set_background_process(
         self,
@@ -76,6 +78,16 @@ class FakeApp:
 
     def sync_background_process_bar(self) -> None:
         self.process_bar_syncs += 1
+
+    def sync_todo_list(self, items=None) -> None:
+        del items
+        self.todo_list_syncs += 1
+
+    def suppress_process_wake(self, process_id: str = "") -> None:
+        del process_id
+
+    def wake_on_process_exit(self, *args, **kwargs) -> None:
+        del args, kwargs
 
     def transcript_write(self, content, **kwargs) -> None:
         self.writes.append(content)
@@ -203,6 +215,20 @@ class TestBackgroundProcessEvents:
         )
         assert app.process_bar_syncs >= 1
         assert any("stopped" in str(w).lower() for w in app.writes)
+
+
+class TestTodoListEvents:
+    def test_updated_syncs_panel(self):
+        app = FakeApp()
+        handler = CodeEventHandler(app)
+        handler.handle(
+            TodoListUpdatedEvent(
+                conversation_id="tui_1",
+                profile="default",
+                todos=[{"id": "1", "content": "Write API", "status": "in_progress"}],
+            )
+        )
+        assert app.todo_list_syncs >= 1
 
 
 @pytest.mark.asyncio

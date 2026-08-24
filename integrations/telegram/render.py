@@ -28,11 +28,10 @@ def buffer_to_telegram_html(buf: LiveTranscriptBuffer) -> str:
         and not show_tools
         and not buf.thinking
         and not buf.notes
+        and not buf.todos
     ):
         body = markdown_to_telegram_html(answer)
-        footer = (
-            f"<i>🤖 {escape_html(buf.profile)} · {escape_html(buf.mode)} · ✓</i>"
-        )
+        footer = f"<i>🤖 {escape_html(buf.profile)} · {escape_html(buf.mode)} · ✓</i>"
         return truncate_telegram_html(f"{body}\n\n{footer}")
 
     parts: list[str] = [
@@ -44,9 +43,16 @@ def buffer_to_telegram_html(buf: LiveTranscriptBuffer) -> str:
 
     if buf.background_process:
         icon = "🟢" if buf.background_process_healthy else "🔴"
-        parts.append(
-            f"<b>{icon} Process:</b> {escape_html(buf.background_process)}"
-        )
+        parts.append(f"<b>{icon} Process:</b> {escape_html(buf.background_process)}")
+
+    if buf.todos:
+        from core.runtime.todo_list import format_todo_lines
+
+        todo_html = ["<b>Todos</b>"]
+        for line in format_todo_lines(buf.todos):
+            todo_html.append(escape_html(line))
+        if len(todo_html) > 1:
+            parts.append("\n".join(todo_html))
 
     if buf.thinking:
         label = live_thinking_label(buf.profile, fallback=buf.thinking)
@@ -69,13 +75,9 @@ def buffer_to_telegram_html(buf: LiveTranscriptBuffer) -> str:
     if running and not answer and not buf.tool_lines:
         parts.append(f"<i>⏳ {escape_html(live_working_label(buf.profile))}</i>")
     elif done:
-        parts.append(
-            f"<i>🤖 {escape_html(buf.profile)} · {escape_html(buf.mode)} · ✓</i>"
-        )
+        parts.append(f"<i>🤖 {escape_html(buf.profile)} · {escape_html(buf.mode)} · ✓</i>")
         if buf.publish_answer_separately and buf.result_posted_separately:
-            parts.append(
-                f"<i>{escape_html(live_answer_sent_label(buf.profile))}</i>"
-            )
+            parts.append(f"<i>{escape_html(live_answer_sent_label(buf.profile))}</i>")
     elif buf.status == "error":
         parts.append("<b>✗ Error</b>")
 

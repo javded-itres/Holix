@@ -39,10 +39,10 @@ subagent_supervisor_max_interventions: 3
 |-----|------|----------------|
 | `researcher` | Исследование, файлы, веб | `web_search`, `web_fetch`, `read_file`, `list_directory` |
 | `web_researcher` | Поиск в интернете и синтез | `web_search`, `web_fetch` |
-| `coder` | Код, правки, отладка | `read_file`, `write_file`, `terminal`, `code_executor` |
+| `coder` | Код, правки, отладка | `read_file`, `patch_file`, `write_file`, `terminal`, `code_executor` |
 | `analyst` | Данные / SQL | `sql_query`, `sql_schema`, `code_executor`, `math_calculator` |
 | `reviewer` | Ревью кода | `read_file`, `list_directory`, `terminal` |
-| `writer` | Документация и тексты | `read_file`, `write_file`, `list_directory` |
+| `writer` | Документация и тексты | `read_file`, `patch_file`, `write_file`, `list_directory` |
 
 Встроенные типы: `core/subagents/registry.py` (`PREDEFINED_SUBAGENTS`).
 

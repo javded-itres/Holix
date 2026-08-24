@@ -47,6 +47,20 @@ def test_run_code_card_hides_program_and_lists_inner():
     assert text.count("программа") == 1
 
 
+def test_render_includes_todos():
+    buf = LiveTranscriptBuffer(profile="p1", mode="react")
+    buf.set_todos(
+        [
+            {"content": "Write API", "status": "in_progress"},
+            {"content": "Tests", "status": "pending"},
+        ]
+    )
+    text = buf.render_plain()
+    assert "Todos" in text
+    assert "Write API" in text
+    assert "▶" in text
+
+
 def test_render_shows_error_process_icon():
     buf = LiveTranscriptBuffer(profile="p1", mode="react")
     buf.set_background_process(label="api · pid 1", process_id="proc_1", healthy=False)

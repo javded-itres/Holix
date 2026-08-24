@@ -81,6 +81,9 @@ class EventType(StrEnum):
     BACKGROUND_PROCESS_STOPPED = "background_process_stopped"
     BACKGROUND_PROCESS_ERROR = "background_process_error"
 
+    # Session checklist
+    TODO_LIST_UPDATED = "todo_list_updated"
+
 
 @dataclass
 class EventContext:
@@ -860,6 +863,24 @@ class BackgroundProcessErrorEvent(AgentEvent):
         }
 
 
+@dataclass
+class TodoListUpdatedEvent(AgentEvent):
+    """Session todo checklist was replaced (TUI bar + messenger live card)."""
+
+    profile: str = ""
+    todos: list[dict[str, Any]] = field(default_factory=list)
+
+    def __post_init__(self):
+        super().__post_init__()
+        object.__setattr__(self, "type", EventType.TODO_LIST_UPDATED)
+
+    def _extra_fields(self) -> dict[str, Any]:
+        return {
+            "profile": self.profile,
+            "todos": self.todos,
+        }
+
+
 # ---------------------------------------------------------------------
 # Event delivery (hybrid design: callbacks now + clear path to Queue)
 # ---------------------------------------------------------------------
@@ -998,6 +1019,7 @@ def make_event(
         EventType.PLAN_GENERATED: PlanGeneratedEvent,
         EventType.PLAN_STEP_COMPLETED: PlanStepCompletedEvent,
         EventType.PLAN_COMPLETED: PlanCompletedEvent,
+        EventType.TODO_LIST_UPDATED: TodoListUpdatedEvent,
     }
 
     cls = mapping.get(event_type, AgentEvent)

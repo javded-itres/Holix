@@ -47,6 +47,16 @@ async def test_write_and_read_file():
 
 
 @pytest.mark.asyncio
+async def test_patch_file_accepts_claude_old_new_string(tmp_path):
+    patch_tool = PatchFileTool()
+    target = tmp_path / "app.py"
+    target.write_text("x = 1\n", encoding="utf-8")
+    result = await patch_tool.execute(str(target), old_string="x = 1", new_string="x = 2")
+    assert "Updated" in result
+    assert target.read_text(encoding="utf-8") == "x = 2\n"
+
+
+@pytest.mark.asyncio
 async def test_patch_file_applies_replacements(tmp_path):
     patch_tool = PatchFileTool()
     read_tool = ReadFileTool()

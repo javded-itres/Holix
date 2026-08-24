@@ -518,6 +518,42 @@ class BackgroundProcessRegistry:
         """OS-alive processes only — dead/crashed records are omitted."""
         return [rec for rec in self.list_for_profile(profile=profile) if rec.is_running()]
 
+
+PROCESS_EXIT_WAKE_MAX = 3
+
+
+def vanished_process_ids(previous: list[str], current: list[str]) -> list[str]:
+    """Ids that were listed as running and are gone now."""
+    alive = {str(x).strip() for x in current if str(x).strip()}
+    out: list[str] = []
+    seen: set[str] = set()
+    for raw in previous:
+        pid = str(raw).strip()
+        if not pid or pid in alive or pid in seen:
+            continue
+        seen.add(pid)
+        out.append(pid)
+    return out
+
+
+def format_process_exit_wakeup(
+    *,
+    label: str,
+    process_id: str,
+    pid: int = 0,
+    reason: str = "stopped",
+) -> str:
+    """User-turn text so the agent can react without busy-polling."""
+    name = (label or process_id or "process").strip() or "process"
+    extra = f" pid={pid}" if pid else ""
+    why = (reason or "stopped").strip() or "stopped"
+    return (
+        f"Background process `{name}` (id={process_id}{extra}) is no longer running "
+        f"({why}). If that was unexpected, read the process log, fix if needed, and "
+        "restart only if the user still wants the server. Do not busy-poll with "
+        "check_background_process; you will be notified again if it dies."
+    )
+
     def list_for_scope(
         self, *, profile: str, conversation_id: str
     ) -> list[BackgroundProcessRecord]:
