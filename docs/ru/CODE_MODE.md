@@ -60,7 +60,7 @@ return {"n": len(hits)}
 
 Программа в изолированном **subprocess** (`python -I`), как `execute_python`. Каждый `tools.name(...)` идёт через `ToolRegistry`: ActionGuard, jail, allow-list. Запись в файлы — с подтверждением.
 
-Внутри программы нельзя: `run_code`, `execute_python`, `ask_user`, `external_cli`, `delegate_to_subagent`, cron, browser-tools. `todo_write` разрешён.
+Внутри программы нельзя: `run_code`, `execute_python`, `ask_user`, `external_cli`, `run_acp_agent`, `delegate_to_subagent`, cron, browser-tools. `todo_write` разрешён.
 
 В TUI и Telegram/MAX — **свёрнутая карточка**: `description` и имена внутренних tools, без тела программы.
 

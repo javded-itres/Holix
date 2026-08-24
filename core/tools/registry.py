@@ -190,6 +190,10 @@ class ToolRegistry:
 
         register_sdd_tools(self)
 
+        from core.tools.acp import RunAcpAgentTool
+
+        self.register(RunAcpAgentTool())
+
         from config import settings
 
         if settings.enable_browser_tools:

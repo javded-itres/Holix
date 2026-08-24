@@ -19,6 +19,7 @@ _FORBIDDEN_EXACT: frozenset[str] = frozenset(
         "ask_user",
         "ask_human",
         "external_cli",
+        "run_acp_agent",
         "delegate_to_subagent",
         "wait_subagent_result",
         "terminate_subagent",

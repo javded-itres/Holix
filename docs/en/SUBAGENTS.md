@@ -148,6 +148,8 @@ The main agent calls `delegate_to_subagent(agent_type, task)`, gets a `job_id`, 
 
 `fork=true` (or `/subagent-spawn --fork`) seeds the child with **completed parent turns** — not the in-flight tool call. The child has its own tools, PTY, todos, and permission preset. Default is a **fresh** conversation (spawn).
 
+To run an **external ACP** coding agent (stdio JSON-RPC, not a Holix sub-agent type): `run_acp_agent(prompt)`. Set `HOLIX_ACP_COMMAND` (example: `grok --acp`). See [ACP.md](ACP.md).
+
 Available tools on the main agent (when `enable_subagents: true`):
 
 - `delegate_to_subagent`

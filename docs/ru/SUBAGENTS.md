@@ -147,6 +147,8 @@ Skills, MCP и external CLI остаются в TUI — в клавиатуру 
 
 `fork=true` (или `/subagent-spawn --fork`) передаёт ребёнку **завершённые ходы родителя**, без текущего tool-вызова. У ребёнка свои tools, PTY, todos и пресет `/permission`. По умолчанию — **новая** беседа.
 
+Внешний **ACP**-агент (не тип Holix): `run_acp_agent(prompt)`. Задайте `HOLIX_ACP_COMMAND` (например `grok --acp`). См. [ACP.md](ACP.md).
+
 Tools главного агента (при `enable_subagents: true`):
 
 - `delegate_to_subagent`
