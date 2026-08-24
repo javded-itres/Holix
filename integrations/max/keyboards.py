@@ -152,6 +152,15 @@ def subagents_picker_keyboard(enabled: bool, locale: str | None = None) -> dict[
     )
 
 
+def callback_rows_keyboard(rows: list[list[tuple[str, str, str]]]) -> dict[str, Any]:
+    kb_rows: list[list[dict[str, str]]] = []
+    for row in rows:
+        kb_rows.append(
+            [_callback_btn(label[:40], _cb(action, value)) for label, action, value in row]
+        )
+    return inline_keyboard(kb_rows)
+
+
 def reflexion_picker_keyboard(enabled: bool, locale: str | None = None) -> dict[str, Any]:
     from core.i18n.messages import t
 

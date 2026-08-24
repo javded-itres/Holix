@@ -123,8 +123,11 @@ def spawn_model_slot(
     Otherwise, if the profile has ``agent_models.<type>`` (built-in ``coder``,
     …), use that slot. Empty means inherit the parent model.
     """
-    from core.subagents.store import SubAgentTypeStore
+    from core.subagents.store import SubAgentOverlayStore, SubAgentTypeStore
 
+    overlay = SubAgentOverlayStore(profile).get(agent_type)
+    if overlay is not None and (overlay.model_slot or "").strip():
+        return str(overlay.model_slot).strip()
     custom = SubAgentTypeStore(profile).get(agent_type)
     if custom is not None:
         raw = (custom.model_slot or "").strip()

@@ -76,15 +76,23 @@ async def tool_execution_node(state: HolixGraphState, config: RunnableConfig) ->
             def __init__(self, data):
                 self.id = data.get("id", "")
                 self.type = data.get("type", "function")
-                self.function = type("obj", (object,), {
-                    "name": data["function"]["name"],
-                    "arguments": data["function"]["arguments"],
-                })()
+                self.function = type(
+                    "obj",
+                    (object,),
+                    {
+                        "name": data["function"]["name"],
+                        "arguments": data["function"]["arguments"],
+                    },
+                )()
 
         tool_call_obj = _ToolCall(tc_data)
 
         start = time.time()
+        slot_token = None
         try:
+            from core.tools.execution_context import agent_slot_scope, reset_agent_slot_scope
+
+            slot_token = agent_slot_scope(getattr(agent, "agent_slot", "main") or "main")
             result = await agent.tools.execute(
                 tool_call_obj,
                 conversation_id=conversation_id,
@@ -93,26 +101,33 @@ async def tool_execution_node(state: HolixGraphState, config: RunnableConfig) ->
             duration = (time.time() - start) * 1000
 
             if agent and hasattr(agent, "emit"):
-                agent.emit(ToolCallResultEvent(
-                    tool_name=tool_name,
-                    tool_id=tool_id,
-                    result=result,
-                    duration_ms=duration,
-                    conversation_id=conversation_id,
-                    truncated=len(result) > 200,
-                ))
+                agent.emit(
+                    ToolCallResultEvent(
+                        tool_name=tool_name,
+                        tool_id=tool_id,
+                        result=result,
+                        duration_ms=duration,
+                        conversation_id=conversation_id,
+                        truncated=len(result) > 200,
+                    )
+                )
 
         except Exception as tool_err:
             duration = (time.time() - start) * 1000
             result = f"Error: {tool_err}"
 
             if agent and hasattr(agent, "emit"):
-                agent.emit(ToolCallErrorEvent(
-                    tool_name=tool_name,
-                    tool_id=tool_id,
-                    error=str(tool_err),
-                    conversation_id=conversation_id,
-                ))
+                agent.emit(
+                    ToolCallErrorEvent(
+                        tool_name=tool_name,
+                        tool_id=tool_id,
+                        error=str(tool_err),
+                        conversation_id=conversation_id,
+                    )
+                )
+        finally:
+            if slot_token is not None:
+                reset_agent_slot_scope(slot_token)
 
         graph_result = truncate_tool_content_for_graph(result)
 
@@ -123,12 +138,14 @@ async def tool_execution_node(state: HolixGraphState, config: RunnableConfig) ->
             "content": graph_result,
         }
         messages.append(tool_msg)
-        tool_results.append({
-            "tool_name": tool_name,
-            "tool_id": tool_id,
-            "result": result,
-            "duration_ms": duration,
-        })
+        tool_results.append(
+            {
+                "tool_name": tool_name,
+                "tool_id": tool_id,
+                "result": result,
+                "duration_ms": duration,
+            }
+        )
 
         # Save to memory (truncate huge outputs)
         if agent and hasattr(agent, "memory"):
@@ -142,12 +159,10 @@ async def tool_execution_node(state: HolixGraphState, config: RunnableConfig) ->
     if agent and hasattr(agent, "context_manager") and agent.context_manager:
         from core.runtime.context_session import compress_session_if_needed
 
-        messages, _ = await compress_session_if_needed(
-            agent, conversation_id, messages
-        )
+        messages, _ = await compress_session_if_needed(agent, conversation_id, messages)
 
     return {
         "messages": messages,
-        "tool_calls": [],      # Clear pending tool calls
+        "tool_calls": [],  # Clear pending tool calls
         "tool_results": tool_results,
     }

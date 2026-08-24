@@ -228,6 +228,10 @@ HOLIX_WHISPER_MODEL=whisper-1
 
 Отправьте голосовое сообщение или аудиофайл — Holix распознает текст и ответит как на обычное сообщение.
 
+## Субагенты и Code mode
+
+Статус-меню → **Субагенты**, либо `/code-mode` / `/subagent-types`. Создание типов по описанию, оверлеи системных, переключение `native` / `code` / `both`. Каноническая страница: [SUBAGENTS.md](SUBAGENTS.md#telegram-и-max). Поведение Code mode: [CODE_MODE.md](CODE_MODE.md).
+
 ## Периодические задачи (cron)
 
 Нужен запущенный gateway (`holix gateway start`). Управление: `/cron` (inline-меню) или `holix cron list`.

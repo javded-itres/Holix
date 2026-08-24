@@ -24,6 +24,7 @@ from core.agent_events import (
     ToolCallErrorEvent,
     ToolCallResultEvent,
     ToolCallStartEvent,
+    ToolCodeDispatchStartEvent,
 )
 from core.i18n.live_ui import live_plan_review_label, live_thinking_label
 from core.plan_review.review_events import PlanReviewRequestEvent
@@ -91,7 +92,11 @@ class TelegramEventHandler:
                     args = json.loads(event.arguments_raw) if event.arguments_raw else {}
                 except Exception:
                     args = event.arguments_raw
-                buf.add_tool_start(event.tool_name, args)
+                buf.add_tool_start(event.tool_name, args, tool_id=event.tool_id or "")
+                self._presenter.schedule_edit()
+
+            elif isinstance(event, ToolCodeDispatchStartEvent):
+                buf.add_code_inner(event.parent_tool_id or "", event.tool_name or "")
                 self._presenter.schedule_edit()
 
             elif isinstance(event, ToolCallResultEvent):

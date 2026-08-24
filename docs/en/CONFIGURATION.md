@@ -101,6 +101,26 @@ workspace_root: /home/user/data-agent
 
 When enabled, `read_file`, `write_file`, `list_directory`, `run_terminal_command`, and Telegram file delivery cannot access paths outside `workspace_root`.
 
+Relative tool paths (`.`, `src/foo.py`) resolve against `workspace_root` even when jail is off, so the agent does not list the process CWD (often `$HOME`).
+
+## Code mode (opt-in)
+
+By default the model sees native function-calling schemas. Set `tools_presentation` to let it write a Python program that calls several tools in one step:
+
+```yaml
+# native (default) | code | both
+tools_presentation: native
+```
+
+`code` exposes only `run_code`. The program runs in an isolated subprocess; each `tools.name(...)` call goes through ActionGuard and the workspace jail. Intermediate tool dumps stay out of the model context. Leave this `native` for Telegram `main`. Optional per-slot map:
+
+```yaml
+tools_presentation_by_slot:
+  coder: code
+```
+
+See [CODE_MODE.md](CODE_MODE.md).
+
 ## Terminal whitelist (optional)
 
 Restrict which shell commands the agent may run. Managed per profile:

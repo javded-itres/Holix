@@ -130,6 +130,11 @@ class HolixRuntimeConfig:
     # Workspace jail (optional per-profile directory isolation)
     workspace_jail_enabled: bool = False
     workspace_root: str | None = None
+    tools_presentation: str = "native"
+    tools_presentation_by_slot: dict[str, str] = field(default_factory=dict)
+    code_mode_wall_timeout_s: int = 120
+    code_mode_max_inner_calls: int = 40
+    code_mode_parallel_readonly: bool = True
     encryption_enabled: bool = False
 
     # Self-authored drop-in agent extensions (local single-operator only)
@@ -229,6 +234,11 @@ class HolixRuntimeConfig:
             local_skills_dir=None,
             workspace_jail_enabled=False,
             workspace_root=None,
+            tools_presentation="native",
+            tools_presentation_by_slot={},
+            code_mode_wall_timeout_s=120,
+            code_mode_max_inner_calls=40,
+            code_mode_parallel_readonly=True,
             encryption_enabled=False,
         )
 
@@ -318,6 +328,36 @@ class HolixRuntimeConfig:
         )
         if getattr(profile, "workspace_root", None):
             overrides["workspace_root"] = profile.workspace_root
+        from core.tools.code_mode.policy import normalize_presentation
+
+        overrides["tools_presentation"] = normalize_presentation(
+            getattr(profile, "tools_presentation", None)
+        )
+        slot_map = getattr(profile, "tools_presentation_by_slot", None) or {}
+        if isinstance(slot_map, dict) and slot_map:
+            overrides["tools_presentation_by_slot"] = {
+                str(k).strip().lower(): normalize_presentation(v)
+                for k, v in slot_map.items()
+                if str(k).strip()
+            }
+        from core.tools.code_mode.policy import (
+            DEFAULT_PARALLEL_READONLY,
+            clamp_max_inner_calls,
+            clamp_wall_timeout_s,
+        )
+
+        if getattr(profile, "code_mode_wall_timeout_s", None) is not None:
+            overrides["code_mode_wall_timeout_s"] = clamp_wall_timeout_s(
+                profile.code_mode_wall_timeout_s
+            )
+        if getattr(profile, "code_mode_max_inner_calls", None) is not None:
+            overrides["code_mode_max_inner_calls"] = clamp_max_inner_calls(
+                profile.code_mode_max_inner_calls
+            )
+        if getattr(profile, "code_mode_parallel_readonly", None) is not None:
+            overrides["code_mode_parallel_readonly"] = bool(profile.code_mode_parallel_readonly)
+        else:
+            overrides.setdefault("code_mode_parallel_readonly", DEFAULT_PARALLEL_READONLY)
         if getattr(profile, "encryption_enabled", False):
             overrides["encryption_enabled"] = profile.encryption_enabled
         if getattr(profile, "auto_allow_threshold", None):

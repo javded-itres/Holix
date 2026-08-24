@@ -20,6 +20,7 @@ from core.agent_events import (
     ToolCallErrorEvent,
     ToolCallResultEvent,
     ToolCallStartEvent,
+    ToolCodeDispatchStartEvent,
 )
 from core.plan_review.review_events import PlanReviewRequestEvent
 from core.presenters.final_content import resolve_messenger_final_content
@@ -48,6 +49,9 @@ class CodeEventHandler:
 
             elif isinstance(event, ToolCallStartEvent):
                 self._tool_start(event)
+
+            elif isinstance(event, ToolCodeDispatchStartEvent):
+                self._code_inner(event)
 
             elif isinstance(event, ToolCallResultEvent):
                 self._tool_result(event, error=False)
@@ -119,7 +123,7 @@ class CodeEventHandler:
 
             elif isinstance(event, BackgroundProcessStartedEvent):
                 label = f"{event.label} · pid {event.pid}"
-                self.app.set_background_process(label=label, process_id=event.process_id)
+                self.app.sync_background_process_bar()
                 log_hint = f" · log: {event.log_path}" if event.log_path else ""
                 self.app.transcript_write(
                     f"[green]▶ Background process:[/green] {label}{log_hint}\n"
@@ -127,18 +131,13 @@ class CodeEventHandler:
                 )
 
             elif isinstance(event, BackgroundProcessStoppedEvent):
-                self.app.clear_background_process()
+                self.app.sync_background_process_bar()
                 self.app.transcript_write(
                     f"[dim]⏹ Process stopped: {event.label} (pid {event.pid})[/dim]"
                 )
 
             elif isinstance(event, BackgroundProcessErrorEvent):
-                label = f"{event.label} · pid {event.pid} · {event.status}"
-                self.app.set_background_process(
-                    label=label,
-                    process_id=event.process_id,
-                    healthy=False,
-                )
+                self.app.sync_background_process_bar()
                 summary = (event.error_summary or event.status or "error")[:300]
                 self.app.transcript_write(
                     f"[red]⚠ Background process error ({event.status}):[/red] {summary}\n"
@@ -163,25 +162,11 @@ class CodeEventHandler:
                 self.app._restore_prompt_focus()
 
         except Exception as exc:
-            self.app.transcript_write(
-                f"[red]Event error ({type(exc).__name__}): {exc}[/red]"
-            )
+            self.app.transcript_write(f"[red]Event error ({type(exc).__name__}): {exc}[/red]")
 
     def _sync_process_bar_from_tool_result(self, body: str) -> None:
-        from core.tools.background_process import parse_start_tool_result
-
-        parsed = parse_start_tool_result(body)
-        if not parsed:
-            return
-        status = str(parsed.get("status") or "")
-        label = f"{parsed['label']} · pid {parsed['pid']}"
-        if status and status not in ("healthy", "starting"):
-            label = f"{label} · {status}"
-        self.app.set_background_process(
-            label=label,
-            process_id=str(parsed["process_id"]),
-            healthy=bool(parsed.get("healthy", True)),
-        )
+        del body
+        self.app.sync_background_process_bar()
 
     def _thinking(self, message: str) -> None:
         short = message[:60] + ("…" if len(message) > 60 else "")
@@ -207,10 +192,19 @@ class CodeEventHandler:
         }
 
         self.app.transcript_write("")
-        self.app.transcript_write(f"[bold]{format_tool_header(event.tool_name, running=True)}[/bold]")
+        self.app.transcript_write(
+            f"[bold]{format_tool_header(event.tool_name, running=True)}[/bold]"
+        )
         args_text = format_tool_args(args)
         if args_text:
             self.app.transcript_write(f"[dim]{args_text}[/dim]")
+        self.app.transcript_scroll_bottom()
+
+    def _code_inner(self, event: ToolCodeDispatchStartEvent) -> None:
+        name = (event.tool_name or "").strip()
+        if not name:
+            return
+        self.app.transcript_write(f"[dim]  · {name}[/dim]")
         self.app.transcript_scroll_bottom()
 
     def _tool_result(self, event, *, error: bool) -> None:

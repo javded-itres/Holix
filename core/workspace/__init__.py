@@ -23,15 +23,22 @@ class WorkspaceJailError(PermissionError):
     """Raised when a tool path escapes the configured workspace root."""
 
 
-def get_effective_workspace_root() -> Path | None:
-    from core.tools.execution_context import get_workspace_root, is_workspace_jail_enabled
+def get_configured_workspace_root() -> Path | None:
+    """Profile workspace root when set, even if jail is off."""
+    from core.tools.execution_context import get_workspace_root
 
-    if not is_workspace_jail_enabled():
-        return None
-    raw = get_workspace_root()
+    raw = (get_workspace_root() or "").strip()
     if not raw:
         return None
     return Path(raw).expanduser().resolve()
+
+
+def get_effective_workspace_root() -> Path | None:
+    from core.tools.execution_context import is_workspace_jail_enabled
+
+    if not is_workspace_jail_enabled():
+        return None
+    return get_configured_workspace_root()
 
 
 def resolve_full_paths_visible(*, is_admin: bool, workspace_jail_enabled: bool) -> bool:
@@ -190,7 +197,9 @@ def sanitize_agent_event(event: object) -> object:
                 raw = json.dumps(sanitize_mapping_paths(parsed), ensure_ascii=False)
             except json.JSONDecodeError:
                 raw = sanitize_paths_in_text(raw)
-        return dataclasses.replace(event, arguments=args if isinstance(args, dict) else event.arguments, arguments_raw=raw)
+        return dataclasses.replace(
+            event, arguments=args if isinstance(args, dict) else event.arguments, arguments_raw=raw
+        )
     return event
 
 
@@ -216,7 +225,7 @@ def resolve_tool_path(raw: str, *, default_relative_to: Path | None = None) -> P
     root = get_effective_workspace_root()
     p = Path(raw).expanduser()
     if not p.is_absolute():
-        base = default_relative_to or root or Path.cwd()
+        base = default_relative_to or get_configured_workspace_root() or Path.cwd()
         p = (base / p).resolve()
     else:
         p = p.resolve()

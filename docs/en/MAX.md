@@ -47,7 +47,7 @@ Example for host profile `shared`: `~/.holix/profiles/shared/max.env`.
    - **Description** — short purpose (optional).
    - **Avatar** — optional.
 5. Open the **Integration** tab (or **API** / **Access token**).
-6. Copy the **Access token**.  
+6. Copy the **Access token**.
    Treat it like a password — do not commit it to git or paste in public chats.
 7. Ensure the bot is **published** / **enabled** if the console has an activity toggle.
 
@@ -208,7 +208,7 @@ holix -p shared gateway reload
 | `HOLIX_MAX_EDIT_INTERVAL_MS` | No | `1500` | Live message edit interval (ms). |
 | `HOLIX_MAX_HEARTBEAT_INTERVAL` | No | `45` | Heartbeat interval for long-running tasks (s). |
 
-\* Webhook may work without a secret, but production should set one.  
+\* Webhook may work without a secret, but production should set one.
 \*\* With `HOLIX_MAX_ACCESS_REQUESTS=true`, a manual allowlist is optional.
 
 **Related files (not in `max.env`):**
@@ -454,6 +454,7 @@ See [CLI.md](CLI.md#holix-max).
 - One live message per task (edited via `PUT /messages` while streaming)
 - Session id: `max_{profile}_{user_id}`
 - Shared slash commands with TUI: `/help`, `/profile`, `/models`, `/new`, `/stop` — see [SLASH_COMMANDS.md](SLASH_COMMANDS.md)
+- **Sub-agents** in the status menu (`/code-mode`, `/subagent-types`): types + Code mode. See [SUBAGENTS.md](SUBAGENTS.md#telegram-and-max)
 
 ### Inline approvals
 

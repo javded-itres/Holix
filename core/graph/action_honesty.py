@@ -204,6 +204,13 @@ _ERROR_MARKERS = (
     "exit code 2",
 )
 
+CODE_MODE_NUDGE_TAIL = (
+    " You are in Code mode: the only top-level tool is `run_code`. "
+    "Do not call write_file, read_file, run_terminal_command, or "
+    "start_background_process as native function calls. Put them inside "
+    "the program as tools.name(...)."
+)
+
 ACTION_HONESTY_NUDGE = (
     "[Action honesty] You stated that work was completed, but there is no "
     "successful tool result in this turn that proves it. "
@@ -1051,6 +1058,33 @@ def looks_like_unfinished_work_announcement(text: str | None) -> bool:
     return True
 
 
+_USER_CLARIFY = re.compile(
+    r"(?is)("
+    r"ответ(ь|ьте|ь,\s+пожалуйста)"
+    r"|уточн[июи]"
+    r"|несколько\s+вопросов"
+    r"|прежде\s+чем\s+(писать|делать|создав|нач)"
+    r"|давай\s+определ"
+    r"|need\s+to\s+(clarify|confirm|know)"
+    r"|before\s+i\s+(write|start|implement)"
+    r"|a\s+few\s+questions"
+    r")"
+)
+
+
+def looks_like_clarifying_questions(text: str | None) -> bool:
+    """True when the model is asking the user to choose, not claiming work."""
+    content = (text or "").strip()
+    if not content:
+        return False
+    n_q = content.count("?")
+    if n_q >= 2:
+        return True
+    if n_q >= 1 and _USER_CLARIFY.search(content):
+        return True
+    return False
+
+
 def looks_like_plan_monologue(text: str | None) -> bool:
     """True for intermediate 'I'll do X / Начинаю' plans without a real answer."""
     content = (text or "").strip()
@@ -1108,6 +1142,8 @@ def ends_turn_on_unexecuted_intent(
 
     content = (text or "").strip()
     if not content:
+        return False
+    if looks_like_clarifying_questions(content):
         return False
     if _tools_attempted_since_last_user(messages):
         return False
@@ -1240,6 +1276,8 @@ def should_nudge_false_completion(
     # Plan executor has its own tool-progress nudge.
     if _plan_mode_skips_honesty(state):
         return False
+    if looks_like_clarifying_questions(final_response):
+        return False
     if lacks_evidence_for_claim(
         final_response,
         messages,
@@ -1346,6 +1384,16 @@ def should_refuse_status_monologue(
     return int(state.get("honesty_nudge_count") or 0) >= max_nudges
 
 
+def _nudge_for_presentation(nudge: str, tools_presentation: str | None) -> str:
+    from core.tools.code_mode.policy import normalize_presentation
+
+    if normalize_presentation(tools_presentation) != "code":
+        return nudge
+    if "Code mode" in nudge:
+        return nudge
+    return nudge.rstrip() + CODE_MODE_NUDGE_TAIL
+
+
 def honesty_retry_update(
     *,
     messages: list[dict[str, Any]],
@@ -1354,6 +1402,7 @@ def honesty_retry_update(
     honesty_nudge_count: int = 0,
     include_assistant: bool = True,
     user_input: str | None = None,
+    tools_presentation: str | None = None,
 ) -> dict[str, Any]:
     """Keep the turn open and instruct the model to execute tools."""
     updated = list(messages)
@@ -1387,6 +1436,7 @@ def honesty_retry_update(
         nudge = MONOLOGUE_TOOL_NUDGE
     else:
         nudge = ACTION_HONESTY_NUDGE
+    nudge = _nudge_for_presentation(nudge, tools_presentation)
     # Compact assistant history: do not re-feed a monologue wall into the next step.
     if updated and isinstance(updated[-1], dict) and updated[-1].get("role") == "assistant":
         prev = str(updated[-1].get("content") or "")

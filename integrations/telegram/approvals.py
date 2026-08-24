@@ -55,8 +55,7 @@ class TelegramApprovals:
         header = "<b>⚠ Требуется подтверждение</b>"
         if subagent:
             header = (
-                f"<b>⚠ Субагент <code>{escape_html(subagent)}</code> "
-                f"запрашивает подтверждение</b>"
+                f"<b>⚠ Субагент <code>{escape_html(subagent)}</code> запрашивает подтверждение</b>"
             )
         text = (
             f"{header}\n"
@@ -361,6 +360,11 @@ def _format_confirmation_args(tool_name: str, args: dict) -> str:
             code = str(args.get("code", "") or "")[:700]
             if code:
                 return f"<b>Python code:</b>\n<pre>{escape_html(code)}</pre>"
+        elif tool_name == "run_code":
+            desc = str(args.get("description") or "")[:240]
+            if desc:
+                return f"<b>Программа:</b> {escape_html(desc)}"
+            return ""
         # generic fallback
         import json
 

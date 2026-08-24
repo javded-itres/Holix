@@ -238,6 +238,10 @@ Audio files (mp3/m4a) sent as attachments are supported too.
 
 Temporary audio files are deleted immediately after transcription.
 
+## Sub-agents and Code mode
+
+Status menu → **Sub-agents**, or `/code-mode` / `/subagent-types`. Create types from a description, edit built-in overlays, switch `native` / `code` / `both`. Canonical page: [SUBAGENTS.md](SUBAGENTS.md#telegram-and-max). Code mode behaviour: [CODE_MODE.md](CODE_MODE.md).
+
 ## Scheduled tasks (cron)
 
 Gateway must be running (`holix gateway start`). Manage jobs with `/cron` (inline menu) or CLI `holix cron list`.

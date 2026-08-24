@@ -28,6 +28,25 @@ def test_tool_start_clears_partial_answer():
     assert buf.answer == ""
 
 
+def test_run_code_card_hides_program_and_lists_inner():
+    buf = LiveTranscriptBuffer(profile="p1", mode="react")
+    buf.add_tool_start(
+        "run_code",
+        {"code": "print('secret-body')", "description": "scan todos"},
+        tool_id="functions.run_code:0",
+    )
+    text = buf.render_plain()
+    assert "secret-body" not in text
+    assert "scan todos" in text
+    assert "программа" in text
+    buf.add_code_inner("functions.run_code:0", "grep")
+    buf.add_code_inner("functions.run_code:0", "read_file")
+    text = buf.render_plain()
+    assert "grep" in text
+    assert "read_file" in text
+    assert text.count("программа") == 1
+
+
 def test_render_shows_error_process_icon():
     buf = LiveTranscriptBuffer(profile="p1", mode="react")
     buf.set_background_process(label="api · pid 1", process_id="proc_1", healthy=False)

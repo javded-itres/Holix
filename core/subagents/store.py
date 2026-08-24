@@ -58,6 +58,7 @@ class CustomSubAgentType:
     mcp_inherit: bool = True
     model_slot: str = ""
     external_cli_id: str = ""
+    tools_presentation: str = ""  # native|code|both; empty = inherit profile
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> Self:
@@ -77,6 +78,7 @@ class CustomSubAgentType:
             mcp_inherit=bool(data.get("mcp_inherit", True)),
             model_slot=str(data.get("model_slot") or ""),
             external_cli_id=str(data.get("external_cli_id") or ""),
+            tools_presentation=str(data.get("tools_presentation") or "").strip().lower(),
         )
 
     def to_dict(self) -> dict[str, Any]:
@@ -300,3 +302,150 @@ def cleanup_custom_type_profile_bindings(profile: str, name: str) -> None:
         if binding.agent_slot == slot:
             binding.agent_slot = ""
             store.upsert_binding(binding)
+
+
+def overlays_path(profile: str) -> Path:
+    return subagents_dir(profile) / "overlays.json"
+
+
+@dataclass(slots=True)
+class TypeOverlay:
+    """Per-type overrides for built-in (and custom) sub-agents."""
+
+    system_prompt: str | None = None
+    description: str | None = None
+    temperature: float | None = None
+    model_slot: str | None = None
+    tools_presentation: str | None = None
+    tools: list[str] | None = None
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> Self:
+        temp = data.get("temperature")
+        try:
+            temperature = float(temp) if temp is not None and str(temp).strip() != "" else None
+        except (TypeError, ValueError):
+            temperature = None
+        pres = str(data.get("tools_presentation") or "").strip().lower() or None
+        if pres not in ("native", "code", "both"):
+            pres = None
+        model_slot = str(data.get("model_slot") or "").strip() or None
+        prompt = str(data.get("system_prompt") or "")
+        desc = str(data.get("description") or "")
+        tools: list[str] | None = None
+        if "tools" in data and data.get("tools") is not None:
+            tools = [str(item).strip() for item in data.get("tools") or [] if str(item).strip()]
+        return cls(
+            system_prompt=prompt or None,
+            description=desc or None,
+            temperature=temperature,
+            model_slot=model_slot,
+            tools_presentation=pres,
+            tools=tools,
+        )
+
+    def to_dict(self) -> dict[str, Any]:
+        out: dict[str, Any] = {}
+        if self.system_prompt:
+            out["system_prompt"] = self.system_prompt
+        if self.description:
+            out["description"] = self.description
+        if self.temperature is not None:
+            out["temperature"] = self.temperature
+        if self.model_slot:
+            out["model_slot"] = self.model_slot
+        if self.tools_presentation:
+            out["tools_presentation"] = self.tools_presentation
+        if self.tools is not None:
+            out["tools"] = list(self.tools)
+        return out
+
+    def is_empty(self) -> bool:
+        return not self.to_dict()
+
+
+class SubAgentOverlayStore:
+    def __init__(self, profile: str) -> None:
+        self.profile = validate_profile_name(profile)
+        subagents_dir(profile).mkdir(parents=True, exist_ok=True)
+
+    def load(self) -> dict[str, TypeOverlay]:
+        path = overlays_path(self.profile)
+        if not path.is_file():
+            return {}
+        try:
+            raw = json.loads(path.read_text(encoding="utf-8"))
+        except (json.JSONDecodeError, OSError):
+            return {}
+        items = raw.get("overlays") if isinstance(raw, dict) else raw
+        if not isinstance(items, dict):
+            return {}
+        out: dict[str, TypeOverlay] = {}
+        for key, item in items.items():
+            if not isinstance(item, dict):
+                continue
+            slug = str(key).strip().lower()
+            if not slug:
+                continue
+            overlay = TypeOverlay.from_dict(item)
+            if not overlay.is_empty():
+                out[slug] = overlay
+        return out
+
+    def get(self, name: str) -> TypeOverlay | None:
+        return self.load().get((name or "").strip().lower())
+
+    def upsert(self, name: str, overlay: TypeOverlay) -> TypeOverlay:
+        slug = (name or "").strip().lower()
+        if not slug:
+            raise ValueError("Type name is required")
+        items = self.load()
+        if overlay.is_empty():
+            items.pop(slug, None)
+        else:
+            items[slug] = overlay
+        self._save(items)
+        return overlay
+
+    def merge(self, name: str, **fields: Any) -> TypeOverlay:
+        current = self.get(name) or TypeOverlay()
+        data = current.to_dict()
+        for key, value in fields.items():
+            if value is None:
+                data.pop(key, None)
+            else:
+                data[key] = value
+        overlay = TypeOverlay.from_dict(data)
+        return self.upsert(name, overlay)
+
+    def remove(self, name: str) -> bool:
+        slug = (name or "").strip().lower()
+        items = self.load()
+        if slug not in items:
+            return False
+        del items[slug]
+        self._save(items)
+        return True
+
+    def _save(self, items: dict[str, TypeOverlay]) -> None:
+        payload = {
+            "overlays": {k: v.to_dict() for k, v in sorted(items.items()) if not v.is_empty()}
+        }
+        overlays_path(self.profile).write_text(
+            json.dumps(payload, indent=2, ensure_ascii=False) + "\n",
+            encoding="utf-8",
+        )
+
+
+def apply_type_overlay(cfg: SubAgentConfig, overlay: TypeOverlay | None) -> SubAgentConfig:
+    if overlay is None:
+        return cfg
+    if overlay.system_prompt:
+        cfg.system_prompt = overlay.system_prompt
+    if overlay.description:
+        cfg.description = overlay.description
+    if overlay.temperature is not None:
+        cfg.temperature = float(overlay.temperature)
+    if overlay.tools is not None:
+        cfg.tools = list(overlay.tools)
+    return cfg

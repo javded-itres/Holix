@@ -56,6 +56,7 @@ class FakeApp:
         self.background_process: str | None = None
         self.background_process_id: str | None = None
         self.background_process_healthy = True
+        self.process_bar_syncs = 0
 
     def set_background_process(
         self,
@@ -72,6 +73,9 @@ class FakeApp:
         self.background_process = None
         self.background_process_id = None
         self.background_process_healthy = True
+
+    def sync_background_process_bar(self) -> None:
+        self.process_bar_syncs += 1
 
     def transcript_write(self, content, **kwargs) -> None:
         self.writes.append(content)
@@ -167,13 +171,12 @@ class TestBackgroundProcessEvents:
                 log_path="/tmp/proc.log",
             )
         )
-        assert app.background_process == "uvicorn · pid 8000"
-        assert app.background_process_id == "proc_abc"
+        assert app.process_bar_syncs >= 1
         joined = " ".join(str(w) for w in app.writes)
         assert "/process-stop" in joined
         assert "/tmp/proc.log" in joined
 
-    def test_error_marks_unhealthy(self):
+    def test_error_resyncs_bar_and_writes_hint(self):
         app = FakeApp()
         handler = CodeEventHandler(app)
         handler.handle(
@@ -185,12 +188,11 @@ class TestBackgroundProcessEvents:
                 error_summary="ModuleNotFoundError: x",
             )
         )
-        assert app.background_process_healthy is False
+        assert app.process_bar_syncs >= 1
         assert "error" in " ".join(str(w) for w in app.writes).lower()
 
-    def test_stopped_clears_process_bar(self):
+    def test_stopped_resyncs_process_bar(self):
         app = FakeApp()
-        app.set_background_process(label="srv · pid 1", process_id="proc_x")
         handler = CodeEventHandler(app)
         handler.handle(
             BackgroundProcessStoppedEvent(
@@ -199,7 +201,7 @@ class TestBackgroundProcessEvents:
                 pid=1,
             )
         )
-        assert app.background_process is None
+        assert app.process_bar_syncs >= 1
         assert any("stopped" in str(w).lower() for w in app.writes)
 
 

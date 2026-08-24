@@ -42,8 +42,8 @@ On Russian macOS layout, `,help` and `.help` are normalized to `/help`. Type `/`
 | `/mode` | Cycle execution mode, or `/mode <name>` if valid — see [EXECUTION_MODES.md](EXECUTION_MODES.md) |
 | `/stream` | Toggle streaming; `/stream on\|off` |
 | `/stop` | Cancel running agent, sub-agents, pending confirmations, and plan reviews (TUI, Telegram, MAX) |
-| `/process` | List background processes for this session (**TUI only**) |
-| `/process-stop` | Stop a background dev server / long-running process (**TUI only**) |
+| `/process` | List background processes (**TUI**; live rows are also on the **top** bar) |
+| `/process-stop` | Stop a background dev server / long-running process (**TUI**) |
 
 ---
 
@@ -196,6 +196,22 @@ Gateway must be running. Full guide: [CRON.md](CRON.md).
 **Auto-create (0.1.16+):** recurring requests in natural language (e.g. «every day at 10 am send news») create a job without `/cron add`. CLI: `holix cron …` — [CLI.md](CLI.md#holix-cron).
 
 ---
+
+## Sub-agents and Code mode
+
+Full guide: [SUBAGENTS.md](SUBAGENTS.md). Code mode: [CODE_MODE.md](CODE_MODE.md).
+
+| Command | Where | Description |
+|---------|-------|-------------|
+| `/subagent-types`, `/code-mode` | TUI, Telegram, MAX | Type manager + Code mode (`native` / `code` / `both`) |
+| `/subagent-types list` | TUI | List types in chat |
+| `/subagent-spawn <type> <task>` | TUI, CLI | Start a worker |
+| `/subagents` | TUI, Telegram, MAX | Live jobs |
+| `/subagent-result <job>` | TUI | Completed response |
+| `/subagent-terminate <job>` | TUI | Cancel a job |
+| `/subagent-reply <job> <text>` | TUI, Telegram, MAX | Answer `ask_user` |
+
+In TUI, while the agent is busy, a **plain** chat line is queued (not these slash commands). See [TUI.md](TUI.md#prompt-queue).
 
 ## Telegram
 

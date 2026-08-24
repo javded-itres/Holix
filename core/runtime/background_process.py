@@ -514,6 +514,10 @@ class BackgroundProcessRegistry:
         self.hydrate_from_disk(profile)
         return sorted(self._records_for_profile(profile), key=lambda r: r.started_at, reverse=True)
 
+    def list_running_for_profile(self, *, profile: str) -> list[BackgroundProcessRecord]:
+        """OS-alive processes only — dead/crashed records are omitted."""
+        return [rec for rec in self.list_for_profile(profile=profile) if rec.is_running()]
+
     def list_for_scope(
         self, *, profile: str, conversation_id: str
     ) -> list[BackgroundProcessRecord]:

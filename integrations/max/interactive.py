@@ -16,6 +16,7 @@ from integrations.max.keyboards import (
     MODE_LABELS,
     _callback_btn,
     _cb,
+    callback_rows_keyboard,
     inline_keyboard,
     mode_picker_keyboard,
     mode_picker_text,
@@ -28,7 +29,6 @@ from integrations.max.keyboards import (
     sessions_picker_keyboard,
     status_menu_keyboard,
     stream_picker_keyboard,
-    subagents_picker_keyboard,
     tools_picker_keyboard,
 )
 from integrations.messenger.locale import messenger_host_locale
@@ -41,6 +41,19 @@ from integrations.telegram.model_switch import (
     build_models_menu,
     current_model_label,
 )
+
+
+def _html_to_md(html: str) -> str:
+    import re
+    from html import unescape
+
+    text = html.replace("<b>", "**").replace("</b>", "**")
+    text = text.replace("<i>", "_").replace("</i>", "_")
+    text = text.replace("<code>", "`").replace("</code>", "`")
+    text = text.replace("<pre>", "```\n").replace("</pre>", "\n```")
+    text = re.sub(r"<[^>]+>", "", text)
+    return unescape(text)
+
 
 if TYPE_CHECKING:
     from integrations.max.host import MaxHost
@@ -132,6 +145,9 @@ class MaxInteractive:
             await run_skills_command(self._host, cmd)
             return True
 
+        if lower in ("/subagent-types", "/subagent types", "/code-mode"):
+            await self.show_subagents_picker()
+            return True
         if lower in ("/subagents", "/subagent-list") or lower == "/subagent list":
             await self.show_subagent_live_list()
             return True
@@ -256,6 +272,17 @@ class MaxInteractive:
             await self.show_subagents_picker()
             state = "on" if enabled else "off"
             return t("tg.subagents", lang, state=state)
+
+        from integrations.messenger.subagent_types_ui import TYPE_ACTIONS
+
+        if action in TYPE_ACTIONS:
+            from integrations.messenger.subagent_types_ui import handle_subagent_types_action
+
+            toast = await handle_subagent_types_action(self._host, action, value)
+            await self.show_subagents_picker()
+            if action in ("sc", "swp", "ds") and toast:
+                await self._host._send_text(toast)
+            return toast or "OK"
 
         if action == "rf":
             from integrations.messenger.reflexion_settings import set_reflexion_enabled_for_host
@@ -748,20 +775,27 @@ class MaxInteractive:
             pass
 
     async def show_subagents_picker(self) -> None:
-        from integrations.messenger.subagents_settings import is_subagents_enabled_for_host
+        from integrations.messenger.subagent_types_ui import (
+            detail_keyboard_rows,
+            format_detail_text,
+            format_list_text,
+            format_tools_text,
+            is_tools_view,
+            is_type_detail_view,
+            list_keyboard_rows,
+            tools_keyboard_rows,
+        )
 
-        lang = messenger_host_locale(self._host)
-        on = is_subagents_enabled_for_host(self._host)
-        state = "on" if on else "off"
-        text = (
-            f"**{t('tg.subagents_picker_title', lang)}**\n"
-            f"{t('tg.subagents', lang, state=state)}\n\n"
-            f"_{t('tg.subagents_picker_body', lang)}_"
-        )
-        await self._host._send_text_with_keyboard(
-            text,
-            subagents_picker_keyboard(on, lang),
-        )
+        if is_tools_view(self._host):
+            text = _html_to_md(format_tools_text(self._host))
+            rows = tools_keyboard_rows(self._host)
+        elif is_type_detail_view(self._host):
+            text = _html_to_md(format_detail_text(self._host))
+            rows = detail_keyboard_rows(self._host)
+        else:
+            text = _html_to_md(format_list_text(self._host))
+            rows = list_keyboard_rows(self._host)
+        await self._host._send_text_with_keyboard(text, callback_rows_keyboard(rows))
 
     async def show_reflexion_picker(self) -> None:
         from integrations.messenger.reflexion_settings import is_reflexion_enabled_for_host

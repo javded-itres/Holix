@@ -12,7 +12,9 @@ _interaction_bridge: ContextVar[Any] = ContextVar("holix_interaction_bridge", de
 _chat_delivery_bridge: ContextVar[Any] = ContextVar("holix_chat_delivery_bridge", default=None)
 _memory_facade: ContextVar[Any] = ContextVar("holix_memory_facade", default=None)
 _workspace_root: ContextVar[str | None] = ContextVar("holix_workspace_root", default=None)
-_workspace_jail_enabled: ContextVar[bool] = ContextVar("holix_workspace_jail_enabled", default=False)
+_workspace_jail_enabled: ContextVar[bool] = ContextVar(
+    "holix_workspace_jail_enabled", default=False
+)
 _full_paths_visible: ContextVar[bool] = ContextVar("holix_full_paths_visible", default=True)
 _profile_name: ContextVar[str] = ContextVar("holix_profile_name", default="default")
 _agent_emit: ContextVar[Any] = ContextVar("holix_agent_emit", default=None)
@@ -20,6 +22,47 @@ _agent_emit: ContextVar[Any] = ContextVar("holix_agent_emit", default=None)
 _cancel_event: ContextVar[Any] = ContextVar("holix_cancel_event", default=None)
 # Unattended (cron / background) — stricter tool policy.
 _unattended_mode: ContextVar[bool] = ContextVar("holix_unattended_mode", default=False)
+_tools_registry: ContextVar[Any] = ContextVar("holix_tools_registry", default=None)
+_from_code_mode: ContextVar[bool] = ContextVar("holix_from_code_mode", default=False)
+_agent_slot: ContextVar[str] = ContextVar("holix_agent_slot", default="main")
+
+
+def get_tools_registry() -> Any | None:
+    return _tools_registry.get()
+
+
+def is_from_code_mode() -> bool:
+    return bool(_from_code_mode.get())
+
+
+def get_agent_slot() -> str:
+    raw = str(_agent_slot.get() or "main").strip().lower()
+    return raw or "main"
+
+
+def agent_slot_scope(slot: str):
+    key = str(slot or "main").strip().lower() or "main"
+    return _agent_slot.set(key)
+
+
+def reset_agent_slot_scope(token) -> None:
+    _agent_slot.reset(token)
+
+
+def from_code_mode_scope(*, from_code_mode: bool = True):
+    return _from_code_mode.set(bool(from_code_mode))
+
+
+def reset_from_code_mode_scope(token) -> None:
+    _from_code_mode.reset(token)
+
+
+def tools_registry_scope(registry: Any):
+    return _tools_registry.set(registry)
+
+
+def reset_tools_registry_scope(token) -> None:
+    _tools_registry.reset(token)
 
 
 def get_conversation_id() -> str:

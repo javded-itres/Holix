@@ -431,13 +431,22 @@ class TerminalTool(BaseTool):
         # Nudge away from untracked long-running bots/servers.
         # Do not treat `pip install uvicorn` as launching uvicorn.
         if _is_untracked_long_running_command(command):
+            from core.tools.execution_context import is_from_code_mode
+
+            if is_from_code_mode():
+                starter = (
+                    "`tools.start_background_process(command=..., description=...)` "
+                    "inside this `run_code` program"
+                )
+            else:
+                starter = "**start_background_process** with the same command"
             return (
                 "Error: This looks like a **long-running** bot/server "
                 "(uvicorn, cargo run, go run, java -jar, dotnet run, "
                 "npm run dev, docker compose up, …). "
                 "Do **not** launch it via run_terminal_command (it will not be "
                 "tracked after reboot and can conflict with Holix Telegram). "
-                "Use **start_background_process** with the same command instead, "
+                f"Use {starter} instead, "
                 "then check_background_process / stop_background_process. "
                 "Never start a second Telegram long-poll with the same bot token "
                 "as holix-gateway (TelegramConflictError). "
@@ -462,7 +471,7 @@ class TerminalTool(BaseTool):
                 get_workspace_root,
                 is_workspace_jail_enabled,
             )
-            from core.workspace import get_effective_workspace_root
+            from core.workspace import get_configured_workspace_root, get_effective_workspace_root
 
             jail = is_workspace_jail_enabled()
             # Jail root (None when jail off) — used for cwd + path escape checks.
@@ -493,7 +502,11 @@ class TerminalTool(BaseTool):
             if jail and root is None:
                 return "Error: Workspace jail is enabled but no workspace root is configured."
 
-            cwd: str | None = str(root) if root is not None else None
+            # Match file tools: relative commands start in the profile workspace
+            # even when jail is off (process CWD is often $HOME / the TUI launch dir).
+            configured = get_configured_workspace_root()
+            cwd_path = root if root is not None else configured
+            cwd: str | None = str(cwd_path) if cwd_path is not None else None
             use_shell = command_needs_shell(command)
             spawn_kw = _spawn_kwargs()
 

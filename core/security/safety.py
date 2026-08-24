@@ -3,39 +3,114 @@ import re
 from core.platform_compat import IS_WINDOWS
 
 _UNIX_SAFE: set[str] = {
-    "ls", "cat", "head", "tail", "less", "more",
-    "find", "grep", "awk", "sed",
-    "pwd", "whoami", "date", "uptime", "hostname",
-    "df", "du", "free",
-    "ps", "top", "htop",
-    "ping", "curl", "wget", "dig", "nslookup",
-    "git status", "git log", "git diff", "git show",
-    "git branch", "git remote",
-    "python", "python3", "node", "npm",
-    "pip list", "pip show",
-    "pytest", "npm test", "make test",
-    "cp", "touch", "mkdir", "cd", "echo", "chmod", "test",
-    "holix", "uv",
+    "ls",
+    "cat",
+    "head",
+    "tail",
+    "less",
+    "more",
+    "find",
+    "grep",
+    "awk",
+    "sed",
+    "pwd",
+    "whoami",
+    "date",
+    "uptime",
+    "hostname",
+    "df",
+    "du",
+    "free",
+    "ps",
+    "top",
+    "htop",
+    "ping",
+    "curl",
+    "wget",
+    "dig",
+    "nslookup",
+    "git status",
+    "git log",
+    "git diff",
+    "git show",
+    "git branch",
+    "git remote",
+    "python",
+    "python3",
+    "node",
+    "npm",
+    "pip list",
+    "pip show",
+    "pytest",
+    "npm test",
+    "make test",
+    "cp",
+    "touch",
+    "mkdir",
+    "cd",
+    "echo",
+    "chmod",
+    "test",
+    "holix",
+    "uv",
 }
 
 _WINDOWS_SAFE: set[str] = {
     # Native cmd/PowerShell-friendly plus common Git-Bash/Unix aliases agents use
-    "dir", "type", "more", "findstr", "where", "cd", "echo", "tree",
-    "copy", "copy /y", "md", "mkdir", "touch",
-    "ls", "cat", "head", "tail", "pwd", "cp", "mv", "rm",
-    "whoami", "hostname", "date", "systeminfo", "tasklist", "ipconfig",
-    "ping", "curl", "nslookup",
-    "git status", "git log", "git diff", "git show",
-    "git branch", "git remote",
-    "python", "python3", "py", "node", "npm",
-    "pip list", "pip show",
-    "pytest", "npm test",
-    "holix", "uv",
+    "dir",
+    "type",
+    "more",
+    "findstr",
+    "where",
+    "cd",
+    "echo",
+    "tree",
+    "copy",
+    "copy /y",
+    "md",
+    "mkdir",
+    "touch",
+    "ls",
+    "cat",
+    "head",
+    "tail",
+    "pwd",
+    "cp",
+    "mv",
+    "rm",
+    "whoami",
+    "hostname",
+    "date",
+    "systeminfo",
+    "tasklist",
+    "ipconfig",
+    "ping",
+    "curl",
+    "nslookup",
+    "git status",
+    "git log",
+    "git diff",
+    "git show",
+    "git branch",
+    "git remote",
+    "python",
+    "python3",
+    "py",
+    "node",
+    "npm",
+    "pip list",
+    "pip show",
+    "pytest",
+    "npm test",
+    "holix",
+    "uv",
 }
 
 _COMMON_DANGEROUS: list[str] = [
     r"rm\s+-rf",
-    r">\s*/dev/",
+    # `/dev/null` / `/dev/stdout` are normal redirects. Block raw disks and
+    # bash `/dev/tcp` backdoors, not `curl … 2>/dev/null`.
+    r">\s*/dev/(?:tcp|udp|sd[a-z]|hd[a-z]|vd[a-z]|xvd|nvme|mmcblk|disk|mem|kmem|port|raw)\b",
     r"\bdd\s+",
     r"mkfs",
     r"fdisk",
@@ -48,7 +123,6 @@ _COMMON_DANGEROUS: list[str] = [
 ]
 
 _WINDOWS_DANGEROUS: list[str] = [
-    r">\s*nul\b",
     r">\s*con\b",
     r"format\s+",
     r"diskpart",
@@ -57,14 +131,10 @@ _WINDOWS_DANGEROUS: list[str] = [
 ]
 
 
-_SHELL_CHAINING = re.compile(
-    r"(?:&&|\|\||[;|&`$<>]|\$\(|\n|\r)"
-)
+_SHELL_CHAINING = re.compile(r"(?:&&|\|\||[;|&`$<>]|\$\(|\n|\r)")
 _SHELL_STATEMENT_SPLIT = re.compile(r"(?:&&|\|\||;)")
 _PIPE_SPLIT = re.compile(r"(?<![\"'])\|(?![\"'])")
-_REDIRECT_TOKENS = re.compile(
-    r"\s+(?:>>?|<<?|\d+>>?)\s*(?:[^\s|;&]+|\"[^\"]*\"|'[^']*')"
-)
+_REDIRECT_TOKENS = re.compile(r"\s+(?:>>?|<<?|\d+>>?)\s*(?:[^\s|;&]+|\"[^\"]*\"|'[^']*')")
 
 
 def command_needs_shell(command: str) -> bool:
@@ -197,12 +267,14 @@ class ConfirmationRequired:
             r"docker\s+run",
         ]
         if IS_WINDOWS:
-            self.confirmation_patterns.extend([
-                r"del\s+",
-                r"rmdir\s+",
-                r"move\s+",
-                r"ren\s+",
-            ])
+            self.confirmation_patterns.extend(
+                [
+                    r"del\s+",
+                    r"rmdir\s+",
+                    r"move\s+",
+                    r"ren\s+",
+                ]
+            )
 
     def requires_confirmation(self, command: str) -> bool:
         """Check if command requires user confirmation."""

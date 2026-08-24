@@ -10,6 +10,7 @@ import asyncio
 import json
 import os
 import time
+import uuid
 from collections import deque
 from pathlib import Path
 from typing import Any
@@ -39,6 +40,8 @@ from cli.tui.code.widgets import (
     CodeTranscript,
     CopySelectionBar,
     PromptHistorySuggestions,
+    PromptQueue,
+    QueuedPrompt,
     SlashCommandSuggestions,
     TranscriptPanel,
 )
@@ -70,6 +73,7 @@ from cli.tui.shared.transcript_store import TranscriptStore, plain_from_rich_wri
 _TRANSCRIPT_DISPLAY_MAX = 400
 _TRANSCRIPT_REBUILD_EVERY = 40
 _STREAM_DISPLAY_INTERVAL_S = 0.05
+_PROMPT_QUEUE_MAX = 50
 
 
 class HolixCodeApp(App):
@@ -136,6 +140,9 @@ class HolixCodeApp(App):
         self._transcript_writes_since_rebuild = 0
         self._stream_update_timer = None
         self._background_process_id: str | None = None
+        self._background_process_ids: list[str] = []
+        self._prompt_queue: list[QueuedPrompt] = []
+        self._prompt_run_active = False
 
     def compose(self) -> ComposeResult:
         process_bar = CodeProcessBar()
@@ -147,6 +154,7 @@ class HolixCodeApp(App):
         thinking.display = False
         yield thinking
         yield Static("", id="scroll-hint")
+        yield PromptQueue()
         yield CodeStatusBar()
         yield CodeContextBar()
         yield CopySelectionBar(id=COPY_BAR_ID)
@@ -159,7 +167,8 @@ class HolixCodeApp(App):
         self._load_ui_state()
         self.transcript_write("[bold]Holix[/bold]  [dim]code ui[/dim]")
         hints = (
-            "[dim]Enter send · Shift+Enter newline · ↑ — recent prompts (↑↓ pick) · "
+            "[dim]Enter send · busy agent queues the prompt · Shift+Enter newline · "
+            "↑ — recent prompts (↑↓ pick) · "
             "/ — command menu (↑↓ pick) · "
             "/models — switch LLM · /hub — skill catalog · F2 /open — copy window · "
             "click chat then select + Copy"
@@ -174,6 +183,7 @@ class HolixCodeApp(App):
         self._refresh_status_bar()
         self._set_prompt_enabled(False)
         self.run_worker(self._initialize_agent(), exclusive=True, group="agent_init")
+        self.set_interval(2.0, self.sync_background_process_bar)
         self._restore_prompt_focus(delay=0.1, force=True)
 
     async def on_unmount(self) -> None:
@@ -353,15 +363,8 @@ class HolixCodeApp(App):
         process_id: str = "",
         healthy: bool = True,
     ) -> None:
-        try:
-            self.query_one("#process-bar", CodeProcessBar).set_process(
-                label,
-                healthy=healthy,
-            )
-        except Exception:
-            pass
-        pid = (process_id or "").strip()
-        self._background_process_id = pid or None
+        del label, process_id, healthy
+        self.sync_background_process_bar()
 
     def clear_background_process(self) -> None:
         try:
@@ -369,6 +372,7 @@ class HolixCodeApp(App):
         except Exception:
             pass
         self._background_process_id = None
+        self._background_process_ids = []
 
     def open_background_process_viewer(self, *, process_id: str = "") -> None:
         """Open modal with process log tail and kill button."""
@@ -378,36 +382,32 @@ class HolixCodeApp(App):
         )
 
     @on(CodeProcessBar.Pressed)
-    def on_process_bar_pressed(self) -> None:
-        self.open_background_process_viewer()
+    def on_process_bar_pressed(self, event: CodeProcessBar.Pressed) -> None:
+        self.open_background_process_viewer(process_id=event.process_id)
 
     def sync_background_process_bar(self) -> None:
-        """Show the active session process bar from the in-memory registry."""
+        """Top bar shows OS-alive background processes only (this profile)."""
         from core.runtime.background_process import get_background_process_registry
+        from core.runtime.port_utils import parse_listen_ports
 
-        registry = get_background_process_registry()
-        rec = registry.active_for_scope(
-            profile=self.profile,
-            conversation_id=self.conversation_id,
-        )
-        if rec is None:
-            records = registry.list_for_scope(
-                profile=self.profile,
-                conversation_id=self.conversation_id,
-            )
-            rec = records[0] if records else None
-        if rec is None:
-            self.clear_background_process()
-            return
-
-        healthy = rec.is_running()
-        status = "running" if healthy else "stopped"
-        label = f"{rec.label} · pid {rec.pid} · {status}"
-        self.set_background_process(
-            label=label,
-            process_id=rec.process_id,
-            healthy=healthy,
-        )
+        registry = get_background_process_registry(self.profile)
+        records = registry.list_running_for_profile(profile=self.profile)
+        items: list[tuple[str, str]] = []
+        for rec in records[:8]:
+            extra = ""
+            try:
+                ports = parse_listen_ports(rec.command)
+                if ports:
+                    extra = f" · :{ports[0]}"
+            except Exception:
+                extra = ""
+            items.append((rec.process_id, f"{rec.label} · pid {rec.pid}{extra}"))
+        try:
+            self.query_one("#process-bar", CodeProcessBar).set_processes(items)
+        except Exception:
+            pass
+        self._background_process_ids = [pid for pid, _ in items]
+        self._background_process_id = self._background_process_ids[0] if items else None
 
     def _refresh_status_bar(self) -> None:
         cwd = os.path.basename(os.getcwd()) or "."
@@ -495,6 +495,10 @@ class HolixCodeApp(App):
             return
 
         runtime_config = resolve_runtime_config(self.config)
+        from cli.tui.workspace import tui_session_workspace_root
+
+        launch_root = str(tui_session_workspace_root())
+        runtime_config = runtime_config.with_overrides(workspace_root=launch_root)
         try:
             mc = ModelManager(self.config).get_default_model_config()
             if not mc:
@@ -526,6 +530,7 @@ class HolixCodeApp(App):
         self.agent.events.subscribe(self._on_agent_event)
         await self._load_conversation_history()
         self.transcript_write("[dim]ready — type a message or /help[/dim]\n")
+        self.transcript_write(f"[dim]workspace: {launch_root}[/dim]\n")
         thr = str(getattr(runtime_config, "auto_allow_threshold", "low") or "low").lower()
         if thr in {"medium", "high"}:
             self.transcript_write(
@@ -663,11 +668,13 @@ class HolixCodeApp(App):
 
     async def _run_agent_task(self, user_input: str) -> None:
         if not self.agent:
+            self.call_later(self._on_agent_turn_finished)
             return
         mode = self._execution_modes[self._execution_mode_index]
         from core.tools.execution_context import agent_emit_scope, reset_agent_emit_scope
 
         emit_token = agent_emit_scope(self.agent.emit)
+        cancelled = False
         try:
             await self.agent.run(
                 user_input=user_input,
@@ -675,6 +682,7 @@ class HolixCodeApp(App):
                 execution_mode=mode,
             )
         except asyncio.CancelledError:
+            cancelled = True
             self.transcript_write("[dim]stopped[/dim]")
             self.set_status_line("ready")
             self._restore_prompt_focus()
@@ -685,14 +693,17 @@ class HolixCodeApp(App):
             self._restore_prompt_focus()
         finally:
             reset_agent_emit_scope(emit_token)
+            self.call_later(self._on_agent_turn_finished, cancelled=cancelled)
 
     async def _run_agent_streaming(self, user_input: str) -> None:
         if not self.agent:
+            self.call_later(self._on_agent_turn_finished)
             return
         mode = self._execution_modes[self._execution_mode_index]
         from core.tools.execution_context import agent_emit_scope, reset_agent_emit_scope
 
         emit_token = agent_emit_scope(self.agent.emit)
+        cancelled = False
         try:
             from core.runtime.executor import run_holix
 
@@ -705,6 +716,7 @@ class HolixCodeApp(App):
             ):
                 self.agent.emit(event)
         except asyncio.CancelledError:
+            cancelled = True
             self.transcript_write("[dim]stopped[/dim]")
             self.set_status_line("ready")
             self._restore_prompt_focus()
@@ -715,6 +727,7 @@ class HolixCodeApp(App):
             self._restore_prompt_focus()
         finally:
             reset_agent_emit_scope(emit_token)
+            self.call_later(self._on_agent_turn_finished, cancelled=cancelled)
 
     # --- Input / send ---
 
@@ -742,6 +755,14 @@ class HolixCodeApp(App):
             self._tab_matches = []
             self._hide_slash_suggestions()
             self._hide_prompt_history()
+            if self._should_enqueue_prompt(message):
+                self._enqueue_prompt(message)
+                if not self._prompt_run_active:
+                    self._pump_prompt_queue()
+                self._restore_prompt_focus(delay=0.05)
+                return
+            if not self._is_immediate_control_message(message):
+                self._prompt_run_active = True
             self.run_worker(self._send_message(message))
             self._restore_prompt_focus(delay=0.05)
         except Exception:
@@ -773,7 +794,121 @@ class HolixCodeApp(App):
         except Exception:
             return False
 
+    def _ui_lang(self) -> str:
+        from core.i18n import LocaleStore
+
+        return LocaleStore(self.profile).get()
+
+    def _is_immediate_control_message(self, message: str) -> bool:
+        if is_slash_command(normalize_slash_input(message)) or is_skill_invoke_line(message):
+            return True
+        try:
+            if self._modals.plan_review.is_awaiting:
+                return True
+        except Exception:
+            pass
+        try:
+            from core.subagents.interaction import get_interaction_bridge
+
+            bridge = get_interaction_bridge(self.agent)
+            if bridge is not None and bridge.has_pending_questions():
+                return True
+        except Exception:
+            pass
+        return False
+
+    def _should_enqueue_prompt(self, message: str) -> bool:
+        if self._is_immediate_control_message(message):
+            return False
+        return bool(self._prompt_run_active or self._prompt_queue)
+
+    def _enqueue_prompt(self, message: str) -> None:
+        from core.i18n import t
+
+        if len(self._prompt_queue) >= _PROMPT_QUEUE_MAX:
+            self.transcript_write(f"[yellow]{t('tui.queue.full', self._ui_lang())}[/yellow]")
+            return
+        self._prompt_queue.append(QueuedPrompt(item_id=uuid.uuid4().hex[:8], text=message))
+        self._refresh_prompt_queue()
+
+    def _refresh_prompt_queue(self) -> None:
+        from core.i18n import t
+
+        lang = self._ui_lang()
+        try:
+            widget = self.query_one("#prompt-queue", PromptQueue)
+        except Exception:
+            return
+        widget.set_items(
+            self._prompt_queue,
+            title=t("tui.queue.title", lang, n=len(self._prompt_queue)),
+            hint=t("tui.queue.hint", lang),
+            edit_label=t("tui.queue.edit", lang),
+        )
+
+    def _pump_prompt_queue(self) -> None:
+        if self._prompt_run_active:
+            self._refresh_prompt_queue()
+            return
+        if not self._prompt_queue:
+            self._refresh_prompt_queue()
+            return
+        item = self._prompt_queue.pop(0)
+        self._refresh_prompt_queue()
+        self._prompt_run_active = True
+        self.run_worker(self._send_message(item.text))
+
+    def _on_agent_turn_finished(self, *, cancelled: bool = False) -> None:
+        self._prompt_run_active = False
+        if cancelled:
+            self._refresh_prompt_queue()
+            return
+        self._pump_prompt_queue()
+
+    def _edit_queued_prompt(self, item_id: str) -> None:
+        for i, item in enumerate(self._prompt_queue):
+            if item.item_id != item_id:
+                continue
+            self._prompt_queue.pop(i)
+            try:
+                prompt = self.query_one("#input-area", CodePrompt)
+                prompt.text = item.text
+                row = len(prompt.text.splitlines()) - 1
+                prompt.cursor_location = (
+                    max(0, row),
+                    len(prompt.text.splitlines()[-1]) if prompt.text else 0,
+                )
+                prompt.focus()
+            except Exception:
+                pass
+            break
+        self._refresh_prompt_queue()
+
+    def _remove_queued_prompt(self, item_id: str) -> None:
+        self._prompt_queue = [item for item in self._prompt_queue if item.item_id != item_id]
+        self._refresh_prompt_queue()
+        self._restore_prompt_focus()
+
+    @on(PromptQueue.Edit)
+    def _on_prompt_queue_edit(self, event: PromptQueue.Edit) -> None:
+        self._edit_queued_prompt(event.item_id)
+
+    @on(PromptQueue.Remove)
+    def _on_prompt_queue_remove(self, event: PromptQueue.Remove) -> None:
+        self._remove_queued_prompt(event.item_id)
+
     async def _send_message(self, message: str) -> None:
+        dispatched = False
+        try:
+            await self._dispatch_user_message(message)
+            dispatched = getattr(self, "_last_dispatch_started_agent", False)
+        finally:
+            if not dispatched:
+                self._prompt_run_active = False
+                self.call_later(self._pump_prompt_queue)
+
+    async def _dispatch_user_message(self, message: str) -> None:
+        self._last_dispatch_started_agent = False
         if self._modals.plan_review.is_awaiting:
             self.transcript_write(f"\n[bold]❯[/bold] {message}\n")
             self._modals.plan_review.handle_text_response(message)
@@ -855,6 +990,7 @@ class HolixCodeApp(App):
                 group=AGENT_WORKER_GROUP,
                 exclusive=True,
             )
+        self._last_dispatch_started_agent = True
 
     def on_text_area_changed(self, event: TextArea.Changed) -> None:
         if event.text_area.id == "input-area":
@@ -1186,6 +1322,7 @@ class HolixCodeApp(App):
             t("tui.help.keys2", lang, quit=quit_k, clear=clr, end=end),
             t("tui.help.keys3", lang, copy=copy_k),
             t("tui.help.keys4", lang),
+            t("tui.help.keys5", lang),
         ]
         if is_macos():
             lines.extend(
@@ -1336,12 +1473,14 @@ class HolixCodeApp(App):
         self._action_stop_all()
 
     def _action_stop_all(self) -> None:
+        self._prompt_run_active = False
         stop_agent_activity_sync(self)
         self.clear_stream_display()
         self._is_streaming = False
         self.set_thinking(None)
         self.transcript_write("[dim]stopped[/dim]")
         self.set_status_line("ready")
+        self._refresh_prompt_queue()
         self._restore_prompt_focus()
 
     async def _stop_background_process(self, process_id: str = "") -> None:
@@ -1363,7 +1502,7 @@ class HolixCodeApp(App):
             self.transcript_write("[dim]no background process for this session[/dim]")
             return
 
-        self.clear_background_process()
+        self.sync_background_process_bar()
         ports = parse_listen_ports(record.command)
         still_busy = ports_in_use(ports) if ports else []
         line = f"[dim]⏹ stopped: {record.label} (pid {record.pid})[/dim]"
@@ -1967,8 +2106,14 @@ class HolixCodeApp(App):
 
 def run_tui(profile: str = "default") -> None:
     """Launch the Holix code-style TUI (`holix tui`)."""
+    import os
+
     from core.platform_compat import ensure_multiprocessing_support
 
+    from cli.tui.workspace import ENV_LAUNCH_CWD, capture_tui_launch_cwd
+
+    if not (os.environ.get(ENV_LAUNCH_CWD) or "").strip():
+        capture_tui_launch_cwd()
     ensure_multiprocessing_support()
     config = init_profile(profile)
     HolixCodeApp(profile=profile, config=config).run()

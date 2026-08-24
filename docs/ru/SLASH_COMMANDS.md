@@ -42,8 +42,8 @@
 | `/mode` | Цикл режимов или `/mode <имя>` — см. [EXECUTION_MODES.md](EXECUTION_MODES.md) |
 | `/stream` | Стриминг; `/stream on\|off` |
 | `/stop` | Остановить агента, субагентов, ожидающие подтверждения и ревью плана (TUI, Telegram, MAX) |
-| `/process` | Список фоновых процессов сессии (**только TUI**) |
-| `/process-stop` | Остановить dev-сервер / долгий фоновый процесс (**только TUI**) |
+| `/process` | Список фоновых процессов (**TUI**; живые строки ещё и **сверху**) |
+| `/process-stop` | Остановить dev-сервер / долгий фоновый процесс (**TUI**) |
 
 ---
 
@@ -139,7 +139,7 @@ CLI: [HUB.md](HUB.md).
 
 ## Динамические команды навыков
 
-Файл: `{profile}/data/skills/skill-slash.json`  
+Файл: `{profile}/data/skills/skill-slash.json`
 Обновление: `holix hub slash-sync`
 
 ---
@@ -171,6 +171,22 @@ CLI: [HUB.md](HUB.md).
 **Автосоздание (0.1.16+):** повторяющиеся запросы обычным языком (например «каждый день в 10 утра присылай новости») создают задачу без `/cron add`. CLI: `holix cron …` — [CLI.md](CLI.md#holix-cron).
 
 ---
+
+## Субагенты и Code mode
+
+Полный гайд: [SUBAGENTS.md](SUBAGENTS.md). Code mode: [CODE_MODE.md](CODE_MODE.md).
+
+| Команда | Где | Описание |
+|---------|-----|----------|
+| `/subagent-types`, `/code-mode` | TUI, Telegram, MAX | Менеджер типов + Code mode (`native` / `code` / `both`) |
+| `/subagent-types list` | TUI | Список типов в чате |
+| `/subagent-spawn <тип> <задача>` | TUI, CLI | Запустить воркер |
+| `/subagents` | TUI, Telegram, MAX | Живые джобы |
+| `/subagent-result <job>` | TUI | Готовый ответ |
+| `/subagent-terminate <job>` | TUI | Отменить джоб |
+| `/subagent-reply <job> <текст>` | TUI, Telegram, MAX | Ответ на `ask_user` |
+
+В TUI, пока агент занят, обычная строка чата ставится в очередь (эти слэши — нет). См. [TUI.md](TUI.md#очередь-промптов).
 
 ## Telegram
 

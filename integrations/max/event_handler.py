@@ -25,6 +25,7 @@ from core.agent_events import (
     ToolCallErrorEvent,
     ToolCallResultEvent,
     ToolCallStartEvent,
+    ToolCodeDispatchStartEvent,
 )
 from core.i18n.live_ui import live_thinking_label
 from core.plan_review.review_events import PlanReviewRequestEvent
@@ -99,7 +100,7 @@ class MaxEventHandler:
                     args = json.loads(event.arguments_raw) if event.arguments_raw else {}
                 except Exception:
                     args = event.arguments_raw
-                buf.add_tool_start(event.tool_name, args)
+                buf.add_tool_start(event.tool_name, args, tool_id=event.tool_id or "")
                 self._presenter.schedule_edit()
                 name = (event.tool_name or "").strip()
                 detail = self._tool_detail(name, args)
@@ -110,6 +111,10 @@ class MaxEventHandler:
                     self._presenter.enqueue_outbound(
                         self._presenter.send_tool_progress(name, detail)
                     )
+
+            elif isinstance(event, ToolCodeDispatchStartEvent):
+                buf.add_code_inner(event.parent_tool_id or "", event.tool_name or "")
+                self._presenter.schedule_edit()
 
             elif isinstance(event, ToolCallResultEvent):
                 duration = getattr(event, "duration_ms", None)
@@ -349,6 +354,8 @@ class MaxEventHandler:
     def _tool_detail(name: str, args: object) -> str:
         if not isinstance(args, dict):
             return ""
+        if name == "run_code":
+            return str(args.get("description") or "")[:200]
         if name in _PROGRESS_TOOLS:
             return str(
                 args.get("task")

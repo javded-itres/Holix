@@ -61,6 +61,13 @@ class MaxChatSession:
     subagent_watch_message_id: str | None = None
     subagent_watch_task: Any = None
     pending_admin_broadcast: Any = None
+    ui_subagent_types: list[str] = field(default_factory=list)
+    ui_subagent_page: int = 0
+    ui_subagent_current: str = ""
+    ui_subagent_tools_view: bool = False
+    ui_subagent_model_page: int = 0
+    ui_subagent_confirm: str = ""
+    pending_subagent_compose: str | None = None
     agent: Any = None
     ui_profiles: list[str] = field(default_factory=list)
     ui_sessions: list[dict] = field(default_factory=list)

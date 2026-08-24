@@ -116,6 +116,14 @@ class ProfileConfig(BaseModel):
     workspace_jail_enabled: bool = False
     workspace_root: str | None = None
 
+    # Tool presentation to the LLM: native | code | both (unknown values → native).
+    tools_presentation: str = "native"
+    # Per-slot override, e.g. {"main": "native", "coder": "code"}.
+    tools_presentation_by_slot: dict[str, str] = Field(default_factory=dict)
+    code_mode_wall_timeout_s: int | None = None
+    code_mode_max_inner_calls: int | None = None
+    code_mode_parallel_readonly: bool | None = None
+
     # SaaS: dedicated OS account for interactive Studio shell (workspace owner)
     linux_username: str | None = None
     linux_uid: int | None = None

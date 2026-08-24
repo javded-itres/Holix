@@ -2,7 +2,7 @@
 
 Curated route through the documentation. Each topic has **one canonical page** — follow links instead of duplicating content here.
 
-> Package **`Holix`** on PyPI; CLI command **`holix`**.  
+> Package **`Holix`** on PyPI; CLI command **`holix`**.
 > Not in the website sidebar — use this page from [README](README.md) or [START_HERE](START_HERE.md).
 
 ---
@@ -36,6 +36,7 @@ Curated route through the documentation. Each topic has **one canonical page** �
 | Interface | Doc |
 |-----------|-----|
 | TUI (recommended) | [TUI.md](TUI.md) |
+| Code mode (`run_code`) | [CODE_MODE.md](CODE_MODE.md) |
 | Slash commands `/` | [SLASH_COMMANDS.md](SLASH_COMMANDS.md) |
 | Full CLI reference | [CLI.md](CLI.md) |
 | Skill Hub | [HUB.md](HUB.md) |
@@ -89,8 +90,8 @@ Curated route through the documentation. Each topic has **one canonical page** �
 
 ## Suggested order for new users
 
-1. [INSTALLATION.md](INSTALLATION.md) → [START_HERE.md](START_HERE.md)  
-2. [CONFIGURATION.md](CONFIGURATION.md) → [PROFILES.md](PROFILES.md)  
-3. [TUI.md](TUI.md) + [SLASH_COMMANDS.md](SLASH_COMMANDS.md)  
-4. [GATEWAY.md](GATEWAY.md) or [TELEGRAM.md](TELEGRAM.md) / [MAX.md](MAX.md) as needed  
+1. [INSTALLATION.md](INSTALLATION.md) → [START_HERE.md](START_HERE.md)
+2. [CONFIGURATION.md](CONFIGURATION.md) → [PROFILES.md](PROFILES.md)
+3. [TUI.md](TUI.md) + [SLASH_COMMANDS.md](SLASH_COMMANDS.md)
+4. [GATEWAY.md](GATEWAY.md) or [TELEGRAM.md](TELEGRAM.md) / [MAX.md](MAX.md) as needed
 5. [SECURITY.md](SECURITY.md) before production

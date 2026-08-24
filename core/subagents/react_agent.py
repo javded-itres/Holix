@@ -38,6 +38,7 @@ class FilteredToolRegistry:
         self._workspace_root = getattr(inner, "_workspace_root", None)
         self._workspace_jail_enabled = getattr(inner, "_workspace_jail_enabled", False)
         self._profile_name = getattr(inner, "_profile_name", None)
+        self._tools_presentation = getattr(inner, "_tools_presentation", "native")
 
     def _is_allowed(self, name: str) -> bool:
         key = str(name or "").strip()
@@ -54,10 +55,14 @@ class FilteredToolRegistry:
             if self._inherit_mcp:
                 return True
             return any(key.startswith(f"mcp_{srv}_") for srv in self._mcp_servers)
+        from core.tools.code_mode.policy import RUN_CODE_NAME, normalize_presentation
+
+        if key == RUN_CODE_NAME or resolved == RUN_CODE_NAME:
+            mode = normalize_presentation(getattr(self, "_tools_presentation", "native"))
+            return mode in ("code", "both")
         return False
 
-    def get_schemas(self, *, for_agent_slot: str = "main") -> list[dict[str, Any]]:
-        schemas = self._inner.get_schemas(for_agent_slot=for_agent_slot)
+    def _filter_schemas(self, schemas: list[dict[str, Any]]) -> list[dict[str, Any]]:
         out: list[dict[str, Any]] = []
         for schema in schemas:
             fn = schema.get("function") if isinstance(schema, dict) else None
@@ -68,13 +73,41 @@ class FilteredToolRegistry:
                 out.append(schema)
         return out
 
+    def get_end_tool_schemas(self, *, for_agent_slot: str = "main") -> list[dict[str, Any]]:
+        inner = getattr(self._inner, "get_end_tool_schemas", None)
+        if callable(inner):
+            return self._filter_schemas(inner(for_agent_slot=for_agent_slot))
+        return self._filter_schemas(self._inner.get_schemas(for_agent_slot=for_agent_slot))
+
+    def get_schemas(self, *, for_agent_slot: str = "main") -> list[dict[str, Any]]:
+        return self._filter_schemas(self._inner.get_schemas(for_agent_slot=for_agent_slot))
+
     async def execute(
-        self, tool_call: Any, conversation_id: str = "default", *, memory: Any = None
+        self,
+        tool_call: Any,
+        conversation_id: str = "default",
+        *,
+        memory: Any = None,
+        from_code_mode: bool = False,
     ) -> str:
+        from core.tools.execution_context import (
+            reset_tools_registry_scope,
+            tools_registry_scope,
+        )
+
         name = str(getattr(getattr(tool_call, "function", None), "name", "") or "")
         if not self._is_allowed(name):
             return f"Error: Tool '{name}' is not available to this sub-agent"
-        return await self._inner.execute(tool_call, conversation_id, memory=memory)
+        token = tools_registry_scope(self)
+        try:
+            return await self._inner.execute(
+                tool_call,
+                conversation_id,
+                memory=memory,
+                from_code_mode=from_code_mode,
+            )
+        finally:
+            reset_tools_registry_scope(token)
 
     @property
     def tools(self) -> dict[str, Any]:
@@ -260,12 +293,16 @@ def build_react_subagent(parent: Any, config: SubAgentConfig, task: str) -> Any:
         plan_review_enabled=False,
         context_window=window,
     )
+    slot = str(config.agent_type or config.name or "main")
     filtered = FilteredToolRegistry(
         parent.tools,
         allowed=allowed_tool_names(config),
         inherit_mcp=bool(getattr(config, "mcp_inherit", True)),
         mcp_servers=list(getattr(config, "mcp_servers", None) or []),
     )
+    presenter = getattr(parent.tools, "presentation_for_slot", None)
+    if callable(presenter):
+        filtered._tools_presentation = presenter(slot)
     bus = AgentEventBus(name=f"sub:{config.name}")
     child = HolixAgent(
         config=child_cfg,
@@ -288,7 +325,7 @@ def build_react_subagent(parent: Any, config: SubAgentConfig, task: str) -> Any:
         allow_defaults=True,
     )
     child.model = model or child.model
-    child.agent_slot = str(config.agent_type or config.name or "main")
+    child.agent_slot = slot
     profile_name = str(getattr(parent_cfg, "profile_name", None) or "default")
     working_directory = ""
     try:

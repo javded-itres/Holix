@@ -101,6 +101,26 @@ workspace_root: /home/user/data-agent
 
 При включении `read_file`, `write_file`, `list_directory`, `run_terminal_command` и отправка файлов в Telegram не выходят за пределы `workspace_root`.
 
+Относительные пути tools (`.`, `src/foo.py`) резолвятся в `workspace_root` даже при выключенном jail — агент не листит CWD процесса (часто `$HOME`).
+
+## Code mode (opt-in)
+
+По умолчанию модель видит обычные JSON-схемы tools. Можно включить режим, где она пишет одну Python-программу и вызывает несколько tools за шаг:
+
+```yaml
+# native (по умолчанию) | code | both
+tools_presentation: native
+```
+
+`code` оставляет на проводе только `run_code`. Программа идёт в изолированный subprocess; каждый `tools.name(...)` проходит ActionGuard и jail. Промежуточные дампы в контекст модели не попадают. Для Telegram `main` оставляйте `native`. По слоту:
+
+```yaml
+tools_presentation_by_slot:
+  coder: code
+```
+
+См. [CODE_MODE.md](CODE_MODE.md).
+
 ## Whitelist терминала (опционально)
 
 Ограничение shell-команд агента. Настраивается для каждого профиля:

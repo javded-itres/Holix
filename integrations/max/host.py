@@ -489,6 +489,15 @@ class MaxHost:
         if await try_compose_admin_broadcast(self, message):
             return
 
+        from integrations.messenger.subagent_types_ui import try_consume_compose
+
+        toast = await try_consume_compose(self, message)
+        if toast is not None:
+            if toast:
+                await self._send_text(toast)
+            await MaxInteractive(self).show_subagents_picker()
+            return
+
         if self._session.pending_plan_review_id:
             from integrations.max.approvals import MaxApprovals
 

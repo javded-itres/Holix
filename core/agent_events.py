@@ -41,6 +41,8 @@ class EventType(StrEnum):
     TOOL_CALL_START = "tool_call_start"
     TOOL_CALL_RESULT = "tool_call_result"
     TOOL_CALL_ERROR = "tool_call_error"
+    TOOL_CODE_DISPATCH_START = "tool_code_dispatch_start"
+    TOOL_CODE_DISPATCH_RESULT = "tool_code_dispatch_result"
 
     # Self-improvement / skills
     SELF_IMPROVEMENT_STARTED = "self_improvement_started"
@@ -206,6 +208,52 @@ class ToolCallStartEvent(AgentEvent):
             "tool_id": self.tool_id,
             "arguments": self.arguments,
             "arguments_raw": self.arguments_raw,
+        }
+
+
+@dataclass
+class ToolCodeDispatchStartEvent(AgentEvent):
+    """Inner tool call from a ``run_code`` program (not a ReAct step)."""
+
+    tool_name: str = ""
+    tool_id: str = ""
+    parent_tool_id: str = ""
+    arguments: dict[str, Any] = field(default_factory=dict)
+
+    def __post_init__(self):
+        super().__post_init__()
+        object.__setattr__(self, "type", EventType.TOOL_CODE_DISPATCH_START)
+
+    def _extra_fields(self) -> dict[str, Any]:
+        return {
+            "tool_name": self.tool_name,
+            "tool_id": self.tool_id,
+            "parent_tool_id": self.parent_tool_id,
+            "arguments": self.arguments,
+        }
+
+
+@dataclass
+class ToolCodeDispatchResultEvent(AgentEvent):
+    """Inner ``run_code`` tool finished (not a ReAct step)."""
+
+    tool_name: str = ""
+    tool_id: str = ""
+    parent_tool_id: str = ""
+    result: str = ""
+    duration_ms: float | None = None
+
+    def __post_init__(self):
+        super().__post_init__()
+        object.__setattr__(self, "type", EventType.TOOL_CODE_DISPATCH_RESULT)
+
+    def _extra_fields(self) -> dict[str, Any]:
+        return {
+            "tool_name": self.tool_name,
+            "tool_id": self.tool_id,
+            "parent_tool_id": self.parent_tool_id,
+            "result": (self.result or "")[:500],
+            "duration_ms": self.duration_ms,
         }
 
 
@@ -934,6 +982,8 @@ def make_event(
         EventType.TOOL_CALL_START: ToolCallStartEvent,
         EventType.TOOL_CALL_RESULT: ToolCallResultEvent,
         EventType.TOOL_CALL_ERROR: ToolCallErrorEvent,
+        EventType.TOOL_CODE_DISPATCH_START: ToolCodeDispatchStartEvent,
+        EventType.TOOL_CODE_DISPATCH_RESULT: ToolCodeDispatchResultEvent,
         EventType.FINAL_RESPONSE: FinalResponseEvent,
         EventType.ERROR: ErrorEvent,
         EventType.MAX_STEPS_EXTENDED: MaxStepsExtendedEvent,

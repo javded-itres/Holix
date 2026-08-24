@@ -184,15 +184,22 @@ def get_subagent_config(name: str, *, profile: str | None = None) -> SubAgentCon
         KeyError: If no sub-agent with this name exists.
     """
     slug = (name or "").strip().lower()
+    cfg: SubAgentConfig | None = None
     if slug in PREDEFINED_SUBAGENTS:
-        return _copy_config(PREDEFINED_SUBAGENTS[slug])
+        cfg = _copy_config(PREDEFINED_SUBAGENTS[slug])
 
     if profile:
-        from core.subagents.store import SubAgentTypeStore
+        from core.subagents.store import SubAgentOverlayStore, SubAgentTypeStore, apply_type_overlay
 
-        custom = SubAgentTypeStore(profile).get(slug)
-        if custom is not None:
-            return _copy_config(custom.to_subagent_config())
+        if cfg is None:
+            custom = SubAgentTypeStore(profile).get(slug)
+            if custom is not None:
+                cfg = _copy_config(custom.to_subagent_config())
+        if cfg is not None:
+            return apply_type_overlay(cfg, SubAgentOverlayStore(profile).get(slug))
+
+    if cfg is not None:
+        return cfg
 
     available = ", ".join(n["name"] for n in list_available_subagents(profile=profile))
     raise KeyError(f"No sub-agent '{name}'. Available: {available}")
@@ -211,8 +218,13 @@ def list_available_subagents(*, profile: str | None = None) -> list[dict]:
         for config in PREDEFINED_SUBAGENTS.values()
     ]
     if profile:
-        from core.subagents.store import SubAgentTypeStore
+        from core.subagents.store import SubAgentOverlayStore, SubAgentTypeStore
 
+        overlays = SubAgentOverlayStore(profile).load()
+        for item in items:
+            overlay = overlays.get(str(item.get("name") or ""))
+            if overlay and overlay.description:
+                item["description"] = overlay.description
         for custom in SubAgentTypeStore(profile).load_types().values():
             items.append(
                 {

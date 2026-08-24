@@ -49,12 +49,7 @@ class MaxApprovals:
         header = "**⚠ Confirmation required**"
         if subagent:
             header = f"**⚠ Sub-agent `{subagent}` needs approval**"
-        text = (
-            f"{header}\n"
-            f"Tool: `{event.tool_name}`\n"
-            f"Risk: {risk}\n"
-            f"{event.reason}"
-        )
+        text = f"{header}\nTool: `{event.tool_name}`\nRisk: {risk}\n{event.reason}"
         args_block = _format_confirmation_args(event.tool_name, event.arguments or {})
         if args_block:
             text += "\n\n" + args_block
@@ -304,6 +299,11 @@ def _format_confirmation_args(tool_name: str, args: dict) -> str:
             code = str(args.get("code", "") or "")[:700]
             if code:
                 return f"**Python code:**\n```\n{code}\n```"
+        if tool_name == "run_code":
+            desc = str(args.get("description") or "")[:240]
+            if desc:
+                return f"**Program:** {desc}"
+            return ""
         j = json.dumps(args, ensure_ascii=False, indent=2)[:900]
         return f"**Arguments:**\n```\n{j}\n```"
     except Exception:

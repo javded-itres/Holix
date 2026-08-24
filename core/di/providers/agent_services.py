@@ -33,6 +33,11 @@ class AgentServicesProvider(Provider):
             workspace_root=config.workspace_root,
             workspace_jail_enabled=config.workspace_jail_enabled,
             profile_name=config.profile_name,
+            tools_presentation=getattr(config, "tools_presentation", "native") or "native",
+            tools_presentation_by_slot=getattr(config, "tools_presentation_by_slot", None) or {},
+            code_mode_wall_timeout_s=getattr(config, "code_mode_wall_timeout_s", None),
+            code_mode_max_inner_calls=getattr(config, "code_mode_max_inner_calls", None),
+            code_mode_parallel_readonly=getattr(config, "code_mode_parallel_readonly", None),
         )
 
     @provide(scope=Scope.APP)
@@ -60,7 +65,11 @@ class AgentServicesProvider(Provider):
         compressor: ContextCompressor,
         event_bus: AgentEventBus,
     ) -> ContextManager:
-        window = config.context_window if config.context_window and config.context_window > 0 else DEFAULT_CONTEXT_WINDOW
+        window = (
+            config.context_window
+            if config.context_window and config.context_window > 0
+            else DEFAULT_CONTEXT_WINDOW
+        )
         return ContextManager(
             context_window=window,
             token_counter=token_counter,

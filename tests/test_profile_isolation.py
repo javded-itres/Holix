@@ -83,6 +83,23 @@ def test_workspace_jail_disabled_allows_anywhere(tmp_path: Path) -> None:
         reset_workspace_scope(tokens)
 
 
+def test_relative_tool_path_uses_workspace_when_jail_off(tmp_path: Path, monkeypatch) -> None:
+    """Admin jail-off still lists workspace, not process CWD (home hangs Telegram)."""
+    home = tmp_path / "home"
+    ws = tmp_path / "Develop"
+    home.mkdir()
+    ws.mkdir()
+    (ws / "ok.txt").write_text("here", encoding="utf-8")
+    monkeypatch.chdir(home)
+    tokens = workspace_scope(workspace_root=str(ws), workspace_jail_enabled=False)
+    try:
+        assert resolve_tool_path(".") == ws.resolve()
+        assert resolve_tool_path("ok.txt") == (ws / "ok.txt").resolve()
+        assert resolve_tool_path(str(home)) == home.resolve()
+    finally:
+        reset_workspace_scope(tokens)
+
+
 def test_profile_config_workspace_fields(holix_home: Path) -> None:
     manager = ProfileManager()
     manager.create_profile("jailed")
@@ -91,7 +108,9 @@ def test_profile_config_workspace_fields(holix_home: Path) -> None:
         workspace_jail_enabled=True,
         workspace_root="data-agent",
     )
-    cfg = resolve_profile_storage_paths("jailed", cfg, profile_dir=manager.get_profile_dir("jailed"))
+    cfg = resolve_profile_storage_paths(
+        "jailed", cfg, profile_dir=manager.get_profile_dir("jailed")
+    )
     assert cfg.workspace_jail_enabled is True
     assert cfg.workspace_root.endswith("data-agent")
 

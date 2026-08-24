@@ -201,6 +201,20 @@ def subagents_picker_keyboard(enabled: bool, locale: str | None = None) -> Any:
     )
 
 
+def callback_rows_keyboard(rows: list[list[tuple[str, str, str]]]) -> Any:
+    from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
+
+    kb_rows: list[list[Any]] = []
+    for row in rows:
+        kb_rows.append(
+            [
+                InlineKeyboardButton(text=label[:40], callback_data=_cb(action, value))
+                for label, action, value in row
+            ]
+        )
+    return InlineKeyboardMarkup(inline_keyboard=kb_rows)
+
+
 def pipeline_picker_keyboard(current: str, locale: str | None = None) -> Any:
     from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
     from core.agent_pipeline import PIPELINE_CLASSIC, PIPELINE_MODERN, normalize_pipeline

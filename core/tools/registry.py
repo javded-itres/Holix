@@ -14,12 +14,49 @@ class ToolRegistry:
         workspace_root: str | None = None,
         workspace_jail_enabled: bool = False,
         profile_name: str = "default",
+        tools_presentation: str = "native",
+        tools_presentation_by_slot: dict[str, str] | None = None,
+        code_mode_wall_timeout_s: int | None = None,
+        code_mode_max_inner_calls: int | None = None,
+        code_mode_parallel_readonly: bool | None = None,
     ):
         self.tools: dict[str, BaseTool] = {}
         self._action_guard = None  # Set by set_action_guard()
         self._workspace_root = workspace_root
         self._workspace_jail_enabled = workspace_jail_enabled
         self._profile_name = profile_name
+        from core.tools.code_mode.policy import (
+            DEFAULT_PARALLEL_READONLY,
+            DEFAULT_WALL_S,
+            MAX_INNER_CALLS,
+            clamp_max_inner_calls,
+            clamp_wall_timeout_s,
+            normalize_presentation,
+        )
+
+        self._tools_presentation = normalize_presentation(tools_presentation)
+        self._tools_presentation_by_slot = {
+            str(k).strip().lower(): normalize_presentation(v)
+            for k, v in (tools_presentation_by_slot or {}).items()
+            if str(k).strip()
+        }
+        self._code_mode_wall_s = clamp_wall_timeout_s(code_mode_wall_timeout_s, DEFAULT_WALL_S)
+        self._code_mode_max_inner = clamp_max_inner_calls(
+            code_mode_max_inner_calls, MAX_INNER_CALLS
+        )
+        self._code_mode_parallel_readonly = (
+            DEFAULT_PARALLEL_READONLY
+            if code_mode_parallel_readonly is None
+            else bool(code_mode_parallel_readonly)
+        )
+
+    def presentation_for_slot(self, slot: str = "main") -> str:
+        from core.tools.code_mode.policy import normalize_presentation
+
+        key = (slot or "main").strip().lower() or "main"
+        if key in self._tools_presentation_by_slot:
+            return self._tools_presentation_by_slot[key]
+        return normalize_presentation(self._tools_presentation)
 
     def set_action_guard(self, guard) -> None:
         """Set the ActionGuard instance for pre-execution confirmation.
@@ -163,6 +200,10 @@ class ToolRegistry:
         except ImportError:
             pass
 
+        from core.tools.code_mode.tool import RunCodeTool
+
+        self.register(RunCodeTool(self))
+
         apply_aliases_to_registry(self)
 
     async def register_mcp(
@@ -245,13 +286,10 @@ class ToolRegistry:
             return list(status() or [])
         return []
 
-    def get_schemas(self, *, for_agent_slot: str = "main") -> list[dict[str, Any]]:
-        """Get OpenAI-compatible schemas for all registered tools.
-
-        Returns:
-            List of tool schemas
-        """
+    def get_end_tool_schemas(self, *, for_agent_slot: str = "main") -> list[dict[str, Any]]:
+        """Schemas for real capabilities (never ``run_code``)."""
         from core.mcp.assign import mcp_tool_allowed
+        from core.tools.code_mode.policy import RUN_CODE_NAME
 
         slot = (for_agent_slot or "main").strip().lower() or "main"
         assigns = getattr(self, "_mcp_assignments", None)
@@ -260,6 +298,8 @@ class ToolRegistry:
         for tool in self.tools.values():
             name = getattr(tool, "name", "") or ""
             if not name or name in seen:
+                continue
+            if name == RUN_CODE_NAME:
                 continue
             if not mcp_tool_allowed(name, slot=slot, assignments=assigns):
                 continue
@@ -274,12 +314,33 @@ class ToolRegistry:
             ]
         return schemas
 
+    def get_schemas(self, *, for_agent_slot: str = "main") -> list[dict[str, Any]]:
+        """Get OpenAI-compatible schemas for all registered tools.
+
+        Returns:
+            List of tool schemas
+        """
+        from core.tools.code_mode.policy import RUN_CODE_NAME
+
+        end = self.get_end_tool_schemas(for_agent_slot=for_agent_slot)
+        mode = self.presentation_for_slot(for_agent_slot)
+        if mode == "native":
+            return end
+        run_tool = self.tools.get(RUN_CODE_NAME)
+        if run_tool is None:
+            return end
+        run_schema = run_tool.to_openai_schema()
+        if mode == "code":
+            return [run_schema]
+        return [*end, run_schema]
+
     async def execute(
         self,
         tool_call,
         conversation_id: str = "default",
         *,
         memory: Any = None,
+        from_code_mode: bool = False,
     ) -> str:
         """Execute a tool call from the LLM.
 
@@ -299,6 +360,23 @@ class ToolRegistry:
         """
         tool_name = tool_call.function.name
         resolved = resolve_tool_name(tool_name, self.tools)
+        from core.tools.code_mode.policy import RUN_CODE_NAME
+        from core.tools.execution_context import (
+            from_code_mode_scope,
+            get_agent_slot,
+            reset_from_code_mode_scope,
+            reset_tools_registry_scope,
+            tools_registry_scope,
+        )
+
+        mode = self.presentation_for_slot(get_agent_slot())
+        if mode == "code" and not from_code_mode and resolved != RUN_CODE_NAME:
+            return (
+                f"Error: only `{RUN_CODE_NAME}` is callable directly. "
+                f"Wrap the call: `{RUN_CODE_NAME}(code="
+                f'"return tools.{resolved}(...)" , description="…")`. '
+                f"Do not call `{tool_name}` as a native function."
+            )
 
         if resolved not in self.tools:
             return f"Error: Tool '{tool_name}' not found"
@@ -317,6 +395,7 @@ class ToolRegistry:
         )
         from core.tools.execution_context import (
             conversation_scope,
+            get_tools_registry,
             memory_facade_scope,
             profile_scope,
             reset_conversation_scope,
@@ -330,6 +409,9 @@ class ToolRegistry:
         token = conversation_scope(conversation_id)
         mem_token = memory_facade_scope(memory) if memory is not None else None
         profile_token = profile_scope(self._profile_name)
+        existing_reg = get_tools_registry()
+        reg_token = tools_registry_scope(self) if existing_reg is None else None
+        code_mode_token = from_code_mode_scope(from_code_mode=from_code_mode)
         ws_tokens = workspace_scope(
             workspace_root=self._workspace_root,
             workspace_jail_enabled=self._workspace_jail_enabled,
@@ -367,6 +449,9 @@ class ToolRegistry:
             if mem_token is not None:
                 reset_memory_facade_scope(mem_token)
             reset_profile_scope(profile_token)
+            if reg_token is not None:
+                reset_tools_registry_scope(reg_token)
+            reset_from_code_mode_scope(code_mode_token)
             reset_workspace_scope(ws_tokens)
             if unlock_tokens:
                 reset_profile_unlock_scope(unlock_tokens)

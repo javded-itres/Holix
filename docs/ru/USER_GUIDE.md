@@ -2,7 +2,7 @@
 
 Навигация по документации. На каждую тему — **одна каноническая страница**; здесь только ссылки.
 
-> Пакет **`Holix`** на PyPI; команда **`holix`**.  
+> Пакет **`Holix`** на PyPI; команда **`holix`**.
 > Не в боковом меню сайта — открывайте из [README](README.md) или [START_HERE](START_HERE.md).
 
 ---
@@ -36,6 +36,7 @@
 | Интерфейс | Документ |
 |-----------|----------|
 | TUI | [TUI.md](TUI.md) |
+| Code mode (`run_code`) | [CODE_MODE.md](CODE_MODE.md) |
 | Слэш-команды | [SLASH_COMMANDS.md](SLASH_COMMANDS.md) |
 | Справочник CLI | [CLI.md](CLI.md) |
 | Hub | [HUB.md](HUB.md) |
@@ -89,8 +90,8 @@
 
 ## Рекомендуемый порядок
 
-1. [INSTALLATION.md](INSTALLATION.md) → [START_HERE.md](START_HERE.md)  
-2. [CONFIGURATION.md](CONFIGURATION.md) → [PROFILES.md](PROFILES.md)  
-3. [TUI.md](TUI.md) + [SLASH_COMMANDS.md](SLASH_COMMANDS.md)  
-4. [GATEWAY.md](GATEWAY.md) или [TELEGRAM.md](TELEGRAM.md) / [MAX.md](MAX.md)  
+1. [INSTALLATION.md](INSTALLATION.md) → [START_HERE.md](START_HERE.md)
+2. [CONFIGURATION.md](CONFIGURATION.md) → [PROFILES.md](PROFILES.md)
+3. [TUI.md](TUI.md) + [SLASH_COMMANDS.md](SLASH_COMMANDS.md)
+4. [GATEWAY.md](GATEWAY.md) или [TELEGRAM.md](TELEGRAM.md) / [MAX.md](MAX.md)
 5. [SECURITY.md](SECURITY.md) перед production

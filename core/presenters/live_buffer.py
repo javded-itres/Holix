@@ -5,9 +5,11 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 
 from core.presenters.tool_format import (
+    format_run_code_program_line,
     format_tool_args,
     format_tool_header,
 )
+from core.tools.code_mode.policy import RUN_CODE_NAME
 
 
 @dataclass
@@ -31,8 +33,11 @@ class LiveTranscriptBuffer:
     max_tool_lines: int = 8
     max_answer_chars: int = 2800
     compact_tools: bool = False
+    _code_runs: dict[str, dict] = field(default_factory=dict)
 
-    def set_header(self, *, profile: str | None = None, mode: str | None = None, session: str | None = None) -> None:
+    def set_header(
+        self, *, profile: str | None = None, mode: str | None = None, session: str | None = None
+    ) -> None:
         if profile is not None:
             self.profile = profile
         if mode is not None:
@@ -59,15 +64,53 @@ class LiveTranscriptBuffer:
         self.background_process_id = None
         self.background_process_healthy = True
 
-    def add_tool_start(self, name: str, args: object) -> None:
+    def add_tool_start(self, name: str, args: object, *, tool_id: str = "") -> None:
         # Partial assistant text before a tool call is preamble, not the final answer.
         self.answer = ""
+        if str(name or "") == RUN_CODE_NAME:
+            desc = ""
+            if isinstance(args, dict):
+                desc = str(args.get("description") or "").strip()
+            key = (tool_id or RUN_CODE_NAME).strip() or RUN_CODE_NAME
+            rec = {"desc": desc, "names": [], "line_index": len(self.tool_lines)}
+            self._code_runs[key] = rec
+            self._code_runs[RUN_CODE_NAME] = rec
+            self.tool_lines.append(format_run_code_program_line(desc, [], running=True))
+            self._trim_tools()
+            return
         line = format_tool_header(name, running=True)
         if not self.compact_tools:
             args_text = format_tool_args(args)
             if args_text:
                 line += f"\n  {args_text}"
         self.tool_lines.append(line)
+        self._trim_tools()
+
+    def add_code_inner(self, parent_tool_id: str, tool_name: str) -> None:
+        name = str(tool_name or "").strip()
+        if not name:
+            return
+        rec = self._code_runs.get(str(parent_tool_id or "").strip()) or self._code_runs.get(
+            RUN_CODE_NAME
+        )
+        if rec is None:
+            rec = {"desc": "", "names": [], "line_index": len(self.tool_lines)}
+            self._code_runs[RUN_CODE_NAME] = rec
+            self.tool_lines.append(format_run_code_program_line("", [name], running=True))
+            self._trim_tools()
+            rec["line_index"] = len(self.tool_lines) - 1
+            rec["names"].append(name)
+            return
+        rec["names"].append(name)
+        line = format_run_code_program_line(str(rec.get("desc") or ""), rec["names"], running=True)
+        idx = rec.get("line_index")
+        if isinstance(idx, int) and 0 <= idx < len(self.tool_lines):
+            self.tool_lines[idx] = line
+        elif self.tool_lines and "программа:" in self.tool_lines[-1]:
+            self.tool_lines[-1] = line
+        else:
+            rec["line_index"] = len(self.tool_lines)
+            self.tool_lines.append(line)
         self._trim_tools()
 
     def add_tool_result(

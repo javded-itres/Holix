@@ -73,6 +73,24 @@ def test_format_process_meta_running(monkeypatch: pytest.MonkeyPatch) -> None:
     assert "running" in meta
 
 
+def test_list_running_for_profile_skips_dead(monkeypatch: pytest.MonkeyPatch) -> None:
+    from core.runtime.background_process import BackgroundProcessRegistry
+
+    registry = BackgroundProcessRegistry()
+    live = _record(process_id="proc_live")
+    live.pid = 111
+    dead = _record(process_id="proc_dead")
+    dead.pid = 222
+    registry._records = {"proc_live": live, "proc_dead": dead}
+    monkeypatch.setattr(BackgroundProcessRegistry, "hydrate_from_disk", lambda *_a, **_k: 0)
+    monkeypatch.setattr(
+        "core.runtime.background_process.is_process_alive",
+        lambda pid: pid == 111,
+    )
+    running = registry.list_running_for_profile(profile="default")
+    assert [r.process_id for r in running] == ["proc_live"]
+
+
 def test_format_process_log_text_empty_when_stopped(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

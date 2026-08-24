@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 import sys
 
 
@@ -19,7 +20,10 @@ def main(argv: list[str] | None = None) -> None:
         i += 1
 
     from cli.tui.app import run_tui
+    from cli.tui.workspace import ENV_LAUNCH_CWD, capture_tui_launch_cwd
 
+    if not (os.environ.get(ENV_LAUNCH_CWD) or "").strip():
+        capture_tui_launch_cwd()
     run_tui(profile=profile)
 
 

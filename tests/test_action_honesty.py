@@ -22,6 +22,7 @@ from core.graph.action_honesty import (
     is_sdd_fill_request,
     is_truncation_notice,
     lacks_evidence_for_claim,
+    looks_like_clarifying_questions,
     looks_like_plan_monologue,
     looks_like_status_monologue,
     looks_like_unfinished_work_announcement,
@@ -42,6 +43,30 @@ def test_claims_completion_ru_and_en() -> None:
     assert claims_action_completed("Готово. Заполнил все четыре артефакта.")
     assert not claims_action_completed("Что нужно сделать?")
     assert not claims_action_completed("Сейчас сохраню план через write_file.")
+
+
+def test_clarifying_questions_are_not_unexecuted_intent() -> None:
+    text = (
+        "Хочешь FastAPI-сервис для каталога книг. Прежде чем писать код, "
+        "давай определимся со спецификацией. Несколько вопросов:\n\n"
+        "1. Хранение: память или SQLite?\n"
+        "2. Поля книги: только название и автор?\n\n"
+        "Ответь, пожалуйста, и я распишу план и потом напишу код."
+    )
+    assert looks_like_clarifying_questions(text)
+    assert not ends_turn_on_unexecuted_intent(
+        text,
+        [{"role": "user", "content": "напиши на fastapi каталог книг"}],
+        user_input="напиши на fastapi каталог книг",
+        agent_pipeline="modern",
+    )
+    state = {
+        "honesty_nudge_count": 0,
+        "messages": [{"role": "user", "content": "напиши на fastapi каталог книг"}],
+        "user_input": "напиши на fastapi каталог книг",
+        "agent_pipeline": "modern",
+    }
+    assert not should_nudge_false_completion(state, final_response=text, messages=state["messages"])
 
 
 def test_plan_monologue_without_tools_is_nudged() -> None:
@@ -650,6 +675,28 @@ def test_honesty_retry_update_appends_nudge() -> None:
     assert out["honesty_nudge_count"] == 1
     assert out["messages"][-1]["content"] == ACTION_HONESTY_NUDGE
     assert out["messages"][-2]["role"] == "assistant"
+
+
+def test_honesty_retry_code_mode_asks_for_run_code() -> None:
+    out = honesty_retry_update(
+        messages=[{"role": "user", "content": "x"}],
+        step_count=2,
+        final_response="План сохранён.",
+        honesty_nudge_count=0,
+        tools_presentation="code",
+    )
+    text = out["messages"][-1]["content"]
+    assert text.startswith("[Action honesty]")
+    assert "run_code" in text
+    assert "Code mode" in text
+    native = honesty_retry_update(
+        messages=[{"role": "user", "content": "x"}],
+        step_count=2,
+        final_response="План сохранён.",
+        honesty_nudge_count=0,
+        tools_presentation="native",
+    )
+    assert native["messages"][-1]["content"] == ACTION_HONESTY_NUDGE
 
 
 def test_sdd_honesty_retry_uses_sdd_nudge() -> None:

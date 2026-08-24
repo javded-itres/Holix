@@ -16,6 +16,9 @@ def truncate_text(text: str, max_len: int = 500) -> str:
 def format_tool_args(arguments: Any, *, max_len: int = 500) -> str:
     if arguments is None:
         return ""
+    if isinstance(arguments, dict) and "code" in arguments and "description" in arguments:
+        # run_code: never dump the program body into TUI / messenger cards.
+        return truncate_text(str(arguments.get("description") or "").strip(), max_len)
     if isinstance(arguments, str):
         body = arguments
     else:
@@ -24,6 +27,24 @@ def format_tool_args(arguments: Any, *, max_len: int = 500) -> str:
         except (TypeError, ValueError):
             body = str(arguments)
     return truncate_text(body, max_len)
+
+
+def format_run_code_program_line(
+    description: str,
+    inner_names: list[str] | None = None,
+    *,
+    running: bool = False,
+) -> str:
+    """One-line Code mode card: description + inner tool names, no dumps."""
+    desc = truncate_text((description or "").strip() or "run_code", 80)
+    names = [str(n).strip() for n in (inner_names or []) if str(n).strip()]
+    uniq: list[str] = list(dict.fromkeys(names))
+    if not uniq:
+        suffix = " …" if running else ""
+        return f"🔧 программа: {desc}{suffix}"
+    shown = ", ".join(uniq[:8])
+    extra = f" +{len(uniq) - 8}" if len(uniq) > 8 else ""
+    return f"🔧 программа: {desc} ({len(uniq)}: {shown}{extra})"
 
 
 def format_tool_header(

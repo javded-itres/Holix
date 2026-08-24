@@ -43,7 +43,9 @@ def run_tui_web(
     )
 
     from cli.tui.web_server import HolixWebTuiServer
+    from cli.tui.workspace import capture_tui_launch_cwd
 
+    capture_tui_launch_cwd()
     cmd = shlex.join([sys.executable, "-m", "cli.tui.web_entry", "--profile", profile])
     server = HolixWebTuiServer(
         cmd,
@@ -58,9 +60,7 @@ def run_tui_web(
     return policy
 
 
-def _print_web_tui_banner(
-    server: object, policy: WebTuiSecurityPolicy, *, profile: str
-) -> None:
+def _print_web_tui_banner(server: object, policy: WebTuiSecurityPolicy, *, profile: str) -> None:
     from rich.console import Console
 
     public = getattr(server, "public_url", "http://127.0.0.1:8787")
@@ -76,11 +76,7 @@ def _print_web_tui_banner(
             "gets full agent access (terminal, files, MCP)."
         )
     elif not is_loopback_host(policy.host):
-        console.print(
-            "  [yellow]Non-loopback bind:[/yellow] use a firewall and rotate the token."
-        )
+        console.print("  [yellow]Non-loopback bind:[/yellow] use a firewall and rotate the token.")
     elif not policy.is_production:
-        console.print(
-            "  [dim]Loopback only; other local users/processes need the token.[/dim]"
-        )
+        console.print("  [dim]Loopback only; other local users/processes need the token.[/dim]")
     console.print("  [dim]Press Ctrl+C to stop.[/dim]\n")

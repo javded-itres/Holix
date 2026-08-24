@@ -33,6 +33,11 @@ class TestFormatters:
         text = format_tool_args({"path": "/tmp/a"})
         assert "path" in text
 
+    def test_run_code_args_hide_body(self):
+        text = format_tool_args({"code": "print('secret-body')", "description": "list workspace"})
+        assert "list workspace" in text
+        assert "secret-body" not in text
+
     def test_result_preview(self):
         long = "a\n" * 200
         assert len(format_tool_result_preview(long, max_len=50)) <= 51

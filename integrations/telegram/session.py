@@ -77,6 +77,13 @@ class ChatSession:
     _model_synced_for: str | None = None
     pending_files: list[SavedTelegramFile] = field(default_factory=list)
     pending_admin_broadcast: Any = None
+    ui_subagent_types: list[str] = field(default_factory=list)
+    ui_subagent_page: int = 0
+    ui_subagent_current: str = ""
+    ui_subagent_tools_view: bool = False
+    ui_subagent_model_page: int = 0
+    ui_subagent_confirm: str = ""
+    pending_subagent_compose: str | None = None
 
     @property
     def execution_mode(self) -> str:

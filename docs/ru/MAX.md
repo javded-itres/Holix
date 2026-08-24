@@ -47,7 +47,7 @@ holix -p shared gateway start        # gateway + MAX (polling в dev, webhook в
    - **Описание** — кратко, для чего бот (по желанию).
    - **Аватар** — по желанию.
 5. Откройте вкладку **Интеграция** (или **API** / **Токен доступа**).
-6. Скопируйте **Access token** (токен доступа бота).  
+6. Скопируйте **Access token** (токен доступа бота).
    Это длинная строка; храните как пароль — не публикуйте в git и чатах.
 7. Убедитесь, что бот **опубликован** / **включён** (если в кабинете есть переключатель активности).
 
@@ -208,7 +208,7 @@ holix -p shared gateway reload
 | `HOLIX_MAX_EDIT_INTERVAL_MS` | Нет | `1500` | Интервал обновления live-сообщения (мс). |
 | `HOLIX_MAX_HEARTBEAT_INTERVAL` | Нет | `45` | Интервал heartbeat при долгих задачах (с). |
 
-\* Без секрета webhook может работать, но в production лучше задать.  
+\* Без секрета webhook может работать, но в production лучше задать.
 \*\* При `HOLIX_MAX_ACCESS_REQUESTS=true` ручной allowlist не обязателен.
 
 **Связанные файлы (не в `max.env`):**
@@ -440,6 +440,7 @@ Management API: `GET /api/holix/profiles/{id}/max/status`, `…/requests`, `…/
 - Одно live-сообщение на задачу (редактирование через `PUT /messages` при стриминге)
 - ID сессии: `max_{profile}_{user_id}`
 - Общие слэш-команды с TUI: `/help`, `/profile`, `/models`, `/new`, `/stop` — см. [SLASH_COMMANDS.md](SLASH_COMMANDS.md)
+- **Субагенты** в статус-меню (`/code-mode`, `/subagent-types`): типы и Code mode. См. [SUBAGENTS.md](SUBAGENTS.md#telegram-и-max)
 
 ### Inline-подтверждения
 

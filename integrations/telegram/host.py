@@ -690,6 +690,15 @@ class TelegramHost:
         if await try_compose_admin_broadcast(self, message):
             return
 
+        from integrations.messenger.subagent_types_ui import try_consume_compose
+
+        toast = await try_consume_compose(self, message)
+        if toast is not None:
+            if toast:
+                await self._send_plain(toast)
+            await TelegramInteractive(self).show_subagents_picker()
+            return
+
         if self._session.pending_plan_review_id:
             from integrations.telegram.approvals import TelegramApprovals
 

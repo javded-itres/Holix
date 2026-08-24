@@ -29,14 +29,16 @@
 
 ### Работа с агентом
 
-- [TUI.md](TUI.md) · [SLASH_COMMANDS.md](SLASH_COMMANDS.md) · [EXECUTION_MODES.md](EXECUTION_MODES.md)
+- [TUI.md](TUI.md) — очередь, живые процессы, копирование
+- [SLASH_COMMANDS.md](SLASH_COMMANDS.md) · [EXECUTION_MODES.md](EXECUTION_MODES.md)
+- [CODE_MODE.md](CODE_MODE.md) — `run_code` / `tools_presentation`
 - [CLI.md](CLI.md) · [HUB.md](HUB.md) · [BROWSER_TOOLS.md](BROWSER_TOOLS.md)
 - [MCP.md](MCP.md) · [MEMORY.md](MEMORY.md)
 
 ### Агенты и автоматизация
 
-- [EXECUTION_MODES.md](EXECUTION_MODES.md) — ReAct / Plan / Hybrid, **Reflexion**, step budget
-- [SUBAGENTS.md](SUBAGENTS.md) — воркеры, **supervisor**, rework · [LAUNCH.md](LAUNCH.md) · [CRON.md](CRON.md)
+- [SUBAGENTS.md](SUBAGENTS.md) — типы (TUI + Telegram/MAX), spawn, **supervisor**
+- [LAUNCH.md](LAUNCH.md) · [CRON.md](CRON.md)
 - [en/SUBAGENT_SUPERVISOR.md](../en/SUBAGENT_SUPERVISOR.md) — дизайн supervisor
 
 ### Интеграции и API

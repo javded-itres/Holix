@@ -1,6 +1,6 @@
 # Holix sub-agents
 
-Background workers that run **specialized tasks** without blocking the main chat. Holix ships **predefined sub-agent types** (researcher, coder, …); you **spawn** them on a task — you do not create new types through the UI.
+Background workers that run **specialized tasks** without blocking the main chat. Holix ships **built-in types** (`researcher`, `coder`, …). You **spawn** a job of a type on a task. You can also **create and edit types** in TUI and in Telegram/MAX (see below).
 
 ## Enable sub-agents
 
@@ -78,6 +78,22 @@ Saved per profile in:
 `~/.holix/profiles/<profile>/subagents/types.json`
 
 On save, Holix also updates `skill_assignments`, `mcp_assignments`, external CLI bindings, and optional `agent_models` for the chosen slot.
+
+TUI custom types are the full form (skills, MCP, external CLI). Messenger menus cover personality, model, temperature, tools, and Code mode — including **built-in** types via overlays (`subagents/overlays.json`).
+
+### Telegram and MAX
+
+From the status menu choose **Sub-agents**, or send `/code-mode` / `/subagent-types`.
+
+| Action | What happens |
+|--------|----------------|
+| Code mode (`native` / `code` / `both`) | Profile `tools_presentation` for `main`, or per-type override. Details: [CODE_MODE.md](CODE_MODE.md) |
+| Create from description | One message with the role. The type is written to `types.json` and listed immediately |
+| Built-in type | Personality (generate or paste), model slot, temperature, tools, Code mode. **Reset** drops the overlay |
+| Custom type | Same fields, plus **Delete** |
+| Tools | Toggle allow-list. Extra built-in tools (background process) stay on unless you replace the list |
+
+Skills, MCP, and external CLI stay in the TUI type manager — messenger keyboards cannot fit them.
 
 List types in chat:
 

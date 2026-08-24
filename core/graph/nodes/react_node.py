@@ -395,6 +395,7 @@ def _maybe_honesty_retry(
     step_count: int,
     final_response: str,
     assistant_already_appended: bool,
+    agent=None,
 ) -> dict[str, Any] | None:
     """Block final answers that claim success without tool evidence.
 
@@ -410,6 +411,11 @@ def _maybe_honesty_retry(
             "Action honesty nudge: blocking unproven/empty-tools claim (conversation_id=%s)",
             state.get("conversation_id", ""),
         )
+        from core.tools.code_mode.policy import normalize_presentation
+
+        presentation = normalize_presentation(
+            getattr(getattr(agent, "tools", None), "_tools_presentation", None)
+        )
         return honesty_retry_update(
             messages=messages,
             step_count=step_count,
@@ -417,6 +423,7 @@ def _maybe_honesty_retry(
             honesty_nudge_count=int(state.get("honesty_nudge_count") or 0),
             include_assistant=not assistant_already_appended,
             user_input=state.get("user_input"),
+            tools_presentation=presentation,
         )
     if should_refuse_false_empty_workspace(
         state,
@@ -1030,6 +1037,7 @@ async def _react_non_streaming(
             step_count=step_count,
             final_response=final_response,
             assistant_already_appended=True,
+            agent=agent,
         )
         if honesty is not None:
             return honesty
@@ -1342,7 +1350,14 @@ async def _react_streaming(
             estimated=stream_usage is None,
         )
 
-    stream_response = await _open_stream()
+    # First-byte wait: httpx/OpenAI can sit on an ESTABLISHED TCP socket
+    # forever if the proxy accepts the connection but never sends headers
+    # (LiteLLM workers busy / hung). Chunk timeout only starts after open.
+    try:
+        async with asyncio.timeout(llm_timeout_s):
+            stream_response = await _open_stream()
+    except TimeoutError:
+        raise TimeoutError(f"LLM stream open exceeded {llm_timeout_s:.0f}s deadline") from None
     async for chunk in _iter_stream_chunks(stream_response, llm_timeout_s):
         chunk_usage = usage_dict_from_stream_chunk(chunk)
         if chunk_usage:
@@ -1561,6 +1576,7 @@ async def _react_streaming(
                 step_count=step_count,
                 final_response=final_response,
                 assistant_already_appended=True,
+                agent=agent,
             )
             if honesty is not None:
                 _emit_stream_usage_once(completion_text=final_response)
@@ -1694,6 +1710,7 @@ async def _react_streaming(
         step_count=step_count,
         final_response=final_response,
         assistant_already_appended=True,
+        agent=agent,
     )
     if honesty is not None:
         return honesty
@@ -1718,6 +1735,16 @@ def _build_system_prompt_from_state(state: HolixGraphState, agent=None) -> str:
     if agent and hasattr(agent, "tools"):
         slot = getattr(agent, "agent_slot", "main")
         tools_desc = format_tools_description(agent.tools.get_schemas(for_agent_slot=slot))
+        from core.tools.code_mode.policy import normalize_presentation
+        from core.tools.code_mode.sdk import build_code_mode_prompt_section
+
+        mode = normalize_presentation(getattr(agent.tools, "_tools_presentation", "native"))
+        if mode in ("code", "both") and hasattr(agent.tools, "get_end_tool_schemas"):
+            sdk = build_code_mode_prompt_section(
+                agent.tools.get_end_tool_schemas(for_agent_slot=slot),
+                workspace_root=getattr(agent.tools, "_workspace_root", None),
+            )
+            tools_desc = f"{tools_desc}\n\n{sdk}" if tools_desc else sdk
 
     # Format skills
     skills_formatted = ""

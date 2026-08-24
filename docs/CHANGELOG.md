@@ -2,6 +2,31 @@
 
 ## Unreleased
 
+### Added
+
+- **Code mode (opt-in)** — `tools_presentation: native | code | both` in profile `config.yaml` (default `native`). In `code` the model calls only `run_code` and writes a Python program against a generated SDK; each inner `tools.name(...)` still goes through ActionGuard and the workspace jail. Isolated subprocess; no nested `run_code` / `execute_python`. See `docs/en/CODE_MODE.md`.
+
+### Fixed
+
+- **Code mode `import tools`** — the worker already injects `tools`; models still write `import tools` / `from tools import …`. That used to raise `ImportError: Import of 'tools' is not allowed`. Those imports now alias the SDK. `os` and other unsafe modules stay blocked.
+- **Code mode multiline strings** — wrapping the program in `def __holix_user()` no longer `textwrap.indent`s the interior of `"""..."""` / `'''...'''`. `write_file` was saving extra leading spaces on every line after the first (e.g. `requirements.txt`).
+- **Code mode workspace cwd** — `run_terminal_command` from a program (and with jail off) starts in `workspace_root`, same as relative `write_file` / `list_directory`.
+- **Code mode honesty** — nudges tell the model to call `run_code`, not native `write_file` / `run_terminal_command`.
+- **Code mode servers** — `start_background_process` / `check` / `stop` / `restart` / `list` are allowed inside the program. `run_terminal_command` still refuses uvicorn and points at `tools.start_background_process(...)`.
+- **Streaming LLM open timeout** — if the proxy accepts TCP but never sends HTTP headers, the first ReAct step no longer waits on httpx's 600s read timeout. Open uses `llm_step_timeout` (default 300s).
+- **Honesty vs clarifying questions** — a first-turn spec quiz («прежде чем писать код… напишу код после ответа») is no longer treated as an unexecuted work claim.
+- **Code mode surfaces** — TUI / Telegram / MAX show a collapsed `run_code` card (`description` + inner tool names), not the program body. Inner ActionGuard confirms are unchanged.
+- **Code mode per-slot presentation** — `tools_presentation_by_slot` (e.g. `coder: code` while `main` stays `native`).
+- **Code mode read-only parallel** — `tools.parallel(("read_file", {…}), ("grep", {…}))` for `risk_level: no` tools. Writes stay serial. Caps: `code_mode_wall_timeout_s`, `code_mode_max_inner_calls`, `code_mode_parallel_readonly`.
+- **Messenger sub-agent manager** — Telegram/MAX Sub-agents menu: Code mode for main (`native`/`code`/`both`), list of built-in and custom types, create from a description (type is listed immediately), generate/write personality, description, tools, model, temperature, per-type Code mode. Built-in overlays persist in `subagents/overlays.json`. `/code-mode`, `/subagent-types`.
+- **Relative tool paths with jail off** — `.` / `src/foo` resolve against `workspace_root`, not process CWD (macOS LaunchAgent often resets cwd to `$HOME`, which hung Telegram on `list_directory`).
+- **Terminal `>/dev/null`** — safety still blocks `/dev/tcp` and raw disks, but `curl … >/dev/null` / `2>/dev/null` is allowed (whitelist off was still matching `>\s*/dev/`).
+- **Code mode worker errors** — user `IndexError` / `ImportError` no longer dump a Holix `worker.py` traceback into the chat. `import os` says to use tools. Native tool calls in `code` mode show a wrap-into-`run_code` example.
+- **TUI prompt queue** — if the agent is still running, Enter queues the next prompt (yellow bar between transcript and input). Click a row to edit, × to drop. Queued prompts run in order after the current turn. Ctrl+S stops the current turn and leaves the queue.
+- **TUI live process bar** — the top of the screen lists only OS-alive background processes (all of them). Stopped/crashed jobs are removed; the bar polls every 2s. Click a row for its log.
+- **Docs** — TUI (queue + live process bar), Code mode, Telegram/MAX type manager. One canonical page per topic; site nav grouped; TOC on long pages.
+- **TUI workspace** — tools use the directory where `holix tui` was launched (not `profiles/<name>/workspace`). Telegram/MAX keep the profile workspace. Not written to `config.yaml`.
+
 ## 1.0.18 — 2026-08-24
 
 ### Added

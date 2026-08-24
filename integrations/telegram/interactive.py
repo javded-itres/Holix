@@ -10,6 +10,7 @@ from integrations.messenger.locale import messenger_host_locale
 from integrations.telegram.keyboards import (
     MODE_LABELS,
     SKILLS_PAGE_SIZE,
+    callback_rows_keyboard,
     mode_picker_html,
     mode_picker_keyboard,
     models_provider_keyboard,
@@ -22,7 +23,6 @@ from integrations.telegram.keyboards import (
     skills_picker_keyboard,
     status_menu_keyboard,
     stream_picker_keyboard,
-    subagents_picker_keyboard,
     tools_picker_keyboard,
 )
 from integrations.telegram.markdown import escape_html
@@ -167,6 +167,9 @@ class TelegramInteractive:
             await run_skills_command(self._host, cmd)
             return True
 
+        if lower in ("/subagent-types", "/subagent types", "/code-mode"):
+            await self.show_subagents_picker()
+            return True
         if lower in ("/subagents", "/subagent-list") or lower == "/subagent list":
             await self.show_subagent_live_list()
             return True
@@ -516,6 +519,17 @@ class TelegramInteractive:
             await self.show_subagents_picker()
             state = "on" if enabled else "off"
             return t("tg.subagents", lang, state=state)
+
+        from integrations.messenger.subagent_types_ui import TYPE_ACTIONS
+
+        if action in TYPE_ACTIONS:
+            from integrations.messenger.subagent_types_ui import handle_subagent_types_action
+
+            toast = await handle_subagent_types_action(self._host, action, value)
+            await self.show_subagents_picker()
+            if action in ("sc", "swp", "ds") and toast:
+                await self._host._send_html(escape_html(toast))
+            return toast or "OK"
 
         if action == "rf":
             from integrations.messenger.reflexion_settings import set_reflexion_enabled_for_host
@@ -1080,20 +1094,27 @@ class TelegramInteractive:
                 pass
 
     async def show_subagents_picker(self) -> None:
-        from integrations.messenger.subagents_settings import is_subagents_enabled_for_host
+        from integrations.messenger.subagent_types_ui import (
+            detail_keyboard_rows,
+            format_detail_text,
+            format_list_text,
+            format_tools_text,
+            is_tools_view,
+            is_type_detail_view,
+            list_keyboard_rows,
+            tools_keyboard_rows,
+        )
 
-        lang = messenger_host_locale(self._host)
-        on = is_subagents_enabled_for_host(self._host)
-        state = "on" if on else "off"
-        text = (
-            f"<b>{escape_html(t('tg.subagents_picker_title', lang))}</b>\n"
-            f"{escape_html(t('tg.subagents', lang, state=state))}\n\n"
-            f"<i>{escape_html(t('tg.subagents_picker_body', lang))}</i>"
-        )
-        await self._host._send_html_with_keyboard(
-            text,
-            subagents_picker_keyboard(on, lang),
-        )
+        if is_tools_view(self._host):
+            text = format_tools_text(self._host)
+            rows = tools_keyboard_rows(self._host)
+        elif is_type_detail_view(self._host):
+            text = format_detail_text(self._host)
+            rows = detail_keyboard_rows(self._host)
+        else:
+            text = format_list_text(self._host)
+            rows = list_keyboard_rows(self._host)
+        await self._host._send_html_with_keyboard(text, callback_rows_keyboard(rows))
 
     async def show_reflexion_picker(self) -> None:
         from integrations.messenger.reflexion_settings import is_reflexion_enabled_for_host

@@ -54,6 +54,43 @@ async def test_react_node_streaming_timeout_emits_final_error() -> None:
     assert "не ответила" in final_events[-1].content
 
 
+@pytest.mark.asyncio
+async def test_react_node_streaming_open_timeout_emits_final_error() -> None:
+    """Timeout must fire even when the provider never returns a stream object."""
+
+    async def _hang(*_args, **_kwargs):
+        await asyncio.sleep(60)
+        raise AssertionError("should have timed out before create() returns")
+
+    client = MagicMock()
+    client.chat.completions.create = AsyncMock(side_effect=_hang)
+
+    agent = MagicMock()
+    agent.client = client
+    agent.model = "stuck-proxy"
+    agent.tools.get_schemas.return_value = []
+    agent.config = SimpleNamespace(
+        llm_step_timeout=0.05,
+        profile_name="default",
+    )
+    agent.model_manager = None
+    agent.context_manager = None
+    agent.emit = MagicMock()
+
+    result = await react_node(
+        {
+            "step_count": 0,
+            "conversation_id": "test",
+            "stream": True,
+            "messages": [],
+        },
+        {"configurable": {"_agent": agent}},
+    )
+
+    assert result["is_final"] is True
+    assert "не ответила" in result["final_response"]
+
+
 def test_llm_step_timeout_default() -> None:
     assert _llm_step_timeout_s(None) == _DEFAULT_LLM_STEP_TIMEOUT_S
 
@@ -75,9 +112,7 @@ async def test_react_node_reasoning_only_abort_emits_final_error() -> None:
     agent.emit = MagicMock()
 
     async def _boom(*_args, **_kwargs):
-        raise LLMStepTimeoutError(
-            llm_step_timeout_message(90, model="coder", reasoning_only=True)
-        )
+        raise LLMStepTimeoutError(llm_step_timeout_message(90, model="coder", reasoning_only=True))
 
     orig = rn._react_streaming
     rn._react_streaming = _boom
@@ -117,9 +152,7 @@ async def test_react_node_reasoning_only_abort_retries_plan_step() -> None:
     agent.emit = MagicMock()
 
     async def _boom(*_args, **_kwargs):
-        raise LLMStepTimeoutError(
-            llm_step_timeout_message(90, model="coder", reasoning_only=True)
-        )
+        raise LLMStepTimeoutError(llm_step_timeout_message(90, model="coder", reasoning_only=True))
 
     # Plan steps force non-streaming; patch both entry points.
     orig_s = rn._react_streaming
