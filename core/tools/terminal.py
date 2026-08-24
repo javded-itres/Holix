@@ -382,6 +382,8 @@ class TerminalTool(BaseTool):
         self.name = "run_terminal_command"
         self.description = (
             "Execute a terminal command and return its output. "
+            "On POSIX, cwd and environment persist for this conversation "
+            "(PTY). `/pty reset` starts a fresh shell; `/pty off` uses one-shot. "
             "Shell operators (&&, |, >, etc.) are supported. "
             "Always use this for tests, builds, linters, installs, and git "
             "(`pytest`, `uv run pytest`, `npm test`, `cargo test`, `mvn test`). "
@@ -468,6 +470,8 @@ class TerminalTool(BaseTool):
 
         try:
             from core.tools.execution_context import (
+                get_conversation_id,
+                get_profile_name,
                 get_workspace_root,
                 is_workspace_jail_enabled,
             )
@@ -507,6 +511,24 @@ class TerminalTool(BaseTool):
             configured = get_configured_workspace_root()
             cwd_path = root if root is not None else configured
             cwd: str | None = str(cwd_path) if cwd_path is not None else None
+            from core.runtime.pty_session import PtyUnavailable, pty_enabled, run_in_pty
+
+            profile_name = get_profile_name()
+            conversation_id = get_conversation_id()
+            if pty_enabled(profile=profile_name, conversation_id=conversation_id):
+                try:
+                    return await run_in_pty(
+                        command,
+                        timeout=float(timeout or 30),
+                        cwd=cwd,
+                        workspace_root=root_s or configured_ws,
+                        jail_enabled=jail,
+                        profile=profile_name,
+                        conversation_id=conversation_id,
+                    )
+                except PtyUnavailable:
+                    pass
+
             use_shell = command_needs_shell(command)
             spawn_kw = _spawn_kwargs()
             argv: list[str] | None = None

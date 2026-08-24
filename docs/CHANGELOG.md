@@ -10,6 +10,7 @@
 - **Session trajectory** — append-only JSONL of agent events (tools, finals, subprocesses, todos) under `profiles/<name>/data/trajectory/`. `/trace` (optional `N` or `search <query>`) in TUI/Telegram/MAX. Streaming token deltas are not stored. Secrets in tool args are redacted.
 - **OS sandbox + `/permission`** — session presets `workspace-write` (Seatbelt/bwrap, writes only in workspace/tmp), `read-only` (no mutating tools), `danger-full-access` (unconfined, auto-allow HIGH). Default: workspace-write when jail is on, otherwise danger-full-access. Restricted modes fail closed if no backend. `HOLIX_PERMISSION_MODE` overrides the default. Not written to `config.yaml`.
 - **Skills on-demand** — the system prompt gets a compact name+description index (suggested first). Full `SKILL.md` bodies load only via `skill_view`. Bundled/hub skills are no longer inlined.
+- **Persistent PTY** — on POSIX, `run_terminal_command` keeps a per-conversation shell (`cd` / `export` stick). `/pty on|off|reset`. Disable with `HOLIX_PTY=0`. Not on Windows.
 - **Code mode (opt-in)** — `tools_presentation: native | code | both` in profile `config.yaml` (default `native`). In `code` the model calls only `run_code` and writes a Python program against a generated SDK; each inner `tools.name(...)` still goes through ActionGuard and the workspace jail. Isolated subprocess; no nested `run_code` / `execute_python`. See `docs/en/CODE_MODE.md`.
 
 ### Fixed

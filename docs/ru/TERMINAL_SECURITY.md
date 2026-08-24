@@ -191,6 +191,8 @@ cat ~/.holix/profiles/default/.env
 
 Для не-администраторов профиля абсолютные пути в **stdout/stderr** команд переписываются в относительные пути workspace (или `[restricted]` для путей вне jail). См. [Видимость путей в ответах](PROFILES.md#видимость-путей-в-ответах).
 
+На POSIX `run_terminal_command` держит **постоянный PTY** на разговор (`cd` и `export` сохраняются). `/pty off` — одноразовые процессы; `/pty reset` — новый shell. `HOLIX_PTY=0` выключает для процесса. Windows — только one-shot.
+
 Сессионный `/permission` оборачивает spawn в OS-песочницу файловой системы, если пресет не `danger-full-access`:
 
 | Пресет | Запись | Примечание |

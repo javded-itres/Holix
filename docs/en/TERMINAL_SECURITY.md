@@ -198,6 +198,8 @@ If [workspace jail](PROFILES.md#workspace-jail-directory-isolation) is enabled, 
 
 For non-admin profile users, absolute paths in command **stdout/stderr** are rewritten to workspace-relative paths (or `[restricted]` for paths outside the jail). See [Path visibility in responses](PROFILES.md#path-visibility-in-responses).
 
+On POSIX, `run_terminal_command` reuses a **persistent PTY** per conversation (`cd` and `export` stick). `/pty off` falls back to one-shot processes; `/pty reset` starts a new shell. `HOLIX_PTY=0` disables it for the process. Windows is one-shot only.
+
 Session `/permission` wraps the spawn in an OS filesystem sandbox when the preset is not `danger-full-access`:
 
 | Preset | Writes | Notes |

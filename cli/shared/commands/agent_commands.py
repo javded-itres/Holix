@@ -118,6 +118,9 @@ class AgentCommands:
             elif lower.startswith("/permission"):
                 await self._permission(h, cmd)
 
+            elif lower.startswith("/pty"):
+                await self._pty(h, cmd)
+
             elif lower == "/new":
                 h.run_worker(h._create_new_session())
 
@@ -321,6 +324,34 @@ class AgentCommands:
                 pinned=True,
             )
         )
+
+    async def _pty(self, h: Any, cmd: str) -> None:
+        from core.runtime.pty_session import (
+            close_pty,
+            pty_env_enabled,
+            pty_status,
+            set_pty_enabled,
+        )
+
+        profile = str(getattr(h, "profile", None) or "default")
+        cid = str(getattr(h, "conversation_id", None) or "default")
+        parts = cmd.split()
+        action = parts[1].lower() if len(parts) > 1 else ""
+        if action in {"off", "disable", "oneshot", "one-shot"}:
+            set_pty_enabled(profile, cid, False)
+        elif action in {"on", "enable"}:
+            if not pty_env_enabled():
+                h.transcript_write(
+                    "[yellow]HOLIX_PTY=0 — persistent PTY is disabled for this process[/yellow]"
+                )
+                return
+            set_pty_enabled(profile, cid, True)
+        elif action in {"reset", "restart", "new"}:
+            close_pty(profile, cid)
+        elif action and action not in {"status"}:
+            h.transcript_write("[dim]/pty on|off|reset[/dim]")
+            return
+        h.transcript_write(pty_status(profile, cid))
 
     async def _trace(self, h: Any, cmd: str) -> None:
         from core.runtime.trajectory import TrajectoryLog, format_trace_report

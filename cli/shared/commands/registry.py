@@ -27,6 +27,7 @@ _STATIC_SLASH_COMMANDS: list[tuple[str, str]] = [
     ("/todos", "Show the session checklist"),
     ("/trace", "Session trajectory (what the model/tools did)"),
     ("/permission", "OS sandbox preset (workspace-write | read-only | danger-full-access)"),
+    ("/pty", "Persistent shell (on | off | reset)"),
     ("/new", "New session"),
     ("/sessions", "List sessions"),
     ("/switch", "Switch session by number"),

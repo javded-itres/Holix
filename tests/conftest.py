@@ -283,12 +283,19 @@ def _isolated_holix_home(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Non
     monkeypatch.setenv("HOLIX_HOME", str(holix_home))
     # Keep unit tests on the historical unconfined shell unless they opt in.
     monkeypatch.setenv("HOLIX_PERMISSION_MODE", "danger-full-access")
+    monkeypatch.setenv("HOLIX_PTY", "0")
     # Avoid leaking profile selection from other tests into gateway import-time DI.
     monkeypatch.delenv("HOLIX_PROFILE", raising=False)
     try:
         from core.security.permission_preset import reset_permission_presets
 
         reset_permission_presets()
+    except Exception:
+        pass
+    try:
+        from core.runtime.pty_session import reset_pty_sessions
+
+        reset_pty_sessions()
     except Exception:
         pass
     # Implementation lives in core; keep cli.core attrs in sync for patches.
