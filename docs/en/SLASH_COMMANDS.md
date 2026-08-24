@@ -45,6 +45,7 @@ On Russian macOS layout, `,help` and `.help` are normalized to `/help`. Type `/`
 | `/process` | List background processes (**TUI**; live rows are also on the **top** bar) |
 | `/process-stop` | Stop a background dev server / long-running process (**TUI**) |
 | `/todos` | Show the session checklist from `todo_write` (TUI, Telegram, MAX) |
+| `/permission` | Show or set the session OS-sandbox preset: `workspace-write`, `read-only`, `danger-full-access` |
 
 ---
 

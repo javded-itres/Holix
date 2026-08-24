@@ -710,9 +710,19 @@ class ActionGuard:
             # fall through — HIGH requires confirmation / stored permission
 
         # Step 2: Check if auto-allowed by config threshold
-        if _RISK_ORDER.get(assessment.risk_level, 0) <= _RISK_ORDER.get(
-            self._auto_allow_threshold, 1
-        ):
+        threshold = self._auto_allow_threshold
+        try:
+            from core.security.permission_preset import auto_allow_high
+            from core.tools.execution_context import get_conversation_id, get_profile_name
+
+            if auto_allow_high(
+                profile=get_profile_name(),
+                conversation_id=get_conversation_id(),
+            ):
+                threshold = RiskLevel.HIGH
+        except Exception:
+            pass
+        if _RISK_ORDER.get(assessment.risk_level, 0) <= _RISK_ORDER.get(threshold, 1):
             self._log_audit("auto_allowed", assessment, "below_threshold")
             return await execute_fn(**arguments)
 

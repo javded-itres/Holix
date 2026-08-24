@@ -93,6 +93,7 @@ holix profile crypto decrypt-workspace --all --yes
 
 ## Инструменты
 
+- **OS-песочница (`/permission`)** — пресеты сессии: `workspace-write` (Seatbelt/bwrap, запись только в workspace/tmp), `read-only` (мутирующие инструменты заблокированы), `danger-full-access` (без обёртки). В ограниченном режиме без бэкенда запуск отклоняется. По умолчанию: workspace-write при jail, иначе danger-full-access. В `config.yaml` не пишется.
 - **Terminal**: whitelist, блокировка опасных паттернов, подтверждения — подробно: [TERMINAL_SECURITY.md](TERMINAL_SECURITY.md). Быстрая настройка:
   ```bash
   holix -p dev profile whitelist enable

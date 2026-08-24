@@ -509,6 +509,50 @@ class TerminalTool(BaseTool):
             cwd: str | None = str(cwd_path) if cwd_path is not None else None
             use_shell = command_needs_shell(command)
             spawn_kw = _spawn_kwargs()
+            argv: list[str] | None = None
+            if not use_shell:
+                try:
+                    argv = shlex.split(command, posix=not IS_WINDOWS)
+                except ValueError as exc:
+                    return f"Error: Invalid command syntax: {exc}"
+                if not argv:
+                    return "Error: Empty command"
+
+            try:
+                from core.security.os_sandbox import (
+                    SandboxUnavailable,
+                    confine_argv,
+                    confine_shell_command,
+                )
+                from core.security.permission_preset import sandbox_mode_for_session
+                from core.tools.execution_context import get_conversation_id, get_profile_name
+
+                mode = sandbox_mode_for_session(
+                    get_profile_name(),
+                    get_conversation_id(),
+                    jail_enabled=jail,
+                )
+                if mode != "danger-full-access":
+                    if use_shell:
+                        argv = confine_shell_command(
+                            command,
+                            mode=mode,
+                            workspace_root=root_s or configured_ws,
+                            cwd=cwd,
+                        )
+                    else:
+                        argv = confine_argv(
+                            argv or [],
+                            mode=mode,
+                            workspace_root=root_s or configured_ws,
+                            cwd=cwd,
+                        )
+                    use_shell = False
+                    env = os.environ.copy()
+                    env["HOLIX_SANDBOX"] = mode
+                    spawn_kw = {**spawn_kw, "env": env}
+            except SandboxUnavailable as exc:
+                return f"Error: {exc}"
 
             if use_shell:
                 process = await asyncio.create_subprocess_shell(
@@ -519,16 +563,8 @@ class TerminalTool(BaseTool):
                     **spawn_kw,
                 )
             else:
-                try:
-                    argv = shlex.split(command, posix=not IS_WINDOWS)
-                except ValueError as exc:
-                    return f"Error: Invalid command syntax: {exc}"
-
-                if not argv:
-                    return "Error: Empty command"
-
                 process = await asyncio.create_subprocess_exec(
-                    *argv,
+                    *(argv or []),
                     stdout=asyncio.subprocess.PIPE,
                     stderr=asyncio.subprocess.PIPE,
                     cwd=cwd,

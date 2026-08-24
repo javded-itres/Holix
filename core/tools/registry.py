@@ -385,6 +385,19 @@ class ToolRegistry:
         if resolved not in self.tools:
             return f"Error: Tool '{tool_name}' not found"
 
+        try:
+            from core.security.permission_preset import read_only_block_reason
+
+            blocked = read_only_block_reason(
+                resolved,
+                profile=self._profile_name,
+                conversation_id=conversation_id,
+            )
+            if blocked:
+                return blocked
+        except Exception:
+            pass
+
         tool = self.tools[resolved]
 
         try:

@@ -198,6 +198,16 @@ If [workspace jail](PROFILES.md#workspace-jail-directory-isolation) is enabled, 
 
 For non-admin profile users, absolute paths in command **stdout/stderr** are rewritten to workspace-relative paths (or `[restricted]` for paths outside the jail). See [Path visibility in responses](PROFILES.md#path-visibility-in-responses).
 
+Session `/permission` wraps the spawn in an OS filesystem sandbox when the preset is not `danger-full-access`:
+
+| Preset | Writes | Notes |
+|--------|--------|-------|
+| `workspace-write` | workspace + tmp only | macOS `sandbox-exec`, Linux `bwrap` |
+| `read-only` | none | mutating tools (`write_file`, `patch_file`, …) are refused |
+| `danger-full-access` | unconfined | default when jail is off |
+
+If a restricted preset is set and no backend is available, the command is **refused** (fail-closed). See [SECURITY.md](SECURITY.md).
+
 ---
 
 ## Allowed vs forbidden — practical guide

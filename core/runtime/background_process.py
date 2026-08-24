@@ -187,6 +187,28 @@ class BackgroundProcessRegistry:
         spawn_env = build_background_spawn_env(project_root)
         spawn_argv = resolve_argv_executable(argv, project_root)
 
+        from core.security.os_sandbox import SandboxUnavailable, confine_argv
+        from core.security.permission_preset import sandbox_mode_for_session
+        from core.tools.execution_context import is_workspace_jail_enabled
+
+        sandbox_mode = sandbox_mode_for_session(
+            profile,
+            conversation_id,
+            jail_enabled=is_workspace_jail_enabled(),
+        )
+        if sandbox_mode != "danger-full-access":
+            spawn_env = {**spawn_env, "HOLIX_SANDBOX": sandbox_mode}
+            if not command_needs_shell(command):
+                try:
+                    spawn_argv = confine_argv(
+                        spawn_argv,
+                        mode=sandbox_mode,
+                        workspace_root=root,
+                        cwd=root,
+                    )
+                except SandboxUnavailable as exc:
+                    raise ValueError(str(exc)) from exc
+
         # Optional Studio/admin resource limits (CPU/RAM) for multi-tenant hosts.
         preexec = None
         try:
@@ -211,6 +233,16 @@ class BackgroundProcessRegistry:
                         if IS_POSIX
                         else ["cmd", "/c", command.strip()]
                     )
+                    if sandbox_mode != "danger-full-access":
+                        try:
+                            shell_argv = confine_argv(
+                                shell_argv,
+                                mode=sandbox_mode,
+                                workspace_root=root,
+                                cwd=root,
+                            )
+                        except SandboxUnavailable as exc:
+                            raise ValueError(str(exc)) from exc
                     try:
                         from core.runtime.resource_limits import (
                             load_resource_limits,

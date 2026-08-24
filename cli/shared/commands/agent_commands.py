@@ -115,6 +115,9 @@ class AgentCommands:
             elif lower.startswith("/trace") or lower.startswith("/trajectory"):
                 await self._trace(h, cmd)
 
+            elif lower.startswith("/permission"):
+                await self._permission(h, cmd)
+
             elif lower == "/new":
                 h.run_worker(h._create_new_session())
 
@@ -274,6 +277,50 @@ class AgentCommands:
 
         except Exception as e:
             h.transcript_write(f"[red]{t('command_failed', lang, error=e)}[/red]")
+
+    async def _permission(self, h: Any, cmd: str) -> None:
+        from core.security.os_sandbox import sandbox_backend
+        from core.security.permission_preset import (
+            PRESETS,
+            format_permission_status,
+            get_preset,
+            is_preset_pinned,
+            set_preset,
+        )
+        from core.tools.execution_context import is_workspace_jail_enabled
+
+        profile = str(getattr(h, "profile", None) or "default")
+        cid = str(getattr(h, "conversation_id", None) or "default")
+        parts = cmd.split(maxsplit=1)
+        if len(parts) < 2:
+            jail = False
+            try:
+                jail = bool(is_workspace_jail_enabled())
+            except Exception:
+                cfg = getattr(getattr(h, "agent", None), "config", None)
+                jail = bool(getattr(cfg, "workspace_jail_enabled", False))
+            current = get_preset(profile, cid, jail_enabled=jail)
+            h.transcript_write(
+                format_permission_status(
+                    current,
+                    backend=sandbox_backend(),
+                    pinned=is_preset_pinned(profile, cid),
+                )
+            )
+            h.transcript_write(f"[dim]/permission {' | '.join(PRESETS)}[/dim]")
+            return
+        try:
+            wanted = set_preset(profile, cid, parts[1])
+        except ValueError as exc:
+            h.transcript_write(f"[yellow]{exc}[/yellow]")
+            return
+        h.transcript_write(
+            format_permission_status(
+                wanted,
+                backend=sandbox_backend(),
+                pinned=True,
+            )
+        )
 
     async def _trace(self, h: Any, cmd: str) -> None:
         from core.runtime.trajectory import TrajectoryLog, format_trace_report
