@@ -261,6 +261,11 @@ def run_sub_agent_in_process(
         {"role": "system", "content": system_prompt},
         {"role": "user", "content": task},
     ]
+    seed = list(getattr(config, "seed_messages", None) or [])
+    if seed:
+        from core.subagents.fork import insert_seed_messages
+
+        messages = insert_seed_messages(messages, seed)
 
     # Inject relevant memories
     if memory and config.memory_access != MemoryAccess.ISOLATED:
@@ -1009,8 +1014,17 @@ def _try_process_react_run(
                 )
 
         child.events.subscribe(_progress)
+        conv_id = f"subagent:{config.name}"
+        seed = list(getattr(config, "seed_messages", None) or [])
+        if seed and getattr(child, "memory", None) is not None:
+            try:
+                from core.subagents.fork import apply_fork_seed
+
+                loop.run_until_complete(apply_fork_seed(child.memory, conv_id, seed))
+            except Exception:
+                pass
         text = loop.run_until_complete(
-            child.run(task, conversation_id=f"subagent:{config.name}", execution_mode="react")
+            child.run(task, conversation_id=conv_id, execution_mode="react")
         )
         from core.graph.nodes.react_node import SUBAGENT_CANCELLED_FINAL
         from core.subagents.react_agent import (
@@ -1413,6 +1427,8 @@ class SubAgentProcessManager:
             "description": config.description,
             "tags": config.tags,
             "mcp_servers": list(config.mcp_servers or []),
+            "fork": bool(getattr(config, "fork", False)),
+            "seed_messages": list(getattr(config, "seed_messages", None) or []),
         }
 
         # Get parent config for subprocess

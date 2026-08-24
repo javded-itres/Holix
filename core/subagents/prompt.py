@@ -43,7 +43,15 @@ def build_subagent_system_prompt(
 4. If you cannot complete the task, explain why
 5. File paths and shell commands run in the shared working directory below — same as the main agent
 6. When automated tests already pass, stop calling tools and write the final answer so the parent process can continue. Do not re-run the same passing pytest.
-
+"""
+    if getattr(config, "fork", False):
+        prompt += (
+            "\n## Forked parent context\n"
+            "Messages before your task are completed turns from the parent "
+            "conversation (a snapshot, not live). You do not share the parent's "
+            "tools, PTY, todos, or permission preset.\n"
+        )
+    prompt += f"""
 Remember: You are {config.name}. Stay focused on your specialized role.
 """
     if skills_block:

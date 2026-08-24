@@ -520,6 +520,7 @@ class SubAgentManager:
         timeout: float | None = None,
         instance_name: str | None = None,
         max_steps: int | None = None,
+        fork: bool = False,
     ) -> tuple[SubAgentHandle, SubAgentResult | None]:
         """Spawn a registry sub-agent in a separate process when supported.
 
@@ -544,6 +545,13 @@ class SubAgentManager:
         else:
             instance = self.allocate_name(agent_type)
         sub_cfg = prepare_subagent_config(agent_type, parent_cfg, instance_name=instance)
+        if fork:
+            from core.subagents.base import MemoryAccess
+            from core.subagents.fork import snapshot_parent_history
+
+            sub_cfg.fork = True
+            sub_cfg.memory_access = MemoryAccess.ISOLATED
+            sub_cfg.seed_messages = await snapshot_parent_history(self._parent)
         if max_steps is not None:
             try:
                 steps = int(max_steps)

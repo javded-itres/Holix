@@ -104,7 +104,7 @@ _STATIC_SLASH_COMMANDS: list[tuple[str, str]] = [
     ("/subagents", "List running sub-agents"),
     ("/subagent-types", "Manage custom sub-agent types (TUI)"),
     ("/subagent-types list", "List built-in and custom sub-agent types"),
-    ("/subagent-spawn", "Spawn sub-agent: /subagent-spawn <type> <task>"),
+    ("/subagent-spawn", "Spawn sub-agent: /subagent-spawn [--fork] <type> <task>"),
     ("/subagent-result", "Sub-agent result by job id"),
     ("/subagent-terminate", "Stop a sub-agent by job id"),
     ("/lang", "Switch interface language (en / ru)"),

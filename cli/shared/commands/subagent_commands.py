@@ -159,22 +159,39 @@ async def run_subagents_command(host: Any, command: str) -> None:
         return
 
     if parts[0] in ("/subagent-spawn", "/subagent", "/subagent_spawn") and len(parts) >= 2:
-        agent_type = parts[1]
-        task = command.split(maxsplit=2)[2] if len(parts) >= 3 else ""
+        fork = False
+        type_idx = 1
+        if parts[1] in ("--fork", "-f"):
+            fork = True
+            type_idx = 2
+        if len(parts) <= type_idx:
+            profile = str(getattr(host, "profile", None) or "default")
+            types = ", ".join(item["name"] for item in list_available_subagents(profile=profile))
+            host.transcript_write(
+                "Usage: /subagent-spawn [--fork] <type> <task>\n"
+                f"Types: {types}\n"
+                "Custom types: /subagent-types"
+            )
+            return
+        agent_type = parts[type_idx]
+        task = (
+            command.split(maxsplit=type_idx + 1)[type_idx + 1] if len(parts) > type_idx + 1 else ""
+        )
         if not task.strip():
             profile = str(getattr(host, "profile", None) or "default")
             types = ", ".join(item["name"] for item in list_available_subagents(profile=profile))
             host.transcript_write(
-                "Usage: /subagent-spawn <type> <task>\n"
+                "Usage: /subagent-spawn [--fork] <type> <task>\n"
                 f"Types: {types}\n"
                 "Custom types: /subagent-types"
             )
             return
         try:
-            handle, _ = await mgr.spawn_typed(agent_type, task.strip(), wait=False)
+            handle, _ = await mgr.spawn_typed(agent_type, task.strip(), wait=False, fork=fork)
+            fork_note = " fork" if getattr(handle.config, "fork", False) else ""
             _host_notify(
                 host,
-                f"spawned {handle.name} ({handle.config.process_mode.value}) "
+                f"spawned {handle.name} ({handle.config.process_mode.value}{fork_note}) "
                 f"pid={handle.process_id or '—'}",
             )
             if "external_cli" in (handle.config.tools or []):

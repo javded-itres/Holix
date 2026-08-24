@@ -209,7 +209,7 @@ Full guide: [SUBAGENTS.md](SUBAGENTS.md). Code mode: [CODE_MODE.md](CODE_MODE.md
 |---------|-------|-------------|
 | `/subagent-types`, `/code-mode` | TUI, Telegram, MAX | Type manager + Code mode (`native` / `code` / `both`) |
 | `/subagent-types list` | TUI | List types in chat |
-| `/subagent-spawn <type> <task>` | TUI, CLI | Start a worker |
+| `/subagent-spawn [--fork] <type> <task>` | TUI, CLI | Start a worker. `--fork` copies completed parent turns |
 | `/subagents` | TUI, Telegram, MAX | Live jobs |
 | `/subagent-result <job>` | TUI | Completed response |
 | `/subagent-terminate <job>` | TUI | Cancel a job |

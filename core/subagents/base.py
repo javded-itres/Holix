@@ -68,6 +68,9 @@ class SubAgentConfig:
     # be listed in `tools` (or auto-included by runners) for the names to be usable.
     mcp_servers: list[str] = field(default_factory=list)
     mcp_inherit: bool = True
+    # Seed child with parent's completed turns (DSH fork-in-process).
+    fork: bool = False
+    seed_messages: list[dict[str, Any]] = field(default_factory=list)
 
     def __post_init__(self):
         if isinstance(self.process_mode, str):

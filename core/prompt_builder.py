@@ -412,7 +412,7 @@ You have access to the following tools:
 ## Sub-agents (background workers)
 
 When `enable_subagents` is on, delegate heavy or specialized work without blocking the user:
-- `delegate_to_subagent(agent_type, task)` — starts a background worker (async or OS process); returns `job_id`
+- `delegate_to_subagent(agent_type, task)` — starts a background worker (async or OS process); returns `job_id`. `fork=true` seeds the child with completed parent turns (isolated tools / PTY / todos); default is a fresh conversation.
 - `wait_subagent_result(job_id)` — collect the answer when needed (user can keep chatting meanwhile)
 - `list_subagents()` — running and completed jobs
 - `terminate_subagent(job_id)` — cancel a job

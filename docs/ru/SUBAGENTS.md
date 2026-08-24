@@ -145,6 +145,8 @@ Skills, MCP и external CLI остаются в TUI — в клавиатуру 
 
 Главный агент вызовет `delegate_to_subagent`, вернёт `job_id` и при необходимости `wait_subagent_result`.
 
+`fork=true` (или `/subagent-spawn --fork`) передаёт ребёнку **завершённые ходы родителя**, без текущего tool-вызова. У ребёнка свои tools, PTY, todos и пресет `/permission`. По умолчанию — **новая** беседа.
+
 Tools главного агента (при `enable_subagents: true`):
 
 - `delegate_to_subagent`

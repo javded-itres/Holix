@@ -184,7 +184,7 @@ CLI: [HUB.md](HUB.md).
 |---------|-----|----------|
 | `/subagent-types`, `/code-mode` | TUI, Telegram, MAX | Менеджер типов + Code mode (`native` / `code` / `both`) |
 | `/subagent-types list` | TUI | Список типов в чате |
-| `/subagent-spawn <тип> <задача>` | TUI, CLI | Запустить воркер |
+| `/subagent-spawn [--fork] <тип> <задача>` | TUI, CLI | Запустить воркер. `--fork` копирует завершённые ходы родителя |
 | `/subagents` | TUI, Telegram, MAX | Живые джобы |
 | `/subagent-result <job>` | TUI | Готовый ответ |
 | `/subagent-terminate <job>` | TUI | Отменить джоб |

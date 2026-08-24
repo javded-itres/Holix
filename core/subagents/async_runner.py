@@ -156,6 +156,11 @@ class AsyncSubAgentRunner:
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": task},
         ]
+        seed = list(getattr(config, "seed_messages", None) or [])
+        if seed:
+            from core.subagents.fork import insert_seed_messages
+
+            messages = insert_seed_messages(messages, seed)
 
         # Inject relevant memories if shared access
         if config.memory_access != MemoryAccess.ISOLATED and hasattr(self._parent, "memory"):
@@ -871,6 +876,14 @@ class AsyncSubAgentRunner:
             handle=handle,
         )
         conv_id = f"subagent:{config.name}"
+        seed = list(getattr(config, "seed_messages", None) or [])
+        if seed and hasattr(self._parent, "memory"):
+            try:
+                from core.subagents.fork import apply_fork_seed
+
+                await apply_fork_seed(self._parent.memory, conv_id, seed)
+            except Exception:
+                logger.debug("fork seed persist failed", exc_info=True)
 
         def _on_event(event: Any) -> None:
             record_handle_event(handle, event)

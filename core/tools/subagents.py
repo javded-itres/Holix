@@ -38,7 +38,9 @@ class DelegateToSubAgentTool(BaseTool):
         )
         self.description = (
             "Delegate a task to a specialized sub-agent (background). Returns job_id — "
-            "use wait_subagent_result. For SDD apply prefer sdd_apply/sdd_dispatch so "
+            "use wait_subagent_result. fork=true seeds the child with completed parent "
+            "turns (isolated tools/PTY/todos); default is a fresh conversation. "
+            "For SDD apply prefer sdd_apply/sdd_dispatch so "
             "assignees from tasks.md are used (do not replace coder-python with coder). "
             + type_hint
         )
@@ -58,11 +60,19 @@ class DelegateToSubAgentTool(BaseTool):
                     "type": "string",
                     "description": "Clear task description for the sub-agent",
                 },
+                "fork": {
+                    "type": "boolean",
+                    "description": (
+                        "If true, seed the child with completed parent conversation "
+                        "turns (isolated tools, PTY, todos). Default false = fresh spawn."
+                    ),
+                    "default": False,
+                },
             },
             "required": ["agent_type", "task"],
         }
 
-    async def execute(self, agent_type: str, task: str) -> str:
+    async def execute(self, agent_type: str, task: str, fork: bool = False) -> str:
         agent = _agent(self._parent)
         cfg = getattr(agent, "config", None)
         if not is_subagents_enabled(cfg):
@@ -93,7 +103,7 @@ class DelegateToSubAgentTool(BaseTool):
                     },
                     ensure_ascii=False,
                 )
-            handle = await agent.subagents.spawn_typed(agent_type, task)
+            handle = await agent.subagents.spawn_typed(agent_type, task, fork=bool(fork))
             h, _ = handle
             fallback = (h.spawn_fallback_reason or "").strip()
             payload: dict[str, Any] = {
@@ -107,6 +117,14 @@ class DelegateToSubAgentTool(BaseTool):
                     f"Call wait_subagent_result(job_id='{h.name}') when you need the answer."
                 ),
             }
+            if bool(getattr(h.config, "fork", False)):
+                payload["fork"] = True
+                payload["seed_turns"] = len(getattr(h.config, "seed_messages", None) or [])
+                payload["message"] = (
+                    f"Sub-agent '{h.name}' forked from completed parent turns "
+                    f"({payload['seed_turns']} messages) in {h.config.process_mode.value} mode. "
+                    f"Call wait_subagent_result(job_id='{h.name}') when you need the answer."
+                )
             if fallback:
                 payload["fallback_from_process"] = True
                 payload["fallback_reason"] = fallback

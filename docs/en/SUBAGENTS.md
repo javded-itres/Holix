@@ -146,6 +146,8 @@ Run researcher in the background: gather API docs for our auth module
 
 The main agent calls `delegate_to_subagent(agent_type, task)`, gets a `job_id`, and may use `wait_subagent_result(job_id)` when the answer is needed.
 
+`fork=true` (or `/subagent-spawn --fork`) seeds the child with **completed parent turns** — not the in-flight tool call. The child has its own tools, PTY, todos, and permission preset. Default is a **fresh** conversation (spawn).
+
 Available tools on the main agent (when `enable_subagents: true`):
 
 - `delegate_to_subagent`
