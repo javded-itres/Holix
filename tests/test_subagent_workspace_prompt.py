@@ -23,6 +23,17 @@ def test_resolve_working_directory_prefers_jail_root(tmp_path: Path) -> None:
     ) == str(root.resolve())
 
 
+def test_resolve_working_directory_uses_workspace_even_if_jail_off(
+    tmp_path: Path,
+) -> None:
+    root = tmp_path / "ws"
+    root.mkdir()
+    assert resolve_agent_working_directory(
+        workspace_root=str(root),
+        workspace_jail_enabled=False,
+    ) == str(root.resolve())
+
+
 def test_resolve_working_directory_uses_explicit_cwd(tmp_path: Path) -> None:
     cwd = tmp_path / "project"
     cwd.mkdir()

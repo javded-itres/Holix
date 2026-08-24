@@ -13,8 +13,10 @@ def resolve_agent_working_directory(
 ) -> str:
     """Directory relative paths and project discovery should use.
 
-    Jail on → profile workspace root. Jail off → process CWD (same for main
-    agent and in-process sub-agents). Explicit ``working_directory`` wins.
+    Explicit ``working_directory`` wins. Otherwise the profile/TUI
+    ``workspace_root`` (jail on or off). Process CWD is last resort — a
+    LaunchAgent Telegram process often has cwd ``$HOME``, and walking that
+    for ``HOLIX.md`` hangs the bot (``~/Library``).
     """
     if working_directory and str(working_directory).strip():
         try:
@@ -37,12 +39,13 @@ def resolve_agent_working_directory(
         except Exception:
             pass
 
-    if jail and root:
+    if root:
         try:
             return str(Path(root).expanduser().resolve())
         except OSError:
             return root
 
+    del jail  # workspace_root already applied; cwd is fallback only
     try:
         return str(Path.cwd().resolve())
     except OSError:

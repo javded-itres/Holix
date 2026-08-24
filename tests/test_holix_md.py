@@ -97,6 +97,16 @@ def test_discovers_holix_md_at_four_levels(tmp_path: Path) -> None:
     assert "Shop API" in load_holix_md(project)
 
 
+def test_discover_skips_macos_library(tmp_path: Path) -> None:
+    project = tmp_path / "home"
+    hidden = project / "Library" / "Caches" / "app"
+    hidden.mkdir(parents=True)
+    holix = hidden / ".holix"
+    holix.mkdir()
+    (holix / "HOLIX.md").write_text("# should not load\n", encoding="utf-8")
+    assert resolve_holix_md_read_path(project) is None
+
+
 def test_ignores_holix_md_deeper_than_four_levels(tmp_path: Path) -> None:
     project = tmp_path / "repo"
     project.mkdir()

@@ -32,6 +32,16 @@ _SKIP_SEARCH_DIRS = frozenset(
         ".mypy_cache",
         ".pytest_cache",
         ".ruff_cache",
+        # macOS home / volume poison — scandir here blocks the Telegram loop
+        "Library",
+        "Applications",
+        "System",
+        "Volumes",
+        "Network",
+        "Movies",
+        "Pictures",
+        "Music",
+        "CloudStorage",
     }
 )
 
