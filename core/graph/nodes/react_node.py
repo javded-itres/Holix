@@ -1850,6 +1850,16 @@ def _build_system_prompt_from_state(state: HolixGraphState, agent=None) -> str:
             combined_memories = (
                 f"{combined_memories}\n\n{todo_block}" if combined_memories else todo_block
             )
+        from core.sdd.change_workspace import (
+            format_active_change_prompt_block,
+            get_active_change,
+        )
+
+        change_block = format_active_change_prompt_block(get_active_change(profile_name, cid))
+        if change_block:
+            combined_memories = (
+                f"{combined_memories}\n\n{change_block}" if combined_memories else change_block
+            )
     except Exception:
         pass
     if sub_prompt:

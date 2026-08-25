@@ -35,6 +35,9 @@ openspec/
     specs/<domain>/spec.md        # delta ADDED/MODIFIED/REMOVED
     .apply-mode                   # self | subagents | hybrid
   changes/archive/YYYY-MM-DD-<id>/
+
+# git repo (optional): linked worktree, not the main clone
+.holix/worktrees/<change-id>/     # gitignored; sdd_create_change
 ```
 
 **Rules:**
@@ -64,7 +67,7 @@ repo/
 | `sdd_init` | Scaffold layout |
 | `sdd_list_specs` / `sdd_read_spec` | Main specs (`openspec/specs/`) |
 | `sdd_list_changes` | Active / archived changes |
-| `sdd_create_change` | Scaffold change (**stubs only**) |
+| `sdd_create_change` | Scaffold change (**stubs only**). In a git repo this also adds a worktree (`.holix/worktrees/<id>`, branch `change/<id>`) and binds the session to it. Disable with `HOLIX_WORKTREE=0`. |
 | `sdd_read_artifact` | Read change proposal / design / tasks / delta specs |
 | `sdd_update_spec` | Add / modify / remove a requirement in the change delta spec |
 | `sdd_write_artifact` | proposal \| design \| tasks \| specs |
@@ -75,7 +78,7 @@ repo/
 | `sdd_request_apply_mode` / `sdd_set_apply_mode` | self \| subagents \| hybrid |
 | `sdd_apply` | Start apply |
 | `sdd_dispatch` | Spawn subagents for ready tasks |
-| `sdd_archive` | Merge delta → main + archive |
+| `sdd_archive` | Merge delta → main + archive. If the change is in a git worktree and the only uncommitted files are under `openspec/`, commits them and removes the worktree. Other dirty files keep the tree (`worktree.reason=dirty`). |
 
 ---
 

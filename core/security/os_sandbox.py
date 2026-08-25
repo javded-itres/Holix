@@ -54,6 +54,14 @@ def _writable_roots(workspace_root: str | None) -> list[str]:
             roots.append(str(Path(workspace_root).expanduser().resolve()))
         except OSError:
             roots.append(str(workspace_root))
+        try:
+            from core.runtime.git_worktree import extra_sandbox_write_roots
+
+            for extra_git in extra_sandbox_write_roots(workspace_root):
+                if extra_git and extra_git not in roots:
+                    roots.append(extra_git)
+        except Exception:
+            pass
     for extra in ("/tmp", "/private/tmp"):
         if Path(extra).exists():
             roots.append(extra)

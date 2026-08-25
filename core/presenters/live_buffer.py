@@ -34,6 +34,7 @@ class LiveTranscriptBuffer:
     max_answer_chars: int = 2800
     compact_tools: bool = False
     todos: list[dict[str, str]] = field(default_factory=list)
+    sdd_change_line: str = ""
     _code_runs: dict[str, dict] = field(default_factory=dict)
 
     def set_header(
@@ -74,6 +75,17 @@ class LiveTranscriptBuffer:
         from core.runtime.todo_list import get_todos, items_as_dicts
 
         self.todos = items_as_dicts(get_todos(profile, conversation_id))
+        self.hydrate_sdd_change(profile=profile, conversation_id=conversation_id)
+
+    def hydrate_sdd_change(self, *, profile: str, conversation_id: str) -> None:
+        try:
+            from core.sdd.change_workspace import format_active_change_line, get_active_change
+
+            self.sdd_change_line = format_active_change_line(
+                get_active_change(profile, conversation_id)
+            )
+        except Exception:
+            self.sdd_change_line = ""
 
     def add_tool_start(self, name: str, args: object, *, tool_id: str = "") -> None:
         # Partial assistant text before a tool call is preamble, not the final answer.
@@ -179,6 +191,8 @@ class LiveTranscriptBuffer:
         if self.background_process:
             icon = "🟢" if self.background_process_healthy else "🔴"
             parts.append(f"{icon} Process: {self.background_process}")
+        if self.sdd_change_line:
+            parts.append(self.sdd_change_line)
         if self.todos:
             from core.runtime.todo_list import format_todo_checklist
 

@@ -585,6 +585,20 @@ Remember: You are a helpful, capable agent that learns and improves with each ta
         workspace_root=workspace_root,
         workspace_jail_enabled=workspace_jail_enabled,
     )
+    try:
+        from core.sdd.change_workspace import (
+            format_active_change_prompt_block,
+            get_active_change,
+        )
+        from core.tools.execution_context import get_conversation_id
+
+        change_block = format_active_change_prompt_block(
+            get_active_change(profile_name or "default", get_conversation_id())
+        )
+        if change_block:
+            blocks.append(change_block)
+    except Exception:
+        pass
     if preview_block:
         blocks.append(preview_block)
     runtime_block = format_studio_runtime_targets_block(

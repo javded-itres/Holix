@@ -292,6 +292,9 @@ def build_react_subagent(parent: Any, config: SubAgentConfig, task: str) -> Any:
         enable_evolution=False,
         plan_review_enabled=False,
         context_window=window,
+        # Child graphs must not write the parent's checkpoints.db: overlapping
+        # ainvoke from Telegram/Studio already holds that file open.
+        langgraph_checkpoint_db_path="",
     )
     slot = str(config.agent_type or config.name or "main")
     filtered = FilteredToolRegistry(
@@ -327,12 +330,18 @@ def build_react_subagent(parent: Any, config: SubAgentConfig, task: str) -> Any:
     child.model = model or child.model
     child.agent_slot = slot
     profile_name = str(getattr(parent_cfg, "profile_name", None) or "default")
+    from core.sdd.change_workspace import overlay_workspace_root
+    from core.tools.execution_context import get_conversation_id
+
+    child_ws = overlay_workspace_root(profile_name, get_conversation_id()) or getattr(
+        parent_cfg, "workspace_root", None
+    )
     child.subagent_system_prompt = build_subagent_system_prompt(
         config,
         task,
         skills_block="",
         profile_name=profile_name,
-        workspace_root=getattr(parent_cfg, "workspace_root", None),
+        workspace_root=child_ws,
         workspace_jail_enabled=getattr(parent_cfg, "workspace_jail_enabled", None),
     )
     child._initialized = True

@@ -121,6 +121,9 @@ class AgentCommands:
             elif lower.startswith("/pty"):
                 await self._pty(h, cmd)
 
+            elif lower.startswith("/change"):
+                await self._change(h, cmd)
+
             elif lower == "/new":
                 h.run_worker(h._create_new_session())
 
@@ -352,6 +355,62 @@ class AgentCommands:
             h.transcript_write("[dim]/pty on|off|reset[/dim]")
             return
         h.transcript_write(pty_status(profile, cid))
+
+    async def _change(self, h: Any, cmd: str) -> None:
+        from core.runtime.git_worktree import clone_root, list_holix_worktrees, worktrees_enabled
+        from core.sdd.change_workspace import (
+            bind_active_change,
+            clear_active_change,
+            format_active_change_line,
+            get_active_change,
+        )
+
+        from cli.shared.commands.spec_commands import _workspace
+
+        profile = str(getattr(h, "profile", None) or "default")
+        cid = str(getattr(h, "conversation_id", None) or "default")
+        parts = cmd.split()
+        action = parts[1].strip().lower() if len(parts) > 1 else ""
+        if not worktrees_enabled():
+            h.transcript_write("[dim]HOLIX_WORKTREE=0 — SDD git worktrees disabled[/dim]")
+            return
+        if action in {"leave", "off", "clear"}:
+            clear_active_change(profile, cid)
+            h.transcript_write("[dim]left SDD worktree (clone workspace again)[/dim]")
+            return
+        if action in {"switch", "use"} and len(parts) >= 3:
+            wanted = parts[2].strip()
+            try:
+                start = _workspace(h)
+            except Exception:
+                start = None
+            main = clone_root(start) if start is not None else None
+            trees = list_holix_worktrees(main) if main is not None else []
+            match = next(
+                (w for w in trees if w.change_id == wanted or w.branch.endswith(wanted)),
+                None,
+            )
+            if match is None:
+                h.transcript_write(f"[yellow]no worktree for {wanted}[/yellow]")
+                return
+            bind_active_change(profile, cid, match)
+            h.transcript_write(format_active_change_line(get_active_change(profile, cid)))
+            return
+        active = get_active_change(profile, cid)
+        lines = [format_active_change_line(active) or "no active SDD worktree"]
+        try:
+            main = clone_root(_workspace(h))
+            if main is not None:
+                trees = list_holix_worktrees(main)
+                if trees:
+                    lines.append("worktrees:")
+                    for w in trees:
+                        mark = " *" if active and w.change_id == active.change_id else ""
+                        lines.append(f"  {w.change_id}  {w.branch}  {w.worktree}{mark}")
+        except Exception:
+            pass
+        lines.append("[dim]/change leave | /change switch <id>[/dim]")
+        h.transcript_write("\n".join(lines))
 
     async def _trace(self, h: Any, cmd: str) -> None:
         from core.runtime.trajectory import TrajectoryLog, format_trace_report

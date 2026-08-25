@@ -47,6 +47,7 @@
 | `/todos` | Чеклист сессии из `todo_write` (TUI, Telegram, MAX) |
 | `/permission` | Показать или задать пресет OS-песочницы: `workspace-write`, `read-only`, `danger-full-access` |
 | `/pty` | Постоянный shell сессии: `/pty on\|off\|reset` (POSIX) |
+| `/change` | SDD git worktree: список, `/change switch <id>`, `/change leave` |
 
 ---
 

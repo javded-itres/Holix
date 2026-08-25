@@ -30,7 +30,7 @@ See [EXECUTION_MODES.md](EXECUTION_MODES.md#reflexion-self-critique).
 
 ### LangGraph `checkpoints.db` size guard
 
-Each graph run may append state to `data/memory/checkpoints.db`. This file is **not** conversation or LTM memory; it only stores LangGraph thread state.
+Each graph run may append state to `data/memory/checkpoints.db`. This file is **not** conversation or LTM memory; it only stores LangGraph thread state. Overlapping runs in the same process share one SQLite connection. Sub-agent graphs use in-memory checkpoints so they do not contend with the parent.
 
 When the on-disk bundle (`checkpoints.db` + WAL/SHM) exceeds a limit, Holix **deletes it and recreates an empty DB** on the next graph open. Defaults:
 

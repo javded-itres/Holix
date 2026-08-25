@@ -44,6 +44,12 @@ def main(argv: list[str] | None = None) -> int:
         chdir_to_profile_workspace(args.profile)
     except Exception:
         pass
+    try:
+        from core.runtime.git_worktree import prune_workspace_worktrees
+
+        prune_workspace_worktrees(profile=args.profile)
+    except Exception:
+        pass
 
     from cli.services.gateway_singleton import assert_can_start_gateway
 

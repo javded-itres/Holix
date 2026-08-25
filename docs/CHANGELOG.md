@@ -4,6 +4,7 @@
 
 ### Added
 
+- **SDD git worktrees** — `sdd_create_change` creates a linked git worktree (`.holix/worktrees/<id>`, branch `change/<id>`) and binds the conversation to it. File tools, terminal, and sub-agents use that tree. `/change` lists, switches, or leaves. `HOLIX_WORKTREE=0` keeps the old in-place scaffold. Main clone stays on its current branch. After `sdd_archive`, if the only uncommitted files are under `openspec/`, Holix commits them (`sdd_archive <id>`) and `git worktree remove`. Extra dirty files keep the tree and return porcelain status. Gateway/Telegram start runs `git worktree prune` and, when over `git_worktrees_max`, drops archived+clean trees.
 - **Telegram/MAX `/help` guide** — scenario menu with inline submenus (getting started, chat, sub-agents, skills, SDD, models, memory, cron, MCP, permissions, files, commands). Sub-agents submenu covers type setup (`/subagent-types`), spawn, and Code mode. `/help sub` opens it directly. `/start` uses the same menu.
 - **Session todos** — `todo_write` replaces a per-conversation checklist (pending / in_progress / completed / cancelled). The list is sticky at the top of TUI (under the process bar) and in Telegram/MAX live status. `/todos` reprints it. Not proof of work — real tools still required. See [TUI.md](en/TUI.md).
 - **Search-replace first** — edit existing files with `patch_file` (`old_string`/`new_string` or `replacements`). `write_file` is for new files or a full rewrite. Coder/writer types now include `patch_file`; Code mode SDK says the same. Claude-style `StrReplace` args work.
@@ -18,6 +19,7 @@
 
 ### Fixed
 
+- **LangGraph `database is locked`** — each overlapping graph (Telegram, Studio host sessions, sub-agents) opened its own SQLite connection to `checkpoints.db`. WAL still serializes writers; a 30s wait then failed the turn. One shared connection per process now; sub-agent graphs use in-memory checkpoints; writers wait up to 60s; autocommit so LangGraph SELECTs do not hold a read transaction.
 - **Browser launch hang** — Chromium `launch` is capped at 30s and no longer holds the session lock, so a stuck launch cannot block `close()`. Context/browser close has an 8s timeout. `browser_open` maps `networkidle` to `load` (long-polling pages never go idle).
 - **PTY write busy-loop** — non-blocking `os.write` to the persistent shell used `except BlockingIOError: continue` on the asyncio loop. When the slave stopped reading (full output buffer / large command) Telegram spun at 100% CPU, `getUpdates` sockets stuck in `CLOSE_WAIT`, and the bot looked dead. Writes now sleep, drain output, and honor the command timeout.
 - **Code mode `import tools`** — the worker already injects `tools`; models still write `import tools` / `from tools import …`. That used to raise `ImportError: Import of 'tools' is not allowed`. Those imports now alias the SDK. `os` and other unsafe modules stay blocked.

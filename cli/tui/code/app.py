@@ -491,7 +491,13 @@ class HolixCodeApp(App):
             else items_as_dicts(get_todos(self.profile, self.conversation_id))
         )
         try:
-            self.query_one("#todo-list", CodeTodoList).set_todos(rows)
+            bar = self.query_one("#todo-list", CodeTodoList)
+            bar.set_todos(rows)
+            from core.sdd.change_workspace import format_active_change_line, get_active_change
+
+            bar.set_sdd_change(
+                format_active_change_line(get_active_change(self.profile, self.conversation_id))
+            )
         except Exception:
             pass
 

@@ -29,32 +29,43 @@ class CodeTodoList(Vertical):
         super().__init__(**kwargs)
         self.display = False
         self._items: list[dict[str, str]] = []
+        self._sdd_line = ""
 
     @property
     def items(self) -> list[dict[str, str]]:
         return list(self._items)
 
+    def set_sdd_change(self, line: str = "") -> None:
+        self._sdd_line = (line or "").strip()
+        self._rebuild()
+
     def set_todos(self, items: object = None) -> None:
-        rows = items_as_dicts(items or [])
-        self._items = rows
+        self._items = items_as_dicts(items or [])
+        self._rebuild()
+
+    def _rebuild(self) -> None:
+        rows = self._items
         try:
             self.remove_children()
         except Exception:
             pass
-        if not rows:
+        if not rows and not self._sdd_line:
             self.display = False
             self.remove_class("visible")
             return
-        self.mount(Static("[bold]Todos[/bold]", classes="todo-header"))
-        for item in rows[:12]:
-            self.mount(
-                Static(
-                    todo_row_markup(item.get("status") or "pending", item.get("content") or ""),
-                    classes="todo-row",
+        if self._sdd_line:
+            self.mount(Static(f"[bold cyan]{self._sdd_line}[/bold cyan]", classes="todo-header"))
+        if rows:
+            self.mount(Static("[bold]Todos[/bold]", classes="todo-header"))
+            for item in rows[:12]:
+                self.mount(
+                    Static(
+                        todo_row_markup(item.get("status") or "pending", item.get("content") or ""),
+                        classes="todo-row",
+                    )
                 )
-            )
-        extra = len(rows) - 12
-        if extra > 0:
-            self.mount(Static(f"[dim]+{extra} more[/dim]", classes="todo-row"))
+            extra = len(rows) - 12
+            if extra > 0:
+                self.mount(Static(f"[dim]+{extra} more[/dim]", classes="todo-row"))
         self.display = True
         self.add_class("visible")

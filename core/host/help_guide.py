@@ -261,6 +261,8 @@ _BODIES: dict[str, dict[str, str]] = {
             "Send a document / photo / voice in chat — Holix extracts text.\n"
             "The agent prefers `patch_file` for edits, `write_file` for new files.\n\n"
             "`/pty on|off|reset` — persistent shell (`cd` / `export` stick) on POSIX.\n"
+            "`/change` — SDD git worktree (`switch <id>` / `leave`). "
+            "`sdd_create_change` opens a worktree for that change.\n"
             "Background servers: `start_background_process` (buttons: logs / stop).\n"
             "`/todos` — checklist. Relative paths use `workspace_root`."
         ),
@@ -410,6 +412,8 @@ _BODIES: dict[str, dict[str, str]] = {
             "Документ / фото / голос в чат — Holix извлекает текст.\n"
             "Правки существующих файлов — `patch_file`, новые — `write_file`.\n\n"
             "`/pty on|off|reset` — постоянный shell (`cd` / `export` живут) на POSIX.\n"
+            "`/change` — git worktree SDD (`switch <id>` / `leave`). "
+            "`sdd_create_change` открывает дерево для change.\n"
             "Фоновые серверы: `start_background_process` (логи / стоп — кнопки).\n"
             "`/todos` — чеклист. Относительные пути — от `workspace_root`."
         ),

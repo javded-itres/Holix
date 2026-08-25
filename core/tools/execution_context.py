@@ -90,6 +90,14 @@ def get_memory_facade() -> Any | None:
 
 
 def get_workspace_root() -> str | None:
+    try:
+        from core.sdd.change_workspace import overlay_workspace_root
+
+        overlay = overlay_workspace_root()
+    except Exception:
+        overlay = None
+    if overlay:
+        return overlay
     return _workspace_root.get()
 
 

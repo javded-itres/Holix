@@ -950,6 +950,8 @@ def _try_process_react_run(
             "context_window": window,
             "skill_assignments": skill_assignments or {},
             "profile_name": profile_name or "default",
+            # Separate OS process would still lock the parent's checkpoints.db.
+            "langgraph_checkpoint_db_path": "",
         }
         if skills_dir:
             overrides["skills_dir"] = skills_dir
@@ -1475,9 +1477,22 @@ class SubAgentProcessManager:
         )
 
         from core.prompt_builder import resolve_agent_working_directory
+        from core.sdd.change_workspace import resolve_subagent_workspace
+        from core.tools.execution_context import get_conversation_id
+
+        parent_ws = str(getattr(parent_cfg, "workspace_root", None) or "") or None
+        try:
+            parent_ws = resolve_subagent_workspace(
+                profile=str(getattr(parent_cfg, "profile_name", None) or "default"),
+                parent_conversation_id=get_conversation_id(),
+                child_conversation_id=f"subagent:{config.name}",
+                fallback=parent_ws,
+            )
+        except Exception:
+            pass
 
         parent_cwd = resolve_agent_working_directory(
-            workspace_root=getattr(parent_cfg, "workspace_root", None),
+            workspace_root=parent_ws,
             workspace_jail_enabled=getattr(parent_cfg, "workspace_jail_enabled", None),
         )
 
@@ -1500,7 +1515,7 @@ class SubAgentProcessManager:
             interactive,
             search_config,
             str(getattr(parent_cfg, "profile_name", None) or "default"),
-            str(getattr(parent_cfg, "workspace_root", None) or ""),
+            str(parent_ws or ""),
             bool(getattr(parent_cfg, "workspace_jail_enabled", False)),
             parent_cwd,
         )

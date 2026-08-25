@@ -47,6 +47,14 @@ def test_run_code_card_hides_program_and_lists_inner():
     assert text.count("программа") == 1
 
 
+def test_render_includes_sdd_change_line():
+    buf = LiveTranscriptBuffer(profile="p1", mode="react")
+    buf.sdd_change_line = "SDD itres-12 · change/itres-12 · worktree"
+    text = buf.render_plain()
+    assert "itres-12" in text
+    assert "worktree" in text
+
+
 def test_render_includes_todos():
     buf = LiveTranscriptBuffer(profile="p1", mode="react")
     buf.set_todos(

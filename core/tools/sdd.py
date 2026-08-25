@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import shutil
+from pathlib import Path
 from typing import Any
 
 from core.sdd.projects import discover_sdd_projects, resolve_project_root
@@ -20,6 +22,46 @@ _PROJECT_PROP = {
 
 def _store(project: str = "") -> SpecStore:
     return SpecStore(resolve_project_root(workspace_from_context(), project))
+
+
+def _attach_change_worktree(
+    store: SpecStore, change_id: str, *, project: str
+) -> dict[str, str] | None:
+    """Point *store* at a new git worktree when possible. Mutates store.workspace."""
+    from core.runtime.git_worktree import (
+        WorktreeUnavailable,
+        clone_root,
+        prepare_change_worktree,
+        worktrees_enabled,
+    )
+
+    if not worktrees_enabled():
+        return None
+    start = store.workspace
+    try:
+        info = prepare_change_worktree(start, change_id)
+    except WorktreeUnavailable:
+        return None
+    if info is None:
+        return None
+    rel = Path()
+    main = clone_root(start) or info.clone
+    try:
+        rel = start.resolve().relative_to(main.resolve())
+    except ValueError:
+        rel = Path()
+    store.workspace = (info.worktree / rel).resolve()
+    src_os = start / "openspec"
+    dst_os = store.workspace / "openspec"
+    if src_os.is_dir() and not (dst_os / "config.yaml").is_file():
+        shutil.copytree(src_os, dst_os, dirs_exist_ok=True)
+    return {
+        "worktree": str(info.worktree),
+        "branch": info.branch,
+        "clone": str(info.clone),
+        "workspace_now": str(store.workspace),
+        "project": project or "",
+    }
 
 
 def _err(exc: BaseException) -> str:
@@ -230,10 +272,14 @@ class SddCreateChangeTool(BaseTool):
     ) -> str:
         try:
             from core.sdd.prefs import SddPrefsStore
-            from core.tools.execution_context import get_profile_name
+            from core.tools.execution_context import (
+                get_conversation_id,
+                get_profile_name,
+            )
 
             prefs = SddPrefsStore(get_profile_name()).get()
             store = _store(project)
+            worktree_note = _attach_change_worktree(store, change_id, project=project)
             result = store.create_change(
                 change_id,
                 domain=domain or "",
@@ -241,6 +287,26 @@ class SddCreateChangeTool(BaseTool):
                 understanding_gate_enabled=prefs.understanding_gate_enabled,
                 understanding_threshold=prefs.understanding_threshold,
             )
+            if worktree_note:
+                result.update(worktree_note)
+                bind_cid = get_conversation_id()
+                bind_profile = get_profile_name()
+                try:
+                    from core.sdd.change_workspace import ActiveChange, bind_active_change
+
+                    bind_active_change(
+                        bind_profile,
+                        bind_cid,
+                        ActiveChange(
+                            change_id=str(result.get("change_id") or change_id),
+                            branch=str(worktree_note.get("branch") or ""),
+                            worktree=str(worktree_note.get("worktree") or ""),
+                            clone=str(worktree_note.get("clone") or ""),
+                            project=project or "",
+                        ),
+                    )
+                except Exception:
+                    pass
             # When understanding gate is ON, leave clarifying/score=0 so the agent
             # runs Q&A (sdd_update_understanding). Do NOT auto-confirm to 100%.
             und = result.get("understanding") or {}
@@ -258,13 +324,21 @@ class SddCreateChangeTool(BaseTool):
                 )
             result["project"] = project or ""
             result["filled"] = False
-            result["warning"] = (
-                "Scaffold only: proposal/specs/tasks are stubs until sdd_write_artifact. "
-                "Do not tell the user the specification is complete. "
-                "Paths: openspec/changes/<id>/{proposal,design,tasks}.md and "
-                "specs/<domain>/spec.md — there is NO specs.md at change root. "
-                "Main domain specs (openspec/specs/) appear only after sdd_archive."
-            )
+            if worktree_note:
+                result["warning"] = (
+                    "Scaffold only in the git worktree for this change. "
+                    "File tools and the terminal now use workspace_now. "
+                    "Do not edit the main clone. Stubs until sdd_write_artifact. "
+                    "Main domain specs appear only after sdd_archive."
+                )
+            else:
+                result["warning"] = (
+                    "Scaffold only: proposal/specs/tasks are stubs until sdd_write_artifact. "
+                    "Do not tell the user the specification is complete. "
+                    "Paths: openspec/changes/<id>/{proposal,design,tasks}.md and "
+                    "specs/<domain>/spec.md — there is NO specs.md at change root. "
+                    "Main domain specs (openspec/specs/) appear only after sdd_archive."
+                )
             return result_json(result)
         except Exception as exc:
             return _err(exc)
@@ -810,7 +884,9 @@ class SddArchiveTool(BaseTool):
             "main openspec/specs/<domain>/spec.md, then move the change folder to "
             "changes/archive/YYYY-MM-DD-<id>/. Nested delta files under "
             "specs/<domain>/… still merge into that domain. Returns warnings if "
-            "tasks are still open (merge still proceeds)."
+            "tasks are still open (merge still proceeds). If the change lives in a "
+            "git worktree and the only uncommitted files are under openspec/, "
+            "commits them and removes the worktree; extra dirty files keep the tree."
         )
         self.risk_level = "no"
         self.parameters = {
@@ -831,7 +907,18 @@ class SddArchiveTool(BaseTool):
         self, change_id: str, project: str = "", force: bool = False, **_: Any
     ) -> str:
         try:
-            return result_json(_store(project).archive(change_id, force=bool(force)))
+            store = _store(project)
+            payload = store.archive(change_id, force=bool(force))
+            if payload.get("ok"):
+                from core.runtime.git_worktree import release_change_worktree
+                from core.tools.execution_context import get_profile_name
+
+                payload["worktree"] = release_change_worktree(
+                    store.workspace,
+                    change_id,
+                    profile=get_profile_name() or "default",
+                )
+            return result_json(payload)
         except Exception as exc:
             return _err(exc)
 

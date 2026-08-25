@@ -42,6 +42,9 @@ openspec/
       .understanding.json     # optional gate
     archive/
       YYYY-MM-DD-<change-id>/ # после sdd_archive
+
+# git-репозиторий (опционально): linked worktree, не main clone
+.holix/worktrees/<change-id>/     # в .gitignore; sdd_create_change
 ```
 
 **Важно:**
@@ -74,7 +77,7 @@ repo/
 | `sdd_init` | Scaffold `openspec/` (+ example domain) |
 | `sdd_list_specs` / `sdd_read_spec` | Main specs (`openspec/specs/`) |
 | `sdd_list_changes` | Активные (и archive) changes |
-| `sdd_create_change` | Scaffold change (stubs only!) |
+| `sdd_create_change` | Scaffold change (stubs only!). В git-репозитории ещё создаёт worktree (`.holix/worktrees/<id>`, ветка `change/<id>`) и привязывает сессию. Выключить: `HOLIX_WORKTREE=0`. |
 | `sdd_read_artifact` | Читать proposal / design / tasks / delta specs change |
 | `sdd_update_spec` | Дополнить / изменить / удалить требование в delta-спеке change |
 | `sdd_write_artifact` | proposal / design / tasks / specs |
@@ -85,7 +88,7 @@ repo/
 | `sdd_request_apply_mode` / `sdd_set_apply_mode` | self \| subagents \| hybrid |
 | `sdd_apply` | Старт apply (план → исполнитель) |
 | `sdd_dispatch` | Запуск субагентов по ready-задачам |
-| `sdd_archive` | Merge delta → main specs + archive |
+| `sdd_archive` | Merge delta → main specs + archive. Если change в git worktree и грязные файлы только в `openspec/`, коммитит их и делает `git worktree remove`. Другая грязь — дерево остаётся (`worktree.reason=dirty`). |
 
 ---
 

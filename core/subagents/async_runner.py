@@ -132,14 +132,19 @@ class AsyncSubAgentRunner:
 
         parent_cfg = getattr(self._parent, "config", None)
         profile_name = str(getattr(parent_cfg, "profile_name", None) or "default")
+        from core.sdd.change_workspace import overlay_workspace_root
         from core.subagents.prompt import build_subagent_system_prompt
+        from core.tools.execution_context import get_conversation_id
 
+        child_ws = overlay_workspace_root(profile_name, get_conversation_id()) or getattr(
+            parent_cfg, "workspace_root", None
+        )
         system_prompt = build_subagent_system_prompt(
             config,
             task,
             skills_block=skills_block,
             profile_name=profile_name,
-            workspace_root=getattr(parent_cfg, "workspace_root", None),
+            workspace_root=child_ws,
             workspace_jail_enabled=getattr(parent_cfg, "workspace_jail_enabled", None),
         )
 
@@ -868,6 +873,13 @@ class AsyncSubAgentRunner:
             handle=handle,
         )
         conv_id = f"subagent:{config.name}"
+        try:
+            from core.sdd.change_workspace import inherit_active_change
+            from core.tools.execution_context import get_conversation_id, get_profile_name
+
+            inherit_active_change(get_profile_name(), get_conversation_id(), conv_id)
+        except Exception:
+            logger.debug("inherit SDD worktree failed", exc_info=True)
         seed = list(getattr(config, "seed_messages", None) or [])
         if seed and hasattr(self._parent, "memory"):
             try:

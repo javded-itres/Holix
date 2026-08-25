@@ -142,6 +142,21 @@ class Settings(BaseSettings):
         validation_alias=AliasChoices("HOLIX_SUBAGENT_SUPERVISOR_LOOP_COOLDOWN_S"),
         description="Minimum seconds between loop-break guidance for the same job",
     )
+    git_worktrees_enabled: bool = Field(
+        default=True,
+        validation_alias=AliasChoices("HOLIX_GIT_WORKTREES_ENABLED"),
+        description="Create a git worktree when sdd_create_change runs (HOLIX_WORKTREE=0 disables)",
+    )
+    git_worktrees_dirname: str = Field(
+        default=".holix/worktrees",
+        validation_alias=AliasChoices("HOLIX_GIT_WORKTREES_DIRNAME"),
+        description="Directory under the clone root for SDD change worktrees",
+    )
+    git_worktrees_max: int = Field(
+        default=8,
+        validation_alias=AliasChoices("HOLIX_GIT_WORKTREES_MAX"),
+        description="Max Holix-managed worktrees per clone",
+    )
 
     # Agent response pipeline: classic ≈1.0.2 (default) | modern anti-monologue
     agent_pipeline: str = Field(
