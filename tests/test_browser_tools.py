@@ -92,6 +92,45 @@ async def test_browser_open_validates_and_navigates():
     session.page.goto.assert_awaited_once_with(
         "https://example.com", wait_until="domcontentloaded", timeout=60_000
     )
+
+
+@pytest.mark.asyncio
+async def test_browser_open_does_not_use_networkidle():
+    tool = BrowserOpenTool()
+    session = _mock_session()
+    token = conversation_scope("conv-ni")
+    try:
+        with (
+            patch(
+                "core.tools.browser.tools.validate_browser_url",
+                return_value="https://example.com",
+            ),
+            patch("core.tools.browser.tools.get_browser_session_manager") as mgr,
+        ):
+            mgr.return_value.get_or_create = AsyncMock(return_value=session)
+            await tool.execute(url="https://example.com", wait_until="networkidle")
+    finally:
+        reset_conversation_scope(token)
+    session.page.goto.assert_awaited_once_with(
+        "https://example.com", wait_until="load", timeout=60_000
+    )
+
+
+@pytest.mark.asyncio
+async def test_chromium_launch_passes_timeout():
+    from core.tools.browser.session import BrowserSessionManager
+
+    mgr = BrowserSessionManager()
+    context = MagicMock()
+    context.new_page = AsyncMock(return_value=MagicMock())
+    browser = MagicMock()
+    browser.new_context = AsyncMock(return_value=context)
+    pw = MagicMock()
+    pw.chromium.launch = AsyncMock(return_value=browser)
+    mgr._pw_instance = pw
+    session = await mgr._new_session("c1", headless=True, record=False)
+    assert session.browser is browser
+    assert pw.chromium.launch.await_args.kwargs.get("timeout") == 30_000
     assert session.refs == {}
 
 
@@ -99,7 +138,7 @@ async def test_browser_open_validates_and_navigates():
 async def test_browser_snapshot_builds_refs():
     tool = BrowserSnapshotTool()
     session = _mock_session()
-    snapshot_text = "URL: https://example.com\nTitle: T\n[e1] button \"OK\""
+    snapshot_text = 'URL: https://example.com\nTitle: T\n[e1] button "OK"'
     refs = {"e1": '[data-holix-ref="e1"]'}
 
     token = conversation_scope("c1")

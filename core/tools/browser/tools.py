@@ -25,9 +25,7 @@ def _resolve_locator(session, *, ref: str = "", selector: str = ""):
     if ref:
         sel = session.refs.get(ref)
         if not sel:
-            raise ValueError(
-                f"Unknown ref '{ref}'. Run browser_snapshot first to refresh refs."
-            )
+            raise ValueError(f"Unknown ref '{ref}'. Run browser_snapshot first to refresh refs.")
         return page.locator(sel)
     if selector:
         return page.locator(selector)
@@ -72,7 +70,9 @@ class BrowserOpenTool(BaseTool):
             normalized = validate_browser_url(url, _allowed_hosts())
             cid = get_conversation_id()
             session = await get_browser_session_manager().get_or_create(cid, record=record)
-            await session.page.goto(normalized, wait_until=wait_until, timeout=60_000)
+            # networkidle can wait forever on pages with long-polling; cap to load.
+            until = wait_until if wait_until != "networkidle" else "load"
+            await session.page.goto(normalized, wait_until=until, timeout=60_000)
             session.refs.clear()
             rec = " recording=on" if session.recording else ""
             return f"Opened {session.page.url} (conversation={cid}{rec})"
