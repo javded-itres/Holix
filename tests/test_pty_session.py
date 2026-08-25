@@ -65,3 +65,35 @@ async def test_pty_nonzero_exit(tmp_path) -> None:
     out = await _run("false", tmp_path)
     assert "exit code" in out.lower()
     assert "1" in out
+
+
+@pytest.mark.asyncio
+async def test_pty_write_retries_blocking_ioerror(
+    tmp_path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Non-blocking PTY EAGAIN must sleep/retry, not spin the event loop."""
+    import os
+
+    await _run("true", tmp_path)
+    calls = {"n": 0}
+    real_write = os.write
+
+    def flaky(fd: int, data: object, *args: object, **kwargs: object) -> int:
+        calls["n"] += 1
+        if calls["n"] <= 4:
+            raise BlockingIOError
+        return real_write(fd, data)
+
+    monkeypatch.setattr(os, "write", flaky)
+    out = await _run("printf ok", tmp_path)
+    assert "ok" in out
+    assert calls["n"] > 4
+
+
+@pytest.mark.asyncio
+async def test_pty_large_command_and_output(tmp_path) -> None:
+    payload = "z" * 50_000
+    out = await _run(f"printf '%s' '{payload}' | wc -c", tmp_path)
+    assert "50000" in out.replace(" ", "")
+    big = await _run("python3 -c \"print('x'*20000, end='')\"", tmp_path)
+    assert big.count("x") >= 20_000

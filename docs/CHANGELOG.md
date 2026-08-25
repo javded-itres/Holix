@@ -17,6 +17,7 @@
 
 ### Fixed
 
+- **PTY write busy-loop** — non-blocking `os.write` to the persistent shell used `except BlockingIOError: continue` on the asyncio loop. When the slave stopped reading (full output buffer / large command) Telegram spun at 100% CPU, `getUpdates` sockets stuck in `CLOSE_WAIT`, and the bot looked dead. Writes now sleep, drain output, and honor the command timeout.
 - **Code mode `import tools`** — the worker already injects `tools`; models still write `import tools` / `from tools import …`. That used to raise `ImportError: Import of 'tools' is not allowed`. Those imports now alias the SDK. `os` and other unsafe modules stay blocked.
 - **Code mode multiline strings** — wrapping the program in `def __holix_user()` no longer `textwrap.indent`s the interior of `"""..."""` / `'''...'''`. `write_file` was saving extra leading spaces on every line after the first (e.g. `requirements.txt`).
 - **Code mode workspace cwd** — `run_terminal_command` from a program (and with jail off) starts in `workspace_root`, same as relative `write_file` / `list_directory`.

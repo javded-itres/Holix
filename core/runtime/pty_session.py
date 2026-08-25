@@ -11,6 +11,7 @@ import shutil
 import signal
 import subprocess
 import threading
+import time
 from dataclasses import dataclass
 from typing import Any
 
@@ -19,6 +20,7 @@ from core.platform_compat import IS_POSIX, IS_WINDOWS
 _DONE = "__HOLIX_DONE__"
 _READY = "__HOLIX_READY__"
 _MAX_SESSIONS = 8
+_DRAIN_CAP = 2_000_000
 
 
 class PtyUnavailable(RuntimeError):
@@ -151,17 +153,13 @@ class PtyShell:
             except Exception:
                 pass
 
-    def _write(self, data: str) -> None:
-        blob = data.encode("utf-8")
-        view = memoryview(blob)
-        while view:
-            try:
-                n = os.write(self.master_fd, view)
-            except InterruptedError:
-                continue
-            except BlockingIOError:
-                continue
-            view = view[n:]
+    def _write_once(self, view: memoryview) -> int:
+        try:
+            return os.write(self.master_fd, view)
+        except InterruptedError:
+            return 0
+        except BlockingIOError:
+            return 0
 
     def _read_chunk(self) -> bytes:
         try:
@@ -171,9 +169,56 @@ class PtyShell:
         except OSError:
             return b""
 
-    async def _read_until(self, pattern: re.Pattern[bytes], timeout: float) -> str:
+    def _drain(self, buf: bytearray) -> None:
+        while len(buf) < _DRAIN_CAP:
+            chunk = self._read_chunk()
+            if not chunk:
+                return
+            buf.extend(chunk)
+
+    def _write_sync(self, data: str, *, timeout: float) -> bytearray:
+        """Write to a non-blocking PTY; drain output so the slave cannot deadlock."""
+        view = memoryview(data.encode("utf-8"))
+        drained = bytearray()
+        deadline = time.monotonic() + max(timeout, 0.5)
+        while view:
+            if time.monotonic() >= deadline:
+                raise TimeoutError
+            n = self._write_once(view)
+            self._drain(drained)
+            if n:
+                view = view[n:]
+                continue
+            time.sleep(0.02)
+        return drained
+
+    async def _write(self, data: str, *, timeout: float) -> bytearray:
+        view = memoryview(data.encode("utf-8"))
+        drained = bytearray()
         loop = asyncio.get_running_loop()
-        buf = bytearray()
+        deadline = loop.time() + max(timeout, 0.5)
+        while view:
+            if loop.time() >= deadline:
+                raise TimeoutError
+            n = self._write_once(view)
+            self._drain(drained)
+            if n:
+                view = view[n:]
+                continue
+            await asyncio.sleep(0.02)
+        return drained
+
+    async def _read_until(
+        self,
+        pattern: re.Pattern[bytes],
+        timeout: float,
+        initial: bytes | bytearray = b"",
+    ) -> str:
+        loop = asyncio.get_running_loop()
+        buf = bytearray(initial)
+        if pattern.search(buf):
+            self._drain(buf)
+            return buf.decode("utf-8", errors="replace")
         deadline = loop.time() + timeout
         while True:
             if self.proc.poll() is not None:
@@ -188,10 +233,12 @@ class PtyShell:
             if chunk:
                 buf.extend(chunk)
                 if pattern.search(buf):
+                    self._drain(buf)
                     return buf.decode("utf-8", errors="replace")
             else:
                 await asyncio.sleep(0.02)
         if pattern.search(buf):
+            self._drain(buf)
             return buf.decode("utf-8", errors="replace")
         raise EOFError(buf.decode("utf-8", errors="replace"))
 
@@ -200,8 +247,8 @@ class PtyShell:
             token = secrets.token_hex(16)
             wrapped = _wrap_command(command, token)
             done_re = re.compile(rf"{re.escape(_DONE)} {re.escape(token)} (\d+)\|".encode())
-            self._write(wrapped)
-            raw = await self._read_until(done_re, timeout)
+            drained = await self._write(wrapped, timeout=timeout)
+            raw = await self._read_until(done_re, timeout, initial=drained)
             parsed = _parse_done(raw, token, fallback_cwd=self.cwd)
             self.cwd = parsed.cwd
             return parsed
@@ -287,9 +334,10 @@ def _spawn_shell(
             pass
     shell = PtyShell(proc, master_fd, cwd)
     try:
-        shell._write(
+        shell._write_sync(
             "unset PROMPT_COMMAND; PS1=; PS2=; stty -echo 2>/dev/null || true; "
-            f"printf '{_READY}\\n'\n"
+            f"printf '{_READY}\\n'\n",
+            timeout=5.0,
         )
     except Exception:
         shell.close()
