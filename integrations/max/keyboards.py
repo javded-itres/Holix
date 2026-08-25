@@ -83,6 +83,14 @@ def process_log_watch_keyboard(
     return inline_keyboard([row])
 
 
+def help_guide_keyboard(rows: list[list[tuple[str, str]]]) -> dict[str, Any]:
+    """Inline keyboard for `/help` scenario pages. Rows are (label, topic_id)."""
+    kb_rows: list[list[dict[str, str]]] = []
+    for row in rows:
+        kb_rows.append([_callback_btn(label[:40], _cb("hp", topic_id)) for label, topic_id in row])
+    return inline_keyboard(kb_rows)
+
+
 def parse_callback(payload: str) -> tuple[str, str] | None:
     if not payload or not payload.startswith(f"{PREFIX}:"):
         return None

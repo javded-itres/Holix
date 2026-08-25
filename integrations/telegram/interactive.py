@@ -11,6 +11,7 @@ from integrations.telegram.keyboards import (
     MODE_LABELS,
     SKILLS_PAGE_SIZE,
     callback_rows_keyboard,
+    help_guide_keyboard,
     mode_picker_html,
     mode_picker_keyboard,
     models_provider_keyboard,
@@ -109,6 +110,13 @@ class TelegramInteractive:
         if await self._deny_menu_command(cmd_token.lstrip("/").split()[0]):
             return True
 
+        if cmd_token in ("/help", "/h", "/?") or lower.startswith("/help "):
+            from core.host.help_guide import resolve_help_topic
+
+            arg = " ".join(parts[1:]) if len(parts) > 1 else ""
+            await self.show_help_guide(resolve_help_topic(arg))
+            return True
+
         if is_models_slash(cmd):
             await self.show_models()
             return True
@@ -198,6 +206,23 @@ class TelegramInteractive:
             return True
 
         return False
+
+    async def show_help_guide(self, topic: str = "home") -> None:
+        from core.host.help_guide import render_help_page
+
+        loc = messenger_host_locale(self._host)
+        command_lines = None
+        if topic in ("cmds", "commands"):
+            from integrations.telegram.command_access import commands_for_user
+
+            specs = commands_for_user(
+                self._session.bot_profile,
+                int(self._session.user_id),
+                locale=loc,
+            )
+            command_lines = [(spec.command, spec.description) for spec in specs]
+        html, rows = render_help_page(topic, loc, html=True, command_lines=command_lines)
+        await self._host._send_html_with_keyboard(html, help_guide_keyboard(rows))
 
     async def show_cron_menu(self) -> None:
         """Cron jobs list with enable/disable/delete buttons."""
@@ -681,6 +706,10 @@ class TelegramInteractive:
 
         if action == "mb":
             await self.show_models()
+            return ""
+
+        if action == "hp":
+            await self.show_help_guide(value or "home")
             return ""
 
         if action == "r":

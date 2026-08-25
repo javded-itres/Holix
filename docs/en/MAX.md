@@ -454,6 +454,7 @@ See [CLI.md](CLI.md#holix-max).
 - One live message per task (edited via `PUT /messages` while streaming)
 - Session id: `max_{profile}_{user_id}`
 - Shared slash commands with TUI: `/help`, `/profile`, `/models`, `/new`, `/stop` — see [SLASH_COMMANDS.md](SLASH_COMMANDS.md)
+- **`/help`** — scenario guide with inline submenus (sub-agents: configure types, spawn, Code mode). `/help sub` jumps to that section. `/menu` is the settings panel.
 - **Sub-agents** in the status menu (`/code-mode`, `/subagent-types`): types + Code mode. See [SUBAGENTS.md](SUBAGENTS.md#telegram-and-max)
 
 ### Inline approvals

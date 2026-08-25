@@ -197,7 +197,7 @@ MESSAGES: dict[str, dict[str, str]] = {
             "  /mcp remove name — remove server\n\n"
             "Confirmations: buttons under the message or /yes /no"
         ),
-        "tg.cmd.help": "Command help",
+        "tg.cmd.help": "Usage guide",
         "tg.cmd.status": "Profile, mode, session",
         "tg.cmd.models": "Switch LLM model",
         "tg.cmd.menu": "Control panel",
@@ -909,7 +909,7 @@ When finished, confirm the absolute path written and give a 5–10 line summary 
             "  /mcp remove имя — удалить сервер\n\n"
             "Подтверждения: кнопки под сообщением или /yes /no"
         ),
-        "tg.cmd.help": "Справка по командам",
+        "tg.cmd.help": "Справка по сценариям",
         "tg.cmd.status": "Профиль, режим, сессия",
         "tg.cmd.models": "Сменить LLM модель",
         "tg.cmd.menu": "Панель управления",

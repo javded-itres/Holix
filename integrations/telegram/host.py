@@ -12,7 +12,7 @@ from cli.shared.slash_input import is_slash_command, normalize_slash_input
 from core.i18n import t
 
 from integrations.messenger.locale import messenger_host_locale
-from integrations.telegram.commands import help_message_html, sync_bot_menu
+from integrations.telegram.commands import sync_bot_menu
 from integrations.telegram.interactive import TelegramInteractive
 from integrations.telegram.live_presenter import TelegramLivePresenter
 from integrations.telegram.markdown import (
@@ -154,7 +154,7 @@ class TelegramHost:
         self.run_worker(run_forget_memory(self, clear_ui=False))
 
     def action_help(self) -> None:
-        asyncio.create_task(self._send_html(help_message_html(messenger_host_locale(self))))
+        asyncio.create_task(self._interactive.show_help_guide("home"))
 
     async def _sync_telegram_menu(self) -> None:
         try:

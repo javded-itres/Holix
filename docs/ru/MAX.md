@@ -440,6 +440,7 @@ Management API: `GET /api/holix/profiles/{id}/max/status`, `…/requests`, `…/
 - Одно live-сообщение на задачу (редактирование через `PUT /messages` при стриминге)
 - ID сессии: `max_{profile}_{user_id}`
 - Общие слэш-команды с TUI: `/help`, `/profile`, `/models`, `/new`, `/stop` — см. [SLASH_COMMANDS.md](SLASH_COMMANDS.md)
+- **`/help`** — справка по сценариям с подменю (субагенты: настройка типов, запуск, Code mode). `/help субагенты` открывает раздел сразу. `/menu` — панель настроек.
 - **Субагенты** в статус-меню (`/code-mode`, `/subagent-types`): типы и Code mode. См. [SUBAGENTS.md](SUBAGENTS.md#telegram-и-max)
 
 ### Inline-подтверждения

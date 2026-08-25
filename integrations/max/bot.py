@@ -9,7 +9,7 @@ from typing import Any
 from integrations.max.agent_setup import create_agent
 from integrations.max.approvals import MaxApprovals
 from integrations.max.client import MaxClient
-from integrations.max.commands import help_message_markdown, register_bot_commands
+from integrations.max.commands import register_bot_commands
 from integrations.max.config import MaxSettings, load_max_settings
 from integrations.max.file_handler import (
     PendingMaxAttachment,
@@ -477,13 +477,18 @@ class HelixMaxBot:
         except Exception:
             logger.exception("MAX extension start on bot_started failed")
 
+        from core.host.help_guide import render_help_page
+
+        from integrations.max.keyboards import help_guide_keyboard
+        from integrations.messenger.locale import messenger_locale as _max_locale
+
+        loc = _max_locale(self.settings.profile)
+        text, rows = render_help_page("home", loc, html=False)
         await client.send_message(
-            plain_to_max_html(
-                help_message_markdown()
-                + "\n\n**Команды:** введите `/` в поле ввода или отправьте `/menu` — панель управления."
-            ),
+            plain_to_max_html(text),
             user_id=uid,
             fmt="html",
+            attachments=[help_guide_keyboard(rows)],
         )
 
     async def _handle_message_created(self, client: MaxClient, update: dict[str, Any]) -> None:

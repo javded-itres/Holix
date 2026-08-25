@@ -27,7 +27,7 @@ On Russian macOS layout, `,help` and `.help` are normalized to `/help`. Type `/`
 
 | Command | Aliases | Description |
 |---------|---------|-------------|
-| `/help` | `/h`, `/?` | Show command help |
+| `/help` | `/h`, `/?` | Usage guide (Telegram/MAX: scenario buttons; `/help sub` → sub-agents). TUI: command list |
 | `/status` | — | Profile, execution mode, session id, context (where available) |
 | `/metrics` | — | Agent metrics summary |
 | `/clear` | `/cls` | Clear transcript (TUI); new conversation id (`chat-command`) |

@@ -124,6 +124,21 @@ def process_log_watch_keyboard(
     return InlineKeyboardMarkup(inline_keyboard=[row])
 
 
+def help_guide_keyboard(rows: list[list[tuple[str, str]]]) -> Any:
+    """Inline keyboard for `/help` scenario pages. Rows are (label, topic_id)."""
+    from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
+
+    kb_rows: list[list[Any]] = []
+    for row in rows:
+        kb_rows.append(
+            [
+                InlineKeyboardButton(text=label[:40], callback_data=_cb("hp", topic_id))
+                for label, topic_id in row
+            ]
+        )
+    return InlineKeyboardMarkup(inline_keyboard=kb_rows)
+
+
 def parse_callback(data: str) -> tuple[str, str] | None:
     if not data or not data.startswith(f"{PREFIX}:"):
         return None

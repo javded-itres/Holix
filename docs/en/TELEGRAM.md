@@ -2,6 +2,14 @@
 
 **Community channel:** [t.me/helix_agent](https://t.me/helix_agent) — project news and updates (not the bot you configure below).
 
+## Usage guide (`/help`)
+
+`/help` (and `/start`) open a **scenario menu** with inline buttons: getting started, chat, sub-agents, skills, SDD, models, memory, cron, MCP, permissions, files, command list.
+
+Sub-agents has a submenu: what they are, **configure types** (`/subagent-types`, create from a description, overlays), spawn a job, Code mode. Shortcut: `/help sub`.
+
+Settings panel remains `/menu`.
+
 Each profile can use its **own bot**. Secrets are stored in:
 
 `~/.holix/profiles/<name>/telegram.env`

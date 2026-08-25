@@ -9,7 +9,6 @@ from integrations.telegram.approvals import TelegramApprovals
 from integrations.telegram.commands import (
     command_specs,
     enable_chat_menu,
-    help_message_html,
     hide_chat_menu,
     register_bot_commands,
 )
@@ -712,12 +711,17 @@ class HolixTelegramBot:
                 await self._handle_unauthorized(bot, message, is_start=True)
                 return
             await self._ensure_authorized_menu(bot, message.chat.id, message.from_user.id)
+            from core.host.help_guide import render_help_page
+
+            from integrations.messenger.locale import messenger_locale
+            from integrations.telegram.keyboards import help_guide_keyboard
+
+            loc = messenger_locale(settings.profile)
+            html, rows = render_help_page("home", loc, html=True)
             await message.answer(
-                help_message_html(
-                    bot_profile=settings.profile,
-                    user_id=message.from_user.id,
-                ),
+                html,
                 parse_mode="HTML",
+                reply_markup=help_guide_keyboard(rows),
             )
 
         @dp.message(Command(*menu_commands))

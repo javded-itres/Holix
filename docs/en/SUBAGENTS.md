@@ -83,7 +83,7 @@ TUI custom types are the full form (skills, MCP, external CLI). Messenger menus 
 
 ### Telegram and MAX
 
-From the status menu choose **Sub-agents**, or send `/code-mode` / `/subagent-types`.
+`/help` → **Sub-agents** (or `/help sub`) is the usage guide. From the status menu choose **Sub-agents**, or send `/code-mode` / `/subagent-types`.
 
 | Action | What happens |
 |--------|----------------|

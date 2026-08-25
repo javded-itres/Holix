@@ -12,7 +12,6 @@ from cli.shared.slash_input import is_slash_command, normalize_slash_input
 from core.i18n import t
 
 from integrations.max.client import MaxClient
-from integrations.max.commands import help_message_markdown
 from integrations.max.event_handler import MaxEventHandler
 from integrations.max.interactive import MaxInteractive
 from integrations.max.live_presenter import MaxLivePresenter
@@ -229,7 +228,7 @@ class MaxHost:
         self.run_worker(run_forget_memory(self, clear_ui=False))
 
     def action_help(self) -> None:
-        asyncio.create_task(self._send_text(help_message_markdown(messenger_host_locale(self))))
+        asyncio.create_task(self._interactive.show_help_guide("home"))
 
     async def action_status(self) -> None:
         await self._interactive.show_status()
