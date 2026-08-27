@@ -27,6 +27,7 @@ RESERVED_SLASH_NAMES: frozenset[str] = frozenset(
         "trace",
         "permission",
         "pty",
+        "change",
         "new",
         "sessions",
         "switch",

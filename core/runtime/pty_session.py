@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import asyncio
-import fcntl
 import os
 import re
 import secrets
@@ -16,6 +15,11 @@ from dataclasses import dataclass
 from typing import Any
 
 from core.platform_compat import IS_POSIX, IS_WINDOWS
+
+try:
+    import fcntl
+except ImportError:  # pragma: no cover - Windows
+    fcntl = None  # type: ignore[assignment]
 
 _DONE = "__HOLIX_DONE__"
 _READY = "__HOLIX_READY__"
@@ -300,6 +304,8 @@ def _spawn_shell(
     workspace_root: str | None,
     sandbox_mode: str,
 ) -> PtyShell:
+    if fcntl is None:
+        raise PtyUnavailable("PTY requires POSIX fcntl")
     import pty as py_pty
 
     bash = shutil.which("bash") or "/bin/bash"

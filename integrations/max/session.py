@@ -41,6 +41,7 @@ class MaxChatSession:
     pending_plan_review_id: str | None = None
     pending_plan_phase: str = "approval"
     pending_confirmation_message_id: str | None = None
+    pending_confirmation_message_ids: dict[str, str] = field(default_factory=dict)
     pending_plan_message_ids: list[str] = field(default_factory=list)
     approval_callback_tokens: dict[str, str] = field(default_factory=dict)
     plan_callback_tokens: dict[str, str] = field(default_factory=dict)

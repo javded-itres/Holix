@@ -38,6 +38,7 @@ class ChatSession:
     pending_plan_review_id: str | None = None
     pending_plan_phase: str = "approval"
     pending_confirmation_message_id: int | None = None
+    pending_confirmation_message_ids: dict[str, int] = field(default_factory=dict)
     pending_plan_message_ids: list[int] = field(default_factory=list)
     # Short tokens for Telegram inline buttons (callback_data max 64 bytes).
     approval_callback_tokens: dict[str, str] = field(default_factory=dict)
