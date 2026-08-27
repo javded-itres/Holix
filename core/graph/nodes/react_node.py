@@ -1745,6 +1745,8 @@ def _build_system_prompt_from_state(state: HolixGraphState, agent=None) -> str:
                 workspace_root=getattr(agent.tools, "_workspace_root", None),
             )
             tools_desc = f"{tools_desc}\n\n{sdk}" if tools_desc else sdk
+    if not isinstance(tools_desc, str):
+        tools_desc = ""
 
     # Compact skill index (bodies load via skill_view)
     skills_formatted = ""
@@ -1761,6 +1763,8 @@ def _build_system_prompt_from_state(state: HolixGraphState, agent=None) -> str:
                 skills_formatted = ""
         if not skills_formatted and relevant_skills:
             skills_formatted = agent.skills.format_skills_for_prompt(relevant_skills)
+    if not isinstance(skills_formatted, str):
+        skills_formatted = ""
 
     # Format memories
     relevant_memories = state.get("relevant_memories", [])
@@ -1840,7 +1844,8 @@ def _build_system_prompt_from_state(state: HolixGraphState, agent=None) -> str:
 
     profile_name = profile_name_from_agent(agent) if agent else "default"
     agent_config = getattr(agent, "config", None) if agent else None
-    sub_prompt = str(getattr(agent, "subagent_system_prompt", "") or "").strip() if agent else ""
+    raw_sub = getattr(agent, "subagent_system_prompt", None) if agent else None
+    sub_prompt = raw_sub.strip() if isinstance(raw_sub, str) else ""
     try:
         from core.runtime.todo_list import format_todo_prompt_block, get_todos
 

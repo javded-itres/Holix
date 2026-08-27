@@ -28,7 +28,6 @@ _HOST_COMMAND_KEYS: list[tuple[str, str]] = [
     ("todos", "tg.cmd.todos"),
     ("trace", "tg.cmd.trace"),
     ("permission", "tg.cmd.permission"),
-    ("pty", "tg.cmd.pty"),
     ("change", "tg.cmd.change"),
     ("tools", "tg.cmd.tools"),
     ("last", "tg.cmd.last"),

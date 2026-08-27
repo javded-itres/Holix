@@ -54,6 +54,8 @@ Code mode, SDD git worktrees, OS sandbox, persistent PTY, ACP, session todos, an
 - Telegram/MAX help guide and sub-agent type manager.
 - Parallel messenger confirmation tokens; sub-agent confirmation 300s timeout.
 - Browser launch timeout / `networkidle`→`load`; `skill_view` on-demand bodies; sub-agent fork.
+- PTY module imports on Windows (`fcntl` is POSIX-only). `/change` is reserved; Telegram/MAX menu stays at 32 commands (`/pty` remains TUI/CLI).
+- ReAct system prompt ignores MagicMock `subagent_system_prompt` / skills (unit tests).
 
 ## 1.0.18 — 2026-08-24
 
