@@ -45,6 +45,8 @@
 
 - [TELEGRAM.md](TELEGRAM.md) · [MAX.md](MAX.md)
 - [GATEWAY.md](GATEWAY.md) · [GATEWAY_API.md](GATEWAY_API.md)
+- [Holix Studio CE](https://github.com/javded-itres/holix-studio-ce) — одноместная IDE на своей машине (витрина + установщик Holix)
+- [Holix Studio Cloud](https://holix-studio.ru) — команды и облачная Studio
 
 ### Экосистема расширений
 

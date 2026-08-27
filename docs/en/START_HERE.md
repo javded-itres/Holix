@@ -38,6 +38,7 @@ holix config show
 | Terminal chat | `holix chat-command` | Lightweight REPL |
 | One-shot | `holix run "…"` | Scripts, automation |
 | HTTP API | `holix gateway start` | Apps, OpenAI-compatible clients |
+| Local IDE (Studio CE) | [holix-studio-ce](https://github.com/javded-itres/holix-studio-ce) | Browser IDE, one user on your machine |
 | Telegram | `holix -p shared telegram setup` then gateway | Mobile access — [TELEGRAM.md](TELEGRAM.md) |
 | MAX | `holix max setup` | MAX messenger — [MAX.md](MAX.md) |
 

@@ -48,6 +48,8 @@ Holix is a self-improving AI agent: memory, skills, MCP, CLI, TUI, API gateway, 
 
 - [TELEGRAM.md](TELEGRAM.md) · [MAX.md](MAX.md)
 - [GATEWAY.md](GATEWAY.md) · [GATEWAY_API.md](GATEWAY_API.md)
+- [Holix Studio CE](https://github.com/javded-itres/holix-studio-ce) — single-user local IDE (landing + Holix installer)
+- [Holix Studio Cloud](https://holix-studio.ru) — teams and hosted Studio
 
 ### Extensions ecosystem
 

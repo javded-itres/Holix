@@ -19,6 +19,7 @@
 - **MCP** — configure and assign Model Context Protocol servers per agent
 - **Multi-provider** — Ollama, LiteLLM, OpenAI, Groq, and any OpenAI-compatible API
 - **Interfaces** — `holix tui`, `holix chat-command`, `holix run`, `holix gateway`
+- **Studio CE** — single-user local IDE ([holix-studio-ce](https://github.com/javded-itres/holix-studio-ce)); teams use [holix-studio.ru](https://holix-studio.ru)
 - **Security** — API keys, rate limits, command whitelist, confirmation prompts
 - **Operations** — `holix doctor`, `holix logs`, background gateway supervisor, Docker
 
@@ -73,6 +74,16 @@ cp .env.example .env
 ```
 
 Full guide: [docs/en/INSTALLATION.md](docs/en/INSTALLATION.md)
+
+### Local IDE (Studio CE)
+
+Single-user Holix in the browser (one person, your machine). Landing + agent installer:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/javded-itres/holix-studio-ce/main/scripts/install.sh | bash
+```
+
+Repository: [javded-itres/holix-studio-ce](https://github.com/javded-itres/holix-studio-ce) · Cloud for teams: [holix-studio.ru](https://holix-studio.ru)
 
 ### Configure and run
 
@@ -210,7 +221,6 @@ Reference: `packages/holix-extension-demo` in this repo.
 
 **Holix core:** MIT — see [LICENSE](LICENSE).
 
-**Holix Studio** is a separate extension package ([holix-studio](https://github.com/javded-itres/holix-studio))
-under the [Holix Studio Source Available License](https://github.com/javded-itres/holix-studio/blob/main/LICENSE)
-(source visible, **no redistribution or resale**). Install from the Studio repository when needed (`pip install` / clone).
-Holix loads it via the `holix.extensions` entry-point API — see [THIRD_PARTY_LICENSES.md](THIRD_PARTY_LICENSES.md).
+**Holix Studio CE** (single-user local IDE): [javded-itres/holix-studio-ce](https://github.com/javded-itres/holix-studio-ce) — public landing and installer. Not a dump of Cloud source.
+
+**Holix Studio Cloud** (teams, billing, instance license): [holix-studio.ru](https://holix-studio.ru), source-available product (no redistribution or resale of the Cloud IDE). Holix loads Studio via the `holix.extensions` entry-point API — see [THIRD_PARTY_LICENSES.md](THIRD_PARTY_LICENSES.md).

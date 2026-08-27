@@ -38,6 +38,7 @@ holix config show
 | Чат в терминале | `holix chat-command` | Лёгкий REPL |
 | Один запрос | `holix run "…"` | Скрипты |
 | HTTP API | `holix gateway start` | Приложения, OpenAI-клиенты |
+| Локальная IDE (Studio CE) | [holix-studio-ce](https://github.com/javded-itres/holix-studio-ce) | Браузерная IDE, один пользователь на своей машине |
 | Telegram | `holix -p shared telegram setup` | Мобильный доступ — [TELEGRAM.md](TELEGRAM.md) |
 | MAX | `holix max setup` | [MAX.md](MAX.md) |
 
