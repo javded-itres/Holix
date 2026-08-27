@@ -63,6 +63,43 @@ async def test_dismiss_confirmation_ignores_delete_errors(
     assert session.pending_confirmation_message_id is None
 
 
+def test_register_callback_token_keeps_siblings() -> None:
+    mapping: dict[str, str] = {}
+    a = _register_callback_token(mapping, "confirm_a")
+    b = _register_callback_token(mapping, "confirm_b")
+    assert a != b
+    assert mapping[a] == "confirm_a"
+    assert mapping[b] == "confirm_b"
+
+
+def test_resolve_one_confirmation_keeps_sibling_token(
+    approvals: TelegramApprovals, session: ChatSession
+) -> None:
+    agent = MagicMock()
+    agent.tools = MagicMock()
+    agent.subagents = None
+    bus = MagicMock()
+    guard = init_action_guard(event_bus=bus, confirmation_timeout=0)
+    agent.tools._action_guard = guard
+    session.agent = agent
+
+    loop = asyncio.new_event_loop()
+    try:
+        fa = loop.create_future()
+        fb = loop.create_future()
+        guard._pending_confirmations["confirm_a"] = fa
+        guard._pending_confirmations["confirm_b"] = fb
+        ta = _register_callback_token(session.approval_callback_tokens, "confirm_a")
+        tb = _register_callback_token(session.approval_callback_tokens, "confirm_b")
+        assert approvals.resolve_confirmation_callback(ta, "1") is True
+        assert fa.result() == ConfirmationChoice.ALLOW_ONCE
+        assert not fb.done()
+        assert session.approval_callback_tokens[tb] == "confirm_b"
+        assert ta not in session.approval_callback_tokens
+    finally:
+        loop.close()
+
+
 def test_callback_data_stays_within_telegram_limit() -> None:
     token = _register_callback_token({}, "confirm_99_" + "x" * 80)
     assert len(_callback_data("cfm", token, "1").encode("utf-8")) <= 64

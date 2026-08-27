@@ -659,6 +659,37 @@ class TestActionGuard:
         result = await asyncio.wait_for(task, timeout=2.0)
         assert result == "late approval ok"
 
+    @pytest.mark.asyncio
+    async def test_subagent_confirmation_times_out(self, monkeypatch: pytest.MonkeyPatch):
+        """Sub-agent conversations must not wait forever when no keyboard is left."""
+        monkeypatch.setattr(
+            "core.security.confirmation.SUBAGENT_CONFIRMATION_TIMEOUT_S",
+            0.05,
+        )
+        guard = ActionGuard(
+            event_bus=None,
+            permission_manager=self.pm,
+            risk_classifier=self.classifier,
+            auto_allow_threshold=RiskLevel.NO,
+            interactive=True,
+            confirmation_timeout=0,
+        )
+
+        async def fake_execute(**kwargs):
+            return "should not run"
+
+        class FakeTool:
+            risk_level = "high"
+
+        result = await guard.check_and_execute(
+            tool_name="run_code",
+            tool_instance=FakeTool(),
+            arguments={"code": "print(1)"},
+            execute_fn=fake_execute,
+            conversation_id="subagent:coder-1",
+        )
+        assert "denied" in result.lower() or "Error" in result
+
 
 class TestPlanExecutionAutoApprove:
     """Tests for auto-approve flag during plan execution."""

@@ -571,6 +571,11 @@ class ConfirmationChoice(StrEnum):
     DENY = "deny"  # Block this tool call
 
 
+# Async sub-agents wait on the parent ActionGuard. If Telegram/MAX drops a
+# parallel confirmation keyboard, timeout=none freezes the job forever.
+SUBAGENT_CONFIRMATION_TIMEOUT_S = 300
+
+
 def normalize_confirmation_timeout(value: int | float | None, *, default: int = 0) -> int:
     """Seconds to wait for user approval. 0 or negative = no timeout."""
     if value is None:
@@ -823,6 +828,8 @@ class ActionGuard:
 
             # Wait for resolution (with configurable timeout)
             timeout = self._confirmation_timeout if self._confirmation_timeout > 0 else None
+            if timeout is None and str(conversation_id or "").startswith("subagent:"):
+                timeout = float(SUBAGENT_CONFIRMATION_TIMEOUT_S)
             logger.info(
                 "ActionGuard: awaiting confirmation (timeout=%s, pending=%d)",
                 f"{timeout}s" if timeout is not None else "none",

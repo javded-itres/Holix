@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
-import secrets
 from typing import Any
 
 from core.plan_review.review_events import PlanReviewRequestEvent
@@ -15,14 +15,12 @@ from integrations.max.client import MaxClient
 from integrations.max.keyboards import confirmation_keyboard, plan_review_keyboard
 from integrations.max.markdown import plain_to_max_html
 from integrations.max.models import message_id_from_response, reply_kwargs_for_session
-
-
-def _register_callback_token(mapping: dict[str, str], full_id: str) -> str:
-    """Map a short opaque token to the full confirmation/review id."""
-    mapping.clear()
-    token = secrets.token_hex(4)
-    mapping[token] = full_id
-    return token
+from integrations.messenger.callback_tokens import (
+    drop_callback_token,
+)
+from integrations.messenger.callback_tokens import (
+    register_callback_token as _register_callback_token,
+)
 
 
 def _lookup_callback_token(mapping: dict[str, str], token_or_id: str) -> str:
@@ -38,7 +36,6 @@ class MaxApprovals:
         self._pending_review_id: str | None = None
 
     async def on_confirmation_request(self, event: ConfirmationRequestEvent) -> None:
-        await self.dismiss_confirmation_ui()
         self._pending_confirm_id = event.confirmation_id
         token = _register_callback_token(
             self._session.approval_callback_tokens,
@@ -67,7 +64,14 @@ class MaxApprovals:
                 chat_type=self._session.chat_type,
             ),
         )
-        self._session.pending_confirmation_message_id = message_id_from_response(payload)
+        mid = message_id_from_response(payload)
+        self._session.pending_confirmation_message_id = mid
+        ids = getattr(self._session, "pending_confirmation_message_ids", None)
+        if ids is None:
+            self._session.pending_confirmation_message_ids = {}
+            ids = self._session.pending_confirmation_message_ids
+        if mid:
+            ids[event.confirmation_id] = mid
 
     async def on_plan_review_request(self, event: PlanReviewRequestEvent) -> None:
         await self.dismiss_plan_review_ui()
@@ -150,8 +154,7 @@ class MaxApprovals:
             confirmation_id,
         )
         if self._try_resolve_confirmation(full_id, choice):
-            self._pending_confirm_id = None
-            self._session.approval_callback_tokens.clear()
+            self._forget_confirmation(full_id)
             return True
 
         agent = self._session.agent
@@ -159,15 +162,31 @@ class MaxApprovals:
             from core.subagents.interaction import resolve_any_confirmation
 
             if resolve_any_confirmation(agent, choice):
-                self._pending_confirm_id = None
-                self._session.approval_callback_tokens.clear()
+                self._forget_confirmation(full_id)
                 return True
 
         if self._confirmation_already_resolved(full_id):
-            self._pending_confirm_id = None
-            self._session.approval_callback_tokens.clear()
+            self._forget_confirmation(full_id)
             return True
         return False
+
+    def _forget_confirmation(self, confirmation_id: str) -> None:
+        drop_callback_token(self._session.approval_callback_tokens, confirmation_id)
+        if self._pending_confirm_id == confirmation_id:
+            self._pending_confirm_id = None
+        ids = getattr(self._session, "pending_confirmation_message_ids", None)
+        mid = None
+        if isinstance(ids, dict):
+            mid = ids.pop(confirmation_id, None)
+        if mid is None:
+            mid = self._session.pending_confirmation_message_id
+            self._session.pending_confirmation_message_id = None
+        if mid:
+            try:
+                loop = asyncio.get_running_loop()
+                loop.create_task(self._delete_message_safe(str(mid)))
+            except RuntimeError:
+                pass
 
     def _try_resolve_confirmation(
         self,

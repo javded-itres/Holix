@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-import secrets
+import asyncio
 from typing import Any
 
 from core.plan_review.review_events import PlanReviewRequestEvent
@@ -10,18 +10,16 @@ from core.plan_review.review_guard import PlanReviewChoice, get_plan_review_guar
 from core.security.confirmation import ConfirmationChoice, get_action_guard
 from core.security.confirmation_events import ConfirmationRequestEvent
 
+from integrations.messenger.callback_tokens import (
+    drop_callback_token,
+)
+from integrations.messenger.callback_tokens import (
+    register_callback_token as _register_callback_token,
+)
 from integrations.telegram.markdown import escape_html, plain_to_telegram_html
 
 # Telegram Bot API: callback_data must be 1–64 bytes.
 _TELEGRAM_CALLBACK_MAX_BYTES = 64
-
-
-def _register_callback_token(mapping: dict[str, str], full_id: str) -> str:
-    """Map a short opaque token to the full confirmation/review id."""
-    mapping.clear()
-    token = secrets.token_hex(4)
-    mapping[token] = full_id
-    return token
 
 
 def _lookup_callback_token(mapping: dict[str, str], token_or_id: str) -> str:
@@ -44,7 +42,8 @@ class TelegramApprovals:
         self._pending_review_id: str | None = None
 
     async def on_confirmation_request(self, event: ConfirmationRequestEvent) -> None:
-        await self.dismiss_confirmation_ui()
+        # Keep sibling prompts (parallel sub-agents). Dismissing here left
+        # earlier run_code confirmations waiting forever with no keyboard.
         self._pending_confirm_id = event.confirmation_id
         token = _register_callback_token(
             self._session.approval_callback_tokens,
@@ -104,6 +103,11 @@ class TelegramApprovals:
             reply_markup=kb,
         )
         self._session.pending_confirmation_message_id = sent.message_id
+        ids = getattr(self._session, "pending_confirmation_message_ids", None)
+        if ids is None:
+            self._session.pending_confirmation_message_ids = {}
+            ids = self._session.pending_confirmation_message_ids
+        ids[event.confirmation_id] = sent.message_id
 
     async def on_plan_review_request(self, event: PlanReviewRequestEvent) -> None:
         await self.dismiss_plan_review_ui()
@@ -199,8 +203,7 @@ class TelegramApprovals:
             confirmation_id,
         )
         if self._try_resolve_confirmation(full_id, choice):
-            self._pending_confirm_id = None
-            self._session.approval_callback_tokens.clear()
+            self._forget_confirmation(full_id)
             return True
 
         # Fallback: match /yes behaviour (latest pending on this agent).
@@ -209,16 +212,32 @@ class TelegramApprovals:
             from core.subagents.interaction import resolve_any_confirmation
 
             if resolve_any_confirmation(agent, choice):
-                self._pending_confirm_id = None
-                self._session.approval_callback_tokens.clear()
+                self._forget_confirmation(full_id)
                 return True
 
         # Idempotent: user double-tapped after the action was already approved.
         if self._confirmation_already_resolved(full_id):
-            self._pending_confirm_id = None
-            self._session.approval_callback_tokens.clear()
+            self._forget_confirmation(full_id)
             return True
         return False
+
+    def _forget_confirmation(self, confirmation_id: str) -> None:
+        drop_callback_token(self._session.approval_callback_tokens, confirmation_id)
+        if self._pending_confirm_id == confirmation_id:
+            self._pending_confirm_id = None
+        ids = getattr(self._session, "pending_confirmation_message_ids", None)
+        mid = None
+        if isinstance(ids, dict):
+            mid = ids.pop(confirmation_id, None)
+        if mid is None and self._session.pending_confirmation_message_id is not None:
+            mid = self._session.pending_confirmation_message_id
+            self._session.pending_confirmation_message_id = None
+        if mid is not None:
+            try:
+                loop = asyncio.get_running_loop()
+                loop.create_task(self._delete_message_safe(int(mid)))
+            except RuntimeError:
+                pass
 
     def _try_resolve_confirmation(
         self,
