@@ -85,6 +85,19 @@ def test_acp_argv_parses_command_and_args(monkeypatch: pytest.MonkeyPatch) -> No
     assert acp_argv() is None
 
 
+def test_acp_argv_keeps_windows_paths(monkeypatch: pytest.MonkeyPatch) -> None:
+    from core.acp import config as acp_config
+
+    monkeypatch.setattr(acp_config, "IS_WINDOWS", True)
+    win = r"D:\a\Holix\.venv\Scripts\python.exe D:\tmp\acp_echo.py"
+    monkeypatch.setenv("HOLIX_ACP_COMMAND", win)
+    monkeypatch.delenv("HOLIX_ACP_ARGS", raising=False)
+    assert acp_argv() == [
+        r"D:\a\Holix\.venv\Scripts\python.exe",
+        r"D:\tmp\acp_echo.py",
+    ]
+
+
 @pytest.mark.asyncio
 async def test_run_acp_prompt_echo(fake_agent: Path) -> None:
     result = await run_acp_prompt(

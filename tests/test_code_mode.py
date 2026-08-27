@@ -176,7 +176,12 @@ async def test_run_code_terminal_pwd_is_workspace(tmp_path) -> None:
         )
     )
     ws = str((tmp_path / "ws").resolve())
-    assert ws in out.replace("/private", "") or ws in out
+    blob = out.replace("/private", "").replace("\\", "/")
+    posix_ws = ws.replace("\\", "/")
+    git_bash_ws = posix_ws
+    if len(posix_ws) >= 2 and posix_ws[1] == ":":
+        git_bash_ws = f"/{posix_ws[0].lower()}{posix_ws[2:]}"
+    assert posix_ws in blob or git_bash_ws in blob or ws in out
 
 
 @pytest.mark.asyncio

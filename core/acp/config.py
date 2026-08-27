@@ -5,15 +5,17 @@ from __future__ import annotations
 import os
 import shlex
 
+from core.platform_compat import IS_WINDOWS
+
 
 def acp_argv(*, command: str | None = None) -> list[str] | None:
     raw = (command or os.environ.get("HOLIX_ACP_COMMAND") or "").strip()
     if not raw:
         return None
-    argv = shlex.split(raw)
+    argv = shlex.split(raw, posix=not IS_WINDOWS)
     extra = (os.environ.get("HOLIX_ACP_ARGS") or "").strip()
     if extra:
-        argv.extend(shlex.split(extra))
+        argv.extend(shlex.split(extra, posix=not IS_WINDOWS))
     return argv or None
 
 
