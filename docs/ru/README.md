@@ -16,6 +16,7 @@
 | 1. Установка | [INSTALLATION.md](INSTALLATION.md) |
 | 2. Первый запуск | [START_HERE.md](START_HERE.md) |
 | 3. Маршрут обучения | [USER_GUIDE.md](USER_GUIDE.md) |
+| Локальная IDE (один пользователь) | [Holix Studio CE](https://github.com/javded-itres/holix-studio-ce) |
 
 ---
 

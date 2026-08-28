@@ -15,6 +15,7 @@ Holix is a self-improving AI agent: memory, skills, MCP, CLI, TUI, API gateway, 
 | 1. Install | [INSTALLATION.md](INSTALLATION.md) |
 | 2. First run checklist | [START_HERE.md](START_HERE.md) |
 | 3. Full learning path | [USER_GUIDE.md](USER_GUIDE.md) |
+| Local IDE (one user) | [Holix Studio CE](https://github.com/javded-itres/holix-studio-ce) |
 
 ---
 

@@ -11,6 +11,8 @@ Holix requires **Python 3.12+** and installs as the CLI command **`holix`**. Pic
 
 After either path, continue with [START_HERE.md](START_HERE.md) for first-run checklist.
 
+**Browser IDE (optional):** [Holix Studio CE](https://github.com/javded-itres/holix-studio-ce) — single-user Studio on your machine. Installer and setup: [docs/en/SETUP.md](https://github.com/javded-itres/holix-studio-ce/blob/main/docs/en/SETUP.md).
+
 ---
 
 ## Requirements (both paths)
@@ -163,7 +165,7 @@ holix telegram setup    # optional
 holix tui
 ```
 
-Data: `~/.holix/` (Linux/macOS), `%LOCALAPPDATA%\Holix\` (Windows), or `HOLIX_HOME`.  
+Data: `~/.holix/` (Linux/macOS), `%LOCALAPPDATA%\Holix\` (Windows), or `HOLIX_HOME`.
 Config layers: [CONFIGURATION.md](CONFIGURATION.md). Logs: [LOGS.md](LOGS.md).
 
 ### Path A — updates

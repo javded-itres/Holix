@@ -6,8 +6,9 @@
 [![Python](https://img.shields.io/badge/python-3.12%2B-blue.svg)](https://python.org)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![Docs](https://img.shields.io/badge/docs-en%20%7C%20ru-blue)](docs/README.md)
+[![Studio CE](https://img.shields.io/badge/Studio_CE-local_IDE-0ea5e9)](https://github.com/javded-itres/holix-studio-ce)
 
-**Website:** [holix-agent.ru](https://holix-agent.ru) · **PyPI:** [Holix](https://pypi.org/project/Holix/) · **GitHub:** [javded-itres/Holix](https://github.com/javded-itres/Holix) · **Telegram:** [@helix_agent](https://t.me/helix_agent) · **Docs:** [EN](docs/en/README.md) · [RU](docs/ru/README.md) · **Donate:** [Boosty](https://boosty.to/javded/single-payment/donation/805721/target?share=target_link)
+**Website:** [holix-agent.ru](https://holix-agent.ru) · **PyPI:** [Holix](https://pypi.org/project/Holix/) · **GitHub:** [javded-itres/Holix](https://github.com/javded-itres/Holix) · **Studio CE:** [holix-studio-ce](https://github.com/javded-itres/holix-studio-ce) · **Telegram:** [@helix_agent](https://t.me/helix_agent) · **Docs:** [EN](docs/en/README.md) · [RU](docs/ru/README.md) · **Donate:** [Boosty](https://boosty.to/javded/single-payment/donation/805721/target?share=target_link)
 
 ---
 
@@ -77,13 +78,18 @@ Full guide: [docs/en/INSTALLATION.md](docs/en/INSTALLATION.md)
 
 ### Local IDE (Studio CE)
 
-Single-user Holix in the browser (one person, your machine). Landing + agent installer:
+Browser IDE for one user on your machine: chat, files, git, terminal.
+
+**Repo:** [github.com/javded-itres/holix-studio-ce](https://github.com/javded-itres/holix-studio-ce)
+**Setup:** [EN](https://github.com/javded-itres/holix-studio-ce/blob/main/docs/en/SETUP.md) · [RU](https://github.com/javded-itres/holix-studio-ce/blob/main/docs/ru/SETUP.md)
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/javded-itres/holix-studio-ce/main/scripts/install.sh | bash
+holix-studio-ce serve
+# http://127.0.0.1:8788/studio/
 ```
 
-Repository: [javded-itres/holix-studio-ce](https://github.com/javded-itres/holix-studio-ce) · Cloud for teams: [holix-studio.ru](https://holix-studio.ru)
+Cloud for teams: [holix-studio.ru](https://holix-studio.ru)
 
 ### Configure and run
 
@@ -116,6 +122,7 @@ holix gateway start
 | Deployment | [DEPLOYMENT.md](docs/en/DEPLOYMENT.md) |
 | Troubleshooting | [TROUBLESHOOTING.md](docs/en/TROUBLESHOOTING.md) |
 | Architecture | [ARCHITECTURE.md](docs/en/ARCHITECTURE.md) |
+| **Studio CE (local IDE)** | [holix-studio-ce](https://github.com/javded-itres/holix-studio-ce) |
 
 ## Документация (русский)
 
@@ -126,6 +133,7 @@ holix gateway start
 | Слэш-команды | [SLASH_COMMANDS.md](docs/ru/SLASH_COMMANDS.md) |
 | Начало | [START_HERE.md](docs/ru/START_HERE.md) |
 | **MAX** | [MAX.md](docs/ru/MAX.md) |
+| **Studio CE (локальная IDE)** | [holix-studio-ce](https://github.com/javded-itres/holix-studio-ce) |
 
 ---
 

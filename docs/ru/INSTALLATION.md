@@ -11,6 +11,8 @@ Holix требует **Python 3.12+** (для локальной установ�
 
 После любого пути — [START_HERE.md](START_HERE.md) (чеклист первого запуска).
 
+**Браузерная IDE (по желанию):** [Holix Studio CE](https://github.com/javded-itres/holix-studio-ce) — одноместная Studio на своей машине. Установка и настройка: [docs/ru/SETUP.md](https://github.com/javded-itres/holix-studio-ce/blob/main/docs/ru/SETUP.md).
+
 ---
 
 ## Требования (оба пути)

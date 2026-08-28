@@ -98,6 +98,7 @@ Documentation = "https://holix-agent.ru"
 Repository = "https://github.com/javded-itres/Holix"
 Issues = "https://github.com/javded-itres/Holix/issues"
 Changelog = "https://github.com/javded-itres/Holix/blob/master/docs/CHANGELOG.md"
+"Studio CE" = "https://github.com/javded-itres/holix-studio-ce"
 
 [dependency-groups]
 dev = [
