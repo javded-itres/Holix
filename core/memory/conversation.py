@@ -8,8 +8,6 @@ from datetime import datetime
 from typing import Any
 
 import aiosqlite
-import chromadb
-from chromadb.config import Settings as ChromaSettings
 
 from core.di.runtime_config import HolixRuntimeConfig
 from core.memory.chroma_embeddings import get_or_create_collection
@@ -68,10 +66,9 @@ class ConversationStore:
         self.db_path = prepare_sqlite_db_file(cfg.memory_db_path)
         self.vector_db_path = prepare_vector_db_dir(cfg.vector_db_path)
 
-        self.chroma_client = chromadb.PersistentClient(
-            path=str(self.vector_db_path),
-            settings=ChromaSettings(anonymized_telemetry=False),
-        )
+        from core.memory.chroma_client import get_persistent_client
+
+        self.chroma_client = get_persistent_client(self.vector_db_path)
         collection_name = cfg.memory_chroma_collection or "memory"
         self.collection = get_or_create_collection(
             self.chroma_client,

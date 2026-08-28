@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+## 1.1.1 — 2026-08-29
+
+### Fixed
+
+- **Chroma PersistentClient singleton** — opening two `PersistentClient`s on the same directory segfaults in `chromadb_rust_bindings` (Studio 502 after SDD apply via sub-agents). Conversation memory and LTM now share one client per path; extra Studio sessions and in-process sub-agents reuse it.
+
 ## 1.1.0 — 2026-08-27
 
 Code mode, SDD git worktrees, OS sandbox, persistent PTY, ACP, session todos, and Telegram/MAX stability.
