@@ -13,7 +13,6 @@ import logging
 from typing import Any
 
 import chromadb
-from chromadb.config import Settings as ChromaSettings
 
 from core.memory.chroma_embeddings import get_or_create_collection
 
@@ -31,15 +30,14 @@ class VectorMemoryStore:
     def __init__(self, vector_db_path: str | None = None):
         if vector_db_path is None:
             from core.di.runtime_config import HolixRuntimeConfig
+
             vector_db_path = HolixRuntimeConfig.from_settings().vector_db_path
+        from core.memory.chroma_client import get_persistent_client
         from core.paths import prepare_vector_db_dir
 
         self._vector_db_path = prepare_vector_db_dir(vector_db_path)
 
-        self._chroma_client = chromadb.PersistentClient(
-            path=str(self._vector_db_path),
-            settings=ChromaSettings(anonymized_telemetry=False),
-        )
+        self._chroma_client = get_persistent_client(self._vector_db_path)
 
         # Lazy collection cache — created on first access
         self._collections: dict[str, chromadb.Collection] = {}
@@ -210,11 +208,13 @@ class VectorMemoryStore:
 
             if raw["documents"] and raw["documents"][0]:
                 for i, doc in enumerate(raw["documents"][0]):
-                    items.append({
-                        "content": doc,
-                        "metadata": raw["metadatas"][0][i] if raw["metadatas"] else {},
-                        "distance": raw["distances"][0][i] if raw.get("distances") else None,
-                    })
+                    items.append(
+                        {
+                            "content": doc,
+                            "metadata": raw["metadatas"][0][i] if raw["metadatas"] else {},
+                            "distance": raw["distances"][0][i] if raw.get("distances") else None,
+                        }
+                    )
 
             results[name] = items
 

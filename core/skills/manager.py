@@ -3,7 +3,6 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-import chromadb
 import yaml
 
 from core.di.runtime_config import HolixRuntimeConfig
@@ -78,9 +77,11 @@ class SkillsManager:
         if self._local_skills_dir:
             self._local_skills_dir.mkdir(parents=True, exist_ok=True)
 
-        # Initialize ChromaDB for semantic skill search
-        self.chroma_client = chromadb.PersistentClient(
-            path=str(Path(cfg.vector_db_path).parent / "skills_db"),
+        # Initialize ChromaDB for semantic skill search (process singleton per path)
+        from core.memory.chroma_client import get_persistent_client
+
+        self.chroma_client = get_persistent_client(
+            Path(cfg.vector_db_path).parent / "skills_db",
         )
         self.skills_collection = get_or_create_collection(
             self.chroma_client,
