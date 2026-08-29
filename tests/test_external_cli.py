@@ -318,7 +318,9 @@ def test_external_cli_launch_requires_assigned_subagent(holix_home) -> None:
 
     assert external_cli_launch_error("default", "claude", caller_agent_type="") is not None
     assert external_cli_launch_error("default", "claude", caller_agent_type="main") is not None
-    assert external_cli_launch_error("default", "claude", caller_agent_type="researcher") is not None
+    assert (
+        external_cli_launch_error("default", "claude", caller_agent_type="researcher") is not None
+    )
     assert external_cli_launch_error("default", "claude", caller_agent_type="coder") is None
 
     store.upsert_binding(
@@ -329,11 +331,14 @@ def test_external_cli_launch_requires_assigned_subagent(holix_home) -> None:
             agent_slot="coder",
         )
     )
-    assert "disabled" in (external_cli_launch_error("default", "claude", caller_agent_type="coder") or "")
+    assert "disabled" in (
+        external_cli_launch_error("default", "claude", caller_agent_type="coder") or ""
+    )
 
 
 def test_prepare_subagent_config_injects_external_cli_for_assigned_subagent(
-    holix_home, monkeypatch: pytest.MonkeyPatch,
+    holix_home,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setattr(
         "core.external_cli.platform.launch_supported",
@@ -444,10 +449,12 @@ def test_main_agent_tool_schemas_hide_external_cli() -> None:
     registry.register_all()
     names = {schema["function"]["name"] for schema in registry.get_schemas()}
     assert "external_cli" not in names
-    assert "ask_user" not in names
+    assert "ask_user" in names
     assert "ask_user" in registry.tools
 
-    names_sub = {schema["function"]["name"] for schema in registry.get_schemas(for_agent_slot="coder")}
+    names_sub = {
+        schema["function"]["name"] for schema in registry.get_schemas(for_agent_slot="coder")
+    }
     if launch_supported():
         assert "external_cli" in names_sub
     assert "ask_user" in names_sub

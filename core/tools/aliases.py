@@ -39,8 +39,27 @@ TOOL_ALIASES: dict[str, str] = {
     "webfetch": "fetch_url",
     "websearch": "web_search",
     "task": "delegate_to_subagent",
+    "agent": "delegate_to_subagent",
     "todowrite": "todo_write",
     "todo": "todo_write",
+    "update_plan": "todo_write",
+    "skill": "skill_view",
+    "use_skill": "skill_view",
+    "grep_files": "grep",
+    "glob_files": "glob",
+    "applypatch": "apply_patch",
+    "askuserquestion": "ask_user",
+    "ask_user_question": "ask_user",
+    "toolsearch": "tool_search",
+    "monitor": "job_monitor",
+    "taskoutput": "job_monitor",
+    "taskstop": "job_monitor",
+    "sendmessage": "subagent_control",
+    "enterplanmode": "plan_mode",
+    "exitplanmode": "plan_mode",
+    "sessionsearch": "session_search",
+    "search_history": "session_search",
+    "notebookedit": "notebook_edit",
     # Grok / Cursor-adjacent
     "run_terminal_cmd": "run_terminal_command",
     "run_terminal": "run_terminal_command",
@@ -62,8 +81,7 @@ TOOL_ALIASES: dict[str, str] = {
     "apply_diff": "patch_file",
     "list_files": "list_directory",
     "list_folder": "list_directory",
-    # Codex / OpenAI agents
-    "apply_patch": "patch_file",
+    # Codex / OpenAI agents — apply_patch is a real tool (not an alias of patch_file)
     # OpenHands / SWE-agent / Qwen-coder
     "execute_bash": "run_terminal_command",
     "run_bash": "run_terminal_command",
@@ -142,6 +160,10 @@ ARG_ALIASES: dict[str, tuple[str, ...]] = {
     "replacements": ("edits", "changes", "patches"),
     "old_string": ("old_str", "search", "find_text"),
     "new_string": ("new_str", "replace_text"),
+    "patch": ("diff", "patch_text", "input"),
+    "questions": ("items",),
+    "job_id": ("process_id", "id"),
+    "agent_id": ("job_id", "name", "subagent"),
     "agent_type": ("agent", "subagent", "persona", "type"),
     "label": ("process_name",),
     "process_id": ("processid",),
@@ -166,7 +188,38 @@ def resolve_tool_name(name: str, tools: dict[str, Any] | None = None) -> str:
             return key
         if folded in tools:
             return folded
-    return TOOL_ALIASES.get(key) or TOOL_ALIASES.get(folded) or folded
+    compact = folded.replace("_", "")
+    return TOOL_ALIASES.get(key) or TOOL_ALIASES.get(folded) or TOOL_ALIASES.get(compact) or folded
+
+
+_INFERRED_ACTION: dict[str, str] = {
+    "enterplanmode": "enter",
+    "exitplanmode": "exit",
+    "taskstop": "kill",
+    "taskoutput": "tail",
+    "sendmessage": "send",
+}
+
+
+def infer_alias_action(
+    original_name: str, resolved: str, arguments: dict[str, Any] | None
+) -> dict[str, Any]:
+    """Fill ``action`` for multi-action tools when the model used a foreign name."""
+    args = dict(arguments or {})
+    if args.get("action"):
+        return args
+    compact = (original_name or "").strip().lower().replace("-", "_").replace("_", "")
+    inferred = _INFERRED_ACTION.get(compact)
+    if inferred:
+        args["action"] = inferred
+        return args
+    if compact == "monitor":
+        stop = args.get("stop") or args.get("kill") or args.get("signal")
+        if str(stop or "").strip().lower() in {"1", "true", "kill", "stop", "yes"}:
+            args["action"] = "kill"
+        else:
+            args["action"] = "list"
+    return args
 
 
 def _accepted_param_names(execute_fn: Callable[..., Any]) -> set[str] | None:
@@ -259,6 +312,10 @@ def apply_aliases_to_registry(registry: Any) -> int:
             "google",
             "browser",
             "delete",
+            "agent",
+            "monitor",
+            "skill",
+            "lsp",
         }
     )
     added = 0

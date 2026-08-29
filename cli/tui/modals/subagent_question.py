@@ -2,10 +2,13 @@
 
 from __future__ import annotations
 
+import json
+from typing import Any
+
 from textual import on
 from textual.app import ComposeResult
 from textual.binding import Binding
-from textual.containers import Container, Horizontal
+from textual.containers import Container, Horizontal, Vertical
 from textual.screen import ModalScreen
 from textual.widgets import Button, Input, Label, Static
 
@@ -114,6 +117,7 @@ class SubagentQuestionModal(ModalScreen[str | None]):
         task_preview: str = "",
         queue_index: int = 1,
         queue_total: int = 1,
+        questions: list[dict[str, Any]] | None = None,
     ) -> None:
         super().__init__()
         self.request_id = request_id
@@ -123,6 +127,8 @@ class SubagentQuestionModal(ModalScreen[str | None]):
         self.task_preview = task_preview
         self.queue_index = queue_index
         self.queue_total = queue_total
+        self.questions = list(questions or [])
+        self._option_map: dict[str, tuple[str, str]] = {}
 
     @classmethod
     def from_event(
@@ -141,6 +147,7 @@ class SubagentQuestionModal(ModalScreen[str | None]):
             task_preview=task_preview,
             queue_index=queue_index,
             queue_total=queue_total,
+            questions=list(getattr(event, "questions", None) or []),
         )
 
     def compose(self) -> ComposeResult:
@@ -174,6 +181,15 @@ class SubagentQuestionModal(ModalScreen[str | None]):
                     id="subq-context",
                     markup=True,
                 )
+            options = self._first_options()
+            if options:
+                with Vertical(id="subq-options"):
+                    for i, opt in enumerate(options):
+                        bid = f"btn-opt-{i}"
+                        qid = str((self.questions[0] or {}).get("id") or "q1")
+                        self._option_map[bid] = (qid, str(opt.get("id") or ""))
+                        label = str(opt.get("label") or opt.get("id") or "")[:48]
+                        yield Button(label, id=bid, classes="subq-opt")
             yield Input(
                 placeholder="Type your answer and press Enter…",
                 id="subq-input",
@@ -192,8 +208,23 @@ class SubagentQuestionModal(ModalScreen[str | None]):
         except Exception:
             pass
 
+    def _first_options(self) -> list[dict[str, Any]]:
+        if not self.questions:
+            return []
+        opts = self.questions[0].get("options") if isinstance(self.questions[0], dict) else None
+        return [o for o in (opts or []) if isinstance(o, dict)]
+
     def _submit(self, answer: str | None) -> None:
         self.dismiss(answer)
+
+    @on(Button.Pressed, ".subq-opt")
+    def on_option(self, event: Button.Pressed) -> None:
+        bid = str(getattr(event.button, "id", "") or "")
+        pair = self._option_map.get(bid)
+        if not pair:
+            return
+        qid, oid = pair
+        self._submit(json.dumps({qid: [oid]}, ensure_ascii=False))
 
     @on(Input.Submitted, "#subq-input")
     def on_input_submitted(self, event: Input.Submitted) -> None:

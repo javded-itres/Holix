@@ -52,7 +52,7 @@ return {"n": len(hits)}
 - Only `print()` and `return` come back. Inner dumps are truncated and stay out of history.
 - Relative paths and `run_terminal_command` start in profile `workspace_root` (shown in the SDK), not process CWD.
 - Persistent servers: `tools.start_background_process(...)`, not `run_terminal_command`.
-- Edit existing files with `tools.patch_file(path=..., old_string=..., new_string=...)`. `write_file` is for new files or a full rewrite.
+- Edit existing files with `tools.patch_file(...)` (Claude/Qwen/DeepSeek) or `tools.apply_patch(patch=...)` (GPT/Codex). `write_file` is for new files or a full rewrite. See [TOOLS.md](TOOLS.md).
 - Probe localhost with `curl` via `run_terminal_command`. Browser `fetch_url` rejects localhost.
 - Do not `import os`, `subprocess`, `pathlib`. File and shell work goes through `tools.*`.
 

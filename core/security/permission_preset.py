@@ -30,6 +30,8 @@ _READ_ONLY_BLOCKED = frozenset(
     {
         "write_file",
         "patch_file",
+        "apply_patch",
+        "notebook_edit",
         "delete_file",
         "execute_python",
         "code_executor",

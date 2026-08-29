@@ -23,9 +23,10 @@ may run together: `tools.parallel(("read_file", {"path": "a"}), \
 ("grep", {"pattern": "TODO", "path": "."}))` returns a list of results. \
 Writes and other mutating calls stay one-at-a-time.
 - Edit existing files with `tools.patch_file(path=..., old_string=..., \
-new_string=...)` or `replacements=[{"old_string": "...", "new_string": \
-"..."}]`. Use `tools.write_file` only to create a new file or replace the \
-entire contents — do not rewrite a module to change a few lines.
+new_string=...)` (Claude/Qwen/DeepSeek) or `tools.apply_patch(patch=...)` \
+(GPT/Codex). Use `tools.write_file` only to create a new file or replace the \
+entire contents — do not rewrite a module to change a few lines. Missing \
+tool name: `tools.tool_search(query=...)`.
 - Emit results with `return` and/or `print(...)`. ONLY what you print or return \
 comes back — intermediate tool results are not added to the conversation, so \
 extract just what you need.

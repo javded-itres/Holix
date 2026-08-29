@@ -253,7 +253,14 @@ def recover_empty_react_text(
         return summary
     log = getattr(handle, "activity_log", None) or []
     writes: list[str] = []
-    persist = {"write_file", "patch_file", "sdd_write_artifact", "sdd_update_spec"}
+    persist = {
+        "write_file",
+        "patch_file",
+        "apply_patch",
+        "notebook_edit",
+        "sdd_write_artifact",
+        "sdd_update_spec",
+    }
     for item in log:
         if not isinstance(item, dict):
             continue

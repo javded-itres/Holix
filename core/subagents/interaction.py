@@ -104,6 +104,7 @@ class SubAgentInteractionBridge:
         request_id = metadata.get("request_id") or f"subq_{uuid.uuid4().hex[:10]}"
         question = metadata.get("question", "")
         context = metadata.get("context", "")
+        questions = metadata.get("questions") if isinstance(metadata.get("questions"), list) else []
 
         loop = asyncio.get_running_loop()
         future = loop.create_future()
@@ -116,6 +117,7 @@ class SubAgentInteractionBridge:
             "subagent_name": subagent_name,
             "question": question,
             "context": context,
+            "questions": questions,
             "conversation_id": parent_cid,
         }
 
@@ -126,6 +128,7 @@ class SubAgentInteractionBridge:
                 subagent_name=subagent_name,
                 question=question,
                 context=context,
+                questions=list(questions or []),
                 conversation_id=parent_cid or "default",
             )
             emit = getattr(self._parent, "emit", None)
@@ -162,6 +165,7 @@ class SubAgentInteractionBridge:
         question: str,
         *,
         context: str = "",
+        questions: list[dict] | None = None,
     ) -> str:
         """In-process ask_user for async sub-agents (same event bus, no IPC)."""
         return await self.handle_ipc_question(
@@ -170,6 +174,7 @@ class SubAgentInteractionBridge:
                 "request_id": f"subq_{uuid.uuid4().hex[:10]}",
                 "question": question,
                 "context": context,
+                "questions": list(questions or []),
             },
         )
 

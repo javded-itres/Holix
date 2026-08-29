@@ -323,6 +323,7 @@ class HolixAgent:
         await self.memory.initialize_db()
 
         self.tools.register_all()
+        self.tools._host_agent = self
         from core.extensions.agent_registry import register_agent_extensions
         from core.tools.agent_extensions import register_agent_extension_manager_tool
 

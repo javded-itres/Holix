@@ -183,8 +183,9 @@ def prepare_subagent_config(
             )
 
     tools = list(cfg.tools or [])
-    if "ask_user" not in tools:
-        tools.append("ask_user")
+    for extra in ("ask_user", "tool_search", "session_search"):
+        if extra not in tools:
+            tools.append(extra)
     if "terminal" in tools or "run_terminal_command" in tools:
         for bg in (
             "start_background_process",

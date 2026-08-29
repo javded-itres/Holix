@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+### Added
+
+- **Coding-agent tools** — `apply_patch` (Codex multi-file patch, atomic, jail + ActionGuard),
+  `job_monitor`, `subagent_control`, `tool_search`, `session_search`, `notebook_edit`,
+  `plan_mode`, `lsp` (jedi or `lsp_unavailable`). `ask_user` now takes `questions[]` with
+  option buttons, blocks the loop, and is available on main as well as sub-agents.
+  Aliases: `ApplyPatch`, `Edit`→`patch_file`, `EnterPlanMode`, `Task`/`Agent`, `Monitor`/`TaskStop`,
+  and the rest of the Claude/Codex leaked names. GPT/Codex prefer `apply_patch`;
+  Claude/Qwen/DeepSeek prefer `patch_file`. See [TOOLS.md](en/TOOLS.md).
+
 ### Changed
 
 - **Leaner agent context** — load 80 recent messages (was 200); older tool dumps

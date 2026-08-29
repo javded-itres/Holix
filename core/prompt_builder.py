@@ -473,7 +473,8 @@ Examples:
 ## Tool Usage Guidelines
 
 - Use `read_file` to examine existing code or configuration
-- Use `patch_file` to **edit existing files** (exact unique `old_string` → `new_string`, or `replacements=[…]`). This is the default for code changes — small, reviewable diffs. `old_string` must match once; add surrounding lines if it is ambiguous.
+- Prefer dedicated file/search tools over `cat`/`sed`/`grep`/`find` in the shell.
+- Claude / Qwen / DeepSeek → `patch_file` (exact unique `old_string` → `new_string`, or `replacements=[…]`). GPT / Codex family → `apply_patch` (*** Begin Patch). Ambiguous requirements → `ask_user` before mutating. Missing tool name → `tool_search`, never invent a name.
 - Use `write_file` only to **create a new file** or when you must replace the entire contents. Do not rewrite a whole module to change a few lines.
 - Use `grep` to search file contents (regex); `glob` to find files by name pattern. Do **not** shell out to `rg`/`find` for this.
 - Use `delete_file` to remove a single file (not a directory)
@@ -635,7 +636,12 @@ def tools_prompt_policy() -> str:
     """Short tool policy for the system prompt (schemas go in the API ``tools`` list)."""
     return (
         "Function-calling tools are attached to this request (JSON schemas, not listed here).\n"
-        "- Edit existing files with `patch_file`; create or fully replace files with `write_file`.\n"
+        "- Prefer dedicated file/search tools over cat/sed/grep/find in the shell.\n"
+        "- Claude / Qwen / DeepSeek: edit existing files with `patch_file` "
+        "(old_string/new_string). GPT / Codex family: prefer `apply_patch`.\n"
+        "- Create or fully replace files with `write_file`.\n"
+        "- Ambiguous requirements → `ask_user` before mutating. Missing tool name → "
+        "`tool_search`, never invent a name.\n"
         "- Search with `grep` / `glob`; do not shell out to `rg` / `find` for that.\n"
         "- Tests and builds: `run_terminal_command`. Persistent servers: "
         "`start_background_process` only when the user asked to keep them running.\n"

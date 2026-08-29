@@ -1,6 +1,6 @@
 """Events for sub-agent questions surfaced in the main chat stream."""
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any
 
 from core.agent_events import AgentEvent, EventType
@@ -18,6 +18,7 @@ class SubAgentQuestionEvent(AgentEvent):
     subagent_name: str = ""
     question: str = ""
     context: str = ""
+    questions: list[dict[str, Any]] = field(default_factory=list)
 
     def __post_init__(self):
         object.__setattr__(self, "type", EventType.ERROR)
@@ -28,6 +29,7 @@ class SubAgentQuestionEvent(AgentEvent):
             "subagent_name": self.subagent_name,
             "question": self.question,
             "context": self.context,
+            "questions": self.questions,
             "event_type": SubAgentInteractionEventType.QUESTION,
         }
 

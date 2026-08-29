@@ -248,6 +248,13 @@ class MaxInteractive:
             await self.exit_process_log_watch()
             return t("tg.process.watch_closed", messenger_host_locale(self._host))
 
+        if action == "qo":
+            from integrations.messenger.subagent_reply import apply_ask_option
+
+            ok = apply_ask_option(self._host.agent, self._session, value)
+            lang = messenger_host_locale(self._host)
+            return "OK" if ok else t("tg.error", lang)
+
         if action == "sr":
             from integrations.messenger.subagent_reply import apply_reply_button
             from integrations.messenger.subagent_watch import resolve_job_token

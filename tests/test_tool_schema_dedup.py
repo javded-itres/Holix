@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from collections import Counter
 
-from core.tools.aliases import get_registered_tool, resolve_tool_name
+from core.tools.aliases import get_registered_tool, infer_alias_action, resolve_tool_name
 from core.tools.registry import ToolRegistry
 
 
@@ -22,6 +22,15 @@ def test_get_schemas_has_no_duplicate_function_names() -> None:
     assert "skill_view" in names
     assert "skill_manage" in names
     assert "todo_write" in names
+    assert "apply_patch" in names
+    assert "ask_user" in names
+    assert "job_monitor" in names
+    assert "tool_search" in names
+    assert "session_search" in names
+    assert "notebook_edit" in names
+    assert "plan_mode" in names
+    assert "lsp" in names
+    assert "subagent_control" in names
 
 
 def test_run_project_alias_resolves() -> None:
@@ -65,7 +74,15 @@ def test_cross_agent_tool_name_aliases() -> None:
         "run_project": "start_background_process",
         "list_processes": "list_background_processes",
         "Task": "delegate_to_subagent",
+        "Agent": "delegate_to_subagent",
         "TodoWrite": "todo_write",
+        "ApplyPatch": "apply_patch",
+        "AskUserQuestion": "ask_user",
+        "EnterPlanMode": "plan_mode",
+        "ToolSearch": "tool_search",
+        "Monitor": "job_monitor",
+        "NotebookEdit": "notebook_edit",
+        "SessionSearch": "session_search",
     }
     for foreign, canonical in expected.items():
         assert resolve_tool_name(foreign) == canonical, foreign
@@ -85,3 +102,14 @@ def test_registered_name_wins_over_alias() -> None:
     registry.tools["search"] = _Stub()
     assert resolve_tool_name("search", registry.tools) == "search"
     assert resolve_tool_name("search") == "web_search"
+
+
+def test_multi_action_alias_infers_action() -> None:
+    assert resolve_tool_name("Edit") == "patch_file"
+    assert resolve_tool_name("ApplyPatch") == "apply_patch"
+    assert resolve_tool_name("EnterPlanMode") == "plan_mode"
+    assert infer_alias_action("EnterPlanMode", "plan_mode", {})["action"] == "enter"
+    assert infer_alias_action("ExitPlanMode", "plan_mode", {})["action"] == "exit"
+    assert infer_alias_action("TaskOutput", "job_monitor", {})["action"] == "tail"
+    assert infer_alias_action("TaskStop", "job_monitor", {})["action"] == "kill"
+    assert infer_alias_action("SendMessage", "subagent_control", {})["action"] == "send"

@@ -427,6 +427,16 @@ class TerminalTool(BaseTool):
         if is_run_cancelled():
             return "Error: Run cancelled — terminal command not started."
 
+        from core.tools.apply_patch import ApplyPatchTool, extract_apply_patch_document
+
+        patch_doc = extract_apply_patch_document(command)
+        if patch_doc is not None:
+            result = await ApplyPatchTool().execute(patch=patch_doc)
+            return (
+                "Do not shell out to apply_patch; call the apply_patch tool directly "
+                "next time.\n" + result
+            )
+
         if is_introspect_command(command):
             return INTROSPECT_REFUSAL
 

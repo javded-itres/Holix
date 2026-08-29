@@ -1297,7 +1297,15 @@ def _ipc_ask_user(
     timeout: float,
 ) -> str:
     request_id = f"subq_{uuid.uuid4().hex[:10]}"
-    question = str(args.get("question", "") or "").strip()
+    from core.tools.ask_user import normalize_ask_user_args
+
+    items, reason_text = normalize_ask_user_args(
+        question=str(args.get("question", "") or ""),
+        context=str(args.get("context", "") or ""),
+        questions=args.get("questions") if isinstance(args.get("questions"), list) else None,
+        reason=str(args.get("reason", "") or ""),
+    )
+    question = items[0]["prompt"] if items else str(args.get("question", "") or "").strip()
     if not question:
         return "Error: ask_user requires a non-empty question"
     msg = AgentMessage(
@@ -1309,7 +1317,8 @@ def _ipc_ask_user(
         metadata={
             "request_id": request_id,
             "question": question,
-            "context": str(args.get("context", "") or ""),
+            "context": reason_text or str(args.get("context", "") or ""),
+            "questions": items,
         },
     )
     output_queue.put(msg.serialize(), timeout=5)

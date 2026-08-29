@@ -36,7 +36,7 @@ Holix is a self-improving AI agent: memory, skills, MCP, CLI, TUI, API gateway, 
 - [SLASH_COMMANDS.md](SLASH_COMMANDS.md) · [EXECUTION_MODES.md](EXECUTION_MODES.md)
 - [CODE_MODE.md](CODE_MODE.md) — `run_code` / `tools_presentation`
 - [CLI.md](CLI.md) — complete command reference
-- [HUB.md](HUB.md) · [BROWSER_TOOLS.md](BROWSER_TOOLS.md)
+- [HUB.md](HUB.md) · [BROWSER_TOOLS.md](BROWSER_TOOLS.md) · [TOOLS.md](TOOLS.md)
 - [MCP.md](MCP.md) · [MEMORY.md](MEMORY.md)
 
 ### Agents & automation

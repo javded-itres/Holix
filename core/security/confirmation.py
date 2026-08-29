@@ -205,6 +205,29 @@ class RiskClassifier:
         if tool_name == "stop_background_process":
             return RiskLevel.LOW, "Stop background dev server", None
 
+        resolved = tool_name
+        try:
+            from core.tools.aliases import resolve_tool_name
+
+            resolved = resolve_tool_name(tool_name)
+        except Exception:
+            resolved = tool_name
+
+        if resolved == "job_monitor":
+            action = str(arguments.get("action") or "").strip().lower()
+            if action == "kill":
+                return RiskLevel.MEDIUM, "Kill background job", None
+            return RiskLevel.NO, "Inspect background job", None
+
+        if resolved == "subagent_control":
+            action = str(arguments.get("action") or "").strip().lower()
+            if action in {"list", "status"}:
+                return RiskLevel.NO, "Sub-agent status", None
+            return RiskLevel.MEDIUM, "Control running sub-agent", None
+
+        if resolved == "apply_patch":
+            return RiskLevel.MEDIUM, "Apply multi-file patch", None
+
         # SDD: all sdd_* tools auto-allowed except task launch (apply/dispatch)
         if tool_name.startswith("sdd_"):
             if tool_name in ("sdd_apply", "sdd_dispatch"):

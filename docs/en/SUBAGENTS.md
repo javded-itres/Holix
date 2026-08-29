@@ -40,7 +40,7 @@ If the child ReAct engine cannot start, the runner falls back to the legacy loop
 |------|------|------------|
 | `researcher` | Deep research, files, web | `web_search`, `web_fetch`, `read_file`, `list_directory` |
 | `web_researcher` | Web search + synthesis | `web_search`, `web_fetch` |
-| `coder` | Write, edit, debug code | `read_file`, `patch_file`, `write_file`, `terminal`, `code_executor` |
+| `coder` | Write, edit, debug code | `read_file`, `patch_file`, `apply_patch`, `write_file`, `terminal`, `code_executor` |
 | `analyst` | Data / SQL analysis | `sql_query`, `sql_schema`, `code_executor`, `math_calculator` |
 | `reviewer` | Code review | `read_file`, `list_directory`, `terminal` |
 | `writer` | Docs and content | `read_file`, `patch_file`, `write_file`, `list_directory` |

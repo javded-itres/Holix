@@ -1,7 +1,7 @@
 import json
 from typing import Any
 
-from core.tools.aliases import apply_aliases_to_registry, resolve_tool_name
+from core.tools.aliases import apply_aliases_to_registry, infer_alias_action, resolve_tool_name
 from core.tools.base import BaseTool, filter_execute_kwargs
 
 
@@ -93,6 +93,7 @@ class ToolRegistry:
 
     def register_all(self) -> None:
         """Import and register all available tools."""
+        from core.tools.apply_patch import ApplyPatchTool
         from core.tools.ask_user import AskUserTool
         from core.tools.code_executor import MathCalculatorTool, PythonExecutorTool
         from core.tools.database import SQLQueryTool, SQLSchemaTool
@@ -105,17 +106,26 @@ class ToolRegistry:
             ReadFileTool,
             WriteFileTool,
         )
+        from core.tools.job_monitor import JobMonitorTool
+        from core.tools.lsp import LspTool
+        from core.tools.notebook_edit import NotebookEditTool
+        from core.tools.plan_mode import PlanModeTool
         from core.tools.send_chat_files import SendChatFilesTool
         from core.tools.session_memory import ReadSessionTool, SearchSessionsTool
+        from core.tools.session_search import SessionSearchTool
         from core.tools.skills import SkillManageTool, SkillViewTool
+        from core.tools.subagent_control import SubagentControlTool
         from core.tools.terminal import TerminalTool
         from core.tools.todo import TodoWriteTool
+        from core.tools.tool_search import ToolSearchTool
         from core.tools.web_search import WebFetchTool, WebSearchTool
 
         # File operations
         self.register(ReadFileTool())
         self.register(WriteFileTool())
         self.register(PatchFileTool())
+        self.register(ApplyPatchTool())
+        self.register(NotebookEditTool())
         list_dir_tool = ListDirectoryTool()
         self.register(list_dir_tool)
         self.register_alias("list_dir", list_dir_tool)
@@ -159,6 +169,12 @@ class ToolRegistry:
 
         # Sub-agent ↔ user bridge
         self.register(AskUserTool())
+        self.register(JobMonitorTool())
+        self.register(SubagentControlTool())
+        self.register(ToolSearchTool())
+        self.register(SessionSearchTool())
+        self.register(PlanModeTool())
+        self.register(LspTool())
 
         # Session checklist (TUI / Telegram / MAX)
         self.register(TodoWriteTool())
@@ -301,25 +317,45 @@ class ToolRegistry:
 
         slot = (for_agent_slot or "main").strip().lower() or "main"
         assigns = getattr(self, "_mcp_assignments", None)
+        from core.tools.plan_mode_state import is_plan_mode
+        from core.tools.slot_policy import (
+            filter_schemas_for_plan_mode,
+            tool_allowed_for_slot,
+        )
+
         seen: set[str] = set()
         schemas: list[dict[str, Any]] = []
+        session_extra = getattr(self, "_session_enabled_tools", None) or set()
         for tool in self.tools.values():
             name = getattr(tool, "name", "") or ""
             if not name or name in seen:
                 continue
             if name == RUN_CODE_NAME:
                 continue
+            if not tool_allowed_for_slot(name, slot):
+                continue
             if not mcp_tool_allowed(name, slot=slot, assignments=assigns):
                 continue
             seen.add(name)
             schemas.append(tool.to_openai_schema())
         if slot == "main":
-            hidden_for_main = frozenset({"external_cli", "ask_user"})
+            hidden_for_main = frozenset({"external_cli"})
             schemas = [
                 schema
                 for schema in schemas
                 if schema.get("function", {}).get("name") not in hidden_for_main
             ]
+        if session_extra:
+            extra_names = {str(n) for n in session_extra if str(n)}
+            present = {str((s.get("function") or {}).get("name") or "") for s in schemas}
+            for name in extra_names:
+                if name in present or name not in self.tools:
+                    continue
+                if not tool_allowed_for_slot(name, slot):
+                    continue
+                schemas.append(self.tools[name].to_openai_schema())
+        if is_plan_mode():
+            schemas = filter_schemas_for_plan_mode(schemas)
         return schemas
 
     def get_schemas(self, *, for_agent_slot: str = "main") -> list[dict[str, Any]]:
@@ -408,6 +444,21 @@ class ToolRegistry:
             args = json.loads(tool_call.function.arguments)
         except json.JSONDecodeError as e:
             return f"Error: Invalid JSON arguments - {e}"
+        args = infer_alias_action(tool_name, resolved, args)
+
+        try:
+            from core.tools.plan_mode_state import is_plan_mode
+            from core.tools.result import tool_err
+            from core.tools.slot_policy import is_plan_mode_blocked
+
+            if is_plan_mode() and is_plan_mode_blocked(resolved):
+                return tool_err(
+                    "plan_mode_blocked",
+                    f"Tool '{resolved}' is blocked while plan_mode is on. "
+                    "Call plan_mode(action='exit') after the plan is approved.",
+                )
+        except Exception:
+            pass
 
         from core.crypto.unlock_context import (
             get_profile_session_dek,

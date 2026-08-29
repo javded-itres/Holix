@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import secrets
 from dataclasses import dataclass
 from typing import Any
@@ -85,6 +86,68 @@ def ensure_job_token(mapping: dict[str, str], job_id: str) -> str:
     token = secrets.token_hex(4)
     mapping[token] = jid
     return token
+
+
+def remember_ask_option(
+    session: Any,
+    *,
+    request_id: str,
+    job_id: str,
+    question_id: str,
+    option_id: str,
+) -> str:
+    mapping = getattr(session, "ask_user_option_tokens", None)
+    if mapping is None:
+        mapping = {}
+        session.ask_user_option_tokens = mapping
+    token = secrets.token_hex(4)
+    mapping[token] = f"{request_id}\t{job_id}\t{question_id}\t{option_id}"
+    return token
+
+
+def option_rows_for_event(session: Any, event: Any) -> list[tuple[str, str]]:
+    questions = getattr(event, "questions", None) or []
+    job_id = str(getattr(event, "subagent_name", "") or "").strip()
+    request_id = str(getattr(event, "request_id", "") or "")
+    rows: list[tuple[str, str]] = []
+    for question in questions:
+        if not isinstance(question, dict):
+            continue
+        qid = str(question.get("id") or "q1")
+        for opt in question.get("options") or []:
+            if not isinstance(opt, dict):
+                continue
+            oid = str(opt.get("id") or "").strip()
+            label = str(opt.get("label") or oid).strip()
+            if not oid or not label:
+                continue
+            token = remember_ask_option(
+                session,
+                request_id=request_id,
+                job_id=job_id,
+                question_id=qid,
+                option_id=oid,
+            )
+            prefix = f"{qid}: " if len(questions) > 1 else ""
+            rows.append((f"{prefix}{label}"[:40], token))
+    return rows
+
+
+def apply_ask_option(agent: Any, session: Any, token: str) -> bool:
+    mapping = getattr(session, "ask_user_option_tokens", None) or {}
+    raw = mapping.get(token) or ""
+    if not raw:
+        return False
+    parts = str(raw).split("\t")
+    if len(parts) != 4:
+        return False
+    request_id, job_id, qid, oid = parts
+    payload = json.dumps({qid: [oid]}, ensure_ascii=False)
+    bridge = get_interaction_bridge(agent)
+    if bridge is not None and request_id:
+        if bridge.resolve_question(request_id, payload):
+            return True
+    return deliver_subagent_answer(agent, job_id, payload)
 
 
 def tokens_for_jobs(mapping: dict[str, str], job_ids: list[str]) -> dict[str, str]:

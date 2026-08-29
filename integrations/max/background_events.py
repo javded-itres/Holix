@@ -52,6 +52,7 @@ async def deliver_max_subagent_question(client: Any, session: Any, event: Any) -
         mark_question_posted,
     )
     from integrations.messenger.subagent_reply import (
+        option_rows_for_event,
         remember_question_message,
         tokens_for_jobs,
     )
@@ -70,7 +71,7 @@ async def deliver_max_subagent_question(client: Any, session: Any, event: Any) -
         html=False,
     )
     tokens = tokens_for_jobs(session.subagent_reply_tokens, [name])
-    kb = subagent_reply_keyboard(tokens, lang)
+    kb = subagent_reply_keyboard(tokens, lang, option_rows=option_rows_for_event(session, event))
     try:
         payload = await client.send_message(
             text,

@@ -52,7 +52,7 @@ return {"n": len(hits)}
 - В контекст возвращаются только `print()` и `return`. Внутренние дампы обрезаются.
 - Относительные пути и `run_terminal_command` стартуют в `workspace_root` профиля, не в cwd процесса.
 - Сервер: `tools.start_background_process(...)`, не `run_terminal_command`.
-- Правки существующих файлов: `tools.patch_file(path=..., old_string=..., new_string=...)`. `write_file` — новый файл или полная перезапись.
+- Правки существующих файлов: `tools.patch_file(...)` (Claude/Qwen/DeepSeek) или `tools.apply_patch(patch=...)` (GPT/Codex). `write_file` — новый файл или полная перезапись. См. [TOOLS.md](TOOLS.md).
 - Локальный HTTP проверяйте `curl` через `run_terminal_command`. `fetch_url` localhost отклоняет.
 - Не импортируйте `os`, `subprocess`, `pathlib`. Файлы и shell — через `tools.*`.
 

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
-_WRITE_TOOLS = frozenset({"write_file", "patch_file"})
+_WRITE_TOOLS = frozenset({"write_file", "patch_file", "apply_patch", "notebook_edit"})
 
 NOOP_WRITE_MARK = "no content changes"
 

@@ -198,7 +198,7 @@ def extract_textual_tool_calls(
     return [call for call in found if tool_call_has_required_args(call)]
 
 
-_WRITE_TOOLS = frozenset({"write_file", "patch_file"})
+_WRITE_TOOLS = frozenset({"write_file", "patch_file", "apply_patch", "notebook_edit"})
 _PATH_TOOLS = frozenset({"read_file", "list_directory", "delete_file"})
 _SEARCH_TOOLS = frozenset({"grep", "glob"})
 _SHELL_TOOLS = frozenset({"terminal", "run_terminal_command"})
@@ -219,6 +219,8 @@ def tool_call_has_required_args(call: dict[str, Any] | None) -> bool:
     elif isinstance(raw, str) and raw.strip():
         parsed = _load_json_blob(raw)
         args = parsed if isinstance(parsed, dict) else {}
+    if name == "apply_patch":
+        return bool(str(args.get("patch") or "").strip())
     if name in _WRITE_TOOLS:
         return bool(str(args.get("path") or "").strip()) and "content" in args
     if name in _PATH_TOOLS:

@@ -34,8 +34,12 @@ def subagent_list_keyboard(job_tokens: dict[str, str], labels: dict[str, str]) -
     return InlineKeyboardMarkup(inline_keyboard=rows)
 
 
-def subagent_reply_keyboard(job_tokens: dict[str, str], locale: str | None = None) -> Any:
-    """One 'Reply to {job}' button per waiting sub-agent."""
+def subagent_reply_keyboard(
+    job_tokens: dict[str, str],
+    locale: str | None = None,
+    option_rows: list[tuple[str, str]] | None = None,
+) -> Any:
+    """Option buttons (if any) plus a 'Reply to {job}' free-text button."""
     from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
     from core.i18n.messages import t
 
@@ -43,6 +47,8 @@ def subagent_reply_keyboard(job_tokens: dict[str, str], locale: str | None = Non
 
     loc = locale or MESSENGER_DEFAULT_LOCALE
     rows: list[list[Any]] = []
+    for label, token in option_rows or []:
+        rows.append([InlineKeyboardButton(text=label[:40], callback_data=_cb("qo", token))])
     for job_id, token in job_tokens.items():
         label = t("tg.subagent_q.reply_btn", loc, name=job_id)[:40]
         rows.append([InlineKeyboardButton(text=label, callback_data=_cb("sr", token))])
