@@ -46,3 +46,13 @@ def test_nested_agents_md_within_depth(tmp_path: Path) -> None:
 def test_empty_tree_returns_empty_block(tmp_path: Path) -> None:
     assert discover_instruction_files(tmp_path) == []
     assert format_instruction_files_block(tmp_path) == ""
+
+
+def test_format_skips_claude_md_when_agents_md_present(tmp_path: Path) -> None:
+    (tmp_path / "AGENTS.md").write_text("agents only\n", encoding="utf-8")
+    (tmp_path / "CLAUDE.md").write_text("claude duplicate\n", encoding="utf-8")
+    (tmp_path / "rules.md").write_text("rules\n", encoding="utf-8")
+    block = format_instruction_files_block(tmp_path)
+    assert "agents only" in block
+    assert "rules" in block
+    assert "claude duplicate" not in block

@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 from core.env_loader import format_env_context_block, profile_env_path
-from core.prompt_builder import build_system_prompt
+from core.prompt_builder import build_system_prompt, tools_prompt_policy
 
 
 def test_format_env_context_block_lists_paths(
@@ -26,6 +26,20 @@ def test_format_env_context_block_lists_paths(
     assert str(profile_env_path("work")) in block
     assert "HOLIX_HOME" in block
     assert "holix gateway reload" in block
+
+
+def test_tools_prompt_policy_is_not_a_catalog() -> None:
+    text = tools_prompt_policy()
+    assert "JSON schemas" in text
+    assert "not listed here" in text
+    assert "- **read_file**:" not in text
+    prompt = build_system_prompt(
+        tools_description=text,
+        active_skills=[],
+        profile_name="default",
+    )
+    assert "Function-calling tools are attached" in prompt
+    assert "- **read_file**:" not in prompt
 
 
 def test_build_system_prompt_includes_env_paths(

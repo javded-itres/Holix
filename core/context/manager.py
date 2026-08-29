@@ -16,8 +16,9 @@ from core.context.token_counter import DEFAULT_CONTEXT_WINDOW, TokenCounter
 
 logger = logging.getLogger(__name__)
 
-# System prompt + tools + HOLIX.md overhead not stored in message history.
-DEFAULT_SYSTEM_PROMPT_RESERVE = 4096
+# System prompt + HOLIX.md + identity — not stored in message history.
+# 4096 under-counted Studio prompts and delayed compression.
+DEFAULT_SYSTEM_PROMPT_RESERVE = 8192
 _MAX_AUTO_COMPRESS_ROUNDS = 3
 
 
@@ -26,7 +27,7 @@ class ContextManager:
 
     Responsibilities:
     - Track token usage vs. context window size
-    - Warn when usage exceeds thresholds (70% warning, 90% critical)
+    - Warn when usage exceeds thresholds (55% warning, 70% compress)
     - Automatically compress context when critical threshold is reached
     - Provide formatted usage display for UI
     """
@@ -37,8 +38,8 @@ class ContextManager:
         token_counter: TokenCounter | None = None,
         compressor: ContextCompressor | None = None,
         event_bus: Any | None = None,
-        compression_threshold: float = 0.85,
-        warning_threshold: float = 0.70,
+        compression_threshold: float = 0.70,
+        warning_threshold: float = 0.55,
         system_prompt_reserve: int = DEFAULT_SYSTEM_PROMPT_RESERVE,
     ):
         """Initialize the context manager.
@@ -48,8 +49,8 @@ class ContextManager:
             token_counter: TokenCounter instance for counting tokens.
             compressor: ContextCompressor instance for compressing history.
             event_bus: Optional AgentEventBus for emitting events.
-            compression_threshold: Fraction (0-1) at which auto-compress triggers (default 85%).
-            warning_threshold: Fraction (0-1) at which warnings are emitted (default 70%).
+            compression_threshold: Fraction (0-1) at which auto-compress triggers (default 70%).
+            warning_threshold: Fraction (0-1) at which warnings are emitted (default 55%).
             system_prompt_reserve: Estimated tokens for system prompt not in history.
         """
         self.context_window = context_window
@@ -67,6 +68,10 @@ class ContextManager:
 
         # Per-conversation token usage cache (incremental append, full recount on compress)
         self._usage_cache: dict[str, dict[str, Any]] = {}
+
+    def note_system_prompt_tokens(self, tokens: int) -> None:
+        """Record measured system-prompt size (replaces the conservative default)."""
+        self.system_prompt_reserve = max(0, int(tokens))
 
     def update_context_window(self, context_window: int) -> None:
         """Update the context window size (e.g., when switching models).

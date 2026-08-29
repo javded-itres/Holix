@@ -40,7 +40,7 @@ from core.agent_events import (
     ToolCallResultEvent,
     ToolCallStartEvent,
 )
-from core.prompt_builder import build_system_prompt, format_tools_description
+from core.prompt_builder import build_system_prompt, tools_prompt_policy
 
 
 async def run_agent_loop(
@@ -82,11 +82,11 @@ async def run_agent_loop(
     try:
         memories = await agent.memory.search(
             query=user_input,
-            top_k=5,
+            top_k=3,
             conversation_id=None,  # Search across ALL conversations
         )
-        # Filter: only include memories from OTHER conversations or
-        # system messages (context compression summaries) that may not be in current messages
+        # Other sessions only — current chat is already in messages.
+        # Skip compress-summaries (they are re-injected from history).
         if memories:
             memory_parts = []
             for mem in memories:
@@ -94,16 +94,17 @@ async def run_agent_loop(
                 mem_conv = meta.get("conversation_id", "")
                 mem_type = meta.get("type", "")
                 mem_role = meta.get("role", "")
-                # Include if from a different conversation, or a context compression summary
-                if mem_conv != conversation_id or mem_type == "context_compression":
-                    source = f"session {mem_conv[:8]}" if mem_conv else "unknown"
-                    if mem_type == "context_compression":
-                        source = f"compressed context ({source})"
-                    elif mem_role == "system":
-                        source = f"system note ({source})"
-                    distance = mem.get("distance")
-                    relevance = f" (relevance: {1 - distance:.2f})" if distance is not None else ""
-                    memory_parts.append(f"[{source}{relevance}]: {mem['content'][:500]}")
+                if mem_conv == conversation_id or mem_type == "context_compression":
+                    continue
+                source = f"session {mem_conv[:8]}" if mem_conv else "unknown"
+                if mem_role == "system":
+                    source = f"system note ({source})"
+                distance = mem.get("distance")
+                relevance = f" (relevance: {1 - distance:.2f})" if distance is not None else ""
+                snippet = (mem.get("content") or "")[:240]
+                memory_parts.append(f"[{source}{relevance}]: {snippet}")
+                if len(memory_parts) >= 3:
+                    break
 
             if memory_parts:
                 relevant_memories = "\n".join(memory_parts)
@@ -111,9 +112,7 @@ async def run_agent_loop(
         logger.warning(f"Memory search failed: {e}")
 
     # Build system prompt
-    tools_desc = format_tools_description(
-        agent.tools.get_schemas(for_agent_slot=getattr(agent, "agent_slot", "main"))
-    )
+    tools_desc = tools_prompt_policy()
     agent_config = getattr(agent, "config", None)
     profile_name = getattr(agent_config, "profile_name", None)
     persona_name = getattr(agent, "studio_agent_type", None)
@@ -609,6 +608,8 @@ def _build_api_messages(
     system_msg = {"role": "system", "content": system_prompt}
     history = prepare_conversation_for_llm(messages)
     system_tokens = context_manager.token_counter.count_message_tokens([system_msg])
+    if hasattr(context_manager, "note_system_prompt_tokens"):
+        context_manager.note_system_prompt_tokens(system_tokens)
 
     # Reserve buffer for model's response and tool overhead
     response_reserve = 2048

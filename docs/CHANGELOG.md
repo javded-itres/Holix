@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+### Changed
+
+- **Leaner agent context** — load 80 recent messages (was 200); older tool dumps
+  cap at 1.2k chars (last 6 tools stay at 6k); auto-compress at 70% of the window
+  (warn at 55%). System prompt no longer repeats the tool catalog (schemas stay on
+  the API `tools` list); measured system-prompt tokens replace the 4k reserve guess.
+  Memory injection skips the current chat and compress-summaries; CLAUDE.md is
+  skipped when AGENTS.md is already loaded.
+
 ## 1.1.2 — 2026-08-29
 
 ### Added

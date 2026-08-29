@@ -11,7 +11,7 @@ from core.skills.assignments import is_skill_allowed_for_agent
 from core.skills.paths import join_under, resolve_under_any
 
 # One-liners in the system prompt; extra skills stay behind skill_view().
-_SKILLS_PROMPT_CAP = 48
+_SKILLS_PROMPT_CAP = 32
 _SKILL_DESC_LIMIT = 160
 
 

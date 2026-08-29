@@ -77,7 +77,7 @@ from core.llm.usage import (
     usage_dict_from_stream_chunk,
 )
 from core.profile.soul import profile_name_from_agent
-from core.prompt_builder import build_system_prompt, format_tools_description
+from core.prompt_builder import build_system_prompt, tools_prompt_policy
 
 logger = logging.getLogger(__name__)
 
@@ -1731,10 +1731,9 @@ async def _react_streaming(
 def _build_system_prompt_from_state(state: HolixGraphState, agent=None) -> str:
     """Build the system prompt using state's memory/skills/strategies."""
     # Format tools
-    tools_desc = ""
+    tools_desc = tools_prompt_policy()
     if agent and hasattr(agent, "tools"):
         slot = getattr(agent, "agent_slot", "main")
-        tools_desc = format_tools_description(agent.tools.get_schemas(for_agent_slot=slot))
         from core.tools.code_mode.policy import normalize_presentation
         from core.tools.code_mode.sdk import build_code_mode_prompt_section
 
@@ -1774,8 +1773,10 @@ def _build_system_prompt_from_state(state: HolixGraphState, agent=None) -> str:
         for mem in relevant_memories:
             source = mem.get("source", "unknown")
             relevance = mem.get("relevance", "")
-            content = mem.get("content", "")
+            content = (mem.get("content") or "")[:240]
             memory_parts.append(f"[{source}{relevance}]: {content}")
+            if len(memory_parts) >= 6:
+                break
         memories_text = "\n".join(memory_parts)
 
     # Format strategies
@@ -1901,6 +1902,8 @@ def _build_api_messages(system_prompt, messages, context_manager) -> list:
     system_msg = {"role": "system", "content": system_prompt}
     history = prepare_conversation_for_llm(messages)
     system_tokens = context_manager.token_counter.count_message_tokens([system_msg])
+    if hasattr(context_manager, "note_system_prompt_tokens"):
+        context_manager.note_system_prompt_tokens(system_tokens)
 
     response_reserve = 2048
     available_tokens = context_manager.context_window - system_tokens - response_reserve

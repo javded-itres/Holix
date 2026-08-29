@@ -49,32 +49,36 @@ async def memory_retrieval_node(state: HolixGraphState, config: RunnableConfig) 
         try:
             # Parallel retrieval from all memory types
             if hasattr(memory, "get_relevant_context"):
-                context = await memory.get_relevant_context(user_input, top_k=5)
+                context = await memory.get_relevant_context(user_input, top_k=3)
 
                 # Episodic memories
                 for ep in context.get("episodic", []):
                     source = "past experience"
                     distance = ep.get("distance")
                     relevance = f" (relevance: {1 - distance:.2f})" if distance is not None else ""
-                    relevant_memories.append({
-                        "type": "episodic",
-                        "content": ep.get("content", "")[:500],
-                        "source": source,
-                        "relevance": relevance,
-                        "outcome": ep.get("outcome", "unknown"),
-                    })
+                    relevant_memories.append(
+                        {
+                            "type": "episodic",
+                            "content": ep.get("content", "")[:240],
+                            "source": source,
+                            "relevance": relevance,
+                            "outcome": ep.get("outcome", "unknown"),
+                        }
+                    )
 
                 # Semantic facts
                 for fact in context.get("semantic", []):
                     key = fact.get("key", "")
                     distance = fact.get("distance")
                     relevance = f" (relevance: {1 - distance:.2f})" if distance is not None else ""
-                    relevant_memories.append({
-                        "type": "semantic",
-                        "content": fact.get("content", "")[:500],
-                        "source": f"fact: {key}" if key else "knowledge",
-                        "relevance": relevance,
-                    })
+                    relevant_memories.append(
+                        {
+                            "type": "semantic",
+                            "content": fact.get("content", "")[:240],
+                            "source": f"fact: {key}" if key else "knowledge",
+                            "relevance": relevance,
+                        }
+                    )
 
                 # Strategic memories
                 relevant_strategies = context.get("strategic", [])
@@ -86,62 +90,46 @@ async def memory_retrieval_node(state: HolixGraphState, config: RunnableConfig) 
         try:
             if hasattr(memory, "procedural") and memory.procedural._skills_manager:
                 agent_slot = getattr(agent, "agent_slot", "main")
-                skills = await memory.procedural.search(
-                    user_input, top_k=3, agent_slot=agent_slot
-                )
+                skills = await memory.procedural.search(user_input, top_k=3, agent_slot=agent_slot)
                 relevant_skills = skills
         except Exception as e:
             logger.warning(f"Procedural memory search failed: {e}")
 
-        # Conversation memory: current session first, then other sessions.
+        # Other sessions only — the current transcript is already in messages.
         try:
-            current_hits = await memory.search(
-                query=user_input,
-                top_k=5,
-                conversation_id=conversation_id,
-            )
-            for mem in current_hits:
-                meta = mem.get("metadata", {})
-                mem_type = meta.get("type", "")
-                source = "current session"
-                if mem_type == "context_compression":
-                    source = "compressed context (current session)"
-                distance = mem.get("distance")
-                relevance = f" (relevance: {1 - distance:.2f})" if distance is not None else ""
-                relevant_memories.append({
-                    "type": "conversation",
-                    "content": mem.get("content", "")[:500],
-                    "source": source,
-                    "relevance": relevance,
-                })
-
             other_hits = await memory.search(
                 query=user_input,
-                top_k=5,
+                top_k=3,
                 conversation_id=None,
             )
+            extra = 0
             for mem in other_hits:
                 meta = mem.get("metadata", {})
                 mem_conv = meta.get("conversation_id", "")
                 if mem_conv == conversation_id:
                     continue
                 mem_type = meta.get("type", "")
-                source = f"session {mem_conv[:8]}" if mem_conv else "unknown"
                 if mem_type == "context_compression":
-                    source = f"compressed context ({source})"
+                    continue
+                source = f"session {mem_conv[:8]}" if mem_conv else "unknown"
                 distance = mem.get("distance")
                 relevance = f" (relevance: {1 - distance:.2f})" if distance is not None else ""
-                relevant_memories.append({
-                    "type": "conversation",
-                    "content": mem.get("content", "")[:500],
-                    "source": source,
-                    "relevance": relevance,
-                })
+                relevant_memories.append(
+                    {
+                        "type": "conversation",
+                        "content": (mem.get("content") or "")[:240],
+                        "source": source,
+                        "relevance": relevance,
+                    }
+                )
+                extra += 1
+                if extra >= 3:
+                    break
         except Exception as e:
             logger.warning(f"Conversation memory search failed: {e}")
 
     return {
-        "relevant_memories": relevant_memories,
+        "relevant_memories": relevant_memories[:6],
         "relevant_skills": relevant_skills,
         "relevant_strategies": relevant_strategies,
     }

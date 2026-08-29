@@ -409,7 +409,6 @@ def build_system_prompt(
 
 ## Your Capabilities
 
-You have access to the following tools:
 {tools}
 
 ## Sub-agents (background workers)
@@ -632,8 +631,20 @@ Remember: You are a helpful, capable agent that learns and improves with each ta
     return append_holix_project_context("\n\n".join(blocks), cwd=project_cwd)
 
 
+def tools_prompt_policy() -> str:
+    """Short tool policy for the system prompt (schemas go in the API ``tools`` list)."""
+    return (
+        "Function-calling tools are attached to this request (JSON schemas, not listed here).\n"
+        "- Edit existing files with `patch_file`; create or fully replace files with `write_file`.\n"
+        "- Search with `grep` / `glob`; do not shell out to `rg` / `find` for that.\n"
+        "- Tests and builds: `run_terminal_command`. Persistent servers: "
+        "`start_background_process` only when the user asked to keep them running.\n"
+        "- Load a skill body with `skill_view`. Multi-step work: `todo_write` with the full list."
+    )
+
+
 def format_tools_description(tools_schemas: list[dict[str, Any]]) -> str:
-    """Format tool schemas for the system prompt.
+    """Format tool schemas as a name+description list (help UI, not the system prompt).
 
     Args:
         tools_schemas: List of OpenAI tool schemas

@@ -180,11 +180,12 @@ def test_append_injects_agents_claude_and_rules(tmp_path: Path, monkeypatch) -> 
     assert "BASE" in out
     assert "API service" in out
     assert "Use uv." in out
-    assert "No secrets." in out
     assert "SOLID." in out
     assert "AGENTS.md" in out
-    assert "CLAUDE.md" in out
     assert "rules.md" in out
+    # CLAUDE.md is the same role as AGENTS.md — skip the file body.
+    assert "No secrets." not in out
+    assert "### `CLAUDE.md`" not in out
 
 
 def test_append_reads_RULES_md_when_rules_md_missing(tmp_path: Path, monkeypatch) -> None:

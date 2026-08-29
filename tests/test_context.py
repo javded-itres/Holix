@@ -31,7 +31,9 @@ class TestTokenCounter:
     def test_count_text_tokens_longer_text_more_tokens(self):
         counter = TokenCounter()
         short = counter.count_text_tokens("Hi")
-        long = counter.count_text_tokens("This is a longer sentence with many more words and characters in it.")
+        long = counter.count_text_tokens(
+            "This is a longer sentence with many more words and characters in it."
+        )
         assert long > short
 
     def test_count_message_tokens_empty(self):
@@ -58,13 +60,17 @@ class TestTokenCounter:
         counter = TokenCounter()
         messages = [
             {"role": "user", "content": "Read the file"},
-            {"role": "assistant", "content": "", "tool_calls": [
-                {
-                    "id": "call_123",
-                    "type": "function",
-                    "function": {"name": "read_file", "arguments": '{"path": "/tmp/test.txt"}'},
-                }
-            ]},
+            {
+                "role": "assistant",
+                "content": "",
+                "tool_calls": [
+                    {
+                        "id": "call_123",
+                        "type": "function",
+                        "function": {"name": "read_file", "arguments": '{"path": "/tmp/test.txt"}'},
+                    }
+                ],
+            },
             {"role": "tool", "tool_call_id": "call_123", "content": "File content here"},
         ]
         tokens = counter.count_message_tokens(messages)
@@ -186,6 +192,11 @@ class TestContextManagerWithBus:
             assert len(warning_events) > 0
             assert warning_events[0].level in ("warning", "critical")
 
+    def test_note_system_prompt_tokens_updates_reserve(self):
+        manager = ContextManager(context_window=8000, token_counter=TokenCounter())
+        manager.note_system_prompt_tokens(12345)
+        assert manager.system_prompt_reserve == 12345
+
 
 class TestContextManagerCompression:
     @pytest.mark.asyncio
@@ -206,7 +217,7 @@ class TestContextManagerCompression:
             token_counter=counter,
             compressor=mock_compressor,
             system_prompt_reserve=1000,
-            compression_threshold=0.85,
+            compression_threshold=0.70,
         )
         messages = [{"role": "user", "content": "x" * 1200} for _ in range(12)]
         result, was_compressed = await manager.auto_compress_if_needed(messages)

@@ -94,6 +94,32 @@ def test_truncate_tool_content_for_memory() -> None:
     assert "truncated for memory" in out
 
 
+def test_sanitize_messages_tool_content_stale_tools_tighter() -> None:
+    from core.memory.tool_content import (
+        GRAPH_TOOL_MAX_CHARS,
+        STALE_TOOL_MAX_CHARS,
+        sanitize_messages_tool_content,
+    )
+
+    dump = "LOG\n" + ("x" * 5000)
+    messages = [{"role": "user", "content": "go"}]
+    for i in range(10):
+        messages.append({"role": "tool", "content": dump, "name": f"t{i}"})
+    out = sanitize_messages_tool_content(messages)
+    stale = out[1]["content"]
+    recent = out[-1]["content"]
+    assert len(stale) <= STALE_TOOL_MAX_CHARS + 120
+    assert len(recent) <= GRAPH_TOOL_MAX_CHARS + 120
+    assert len(stale) < len(recent)
+
+
+def test_conversation_history_limit_default() -> None:
+    from core.runtime.session import DEFAULT_CONVERSATION_HISTORY_LIMIT, conversation_history_limit
+
+    assert DEFAULT_CONVERSATION_HISTORY_LIMIT == 80
+    assert conversation_history_limit(None) == 80
+
+
 def test_sanitize_messages_tool_content_caps_runaway_terminal() -> None:
     from core.memory.tool_content import (
         GRAPH_TOOL_MAX_CHARS,

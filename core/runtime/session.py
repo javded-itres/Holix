@@ -7,8 +7,8 @@ from typing import Any
 
 logger = logging.getLogger(__name__)
 
-# Must match Studio context bar / manual /compress (not the old default of 30).
-DEFAULT_CONVERSATION_HISTORY_LIMIT = 200
+# Recent DB rows loaded into the agent (not the old 200 — tool dumps dominate).
+DEFAULT_CONVERSATION_HISTORY_LIMIT = 80
 
 
 def conversation_history_limit(agent: Any | None = None) -> int:
@@ -45,8 +45,6 @@ async def prepare_session(
 
     from core.runtime.context_session import compress_session_if_needed
 
-    messages, was_compressed = await compress_session_if_needed(
-        agent, conversation_id, messages
-    )
+    messages, was_compressed = await compress_session_if_needed(agent, conversation_id, messages)
 
     return messages, was_compressed

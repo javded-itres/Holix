@@ -6,8 +6,12 @@ from typing import Any
 
 # SQLite + session reload cap (per tool message).
 DEFAULT_TOOL_MEMORY_MAX_CHARS = 16_384
-# In-graph / classic loop message list sent to the LLM.
+# In-graph / classic loop message list sent to the LLM (recent tools).
 GRAPH_TOOL_MAX_CHARS = 6_000
+# Older tool messages in the same turn window — keep a pointer, not the dump.
+STALE_TOOL_MAX_CHARS = 1_200
+# How many trailing tool messages keep the full graph cap.
+RECENT_TOOL_KEEP = 6
 # Hard cap at tool execution (stdout+stderr) before any host path sees it.
 TERMINAL_OUTPUT_MAX_CHARS = 32_768
 
@@ -68,24 +72,40 @@ def sanitize_messages_tool_content(
     messages: list[dict[str, Any]],
     *,
     max_chars: int = GRAPH_TOOL_MAX_CHARS,
+    stale_max_chars: int = STALE_TOOL_MAX_CHARS,
+    recent_tool_keep: int = RECENT_TOOL_KEEP,
 ) -> list[dict[str, Any]]:
-    """Return a copy of *messages* with oversized tool/system blobs capped.
+    """Return a copy of *messages* with oversized tool blobs capped.
 
-    Used when loading history into the agent and before token usage / compress
-    so a single runaway ``run_terminal_command`` cannot push context to 600%+.
+    The last ``recent_tool_keep`` tool messages keep ``max_chars``. Older tool
+    results are cut to ``stale_max_chars`` so a long apply/debug loop does not
+    keep every grep/log dump at full size until 85% of the window.
     """
     if not messages:
         return messages
+    tool_indexes = [
+        i
+        for i, msg in enumerate(messages)
+        if str(msg.get("role") or "") == "tool" and isinstance(msg.get("content"), str)
+    ]
+    keep = max(0, int(recent_tool_keep))
+    recent = set(tool_indexes[-keep:]) if keep else set()
     out: list[dict[str, Any]] = []
     changed = False
-    for msg in messages:
+    stale_cap = max(200, int(stale_max_chars))
+    recent_cap = max(stale_cap, int(max_chars))
+    for i, msg in enumerate(messages):
         role = str(msg.get("role") or "")
         content = msg.get("content")
-        if role == "tool" and isinstance(content, str) and len(content) > max_chars:
-            new_msg = dict(msg)
-            new_msg["content"] = truncate_tool_content_for_graph(content, max_chars=max_chars)
-            out.append(new_msg)
-            changed = True
-        else:
+        if role != "tool" or not isinstance(content, str):
             out.append(msg)
+            continue
+        cap = recent_cap if i in recent else stale_cap
+        if len(content) <= cap:
+            out.append(msg)
+            continue
+        new_msg = dict(msg)
+        new_msg["content"] = truncate_tool_content_for_graph(content, max_chars=cap)
+        out.append(new_msg)
+        changed = True
     return out if changed else messages

@@ -163,6 +163,10 @@ def format_instruction_files_block(
     paths = discover_instruction_files(cwd)
     if not paths:
         return ""
+    has_agents = any(p.name.casefold() == "agents.md" for p in paths)
+    if has_agents:
+        # AGENTS.md and CLAUDE.md are the same role; keep one.
+        paths = [p for p in paths if p.name.casefold() != "claude.md"]
     chunks: list[str] = [f"## Agent instruction files\n{INSTRUCTION_FILES_NOTE}"]
     used = 0
     for path in paths:
