@@ -18,14 +18,14 @@ logger = logging.getLogger(__name__)
 
 
 class LongTermMemoryStore:
-    """Typed long-term memory backed by SQLite + shared ChromaDB collections."""
+    """Typed long-term memory backed by SQLite + a shared vector backend."""
 
     def __init__(self, config: HolixRuntimeConfig | None = None):
         cfg = config or HolixRuntimeConfig.from_settings()
         self.config = cfg
         self._ltm_db_path = prepare_sqlite_db_file(cfg.ltm_db_path)
 
-        self._vector_store = VectorMemoryStore(vector_db_path=cfg.vector_db_path)
+        self._vector_store = VectorMemoryStore(config=cfg)
 
         self.episodic = EpisodicMemoryStore(
             db_path=str(self._ltm_db_path),
@@ -94,9 +94,7 @@ class LongTermMemoryStore:
         source: str = "",
         metadata: dict[str, Any] | None = None,
     ) -> int:
-        return await self.strategic.store_strategy(
-            key, content, category, source, metadata
-        )
+        return await self.strategic.store_strategy(key, content, category, source, metadata)
 
     async def search_strategies(self, query: str, top_k: int = 5) -> list[dict[str, Any]]:
         return await self.strategic.search(query, top_k)

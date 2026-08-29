@@ -248,6 +248,33 @@ class Settings(BaseSettings):
     ltm_db_path: str = "data/memory/ltm.db"
     enable_long_term_memory: bool = True
     auto_summarize_conversations: bool = True
+    vector_backend: str = Field(
+        default="chroma",
+        validation_alias=AliasChoices(
+            "HOLIX_VECTOR_BACKEND",
+            "VECTOR_BACKEND",
+        ),
+        description="Agent vector store: chroma (default) | pgvector | memory",
+    )
+    vector_dsn: str = Field(
+        default="",
+        validation_alias=AliasChoices(
+            "HOLIX_VECTOR_DSN",
+            "HOLIX_VECTOR_DATABASE_URL",
+            "VECTOR_DSN",
+        ),
+        description="Postgres DSN when vector_backend=pgvector (else STUDIO_DATABASE_URL)",
+    )
+    vector_dim: int = Field(
+        default=384,
+        validation_alias=AliasChoices("HOLIX_VECTOR_DIM", "VECTOR_DIM"),
+        description="Embedding size. MiniLM ONNX default is 384.",
+    )
+    vector_table: str = Field(
+        default="holix_vectors",
+        validation_alias=AliasChoices("HOLIX_VECTOR_TABLE", "VECTOR_TABLE"),
+        description="Postgres table for holix_vectors",
+    )
 
     # Skills Configuration
     skills_dir: str = "data/skills"

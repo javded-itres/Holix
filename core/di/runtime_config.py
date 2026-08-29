@@ -145,6 +145,12 @@ class HolixRuntimeConfig:
     checkpoint_auto_prune: bool = True
     checkpoint_max_bytes: int = 200 * 1024 * 1024
 
+    # Vector store: chroma (on-disk) | pgvector | memory
+    vector_backend: str = "chroma"
+    vector_dsn: str = ""
+    vector_dim: int = 384
+    vector_table: str = "holix_vectors"
+
     @classmethod
     def from_settings(cls, source: Settings | None = None) -> Self:
         """Build config from pydantic Settings (env / .env).
@@ -240,6 +246,10 @@ class HolixRuntimeConfig:
             code_mode_max_inner_calls=40,
             code_mode_parallel_readonly=True,
             encryption_enabled=False,
+            vector_backend=str(getattr(s, "vector_backend", "chroma") or "chroma"),
+            vector_dsn=str(getattr(s, "vector_dsn", "") or ""),
+            vector_dim=int(getattr(s, "vector_dim", 384) or 384),
+            vector_table=str(getattr(s, "vector_table", "") or "holix_vectors"),
         )
 
     @classmethod

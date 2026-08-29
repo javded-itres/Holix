@@ -10,7 +10,7 @@ from typing import Any
 import aiosqlite
 
 from core.di.runtime_config import HolixRuntimeConfig
-from core.memory.chroma_embeddings import get_or_create_collection
+from core.memory.vector_backend import open_vector_backend, uses_on_disk_chroma
 from core.paths import prepare_sqlite_db_file, prepare_vector_db_dir
 from core.sqlite_util import connect_aiosqlite
 
@@ -54,27 +54,24 @@ def _filter_searchable_hits(
 
 
 class ConversationStore:
-    """SQLite + ChromaDB storage for chat messages.
+    """SQLite + vector storage for chat messages.
 
     Contract: ``get_conversation`` returns messages in chronological order (oldest first).
-    ``search`` returns results ordered by relevance (ChromaDB distance).
+    ``search`` returns results ordered by relevance (cosine distance).
     """
 
     def __init__(self, config: HolixRuntimeConfig | None = None):
         cfg = config or HolixRuntimeConfig.from_settings()
         self.config = cfg
         self.db_path = prepare_sqlite_db_file(cfg.memory_db_path)
-        self.vector_db_path = prepare_vector_db_dir(cfg.vector_db_path)
-
-        from core.memory.chroma_client import get_persistent_client
-
-        self.chroma_client = get_persistent_client(self.vector_db_path)
+        if uses_on_disk_chroma(cfg):
+            self.vector_db_path = prepare_vector_db_dir(cfg.vector_db_path)
+        else:
+            self.vector_db_path = cfg.vector_db_path
+        self._backend = open_vector_backend(cfg)
+        self.chroma_client = getattr(self._backend, "chroma_client", None)
         collection_name = cfg.memory_chroma_collection or "memory"
-        self.collection = get_or_create_collection(
-            self.chroma_client,
-            name=collection_name,
-            metadata={"hnsw:space": "cosine"},
-        )
+        self.collection = self._backend.get_collection(collection_name)
 
     async def initialize_db(self) -> None:
         async with connect_aiosqlite(self.db_path) as db:

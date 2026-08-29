@@ -21,9 +21,11 @@ import logging
 import multiprocessing
 import os
 import queue
+import tempfile
 import threading
 import time
 import uuid
+from pathlib import Path
 from typing import Any
 
 from core.platform_compat import terminate_process
@@ -209,6 +211,26 @@ def run_sub_agent_in_process(
         except Exception as e:
             print(f"[sub-process] MCP init skipped: {e}")
 
+    # Never mmap the parent's Chroma rust DB from this child. Two processes
+    # on the same vector_db / skills_db SIGSEGV the Studio HTTP process
+    # (Caddy 502 + WebSocket drop). Isolate chroma even when LTM sqlite is shared.
+    # pgvector is process-safe — children reuse HOLIX_VECTOR_DSN.
+    isolated_chroma = None
+    try:
+        from core.memory.vector_backend import uses_on_disk_chroma
+
+        isolate_chroma = uses_on_disk_chroma()
+    except Exception:
+        isolate_chroma = True
+    if isolate_chroma:
+        try:
+            from config import settings as _chroma_settings
+
+            isolated_chroma = Path(tempfile.mkdtemp(prefix="holix-sa-chroma-"))
+            _chroma_settings.vector_db_path = str(isolated_chroma / "vector_db")
+        except Exception:
+            isolated_chroma = None
+
     # Optionally connect to parent's LTM (shared access)
     memory = None
     if ltm_db_path and config.memory_access != MemoryAccess.ISOLATED:
@@ -218,7 +240,9 @@ def run_sub_agent_in_process(
             from core.memory.manager import LongTermMemoryManager
 
             settings.ltm_db_path = ltm_db_path
-            if vector_db_path:
+            if isolated_chroma is not None:
+                settings.vector_db_path = str(isolated_chroma / "vector_db")
+            elif vector_db_path:
                 settings.vector_db_path = vector_db_path
             memory = LongTermMemoryManager()
             loop.run_until_complete(memory.initialize_db())
@@ -232,9 +256,14 @@ def run_sub_agent_in_process(
             from core.di.runtime_config import HolixRuntimeConfig
             from core.skills.manager import SkillsManager
 
+            skill_overrides: dict[str, Any] = {
+                "skills_dir": skills_dir,
+                "skill_assignments": skill_assignments or {},
+            }
+            if isolated_chroma is not None:
+                skill_overrides["vector_db_path"] = str(isolated_chroma / "vector_db")
             sk_cfg = HolixRuntimeConfig.from_settings().with_overrides(
-                skills_dir=skills_dir,
-                skill_assignments=skill_assignments or {},
+                **skill_overrides,
             )
             sk_mgr = SkillsManager(sk_cfg)
             skills_block = sk_mgr.skills_prompt_block(
@@ -1465,7 +1494,8 @@ class SubAgentProcessManager:
             and parent_cfg
         ):
             ltm_db_path = str(getattr(parent_cfg, "ltm_db_path", "") or "")
-            vector_db_path = str(getattr(parent_cfg, "vector_db_path", "") or "")
+            # Child uses a temp chroma dir. Sharing vector_db_path SIGSEGVs Studio.
+            vector_db_path = ""
 
         # Create handle
         handle = SubAgentHandle(

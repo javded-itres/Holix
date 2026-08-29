@@ -36,6 +36,14 @@ def default_embedding_function() -> EmbeddingFunction:
     return ONNXMiniLM_L6_V2(preferred_providers=_preferred_onnx_providers())
 
 
+def embed_documents(texts: list[str]) -> list[list[float]]:
+    """Embed texts with the shared MiniLM (no PersistentClient)."""
+    if not texts:
+        return []
+    vectors = default_embedding_function()(texts)
+    return [[float(x) for x in row] for row in vectors]
+
+
 def get_or_create_collection(client: Any, *, name: str, metadata: dict[str, str]) -> Any:
     """Open an existing collection or create one with the shared embedder.
 
@@ -48,8 +56,12 @@ def get_or_create_collection(client: Any, *, name: str, metadata: dict[str, str]
     try:
         return client.get_collection(name, embedding_function=embedder)
     except Exception:
+        pass
+    try:
         return client.create_collection(
             name=name,
             metadata=metadata,
             embedding_function=embedder,
         )
+    except Exception:
+        return client.get_collection(name)

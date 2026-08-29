@@ -21,6 +21,16 @@ except Exception:
 from core.tools.registry import ToolRegistry
 
 
+@pytest.fixture(autouse=True)
+def _isolate_vector_backend(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Tests default to Chroma/memory; pgvector tests override on the config."""
+    monkeypatch.setenv("HOLIX_VECTOR_BACKEND", "chroma")
+    monkeypatch.delenv("HOLIX_VECTOR_DSN", raising=False)
+    monkeypatch.delenv("HOLIX_VECTOR_DATABASE_URL", raising=False)
+    monkeypatch.delenv("VECTOR_DSN", raising=False)
+    monkeypatch.delenv("STUDIO_DATABASE_URL", raising=False)
+
+
 def _unique_chroma_collection(request: pytest.FixtureRequest) -> str:
     safe = re.sub(r"[^\w]", "_", request.node.name)[:48]
     return f"test_{safe}_{uuid.uuid4().hex[:8]}"
