@@ -1,7 +1,7 @@
 """
 Vector Memory Store for Holix Long-term Memory.
 
-Thin wrapper around ChromaDB managing multiple collections for typed memory:
+Thin wrapper around the selected vector backend (Chroma or pgvector):
 - ltm_episodic: episode summaries from past conversations
 - ltm_semantic: facts and knowledge entries
 - ltm_strategic: strategies and preferences
@@ -12,62 +12,50 @@ Provides a unified search API across all collections.
 import logging
 from typing import Any
 
-import chromadb
-
-from core.memory.chroma_embeddings import get_or_create_collection
+from core.memory.vector_backend import open_vector_backend
+from core.memory.vector_protocol import VectorCollection
 
 logger = logging.getLogger(__name__)
 
 
 class VectorMemoryStore:
-    """Manages ChromaDB collections for long-term memory types.
+    """Manages vector collections for long-term memory types.
 
     Each memory type gets its own collection for clean separation
     and type-specific retrieval. Collections are created lazily
     on first write to minimize initialization overhead.
     """
 
-    def __init__(self, vector_db_path: str | None = None):
-        if vector_db_path is None:
-            from core.di.runtime_config import HolixRuntimeConfig
+    def __init__(self, vector_db_path: str | None = None, *, config: Any | None = None):
+        from core.di.runtime_config import HolixRuntimeConfig
 
-            vector_db_path = HolixRuntimeConfig.from_settings().vector_db_path
-        from core.memory.chroma_client import get_persistent_client
-        from core.paths import prepare_vector_db_dir
+        cfg = config or HolixRuntimeConfig.from_settings()
+        if vector_db_path:
+            cfg = cfg.with_overrides(vector_db_path=vector_db_path)
+        self._config = cfg
+        self._vector_db_path = cfg.vector_db_path
+        self._backend = open_vector_backend(cfg)
+        self._chroma_client = getattr(self._backend, "chroma_client", None)
+        self._collections: dict[str, VectorCollection] = {}
 
-        self._vector_db_path = prepare_vector_db_dir(vector_db_path)
-
-        self._chroma_client = get_persistent_client(self._vector_db_path)
-
-        # Lazy collection cache — created on first access
-        self._collections: dict[str, chromadb.Collection] = {}
-
-    def _get_collection(self, name: str) -> chromadb.Collection:
-        """Get or create a ChromaDB collection by name.
-
-        Collections are created lazily on first access to avoid
-        unnecessary disk usage when a memory type is not used.
-        """
+    def _get_collection(self, name: str) -> VectorCollection:
+        """Get or create a collection by name."""
         if name not in self._collections:
-            self._collections[name] = get_or_create_collection(
-                self._chroma_client,
-                name=name,
-                metadata={"hnsw:space": "cosine"},
-            )
+            self._collections[name] = self._backend.get_collection(name)
         return self._collections[name]
 
     @property
-    def episodic(self) -> chromadb.Collection:
+    def episodic(self) -> VectorCollection:
         """Episodic memory collection (conversation summaries)."""
         return self._get_collection("ltm_episodic")
 
     @property
-    def semantic(self) -> chromadb.Collection:
+    def semantic(self) -> VectorCollection:
         """Semantic memory collection (facts and knowledge)."""
         return self._get_collection("ltm_semantic")
 
     @property
-    def strategic(self) -> chromadb.Collection:
+    def strategic(self) -> VectorCollection:
         """Strategic memory collection (strategies and preferences)."""
         return self._get_collection("ltm_strategic")
 
@@ -93,14 +81,14 @@ class VectorMemoryStore:
                 ids=ids,
                 metadatas=metadatas,
             )
-        except chromadb.errors.IDAlreadyExistsError:
-            # Upsert semantics: if ID exists, update instead
-            collection.upsert(
-                documents=documents,
-                ids=ids,
-                metadatas=metadatas,
-            )
         except Exception as e:
+            if e.__class__.__name__ == "IDAlreadyExistsError":
+                collection.upsert(
+                    documents=documents,
+                    ids=ids,
+                    metadatas=metadatas,
+                )
+                return
             logger.warning(f"Failed to add to {collection_name}: {e}")
 
     def upsert(

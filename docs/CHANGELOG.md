@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+## 1.1.2 — 2026-08-29
+
+### Added
+
+- **pgvector agent memory** — `HOLIX_VECTOR_BACKEND=pgvector` stores conversation,
+  LTM, and skill embeddings in Postgres (`HOLIX_VECTOR_DSN` / `STUDIO_DATABASE_URL`,
+  table `holix_vectors`, MiniLM 384-d). Default remains on-disk Chroma. Sub-agents
+  share pgvector instead of isolating a temp Chroma dir (avoids Studio SIGSEGV/502).
+  Optional extra: `pip install 'Holix[pgvector]'`.
+
 ## 1.1.1 — 2026-08-29
 
 ### Fixed

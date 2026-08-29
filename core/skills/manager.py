@@ -6,7 +6,7 @@ from typing import Any
 import yaml
 
 from core.di.runtime_config import HolixRuntimeConfig
-from core.memory.chroma_embeddings import get_or_create_collection
+from core.memory.vector_backend import open_vector_backend, uses_on_disk_chroma
 from core.skills.assignments import is_skill_allowed_for_agent
 from core.skills.paths import join_under, resolve_under_any
 
@@ -77,17 +77,12 @@ class SkillsManager:
         if self._local_skills_dir:
             self._local_skills_dir.mkdir(parents=True, exist_ok=True)
 
-        # Initialize ChromaDB for semantic skill search (process singleton per path)
-        from core.memory.chroma_client import get_persistent_client
-
-        self.chroma_client = get_persistent_client(
-            Path(cfg.vector_db_path).parent / "skills_db",
-        )
-        self.skills_collection = get_or_create_collection(
-            self.chroma_client,
-            name="skills",
-            metadata={"hnsw:space": "cosine"},
-        )
+        chroma_path = None
+        if uses_on_disk_chroma(cfg):
+            chroma_path = Path(cfg.vector_db_path).parent / "skills_db"
+        self._backend = open_vector_backend(cfg, chroma_path=chroma_path)
+        self.chroma_client = getattr(self._backend, "chroma_client", None)
+        self.skills_collection = self._backend.get_collection("skills")
         self._index_hashes: dict[str, str] = {}
 
     def _skill_roots(self) -> list[Path]:
