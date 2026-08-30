@@ -11,6 +11,12 @@
   Registered tools stay executable. `HOLIX_LAZY_TOOLS=0` restores the full
   catalog.
 
+### Tests
+
+- Live LLM **69–71**: initialized agent offers the core schema only; the model
+  must `tool_search` before `session_search` / `notebook_edit`, and
+  `enable_matches` attaches those tools for the rest of the session.
+
 ## 1.1.3 — 2026-08-30
 
 ### Added

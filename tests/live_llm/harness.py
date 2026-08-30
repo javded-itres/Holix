@@ -51,6 +51,14 @@ class LiveResult:
 
         return [e.tool_name for e in self.events if isinstance(e, ToolCallStartEvent)]
 
+    def first_called(self, *names: str) -> str | None:
+        """First of ``names`` that appears in the tool-call stream, else None."""
+        wanted = {str(n) for n in names}
+        for tool_name in self.tool_names():
+            if tool_name in wanted:
+                return tool_name
+        return None
+
     def called(self, name: str) -> bool:
         return name in self.tool_names()
 
@@ -309,6 +317,41 @@ class LiveHarness:
                 timeout_s=timeout_s,
             )
         return result
+
+    def offered_tool_names(self, *, for_agent_slot: str = "main") -> set[str]:
+        """Canonical names currently on the LLM ``tools`` list (lazy filter applied)."""
+        assert self.agent is not None
+        schemas = self.agent.tools.get_end_tool_schemas(for_agent_slot=for_agent_slot)
+        names: set[str] = set()
+        for schema in schemas:
+            fn = schema.get("function") if isinstance(schema, dict) else None
+            if isinstance(fn, dict) and fn.get("name"):
+                names.add(str(fn["name"]))
+        return names
+
+    def session_enabled_tools(self) -> set[str]:
+        assert self.agent is not None
+        extra = getattr(self.agent.tools, "_session_enabled_tools", None) or set()
+        return {str(n) for n in extra}
+
+    def trace_offered_schemas(self) -> list[frozenset[str]]:
+        """Record each ``get_schemas()`` payload (what the LLM is offered that step)."""
+        assert self.agent is not None
+        snaps: list[frozenset[str]] = []
+        orig = self.agent.tools.get_schemas
+
+        def _wrapped(*, for_agent_slot: str = "main"):
+            schemas = orig(for_agent_slot=for_agent_slot)
+            names: list[str] = []
+            for schema in schemas:
+                fn = schema.get("function") if isinstance(schema, dict) else None
+                if isinstance(fn, dict) and fn.get("name"):
+                    names.append(str(fn["name"]))
+            snaps.append(frozenset(names))
+            return schemas
+
+        self.agent.tools.get_schemas = _wrapped  # type: ignore[method-assign]
+        return snaps
 
     def seed(self, relative: str, content: str) -> Path:
         path = self.workspace / relative

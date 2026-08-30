@@ -50,7 +50,7 @@ Session starts with a **probe** (`PONG`). If unreachable → skip (or fail when 
 | `-k live_30` | Run subset by name |
 | `-m "live_llm and not slow"` | Skip web/browser slow tests |
 
-## Coverage (~39 tests)
+## Coverage (~42 tests)
 
 | Group | IDs | Topics |
 |-------|-----|--------|
@@ -61,6 +61,7 @@ Session starts with a **probe** (`PONG`). If unreachable → skip (or fail when 
 | Web / browser | 40–43 | search, research report, optional Playwright |
 | Code / hybrid | 50–55 | explain, bugfix, hybrid, logs, math, Dockerfile |
 | Coding-agent tools | 60–68 | `tool_search`, `apply_patch`, `ask_user`, `plan_mode`, `job_monitor`, `subagent_control`, `session_search`, `notebook_edit`, `lsp` |
+| Lazy tools | 69–71 | core-only schema; `tool_search` enable_matches then `session_search` / `notebook_edit` |
 
 ## Notes
 
