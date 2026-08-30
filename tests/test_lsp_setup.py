@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+
 import pytest
 from cli.lsp.install import (
     install_spec,
@@ -69,8 +71,7 @@ def test_parse_missing(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 def test_extra_bin_dirs_include_common_prefixes() -> None:
-    dirs = extra_bin_dirs()
-    texts = [str(p) for p in dirs]
+    texts = [Path(p).as_posix() for p in extra_bin_dirs()]
     assert any(p.endswith("go/bin") or "/go/bin" in p for p in texts)
     assert any(".cargo/bin" in p for p in texts)
     assert any(".npm-global/bin" in p for p in texts)
