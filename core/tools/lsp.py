@@ -141,9 +141,10 @@ class LspTool(BaseTool):
                     query=query,
                 )
         except Exception as exc:
+            err = str(exc).strip() or type(exc).__name__
             return tool_err(
                 "lsp_error",
-                str(exc),
+                err,
                 fallback="grep",
                 language=lang,
                 server=resolved.spec.id,

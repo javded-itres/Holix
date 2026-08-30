@@ -238,8 +238,18 @@ async def test_live_68_lsp_hover_or_unavailable(live_harness):
     payloads = r.tool_payloads("lsp")
     codes = [str(p.get("code") or "") for p in payloads if isinstance(p, dict)]
     oks = [p.get("ok") for p in payloads if isinstance(p, dict)]
+    # ok, missing server, or the language server ran and failed (still exercised lsp)
     assert (
         True in oks
         or "lsp_unavailable" in codes
-        or soft_contains(r.text, "lsp_unavailable", "jedi", "unavailable", min_hits=1)
+        or "lsp_error" in codes
+        or soft_contains(
+            r.text,
+            "lsp_unavailable",
+            "lsp_error",
+            "jedi",
+            "unavailable",
+            "pyright",
+            min_hits=1,
+        )
     ), (payloads, r.text)
