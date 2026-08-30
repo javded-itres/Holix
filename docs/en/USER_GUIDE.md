@@ -52,7 +52,7 @@ Curated route through the documentation. Each topic has **one canonical page** �
 | External CLIs (`holix launch`) | [LAUNCH.md](LAUNCH.md) |
 | Scheduled tasks (cron) | [CRON.md](CRON.md) |
 | Browser tools | [BROWSER_TOOLS.md](BROWSER_TOOLS.md) |
-| Coding-agent tools (`apply_patch`, `ask_user`, …) | [TOOLS.md](TOOLS.md) |
+| Coding-agent tools (`apply_patch`, `ask_user`, `lsp`, …) | [TOOLS.md](TOOLS.md) |
 
 ---
 

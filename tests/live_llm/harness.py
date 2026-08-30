@@ -51,6 +51,33 @@ class LiveResult:
 
         return [e.tool_name for e in self.events if isinstance(e, ToolCallStartEvent)]
 
+    def called(self, name: str) -> bool:
+        return name in self.tool_names()
+
+    def tool_payloads(self, name: str) -> list[Any]:
+        """JSON bodies from tool results for ``name`` (best-effort)."""
+        import json
+
+        out: list[Any] = []
+        for event in self.events:
+            if getattr(event, "tool_name", None) != name:
+                continue
+            raw = getattr(event, "result", None)
+            if raw is None:
+                err = getattr(event, "error", None)
+                if err:
+                    out.append({"ok": False, "error": str(err)})
+                continue
+            text = str(raw).strip()
+            if text.startswith("{") or text.startswith("["):
+                try:
+                    out.append(json.loads(text))
+                    continue
+                except json.JSONDecodeError:
+                    pass
+            out.append({"raw": text})
+        return out
+
     def confirmation_tools(self) -> list[str]:
         return [e.tool_name for e in self.events if isinstance(e, ConfirmationRequestEvent)]
 
@@ -167,6 +194,21 @@ class LiveHarness:
         if self._confirm_choice is not None:
             self._install_confirm_resolver()
         return self
+
+    def stub_ask_user(self, answer: str = "dark") -> None:
+        """Replace the TUI/Telegram ask_user wait with an immediate answer."""
+        assert self.agent is not None
+
+        class _StubBridge:
+            async def ask_user(self, name, question, *, context="", questions=None):
+                import json as _json
+
+                qid = "q1"
+                if isinstance(questions, list) and questions:
+                    qid = str(questions[0].get("id") or "q1")
+                return _json.dumps({qid: [answer]})
+
+        self.agent.subagents.interactions = _StubBridge()
 
     def _install_confirm_resolver(self) -> None:
         assert self.agent is not None

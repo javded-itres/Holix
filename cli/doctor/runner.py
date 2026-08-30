@@ -34,6 +34,7 @@ async def run_doctor(
 ) -> int:
     """Run doctor. Exit code 1 if errors remain."""
     print_info(f"Holix Doctor — profile [cyan]{profile}[/cyan]")
+    print_info("Language servers: holix lsp status / holix lsp setup")
     if fix:
         print_info("Mode: [bold]fix[/bold] (deterministic + LLM config repair)")
     else:

@@ -29,6 +29,7 @@ After either path, continue with [START_HERE.md](START_HERE.md) for first-run ch
 |-------|------|-------------------------|---------|
 | `telegram` | `pip install "Holix[telegram]"` | `--extra telegram` | `holix telegram`, gateway bot |
 | `browser` | `pip install "Holix[browser]"` | `--extra browser` | Playwright — [BROWSER_TOOLS.md](BROWSER_TOOLS.md) |
+| `lsp` | `pip install "Holix[lsp]"` | `--extra lsp` | Python **Pyright** (+ jedi fallback) for the agent `lsp` tool; then `holix lsp setup` (picker installs JS/TS/… and optional Go/Rust/Vue plus toolchains) |
 | `voice` | `pip install "Holix[voice]"` | `--extra voice` | Whisper in Telegram |
 | `tui-web` | `pip install "Holix[tui-web]"` | `--extra tui-web` | `holix tui --web` |
 | `windows` | `pip install "Holix[windows]"` | `--extra windows` | `psutil` process cleanup |
