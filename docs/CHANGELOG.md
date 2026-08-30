@@ -2,13 +2,18 @@
 
 ## Unreleased
 
+## 1.1.3 — 2026-08-30
+
 ### Added
 
 - **Coding-agent tools** — `apply_patch` (Codex multi-file patch, atomic, jail + ActionGuard),
   `job_monitor`, `subagent_control`, `tool_search`, `session_search`, `notebook_edit`,
   `plan_mode`, `lsp` (multi-language: **Pyright** default for Python, then
   basedpyright/pylsp/jedi; JS/TS, Go, Rust, JSON/HTML/CSS, YAML, Bash, …;
-  `holix lsp setup` / `holix doctor`). `ask_user` now takes `questions[]` with
+  `holix lsp setup` / `holix doctor`). `holix lsp setup` is an interactive
+  picker (recommended / all / missing / optional / ids / `recommended,go,rust`)
+  and installs chosen servers **plus** missing toolchains (Node, Go, rustup,
+  Ruby, Homebrew formulae). `ask_user` now takes `questions[]` with
   option buttons, blocks the loop, and is available on main as well as sub-agents.
   Aliases: `ApplyPatch`, `Edit`→`patch_file`, `EnterPlanMode`, `Task`/`Agent`, `Monitor`/`TaskStop`,
   and the rest of the Claude/Codex leaked names. GPT/Codex prefer `apply_patch`;
