@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 1.1.4 — 2026-08-31
+
 ### Changed
 
 - **Claude-style deferred tools** — the LLM `tools` list is a core set
