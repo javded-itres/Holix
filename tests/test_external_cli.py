@@ -455,6 +455,13 @@ def test_main_agent_tool_schemas_hide_external_cli() -> None:
     names_sub = {
         schema["function"]["name"] for schema in registry.get_schemas(for_agent_slot="coder")
     }
-    if launch_supported():
-        assert "external_cli" in names_sub
+    assert "external_cli" not in names_sub
     assert "ask_user" in names_sub
+    if launch_supported():
+        registry._session_enabled_tools = {"external_cli"}
+        names_sub_on = {
+            schema["function"]["name"] for schema in registry.get_schemas(for_agent_slot="coder")
+        }
+        names_main_on = {schema["function"]["name"] for schema in registry.get_schemas()}
+        assert "external_cli" in names_sub_on
+        assert "external_cli" not in names_main_on

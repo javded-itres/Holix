@@ -311,49 +311,43 @@ class ToolRegistry:
         return []
 
     def get_end_tool_schemas(self, *, for_agent_slot: str = "main") -> list[dict[str, Any]]:
-        """Schemas for real capabilities (never ``run_code``)."""
+        """Schemas for real capabilities (never ``run_code``).
+
+        Claude-style: only the core set plus ``tool_search`` hits enabled this
+        session (``_session_enabled_tools``). Registered tools stay executable.
+        """
         from core.mcp.assign import mcp_tool_allowed
         from core.tools.code_mode.policy import RUN_CODE_NAME
-
-        slot = (for_agent_slot or "main").strip().lower() or "main"
-        assigns = getattr(self, "_mcp_assignments", None)
+        from core.tools.lazy_schema import schema_tool_offered
         from core.tools.plan_mode_state import is_plan_mode
         from core.tools.slot_policy import (
             filter_schemas_for_plan_mode,
             tool_allowed_for_slot,
         )
 
+        slot = (for_agent_slot or "main").strip().lower() or "main"
+        assigns = getattr(self, "_mcp_assignments", None)
+        session_extra = getattr(self, "_session_enabled_tools", None) or set()
+        hidden_for_main = frozenset({"external_cli"})
+
         seen: set[str] = set()
         schemas: list[dict[str, Any]] = []
-        session_extra = getattr(self, "_session_enabled_tools", None) or set()
         for tool in self.tools.values():
             name = getattr(tool, "name", "") or ""
             if not name or name in seen:
                 continue
             if name == RUN_CODE_NAME:
                 continue
+            if slot == "main" and name in hidden_for_main:
+                continue
             if not tool_allowed_for_slot(name, slot):
                 continue
             if not mcp_tool_allowed(name, slot=slot, assignments=assigns):
                 continue
+            if not schema_tool_offered(name, session_extra=session_extra):
+                continue
             seen.add(name)
             schemas.append(tool.to_openai_schema())
-        if slot == "main":
-            hidden_for_main = frozenset({"external_cli"})
-            schemas = [
-                schema
-                for schema in schemas
-                if schema.get("function", {}).get("name") not in hidden_for_main
-            ]
-        if session_extra:
-            extra_names = {str(n) for n in session_extra if str(n)}
-            present = {str((s.get("function") or {}).get("name") or "") for s in schemas}
-            for name in extra_names:
-                if name in present or name not in self.tools:
-                    continue
-                if not tool_allowed_for_slot(name, slot):
-                    continue
-                schemas.append(self.tools[name].to_openai_schema())
         if is_plan_mode():
             schemas = filter_schemas_for_plan_mode(schemas)
         return schemas

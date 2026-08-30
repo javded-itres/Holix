@@ -14,8 +14,9 @@ def test_get_schemas_has_no_duplicate_function_names() -> None:
     names = [s["function"]["name"] for s in registry.get_schemas()]
     dupes = {k: v for k, v in Counter(names).items() if v > 1}
     assert dupes == {}
-    assert "start_background_process" in names
-    assert "check_background_process" in names
+    assert "start_background_process" in registry.tools
+    assert "check_background_process" in registry.tools
+    assert "start_background_process" not in names
     assert "grep" in names
     assert "glob" in names
     assert "delete_file" in names
@@ -24,13 +25,15 @@ def test_get_schemas_has_no_duplicate_function_names() -> None:
     assert "todo_write" in names
     assert "apply_patch" in names
     assert "ask_user" in names
-    assert "job_monitor" in names
     assert "tool_search" in names
-    assert "session_search" in names
-    assert "notebook_edit" in names
     assert "plan_mode" in names
     assert "lsp" in names
-    assert "subagent_control" in names
+    assert "job_monitor" not in names
+    assert "session_search" not in names
+    assert "notebook_edit" not in names
+    assert "subagent_control" not in names
+    assert "job_monitor" in registry.tools
+    assert "session_search" in registry.tools
 
 
 def test_run_project_alias_resolves() -> None:

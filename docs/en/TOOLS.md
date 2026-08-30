@@ -28,7 +28,7 @@ TUI: modal with option buttons and a text field. Telegram / MAX: inline buttons 
 
 ## Discovery and notebooks
 
-- `tool_search` — search builtin, MCP, skill, and extension names+descriptions. `enable_matches=true` activates top hits for **this session only** (still filtered by the slot allowlist).
+- `tool_search` — search builtin, MCP, skill, and extension names+descriptions. The LLM **tools** list is a **core set** (files, shell, `lsp`, `ask_user`, `skill_view`, …). Everything else (MCP, browser, SDD, SQL, notebook, jobs, session search, …) is deferred. `enable_matches=true` (default) attaches top hits for **this session only** (slot allowlist still applies). `HOLIX_LAZY_TOOLS=0` sends the full catalog.
 - `session_search` — short snippets from memory, other sessions, and trajectory traces (not full transcripts).
 - `notebook_edit` — replace / insert / delete a cell in a `.ipynb` inside the jail (`cell_id` first, else `cell_index`).
 - `lsp` — hover / definition / references / symbols / diagnostics. Uses an installed language server for the file type (Python jedi or pylsp, JS/TS, Go, Rust, JSON/HTML/CSS, YAML, Bash, …). Missing server → `{ok: false, code: lsp_unavailable, install: […], fallback: grep}`. Setup: `holix lsp setup`, `holix doctor`.

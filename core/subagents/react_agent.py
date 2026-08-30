@@ -73,14 +73,56 @@ class FilteredToolRegistry:
                 out.append(schema)
         return out
 
+    def _append_allowed_missing(
+        self, schemas: list[dict[str, Any]], *, skip_run_code: bool
+    ) -> list[dict[str, Any]]:
+        """Sub-agent allowlist is an explicit enable set (parent may have deferred them)."""
+        from core.tools.code_mode.policy import RUN_CODE_NAME
+
+        present: set[str] = set()
+        for schema in schemas:
+            fn = schema.get("function") if isinstance(schema, dict) else None
+            if isinstance(fn, dict) and fn.get("name"):
+                present.add(str(fn["name"]))
+        inner_tools = getattr(self._inner, "tools", None) or {}
+        for key, tool in inner_tools.items():
+            name = str(getattr(tool, "name", "") or key).strip()
+            if not name or name in present or not self._is_allowed(name):
+                continue
+            if skip_run_code and name == RUN_CODE_NAME:
+                continue
+            schema_fn = getattr(tool, "to_openai_schema", None)
+            if not callable(schema_fn):
+                continue
+            try:
+                schema = schema_fn()
+            except Exception:
+                continue
+            if not isinstance(schema, dict):
+                continue
+            fn = schema.get("function")
+            if not isinstance(fn, dict) or not fn.get("name"):
+                continue
+            schemas.append(schema)
+            present.add(name)
+        return schemas
+
     def get_end_tool_schemas(self, *, for_agent_slot: str = "main") -> list[dict[str, Any]]:
         inner = getattr(self._inner, "get_end_tool_schemas", None)
         if callable(inner):
-            return self._filter_schemas(inner(for_agent_slot=for_agent_slot))
-        return self._filter_schemas(self._inner.get_schemas(for_agent_slot=for_agent_slot))
+            base = inner(for_agent_slot=for_agent_slot)
+        else:
+            base = self._inner.get_schemas(for_agent_slot=for_agent_slot)
+        return self._append_allowed_missing(self._filter_schemas(base), skip_run_code=True)
 
     def get_schemas(self, *, for_agent_slot: str = "main") -> list[dict[str, Any]]:
-        return self._filter_schemas(self._inner.get_schemas(for_agent_slot=for_agent_slot))
+        from core.tools.code_mode.policy import normalize_presentation
+
+        mode = normalize_presentation(getattr(self, "_tools_presentation", "native"))
+        filtered = self._filter_schemas(self._inner.get_schemas(for_agent_slot=for_agent_slot))
+        if mode == "code":
+            return filtered
+        return self._append_allowed_missing(filtered, skip_run_code=False)
 
     async def execute(
         self,

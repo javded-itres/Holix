@@ -43,10 +43,12 @@ class ToolSearchTool(BaseTool):
         super().__init__()
         self.name = "tool_search"
         self.description = (
-            "Search Holix tools, deferred MCP tools, skills, and extensions by "
-            "name or description. If a tool name is missing, call this instead "
-            "of inventing a name. enable_matches activates top hits for this "
-            "session only (still filtered by the agent slot allowlist)."
+            "Search Holix tools that are not in the current tools list "
+            "(MCP, browser, SDD, SQL, notebook, jobs, session search, …), "
+            "plus skills and extensions, by name or description. "
+            "If a tool name is missing, call this instead of inventing a name. "
+            "enable_matches=true (default) attaches top hits to this session "
+            "so you can call them on the next step (slot allowlist still applies)."
         )
         self.risk_level = "no"
         self.parameters = {
@@ -68,7 +70,11 @@ class ToolSearchTool(BaseTool):
                         "enum": ["builtin", "mcp", "skill", "extension"],
                     },
                 },
-                "enable_matches": {"type": "boolean"},
+                "enable_matches": {
+                    "type": "boolean",
+                    "default": True,
+                    "description": "Attach top hits to this session's tools list (default true).",
+                },
             },
         }
 
@@ -77,7 +83,7 @@ class ToolSearchTool(BaseTool):
         query: str,
         limit: int = 8,
         sources: list[str] | None = None,
-        enable_matches: bool = False,
+        enable_matches: bool = True,
         **_: Any,
     ) -> str:
         q = (query or "").strip()

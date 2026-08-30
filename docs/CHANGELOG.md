@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+### Changed
+
+- **Claude-style deferred tools** — the LLM `tools` list is a core set
+  (files, shell, `lsp`, `ask_user`, `skill_view`, `tool_search`, …). MCP,
+  browser, SDD, SQL, notebook, jobs, and other builtins load via
+  `tool_search` (`enable_matches=true` by default) for this session.
+  Registered tools stay executable. `HOLIX_LAZY_TOOLS=0` restores the full
+  catalog.
+
 ## 1.1.3 — 2026-08-30
 
 ### Added

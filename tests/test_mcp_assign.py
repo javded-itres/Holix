@@ -87,6 +87,12 @@ def test_get_schemas_hides_unassigned_mcp_for_main() -> None:
     }
     main = {s["function"]["name"] for s in reg.get_schemas(for_agent_slot="main")}
     coder = {s["function"]["name"] for s in reg.get_schemas(for_agent_slot="python-coder")}
+    assert "mcp_holix_studio_list" not in main
+    assert "mcp_context7_query-docs" not in main
+    assert "mcp_context7_query-docs" not in coder
+    reg._session_enabled_tools = {"mcp_holix_studio_list", "mcp_context7_query-docs"}
+    main = {s["function"]["name"] for s in reg.get_schemas(for_agent_slot="main")}
+    coder = {s["function"]["name"] for s in reg.get_schemas(for_agent_slot="python-coder")}
     assert "mcp_holix_studio_list" in main
     assert "mcp_context7_query-docs" not in main
     assert "mcp_context7_query-docs" in coder
