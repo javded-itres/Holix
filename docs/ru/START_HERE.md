@@ -51,7 +51,7 @@ Extras — [INSTALLATION.md](INSTALLATION.md):
 ```bash
 uv tool install "Holix[all]"
 holix -p shared telegram setup
-holix lsp setup
+holix lsp setup                 # выбор language servers и тулчейнов
 holix hub browse
 holix mcp setup
 playwright install chromium

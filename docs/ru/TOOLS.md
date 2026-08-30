@@ -36,7 +36,7 @@ TUI: модалка с кнопками и полем ввода. Telegram / MAX
 
 ### Language servers (`lsp`)
 
-Инструмент `lsp` ходит в **установленные** серверы в PATH (и встроенный Python `jedi`). Компиляторы сам не качает.
+Инструмент `lsp` ходит в **установленные** серверы в PATH (и встроенный Python `jedi`). Сам компиляторы не качает. `holix lsp setup` ставит выбранные серверы **и** недостающие тулчейны (Node.js, Go, rustup, Ruby, формулы Homebrew).
 
 | Язык | Сервер | Установка |
 |------|--------|-----------|
@@ -51,12 +51,19 @@ TUI: модалка с кнопками и полем ввода. Telegram / MAX
 | C / C++ | `clangd` | `brew install llvm` / `apt install clangd` |
 
 ```bash
-holix lsp status          # что готово
-holix lsp setup           # Pyright + npm-серверы, если есть Node.js
-holix lsp setup --yes
-holix doctor              # покажет отсутствующие серверы
-holix doctor --fix        # поставит jedi, если его нет
-holix bootstrap           # тот же шаг при первой настройке
+holix lsp status                 # что готово
+holix lsp setup                  # выбор: recommended / all / missing / optional / 12,go
+holix lsp setup --yes            # рекомендованные, без вопросов
+holix lsp setup --all            # весь каталог + тулчейны
+holix lsp setup --missing        # всё, что ещё не ready
+holix lsp setup --optional       # Go, Rust, C/C++, Vue, …
+holix lsp setup --ids go,rust,vue
+# смешанный выбор (промпт или --ids):
+#   recommended,go,rust
+#   python js go
+holix doctor
+holix doctor --fix               # поставит Pyright, если его нет
+holix bootstrap                  # при первой настройке — recommended
 ```
 
 `action=status` — список готовых серверов без пути к файлу.

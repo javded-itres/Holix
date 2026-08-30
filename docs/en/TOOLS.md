@@ -36,7 +36,7 @@ TUI: modal with option buttons and a text field. Telegram / MAX: inline buttons 
 
 ### Language servers (`lsp`)
 
-The `lsp` tool talks to **installed** servers on PATH (plus in-process Python `jedi`). It does not download compilers.
+The `lsp` tool talks to **installed** servers on PATH (plus in-process Python `jedi`). It does not download compilers itself. `holix lsp setup` installs the servers you pick **and** missing toolchains they need (Node.js, Go, rustup, Ruby, Homebrew formulae).
 
 | Language | Server | Install |
 |----------|--------|---------|
@@ -51,12 +51,19 @@ The `lsp` tool talks to **installed** servers on PATH (plus in-process Python `j
 | C / C++ | `clangd` | `brew install llvm` / `apt install clangd` |
 
 ```bash
-holix lsp status          # what is ready
-holix lsp setup           # Pyright + recommended npm servers if Node.js is present
-holix lsp setup --yes     # non-interactive
-holix doctor              # reports missing servers
-holix doctor --fix        # installs jedi when missing
-holix bootstrap           # offers the same step on first-run setup
+holix lsp status                 # what is ready
+holix lsp setup                  # interactive picker (recommended / all / missing / optional / 12,go)
+holix lsp setup --yes            # recommended, no prompt
+holix lsp setup --all            # every catalog server + toolchains
+holix lsp setup --missing        # everything not ready
+holix lsp setup --optional       # Go, Rust, C/C++, Vue, …
+holix lsp setup --ids go,rust,vue
+# mixed selection (prompt or --ids):
+#   recommended,go,rust
+#   python js go
+holix doctor                     # reports missing servers
+holix doctor --fix               # installs Pyright when missing
+holix bootstrap                  # offers recommended install on first-run setup
 ```
 
 `action=status` lists ready servers without a file path.

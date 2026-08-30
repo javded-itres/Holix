@@ -51,7 +51,7 @@ Install extras only when needed — see [INSTALLATION.md](INSTALLATION.md#option
 ```bash
 uv tool install "Holix[all]"    # or pipx reinstall
 holix -p shared telegram setup
-holix lsp setup                 # language servers for the lsp tool
+holix lsp setup                 # pick language servers + toolchains for the lsp tool
 holix hub browse
 holix mcp setup
 playwright install chromium     # after [browser] extra

@@ -284,20 +284,65 @@ def language_id_for(path: Path, language: str = "") -> str:
     return _LANGUAGE_ID_BY_SUFFIX.get(suffix, suffix.lstrip(".") or "plaintext")
 
 
+def extra_bin_dirs() -> list[Path]:
+    """Dirs Holix also searches for language-server binaries after install."""
+    home = Path.home()
+    dirs = [
+        Path(sys.executable).expanduser().parent,  # venv / uv-tool bin (do not resolve)
+        home / "go" / "bin",
+        home / ".cargo" / "bin",
+        home / ".local" / "bin",
+        home / ".npm-global" / "bin",
+        Path("/opt/homebrew/bin"),
+        Path("/opt/homebrew/opt/llvm/bin"),
+        Path("/usr/local/bin"),
+        Path("/usr/local/opt/llvm/bin"),
+    ]
+    rustup_tc = home / ".rustup" / "toolchains"
+    if rustup_tc.is_dir():
+        for child in rustup_tc.iterdir():
+            bin_dir = child / "bin"
+            if bin_dir.is_dir():
+                dirs.append(bin_dir)
+    nvm = home / ".nvm" / "versions" / "node"
+    if nvm.is_dir():
+        versions = sorted((p for p in nvm.iterdir() if p.is_dir()), reverse=True)
+        for child in versions[:4]:
+            bin_dir = child / "bin"
+            if bin_dir.is_dir():
+                dirs.append(bin_dir)
+    for base in (
+        home / ".gem",
+        home / ".local" / "share" / "gem",
+        home / "Library" / "Ruby",
+    ):
+        if base.is_dir():
+            dirs.extend(sorted({p for p in base.rglob("bin") if p.is_dir()}))
+    out: list[Path] = []
+    seen: set[str] = set()
+    for path in dirs:
+        key = str(path)
+        if key in seen:
+            continue
+        seen.add(key)
+        out.append(path)
+    return out
+
+
 def which_argv(argv: tuple[str, ...] | list[str]) -> list[str] | None:
-    """Resolve argv[0] from PATH and the Holix interpreter's bin/ (venv / uv tool)."""
+    """Resolve argv[0] from PATH, Holix venv, and common install prefixes."""
     if not argv:
         return None
     name = argv[0]
     found = shutil.which(name)
     if found:
         return [found, *list(argv[1:])]
-    # Do not Path.resolve() — on macOS the venv python is a symlink out of bin/.
-    bindir = Path(sys.executable).expanduser().parent
-    for extra in (name, f"{name}.exe", f"{name}.cmd"):
-        candidate = bindir / extra
-        if candidate.is_file():
-            return [str(candidate), *list(argv[1:])]
+    names = (name, f"{name}.exe", f"{name}.cmd")
+    for directory in extra_bin_dirs():
+        for extra in names:
+            candidate = directory / extra
+            if candidate.is_file():
+                return [str(candidate), *list(argv[1:])]
     return None
 
 

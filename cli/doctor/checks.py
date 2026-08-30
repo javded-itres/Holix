@@ -1019,7 +1019,7 @@ def _check_lsp() -> list[DoctorFinding]:
                 severity=Severity.INFO.value,
                 title="Recommended language servers not installed",
                 detail=names,
-                recommendation="Run: holix lsp setup   # Node.js enables JS/TS/JSON/HTML/CSS/YAML/Bash",
+                recommendation="Run: holix lsp setup   # pick recommended / optional / all; installs Node/Go/rustup when needed",
             )
         )
     return out

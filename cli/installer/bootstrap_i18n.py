@@ -76,7 +76,9 @@ _BOOTSTRAP_MESSAGES: dict[str, dict[str, str]] = {
         "lsp_title": "Language servers (lsp tool)",
         "lsp_body": (
             "The agent lsp tool needs language servers for hover/definition. "
-            "Default: Python (Pyright) and, if Node.js is installed, JS/TS, JSON, HTML, CSS, YAML, Bash."
+            "Default: Python (Pyright) and, if Node.js is available (installed if missing), "
+            "JS/TS, JSON, HTML, CSS, YAML, Bash, Dockerfile. "
+            "Later: holix lsp setup to add Go, Rust, Vue, and other optional servers."
         ),
         "lsp_configure": "Install recommended language servers now?",
         "lsp_skipped": "Language servers skipped. Later: holix lsp setup",
@@ -168,7 +170,9 @@ _BOOTSTRAP_MESSAGES: dict[str, dict[str, str]] = {
         "lsp_title": "Language servers (инструмент lsp)",
         "lsp_body": (
             "Инструмент lsp агента нуждается в language servers для hover/definition. "
-            "По умолчанию: Python (Pyright) и, если есть Node.js, JS/TS, JSON, HTML, CSS, YAML, Bash."
+            "По умолчанию: Python (Pyright) и, если есть Node.js (поставим при отсутствии), "
+            "JS/TS, JSON, HTML, CSS, YAML, Bash, Dockerfile. "
+            "Позже: holix lsp setup — Go, Rust, Vue и остальные опциональные серверы."
         ),
         "lsp_configure": "Установить рекомендуемые language servers сейчас?",
         "lsp_skipped": "Language servers пропущены. Позже: holix lsp setup",
