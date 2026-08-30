@@ -1,47 +1,57 @@
-"""Optional language-server helpers (Python via jedi; otherwise a structured stub)."""
+"""Language-server queries for the coding agent (multi-language)."""
 
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Any
 
 from core.tools.base import BaseTool
+from core.tools.execution_context import get_workspace_root
+from core.tools.lsp_servers import (
+    hints_for_path,
+    language_id_for,
+    ready_titles,
+    resolve_lsp,
+    status_rows,
+)
 from core.tools.result import tool_err, tool_ok
 from core.workspace import WorkspaceJailError, display_path_for_user, resolve_tool_path
 
-_UNAVAILABLE = tool_err(
-    "lsp_unavailable",
-    "No language server is configured. Use grep to find symbols.",
-    fallback="grep",
-)
+_ACTIONS = {
+    "definition",
+    "references",
+    "implementation",
+    "hover",
+    "diagnostics",
+    "symbols",
+    "status",
+}
 
 
 class LspTool(BaseTool):
-    """Go-to-definition / references / hover when a language server is available."""
+    """Go-to-definition / references / hover via installed language servers."""
 
     def __init__(self) -> None:
         super().__init__()
         self.name = "lsp"
         self.description = (
             "Language-server queries: definition, references, implementation, "
-            "hover, diagnostics, symbols. Python-only via jedi when installed; "
-            "otherwise returns lsp_unavailable and suggests grep."
+            "hover, diagnostics, symbols, status. Uses an installed language "
+            "server for the file type (Python Pyright by default, then "
+            "basedpyright/pylsp/jedi; JS/TS, Go, Rust, JSON/HTML/CSS, YAML, "
+            "Bash, …). Missing server → lsp_unavailable "
+            "with install hints; fall back to grep. Run holix lsp setup / "
+            "holix doctor to install packages."
         )
         self.risk_level = "no"
         self.parameters = {
             "type": "object",
             "additionalProperties": False,
-            "required": ["action", "path"],
+            "required": ["action"],
             "properties": {
                 "action": {
                     "type": "string",
-                    "enum": [
-                        "definition",
-                        "references",
-                        "implementation",
-                        "hover",
-                        "diagnostics",
-                        "symbols",
-                    ],
+                    "enum": sorted(_ACTIONS),
                 },
                 "path": {"type": "string"},
                 "line": {"type": "integer", "minimum": 1},
@@ -54,7 +64,7 @@ class LspTool(BaseTool):
     async def execute(
         self,
         action: str,
-        path: str,
+        path: str = "",
         line: int = 1,
         character: int = 0,
         query: str = "",
@@ -62,78 +72,93 @@ class LspTool(BaseTool):
         **_: Any,
     ) -> str:
         act = str(action or "").strip().lower()
-        if act not in {
-            "definition",
-            "references",
-            "implementation",
-            "hover",
-            "diagnostics",
-            "symbols",
-        }:
+        if act not in _ACTIONS:
             return tool_err("invalid_action", f"unknown action {action!r}", fallback="grep")
+        if act == "status":
+            rows = status_rows()
+            return tool_ok(
+                action="status",
+                ready=[r["title"] for r in rows if r["ready"]],
+                servers=rows,
+            )
+
+        raw_path = (path or "").strip()
+        if not raw_path:
+            return tool_err("missing_path", "path is required", fallback="grep")
         try:
-            file_path = resolve_tool_path(path)
+            file_path = resolve_tool_path(raw_path)
         except WorkspaceJailError as exc:
             return tool_err("jail", str(exc), fallback="grep")
-        display = display_path_for_user(file_path, input_path=path)
-        lang = (language or file_path.suffix.lstrip(".")).lower()
-        if lang not in {"py", "python", ""} and file_path.suffix.lower() != ".py":
-            return _UNAVAILABLE
-
-        try:
-            import jedi
-        except ImportError:
-            return _UNAVAILABLE
-
+        display = display_path_for_user(file_path, input_path=raw_path)
         if not file_path.is_file():
-            return tool_err("not_found", f"file '{display}' does not exist", fallback="grep")
+            return tool_err(
+                "not_found",
+                f"file '{display}' does not exist",
+                fallback="grep",
+            )
         try:
             source = file_path.read_text(encoding="utf-8")
         except OSError as exc:
             return tool_err("io", str(exc), fallback="grep")
 
-        script = jedi.Script(code=source, path=str(file_path))
-        line_n = max(1, int(line or 1))
-        col = max(0, int(character or 0))
-        items: list[dict[str, Any]] = []
+        resolved = resolve_lsp(file_path, language)
+        lang = language_id_for(file_path, language)
+        if resolved is None:
+            return tool_err(
+                "lsp_unavailable",
+                "No language server is configured for this file. "
+                "Install packages via: holix lsp setup",
+                fallback="grep",
+                language=lang,
+                install=hints_for_path(file_path, language),
+                ready=ready_titles(),
+            )
 
         try:
-            if act == "hover":
-                names = script.help(line=line_n, column=col) or script.infer(
-                    line=line_n, column=col
+            if resolved.kind == "jedi":
+                from core.tools.lsp_jedi import query_jedi
+
+                payload = query_jedi(
+                    file_path,
+                    source,
+                    action=act,
+                    line=line,
+                    character=character,
+                    query=query,
                 )
-                for name in names[:8]:
-                    items.append(
-                        {
-                            "name": str(getattr(name, "name", "") or ""),
-                            "doc": str(getattr(name, "docstring", lambda: "")() or "")[:400],
-                        }
-                    )
-            elif act == "definition" or act == "implementation":
-                for name in script.goto(line=line_n, column=col, follow_imports=True)[:12]:
-                    items.append(_jedi_loc(name))
-            elif act == "references":
-                for name in script.get_references(line=line_n, column=col)[:20]:
-                    items.append(_jedi_loc(name))
-            elif act in {"diagnostics", "symbols"}:
-                needle = (query or "").strip().lower()
-                for name in script.get_names(all_scopes=True, definitions=True)[:40]:
-                    row = _jedi_loc(name)
-                    if needle and needle not in str(row.get("name") or "").lower():
-                        continue
-                    items.append(row)
+            else:
+                from core.tools.lsp_rpc import query_language_server
+
+                root = _workspace_root(file_path)
+                payload = await query_language_server(
+                    resolved,
+                    root=root,
+                    file_path=file_path,
+                    source=source,
+                    action=act,
+                    line=line,
+                    character=character,
+                    query=query,
+                )
         except Exception as exc:
-            return tool_err("lsp_error", str(exc), fallback="grep")
+            return tool_err(
+                "lsp_error",
+                str(exc),
+                fallback="grep",
+                language=lang,
+                server=resolved.spec.id,
+            )
+        return tool_ok(
+            action=act,
+            path=display,
+            language=lang,
+            server=resolved.spec.id,
+            **payload,
+        )
 
-        return tool_ok(action=act, path=display, items=items)
 
-
-def _jedi_loc(name: Any) -> dict[str, Any]:
-    module_path = getattr(name, "module_path", None)
-    return {
-        "name": str(getattr(name, "name", "") or ""),
-        "path": str(module_path) if module_path else "",
-        "line": int(getattr(name, "line", 0) or 0),
-        "column": int(getattr(name, "column", 0) or 0),
-        "type": str(getattr(name, "type", "") or ""),
-    }
+def _workspace_root(file_path: Path) -> Path:
+    raw = (get_workspace_root() or "").strip()
+    if raw:
+        return Path(raw).expanduser().resolve()
+    return file_path.parent.resolve()

@@ -31,8 +31,35 @@ TUI: modal with option buttons and a text field. Telegram / MAX: inline buttons 
 - `tool_search` — search builtin, MCP, skill, and extension names+descriptions. `enable_matches=true` activates top hits for **this session only** (still filtered by the slot allowlist).
 - `session_search` — short snippets from memory, other sessions, and trajectory traces (not full transcripts).
 - `notebook_edit` — replace / insert / delete a cell in a `.ipynb` inside the jail (`cell_id` first, else `cell_index`).
-- `lsp` — Python via `jedi` if installed; otherwise `{ok: false, code: lsp_unavailable, fallback: grep}`.
+- `lsp` — hover / definition / references / symbols / diagnostics. Uses an installed language server for the file type (Python jedi or pylsp, JS/TS, Go, Rust, JSON/HTML/CSS, YAML, Bash, …). Missing server → `{ok: false, code: lsp_unavailable, install: […], fallback: grep}`. Setup: `holix lsp setup`, `holix doctor`.
 - `plan_mode` — `enter` / `exit` / `status`. While on, only read-only tools are offered; writes return `plan_mode_blocked`. Exit with a non-empty plan asks Approve / Revise. Plans save under `.holix/plans/` when that store is already used.
+
+### Language servers (`lsp`)
+
+The `lsp` tool talks to **installed** servers on PATH (plus in-process Python `jedi`). It does not download compilers.
+
+| Language | Server | Install |
+|----------|--------|---------|
+| Python | **Pyright** (`pyright-langserver`) | `pip install "Holix[lsp]"` / `pip install pyright` |
+| JS / TS | `typescript-language-server` | `npm install -g typescript typescript-language-server` |
+| JSON / HTML / CSS | vscode langservers | `npm install -g vscode-langservers-extracted` |
+| YAML | `yaml-language-server` | `npm install -g yaml-language-server` |
+| Bash | `bash-language-server` | `npm install -g bash-language-server` |
+| Dockerfile | `docker-langserver` | `npm install -g dockerfile-language-server-nodejs` |
+| Go | `gopls` | `go install golang.org/x/tools/gopls@latest` |
+| Rust | `rust-analyzer` | `rustup component add rust-analyzer` |
+| C / C++ | `clangd` | `brew install llvm` / `apt install clangd` |
+
+```bash
+holix lsp status          # what is ready
+holix lsp setup           # Pyright + recommended npm servers if Node.js is present
+holix lsp setup --yes     # non-interactive
+holix doctor              # reports missing servers
+holix doctor --fix        # installs jedi when missing
+holix bootstrap           # offers the same step on first-run setup
+```
+
+`action=status` lists ready servers without a file path.
 
 ## Slot allowlists (defaults)
 

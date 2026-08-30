@@ -31,8 +31,35 @@ TUI: модалка с кнопками и полем ввода. Telegram / MAX
 - `tool_search` — поиск builtin, MCP, skills и расширений. `enable_matches=true` включает совпадения только в этой сессии (фильтр слота сохраняется).
 - `session_search` — короткие сниппеты из памяти, других сессий и trajectory (не полные транскрипты).
 - `notebook_edit` — replace / insert / delete ячейки `.ipynb` внутри jail (`cell_id`, иначе `cell_index`).
-- `lsp` — Python через `jedi`, если установлен; иначе `{ok: false, code: lsp_unavailable, fallback: grep}`.
+- `lsp` — hover / definition / references / symbols / diagnostics. Language server для типа файла (Python jedi или pylsp, JS/TS, Go, Rust, JSON/HTML/CSS, YAML, Bash, …). Нет сервера → `{ok: false, code: lsp_unavailable, install: […], fallback: grep}`. Настройка: `holix lsp setup`, `holix doctor`.
 - `plan_mode` — `enter` / `exit` / `status`. В режиме плана наружу отдаются только read-only tools; записи возвращают `plan_mode_blocked`. Выход с непустым планом спрашивает Approve / Revise. План пишется в `.holix/plans/`.
+
+### Language servers (`lsp`)
+
+Инструмент `lsp` ходит в **установленные** серверы в PATH (и встроенный Python `jedi`). Компиляторы сам не качает.
+
+| Язык | Сервер | Установка |
+|------|--------|-----------|
+| Python | **Pyright** (`pyright-langserver`) | `pip install "Holix[lsp]"` / `pip install pyright` |
+| JS / TS | `typescript-language-server` | `npm install -g typescript typescript-language-server` |
+| JSON / HTML / CSS | vscode langservers | `npm install -g vscode-langservers-extracted` |
+| YAML | `yaml-language-server` | `npm install -g yaml-language-server` |
+| Bash | `bash-language-server` | `npm install -g bash-language-server` |
+| Dockerfile | `docker-langserver` | `npm install -g dockerfile-language-server-nodejs` |
+| Go | `gopls` | `go install golang.org/x/tools/gopls@latest` |
+| Rust | `rust-analyzer` | `rustup component add rust-analyzer` |
+| C / C++ | `clangd` | `brew install llvm` / `apt install clangd` |
+
+```bash
+holix lsp status          # что готово
+holix lsp setup           # Pyright + npm-серверы, если есть Node.js
+holix lsp setup --yes
+holix doctor              # покажет отсутствующие серверы
+holix doctor --fix        # поставит jedi, если его нет
+holix bootstrap           # тот же шаг при первой настройке
+```
+
+`action=status` — список готовых серверов без пути к файлу.
 
 ## Слоты (по умолчанию)
 

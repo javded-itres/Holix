@@ -32,6 +32,7 @@ class BootstrapOptions:
     skip_llm: bool = False
     skip_search: bool = False
     skip_telegram: bool = False
+    skip_lsp: bool = False
     profile: str = "default"
     non_interactive: bool = False
     lang: str | None = None
@@ -154,7 +155,11 @@ async def _configure_llm(profile: str, lang: str) -> bool:
         console.print(f"[dim]{preset.notes}[/dim]")
 
     api_key = resolve_preset_api_key_interactive(preset, console=console)
-    if preset.auth_type != "none" and not api_key.startswith("${") and api_key != preset.api_key_placeholder:
+    if (
+        preset.auth_type != "none"
+        and not api_key.startswith("${")
+        and api_key != preset.api_key_placeholder
+    ):
         _store_api_key_in_env(preset_id, api_key)
 
     host_arg: str | None = None
@@ -261,10 +266,13 @@ async def _configure_telegram(profile: str, lang: str) -> bool:
         print_error(bt("telegram_admin_id_bad", lang))
         return False
 
-    admin_profile = Prompt.ask(
-        bt("telegram_admin_profile", lang),
-        default=existing.get("HOLIX_TELEGRAM_ADMIN_PROFILE", "admin") or "admin",
-    ).strip() or "admin"
+    admin_profile = (
+        Prompt.ask(
+            bt("telegram_admin_profile", lang),
+            default=existing.get("HOLIX_TELEGRAM_ADMIN_PROFILE", "admin") or "admin",
+        ).strip()
+        or "admin"
+    )
 
     voice_lang = "ru" if lang == "ru" else "en"
     values: dict[str, str] = {
@@ -302,6 +310,34 @@ def _configure_search(profile: str, lang: str) -> bool:
         title=bt("search_title", lang),
         body=bt("search_body", lang),
     )
+
+
+def _configure_lsp(lang: str) -> bool:
+    from cli.lsp.install import install_recommended
+
+    console.print()
+    console.print(
+        Panel.fit(
+            f"[bold cyan]{bt('lsp_title', lang)}[/bold cyan]\n\n{bt('lsp_body', lang)}",
+            border_style="cyan",
+        )
+    )
+    if not Confirm.ask(bt("lsp_configure", lang), default=True):
+        print_info(bt("lsp_skipped", lang))
+        return False
+    lines = install_recommended(npm=True)
+    ok = True
+    for line in lines:
+        if line.startswith("error:"):
+            ok = False
+            print_warning(line)
+        else:
+            print_info(line)
+    if ok:
+        print_success(bt("lsp_saved", lang))
+    else:
+        print_warning(bt("lsp_partial", lang))
+    return ok
 
 
 def pypi_package_spec(*, full: bool) -> str:
@@ -350,6 +386,13 @@ async def run_bootstrap_setup(options: BootstrapOptions | None = None) -> int:
         else:
             tg_ok = await _configure_telegram(profile, lang)
 
+    lsp_ok = False
+    if not opts.skip_lsp:
+        if opts.non_interactive or not _is_tty():
+            print_info(bt("skip_lsp_non_tty", lang))
+        else:
+            lsp_ok = _configure_lsp(lang)
+
     console.print()
     lines = [
         f"[bold]{bt('done_next', lang)}[/bold]",
@@ -362,6 +405,8 @@ async def run_bootstrap_setup(options: BootstrapOptions | None = None) -> int:
         lines.append(f"  {bt('done_search', lang)}")
     if not tg_ok:
         lines.append(f"  {bt('done_telegram', lang)}")
+    if not lsp_ok:
+        lines.append(f"  {bt('done_lsp', lang)}")
     lines.append(f"  {bt('done_gateway', lang)}")
     console.print(Panel("\n".join(lines), title=bt("done_title", lang), border_style="green"))
     return 0 if llm_ok or opts.skip_llm else 1

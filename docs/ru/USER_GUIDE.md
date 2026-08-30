@@ -52,7 +52,7 @@
 | Внешние CLI (`holix launch`) | [LAUNCH.md](LAUNCH.md) |
 | Cron | [CRON.md](CRON.md) |
 | Браузер | [BROWSER_TOOLS.md](BROWSER_TOOLS.md) |
-| Coding-агент (`apply_patch`, `ask_user`, …) | [TOOLS.md](TOOLS.md) |
+| Coding-агент (`apply_patch`, `ask_user`, `lsp`, …) | [TOOLS.md](TOOLS.md) |
 
 ---
 

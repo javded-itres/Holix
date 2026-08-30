@@ -6,7 +6,9 @@
 
 - **Coding-agent tools** — `apply_patch` (Codex multi-file patch, atomic, jail + ActionGuard),
   `job_monitor`, `subagent_control`, `tool_search`, `session_search`, `notebook_edit`,
-  `plan_mode`, `lsp` (jedi or `lsp_unavailable`). `ask_user` now takes `questions[]` with
+  `plan_mode`, `lsp` (multi-language: **Pyright** default for Python, then
+  basedpyright/pylsp/jedi; JS/TS, Go, Rust, JSON/HTML/CSS, YAML, Bash, …;
+  `holix lsp setup` / `holix doctor`). `ask_user` now takes `questions[]` with
   option buttons, blocks the loop, and is available on main as well as sub-agents.
   Aliases: `ApplyPatch`, `Edit`→`patch_file`, `EnterPlanMode`, `Task`/`Agent`, `Monitor`/`TaskStop`,
   and the rest of the Claude/Codex leaked names. GPT/Codex prefer `apply_patch`;

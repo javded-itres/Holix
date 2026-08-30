@@ -25,6 +25,8 @@ def apply_deterministic_fixes(profile: str, findings: list[DoctorFinding]) -> li
         "clear_gateway_state": _fix_clear_gateway_state,
         "fix_default_provider": _fix_default_provider,
         "fix_model_from_list": _fix_model_from_list,
+        "install_jedi": _fix_install_jedi,
+        "install_pyright": _fix_install_pyright,
     }
 
     for finding in findings:
@@ -61,7 +63,9 @@ def _fix_ensure_dirs(profile: str, manager: ProfileManager, finding: DoctorFindi
             profile_dir / "data" / "memory",
             profile_dir / "data" / "skills",
             profile_dir / "data" / "security",
-            Path(cfg.vector_db_path) if cfg.vector_db_path else profile_dir / "data" / "memory" / "vector_db",
+            Path(cfg.vector_db_path)
+            if cfg.vector_db_path
+            else profile_dir / "data" / "memory" / "vector_db",
         ):
             rel.mkdir(parents=True, exist_ok=True)
     else:
@@ -160,6 +164,24 @@ def _fix_model_from_list(profile: str, manager: ProfileManager, finding: DoctorF
 
     manager.save_profile(profile, cfg)
     return f"Set default model to '{new_model}'"
+
+
+def _fix_install_jedi(_profile: str, _manager: ProfileManager, _f: DoctorFinding) -> str:
+    from cli.lsp.install import install_jedi
+
+    ok, msg = install_jedi()
+    if ok:
+        return msg
+    return f"Could not install jedi: {msg}. Run: holix lsp setup --yes"
+
+
+def _fix_install_pyright(_profile: str, _manager: ProfileManager, _f: DoctorFinding) -> str:
+    from cli.lsp.install import install_pyright
+
+    ok, msg = install_pyright()
+    if ok:
+        return msg
+    return f"Could not install Pyright: {msg}. Run: holix lsp setup --yes"
 
 
 def backup_config(path: Path) -> Path:

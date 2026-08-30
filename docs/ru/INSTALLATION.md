@@ -29,6 +29,7 @@ Holix требует **Python 3.12+** (для локальной установ�
 |-------|------|---------------|------------|
 | `telegram` | `pip install "Holix[telegram]"` | `uv sync --extra telegram` | Telegram-бот |
 | `browser` | `pip install "Holix[browser]"` | `--extra browser` | Playwright — [BROWSER_TOOLS.md](BROWSER_TOOLS.md) |
+| `lsp` | `pip install "Holix[lsp]"` | `--extra lsp` | Python **Pyright** (+ jedi) для инструмента `lsp`; затем `holix lsp setup` |
 | `voice` | `pip install "Holix[voice]"` | `--extra voice` | Голос в Telegram |
 | `tui-web` | `pip install "Holix[tui-web]"` | `--extra tui-web` | `holix tui --web` |
 | `windows` | `pip install "Holix[windows]"` | `--extra windows` | Завершение дерева процессов |

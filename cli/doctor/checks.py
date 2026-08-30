@@ -44,6 +44,7 @@ async def run_all_checks(profile: str, *, skip_llm_check: bool = False) -> list[
     findings.extend(_check_crypto_runtime_cache())
     findings.extend(_check_encryption_policy(profile, manager))
     findings.extend(_check_stray_project_data(profile, manager))
+    findings.extend(_check_lsp())
 
     return findings
 
@@ -58,9 +59,7 @@ def _check_encryption_policy(profile: str, manager: ProfileManager) -> list[Doct
     out: list[DoctorFinding] = []
     if not is_encryption_runtime_active():
         encrypted_profiles = [
-            name
-            for name in manager.list_profiles()
-            if profile_has_crypto_metadata(name)
+            name for name in manager.list_profiles() if profile_has_crypto_metadata(name)
         ]
         if encrypted_profiles:
             sample = ", ".join(encrypted_profiles[:5])
@@ -70,8 +69,7 @@ def _check_encryption_policy(profile: str, manager: ProfileManager) -> list[Doct
                     severity=Severity.WARNING.value,
                     title="Encryption policy inactive on this host",
                     detail=(
-                        f"Policy: {encryption_policy_label()}. "
-                        f"Profiles with crypto.json: {sample}"
+                        f"Policy: {encryption_policy_label()}. Profiles with crypto.json: {sample}"
                     ),
                     recommendation=(
                         "Run on Linux with HOLIX_ENCRYPTION_MODE=linux-production, "
@@ -423,9 +421,7 @@ def _check_mcp_env_placeholders(cfg: ProfileConfig) -> list[DoctorFinding]:
     ]
 
 
-def _check_skill_assignments(
-    cfg: ProfileConfig, manager: ProfileManager
-) -> list[DoctorFinding]:
+def _check_skill_assignments(cfg: ProfileConfig, manager: ProfileManager) -> list[DoctorFinding]:
     """Warn when skill_assignments reference missing skill files."""
     out: list[DoctorFinding] = []
     assigns = getattr(cfg, "skill_assignments", None) or {}
@@ -531,9 +527,7 @@ def _check_profile_paths(
     return out
 
 
-def _check_stray_project_data(
-    profile: str, manager: ProfileManager
-) -> list[DoctorFinding]:
+def _check_stray_project_data(profile: str, manager: ProfileManager) -> list[DoctorFinding]:
     """Detect Holix runtime ``data/`` leaked into the current working directory."""
     from core.paths import is_stray_holix_data_dir
 
@@ -642,9 +636,7 @@ async def _check_llm(profile: str, manager: ProfileManager) -> list[DoctorFindin
     model = mc.model
 
     try:
-        ok = await ModelDiscovery.test_endpoint(
-            base_url, api_key, metadata=mc.metadata or None
-        )
+        ok = await ModelDiscovery.test_endpoint(base_url, api_key, metadata=mc.metadata or None)
     except Exception as e:
         ok = False
         err = str(e)
@@ -788,7 +780,10 @@ def _check_telegram(profile: str) -> list[DoctorFinding]:
 
     allowed = os.getenv("HOLIX_TELEGRAM_ALLOWED_USERS", "")
     allow_all = os.getenv("HOLIX_TELEGRAM_ALLOW_ALL", "").strip().lower() in {
-        "1", "true", "yes", "on",
+        "1",
+        "true",
+        "yes",
+        "on",
     }
     access_requests_raw = os.getenv("HOLIX_TELEGRAM_ACCESS_REQUESTS", "").strip().lower()
     access_requests = access_requests_raw not in {"0", "false", "no", "off"}
@@ -959,6 +954,74 @@ def _check_max(profile: str) -> list[DoctorFinding]:
             )
         )
 
+    return out
+
+
+def _check_lsp() -> list[DoctorFinding]:
+    from core.tools.lsp_servers import (
+        missing_recommended,
+        pyright_available,
+        python_lsp_ready,
+        ready_titles,
+    )
+
+    out: list[DoctorFinding] = []
+    ready = ready_titles()
+    if ready:
+        out.append(
+            DoctorFinding(
+                code="lsp.ready",
+                severity=Severity.INFO.value,
+                title="Language servers ready for the lsp tool",
+                detail=", ".join(ready),
+                recommendation="Query with the lsp tool; holix lsp status lists all languages",
+            )
+        )
+    else:
+        out.append(
+            DoctorFinding(
+                code="lsp.none_ready",
+                severity=Severity.WARNING.value,
+                title="No language servers for the lsp tool",
+                detail="hover/definition will return lsp_unavailable and fall back to grep",
+                recommendation="Run: holix lsp setup   (or pip install 'Holix[lsp]' then holix lsp setup --yes)",
+                fix_id="install_pyright",
+            )
+        )
+    if not python_lsp_ready():
+        out.append(
+            DoctorFinding(
+                code="lsp.python_missing",
+                severity=Severity.WARNING.value,
+                title="Python language support missing (Pyright)",
+                detail="The default Python backend for lsp is Pyright (pyright-langserver)",
+                recommendation='Install: pip install "Holix[lsp]"  or  holix lsp setup --yes',
+                fix_id="install_pyright",
+            )
+        )
+    elif not pyright_available():
+        out.append(
+            DoctorFinding(
+                code="lsp.python_fallback",
+                severity=Severity.INFO.value,
+                title="Python lsp uses a fallback (not Pyright)",
+                detail="jedi or pylsp is available; Pyright is the default and gives better types",
+                recommendation="Run: holix lsp setup --yes   # pip install pyright",
+                fix_id="install_pyright",
+            )
+        )
+    missing = missing_recommended()
+    if missing:
+        names = ", ".join(spec.title for spec in missing)
+        out.append(
+            DoctorFinding(
+                code="lsp.recommended_missing",
+                severity=Severity.INFO.value,
+                title="Recommended language servers not installed",
+                detail=names,
+                recommendation="Run: holix lsp setup   # Node.js enables JS/TS/JSON/HTML/CSS/YAML/Bash",
+            )
+        )
     return out
 
 

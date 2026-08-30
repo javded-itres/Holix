@@ -7,7 +7,7 @@ from typing import Any
 _BOOTSTRAP_MESSAGES: dict[str, dict[str, str]] = {
     "en": {
         "welcome_title": "Holix — initial setup",
-        "welcome_body": "We will configure LLM, web search, and (optionally) Telegram.",
+        "welcome_body": "We will configure LLM, web search, language servers (lsp), and (optionally) Telegram.",
         "llm_title": "LLM connection",
         "llm_body": "Holix uses an OpenAI-compatible API (Ollama, LiteLLM, OpenAI, Groq…).",
         "llm_reconfigure": 'Provider "{name}" is already configured. Reconfigure?',
@@ -73,6 +73,17 @@ _BOOTSTRAP_MESSAGES: dict[str, dict[str, str]] = {
         "search_save_anyway": "Save configuration anyway?",
         "search_saved": "Search saved for profile '{profile}': {providers}",
         "skip_search_non_tty": "Web search skipped. Run: holix search configure",
+        "lsp_title": "Language servers (lsp tool)",
+        "lsp_body": (
+            "The agent lsp tool needs language servers for hover/definition. "
+            "Default: Python (Pyright) and, if Node.js is installed, JS/TS, JSON, HTML, CSS, YAML, Bash."
+        ),
+        "lsp_configure": "Install recommended language servers now?",
+        "lsp_skipped": "Language servers skipped. Later: holix lsp setup",
+        "lsp_saved": "Language servers installed. Check: holix lsp status",
+        "lsp_partial": "Some language servers failed to install. See holix lsp status / holix doctor",
+        "skip_lsp_non_tty": "Language servers skipped. Run: holix lsp setup",
+        "done_lsp": "holix lsp setup",
         "done_search": "holix search configure",
         "done_title": "Done",
         "done_next": "Next steps:",
@@ -88,7 +99,7 @@ _BOOTSTRAP_MESSAGES: dict[str, dict[str, str]] = {
     },
     "ru": {
         "welcome_title": "Holix — первичная настройка",
-        "welcome_body": "Настроим LLM, веб-поиск и (опционально) Telegram-бота.",
+        "welcome_body": "Настроим LLM, веб-поиск, language servers (lsp) и (опционально) Telegram-бота.",
         "llm_title": "Подключение LLM",
         "llm_body": "Holix использует OpenAI-compatible API (Ollama, LiteLLM, OpenAI, Groq…).",
         "llm_reconfigure": "Провайдер «{name}» уже настроен. Перенастроить?",
@@ -154,6 +165,17 @@ _BOOTSTRAP_MESSAGES: dict[str, dict[str, str]] = {
         "search_save_anyway": "Сохранить настройки всё равно?",
         "search_saved": "Поиск сохранён для профиля «{profile}»: {providers}",
         "skip_search_non_tty": "Веб-поиск пропущен. Запустите: holix search configure",
+        "lsp_title": "Language servers (инструмент lsp)",
+        "lsp_body": (
+            "Инструмент lsp агента нуждается в language servers для hover/definition. "
+            "По умолчанию: Python (Pyright) и, если есть Node.js, JS/TS, JSON, HTML, CSS, YAML, Bash."
+        ),
+        "lsp_configure": "Установить рекомендуемые language servers сейчас?",
+        "lsp_skipped": "Language servers пропущены. Позже: holix lsp setup",
+        "lsp_saved": "Language servers установлены. Проверка: holix lsp status",
+        "lsp_partial": "Часть language servers не установилась. Смотрите holix lsp status / holix doctor",
+        "skip_lsp_non_tty": "Language servers пропущены. Запустите: holix lsp setup",
+        "done_lsp": "holix lsp setup",
         "done_search": "holix search configure",
         "done_title": "Готово",
         "done_next": "Дальше:",
