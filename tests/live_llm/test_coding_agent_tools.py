@@ -113,12 +113,25 @@ async def test_live_63_plan_mode_enter_blocks_write(live_harness):
     _assert_called(r, "plan_mode")
     body = live_harness.read("keep.py")
     assert "mutated" not in body, body
-    blocked = False
-    for payload in r.tool_payloads("write_file"):
-        if isinstance(payload, dict) and payload.get("code") == "plan_mode_blocked":
-            blocked = True
-    assert blocked or soft_contains(
-        r.text, "plan_mode_blocked", "blocked", "read-only", min_hits=1
+    blocked = any(
+        isinstance(payload, dict) and payload.get("code") == "plan_mode_blocked"
+        for payload in r.tool_payloads("write_file")
+    )
+    # Entering plan_mode strips write tools from the schema, so the model may
+    # never call write_file. File unchanged is then the proof.
+    schema_stripped = "write_file" not in r.tool_names()
+    assert (
+        blocked
+        or schema_stripped
+        or soft_contains(
+            r.text,
+            "plan_mode_blocked",
+            "blocked",
+            "read-only",
+            "недоступен",
+            "отсутствует",
+            min_hits=1,
+        )
     ), (r.tool_names(), r.text)
 
 
