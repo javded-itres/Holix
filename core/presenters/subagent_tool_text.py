@@ -194,6 +194,8 @@ def pick_best_tool_final(recent_tools: list[dict[str, Any]]) -> str:
     if not recent_tools:
         return ""
 
+    from core.runtime.test_run_signals import is_test_log_dump
+
     errors: list[str] = []
     for entry in reversed(recent_tools):
         if not isinstance(entry, dict):
@@ -203,12 +205,14 @@ def pick_best_tool_final(recent_tools: list[dict[str, Any]]) -> str:
             continue
         if name == "wait_subagent_result":
             text = extract_subagent_tool_text(name, body)
-            if text:
+            if text and not is_test_log_dump(text):
                 return text
         if name == "send_chat_files":
             continue
         formatted = format_tool_body_for_messenger(body, name=name)
         if not formatted:
+            continue
+        if is_test_log_dump(body) or is_test_log_dump(formatted):
             continue
         if _looks_like_tool_error(name, body, formatted):
             errors.append(formatted)
@@ -219,19 +223,15 @@ def pick_best_tool_final(recent_tools: list[dict[str, Any]]) -> str:
         if not isinstance(entry, dict):
             continue
         name, body = _tool_entry_name_body(entry)
-        if not body:
+        if not body or is_test_log_dump(body):
             continue
         text = extract_subagent_tool_text(name, body)
-        if text:
+        if text and not is_test_log_dump(text):
             return text
 
     if errors:
         return errors[0]
-    last = recent_tools[-1]
-    if not isinstance(last, dict):
-        return ""
-    _, body = _tool_entry_name_body(last)
-    return format_tool_body_for_messenger(body) if body else ""
+    return ""
 
 
 def _format_wait_result(raw: str) -> str:

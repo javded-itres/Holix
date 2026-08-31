@@ -201,13 +201,19 @@ def _format_process_result(
     returncode: int,
     output: str,
     error: str,
+    command: str = "",
 ) -> str:
-    if returncode == 0:
-        return f"Success (exit code 0):\n{output}" if output else "Success (no output)"
     access = _format_access_denial(returncode=returncode, output=output, error=error)
     if access:
         return access
-    return f"Error (exit code {returncode}):\nSTDOUT:\n{output}\nSTDERR:\n{error}"
+    from core.runtime.terminal_result import format_process_result
+
+    return format_process_result(
+        returncode=returncode,
+        output=output,
+        error=error,
+        command=command,
+    )
 
 
 def _spawn_kwargs() -> dict:
@@ -540,6 +546,10 @@ class TerminalTool(BaseTool):
                     pass
 
             use_shell = command_needs_shell(command)
+            if use_shell:
+                from core.runtime.terminal_result import with_pipefail
+
+                command = with_pipefail(command)
             spawn_kw = _spawn_kwargs()
             argv: list[str] | None = None
             if not use_shell:
@@ -623,6 +633,7 @@ class TerminalTool(BaseTool):
                     returncode=process.returncode or 0,
                     output=output,
                     error=error,
+                    command=command,
                 )
 
             except PromoteForegroundService as promo:

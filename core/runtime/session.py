@@ -40,7 +40,15 @@ async def prepare_session(
     messages = await agent.memory.get_conversation(conversation_id, limit=limit)
     messages = inject_soul_into_messages(messages, profile)
 
-    messages.append({"role": "user", "content": user_input})
+    from core.project.init_intent import expand_user_message_for_holix_init
+
+    loop_input = user_input
+    try:
+        loop_input = expand_user_message_for_holix_init(user_input, agent=agent)
+    except Exception:
+        logger.warning("holix init expand failed", exc_info=True)
+        loop_input = user_input
+    messages.append({"role": "user", "content": loop_input})
     await agent.memory.save_message(conversation_id, "user", user_input)
 
     from core.runtime.context_session import compress_session_if_needed

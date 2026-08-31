@@ -30,6 +30,12 @@ MESSENGER_EMPTY_FINAL_RU = (
     "Агент завершил работу без текстового ответа.\nПроверьте модель (/models) или повторите запрос."
 )
 
+UNUSABLE_TEST_DUMP_RU = (
+    "Агент не сформировал текстовый ответ (часто — лимит шагов).\n"
+    "Последний вывод tool — лог тестов, это не отчёт.\n"
+    "{snippet}"
+)
+
 _UNSUCCESSFUL_FINAL_MARKERS = (
     "без текстового ответа",
     "без видимого ответа",
@@ -51,12 +57,47 @@ def is_aborted_final_response(content: str | None) -> bool:
     return any(marker in text for marker in _ABORTED_FINAL_MARKERS)
 
 
+def is_unusable_final_tool_output(text: str | None) -> bool:
+    """True when a tool payload must not be shown as the assistant's answer."""
+    from core.runtime.test_run_signals import is_test_log_dump
+
+    return is_test_log_dump(text or "")
+
+
+def format_unusable_final(text: str | None, *, max_steps: int | None = None) -> str:
+    from core.runtime.test_run_signals import failure_snippet
+
+    snippet = failure_snippet(text or "")
+    body = UNUSABLE_TEST_DUMP_RU.format(snippet=snippet or "(нет краткой строки ошибки)")
+    if max_steps:
+        return f"Достигнут лимит шагов ({max_steps}).\n{body}"
+    return body
+
+
+def coerce_usable_final_text(
+    text: str | None,
+    *,
+    max_steps: int | None = None,
+) -> str:
+    """Drop pytest dumps; optionally annotate a max-steps stop."""
+    raw = (text or "").strip()
+    if not raw:
+        if max_steps:
+            return f"Достигнут лимит шагов ({max_steps}). Текстового ответа нет."
+        return ""
+    if is_unusable_final_tool_output(raw):
+        return format_unusable_final(raw, max_steps=max_steps)
+    return raw
+
+
 def is_meaningful_final_response(content: str | None) -> bool:
     """True when the assistant produced a real answer worth treating as step completion."""
     text = (content or "").strip()
     if not text or is_placeholder_final(text):
         return False
     if is_aborted_final_response(text):
+        return False
+    if is_unusable_final_tool_output(text):
         return False
     lowered = text.lower()
     return not any(marker in lowered for marker in _UNSUCCESSFUL_FINAL_MARKERS)
@@ -86,6 +127,9 @@ def resolve_messenger_final_content(
             tool_text = picked
     if not text and tool_text:
         text = tool_text
+
+    if is_unusable_final_tool_output(text):
+        text = format_unusable_final(text)
 
     if not text:
         return empty_message
