@@ -7,14 +7,20 @@ from core.runtime.test_run_signals import is_red_test_output, is_test_command, i
 
 
 def with_pipefail(command: str) -> str:
-    """Prefix POSIX shells so ``pytest | tail`` keeps pytest's exit code."""
+    """Prefix POSIX shells so ``pytest | tail`` keeps pytest's exit code.
+
+    Debian/Ubuntu ``/bin/sh`` is dash, which rejects ``set -o pipefail``.
+    ``|| true`` keeps the rest of the command running there; bash still
+    enables pipefail. Red pytest output is also detected by
+    ``format_process_result`` when the pipe hides the exit code.
+    """
     text = str(command or "")
     if not text.strip() or IS_WINDOWS:
         return text
     stripped = text.lstrip()
     if stripped.startswith("set -o pipefail"):
         return text
-    return "set -o pipefail; " + text
+    return "set -o pipefail 2>/dev/null || true; " + text
 
 
 def format_process_result(

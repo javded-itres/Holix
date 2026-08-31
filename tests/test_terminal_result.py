@@ -10,7 +10,31 @@ def test_with_pipefail_prefixes_once() -> None:
     cmd = "pytest -q | tail -20"
     wrapped = with_pipefail(cmd)
     assert wrapped.startswith("set -o pipefail") or wrapped == cmd
+    assert "|| true" in wrapped or wrapped == cmd
     assert with_pipefail(wrapped) == wrapped
+
+
+def test_pipefail_prefix_is_legal_on_posix_sh() -> None:
+    import shutil
+    import subprocess
+
+    from core.platform_compat import IS_WINDOWS
+
+    if IS_WINDOWS:
+        return
+    sh = shutil.which("sh")
+    if not sh:
+        return
+    wrapped = with_pipefail("echo ok")
+    result = subprocess.run(
+        [sh, "-c", wrapped],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert result.returncode == 0
+    assert "ok" in result.stdout
+    assert "Illegal option" not in (result.stderr or "")
 
 
 def test_pytest_failed_output_is_error_even_when_rc_zero() -> None:
