@@ -361,9 +361,12 @@ def evaluate_step_budget(
 
     green_repeat = tests_already_green_loop(traces)
     inspect_repeat = introspect_loop(traces)
-    from core.runtime.write_signals import noop_write_loop
+    from core.runtime.test_run_signals import tests_failing_without_writes
+    from core.runtime.write_signals import no_write_implementation_loop, noop_write_loop
 
     noop_writes = noop_write_loop(traces)
+    red_tests = tests_failing_without_writes(traces)
+    read_only = no_write_implementation_loop(traces, task)
 
     signals = {
         "pending_tools": len(pending),
@@ -375,6 +378,8 @@ def evaluate_step_budget(
         "tests_green_repeat": green_repeat,
         "inspect_repeat": inspect_repeat,
         "noop_write_repeat": noop_writes,
+        "tests_red_no_write": red_tests,
+        "read_only_impl": read_only,
         "relevance": round(relevance, 3),
         "extensions_used": ext_used,
         "hard_cap": hard,
@@ -415,6 +420,26 @@ def evaluate_step_budget(
         return StepBudgetDecision(
             extend=False,
             reason="hung: write_file with no content changes is not progress",
+            status="hung",
+            extensions_used=ext_used,
+            new_max_steps=ms,
+            signals=signals,
+        )
+
+    if red_tests:
+        return StepBudgetDecision(
+            extend=False,
+            reason="hung: tests keep failing and no file was written",
+            status="hung",
+            extensions_used=ext_used,
+            new_max_steps=ms,
+            signals=signals,
+        )
+
+    if read_only:
+        return StepBudgetDecision(
+            extend=False,
+            reason="hung: implement/fix task only reads or re-runs tests (no write_file)",
             status="hung",
             extensions_used=ext_used,
             new_max_steps=ms,

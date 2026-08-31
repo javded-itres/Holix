@@ -6,6 +6,7 @@ import time
 
 import pytest
 from core.runtime.introspect_signals import (
+    INTROSPECT_REFUSAL,
     introspect_loop,
     is_introspect_code,
     is_introspect_command,
@@ -27,16 +28,18 @@ def _cmd(method: str) -> str:
 def test_detects_inspect_getsource() -> None:
     assert is_introspect_command('python -c "import inspect; print(inspect.getsource(Foo.bar))"')
     assert is_introspect_command('python -c "print(dir(app))"')
-    assert is_introspect_command('python -c "import dadata; print(dadata.Dadata.__name__)"')
     assert is_introspect_command(
         'python -c "import dadata; print(dadata.Dadata.__init__.__code__.co_flags)"'
     )
+    assert not is_introspect_command('python -c "import dadata; print(dadata.Dadata.__name__)"')
+    assert not is_introspect_command('python -c "import json; print(1)"')
     assert not is_introspect_command("python -m pytest tests")
     assert not is_introspect_command("pip install dadata")
     assert not is_introspect_command('python -c "print(1)"')
     assert not is_introspect_code(
         "try:\n    1/0\nexcept ZeroDivisionError as e:\n    print(type(e).__name__)"
     )
+    assert "dadata" not in INTROSPECT_REFUSAL.lower()
 
 
 def test_introspect_loop_on_rotating_methods() -> None:
@@ -117,8 +120,9 @@ async def test_terminal_refuses_python_c_library_probe() -> None:
     from core.tools.terminal import TerminalTool
 
     out = await TerminalTool().execute(
-        'cd projects/data_address && python -c "import dadata; print(dadata.Dadata.__name__)"',
+        'cd projects/data_address && python -c "import inspect; from dadata.asynchr import DadataClient; print(inspect.getsource(DadataClient.suggest))"',
         timeout=5,
     )
     assert "write_file" in out
     assert "Success" not in out
+    assert "DaDataAsync" not in out

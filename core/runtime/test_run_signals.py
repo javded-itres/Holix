@@ -36,6 +36,47 @@ def is_test_command(command: str) -> bool:
     return bool(_TEST_CMD_RE.search(command or ""))
 
 
+def is_red_test_output(text: str) -> bool:
+    blob = str(text or "")
+    if _FAILED_RE.search(blob) or _ERROR_RE.search(blob):
+        return True
+    low = blob.lower()
+    if "traceback" in low and "passed" not in low:
+        return True
+    if "failed" in low and "0 failed" not in low:
+        return True
+    return False
+
+
+def is_red_test_trace(trace: dict[str, Any]) -> bool:
+    name = str(trace.get("name") or "").lower()
+    args = extract_command(trace.get("arguments") or "")
+    result = str(trace.get("result") or "")
+    if name not in {"terminal", "run_terminal_command"}:
+        return False
+    if not is_test_command(args):
+        return False
+    return is_red_test_output(result)
+
+
+def tests_failing_without_writes(
+    traces: list[dict[str, Any]] | None,
+    *,
+    min_reds: int = 2,
+) -> bool:
+    """True when pytest/unit tests keep failing and nothing was written since."""
+    rows = list(traces or [])
+    reds = [i for i, t in enumerate(rows) if is_red_test_trace(t)]
+    if len(reds) < min_reds:
+        return False
+    writes = frozenset({"write_file", "patch_file", "apply_patch", "notebook_edit"})
+    last_write = max(
+        (i for i, t in enumerate(rows) if str(t.get("name") or "").lower() in writes),
+        default=-1,
+    )
+    return last_write < reds[0]
+
+
 def is_green_test_output(text: str) -> bool:
     blob = str(text or "")
     low = blob.lower()

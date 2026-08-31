@@ -21,36 +21,34 @@ _INTROSPECT_RE = re.compile(
     # Not ``__name__``: ``type(exc).__name__`` is normal error handling.
     r"|__(?:doc|annotations|defaults|kwdefaults|qualname|module|"
     r"dict|mro|globals|func__)__"
-    r"|python\d*\s+-c\b[^;\n]*\b(?:dir|vars|type|help|getattr|hasattr)\s*\(",
-    re.I,
-)
-
-# Any ``python -c`` that imports a module is a REPL probe, not implementation.
-_PYTHON_C_IMPORT = re.compile(
-    r"\bpython\d*\s+-c\b[\s\S]{0,4000}\b(?:import|from)\s+\w+",
+    r"|python\d*\s+-c\b[^;\n]*\b(?:dir|vars|help|getattr|hasattr)\s*\(",
     re.I,
 )
 
 _TERMINAL = frozenset({"terminal", "run_terminal_command", "code_executor", "execute_python"})
-_WRITE = frozenset({"write_file", "delete_file"})
+_WRITE = frozenset({"write_file", "patch_file", "apply_patch", "delete_file"})
 
 INTROSPECT_REFUSAL = (
     "Error: Library introspection is blocked "
-    "(python -c, inspect.getsource, dir/type/__code__/__doc__). "
+    "(inspect.getsource, dir(), __code__, __doc__). "
     "That is not implementation and will not be executed.\n"
-    "Required next tool: **write_file**. Create the project files now "
-    "(pyproject.toml, package, routers, tests).\n"
-    "DaData: `DadataAsync(token, secret)` / `DadataClient` — "
-    "`suggest(name, query)`, `geolocate`, `iplocate`, `find_by_id`. "
-    "Do not probe the installed package again."
+    "Do not probe installed packages with python -c. "
+    "Next tool must persist code: **write_file** or **patch_file** "
+    "(or apply_patch). Then run tests."
 )
+
+INTROSPECT_WRITE_NUDGE = (
+    "[Action honesty — introspection] python -c / inspect.getsource was blocked. "
+    "Do NOT repeat library probes and do NOT echo that error as the final answer. "
+    "Call write_file or patch_file now with the implementation, then pytest. "
+    "A one-line python -c that only prints a value (no inspect/dir/__code__) is fine."
+)
+
+_REFUSAL_MARK = "library introspection is blocked"
 
 
 def is_introspect_command(command: str) -> bool:
-    text = command or ""
-    if _INTROSPECT_RE.search(text):
-        return True
-    return bool(_PYTHON_C_IMPORT.search(text))
+    return bool(_INTROSPECT_RE.search(command or ""))
 
 
 def is_introspect_code(code: str) -> bool:
@@ -58,11 +56,11 @@ def is_introspect_code(code: str) -> bool:
     text = code or ""
     if _INTROSPECT_RE.search(text):
         return True
-    if re.search(r"\b(?:import|from)\s+inspect\b", text):
-        return True
-    if re.search(r"\b(?:import|from)\s+dadata\b", text, re.I):
-        return True
-    return False
+    return bool(re.search(r"\b(?:import|from)\s+inspect\b", text))
+
+
+def is_introspect_refusal(text: str | None) -> bool:
+    return _REFUSAL_MARK in str(text or "").strip().lower()
 
 
 def is_introspect_trace(trace: dict[str, Any]) -> bool:

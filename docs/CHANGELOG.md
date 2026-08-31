@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+### Fixed
+
+- **ReAct read/test loops** — step budget no longer extends when an implement/fix
+  task only reads files or re-runs a failing pytest without `write_file`.
+- **Introspection guard** — block `inspect.getsource` / `dir()` / `__code__`, not
+  every `python -c … import`. Refusal text is generic (no DaData). Echoing that
+  refusal as the final answer is treated as an honesty retry (`write_file`).
+- **Trajectory** — `ToolCallResultEvent` is `tool_call_result`, not generic `error`.
+- Terminal tool output drops `DEBUG`/`TRACE` log lines (pytest + aiosqlite noise).
+
 ## 1.1.4 — 2026-08-31
 
 ### Changed

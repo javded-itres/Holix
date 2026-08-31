@@ -101,6 +101,88 @@ def test_hung_on_identical_tool_loop() -> None:
     assert "loop" in d.reason.lower()
 
 
+def test_no_extend_when_pytest_keeps_failing_without_writes() -> None:
+    log = [
+        {
+            "name": "read_file",
+            "arguments": '{"path": "payment.py"}',
+            "result": "Content of payment.py:\nasync def successful_payment",
+        },
+        {
+            "name": "run_terminal_command",
+            "arguments": '{"command": "python -m pytest -q src/tests/test_bot_payment.py"}',
+            "result": "Failed: 1 failed, 4 passed\nAssertionError: payload",
+        },
+        {
+            "name": "read_file",
+            "arguments": '{"path": "key_issue.py"}',
+            "result": "Content of key_issue.py:\nclass KeyIssue",
+        },
+        {
+            "name": "run_terminal_command",
+            "arguments": '{"command": "python -m pytest -q src/tests/test_bot_payment.py"}',
+            "result": "Failed: 1 failed, 4 passed\nAssertionError: payload",
+        },
+    ]
+    d = evaluate_step_budget(
+        step_count=90,
+        max_steps=90,
+        tool_calls_log=log,
+        task="исправь падение теста оплаты",
+        policy=StepBudgetPolicy(extend_by=30, max_extensions=3),
+        base_max_steps=90,
+    )
+    assert not d.extend
+    assert d.status == "hung"
+    assert "failing" in d.reason.lower() or "write" in d.reason.lower()
+
+
+def test_no_extend_on_implement_task_that_only_reads() -> None:
+    log = [
+        {
+            "name": "list_directory",
+            "arguments": '{"path": "projects/bot"}',
+            "result": "[dir] src\n[file] pyproject.toml",
+        },
+        {
+            "name": "read_file",
+            "arguments": '{"path": "a.py"}',
+            "result": "Content of a.py:\n" + ("x = 1\n" * 20),
+        },
+        {
+            "name": "read_file",
+            "arguments": '{"path": "b.py"}',
+            "result": "Content of b.py:\n" + ("y = 2\n" * 20),
+        },
+        {
+            "name": "grep",
+            "arguments": '{"pattern": "payment"}',
+            "result": "12 matches",
+        },
+        {
+            "name": "read_file",
+            "arguments": '{"path": "c.py"}',
+            "result": "Content of c.py:\n" + ("z = 3\n" * 20),
+        },
+        {
+            "name": "read_file",
+            "arguments": '{"path": "d.py"}',
+            "result": "Content of d.py:\n" + ("w = 4\n" * 20),
+        },
+    ]
+    d = evaluate_step_budget(
+        step_count=90,
+        max_steps=90,
+        tool_calls_log=log,
+        task="сделай выдачу ключа после successful_payment",
+        policy=StepBudgetPolicy(extend_by=30, max_extensions=3),
+        base_max_steps=90,
+    )
+    assert not d.extend
+    assert d.status == "hung"
+    assert "write_file" in d.reason.lower() or "reads" in d.reason.lower()
+
+
 def test_no_extend_when_same_pytest_already_green() -> None:
     log = [
         {
