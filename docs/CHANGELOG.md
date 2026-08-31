@@ -2,6 +2,20 @@
 
 ## Unreleased
 
+## 1.1.6 — 2026-08-31
+
+### Changed
+
+- **System prompt** — navigate code with `lsp` (`symbols` / `hover` / `definition` /
+  `references` / `implementation`); `diagnostics` is one-file, not a repo lint.
+  Review/analyze must not pytest-loop or start the app unless asked. Test commands
+  must not be piped to `tail`/`head` (hides the real exit code). The run/debug
+  loop applies only after the agent changed code.
+
+### Tests
+
+- Prompt and `lsp` tool description assert navigation-first wording.
+
 ## 1.1.5 — 2026-08-31
 
 ### Fixed
