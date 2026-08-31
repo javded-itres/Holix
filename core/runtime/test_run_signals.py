@@ -48,6 +48,53 @@ def is_red_test_output(text: str) -> bool:
     return False
 
 
+_PYTEST_DUMP_MARKERS = (
+    "short test summary info",
+    "=== errors ===",
+    "=== failures ===",
+    "==== errors ====",
+    "==== failures ====",
+)
+
+
+def is_test_log_dump(text: str) -> bool:
+    """True when ``text`` is a pytest/runner log, not a user-facing answer."""
+    blob = str(text or "")
+    if not blob.strip():
+        return False
+    low = blob.lower()
+    if any(m in low for m in _PYTEST_DUMP_MARKERS):
+        return True
+    if re.search(r"::test_\w+.+(FAILED|ERROR)", blob):
+        return True
+    if low.lstrip().startswith("success (exit code") and is_red_test_output(blob):
+        return True
+    if low.lstrip().startswith("error (exit code") and is_red_test_output(blob):
+        return True
+    return False
+
+
+def failure_snippet(text: str, *, limit: int = 400) -> str:
+    """First useful FAILED / E  line from a pytest dump."""
+    blob = str(text or "")
+    ranked: list[str] = []
+    for line in blob.splitlines():
+        stripped = line.strip()
+        if not stripped:
+            continue
+        if stripped.startswith("FAILED ") or stripped.startswith("ERROR "):
+            ranked.append(stripped)
+        elif stripped.startswith("E ") or stripped.startswith("E\t"):
+            ranked.append(stripped)
+    if ranked:
+        for line in ranked:
+            if " - " in line:
+                return line[:limit]
+        return ranked[0][:limit]
+    compact = " ".join(blob.split())
+    return compact[:limit]
+
+
 def is_red_test_trace(trace: dict[str, Any]) -> bool:
     name = str(trace.get("name") or "").lower()
     args = extract_command(trace.get("arguments") or "")

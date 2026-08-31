@@ -233,7 +233,10 @@ async def run_graph_loop(
             final_state = await compiled_graph.ainvoke(initial_state, config)
 
         from core.llm.response_text import sanitize_assistant_visible_text
-        from core.presenters.final_content import is_placeholder_final
+        from core.presenters.final_content import (
+            coerce_usable_final_text,
+            is_placeholder_final,
+        )
         from core.presenters.subagent_tool_text import (
             graph_tool_results_as_recent,
             pick_best_tool_final,
@@ -248,6 +251,13 @@ async def run_graph_loop(
             )
             if picked:
                 final_text = picked
+        step_count = final_state.get("step_count", 0)
+        max_steps = final_state.get("max_steps", 90)
+        hit_cap = bool(step_count >= max_steps and not final_state.get("is_final", False))
+        final_text = coerce_usable_final_text(
+            final_text,
+            max_steps=max_steps if hit_cap else None,
+        )
         if not getattr(agent, "_final_response_emitted", False):
             if agent is not None:
                 agent._final_response_emitted = True
@@ -261,8 +271,6 @@ async def run_graph_loop(
                 conversation_id=conversation_id,
             )
 
-        step_count = final_state.get("step_count", 0)
-        max_steps = final_state.get("max_steps", 90)
         if step_count >= max_steps and not final_state.get("is_final", False):
             yield MaxStepsReachedEvent(
                 max_steps=max_steps,

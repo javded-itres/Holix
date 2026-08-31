@@ -223,6 +223,10 @@ class SddCreateChangeTool(BaseTool):
         self.description = (
             "Scaffold a new change under openspec/changes/<id>/ with STUB proposal/"
             "delta specs/tasks only — this does NOT fill the real specification. "
+            "In a Studio product project (.holix/project.json) the id is ALWAYS "
+            "{task_prefix}-{n} (e.g. litellmkeybot-4). Free-form slugs like "
+            "stars-key-for-non-members are rewritten. Prefer "
+            "project_create_task_tool when that MCP tool is available. "
             "You MUST then call sdd_write_artifact for proposal, specs, and tasks. "
             "Main openspec/specs/<domain> updates only after sdd_archive. "
             "Pass request= user request text. If understanding gate is enabled: "
@@ -241,7 +245,11 @@ class SddCreateChangeTool(BaseTool):
                 "project": _PROJECT_PROP,
                 "change_id": {
                     "type": "string",
-                    "description": "Slug id, e.g. oauth-login",
+                    "description": (
+                        "Change id. Studio product projects ignore free-form slugs "
+                        "and allocate {task_prefix}-{n} (e.g. litellmkeybot-4). "
+                        "Outside Studio a slug like oauth-login is kept."
+                    ),
                 },
                 "domain": {
                     "type": "string",
@@ -279,6 +287,14 @@ class SddCreateChangeTool(BaseTool):
 
             prefs = SddPrefsStore(get_profile_name()).get()
             store = _store(project)
+            from core.sdd.product_change_id import (
+                allocate_product_change_id,
+                ensure_studio_board_task,
+            )
+
+            allocated = allocate_product_change_id(store.workspace, requested=change_id)
+            if allocated:
+                change_id = str(allocated["change_id"])
             worktree_note = _attach_change_worktree(store, change_id, project=project)
             result = store.create_change(
                 change_id,
@@ -305,6 +321,41 @@ class SddCreateChangeTool(BaseTool):
                             project=project or "",
                         ),
                     )
+                except Exception:
+                    pass
+            if allocated:
+                result["change_id"] = str(result.get("change_id") or change_id)
+                rewritten = allocated.get("rewritten_from")
+                if rewritten:
+                    result["rewritten_from"] = rewritten
+                    result["note"] = (
+                        f"Studio product project: allocated {result['change_id']} "
+                        f"(ignored slug {rewritten!r}). Use this id for "
+                        "sdd_write_artifact and analysis."
+                    )
+                wt_rel = ""
+                if worktree_note:
+                    try:
+                        wt = Path(str(worktree_note.get("worktree") or "")).resolve()
+                        root = Path(workspace_from_context()).resolve()
+                        wt_rel = str(wt.relative_to(root))
+                    except Exception:
+                        wt_rel = str(worktree_note.get("worktree") or "")
+                try:
+                    board = ensure_studio_board_task(
+                        meta_path=allocated["meta_path"],
+                        data=allocated["data"],
+                        change_id=str(result.get("change_id") or change_id),
+                        title=(request or "").strip().split("\n", 1)[0],
+                        request=request or "",
+                        worktree_rel=wt_rel,
+                    )
+                    if board:
+                        result["task_id"] = board.get("id")
+                        result["board_task"] = {
+                            "id": board.get("id"),
+                            "change_id": board.get("change_id"),
+                        }
                 except Exception:
                     pass
             # When understanding gate is ON, leave clarifying/score=0 so the agent

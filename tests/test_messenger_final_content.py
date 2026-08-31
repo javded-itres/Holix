@@ -71,6 +71,27 @@ def test_resolve_empty_message() -> None:
     assert resolve_messenger_final_content("") == MESSENGER_EMPTY_FINAL_RU
 
 
+def test_resolve_does_not_ship_pytest_dump() -> None:
+    from core.presenters.final_content import coerce_usable_final_text
+
+    dump = (
+        "Success (exit code 0):\n"
+        "src/x.py::test_admin FAILED\n"
+        "=========================== short test summary info ===========================\n"
+        "FAILED src/x.py::test_admin - NoFactoryError\n"
+    )
+    text = resolve_messenger_final_content(
+        "No response generated",
+        last_tool_result=dump,
+    )
+    assert "NoFactoryError" in text
+    assert "лог тестов" in text
+    assert not text.startswith("Success (exit code")
+    coerced = coerce_usable_final_text(dump, max_steps=90)
+    assert "90" in coerced
+    assert "NoFactoryError" in coerced
+
+
 @pytest.mark.asyncio
 async def test_max_final_placeholder_uses_tool_result() -> None:
     client = MagicMock()
@@ -185,4 +206,3 @@ async def test_max_streaming_delta_not_used_as_final_fallback() -> None:
 
     texts = [call.args[0] for call in client.send_message.await_args_list]
     assert not any("проверю код" in t for t in texts)
-

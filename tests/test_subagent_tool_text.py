@@ -75,6 +75,17 @@ def test_resolve_final_uses_wait_subagent_json() -> None:
     assert "Черновик документа готов" in text
 
 
+def test_pick_best_skips_pytest_dump() -> None:
+    dump = (
+        "Success (exit code 0):\n"
+        "src/x.py::test_paid_stars_keys_allow_multiple_active_keys FAILED [100%]\n"
+        "=========================== short test summary info ===========================\n"
+        "FAILED src/x.py::test_paid - IntegrityError\n"
+    )
+    recent = [{"name": "run_terminal_command", "full_result": dump}]
+    assert pick_best_tool_final(recent) == ""
+
+
 def test_pick_best_formats_studio_projects_json() -> None:
     recent = [
         {

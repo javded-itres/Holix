@@ -2,6 +2,26 @@
 
 ## Unreleased
 
+## 1.1.7 — 2026-08-31
+
+### Fixed
+
+- **Terminal** — enable `pipefail` in bash only (dash `/bin/sh` skips it);
+  `pytest | tail` with FAILED in output is reported as Error even when the
+  pipe's exit code is 0.
+- **Final answer** — pytest / traceback dumps are not shown as the assistant
+  reply when the model hits max steps (short note + first FAILED line instead).
+- **Holix init** — phrases like «инициализацию Holix» / `HOLIX.md` expand to the
+  same `/init` prompt (and seed `.holix/HOLIX.md` when missing).
+- **Studio product SDD** — `sdd_create_change` no longer keeps free-form slugs
+  (`stars-key-for-non-members`); it allocates `{task_prefix}-{n}` from
+  `.holix/project.json` and adds a board task so analysis can run.
+
+### Tests
+
+- Terminal pipefail / red-pytest-as-error, init-intent expansion, product
+  change ids, messenger and `pick_best_tool_final` skip pytest dumps.
+
 ## 1.1.6 — 2026-08-31
 
 ### Changed

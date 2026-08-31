@@ -390,6 +390,9 @@ async def run_in_pty(
         await _ensure_ready(shell)
         with _lock:
             _sessions[key] = shell
+    from core.runtime.terminal_result import with_pipefail
+
+    command = with_pipefail(command)
     try:
         result = await shell.run(command, timeout=timeout)
     except TimeoutError:
@@ -400,6 +403,11 @@ async def run_in_pty(
         return "Error: PTY shell exited unexpectedly"
     shell.cwd = result.cwd
     output = truncate_terminal_output(sanitize_paths_in_text(result.output))
-    if result.returncode == 0:
-        return f"Success (exit code 0):\n{output}" if output else "Success (no output)"
-    return f"Error (exit code {result.returncode}):\n{output}"
+    from core.runtime.terminal_result import format_process_result
+
+    return format_process_result(
+        returncode=int(result.returncode or 0),
+        output=output,
+        error="",
+        command=command,
+    )
