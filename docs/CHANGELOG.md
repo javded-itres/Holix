@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 1.1.5 — 2026-08-31
+
 ### Fixed
 
 - **ReAct read/test loops** — step budget no longer extends when an implement/fix
