@@ -35,13 +35,14 @@ class LspTool(BaseTool):
         super().__init__()
         self.name = "lsp"
         self.description = (
-            "Language-server queries: definition, references, implementation, "
-            "hover, diagnostics, symbols, status. Uses an installed language "
-            "server for the file type (Python Pyright by default, then "
-            "basedpyright/pylsp/jedi; JS/TS, Go, Rust, JSON/HTML/CSS, YAML, "
-            "Bash, …). Missing server → lsp_unavailable "
-            "with install hints; fall back to grep. Run holix lsp setup / "
-            "holix doctor to install packages."
+            "Navigate code via the language server. For architecture / how code "
+            "connects use symbols, hover, definition, references, implementation "
+            "(path + line + character). Do not substitute a diagnostics sweep or "
+            "read_file dumps. diagnostics is for one known file after navigation. "
+            "status lists ready servers. Python: Pyright, then basedpyright/pylsp/"
+            "jedi; also JS/TS, Go, Rust, JSON/HTML/CSS, YAML, Bash, …. Missing "
+            "server → lsp_unavailable with install hints; fall back to grep. "
+            "Run holix lsp setup / holix doctor to install packages."
         )
         self.risk_level = "no"
         self.parameters = {

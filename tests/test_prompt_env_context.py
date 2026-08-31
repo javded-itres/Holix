@@ -33,6 +33,9 @@ def test_tools_prompt_policy_is_not_a_catalog() -> None:
     assert "JSON schemas" in text
     assert "not listed here" in text
     assert "- **read_file**:" not in text
+    assert "Navigate code with `lsp`" in text
+    assert "pytest-loop" in text
+    assert "tail/head" in text
     prompt = build_system_prompt(
         tools_description=text,
         active_skills=[],
@@ -69,7 +72,7 @@ def test_build_system_prompt_requires_run_and_debug(
         active_skills=[],
         profile_name="default",
     )
-    assert "## Run, debug, and environment setup (mandatory)" in prompt
+    assert "## Run, debug, and environment setup (mandatory after you change code)" in prompt
     assert "patch_file" in prompt
     assert "create a new file" in prompt.lower() or "new file" in prompt
     assert "writing files is not enough" in prompt.lower()
@@ -77,6 +80,12 @@ def test_build_system_prompt_requires_run_and_debug(
     assert "never claim" in prompt.lower() and "done" in prompt.lower()
     assert "## Hard rule: never fake completed work" in prompt
     assert "Saying you will do it is not doing it" in prompt
+    assert "Navigate code with `lsp`" in prompt
+    assert "## Review vs implement" in prompt
+    assert "do not pytest-loop" in prompt.lower() or "pytest-loop" in prompt
+    assert "never pipe" in prompt.lower()
+    assert "всё ли работает" not in prompt
+    assert "все ли работает" not in prompt
 
 
 def test_format_env_context_block_jail_hides_install_cwd(

@@ -62,6 +62,14 @@ while True:
 """
 
 
+def test_lsp_tool_description_is_navigation_first() -> None:
+    desc = LspTool().description.lower()
+    assert "definition" in desc
+    assert "references" in desc
+    assert "diagnostics sweep" in desc or "do not substitute a diagnostics" in desc
+    assert "read_file dumps" in desc
+
+
 def test_language_id_for_suffixes() -> None:
     assert language_id_for(Path("a.py")) == "python"
     assert language_id_for(Path("a.ts")) == "typescript"

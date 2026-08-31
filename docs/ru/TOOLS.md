@@ -31,7 +31,7 @@ TUI: модалка с кнопками и полем ввода. Telegram / MAX
 - `tool_search` — поиск builtin, MCP, skills и расширений. В LLM **tools** только **ядро** (файлы, shell, `lsp`, `ask_user`, `skill_view`, …). Остальное (MCP, browser, SDD, SQL, notebook, jobs, session search, …) отложенное. `enable_matches=true` (по умолчанию) подключает совпадения **на эту сессию** (фильтр слота сохраняется). `HOLIX_LAZY_TOOLS=0` — полный каталог.
 - `session_search` — короткие сниппеты из памяти, других сессий и trajectory (не полные транскрипты).
 - `notebook_edit` — replace / insert / delete ячейки `.ipynb` внутри jail (`cell_id`, иначе `cell_index`).
-- `lsp` — hover / definition / references / symbols / diagnostics. Language server для типа файла (Python jedi или pylsp, JS/TS, Go, Rust, JSON/HTML/CSS, YAML, Bash, …). Нет сервера → `{ok: false, code: lsp_unavailable, install: […], fallback: grep}`. Настройка: `holix lsp setup`, `holix doctor`.
+- `lsp` — **навигация**: hover / definition / references / symbols / implementation; `diagnostics` — один известный файл (не lint всего репозитория). Language server для типа файла (Python jedi или pylsp, JS/TS, Go, Rust, JSON/HTML/CSS, YAML, Bash, …). Нет сервера → `{ok: false, code: lsp_unavailable, install: […], fallback: grep}`. Настройка: `holix lsp setup`, `holix doctor`.
 - `plan_mode` — `enter` / `exit` / `status`. В режиме плана наружу отдаются только read-only tools; записи возвращают `plan_mode_blocked`. Выход с непустым планом спрашивает Approve / Revise. План пишется в `.holix/plans/`.
 
 ### Language servers (`lsp`)
