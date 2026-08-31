@@ -43,6 +43,14 @@ class TestAgentEvents:
         assert d["tool_name"] == "read_file"
         assert "timestamp" in d
 
+    def test_tool_call_result_is_not_generic_error(self):
+        event = ToolCallResultEvent(
+            tool_name="read_file",
+            result="Content of foo.py:\nprint(1)\n",
+        )
+        assert event.type == EventType.TOOL_CALL_RESULT
+        assert event.to_dict()["type"] == "tool_call_result"
+
     def test_make_event_factory(self):
         """Test the convenience factory."""
         event = make_event(
@@ -98,6 +106,7 @@ class TestAgentEventBus:
         bus.subscribe(async_handler)
 
         event = ToolCallResultEvent(tool_name="test")
+        assert event.type == EventType.TOOL_CALL_RESULT
         bus.emit(event)
 
         # Give the event loop a chance to run the scheduled task

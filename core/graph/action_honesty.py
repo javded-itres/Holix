@@ -1394,6 +1394,25 @@ def _nudge_for_presentation(nudge: str, tools_presentation: str | None) -> str:
     return nudge.rstrip() + CODE_MODE_NUDGE_TAIL
 
 
+def should_nudge_introspect_final(
+    *,
+    final_response: str | None,
+    messages: list[dict[str, Any]] | None,
+) -> bool:
+    """True when the model echoed a blocked inspect probe as the answer."""
+    from core.runtime.introspect_signals import is_introspect_refusal
+
+    if is_introspect_refusal(final_response):
+        return True
+    for msg in reversed(messages or []):
+        role = str(msg.get("role") or "")
+        if role == "tool":
+            return is_introspect_refusal(str(msg.get("content") or ""))
+        if role == "user":
+            break
+    return False
+
+
 def honesty_retry_update(
     *,
     messages: list[dict[str, Any]],
@@ -1417,7 +1436,11 @@ def honesty_retry_update(
         if not already:
             updated.append({"role": "assistant", "content": final_response})
     user = (user_input or "").strip() or last_user_text(updated)
-    if is_sdd_fill_request(user) or claims_sdd_artifacts_filled(final_response):
+    if should_nudge_introspect_final(final_response=final_response, messages=updated):
+        from core.runtime.introspect_signals import INTROSPECT_WRITE_NUDGE
+
+        nudge = INTROSPECT_WRITE_NUDGE
+    elif is_sdd_fill_request(user) or claims_sdd_artifacts_filled(final_response):
         nudge = SDD_FILL_HONESTY_NUDGE
     elif denies_visible_workspace(final_response, updated):
         nudge = WORKSPACE_GROUNDING_NUDGE

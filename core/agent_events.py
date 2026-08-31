@@ -139,6 +139,10 @@ class UserMessageEvent(AgentEvent):
 
     content: str = ""
 
+    def __post_init__(self):
+        super().__post_init__()
+        object.__setattr__(self, "type", EventType.USER_MESSAGE)
+
     def _extra_fields(self) -> dict[str, Any]:
         return {"content": self.content}
 
@@ -270,6 +274,10 @@ class ToolCallResultEvent(AgentEvent):
     duration_ms: float | None = None
     truncated: bool = False
 
+    def __post_init__(self):
+        super().__post_init__()
+        object.__setattr__(self, "type", EventType.TOOL_CALL_RESULT)
+
     def _extra_fields(self) -> dict[str, Any]:
         return {
             "tool_name": self.tool_name,
@@ -288,6 +296,10 @@ class ToolCallErrorEvent(AgentEvent):
     tool_id: str = ""
     error: str = ""
 
+    def __post_init__(self):
+        super().__post_init__()
+        object.__setattr__(self, "type", EventType.TOOL_CALL_ERROR)
+
     def _extra_fields(self) -> dict[str, Any]:
         return {
             "tool_name": self.tool_name,
@@ -301,6 +313,10 @@ class MaxStepsReachedEvent(AgentEvent):
     """Agent reached the configured max_steps limit."""
 
     max_steps: int = 90
+
+    def __post_init__(self):
+        super().__post_init__()
+        object.__setattr__(self, "type", EventType.MAX_STEPS_REACHED)
 
 
 @dataclass

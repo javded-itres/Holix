@@ -29,6 +29,7 @@ from core.graph.action_honesty import (
     resolve_tool_choice,
     sdd_fill_requires_tools,
     should_nudge_false_completion,
+    should_nudge_introspect_final,
     should_refuse_status_monologue,
     should_refuse_unproven_sdd_fill,
     successful_tools_since_last_user,
@@ -662,6 +663,31 @@ def test_nudge_once_then_stop() -> None:
     assert not should_nudge_false_completion(
         state, final_response="Готово, файл создан.", messages=messages
     )
+
+
+def test_introspect_echo_is_nudged_not_final() -> None:
+    from core.runtime.introspect_signals import INTROSPECT_REFUSAL, INTROSPECT_WRITE_NUDGE
+
+    refusal = INTROSPECT_REFUSAL
+    assert should_nudge_introspect_final(final_response=refusal, messages=[])
+    messages = [
+        {"role": "user", "content": "почини тест оплаты"},
+        {
+            "role": "tool",
+            "content": refusal,
+        },
+    ]
+    assert should_nudge_introspect_final(final_response=refusal, messages=messages)
+    out = honesty_retry_update(
+        messages=messages,
+        step_count=40,
+        final_response=refusal,
+        honesty_nudge_count=0,
+    )
+    assert out["is_final"] is False
+    assert out["final_response"] == ""
+    assert INTROSPECT_WRITE_NUDGE in out["messages"][-1]["content"]
+    assert "dadata" not in out["messages"][-1]["content"].lower()
 
 
 def test_honesty_retry_update_appends_nudge() -> None:

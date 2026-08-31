@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
+import re
 from typing import Any
+
+_DEBUG_LOG_LINE = re.compile(r"^(?:DEBUG|TRACE)\b")
 
 # SQLite + session reload cap (per tool message).
 DEFAULT_TOOL_MEMORY_MAX_CHARS = 16_384
@@ -53,13 +56,32 @@ def truncate_tool_content_for_graph(
     )
 
 
+def strip_debug_log_lines(content: str) -> str:
+    """Drop logging DEBUG/TRACE lines so pytest dumps stay readable."""
+    text = content or ""
+    if "DEBUG" not in text and "TRACE" not in text:
+        return text
+    kept: list[str] = []
+    dropped = 0
+    for line in text.splitlines():
+        if _DEBUG_LOG_LINE.match(line.lstrip()):
+            dropped += 1
+            continue
+        kept.append(line)
+    if dropped == 0:
+        return text
+    out = "\n".join(kept)
+    note = f"\n… [{dropped} verbose log lines omitted]"
+    return (out + note) if out else note.strip()
+
+
 def truncate_terminal_output(
     content: str,
     *,
     max_chars: int = TERMINAL_OUTPUT_MAX_CHARS,
 ) -> str:
     """Cap raw terminal stdout/stderr (defense in depth before hosts store it)."""
-    text = content or ""
+    text = strip_debug_log_lines(content or "")
     if len(text) <= max_chars:
         return text
     return (
