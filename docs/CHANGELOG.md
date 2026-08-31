@@ -6,9 +6,9 @@
 
 ### Fixed
 
-- **Terminal** — bash `pipefail` when the shell supports it (dash `/bin/sh` skips
-  the option); `pytest | tail` with FAILED in output is reported as Error even
-  when the pipe's exit code is 0.
+- **Terminal** — enable `pipefail` in bash only (dash `/bin/sh` skips it);
+  `pytest | tail` with FAILED in output is reported as Error even when the
+  pipe's exit code is 0.
 - **Final answer** — pytest / traceback dumps are not shown as the assistant
   reply when the model hits max steps (short note + first FAILED line instead).
 - **Holix init** — phrases like «инициализацию Holix» / `HOLIX.md` expand to the

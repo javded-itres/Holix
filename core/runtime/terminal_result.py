@@ -5,22 +5,25 @@ from __future__ import annotations
 from core.platform_compat import IS_WINDOWS
 from core.runtime.test_run_signals import is_red_test_output, is_test_command, is_test_log_dump
 
+# dash (Debian/Ubuntu /bin/sh) treats a failed `set` as fatal (special builtin),
+# so we must not invoke `set -o pipefail` unless this is actually bash.
+_PIPEFAIL_PREFIX = '[ -n "${BASH_VERSION:-}" ] && set -o pipefail; '
+
 
 def with_pipefail(command: str) -> str:
-    """Prefix POSIX shells so ``pytest | tail`` keeps pytest's exit code.
+    """Prefix bash so ``pytest | tail`` keeps pytest's exit code.
 
-    Debian/Ubuntu ``/bin/sh`` is dash, which rejects ``set -o pipefail``.
-    ``|| true`` keeps the rest of the command running there; bash still
-    enables pipefail. Red pytest output is also detected by
-    ``format_process_result`` when the pipe hides the exit code.
+    Debian/Ubuntu ``/bin/sh`` is dash and rejects ``pipefail``. Skip ``set``
+    unless ``BASH_VERSION`` is set. Red pytest output is still reported as
+    Error by ``format_process_result`` when a pipe hid the exit code.
     """
     text = str(command or "")
     if not text.strip() or IS_WINDOWS:
         return text
     stripped = text.lstrip()
-    if stripped.startswith("set -o pipefail"):
+    if stripped.startswith('[ -n "${BASH_VERSION:-}" ]') or stripped.startswith("set -o pipefail"):
         return text
-    return "set -o pipefail 2>/dev/null || true; " + text
+    return _PIPEFAIL_PREFIX + text
 
 
 def format_process_result(

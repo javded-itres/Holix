@@ -9,8 +9,8 @@ from core.runtime.test_run_signals import failure_snippet, is_test_log_dump
 def test_with_pipefail_prefixes_once() -> None:
     cmd = "pytest -q | tail -20"
     wrapped = with_pipefail(cmd)
-    assert wrapped.startswith("set -o pipefail") or wrapped == cmd
-    assert "|| true" in wrapped or wrapped == cmd
+    assert "set -o pipefail" in wrapped or wrapped == cmd
+    assert "BASH_VERSION" in wrapped or wrapped == cmd
     assert with_pipefail(wrapped) == wrapped
 
 
@@ -25,15 +25,16 @@ def test_pipefail_prefix_is_legal_on_posix_sh() -> None:
     sh = shutil.which("sh")
     if not sh:
         return
-    wrapped = with_pipefail("echo ok")
+    wrapped = with_pipefail("echo ok && echo chained")
     result = subprocess.run(
         [sh, "-c", wrapped],
         capture_output=True,
         text=True,
         check=False,
     )
-    assert result.returncode == 0
+    assert result.returncode == 0, result.stderr
     assert "ok" in result.stdout
+    assert "chained" in result.stdout
     assert "Illegal option" not in (result.stderr or "")
 
 
