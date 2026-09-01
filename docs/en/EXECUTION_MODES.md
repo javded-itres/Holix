@@ -352,6 +352,8 @@ When the agent hits `max_steps`, Holix does not always stop immediately:
 2. **Working + relevant** → grant extra steps (`max_steps_extend_by`, capped).
 3. **Hung / pure error thrash** → stop (or subagent supervisor guidance).
 
+Implement/fix tasks do **not** get extra steps for a read-only file walk or a red pytest with no `write_file` / `apply_patch` / `patch_file`. Review/analyze must not pytest-loop unless you asked to run tests. See [TROUBLESHOOTING.md](TROUBLESHOOTING.md#agent-loops).
+
 | Variable | Default | Effect |
 |----------|---------|--------|
 | `max_steps` | `90` (runtime; profile may override) | Base ReAct/graph step budget |

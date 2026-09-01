@@ -77,7 +77,7 @@ repo/
 | `sdd_init` | Scaffold `openspec/` (+ example domain) |
 | `sdd_list_specs` / `sdd_read_spec` | Main specs (`openspec/specs/`) |
 | `sdd_list_changes` | Активные (и archive) changes |
-| `sdd_create_change` | Scaffold change (stubs only!). В git-репозитории ещё создаёт worktree (`.holix/worktrees/<id>`, ветка `change/<id>`) и привязывает сессию. Выключить: `HOLIX_WORKTREE=0`. |
+| `sdd_create_change` | Scaffold change (stubs only!). В git-репозитории ещё создаёт worktree (`.holix/worktrees/<id>`, ветка `change/<id>`) и привязывает сессию. Выключить: `HOLIX_WORKTREE=0`. В **продуктовом проекте Studio** (`.holix/project.json`) id всегда `{task_prefix}-{n}` (например `litellmkeybot-4`); свободные slug переписываются, на доску добавляется карточка. Если доступен MCP `project_create_task_tool` — лучше он. |
 | `sdd_read_artifact` | Читать proposal / design / tasks / delta specs change |
 | `sdd_update_spec` | Дополнить / изменить / удалить требование в delta-спеке change |
 | `sdd_write_artifact` | proposal / design / tasks / specs |

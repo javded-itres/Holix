@@ -106,6 +106,15 @@ holix -p shared gateway reload
    ```
 3. У профиля должен быть `workspace_jail_enabled: true`; без jail все видят полные пути.
 
+## Петли агента, дампы pytest, скрытый код выхода {#agent-loops}
+
+| Симптом | Что делает Holix / что делать |
+|---------|-------------------------------|
+| Implement/fix только читает файлы десятки шагов | Бюджет шагов **не** растёт без записи (`write_file` / `patch_file` / `apply_patch`). Навигация — `lsp` (`symbols` / `definition` / `references`) — [TOOLS.md](TOOLS.md). |
+| Review/analyze крутит pytest | Review не должен гонять тесты, пока вы сами не попросили. |
+| `pytest … \| tail` пишет `Success (exit code 0)` при FAILED | В **bash** Holix включает `pipefail`. В dash `/bin/sh` опция пропускается; красный pytest в логе всё равно Error. Не пайпьте тесты в `tail`/`head`. |
+| Финальный ответ — лог pytest | На лимите шагов мессенджер **не** отдаёт дамп тестов как ответ (короткая заметка + первая строка `FAILED`). Нужна запись в код или больше `max_steps`. |
+
 ## См. также
 
 - [LOGS.md](LOGS.md) — файлы логов, фильтры, ротация, debug

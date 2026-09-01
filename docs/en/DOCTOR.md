@@ -35,6 +35,7 @@ LLM fixes (default profile LLM):
 - LLM endpoint and model availability (skipped with `--no-llm`)
 - Gateway stale state / health
 - Telegram token, access requests, and allowlist
+- Language servers for the agent `lsp` tool (`holix lsp status` / `holix lsp setup`)
 - Production: pepper, CORS, auth, code executor
 
 After fixes, inspect runtime logs: `holix logs -l error` — see [LOGS.md](LOGS.md).

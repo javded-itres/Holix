@@ -97,6 +97,22 @@ holix memory search "конфигурация nginx"
 
 ---
 
+## pgvector {#pgvector}
+
+По умолчанию семантика — **Chroma на диске**. Два `PersistentClient` на один каталог роняют процесс; Holix держит **один клиент на путь** (диалог, LTM и субагенты в том же процессе).
+
+Общее хранилище в Postgres (Studio / несколько процессов):
+
+```bash
+pip install 'Holix[pgvector]'
+export HOLIX_VECTOR_BACKEND=pgvector
+export HOLIX_VECTOR_DSN='postgresql://user:pass@host/db'   # или STUDIO_DATABASE_URL
+```
+
+Таблица `holix_vectors`, MiniLM 384-d. Субагенты используют тот же DSN, без временного Chroma. Без `HOLIX_VECTOR_BACKEND` остаётся Chroma.
+
+---
+
 ## Проблемы
 
 | Симптом | Действие |

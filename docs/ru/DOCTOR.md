@@ -34,6 +34,7 @@ LLM (default LLM профиля):
 - LLM endpoint и модель (пропускается с `--no-llm`)
 - Gateway state / health
 - Telegram token, access requests и allowlist
+- Language servers для tool `lsp` (`holix lsp status` / `holix lsp setup`)
 - Production: pepper, CORS, auth, code executor
 
 После исправлений смотрите runtime-логи: `holix logs -l error` — [LOGS.md](LOGS.md).

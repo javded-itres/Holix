@@ -33,12 +33,13 @@
 - [TUI.md](TUI.md) — очередь, todos, живые процессы, копирование
 - [SLASH_COMMANDS.md](SLASH_COMMANDS.md) · [EXECUTION_MODES.md](EXECUTION_MODES.md)
 - [CODE_MODE.md](CODE_MODE.md) — `run_code` / `tools_presentation`
-- [CLI.md](CLI.md) · [HUB.md](HUB.md) · [BROWSER_TOOLS.md](BROWSER_TOOLS.md) · [TOOLS.md](TOOLS.md)
-- [MCP.md](MCP.md) · [MEMORY.md](MEMORY.md)
+- [CLI.md](CLI.md) · [HUB.md](HUB.md) · [BROWSER_TOOLS.md](BROWSER_TOOLS.md) · [TOOLS.md](TOOLS.md) — `lsp`, `tool_search`, `apply_patch`
+- [MCP.md](MCP.md) · [MEMORY.md](MEMORY.md) — Chroma или pgvector
 
 ### Агенты и автоматизация
 
 - [SUBAGENTS.md](SUBAGENTS.md) — типы (TUI + Telegram/MAX), spawn, **supervisor**
+- [ACP.md](ACP.md) — внешний coding-агент (`run_acp_agent`)
 - [LAUNCH.md](LAUNCH.md) · [CRON.md](CRON.md)
 - [en/SUBAGENT_SUPERVISOR.md](../en/SUBAGENT_SUPERVISOR.md) — дизайн supervisor
 
