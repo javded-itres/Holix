@@ -53,6 +53,7 @@ Curated route through the documentation. Each topic has **one canonical page** â
 | Scheduled tasks (cron) | [CRON.md](CRON.md) |
 | Browser tools | [BROWSER_TOOLS.md](BROWSER_TOOLS.md) |
 | Coding-agent tools (`apply_patch`, `ask_user`, `lsp`, â€¦) | [TOOLS.md](TOOLS.md) |
+| ACP (external coding agent) | [ACP.md](ACP.md) |
 
 ---
 

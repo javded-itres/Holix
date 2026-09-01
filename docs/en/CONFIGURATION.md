@@ -140,6 +140,14 @@ Equivalent `.env` variables:
 
 Platform defaults are always included. See [SECURITY.md](SECURITY.md).
 
+## Agent tools (lazy catalog and vectors)
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `HOLIX_LAZY_TOOLS` | `1` | LLM `tools` list is a **core set**; MCP / SDD / browser / jobs load via `tool_search`. `0` = full catalog. Details: [TOOLS.md](TOOLS.md) |
+| `HOLIX_VECTOR_BACKEND` | *(empty = Chroma)* | `pgvector` for shared SQL embeddings. [MEMORY.md](MEMORY.md#pgvector) |
+| `HOLIX_VECTOR_DSN` | | Postgres URL (`postgresql://…`); falls back to `STUDIO_DATABASE_URL` |
+
 ## Telegram (shared bot, multiple users)
 
 **Recommended** — access requests (`holix telegram setup` enables this by default):

@@ -53,6 +53,7 @@
 | Cron | [CRON.md](CRON.md) |
 | Браузер | [BROWSER_TOOLS.md](BROWSER_TOOLS.md) |
 | Coding-агент (`apply_patch`, `ask_user`, `lsp`, …) | [TOOLS.md](TOOLS.md) |
+| ACP (внешний coding-агент) | [ACP.md](ACP.md) |
 
 ---
 

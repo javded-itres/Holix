@@ -108,6 +108,15 @@ Check jail status: `holix -p NAME profile jail status`. Full guide: [Path visibi
    ```
 3. Profile must have `workspace_jail_enabled: true`; without jail, all callers see full paths.
 
+## Agent loops, pytest dumps, hidden exit codes {#agent-loops}
+
+| Symptom | What Holix does / what to do |
+|---------|------------------------------|
+| Implement/fix task only `read_file`s for dozens of steps | Step budget **does not** extend without a write (`write_file` / `patch_file` / `apply_patch`). Navigate with `lsp` (`symbols` / `definition` / `references`) — [TOOLS.md](TOOLS.md). |
+| Review/analyze keeps running pytest | Review must not pytest-loop unless you asked to run tests. |
+| `pytest … \| tail` shows `Success (exit code 0)` while tests FAILED | On **bash**, Holix prefixes `pipefail`. On dash `/bin/sh` that option is skipped; red pytest in the log is still reported as Error. Do not pipe tests to `tail`/`head`. |
+| Final reply is a pytest log / traceback | At max steps the messenger **does not** ship a test dump as the answer (short note + first `FAILED` line). Re-run with a write, or raise `max_steps`. |
+
 ## Related
 
 - [LOGS.md](LOGS.md) — log files, filters, rotation, debug mode

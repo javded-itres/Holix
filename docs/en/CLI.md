@@ -42,6 +42,7 @@ holix --help
 | `cron` | Scheduled agent tasks (gateway scheduler) |
 | `logs` | View, filter, rotate logs; debug mode |
 | `doctor` | Diagnostics and `--fix` |
+| `lsp` | Language servers for the agent `lsp` tool |
 | `mcp` | Model Context Protocol servers |
 | `hub` | External skill catalogs |
 | `launch` | External coding CLIs in tmux (Claude Code, OpenCode, Grok Build, …) |
@@ -515,6 +516,28 @@ holix -p prod doctor
 
 Checks: `~/.holix` writable, profile YAML, providers, hub lockfile, MCP env placeholders, skill assignments, gateway state, Telegram, platform (OS, PATH tools), production security.
 Details: [DOCTOR.md](DOCTOR.md).
+
+---
+
+## `holix lsp`
+
+Install and inspect language servers used by the agent `lsp` tool. Catalog, picker, and actions: **[TOOLS.md](TOOLS.md#language-servers-lsp)**.
+
+| Subcommand | Description |
+|------------|-------------|
+| `status` | What is installed / ready |
+| `setup` | Interactive picker (recommended / all / missing / optional / ids) |
+| `setup --yes` | Recommended set, no prompt |
+| `setup --all` | Every catalog server + missing toolchains |
+| `setup --ids go,rust` | Named servers |
+
+```bash
+holix lsp status
+holix lsp setup
+holix lsp setup --yes
+```
+
+Needs extra `Holix[lsp]` for Python Pyright. `holix doctor` also reports LSP.
 
 ---
 

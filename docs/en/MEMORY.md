@@ -50,6 +50,22 @@ Manual wipe (agent idle): `rm -f ~/.holix/profiles/<name>/data/memory/checkpoint
 
 ---
 
+## pgvector {#pgvector}
+
+Default semantic store is **on-disk Chroma**. Two clients on the same Chroma directory crash the process (`chromadb_rust_bindings`); Holix keeps **one PersistentClient per path** (conversation memory, LTM, and in-process sub-agents share it).
+
+For a shared SQL store (Studio / several processes):
+
+```bash
+pip install 'Holix[pgvector]'
+export HOLIX_VECTOR_BACKEND=pgvector
+export HOLIX_VECTOR_DSN='postgresql://user:pass@host/db'   # or STUDIO_DATABASE_URL
+```
+
+Table `holix_vectors`, MiniLM 384-d. Sub-agents use the same DSN instead of a temp Chroma dir. Omit `HOLIX_VECTOR_BACKEND` to stay on Chroma.
+
+---
+
 ## Search in chat
 
 ```text

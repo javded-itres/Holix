@@ -39,6 +39,7 @@ HOLIX_ENV=production holix -p shared gateway start
 | `cron` | Планировщик задач (в gateway) |
 | `logs` | Просмотр логов, ротация, debug |
 | `doctor` | Диагностика |
+| `lsp` | Language servers для инструмента `lsp` |
 | `mcp` | MCP-серверы |
 | `hub` | Каталоги навыков |
 | `launch` | Внешние coding CLI в tmux (Claude Code, OpenCode, Grok Build, …) |
@@ -340,6 +341,21 @@ holix doctor --no-llm
 ```
 
 [DOCTOR.md](DOCTOR.md)
+
+---
+
+## `holix lsp`
+
+Language servers для tool `lsp`. Каталог и флаги: **[TOOLS.md](TOOLS.md#language-servers-lsp)**.
+
+```bash
+holix lsp status
+holix lsp setup
+holix lsp setup --yes
+holix lsp setup --ids go,rust
+```
+
+Extra `Holix[lsp]` — Pyright для Python. `holix doctor` тоже показывает LSP.
 
 ---
 

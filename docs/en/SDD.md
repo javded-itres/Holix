@@ -67,7 +67,7 @@ repo/
 | `sdd_init` | Scaffold layout |
 | `sdd_list_specs` / `sdd_read_spec` | Main specs (`openspec/specs/`) |
 | `sdd_list_changes` | Active / archived changes |
-| `sdd_create_change` | Scaffold change (**stubs only**). In a git repo this also adds a worktree (`.holix/worktrees/<id>`, branch `change/<id>`) and binds the session to it. Disable with `HOLIX_WORKTREE=0`. |
+| `sdd_create_change` | Scaffold change (**stubs only**). In a git repo this also adds a worktree (`.holix/worktrees/<id>`, branch `change/<id>`) and binds the session to it. Disable with `HOLIX_WORKTREE=0`. In a **Studio product** project (`.holix/project.json`) the id is always `{task_prefix}-{n}` (e.g. `litellmkeybot-4`); free-form slugs are rewritten and a board task is added. Prefer Studio `project_create_task_tool` when that MCP tool exists. |
 | `sdd_read_artifact` | Read change proposal / design / tasks / delta specs |
 | `sdd_update_spec` | Add / modify / remove a requirement in the change delta spec |
 | `sdd_write_artifact` | proposal \| design \| tasks \| specs |

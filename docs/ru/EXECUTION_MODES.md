@@ -356,6 +356,8 @@ Holix использует цикл в стиле **Reflexion** (не Tree/Graph
 2. **Работает + релевантно** → +шаги (`max_steps_extend_by`).
 3. **Завис / thrash** → стоп (или guidance supervisor у субагентов).
 
+Задачи implement/fix **не** получают лишние шаги за одно чтение файлов или красный pytest без `write_file` / `apply_patch` / `patch_file`. Review/analyze не должен крутить pytest, пока вы сами не попросили тесты. [TROUBLESHOOTING.md](TROUBLESHOOTING.md#agent-loops).
+
 | Переменная | По умолчанию | Эффект |
 |------------|--------------|--------|
 | `max_steps` | `90` (runtime; профиль может переопределить) | Базовый бюджет |

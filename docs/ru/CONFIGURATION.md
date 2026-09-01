@@ -140,6 +140,14 @@ holix -p dev profile whitelist list
 
 Встроенные команды платформы всегда разрешены. См. [SECURITY.md](SECURITY.md).
 
+## Инструменты агента (ленивый каталог и векторы)
+
+| Переменная | По умолчанию | Описание |
+|------------|--------------|----------|
+| `HOLIX_LAZY_TOOLS` | `1` | В LLM `tools` только ядро; MCP / SDD / browser / jobs — через `tool_search`. `0` = полный каталог. [TOOLS.md](TOOLS.md) |
+| `HOLIX_VECTOR_BACKEND` | *(пусто = Chroma)* | `pgvector` для эмбеддингов в SQL. [MEMORY.md](MEMORY.md#pgvector) |
+| `HOLIX_VECTOR_DSN` | | URL Postgres; иначе `STUDIO_DATABASE_URL` |
+
 ## Telegram (общий бот, много пользователей)
 
 **Рекомендуется** — запросы доступа (`holix telegram setup` включает это по умолчанию):
