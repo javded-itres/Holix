@@ -40,7 +40,7 @@
 <br>
 <h3><a href="https://github.com/javded-itres/holix-studio-ce">Holix Studio CE →</a></h3>
 <p>
-Одноместная IDE <strong>на вашей машине</strong>: чат, файлы, git, терминал.<br>
+Одноместный Workspace <strong>на вашей машине</strong>: полноценный функционал Holix Studio локально.<br>
 Один пользователь. Без облачной подписки.
 </p>
 <p><a href="https://github.com/javded-itres/holix-studio-ce"><strong>github.com/javded-itres/holix-studio-ce</strong></a></p>
@@ -52,7 +52,7 @@
 <br>
 <h3><a href="https://holix-studio.ru">Сайт Holix Studio →</a></h3>
 <p>
-Веб-среда <strong>для команд</strong>: агент, код, preview, Docker, роли и тарифы.<br>
+Веб-среда <strong>для команд</strong>: агент, код, preview, Docker, роли и процессы<br>
 SaaS и self-host.
 </p>
 <p><a href="https://holix-studio.ru"><strong>holix-studio.ru</strong></a></p>
