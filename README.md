@@ -1,14 +1,78 @@
-# Holix — Self-Improving AI Agent
+<p align="center">
+  <img src="docs/assets/landing/logo.svg" width="72" alt="Holix">
+</p>
 
-**Holix** is a self-improving AI agent with persistent memory, a skills system, tool calling, MCP integration, and multiple interfaces: CLI, TUI, API gateway, and Telegram.
+<h1 align="center">Holix Agent</h1>
 
-[![PyPI](https://img.shields.io/pypi/v/Holix.svg)](https://pypi.org/project/Holix/)
-[![Python](https://img.shields.io/badge/python-3.12%2B-blue.svg)](https://python.org)
-[![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
-[![Docs](https://img.shields.io/badge/docs-en%20%7C%20ru-blue)](docs/README.md)
-[![Studio CE](https://img.shields.io/badge/Studio_CE-local_IDE-0ea5e9)](https://github.com/javded-itres/holix-studio-ce)
+<p align="center">
+  <strong>Self-improving AI agent</strong> — persistent memory, skills, MCP, CLI/TUI, Telegram and MAX.<br>
+  MIT core. Run it in the terminal, or open it in Studio.
+</p>
 
-**Website:** [holix-agent.ru](https://holix-agent.ru) · **PyPI:** [Holix](https://pypi.org/project/Holix/) · **GitHub:** [javded-itres/Holix](https://github.com/javded-itres/Holix) · **Studio CE:** [holix-studio-ce](https://github.com/javded-itres/holix-studio-ce) · **Telegram:** [@helix_agent](https://t.me/helix_agent) · **Docs:** [EN](docs/en/README.md) · [RU](docs/ru/README.md) · **Donate:** [Boosty](https://boosty.to/javded/single-payment/donation/805721/target?share=target_link)
+<p align="center">
+  Open-source ядро агента: память, навыки, MCP, терминал, Telegram и MAX.<br>
+  Дальше — локальная IDE или облачная Studio для команд.
+</p>
+
+<p align="center">
+  <a href="https://pypi.org/project/Holix/"><img src="https://img.shields.io/pypi/v/Holix.svg" alt="PyPI"></a>
+  <a href="https://python.org"><img src="https://img.shields.io/badge/python-3.12%2B-blue.svg" alt="Python"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-green.svg" alt="License"></a>
+  <a href="docs/README.md"><img src="https://img.shields.io/badge/docs-en%20%7C%20ru-blue" alt="Docs"></a>
+</p>
+
+<p align="center">
+  <img src="docs/assets/landing/hero-agent.jpg" alt="Holix Agent — TUI and helix" width="920">
+</p>
+
+<p align="center">
+  <a href="https://github.com/javded-itres/holix-studio-ce"><img src="https://img.shields.io/badge/Studio_CE-локальная_IDE-0ea5e9?style=for-the-badge" alt="Holix Studio CE"></a>
+  &nbsp;
+  <a href="https://holix-studio.ru"><img src="https://img.shields.io/badge/Holix_Studio-сайт_для_команд-7b61ff?style=for-the-badge" alt="Holix Studio"></a>
+</p>
+
+<table>
+<tr>
+<td width="50%" valign="top" align="center">
+<a href="https://github.com/javded-itres/holix-studio-ce">
+<img src="docs/assets/landing/card-studio-ce.jpg" alt="Holix Studio CE" width="440">
+</a>
+<br>
+<h3><a href="https://github.com/javded-itres/holix-studio-ce">Holix Studio CE →</a></h3>
+<p>
+Одноместная IDE <strong>на вашей машине</strong>: чат, файлы, git, терминал.<br>
+Один пользователь. Без облачной подписки.
+</p>
+<p><a href="https://github.com/javded-itres/holix-studio-ce"><strong>github.com/javded-itres/holix-studio-ce</strong></a></p>
+</td>
+<td width="50%" valign="top" align="center">
+<a href="https://holix-studio.ru">
+<img src="docs/assets/landing/studio-site-hero.jpg" alt="Holix Studio Cloud" width="440">
+</a>
+<br>
+<h3><a href="https://holix-studio.ru">Сайт Holix Studio →</a></h3>
+<p>
+Веб-среда <strong>для команд</strong>: агент, код, preview, Docker, роли и тарифы.<br>
+SaaS и self-host.
+</p>
+<p><a href="https://holix-studio.ru"><strong>holix-studio.ru</strong></a></p>
+</td>
+</tr>
+</table>
+
+<p align="center">
+  <a href="https://holix-agent.ru">Docs holix-agent.ru</a>
+  ·
+  <a href="https://pypi.org/project/Holix/">PyPI</a>
+  ·
+  <a href="https://t.me/helix_agent">Telegram @helix_agent</a>
+  ·
+  <a href="docs/en/README.md">Docs EN</a>
+  ·
+  <a href="docs/ru/README.md">Docs RU</a>
+  ·
+  <a href="https://boosty.to/javded/single-payment/donation/805721/target?share=target_link">Donate</a>
+</p>
 
 ---
 
