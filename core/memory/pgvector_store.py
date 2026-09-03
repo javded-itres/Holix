@@ -49,6 +49,25 @@ def _as_meta(raw: Any) -> dict[str, Any]:
     return {}
 
 
+def ensure_pgvector_extension(conn: Any) -> None:
+    """Install ``vector`` if allowed; accept a copy created by deploy as superuser."""
+    try:
+        conn.execute("CREATE EXTENSION IF NOT EXISTS vector")
+        return
+    except Exception as exc:
+        row = None
+        try:
+            row = conn.execute("SELECT 1 FROM pg_extension WHERE extname = 'vector'").fetchone()
+        except Exception:
+            row = None
+        if row:
+            logger.info("pgvector extension already present: %s", exc)
+            return
+        raise RuntimeError(
+            "pgvector extension is missing; run CREATE EXTENSION vector as a PostgreSQL superuser"
+        ) from exc
+
+
 class PgVectorCollection:
     def __init__(self, backend: PgVectorBackend, name: str) -> None:
         self._backend = backend
@@ -142,7 +161,7 @@ class PgVectorBackend:
             table = self._table
             dim = self._dim
             with self._connect() as conn:
-                conn.execute("CREATE EXTENSION IF NOT EXISTS vector")
+                ensure_pgvector_extension(conn)
                 conn.execute(
                     f"""
                     CREATE TABLE IF NOT EXISTS {table} (

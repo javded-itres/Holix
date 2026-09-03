@@ -76,6 +76,18 @@ HOLIX_REQUIRE_AUTH=true
 HOLIX_API_KEY_PEPPER=<случайный-секрет>
 ```
 
+Семантическая память в Postgres (рекомендуется для нескольких процессов / мессенджеров):
+
+```bash
+pip install 'Holix[pgvector]'   # входит в Holix[all]
+# Установить postgresql + postgresql-XX-pgvector, затем:
+#   sudo -u postgres psql -d holix -c 'CREATE EXTENSION IF NOT EXISTS vector;'
+HOLIX_VECTOR_BACKEND=pgvector
+HOLIX_VECTOR_DSN=postgresql://holix:SECRET@127.0.0.1:5432/holix
+```
+
+См. [MEMORY.md § pgvector](MEMORY.md#pgvector). Прод-деплой на VDS (`holix-billing-deploy`) ставит Postgres + pgvector и записывает DSN.
+
 Telegram (опционально): `sudo -u holix holix -p alice telegram setup`
 
 Токен бота — в `profiles/<имя>/telegram.env`, не пустая строка `TELEGRAM_BOT_TOKEN=` в `global/.env`.

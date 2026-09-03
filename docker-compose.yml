@@ -84,6 +84,11 @@ x-holix-common: &holix-common
     HOLIX_CORS_ORIGINS: ${HOLIX_CORS_ORIGINS:-}
     # Unlock encrypted profiles (optional)
     HOLIX_UNLOCK_KEY: ${HOLIX_UNLOCK_KEY:-}
+    # Semantic memory (pgvector when DSN is set)
+    HOLIX_VECTOR_BACKEND: ${HOLIX_VECTOR_BACKEND:-}
+    HOLIX_VECTOR_DSN: ${HOLIX_VECTOR_DSN:-}
+    HOLIX_VECTOR_DIM: ${HOLIX_VECTOR_DIM:-384}
+    HOLIX_VECTOR_TABLE: ${HOLIX_VECTOR_TABLE:-holix_vectors}
   volumes: &holix-volumes
     # Persistent Holix home (profiles, memory, gateway state, telegram.env)
     - ${HOLIX_DATA_DIR:-holix-data}:/data/.holix

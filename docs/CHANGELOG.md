@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+### Changed
+
+- **pgvector** — `CREATE EXTENSION vector` is skipped when the extension is
+  already present (native Postgres: deploy installs it as superuser; the
+  `holix` role is not superuser). Extra `all` includes `psycopg`.
+
 ## 1.1.8 — 2026-09-03
 
 ### Added

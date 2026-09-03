@@ -64,6 +64,8 @@ export HOLIX_VECTOR_DSN='postgresql://user:pass@host/db'   # or STUDIO_DATABASE_
 
 Table `holix_vectors`, MiniLM 384-d. Sub-agents use the same DSN instead of a temp Chroma dir. Omit `HOLIX_VECTOR_BACKEND` to stay on Chroma.
 
+Production messengers (systemd on the VDS) install PostgreSQL + `postgresql-XX-pgvector` during deploy and set these in the profile `.env`. `CREATE EXTENSION vector` runs as the `postgres` superuser; the Holix role only needs table privileges. Conversation SQLite is unchanged; existing on-disk Chroma is not migrated.
+
 ---
 
 ## Search in chat

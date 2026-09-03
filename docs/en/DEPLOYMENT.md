@@ -76,6 +76,18 @@ HOLIX_REQUIRE_AUTH=true
 HOLIX_API_KEY_PEPPER=<random-secret>
 ```
 
+Semantic memory on Postgres (recommended for multi-process / messengers):
+
+```bash
+pip install 'Holix[pgvector]'   # included in Holix[all]
+# Install postgresql + postgresql-XX-pgvector, then:
+#   sudo -u postgres psql -d holix -c 'CREATE EXTENSION IF NOT EXISTS vector;'
+HOLIX_VECTOR_BACKEND=pgvector
+HOLIX_VECTOR_DSN=postgresql://holix:SECRET@127.0.0.1:5432/holix
+```
+
+See [MEMORY.md § pgvector](MEMORY.md#pgvector). Production VDS deploy (`holix-billing-deploy`) installs Postgres + pgvector and writes the DSN.
+
 Telegram (optional): `sudo -u holix holix -p alice telegram setup`
 
 Store the bot token in `profiles/<name>/telegram.env`, not as an empty `TELEGRAM_BOT_TOKEN=` line in `global/.env`.
