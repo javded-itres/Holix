@@ -23,6 +23,7 @@ _FORBIDDEN_EXACT: frozenset[str] = frozenset(
         "delegate_to_subagent",
         "wait_subagent_result",
         "terminate_subagent",
+        "research_site_pages",
         "schedule_cron",
     }
 )

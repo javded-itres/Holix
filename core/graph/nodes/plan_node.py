@@ -92,6 +92,7 @@ async def _plan_llm_heartbeat(
                 timeout=int(timeout),
             )
 
+
 DETAILED_PLAN_PROMPT = """You are a senior software architect and task planner. Analyze the task and create a comprehensive execution plan.
 
 ## TASK
@@ -335,12 +336,13 @@ Now create a plan for the task above. Respond with ONLY valid JSON:
 SUBAGENT_PLAN_APPENDIX = """
 ## Sub-agent delegation (enabled)
 When the user assigns work to specific agents, copy those exact type names into `subagent_type`
-on the matching plan steps (built-in: coder, web_researcher, researcher, analyst, reviewer, writer;
+on the matching plan steps (built-in: coder, web_researcher, page_analyst, researcher, analyst, reviewer, writer;
 plus any custom types defined in the profile).
 When complexity is medium or complex, you MUST assign `subagent_type` on steps that specialists should run.
 At least one step in medium/complex plans should use a sub-agent.
 Mapping:
 - research / web search → `web_researcher` or `researcher`
+- many pages of one site (after `fetch_url` link list) → main calls `research_site_pages` (not `web_researcher`)
 - coding / implementation → `coder`
 - data / SQL analysis → `analyst`
 - code review → `reviewer`
@@ -549,9 +551,7 @@ async def plan_node(state: HolixGraphState, config: RunnableConfig) -> dict:
     )
     project_handbook = planning_ctx.handbook_block
     if planning_ctx.init_ran:
-        _emit_plan_progress(
-            agent, conversation_id, profile_name, "phase_handbook_init"
-        )
+        _emit_plan_progress(agent, conversation_id, profile_name, "phase_handbook_init")
 
     from core.plan_review.plan_storage import format_saved_plans_context
 
@@ -817,16 +817,10 @@ async def plan_node(state: HolixGraphState, config: RunnableConfig) -> dict:
                         continue
                     break
 
-                _emit_plan_progress(
-                    agent, conversation_id, profile_name, "phase_quality"
-                )
-                parsed_plan, parsed_analysis, _, parsed_report, _ = parse_detailed_plan(
-                    result_text
-                )
+                _emit_plan_progress(agent, conversation_id, profile_name, "phase_quality")
+                parsed_plan, parsed_analysis, _, parsed_report, _ = parse_detailed_plan(result_text)
                 complexity = (parsed_analysis or {}).get("complexity", "medium")
-                needs_full_report = (
-                    complexity in ("medium", "complex") or len(parsed_plan) >= 3
-                )
+                needs_full_report = complexity in ("medium", "complex") or len(parsed_plan) >= 3
 
                 if not plan_is_substantive(parsed_plan, user_input):
                     last_error = "Non-substantive plan (single-step or echo of task)"
@@ -904,9 +898,7 @@ async def plan_node(state: HolixGraphState, config: RunnableConfig) -> dict:
                 result_text = None
                 if attempt < plan_retries:
                     attempt_timeout = min(attempt_timeout * 1.5, 900.0)
-                    logger.info(
-                        f"Increasing timeout to {attempt_timeout}s for next attempt"
-                    )
+                    logger.info(f"Increasing timeout to {attempt_timeout}s for next attempt")
                     _emit_plan_progress(
                         agent,
                         conversation_id,
@@ -1028,12 +1020,15 @@ async def plan_node(state: HolixGraphState, config: RunnableConfig) -> dict:
     # Emit plan generated event
     if agent and hasattr(agent, "emit"):
         from core.agent_events import PlanGeneratedEvent
-        agent.emit(PlanGeneratedEvent(
-            plan_steps=plan,
-            step_count=len(plan),
-            conversation_id=conversation_id,
-            plan_id=plan_id,
-        ))
+
+        agent.emit(
+            PlanGeneratedEvent(
+                plan_steps=plan,
+                step_count=len(plan),
+                conversation_id=conversation_id,
+                plan_id=plan_id,
+            )
+        )
     _emit_plan_progress(
         agent,
         conversation_id,
@@ -1059,18 +1054,20 @@ async def plan_node(state: HolixGraphState, config: RunnableConfig) -> dict:
 
 
 # Mutating / workflow SDD tools — never suggested while *generating* a plan.
-_PLAN_FORBIDDEN_TOOLS = frozenset({
-    "sdd_init",
-    "sdd_propose",
-    "sdd_apply",
-    "sdd_write_artifact",
-    "sdd_dispatch",
-    "sdd_archive",
-    "sdd_confirm_proceed",
-    "sdd_set_apply_mode",
-    "sdd_check_task",
-    "sdd_complete_task",
-})
+_PLAN_FORBIDDEN_TOOLS = frozenset(
+    {
+        "sdd_init",
+        "sdd_propose",
+        "sdd_apply",
+        "sdd_write_artifact",
+        "sdd_dispatch",
+        "sdd_archive",
+        "sdd_confirm_proceed",
+        "sdd_set_apply_mode",
+        "sdd_check_task",
+        "sdd_complete_task",
+    }
+)
 
 
 def _get_tools_description(agent) -> str:
@@ -1123,9 +1120,7 @@ def _sanitize_plan_steps_no_sdd(plan: list) -> list:
         s = dict(step)
         tools = s.get("tools_needed") or []
         if isinstance(tools, list):
-            s["tools_needed"] = [
-                t for t in tools if str(t).strip() not in _PLAN_FORBIDDEN_TOOLS
-            ]
+            s["tools_needed"] = [t for t in tools if str(t).strip() not in _PLAN_FORBIDDEN_TOOLS]
         desc = str(s.get("description") or "")
         for bad in _PLAN_FORBIDDEN_TOOLS:
             if bad in desc:

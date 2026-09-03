@@ -2,6 +2,21 @@
 
 ## Unreleased
 
+### Added
+
+- **Site page research** — `research_site_pages` fans out `page_analyst` sub-agents
+  over real links from `fetch_url` (`## Links on this page`) so the main agent
+  does not crawl dozens of URLs itself. Waves respect `subagent_max_concurrent`.
+  If sub-agents are off, the tool fetches the same bounded list directly.
+- **Chat file delivery** — `send_chat_files` is a core tool (always on the LLM list
+  with lazy tools). Prompt: Telegram/MAX attachments go through that tool, not
+  `read_file` / `cat`.
+- **Self-diagnose** — `self_diagnose` inspects the current session (user asks vs
+  tools vs claims, LLM turn stats, skills). Trigger phrases such as «проверь себя»
+  / «ты отвечаешь неправильно» / «check yourself». Honesty nudge if the model
+  replies without the tool. Can stage a skill patch for wrong chat-delivery
+  procedures.
+
 ## 1.1.7 — 2026-08-31
 
 ### Fixed

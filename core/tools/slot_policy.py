@@ -11,6 +11,8 @@ SLOT_RESTRICTED: dict[str, frozenset[str]] = {
     "notebook_edit": frozenset({"main", "coder"}),
     "subagent_control": frozenset({"main", "supervisor"}),
     "plan_mode": frozenset({"main", "supervisor"}),
+    "research_site_pages": frozenset({"main", "supervisor"}),
+    "self_diagnose": frozenset({"main", "supervisor"}),
 }
 
 # Read-only set while plan_mode is on (canonical names).
@@ -23,6 +25,7 @@ PLAN_MODE_ALLOWED: frozenset[str] = frozenset(
         "web_search",
         "web_fetch",
         "fetch_url",
+        "research_site_pages",
         "session_search",
         "search_sessions",
         "read_session",
@@ -32,6 +35,7 @@ PLAN_MODE_ALLOWED: frozenset[str] = frozenset(
         "plan_mode",
         "todo_write",
         "skill_view",
+        "self_diagnose",
     }
 )
 

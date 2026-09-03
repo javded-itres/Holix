@@ -303,6 +303,9 @@ def register_subagent_tools(registry: Any, parent_agent: Any) -> None:
     registry.register(ListSubAgentsTool(parent_agent))
     registry.register(ListSubAgentTypesTool(parent_agent))
     registry.register(TerminateSubAgentTool(parent_agent))
+    from core.tools.site_research import ResearchSitePagesTool
+
+    registry.register(ResearchSitePagesTool(parent_agent))
     from core.tools.subagent_control import SubagentControlTool
 
     registry.register(SubagentControlTool(parent_agent))

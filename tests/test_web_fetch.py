@@ -5,10 +5,46 @@ from __future__ import annotations
 from unittest.mock import MagicMock, patch
 
 import pytest
-from core.search.content import html_to_text
+from core.search.content import extract_page_links, html_to_text
 from core.subagents.base import ProcessMode, SubAgentConfig
 from core.subagents.process import SubAgentProcessManager
 from core.tools.registry import ToolRegistry
+
+
+def test_format_page_links_hints_fanout_when_many() -> None:
+    from core.search.content import format_page_links
+
+    few = format_page_links([("https://bot24u.ru/a", "A")])
+    assert "research_site_pages" not in few
+    many = format_page_links(
+        [
+            ("https://bot24u.ru/a", "A"),
+            ("https://bot24u.ru/b", "B"),
+            ("https://bot24u.ru/c", "C"),
+            ("https://bot24u.ru/d", "D"),
+        ]
+    )
+    assert "## Many links" in many
+    assert "research_site_pages" in many
+
+
+def test_extract_page_links_resolves_relative_and_skips_junk() -> None:
+    html = """
+    <nav>
+      <a href="/integrations">Интеграции</a>
+      <a href="https://bot24u.ru/faq">FAQ</a>
+      <a href="javascript:void(0)">noop</a>
+      <a href="#top">top</a>
+      <a href="https://example.com/out">Other</a>
+    </nav>
+    """
+    links = extract_page_links(html, page_url="https://bot24u.ru/")
+    hrefs = [h for h, _ in links]
+    assert "https://bot24u.ru/integrations" in hrefs
+    assert "https://bot24u.ru/faq" in hrefs
+    assert "https://example.com/out" in hrefs
+    assert all("javascript" not in h for h in hrefs)
+    assert hrefs.index("https://bot24u.ru/integrations") < hrefs.index("https://example.com/out")
 
 
 def test_html_to_text_strips_tags() -> None:
@@ -45,6 +81,24 @@ async def test_web_researcher_gets_web_fetch_schema() -> None:
     schemas = runner._get_tool_schemas(config)
     names = {s["function"]["name"] for s in schemas}
     assert names == {"web_search", "web_fetch"}
+
+
+@pytest.mark.asyncio
+async def test_page_analyst_gets_only_fetch_schema() -> None:
+    from core.subagents.async_runner import AsyncSubAgentRunner
+    from core.subagents.communication import AgentCommunicationBus
+
+    parent = MagicMock()
+    parent.tools = ToolRegistry()
+    parent.tools.register_all()
+    runner = AsyncSubAgentRunner(parent, AgentCommunicationBus().async_bus)
+    config = SubAgentConfig(name="page_analyst", tools=["fetch_url"], mcp_inherit=False)
+
+    schemas = runner._get_tool_schemas(config)
+    names = {s["function"]["name"] for s in schemas}
+    assert "fetch_url" in names
+    assert names <= {"fetch_url", "web_fetch"}
+    assert "web_search" not in names
 
 
 @pytest.mark.asyncio
@@ -157,3 +211,47 @@ async def test_fetch_page_content_converts_html() -> None:
     assert status == 200
     assert "Readable text" in content
     assert "<p>" not in content
+
+
+@pytest.mark.asyncio
+async def test_fetch_page_content_appends_real_hrefs() -> None:
+    from core.search.content import fetch_page_content
+
+    html_body = """
+    <html><body>
+      <p>Home</p>
+      <a href="/how-it-works">Как это работает</a>
+    </body></html>
+    """
+
+    class FakeResp:
+        status = 200
+        headers = {"Content-Type": "text/html"}
+
+        async def text(self):
+            return html_body
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *a):
+            pass
+
+    class FakeSession:
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *a):
+            pass
+
+        def get(self, *a, **k):
+            return FakeResp()
+
+    with patch("core.search.content.aiohttp.ClientSession", return_value=FakeSession()):
+        status, content = await fetch_page_content("https://bot24u.ru/")
+
+    assert status == 200
+    assert "## Links on this page" in content
+    assert "https://bot24u.ru/how-it-works" in content
+    assert "/admin" not in content
+    assert "/employee" not in content

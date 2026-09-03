@@ -22,6 +22,8 @@ def test_get_schemas_core_only_by_default() -> None:
     assert "tool_search" in names
     assert "read_file" in names
     assert "lsp" in names
+    assert "send_chat_files" in names
+    assert "self_diagnose" in names
     for core in CORE_TOOL_NAMES:
         if core in registry.tools:
             assert core in names, core

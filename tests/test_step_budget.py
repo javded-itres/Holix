@@ -70,6 +70,43 @@ def test_extend_when_pending_tools_and_progress() -> None:
     assert d.extensions_used == 1
 
 
+def test_no_extend_when_recent_tools_are_only_web_fetch() -> None:
+    log = [
+        {
+            "name": "fetch_url",
+            "arguments": '{"url": "https://bot24u.ru/"}',
+            "result": "HTTP 200\nAI chatbot for websites with a 60-80% conversion rate",
+        },
+        {
+            "name": "fetch_url",
+            "arguments": '{"url": "https://bot24u.ru/en"}',
+            "result": "HTTP 200\nAI-powered Sales Engine",
+        },
+        {
+            "name": "web_search",
+            "arguments": '{"query": "bot24u CRM"}',
+            "result": "**Sources:** searxng\n1. B24U integrates with CRMs",
+        },
+        {
+            "name": "fetch_url",
+            "arguments": '{"url": "https://bot24u.ru/missing"}',
+            "result": 'HTTP 404\n{"detail":"Not Found"}',
+        },
+    ]
+    d = evaluate_step_budget(
+        step_count=90,
+        max_steps=90,
+        pending_tool_calls=[{"id": "x", "function": {"name": "fetch_url"}}],
+        tool_calls_log=log,
+        task="Analyze https://bot24u.ru/ bot dashboards CRM",
+        policy=StepBudgetPolicy(extend_by=30, max_extensions=10),
+        base_max_steps=90,
+    )
+    assert not d.extend
+    assert d.status == "hung"
+    assert "fetch_url" in d.reason
+
+
 def test_identical_tool_loop_detects_mid_run() -> None:
     from core.runtime.step_budget import identical_tool_loop
 

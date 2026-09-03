@@ -39,6 +39,8 @@ _ERROR_MARKERS = (
     "⛔",
 )
 
+_WEB_ONLY_TOOLS = frozenset({"fetch_url", "web_fetch", "web_search"})
+
 _PROGRESS_MARKERS = (
     "ok",
     "done",
@@ -123,6 +125,17 @@ def _norm_args(raw: Any) -> str:
 
 def _tool_signature(name: str, arguments: Any = None) -> str:
     return f"{(name or '').strip().lower()}::{_norm_args(arguments)}"
+
+
+def web_search_only_loop(traces: list[dict[str, Any]], *, min_calls: int = 4) -> bool:
+    """True when recent tools are only public web fetch/search (a crawl, not a write)."""
+    if len(traces) < min_calls:
+        return False
+    names = [str(t.get("name") or "").strip().lower() for t in traces]
+    names = [n for n in names if n]
+    if len(names) < min_calls:
+        return False
+    return all(n in _WEB_ONLY_TOOLS for n in names)
 
 
 def identical_tool_loop(
@@ -367,6 +380,7 @@ def evaluate_step_budget(
     noop_writes = noop_write_loop(traces)
     red_tests = tests_failing_without_writes(traces)
     read_only = no_write_implementation_loop(traces, task)
+    web_only = web_search_only_loop(traces)
 
     signals = {
         "pending_tools": len(pending),
@@ -380,6 +394,7 @@ def evaluate_step_budget(
         "noop_write_repeat": noop_writes,
         "tests_red_no_write": red_tests,
         "read_only_impl": read_only,
+        "web_search_only": web_only,
         "relevance": round(relevance, 3),
         "extensions_used": ext_used,
         "hard_cap": hard,
@@ -440,6 +455,16 @@ def evaluate_step_budget(
         return StepBudgetDecision(
             extend=False,
             reason="hung: implement/fix task only reads or re-runs tests (no write_file)",
+            status="hung",
+            extensions_used=ext_used,
+            new_max_steps=ms,
+            signals=signals,
+        )
+
+    if web_only:
+        return StepBudgetDecision(
+            extend=False,
+            reason="hung: only web_search/fetch_url — answer from this session, do not crawl further",
             status="hung",
             extensions_used=ext_used,
             new_max_steps=ms,

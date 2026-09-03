@@ -15,10 +15,13 @@ class SendChatFilesTool(BaseTool):
         super().__init__()
         self.name = "send_chat_files"
         self.description = (
-            "Send files to the user in chat (Telegram or MAX). Use after creating or "
-            "generating documents, images, or videos. Pass one path or 2–10 paths. "
-            "On Telegram, compatible files are sent as albums; on MAX, each file is "
-            "sent as a separate message. Optional caption applies to the first item."
+            "Send files to the user as Telegram/MAX attachments (not chat text). "
+            "Required when the user asks to «пришли файл», «отправь md», or says "
+            "they cannot see the file. read_file / cat / dumping contents in the "
+            "assistant message is not delivery. Use after creating documents, images, "
+            "or videos. Pass one path or 2–10 paths. On Telegram, compatible files "
+            "are sent as albums; on MAX, each file is a separate message. Optional "
+            "caption applies to the first item."
         )
         self.risk_level = "low"
         self.parameters = {

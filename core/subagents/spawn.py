@@ -159,7 +159,7 @@ def prepare_subagent_config(
     if agent_type in mcp_assigns:
         cfg.mcp_servers = list(mcp_assigns[agent_type] or [])
         cfg.mcp_inherit = False
-    elif not cfg.mcp_servers:
+    elif not cfg.mcp_servers and getattr(cfg, "mcp_inherit", True):
         cfg.mcp_inherit = True
 
     slot = spawn_model_slot(agent_type, parent_config, profile)
@@ -183,9 +183,11 @@ def prepare_subagent_config(
             )
 
     tools = list(cfg.tools or [])
-    for extra in ("ask_user", "tool_search", "session_search"):
-        if extra not in tools:
-            tools.append(extra)
+    # page_analyst is a one-URL fetcher; tool_search would let it pull web_search.
+    if (cfg.agent_type or cfg.name) != "page_analyst":
+        for extra in ("ask_user", "tool_search", "session_search"):
+            if extra not in tools:
+                tools.append(extra)
     if "terminal" in tools or "run_terminal_command" in tools:
         for bg in (
             "start_background_process",

@@ -147,7 +147,7 @@ HTTP API для приложений, интеграций и OpenAI-совме�
 |--------|---------|
 | **Файлы** | `read_file`, `write_file`, `patch_file`, `list_directory` |
 | **Терминал** | `run_terminal_command`, `terminal`, фоновые процессы |
-| **Веб** | `web_search`, `fetch_url` / `web_fetch` |
+| **Веб** | `web_search`, `fetch_url` / `web_fetch`, `research_site_pages` |
 | **Код** | `execute_python`, `code_executor`, `calculate` |
 | **Данные** | `sql_query`, `sql_schema` |
 | **Браузер** *(extra)* | `browser_open`, `browser_click`, `browser_fill`, snapshot… |

@@ -4,6 +4,7 @@ Sub-Agent Registry — predefined sub-agent configurations.
 Provides ready-to-use sub-agent types for common tasks:
 - researcher: Deep information analysis
 - web_researcher: Smart web search with query expansion and synthesis
+- page_analyst: One page of a site (fetch_url only; used by research_site_pages)
 - coder: Code generation and editing
 - analyst: Data analysis and visualization
 - reviewer: Code review and quality assessment
@@ -53,6 +54,33 @@ PREDEFINED_SUBAGENTS = {
         temperature=0.4,
         description="Smart web researcher — expands queries, searches, and synthesizes results",
         tags=["research", "web", "search", "synthesis"],
+    ),
+    "page_analyst": SubAgentConfig(
+        name="page_analyst",
+        system_prompt=(
+            "You analyze one web page for a parent site-research job.\n\n"
+            "## Workflow\n"
+            "1. Call fetch_url exactly once with the URL in the task (the line starting with URL:).\n"
+            "2. Write a short briefing from that page only: what it is, key facts, "
+            "products/pricing/contacts if present, and any same-host links from "
+            "`## Links on this page` that look relevant to the parent goal.\n"
+            "3. Stop.\n\n"
+            "## Rules\n"
+            "- Fetch that one URL only. Never invent paths (/admin, /dashboard, /employee, …).\n"
+            "- Do not call web_search. Do not spawn sub-agents. Do not fetch a second URL.\n"
+            "- HTTP 404/403/410: report the status and stop.\n"
+            "- If the page was already fetched, use that result; do not retry.\n"
+            "- Keep the briefing under ~400 words. Cite the URL."
+        ),
+        tools=["fetch_url"],
+        max_steps=12,
+        mode="react",
+        process_mode="async",
+        timeout=180.0,
+        temperature=0.2,
+        description="One-page site analyst — fetch_url only, no web search",
+        tags=["research", "web", "site", "page"],
+        mcp_inherit=False,
     ),
     "coder": SubAgentConfig(
         name="coder",

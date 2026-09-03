@@ -17,6 +17,8 @@ _SUBAGENT_TYPE_ALIASES: dict[str, str] = {
     "исследователь": "researcher",
     "web_researcher": "web_researcher",
     "web-researcher": "web_researcher",
+    "page_analyst": "page_analyst",
+    "page-analyst": "page_analyst",
     "analyst": "analyst",
     "аналитик": "analyst",
     "reviewer": "reviewer",
