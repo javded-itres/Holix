@@ -81,6 +81,10 @@ def test_build_system_prompt_requires_run_and_debug(
     assert "## Hard rule: never fake completed work" in prompt
     assert "Saying you will do it is not doing it" in prompt
     assert "Navigate code with `lsp`" in prompt
+    assert "research_site_pages" in prompt
+    assert "page_analyst" in prompt
+    assert "send_chat_files" in prompt
+    assert "self_diagnose" in prompt
     assert "## Review vs implement" in prompt
     assert "do not pytest-loop" in prompt.lower() or "pytest-loop" in prompt
     assert "never pipe" in prompt.lower()

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from core.direct_dispatch import (
+    is_self_diagnose_request,
     is_status_request,
     is_subagent_list_request,
     is_work_activity_request,
@@ -23,3 +24,8 @@ def test_subagent_list_request() -> None:
 def test_work_activity_request_ru() -> None:
     assert is_work_activity_request("что делаешь?")
     assert should_answer_work_status("что ты делаешь")
+
+
+def test_self_diagnose_request_exported() -> None:
+    assert is_self_diagnose_request("проверь себя")
+    assert not is_self_diagnose_request("проверь сайт конкурента")

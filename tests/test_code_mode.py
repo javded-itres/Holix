@@ -143,6 +143,7 @@ def test_background_process_allowed_in_program() -> None:
     assert not is_forbidden_in_program("restart_background_process")
     assert is_forbidden_in_program("execute_python")
     assert is_forbidden_in_program("ask_user")
+    assert is_forbidden_in_program("research_site_pages")
 
 
 @pytest.mark.asyncio

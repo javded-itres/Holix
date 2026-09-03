@@ -25,11 +25,14 @@ TUI: модалка с кнопками и полем ввода. Telegram / MAX
 
 - `job_monitor` — `list` / `tail` / `wait` / `kill` для процессов `start_background_process`. Для tail/wait/kill нужен `job_id`.
 - `subagent_control` — `list` / `status` / `send` / `interrupt` / `collect` для **уже запущенных** субагентов. Не порождает процессы (`delegate_to_subagent`). Только main / supervisor.
+- `research_site_pages` — после первого `fetch_url` передать ограниченный список URL из `## Links on this page` и `goal`. Запускает субагентов `page_analyst` волнами `subagent_max_concurrent`, ждёт и возвращает брифы. Для разбора сайта/ресурса; пути не выдумывать, `web_researcher` для ссылок того же сайта не использовать. Только main / supervisor. Входит в ядро tools.
+- `send_chat_files` — вложение в **чат Telegram/MAX** (альбом 2–10 в Telegram). В ядре tools. `read_file` / текст в ответе — это не доставка файла. Успех только если tool вернул `Sent N file(s)`.
+- `self_diagnose` — разбор **этой сессии** (просьбы vs tools vs утверждения, статистика LLM, skills). Ядро tools. Когда пользователь говорит «проверь себя», «почему ты делаешь не так», «ты отвечаешь неправильно». Может поставить патч skill на апрув. Только main / supervisor.
 
 ## Поиск и ноутбуки
 
 - `tool_search` — поиск builtin, MCP, skills и расширений. В LLM **tools** только **ядро** (файлы, shell, `lsp`, `ask_user`, `skill_view`, …). Остальное (MCP, browser, SDD, SQL, notebook, jobs, session search, …) отложенное. `enable_matches=true` (по умолчанию) подключает совпадения **на эту сессию** (фильтр слота сохраняется). `HOLIX_LAZY_TOOLS=0` — полный каталог.
-- `session_search` — короткие сниппеты из памяти, других сессий и trajectory (не полные транскрипты).
+- `session_search` — короткие сниппеты из **этой сессии**, памяти, других сессий и trajectory (не полные транскрипты). Сначала это, потом `web_search` / `fetch_url`. Один и тот же URL в сессии повторно не качать. Разбор сайта: только ссылки из `## Links on this page` у `fetch_url`, пути не выдумывать; если ссылок много — `research_site_pages`.
 - `notebook_edit` — replace / insert / delete ячейки `.ipynb` внутри jail (`cell_id`, иначе `cell_index`).
 - `lsp` — **навигация**: hover / definition / references / symbols / implementation; `diagnostics` — один известный файл (не lint всего репозитория). Language server для типа файла (Python jedi или pylsp, JS/TS, Go, Rust, JSON/HTML/CSS, YAML, Bash, …). Нет сервера → `{ok: false, code: lsp_unavailable, install: […], fallback: grep}`. Настройка: `holix lsp setup`, `holix doctor`. Review/analyze: не крутить pytest и не поднимать приложение, пока не попросили. Не пайпить тесты в `tail`/`head` (прячет код выхода). Цикл run/debug — только **после** правок кода.
 - `plan_mode` — `enter` / `exit` / `status`. В режиме плана наружу отдаются только read-only tools; записи возвращают `plan_mode_blocked`. Выход с непустым планом спрашивает Approve / Revise. План пишется в `.holix/plans/`.
@@ -74,7 +77,7 @@ holix bootstrap                  # при первой настройке — re
 |-------|--------|
 | `apply_patch`, `job_monitor`, `notebook_edit` | `main`, `coder` |
 | `ask_user`, `tool_search`, `session_search`, `lsp` | все |
-| `subagent_control`, `plan_mode` | `main`, `supervisor` |
+| `subagent_control`, `plan_mode`, `research_site_pages`, `self_diagnose` | `main`, `supervisor` |
 
 ## Алиасы
 

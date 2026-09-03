@@ -28,7 +28,10 @@ CORE_TOOL_NAMES: frozenset[str] = frozenset(
         "run_terminal_command",
         "web_search",
         "fetch_url",
+        "send_chat_files",
+        "self_diagnose",
         "delegate_to_subagent",
+        "research_site_pages",
         "plan_mode",
         "lsp",
     }

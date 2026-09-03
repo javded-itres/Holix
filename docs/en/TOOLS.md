@@ -25,11 +25,14 @@ TUI: modal with option buttons and a text field. Telegram / MAX: inline buttons 
 
 - `job_monitor` — `list` / `tail` / `wait` / `kill` on `start_background_process` jobs. `job_id` required except for `list`.
 - `subagent_control` — `list` / `status` / `send` / `interrupt` / `collect` on **already running** sub-agents. Does not spawn (use `delegate_to_subagent`). Main / supervisor only.
+- `research_site_pages` — after the first `fetch_url`, pass a bounded list of URLs from `## Links on this page` plus the user `goal`. Spawns `page_analyst` sub-agents in waves of `subagent_max_concurrent`, waits, and returns their briefings. For site/resource analysis; do not invent paths and do not use `web_researcher` for same-site links. Main / supervisor only. Core tool (always on the LLM list).
+- `send_chat_files` — attach local files to the **Telegram/MAX chat** (album of 2–10 on Telegram). Core tool. `read_file` / dumping text in the assistant message is not delivery. Only claim success if the tool returns `Sent N file(s)`.
+- `self_diagnose` — inspect **this session** (user asks vs tools vs claims, LLM turn stats, skills). Core tool. Use when the user says «проверь себя», «почему ты делаешь не так», «ты отвечаешь неправильно», or similar. May stage a skill patch (approval still applies). Main / supervisor only.
 
 ## Discovery and notebooks
 
 - `tool_search` — search builtin, MCP, skill, and extension names+descriptions. The LLM **tools** list is a **core set** (files, shell, `lsp`, `ask_user`, `skill_view`, …). Everything else (MCP, browser, SDD, SQL, notebook, jobs, session search, …) is deferred. `enable_matches=true` (default) attaches top hits for **this session only** (slot allowlist still applies). `HOLIX_LAZY_TOOLS=0` sends the full catalog.
-- `session_search` — short snippets from memory, other sessions, and trajectory traces (not full transcripts).
+- `session_search` — short snippets from **this conversation**, memory, other sessions, and trajectory traces (not full transcripts). Use before `web_search` / `fetch_url` when the answer may already be in the session. Do not refetch a URL already fetched this conversation. Site analysis: follow `## Links on this page` from `fetch_url`, do not invent paths; if that list is long, call `research_site_pages`.
 - `notebook_edit` — replace / insert / delete a cell in a `.ipynb` inside the jail (`cell_id` first, else `cell_index`).
 - `lsp` — **navigate** with hover / definition / references / symbols / implementation; `diagnostics` is for one known file (not a repo-wide lint). Uses an installed language server for the file type (Python jedi or pylsp, JS/TS, Go, Rust, JSON/HTML/CSS, YAML, Bash, …). Missing server → `{ok: false, code: lsp_unavailable, install: […], fallback: grep}`. Setup: `holix lsp setup`, `holix doctor`. Review/analyze: do not pytest-loop or start the app unless asked. Do not pipe tests to `tail`/`head` (hides the real exit code). The run/debug loop applies only **after** the agent changed code.
 - `plan_mode` — `enter` / `exit` / `status`. While on, only read-only tools are offered; writes return `plan_mode_blocked`. Exit with a non-empty plan asks Approve / Revise. Plans save under `.holix/plans/` when that store is already used.
@@ -74,7 +77,7 @@ holix bootstrap                  # offers recommended install on first-run setup
 |-------|--------|
 | `apply_patch`, `job_monitor`, `notebook_edit` | `main`, `coder` |
 | `ask_user`, `tool_search`, `session_search`, `lsp` | all |
-| `subagent_control`, `plan_mode` | `main`, `supervisor` |
+| `subagent_control`, `plan_mode`, `research_site_pages`, `self_diagnose` | `main`, `supervisor` |
 
 ## Aliases (foreign names)
 

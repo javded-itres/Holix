@@ -211,6 +211,13 @@ CODE_MODE_NUDGE_TAIL = (
     "the program as tools.name(...)."
 )
 
+SELF_DIAGNOSE_NUDGE = (
+    "[Self-diagnose] The user asked you to check your own work "
+    "(«проверь себя», «почему ты делаешь не так», «ты отвечаешь неправильно», "
+    "or similar). Call `self_diagnose` now. Do not apologize, explain, or "
+    "patch a skill until that tool returns. Then answer from the report."
+)
+
 ACTION_HONESTY_NUDGE = (
     "[Action honesty] You stated that work was completed, but there is no "
     "successful tool result in this turn that proves it. "
@@ -777,7 +784,8 @@ def _is_honesty_nudge_message(msg: dict[str, Any] | None) -> bool:
         return False
     raw = msg.get("content")
     text = raw if isinstance(raw, str) else str(raw or "")
-    return text.strip().startswith("[Action honesty")
+    stripped = text.strip()
+    return stripped.startswith("[Action honesty") or stripped.startswith("[Self-diagnose]")
 
 
 def _last_real_user_index(messages: list[dict[str, Any]] | None) -> int:
@@ -1255,6 +1263,62 @@ def _unproven_sdd_fill_final(
     return True
 
 
+def self_diagnose_called_since_last_user(
+    messages: list[dict[str, Any]] | None,
+    *,
+    tool_results: list[dict[str, Any]] | None = None,
+) -> bool:
+    """True if `self_diagnose` ran after the last real user message."""
+    from core.runtime.self_diagnose import SELF_DIAGNOSE_TOOL
+
+    names = successful_tools_since_last_user(messages, tool_results=tool_results)
+    if SELF_DIAGNOSE_TOOL in names:
+        return True
+    if not messages:
+        return False
+    last_user = _last_real_user_index(messages)
+    for msg in messages[last_user + 1 :]:
+        if msg.get("role") != "assistant":
+            continue
+        for tc in msg.get("tool_calls") or []:
+            if not isinstance(tc, dict):
+                continue
+            fn = tc.get("function") if isinstance(tc.get("function"), dict) else {}
+            nm = (fn or {}).get("name") or tc.get("name")
+            if str(nm or "") == SELF_DIAGNOSE_TOOL:
+                return True
+    return False
+
+
+def should_nudge_self_diagnose(
+    state: dict[str, Any],
+    *,
+    final_response: str | None,
+    messages: list[dict[str, Any]] | None,
+) -> bool:
+    """Force `self_diagnose` when the user asked Holix to inspect itself."""
+    from core.direct_dispatch.intent import is_self_diagnose_request
+
+    if _plan_mode_skips_honesty(state):
+        return False
+    user_input = state.get("user_input") if isinstance(state, dict) else None
+    tool_results = state.get("tool_results") if isinstance(state, dict) else None
+    max_nudges = _max_nudges_for_turn(
+        messages,
+        final_response=final_response,
+        user_input=user_input,
+        tool_results=tool_results,
+    )
+    if int(state.get("honesty_nudge_count") or 0) >= max_nudges:
+        return False
+    user = (user_input or "").strip() or last_user_text(messages)
+    if not is_self_diagnose_request(user):
+        return False
+    if self_diagnose_called_since_last_user(messages, tool_results=tool_results):
+        return False
+    return bool((final_response or "").strip())
+
+
 def should_nudge_false_completion(
     state: dict[str, Any],
     *,
@@ -1436,7 +1500,11 @@ def honesty_retry_update(
         if not already:
             updated.append({"role": "assistant", "content": final_response})
     user = (user_input or "").strip() or last_user_text(updated)
-    if should_nudge_introspect_final(final_response=final_response, messages=updated):
+    from core.direct_dispatch.intent import is_self_diagnose_request
+
+    if is_self_diagnose_request(user) and not self_diagnose_called_since_last_user(updated):
+        nudge = SELF_DIAGNOSE_NUDGE
+    elif should_nudge_introspect_final(final_response=final_response, messages=updated):
         from core.runtime.introspect_signals import INTROSPECT_WRITE_NUDGE
 
         nudge = INTROSPECT_WRITE_NUDGE

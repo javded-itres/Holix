@@ -22,6 +22,16 @@ def test_bundled_holix_cron_skill_exists():
     assert "/cron add" in parsed["content"]
 
 
+def test_bundled_holix_self_diagnose_skill_exists():
+    skill_md = bundled_skills_root() / "holix-self-diagnose" / "SKILL.md"
+    assert skill_md.is_file()
+    parsed = parse_skill_file(skill_md)
+    assert parsed is not None
+    assert parsed["name"] == "holix-self-diagnose"
+    assert "self_diagnose" in parsed["content"]
+    assert parsed.get("required") is True
+
+
 def test_bundled_holix_subagents_skill_exists():
     skill_md = bundled_skills_root() / "holix-subagents" / "SKILL.md"
     assert skill_md.is_file()
@@ -60,8 +70,10 @@ def test_bundled_holix_studio_frontend_backend_skill_exists():
     assert "nginx" in body
     assert "preview" in body
     # Platform / required flags
-    assert parsed.get("required") is True or parsed.get("platform") is True or "required" in (
-        parsed.get("tags") or []
+    assert (
+        parsed.get("required") is True
+        or parsed.get("platform") is True
+        or "required" in (parsed.get("tags") or [])
     )
 
 
@@ -74,6 +86,7 @@ def test_seed_bundled_skills(tmp_path: Path):
     assert "holix-subagents" in first
     assert "holix-sdd-propose" in first
     assert "holix-studio-frontend-backend" in first
+    assert "holix-self-diagnose" in first
     assert (dest / "holix-cron.md").is_file()
     assert (dest / "holix-subagents.md").is_file()
     assert (dest / "holix-sdd-apply.md").is_file()
@@ -98,7 +111,9 @@ def test_ensure_bundled_assigned_to_main():
     assert "holix-subagents" in added
     assert "holix-sdd-propose" in added
     assert "holix-studio-frontend-backend" in added
+    assert "holix-self-diagnose" in added
     assert "holix-cron" in assigns["main"]
     assert "holix-subagents" in assigns["main"]
     assert "holix-studio-frontend-backend" in assigns["main"]
+    assert "holix-self-diagnose" in assigns["main"]
     assert "docker-manager" in assigns["main"]

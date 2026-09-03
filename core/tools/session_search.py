@@ -47,9 +47,9 @@ class SessionSearchTool(BaseTool):
         super().__init__()
         self.name = "session_search"
         self.description = (
-            "Search this profile's conversation memory, other sessions, and "
-            "session trajectory traces. Returns short snippets with session_id "
-            "and timestamp — do not dump full transcripts."
+            "Search this conversation, profile memory, other sessions, and "
+            "trajectory traces (short snippets, not full transcripts). "
+            "Use this before web_search when the answer may already be in the session."
         )
         self.risk_level = "no"
         self.parameters = {

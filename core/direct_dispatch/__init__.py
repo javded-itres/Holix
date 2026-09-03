@@ -1,6 +1,7 @@
 """Fast-path dispatch for clear user intents."""
 
 from core.direct_dispatch.intent import (
+    is_self_diagnose_request,
     is_status_request,
     is_subagent_list_request,
     is_work_activity_request,
@@ -12,6 +13,7 @@ from core.direct_dispatch.work_status import build_work_status_reply, should_ans
 __all__ = [
     "build_work_status_reply",
     "extract_search_topic",
+    "is_self_diagnose_request",
     "is_status_request",
     "is_subagent_list_request",
     "is_web_research_request",

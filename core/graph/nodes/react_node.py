@@ -33,6 +33,7 @@ from core.graph.action_honesty import (
     scrub_false_empty_claim_content,
     should_nudge_false_completion,
     should_nudge_introspect_final,
+    should_nudge_self_diagnose,
     should_refuse_false_empty_workspace,
     should_refuse_status_monologue,
     should_refuse_unproven_sdd_fill,
@@ -403,6 +404,29 @@ def _maybe_honesty_retry(
     SDD fill: after max nudges without sdd_write_artifact, replace the lie with
     an honest refusal instead of accepting the claim as final.
     """
+    if should_nudge_self_diagnose(
+        state,
+        final_response=final_response,
+        messages=messages,
+    ):
+        logger.warning(
+            "Self-diagnose nudge: user asked Holix to inspect this session (conversation_id=%s)",
+            state.get("conversation_id", ""),
+        )
+        from core.tools.code_mode.policy import normalize_presentation
+
+        presentation = normalize_presentation(
+            getattr(getattr(agent, "tools", None), "_tools_presentation", None)
+        )
+        return honesty_retry_update(
+            messages=messages,
+            step_count=step_count,
+            final_response=final_response,
+            honesty_nudge_count=int(state.get("honesty_nudge_count") or 0),
+            include_assistant=not assistant_already_appended,
+            user_input=state.get("user_input"),
+            tools_presentation=presentation,
+        )
     if should_nudge_introspect_final(final_response=final_response, messages=messages):
         logger.warning(
             "Action honesty nudge: blocked echoing library introspection (conversation_id=%s)",

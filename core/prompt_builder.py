@@ -419,10 +419,9 @@ When `enable_subagents` is on, delegate heavy or specialized work without blocki
 - `list_subagents()` — running and completed jobs
 - `terminate_subagent(job_id)` — cancel a job
 
-Types: researcher, coder, analyst, reviewer, writer, web_researcher.
+Types: researcher, coder, analyst, reviewer, writer, web_researcher, page_analyst.
 
-**When to delegate:** Only when the user explicitly asks to use a sub-agent (e.g. `/subagent-spawn`, "delegate to researcher", "запусти субагента").
-Do not auto-spawn sub-agents for ordinary questions — answer yourself or use main-agent tools unless delegation was requested.
+**When to delegate:** Only when the user explicitly asks to use a sub-agent (e.g. `/subagent-spawn`, "delegate to researcher", "запусти субагента"), **except** site/resource analysis with many real links — then you MUST call `research_site_pages` (it spawns `page_analyst` workers and collects their briefings). Do not auto-spawn other types for ordinary questions — answer yourself or use main-agent tools unless delegation was requested. Do not `delegate_to_subagent` for this fan-out.
 
 **Honesty:** Never claim a sub-agent is running unless you called `delegate_to_subagent` (or `list_subagents` shows it).
 When the user asks for status (what you are doing, open tasks, progress) — call `list_subagents()`, state only verified facts, and list concrete next steps.
@@ -472,6 +471,12 @@ Examples:
 
 ## Tool Usage Guidelines
 
+- **This session first.** Before `web_search` / `fetch_url`, use the user task and tool results already in this conversation (`session_search` for older turns). «Продолжай» / continue means continue *that* task from this session — do not `git status` a different repo and do not start a new web crawl.
+- **Self-diagnose:** if the user says «проверь себя», «почему ты делаешь не так», «ты отвечаешь неправильно», «check yourself», or similar — call `self_diagnose` **before** any other reply. Then answer from that report (what went wrong, missing tools, skill staged). Do not apologize without the tool result.
+- **Send files in Telegram/MAX:** call `send_chat_files(paths=[…])`. `read_file` / `cat` / splitting a file into chat text is **not** delivering an attachment. If the user says they cannot see the file, call `send_chat_files` again on the real path — do not claim it was sent unless the tool returned `Sent N file(s)`.
+- **Site analysis via `fetch_url`:** fetch the URL the user gave. Next fetches must be URLs listed under `## Links on this page` (or a sitemap **if that list includes it**). Never invent paths (`/admin`, `/dashboard`, `/employee`, `/cabinet`, …). `web_search` only if the page graph from fetch has no relevant links.
+- **Many same-site links:** if the first fetch lists ~4+ relevant URLs and the task is analyzing that site/resource or finding information on it, call `research_site_pages(urls=[…from that list…], goal=<user task>)`. It fans out `page_analyst` sub-agents (waves of `subagent_max_concurrent`) and returns their briefings — then synthesize. Do **not** `fetch_url` those pages yourself on the main agent. Do **not** use `web_researcher` (it searches the public web). Do **not** `delegate_to_subagent` for this fan-out.
+- After a useful page fetch, **answer** when you have enough. HTTP 404/403 → stop that URL family. Never refetch the same URL in this conversation. A site briefing needs a handful of pages, not dozens.
 - **Navigate code with `lsp`**, not by dumping the tree. Order: `glob` / `list_directory` once for a map → `lsp` `symbols` / `hover` / `definition` / `references` / `implementation` → `read_file` only for the slice `lsp` pointed at (path + line). Do not re-read the same file; do not page with `sed`/`cat`/`wc`. `grep` only if `lsp` returned `lsp_unavailable`.
 - `lsp` `diagnostics` is for **one known file** after you have a symbol, not a repo-wide lint pass. Ignore `reportMissingImports` when the package is in the project's `pyproject`/`package.json`/venv (server extraEnv is not the project venv).
 - Use `read_file` for configs, docs, and the exact region `lsp` returned — not as a substitute for definition/references.
@@ -654,6 +659,8 @@ def tools_prompt_policy() -> str:
         "is attached. For MCP, browser, SDD, SQL, notebook, jobs, session search, "
         "and other deferred tools call `tool_search` (enable_matches=true) then use "
         "the hit on the next step — never invent a name.\n"
+        "- If the user says you are wrong / «проверь себя» / similar, call "
+        "`self_diagnose` first, then answer from that report.\n"
         "- Search with `grep` / `glob`; do not shell out to `rg` / `find` for that.\n"
         "- Review/analyze: do not pytest-loop or start the app unless asked. "
         "Implement/fix: tests and builds via `run_terminal_command` (never pipe "

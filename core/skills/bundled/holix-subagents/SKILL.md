@@ -25,8 +25,10 @@ The user wants **background specialized work** without blocking the main Holix c
 - research, coding, review, writing, analysis
 - optional: hand off implementation to **external coding CLIs** (Claude Code, OpenCode, Grok Build) via an assigned `coder` sub-agent
 
-Use sub-agents **only when the user asks** to delegate (`/subagent-spawn`, "запусти субагента", etc.).
-Do not auto-spawn for regular chat questions.
+Use sub-agents **only when the user asks** to delegate (`/subagent-spawn`, "запусти субагента", etc.),
+**except** site/resource analysis with many real links from `fetch_url` — then call
+`research_site_pages` (it spawns `page_analyst` workers). Do not auto-spawn other types
+for regular chat questions.
 
 ## Prerequisites
 
@@ -45,6 +47,7 @@ If spawn fails with "disabled" → tell user to enable sub-agents and retry.
 |------|---------|
 | `researcher` | Deep research, files + web |
 | `web_researcher` | Web search + synthesis |
+| `page_analyst` | One page of a site (`fetch_url` only; spawned by `research_site_pages`) |
 | `coder` | Code write/edit/debug, terminal, tests |
 | `analyst` | SQL, data, calculations |
 | `reviewer` | Code review |
@@ -74,7 +77,7 @@ User asks in chat; **you** (main agent) use tools:
 - **Done when** — verifiable criteria (tests pass, file exists, N sources cited)
 - **Don't** — forbidden actions if any
 
-Bad: `fix tests`  
+Bad: `fix tests`
 Good: `Fix failing tests in tests/test_auth.py; run pytest tests/test_auth.py; report pass/fail and diff summary`
 
 If `delegate_to_subagent` returns `already_running` → call `wait_subagent_result` on that `job_id`, do **not** spawn again.
@@ -256,6 +259,7 @@ See profile bindings: `~/.holix/profiles/<profile>/external_clis/`.
 | User wants | Do |
 |------------|-----|
 | Quick background task | `delegate_to_subagent` + inform `job_id` |
+| Analyze a site / many pages of one resource | `fetch_url` once, then `research_site_pages` on real links |
 | Result in same reply | + `wait_subagent_result` |
 | Manual control / slash | Tell user `/subagent-spawn …` |
 | Claude Code / OpenCode in terminal | `holix launch setup` + delegate to assigned `coder` |
@@ -266,6 +270,7 @@ See profile bindings: `~/.holix/profiles/<profile>/external_clis/`.
 ## Do NOT
 
 - Spawn duplicate jobs for the same running task (use `wait_subagent_result`).
+- Crawl a site with dozens of main-agent `fetch_url` calls, or `web_researcher`, when `research_site_pages` fits.
 - Run `holix launch` from main agent tools — delegate to assigned sub-agent.
 - Assume `holix run` handles `/subagent-spawn` — use `chat-command`, TUI, or tools.
 - Block the user chat while waiting — spawn with `wait=False` unless they asked to wait.

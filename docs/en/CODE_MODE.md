@@ -60,7 +60,7 @@ return {"n": len(hits)}
 
 The program runs in an isolated **subprocess** (`python -I`), same idea as `execute_python`. Each `tools.name(...)` still goes through `ToolRegistry`: ActionGuard, workspace jail, allow-lists. Mutating tools still ask for confirmation.
 
-Forbidden inside a program: `run_code`, `execute_python`, `ask_user`, `external_cli`, `run_acp_agent`, `delegate_to_subagent`, cron, browser tools. `todo_write` is allowed.
+Forbidden inside a program: `run_code`, `execute_python`, `ask_user`, `external_cli`, `run_acp_agent`, `delegate_to_subagent`, `research_site_pages`, cron, browser tools. `todo_write` is allowed.
 
 TUI and Telegram/MAX show a **collapsed card**: `description` plus inner tool names — not the program body.
 
