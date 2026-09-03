@@ -175,6 +175,14 @@ holix -p shared gateway status
 holix logs -s gateway -n 50
 ```
 
+## Sending files to the chat
+
+Ask the bot to send a document — it must use `send_chat_files` (Telegram attachment or album), not paste the file as chat text. Tool contract: [TOOLS.md](TOOLS.md).
+
+If the bot says it sent a file but you see no document, reply **«проверь себя»** (or “check yourself”). That runs `self_diagnose` on this session — same tools page.
+
+Incoming photos, documents, and voice notes are handled below; this section is **outbound** only.
+
 ## Voice messages
 
 Holix transcribes Telegram **voice notes** and **audio** attachments via the OpenAI Whisper API, then processes the text like a normal message.

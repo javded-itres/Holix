@@ -114,6 +114,9 @@ holix -p shared gateway reload
 | Review/analyze крутит pytest | Review не должен гонять тесты, пока вы сами не попросили. |
 | `pytest … \| tail` пишет `Success (exit code 0)` при FAILED | В **bash** Holix включает `pipefail`. В dash `/bin/sh` опция пропускается; красный pytest в логе всё равно Error. Не пайпьте тесты в `tail`/`head`. |
 | Финальный ответ — лог pytest | На лимите шагов мессенджер **не** отдаёт дамп тестов как ответ (короткая заметка + первая строка `FAILED`). Нужна запись в код или больше `max_steps`. |
+| Бот пишет, что отправил файл; в Telegram/MAX нет документа | Доставка — `send_chat_files`, не `read_file` / `cat`. Напишите **«проверь себя»** — [TOOLS.md](TOOLS.md). |
+| Десятки `fetch_url` с HTTP 404 / выдуманными `/admin` | Только ссылки из `## Links on this page` после первого fetch; много страниц того же хоста — `research_site_pages` — [TOOLS.md](TOOLS.md), [SUBAGENTS.md](SUBAGENTS.md). |
+| Обход сайта съедает бюджет шагов | Доп. `max_steps` **не** выдаются, если недавние tools только `fetch_url` / `web_search` — [EXECUTION_MODES.md](EXECUTION_MODES.md#бюджет-шагов-max_steps). |
 
 ## См. также
 

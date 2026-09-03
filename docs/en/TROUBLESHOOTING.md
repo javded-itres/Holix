@@ -116,6 +116,9 @@ Check jail status: `holix -p NAME profile jail status`. Full guide: [Path visibi
 | Review/analyze keeps running pytest | Review must not pytest-loop unless you asked to run tests. |
 | `pytest … \| tail` shows `Success (exit code 0)` while tests FAILED | On **bash**, Holix prefixes `pipefail`. On dash `/bin/sh` that option is skipped; red pytest in the log is still reported as Error. Do not pipe tests to `tail`/`head`. |
 | Final reply is a pytest log / traceback | At max steps the messenger **does not** ship a test dump as the answer (short note + first `FAILED` line). Re-run with a write, or raise `max_steps`. |
+| Bot says it sent a file; no Telegram/MAX document | Delivery is `send_chat_files`, not `read_file` / `cat`. Say **«проверь себя»** — [TOOLS.md](TOOLS.md). |
+| Dozens of `fetch_url` with HTTP 404 / invented `/admin` paths | Follow `## Links on this page` from the first fetch; for many same-host links use `research_site_pages` — [TOOLS.md](TOOLS.md), [SUBAGENTS.md](SUBAGENTS.md). |
+| Site crawl burns the step budget | Extra `max_steps` are **not** granted when recent tools are only `fetch_url` / `web_search` — [EXECUTION_MODES.md](EXECUTION_MODES.md#step-budget-max_steps). |
 
 ## Related
 

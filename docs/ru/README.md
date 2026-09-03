@@ -33,7 +33,7 @@
 - [TUI.md](TUI.md) — очередь, todos, живые процессы, копирование
 - [SLASH_COMMANDS.md](SLASH_COMMANDS.md) · [EXECUTION_MODES.md](EXECUTION_MODES.md)
 - [CODE_MODE.md](CODE_MODE.md) — `run_code` / `tools_presentation`
-- [CLI.md](CLI.md) · [HUB.md](HUB.md) · [BROWSER_TOOLS.md](BROWSER_TOOLS.md) · [TOOLS.md](TOOLS.md) — `lsp`, `tool_search`, `apply_patch`
+- [CLI.md](CLI.md) · [HUB.md](HUB.md) · [BROWSER_TOOLS.md](BROWSER_TOOLS.md) · [TOOLS.md](TOOLS.md) — `lsp`, `tool_search`, `send_chat_files`, `self_diagnose`, `research_site_pages`
 - [MCP.md](MCP.md) · [MEMORY.md](MEMORY.md) — Chroma или pgvector
 
 ### Агенты и автоматизация
