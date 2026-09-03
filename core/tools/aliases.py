@@ -159,7 +159,7 @@ ARG_ALIASES: dict[str, tuple[str, ...]] = {
     "query": ("q", "search", "search_term", "question"),
     "url": ("uri", "link", "href"),
     "urls": ("links", "pages", "page_urls", "url"),
-    "goal": ("task", "query", "instruction", "objective", "prompt"),
+    "goal": ("instruction", "objective"),
     "timeout": ("timeout_seconds", "timeout_s"),
     "max_results": ("num_results", "limit"),
     "task": ("prompt", "instruction", "goal"),
