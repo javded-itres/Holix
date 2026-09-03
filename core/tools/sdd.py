@@ -757,8 +757,10 @@ class SddCheckTaskTool(BaseTool):
         self.name = "sdd_check_task"
         self.description = (
             "Mark a tasks.md checkbox done or not done. "
-            "When done=true, cancels any still-running subagent bound to that "
-            "task (and all SDD subagents for the change if every task is done)."
+            "When done=true, cancels any still-running one-shot subagent bound "
+            "to that task (and all SDD subagents for the change if every task "
+            "is done). Studio process waiters (followed_process) are not cancelled "
+            "— the parent still waits until the process run finishes."
         )
         self.risk_level = "no"
         self.parameters = {
@@ -916,11 +918,21 @@ class SddApplyTool(BaseTool):
                 )
                 plan = {**plan, "dispatch": dispatch, "auto_dispatched": True}
                 if dispatch.get("ok"):
-                    plan["message"] = (
-                        (plan.get("message") or "")
-                        + " Auto-dispatched subagents by tasks.md assignee "
+                    spawned = list(dispatch.get("spawned") or [])
+                    proc_n = sum(
+                        1 for j in spawned if isinstance(j, dict) and j.get("followed_process")
+                    )
+                    extra = (
+                        " Auto-dispatched subagents by tasks.md assignee "
                         "(use wait_subagent_result on job_id; do not re-spawn with coder)."
-                    ).strip()
+                    )
+                    if proc_n:
+                        extra += (
+                            f" {proc_n} job(s) follow a Studio process — "
+                            "wait_subagent_result blocks until that process run ends; "
+                            "do not mark the SDD task done on the first child step."
+                        )
+                    plan["message"] = ((plan.get("message") or "") + extra).strip()
             return result_json(plan)
         except Exception as exc:
             return _err(exc)
@@ -1091,7 +1103,8 @@ class SddDispatchTool(BaseTool):
             "same-section order inferred). Uses **exact assignee** from tasks.md. "
             "Blocked tasks wait for the next wave after sdd_check_task / auto-complete. "
             "Prefer sdd_apply (auto-dispatches). "
-            "Mode self returns main_tasks only. Then wait_subagent_result / sdd_check_task."
+            "Mode self returns main_tasks only. Then wait_subagent_result / sdd_check_task. "
+            "If a spawned job has followed_process, wait until the Studio process finishes."
         )
         self.risk_level = "high"
         self.parameters = {

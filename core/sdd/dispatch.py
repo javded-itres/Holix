@@ -247,6 +247,17 @@ async def dispatch_change_tasks(
             }
             if job["process_mode"] is not None and hasattr(job["process_mode"], "value"):
                 job["process_mode"] = job["process_mode"].value
+            if getattr(h, "followed_process", False) is True:
+                job["followed_process"] = True
+                job["studio_process_id"] = str(getattr(h, "studio_process_id", "") or "")
+                sdd = getattr(h, "studio_sdd", None)
+                if isinstance(sdd, dict) and sdd:
+                    job["sdd"] = sdd
+                job["wait_hint"] = (
+                    "wait_subagent_result(job_id) blocks until the Studio "
+                    "process run finishes — not the first child step. "
+                    "Do not treat this SDD task as done until that wait returns."
+                )
             _record_task_job(
                 store,
                 change_id,
@@ -308,7 +319,10 @@ async def dispatch_change_tasks(
             f"{len(main_tasks)} ready main task(s); "
             f"{len(blocked_tasks)} blocked by dependencies. "
             "Successful jobs auto-mark tasks.md and re-dispatch the next ready wave. "
-            "Main ready tasks still need sdd_check_task.\n"
+            "Main ready tasks still need sdd_check_task. "
+            "Jobs with followed_process=true are Studio processes: "
+            "wait_subagent_result(job_id) until the process finishes; "
+            "do not treat that SDD task as done on the first child step.\n"
             f"{graph_summary}"
         ),
         "plan": plan_result["plan"],

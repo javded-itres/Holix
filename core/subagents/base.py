@@ -277,6 +277,15 @@ class SubAgentHandle:
             "done": self.is_done,
             "spawn_fallback_reason": self.spawn_fallback_reason or "",
         }
+        if getattr(self, "followed_process", False) is True:
+            payload["followed_process"] = True
+            payload["studio_process_id"] = str(getattr(self, "studio_process_id", "") or "")
+            rid = str(getattr(self, "studio_process_run_id", "") or "")
+            if rid:
+                payload["studio_process_run_id"] = rid
+            sdd = getattr(self, "studio_sdd", None)
+            if isinstance(sdd, dict) and sdd:
+                payload["sdd"] = sdd
         if include_activity:
             payload["activity_log"] = list(self.activity_log or [])
         if include_result and self.result is not None:

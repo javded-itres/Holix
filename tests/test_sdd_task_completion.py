@@ -54,10 +54,24 @@ def _ready_change(store: SpecStore, change_id: str = "feat-x") -> None:
     )
 
 
-def test_parse_sdd_marker():
-    m = parse_sdd_task_marker(
-        "[SDD change=feat-x task=1.1 project=user_catalog]\nDo stuff"
+def test_handle_status_exposes_followed_process():
+    handle = SubAgentHandle(
+        name="python-coder",
+        config=SubAgentConfig(name="python-coder"),
+        status=SubAgentStatus.RUNNING,
+        task_preview="[SDD change=feat-x task=1.1]",
     )
+    handle.followed_process = True
+    handle.studio_process_id = "proc-dev"
+    handle.studio_sdd = {"change_id": "feat-x", "task_id": "1.1"}
+    row = handle.to_status_dict(include_activity=False, include_result=False)
+    assert row["followed_process"] is True
+    assert row["studio_process_id"] == "proc-dev"
+    assert row["sdd"]["task_id"] == "1.1"
+
+
+def test_parse_sdd_marker():
+    m = parse_sdd_task_marker("[SDD change=feat-x task=1.1 project=user_catalog]\nDo stuff")
     assert m == {
         "change_id": "feat-x",
         "task_id": "1.1",
@@ -102,6 +116,29 @@ def test_auto_complete_via_job_index(tmp_path: Path):
         (tmp_path / "openspec/changes/feat-x/tasks.md").read_text(encoding="utf-8")
     )
     assert any(t.id == "1.1" and t.done for t in tasks)
+
+
+def test_skip_studio_process_step_auto_complete(tmp_path: Path):
+    from core.sdd.task_completion import is_studio_process_step_job
+
+    store = SpecStore(tmp_path)
+    _ready_change(store)
+    write_task_job(tmp_path, "feat-x", "1.1", "python-coder")
+    assert is_studio_process_step_job(
+        job_id="p-proc-102d1-python-coder-ab12",
+        task_preview="",
+    )
+    result = try_complete_sdd_task_for_subagent(
+        job_id="python-coder",
+        task_preview="You are a step in a Studio process. Do the work.",
+        success=True,
+        workspace=tmp_path,
+    )
+    assert result is None
+    tasks = parse_tasks_markdown(
+        (tmp_path / "openspec/changes/feat-x/tasks.md").read_text(encoding="utf-8")
+    )
+    assert any(t.id == "1.1" and not t.done for t in tasks)
 
 
 def test_no_auto_complete_on_failure(tmp_path: Path):
@@ -149,6 +186,38 @@ async def test_dispatch_records_structured_jobs(tmp_path: Path):
     assert "[SDD change=feat-x task=1.1]" in call_task
 
 
+@pytest.mark.asyncio
+async def test_dispatch_followed_process_job_fields(tmp_path: Path):
+    store = SpecStore(tmp_path)
+    _ready_change(store)
+    store.set_apply_mode("feat-x", "subagents")
+
+    handle = MagicMock()
+    handle.name = "python-coder"
+    handle.config.process_mode.value = "async"
+    handle.followed_process = True
+    handle.studio_process_id = "proc-dev"
+    handle.studio_sdd = {"change_id": "feat-x", "task_id": "1.1", "project": ""}
+
+    parent = MagicMock()
+    parent.config = MagicMock()
+    parent.config.workspace_root = str(tmp_path)
+    parent.subagents = MagicMock()
+    from unittest.mock import patch
+
+    parent.subagents.spawn_typed = AsyncMock(return_value=(handle, None))
+
+    with patch("core.config_utils.is_subagents_enabled", return_value=True):
+        result = await dispatch_change_tasks(store, "feat-x", parent_agent=parent)
+
+    spawned = {j["task_id"]: j for j in result["spawned"]}
+    job = spawned["1.1"]
+    assert job["followed_process"] is True
+    assert job["studio_process_id"] == "proc-dev"
+    assert "wait_subagent_result" in job["wait_hint"]
+    assert "followed_process" in result["message"]
+
+
 def test_manager_finish_marks_sdd_task(tmp_path: Path):
     store = SpecStore(tmp_path)
     _ready_change(store)
@@ -165,9 +234,7 @@ def test_manager_finish_marks_sdd_task(tmp_path: Path):
         config=SubAgentConfig(name="coder"),
         status=SubAgentStatus.COMPLETED,
         task_preview="[SDD change=feat-x task=1.1]\nBackend",
-        result=SubAgentResult(
-            name="coder", success=True, response="done", steps_taken=3
-        ),
+        result=SubAgentResult(name="coder", success=True, response="done", steps_taken=3),
     )
     mgr._handles["coder"] = handle
     mgr._emit_finished_once(handle)
@@ -294,3 +361,42 @@ async def test_all_tasks_done_cancels_remaining_sdd_jobs(tmp_path: Path):
     assert set(cancel["cancelled_jobs"]) >= {"coder-1"}
     assert "coder-1" in cancel["cancel_requested"]
     assert "coder-2" in cancel["cancel_requested"]
+
+
+@pytest.mark.asyncio
+async def test_check_task_skips_followed_process_waiter(tmp_path: Path):
+    store = SpecStore(tmp_path)
+    _ready_change(store)
+    write_task_job(tmp_path, "feat-x", "1.1", "python-coder")
+
+    parent = MagicMock()
+    parent.config = MagicMock()
+    parent.config.workspace_root = str(tmp_path)
+
+    waiter = SubAgentHandle(
+        name="python-coder",
+        config=SubAgentConfig(name="python-coder"),
+        status=SubAgentStatus.RUNNING,
+        task_preview="[SDD change=feat-x task=1.1]\nBackend work",
+    )
+    waiter.followed_process = True
+    waiter.studio_process_id = "proc-dev"
+    mgr = MagicMock()
+    mgr.list_active = MagicMock(return_value=[waiter])
+    mgr.get_handle = MagicMock(return_value=waiter)
+    mgr.terminate = AsyncMock(return_value=True)
+    parent.subagents = mgr
+
+    result = store.check_task("feat-x", task_id="1.1", done=True)
+    cancel = await cancel_sdd_subagents_after_check(
+        parent,
+        project_root=tmp_path,
+        change_id="feat-x",
+        task_id="1.1",
+        done=True,
+        tasks_done=result["tasks_done"],
+        tasks_total=result["tasks_total"],
+    )
+    assert "python-coder" not in cancel["cancelled_jobs"]
+    assert "python-coder" in cancel["skipped_process_jobs"]
+    mgr.terminate.assert_not_awaited()

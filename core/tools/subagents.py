@@ -133,6 +133,22 @@ class DelegateToSubAgentTool(BaseTool):
                     f"(OS-process spawn was unavailable: {fallback}). "
                     f"Call wait_subagent_result(job_id='{h.name}') when you need the answer."
                 )
+            if getattr(h, "followed_process", False) is True:
+                payload["followed_process"] = True
+                payload["studio_process_id"] = str(getattr(h, "studio_process_id", "") or "")
+                payload["studio_process_run_id"] = str(
+                    getattr(h, "studio_process_run_id", "") or ""
+                )
+                sdd = getattr(h, "studio_sdd", None)
+                if isinstance(sdd, dict) and sdd:
+                    payload["sdd"] = sdd
+                payload["message"] = (
+                    f"Sub-agent '{h.name}' is bound to Studio process "
+                    f"{payload['studio_process_id'] or 'graph'}. "
+                    f"Call wait_subagent_result(job_id='{h.name}') and do **not** "
+                    "mark the SDD task done until that wait returns "
+                    "(followed_process finished)."
+                )
             return json.dumps(payload, ensure_ascii=False)
         except Exception as e:
             return f"Error spawning sub-agent: {e}"
@@ -146,10 +162,12 @@ class WaitSubAgentResultTool(BaseTool):
         self._parent = parent_agent
         self.name = "wait_subagent_result"
         self.description = (
-            "Wait for a sub-agent started via delegate_to_subagent and return its result. "
-            "job_id may be the bare name (e.g. coder-python) from delegate_to_subagent "
-            "or the full id (e.g. studio-123::coder-python) from list_subagents. "
-            "Use list_subagents to see running jobs."
+            "Wait for a sub-agent started via delegate_to_subagent / sdd_apply and "
+            "return its result. If that agent is bound to a Studio process, this "
+            "blocks until the **process** finishes — not the first child step. "
+            "Do not treat an SDD task as done while followed_process is still running. "
+            "job_id may be the bare name (e.g. coder-python) or full id "
+            "(studio-123::coder-python). Use list_subagents to see running jobs."
         )
         self.risk_level = "no"
         self.parameters = {
@@ -183,17 +201,36 @@ class WaitSubAgentResultTool(BaseTool):
                 timeout = 3600.0
             # wait_for resolves owner::name and can poll the profile registry.
             result = await mgr.wait_for(job_id, timeout=timeout)
-            return json.dumps(
-                {
-                    "job_id": job_id,
-                    "success": result.success,
-                    "response": result.response,
-                    "error": result.error,
-                    "duration_ms": result.duration_ms,
-                    "steps_taken": result.steps_taken,
-                },
-                ensure_ascii=False,
-            )
+            payload: dict[str, Any] = {
+                "job_id": job_id,
+                "success": result.success,
+                "response": result.response,
+                "error": result.error,
+                "duration_ms": result.duration_ms,
+                "steps_taken": result.steps_taken,
+            }
+            handle = None
+            get_handle = getattr(mgr, "get_handle", None)
+            if callable(get_handle):
+                try:
+                    handle = get_handle(job_id)
+                except Exception:
+                    handle = None
+            if handle is not None and getattr(handle, "followed_process", False) is True:
+                pid = str(getattr(handle, "studio_process_id", "") or "")
+                rid = str(getattr(handle, "studio_process_run_id", "") or "")
+                sdd = getattr(handle, "studio_sdd", None)
+                payload["followed_process"] = True
+                payload["process_id"] = pid
+                payload["run_id"] = rid
+                if isinstance(sdd, dict) and sdd:
+                    payload["sdd"] = sdd
+                pname = pid or "process"
+                payload["message"] = (
+                    f"Job ran as Studio process ({pname}). "
+                    "The SDD originating task is complete only after this process finished."
+                )
+            return json.dumps(payload, ensure_ascii=False)
         except KeyError:
             try:
                 summary = mgr.get_status_summary()
@@ -231,7 +268,11 @@ class ListSubAgentsTool(BaseTool):
         super().__init__()
         self._parent = parent_agent
         self.name = "list_subagents"
-        self.description = "List sub-agents spawned in this session (status, mode, task preview)."
+        self.description = (
+            "List sub-agents spawned in this session (status, mode, task preview). "
+            "Jobs with followed_process=true are Studio process waiters — the SDD "
+            "task is not done until that job finishes."
+        )
         self.risk_level = "no"
         self.parameters = {"type": "object", "properties": {}, "required": []}
 
