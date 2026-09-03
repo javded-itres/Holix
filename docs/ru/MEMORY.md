@@ -111,6 +111,8 @@ export HOLIX_VECTOR_DSN='postgresql://user:pass@host/db'   # или STUDIO_DATAB
 
 Таблица `holix_vectors`, MiniLM 384-d. Субагенты используют тот же DSN, без временного Chroma. Без `HOLIX_VECTOR_BACKEND` остаётся Chroma.
 
+Прод-мессенджеры (systemd на VDS) ставят PostgreSQL + `postgresql-XX-pgvector` при деплое и пишут эти переменные в `.env` профиля. `CREATE EXTENSION vector` выполняет суперпользователь `postgres`; роли Holix достаточно прав на таблицы. SQLite диалогов не трогаем; существующая Chroma на диске не мигрируется.
+
 ---
 
 ## Проблемы

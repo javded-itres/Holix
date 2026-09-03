@@ -1,8 +1,8 @@
 [Unit]
 Description=Holix API Gateway (profile default)
 Documentation=https://github.com/javded-itres/Holix/blob/master/docs/en/DEPLOYMENT.md
-After=network-online.target
-Wants=network-online.target
+After=network-online.target postgresql.service
+Wants=network-online.target postgresql.service
 
 [Service]
 Type=simple
