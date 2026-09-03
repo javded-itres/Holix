@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 1.1.8 — 2026-09-03
+
 ### Added
 
 - **Site page research** — `research_site_pages` fans out `page_analyst` sub-agents
@@ -16,6 +18,18 @@
   / «ты отвечаешь неправильно» / «check yourself». Honesty nudge if the model
   replies without the tool. Can stage a skill patch for wrong chat-delivery
   procedures.
+
+### Changed
+
+- **`fetch_url`** — HTML pages include real `href`s under `## Links on this page`;
+  do not invent paths. Same URL is not refetched in one conversation.
+- **Session first** — look in this conversation before `web_search` / a new crawl.
+- **Step budget** — extra `max_steps` are not granted when recent tools are only
+  `fetch_url` / `web_search`.
+
+### Docs
+
+- Telegram/troubleshooting/overview point at the tools above (no contract copy).
 
 ## 1.1.7 — 2026-08-31
 
