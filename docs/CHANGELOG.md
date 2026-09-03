@@ -2,11 +2,28 @@
 
 ## Unreleased
 
+## 1.1.9 — 2026-09-03
+
+### Added
+
+- **SDD + Studio processes** — spawn of an assignee bound to a Studio process
+  is a process waiter (`followed_process`). `wait_subagent_result` /
+  `list_subagents` / `sdd_apply` / `sdd_dispatch` expose that the job is a
+  process run; the SDD task is done only after the process finishes, not the
+  first child step. Process-step jobs (`p-*` / «You are a step in a Studio
+  process») do not auto-check `tasks.md`. `sdd_check_task` does not cancel
+  the process waiter.
+
 ### Changed
 
 - **pgvector** — `CREATE EXTENSION vector` is skipped when the extension is
   already present (native Postgres: deploy installs it as superuser; the
   `holix` role is not superuser). Extra `all` includes `psycopg`.
+
+### Tests
+
+- Process-step auto-check skip, `followed_process` on dispatch / status,
+  `sdd_check_task` does not terminate a process waiter.
 
 ## 1.1.8 — 2026-09-03
 

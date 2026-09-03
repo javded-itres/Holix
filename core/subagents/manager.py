@@ -448,6 +448,8 @@ class SubAgentManager:
             )
         )
         # SDD apply/dispatch: mark tasks.md checkbox when job succeeds
+        # (skipped for Studio process *steps*; the bound-process waiter
+        # handle completes only after the whole graph finishes).
         self._maybe_complete_sdd_task(handle, success=success)
         self._publish_runtime(handle)
 

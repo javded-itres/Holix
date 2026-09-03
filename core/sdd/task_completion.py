@@ -307,6 +307,8 @@ async def cancel_sdd_subagents_after_check(
 
     # Also match live handles by SDD marker (covers missing/stale job index)
     for handle in _running_sdd_handles(parent_agent):
+        if getattr(handle, "followed_process", False) is True:
+            continue
         marker = parse_sdd_task_marker(getattr(handle, "task_preview", None) or "")
         if not marker or marker.get("change_id") != cid:
             continue
@@ -319,7 +321,32 @@ async def cancel_sdd_subagents_after_check(
             want_jobs.add(str(name))
 
     cancelled: list[str] = []
+    skipped_process: list[str] = []
     for job_id in sorted(want_jobs):
+        handle = None
+        get_handle = getattr(mgr, "get_handle", None)
+        if callable(get_handle):
+            try:
+                handle = get_handle(job_id)
+            except Exception:
+                handle = None
+        if handle is None:
+            try:
+                for h in _running_sdd_handles(parent_agent):
+                    if str(getattr(h, "name", "") or "") == job_id:
+                        handle = h
+                        break
+            except Exception:
+                handle = None
+        if handle is not None and getattr(handle, "followed_process", False) is True:
+            skipped_process.append(job_id)
+            logger.info(
+                "SDD: skip cancel of Studio process waiter %s (change=%s task=%s)",
+                job_id,
+                cid,
+                task_id or "*",
+            )
+            continue
         try:
             ok = await mgr.terminate(job_id)
         except Exception as exc:
@@ -341,7 +368,24 @@ async def cancel_sdd_subagents_after_check(
     return {
         "cancelled_jobs": cancelled,
         "cancel_requested": sorted(want_jobs),
+        "skipped_process_jobs": skipped_process,
     }
+
+
+def is_studio_process_step_job(*, job_id: str = "", task_preview: str | None = None) -> bool:
+    """True for a child node of a Studio bound process (not the SDD waiter).
+
+    Those jobs must not auto-check tasks.md — the parent waits until the
+    whole process run finishes.
+    """
+    name = str(job_id or "").strip()
+    bare = name.split("::")[-1] if "::" in name else name
+    if bare.startswith("p-"):
+        return True
+    preview = (task_preview or "").lstrip()
+    return preview.startswith("You are a step in a Studio process") or preview.startswith(
+        "You are a review gate in a Studio process"
+    )
 
 
 def try_complete_sdd_task_for_subagent(
@@ -356,6 +400,8 @@ def try_complete_sdd_task_for_subagent(
     Returns result dict when a task was marked, else None.
     """
     if not success or not job_id:
+        return None
+    if is_studio_process_step_job(job_id=job_id, task_preview=task_preview):
         return None
     ws = Path(workspace).expanduser().resolve() if workspace else None
     if ws is None or not ws.is_dir():
