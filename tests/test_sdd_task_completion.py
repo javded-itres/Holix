@@ -63,11 +63,17 @@ def test_handle_status_exposes_followed_process():
     )
     handle.followed_process = True
     handle.studio_process_id = "proc-dev"
-    handle.studio_sdd = {"change_id": "feat-x", "task_id": "1.1"}
+    handle.studio_worktree = "/tmp/.holix/worktrees/feat-x"
+    handle.studio_sdd = {
+        "change_id": "feat-x",
+        "task_id": "1.1",
+        "worktree": "/tmp/.holix/worktrees/feat-x",
+    }
     row = handle.to_status_dict(include_activity=False, include_result=False)
     assert row["followed_process"] is True
     assert row["studio_process_id"] == "proc-dev"
     assert row["sdd"]["task_id"] == "1.1"
+    assert row["worktree"] == "/tmp/.holix/worktrees/feat-x"
 
 
 def test_parse_sdd_marker():
@@ -197,7 +203,13 @@ async def test_dispatch_followed_process_job_fields(tmp_path: Path):
     handle.config.process_mode.value = "async"
     handle.followed_process = True
     handle.studio_process_id = "proc-dev"
-    handle.studio_sdd = {"change_id": "feat-x", "task_id": "1.1", "project": ""}
+    handle.studio_worktree = "/tmp/.holix/worktrees/feat-x"
+    handle.studio_sdd = {
+        "change_id": "feat-x",
+        "task_id": "1.1",
+        "project": "",
+        "worktree": "/tmp/.holix/worktrees/feat-x",
+    }
 
     parent = MagicMock()
     parent.config = MagicMock()
@@ -214,8 +226,46 @@ async def test_dispatch_followed_process_job_fields(tmp_path: Path):
     job = spawned["1.1"]
     assert job["followed_process"] is True
     assert job["studio_process_id"] == "proc-dev"
+    assert job["worktree"] == "/tmp/.holix/worktrees/feat-x"
     assert "wait_subagent_result" in job["wait_hint"]
     assert "followed_process" in result["message"]
+
+
+@pytest.mark.asyncio
+async def test_wait_subagent_exposes_worktree():
+    import json
+
+    from core.tools.subagents import WaitSubAgentResultTool
+
+    handle = SubAgentHandle(
+        name="python-coder",
+        config=SubAgentConfig(name="python-coder"),
+        status=SubAgentStatus.COMPLETED,
+        result=SubAgentResult(name="python-coder", success=True, response="done"),
+    )
+    handle.followed_process = True
+    handle.studio_process_id = "proc-dev"
+    handle.studio_process_run_id = "run-abc"
+    handle.studio_worktree = "/tmp/.holix/worktrees/feat-x"
+    handle.studio_sdd = {
+        "change_id": "feat-x",
+        "task_id": "1.1",
+        "worktree": "/tmp/.holix/worktrees/feat-x",
+    }
+
+    mgr = MagicMock()
+    mgr.get_handle = MagicMock(return_value=handle)
+    mgr.wait_for = AsyncMock(return_value=handle.result)
+    parent = MagicMock()
+    parent.subagents = mgr
+    parent.config = MagicMock()
+    parent.config.profile_name = "default"
+
+    raw = await WaitSubAgentResultTool(parent).execute(job_id="python-coder")
+    payload = json.loads(raw)
+    assert payload["followed_process"] is True
+    assert payload["worktree"] == "/tmp/.holix/worktrees/feat-x"
+    assert payload["sdd"]["change_id"] == "feat-x"
 
 
 def test_manager_finish_marks_sdd_task(tmp_path: Path):
