@@ -221,7 +221,11 @@ def format_active_change_prompt_block(active: ActiveChange | None) -> str:
         f"**Workspace is the git worktree:** `{active.worktree}`\n"
         "File tools, terminal, and SDD artifacts use this directory. "
         "Do not edit the main clone working tree. "
-        f"Main clone (read git objects / default branch): `{active.clone}`."
+        "Merge the default branch with `git merge main` (or `master`) "
+        "**from this worktree**. Do not `cd` to the clone and do not set "
+        "GIT_DIR. Local `main` is already in this repo — do not "
+        "`git fetch origin` unless a remote exists. "
+        f"Main clone (git objects / default branch checkout): `{active.clone}`."
     )
 
 

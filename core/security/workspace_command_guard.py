@@ -109,17 +109,34 @@ def references_holix_profiles(
         if _looks_like_holix_profile_path(resolved):
             holix_paths.append(resolved)
 
+    extras = linked_git_common_dirs(root)
     if holix_paths:
-        return any(not _is_relative_to(path, root) for path in holix_paths)
+        return any(not _is_inside_jail(path, root, extras) for path in holix_paths)
 
     # Marker present but no resolvable path tokens — fail closed.
     return True
+
+
+def _strip_assignment_prefix(token: str) -> str:
+    """``GIT_DIR=/path`` / ``--git-dir=/path`` → ``/path``."""
+    raw = token
+    if "=" not in raw or raw.startswith("="):
+        return raw
+    rhs = raw.split("=", 1)[1].strip().strip("\"'")
+    if not rhs:
+        return raw
+    if rhs.startswith(("/", "~", "./", "../")):
+        return rhs
+    if len(rhs) >= 3 and rhs[1] == ":" and rhs[0].isalpha() and rhs[2] in "/\\":
+        return rhs
+    return raw
 
 
 def _resolve_path_token(token: str, *, workspace_root: Path, cwd: Path) -> Path | None:
     raw = (token or "").strip().strip("\"'")
     if not raw or raw in _SKIP_TOKENS:
         return None
+    raw = _strip_assignment_prefix(raw)
     if raw.startswith("-"):
         return None
 
@@ -143,6 +160,46 @@ def _is_relative_to(path: Path, root: Path) -> bool:
         return False
 
 
+def linked_git_common_dirs(workspace_root: Path | str | None) -> list[Path]:
+    """Extra jail roots when *workspace_root* is a Holix linked git worktree.
+
+    Holix worktrees live at ``<clone>/.holix/worktrees/<id>``. Git objects and
+    refs are in ``<clone>/.git``, outside the overlay. The clone working tree
+    stays outside the jail so agents cannot edit ``main``.
+
+    The worktree ``.git`` gitfile is not trusted (agents can rewrite it). Only
+    ``<clone>/.git`` inferred from that path layout is added.
+    """
+    if workspace_root is None:
+        return []
+    try:
+        root = Path(workspace_root).expanduser().resolve()
+    except OSError:
+        return []
+    if root.parent.name != "worktrees" or root.parent.parent.name != ".holix":
+        return []
+    common = root.parent.parent.parent / ".git"
+    try:
+        common = common.resolve()
+    except OSError:
+        return []
+    if not common.exists():
+        return []
+    return [common]
+
+
+def _is_inside_jail(
+    path: Path,
+    root: Path,
+    extras: list[Path] | None = None,
+) -> bool:
+    if _is_relative_to(path, root):
+        return True
+    if extras is None:
+        extras = linked_git_common_dirs(root)
+    return any(_is_relative_to(path, extra) for extra in extras)
+
+
 def _path_tokens(command: str) -> list[str]:
     text = (command or "").strip()
     if not text:
@@ -156,7 +213,19 @@ def _path_tokens(command: str) -> list[str]:
         tokens = text.split()
     for match in _ABSOLUTE_PATH_RE.finditer(text):
         start = match.start()
-        if start > 0 and text[start - 1] not in {" ", "\t", "\"", "'", ">", "|", ";", "&", "(", "\n"}:
+        if start > 0 and text[start - 1] not in {
+            " ",
+            "\t",
+            '"',
+            "'",
+            ">",
+            "|",
+            ";",
+            "&",
+            "(",
+            "\n",
+            "=",
+        }:
             continue
         tokens.append(match.group(0))
     return tokens
@@ -188,6 +257,7 @@ def command_escapes_workspace(
 
     root = Path(workspace_root).expanduser().resolve()
     cwd = root
+    extras = linked_git_common_dirs(root)
 
     # Block profile secrets / other profiles; allow absolute paths under this workspace
     # even when they contain ``.../profiles/<name>/...``.
@@ -203,7 +273,7 @@ def command_escapes_workspace(
             continue
         if _is_allowed_system_path(resolved) or _is_allowed_system_path(Path(token)):
             continue
-        if not _is_relative_to(resolved, root):
+        if not _is_inside_jail(resolved, root, extras):
             label = token[:80] + ("…" if len(token) > 80 else "")
             return True, f"Path '{label}' is outside your profile workspace."
 

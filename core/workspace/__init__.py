@@ -231,10 +231,18 @@ def resolve_tool_path(raw: str, *, default_relative_to: Path | None = None) -> P
         p = p.resolve()
 
     if root is not None and not p.is_relative_to(root):
-        workspace_label = display_path_for_user(root)
-        path_label = display_path_for_user(p, input_path=raw)
-        raise WorkspaceJailError(
-            f"Path '{path_label}' is outside the allowed workspace '{workspace_label}'. "
-            "Workspace jail is enabled for this profile."
-        )
+        extra_ok = False
+        try:
+            from core.security.workspace_command_guard import linked_git_common_dirs
+
+            extra_ok = any(p.is_relative_to(extra) for extra in linked_git_common_dirs(root))
+        except Exception:
+            extra_ok = False
+        if not extra_ok:
+            workspace_label = display_path_for_user(root)
+            path_label = display_path_for_user(p, input_path=raw)
+            raise WorkspaceJailError(
+                f"Path '{path_label}' is outside the allowed workspace '{workspace_label}'. "
+                "Workspace jail is enabled for this profile."
+            )
     return p

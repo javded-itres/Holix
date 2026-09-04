@@ -55,6 +55,15 @@ def _writable_roots(workspace_root: str | None) -> list[str]:
         except OSError:
             roots.append(str(workspace_root))
         try:
+            from core.security.workspace_command_guard import linked_git_common_dirs
+
+            for extra_git in linked_git_common_dirs(workspace_root):
+                extra_s = str(extra_git)
+                if extra_s and extra_s not in roots:
+                    roots.append(extra_s)
+        except Exception:
+            pass
+        try:
             from core.runtime.git_worktree import extra_sandbox_write_roots
 
             for extra_git in extra_sandbox_write_roots(workspace_root):

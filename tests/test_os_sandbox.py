@@ -8,6 +8,7 @@ from pathlib import Path
 import pytest
 from core.security.os_sandbox import (
     SandboxUnavailable,
+    _writable_roots,
     confine_argv,
     normalize_sandbox_mode,
     sandbox_backend,
@@ -70,3 +71,14 @@ def test_workspace_write_blocks_outside_workspace(tmp_path: Path) -> None:
     )
     subprocess.run(wrapped_ok, cwd=str(ws), check=False, capture_output=True)
     assert inside.read_text(encoding="utf-8").strip() == "yes"
+
+
+def test_writable_roots_include_clone_git_for_holix_worktree(tmp_path: Path) -> None:
+    clone = tmp_path / "profiles" / "pavel" / "workspace" / "app"
+    git_dir = clone / ".git"
+    git_dir.mkdir(parents=True)
+    worktree = clone / ".holix" / "worktrees" / "change-1"
+    worktree.mkdir(parents=True)
+    (worktree / ".git").write_text(f"gitdir: {git_dir / 'worktrees' / 'change-1'}\n")
+    roots = _writable_roots(str(worktree))
+    assert str(git_dir.resolve()) in roots

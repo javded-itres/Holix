@@ -123,6 +123,84 @@ def test_blocks_listing_root(workspace: Path) -> None:
     assert blocked
 
 
+def _fake_linked_worktree(tmp_path: Path) -> tuple[Path, Path, Path]:
+    """Clone + linked worktree under a Holix profiles tree (no real git needed)."""
+    profile = tmp_path / "profiles" / "pavel_it-rs.ru"
+    clone = profile / "workspace" / "projects" / "app"
+    git_dir = clone / ".git"
+    wt_git = git_dir / "worktrees" / "change-1"
+    wt_git.mkdir(parents=True)
+    (git_dir / "config").write_text("[core]\n\tbare = false\n", encoding="utf-8")
+    worktree = clone / ".holix" / "worktrees" / "change-1"
+    worktree.mkdir(parents=True)
+    (worktree / ".git").write_text(f"gitdir: {wt_git.resolve()}\n", encoding="utf-8")
+    return clone, worktree, git_dir
+
+
+def test_worktree_jail_allows_clone_git_dir(tmp_path: Path) -> None:
+    clone, worktree, git_dir = _fake_linked_worktree(tmp_path)
+    git_dir_s = str(git_dir.resolve())
+    clone_s = str(clone.resolve())
+    wt_s = str(worktree.resolve())
+
+    allowed, reason = validate_workspace_command("git merge main", worktree)
+    assert allowed, reason
+    allowed, reason = validate_workspace_command(
+        f"export GIT_DIR={git_dir_s}/worktrees/change-1",
+        worktree,
+    )
+    assert allowed, reason
+    allowed, reason = validate_workspace_command(
+        f"git --git-dir={git_dir_s} merge main",
+        worktree,
+    )
+    assert allowed, reason
+    allowed, reason = validate_workspace_command(f"cat {git_dir_s}/config", worktree)
+    assert allowed, reason
+
+    # Clone working tree (main checkout) stays blocked
+    allowed, _ = validate_workspace_command(f"cd {clone_s} && git status", worktree)
+    assert not allowed
+    allowed, _ = validate_workspace_command(f"cat {clone_s}/README.md", worktree)
+    assert not allowed
+    other_git = tmp_path / "profiles" / "other-user" / "workspace" / "app" / ".git"
+    other_git.mkdir(parents=True)
+    allowed, _ = validate_workspace_command(
+        f"git --git-dir={other_git.resolve()} status",
+        worktree,
+    )
+    assert not allowed
+
+    # Worktree itself still allowed
+    allowed, reason = validate_workspace_command(f"cd {wt_s} && git merge main", worktree)
+    assert allowed, reason
+
+
+def test_worktree_jail_ignores_forged_gitfile(tmp_path: Path) -> None:
+    """Rewriting the worktree gitfile must not widen the jail to secrets."""
+    _clone, worktree, _git_dir = _fake_linked_worktree(tmp_path)
+    secret = tmp_path / "profiles" / "other-user" / "secrets.env"
+    secret.parent.mkdir(parents=True)
+    secret.write_text("SECRET=1\n", encoding="utf-8")
+    (worktree / ".git").write_text(f"gitdir: {secret.resolve()}\n", encoding="utf-8")
+    allowed, _ = validate_workspace_command(f"cat {secret.resolve()}", worktree)
+    assert not allowed
+
+
+def test_worktree_jail_file_tool_can_read_gitdir(tmp_path: Path) -> None:
+    from core.workspace import resolve_tool_path
+
+    _clone, worktree, git_dir = _fake_linked_worktree(tmp_path)
+    from core.tools.execution_context import reset_workspace_scope, workspace_scope
+
+    tokens = workspace_scope(workspace_root=str(worktree), workspace_jail_enabled=True)
+    try:
+        resolved = resolve_tool_path(str((git_dir / "config").resolve()))
+        assert resolved == (git_dir / "config").resolve()
+    finally:
+        reset_workspace_scope(tokens)
+
+
 def test_jail_disabled_allows_outside_paths() -> None:
     allowed, _ = validate_workspace_command(
         "cat /etc/hosts",
