@@ -286,6 +286,11 @@ class SubAgentHandle:
             sdd = getattr(self, "studio_sdd", None)
             if isinstance(sdd, dict) and sdd:
                 payload["sdd"] = sdd
+            wt = str(getattr(self, "studio_worktree", "") or "").strip()
+            if not wt and isinstance(sdd, dict):
+                wt = str(sdd.get("worktree") or "").strip()
+            if wt:
+                payload["worktree"] = wt
         if include_activity:
             payload["activity_log"] = list(self.activity_log or [])
         if include_result and self.result is not None:

@@ -2,6 +2,18 @@
 
 ## Unreleased
 
+## 1.1.10 — 2026-09-04
+
+### Added
+
+- **SDD worktree on process waiters** — `wait_subagent_result`, `delegate_to_subagent`,
+  `list_subagents` (`to_status_dict`), and `sdd_apply` dispatch jobs expose
+  `worktree` when a Studio process waiter is bound to `.holix/worktrees/<change_id>`.
+
+### Tests
+
+- Handle status, dispatch job fields, and `wait_subagent_result` JSON include `worktree`.
+
 ## 1.1.9 — 2026-09-03
 
 ### Added

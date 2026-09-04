@@ -142,6 +142,11 @@ class DelegateToSubAgentTool(BaseTool):
                 sdd = getattr(h, "studio_sdd", None)
                 if isinstance(sdd, dict) and sdd:
                     payload["sdd"] = sdd
+                wt = str(getattr(h, "studio_worktree", "") or "").strip()
+                if not wt and isinstance(sdd, dict):
+                    wt = str(sdd.get("worktree") or "").strip()
+                if wt:
+                    payload["worktree"] = wt
                 payload["message"] = (
                     f"Sub-agent '{h.name}' is bound to Studio process "
                     f"{payload['studio_process_id'] or 'graph'}. "
@@ -225,6 +230,11 @@ class WaitSubAgentResultTool(BaseTool):
                 payload["run_id"] = rid
                 if isinstance(sdd, dict) and sdd:
                     payload["sdd"] = sdd
+                wt = str(getattr(handle, "studio_worktree", "") or "").strip()
+                if not wt and isinstance(sdd, dict):
+                    wt = str(sdd.get("worktree") or "").strip()
+                if wt:
+                    payload["worktree"] = wt
                 pname = pid or "process"
                 payload["message"] = (
                     f"Job ran as Studio process ({pname}). "

@@ -253,6 +253,11 @@ async def dispatch_change_tasks(
                 sdd = getattr(h, "studio_sdd", None)
                 if isinstance(sdd, dict) and sdd:
                     job["sdd"] = sdd
+                wt = str(getattr(h, "studio_worktree", "") or "").strip()
+                if not wt and isinstance(sdd, dict):
+                    wt = str(sdd.get("worktree") or "").strip()
+                if wt:
+                    job["worktree"] = wt
                 job["wait_hint"] = (
                     "wait_subagent_result(job_id) blocks until the Studio "
                     "process run finishes — not the first child step. "
