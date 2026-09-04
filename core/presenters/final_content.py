@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from typing import Any
 
 from core.llm.response_text import sanitize_assistant_visible_text
@@ -16,7 +17,6 @@ _PLACEHOLDER_FINALS = frozenset(
 
 _ABORTED_FINAL_MARKERS = (
     "не ответила за",
-    "error:",
     "error during agent step",
     "request timed out",
     "timed out",
@@ -25,6 +25,8 @@ _ABORTED_FINAL_MARKERS = (
     "agent reached maximum steps",
     "превышено время выполнения",
 )
+# "Error: …" as a message — not "TimeoutError:" / "ValueError:" inside source dumps.
+_ERROR_MESSAGE_RE = re.compile(r"(?:^|[\s])error:", re.IGNORECASE)
 
 MESSENGER_EMPTY_FINAL_RU = (
     "Агент завершил работу без текстового ответа.\nПроверьте модель (/models) или повторите запрос."
@@ -51,10 +53,13 @@ def is_placeholder_final(content: str | None) -> bool:
 
 def is_aborted_final_response(content: str | None) -> bool:
     """True when the run ended with timeout/error rather than a real answer."""
-    text = (content or "").strip().lower()
+    text = (content or "").strip()
     if not text:
         return False
-    return any(marker in text for marker in _ABORTED_FINAL_MARKERS)
+    lowered = text.lower()
+    if _ERROR_MESSAGE_RE.search(lowered):
+        return True
+    return any(marker in lowered for marker in _ABORTED_FINAL_MARKERS)
 
 
 def is_unusable_final_tool_output(text: str | None) -> bool:

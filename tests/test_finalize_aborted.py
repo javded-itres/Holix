@@ -14,7 +14,25 @@ from core.presenters.final_content import is_aborted_final_response
 
 def test_is_aborted_final_response_detects_llm_timeout() -> None:
     assert is_aborted_final_response("Модель не ответила за 120 с. Попробуйте ещё раз.")
+    assert is_aborted_final_response("Error: Command blocked. Path is outside the workspace.")
+    assert is_aborted_final_response("Error during agent step: Request timed out.")
     assert not is_aborted_final_response("Вот готовый ответ на ваш вопрос.")
+
+
+def test_is_aborted_final_response_ignores_exception_type_in_source() -> None:
+    """Source dumps with TimeoutError: must not look like an aborted run."""
+    dump = (
+        "notifications router lines:\n \n85\n\n"
+        ' 1: """Operator notifications via Server-Sent Events."""\n'
+        "40:             except TimeoutError:\n"
+        '41:                 event = {"type": "keepalive"}\n'
+        "71:     except AuthorizationError as exc:\n"
+        "72:         raise HTTPException(\n"
+    )
+    assert not is_aborted_final_response(dump)
+    from core.subagents.react_agent import is_failed_react_result
+
+    assert is_failed_react_result(dump) is None
 
 
 @pytest.mark.asyncio
