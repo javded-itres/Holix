@@ -83,6 +83,7 @@ class UserCaseHarness:
             "mcp_enabled": False,
             "self_extensions_enabled": False,
             "max_steps": 12,
+            "max_steps_user_max_extensions": 0,
             "workspace_root": str(self.workspace.root),
             "workspace_jail_enabled": True,
             "profile_name": "default",

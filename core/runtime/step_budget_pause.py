@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import os
 import uuid
 from typing import Any
 
@@ -28,6 +29,9 @@ def can_ask_user(
 ) -> bool:
     """True when the main interactive agent can pause for Continue/Abort."""
     if agent is None:
+        return False
+    # Pytest has no Continue/Abort UI; waiting forever hangs CI.
+    if os.environ.get("PYTEST_CURRENT_TEST"):
         return False
     if policy is not None:
         user_max = int(getattr(policy, "user_max_extensions", 0) or 0)

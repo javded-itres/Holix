@@ -62,7 +62,8 @@ def test_code_or_diff_dump_detection() -> None:
     assert "90" in step_limit_reached_message(90, step_count=90, extra_steps=30, locale="en")
 
 
-def test_can_ask_user_skips_subagents_and_unattended() -> None:
+def test_can_ask_user_skips_subagents_and_unattended(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("PYTEST_CURRENT_TEST", raising=False)
     policy = StepBudgetPolicy(user_max_extensions=10)
     main = _Agent()
     assert can_ask_user(main, conversation_id="studio_tab", user_used=0, policy=policy)
@@ -72,6 +73,12 @@ def test_can_ask_user_skips_subagents_and_unattended() -> None:
     quiet = _Agent(non_interactive=True)
     assert not can_ask_user(quiet, conversation_id="cron", user_used=0, policy=policy)
     assert not can_ask_user(main, conversation_id="studio_tab", user_used=10, policy=policy)
+
+
+def test_can_ask_user_skips_pytest() -> None:
+    policy = StepBudgetPolicy(user_max_extensions=10)
+    main = _Agent()
+    assert not can_ask_user(main, conversation_id="studio_tab", user_used=0, policy=policy)
 
 
 @pytest.mark.asyncio
@@ -102,7 +109,8 @@ async def test_ask_continue_resolves_future() -> None:
 
 
 @pytest.mark.asyncio
-async def test_maybe_extend_or_ask_user_continue() -> None:
+async def test_maybe_extend_or_ask_user_continue(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("PYTEST_CURRENT_TEST", raising=False)
     agent = _Agent()
     state = {
         "user_input": "Build a REST API",
@@ -160,7 +168,8 @@ async def test_maybe_extend_or_ask_user_continue() -> None:
 
 
 @pytest.mark.asyncio
-async def test_maybe_extend_or_ask_abort() -> None:
+async def test_maybe_extend_or_ask_abort(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("PYTEST_CURRENT_TEST", raising=False)
     agent = _Agent()
     state = {
         "max_steps": 15,
