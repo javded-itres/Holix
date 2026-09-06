@@ -276,15 +276,17 @@ async def run_graph_loop(
                 conversation_id=conversation_id,
             )
 
-        if at_cap and not final_state.get("is_final", False):
+        if at_cap:
             yield MaxStepsReachedEvent(
                 max_steps=max_steps,
                 conversation_id=conversation_id,
             )
-            timeout_msg = (
-                final_text or f"Agent reached maximum steps ({max_steps}). Task may be too complex."
-            )
-            await agent.memory.save_message(conversation_id, "assistant", timeout_msg)
+            if not final_state.get("is_final", False):
+                timeout_msg = (
+                    final_text
+                    or f"Agent reached maximum steps ({max_steps}). Task may be too complex."
+                )
+                await agent.memory.save_message(conversation_id, "assistant", timeout_msg)
 
     except asyncio.CancelledError:
         raise
