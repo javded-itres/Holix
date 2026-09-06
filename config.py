@@ -51,6 +51,14 @@ class Settings(BaseSettings):
         ),
         description="Max number of automatic step-budget extensions per run",
     )
+    max_steps_user_max_extensions: int = Field(
+        default=10,
+        validation_alias=AliasChoices(
+            "HOLIX_MAX_STEPS_USER_MAX_EXTENSIONS",
+            "MAX_STEPS_USER_MAX_EXTENSIONS",
+        ),
+        description="Max Continue clicks after auto-extend stops (each grants extend_by steps)",
+    )
     max_steps_hard_cap: int = Field(
         default=0,
         validation_alias=AliasChoices("HOLIX_MAX_STEPS_HARD_CAP", "MAX_STEPS_HARD_CAP"),

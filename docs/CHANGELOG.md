@@ -2,6 +2,20 @@
 
 ## Unreleased
 
+### Changed
+
+- **Step budget** — auto-extend no longer treats `TimeoutError:` / `error` inside
+  source dumps as a hung tool. When auto-extend cannot continue, the **main**
+  agent pauses with Continue (+`max_steps_extend_by`) / Abort instead of
+  dumping a diff as the final message. User continues are capped by
+  `HOLIX_MAX_STEPS_USER_MAX_EXTENSIONS` (default 10). TUI, Telegram, and MAX
+  show the two-button prompt. Sub-agents still auto-extend, then fail with a
+  step-limit error (no dump).
+
+### Tests
+
+- Error-token health check, dump-as-final auto-extend, Continue/Abort pause.
+
 ## 1.1.10 — 2026-09-04
 
 ### Added

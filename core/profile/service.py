@@ -103,6 +103,7 @@ class ProfileConfig(BaseModel):
     max_steps_extend_enabled: bool | None = None
     max_steps_extend_by: int | None = None
     max_steps_max_extensions: int | None = None
+    max_steps_user_max_extensions: int | None = None
     max_steps_hard_cap: int | None = None
 
     # Hub: optional background ClawHub version updates

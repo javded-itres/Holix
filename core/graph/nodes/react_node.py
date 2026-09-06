@@ -770,9 +770,9 @@ async def react_node(state: HolixGraphState, config: RunnableConfig) -> dict:
                 max_tokens=max_tokens,
                 tool_choice=tool_choice,
             )
-        from core.runtime.step_budget import maybe_extend_for_graph_result
+        from core.runtime.step_budget import maybe_extend_or_ask
 
-        result = maybe_extend_for_graph_result(
+        result = await maybe_extend_or_ask(
             state,
             result,
             agent=agent,

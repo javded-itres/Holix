@@ -420,6 +420,19 @@ def status_menu_keyboard(locale: str | None = None, *, is_admin: bool = True) ->
     return inline_keyboard(rows)
 
 
+def step_budget_keyboard(request_id: str, extra_steps: int = 30) -> dict[str, Any]:
+    rid = request_id
+    extra = int(extra_steps or 30)
+    return inline_keyboard(
+        [
+            [
+                _callback_btn(f"Продолжить (+{extra})", f"sb:{rid}:c"),
+                _callback_btn("Прервать", f"sb:{rid}:a"),
+            ],
+        ]
+    )
+
+
 def confirmation_keyboard(confirmation_id: str) -> dict[str, Any]:
     cid = confirmation_id
     return inline_keyboard(

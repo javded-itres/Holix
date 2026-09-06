@@ -67,6 +67,7 @@ def prepare_initial_state(
         "max_steps": max_steps,
         "base_max_steps": max_steps,
         "step_budget_extensions": 0,
+        "step_budget_user_extensions": 0,
         "max_steps_per_plan_step": max_per_step,
         "execution_mode": execution_mode,
         "is_final": False,
@@ -235,7 +236,9 @@ async def run_graph_loop(
         from core.llm.response_text import sanitize_assistant_visible_text
         from core.presenters.final_content import (
             coerce_usable_final_text,
+            is_code_or_diff_dump,
             is_placeholder_final,
+            step_limit_reached_message,
         )
         from core.presenters.subagent_tool_text import (
             graph_tool_results_as_recent,
@@ -245,19 +248,21 @@ async def run_graph_loop(
         final_text = sanitize_assistant_visible_text(final_state.get("final_response") or "")
         if is_placeholder_final(final_text):
             final_text = ""
-        if not (final_text or "").strip():
+        step_count = final_state.get("step_count", 0)
+        max_steps = final_state.get("max_steps", 90)
+        at_cap = bool(step_count >= max_steps)
+        if not (final_text or "").strip() and not at_cap:
             picked = pick_best_tool_final(
                 graph_tool_results_as_recent(final_state.get("tool_results"))
             )
             if picked:
                 final_text = picked
-        step_count = final_state.get("step_count", 0)
-        max_steps = final_state.get("max_steps", 90)
-        hit_cap = bool(step_count >= max_steps and not final_state.get("is_final", False))
         final_text = coerce_usable_final_text(
             final_text,
-            max_steps=max_steps if hit_cap else None,
+            max_steps=max_steps if at_cap else None,
         )
+        if at_cap and is_code_or_diff_dump(final_text):
+            final_text = step_limit_reached_message(max_steps, step_count=step_count)
         if not getattr(agent, "_final_response_emitted", False):
             if agent is not None:
                 agent._final_response_emitted = True
@@ -271,12 +276,14 @@ async def run_graph_loop(
                 conversation_id=conversation_id,
             )
 
-        if step_count >= max_steps and not final_state.get("is_final", False):
+        if at_cap and not final_state.get("is_final", False):
             yield MaxStepsReachedEvent(
                 max_steps=max_steps,
                 conversation_id=conversation_id,
             )
-            timeout_msg = f"Agent reached maximum steps ({max_steps}). Task may be too complex."
+            timeout_msg = (
+                final_text or f"Agent reached maximum steps ({max_steps}). Task may be too complex."
+            )
             await agent.memory.save_message(conversation_id, "assistant", timeout_msg)
 
     except asyncio.CancelledError:

@@ -5,8 +5,10 @@ from __future__ import annotations
 import asyncio
 from typing import Any
 
+from core.agent_events import StepBudgetChoiceEvent
 from core.plan_review.review_events import PlanReviewRequestEvent
 from core.plan_review.review_guard import PlanReviewChoice, get_plan_review_guard
+from core.runtime.step_budget_pause import resolve_step_budget
 from core.security.confirmation import ConfirmationChoice, get_action_guard
 from core.security.confirmation_events import ConfirmationRequestEvent
 
@@ -40,6 +42,7 @@ class TelegramApprovals:
         self._session = session
         self._pending_confirm_id: str | None = None
         self._pending_review_id: str | None = None
+        self._pending_step_budget_id: str | None = None
 
     async def on_confirmation_request(self, event: ConfirmationRequestEvent) -> None:
         # Keep sibling prompts (parallel sub-agents). Dismissing here left
@@ -108,6 +111,73 @@ class TelegramApprovals:
             self._session.pending_confirmation_message_ids = {}
             ids = self._session.pending_confirmation_message_ids
         ids[event.confirmation_id] = sent.message_id
+
+    async def on_step_budget_choice(self, event: StepBudgetChoiceEvent) -> None:
+        self._pending_step_budget_id = event.request_id
+        token = _register_callback_token(
+            self._session.approval_callback_tokens,
+            event.request_id,
+        )
+        text = event.message or "Достигнут лимит шагов."
+        if len(text) > 3500:
+            text = text[:3500] + "…"
+        from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
+
+        extra = int(event.extra_steps or 30)
+        kb = InlineKeyboardMarkup(
+            inline_keyboard=[
+                [
+                    InlineKeyboardButton(
+                        text=f"Продолжить (+{extra})",
+                        callback_data=_callback_data("sb", token, "c"),
+                    ),
+                    InlineKeyboardButton(
+                        text="Прервать",
+                        callback_data=_callback_data("sb", token, "a"),
+                    ),
+                ],
+            ]
+        )
+        sent = await self._bot.send_message(
+            self._session.chat_id,
+            escape_html(text),
+            parse_mode="HTML",
+            reply_markup=kb,
+        )
+        ids = getattr(self._session, "pending_step_budget_message_ids", None)
+        if ids is None:
+            self._session.pending_step_budget_message_ids = {}
+            ids = self._session.pending_step_budget_message_ids
+        ids[event.request_id] = sent.message_id
+
+    def resolve_step_budget_callback(self, request_id: str, code: str) -> bool:
+        choice = "continue" if code in {"c", "1", "continue"} else "abort"
+        full_id = _lookup_callback_token(
+            self._session.approval_callback_tokens,
+            request_id,
+        )
+        if resolve_step_budget(full_id, choice):
+            self._forget_step_budget(full_id)
+            return True
+        if resolve_step_budget(request_id, choice):
+            self._forget_step_budget(full_id)
+            return True
+        return False
+
+    def _forget_step_budget(self, request_id: str) -> None:
+        drop_callback_token(self._session.approval_callback_tokens, request_id)
+        if self._pending_step_budget_id == request_id:
+            self._pending_step_budget_id = None
+        ids = getattr(self._session, "pending_step_budget_message_ids", None)
+        mid = None
+        if isinstance(ids, dict):
+            mid = ids.pop(request_id, None)
+        if mid is not None:
+            try:
+                loop = asyncio.get_running_loop()
+                loop.create_task(self._delete_message_safe(int(mid)))
+            except RuntimeError:
+                pass
 
     async def on_plan_review_request(self, event: PlanReviewRequestEvent) -> None:
         await self.dismiss_plan_review_ui()

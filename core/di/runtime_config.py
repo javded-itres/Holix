@@ -76,6 +76,7 @@ class HolixRuntimeConfig:
     max_steps_extend_enabled: bool
     max_steps_extend_by: int
     max_steps_max_extensions: int
+    max_steps_user_max_extensions: int
     max_steps_hard_cap: int
 
     # Safety / plan review
@@ -209,6 +210,9 @@ class HolixRuntimeConfig:
             max_steps_extend_enabled=bool(getattr(s, "max_steps_extend_enabled", True)),
             max_steps_extend_by=int(getattr(s, "max_steps_extend_by", 30) or 30),
             max_steps_max_extensions=int(getattr(s, "max_steps_max_extensions", 10) or 10),
+            max_steps_user_max_extensions=int(
+                getattr(s, "max_steps_user_max_extensions", 10) or 10
+            ),
             max_steps_hard_cap=int(getattr(s, "max_steps_hard_cap", 0) or 0),
             auto_allow_threshold=s.auto_allow_threshold,
             non_interactive=s.non_interactive,
@@ -329,6 +333,8 @@ class HolixRuntimeConfig:
             overrides["max_steps_extend_by"] = int(profile.max_steps_extend_by)
         if getattr(profile, "max_steps_max_extensions", None) is not None:
             overrides["max_steps_max_extensions"] = int(profile.max_steps_max_extensions)
+        if getattr(profile, "max_steps_user_max_extensions", None) is not None:
+            overrides["max_steps_user_max_extensions"] = int(profile.max_steps_user_max_extensions)
         if getattr(profile, "max_steps_hard_cap", None) is not None:
             overrides["max_steps_hard_cap"] = int(profile.max_steps_hard_cap)
         if getattr(profile, "search", None):

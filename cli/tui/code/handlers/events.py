@@ -16,6 +16,7 @@ from core.agent_events import (
     FinalResponseEvent,
     PlanCompletedEvent,
     PlanStepCompletedEvent,
+    StepBudgetChoiceEvent,
     ThinkingEvent,
     TodoListUpdatedEvent,
     ToolCallErrorEvent,
@@ -97,6 +98,10 @@ class CodeEventHandler:
                 self.app.set_thinking(None)
                 # Modal queue + transcript; also /1–/4 if dialog dismissed
                 self.app._handle_confirmation_request(event)
+
+            elif isinstance(event, StepBudgetChoiceEvent):
+                self.app.set_thinking(None)
+                self.app._handle_step_budget_choice(event)
 
             elif isinstance(event, SubAgentQuestionEvent):
                 self.app.set_thinking(None)

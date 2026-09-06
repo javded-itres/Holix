@@ -742,6 +742,7 @@ class HolixCodeApp(App):
             BackgroundProcessErrorEvent,
             BackgroundProcessStartedEvent,
             BackgroundProcessStoppedEvent,
+            StepBudgetChoiceEvent,
         )
         from core.security.confirmation_events import ConfirmationRequestEvent
         from core.subagents.interaction_events import SubAgentQuestionEvent
@@ -750,6 +751,7 @@ class HolixCodeApp(App):
             event,
             ConfirmationRequestEvent
             | SubAgentQuestionEvent
+            | StepBudgetChoiceEvent
             | BackgroundProcessStartedEvent
             | BackgroundProcessStoppedEvent
             | BackgroundProcessErrorEvent,
@@ -2133,6 +2135,9 @@ class HolixCodeApp(App):
 
     def _handle_confirmation_request(self, event: ConfirmationRequestEvent) -> None:
         self._modals.confirmation.show(event)
+
+    def _handle_step_budget_choice(self, event) -> None:
+        self._modals.step_budget.show(event)
 
     def _resolve_confirmation(self, choice: ConfirmationChoice) -> None:
         self._modals.confirmation.resolve(choice)

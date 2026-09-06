@@ -6,13 +6,19 @@ import asyncio
 import json
 from typing import Any
 
+from core.agent_events import StepBudgetChoiceEvent
 from core.plan_review.review_events import PlanReviewRequestEvent
 from core.plan_review.review_guard import PlanReviewChoice, get_plan_review_guard
+from core.runtime.step_budget_pause import resolve_step_budget
 from core.security.confirmation import ConfirmationChoice, get_action_guard
 from core.security.confirmation_events import ConfirmationRequestEvent
 
 from integrations.max.client import MaxClient
-from integrations.max.keyboards import confirmation_keyboard, plan_review_keyboard
+from integrations.max.keyboards import (
+    confirmation_keyboard,
+    plan_review_keyboard,
+    step_budget_keyboard,
+)
 from integrations.max.markdown import plain_to_max_html
 from integrations.max.models import message_id_from_response, reply_kwargs_for_session
 from integrations.messenger.callback_tokens import (
@@ -34,6 +40,7 @@ class MaxApprovals:
         self._session = session
         self._pending_confirm_id: str | None = None
         self._pending_review_id: str | None = None
+        self._pending_step_budget_id: str | None = None
 
     async def on_confirmation_request(self, event: ConfirmationRequestEvent) -> None:
         self._pending_confirm_id = event.confirmation_id
@@ -72,6 +79,54 @@ class MaxApprovals:
             ids = self._session.pending_confirmation_message_ids
         if mid:
             ids[event.confirmation_id] = mid
+
+    async def on_step_budget_choice(self, event: StepBudgetChoiceEvent) -> None:
+        self._pending_step_budget_id = event.request_id
+        token = _register_callback_token(
+            self._session.approval_callback_tokens,
+            event.request_id,
+        )
+        text = event.message or "Достигнут лимит шагов."
+        if len(text) > 3500:
+            text = text[:3500] + "…"
+        extra = int(event.extra_steps or 30)
+        payload = await self._client.send_message(
+            plain_to_max_html(text),
+            fmt="html",
+            attachments=[step_budget_keyboard(token, extra)],
+            **reply_kwargs_for_session(
+                user_id=self._session.user_id,
+                reply_user_id=self._session.reply_user_id,
+                reply_chat_id=self._session.reply_chat_id,
+                chat_type=self._session.chat_type,
+            ),
+        )
+        mid = message_id_from_response(payload)
+        ids = getattr(self._session, "pending_step_budget_message_ids", None)
+        if ids is None:
+            self._session.pending_step_budget_message_ids = {}
+            ids = self._session.pending_step_budget_message_ids
+        if mid:
+            ids[event.request_id] = mid
+
+    def resolve_step_budget_callback(self, request_id: str, code: str) -> bool:
+        choice = "continue" if code in {"c", "1", "continue"} else "abort"
+        full_id = _lookup_callback_token(
+            self._session.approval_callback_tokens,
+            request_id,
+        )
+        if resolve_step_budget(full_id, choice):
+            self._forget_step_budget(full_id)
+            return True
+        if resolve_step_budget(request_id, choice):
+            self._forget_step_budget(full_id)
+            return True
+        return False
+
+    def _forget_step_budget(self, request_id: str) -> None:
+        drop_callback_token(self._session.approval_callback_tokens, request_id)
+        if self._pending_step_budget_id == request_id:
+            self._pending_step_budget_id = None
 
     async def on_plan_review_request(self, event: PlanReviewRequestEvent) -> None:
         await self.dismiss_plan_review_ui()

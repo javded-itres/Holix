@@ -50,6 +50,7 @@ async def test_uc14_max_steps_stops_without_hang(temp_dir, monkeypatch: pytest.M
         config_overrides={
             "max_steps": 2,
             "max_steps_extend_enabled": False,
+            "max_steps_user_max_extensions": 0,
         },
     )
     await h.setup()

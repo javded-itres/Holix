@@ -825,6 +825,12 @@ class HelixMaxBot:
                 notification = result.get("message") or ("✓" if result.get("ok") else "?")
             else:
                 notification = "?"
+        elif payload.startswith("sb:"):
+            parts = payload.split(":", 2)
+            if len(parts) == 3 and approvals.resolve_step_budget_callback(parts[1], parts[2]):
+                notification = "✓"
+            else:
+                notification = "?"
         elif payload.startswith("cfm:"):
             parts = payload.split(":", 2)
             if len(parts) == 3 and approvals.resolve_confirmation_callback(parts[1], parts[2]):

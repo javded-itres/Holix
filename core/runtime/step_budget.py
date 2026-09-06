@@ -22,21 +22,17 @@ logger = logging.getLogger(__name__)
 # Defaults (overridable via Settings / agent config)
 DEFAULT_EXTEND_BY = 30
 DEFAULT_MAX_EXTENSIONS = 10
+DEFAULT_USER_MAX_EXTENSIONS = 10
 DEFAULT_HARD_CAP = 0  # 0 → derive from base max_steps + extend_by * max_extensions
 DEFAULT_LOOKBACK = 6
 
-_ERROR_MARKERS = (
-    "error",
-    "exception",
-    "traceback",
-    "failed",
-    "timeout",
-    "timed out",
-    "permission denied",
-    "not found",
-    "invalid",
-    "❌",
-    "⛔",
+# Whole-token / line failures — not "TimeoutError:" inside a source dump.
+_ERROR_TOKEN_RE = re.compile(
+    r"(?i)(?:^|[\s])(?:error|exception|failed|failure)\s*:|"
+    r"traceback \(most recent call last\)|"
+    r"permission denied|"
+    r"timed out|"
+    r"❌|⛔"
 )
 
 _WEB_ONLY_TOOLS = frozenset({"fetch_url", "web_fetch", "web_search"})
@@ -63,6 +59,7 @@ class StepBudgetPolicy:
     enabled: bool = True
     extend_by: int = DEFAULT_EXTEND_BY
     max_extensions: int = DEFAULT_MAX_EXTENSIONS
+    user_max_extensions: int = DEFAULT_USER_MAX_EXTENSIONS
     hard_cap: int = DEFAULT_HARD_CAP  # absolute max_steps after extensions
     lookback: int = DEFAULT_LOOKBACK
 
@@ -85,6 +82,13 @@ class StepBudgetPolicy:
                     or DEFAULT_MAX_EXTENSIONS
                 ),
             ),
+            user_max_extensions=max(
+                0,
+                int(
+                    getattr(cfg, "max_steps_user_max_extensions", DEFAULT_USER_MAX_EXTENSIONS)
+                    or DEFAULT_USER_MAX_EXTENSIONS
+                ),
+            ),
             hard_cap=max(0, int(getattr(cfg, "max_steps_hard_cap", DEFAULT_HARD_CAP) or 0)),
             lookback=max(
                 3, int(getattr(cfg, "max_steps_lookback", DEFAULT_LOOKBACK) or DEFAULT_LOOKBACK)
@@ -102,6 +106,8 @@ class StepBudgetDecision:
     extra_steps: int = 0
     new_max_steps: int = 0
     extensions_used: int = 0
+    user_extensions_used: int = 0
+    from_user: bool = False
     signals: dict[str, Any] = field(default_factory=dict)
 
     @property
@@ -158,12 +164,12 @@ def _signatures_loop(sigs: list[str]) -> bool:
 
 
 def _looks_like_error(text: str) -> bool:
-    low = (text or "").strip().lower()
-    if not low:
+    raw = (text or "").strip()
+    if not raw:
         return True
-    if low.startswith("❌") or low.startswith("⛔"):
+    if raw.startswith("❌") or raw.startswith("⛔"):
         return True
-    return any(m in low for m in _ERROR_MARKERS)
+    return bool(_ERROR_TOKEN_RE.search(raw))
 
 
 def _looks_like_progress(text: str) -> bool:
@@ -552,6 +558,149 @@ def apply_decision_to_state(
     }
 
 
+def _is_terminal_final(text: str | None) -> bool:
+    from core.presenters.final_content import is_aborted_final_response, is_usable_user_final
+
+    raw = (text or "").strip()
+    if not raw:
+        return False
+    if is_aborted_final_response(raw):
+        return True
+    return is_usable_user_final(raw)
+
+
+def _clear_dump_final(out: dict[str, Any]) -> dict[str, Any]:
+    from core.presenters.final_content import is_usable_user_final
+
+    if is_usable_user_final(str(out.get("final_response") or "")):
+        return out
+    out["is_final"] = False
+    out["final_response"] = ""
+    out["needs_refinement"] = False
+    return out
+
+
+def _append_continue_nudge(
+    out: dict[str, Any],
+    state: dict[str, Any],
+    *,
+    extra: int,
+    new_max: int,
+) -> None:
+    messages = out.get("messages")
+    if not isinstance(messages, list):
+        raw = state.get("messages") or []
+        messages = list(raw) if isinstance(raw, list) else []
+    messages.append(
+        {
+            "role": "user",
+            "content": (
+                f"[Holix] Step budget extended by {extra} (now max {new_max}). "
+                "Continue the task. Do not dump source code or diffs as the final answer; "
+                "write a short status instead."
+            ),
+        }
+    )
+    out["messages"] = messages
+
+
+def _emit_extended(
+    agent: Any | None,
+    *,
+    conversation_id: str,
+    max_steps: int,
+    previous_max_steps: int,
+    extra_steps: int,
+    extensions: int,
+    reason: str,
+) -> None:
+    if agent is None or not hasattr(agent, "emit"):
+        return
+    try:
+        from core.agent_events import MaxStepsExtendedEvent, ThinkingEvent
+
+        agent.emit(
+            MaxStepsExtendedEvent(
+                max_steps=max_steps,
+                previous_max_steps=previous_max_steps,
+                extra_steps=extra_steps,
+                extensions=extensions,
+                reason=reason,
+                conversation_id=conversation_id,
+            )
+        )
+        agent.emit(
+            ThinkingEvent(
+                message=(
+                    f"Step budget extended by {extra_steps} (now max {max_steps}): still working"
+                ),
+                conversation_id=conversation_id,
+            )
+        )
+    except Exception:
+        logger.debug("failed to emit step budget events", exc_info=True)
+
+
+def apply_extension(
+    state: dict[str, Any],
+    result: dict[str, Any],
+    decision: StepBudgetDecision,
+    *,
+    agent: Any | None = None,
+    previous_max_steps: int,
+) -> dict[str, Any]:
+    """Apply an auto or user extension to graph/loop state."""
+    out = dict(result)
+    out["max_steps"] = int(decision.new_max_steps)
+    if decision.from_user:
+        out["step_budget_user_extensions"] = int(decision.user_extensions_used)
+    else:
+        out["step_budget_extensions"] = int(decision.extensions_used)
+    base_max = int(state.get("base_max_steps") or state.get("max_steps") or previous_max_steps)
+    if "base_max_steps" not in state and "base_max_steps" not in out:
+        out["base_max_steps"] = base_max
+    from core.presenters.final_content import is_usable_user_final
+
+    raw_final = str(out.get("final_response") or "").strip()
+    dump_final = bool(raw_final) and not is_usable_user_final(raw_final)
+    _clear_dump_final(out)
+    if dump_final or decision.from_user:
+        _append_continue_nudge(
+            out,
+            state,
+            extra=decision.extra_steps,
+            new_max=decision.new_max_steps,
+        )
+    _emit_extended(
+        agent,
+        conversation_id=str(state.get("conversation_id") or result.get("conversation_id") or ""),
+        max_steps=decision.new_max_steps,
+        previous_max_steps=previous_max_steps,
+        extra_steps=decision.extra_steps,
+        extensions=(
+            decision.user_extensions_used if decision.from_user else decision.extensions_used
+        ),
+        reason=decision.reason,
+    )
+    return out
+
+
+def abort_at_step_limit(
+    result: dict[str, Any],
+    *,
+    max_steps: int,
+    locale: str = "ru",
+) -> dict[str, Any]:
+    from core.presenters.final_content import step_limit_aborted_message
+
+    out = dict(result)
+    out["is_final"] = True
+    out["needs_refinement"] = False
+    out["tool_calls"] = []
+    out["final_response"] = step_limit_aborted_message(max_steps, locale=locale)
+    return out
+
+
 def maybe_extend_for_graph_result(
     state: dict[str, Any],
     result: dict[str, Any],
@@ -559,14 +708,14 @@ def maybe_extend_for_graph_result(
     agent: Any | None = None,
     task: str = "",
 ) -> dict[str, Any]:
-    """If result is at max_steps with pending tools, maybe bump max_steps on result."""
+    """If result is at max_steps, maybe bump max_steps when work is still healthy."""
     step_count = int(result.get("step_count", state.get("step_count", 0)) or 0)
     max_steps = int(result.get("max_steps", state.get("max_steps", 0)) or 0)
     if max_steps <= 0:
         max_steps = int(state.get("max_steps", 0) or 0)
     if step_count < max_steps:
         return result
-    if result.get("is_final"):
+    if result.get("is_final") and _is_terminal_final(str(result.get("final_response") or "")):
         return result
 
     pending = result.get("tool_calls") or state.get("tool_calls") or []
@@ -605,35 +754,101 @@ def maybe_extend_for_graph_result(
         decision.extensions_used,
         decision.reason,
     )
-    out = dict(result)
-    out["max_steps"] = decision.new_max_steps
-    out["step_budget_extensions"] = decision.extensions_used
-    if "base_max_steps" not in state and "base_max_steps" not in out:
-        out["base_max_steps"] = base_max
-    # Notify UIs
-    if agent is not None and hasattr(agent, "emit"):
-        try:
-            from core.agent_events import MaxStepsExtendedEvent, ThinkingEvent
+    return apply_extension(
+        state,
+        result,
+        decision,
+        agent=agent,
+        previous_max_steps=max_steps,
+    )
 
-            agent.emit(
-                MaxStepsExtendedEvent(
-                    max_steps=decision.new_max_steps,
-                    previous_max_steps=max_steps,
-                    extra_steps=decision.extra_steps,
-                    extensions=decision.extensions_used,
-                    reason=decision.reason,
-                    conversation_id=str(state.get("conversation_id") or ""),
-                )
-            )
-            agent.emit(
-                ThinkingEvent(
-                    message=(
-                        f"Step budget extended by {decision.extra_steps} "
-                        f"(now max {decision.new_max_steps}): still working"
-                    ),
-                    conversation_id=str(state.get("conversation_id") or ""),
-                )
-            )
-        except Exception:
-            logger.debug("failed to emit step budget events", exc_info=True)
-    return out
+
+async def maybe_extend_or_ask(
+    state: dict[str, Any],
+    result: dict[str, Any],
+    *,
+    agent: Any | None = None,
+    task: str = "",
+) -> dict[str, Any]:
+    """Auto-extend when healthy; otherwise pause the main agent for Continue/Abort."""
+    extended = maybe_extend_for_graph_result(state, result, agent=agent, task=task)
+    prev_max = int(result.get("max_steps", state.get("max_steps", 0)) or 0)
+    new_max = int(extended.get("max_steps", prev_max) or 0)
+    if new_max > prev_max:
+        return extended
+
+    step_count = int(extended.get("step_count", state.get("step_count", 0)) or 0)
+    max_steps = int(extended.get("max_steps", state.get("max_steps", 0)) or 0)
+    if max_steps <= 0 or step_count < max_steps:
+        return extended
+    if extended.get("is_final") and _is_terminal_final(str(extended.get("final_response") or "")):
+        return extended
+
+    from core.runtime.step_budget_pause import ask_continue_or_abort, can_ask_user
+
+    policy = policy_from_agent(agent)
+    user_used = int(
+        extended.get(
+            "step_budget_user_extensions",
+            state.get("step_budget_user_extensions", 0),
+        )
+        or 0
+    )
+    conversation_id = str(extended.get("conversation_id") or state.get("conversation_id") or "")
+    locale = _locale_from_agent(agent)
+    if not can_ask_user(agent, conversation_id=conversation_id, user_used=user_used, policy=policy):
+        return abort_at_step_limit(extended, max_steps=max_steps, locale=locale)
+
+    choice = await ask_continue_or_abort(
+        agent=agent,
+        conversation_id=conversation_id,
+        step_count=step_count,
+        max_steps=max_steps,
+        extra_steps=policy.extend_by,
+        user_used=user_used,
+        user_max=policy.user_max_extensions,
+        reason=str(extended.get("step_budget_stop_reason") or ""),
+        locale=locale,
+    )
+    if choice != "continue":
+        return abort_at_step_limit(extended, max_steps=max_steps, locale=locale)
+
+    extra = policy.extend_by
+    decision = StepBudgetDecision(
+        extend=True,
+        reason=f"user continue; +{extra} steps ({step_count}/{max_steps} → max {max_steps + extra})",
+        status="working",
+        extra_steps=extra,
+        new_max_steps=max_steps + extra,
+        extensions_used=int(
+            extended.get("step_budget_extensions", state.get("step_budget_extensions", 0)) or 0
+        ),
+        user_extensions_used=user_used + 1,
+        from_user=True,
+    )
+    logger.info(
+        "step budget user-continue: %s → %s (user_ext=%s)",
+        max_steps,
+        decision.new_max_steps,
+        decision.user_extensions_used,
+    )
+    return apply_extension(
+        state,
+        extended,
+        decision,
+        agent=agent,
+        previous_max_steps=max_steps,
+    )
+
+
+def _locale_from_agent(agent: Any | None) -> str:
+    cfg = getattr(agent, "config", None) if agent is not None else None
+    profile = getattr(cfg, "profile_name", None) if cfg is not None else None
+    if not profile:
+        return "ru"
+    try:
+        from core.i18n.locale import LocaleStore
+
+        return str(LocaleStore(profile).get() or "ru")
+    except Exception:
+        return "ru"

@@ -342,7 +342,12 @@ def test_graph_result_extends_max_steps() -> None:
 
 def test_graph_result_no_extend_when_final() -> None:
     state = {"max_steps": 15, "user_input": "hi"}
-    result = {"step_count": 15, "is_final": True, "tool_calls": []}
+    result = {
+        "step_count": 15,
+        "is_final": True,
+        "tool_calls": [],
+        "final_response": "Here is the finished report with the API endpoints.",
+    }
     out = maybe_extend_for_graph_result(state, result, agent=None)
     assert (
         out is result
@@ -351,3 +356,95 @@ def test_graph_result_no_extend_when_final() -> None:
         or out.get("step_count") == 15
     )
     assert out.get("max_steps", 15) == 15 or "step_budget_extensions" not in out
+
+
+def test_timeout_error_in_source_dump_is_not_tool_error() -> None:
+    from core.runtime.step_budget import _looks_like_error
+
+    dump = (
+        "Content of notifications.py:\n"
+        "try:\n"
+        "    await wait()\n"
+        "except TimeoutError:\n"
+        "    raise\n"
+        "except ValueError:\n"
+        "    return None\n"
+    )
+    assert _looks_like_error(dump) is False
+    assert _looks_like_error("Error: permission denied") is True
+    assert _looks_like_error("Traceback (most recent call last):\n  File") is True
+
+
+def test_source_dump_with_timeout_error_still_extends() -> None:
+    log = [
+        {
+            "name": "read_file",
+            "arguments": '{"path": "a.py"}',
+            "result": "except TimeoutError:\n    pass\n" + ("x = 1\n" * 20),
+        },
+        {
+            "name": "write_file",
+            "arguments": '{"path": "a.py"}',
+            "result": "OK: wrote a.py successfully with login handlers",
+        },
+        {
+            "name": "read_file",
+            "arguments": '{"path": "b.py"}',
+            "result": "except TimeoutError:\n    raise\n" + ("y = 2\n" * 20),
+        },
+    ]
+    d = evaluate_step_budget(
+        step_count=90,
+        max_steps=90,
+        pending_tool_calls=[{"id": "x", "function": {"name": "write_file"}}],
+        tool_calls_log=log,
+        task="implement notifications retry",
+        policy=StepBudgetPolicy(extend_by=30, max_extensions=10),
+        base_max_steps=90,
+    )
+    assert d.extend
+    assert d.status == "working"
+
+
+def test_graph_result_extends_dump_final() -> None:
+    state = {
+        "user_input": "Build a REST API",
+        "max_steps": 15,
+        "base_max_steps": 15,
+        "step_budget_extensions": 0,
+        "conversation_id": "t1",
+        "messages": [
+            {"role": "user", "content": "Build a REST API"},
+            {
+                "role": "assistant",
+                "tool_calls": [
+                    {
+                        "id": "1",
+                        "function": {
+                            "name": "write_file",
+                            "arguments": '{"path":"api.py"}',
+                        },
+                    }
+                ],
+            },
+            {
+                "role": "tool",
+                "tool_call_id": "1",
+                "content": "OK: created api.py with endpoints successfully",
+            },
+        ],
+    }
+    dump = "diff --git a/api.py b/api.py\n--- a/api.py\n+++ b/api.py\n@@ -1 +1 @@\n" + (
+        "+def handler():\n" * 20
+    )
+    result = {
+        "step_count": 15,
+        "tool_calls": [{"id": "2", "function": {"name": "read_file"}}],
+        "is_final": True,
+        "final_response": dump,
+        "messages": state["messages"],
+    }
+    out = maybe_extend_for_graph_result(state, result, agent=None, task="Build a REST API")
+    assert out["max_steps"] > 15
+    assert out.get("is_final") is False
+    assert not str(out.get("final_response") or "").startswith("diff --git")

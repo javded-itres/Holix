@@ -23,6 +23,10 @@ _ABORTED_FINAL_MARKERS = (
     "no llm model configured",
     "no llm client available",
     "agent reached maximum steps",
+    "step limit reached",
+    "достигнут лимит шагов",
+    "run aborted",
+    "выполнение прервано",
     "превышено время выполнения",
 )
 # "Error: …" as a message — not "TimeoutError:" / "ValueError:" inside source dumps.
@@ -36,6 +40,23 @@ UNUSABLE_TEST_DUMP_RU = (
     "Агент не сформировал текстовый ответ (часто — лимит шагов).\n"
     "Последний вывод tool — лог тестов, это не отчёт.\n"
     "{snippet}"
+)
+
+_CODE_LINE_PREFIXES = (
+    "def ",
+    "class ",
+    "import ",
+    "from ",
+    "async def ",
+    "function ",
+    "const ",
+    "let ",
+    "var ",
+    "export ",
+    "public ",
+    "private ",
+    "package ",
+    "#include",
 )
 
 _UNSUCCESSFUL_FINAL_MARKERS = (
@@ -69,6 +90,84 @@ def is_unusable_final_tool_output(text: str | None) -> bool:
     return is_test_log_dump(text or "")
 
 
+def is_code_or_diff_dump(text: str | None) -> bool:
+    """True when the whole message is a source dump or unified diff, not a report."""
+    raw = (text or "").strip()
+    if not raw:
+        return False
+    if is_unusable_final_tool_output(raw):
+        return True
+    if raw.startswith(("diff --git", "--- a/", "+++ b/")):
+        return True
+    diff_hits = sum(
+        1 for hint in ("\ndiff --git ", "\n@@ ", "\n+++ ", "\n--- a/", "\n--- b/") if hint in raw
+    )
+    if diff_hits >= 2 and len(raw) >= 200:
+        return True
+    if raw.startswith("Content of ") and len(raw) >= 400:
+        return True
+    lines = raw.splitlines()
+    if len(lines) < 15:
+        return False
+    code_lines = 0
+    prose_lines = 0
+    for line in lines[:120]:
+        stripped = line.strip()
+        if not stripped:
+            continue
+        if stripped.startswith(_CODE_LINE_PREFIXES) or stripped.endswith("{"):
+            code_lines += 1
+            continue
+        if stripped.startswith(("#", "//", "*", "/*")):
+            continue
+        if len(stripped) > 40 and not any(ch in stripped for ch in ("=", "(", "{", ";")):
+            prose_lines += 1
+    return code_lines >= 10 and code_lines > prose_lines * 2 and len(raw) >= 400
+
+
+def is_usable_user_final(text: str | None) -> bool:
+    """True when *text* is a real assistant answer, not a dump/placeholder/abort."""
+    raw = (text or "").strip()
+    if not raw or is_placeholder_final(raw):
+        return False
+    if is_unusable_final_tool_output(raw) or is_code_or_diff_dump(raw):
+        return False
+    if is_aborted_final_response(raw):
+        return False
+    return True
+
+
+def step_limit_reached_message(
+    max_steps: int,
+    *,
+    step_count: int | None = None,
+    extra_steps: int | None = None,
+    locale: str = "ru",
+) -> str:
+    """User-visible notice when the reasoning-step budget is exhausted."""
+    loc = (locale or "ru").strip().lower()[:2]
+    shown = int(step_count or max_steps or 0)
+    cap = int(max_steps or 0)
+    extra = int(extra_steps or 0)
+    if loc == "ru":
+        msg = f"Достигнут лимит шагов ({shown}/{cap})."
+        if extra > 0:
+            msg += f" Нажмите «Продолжить», чтобы выделить ещё {extra} шагов, или «Прервать»."
+        return msg
+    msg = f"Step limit reached ({shown}/{cap})."
+    if extra > 0:
+        msg += f" Choose Continue for +{extra} steps, or Abort."
+    return msg
+
+
+def step_limit_aborted_message(max_steps: int, *, locale: str = "ru") -> str:
+    loc = (locale or "ru").strip().lower()[:2]
+    cap = int(max_steps or 0)
+    if loc == "ru":
+        return f"Достигнут лимит шагов ({cap}). Выполнение прервано."
+    return f"Step limit reached ({cap}). Run aborted."
+
+
 def format_unusable_final(text: str | None, *, max_steps: int | None = None) -> str:
     from core.runtime.test_run_signals import failure_snippet
 
@@ -84,11 +183,15 @@ def coerce_usable_final_text(
     *,
     max_steps: int | None = None,
 ) -> str:
-    """Drop pytest dumps; optionally annotate a max-steps stop."""
+    """Drop pytest/code dumps; optionally annotate a max-steps stop."""
     raw = (text or "").strip()
+    if max_steps:
+        if not raw or is_unusable_final_tool_output(raw) or is_code_or_diff_dump(raw):
+            if is_unusable_final_tool_output(raw):
+                return format_unusable_final(raw, max_steps=max_steps)
+            return step_limit_reached_message(max_steps)
+        return raw
     if not raw:
-        if max_steps:
-            return f"Достигнут лимит шагов ({max_steps}). Текстового ответа нет."
         return ""
     if is_unusable_final_tool_output(raw):
         return format_unusable_final(raw, max_steps=max_steps)
