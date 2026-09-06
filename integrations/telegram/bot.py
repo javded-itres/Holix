@@ -935,6 +935,28 @@ class HolixTelegramBot:
             )
             await query.answer(result.get("message") or "OK", show_alert=not result.get("ok"))
 
+        @dp.callback_query(F.data.startswith("sb:"))
+        async def on_step_budget_cb(query: CallbackQuery) -> None:
+            if query.from_user is None or not query.data:
+                return
+            if not self._allowed(query.from_user.id):
+                await query.answer("Access pending approval.", show_alert=True)
+                return
+            parts = query.data.split(":")
+            if len(parts) != 3:
+                await query.answer("Invalid.", show_alert=True)
+                return
+            _, rid, code = parts
+            session = await self._get_session(query.message.chat.id, query.from_user.id, bot=bot)
+            approvals = TelegramApprovals(bot, session)
+            if approvals.resolve_step_budget_callback(rid, code):
+                await query.answer("OK")
+            else:
+                await query.answer(
+                    "Could not apply. Tap the latest step-limit message.",
+                    show_alert=True,
+                )
+
         @dp.callback_query(F.data.startswith("cfm:"))
         async def on_confirm_cb(query: CallbackQuery) -> None:
             if query.from_user is None or not query.data:

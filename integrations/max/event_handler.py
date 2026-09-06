@@ -18,6 +18,7 @@ from core.agent_events import (
     FinalResponseEvent,
     PlanCompletedEvent,
     PlanStepCompletedEvent,
+    StepBudgetChoiceEvent,
     SubAgentTimeoutExtendedEvent,
     SubAgentWaveCompletedEvent,
     SubAgentWaveStartedEvent,
@@ -204,6 +205,14 @@ class MaxEventHandler:
                 buf.set_thinking(None)
                 self._presenter.schedule_edit(force=True)
                 self._presenter.enqueue_outbound(self._approvals.on_confirmation_request(event))
+
+            elif isinstance(event, StepBudgetChoiceEvent):
+                buf.set_thinking(None)
+                notice = (event.message or "").strip()
+                if notice:
+                    buf.set_answer(notice)
+                self._presenter.schedule_edit(force=True)
+                self._presenter.enqueue_outbound(self._approvals.on_step_budget_choice(event))
 
             elif isinstance(event, SubAgentWaveStartedEvent):
                 buf.set_thinking(None)

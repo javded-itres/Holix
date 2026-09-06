@@ -1262,6 +1262,8 @@ class MaxInteractive:
 async def dispatch_callback(host: MaxHost, payload: str) -> str:
     if payload.startswith("cfm:"):
         return ""
+    if payload.startswith("sb:"):
+        return ""
     if payload.startswith("plan:"):
         return ""
     parsed = parse_callback(payload)

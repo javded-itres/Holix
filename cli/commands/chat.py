@@ -521,6 +521,7 @@ class ChatSession:
             """Returns an event handler tailored for the interactive chat UX."""
             from core.agent_events import (
                 FinalResponseEvent,
+                StepBudgetChoiceEvent,
                 ThinkingEvent,
                 ToolCallResultEvent,
                 ToolCallStartEvent,
@@ -571,6 +572,13 @@ class ChatSession:
                         print_info(
                             f"Confirmation required{sub}: {event.tool_name} — "
                             "/1 once, /2 session, /3 always, /4 deny"
+                        )
+
+                    elif isinstance(event, StepBudgetChoiceEvent):
+                        extra = int(event.extra_steps or 30)
+                        print_info(
+                            (event.message or "Step limit reached")
+                            + f" — Continue (+{extra}) or Abort in the UI"
                         )
 
                 except Exception:

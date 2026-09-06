@@ -146,6 +146,12 @@ async def terminate_running_subagents(agent: Any | None) -> None:
 async def stop_all_agent_activity(host: Any) -> dict[str, int]:
     """Cancel agent runs and unblock confirmations, plan review, and sub-agents."""
     agent = getattr(host, "agent", None)
+    try:
+        from core.runtime.step_budget_pause import abort_all_pending_step_budget
+
+        abort_all_pending_step_budget()
+    except Exception:
+        pass
 
     stats = {
         "confirmations": deny_all_pending_confirmations(agent),
@@ -161,6 +167,12 @@ async def stop_all_agent_activity(host: Any) -> dict[str, int]:
 def stop_agent_activity_sync(host: Any) -> None:
     """Synchronous portion of /stop — safe from UI thread and slash handlers."""
     agent = getattr(host, "agent", None)
+    try:
+        from core.runtime.step_budget_pause import abort_all_pending_step_budget
+
+        abort_all_pending_step_budget()
+    except Exception:
+        pass
     deny_all_pending_confirmations(agent)
     reject_all_pending_plan_reviews()
     dismiss_host_modals(host)

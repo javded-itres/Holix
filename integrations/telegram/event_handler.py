@@ -19,6 +19,7 @@ from core.agent_events import (
     FinalResponseEvent,
     PlanCompletedEvent,
     PlanStepCompletedEvent,
+    StepBudgetChoiceEvent,
     SubAgentTimeoutExtendedEvent,
     ThinkingEvent,
     TodoListUpdatedEvent,
@@ -188,6 +189,14 @@ class TelegramEventHandler:
                 # inline buttons) is sent via approvals below.
                 self._presenter.schedule_edit(force=True)
                 asyncio.create_task(self._approvals.on_confirmation_request(event))
+
+            elif isinstance(event, StepBudgetChoiceEvent):
+                buf.set_thinking(None)
+                notice = (event.message or "").strip()
+                if notice:
+                    buf.set_answer(notice)
+                self._presenter.schedule_edit(force=True)
+                asyncio.create_task(self._approvals.on_step_budget_choice(event))
 
             elif isinstance(event, SubAgentTimeoutExtendedEvent):
                 name = event.name or "sub-agent"

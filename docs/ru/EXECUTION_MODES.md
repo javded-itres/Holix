@@ -354,7 +354,10 @@ Holix использует цикл в стиле **Reflexion** (не Tree/Graph
 
 1. Проверка прогресса (tools, loop, ошибки).
 2. **Работает + релевантно** → +шаги (`max_steps_extend_by`).
-3. **Завис / thrash** → стоп (или guidance supervisor у субагентов).
+3. **Завис / лимит продлений** — **основной** агент ставит паузу **Продолжить / Прервать**
+   (модалка TUI, кнопки в Telegram/MAX). «Продолжить» добавляет `max_steps_extend_by`
+   шагов. Субагенты не спрашивают: падают с сообщением о лимите.
+   Diff или дамп исходника не становятся последним ответом.
 
 Задачи implement/fix **не** получают лишние шаги за одно чтение файлов или красный pytest без `write_file` / `apply_patch` / `patch_file`. Если недавние tools только `fetch_url` / `web_search`, бюджет тоже **не** растёт (обход сайта должен остановиться). Review/analyze не должен крутить pytest, пока вы сами не попросили тесты. [TROUBLESHOOTING.md](TROUBLESHOOTING.md#agent-loops).
 
@@ -362,8 +365,9 @@ Holix использует цикл в стиле **Reflexion** (не Tree/Graph
 |------------|--------------|--------|
 | `max_steps` | `90` (runtime; профиль может переопределить) | Базовый бюджет |
 | `HOLIX_MAX_STEPS_EXTEND_ENABLED` | `true` | Авто-расширение |
-| `HOLIX_MAX_STEPS_EXTEND_BY` | `30` | Шагов за раз |
-| `HOLIX_MAX_STEPS_MAX_EXTENSIONS` | `10` | Сколько раз |
+| `HOLIX_MAX_STEPS_EXTEND_BY` | `30` | Шагов за автопродление или «Продолжить» |
+| `HOLIX_MAX_STEPS_MAX_EXTENSIONS` | `10` | Сколько автопродлений за запуск |
+| `HOLIX_MAX_STEPS_USER_MAX_EXTENSIONS` | `10` | Сколько раз «Продолжить» после автопродления (`0` = без меню) |
 | `HOLIX_MAX_STEPS_HARD_CAP` | `0` | Жёсткий потолок (`0` = base+extend×N) |
 
 ---

@@ -6,6 +6,7 @@ from typing import Any
 
 from cli.tui.modals.confirmation_presenter import ConfirmationPresenter
 from cli.tui.modals.plan_review import PlanReviewPresenter
+from cli.tui.modals.step_budget_presenter import StepBudgetPresenter
 from cli.tui.modals.subagent_question_presenter import SubagentQuestionPresenter
 
 
@@ -18,6 +19,7 @@ class ModalStack:
         self.confirmation = ConfirmationPresenter(app, self)
         self.plan_review = PlanReviewPresenter(app, self)
         self.subagent_question = SubagentQuestionPresenter(app, self)
+        self.step_budget = StepBudgetPresenter(app, self)
 
     @property
     def active_kind(self) -> str | None:

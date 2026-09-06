@@ -152,6 +152,7 @@ class LiveHarness:
             self_extensions_enabled=False,
             max_steps=max_steps,
             max_steps_extend_enabled=False,
+            max_steps_user_max_extensions=0,
             llm_step_timeout=600.0,
             workspace_root=str(self.workspace),
             workspace_jail_enabled=True,

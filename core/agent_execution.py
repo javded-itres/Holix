@@ -139,6 +139,7 @@ async def run_agent_loop(
     max_steps = getattr(agent_config, "max_steps", settings.max_steps)
     base_max_steps = int(max_steps or 0)
     step_budget_extensions = 0
+    step_budget_user_extensions = 0
     model = getattr(agent, "model", settings.model)
     temperature = getattr(agent_config, "temperature", settings.temperature)
     client: AsyncOpenAI = agent.client
@@ -533,14 +534,81 @@ async def run_agent_loop(
             )
             continue
 
-        # Max steps reached (hung / no progress / extension cap)
+        from core.presenters.final_content import step_limit_aborted_message
+        from core.runtime.step_budget import StepBudgetDecision, apply_extension
+        from core.runtime.step_budget_pause import ask_continue_or_abort, can_ask_user
+
+        policy = StepBudgetPolicy.from_config(agent_config)
+        if can_ask_user(
+            agent,
+            conversation_id=conversation_id,
+            user_used=step_budget_user_extensions,
+            policy=policy,
+        ):
+            choice = await ask_continue_or_abort(
+                agent=agent,
+                conversation_id=conversation_id,
+                step_count=step_count,
+                max_steps=max_steps,
+                extra_steps=policy.extend_by,
+                user_used=step_budget_user_extensions,
+                user_max=policy.user_max_extensions,
+                reason=decision.reason,
+            )
+            if choice == "continue":
+                extra = policy.extend_by
+                user_decision = StepBudgetDecision(
+                    extend=True,
+                    reason=(
+                        f"user continue; +{extra} steps "
+                        f"({step_count}/{max_steps} → max {max_steps + extra})"
+                    ),
+                    status="working",
+                    extra_steps=extra,
+                    new_max_steps=max_steps + extra,
+                    extensions_used=step_budget_extensions,
+                    user_extensions_used=step_budget_user_extensions + 1,
+                    from_user=True,
+                )
+                prev_max = max_steps
+                max_steps = user_decision.new_max_steps
+                step_budget_user_extensions = user_decision.user_extensions_used
+                patched = apply_extension(
+                    {"conversation_id": conversation_id, "messages": messages},
+                    {"step_count": step_count, "messages": messages},
+                    user_decision,
+                    agent=None,
+                    previous_max_steps=prev_max,
+                )
+                messages = list(patched.get("messages") or messages)
+                yield MaxStepsExtendedEvent(
+                    max_steps=max_steps,
+                    previous_max_steps=prev_max,
+                    extra_steps=user_decision.extra_steps,
+                    extensions=step_budget_user_extensions,
+                    reason=user_decision.reason,
+                    conversation_id=conversation_id,
+                )
+                yield ThinkingEvent(
+                    message=(
+                        f"Step budget extended by {user_decision.extra_steps} "
+                        f"(now max {max_steps}): still working"
+                    ),
+                    conversation_id=conversation_id,
+                )
+                continue
+
+        timeout_msg = step_limit_aborted_message(max_steps)
+        if decision.reason:
+            timeout_msg = f"{timeout_msg} {decision.reason}"
+        yield FinalResponseEvent(
+            content=timeout_msg,
+            steps_taken=step_count,
+            conversation_id=conversation_id,
+        )
         yield MaxStepsReachedEvent(
             max_steps=max_steps,
             conversation_id=conversation_id,
-        )
-        timeout_msg = (
-            f"Agent reached maximum steps ({max_steps}). "
-            f"{decision.reason or 'Task may be too complex.'}"
         )
         await agent.memory.save_message(conversation_id, "assistant", timeout_msg)
         return

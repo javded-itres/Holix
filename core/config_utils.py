@@ -90,6 +90,7 @@ _LOCAL_SYSTEM_KEYS: frozenset[str] = frozenset(
         "max_steps_extend_enabled",
         "max_steps_extend_by",
         "max_steps_max_extensions",
+        "max_steps_user_max_extensions",
         "max_steps_hard_cap",
         "subagent_supervisor_enabled",
         "subagent_supervisor_poll_s",

@@ -36,6 +36,8 @@ class EventType(StrEnum):
     FINAL_RESPONSE = "final_response"
     MAX_STEPS_REACHED = "max_steps_reached"
     MAX_STEPS_EXTENDED = "max_steps_extended"
+    STEP_BUDGET_CHOICE = "step_budget_choice"
+    STEP_BUDGET_RESOLVED = "step_budget_resolved"
 
     # Tool execution
     TOOL_CALL_START = "tool_call_start"
@@ -340,6 +342,56 @@ class MaxStepsExtendedEvent(AgentEvent):
             "extra_steps": self.extra_steps,
             "extensions": self.extensions,
             "reason": self.reason,
+        }
+
+
+@dataclass
+class StepBudgetChoiceEvent(AgentEvent):
+    """Main agent hit max_steps and is waiting for Continue / Abort."""
+
+    request_id: str = ""
+    step_count: int = 0
+    max_steps: int = 90
+    extra_steps: int = 30
+    user_extensions_used: int = 0
+    user_extensions_max: int = 10
+    reason: str = ""
+    message: str = ""
+    choices: list[dict[str, str]] = field(default_factory=list)
+
+    def __post_init__(self):
+        super().__post_init__()
+        object.__setattr__(self, "type", EventType.STEP_BUDGET_CHOICE)
+
+    def _extra_fields(self) -> dict[str, Any]:
+        return {
+            "request_id": self.request_id,
+            "step_count": self.step_count,
+            "max_steps": self.max_steps,
+            "extra_steps": self.extra_steps,
+            "user_extensions_used": self.user_extensions_used,
+            "user_extensions_max": self.user_extensions_max,
+            "reason": self.reason,
+            "message": self.message,
+            "choices": self.choices,
+        }
+
+
+@dataclass
+class StepBudgetResolvedEvent(AgentEvent):
+    """User picked Continue or Abort for a step-budget pause."""
+
+    request_id: str = ""
+    choice: str = ""
+
+    def __post_init__(self):
+        super().__post_init__()
+        object.__setattr__(self, "type", EventType.STEP_BUDGET_RESOLVED)
+
+    def _extra_fields(self) -> dict[str, Any]:
+        return {
+            "request_id": self.request_id,
+            "choice": self.choice,
         }
 
 
@@ -1024,6 +1076,8 @@ def make_event(
         EventType.FINAL_RESPONSE: FinalResponseEvent,
         EventType.ERROR: ErrorEvent,
         EventType.MAX_STEPS_EXTENDED: MaxStepsExtendedEvent,
+        EventType.STEP_BUDGET_CHOICE: StepBudgetChoiceEvent,
+        EventType.STEP_BUDGET_RESOLVED: StepBudgetResolvedEvent,
         EventType.THINKING: ThinkingEvent,
         EventType.SKILL_CREATED: SkillCreatedEvent,
         EventType.SKILL_PROPOSED: SkillProposedEvent,
@@ -1139,6 +1193,8 @@ __all__ = [
     "ToolCallErrorEvent",
     "MaxStepsReachedEvent",
     "MaxStepsExtendedEvent",
+    "StepBudgetChoiceEvent",
+    "StepBudgetResolvedEvent",
     "ErrorEvent",
     "LLMCallStartedEvent",
     "LLMCallCompletedEvent",

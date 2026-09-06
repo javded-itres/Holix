@@ -350,7 +350,10 @@ When the agent hits `max_steps`, Holix does not always stop immediately:
 
 1. **Health check** — recent tools, loops, errors, pending work.
 2. **Working + relevant** → grant extra steps (`max_steps_extend_by`, capped).
-3. **Hung / pure error thrash** → stop (or subagent supervisor guidance).
+3. **Hung / extension cap** — the **main** agent pauses with **Continue / Abort**
+   (TUI modal, Telegram/MAX inline buttons). Continue adds `max_steps_extend_by`
+   steps. Sub-agents do not prompt; they fail with a step-limit message.
+   A source dump or diff is never used as the last assistant message.
 
 Implement/fix tasks do **not** get extra steps for a read-only file walk or a red pytest with no `write_file` / `apply_patch` / `patch_file`. A run whose recent tools are only `fetch_url` / `web_search` is also **not** extended (site crawls must stop). Review/analyze must not pytest-loop unless you asked to run tests. See [TROUBLESHOOTING.md](TROUBLESHOOTING.md#agent-loops).
 
@@ -358,8 +361,9 @@ Implement/fix tasks do **not** get extra steps for a read-only file walk or a re
 |----------|---------|--------|
 | `max_steps` | `90` (runtime; profile may override) | Base ReAct/graph step budget |
 | `HOLIX_MAX_STEPS_EXTEND_ENABLED` | `true` | Allow auto-extension |
-| `HOLIX_MAX_STEPS_EXTEND_BY` | `30` | Steps added per extension |
-| `HOLIX_MAX_STEPS_MAX_EXTENSIONS` | `10` | Max extensions per run |
+| `HOLIX_MAX_STEPS_EXTEND_BY` | `30` | Steps added per auto-extend or Continue |
+| `HOLIX_MAX_STEPS_MAX_EXTENSIONS` | `10` | Max automatic extensions per run |
+| `HOLIX_MAX_STEPS_USER_MAX_EXTENSIONS` | `10` | Max Continue clicks after auto-extend stops (`0` = no prompt) |
 | `HOLIX_MAX_STEPS_HARD_CAP` | `0` | Absolute cap (`0` = base + extend×N) |
 
 ---
