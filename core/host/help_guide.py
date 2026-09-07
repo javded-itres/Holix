@@ -126,7 +126,7 @@ _BODIES: dict[str, dict[str, str]] = {
             "2. Attach files / voice — the bot reads them into the same turn.\n"
             "3. Confirmations appear as buttons (`/yes` `/no` also work).\n"
             "4. `/new` — new session. `/models` — switch LLM for the next turns.\n"
-            "5. `/menu` — modes, sub-agents, Reflexion, streaming, cron.\n"
+            "5. `/menu` — modes, sub-agents, Reflexion, step budget, streaming, cron.\n"
             "6. `/init` — scan the workspace and write `.holix/HOLIX.md`.\n\n"
             "Workspace for Telegram/MAX is the profile `workspace_root` "
             "(not the bot process CWD)."
@@ -279,7 +279,7 @@ _BODIES: dict[str, dict[str, str]] = {
             "2. Файл / голос в том же сообщении попадают в тот же ход.\n"
             "3. Подтверждения — кнопки (или `/yes` `/no`).\n"
             "4. `/new` — новая сессия. `/models` — сменить LLM.\n"
-            "5. `/menu` — режимы, субагенты, Reflexion, стриминг, cron.\n"
+            "5. `/menu` — режимы, субагенты, Reflexion, бюджет шагов, стриминг, cron.\n"
             "6. `/init` — обход workspace → `.holix/HOLIX.md`.\n\n"
             "В Telegram/MAX рабочая папка — `workspace_root` профиля, не cwd процесса бота."
         ),

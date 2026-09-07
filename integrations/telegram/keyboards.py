@@ -286,6 +286,30 @@ def reflexion_picker_keyboard(enabled: bool, locale: str | None = None) -> Any:
     )
 
 
+def max_steps_picker_keyboard(current: int, locale: str | None = None) -> Any:
+    from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
+
+    from integrations.messenger.max_steps_settings import MAX_STEPS_PRESETS
+
+    _ = locale
+    cur = int(current)
+    rows: list[list[Any]] = []
+    row: list[Any] = []
+    for n in MAX_STEPS_PRESETS:
+        row.append(
+            InlineKeyboardButton(
+                text=f"{_mark(n == cur)}{n}",
+                callback_data=_cb("ms", str(n)),
+            )
+        )
+        if len(row) == 3:
+            rows.append(row)
+            row = []
+    if row:
+        rows.append(row)
+    return InlineKeyboardMarkup(inline_keyboard=rows)
+
+
 def profile_picker_keyboard(profiles: list[str], current: str) -> Any:
     from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 
@@ -576,10 +600,11 @@ def status_menu_keyboard(locale: str | None = None, *, is_admin: bool = True) ->
                     text=t("tg.menu.compress", loc), callback_data=_cb("r", "compress")
                 ),
             ],
+            [
+                InlineKeyboardButton(text=t("tg.menu.steps", loc), callback_data=_cb("r", "steps")),
+                InlineKeyboardButton(text="Cron", callback_data=_cb("r", "cron")),
+            ],
         ]
-    )
-    rows.append(
-        [InlineKeyboardButton(text="Cron", callback_data=_cb("r", "cron"))],
     )
     return InlineKeyboardMarkup(inline_keyboard=rows)
 

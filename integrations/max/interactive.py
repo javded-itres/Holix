@@ -19,6 +19,7 @@ from integrations.max.keyboards import (
     callback_rows_keyboard,
     help_guide_keyboard,
     inline_keyboard,
+    max_steps_picker_keyboard,
     mode_picker_keyboard,
     mode_picker_text,
     models_provider_keyboard,
@@ -119,6 +120,10 @@ class MaxInteractive:
                 )
             else:
                 await self.show_stream_picker()
+            return True
+
+        if lower.startswith("/steps") or lower.startswith("/max_steps"):
+            await self._apply_steps_slash(parts)
             return True
 
         if lower.startswith("/profile"):
@@ -311,6 +316,17 @@ class MaxInteractive:
             state = "on" if enabled else "off"
             return t("tg.reflexion", lang, state=state)
 
+        if action == "ms":
+            from integrations.messenger.max_steps_settings import set_max_steps_for_host
+
+            lang = messenger_host_locale(self._host)
+            try:
+                n = set_max_steps_for_host(self._host, int(value))
+            except Exception as exc:
+                return f"{t('tg.error', lang)}: {exc}"
+            await self.show_max_steps_picker()
+            return t("tg.steps", lang, n=n)
+
         if action == "pl":
             from integrations.messenger.pipeline_settings import set_pipeline_for_host
 
@@ -452,6 +468,7 @@ class MaxInteractive:
             "subagents": self.show_subagents_picker,
             "reflexion": self.show_reflexion_picker,
             "pipeline": self.show_pipeline_picker,
+            "steps": self.show_max_steps_picker,
             "models": self.show_models,
             "tools": self.show_tools_picker,
             "status": self.show_status,
@@ -847,6 +864,47 @@ class MaxInteractive:
             pipeline_picker_keyboard(mode, lang),
         )
 
+    async def show_max_steps_picker(self) -> None:
+        from integrations.messenger.max_steps_settings import get_max_steps_for_host
+
+        lang = messenger_host_locale(self._host)
+        n = get_max_steps_for_host(self._host)
+        text = (
+            f"**{t('tg.steps_picker_title', lang)}**\n"
+            f"{t('tg.steps', lang, n=n)}\n\n"
+            f"_{t('tg.steps_picker_body', lang)}_"
+        )
+        await self._host._send_text_with_keyboard(
+            text,
+            max_steps_picker_keyboard(n, lang),
+        )
+
+    async def _apply_steps_slash(self, parts: list[str]) -> None:
+        from integrations.messenger.max_steps_settings import (
+            MAX_MAX_STEPS,
+            MIN_MAX_STEPS,
+            parse_max_steps,
+            set_max_steps_for_host,
+        )
+
+        lang = messenger_host_locale(self._host)
+        if len(parts) > 1:
+            try:
+                n = parse_max_steps(parts[1])
+            except ValueError:
+                await self._host._send_text(
+                    t("tg.steps_invalid", lang, min=MIN_MAX_STEPS, max=MAX_MAX_STEPS)
+                )
+                return
+            try:
+                n = set_max_steps_for_host(self._host, n)
+            except Exception as exc:
+                await self._host._send_text(f"{t('tg.error', lang)}: {exc}")
+                return
+            await self._host._send_text(t("tg.steps", lang, n=n))
+            return
+        await self.show_max_steps_picker()
+
     async def show_profile_picker(self) -> None:
         from integrations.max.profile_visibility import is_profile_list_hidden
 
@@ -1219,6 +1277,7 @@ class MaxInteractive:
         from core.session_models import ensure_session_model
 
         ensure_session_model(self._host)
+        from integrations.messenger.max_steps_settings import get_max_steps_for_host
         from integrations.messenger.pipeline_settings import is_pipeline_for_host
         from integrations.messenger.reflexion_settings import is_reflexion_enabled_for_host
         from integrations.messenger.subagents_settings import is_subagents_enabled_for_host
@@ -1232,6 +1291,7 @@ class MaxInteractive:
         subagents = "on" if is_subagents_enabled_for_host(self._host) else "off"
         reflexion = "on" if is_reflexion_enabled_for_host(self._host) else "off"
         pipeline = is_pipeline_for_host(self._host)
+        steps = get_max_steps_for_host(self._host)
 
         headline, rows = profile_model_summary(self._host.profile)
         lines = [
@@ -1243,6 +1303,7 @@ class MaxInteractive:
             f"Стриминг: `{stream}`",
             f"Субагенты: `{subagents}`",
             f"Reflexion: `{reflexion}`",
+            f"Шаги: `{steps}`",
             f"Сессия: `{self._host.conversation_id}`",
         ]
         if rows:

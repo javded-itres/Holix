@@ -359,7 +359,7 @@ Implement/fix tasks do **not** get extra steps for a read-only file walk or a re
 
 | Variable | Default | Effect |
 |----------|---------|--------|
-| `max_steps` | `90` (runtime; profile may override) | Base ReAct/graph step budget |
+| `max_steps` | `90` (runtime; profile may override) | Base ReAct/graph step budget. Telegram/MAX: `/menu` → Steps, or `/steps N` |
 | `HOLIX_MAX_STEPS_EXTEND_ENABLED` | `true` | Allow auto-extension |
 | `HOLIX_MAX_STEPS_EXTEND_BY` | `30` | Steps added per auto-extend or Continue |
 | `HOLIX_MAX_STEPS_MAX_EXTENSIONS` | `10` | Max automatic extensions per run |

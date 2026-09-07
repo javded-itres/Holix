@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+### Added
+
+- **Telegram / MAX** — per-profile default `max_steps` is set from `/menu` →
+  **Steps** (presets 30/60/90/120/180/300) or `/steps N` (10–500). Stored on
+  the Holix profile like Reflexion/pipeline.
+
 ### Changed
 
 - **Step budget** — auto-extend no longer treats `TimeoutError:` / `error` inside
@@ -15,6 +21,7 @@
 ### Tests
 
 - Error-token health check, dump-as-final auto-extend, Continue/Abort pause.
+- Messenger per-profile `max_steps` persist + Telegram/MAX picker callbacks.
 
 ## 1.1.10 — 2026-09-04
 

@@ -330,7 +330,7 @@ Profile `.env` / `config.yaml` (see also [EXECUTION_MODES.md](EXECUTION_MODES.md
 | `plan_generation_max_tokens` | `12000` | Max tokens for plan JSON (large development reports) |
 | `plan_generation_retries` | `2` | Retries on timeout or truncated JSON |
 | `max_steps_per_plan_step` | `5` | Tool iterations per plan step |
-| `max_steps` | `90` | Overall graph / ReAct step budget (profile may override) |
+| `max_steps` | `90` | Overall graph / ReAct step budget (profile may override; Telegram/MAX `/menu` → Steps) |
 
 ## Meta-agent & Reflexion
 
