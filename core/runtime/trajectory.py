@@ -32,6 +32,7 @@ _MAX_FIELD = 800
 _MAX_LINE = 4000
 _DEFAULT_TAIL = 40
 _MAX_TAIL = 200
+_MAX_LOAD = 5000
 
 
 def _safe_conversation_id(conversation_id: str) -> str:
@@ -163,11 +164,12 @@ class TrajectoryLog:
             except OSError:
                 logger.debug("trajectory append failed", exc_info=True)
 
-    def tail(self, conversation_id: str, *, limit: int = _DEFAULT_TAIL) -> list[dict[str, Any]]:
+    def load(self, conversation_id: str, *, limit: int = 2000) -> list[dict[str, Any]]:
+        """Read up to *limit* recent JSONL rows (diagnose / autopsy, not the UI tail)."""
         path = trajectory_path(self.profile, conversation_id)
         if path is None or not path.is_file():
             return []
-        n = max(1, min(int(limit or _DEFAULT_TAIL), _MAX_TAIL))
+        n = max(1, min(int(limit or 2000), _MAX_LOAD))
         try:
             lines = path.read_text(encoding="utf-8").splitlines()
         except OSError:
@@ -181,6 +183,10 @@ class TrajectoryLog:
             if isinstance(row, dict):
                 out.append(row)
         return out
+
+    def tail(self, conversation_id: str, *, limit: int = _DEFAULT_TAIL) -> list[dict[str, Any]]:
+        n = max(1, min(int(limit or _DEFAULT_TAIL), _MAX_TAIL))
+        return self.load(conversation_id, limit=n)
 
     def search(
         self,

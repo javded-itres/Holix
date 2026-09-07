@@ -27,7 +27,7 @@ TUI: modal with option buttons and a text field. Telegram / MAX: inline buttons 
 - `subagent_control` — `list` / `status` / `send` / `interrupt` / `collect` on **already running** sub-agents. Does not spawn (use `delegate_to_subagent`). Main / supervisor only.
 - `research_site_pages` — after the first `fetch_url`, pass a bounded list of URLs from `## Links on this page` plus the user `goal`. Spawns `page_analyst` sub-agents in waves of `subagent_max_concurrent`, waits, and returns their briefings. For site/resource analysis; do not invent paths and do not use `web_researcher` for same-site links. Main / supervisor only. Core tool (always on the LLM list).
 - `send_chat_files` — attach local files to the **Telegram/MAX chat** (album of 2–10 on Telegram). Core tool. `read_file` / dumping text in the assistant message is not delivery. Only claim success if the tool returns `Sent N file(s)`.
-- `self_diagnose` — inspect **this session** (user asks vs tools vs claims, LLM turn stats, skills). Core tool. Use when the user says «проверь себя», «почему ты делаешь не так», «ты отвечаешь неправильно», or similar. May stage a skill patch (approval still applies). Main / supervisor only.
+- `self_diagnose` — autopsy of **this session** (full history: asks vs tools vs claims, failed tools, loops, step-limit). Follow `plan.do_now` / `ask_user`. Core tool. Use when the user says «проверь себя», «почему ты делаешь не так», «ты отвечаешь неправильно», or similar. Stages a skill patch only if a live skill taught the wrong file delivery. Main / supervisor only.
 
 ## Discovery and notebooks
 

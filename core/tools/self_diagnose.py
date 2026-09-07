@@ -17,12 +17,12 @@ class SelfDiagnoseTool(BaseTool):
         super().__init__()
         self.name = SELF_DIAGNOSE_TOOL
         self.description = (
-            "Inspect this conversation: user asks vs tools vs assistant claims, "
-            "LLM turn stats from trajectory, and skills that may have caused the "
-            "mistake. Call this FIRST when the user says «проверь себя», "
-            "«почему ты делаешь не так», «ты отвечаешь неправильно», "
-            "check yourself, or similar. Then answer from the report. "
-            "Can stage a skill patch (still goes through skill approval)."
+            "Autopsy of THIS conversation: full history, failed tools, false "
+            "«готово» claims, loops, step-limit, unanswered asks. Call FIRST when "
+            "the user says «проверь себя», «почему ты делаешь не так», "
+            "«ты отвечаешь неправильно», check yourself, or similar. Then follow "
+            "report.plan.do_now with tools and ask only report.plan.ask_user. "
+            "May stage a skill patch when a live skill taught the wrong file-delivery."
         )
         self.risk_level = "low"
         self.parameters = {
@@ -41,7 +41,11 @@ class SelfDiagnoseTool(BaseTool):
         }
 
     async def execute(self, complaint: str = "", fix_skills: bool = True, **_: Any) -> str:
-        from core.runtime.self_diagnose import diagnose_session
+        from core.runtime.self_diagnose import (
+            SESSION_HISTORY_LIMIT,
+            TRAJECTORY_HISTORY_LIMIT,
+            diagnose_session,
+        )
 
         cid = get_conversation_id() or "default"
         profile = get_profile_name() or "default"
@@ -54,7 +58,7 @@ class SelfDiagnoseTool(BaseTool):
             from core.tools.session_memory import _resolve_memory
 
             memory = _resolve_memory()
-            messages = await memory.get_conversation(cid, limit=80)
+            messages = await memory.get_conversation(cid, limit=SESSION_HISTORY_LIMIT)
         except Exception:
             messages = []
 
@@ -68,7 +72,7 @@ class SelfDiagnoseTool(BaseTool):
         try:
             from core.runtime.trajectory import TrajectoryLog
 
-            trajectory = TrajectoryLog(profile).tail(cid, limit=200)
+            trajectory = TrajectoryLog(profile).load(cid, limit=TRAJECTORY_HISTORY_LIMIT)
         except Exception:
             trajectory = []
 
@@ -110,7 +114,12 @@ class SelfDiagnoseTool(BaseTool):
         report["profile"] = profile
 
         staged: list[dict[str, Any]] = []
-        if fix_skills and mgr is not None:
+        skill_issue = any(
+            str(f.get("code") or "") == "skill_teaches_wrong_delivery"
+            for f in (report.get("findings") or [])
+            if isinstance(f, dict)
+        )
+        if fix_skills and mgr is not None and skill_issue:
             try:
                 from core.tools.plan_mode_state import is_plan_mode
 
@@ -124,7 +133,7 @@ class SelfDiagnoseTool(BaseTool):
                     report["skill_fixes"] = staged
             except Exception as exc:
                 report["skill_fixes"] = [{"error": str(exc)}]
-        elif not fix_skills:
+        else:
             report["skill_fixes"] = []
 
         if not messages and not trajectory:
