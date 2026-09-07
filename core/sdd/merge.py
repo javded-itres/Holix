@@ -13,6 +13,8 @@ _SECTION_RE = re.compile(
     r"^##\s+(ADDED|MODIFIED|REMOVED)\s+Requirements?\s*$",
     re.IGNORECASE | re.MULTILINE,
 )
+# Full-domain specs (often RU fill): ``### F-1. Title`` instead of ``### Requirement:``.
+_H3_RE = re.compile(r"^###\s+(?P<title>\S.*?)\s*$", re.MULTILINE)
 
 
 @dataclass
@@ -36,6 +38,43 @@ def _split_requirements(content: str) -> list[_Requirement]:
     return reqs
 
 
+def _split_h3_as_requirements(content: str) -> list[_Requirement]:
+    """Treat ``### Title`` blocks as requirements when OpenSpec headings are missing.
+
+    Agents often write a full domain spec (``## Требования`` / ``### F-1. …``)
+    instead of ``## ADDED Requirements`` / ``### Requirement:``. Archive would
+    otherwise refuse the merge and leave the change stuck.
+    """
+    matches = list(_H3_RE.finditer(content or ""))
+    if not matches:
+        return []
+    reqs: list[_Requirement] = []
+    for i, m in enumerate(matches):
+        raw_title = (m.group("title") or "").strip()
+        if not raw_title:
+            continue
+        if raw_title.lower().startswith("requirement:"):
+            title = raw_title.split(":", 1)[1].strip() or raw_title
+        else:
+            title = raw_title
+        end = matches[i + 1].start() if i + 1 < len(matches) else len(content)
+        rest = content[m.end() : end].strip("\n")
+        block = f"### Requirement: {title}\n"
+        if rest:
+            block += f"\n{rest}\n"
+        else:
+            block += "\n"
+        reqs.append(_Requirement(title=title, body=block))
+    return reqs
+
+
+def _requirements_from_spec_body(content: str) -> list[_Requirement]:
+    reqs = _split_requirements(content)
+    if reqs:
+        return reqs
+    return _split_h3_as_requirements(content)
+
+
 def _normalize_title(title: str) -> str:
     return re.sub(r"\s+", " ", title.strip().lower())
 
@@ -56,8 +95,9 @@ def _parse_delta_sections(delta: str) -> list[tuple[str, list[_Requirement]]]:
     """
     matches = list(_SECTION_RE.finditer(delta))
     if not matches:
-        # Whole file treated as ADDED if it has requirements
-        return [("ADDED", _split_requirements(delta))]
+        # Whole file treated as ADDED if it has Requirement: or ### headings
+        reqs = _requirements_from_spec_body(delta)
+        return [("ADDED", reqs)] if reqs else []
 
     ordered: list[tuple[str, list[_Requirement]]] = []
     for i, m in enumerate(matches):
@@ -65,7 +105,7 @@ def _parse_delta_sections(delta: str) -> list[tuple[str, list[_Requirement]]]:
         start = m.end()
         end = matches[i + 1].start() if i + 1 < len(matches) else len(delta)
         body = delta[start:end]
-        ordered.append((kind, _split_requirements(body)))
+        ordered.append((kind, _requirements_from_spec_body(body)))
     return ordered
 
 

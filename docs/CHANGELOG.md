@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+### Fixed
+
+- **SDD archive** — a full domain spec with ``### F-1. Title`` (no
+  ``## ADDED Requirements`` / ``### Requirement:``) merges into
+  ``openspec/specs`` instead of refusing the archive. Common after RU/agent fill.
+
 ### Added
 
 - **Telegram / MAX** — per-profile default `max_steps` is set from `/menu` →
