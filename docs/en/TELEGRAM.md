@@ -8,7 +8,7 @@
 
 Sub-agents has a submenu: what they are, **configure types** (`/subagent-types`, create from a description, overlays), spawn a job, Code mode. Shortcut: `/help sub`.
 
-Settings panel remains `/menu`.
+Settings panel remains `/menu` (including per-profile **Steps** / `max_steps`).
 
 Each profile can use its **own bot**. Secrets are stored in:
 

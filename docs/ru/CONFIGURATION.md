@@ -214,7 +214,7 @@ providers:
 | `plan_generation_max_tokens` | `12000` | Макс. токенов для JSON плана (большие отчёты) |
 | `plan_generation_retries` | `2` | Повторы при таймауте или обрезанном JSON |
 | `max_steps_per_plan_step` | `5` | Итераций инструментов на шаг плана |
-| `max_steps` | `90` | Общий бюджет шагов графа / ReAct |
+| `max_steps` | `90` | Общий бюджет шагов графа / ReAct (профиль; Telegram/MAX: `/menu` → Шаги) |
 
 ## Meta-agent и Reflexion
 

@@ -195,6 +195,23 @@ def reflexion_picker_keyboard(enabled: bool, locale: str | None = None) -> dict[
     )
 
 
+def max_steps_picker_keyboard(current: int, locale: str | None = None) -> dict[str, Any]:
+    from integrations.messenger.max_steps_settings import MAX_STEPS_PRESETS
+
+    _ = locale
+    cur = int(current)
+    rows: list[list[dict[str, str]]] = []
+    row: list[dict[str, str]] = []
+    for n in MAX_STEPS_PRESETS:
+        row.append(_callback_btn(f"{_mark(n == cur)}{n}", _cb("ms", str(n))))
+        if len(row) == 3:
+            rows.append(row)
+            row = []
+    if row:
+        rows.append(row)
+    return inline_keyboard(rows)
+
+
 def pipeline_picker_keyboard(current: str, locale: str | None = None) -> dict[str, Any]:
     from core.agent_pipeline import PIPELINE_CLASSIC, PIPELINE_MODERN, normalize_pipeline
     from core.i18n.messages import t
@@ -414,6 +431,7 @@ def status_menu_keyboard(locale: str | None = None, *, is_admin: bool = True) ->
             _callback_btn(t("tg.menu.compress", loc), _cb("r", "compress")),
         ],
         [
+            _callback_btn(t("tg.menu.steps", loc), _cb("r", "steps")),
             _callback_btn("Cron", _cb("r", "cron")),
         ],
     ]

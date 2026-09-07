@@ -173,6 +173,14 @@ MESSAGES: dict[str, dict[str, str]] = {
             "still forces tools on «сделай…» so work does not stop mid-task. "
             "Modern: full anti-spam monologue honesty."
         ),
+        "tg.menu.steps": "Steps",
+        "tg.steps": "Steps: {n}",
+        "tg.steps_picker_title": "Step budget",
+        "tg.steps_picker_body": (
+            "Base max_steps for this profile (before auto-extend). "
+            "Default 90. Custom: /steps N (10–500)."
+        ),
+        "tg.steps_invalid": "Enter a number from {min} to {max}. Example: /steps 120",
         "tg.menu.compress": "Compress context",
         "tg.menu.prev": "Prev",
         "tg.menu.next": "Next",
@@ -181,10 +189,11 @@ MESSAGES: dict[str, dict[str, str]] = {
         "tg.help.chat_body": "Send text — the agent replies in one live message.",
         "tg.help.commands": "Commands (menu left of the input field):",
         "tg.help.buttons": "Buttons",
-        "tg.help.buttons_body": "/mode /profile /sessions /stream — pick with buttons\n/status /menu — Sub-agents, Reflexion, models, tools\n/models — switch LLM until next message",
+        "tg.help.buttons_body": "/mode /profile /sessions /stream — pick with buttons\n/status /menu — Sub-agents, Reflexion, steps, models, tools\n/models — switch LLM until next message",
         "tg.help.extra": "More",
         "tg.help.extra_body": (
             "• /memory query — semantic search\n"
+            "• /steps [N] — default step budget for this profile (10–500)\n"
             "• /compress — compress chat history\n"
             "• /init — project analysis → .holix/HOLIX.md\n"
             "• /profile name — switch profile\n"
@@ -886,6 +895,14 @@ When finished, confirm the absolute path written and give a 5–10 line summary 
             "«сделай…» tools обязательны — не останавливается на полпути. "
             "Modern: полный anti-spam honesty."
         ),
+        "tg.menu.steps": "Шаги",
+        "tg.steps": "Шаги: {n}",
+        "tg.steps_picker_title": "Бюджет шагов",
+        "tg.steps_picker_body": (
+            "Базовый max_steps этого профиля (до автопродления). "
+            "По умолчанию 90. Своё число: /steps N (10–500)."
+        ),
+        "tg.steps_invalid": "Введите число от {min} до {max}. Пример: /steps 120",
         "tg.menu.compress": "Сжать контекст",
         "tg.menu.prev": "Пред.",
         "tg.menu.next": "След.",
@@ -894,10 +911,11 @@ When finished, confirm the absolute path written and give a 5–10 line summary 
         "tg.help.chat_body": "Отправьте текст — агент ответит одним живым сообщением.",
         "tg.help.commands": "Команды (меню слева от поля ввода):",
         "tg.help.buttons": "Кнопки",
-        "tg.help.buttons_body": "/mode /profile /sessions /stream — выбор кнопками\n/status /menu — субагенты, Reflexion, модели, tools\n/models — смена LLM до следующего сообщения",
+        "tg.help.buttons_body": "/mode /profile /sessions /stream — выбор кнопками\n/status /menu — субагенты, Reflexion, шаги, модели, tools\n/models — смена LLM до следующего сообщения",
         "tg.help.extra": "Дополнительно",
         "tg.help.extra_body": (
             "• /memory запрос — семантический поиск\n"
+            "• /steps [N] — бюджет шагов профиля по умолчанию (10–500)\n"
             "• /compress — сжать историю диалога\n"
             "• /init — анализ проекта в .holix/HOLIX.md\n"
             "• /profile имя — смена профиля\n"

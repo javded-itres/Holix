@@ -12,6 +12,7 @@ from integrations.telegram.keyboards import (
     SKILLS_PAGE_SIZE,
     callback_rows_keyboard,
     help_guide_keyboard,
+    max_steps_picker_keyboard,
     mode_picker_html,
     mode_picker_keyboard,
     models_provider_keyboard,
@@ -141,6 +142,10 @@ class TelegramInteractive:
                 )
             else:
                 await self.show_stream_picker()
+            return True
+
+        if lower.startswith("/steps") or lower.startswith("/max_steps"):
+            await self._apply_steps_slash(parts)
             return True
 
         if lower.startswith("/profile"):
@@ -575,6 +580,17 @@ class TelegramInteractive:
             state = "on" if enabled else "off"
             return t("tg.reflexion", lang, state=state)
 
+        if action == "ms":
+            from integrations.messenger.max_steps_settings import set_max_steps_for_host
+
+            lang = messenger_host_locale(self._host)
+            try:
+                n = set_max_steps_for_host(self._host, int(value))
+            except Exception as exc:
+                return f"{t('tg.error', lang)}: {exc}"
+            await self.show_max_steps_picker()
+            return t("tg.steps", lang, n=n)
+
         if action == "pl":
             from integrations.messenger.pipeline_settings import set_pipeline_for_host
 
@@ -759,6 +775,7 @@ class TelegramInteractive:
             "subagents": self.show_subagents_picker,
             "reflexion": self.show_reflexion_picker,
             "pipeline": self.show_pipeline_picker,
+            "steps": self.show_max_steps_picker,
             "models": self.show_models,
             "tools": self.show_tools_picker,
             "skills": self.show_skills_picker,
@@ -1183,6 +1200,49 @@ class TelegramInteractive:
             pipeline_picker_keyboard(mode, lang),
         )
 
+    async def show_max_steps_picker(self) -> None:
+        from integrations.messenger.max_steps_settings import get_max_steps_for_host
+
+        lang = messenger_host_locale(self._host)
+        n = get_max_steps_for_host(self._host)
+        text = (
+            f"<b>{escape_html(t('tg.steps_picker_title', lang))}</b>\n"
+            f"{escape_html(t('tg.steps', lang, n=n))}\n\n"
+            f"<i>{escape_html(t('tg.steps_picker_body', lang))}</i>"
+        )
+        await self._host._send_html_with_keyboard(
+            text,
+            max_steps_picker_keyboard(n, lang),
+        )
+
+    async def _apply_steps_slash(self, parts: list[str]) -> None:
+        from integrations.messenger.max_steps_settings import (
+            MAX_MAX_STEPS,
+            MIN_MAX_STEPS,
+            parse_max_steps,
+            set_max_steps_for_host,
+        )
+
+        lang = messenger_host_locale(self._host)
+        if len(parts) > 1:
+            try:
+                n = parse_max_steps(parts[1])
+            except ValueError:
+                await self._host._send_html(
+                    escape_html(t("tg.steps_invalid", lang, min=MIN_MAX_STEPS, max=MAX_MAX_STEPS))
+                )
+                return
+            try:
+                n = set_max_steps_for_host(self._host, n)
+            except Exception as exc:
+                await self._host._send_html(
+                    f"{escape_html(t('tg.error', lang))}: {escape_html(str(exc))}"
+                )
+                return
+            await self._host._send_html(escape_html(t("tg.steps", lang, n=n)))
+            return
+        await self.show_max_steps_picker()
+
     async def show_profile_picker(self) -> None:
         from integrations.telegram.plugin_api import resolve_plugin_visible_profiles
         from integrations.telegram.profile_visibility import is_profile_list_hidden
@@ -1516,6 +1576,7 @@ class TelegramInteractive:
         )
 
     async def show_status(self) -> None:
+        from integrations.messenger.max_steps_settings import get_max_steps_for_host
         from integrations.messenger.pipeline_settings import is_pipeline_for_host
         from integrations.messenger.reflexion_settings import is_reflexion_enabled_for_host
         from integrations.messenger.subagents_settings import is_subagents_enabled_for_host
@@ -1529,6 +1590,7 @@ class TelegramInteractive:
         subagents = "on" if is_subagents_enabled_for_host(self._host) else "off"
         reflexion = "on" if is_reflexion_enabled_for_host(self._host) else "off"
         pipeline = is_pipeline_for_host(self._host)
+        steps = get_max_steps_for_host(self._host)
 
         lines = [
             "<b>Holix — статус</b>",
@@ -1539,6 +1601,7 @@ class TelegramInteractive:
             f"Стриминг: <code>{stream}</code>",
             f"Субагенты: <code>{subagents}</code>",
             f"Reflexion: <code>{reflexion}</code>",
+            f"Шаги: <code>{steps}</code>",
             f"Сессия: <code>{escape_html(self._host.conversation_id)}</code>",
         ]
         from integrations.telegram.access_approval import is_telegram_admin
