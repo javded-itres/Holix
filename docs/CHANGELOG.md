@@ -16,6 +16,11 @@
 
 ### Changed
 
+- **Self-diagnose** — autopsies the full session (history + trajectory): failed
+  tools, false «готово», loops, step-limit, unanswered asks. Returns `plan.do_now`
+  / `ask_user` / `auto_fix`. Skill patches only when the session is about wrong
+  file delivery. Tools are taken from chat messages, not only trajectory.
+
 - **Step budget** — auto-extend no longer treats `TimeoutError:` / `error` inside
   source dumps as a hung tool. When auto-extend cannot continue, the **main**
   agent pauses with Continue (+`max_steps_extend_by`) / Abort instead of

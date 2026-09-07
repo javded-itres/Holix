@@ -127,6 +127,84 @@ def test_self_diagnose_no_nudge_after_tool() -> None:
     )
 
 
+def test_diagnose_uses_message_tools_not_only_trajectory() -> None:
+    report = diagnose_session(
+        complaint="проверь себя",
+        messages=[
+            {"role": "user", "content": "Пришли в чат файл отчёт.md"},
+            {
+                "role": "assistant",
+                "content": "",
+                "tool_calls": [
+                    {"id": "1", "function": {"name": "send_chat_files"}},
+                ],
+            },
+            {
+                "role": "tool",
+                "tool_call_id": "1",
+                "name": "send_chat_files",
+                "content": "Sent 1 file(s): report.md",
+            },
+            {"role": "assistant", "content": "Файл в чате."},
+            {"role": "user", "content": "проверь себя"},
+        ],
+        trajectory=[],
+        skills=[
+            {
+                "name": "bad-delivery",
+                "content": "## Procedure\n1. split -l 80 file.md\n2. Отправь через read_file.\n",
+                "description": "отправь файл в telegram",
+            }
+        ],
+    )
+    codes = {f["code"] for f in report["findings"]}
+    assert "claimed_file_send_without_tool" not in codes
+    assert "skill_teaches_wrong_delivery" not in codes
+    assert "send_chat_files" in report["session"]["distinct_tools"]
+    assert report["plan"]["auto_fix"] == []
+
+
+def test_diagnose_failed_tools_and_false_ready() -> None:
+    report = diagnose_session(
+        complaint="ты сделал не так",
+        messages=[
+            {"role": "user", "content": "Исправь тесты"},
+            {
+                "role": "assistant",
+                "content": "",
+                "tool_calls": [{"id": "1", "function": {"name": "run_terminal_command"}}],
+            },
+            {
+                "role": "tool",
+                "tool_call_id": "1",
+                "name": "run_terminal_command",
+                "content": '{"ok": false, "error": "pytest failed: 3 errors"}',
+            },
+            {"role": "assistant", "content": "Готово, тесты исправлены."},
+            {"role": "user", "content": "проверь себя"},
+        ],
+    )
+    codes = {f["code"] for f in report["findings"]}
+    assert "tool_failures" in codes
+    assert "false_completion_claim" in codes
+    assert report["plan"]["do_now"]
+    assert report["session"]["failed_tools"]
+
+
+def test_diagnose_no_progress_on_action_ask() -> None:
+    report = diagnose_session(
+        complaint="проверь себя",
+        messages=[
+            {"role": "user", "content": "Задеплой это на lab"},
+            {"role": "assistant", "content": "Сейчас посмотрю."},
+            {"role": "user", "content": "проверь себя"},
+        ],
+    )
+    codes = {f["code"] for f in report["findings"]}
+    assert "no_progress_on_latest_ask" in codes
+    assert "Задеплой" in report["session"]["last_real_ask"]
+
+
 def test_self_diagnose_is_core_and_main_slot() -> None:
     assert "self_diagnose" in CORE_TOOL_NAMES
     assert tool_allowed_for_slot("self_diagnose", "main")
