@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 from core.sdd.apply_mode import apply_mode_prompt_text, normalize_apply_mode, save_apply_mode
-from core.sdd.merge import merge_delta_into_main, patch_delta_spec
+from core.sdd.merge import count_delta_requirements, merge_delta_into_main, patch_delta_spec
 from core.sdd.paths import confined_under, validate_change_id
 from core.sdd.store import SpecStore
 from core.sdd.tasks import parse_tasks_markdown, set_task_assignee, set_task_done
@@ -116,6 +116,43 @@ def test_set_task_done_and_assignee():
     assert tasks[0].assignee == "ui-dev"
     assert tasks[0].reason == "UI only"
     assert tasks[0].done is True
+
+
+def test_merge_plain_h3_domain_spec_as_added() -> None:
+    """RU/agent fill uses ``### F-1. Title`` instead of OpenSpec delta headings."""
+    main = "# core\n\n"
+    delta = """# Спецификация домена: Stars-ключ для не-участников
+
+## Требования
+
+### F-1. Интерактивное меню бота
+Бот должен отвечать на `/start` inline-клавиатурой.
+
+### F-2. Покупка за Stars
+При нажатии «Купить ключ за Stars» бот отправляет инвойс.
+
+#### Scenario: Pay
+- **GIVEN** a user
+- **WHEN** they pay
+- **THEN** a key is issued
+"""
+    assert count_delta_requirements(delta) == 2
+    out = merge_delta_into_main(main, delta)
+    assert "### Requirement: F-1. Интерактивное меню бота" in out
+    assert "### Requirement: F-2. Покупка за Stars" in out
+    assert "inline-клавиатурой" in out
+    assert "#### Scenario: Pay" in out
+    assert out.count("### Requirement:") == 2
+
+
+def test_count_delta_requirements_still_uses_openspec_headings() -> None:
+    delta = """## ADDED Requirements
+
+### Requirement: Login
+The system SHALL login.
+"""
+    assert count_delta_requirements(delta) == 1
+    assert count_delta_requirements("# empty\n") == 0
 
 
 def test_merge_delta_added_modified_removed():
@@ -276,6 +313,47 @@ def test_archive_nested_spec_merges_into_parent_domain(tmp_path: Path):
     assert "Top level" in main
     assert "Nested note" in main
     assert archived["merged_specs"] == ["openspec/specs/auth/spec.md"]
+
+
+def test_archive_merges_h3_domain_spec_without_openspec_delta(tmp_path: Path) -> None:
+    store = SpecStore(tmp_path)
+    store.init(example_domain="core")
+    store.create_change("stars-key-for-non-members", domain="core")
+    store.write_artifact(
+        "stars-key-for-non-members",
+        "proposal",
+        "# Proposal\n\n## Why\nStars key.\n\n## What\nSell it.\n\n## Impact\nSpecs.\n",
+    )
+    spec = (
+        tmp_path
+        / "openspec"
+        / "changes"
+        / "stars-key-for-non-members"
+        / "specs"
+        / "core"
+        / "spec.md"
+    )
+    spec.write_text(
+        "# Спецификация домена: Stars-ключ\n\n"
+        "## Требования\n\n"
+        "### F-1. Интерактивное меню бота\n"
+        "Бот должен отвечать на `/start`.\n\n"
+        "### NF-1. Цена\n"
+        "Цена задаётся env `STARS_KEY_PRICE`.\n",
+        encoding="utf-8",
+    )
+    store.write_artifact(
+        "stars-key-for-non-members",
+        "tasks",
+        "# Tasks\n\n- [x] 1.1 Done\n  - **assignee:** `main`\n  - **reason:** ok\n",
+    )
+    archived = store.archive("stars-key-for-non-members")
+    assert archived["ok"] is True, archived
+    assert archived["requirements_merged"] == 2
+    main = (tmp_path / "openspec" / "specs" / "core" / "spec.md").read_text(encoding="utf-8")
+    assert "### Requirement: F-1. Интерактивное меню бота" in main
+    assert "STARS_KEY_PRICE" in main
+    assert not (tmp_path / "openspec" / "changes" / "stars-key-for-non-members").exists()
 
 
 def test_archive_warns_on_open_tasks(tmp_path: Path):
