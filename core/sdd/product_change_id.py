@@ -48,6 +48,18 @@ def find_product_project_json(start: Path) -> Path | None:
     return None
 
 
+def _sdd_scan_root(project_root: Path) -> Path:
+    try:
+        from core.sdd.product_layout import load_product_layout, sdd_workspace_for_layout
+
+        layout = load_product_layout(project_root)
+    except Exception:
+        layout = None
+    if layout is None:
+        return project_root
+    return sdd_workspace_for_layout(layout, project_root)
+
+
 def _max_n_for_prefix(data: dict[str, Any], prefix: str, *, project_root: Path) -> int:
     max_n = 0
     try:
@@ -64,7 +76,8 @@ def _max_n_for_prefix(data: dict[str, Any], prefix: str, *, project_root: Path) 
                 max_n = max(max_n, int(m.group(1)))
             except (TypeError, ValueError):
                 pass
-    changes = project_root / "openspec" / "changes"
+    scan_root = _sdd_scan_root(project_root)
+    changes = scan_root / "openspec" / "changes"
     if changes.is_dir():
         for d in changes.iterdir():
             if d.is_dir() and not d.name.startswith("."):
@@ -86,7 +99,7 @@ def _max_n_for_prefix(data: dict[str, Any], prefix: str, *, project_root: Path) 
                             max_n = max(max_n, int(m.group(1)))
                         except (TypeError, ValueError):
                             pass
-    wt_root = project_root / ".holix" / "worktrees"
+    wt_root = scan_root / ".holix" / "worktrees"
     if wt_root.is_dir():
         for d in wt_root.iterdir():
             if d.is_dir():
@@ -122,11 +135,12 @@ def allocate_product_change_id(
         project_name=str(data.get("name") or data.get("slug") or ""),
     )
     project_root = meta_path.parent.parent
+    sdd_root = _sdd_scan_root(project_root)
     req = (requested or "").strip().lower()
     m = _PREFIX_N.match(req)
     if m and m.group(1).lower() == prefix:
         cid = f"{prefix}-{int(m.group(2))}"
-        dest = project_root / "openspec" / "changes" / cid
+        dest = sdd_root / "openspec" / "changes" / cid
         if not dest.exists():
             settings["task_prefix"] = prefix
             try:

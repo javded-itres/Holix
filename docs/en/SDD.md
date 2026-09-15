@@ -57,6 +57,41 @@ repo/
 1. `sdd_list_projects`
 2. Pass `project=<path>` on every `sdd_*` call
 
+After `sdd_init` / `sdd_create_change` the conversation is **pinned** to that
+project directory: file tools and terminal use it as `workspace_root` (git
+worktree still wins while the change is bound). `/change leave` drops the
+worktree overlay but keeps the project pin.
+
+### Multi-repo Studio product (shared spec repo)
+
+When `.holix/project.json` lists clones, mark **one** with `"role": "spec"`.
+All `sdd_*` writes go there (`openspec/` inside that clone). Code clones use
+`"role": "code"`. Do **not** name the spec clone `openspec` (Holix creates
+that folder). File-tool jail is the **product** directory so every member
+clone stays in scope.
+
+```text
+projects/acme/
+  .holix/project.json
+  api/          # role=code
+  web/          # role=code
+  spec/         # role=spec → spec/openspec/...
+```
+
+```json
+"repos": [
+  {"id": "api", "path": "api", "role": "code"},
+  {"id": "web", "path": "web", "role": "code"},
+  {"id": "spec", "path": "spec", "role": "spec"}
+]
+```
+
+`sdd_init` inside a code clone is refused; `sdd_list_projects` returns the spec
+clone only. Without `role=spec`, SDD runs only in clones that already contain
+`openspec/` (a single-repo product may still `sdd_init` at the product root).
+Mark the spec clone explicitly in Studio / MCP (`role=spec`) so a shared spec
+repo is used.
+
 ---
 
 ## Agent tools (`sdd_*`)

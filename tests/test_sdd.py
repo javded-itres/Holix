@@ -666,6 +666,7 @@ def test_accept_request_understanding_unlock_modes(tmp_path: Path):
 async def test_sdd_tools_register_and_init(tmp_path: Path):
     import json
 
+    from core.sdd.change_workspace import reset_active_change_store
     from core.tools.execution_context import reset_workspace_scope, workspace_scope
     from core.tools.registry import ToolRegistry
 
@@ -674,6 +675,7 @@ async def test_sdd_tools_register_and_init(tmp_path: Path):
         workspace_jail_enabled=False,
     )
     try:
+        reset_active_change_store()
         reg = ToolRegistry()
         reg.register_all()
         assert "sdd_init" in reg.tools
@@ -712,6 +714,7 @@ async def test_sdd_tools_register_and_init(tmp_path: Path):
         assert "main_preview" in patched
     finally:
         reset_workspace_scope(tokens)
+        reset_active_change_store()
 
 
 @pytest.mark.asyncio
@@ -719,10 +722,12 @@ async def test_nested_project_paths_and_read_file_hint(tmp_path: Path):
     """Nested SDD must report workspace-relative paths (project prefix)."""
     import json
 
+    from core.sdd.change_workspace import reset_active_change_store
     from core.tools.execution_context import reset_workspace_scope, workspace_scope
     from core.tools.file_ops import ReadFileTool
     from core.tools.registry import ToolRegistry
 
+    reset_active_change_store()
     project = tmp_path / "user_catalog"
     project.mkdir()
     store = SpecStore(project)

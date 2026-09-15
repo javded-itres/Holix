@@ -328,7 +328,10 @@ async def test_sdd_archive_tool_releases_worktree(tmp_path: Path) -> None:
         wt_info = payload.get("worktree") or {}
         assert wt_info.get("removed") is True, payload
         assert not wt.exists()
-        assert get_active_change("default", "c-arc") is None
+        leftover = get_active_change("default", "c-arc")
+        assert leftover is not None
+        assert leftover.worktree == ""
+        assert Path(leftover.project_root) == repo.resolve()
     finally:
         reset_conversation_scope(ctok)
         reset_profile_scope(ptok)

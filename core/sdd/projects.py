@@ -54,6 +54,13 @@ def resolve_project_root(workspace: Path | str, project: str | None = None) -> P
         root.relative_to(ws)
     except ValueError as exc:
         raise ValueError(f"project path escapes workspace: {project!r}") from exc
+    if root == ws:
+        return ws
+    # Session already pinned to this project: do not nest ``apps/api/apps/api``.
+    if is_sdd_initialized(ws) and not root.is_dir():
+        posix = ws.as_posix()
+        if posix.endswith("/" + rel) or ws.name == Path(rel).name:
+            return ws
     return root
 
 
@@ -82,6 +89,41 @@ def discover_sdd_projects(
     ws = Path(workspace).expanduser().resolve()
     found: list[dict] = []
     seen: set[str] = set()
+
+    try:
+        from core.sdd.product_layout import load_product_layout
+
+        layout = load_product_layout(ws)
+    except Exception:
+        layout = None
+    if layout is not None and layout.has_dedicated_spec and layout.spec_root is not None:
+        spec = layout.spec_root
+        try:
+            rel_s = spec.relative_to(ws)
+            rel = "" if str(rel_s) == "." else rel_s.as_posix()
+        except ValueError:
+            try:
+                rel_s = spec.relative_to(layout.project_root)
+                rel = "" if str(rel_s) == "." else rel_s.as_posix()
+            except ValueError:
+                rel = spec.name
+        op = openspec_root(spec)
+        try:
+            op_rel = op.relative_to(ws).as_posix()
+        except ValueError:
+            try:
+                op_rel = op.relative_to(layout.project_root).as_posix()
+            except ValueError:
+                op_rel = str(op)
+        return [
+            {
+                "path": rel,
+                "label": project_label(rel),
+                "openspec": op_rel,
+                "initialized": is_sdd_initialized(spec),
+                "role": "spec",
+            }
+        ]
 
     def _add(project_root: Path) -> None:
         try:

@@ -376,7 +376,13 @@ class AgentCommands:
             return
         if action in {"leave", "off", "clear"}:
             clear_active_change(profile, cid)
-            h.transcript_write("[dim]left SDD worktree (clone workspace again)[/dim]")
+            leftover = get_active_change(profile, cid)
+            if leftover and leftover.project_root:
+                h.transcript_write(
+                    f"[dim]left SDD worktree — still pinned to {leftover.project_root}[/dim]"
+                )
+            else:
+                h.transcript_write("[dim]left SDD worktree (clone workspace again)[/dim]")
             return
         if action in {"switch", "use"} and len(parts) >= 3:
             wanted = parts[2].strip()

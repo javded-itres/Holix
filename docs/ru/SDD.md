@@ -67,6 +67,31 @@ repo/
 1. `sdd_list_projects` → взять `path`
 2. Во все `sdd_*` передавать `project=<path>`
 
+После `sdd_init` / `sdd_create_change` разговор **пинится** на каталог этого
+проекта: file tools и terminal работают от него (git worktree, пока change
+привязан, перекрывает пин). `/change leave` снимает worktree, пин проекта
+остаётся.
+
+### Мультирепа Studio (общая spec-репа)
+
+В `.holix/project.json` у **одной** репы `"role": "spec"` — туда идут все
+`sdd_*` (`openspec/` внутри этого клона). Код — `"role": "code"`. Клон spec
+не называть `openspec`. Jail file tools — **каталог продукта**, чтобы были
+видны все member clones.
+
+```text
+projects/acme/
+  .holix/project.json
+  api/     # role=code
+  web/     # role=code
+  spec/    # role=spec → spec/openspec/...
+```
+
+`sdd_init` в code-клоне отклоняется. `sdd_list_projects` возвращает только
+spec-клон. Без `role=spec` SDD идёт только в клонах, где уже есть `openspec/`
+(в одном репо можно `sdd_init` в корне продукта). Чтобы общая spec-репа
+использовалась, пометьте её явно в Studio / MCP (`role=spec`).
+
 ---
 
 ## Инструменты агента (`sdd_*`)

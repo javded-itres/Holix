@@ -21,7 +21,53 @@ _PROJECT_PROP = {
 
 
 def _store(project: str = "") -> SpecStore:
-    return SpecStore(resolve_project_root(workspace_from_context(), project))
+    return SpecStore(_sdd_workspace(project))
+
+
+def _sdd_workspace(project: str = "") -> Path:
+    """Directory that owns ``openspec/`` for this session.
+
+    Studio products with ``repos[].role=spec`` always use that clone, even when
+    the file-tool jail is the product root (so code clones stay editable).
+    """
+    from core.sdd.product_layout import (
+        is_under_code_repo,
+        load_product_layout,
+        sdd_workspace_for_layout,
+    )
+
+    ctx = workspace_from_context()
+    layout = load_product_layout(ctx)
+    try:
+        from core.sdd.change_workspace import get_active_change
+        from core.tools.execution_context import get_conversation_id, get_profile_name
+
+        active = get_active_change(get_profile_name(), get_conversation_id())
+    except Exception:
+        active = None
+    if layout is not None and layout.has_dedicated_spec and active is not None and active.worktree:
+        wt = Path(active.worktree).expanduser()
+        if wt.is_dir():
+            return wt.resolve()
+    if layout is not None and layout.spec_root is not None:
+        if project:
+            requested = resolve_project_root(ctx, project)
+            if is_under_code_repo(layout, requested):
+                raise ValueError(
+                    "SDD lives in the spec repo "
+                    f"({layout.spec_rel or layout.spec_root}); "
+                    "do not pass a code clone as project="
+                )
+        return sdd_workspace_for_layout(layout, ctx)
+    if layout is not None and not layout.has_dedicated_spec:
+        if project:
+            requested = resolve_project_root(ctx, project)
+            if (requested / "openspec" / "config.yaml").is_file():
+                return requested
+        inferred = layout.inferred_openspec_root()
+        if inferred is not None:
+            return inferred
+    return resolve_project_root(ctx, project)
 
 
 def _attach_change_worktree(
@@ -68,13 +114,58 @@ def _err(exc: BaseException) -> str:
     return result_json({"ok": False, "error": f"{type(exc).__name__}: {exc}"})
 
 
+def _pin_sdd_project(
+    project_root: Path,
+    *,
+    project: str = "",
+    change_id: str = "",
+    worktree_note: dict[str, str] | None = None,
+) -> None:
+    """Pin this conversation's file/terminal workspace to the SDD project dir."""
+    try:
+        from core.sdd.change_workspace import ActiveChange, bind_active_change, bind_active_project
+        from core.tools.execution_context import get_conversation_id, get_profile_name
+    except Exception:
+        return
+    try:
+        root = Path(project_root).expanduser().resolve()
+    except (OSError, RuntimeError, ValueError):
+        return
+    if not root.is_dir():
+        return
+    try:
+        profile = get_profile_name()
+        cid = get_conversation_id()
+    except Exception:
+        return
+    try:
+        if worktree_note and worktree_note.get("worktree"):
+            bind_active_change(
+                profile,
+                cid,
+                ActiveChange(
+                    change_id=change_id or "",
+                    branch=str(worktree_note.get("branch") or ""),
+                    worktree=str(worktree_note.get("worktree") or ""),
+                    clone=str(worktree_note.get("clone") or ""),
+                    project=project or "",
+                    project_root=str(root),
+                ),
+            )
+            return
+        bind_active_project(profile, cid, root, project=project or "")
+    except Exception:
+        pass
+
+
 class SddListProjectsTool(BaseTool):
     def __init__(self) -> None:
         super().__init__()
         self.name = "sdd_list_projects"
         self.description = (
-            "List projects under the workspace that already have openspec/ "
-            "(multi-project SDD). Use path as project= for other sdd_* tools."
+            "List SDD project roots (folders that own openspec/). In a Studio "
+            "multi-repo product with repos[].role=spec this is that spec clone. "
+            "Use path as project= for other sdd_* tools."
         )
         self.risk_level = "no"
         self.parameters = {"type": "object", "properties": {}}
@@ -94,9 +185,11 @@ class SddInitTool(BaseTool):
         super().__init__()
         self.name = "sdd_init"
         self.description = (
-            "Initialize OpenSpec-style SDD layout for a project folder "
-            "(openspec/config.yaml, specs/, changes/). "
-            "Pass project= relative path (e.g. apps/api) or empty for workspace root."
+            "Initialize OpenSpec-style SDD layout (openspec/config.yaml, specs/, "
+            "changes/). Empty project= uses the workspace root — or, in a Studio "
+            "product with repos[].role=spec, the dedicated spec clone. Do not "
+            "sdd_init inside a code clone. Without role=spec, only init in a "
+            "clone that already has openspec/ (or the single-repo product root)."
         )
         self.risk_level = "no"
         self.parameters = {
@@ -124,10 +217,58 @@ class SddInitTool(BaseTool):
         **_: Any,
     ) -> str:
         try:
-            root = resolve_project_root(workspace_from_context(), project)
+            from core.sdd.product_layout import is_under_code_repo, load_product_layout
+
+            ctx = workspace_from_context()
+            layout = load_product_layout(ctx)
+            requested = resolve_project_root(ctx, project)
+            if layout is not None and layout.has_dedicated_spec and layout.spec_root is not None:
+                if project and is_under_code_repo(layout, requested):
+                    return result_json(
+                        {
+                            "ok": False,
+                            "error": (
+                                "This product has a dedicated spec repo "
+                                f"({layout.spec_rel or layout.spec_root}). "
+                                "Do not sdd_init inside a code clone."
+                            ),
+                            "spec_repo": str(layout.spec_root),
+                        }
+                    )
+                root = layout.spec_root
+                pin_root = layout.project_root
+            elif layout is not None and layout.is_multi and not layout.has_dedicated_spec:
+                requested_has = (requested / "openspec" / "config.yaml").is_file()
+                inferred = layout.inferred_openspec_root()
+                if requested_has and requested != layout.project_root:
+                    root = requested
+                    pin_root = requested
+                elif inferred is not None and (requested == layout.project_root or not project):
+                    root = inferred
+                    pin_root = inferred
+                else:
+                    return result_json(
+                        {
+                            "ok": False,
+                            "error": (
+                                "This product has several clones and no role=spec. "
+                                "Mark a spec repo (repos[].role=spec) or run "
+                                "sdd_init only in a clone that already has openspec/."
+                            ),
+                        }
+                    )
+            else:
+                root = requested
+                pin_root = (
+                    layout.project_root if layout is not None and not layout.is_multi else requested
+                )
             root.mkdir(parents=True, exist_ok=True)
             result = SpecStore(root).init(example_domain=example_domain, force=bool(force))
             result["project"] = project or ""
+            if layout is not None and layout.has_dedicated_spec:
+                result["spec_repo"] = str(layout.spec_root)
+            _pin_sdd_project(pin_root, project=project or "")
+            result["workspace_pin"] = str(pin_root)
             return result_json(result)
         except Exception as exc:
             return _err(exc)
@@ -280,10 +421,7 @@ class SddCreateChangeTool(BaseTool):
     ) -> str:
         try:
             from core.sdd.prefs import SddPrefsStore
-            from core.tools.execution_context import (
-                get_conversation_id,
-                get_profile_name,
-            )
+            from core.tools.execution_context import get_profile_name
 
             prefs = SddPrefsStore(get_profile_name()).get()
             store = _store(project)
@@ -291,10 +429,19 @@ class SddCreateChangeTool(BaseTool):
                 allocate_product_change_id,
                 ensure_studio_board_task,
             )
+            from core.sdd.product_layout import load_product_layout
 
             allocated = allocate_product_change_id(store.workspace, requested=change_id)
             if allocated:
                 change_id = str(allocated["change_id"])
+            layout = load_product_layout(store.workspace) or load_product_layout(
+                workspace_from_context()
+            )
+            pin_root = (
+                layout.project_root
+                if layout is not None and layout.has_dedicated_spec
+                else store.workspace
+            )
             worktree_note = _attach_change_worktree(store, change_id, project=project)
             result = store.create_change(
                 change_id,
@@ -303,26 +450,16 @@ class SddCreateChangeTool(BaseTool):
                 understanding_gate_enabled=prefs.understanding_gate_enabled,
                 understanding_threshold=prefs.understanding_threshold,
             )
+            _pin_sdd_project(
+                pin_root,
+                project=project or "",
+                change_id=str(result.get("change_id") or change_id),
+                worktree_note=worktree_note,
+            )
+            if layout is not None and layout.has_dedicated_spec:
+                result["spec_repo"] = str(layout.spec_root)
             if worktree_note:
                 result.update(worktree_note)
-                bind_cid = get_conversation_id()
-                bind_profile = get_profile_name()
-                try:
-                    from core.sdd.change_workspace import ActiveChange, bind_active_change
-
-                    bind_active_change(
-                        bind_profile,
-                        bind_cid,
-                        ActiveChange(
-                            change_id=str(result.get("change_id") or change_id),
-                            branch=str(worktree_note.get("branch") or ""),
-                            worktree=str(worktree_note.get("worktree") or ""),
-                            clone=str(worktree_note.get("clone") or ""),
-                            project=project or "",
-                        ),
-                    )
-                except Exception:
-                    pass
             if allocated:
                 result["change_id"] = str(result.get("change_id") or change_id)
                 rewritten = allocated.get("rewritten_from")

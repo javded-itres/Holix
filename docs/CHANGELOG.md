@@ -2,17 +2,26 @@
 
 ## Unreleased
 
+### Added
+
+- **SDD project pin** — `sdd_init` / `sdd_create_change` bind the conversation
+  workspace to the directory that owns `openspec/` (file tools + terminal).
+  A live git worktree still overlays that pin. `/change leave` and archive drop
+  the worktree bind but keep the project pin.
+- **SDD spec repo** — Studio `.holix/project.json` `repos[].role=spec` is the
+  only OpenSpec root for that product. `sdd_*` write there; `sdd_init` in a
+  `role=code` clone is refused. Without `role=spec`, SDD uses only clones that
+  already contain `openspec/` (no scatter into every repo). File-tool jail stays
+  the product directory so all member clones stay in scope.
+- **Telegram / MAX** — per-profile default `max_steps` is set from `/menu` →
+  **Steps** (presets 30/60/90/120/180/300) or `/steps N` (10–500). Stored on
+  the Holix profile like Reflexion/pipeline.
+
 ### Fixed
 
 - **SDD archive** — a full domain spec with ``### F-1. Title`` (no
   ``## ADDED Requirements`` / ``### Requirement:``) merges into
   ``openspec/specs`` instead of refusing the archive. Common after RU/agent fill.
-
-### Added
-
-- **Telegram / MAX** — per-profile default `max_steps` is set from `/menu` →
-  **Steps** (presets 30/60/90/120/180/300) or `/steps N` (10–500). Stored on
-  the Holix profile like Reflexion/pipeline.
 
 ### Changed
 
@@ -33,6 +42,9 @@
 
 - Error-token health check, dump-as-final auto-extend, Continue/Abort pause.
 - Messenger per-profile `max_steps` persist + Telegram/MAX picker callbacks.
+- SDD project pin overlay, leave-keeps-pin, nested `sdd_init`, worktrees off.
+- Dedicated spec repo (`repos[].role=spec`): init/create/list refuse code clones.
+- Without `role=spec`, SDD uses existing `openspec/` clones only (no scatter).
 
 ## 1.1.10 — 2026-09-04
 
