@@ -273,8 +273,6 @@ class CodeEventHandler:
             self.app._store_tool_result(name, body, duration_s)
             if name in ("start_background_process", "run_project"):
                 self._sync_process_bar_from_tool_result(body)
-            if name in ("todo_write", "todowrite", "todo"):
-                self.app.sync_todo_list()
 
         self.app._maybe_refresh_context_display()
         self.app.transcript_scroll_bottom()

@@ -18,6 +18,7 @@ from core.profile.names import ProfileNameError, profile_dir_for_name
 logger = logging.getLogger(__name__)
 
 TODO_STATUSES = ("pending", "in_progress", "completed", "cancelled")
+OPEN_TODO_STATUSES = frozenset({"pending", "in_progress"})
 MAX_TODOS = 20
 MAX_CONTENT = 240
 
@@ -156,14 +157,29 @@ def format_todo_summary(items: Iterable[TodoItem | dict[str, Any]]) -> str:
     return " · ".join(bits)
 
 
+def _item_status(item: TodoItem | dict[str, Any]) -> str:
+    if isinstance(item, TodoItem):
+        return item.status
+    return _normalize_status(item.get("status"))
+
+
+def todo_list_is_open(items: Iterable[TodoItem | dict[str, Any]]) -> bool:
+    """True when at least one item is still pending or in_progress."""
+    for item in items:
+        if _item_status(item) in OPEN_TODO_STATUSES:
+            return True
+    return False
+
+
 def format_todo_prompt_block(items: Iterable[TodoItem | dict[str, Any]]) -> str:
     rows = list(items)
-    if not rows:
+    if not rows or not todo_list_is_open(rows):
         return ""
     lines = [
         "## Session todos",
         "Current checklist. `todo_write` **replaces** the whole list — send every item.",
         "Statuses: pending, in_progress, completed, cancelled.",
+        "When every item is completed or cancelled, send an empty list to clear it.",
         "This list is a plan, not proof of work.",
     ]
     for item in rows:
@@ -310,6 +326,22 @@ def get_todos(profile: str, conversation_id: str) -> list[TodoItem]:
 
 def replace_todos(profile: str, conversation_id: str, raw: Any) -> list[TodoItem]:
     return _store.replace(profile, conversation_id, raw)
+
+
+def drop_closed_todos(profile: str, conversation_id: str) -> list[TodoItem]:
+    """Persist-clear a finished checklist (all completed/cancelled).
+
+    Returns remaining open items, or ``[]`` after a drop. Call this at the
+    start of a new user turn so a finished plan does not leak into the next
+    prompt or live message.
+    """
+    items = _store.get(profile, conversation_id)
+    if not items:
+        return []
+    if todo_list_is_open(items):
+        return items
+    _store.clear(profile, conversation_id)
+    return []
 
 
 def reset_todo_store() -> None:

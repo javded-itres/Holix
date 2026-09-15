@@ -4,12 +4,15 @@ from __future__ import annotations
 
 import pytest
 from core.runtime.todo_list import (
+    drop_closed_todos,
     format_todo_checklist,
+    format_todo_prompt_block,
     format_todo_summary,
     get_todos,
     normalize_todo_items,
     replace_todos,
     reset_todo_store,
+    todo_list_is_open,
 )
 from core.tools.execution_context import conversation_scope, profile_scope, reset_conversation_scope
 from core.tools.todo import TodoWriteTool
@@ -87,3 +90,68 @@ async def test_todo_write_empty_clears() -> None:
         reset_conversation_scope(token)
     assert "cleared" in out.lower()
     assert get_todos("default", "sess_2") == []
+
+
+def test_closed_list_is_not_open() -> None:
+    done = replace_todos(
+        "default",
+        "done_1",
+        [
+            {"content": "A", "status": "completed"},
+            {"content": "B", "status": "cancelled"},
+        ],
+    )
+    assert todo_list_is_open(done) is False
+    assert format_todo_prompt_block(done) == ""
+    mixed = replace_todos(
+        "default",
+        "open_1",
+        [
+            {"content": "A", "status": "completed"},
+            {"content": "B", "status": "pending"},
+        ],
+    )
+    assert todo_list_is_open(mixed) is True
+    prompt = format_todo_prompt_block(mixed)
+    assert "[pending]" in prompt
+    assert "[completed]" in prompt
+
+
+def test_drop_closed_todos_clears_finished_plan() -> None:
+    replace_todos(
+        "default",
+        "done_2",
+        [{"content": "Ship", "status": "completed"}],
+    )
+    assert get_todos("default", "done_2")
+    assert drop_closed_todos("default", "done_2") == []
+    assert get_todos("default", "done_2") == []
+    replace_todos(
+        "default",
+        "open_2",
+        [{"content": "Ship", "status": "in_progress"}],
+    )
+    kept = drop_closed_todos("default", "open_2")
+    assert len(kept) == 1
+    assert kept[0].status == "in_progress"
+
+
+def test_hydrate_todos_skips_finished_list() -> None:
+    from core.presenters.live_buffer import LiveTranscriptBuffer
+
+    replace_todos(
+        "default",
+        "done_3",
+        [{"content": "Old plan", "status": "completed"}],
+    )
+    buf = LiveTranscriptBuffer(profile="default", mode="react")
+    buf.hydrate_todos(profile="default", conversation_id="done_3")
+    assert buf.todos == []
+    replace_todos(
+        "default",
+        "open_3",
+        [{"content": "Still going", "status": "pending"}],
+    )
+    buf.hydrate_todos(profile="default", conversation_id="open_3")
+    assert len(buf.todos) == 1
+    assert buf.todos[0]["content"] == "Still going"

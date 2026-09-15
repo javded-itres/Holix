@@ -72,9 +72,9 @@ class LiveTranscriptBuffer:
         self.todos = items_as_dicts(items or [])
 
     def hydrate_todos(self, *, profile: str, conversation_id: str) -> None:
-        from core.runtime.todo_list import get_todos, items_as_dicts
+        from core.runtime.todo_list import drop_closed_todos, items_as_dicts
 
-        self.todos = items_as_dicts(get_todos(profile, conversation_id))
+        self.todos = items_as_dicts(drop_closed_todos(profile, conversation_id))
         self.hydrate_sdd_change(profile=profile, conversation_id=conversation_id)
 
     def hydrate_sdd_change(self, *, profile: str, conversation_id: str) -> None:

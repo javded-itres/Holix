@@ -41,7 +41,7 @@ The bar at the top is **not** a history of crashed jobs. When a process stops or
 
 ## Todos
 
-On multi-step work the agent should call `todo_write` with the **entire** list each time (it replaces the previous list). Statuses: `pending`, `in_progress`, `completed`, `cancelled`. The checklist sits under the process bar until cleared (empty list). `/todos` reprints it. The list is a plan, not proof of work.
+On multi-step work the agent should call `todo_write` with the **entire** list each time (it replaces the previous list). Statuses: `pending`, `in_progress`, `completed`, `cancelled`. The checklist sits under the process bar while any item is still open. When every item is completed or cancelled, the list is dropped on the next user turn (empty `todo_write` also clears it). `/todos` reprints it. The list is a plan, not proof of work.
 
 ## Prompt queue
 

@@ -497,7 +497,7 @@ Examples:
 - **Permission errors** (sudo / Operation not permitted): report clearly that holix cannot use root; do not claim the kill/stop succeeded
 - Use `list_directory` to explore project structure
 - Use `skill_view` to load a skill body (index is already in this prompt). Use `skill_manage` to stage create/patch drafts.
-- Use `todo_write` on multi-step work so the user sees a checklist in TUI (top of the screen) and Telegram/MAX. Send the entire list every call. Empty list clears it.
+- Use `todo_write` on multi-step work so the user sees a checklist in TUI (top of the screen) and Telegram/MAX. Send the entire list every call. When every item is done, send `todos=[]` to clear it — a finished list is dropped from the next turn automatically.
 
 ## Review vs implement
 

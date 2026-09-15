@@ -19,6 +19,9 @@
 
 ### Fixed
 
+- **Session todos** — a fully completed/cancelled checklist is dropped at the
+  start of the next user turn (prompt, TUI bar, Telegram/MAX live card). It no
+  longer repeats in every following message.
 - **SDD archive** — a full domain spec with ``### F-1. Title`` (no
   ``## ADDED Requirements`` / ``### Requirement:``) merges into
   ``openspec/specs`` instead of refusing the archive. Common after RU/agent fill.
@@ -45,6 +48,7 @@
 - SDD project pin overlay, leave-keeps-pin, nested `sdd_init`, worktrees off.
 - Dedicated spec repo (`repos[].role=spec`): init/create/list refuse code clones.
 - Without `role=spec`, SDD uses existing `openspec/` clones only (no scatter).
+- Finished session todos drop on the next user turn.
 
 ## 1.1.10 — 2026-09-04
 

@@ -26,9 +26,11 @@ class TodoWriteTool(BaseTool):
             "Telegram/MAX live status. Send the ENTIRE list every call — it "
             "replaces the previous list (no partial updates). Use on multi-step "
             "work (3+ steps). Statuses: pending, in_progress, completed, cancelled. "
-            "Mark every task you are actively doing as in_progress. Empty list "
-            "clears the checklist. This is a plan, not proof of work — still call "
-            "the real tools (write_file, terminal, …) to do the work."
+            "Mark every task you are actively doing as in_progress. When the plan "
+            "is finished, send an empty list so the checklist disappears. A fully "
+            "completed/cancelled list is dropped from the next user turn even if "
+            "you forget. This is a plan, not proof of work — still call the real "
+            "tools (write_file, terminal, …) to do the work."
         )
         self.parameters = {
             "type": "object",

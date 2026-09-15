@@ -482,13 +482,18 @@ class HolixCodeApp(App):
         self.run_worker(self._send_message(text))
 
     def sync_todo_list(self, items: object | None = None) -> None:
-        """Sticky checklist from the session store (or an explicit payload)."""
-        from core.runtime.todo_list import get_todos, items_as_dicts
+        """Sticky checklist from the session store (or an explicit payload).
+
+        Store reads drop a finished (all completed/cancelled) list so it does
+        not stick around for the next user message. Explicit event payloads
+        still show the current-turn checklist, including a just-finished one.
+        """
+        from core.runtime.todo_list import drop_closed_todos, items_as_dicts
 
         rows = (
             items_as_dicts(items)
             if items is not None
-            else items_as_dicts(get_todos(self.profile, self.conversation_id))
+            else items_as_dicts(drop_closed_todos(self.profile, self.conversation_id))
         )
         try:
             bar = self.query_one("#todo-list", CodeTodoList)
@@ -997,6 +1002,7 @@ class HolixCodeApp(App):
     async def _send_message(self, message: str) -> None:
         dispatched = False
         try:
+            self.sync_todo_list()
             await self._dispatch_user_message(message)
             dispatched = getattr(self, "_last_dispatch_started_agent", False)
         finally:

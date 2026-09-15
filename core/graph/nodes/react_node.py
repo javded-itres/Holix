@@ -1892,10 +1892,10 @@ def _build_system_prompt_from_state(state: HolixGraphState, agent=None) -> str:
     raw_sub = getattr(agent, "subagent_system_prompt", None) if agent else None
     sub_prompt = raw_sub.strip() if isinstance(raw_sub, str) else ""
     try:
-        from core.runtime.todo_list import format_todo_prompt_block, get_todos
+        from core.runtime.todo_list import drop_closed_todos, format_todo_prompt_block
 
         cid = str(state.get("conversation_id") or "default")
-        todo_block = format_todo_prompt_block(get_todos(profile_name, cid))
+        todo_block = format_todo_prompt_block(drop_closed_todos(profile_name, cid))
         if todo_block:
             combined_memories = (
                 f"{combined_memories}\n\n{todo_block}" if combined_memories else todo_block
