@@ -2,25 +2,67 @@
 
 from __future__ import annotations
 
+from types import SimpleNamespace
+
 import pytest
 from aiohttp import web
 from integrations.max.client import MaxClient
-from integrations.max.commands import max_bot_commands, register_bot_commands, sync_bot_menu
-from integrations.telegram.commands import command_specs, telegram_menu_commands
+from integrations.max.commands import (
+    MAX_MENU_HOST_COMMANDS,
+    max_bot_commands,
+    register_bot_commands,
+    sync_bot_menu,
+)
+from integrations.telegram.commands import command_specs
 
 
-def test_max_menu_matches_telegram_specs() -> None:
-    assert len(max_bot_commands("en")) == len(command_specs("en"))
-    names = {item["name"] for item in max_bot_commands("en")}
+def test_max_menu_is_short_user_set() -> None:
+    names = [item["name"] for item in max_bot_commands("en")]
+    assert names == list(MAX_MENU_HOST_COMMANDS)
+    assert len(names) < len(command_specs("en"))
     assert "help" in names
-    assert "models" in names
-    assert len(max_bot_commands("en")) <= 32
+    assert "menu" in names
+    assert "yes" not in names
+    assert "message" not in names
+    assert len(names) <= 32
 
 
 def test_max_menu_uses_command_names_without_slash() -> None:
-    for cmd, _desc in telegram_menu_commands("en"):
-        payload = next(item for item in max_bot_commands("en") if item["name"] == cmd)
-        assert not payload["name"].startswith("/")
+    for item in max_bot_commands("en"):
+        assert not item["name"].startswith("/")
+
+
+def test_max_menu_includes_tariffs_and_invite_without_aliases(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def _ext() -> list[SimpleNamespace]:
+        return [
+            SimpleNamespace(command="billing", description="Тарифы и цены"),
+            SimpleNamespace(command="tariffs", description="Тарифы и цены"),
+            SimpleNamespace(command="referral", description="Пригласи друга"),
+            SimpleNamespace(command="invite", description="Пригласи друга"),
+            SimpleNamespace(command="ref", description="Пригласи друга"),
+            SimpleNamespace(command="pay", description="Оформить подписку"),
+            SimpleNamespace(command="subscribers", description="Список подписчиков (admin)"),
+            SimpleNamespace(command="start", description="Старт"),
+        ]
+
+    monkeypatch.setattr(
+        "integrations.max.plugin_api.extension_bot_commands",
+        _ext,
+    )
+    names = [item["name"] for item in max_bot_commands("en")]
+    assert names.count("tariffs") == 1
+    assert names.count("invite") == 1
+    assert "tariffs" in names
+    assert "invite" in names
+    assert "pay" in names
+    assert "start" in names
+    assert "billing" not in names
+    assert "referral" not in names
+    assert "ref" not in names
+    assert "subscribers" not in names
+    assert len(names) <= 32
 
 
 @pytest.mark.asyncio
