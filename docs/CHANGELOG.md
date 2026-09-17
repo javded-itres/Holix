@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 1.1.11 — 2026-09-18
+
 ### Added
 
 - **SDD project pin** — `sdd_init` / `sdd_create_change` bind the conversation
@@ -25,6 +27,9 @@
 - **SDD archive** — a full domain spec with ``### F-1. Title`` (no
   ``## ADDED Requirements`` / ``### Requirement:``) merges into
   ``openspec/specs`` instead of refusing the archive. Common after RU/agent fill.
+- **SDD worktree jail** — git objects under the linked clone `.git` (`GIT_DIR` /
+  `--git-dir`) are allowed so agents can merge from a worktree; the clone
+  working tree stays blocked.
 
 ### Changed
 
@@ -49,6 +54,7 @@
 - Dedicated spec repo (`repos[].role=spec`): init/create/list refuse code clones.
 - Without `role=spec`, SDD uses existing `openspec/` clones only (no scatter).
 - Finished session todos drop on the next user turn.
+- Worktree jail allows clone `.git` only; clone working tree stays blocked.
 
 ## 1.1.10 — 2026-09-04
 
