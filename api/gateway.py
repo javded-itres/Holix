@@ -96,7 +96,15 @@ async def lifespan(app: FastAPI):
 
     asyncio.create_task(_warm_gateway(), name="holix-gateway-warm")
 
-    await init_max_webhook(os.getenv("HELIX_PROFILE", "default"))
+    try:
+        await init_max_webhook(host_profile)
+    except Exception:
+        import logging
+
+        logging.getLogger(__name__).exception(
+            "MAX webhook init failed for profile %s; gateway continues without it",
+            host_profile,
+        )
 
     yield
 
@@ -165,9 +173,7 @@ async def root(
         "host_profile": str(host_profile),
         "loaded_profiles": loaded,
         "require_auth": settings.effective_require_auth,
-        "max_webhook": (
-            (max_state := max_gateway_state()) is not None and max_state.subscribed
-        ),
+        "max_webhook": ((max_state := max_gateway_state()) is not None and max_state.subscribed),
     }
 
 
@@ -201,5 +207,3 @@ def __getattr__(name: str):
     if name == "rate_limiter":
         return gw.rate_limiter
     raise AttributeError(name)
-
-

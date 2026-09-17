@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+### Fixed
+
+- **MAX webhook** — gateway lifespan uses the host profile (`HOLIX_PROFILE` /
+  `-p production`), not `HELIX_PROFILE`/`default`. Production no longer fails
+  startup when MAX is in webhook mode. A webhook init error no longer takes
+  down the whole gateway.
+
 ## 1.1.11 — 2026-09-18
 
 ### Added

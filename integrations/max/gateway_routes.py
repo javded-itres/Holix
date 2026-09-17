@@ -60,7 +60,7 @@ async def init_max_webhook(profile: str | None = None) -> MaxGatewayState | None
     global _state
 
     load_max_env_files()
-    profile = profile or os.getenv("HELIX_PROFILE", "default")
+    profile = profile or os.getenv("HOLIX_PROFILE") or os.getenv("HELIX_PROFILE") or "default"
     settings = load_max_settings(profile)
 
     if not settings.access_token.strip():
@@ -129,7 +129,7 @@ async def shutdown_max_webhook() -> None:
 async def reload_max_webhook(profile: str | None = None) -> dict[str, Any]:
     """Re-read MAX env and re-register webhook subscription (gateway host profile)."""
     load_max_env_files()
-    profile = profile or os.getenv("HELIX_PROFILE", "default")
+    profile = profile or os.getenv("HOLIX_PROFILE") or os.getenv("HELIX_PROFILE") or "default"
     settings = load_max_settings(profile)
     await shutdown_max_webhook()
     state = await init_max_webhook(profile)
