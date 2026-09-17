@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+### Changed
+
+- **MAX slash menu** — short user-facing set (help/menu/status/models/sessions/new/clear/stop/skills/lang) plus billing `start`, `tariffs`, `pay`, `subscription`, `topup`, `invite`, `promo` (and `settings` when the extension is on). Aliases (`billing`, `referral`, …) still work as commands but are not duplicated in the 32-slot MAX menu.
+
+### Fixed
+
+- **MAX webhook** — gateway lifespan uses the host profile (`HOLIX_PROFILE` /
+  `-p production`), not `HELIX_PROFILE`/`default`. Production no longer fails
+  startup when MAX is in webhook mode. A webhook init error no longer takes
+  down the whole gateway.
+
 ## 1.1.11 — 2026-09-18
 
 ### Added
