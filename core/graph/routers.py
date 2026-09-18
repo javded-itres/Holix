@@ -5,6 +5,7 @@ from __future__ import annotations
 import logging
 
 from core.graph.state import HolixGraphState
+from core.runtime.step_budget import step_limit_hit
 
 logger = logging.getLogger(__name__)
 
@@ -14,16 +15,17 @@ def route_after_react(state: HolixGraphState) -> str:
     is_final = state.get("is_final", False)
     step_count = state.get("step_count", 0)
     max_steps = state.get("max_steps", 90)
+    at_cap = step_limit_hit(step_count, max_steps)
 
-    if tool_calls and not is_final and step_count < max_steps:
+    if tool_calls and not is_final and not at_cap:
         return "tool_execution"
     # Honesty / empty-final retries keep the turn open (is_final=False, no tools).
     # Sending those to reflect immediately finalizes: reflect_node treats an
     # empty final_response as "nothing to evaluate" and clears needs_refinement.
-    if not is_final and not tool_calls and step_count < max_steps:
+    if not is_final and not tool_calls and not at_cap:
         return "react"
     # Draft answer or step budget exhausted → Reflexion evaluate (may loop to react)
-    if is_final or step_count >= max_steps or not tool_calls:
+    if is_final or at_cap or not tool_calls:
         return "reflect"
     return "reflect"
 
@@ -35,7 +37,7 @@ def route_after_reflect(state: HolixGraphState) -> str:
     if state.get("needs_refinement"):
         step_count = state.get("step_count", 0)
         max_steps = state.get("max_steps", 90)
-        if step_count >= max_steps:
+        if step_limit_hit(step_count, max_steps):
             logger.info("Reflexion requested retry but max_steps reached — finalizing")
             return "finalize"
         return "react"
@@ -87,7 +89,7 @@ def route_after_react_plan(state: HolixGraphState) -> str:
     current_step_idx = state.get("current_plan_step", 0)
     current_step_start_count = state.get("current_step_start_count", 0)
 
-    if is_final or step_count >= max_steps:
+    if is_final or step_limit_hit(step_count, max_steps):
         return "reflect"
     if tool_calls:
         return "tool_execution"

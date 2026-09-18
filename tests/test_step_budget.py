@@ -4,9 +4,56 @@ from __future__ import annotations
 
 from core.runtime.step_budget import (
     StepBudgetPolicy,
+    apply_unlimited_main_agent_steps,
     evaluate_step_budget,
     maybe_extend_for_graph_result,
+    step_limit_hit,
 )
+
+
+def test_apply_unlimited_main_agent_steps_interactive() -> None:
+    from types import SimpleNamespace
+
+    def with_overrides(**updates):
+        for k, v in updates.items():
+            setattr(cfg, k, v)
+        return cfg
+
+    cfg = SimpleNamespace(max_steps=90, non_interactive=False, with_overrides=with_overrides)
+    out = apply_unlimited_main_agent_steps(cfg)
+    assert out.max_steps == 0
+
+
+def test_apply_unlimited_main_agent_steps_skips_unattended(monkeypatch) -> None:
+    from types import SimpleNamespace
+
+    monkeypatch.setenv("HOLIX_UNATTENDED", "1")
+    cfg = SimpleNamespace(max_steps=90, non_interactive=False)
+    out = apply_unlimited_main_agent_steps(cfg)
+    assert out.max_steps == 90
+
+
+def test_apply_unlimited_main_agent_steps_skips_non_interactive() -> None:
+    from types import SimpleNamespace
+
+    cfg = SimpleNamespace(max_steps=90, non_interactive=True)
+    out = apply_unlimited_main_agent_steps(cfg)
+    assert out.max_steps == 90
+
+
+def test_zero_max_steps_is_unlimited() -> None:
+    assert step_limit_hit(0, 0) is False
+    assert step_limit_hit(500, 0) is False
+    assert step_limit_hit(15, 15) is True
+    d = evaluate_step_budget(step_count=200, max_steps=0)
+    assert not d.extend
+    assert d.status == "unlimited"
+    out = maybe_extend_for_graph_result(
+        {"max_steps": 0, "step_count": 80, "user_input": "write code"},
+        {"max_steps": 0, "step_count": 80, "is_final": False, "tool_calls": [{"id": "1"}]},
+    )
+    assert out.get("max_steps") == 0
+    assert out.get("is_final") is False
 
 
 def test_not_at_limit_no_extend() -> None:
