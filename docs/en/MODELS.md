@@ -28,6 +28,7 @@ Built-in presets (wizard adds API keys to profile `.env`):
 | `groq` | Groq |
 | `ollama` | Local Ollama (`OLLAMA_HOST`, default port 11434) |
 | `litellm` | LiteLLM proxy (`LITELLM_API_BASE`, port 4000) |
+| `mikrollm` | MikroLLM gateway (`MIKROLLM_API_BASE`, port 4000, keys `sk-…`) |
 | `vllm` | vLLM OpenAI server (`VLLM_HOST`, port 8000) |
 | `lmstudio` | LM Studio local server (`LMSTUDIO_HOST`, port 1234, OpenAI `/v1`) |
 

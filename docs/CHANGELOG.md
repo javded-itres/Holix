@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+### Added
+
+- **MikroLLM provider preset** — `mikrollm` in `holix models setup` / `models add`:
+  OpenAI `/v1` gateway (default `127.0.0.1:4000`), key `${MIKROLLM_API_KEY}`,
+  host `${MIKROLLM_API_BASE}`.
+
 ### Changed
 
 - **MAX slash menu** — short user-facing set (help/menu/status/models/sessions/new/clear/stop/skills/lang) plus billing `start`, `tariffs`, `pay`, `subscription`, `topup`, `invite`, `promo` (and `settings` when the extension is on). Aliases (`billing`, `referral`, …) still work as commands but are not duplicated in the 32-slot MAX menu.

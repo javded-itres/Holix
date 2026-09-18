@@ -14,6 +14,7 @@ _BOOTSTRAP_MESSAGES: dict[str, dict[str, str]] = {
         "llm_keep": "LLM: kept current provider",
         "llm_preset_ollama": "Ollama (local, OpenAI-compatible)",
         "llm_preset_litellm": "LiteLLM / OpenAI-compatible proxy",
+        "llm_preset_mikrollm": "MikroLLM gateway (OpenAI-compatible)",
         "llm_preset_openai": "OpenAI API",
         "llm_preset_groq": "Groq",
         "llm_skip_hint": "Skip (later: holix models setup)",
@@ -108,6 +109,7 @@ _BOOTSTRAP_MESSAGES: dict[str, dict[str, str]] = {
         "llm_keep": "LLM: оставлен текущий провайдер",
         "llm_preset_ollama": "Ollama (локально, OpenAI-compatible)",
         "llm_preset_litellm": "LiteLLM / OpenAI-совместимый прокси",
+        "llm_preset_mikrollm": "Шлюз MikroLLM (OpenAI-compatible)",
         "llm_preset_openai": "OpenAI API",
         "llm_preset_groq": "Groq",
         "llm_skip_hint": "Пропустить (позже: holix models setup)",
@@ -209,6 +211,7 @@ def bootstrap_preset_labels(lang: str) -> tuple[tuple[str, str], ...]:
     return (
         ("ollama", bt("llm_preset_ollama", lang)),
         ("litellm", bt("llm_preset_litellm", lang)),
+        ("mikrollm", bt("llm_preset_mikrollm", lang)),
         ("openai", bt("llm_preset_openai", lang)),
         ("groq", bt("llm_preset_groq", lang)),
     )

@@ -228,10 +228,11 @@ holix models list
 | `google` | Gemini (OpenAI-compat endpoint) | `GOOGLE_API_KEY` | Bearer |
 | `ollama` | Local Ollama | (any / `ollama`) | No key; configurable host |
 | `litellm` | Local LiteLLM proxy | `LITELLM_API_KEY` | Unified proxy; configurable host |
+| `mikrollm` | MikroLLM gateway | `MIKROLLM_API_KEY` | OpenAI `/v1` on port 4000; virtual `sk-…` keys |
 | `vllm` | vLLM OpenAI server | (often `EMPTY`) | Local/remote GPU; configurable host |
 | `lmstudio` | LM Studio local server | (often `lm-studio`) | OpenAI `/v1` on port 1234; not Ollama native chat |
 
-### Host for Ollama, LiteLLM, vLLM, LM Studio
+### Host for Ollama, LiteLLM, MikroLLM, vLLM, LM Studio
 
 These presets use an OpenAI-compatible `base_url` built from host + port (default ports: **11434**, **4000**, **8000**, **1234**).
 
@@ -239,6 +240,7 @@ These presets use an OpenAI-compatible `base_url` built from host + port (defaul
 |--------|--------------|---------|
 | `ollama` | `OLLAMA_HOST` | `http://127.0.0.1:11434/v1` |
 | `litellm` | `LITELLM_API_BASE` | `http://127.0.0.1:4000/v1` |
+| `mikrollm` | `MIKROLLM_API_BASE` | `http://127.0.0.1:4000/v1` |
 | `vllm` | `VLLM_HOST` | `http://127.0.0.1:8000/v1` |
 | `lmstudio` | `LMSTUDIO_HOST` | `http://127.0.0.1:1234/v1` |
 
