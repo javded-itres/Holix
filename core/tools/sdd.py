@@ -978,7 +978,8 @@ class SddSetApplyModeTool(BaseTool):
         self.name = "sdd_set_apply_mode"
         self.description = (
             "Record user's apply execution mode: self | subagents | hybrid. "
-            "Required before sdd_apply / coding."
+            "Optional tools_presentation (native|code|both) for the main agent; "
+            "self defaults to code. Required before sdd_apply / coding."
         )
         self.risk_level = "no"
         self.parameters = {
@@ -990,13 +991,33 @@ class SddSetApplyModeTool(BaseTool):
                     "type": "string",
                     "enum": ["self", "subagents", "hybrid"],
                 },
+                "tools_presentation": {
+                    "type": "string",
+                    "enum": ["native", "code", "both"],
+                    "description": (
+                        "Main-agent tools mode when executing tasks. self defaults to code."
+                    ),
+                },
             },
             "required": ["change_id", "mode"],
         }
 
-    async def execute(self, change_id: str, mode: str, project: str = "", **_: Any) -> str:
+    async def execute(
+        self,
+        change_id: str,
+        mode: str,
+        project: str = "",
+        tools_presentation: str | None = None,
+        **_: Any,
+    ) -> str:
         try:
-            return result_json(_store(project).set_apply_mode(change_id, mode))
+            store = _store(project)
+            try:
+                return result_json(
+                    store.set_apply_mode(change_id, mode, tools_presentation=tools_presentation)
+                )
+            except TypeError:
+                return result_json(store.set_apply_mode(change_id, mode))
         except Exception as exc:
             return _err(exc)
 
@@ -1045,6 +1066,16 @@ class SddApplyTool(BaseTool):
             if not plan.get("ok"):
                 return result_json(plan)
             mode = (plan.get("apply_mode") or "").strip().lower()
+            if self._parent is not None:
+                try:
+                    from core.sdd.apply_mode import apply_presentation_to_agent
+
+                    apply_presentation_to_agent(
+                        self._parent,
+                        str(plan.get("tools_presentation") or "code"),
+                    )
+                except Exception:
+                    pass
             if auto_dispatch and mode in ("subagents", "hybrid") and self._parent is not None:
                 from core.sdd.dispatch import dispatch_change_tasks
 

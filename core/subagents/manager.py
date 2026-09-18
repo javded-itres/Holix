@@ -235,7 +235,7 @@ class SubAgentManager:
         Returns:
             SubAgentHandle for tracking the sub-agent.
         """
-        running = self.list_active()
+        running = self._slot_holders()
         if len(running) >= self._max_concurrent():
             raise RuntimeError(
                 f"Sub-agent limit reached ({self._max_concurrent()}). "
@@ -820,6 +820,15 @@ class SubAgentManager:
             List of active SubAgentHandles.
         """
         return [h for h in self._handles.values() if h.is_running]
+
+    def _slot_holders(self) -> list[SubAgentHandle]:
+        """Running jobs that occupy ``subagent_max_concurrent``.
+
+        Studio SDD process waiters (``followed_process``) wrap a graph; the
+        inner python-coder is the real slot. Counting waiters made a wave of
+        N tasks fail with «limit reached» before any coder started.
+        """
+        return [h for h in self.list_active() if not bool(getattr(h, "followed_process", False))]
 
     def find_running_duplicate(
         self,
