@@ -7,7 +7,13 @@ from pathlib import Path
 
 import pytest
 from core.sdd.change_workspace import (
+    bind_active_change,
+    compose_active_change,
+    file_workspace_root,
+    format_active_change_prompt_block,
     get_active_change,
+    inherit_active_change,
+    overlay_workspace_root,
     reset_active_change_store,
 )
 from core.sdd.product_change_id import allocate_product_change_id
@@ -53,6 +59,32 @@ def _reset_pins() -> None:
     reset_active_change_store()
     yield
     reset_active_change_store()
+
+
+def test_multi_repo_worktree_pin_keeps_product_file_root(tmp_path: Path) -> None:
+    root = _write_product(tmp_path)
+    wt = root / "spec" / ".holix" / "worktrees" / "acme-3"
+    wt.mkdir(parents=True)
+    active = compose_active_change(
+        change_id="acme-3",
+        worktree=str(wt),
+        clone=str(root / "spec"),
+        project="acme",
+    )
+    assert Path(active.project_root) == root.resolve()
+    assert active.worktree == str(wt)
+    bind_active_change("default", "sess_sdd", active)
+    assert overlay_workspace_root("default", "sess_sdd") == str(root.resolve())
+    child = inherit_active_change("default", "sess_sdd", "subagent:sess_sdd:coder")
+    assert child is not None
+    assert Path(child.worktree) == wt.resolve() or child.worktree == str(wt)
+    assert overlay_workspace_root("default", "subagent:sess_sdd:coder") == str(root.resolve())
+    assert file_workspace_root(child) == str(root.resolve())
+    block = format_active_change_prompt_block(child)
+    assert "multi-repo" in block.lower()
+    assert "spec worktree" in block.lower()
+    assert str(root.resolve()) in block
+    assert "openspec" in block.lower()
 
 
 def test_layout_resolves_spec_and_code(tmp_path: Path) -> None:

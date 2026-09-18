@@ -380,9 +380,13 @@ def build_react_subagent(parent: Any, config: SubAgentConfig, task: str) -> Any:
     child.agent_slot = slot
     profile_name = str(getattr(parent_cfg, "profile_name", None) or "default")
     from core.sdd.change_workspace import overlay_workspace_root
-    from core.tools.execution_context import get_conversation_id
 
-    child_ws = overlay_workspace_root(profile_name, get_conversation_id()) or getattr(
+    parent_cid = str(getattr(config, "parent_conversation_id", None) or "").strip()
+    if not parent_cid or parent_cid == "default":
+        from core.subagents.fork import parent_conversation_id as _parent_cid
+
+        parent_cid = _parent_cid(parent)
+    child_ws = overlay_workspace_root(profile_name, parent_cid) or getattr(
         parent_cfg, "workspace_root", None
     )
     child.subagent_system_prompt = build_subagent_system_prompt(

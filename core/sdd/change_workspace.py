@@ -261,6 +261,101 @@ def inherit_active_change(
     return bind_active_change(profile, child_conversation_id, parent)
 
 
+def _layout_for_active(active: ActiveChange) -> Any | None:
+    try:
+        from core.sdd.product_layout import load_product_layout
+    except Exception:
+        return None
+    for raw in (active.project_root, active.worktree, active.clone):
+        text = (raw or "").strip()
+        if not text:
+            continue
+        try:
+            layout = load_product_layout(Path(text))
+        except Exception:
+            layout = None
+        if layout is not None:
+            return layout
+    return None
+
+
+def _is_multi_product(layout: Any | None) -> bool:
+    if layout is None:
+        return False
+    return bool(getattr(layout, "has_dedicated_spec", False) or getattr(layout, "is_multi", False))
+
+
+def compose_active_change(
+    *,
+    change_id: str,
+    worktree: str,
+    clone: str = "",
+    project: str = "",
+    branch: str = "",
+    project_root: str = "",
+) -> ActiveChange:
+    """Build a pin that keeps the git worktree and the product/project root.
+
+    Multi-repo products (shared ``openspec`` / ``role=spec``) store the spec
+    worktree on ``worktree`` but keep ``project_root`` as the product so file
+    tools still see every code clone.
+    """
+    wt = (worktree or "").strip()
+    clone_s = (clone or "").strip()
+    pr = (project_root or "").strip()
+    cid = (change_id or "").strip()
+    layout = None
+    start = pr or wt or clone_s
+    if start:
+        try:
+            from core.sdd.product_layout import load_product_layout
+
+            layout = load_product_layout(Path(start))
+        except Exception:
+            layout = None
+    if layout is not None and _is_multi_product(layout):
+        try:
+            pr = str(Path(layout.project_root).expanduser().resolve())
+        except (OSError, RuntimeError, ValueError):
+            pass
+    elif not pr and clone_s:
+        try:
+            clone_path = Path(clone_s).expanduser()
+            if clone_path.is_dir():
+                pr = str(clone_path.resolve())
+        except (OSError, RuntimeError, ValueError):
+            pass
+    return ActiveChange(
+        change_id=cid,
+        branch=(branch or "").strip() or (f"change/{cid}" if cid else ""),
+        worktree=wt,
+        clone=clone_s,
+        project=(project or "").strip(),
+        project_root=pr,
+    )
+
+
+def file_workspace_root(active: ActiveChange | None) -> str | None:
+    """Directory for file tools / terminal (product root on multi-repo)."""
+    if active is None:
+        return None
+    layout = _layout_for_active(active)
+    if _is_multi_product(layout) and layout is not None:
+        product = Path(layout.project_root).expanduser()
+        if product.is_dir():
+            return str(product.resolve())
+    if worktrees_enabled() and active.worktree:
+        path = Path(active.worktree).expanduser()
+        if path.is_dir():
+            return str(path.resolve())
+    pin = (active.project_root or "").strip()
+    if pin:
+        path = Path(pin).expanduser()
+        if path.is_dir():
+            return str(path.resolve())
+    return None
+
+
 def overlay_workspace_root(
     profile: str | None = None,
     conversation_id: str | None = None,
@@ -276,30 +371,7 @@ def overlay_workspace_root(
             return None
         prof = profile
         cid = (conversation_id or "default").strip() or "default"
-    active = get_active_change(prof, cid)
-    if active is None:
-        return None
-    pin = (active.project_root or "").strip()
-    if pin:
-        try:
-            from core.sdd.product_layout import load_product_layout
-
-            layout = load_product_layout(Path(pin))
-        except Exception:
-            layout = None
-        if layout is not None and layout.has_dedicated_spec:
-            product = Path(layout.project_root).expanduser()
-            if product.is_dir():
-                return str(product.resolve())
-    if worktrees_enabled() and active.worktree:
-        path = Path(active.worktree).expanduser()
-        if path.is_dir():
-            return str(path.resolve())
-    if pin:
-        path = Path(pin).expanduser()
-        if path.is_dir():
-            return str(path.resolve())
-    return None
+    return file_workspace_root(get_active_change(prof, cid))
 
 
 def format_active_change_line(active: ActiveChange | None) -> str:
@@ -317,20 +389,16 @@ def format_active_change_line(active: ActiveChange | None) -> str:
 def format_active_change_prompt_block(active: ActiveChange | None) -> str:
     if active is None:
         return ""
-    layout = None
-    if active.project_root:
-        try:
-            from core.sdd.product_layout import load_product_layout
-
-            layout = load_product_layout(Path(active.project_root))
-        except Exception:
-            layout = None
-    dedicated = bool(layout is not None and layout.has_dedicated_spec)
-    if dedicated and layout is not None and active.project_root:
-        spec = layout.spec_root
+    layout = _layout_for_active(active)
+    if _is_multi_product(layout) and layout is not None:
+        product = str(Path(layout.project_root).expanduser().resolve())
+        spec = getattr(layout, "spec_root", None)
+        if spec is None:
+            infer = getattr(layout, "inferred_openspec_root", None)
+            spec = infer() if callable(infer) else None
         lines = [
             "## Active SDD product (multi-repo)\n",
-            f"**Workspace (file tools / terminal):** `{active.project_root}`",
+            f"**Workspace (file tools / terminal):** `{product}`",
             "All member clones of this product are in scope. "
             "Do not list or edit sibling Studio products.",
         ]
@@ -379,24 +447,4 @@ def resolve_subagent_workspace(
     inherited = inherit_active_change(profile, parent_conversation_id, child_conversation_id)
     if inherited is None:
         return fallback
-    pin = (inherited.project_root or "").strip()
-    if pin:
-        try:
-            from core.sdd.product_layout import load_product_layout
-
-            layout = load_product_layout(Path(pin))
-        except Exception:
-            layout = None
-        if layout is not None and layout.has_dedicated_spec:
-            product = Path(layout.project_root).expanduser()
-            if product.is_dir():
-                return str(product.resolve())
-    if inherited.worktree:
-        wt = Path(inherited.worktree).expanduser()
-        if wt.is_dir():
-            return str(wt.resolve())
-    if pin:
-        root = Path(pin).expanduser()
-        if root.is_dir():
-            return str(root.resolve())
-    return fallback
+    return file_workspace_root(inherited) or fallback

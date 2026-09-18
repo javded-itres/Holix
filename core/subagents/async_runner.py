@@ -64,6 +64,9 @@ class AsyncSubAgentRunner:
             started_at=time.monotonic(),
             max_steps=int(config.max_steps or 0),
         )
+        from core.subagents.fork import bind_subagent_session
+
+        bind_subagent_session(self._parent, config, handle)
 
         # Create the asyncio task
         coro = self._run_sub_agent(config, task, handle)
@@ -134,9 +137,13 @@ class AsyncSubAgentRunner:
         profile_name = str(getattr(parent_cfg, "profile_name", None) or "default")
         from core.sdd.change_workspace import overlay_workspace_root
         from core.subagents.prompt import build_subagent_system_prompt
-        from core.tools.execution_context import get_conversation_id
 
-        child_ws = overlay_workspace_root(profile_name, get_conversation_id()) or getattr(
+        parent_cid = str(
+            getattr(handle, "parent_conversation_id", None)
+            or getattr(config, "parent_conversation_id", None)
+            or ""
+        ).strip()
+        child_ws = overlay_workspace_root(profile_name, parent_cid) or getattr(
             parent_cfg, "workspace_root", None
         )
         system_prompt = build_subagent_system_prompt(
@@ -872,14 +879,12 @@ class AsyncSubAgentRunner:
             on_guidance=_on_guidance,
             handle=handle,
         )
-        conv_id = f"subagent:{config.name}"
-        try:
-            from core.sdd.change_workspace import inherit_active_change
-            from core.tools.execution_context import get_conversation_id, get_profile_name
+        parent_cid = str(getattr(handle, "parent_conversation_id", None) or "").strip()
+        conv_id = str(getattr(handle, "conversation_id", None) or "").strip()
+        if not parent_cid or not conv_id:
+            from core.subagents.fork import bind_subagent_session
 
-            inherit_active_change(get_profile_name(), get_conversation_id(), conv_id)
-        except Exception:
-            logger.debug("inherit SDD worktree failed", exc_info=True)
+            parent_cid, conv_id = bind_subagent_session(self._parent, config, handle)
         seed = list(getattr(config, "seed_messages", None) or [])
         if seed and hasattr(self._parent, "memory"):
             try:
@@ -892,10 +897,20 @@ class AsyncSubAgentRunner:
         def _on_event(event: Any) -> None:
             record_handle_event(handle, event)
             self._notify_progress(config.name)
+            if parent_cid:
+                try:
+                    event.conversation_id = parent_cid
+                except Exception:
+                    pass
             emit = getattr(self._parent, "emit", None)
             if callable(emit):
                 try:
                     emit(event)
+                    if parent_cid:
+                        try:
+                            event.conversation_id = parent_cid
+                        except Exception:
+                            pass
                 except Exception:
                     logger.debug("forward sub-agent event failed", exc_info=True)
 
@@ -1027,7 +1042,9 @@ class AsyncSubAgentRunner:
                 model=model,
                 messages=messages,
                 final_response=final_response,
-                conversation_id=f"subagent:{config.name}",
+                conversation_id=str(
+                    getattr(handle, "conversation_id", None) or f"subagent:{config.name}"
+                ),
                 profile=str(getattr(parent_cfg, "profile_name", None) or "default"),
                 agent_slot=str(config.agent_type or config.name or "main"),
                 emit=getattr(self._parent, "emit", None),
@@ -1109,12 +1126,14 @@ class AsyncSubAgentRunner:
         if hasattr(self._parent, "subagents"):
             bridge = getattr(self._parent.subagents, "interactions", None)
 
-        # Inherit parent run conversation so ActionGuard confirmations land on the
-        # correct Studio tab (not ContextVar default "default", which hides the UI).
-        parent_ctx = getattr(self._parent, "_event_context", None)
-        conversation_id = (
-            str(getattr(parent_ctx, "conversation_id", None) or "").strip() or "default"
-        )
+        # Confirmations must land on the launching session, not a later focused tab
+        # and not the child's namespaced conversation id.
+        conversation_id = str(getattr(config, "parent_conversation_id", None) or "").strip()
+        if not conversation_id or conversation_id == "default":
+            parent_ctx = getattr(self._parent, "_event_context", None)
+            conversation_id = (
+                str(getattr(parent_ctx, "conversation_id", None) or "").strip() or "default"
+            )
 
         tokens = subagent_scope(
             config.name,

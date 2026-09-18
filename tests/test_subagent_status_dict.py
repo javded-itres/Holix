@@ -27,8 +27,12 @@ def test_record_activity_and_to_status_dict() -> None:
         steps_taken=1,
     )
 
+    handle.parent_conversation_id = "studio_tab_a"
+    handle.conversation_id = "subagent:studio_tab_a:researcher-1"
     payload = handle.to_status_dict()
     assert payload["name"] == "researcher-1"
+    assert payload["parent_conversation_id"] == "studio_tab_a"
+    assert payload["conversation_id"] == "subagent:studio_tab_a:researcher-1"
     assert payload["running"] is True
     assert payload["steps_taken"] == 1
     assert payload["max_steps"] == 8
