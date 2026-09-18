@@ -72,6 +72,24 @@ Remember: You are {config.name}. Stay focused on your specialized role.
         if wd:
             prompt = f"{prompt.rstrip()}\n\n{wd}"
 
+    try:
+        from core.sdd.change_workspace import (
+            format_active_change_prompt_block,
+            get_active_change,
+        )
+
+        cid = str(getattr(config, "conversation_id", None) or "").strip()
+        parent_cid = str(getattr(config, "parent_conversation_id", None) or "").strip()
+        prof = (profile_name or "default").strip() or "default"
+        active = get_active_change(prof, cid) if cid else None
+        if active is None and parent_cid:
+            active = get_active_change(prof, parent_cid)
+        change_block = format_active_change_prompt_block(active)
+        if change_block:
+            prompt = f"{prompt.rstrip()}\n\n{change_block}"
+    except Exception:
+        pass
+
     project_cwd = resolve_agent_working_directory(
         workspace_root=workspace_root,
         workspace_jail_enabled=workspace_jail_enabled,

@@ -71,6 +71,9 @@ class SubAgentConfig:
     # Seed child with parent's completed turns (DSH fork-in-process).
     fork: bool = False
     seed_messages: list[dict[str, Any]] = field(default_factory=list)
+    # Launching Studio/Telegram session and namespaced child conversation.
+    parent_conversation_id: str = ""
+    conversation_id: str = ""
 
     def __post_init__(self):
         if isinstance(self.process_mode, str):
@@ -144,6 +147,8 @@ class SubAgentHandle:
     awaiting_user: bool = False
     user_resume: Any = field(default=None, repr=False)
     steps_at_user_reply: int = 0
+    parent_conversation_id: str = ""
+    conversation_id: str = ""
 
     def begin_wait_for_user(self) -> None:
         """Pause further ReAct steps until ``end_wait_for_user``."""
@@ -277,6 +282,12 @@ class SubAgentHandle:
             "done": self.is_done,
             "spawn_fallback_reason": self.spawn_fallback_reason or "",
         }
+        parent_cid = str(self.parent_conversation_id or "").strip()
+        child_cid = str(self.conversation_id or "").strip()
+        if parent_cid:
+            payload["parent_conversation_id"] = parent_cid
+        if child_cid:
+            payload["conversation_id"] = child_cid
         if getattr(self, "followed_process", False) is True:
             payload["followed_process"] = True
             payload["studio_process_id"] = str(getattr(self, "studio_process_id", "") or "")

@@ -44,6 +44,54 @@ def test_resolve_working_directory_uses_explicit_cwd(tmp_path: Path) -> None:
     ) == str(cwd.resolve())
 
 
+def test_subagent_prompt_includes_sdd_worktree_pin(tmp_path: Path) -> None:
+    from core.sdd.change_workspace import (
+        bind_active_change,
+        compose_active_change,
+        reset_active_change_store,
+    )
+
+    reset_active_change_store()
+    clone = tmp_path / "app"
+    wt = clone / ".holix" / "worktrees" / "feat-1"
+    wt.mkdir(parents=True)
+    bind_active_change(
+        "default",
+        "studio_tab",
+        compose_active_change(
+            change_id="feat-1",
+            worktree=str(wt),
+            clone=str(clone),
+        ),
+    )
+    cfg = SubAgentConfig(
+        name="coder",
+        system_prompt="You code.",
+        parent_conversation_id="studio_tab",
+        conversation_id="subagent:studio_tab:coder",
+    )
+    bind_active_change(
+        "default",
+        cfg.conversation_id,
+        compose_active_change(
+            change_id="feat-1",
+            worktree=str(wt),
+            clone=str(clone),
+        ),
+    )
+    text = build_subagent_system_prompt(
+        cfg,
+        "Implement the task",
+        profile_name="default",
+        workspace_root=str(wt),
+        workspace_jail_enabled=True,
+    )
+    assert "Active SDD change" in text
+    assert "feat-1" in text
+    assert str(wt.resolve()) in text or str(wt) in text
+    reset_active_change_store()
+
+
 def test_subagent_prompt_includes_shared_cwd(tmp_path: Path) -> None:
     project = tmp_path / "app"
     project.mkdir()

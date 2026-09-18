@@ -1045,7 +1045,14 @@ def _try_process_react_run(
                 )
 
         child.events.subscribe(_progress)
-        conv_id = f"subagent:{config.name}"
+        conv_id = str(getattr(config, "conversation_id", None) or "").strip()
+        if not conv_id:
+            from core.subagents.fork import child_conversation_id
+
+            conv_id = child_conversation_id(
+                str(getattr(config, "parent_conversation_id", None) or ""),
+                config.name,
+            )
         seed = list(getattr(config, "seed_messages", None) or [])
         if seed and getattr(child, "memory", None) is not None:
             try:
@@ -1130,7 +1137,9 @@ def _propose_skill_in_subprocess(
                 model=model,
                 messages=messages,
                 final_response=final_response,
-                conversation_id=f"subagent:{config.name}",
+                conversation_id=str(
+                    getattr(config, "conversation_id", None) or f"subagent:{config.name}"
+                ),
                 profile=profile_name or "default",
                 agent_slot=str(config.agent_type or config.name or "main"),
                 emit=None,
@@ -1469,6 +1478,8 @@ class SubAgentProcessManager:
             "mcp_servers": list(config.mcp_servers or []),
             "fork": bool(getattr(config, "fork", False)),
             "seed_messages": list(getattr(config, "seed_messages", None) or []),
+            "parent_conversation_id": str(getattr(config, "parent_conversation_id", None) or ""),
+            "conversation_id": str(getattr(config, "conversation_id", None) or ""),
         }
 
         # Get parent config for subprocess
@@ -1514,17 +1525,21 @@ class SubAgentProcessManager:
             started_at=time.monotonic(),
             max_steps=int(config.max_steps or 0),
         )
+        from core.subagents.fork import bind_subagent_session
+
+        parent_cid, child_cid = bind_subagent_session(self._parent, config, handle)
+        config_dict["parent_conversation_id"] = parent_cid
+        config_dict["conversation_id"] = child_cid
 
         from core.prompt_builder import resolve_agent_working_directory
         from core.sdd.change_workspace import resolve_subagent_workspace
-        from core.tools.execution_context import get_conversation_id
 
         parent_ws = str(getattr(parent_cfg, "workspace_root", None) or "") or None
         try:
             parent_ws = resolve_subagent_workspace(
                 profile=str(getattr(parent_cfg, "profile_name", None) or "default"),
-                parent_conversation_id=get_conversation_id(),
-                child_conversation_id=f"subagent:{config.name}",
+                parent_conversation_id=parent_cid,
+                child_conversation_id=child_cid,
                 fallback=parent_ws,
             )
         except Exception:

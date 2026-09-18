@@ -33,6 +33,32 @@ class SubAgentInteractionBridge:
         self._pending_confirmations: dict[str, asyncio.Future] = {}
         self._pending_questions: dict[str, asyncio.Future] = {}
 
+    def _launch_conversation_id(self, subagent_name: str = "") -> str:
+        """Session that spawned this job — not the child's cid or a later focused tab."""
+        from core.subagents.fork import parent_conversation_id
+
+        mgr = getattr(self._parent, "subagents", None)
+        handle = None
+        if mgr is not None and subagent_name and not isinstance(mgr, type(None)):
+            getter = getattr(mgr, "get_handle", None)
+            if callable(getter):
+                try:
+                    handle = getter(subagent_name)
+                except Exception:
+                    handle = None
+        raw = getattr(handle, "parent_conversation_id", None)
+        if isinstance(raw, str) and raw.strip() and raw.strip() != "default":
+            return raw.strip()
+        cid = parent_conversation_id(self._parent)
+        if cid and cid != "default":
+            return cid
+        parent_ctx = getattr(self._parent, "_event_context", None)
+        raw = getattr(parent_ctx, "conversation_id", None)
+        if isinstance(raw, str) and raw.strip() and raw.strip() != "default":
+            if not raw.strip().startswith("subagent:"):
+                return raw.strip()
+        return "default"
+
     @property
     def pending_question_ids(self) -> list[str]:
         return list(self._pending_questions.keys())
@@ -65,8 +91,7 @@ class SubAgentInteractionBridge:
 
         event_bus = getattr(self._parent, "events", None)
         if event_bus:
-            parent_ctx = getattr(self._parent, "_event_context", None)
-            parent_cid = str(getattr(parent_ctx, "conversation_id", None) or "").strip()
+            parent_cid = self._launch_conversation_id(subagent_name)
             event = ConfirmationRequestEvent(
                 confirmation_id=request_id,
                 tool_name=metadata.get("tool_name", ""),
@@ -111,8 +136,7 @@ class SubAgentInteractionBridge:
         self._pending_questions[request_id] = future
         if not hasattr(self, "_question_meta"):
             self._question_meta: dict[str, dict] = {}
-        parent_ctx = getattr(self._parent, "_event_context", None)
-        parent_cid = str(getattr(parent_ctx, "conversation_id", None) or "").strip()
+        parent_cid = self._launch_conversation_id(subagent_name)
         self._question_meta[request_id] = {
             "subagent_name": subagent_name,
             "question": question,

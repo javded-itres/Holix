@@ -7,6 +7,7 @@ from unittest.mock import MagicMock
 
 import pytest
 from core.security.confirmation import ConfirmationChoice
+from core.subagents.base import SubAgentConfig, SubAgentHandle
 from core.subagents.interaction import (
     SubAgentInteractionBridge,
     resolve_any_confirmation,
@@ -90,6 +91,31 @@ async def test_question_event_uses_parent_conversation() -> None:
     assert bridge._question_meta["subq_cid"]["conversation_id"] == "studio_proc_tab"
     bridge.resolve_question("subq_cid", "continue")
     assert await task == "continue"
+
+
+@pytest.mark.asyncio
+async def test_question_event_uses_handle_launch_session() -> None:
+    from core.agent_events import EventContext
+
+    bridge = _bridge()
+    parent = bridge._parent
+    parent._event_context = EventContext(conversation_id="studio_focused_other")
+    handle = SubAgentHandle(name="coder", config=SubAgentConfig(name="coder"))
+    handle.parent_conversation_id = "studio_launch_tab"
+    parent.subagents.get_handle.return_value = handle
+    seen: list[object] = []
+    parent.emit = seen.append
+    task = asyncio.create_task(
+        bridge.handle_ipc_question(
+            "coder",
+            {"request_id": "subq_launch", "question": "scope?"},
+        )
+    )
+    await asyncio.sleep(0.02)
+    assert seen
+    assert getattr(seen[0], "conversation_id", "") == "studio_launch_tab"
+    bridge.resolve_question("subq_launch", "this session")
+    assert await task == "this session"
 
 
 @pytest.mark.asyncio
