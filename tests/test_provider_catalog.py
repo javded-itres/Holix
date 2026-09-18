@@ -32,15 +32,38 @@ def test_catalog_includes_major_providers():
     assert "groq" in ids
     assert "vllm" in ids
     assert "lmstudio" in ids
+    assert "mikrollm" in ids
 
 
 def test_ollama_litellm_vllm_configurable_host():
-    for pid in ("ollama", "litellm", "vllm", "lmstudio"):
+    for pid in ("ollama", "litellm", "mikrollm", "vllm", "lmstudio"):
         p = get_provider_preset(pid)
         assert p is not None
         assert p.configurable_host
         assert p.host_env
         assert p.default_port > 0
+
+
+def test_mikrollm_preset_openai_v1_and_env():
+    from core.models.catalog import detect_preset_from_url
+
+    preset = get_provider_preset("mikrollm")
+    assert preset is not None
+    assert preset.default_port == 4000
+    assert preset.base_url.endswith("/v1")
+    assert preset.api_key_env == "MIKROLLM_API_KEY"
+    assert preset.host_env == "MIKROLLM_API_BASE"
+    assert preset.configurable_host
+    # Same default port as LiteLLM — explicit preset_id selects MikroLLM.
+    assert detect_preset_from_url("http://127.0.0.1:4000/v1") == "litellm"
+    assert detect_preset_from_url("http://mikrollm.lan:4000/v1") == "mikrollm"
+
+
+def test_resolve_mikrollm_base_url_from_env(monkeypatch: pytest.MonkeyPatch):
+    monkeypatch.setenv("MIKROLLM_API_BASE", "http://192.168.88.1:4000")
+    preset = get_provider_preset("mikrollm")
+    assert preset is not None
+    assert resolve_preset_base_url(preset) == "http://192.168.88.1:4000/v1"
 
 
 def test_lmstudio_preset_stays_openai_v1():

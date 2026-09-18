@@ -26,6 +26,7 @@ holix models fallback list
 | `groq` | Groq |
 | `ollama` | Локальный Ollama (`OLLAMA_HOST`, порт 11434) |
 | `litellm` | Прокси LiteLLM (`LITELLM_API_BASE`, порт 4000) |
+| `mikrollm` | Шлюз MikroLLM (`MIKROLLM_API_BASE`, порт 4000, ключи `sk-…`) |
 | `vllm` | vLLM (`VLLM_HOST`, порт 8000) |
 
 Пример:

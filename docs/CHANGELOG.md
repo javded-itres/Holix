@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+### Added
+
+- **MikroLLM provider preset** — `mikrollm` in `holix models setup` / `models add`:
+  OpenAI `/v1` gateway (default `127.0.0.1:4000`), key `${MIKROLLM_API_KEY}`,
+  host `${MIKROLLM_API_BASE}`.
+
 ## 1.1.11 — 2026-09-18
 
 ### Added
