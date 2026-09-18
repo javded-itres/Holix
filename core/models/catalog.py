@@ -198,7 +198,9 @@ def resolve_preset_base_url(
     return preset.base_url
 
 
-HOST_CAPABLE_PRESET_IDS: frozenset[str] = frozenset({"ollama", "litellm", "vllm", "lmstudio"})
+HOST_CAPABLE_PRESET_IDS: frozenset[str] = frozenset(
+    {"ollama", "litellm", "mikrollm", "vllm", "lmstudio"}
+)
 
 
 PROVIDER_PRESETS: tuple[ProviderPreset, ...] = (
@@ -380,6 +382,26 @@ PROVIDER_PRESETS: tuple[ProviderPreset, ...] = (
         extra_env=("LITELLM_API_KEY",),
     ),
     _preset(
+        "mikrollm",
+        "MikroLLM gateway",
+        "http://127.0.0.1:4000/v1",
+        "MIKROLLM_API_KEY",
+        default_model="",
+        popular_models=(),
+        docs_url="https://github.com/javded-itres/mikrollm",
+        notes=(
+            "OpenAI-compatible MikroLLM gateway (Ollama / OpenRouter / vLLM / LM Studio). "
+            "Virtual keys sk-… from the admin UI. Default listen :4000. "
+            "Host/URL via prompt or MIKROLLM_API_BASE. Pick model aliases in MikroLLM admin."
+        ),
+        configurable_host=True,
+        default_host="127.0.0.1",
+        default_port=4000,
+        host_env="MIKROLLM_API_BASE",
+        host_placeholder="${MIKROLLM_API_BASE}",
+        extra_env=("MIKROLLM_API_KEY",),
+    ),
+    _preset(
         "vllm",
         "vLLM (OpenAI-compatible)",
         "http://127.0.0.1:8000/v1",
@@ -464,6 +486,8 @@ def detect_preset_from_url(base_url: str) -> str | None:
         return "fireworks"
     if host_is(host, "cerebras.ai"):
         return "cerebras"
+    if "mikrollm" in (host or "").lower():
+        return "mikrollm"
     if port == 11434:
         return "ollama"
     if port == 4000:

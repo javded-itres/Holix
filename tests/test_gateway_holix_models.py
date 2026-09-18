@@ -33,6 +33,7 @@ def test_models_presets_and_fallbacks(
     data = presets.json()
     assert data["count"] > 0
     assert any(p["id"] == "ollama" for p in data["presets"])
+    assert any(p["id"] == "mikrollm" for p in data["presets"])
 
     fallbacks = gateway_client.patch(
         "/api/holix/profiles/models-test/models/fallbacks",
@@ -45,7 +46,9 @@ def test_models_presets_and_fallbacks(
     agents = gateway_client.patch(
         "/api/holix/profiles/models-test/models/agent-models",
         headers=gateway_auth_headers,
-        json={"agent_models": {"main": {"provider": "ollama", "model": "qwen", "temperature": 0.5}}},
+        json={
+            "agent_models": {"main": {"provider": "ollama", "model": "qwen", "temperature": 0.5}}
+        },
     )
     assert agents.status_code == 200
     assert agents.json()["agent_models"]["main"]["model"] == "qwen"
