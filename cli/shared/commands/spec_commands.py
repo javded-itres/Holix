@@ -207,9 +207,9 @@ def _usage() -> str:
         "SDD `/spec`:\n"
         "• `/spec` · `/spec list` — projects & open changes\n"
         "• `/spec init [project]` — create openspec/\n"
-        "• `/spec create|propose <id> [project] [\"request\" | -- request]`\n"
+        '• `/spec create|propose <id> [project] ["request" | -- request]`\n'
         "• `/spec show|view <id> [project]` — status + proposal/tasks preview\n"
-        "• `/spec fill <id> [project] [\"request\" | -- request]`\n"
+        '• `/spec fill <id> [project] ["request" | -- request]`\n'
         "• `/spec mode <id> self|subagents|hybrid [project]`\n"
         "• `/spec apply|run <id> [project]` — start implementation\n"
         "• `/spec archive <id> [project]` — merge & archive"
@@ -245,7 +245,7 @@ def _understanding_prompt(
         f"4) When score ≥ {thr}% (status ready), ask the user to proceed, then "
         f"sdd_confirm_understanding\n"
         f"5) Only after confirmed: fill via sdd_write_artifact (proposal, design, specs, tasks)\n"
-        f"Work only on change_id=\"{change_id}\" project=\"{proj}\"."
+        f'Work only on change_id="{change_id}" project="{proj}".'
     )
 
 
@@ -258,19 +258,22 @@ def _fill_prompt(
 ) -> str:
     proj = project or ""
     proj_label = project or "."
-    req = request.strip() or f"Complete SDD change `{change_id}` from existing stubs and project context."
+    req = (
+        request.strip()
+        or f"Complete SDD change `{change_id}` from existing stubs and project context."
+    )
     return (
         f"SDD change `{change_id}` in project `{proj_label}`.\n"
         f"User request:\n{req}\n\n"
         f"Understanding gate is already unlocked for this fill — do NOT ask clarifying "
         f"questions and do NOT stop at stubs.\n"
         f"Write artifacts only in locale={locale}.\n"
-        f"First call `sdd_status` (project=\"{proj}\", change_id=\"{change_id}\") and use "
+        f'First call `sdd_status` (project="{proj}", change_id="{change_id}") and use '
         f"`artifact_paths` from the result. There is NO file specs.md at the change root.\n"
-        f"MUST call `sdd_write_artifact` (project=\"{proj}\") for ALL of:\n"
+        f'MUST call `sdd_write_artifact` (project="{proj}") for ALL of:\n'
         f"1) proposal (Why / What Changes / Impact — no HTML comments, no placeholders)\n"
         f"2) design (concrete approach)\n"
-        f"3) specs — artifact=\"specs\" (writes specs/<domain>/spec.md; pass domain if known)\n"
+        f'3) specs — artifact="specs" (writes specs/<domain>/spec.md; pass domain if known)\n'
         f"4) tasks — real numbered checklist from the request (not 'First concrete "
         f"step'); set assignee main or a subagent type; add depends_on when needed.\n"
         f"Do NOT use read_file/write_file on openspec/changes/.../specs.md (that path "
@@ -296,15 +299,11 @@ def _sdd_prefs(host: Any) -> Any:
         return SddPrefs()
 
 
-def _unlock_understanding_for_fill(
-    store: SpecStore, change_id: str, *, request: str = ""
-) -> None:
+def _unlock_understanding_for_fill(store: SpecStore, change_id: str, *, request: str = "") -> None:
     """Allow sdd_write_artifact after explicit /spec fill (not on create when gate ON)."""
     from core.sdd.understanding import accept_request_understanding
 
-    accept_request_understanding(
-        store.project_root, change_id, request=request, unlock=True
-    )
+    accept_request_understanding(store.project_root, change_id, request=request, unlock=True)
 
 
 def _apply_agent_message(*, change_id: str, project: str, apply_mode: str) -> str:
@@ -313,7 +312,7 @@ def _apply_agent_message(*, change_id: str, project: str, apply_mode: str) -> st
     return (
         f"Apply SDD change `{change_id}` now (project `{proj_label}`). "
         f"Mode is already set to `{apply_mode}`. "
-        f"Use tools with{proj_arg or ' project=\"\" (workspace root)'}. "
+        f"Use tools with{proj_arg or ' project="" (workspace root)'}. "
         f"Call sdd_apply{proj_arg} (auto-dispatches subagents by tasks.md assignee — "
         f"e.g. coder-python, NOT built-in coder). "
         "Wait for jobs with wait_subagent_result; do main tasks yourself; "
@@ -356,21 +355,28 @@ async def run_spec_command(host: Any, command: str) -> None:
     # create/propose/fill: project vs free-text request resolved separately
     # (quoted description must not become project).
     if sub in ("propose", "new", "create", "fill"):
-        primary, project, request = _resolve_create_fill_args(
-            tokens, project, request
-        )
+        primary, project, request = _resolve_create_fill_args(tokens, project, request)
         secondary = ""
     elif not project:
         if sub == "mode" and len(tokens) >= 3:
-            project = tokens[2]
-        elif sub in (
-            "apply",
-            "run",
-            "archive",
-            "status",
-            "show",
-            "view",
-        ) and len(tokens) >= 2:
+            third = tokens[2].strip().lower()
+            if third in ("native", "code", "both"):
+                if len(tokens) >= 4:
+                    project = tokens[3]
+            else:
+                project = tokens[2]
+        elif (
+            sub
+            in (
+                "apply",
+                "run",
+                "archive",
+                "status",
+                "show",
+                "view",
+            )
+            and len(tokens) >= 2
+        ):
             project = tokens[1]
         elif sub == "init" and tokens:
             project = tokens[0]
@@ -430,8 +436,8 @@ async def run_spec_command(host: Any, command: str) -> None:
         if not change_id:
             await _write(
                 host,
-                "Usage: `/spec create <change-id> [project] [\"request\" | -- request]`\n"
-                "e.g. `/spec create company \"Add company section with groups\"`\n"
+                'Usage: `/spec create <change-id> [project] ["request" | -- request]`\n'
+                'e.g. `/spec create company "Add company section with groups"`\n'
                 "e.g. `/spec create oauth-login apps/web -- add OAuth login`",
             )
             return
@@ -454,21 +460,17 @@ async def run_spec_command(host: Any, command: str) -> None:
             )
             # Gate ON: keep clarifying — do not unlock to 100% on create.
             apply_hint = (
-                f"`/spec apply {change_id} {project}`"
-                if project
-                else f"`/spec apply {change_id}`"
+                f"`/spec apply {change_id} {project}`" if project else f"`/spec apply {change_id}`"
             )
             show_hint = (
-                f"`/spec show {change_id} {project}`"
-                if project
-                else f"`/spec show {change_id}`"
+                f"`/spec show {change_id} {project}`" if project else f"`/spec show {change_id}`"
             )
             fill_hint = (
-                f"`/spec fill {change_id} {project}`"
-                if project
-                else f"`/spec fill {change_id}`"
+                f"`/spec fill {change_id} {project}`" if project else f"`/spec fill {change_id}`"
             )
-            req_note = f"\nRequest: {request[:200]}{'…' if len(request) > 200 else ''}" if request else ""
+            req_note = (
+                f"\nRequest: {request[:200]}{'…' if len(request) > 200 else ''}" if request else ""
+            )
             und = created.get("understanding") or {}
             if gate_on and und.get("status") == "clarifying":
                 await _write(
@@ -582,17 +584,24 @@ async def run_spec_command(host: Any, command: str) -> None:
         return
 
     if sub == "mode":
-        # /spec mode <id> <self|subagents|hybrid> [project]
+        # /spec mode <id> <self|subagents|hybrid> [native|code|both] [project]
         change_id = primary
         mode = secondary
         if not change_id or not mode:
             await _write(
                 host,
-                "Usage: `/spec mode <change-id> self|subagents|hybrid [project]`",
+                "Usage: `/spec mode <change-id> self|subagents|hybrid "
+                "[native|code|both] [project]`",
             )
             return
+        pres = None
+        if len(tokens) >= 3 and tokens[2].strip().lower() in ("native", "code", "both"):
+            pres = tokens[2].strip().lower()
         try:
-            result = store.set_apply_mode(change_id, mode)
+            try:
+                result = store.set_apply_mode(change_id, mode, tools_presentation=pres)
+            except TypeError:
+                result = store.set_apply_mode(change_id, mode)
             await _write(host, f"Apply mode set ({proj_label}): {result}")
         except Exception as exc:
             await _write(host, f"Error: {exc}")
@@ -648,13 +657,20 @@ async def run_spec_command(host: Any, command: str) -> None:
                 getattr(host, "_session", None), "agent", None
             )
             mode = (plan.get("apply_mode") or "").strip().lower()
+            if agent is not None:
+                try:
+                    from core.sdd.apply_mode import apply_presentation_to_agent
+
+                    apply_presentation_to_agent(
+                        agent, str(plan.get("tools_presentation") or "code")
+                    )
+                except Exception:
+                    pass
             if agent is not None and mode in ("subagents", "hybrid"):
                 try:
                     from core.sdd.dispatch import dispatch_change_tasks
 
-                    disp = await dispatch_change_tasks(
-                        store, change_id, parent_agent=agent
-                    )
+                    disp = await dispatch_change_tasks(store, change_id, parent_agent=agent)
                     spawned = disp.get("spawned") or []
                     if spawned:
                         await _write(
@@ -667,9 +683,7 @@ async def run_spec_command(host: Any, command: str) -> None:
                             ),
                         )
                     if disp.get("errors"):
-                        await _write(
-                            host, "Dispatch errors: " + "; ".join(disp["errors"])
-                        )
+                        await _write(host, "Dispatch errors: " + "; ".join(disp["errors"]))
                 except Exception as exc:
                     await _write(host, f"Auto-dispatch skipped: {exc}")
             await _dispatch_agent(

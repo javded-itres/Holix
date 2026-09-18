@@ -62,6 +62,41 @@ async def test_max_concurrent_blocks_spawn(monkeypatch: pytest.MonkeyPatch) -> N
         await mgr.spawn_sub_agent(cfg, "task")
 
 
+@pytest.mark.asyncio
+async def test_followed_process_waiter_does_not_occupy_slot(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    mgr = _manager(max_concurrent=1)
+    waiter = SubAgentHandle(
+        name="coder-python-1",
+        config=SubAgentConfig(name="coder-python-1"),
+        status=SubAgentStatus.RUNNING,
+    )
+    waiter.followed_process = True
+    mgr._handles["coder-python-1"] = waiter
+
+    spawned: list[str] = []
+
+    async def fake_run(config, *_a, **_k):
+        spawned.append(config.name)
+        return SubAgentHandle(
+            name=config.name,
+            config=config,
+            status=SubAgentStatus.RUNNING,
+        )
+
+    monkeypatch.setattr(mgr._async_runner, "run", fake_run)
+
+    async def fake_register(*_a, **_k):
+        return None
+
+    monkeypatch.setattr(mgr._comm_bus, "register_async", fake_register)
+    cfg = SubAgentConfig(name="p-proc-coder", process_mode=ProcessMode.ASYNC)
+    handle = await mgr.spawn_sub_agent(cfg, "task 7.6.1")
+    assert spawned == ["p-proc-coder"]
+    assert handle.name == "p-proc-coder"
+
+
 def test_format_status_text_lists_jobs() -> None:
     mgr = _manager()
     mgr._handles["researcher-2"] = SubAgentHandle(

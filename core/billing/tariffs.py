@@ -14,10 +14,16 @@ class TariffLimits:
     workspace_max_files: int
 
 
+_PRO = TariffLimits("pro", 10 * 1024 * 1024 * 1024, 500_000)
+_BASIC = TariffLimits("basic", 1024 * 1024 * 1024, 50_000)
+
 _TARIFFS: dict[str, TariffLimits] = {
     "free": TariffLimits("free", 100 * 1024 * 1024, 5_000),
-    "basic": TariffLimits("basic", 1024 * 1024 * 1024, 50_000),
-    "pro": TariffLimits("pro", 10 * 1024 * 1024 * 1024, 500_000),
+    "basic": _BASIC,
+    "starter": _BASIC,
+    "pro": _PRO,
+    "team": TariffLimits("team", _PRO.workspace_max_bytes, _PRO.workspace_max_files),
+    "enterprise": TariffLimits("enterprise", _PRO.workspace_max_bytes, _PRO.workspace_max_files),
 }
 
 

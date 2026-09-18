@@ -12,6 +12,7 @@ CHANGES_DIR = "changes"
 ARCHIVE_DIR = "archive"
 CONFIG_FILE = "config.yaml"
 APPLY_MODE_FILE = ".apply-mode"
+APPLY_TOOLS_FILE = ".apply-tools-presentation"
 SPEC_FILENAME = "spec.md"
 
 _CHANGE_ID_RE = re.compile(r"^[a-z0-9][a-z0-9\-_]{0,63}$")
@@ -47,6 +48,10 @@ def archive_root(workspace: Path) -> Path:
 
 def apply_mode_path(workspace: Path, change_id: str) -> Path:
     return change_dir(workspace, change_id) / APPLY_MODE_FILE
+
+
+def apply_presentation_path(workspace: Path, change_id: str) -> Path:
+    return change_dir(workspace, change_id) / APPLY_TOOLS_FILE
 
 
 def confined_under(root: Path | str, path: Path | str) -> Path:

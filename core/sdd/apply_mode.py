@@ -3,9 +3,9 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Literal
+from typing import Any, Literal
 
-from core.sdd.paths import apply_mode_path
+from core.sdd.paths import apply_mode_path, apply_presentation_path
 
 ApplyMode = Literal["self", "subagents", "hybrid"]
 APPLY_MODES: tuple[str, ...] = ("self", "subagents", "hybrid")
@@ -69,3 +69,41 @@ def apply_mode_prompt_text(change_id: str, *, assignees: dict[str, int] | None =
 
 def describe_mode(mode: str) -> str:
     return _MODE_PROMPTS.get(normalize_apply_mode(mode), mode)
+
+
+APPLY_PRESENTATIONS: tuple[str, ...] = ("native", "code", "both")
+DEFAULT_SELF_PRESENTATION = "code"
+
+
+def normalize_apply_presentation(raw: str | None) -> str:
+    m = (raw or "").strip().lower()
+    if m in APPLY_PRESENTATIONS:
+        return m
+    return DEFAULT_SELF_PRESENTATION
+
+
+def load_apply_presentation(workspace: Path, change_id: str) -> str:
+    path = apply_presentation_path(workspace, change_id)
+    if not path.is_file():
+        return DEFAULT_SELF_PRESENTATION
+    return normalize_apply_presentation(path.read_text(encoding="utf-8"))
+
+
+def save_apply_presentation(workspace: Path, change_id: str, mode: str) -> str:
+    normalized = normalize_apply_presentation(mode)
+    path = apply_presentation_path(workspace, change_id)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(normalized + "\n", encoding="utf-8")
+    return normalized
+
+
+def apply_presentation_to_agent(agent: Any, mode: str) -> str:
+    """Pin Native/Code/Both on the live main agent for a self (or hybrid) apply."""
+    normalized = normalize_apply_presentation(mode)
+    tools = getattr(agent, "tools", None)
+    if tools is not None:
+        try:
+            tools._tools_presentation = normalized
+        except Exception:
+            pass
+    return normalized

@@ -8,7 +8,13 @@ import shutil
 from datetime import date
 from pathlib import Path
 
-from core.sdd.apply_mode import apply_mode_prompt_text, load_apply_mode, save_apply_mode
+from core.sdd.apply_mode import (
+    apply_mode_prompt_text,
+    load_apply_mode,
+    load_apply_presentation,
+    save_apply_mode,
+    save_apply_presentation,
+)
 from core.sdd.merge import count_delta_requirements, merge_delta_into_main
 from core.sdd.models import ChangeStatus
 from core.sdd.paths import (
@@ -291,6 +297,7 @@ class SpecStore:
                     "tasks_done": st.tasks_done,
                     "tasks_total": st.tasks_total,
                     "apply_mode": st.apply_mode,
+                    "tools_presentation": st.tools_presentation,
                     "archived": False,
                 }
             )
@@ -344,12 +351,8 @@ class SpecStore:
             (dest / "proposal.md").write_text(
                 _PROPOSAL_STUB.format(change_id=cid), encoding="utf-8"
             )
-        (dest / "design.md").write_text(
-            _DESIGN_STUB.format(change_id=cid), encoding="utf-8"
-        )
-        (dest / "tasks.md").write_text(
-            _TASKS_STUB.format(change_id=cid), encoding="utf-8"
-        )
+        (dest / "design.md").write_text(_DESIGN_STUB.format(change_id=cid), encoding="utf-8")
+        (dest / "tasks.md").write_text(_TASKS_STUB.format(change_id=cid), encoding="utf-8")
         delta_dir = dest / "specs" / domain
         delta_dir.mkdir(parents=True)
         (delta_dir / SPEC_FILENAME).write_text(
@@ -394,21 +397,18 @@ class SpecStore:
         if tasks_path.is_file():
             tasks = parse_tasks_markdown(tasks_path.read_text(encoding="utf-8"))
         mode = load_apply_mode(self.workspace, cid)
+        tools_presentation = load_apply_presentation(self.workspace, cid)
         tasks_ok = self._tasks_ready_for_apply(tasks, apply_mode=mode)
         delta_specs = (
-            list((cdir / "specs").rglob(SPEC_FILENAME))
-            if (cdir / "specs").is_dir()
-            else []
+            list((cdir / "specs").rglob(SPEC_FILENAME)) if (cdir / "specs").is_dir() else []
         )
         artifacts = {
             "proposal": (cdir / "proposal.md").is_file()
             and self._artifact_filled(cdir / "proposal.md"),
-            "design": (cdir / "design.md").is_file()
-            and self._artifact_filled(cdir / "design.md"),
+            "design": (cdir / "design.md").is_file() and self._artifact_filled(cdir / "design.md"),
             "tasks": tasks_path.is_file() and tasks_ok,
             # File existence alone is not enough — create_change writes stubs.
-            "specs": bool(delta_specs)
-            and all(self._artifact_filled(p) for p in delta_specs),
+            "specs": bool(delta_specs) and all(self._artifact_filled(p) for p in delta_specs),
         }
         missing: list[str] = []
         if not artifacts["proposal"]:
@@ -421,10 +421,7 @@ class SpecStore:
             missing.append(self._tasks_missing_reason(tasks, apply_mode=mode))
         # design is reported for honesty/UI but not required to start apply
         apply_ready = (
-            artifacts["proposal"]
-            and artifacts["specs"]
-            and artifacts["tasks"]
-            and len(tasks) > 0
+            artifacts["proposal"] and artifacts["specs"] and artifacts["tasks"] and len(tasks) > 0
         )
         return ChangeStatus(
             change_id=cid,
@@ -434,6 +431,7 @@ class SpecStore:
             tasks_done=sum(1 for t in tasks if t.done),
             assignees=assignees_summary(tasks),
             apply_mode=mode,
+            tools_presentation=tools_presentation,
             apply_ready=apply_ready,
             missing=missing,
         )
@@ -505,9 +503,7 @@ class SpecStore:
             path = cdir / "specs" / dom / SPEC_FILENAME
             path.parent.mkdir(parents=True, exist_ok=True)
         else:
-            raise ValueError(
-                f"unknown artifact {artifact!r}; use proposal|design|tasks|specs"
-            )
+            raise ValueError(f"unknown artifact {artifact!r}; use proposal|design|tasks|specs")
 
         before = path.read_text(encoding="utf-8") if path.is_file() else None
         path.write_text(content, encoding="utf-8")
@@ -662,7 +658,9 @@ class SpecStore:
             spec_items: list[dict] = []
             if specs_dir.is_dir():
                 for d in sorted(
-                    p for p in specs_dir.iterdir() if p.is_dir()  # lgtm[py/path-injection]
+                    p
+                    for p in specs_dir.iterdir()
+                    if p.is_dir()  # lgtm[py/path-injection]
                 ):
                     spec_path = d / SPEC_FILENAME
                     spec_items.append(
@@ -711,9 +709,7 @@ class SpecStore:
             extra["domain"] = dom
             path = cdir / "specs" / dom / SPEC_FILENAME
         else:
-            raise ValueError(
-                f"unknown artifact {artifact!r}; use proposal|design|tasks|specs"
-            )
+            raise ValueError(f"unknown artifact {artifact!r}; use proposal|design|tasks|specs")
         payload = _file_payload(path, kind=art, extra=extra)
         if not payload["exists"]:
             return {
@@ -821,12 +817,29 @@ class SpecStore:
             )
         return out
 
-    def set_apply_mode(self, change_id: str, mode: str) -> dict:
+    def set_apply_mode(
+        self,
+        change_id: str,
+        mode: str,
+        *,
+        tools_presentation: str | None = None,
+    ) -> dict:
         cid = validate_change_id(change_id)
         if not change_dir(self.workspace, cid).is_dir():
             raise FileNotFoundError(f"change not found: {cid}")
         saved = save_apply_mode(self.workspace, cid, mode)
-        return {"ok": True, "change_id": cid, "apply_mode": saved}
+        if tools_presentation is not None:
+            pres = save_apply_presentation(self.workspace, cid, tools_presentation)
+        else:
+            pres = load_apply_presentation(self.workspace, cid)
+            if saved == "self":
+                pres = save_apply_presentation(self.workspace, cid, pres)
+        return {
+            "ok": True,
+            "change_id": cid,
+            "apply_mode": saved,
+            "tools_presentation": pres,
+        }
 
     def request_apply_mode(self, change_id: str) -> dict:
         st = self.change_status(change_id)
@@ -896,6 +909,7 @@ class SpecStore:
             "ok": True,
             "change_id": st.change_id,
             "apply_mode": mode,
+            "tools_presentation": load_apply_presentation(self.workspace, st.change_id),
             "plan": plan,
             "graph": graph.to_dict(),
             "graph_summary": summary,

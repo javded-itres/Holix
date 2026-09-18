@@ -32,6 +32,7 @@ class ChangeStatus:
     tasks_done: int = 0
     assignees: dict[str, int] = field(default_factory=dict)
     apply_mode: str | None = None
+    tools_presentation: str | None = None
     apply_ready: bool = False
     missing: list[str] = field(default_factory=list)
 
@@ -44,6 +45,7 @@ class ChangeStatus:
             "tasks_done": self.tasks_done,
             "assignees": dict(self.assignees),
             "apply_mode": self.apply_mode,
+            "tools_presentation": self.tools_presentation,
             "apply_ready": self.apply_ready,
             "missing": list(self.missing),
         }

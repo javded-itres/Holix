@@ -530,6 +530,18 @@ def test_save_apply_mode(tmp_path: Path):
     assert store.change_status("c1").apply_mode == "hybrid"
 
 
+def test_self_apply_defaults_to_code_presentation(tmp_path: Path):
+    store = SpecStore(tmp_path)
+    store.init()
+    store.create_change("c1")
+    out = store.set_apply_mode("c1", "self")
+    assert out["tools_presentation"] == "code"
+    assert store.change_status("c1").tools_presentation == "code"
+    out = store.set_apply_mode("c1", "self", tools_presentation="native")
+    assert out["tools_presentation"] == "native"
+    assert store.change_status("c1").tools_presentation == "native"
+
+
 def test_discover_multi_project_openspec(tmp_path: Path):
     from core.sdd.projects import discover_sdd_projects
 

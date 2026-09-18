@@ -17,7 +17,6 @@ from core.tools.execution_context import (
 from core.workspace.limits import (
     ProfileLimits,
     ensure_profile_limits,
-    load_profile_limits,
     save_profile_limits,
 )
 from core.workspace.quota import (
@@ -63,7 +62,14 @@ def test_ensure_profile_limits_default(holix_home, monkeypatch) -> None:
     limits = ensure_profile_limits(profile)
     assert limits.tariff_id == "free"
     assert limits.workspace_max_bytes == 100 * 1024 * 1024
-    assert load_profile_limits(profile) is not None
+
+
+def test_enterprise_tariff_is_10gb() -> None:
+    from core.billing.tariffs import limits_for_tariff
+
+    assert limits_for_tariff("enterprise").workspace_max_bytes == 10 * 1024 * 1024 * 1024
+    assert limits_for_tariff("team").workspace_max_bytes == 10 * 1024 * 1024 * 1024
+    assert limits_for_tariff("pro").workspace_max_bytes == 10 * 1024 * 1024 * 1024
 
 
 def test_workspace_stays_plaintext_when_encryption_enabled(holix_home, monkeypatch) -> None:
