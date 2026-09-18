@@ -47,8 +47,6 @@ def apply_unlimited_main_agent_steps(config: Any) -> Any:
         pass
     if bool(getattr(config, "non_interactive", False)):
         return config
-    if int(getattr(config, "max_steps", 0) or 0) <= 0:
-        return config
     overrides = getattr(config, "with_overrides", None)
     if callable(overrides):
         try:
