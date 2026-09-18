@@ -87,6 +87,16 @@ def test_route_after_react_respects_max_steps_with_tools() -> None:
     assert route_after_react(state) == "reflect"
 
 
+def test_route_after_react_unlimited_max_steps_keeps_tools() -> None:
+    state = HolixGraphState(
+        tool_calls=[{"id": "t1", "function": {"name": "read_file", "arguments": "{}"}}],
+        step_count=500,
+        max_steps=0,
+        is_final=False,
+    )
+    assert route_after_react(state) == "tool_execution"
+
+
 def test_truncate_tool_content_for_memory() -> None:
     big = "a" * 20_000
     out = truncate_tool_content_for_memory(big, max_chars=100)

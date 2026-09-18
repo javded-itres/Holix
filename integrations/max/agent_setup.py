@@ -40,8 +40,11 @@ async def create_agent(
     # Multi-user messenger host: no self-authored extensions into shared agent state.
     os.environ.setdefault("HOLIX_MESSENGER_HOST", "max")
 
+    from core.runtime.step_budget import apply_unlimited_main_agent_steps
+
     runtime_config = resolve_profile_agent_config(profile, config)
     runtime_config = runtime_config.with_overrides(self_extensions_enabled=False)
+    runtime_config = apply_unlimited_main_agent_steps(runtime_config)
     # Same as Telegram: avoid blocking messenger replies on skill embedding index.
     agent, _container = await di_create_agent(
         runtime_config,

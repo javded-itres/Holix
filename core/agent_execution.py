@@ -160,8 +160,10 @@ async def run_agent_loop(
         conversation_id=conversation_id,
     )
 
+    from core.runtime.step_budget import step_limit_hit
+
     while True:
-        while step_count < max_steps:
+        while not step_limit_hit(step_count, max_steps):
             step_count += 1
 
             # Build API messages: system prompt + recent messages

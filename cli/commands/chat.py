@@ -109,7 +109,9 @@ class ChatSession:
                 listeners = [create_compatibility_print_handler()]
 
             from core.di import create_agent as di_create_agent
+            from core.runtime.step_budget import apply_unlimited_main_agent_steps
 
+            runtime_config = apply_unlimited_main_agent_steps(runtime_config)
             self.agent, self._di_container = await di_create_agent(
                 runtime_config,
                 event_listeners=listeners,

@@ -250,7 +250,9 @@ async def run_graph_loop(
             final_text = ""
         step_count = final_state.get("step_count", 0)
         max_steps = final_state.get("max_steps", 90)
-        at_cap = bool(step_count >= max_steps)
+        from core.runtime.step_budget import step_limit_hit
+
+        at_cap = step_limit_hit(step_count, max_steps)
         if not (final_text or "").strip() and not at_cap:
             picked = pick_best_tool_final(
                 graph_tool_results_as_recent(final_state.get("tool_results"))

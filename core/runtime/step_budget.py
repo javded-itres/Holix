@@ -19,6 +19,49 @@ from typing import Any
 
 logger = logging.getLogger(__name__)
 
+
+def step_limit_hit(step_count: int | None, max_steps: int | None) -> bool:
+    """True when the ReAct budget is exhausted.
+
+    ``max_steps <= 0`` means unlimited (interactive main agent). Sub-agents keep
+    a positive cap.
+    """
+    cap = int(max_steps or 0)
+    if cap <= 0:
+        return False
+    return int(step_count or 0) >= cap
+
+
+def apply_unlimited_main_agent_steps(config: Any) -> Any:
+    """Drop the ReAct cap on the interactive main agent (TUI / Telegram / MAX / Studio).
+
+    Unattended and ``non_interactive`` runs keep the profile ``max_steps``.
+    Sub-agents always use their own type ``max_steps``, not this value.
+    """
+    try:
+        from core.di.runtime_config import unattended_requested
+
+        if unattended_requested():
+            return config
+    except Exception:
+        pass
+    if bool(getattr(config, "non_interactive", False)):
+        return config
+    if int(getattr(config, "max_steps", 0) or 0) <= 0:
+        return config
+    overrides = getattr(config, "with_overrides", None)
+    if callable(overrides):
+        try:
+            return overrides(max_steps=0)
+        except Exception:
+            return config
+    try:
+        config.max_steps = 0
+    except Exception:
+        pass
+    return config
+
+
 # Defaults (overridable via Settings / agent config)
 DEFAULT_EXTEND_BY = 30
 DEFAULT_MAX_EXTENSIONS = 10
@@ -299,6 +342,15 @@ def evaluate_step_budget(
     ms = int(max_steps or 0)
     ext_used = max(0, int(extensions_used or 0))
     base = int(base_max_steps or ms)
+
+    if ms <= 0:
+        return StepBudgetDecision(
+            extend=False,
+            reason="unlimited step budget",
+            status="unlimited",
+            extensions_used=ext_used,
+            new_max_steps=0,
+        )
 
     if not pol.enabled:
         return StepBudgetDecision(
@@ -713,7 +765,7 @@ def maybe_extend_for_graph_result(
     max_steps = int(result.get("max_steps", state.get("max_steps", 0)) or 0)
     if max_steps <= 0:
         max_steps = int(state.get("max_steps", 0) or 0)
-    if step_count < max_steps:
+    if not step_limit_hit(step_count, max_steps):
         return result
     if result.get("is_final") and _is_terminal_final(str(result.get("final_response") or "")):
         return result

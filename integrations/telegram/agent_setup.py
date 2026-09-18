@@ -20,9 +20,7 @@ async def create_agent(
 ):
     if bot_profile is not None and telegram_user_id is not None:
         if not telegram_user_may_access_profile(bot_profile, telegram_user_id, profile):
-            msg = (
-                f"Telegram user {telegram_user_id} is not authorized for profile '{profile}'"
-            )
+            msg = f"Telegram user {telegram_user_id} is not authorized for profile '{profile}'"
             raise PermissionError(msg)
         if config is None:
             from cli.core import ProfileManager
@@ -58,8 +56,11 @@ async def create_agent(
     # Multi-user messenger host: no self-authored extensions into shared agent state.
     os.environ.setdefault("HOLIX_MESSENGER_HOST", "telegram")
 
+    from core.runtime.step_budget import apply_unlimited_main_agent_steps
+
     runtime_config = resolve_profile_agent_config(profile, config)
     runtime_config = runtime_config.with_overrides(self_extensions_enabled=False)
+    runtime_config = apply_unlimited_main_agent_steps(runtime_config)
     # Defer skill embedding index: full index can hang for minutes when the
     # embedding backend is slow/unreachable, which freezes Telegram replies.
     agent, _container = await di_create_agent(
