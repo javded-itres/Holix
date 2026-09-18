@@ -11,6 +11,19 @@ from core.runtime.step_budget import (
 )
 
 
+def test_apply_unlimited_main_agent_steps_sets_zero_when_attr_missing() -> None:
+    from types import SimpleNamespace
+
+    def with_overrides(**updates):
+        for k, v in updates.items():
+            setattr(cfg, k, v)
+        return cfg
+
+    cfg = SimpleNamespace(non_interactive=False, with_overrides=with_overrides)
+    out = apply_unlimited_main_agent_steps(cfg)
+    assert out.max_steps == 0
+
+
 def test_apply_unlimited_main_agent_steps_interactive() -> None:
     from types import SimpleNamespace
 
