@@ -14,6 +14,7 @@ from integrations.telegram.commands import (
 )
 from integrations.telegram.config import TelegramSettings, load_telegram_settings
 from integrations.telegram.host import TelegramHost
+from integrations.telegram.inbound import InboundFileGate, compose_telegram_inbound_text
 from integrations.telegram.interactive import dispatch_callback
 from integrations.telegram.media_group import MediaGroupBuffer, PendingAttachment
 from integrations.telegram.session import ChatSession
@@ -41,6 +42,7 @@ class HolixTelegramBot:
 
         delay = max(200, int(app_settings.telegram_media_group_delay_ms or 800)) / 1000.0
         self._media_groups = MediaGroupBuffer(delay_sec=delay)
+        self._file_gate = InboundFileGate()
         self._menu_enabled_chats: set[int] = set()
 
     def _plugin_api_active(self) -> Any:
@@ -469,39 +471,54 @@ class HolixTelegramBot:
             caption if caption is not None else (getattr(message, "caption", None) or "")
         ).strip()
         media_group_id = getattr(message, "media_group_id", None)
+        chat_id = message.chat.id
 
         if not media_group_id:
-            await self._finalize_attachments(
-                bot,
-                chat_id=message.chat.id,
-                user_id=message.from_user.id,
-                items=[attachment],
-                caption=caption_text,
-                settings=settings,
-                process_now=process_now,
-            )
+            self._file_gate.begin(chat_id)
+            try:
+                await self._finalize_attachments(
+                    bot,
+                    chat_id=chat_id,
+                    user_id=message.from_user.id,
+                    items=[attachment],
+                    caption=caption_text,
+                    settings=settings,
+                    process_now=process_now,
+                )
+            finally:
+                self._file_gate.end(chat_id)
             return
 
-        async def _flush(batch) -> None:
-            await self._finalize_attachments(
-                bot,
-                chat_id=batch.chat_id,
-                user_id=batch.user_id,
-                items=list(batch.items),
-                caption=batch.caption,
-                settings=settings,
-                process_now=batch.process_now,
-            )
+        self._file_gate.begin(chat_id)
 
-        await self._media_groups.add(
-            chat_id=message.chat.id,
-            user_id=message.from_user.id,
-            media_group_id=str(media_group_id),
-            item=attachment,
-            caption=caption_text,
-            on_flush=_flush,
-            process_now=process_now,
-        )
+        async def _flush(batch) -> None:
+            try:
+                await self._finalize_attachments(
+                    bot,
+                    chat_id=batch.chat_id,
+                    user_id=batch.user_id,
+                    items=list(batch.items),
+                    caption=batch.caption,
+                    settings=settings,
+                    process_now=batch.process_now,
+                )
+            finally:
+                for _ in batch.items:
+                    self._file_gate.end(batch.chat_id)
+
+        try:
+            await self._media_groups.add(
+                chat_id=chat_id,
+                user_id=message.from_user.id,
+                media_group_id=str(media_group_id),
+                item=attachment,
+                caption=caption_text,
+                on_flush=_flush,
+                process_now=process_now,
+            )
+        except Exception:
+            self._file_gate.end(chat_id)
+            raise
 
     async def _finalize_attachments(
         self,
@@ -601,18 +618,88 @@ class HolixTelegramBot:
         user_text: str,
         settings: TelegramSettings,
     ) -> bool:
-        session = await self._get_session(message.chat.id, message.from_user.id, bot=bot)
-        if not session.pending_files:
-            return False
+        return await self._deliver_user_turn(
+            bot,
+            message,
+            user_text=user_text,
+            settings=settings,
+        )
 
+    async def _save_reply_attachments(
+        self,
+        bot: Any,
+        *,
+        reply: Any,
+        session: ChatSession,
+        chat_id: int,
+    ) -> list[Any]:
+        from integrations.telegram.file_handler import save_telegram_attachment
+        from integrations.telegram.forwards import pending_attachment_from_message
+
+        attachment = pending_attachment_from_message(reply)
+        if attachment is None:
+            return []
+        try:
+            saved = await save_telegram_attachment(
+                bot,
+                attachment.file_id,
+                profile=session.profile,
+                chat_id=chat_id,
+                file_name=attachment.file_name,
+                mime_type=attachment.mime_type,
+                file_size=attachment.file_size,
+                bot_profile=session.bot_profile,
+                telegram_user_id=session.user_id,
+            )
+            return [saved]
+        except Exception:
+            import logging
+
+            logging.getLogger(__name__).exception(
+                "Telegram reply attachment save failed for profile=%s file=%s",
+                session.profile,
+                attachment.file_name,
+            )
+            return []
+
+    async def _deliver_user_turn(
+        self,
+        bot: Any,
+        message: Any,
+        *,
+        user_text: str,
+        settings: TelegramSettings | None = None,
+    ) -> bool:
+        """Wait for in-flight file saves, attach reply media, then run the agent."""
+        _ = settings
+        await self._file_gate.wait_idle(message.chat.id)
+        session = await self._get_session(message.chat.id, message.from_user.id, bot=bot)
         from integrations.telegram.file_handler import build_agent_prompt
 
         files = list(session.pending_files)
         session.pending_files.clear()
+        reply = getattr(message, "reply_to_message", None)
+        if reply is not None:
+            files.extend(
+                await self._save_reply_attachments(
+                    bot,
+                    reply=reply,
+                    session=session,
+                    chat_id=message.chat.id,
+                )
+            )
         host = TelegramHost(bot, session, edit_interval_ms=settings.edit_interval_ms)
-        prompt = build_agent_prompt(user_text, files)
-        await host.handle_user_text(prompt)
-        return True
+        reply_id = getattr(reply, "message_id", None) if reply is not None else None
+        if files:
+            await host.handle_user_text(
+                build_agent_prompt(user_text, files),
+                reply_to_message_id=reply_id,
+            )
+            return True
+        if user_text.strip():
+            await host.handle_user_text(user_text, reply_to_message_id=reply_id)
+            return True
+        return False
 
     def build(self) -> tuple[Any, Any]:
         try:
@@ -794,28 +881,25 @@ class HolixTelegramBot:
                 is_telegram_forward,
             )
 
+            locale = messenger_locale(session.profile)
             user_text = message.text
             if is_telegram_forward(message):
                 user_text = compose_telegram_forward_prompt(
                     message,
-                    locale=messenger_locale(session.profile),
+                    locale=locale,
                     has_media=False,
                 )
-            if await self._flush_pending_files(
-                bot,
+            user_text = compose_telegram_inbound_text(
                 message,
                 user_text=user_text,
-                settings=settings,
-            ):
-                return
+                locale=locale,
+            )
             try:
-                host = TelegramHost(bot, session, edit_interval_ms=settings.edit_interval_ms)
-                reply_id = None
-                if message.reply_to_message is not None:
-                    reply_id = getattr(message.reply_to_message, "message_id", None)
-                await host.handle_user_text(
-                    user_text,
-                    reply_to_message_id=reply_id,
+                await self._deliver_user_turn(
+                    bot,
+                    message,
+                    user_text=user_text,
+                    settings=settings,
                 )
             except Exception as exc:
                 print(

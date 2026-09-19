@@ -12,6 +12,10 @@
   `-p production`), not `HELIX_PROFILE`/`default`. Production no longer fails
   startup when MAX is in webhook mode. A webhook init error no longer takes
   down the whole gateway.
+- **Telegram inbound** — replies and quotes (`message.quote`, `reply_to_message`
+  text/caption/file/photo) are folded into the agent prompt. Follow-up text
+  waits until in-flight attachment downloads finish, so a file without a caption
+  is not dropped when the next message arrives during save.
 
 ## 1.1.11 — 2026-09-18
 

@@ -120,6 +120,9 @@ MESSAGES: dict[str, dict[str, str]] = {
             "(photo, video, file), summarize the content, and do anything useful "
             "that follows from it."
         ),
+        "msg.inbound.quote": "## Quoted text",
+        "msg.inbound.reply": "## Replied-to message",
+        "msg.inbound.user": "## User message",
         "tg.reflexion": "Reflexion: {state}",
         "tg.reflexion_on": "Reflexion On",
         "tg.reflexion_off": "Off",
@@ -847,6 +850,9 @@ When finished, confirm the absolute path written and give a 5–10 line summary 
             "(фото, видео, файл), кратко опиши содержимое и выполни то, "
             "что из него следует."
         ),
+        "msg.inbound.quote": "## Цитата",
+        "msg.inbound.reply": "## Сообщение, на которое отвечают",
+        "msg.inbound.user": "## Сообщение пользователя",
         "tg.reflexion": "Reflexion: {state}",
         "tg.reflexion_on": "Reflexion Вкл",
         "tg.reflexion_off": "Выкл",
