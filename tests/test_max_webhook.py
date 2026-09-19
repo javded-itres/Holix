@@ -188,6 +188,24 @@ async def test_reload_max_webhook_reregisters(monkeypatch: pytest.MonkeyPatch) -
 
 
 @pytest.mark.asyncio
+async def test_init_max_webhook_uses_holix_profile_env(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("HELIX_PROFILE", raising=False)
+    monkeypatch.setenv("HOLIX_PROFILE", "production")
+    monkeypatch.setattr("integrations.max.gateway_routes.load_max_env_files", lambda: None)
+
+    seen: list[str] = []
+
+    def _load(profile: str) -> MaxSettings:
+        seen.append(profile)
+        return _webhook_settings(mode="polling", profile=profile)
+
+    with patch("integrations.max.gateway_routes.load_max_settings", side_effect=_load):
+        state = await init_max_webhook(None)
+    assert state is None
+    assert seen == ["production"]
+
+
+@pytest.mark.asyncio
 async def test_init_max_webhook_skips_polling_mode(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr("integrations.max.gateway_routes.load_max_env_files", lambda: None)
 
