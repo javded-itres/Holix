@@ -147,7 +147,7 @@ _BODIES: dict[str, dict[str, str]] = {
             "Sub-agents are **specialized workers**. A **type** is the role "
             "(prompt, tools, model). A **job** is one run of that type.\n\n"
             "Built-in types: `researcher`, `web_researcher`, `page_analyst`, `coder`, "
-            "`analyst`, `reviewer`, `writer`.\n\n"
+            "`analyst`, `reviewer`, `writer`, `session_doctor`.\n\n"
             "Open this submenu for configure / spawn / Code mode, or send "
             "`/subagent-types` and `/menu` → Sub-agents."
         ),
@@ -299,7 +299,7 @@ _BODIES: dict[str, dict[str, str]] = {
             "Субагент — **узкий воркер**. **Тип** — роль (промпт, tools, модель). "
             "**Job** — один запуск этого типа.\n\n"
             "Встроенные типы: `researcher`, `web_researcher`, `page_analyst`, `coder`, "
-            "`analyst`, `reviewer`, `writer`.\n\n"
+            "`analyst`, `reviewer`, `writer`, `session_doctor`.\n\n"
             "Дальше: настройка типов, запуск, Code mode. Либо `/subagent-types` "
             "и `/menu` → Субагенты."
         ),

@@ -73,6 +73,9 @@ TOOL_ALIASES: dict[str, str] = {
     "diagnose_self": "self_diagnose",
     "diagnose_session": "self_diagnose",
     "self_check": "self_diagnose",
+    "admin_support": "request_admin_support",
+    "send_admin_ticket": "request_admin_support",
+    "request_support": "request_admin_support",
     # Cline / Roo / Continue
     "execute_command": "run_terminal_command",
     "execute_terminal_command": "run_terminal_command",

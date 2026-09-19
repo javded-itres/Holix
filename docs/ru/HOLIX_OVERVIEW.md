@@ -148,7 +148,7 @@ HTTP API для приложений, интеграций и OpenAI-совме�
 | **Файлы** | `read_file`, `write_file`, `patch_file`, `list_directory` |
 | **Терминал** | `run_terminal_command`, `terminal`, фоновые процессы |
 | **Веб** | `web_search`, `fetch_url` / `web_fetch`, `research_site_pages` |
-| **Чат** | `send_chat_files` (вложение Telegram/MAX), `self_diagnose` («проверь себя») |
+| **Чат** | `send_chat_files` (вложение Telegram/MAX), `session_doctor` / «проверь себя» |
 | **Код** | `execute_python`, `code_executor`, `calculate` |
 | **Данные** | `sql_query`, `sql_schema` |
 | **Браузер** *(extra)* | `browser_open`, `browser_click`, `browser_fill`, snapshot… |
@@ -247,6 +247,7 @@ holix mcp setup
 | `analyst` | Данные, SQL, расчёты |
 | `reviewer` | Ревью кода |
 | `writer` | Документация и тексты |
+| `session_doctor` | Разбор сессии («проверь себя»), без правок настроек |
 
 Управление: делегирование из агента, `/subagent-spawn`, лимиты concurrent. Режимы process / async. Подробнее: [SUBAGENTS.md](SUBAGENTS.md).
 

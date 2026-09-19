@@ -17,12 +17,12 @@ class SelfDiagnoseTool(BaseTool):
         super().__init__()
         self.name = SELF_DIAGNOSE_TOOL
         self.description = (
-            "Autopsy of THIS conversation: full history, failed tools, false "
-            "«готово» claims, loops, step-limit, unanswered asks. Call FIRST when "
-            "the user says «проверь себя», «почему ты делаешь не так», "
-            "«ты отвечаешь неправильно», check yourself, or similar. Then follow "
-            "report.plan.do_now with tools and ask only report.plan.ask_user. "
-            "May stage a skill patch when a live skill taught the wrong file-delivery."
+            "Autopsy of a conversation: full history, failed tools, false "
+            "«готово» claims, loops, step-limit, unanswered asks. "
+            "session_doctor calls this on the parent session (clean child context). "
+            "Main agent: spawn session_doctor with fork=false instead of calling "
+            "this in the polluted chat. May stage a skill patch only when a live "
+            "skill taught the wrong file-delivery (disabled for session_doctor)."
         )
         self.risk_level = "low"
         self.parameters = {
@@ -37,18 +37,39 @@ class SelfDiagnoseTool(BaseTool):
                     "default": True,
                     "description": "Stage a patch when a live skill taught the wrong procedure",
                 },
+                "conversation_id": {
+                    "type": "string",
+                    "description": (
+                        "Session to autopsy. session_doctor should omit this — "
+                        "the parent conversation is used automatically."
+                    ),
+                },
             },
         }
 
-    async def execute(self, complaint: str = "", fix_skills: bool = True, **_: Any) -> str:
+    async def execute(
+        self,
+        complaint: str = "",
+        fix_skills: bool = True,
+        conversation_id: str = "",
+        **_: Any,
+    ) -> str:
+        from core.runtime.admin_support import infer_surface, snapshot_system_settings
         from core.runtime.self_diagnose import (
+            DOCTOR_HOW_TO_ANSWER,
             SESSION_HISTORY_LIMIT,
             TRAJECTORY_HISTORY_LIMIT,
             diagnose_session,
+            resolve_diagnose_conversation_id,
         )
+        from core.tools.execution_context import get_agent_slot, get_subagent_type
 
-        cid = get_conversation_id() or "default"
+        cid = resolve_diagnose_conversation_id(conversation_id)
         profile = get_profile_name() or "default"
+        slot = str(get_subagent_type() or get_agent_slot() or "")
+        doctor = slot.startswith("session_doctor")
+        if doctor:
+            fix_skills = False
         want = (complaint or "").strip()
         messages: list[dict[str, Any]] = []
         trajectory: list[dict[str, Any]] = []
@@ -112,6 +133,11 @@ class SelfDiagnoseTool(BaseTool):
         )
         report["conversation_id"] = cid
         report["profile"] = profile
+        report["surface"] = infer_surface(cid)
+        report["settings"] = snapshot_system_settings(profile)
+        if doctor:
+            report["how_to_answer"] = DOCTOR_HOW_TO_ANSWER
+            report["role"] = "session_doctor"
 
         staged: list[dict[str, Any]] = []
         skill_issue = any(
@@ -150,7 +176,7 @@ async def _stage_delivery_fixes(mgr: Any, skills: list[dict[str, Any]]) -> list[
     from core.skills.lifecycle import resolve_skill_locale, settle_proposal
     from core.skills.proposal import SkillProposalStore, is_protected_skill
     from core.skills.quality import heuristic_quality
-    from core.tools.execution_context import get_conversation_id, get_profile_name
+    from core.tools.execution_context import get_profile_name
 
     out: list[dict[str, Any]] = []
     profile = get_profile_name() or "default"

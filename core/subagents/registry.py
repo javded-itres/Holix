@@ -8,6 +8,7 @@ Provides ready-to-use sub-agent types for common tasks:
 - coder: Code generation and editing
 - analyst: Data analysis and visualization
 - reviewer: Code review and quality assessment
+- session_doctor: Clean-context session autopsy and optional admin ticket
 """
 
 from core.subagents.base import SubAgentConfig
@@ -180,6 +181,59 @@ PREDEFINED_SUBAGENTS = {
         description="Writing specialist — creates documentation and content",
         tags=["documentation", "writing", "content"],
     ),
+    "session_doctor": SubAgentConfig(
+        name="session_doctor",
+        system_prompt=(
+            "You are Holix session_doctor. You start with a **clean context** "
+            "(no parent chat history). Your job is to inspect the **parent** "
+            "session, explain what went wrong, help the user finish the task "
+            "with better prompts/usage, and optionally offer a support ticket.\n\n"
+            "## Workflow\n"
+            "1. Call `self_diagnose` immediately (pass `complaint` if useful). "
+            "It autopsies the parent conversation, not this child chat.\n"
+            "2. Read `findings`, `plan`, `session.timeline`, `session.last_real_ask`, "
+            "`llm`, and `settings`.\n"
+            "3. Explain in the user's language: what failed (agent vs user vs "
+            "settings), citing finding codes. Give concrete prompt/feature tips "
+            "so the same mistake is not repeated (vague asks, wrong tools, "
+            "expecting chat text to be a file attachment, …).\n"
+            "4. If the user can continue themselves, tell them the next message "
+            "to send. Do **not** patch skills, write files, run the terminal, "
+            "or change system/extension settings.\n"
+            "5. If an operator must change model, jail, tokens, extensions, or "
+            "investigate logs: call `request_admin_support` with the analysis. "
+            "That tool **always asks the user to confirm**. Deny = send nothing. "
+            "Never claim a ticket was sent unless the tool returned ok=true.\n\n"
+            "## Rules\n"
+            "- Do not spawn further sub-agents.\n"
+            "- Do not call write/patch/terminal/`manage_agent_extensions`/`skill_manage`.\n"
+            "- Do not retry `request_admin_support` after the user denies it.\n"
+            "- Keep the final answer as the briefing the parent agent will show."
+        ),
+        tools=[
+            "self_diagnose",
+            "request_admin_support",
+            "ask_user",
+            "read_session",
+            "search_sessions",
+            "session_search",
+            "skill_view",
+            "todo_write",
+        ],
+        max_steps=40,
+        mode="react",
+        process_mode="async",
+        timeout=600.0,
+        memory_access="isolated",
+        temperature=0.2,
+        description=(
+            "Session doctor — clean-context autopsy of the parent chat; "
+            "coaches the user; may offer a confirmed Telegram admin ticket"
+        ),
+        tags=["diagnose", "support", "session", "honesty"],
+        mcp_inherit=False,
+        fork=False,
+    ),
 }
 
 
@@ -211,6 +265,7 @@ def _copy_config(original: SubAgentConfig) -> SubAgentConfig:
         tags=list(original.tags),
         mcp_servers=list(original.mcp_servers),
         mcp_inherit=bool(getattr(original, "mcp_inherit", True)),
+        fork=bool(getattr(original, "fork", False)),
     )
 
 

@@ -26,9 +26,10 @@ The user wants **background specialized work** without blocking the main Holix c
 - optional: hand off implementation to **external coding CLIs** (Claude Code, OpenCode, Grok Build) via an assigned `coder` sub-agent
 
 Use sub-agents **only when the user asks** to delegate (`/subagent-spawn`, "запусти субагента", etc.),
-**except** site/resource analysis with many real links from `fetch_url` — then call
-`research_site_pages` (it spawns `page_analyst` workers). Do not auto-spawn other types
-for regular chat questions.
+**except**:
+- site/resource analysis with many real links from `fetch_url` — then call `research_site_pages` (it spawns `page_analyst` workers);
+- the user asks you to check yourself («проверь себя») — then spawn `session_doctor` with `fork=false`.
+Do not auto-spawn other types for regular chat questions.
 
 ## Prerequisites
 
@@ -52,6 +53,7 @@ If spawn fails with "disabled" → tell user to enable sub-agents and retry.
 | `analyst` | SQL, data, calculations |
 | `reviewer` | Code review |
 | `writer` | Docs and content |
+| `session_doctor` | Clean-context session autopsy («проверь себя»); no system-setting changes |
 
 Custom types: profile `subagents/types.json`, managed in TUI `/subagent-types` or listed with `/subagent-types list`.
 

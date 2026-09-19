@@ -27,7 +27,8 @@ TUI: модалка с кнопками и полем ввода. Telegram / MAX
 - `subagent_control` — `list` / `status` / `send` / `interrupt` / `collect` для **уже запущенных** субагентов. Не порождает процессы (`delegate_to_subagent`). Только main / supervisor.
 - `research_site_pages` — после первого `fetch_url` передать ограниченный список URL из `## Links on this page` и `goal`. Запускает субагентов `page_analyst` волнами `subagent_max_concurrent`, ждёт и возвращает брифы. Для разбора сайта/ресурса; пути не выдумывать, `web_researcher` для ссылок того же сайта не использовать. Только main / supervisor. Входит в ядро tools.
 - `send_chat_files` — вложение в **чат Telegram/MAX** (альбом 2–10 в Telegram). В ядре tools. `read_file` / текст в ответе — это не доставка файла. Успех только если tool вернул `Sent N file(s)`.
-- `self_diagnose` — разбор **всей этой сессии** (просьбы vs tools vs утверждения, упавшие tools, циклы, лимит шагов). Дальше `plan.do_now` / `ask_user`. Ядро tools. Когда пользователь говорит «проверь себя», «почему ты делаешь не так», «ты отвечаешь неправильно». Патч skill только если сессия про неверную отправку файлов. Только main / supervisor.
+- `self_diagnose` — разбор сессии (просьбы vs tools vs утверждения, упавшие tools, циклы, лимит шагов). Вызывает субагент `session_doctor` с чистым контекстом. Слоты: main / supervisor / `session_doctor`. Когда пользователь говорит «проверь себя», **main** должен запустить `session_doctor` (`fork=false`) и дождаться результата — не вызывать tool сам.
+- `request_admin_support` — тикет администратору(ам) Telegram: разбор сессии, модель, снимок настроек (без секретов), где возникла проблема, логи. Пользователь **обязан подтвердить**; Deny — ничего не отправляется. Слоты: main / supervisor / `session_doctor`. Системные настройки этим tool не меняются.
 
 ## Поиск и ноутбуки
 
@@ -77,7 +78,8 @@ holix bootstrap                  # при первой настройке — re
 |-------|--------|
 | `apply_patch`, `job_monitor`, `notebook_edit` | `main`, `coder` |
 | `ask_user`, `tool_search`, `session_search`, `lsp` | все |
-| `subagent_control`, `plan_mode`, `research_site_pages`, `self_diagnose` | `main`, `supervisor` |
+| `subagent_control`, `plan_mode`, `research_site_pages` | `main`, `supervisor` |
+| `self_diagnose`, `request_admin_support` | `main`, `supervisor`, `session_doctor` |
 
 ## Алиасы
 

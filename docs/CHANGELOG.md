@@ -9,10 +9,23 @@
   host `${MIKROLLM_API_BASE}`.
 - **TUI media links** — `generate_image` / `generate_video` tool results show a
   clickable `file://` (or https) link; click opens the file in the OS viewer.
+- **Session doctor** — «проверь себя» / check yourself spawns a `session_doctor`
+  sub-agent with a **clean context** (`fork=false`, isolated memory). It autopsies
+  the parent session, explains the failure, and coaches prompts/feature use. It
+  does **not** change system settings.
+- **Admin support ticket** — `request_admin_support` sends session analysis,
+  model, settings snapshot (no secrets), surface, and logs to Telegram
+  admin(s) (`HOLIX_TELEGRAM_ADMIN_USER_ID` plus optional
+  `HOLIX_TELEGRAM_ADMIN_EXTRA_USER_IDS`). The user **must confirm**; Deny
+  sends nothing.
 
 ### Changed
 
 - **MAX slash menu** — short user-facing set (help/menu/status/models/sessions/new/clear/stop/skills/lang) plus billing `start`, `tariffs`, `pay`, `subscription`, `topup`, `invite`, `promo` (and `settings` when the extension is on). Aliases (`billing`, `referral`, …) still work as commands but are not duplicated in the 32-slot MAX menu.
+- **Admin-only extension settings on messengers** — Telegram/MAX **bot admin** may
+  `manage_agent_extensions` (create/enable/disable/reload and `settings_get` /
+  `settings_set`). Regular users only `list` / `registered`. Local CLI/TUI stays
+  the operator.
 
 ### Fixed
 

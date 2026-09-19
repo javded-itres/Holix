@@ -228,6 +228,14 @@ class RiskClassifier:
         if resolved == "apply_patch":
             return RiskLevel.MEDIUM, "Apply multi-file patch", None
 
+        if resolved == "request_admin_support":
+            return (
+                RiskLevel.HIGH,
+                "Send session analysis, model, settings snapshot, and logs to "
+                "Telegram admin(s). Deny = nothing is sent.",
+                "admin_support_ticket",
+            )
+
         # SDD: all sdd_* tools auto-allowed except task launch (apply/dispatch)
         if tool_name.startswith("sdd_"):
             if tool_name in ("sdd_apply", "sdd_dispatch"):
@@ -702,6 +710,7 @@ class ActionGuard:
 
         # Step 1: Classify risk
         assessment = self._risk_classifier.classify(tool_name, tool_instance, arguments)
+        must_confirm = bool(getattr(tool_instance, "require_user_confirmation", False))
 
         # Step 1.25: Unattended policy — block universal interpreters (audit #6).
         # In cron/background, python/node/uv can escape text-based jail filters.
@@ -718,13 +727,19 @@ class ActionGuard:
                     f"({blocked}). Use interactive session or grant a stored permission "
                     f"for a safer alternative."
                 )
+            if must_confirm:
+                self._log_audit("denied_unattended_confirm", assessment, "must_confirm")
+                return (
+                    f"Error: Tool '{tool_name}' was not sent. It requires an explicit "
+                    "user confirmation and cannot run unattended."
+                )
 
         # Step 1.5: Headless / plan execution shortcuts
-        if self._auto_approve_background:
+        if self._auto_approve_background and not must_confirm:
             # Cron/background is intentionally unattended — still log the bypass.
             self._log_audit("auto_approved_background", assessment, "background_run")
             return await execute_fn(**arguments)
-        if self._auto_approve_plan_execution:
+        if self._auto_approve_plan_execution and not must_confirm:
             # Plan approval is natural-language only: auto-allow read/low/medium,
             # but HIGH tools (terminal, execute_python, …) still need confirmation
             # so a plan is not a blanket grant (audit #2).
@@ -738,28 +753,30 @@ class ActionGuard:
             # fall through — HIGH requires confirmation / stored permission
 
         # Step 2: Check if auto-allowed by config threshold
-        threshold = self._auto_allow_threshold
-        try:
-            from core.security.permission_preset import auto_allow_high
-            from core.tools.execution_context import get_conversation_id, get_profile_name
+        # Tools with require_user_confirmation skip threshold and stored grants.
+        if not must_confirm:
+            threshold = self._auto_allow_threshold
+            try:
+                from core.security.permission_preset import auto_allow_high
+                from core.tools.execution_context import get_conversation_id, get_profile_name
 
-            if auto_allow_high(
-                profile=get_profile_name(),
-                conversation_id=get_conversation_id(),
+                if auto_allow_high(
+                    profile=get_profile_name(),
+                    conversation_id=get_conversation_id(),
+                ):
+                    threshold = RiskLevel.HIGH
+            except Exception:
+                pass
+            if _RISK_ORDER.get(assessment.risk_level, 0) <= _RISK_ORDER.get(threshold, 1):
+                self._log_audit("auto_allowed", assessment, "below_threshold")
+                return await execute_fn(**arguments)
+
+            # Step 3: Check stored permissions
+            if self._permission_manager.is_allowed(
+                tool_name, assessment.risk_level, assessment.pattern_matched
             ):
-                threshold = RiskLevel.HIGH
-        except Exception:
-            pass
-        if _RISK_ORDER.get(assessment.risk_level, 0) <= _RISK_ORDER.get(threshold, 1):
-            self._log_audit("auto_allowed", assessment, "below_threshold")
-            return await execute_fn(**arguments)
-
-        # Step 3: Check stored permissions
-        if self._permission_manager.is_allowed(
-            tool_name, assessment.risk_level, assessment.pattern_matched
-        ):
-            self._log_audit("permission_granted", assessment, "stored")
-            return await execute_fn(**arguments)
+                self._log_audit("permission_granted", assessment, "stored")
+                return await execute_fn(**arguments)
 
         # Step 4: Need confirmation
         if not self._interactive:
@@ -776,23 +793,31 @@ class ActionGuard:
 
         if choice == ConfirmationChoice.DENY:
             self._log_audit("denied", assessment, "user_deny")
+            if must_confirm:
+                return (
+                    f"Error: Tool call '{tool_name}' denied by user. "
+                    "Nothing was sent. Reason: "
+                    f"{assessment.reason}"
+                )
             return f"Error: Tool call '{tool_name}' denied by user. Reason: {assessment.reason}"
 
-        # Step 6: Record grant
-        scope_map = {
-            ConfirmationChoice.ALLOW_ONCE: PermissionScope.ONCE,
-            ConfirmationChoice.ALLOW_SESSION: PermissionScope.SESSION,
-            ConfirmationChoice.ALLOW_ALWAYS: PermissionScope.ALWAYS,
-        }
-        scope = scope_map[choice]
-        self._permission_manager.grant(
-            tool_name, scope, assessment.risk_level, assessment.pattern_matched
-        )
+        # Step 6: Record grant (skip persistence when every call must be confirmed)
+        if not must_confirm:
+            scope_map = {
+                ConfirmationChoice.ALLOW_ONCE: PermissionScope.ONCE,
+                ConfirmationChoice.ALLOW_SESSION: PermissionScope.SESSION,
+                ConfirmationChoice.ALLOW_ALWAYS: PermissionScope.ALWAYS,
+            }
+            scope = scope_map[choice]
+            self._permission_manager.grant(
+                tool_name, scope, assessment.risk_level, assessment.pattern_matched
+            )
         self._log_audit("allowed", assessment, f"user_{choice.value}")
 
         # Unblock other concurrent waiters covered by session/always grants.
         # Without this, parallel sub-agents freeze forever (timeout=none).
-        if choice in (
+        # Per-call confirm tools never share grants across waiters.
+        if (not must_confirm) and choice in (
             ConfirmationChoice.ALLOW_SESSION,
             ConfirmationChoice.ALLOW_ALWAYS,
         ):

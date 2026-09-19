@@ -3,7 +3,7 @@ name: holix-self-diagnose
 description: >
   When the user says Holix is wrong or asks it to check itself
   («проверь себя», «почему ты делаешь не так», «ты отвечаешь неправильно»,
-  check yourself), call self_diagnose, then answer from the report.
+  check yourself), spawn the session_doctor sub-agent with a clean context.
 tags:
   - self-diagnose
   - session
@@ -24,21 +24,33 @@ The user is criticizing **this agent**, not asking to debug their own code:
 
 ## Procedure
 
-1. Call `self_diagnose` immediately (pass their complaint as `complaint` if useful).
-2. Read `findings`, `plan`, `session.timeline`, `session.last_real_ask`, failed tools.
-3. Tell the user what went wrong in **this session** (tools vs claims vs errors). Skills only if a finding is `skill_*`.
-4. Immediately execute `plan.do_now` with tools (send file, retry, finish the last ask).
-5. Ask the user only about `plan.ask_user` (e.g. continue after step limit).
-6. If `skill_fixes` staged a patch, quote the `proposal_id`.
+### Main agent
+
+1. Spawn a **clean-context** doctor (do not fork parent turns):
+   `delegate_to_subagent(agent_type="session_doctor", fork=false, task=…)`.
+2. In `task` include this `conversation_id` and the user's complaint.
+3. `wait_subagent_result` and show the doctor's briefing.
+4. Do **not** call `self_diagnose` yourself (this chat is polluted).
+5. Do **not** change system settings, skills, or extensions.
+
+### session_doctor (you already are the child)
+
+1. Call `self_diagnose` immediately (parent session is autopsied automatically).
+2. Read `findings`, `plan`, `session.timeline`, `session.last_real_ask`, `llm`, `settings`.
+3. Explain what went wrong in **this session** (tools vs claims vs user prompts vs settings).
+4. Coach the user: how to write the next prompt and how to use Holix so the mistake does not repeat.
+5. Do **not** write files, patch skills, run the terminal, or change system settings.
+6. If an operator must change model / jail / extensions or read logs: call `request_admin_support`.
+   That tool **always asks the user to confirm**. Deny = send nothing. Do not retry after Deny.
 
 ## Pitfalls
 
-- Do not answer the complaint from memory. The session transcript is in the tool result.
-- Do not dump or patch unrelated skills. File-delivery skill fix only when the session is about sending files.
-- `read_file` / `cat` is not delivering a file. `self_diagnose` will flag that.
-- Do not auto-spawn sub-agents for this. Main agent only.
+- Do not answer the complaint from memory. The autopsy is in `self_diagnose`.
+- `read_file` / `cat` is not delivering a file. The report will flag that.
+- Do not auto-spawn any type other than `session_doctor` for this request.
+- Never claim a support ticket was sent unless `request_admin_support` returned `ok: true`.
 
 ## Verification
 
-- This turn has a `self_diagnose` tool result.
-- The reply quotes findings (`code` + `next_action`), not a generic apology.
+- Main: this turn spawned `session_doctor` (`fork=false`) and waited.
+- Doctor: this turn has a `self_diagnose` result and quotes finding codes.

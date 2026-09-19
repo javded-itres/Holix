@@ -118,7 +118,7 @@ The slash-command menu is **hidden by default** for unauthorized users. After ap
 - Use a **named bot profile** (`-p shared`), not `default` — profile `default` is **dev-only** when `HOLIX_ENV=production`.
 - Prefer `--create-profile` per user for full isolation (memory, `.env`, workspace).
 - Manual allowlist (`HOLIX_TELEGRAM_ALLOWED_USERS`) is optional when access requests are enabled.
-- Exactly **one** Telegram admin (`HOLIX_TELEGRAM_ADMIN_USER_ID`); assign with `requests approve --set-admin` only.
+- Primary Telegram admin: `HOLIX_TELEGRAM_ADMIN_USER_ID` (assign with `requests approve --set-admin`). Optional extra ticket recipients: `HOLIX_TELEGRAM_ADMIN_EXTRA_USER_IDS` (comma-separated). Support tickets from `session_doctor` go to all of them.
 
 ---
 
@@ -179,7 +179,7 @@ holix logs -s gateway -n 50
 
 Ask the bot to send a document — it must use `send_chat_files` (Telegram attachment or album), not paste the file as chat text. Tool contract: [TOOLS.md](TOOLS.md).
 
-If the bot says it sent a file but you see no document, reply **«проверь себя»** (or “check yourself”). That runs `self_diagnose` on this session — same tools page.
+If the bot says it sent a file but you see no document, reply **«проверь себя»** (or “check yourself”). That starts a `session_doctor` sub-agent with a clean context. If the doctor cannot fix it without an operator, it may offer a Telegram admin ticket — you must confirm; Deny sends nothing.
 
 Incoming photos, documents, and voice notes are handled below; this section is **outbound** only.
 

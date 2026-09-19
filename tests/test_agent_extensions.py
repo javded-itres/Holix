@@ -163,6 +163,30 @@ def test_messenger_env_denies_self_extensions(monkeypatch: pytest.MonkeyPatch) -
     assert agent_allows_self_extensions() is False
 
 
+def test_messenger_admin_operator_allows(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("HOLIX_SELF_EXTENSIONS", raising=False)
+    monkeypatch.setenv("HOLIX_MESSENGER_HOST", "telegram")
+    from core.tools.execution_context import operator_scope, reset_operator_scope
+
+    token = operator_scope(is_operator=True)
+    try:
+        assert agent_allows_self_extensions() is True
+    finally:
+        reset_operator_scope(token)
+
+
+def test_messenger_end_user_operator_denies(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("HOLIX_SELF_EXTENSIONS", raising=False)
+    monkeypatch.setenv("HOLIX_MESSENGER_HOST", "max")
+    from core.tools.execution_context import operator_scope, reset_operator_scope
+
+    token = operator_scope(is_operator=False)
+    try:
+        assert agent_allows_self_extensions() is False
+    finally:
+        reset_operator_scope(token)
+
+
 def test_self_extensions_env_override_allow(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("HOLIX_MESSENGER_HOST", "max")
     monkeypatch.setenv("HOLIX_SELF_EXTENSIONS", "1")
@@ -203,9 +227,88 @@ async def test_manage_create_denied_on_messenger(monkeypatch: pytest.MonkeyPatch
 
 
 @pytest.mark.asyncio
-async def test_manage_create_hot_reloads(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+async def test_manage_create_allowed_for_messenger_admin(
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    monkeypatch.setenv("HOLIX_MESSENGER_HOST", "telegram")
+    monkeypatch.delenv("HOLIX_SELF_EXTENSIONS", raising=False)
+    from core.tools.agent_extensions import ManageAgentExtensionsTool
+    from core.tools.execution_context import operator_scope, reset_operator_scope
+
+    class Agent:
+        config = type("C", (), {"profile_name": "admin-prof", "self_extensions_enabled": False})()
+
+        def reload_agent_extensions(self):
+            return {"ok": True}
+
+    tool = ManageAgentExtensionsTool(Agent())
+    token = operator_scope(is_operator=True)
+    try:
+        raw = await tool.execute(action="create", name="notes", description="admin notes")
+    finally:
+        reset_operator_scope(token)
+    data = json.loads(raw)
+    assert data["ok"] is True
+
+
+@pytest.mark.asyncio
+async def test_settings_set_denied_for_messenger_user(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("HOLIX_MESSENGER_HOST", "telegram")
+    monkeypatch.delenv("HOLIX_SELF_EXTENSIONS", raising=False)
+    from core.tools.agent_extensions import ManageAgentExtensionsTool
+    from core.tools.execution_context import operator_scope, reset_operator_scope
+
+    class Agent:
+        config = type("C", (), {"profile_name": "default"})()
+
+    tool = ManageAgentExtensionsTool(Agent())
+    token = operator_scope(is_operator=False)
+    try:
+        raw = await tool.execute(
+            action="settings_set",
+            name="media",
+            settings={"auto_send": False},
+        )
+    finally:
+        reset_operator_scope(token)
+    data = json.loads(raw)
+    assert data["ok"] is False
+    assert data["error"] == "self_extensions_denied"
+
+
+@pytest.mark.asyncio
+async def test_settings_set_merges_for_operator(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv("HOLIX_MESSENGER_HOST", raising=False)
+    monkeypatch.setenv("HOLIX_SELF_EXTENSIONS", "1")
+    from core.extensions.settings import save_extension_settings
+    from core.tools.agent_extensions import ManageAgentExtensionsTool
+
+    class Agent:
+        config = type("C", (), {"profile_name": "p1"})()
+
+        def reload_agent_extensions(self):
+            return {"ok": True}
+
+    save_extension_settings("p1", "media", {"enabled": True, "auto_send": True})
+    tool = ManageAgentExtensionsTool(Agent())
+    raw = await tool.execute(
+        action="settings_set",
+        name="media",
+        settings={"auto_send": False, "image_providers": [{"id": "litellm"}]},
+    )
+    data = json.loads(raw)
+    assert data["ok"] is True
+    assert data["settings"]["enabled"] is True
+    assert data["settings"]["auto_send"] is False
+    assert data["settings"]["image_providers"][0]["id"] == "litellm"
+
+
+@pytest.mark.asyncio
+async def test_manage_create_hot_reloads(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.delenv("HOLIX_MESSENGER_HOST", raising=False)
     monkeypatch.setenv("HOLIX_SELF_EXTENSIONS", "1")
 
@@ -268,9 +371,7 @@ async def test_manage_create_hot_reloads(
     )
 
     tool = ManageAgentExtensionsTool(Agent())
-    raw = await tool.execute(
-        action="create", name="notes_hot", description="Hot reload test"
-    )
+    raw = await tool.execute(action="create", name="notes_hot", description="Hot reload test")
     data = json.loads(raw)
     assert data["ok"] is True
     assert data.get("hot_reload", {}).get("ok") is True

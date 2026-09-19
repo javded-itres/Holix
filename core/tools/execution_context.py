@@ -25,6 +25,8 @@ _unattended_mode: ContextVar[bool] = ContextVar("holix_unattended_mode", default
 _tools_registry: ContextVar[Any] = ContextVar("holix_tools_registry", default=None)
 _from_code_mode: ContextVar[bool] = ContextVar("holix_from_code_mode", default=False)
 _agent_slot: ContextVar[str] = ContextVar("holix_agent_slot", default="main")
+# Messenger operator: True = bot admin, False = end-user, None = not a messenger run.
+_operator_actor: ContextVar[bool | None] = ContextVar("holix_operator_actor", default=None)
 
 
 def get_tools_registry() -> Any | None:
@@ -176,6 +178,20 @@ def cancel_scope(cancel_event: Any | None):
 
 def reset_cancel_scope(token) -> None:
     _cancel_event.reset(token)
+
+
+def operator_scope(*, is_operator: bool):
+    """Bind whether the current messenger (or local) actor may change system settings."""
+    return _operator_actor.set(bool(is_operator))
+
+
+def reset_operator_scope(token) -> None:
+    _operator_actor.reset(token)
+
+
+def is_operator_actor() -> bool | None:
+    """True/False when a host bound the flag; None outside messenger/operator scope."""
+    return _operator_actor.get()
 
 
 def is_unattended_mode() -> bool:
