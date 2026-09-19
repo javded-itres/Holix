@@ -66,6 +66,7 @@ class ChatSession:
     ui_profiles: list[str] = field(default_factory=list)
     ui_sessions: list[dict] = field(default_factory=list)
     ui_sessions_page: int = 0
+    ui_workspace_options: list[dict] = field(default_factory=list)
     ui_model_presets: list = field(default_factory=list)
     ui_providers: list = field(default_factory=list)
     ui_providers_page: int = 0

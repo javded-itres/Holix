@@ -164,8 +164,38 @@ async def stop_all_agent_activity(host: Any) -> dict[str, int]:
     return stats
 
 
+def signal_run_cancel(host: Any) -> None:
+    """Set the cooperative cancel Event so tools abort mid-command."""
+    for ev in (
+        getattr(host, "_run_cancel", None),
+        getattr(host, "_cancel_event", None),
+    ):
+        if ev is None:
+            continue
+        setter = getattr(ev, "set", None)
+        if callable(setter):
+            try:
+                setter()
+            except Exception:
+                pass
+    try:
+        from core.tools.execution_context import get_cancel_event
+
+        current = get_cancel_event()
+    except Exception:
+        current = None
+    if current is not None:
+        setter = getattr(current, "set", None)
+        if callable(setter):
+            try:
+                setter()
+            except Exception:
+                pass
+
+
 def stop_agent_activity_sync(host: Any) -> None:
     """Synchronous portion of /stop — safe from UI thread and slash handlers."""
+    signal_run_cancel(host)
     agent = getattr(host, "agent", None)
     try:
         from core.runtime.step_budget_pause import abort_all_pending_step_budget

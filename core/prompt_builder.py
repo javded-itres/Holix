@@ -150,6 +150,8 @@ def format_studio_workspace_block(
             "Do **not** write into the Holix install/deploy tree or another user's workspace.\n\n"
             "CWD is already the workspace. Prefer `list_directory` on `.` and relative "
             "`ls` / project names — never `~`, `/root`, or `$HOLIX_HOME`. "
+            "Stay in this directory: do not `cd` into sibling `.holix/worktrees/*` "
+            "or other product clones unless the user explicitly switched worktree. "
             "Successful tool listings are authoritative: do not claim the workspace is "
             "empty or that tools returned nothing when they already listed files."
         )

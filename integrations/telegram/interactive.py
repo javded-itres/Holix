@@ -26,6 +26,7 @@ from integrations.telegram.keyboards import (
     status_menu_keyboard,
     stream_picker_keyboard,
     tools_picker_keyboard,
+    workspace_picker_keyboard,
 )
 from integrations.telegram.markdown import escape_html
 from integrations.telegram.model_switch import (
@@ -659,8 +660,33 @@ class TelegramInteractive:
 
         if action == "sn":
             await self._host._create_new_session()
-            await self.show_sessions_picker()
             return t("tg.new_session", messenger_host_locale(self._host))
+
+        if action == "wp":
+            opts = getattr(self._session, "ui_workspace_options", None) or []
+            try:
+                idx = int(value)
+            except (TypeError, ValueError):
+                idx = -1
+            if 0 <= idx < len(opts):
+                from cli.shared.session_workspace import apply_workspace_picker_choice
+
+                out = apply_workspace_picker_choice(self._host, opts[idx])
+                lang = messenger_host_locale(self._host)
+                if not out.get("ok"):
+                    return str(out.get("error") or t("tg.error", lang))
+                if out.get("kind") in {"project", "worktree", "main"}:
+                    name = str(out.get("project_name") or opts[idx].get("name") or "")
+                    extra = str(out.get("change_id") or out.get("cwd") or "")
+                    if extra:
+                        name = f"{name} · {extra}"
+                    await self._host._send_html(
+                        escape_html(t("tg.session_project", lang, name=name))
+                    )
+                else:
+                    await self._host._send_html(escape_html(t("tg.session_workspace", lang)))
+                return t("tg.new_session", lang)
+            return t("tg.session_invalid", messenger_host_locale(self._host))
 
         if action == "t":
             self._host._show_full_tool_result(int(value))
@@ -1408,6 +1434,22 @@ class TelegramInteractive:
         rows.append([InlineKeyboardButton(text="« Назад", callback_data="mcp:refresh")])
         kb = InlineKeyboardMarkup(inline_keyboard=rows)
         await self._host._send_html_with_keyboard("<b>Выберите MCP сервер для удаления:</b>", kb)
+
+    async def show_workspace_picker(self) -> None:
+        from cli.shared.session_workspace import list_workspace_picker_options
+
+        options = list_workspace_picker_options(self._host)
+        self._session.ui_workspace_options = options
+        lang = messenger_host_locale(self._host)
+        projects = [o for o in options if o.get("kind") == "project" and o.get("id")]
+        if not projects:
+            await self._host._send_html(escape_html(t("tg.session_workspace", lang)))
+            return
+        kb = workspace_picker_keyboard(options)
+        await self._host._send_html_with_keyboard(
+            escape_html(t("tg.pick_workspace", lang)),
+            kb,
+        )
 
     async def show_sessions_picker(self, *, page: int = 0) -> None:
         if self._host.agent:

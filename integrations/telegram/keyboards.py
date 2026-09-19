@@ -368,6 +368,24 @@ def sessions_picker_keyboard(
     return InlineKeyboardMarkup(inline_keyboard=rows)
 
 
+def workspace_picker_keyboard(options: list[dict]) -> Any:
+    """New-session pin: workspace root + product projects."""
+    from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
+
+    rows: list[list[Any]] = []
+    for i, opt in enumerate(options[:12]):
+        kind = str(opt.get("kind") or "")
+        name = str(opt.get("name") or opt.get("id") or "workspace")
+        if kind == "workspace" or not str(opt.get("id") or "").strip():
+            label = f"⌂ {name}"
+        else:
+            label = name
+        if len(label) > 32:
+            label = label[:30] + "…"
+        rows.append([InlineKeyboardButton(text=label, callback_data=_cb("wp", str(i)))])
+    return InlineKeyboardMarkup(inline_keyboard=rows) if rows else None
+
+
 SKILLS_PAGE_SIZE = 8
 
 
