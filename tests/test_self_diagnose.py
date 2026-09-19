@@ -11,10 +11,11 @@ from core.graph.action_honesty import (
 from core.runtime.self_diagnose import (
     diagnose_session,
     is_wrong_chat_delivery_skill,
+    resolve_diagnose_conversation_id,
     rewrite_delivery_skill,
 )
 from core.tools.lazy_schema import CORE_TOOL_NAMES
-from core.tools.slot_policy import PLAN_MODE_ALLOWED, tool_allowed_for_slot
+from core.tools.slot_policy import PLAN_MODE_ALLOWED, PLAN_MODE_BLOCKED, tool_allowed_for_slot
 
 
 def test_self_diagnose_intent_positive() -> None:
@@ -107,6 +108,8 @@ def test_self_diagnose_nudge_when_model_skips_tool() -> None:
     )
     assert update["is_final"] is False
     assert update["messages"][-1]["content"] == SELF_DIAGNOSE_NUDGE
+    assert "session_doctor" in SELF_DIAGNOSE_NUDGE
+    assert "fork=false" in SELF_DIAGNOSE_NUDGE
 
 
 def test_self_diagnose_no_nudge_after_tool() -> None:
@@ -205,8 +208,56 @@ def test_diagnose_no_progress_on_action_ask() -> None:
     assert "Задеплой" in report["session"]["last_real_ask"]
 
 
+def test_self_diagnose_no_nudge_after_session_doctor_spawn() -> None:
+    messages = [
+        {"role": "user", "content": "проверь себя"},
+        {
+            "role": "assistant",
+            "content": "",
+            "tool_calls": [
+                {
+                    "id": "1",
+                    "function": {
+                        "name": "delegate_to_subagent",
+                        "arguments": '{"agent_type": "session_doctor", "fork": false}',
+                    },
+                }
+            ],
+        },
+        {
+            "role": "tool",
+            "name": "delegate_to_subagent",
+            "tool_call_id": "1",
+            "content": '{"ok": true, "job_id": "session_doctor-1", "agent_type": "session_doctor"}',
+        },
+    ]
+    state = {"honesty_nudge_count": 0, "user_input": "проверь себя", "messages": messages}
+    assert not should_nudge_self_diagnose(
+        state,
+        final_response="Запускаю диагностику.",
+        messages=messages,
+    )
+
+
 def test_self_diagnose_is_core_and_main_slot() -> None:
     assert "self_diagnose" in CORE_TOOL_NAMES
+    assert "wait_subagent_result" in CORE_TOOL_NAMES
     assert tool_allowed_for_slot("self_diagnose", "main")
+    assert tool_allowed_for_slot("self_diagnose", "session_doctor")
+    assert tool_allowed_for_slot("self_diagnose", "session_doctor-1")
     assert not tool_allowed_for_slot("self_diagnose", "coder")
     assert "self_diagnose" in PLAN_MODE_ALLOWED
+    assert tool_allowed_for_slot("request_admin_support", "session_doctor")
+    assert not tool_allowed_for_slot("request_admin_support", "coder")
+    assert "request_admin_support" in PLAN_MODE_BLOCKED
+
+
+def test_resolve_diagnose_conversation_id_uses_parent_of_child(monkeypatch) -> None:
+    from core.tools import execution_context as ec
+
+    token = ec.conversation_scope("subagent:tg_shared_1:session_doctor-1")
+    try:
+        assert resolve_diagnose_conversation_id("") == "tg_shared_1"
+        assert resolve_diagnose_conversation_id("explicit_cid") == "explicit_cid"
+    finally:
+        ec.reset_conversation_scope(token)

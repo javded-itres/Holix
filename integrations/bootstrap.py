@@ -99,6 +99,56 @@ def _register_notify() -> None:
             except Exception:
                 pass
 
+    async def send_telegram_document(
+        chat_id: int,
+        *,
+        filename: str,
+        content: bytes,
+        caption: str = "",
+        profile: str = "default",
+        bot_token: str | None = None,
+    ) -> bool:
+        import logging
+
+        logger = logging.getLogger(__name__)
+        try:
+            from aiogram import Bot
+            from aiogram.types import BufferedInputFile
+        except ImportError:
+            logger.warning("aiogram not installed, cannot send Telegram document")
+            return False
+
+        if not bot_token:
+            from integrations.telegram.config import load_telegram_settings
+
+            bot_token = load_telegram_settings(profile).bot_token
+        if not bot_token:
+            logger.warning("Telegram bot token not configured")
+            return False
+
+        bot = Bot(token=bot_token)
+        try:
+            document = BufferedInputFile(content, filename=filename or "holix-support.json")
+            await bot.send_document(
+                chat_id,
+                document,
+                caption=(caption or "")[:1024] or None,
+            )
+            return True
+        except Exception as e:
+            logger.warning("Failed to send Telegram document: %s", e)
+            return False
+        finally:
+            try:
+                await bot.session.close()
+            except Exception:
+                pass
+
+    def list_telegram_admins(profile: str) -> list[dict]:
+        from integrations.telegram.admin import list_telegram_support_admins
+
+        return list_telegram_support_admins(preferred_profile=profile)
+
     async def send_max(
         message: str,
         *,
@@ -139,7 +189,12 @@ def _register_notify() -> None:
             except Exception:
                 pass
 
-    register_notify_hooks(send_telegram=send_telegram, send_max=send_max)
+    register_notify_hooks(
+        send_telegram=send_telegram,
+        send_telegram_document=send_telegram_document,
+        list_telegram_admins=list_telegram_admins,
+        send_max=send_max,
+    )
 
 
 def _register_profile_lifecycle() -> None:

@@ -110,6 +110,7 @@ class ToolRegistry:
         from core.tools.lsp import LspTool
         from core.tools.notebook_edit import NotebookEditTool
         from core.tools.plan_mode import PlanModeTool
+        from core.tools.request_admin_support import RequestAdminSupportTool
         from core.tools.self_diagnose import SelfDiagnoseTool
         from core.tools.send_chat_files import SendChatFilesTool
         from core.tools.session_memory import ReadSessionTool, SearchSessionsTool
@@ -183,6 +184,7 @@ class ToolRegistry:
         # Chat file delivery (Telegram; no-op without delivery bridge)
         self.register(SendChatFilesTool())
         self.register(SelfDiagnoseTool())
+        self.register(RequestAdminSupportTool())
 
         # Cross-session memory
         self.register(SearchSessionsTool())

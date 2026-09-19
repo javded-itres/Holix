@@ -183,9 +183,14 @@ def prepare_subagent_config(
             )
 
     tools = list(cfg.tools or [])
+    slug = (agent_type or cfg.agent_type or cfg.name or "").strip().lower()
     # page_analyst is a one-URL fetcher; tool_search would let it pull web_search.
-    if (cfg.agent_type or cfg.name) != "page_analyst":
-        for extra in ("ask_user", "tool_search", "session_search"):
+    # session_doctor is a read-only advisor; tool_search would unlock writes.
+    if slug != "page_analyst":
+        extras = ["ask_user", "session_search"]
+        if slug != "session_doctor":
+            extras.append("tool_search")
+        for extra in extras:
             if extra not in tools:
                 tools.append(extra)
     if "terminal" in tools or "run_terminal_command" in tools:
@@ -198,5 +203,13 @@ def prepare_subagent_config(
         ):
             if bg not in tools:
                 tools.append(bg)
-    cfg.tools = _inject_external_cli_tools(agent_type, profile, tools)
+    if slug == "session_doctor":
+        cfg.tools = tools
+        cfg.mcp_inherit = False
+        cfg.fork = False
+        from core.subagents.base import MemoryAccess
+
+        cfg.memory_access = MemoryAccess.ISOLATED
+    else:
+        cfg.tools = _inject_external_cli_tools(agent_type, profile, tools)
     return cfg

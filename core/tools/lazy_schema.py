@@ -31,6 +31,7 @@ CORE_TOOL_NAMES: frozenset[str] = frozenset(
         "send_chat_files",
         "self_diagnose",
         "delegate_to_subagent",
+        "wait_subagent_result",
         "research_site_pages",
         "plan_mode",
         "lsp",

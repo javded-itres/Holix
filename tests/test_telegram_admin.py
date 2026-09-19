@@ -10,6 +10,7 @@ from integrations.telegram.admin import (
     clear_admin_user,
     load_admin_holix_profile,
     load_admin_user_id,
+    load_admin_user_ids,
     set_admin_user,
 )
 from integrations.telegram.notify import format_access_request_admin_message
@@ -26,6 +27,7 @@ def holix_home(tmp_path, monkeypatch: pytest.MonkeyPatch):
     # Isolate process env: set_admin_user / save_telegram_env apply keys
     # into os.environ; load_admin_user_id falls back to process env.
     monkeypatch.delenv("HOLIX_TELEGRAM_ADMIN_USER_ID", raising=False)
+    monkeypatch.delenv("HOLIX_TELEGRAM_ADMIN_EXTRA_USER_IDS", raising=False)
     monkeypatch.delenv("HOLIX_TELEGRAM_ADMIN_PROFILE", raising=False)
     monkeypatch.setattr(cli_core, "HOLIX_HOME", root)
     monkeypatch.setattr(cli_core, "PROFILES_DIR", profiles)
@@ -38,7 +40,25 @@ def test_set_and_load_admin_user(holix_home) -> None:
     save_telegram_env({"TELEGRAM_BOT_TOKEN": "1:abc"}, profile="default")
     set_admin_user("default", 1001)
     assert load_admin_user_id("default") == 1001
+    assert load_admin_user_ids("default") == [1001]
     assert load_admin_holix_profile("default") == "admin"
+
+
+def test_extra_admin_user_ids(holix_home, monkeypatch: pytest.MonkeyPatch) -> None:
+    from integrations.telegram.env_store import save_telegram_env
+
+    save_telegram_env(
+        {
+            "TELEGRAM_BOT_TOKEN": "1:abc",
+            "HOLIX_TELEGRAM_ADMIN_USER_ID": "1001",
+            "HOLIX_TELEGRAM_ADMIN_EXTRA_USER_IDS": "2002,3003",
+        },
+        profile="default",
+    )
+    monkeypatch.setenv("HOLIX_TELEGRAM_ADMIN_USER_ID", "1001")
+    monkeypatch.setenv("HOLIX_TELEGRAM_ADMIN_EXTRA_USER_IDS", "2002,3003")
+    assert load_admin_user_id("default") == 1001
+    assert load_admin_user_ids("default") == [1001, 2002, 3003]
 
 
 def test_clear_admin_user(holix_home) -> None:
@@ -121,7 +141,9 @@ async def test_notify_admin_access_request_sends_to_admin(
     assert send_mock.await_args.args[0] == 900
 
 
-def test_approve_set_admin_creates_admin_profile(holix_home, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_approve_set_admin_creates_admin_profile(
+    holix_home, monkeypatch: pytest.MonkeyPatch
+) -> None:
     from integrations.telegram.env_store import save_telegram_env
 
     save_telegram_env(

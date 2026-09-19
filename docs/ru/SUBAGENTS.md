@@ -44,10 +44,13 @@ subagent_supervisor_max_interventions: 3
 | `analyst` | Данные / SQL | `sql_query`, `sql_schema`, `code_executor`, `math_calculator` |
 | `reviewer` | Ревью кода | `read_file`, `list_directory`, `terminal` |
 | `writer` | Документация и тексты | `read_file`, `patch_file`, `write_file`, `list_directory` |
+| `session_doctor` | Разбор сессии с чистым контекстом («проверь себя») | `self_diagnose`, `request_admin_support`, `ask_user` |
 
 Встроенные типы: `core/subagents/registry.py` (`PREDEFINED_SUBAGENTS`).
 
 Разбор сайта/ресурса с большим числом реальных ссылок: главный агент вызывает `research_site_pages` (не `web_researcher`). Tool запускает `page_analyst` волнами `subagent_max_concurrent` и собирает брифы.
+
+Когда пользователь просит «проверь себя», главный агент запускает `session_doctor` с `fork=false`. Доктор не меняет системные настройки. Тикет администратору Telegram (`request_admin_support`) уходит только после подтверждения пользователя.
 
 ---
 

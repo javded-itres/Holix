@@ -12,7 +12,8 @@ SLOT_RESTRICTED: dict[str, frozenset[str]] = {
     "subagent_control": frozenset({"main", "supervisor"}),
     "plan_mode": frozenset({"main", "supervisor"}),
     "research_site_pages": frozenset({"main", "supervisor"}),
-    "self_diagnose": frozenset({"main", "supervisor"}),
+    "self_diagnose": frozenset({"main", "supervisor", "session_doctor"}),
+    "request_admin_support": frozenset({"main", "supervisor", "session_doctor"}),
 }
 
 # Read-only set while plan_mode is on (canonical names).
@@ -59,6 +60,8 @@ PLAN_MODE_BLOCKED: frozenset[str] = frozenset(
         "sdd_update_spec",
         "sdd_apply",
         "sdd_dispatch",
+        "request_admin_support",
+        "manage_agent_extensions",
     }
 )
 
@@ -69,6 +72,8 @@ def normalize_slot(slot: str | None) -> str:
         return key
     if key.startswith("coder"):
         return "coder"
+    if key.startswith("session_doctor"):
+        return "session_doctor"
     return key
 
 

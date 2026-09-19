@@ -45,10 +45,13 @@ If the child ReAct engine cannot start, the runner falls back to the legacy loop
 | `analyst` | Data / SQL analysis | `sql_query`, `sql_schema`, `code_executor`, `math_calculator` |
 | `reviewer` | Code review | `read_file`, `list_directory`, `terminal` |
 | `writer` | Docs and content | `read_file`, `patch_file`, `write_file`, `list_directory` |
+| `session_doctor` | Clean-context session autopsy («проверь себя») | `self_diagnose`, `request_admin_support`, `ask_user` |
 
 Built-in definitions live in `core/subagents/registry.py` (`PREDEFINED_SUBAGENTS`).
 
 Site/resource analysis with many real links: the main agent calls `research_site_pages` (not `web_researcher`). That tool spawns `page_analyst` jobs in waves of `subagent_max_concurrent` and collects the briefings.
+
+When the user asks Holix to check itself («проверь себя»), the main agent spawns `session_doctor` with `fork=false`. The doctor must not change system settings. A Telegram admin ticket (`request_admin_support`) is sent only after the user confirms.
 
 ---
 

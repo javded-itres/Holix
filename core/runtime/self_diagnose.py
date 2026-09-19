@@ -7,6 +7,38 @@ from typing import Any
 
 SELF_DIAGNOSE_TOOL = "self_diagnose"
 
+DOCTOR_HOW_TO_ANSWER = (
+    "1) Explain findings in the user's language, citing codes. "
+    "2) Coach on prompts and Holix features so the same mistake is not repeated. "
+    "3) Do not change system settings, skills, or files. "
+    "4) If an operator must change model/jail/extensions or read logs, "
+    "call request_admin_support — the user must confirm; Deny sends nothing. "
+    "5) Do not claim the original task is done."
+)
+
+
+def resolve_diagnose_conversation_id(explicit: str = "") -> str:
+    """Session to autopsy: explicit id, else parent of a sub-agent child, else current."""
+    want = (explicit or "").strip()
+    if want and want not in {"default", "this", "current"}:
+        return want
+    try:
+        from core.tools.execution_context import get_conversation_id
+
+        cid = str(get_conversation_id() or "").strip() or "default"
+    except Exception:
+        cid = "default"
+    try:
+        from core.subagents.fork import parent_from_child_conversation_id
+
+        parent = parent_from_child_conversation_id(cid)
+    except Exception:
+        parent = ""
+    if parent:
+        return parent
+    return cid or "default"
+
+
 _SEND_ASK = re.compile(
     r"(?is)("
     r"пришли\s+(в\s+чат\s+)?файл"
@@ -694,6 +726,7 @@ def diagnose_session(
             "4) Mention skill_fixes only if a skill finding exists. "
             "5) Do not claim the original task is done unless a later tool proves it."
         ),
+        "doctor_how_to_answer": DOCTOR_HOW_TO_ANSWER,
     }
 
 

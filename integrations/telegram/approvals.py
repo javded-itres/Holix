@@ -454,6 +454,24 @@ def _format_confirmation_args(tool_name: str, args: dict) -> str:
             if desc:
                 return f"<b>Программа:</b> {escape_html(desc)}"
             return ""
+        elif tool_name == "request_admin_support":
+            summary = str(args.get("summary") or "")[:400]
+            analysis = str(args.get("analysis") or "")[:700]
+            needed = str(args.get("needed_settings") or "")[:400]
+            cid = str(args.get("conversation_id") or "")[:120]
+            parts = [
+                "<b>Тикет администратору Telegram</b>",
+                "Если отклоните — ничего не отправится.",
+            ]
+            if cid:
+                parts.append(f"<b>Сессия:</b> <code>{escape_html(cid)}</code>")
+            if summary:
+                parts.append(f"<b>Кратко:</b> {escape_html(summary)}")
+            if analysis:
+                parts.append(f"<b>Разбор:</b>\n{escape_html(analysis)}")
+            if needed:
+                parts.append(f"<b>Настройки:</b> {escape_html(needed)}")
+            return "\n".join(parts)
         # generic fallback
         import json
 

@@ -378,6 +378,24 @@ def _format_confirmation_args(tool_name: str, args: dict) -> str:
             if desc:
                 return f"**Program:** {desc}"
             return ""
+        if tool_name == "request_admin_support":
+            summary = str(args.get("summary") or "")[:400]
+            analysis = str(args.get("analysis") or "")[:700]
+            needed = str(args.get("needed_settings") or "")[:400]
+            cid = str(args.get("conversation_id") or "")[:120]
+            parts = [
+                "**Ticket to Telegram admin(s)**",
+                "Deny = nothing is sent.",
+            ]
+            if cid:
+                parts.append(f"**Session:** `{cid}`")
+            if summary:
+                parts.append(f"**Summary:** {summary}")
+            if analysis:
+                parts.append(f"**Analysis:**\n{analysis}")
+            if needed:
+                parts.append(f"**Settings:** {needed}")
+            return "\n".join(parts)
         j = json.dumps(args, ensure_ascii=False, indent=2)[:900]
         return f"**Arguments:**\n```\n{j}\n```"
     except Exception:

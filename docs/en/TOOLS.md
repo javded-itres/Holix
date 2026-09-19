@@ -27,7 +27,8 @@ TUI: modal with option buttons and a text field. Telegram / MAX: inline buttons 
 - `subagent_control` — `list` / `status` / `send` / `interrupt` / `collect` on **already running** sub-agents. Does not spawn (use `delegate_to_subagent`). Main / supervisor only.
 - `research_site_pages` — after the first `fetch_url`, pass a bounded list of URLs from `## Links on this page` plus the user `goal`. Spawns `page_analyst` sub-agents in waves of `subagent_max_concurrent`, waits, and returns their briefings. For site/resource analysis; do not invent paths and do not use `web_researcher` for same-site links. Main / supervisor only. Core tool (always on the LLM list).
 - `send_chat_files` — attach local files to the **Telegram/MAX chat** (album of 2–10 on Telegram). Core tool. `read_file` / dumping text in the assistant message is not delivery. Only claim success if the tool returns `Sent N file(s)`.
-- `self_diagnose` — autopsy of **this session** (full history: asks vs tools vs claims, failed tools, loops, step-limit). Follow `plan.do_now` / `ask_user`. Core tool. Use when the user says «проверь себя», «почему ты делаешь не так», «ты отвечаешь неправильно», or similar. Stages a skill patch only if a live skill taught the wrong file delivery. Main / supervisor only.
+- `self_diagnose` — autopsy of a session (full history: asks vs tools vs claims, failed tools, loops, step-limit). Used by the `session_doctor` sub-agent (clean context). Main / supervisor / `session_doctor`. When the user says «проверь себя», the **main** agent must spawn `session_doctor` (`fork=false`) and wait — not call this itself.
+- `request_admin_support` — send a support ticket to Telegram admin(s) with session analysis, model, settings snapshot (no secrets), where it happened, and logs. **Always** asks the user to confirm; Deny sends nothing. Main / supervisor / `session_doctor`. Not for changing system settings.
 
 ## Discovery and notebooks
 
@@ -77,7 +78,8 @@ holix bootstrap                  # offers recommended install on first-run setup
 |-------|--------|
 | `apply_patch`, `job_monitor`, `notebook_edit` | `main`, `coder` |
 | `ask_user`, `tool_search`, `session_search`, `lsp` | all |
-| `subagent_control`, `plan_mode`, `research_site_pages`, `self_diagnose` | `main`, `supervisor` |
+| `subagent_control`, `plan_mode`, `research_site_pages` | `main`, `supervisor` |
+| `self_diagnose`, `request_admin_support` | `main`, `supervisor`, `session_doctor` |
 
 ## Aliases (foreign names)
 

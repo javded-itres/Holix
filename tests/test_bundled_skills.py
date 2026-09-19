@@ -29,6 +29,8 @@ def test_bundled_holix_self_diagnose_skill_exists():
     assert parsed is not None
     assert parsed["name"] == "holix-self-diagnose"
     assert "self_diagnose" in parsed["content"]
+    assert "session_doctor" in parsed["content"]
+    assert "request_admin_support" in parsed["content"]
     assert parsed.get("required") is True
 
 

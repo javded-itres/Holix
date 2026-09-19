@@ -11,6 +11,8 @@ TelegramRunner = Callable[[str], Awaitable[None]]
 MaxShouldPoll = Callable[[str], bool]
 MaxRunner = Callable[[str], Awaitable[None]]
 TelegramNotify = Callable[..., Awaitable[bool]]
+TelegramDocumentNotify = Callable[..., Awaitable[bool]]
+ListTelegramAdmins = Callable[[str], list[Any]]
 MaxNotify = Callable[..., Awaitable[bool]]
 SkillNoticeHook = Callable[[dict[str, Any]], Any]
 ListTelegramUsers = Callable[[str], list[tuple[str, int]]]
@@ -30,6 +32,8 @@ class CompanionHooks:
 @dataclass
 class NotifyHooks:
     send_telegram: TelegramNotify | None = None
+    send_telegram_document: TelegramDocumentNotify | None = None
+    list_telegram_admins: ListTelegramAdmins | None = None
     send_max: MaxNotify | None = None
     skill_notice_listeners: list[SkillNoticeHook] = field(default_factory=list)
 

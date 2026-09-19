@@ -214,8 +214,11 @@ CODE_MODE_NUDGE_TAIL = (
 SELF_DIAGNOSE_NUDGE = (
     "[Self-diagnose] The user asked you to check your own work "
     "(«проверь себя», «почему ты делаешь не так», «ты отвечаешь неправильно», "
-    "or similar). Call `self_diagnose` now. Do not apologize, explain, or "
-    "patch a skill until that tool returns. Then answer from the report."
+    "or similar). Spawn a clean-context `session_doctor` now: "
+    'delegate_to_subagent(agent_type="session_doctor", fork=false, task=…). '
+    "In the task include this conversation_id and the user's complaint. "
+    "Then wait_subagent_result. Do not call self_diagnose yourself. "
+    "Do not change system settings. Do not apologize until the doctor returns."
 )
 
 ACTION_HONESTY_NUDGE = (
@@ -1263,12 +1266,41 @@ def _unproven_sdd_fill_final(
     return True
 
 
+def _delegate_is_session_doctor(tc: dict[str, Any]) -> bool:
+    fn = tc.get("function") if isinstance(tc.get("function"), dict) else {}
+    nm = str((fn or {}).get("name") or tc.get("name") or "")
+    if nm != "delegate_to_subagent":
+        return False
+    raw = (fn or {}).get("arguments") if fn else tc.get("arguments")
+    args: dict[str, Any]
+    if isinstance(raw, dict):
+        args = raw
+    elif isinstance(raw, str) and raw.strip():
+        try:
+            import json
+
+            parsed = json.loads(raw)
+        except Exception:
+            return False
+        if not isinstance(parsed, dict):
+            return False
+        args = parsed
+    else:
+        return False
+    agent_type = str(args.get("agent_type") or args.get("type") or "").strip().lower()
+    return agent_type == "session_doctor" or agent_type.startswith("session_doctor")
+
+
 def self_diagnose_called_since_last_user(
     messages: list[dict[str, Any]] | None,
     *,
     tool_results: list[dict[str, Any]] | None = None,
 ) -> bool:
-    """True if `self_diagnose` ran after the last real user message."""
+    """True if session diagnosis started after the last real user message.
+
+    Counts `self_diagnose` or a `session_doctor` spawn so the honesty nudge
+    does not fight a clean-context doctor already running.
+    """
     from core.runtime.self_diagnose import SELF_DIAGNOSE_TOOL
 
     names = successful_tools_since_last_user(messages, tool_results=tool_results)
@@ -1278,14 +1310,30 @@ def self_diagnose_called_since_last_user(
         return False
     last_user = _last_real_user_index(messages)
     for msg in messages[last_user + 1 :]:
-        if msg.get("role") != "assistant":
-            continue
-        for tc in msg.get("tool_calls") or []:
-            if not isinstance(tc, dict):
+        role = msg.get("role")
+        if role == "assistant":
+            for tc in msg.get("tool_calls") or []:
+                if not isinstance(tc, dict):
+                    continue
+                fn = tc.get("function") if isinstance(tc.get("function"), dict) else {}
+                nm = (fn or {}).get("name") or tc.get("name")
+                if str(nm or "") == SELF_DIAGNOSE_TOOL:
+                    return True
+                if _delegate_is_session_doctor(tc):
+                    return True
+        if role == "tool":
+            raw = msg.get("content")
+            content = raw if isinstance(raw, str) else str(raw or "")
+            if "session_doctor" in content and "job_id" in content:
+                return True
+    if tool_results:
+        for tr in tool_results:
+            if not isinstance(tr, dict):
                 continue
-            fn = tc.get("function") if isinstance(tc.get("function"), dict) else {}
-            nm = (fn or {}).get("name") or tc.get("name")
-            if str(nm or "") == SELF_DIAGNOSE_TOOL:
+            name = str(tr.get("tool_name") or "")
+            raw = tr.get("result")
+            content = raw if isinstance(raw, str) else str(raw or "")
+            if name == "delegate_to_subagent" and "session_doctor" in content:
                 return True
     return False
 
@@ -1296,7 +1344,7 @@ def should_nudge_self_diagnose(
     final_response: str | None,
     messages: list[dict[str, Any]] | None,
 ) -> bool:
-    """Force `self_diagnose` when the user asked Holix to inspect itself."""
+    """Force a session_doctor spawn when the user asked Holix to inspect itself."""
     from core.direct_dispatch.intent import is_self_diagnose_request
 
     if _plan_mode_skips_honesty(state):

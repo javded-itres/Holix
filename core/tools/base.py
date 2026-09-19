@@ -42,6 +42,8 @@ class BaseTool(ABC):
         self.description: str = ""
         self.parameters: dict[str, Any] = {}
         self.risk_level: str = "medium"  # "no"|"low"|"medium"|"high" — overridden by subclasses
+        # When True, ActionGuard always prompts; Deny skips execute; grants are not stored.
+        self.require_user_confirmation: bool = False
 
     @abstractmethod
     async def execute(self, **kwargs) -> str:
