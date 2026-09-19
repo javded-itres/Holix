@@ -38,6 +38,7 @@ from cli.tui.shared.formatters import (
     format_write_file_result_preview,
     split_write_file_result,
 )
+from cli.tui.shared.media_links import MEDIA_TOOL_NAMES, format_media_tool_result
 
 
 class CodeEventHandler:
@@ -261,6 +262,8 @@ class CodeEventHandler:
                     self.app.transcript_write(format_write_file_diff_display(diff, path=path))
                 elif not summary:
                     self.app.transcript_write(f"[dim]  {body[:400]}[/dim]")
+            elif name in MEDIA_TOOL_NAMES and body.strip():
+                self.app.transcript_write(format_media_tool_result(body, tool_name=name))
             else:
                 preview = format_tool_result_preview(body, max_len=400)
                 if preview.strip():

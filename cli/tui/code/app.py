@@ -63,6 +63,7 @@ from cli.tui.shared.keyboard_layout import (
     slash_command_prefix,
     terminal_copy_hint,
 )
+from cli.tui.shared.media_links import open_media_href
 from cli.tui.shared.prompt_history import PromptHistoryStore
 from cli.tui.shared.slash_suggestions import (
     is_skill_invoke_line,
@@ -192,6 +193,15 @@ class HolixCodeApp(App):
         self.run_worker(self._initialize_agent(), exclusive=True, group="agent_init")
         self.set_interval(2.0, self.sync_background_process_bar)
         self._restore_prompt_focus(delay=0.1, force=True)
+
+    def on_click(self, event: events.Click) -> None:
+        """Open file:// or http(s) hyperlinks in the transcript (generated media)."""
+        style = getattr(event, "style", None)
+        href = getattr(style, "link", None) if style is not None else None
+        if not href:
+            return
+        if open_media_href(str(href)):
+            event.stop()
 
     async def on_unmount(self) -> None:
         if getattr(self, "agent", None):
