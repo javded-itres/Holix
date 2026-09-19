@@ -10,6 +10,7 @@ from cli.shared.agent_stop import (
     cancel_host_run_tasks,
     deny_all_pending_confirmations,
     reject_all_pending_plan_reviews,
+    signal_run_cancel,
     stop_agent_activity_sync,
 )
 from core.plan_review.review_guard import PlanReviewChoice, PlanReviewGuard
@@ -106,6 +107,15 @@ async def test_cancel_host_run_tasks() -> None:
     assert cancel_host_run_tasks(host) == 1
     await asyncio.sleep(0.05)
     assert task.cancelled() or task.done()
+
+
+@pytest.mark.asyncio
+async def test_signal_run_cancel_sets_host_event() -> None:
+    host = MagicMock()
+    ev = asyncio.Event()
+    host._run_cancel = ev
+    signal_run_cancel(host)
+    assert ev.is_set()
 
 
 def test_stop_agent_activity_sync_cancels_textual_workers() -> None:

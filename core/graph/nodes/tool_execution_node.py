@@ -2,6 +2,7 @@
 Tool Execution Node — executes tool calls from the graph state.
 """
 
+import asyncio
 import logging
 import time
 
@@ -41,12 +42,14 @@ async def tool_execution_node(state: HolixGraphState, config: RunnableConfig) ->
     messages = list(state.get("messages", []))
     tool_results = []
 
+    cancelled_run = False
     for tc_data in tool_calls:
         # Cooperative cancel between tool calls (audit #3).
         try:
             from core.tools.execution_context import is_run_cancelled
 
             if is_run_cancelled():
+                cancelled_run = True
                 messages.append(
                     {
                         "role": "tool",
@@ -63,7 +66,7 @@ async def tool_execution_node(state: HolixGraphState, config: RunnableConfig) ->
                         "cancelled": True,
                     }
                 )
-                continue
+                break
         except Exception:
             pass
 
@@ -112,6 +115,19 @@ async def tool_execution_node(state: HolixGraphState, config: RunnableConfig) ->
                     )
                 )
 
+        except asyncio.CancelledError:
+            duration = (time.time() - start) * 1000
+            result = "Error: Run cancelled — tool not executed."
+            cancelled_run = True
+            if agent and hasattr(agent, "emit"):
+                agent.emit(
+                    ToolCallErrorEvent(
+                        tool_name=tool_name,
+                        tool_id=tool_id,
+                        error="cancelled",
+                        conversation_id=conversation_id,
+                    )
+                )
         except Exception as tool_err:
             duration = (time.time() - start) * 1000
             result = f"Error: {tool_err}"
@@ -146,6 +162,8 @@ async def tool_execution_node(state: HolixGraphState, config: RunnableConfig) ->
                 "duration_ms": duration,
             }
         )
+        if cancelled_run:
+            break
 
         # Save to memory (truncate huge outputs)
         if agent and hasattr(agent, "memory"):
@@ -161,8 +179,23 @@ async def tool_execution_node(state: HolixGraphState, config: RunnableConfig) ->
 
         messages, _ = await compress_session_if_needed(agent, conversation_id, messages)
 
-    return {
+    out = {
         "messages": messages,
         "tool_calls": [],  # Clear pending tool calls
         "tool_results": tool_results,
     }
+    if cancelled_run:
+        stopped = "Stopped."
+        if agent and hasattr(agent, "emit"):
+            from core.agent_events import FinalResponseEvent
+
+            agent.emit(
+                FinalResponseEvent(
+                    content=stopped,
+                    steps_taken=int(state.get("step_count") or 0),
+                    conversation_id=conversation_id,
+                )
+            )
+        out["is_final"] = True
+        out["final_response"] = stopped
+    return out

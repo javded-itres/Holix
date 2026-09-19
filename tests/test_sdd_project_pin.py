@@ -10,6 +10,7 @@ from core.sdd.change_workspace import (
     bind_active_change,
     bind_active_project,
     clear_active_change,
+    drop_active_change,
     format_active_change_prompt_block,
     get_active_change,
     inherit_active_change,
@@ -57,6 +58,16 @@ def test_bind_active_project_overlays_workspace(tmp_path: Path) -> None:
         reset_conversation_scope(ctok)
         reset_profile_scope(ptok)
         reset_workspace_scope(tokens)
+
+
+def test_drop_active_change_clears_project_pin(tmp_path: Path) -> None:
+    project = tmp_path / "apps" / "api"
+    project.mkdir(parents=True)
+    bind_active_project("default", "c1", project, project="apps/api")
+    assert overlay_workspace_root("default", "c1") == str(project.resolve())
+    drop_active_change("default", "c1")
+    assert overlay_workspace_root("default", "c1") is None
+    assert get_active_change("default", "c1") is None
 
 
 def test_worktree_overlay_wins_over_project_pin(tmp_path: Path) -> None:

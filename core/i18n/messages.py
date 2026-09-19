@@ -139,6 +139,11 @@ MESSAGES: dict[str, dict[str, str]] = {
         "tg.session_switched": "Session switched",
         "tg.session_invalid": "Invalid session",
         "tg.new_session": "New session",
+        "tg.pick_workspace": (
+            "New session is in the profile workspace. Pick a product project, or keep Workspace."
+        ),
+        "tg.session_workspace": "Session is in the profile workspace (not a product project).",
+        "tg.session_project": "Session pinned to project: {name}",
         "tg.tool_result": "Tool result",
         "tg.model": "Model: {label}",
         "tg.error": "Error",
@@ -861,6 +866,11 @@ When finished, confirm the absolute path written and give a 5–10 line summary 
         "tg.session_switched": "Сессия переключена",
         "tg.session_invalid": "Неверная сессия",
         "tg.new_session": "Новая сессия",
+        "tg.pick_workspace": (
+            "Новая сессия в общем workspace профиля. Выберите проект или оставьте Workspace."
+        ),
+        "tg.session_workspace": "Сессия в общем workspace профиля (не в проекте).",
+        "tg.session_project": "Сессия привязана к проекту: {name}",
         "tg.tool_result": "Результат tool",
         "tg.model": "Модель: {label}",
         "tg.error": "Ошибка",

@@ -904,7 +904,13 @@ class HolixCodeApp(App):
         return LocaleStore(self.profile).get()
 
     def _is_immediate_control_message(self, message: str) -> bool:
-        if is_slash_command(normalize_slash_input(message)) or is_skill_invoke_line(message):
+        from cli.shared.slash_input import is_stop_command
+
+        if (
+            is_slash_command(normalize_slash_input(message))
+            or is_skill_invoke_line(message)
+            or is_stop_command(message)
+        ):
             return True
         try:
             if self._modals.plan_review.is_awaiting:
@@ -1043,6 +1049,12 @@ class HolixCodeApp(App):
                 return
 
         message = normalize_slash_input(message)
+        from cli.shared.slash_input import is_stop_command
+
+        if is_stop_command(message):
+            self.transcript_write(f"\n[bold]❯[/bold] {message}\n")
+            self._action_stop_all()
+            return
         if is_slash_command(message):
             self.transcript_write(f"\n[bold]❯[/bold] {message}\n")
             await self._slash.handle(message)
@@ -2022,6 +2034,9 @@ class HolixCodeApp(App):
         self.transcript_write("[dim]/switch N[/dim]")
 
     async def _create_new_session(self) -> None:
+        from cli.shared.session_workspace import pin_conversation_to_workspace_root
+
+        self._action_stop_all()
         new_id = f"tui_{self.profile}_{int(time.time())}"
         self.conversation_id = new_id
         self.session_display_name = self._short_name(new_id)
@@ -2037,6 +2052,8 @@ class HolixCodeApp(App):
         restored = restore_session_model(self)
         if restored:
             self.transcript_write(f"[dim]model (session): {restored}[/dim]\n")
+        pin_conversation_to_workspace_root(self, new_id)
+        self.transcript_write("[dim]workspace: profile root (not a product project)[/dim]\n")
         await self._load_known_sessions()
         await self._update_context_display_async()
         self._restore_prompt_focus(force=True)

@@ -21,9 +21,9 @@ async def test_terminal_cancel_kills_long_sleep() -> None:
 
     try:
         task = asyncio.create_task(cancel_soon())
-        out = await tool.execute("sleep 30", timeout=10)
+        with pytest.raises(asyncio.CancelledError):
+            await tool.execute("sleep 30", timeout=10)
         await task
-        assert "cancel" in out.lower() or "terminated" in out.lower()
     finally:
         reset_cancel_scope(token)
 

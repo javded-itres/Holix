@@ -204,6 +204,18 @@ def _demote_to_project_pin(raw: dict[str, Any] | None) -> dict[str, str] | None:
     ).as_dict()
 
 
+def drop_active_change(profile: str, conversation_id: str) -> None:
+    """Remove worktree *and* project pin so the session uses the profile workspace."""
+    name = (profile or "default").strip() or "default"
+    cid = _safe_cid(conversation_id)
+    with _LOCK:
+        _ensure_loaded(name)
+        sessions = _CACHE.get(name) or {}
+        if cid in sessions:
+            sessions.pop(cid, None)
+            _save(name)
+
+
 def clear_active_change(profile: str, conversation_id: str) -> None:
     """Drop the git worktree bind; keep the SDD project pin when present."""
     name = (profile or "default").strip() or "default"

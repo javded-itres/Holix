@@ -8,7 +8,7 @@ from typing import Any
 
 from cli.shared.commands.agent_commands import AgentCommands
 from cli.shared.rich_text import content_to_plain_text
-from cli.shared.slash_input import is_slash_command, normalize_slash_input
+from cli.shared.slash_input import is_slash_command, is_stop_command, normalize_slash_input
 from core.i18n import t
 
 from integrations.max.client import MaxClient
@@ -269,8 +269,11 @@ class MaxHost:
     async def _create_new_session(self) -> None:
         import time
 
+        from cli.shared.session_workspace import pin_conversation_to_workspace_root
+
         from integrations.max.models import conversation_id_for_max
 
+        self._action_stop_all()
         base = conversation_id_for_max(
             self._session.profile,
             self._session.user_id,
@@ -284,7 +287,9 @@ class MaxHost:
 
         restored = restore_session_model(self)
         label = restored or (self.agent.model if self.agent else "—")
+        pin_conversation_to_workspace_root(self, self._session.conversation_id)
         self.transcript_write(f"new session {self._session.conversation_id} · model {label}")
+        await self._interactive.show_workspace_picker()
 
     async def _show_sessions_list(self) -> None:
         if not self.agent:
@@ -516,6 +521,10 @@ class MaxHost:
             message = build_agent_prompt(message, files)
 
         normalized = normalize_slash_input(message)
+        if is_stop_command(message) or is_stop_command(normalized):
+            self._action_stop_all()
+            return
+
         is_slash = is_slash_command(normalized) or normalized.startswith("/")
         skip_subagent = is_slash and not normalized.lower().startswith("/subagent-reply")
 
@@ -601,8 +610,10 @@ class MaxHost:
 
         from core.tools.execution_context import (
             agent_emit_scope,
+            cancel_scope,
             chat_delivery_scope,
             reset_agent_emit_scope,
+            reset_cancel_scope,
             reset_chat_delivery_scope,
         )
         from core.workspace import agent_path_visibility_context
@@ -626,6 +637,9 @@ class MaxHost:
 
         from integrations.max.typing_indicator import TypingIndicator
 
+        cancel_event = asyncio.Event()
+        self._run_cancel = cancel_event
+        cancel_token = cancel_scope(cancel_event)
         async with TypingIndicator(self._client, self._session.reply_chat_id):
             try:
                 await presenter.start()
@@ -664,6 +678,9 @@ class MaxHost:
                     buf.mark_error(str(exc))
                 logger.exception("MAX agent run failed")
             finally:
+                reset_cancel_scope(cancel_token)
+                if getattr(self, "_run_cancel", None) is cancel_event:
+                    self._run_cancel = None
                 self.agent.events.unsubscribe(on_event)
                 reset_chat_delivery_scope(delivery_token)
                 reset_agent_emit_scope(emit_token)

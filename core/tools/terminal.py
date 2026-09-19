@@ -648,7 +648,7 @@ class TerminalTool(BaseTool):
                 return f"Error: Command timed out after {timeout} seconds"
             except asyncio.CancelledError:
                 await _kill_process_tree(process)
-                return "Error: Run cancelled — terminal command terminated."
+                raise
 
         except Exception as e:
             return f"Error executing command: {str(e)}"

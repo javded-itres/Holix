@@ -287,6 +287,21 @@ def sessions_picker_keyboard(
     return inline_keyboard(rows)
 
 
+def workspace_picker_keyboard(options: list[dict]) -> dict[str, Any] | None:
+    rows: list[list[dict[str, str]]] = []
+    for i, opt in enumerate(options[:12]):
+        kind = str(opt.get("kind") or "")
+        name = str(opt.get("name") or opt.get("id") or "workspace")
+        if kind == "workspace" or not str(opt.get("id") or "").strip():
+            label = f"⌂ {name}"
+        else:
+            label = name
+        if len(label) > 32:
+            label = label[:30] + "…"
+        rows.append([_callback_btn(label, _cb("wp", str(i)))])
+    return inline_keyboard(rows) if rows else None
+
+
 def tools_picker_keyboard(tools: list[dict]) -> dict[str, Any]:
     rows: list[list[dict[str, str]]] = []
     recent = list(tools[-8:])

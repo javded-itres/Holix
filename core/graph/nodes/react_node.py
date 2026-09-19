@@ -631,6 +631,24 @@ async def react_node(state: HolixGraphState, config: RunnableConfig) -> dict:
     agent = get_agent_from_config(config)
     step_count = state.get("step_count", 0) + 1
     conversation_id = state.get("conversation_id", "default")
+    try:
+        from core.tools.execution_context import is_run_cancelled
+
+        if is_run_cancelled():
+            stopped = "Stopped."
+            _emit_final_response(
+                agent,
+                content=stopped,
+                steps_taken=step_count,
+                conversation_id=conversation_id,
+            )
+            return {
+                "step_count": step_count,
+                "is_final": True,
+                "final_response": stopped,
+            }
+    except Exception:
+        pass
     stream = state.get("stream", False)
     if prefer_non_streaming_for_plan(state):
         stream = False

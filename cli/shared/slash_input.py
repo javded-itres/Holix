@@ -72,3 +72,38 @@ def is_mode_slash(text: str) -> bool:
 def is_models_slash(text: str) -> bool:
     """True for ``/models`` or ``/model`` (LLM picker), not execution mode."""
     return slash_command_token(text) in ("/models", "/model")
+
+
+_STOP_WORDS = frozenset(
+    {
+        "stop",
+        "стоп",
+        "остановись",
+        "остановить",
+        "остановка",
+        "halt",
+        "abort",
+        "cancel",
+        "отмена",
+        "отменить",
+    }
+)
+
+
+def is_stop_command(text: str) -> bool:
+    """True for ``/stop`` and a bare stop word (``стоп``, ``stop``, …).
+
+    Messenger hosts must handle this *before* queueing a new agent run.
+    """
+    raw = (text or "").strip()
+    if not raw:
+        return False
+    if slash_command_token(raw) == "/stop":
+        return True
+    token = normalize_slash_input(raw).strip().lower()
+    token = token.rstrip("!.…")
+    if token.startswith("/"):
+        token = token.lstrip("/")
+        if "@" in token:
+            token = token.split("@", 1)[0]
+    return token in _STOP_WORDS
