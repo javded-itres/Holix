@@ -7,6 +7,8 @@
 - **MikroLLM provider preset** — `mikrollm` in `holix models setup` / `models add`:
   OpenAI `/v1` gateway (default `127.0.0.1:4000`), key `${MIKROLLM_API_KEY}`,
   host `${MIKROLLM_API_BASE}`.
+- **TUI media links** — `generate_image` / `generate_video` tool results show a
+  clickable `file://` (or https) link; click opens the file in the OS viewer.
 
 ### Changed
 
