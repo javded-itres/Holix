@@ -13,6 +13,10 @@
 ### Changed
 
 - **MAX slash menu** — short user-facing set (help/menu/status/models/sessions/new/clear/stop/skills/lang) plus billing `start`, `tariffs`, `pay`, `subscription`, `topup`, `invite`, `promo` (and `settings` when the extension is on). Aliases (`billing`, `referral`, …) still work as commands but are not duplicated in the 32-slot MAX menu.
+- **Admin-only extension settings on messengers** — Telegram/MAX **bot admin** may
+  `manage_agent_extensions` (create/enable/disable/reload and `settings_get` /
+  `settings_set`). Regular users only `list` / `registered`. Local CLI/TUI stays
+  the operator.
 
 ### Fixed
 

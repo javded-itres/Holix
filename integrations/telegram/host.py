@@ -796,9 +796,11 @@ class TelegramHost:
             agent_emit_scope,
             cancel_scope,
             chat_delivery_scope,
+            operator_scope,
             reset_agent_emit_scope,
             reset_cancel_scope,
             reset_chat_delivery_scope,
+            reset_operator_scope,
         )
         from core.workspace import agent_path_visibility_context
 
@@ -808,9 +810,11 @@ class TelegramHost:
         delivery_bridge = TelegramDeliveryBridge(self._bot, self._session.chat_id)
         delivery_token = chat_delivery_scope(delivery_bridge)
         emit_token = agent_emit_scope(self.agent.emit)
+        is_admin = is_telegram_admin(self._session.bot_profile, self._session.user_id)
+        operator_token = operator_scope(is_operator=is_admin)
         agent_cfg = getattr(self.agent, "config", None)
         visibility_ctx = agent_path_visibility_context(
-            is_admin=is_telegram_admin(self._session.bot_profile, self._session.user_id),
+            is_admin=is_admin,
             workspace_jail_enabled=bool(getattr(agent_cfg, "workspace_jail_enabled", False)),
         )
 
@@ -859,6 +863,7 @@ class TelegramHost:
                 if getattr(self, "_run_cancel", None) is cancel_event:
                     self._run_cancel = None
                 self.agent.events.unsubscribe(on_event)
+                reset_operator_scope(operator_token)
                 reset_chat_delivery_scope(delivery_token)
                 reset_agent_emit_scope(emit_token)
                 try:

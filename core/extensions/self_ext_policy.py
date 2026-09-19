@@ -1,14 +1,19 @@
-"""When the agent may create/hot-reload its own drop-in extensions.
+"""When the agent may create/hot-reload extensions and change system settings.
 
-**Allowed (local single-operator):** CLI, TUI, ``holix run``, local studio-style use.
+**Allowed**
 
-**Denied (multi-user / group bots):** Telegram/MAX bots and other messenger hosts
-serving many end-users — extensions must not be authored into shared agent state.
+- Local single-operator: CLI, TUI, ``holix run``.
+- Messenger (Telegram/MAX): **bot admin only** (host sets ``operator_scope``).
+
+**Denied**
+
+- Messenger end-users (not the bot admin).
+- Unattended runs with no operator flag.
 
 Override with env::
 
-    HOLIX_SELF_EXTENSIONS=1   # force allow
-    HOLIX_SELF_EXTENSIONS=0   # force deny
+    HOLIX_SELF_EXTENSIONS=1   # force allow (all users — not for shared bots)
+    HOLIX_SELF_EXTENSIONS=0   # force deny (even admin)
 
 Messenger hosts set ``HOLIX_MESSENGER_HOST=telegram|max``.
 """
@@ -51,32 +56,32 @@ def is_messenger_multi_user_runtime() -> bool:
 
 
 def agent_allows_self_extensions(agent: Any | None = None) -> bool:
-    """Whether *this* agent may create / hot-reload self-authored extensions."""
+    """Whether *this* run may create / hot-reload extensions and edit system settings."""
     override = _env_bool_override()
     if override is not None:
         return override
+
+    if is_messenger_multi_user_runtime():
+        try:
+            from core.tools.execution_context import is_operator_actor
+
+            return is_operator_actor() is True
+        except Exception:
+            return False
 
     if agent is not None:
         cfg = getattr(agent, "config", None)
         flag = getattr(cfg, "self_extensions_enabled", None)
         if flag is False:
             return False
-        if flag is True:
-            # still respect messenger process
-            if is_messenger_multi_user_runtime():
-                return False
-            return True
-
-    if is_messenger_multi_user_runtime():
-        return False
     return True
 
 
 def self_extension_denied_message() -> str:
     return (
-        "Self-authored agent extensions are only allowed in **local** single-operator mode "
-        "(CLI / TUI / holix run). "
-        "This agent serves a multi-user messenger (Telegram/MAX or chat delivery bridge). "
-        "Create extensions only on a local profile, not for group bots. "
-        "Override (not recommended on shared bots): HOLIX_SELF_EXTENSIONS=1"
+        "Changing agent extensions and system settings is allowed for the **operator** "
+        "(local CLI/TUI) or the **Telegram/MAX bot admin** only. "
+        "Regular messenger users cannot create, enable, disable, reload, or edit "
+        "extension settings. Ask the admin, or use a local Holix session. "
+        "Emergency override: HOLIX_SELF_EXTENSIONS=1 (not for shared bots)."
     )

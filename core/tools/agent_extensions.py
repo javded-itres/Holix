@@ -7,8 +7,19 @@ from typing import Any
 
 from core.tools.base import BaseTool
 
-# Actions that author or re-enable extensions (local single-operator only).
-_MUTATING_CREATE_ACTIONS = frozenset({"create", "enable", "quarantine_clear"})
+# Operator-only on Telegram/MAX (bot admin); local CLI/TUI always allowed.
+_OPERATOR_ACTIONS = frozenset(
+    {
+        "create",
+        "disable",
+        "enable",
+        "quarantine_clear",
+        "reload",
+        "show_control",
+        "settings_get",
+        "settings_set",
+    }
+)
 # Actions that change load set and should hot-reload when allowed.
 _RELOAD_AFTER_ACTIONS = frozenset({"create", "disable", "enable", "quarantine_clear", "reload"})
 
@@ -45,14 +56,13 @@ class ManageAgentExtensionsTool(BaseTool):
         self._agent = agent
         self.name = "manage_agent_extensions"
         self.description = (
-            "Manage Holix *agent* drop-in extensions (profile folder, not core). "
-            "Actions: list, create, disable, enable, quarantine_clear, show_control, "
-            "registered, reload. "
-            "create/enable only in **local** single-operator mode (CLI/TUI) — "
-            "not on Telegram/MAX multi-user bots. "
-            "After create, the agent hot-reloads tools into the current session. "
-            "If an extension breaks the agent, use disable. "
-            "Emergency: env HOLIX_AGENT_EXTENSIONS_OFF=1."
+            "Manage Holix agent extensions and their system settings (profile folder, not core). "
+            "Actions: list, registered, create, disable, enable, quarantine_clear, "
+            "show_control, reload, settings_get, settings_set. "
+            "On Telegram/MAX only the **bot admin** may create/enable/disable/reload "
+            "or change extension settings. Regular users may only list/registered. "
+            "Local CLI/TUI is the operator. After create, hot-reload tools in this session. "
+            "Emergency: HOLIX_AGENT_EXTENSIONS_OFF=1."
         )
         self.risk_level = "medium"
         self.parameters = {
@@ -69,6 +79,8 @@ class ManageAgentExtensionsTool(BaseTool):
                         "show_control",
                         "registered",
                         "reload",
+                        "settings_get",
+                        "settings_set",
                     ],
                     "description": "What to do",
                 },
@@ -88,6 +100,15 @@ class ManageAgentExtensionsTool(BaseTool):
                     "type": "boolean",
                     "description": "Overwrite existing scaffold on create",
                 },
+                "settings": {
+                    "type": "object",
+                    "description": "JSON object to merge (settings_set)",
+                    "additionalProperties": True,
+                },
+                "replace": {
+                    "type": "boolean",
+                    "description": "settings_set: replace file instead of merge",
+                },
             },
             "required": ["action"],
         }
@@ -99,12 +120,14 @@ class ManageAgentExtensionsTool(BaseTool):
         description: str = "",
         reason: str = "",
         overwrite: bool = False,
+        settings: dict[str, Any] | None = None,
+        replace: bool = False,
         **kwargs: Any,
     ) -> str:
         profile = _profile(self._agent)
         action = (action or "list").strip().lower()
         try:
-            if action in _MUTATING_CREATE_ACTIONS and not _self_ext_allowed(self._agent):
+            if action in _OPERATOR_ACTIONS and not _self_ext_allowed(self._agent):
                 from core.extensions.self_ext_policy import self_extension_denied_message
 
                 return json.dumps(
@@ -168,19 +191,67 @@ class ManageAgentExtensionsTool(BaseTool):
                     ensure_ascii=False,
                     indent=2,
                 )
-            if action == "reload":
-                if not _self_ext_allowed(self._agent):
-                    from core.extensions.self_ext_policy import self_extension_denied_message
+            if action == "settings_get":
+                from core.extensions.settings import (
+                    extension_settings_path,
+                    load_extension_settings,
+                )
 
+                ext = (name or "").strip()
+                if not ext:
                     return json.dumps(
-                        {
-                            "ok": False,
-                            "error": "self_extensions_denied",
-                            "message": self_extension_denied_message(),
-                        },
+                        {"ok": False, "error": "name is required for settings_get"},
                         ensure_ascii=False,
-                        indent=2,
                     )
+                data = load_extension_settings(profile, ext)
+                return json.dumps(
+                    {
+                        "ok": True,
+                        "profile": profile,
+                        "extension": ext,
+                        "settings_file": str(extension_settings_path(profile, ext)),
+                        "settings": data,
+                    },
+                    ensure_ascii=False,
+                    indent=2,
+                )
+            if action == "settings_set":
+                from core.extensions.settings import (
+                    extension_settings_path,
+                    load_extension_settings,
+                    merge_extension_settings,
+                    save_extension_settings,
+                )
+
+                ext = (name or "").strip()
+                patch = settings if isinstance(settings, dict) else {}
+                if not ext:
+                    return json.dumps(
+                        {"ok": False, "error": "name is required for settings_set"},
+                        ensure_ascii=False,
+                    )
+                if not patch and not replace:
+                    return json.dumps(
+                        {"ok": False, "error": "settings object is required for settings_set"},
+                        ensure_ascii=False,
+                    )
+                current = {} if replace else load_extension_settings(profile, ext)
+                merged = patch if replace else merge_extension_settings(current, patch)
+                path = save_extension_settings(profile, ext, merged)
+                hot = _hot_reload(self._agent)
+                return json.dumps(
+                    {
+                        "ok": True,
+                        "profile": profile,
+                        "extension": ext,
+                        "settings_file": str(path),
+                        "settings": merged,
+                        "hot_reload": hot,
+                    },
+                    ensure_ascii=False,
+                    indent=2,
+                )
+            if action == "reload":
                 result = _hot_reload(self._agent)
                 return json.dumps(
                     {"ok": True, "action": "reload", "hot_reload": result},

@@ -25,22 +25,21 @@ The user wants the agent to **grow new capabilities** safely:
 - list what extensions are loaded
 - disable something that breaks the agent
 
-**Never edit Holix core** (`core/`, `cli/`, `integrations/`, package source).  
+**Never edit Holix core** (`core/`, `cli/`, `integrations/`, package source).
 Only create **profile-local drop-in extensions**.
 
-## Mode restriction (important)
+## Who may change extensions (important)
 
-Self-authored extensions (**create / enable / hot-reload**) work **only in local single-operator** mode:
+**create / enable / disable / reload / settings_get / settings_set** are **operator** actions:
 
-| Mode | Create / hot-reload |
-|------|---------------------|
-| CLI, TUI, `holix run` (local operator) | **Allowed** |
-| Telegram / MAX multi-user bots | **Denied** |
+| Actor | Allowed |
+|------|---------|
+| CLI, TUI, `holix run` | **Yes** (local operator) |
+| Telegram / MAX **bot admin** | **Yes** |
+| Telegram / MAX regular user | **No** (`self_extensions_denied`) |
 
-Messenger hosts set `HOLIX_MESSENGER_HOST` and `self_extensions_enabled=False`.  
-Override (not recommended on shared bots): `HOLIX_SELF_EXTENSIONS=1`.
-
-If `manage_agent_extensions` returns `self_extensions_denied`, tell the user to use a **local** profile session — do not try to force-create on the group bot.
+Regular users may only `list` and `registered`.
+Override (not for shared bots): `HOLIX_SELF_EXTENSIONS=1`. If denied, tell a non-admin to ask the bot admin — do not try to bypass.
 
 ## Architecture (safe zone)
 
@@ -69,7 +68,9 @@ Use **`manage_agent_extensions`**:
 | `enable` | Re-enable + hot-reload | **Yes** |
 | `quarantine_clear` | Clear auto-quarantine + reload | **Yes** |
 | `reload` | Re-scan extensions / reimport modules | **Yes** |
-| `show_control` | Show `agent_extensions_control.yaml` | No |
+| `show_control` | Show `agent_extensions_control.yaml` | Operator |
+| `settings_get` | Read `extension_settings/<name>.yaml` | Operator |
+| `settings_set` | Merge JSON into extension settings + reload | Operator |
 
 ### Create (local)
 
@@ -81,7 +82,7 @@ manage_agent_extensions(
 )
 ```
 
-The tool **hot-reloads** the agent: new tools and slash specs appear in the **current** session.  
+The tool **hot-reloads** the agent: new tools and slash specs appear in the **current** session.
 If you edit `agent.py` further, call `manage_agent_extensions(action=reload)`.
 
 ### List / inspect
@@ -147,7 +148,7 @@ quarantine:
 
 ### B. Auto-quarantine
 
-If `register_tools` / middleware **raises** on load, Holix records quarantine automatically.  
+If `register_tools` / middleware **raises** on load, Holix records quarantine automatically.
 Fix code → `manage_agent_extensions(action=quarantine_clear, name=…)` → auto-reload (local).
 
 ### C. Emergency (process env)
@@ -170,16 +171,16 @@ holix extensions agent-enable my_helper -p default
 holix extensions agent-control -p default
 ```
 
-CLI create is an **operator** action (local machine). Agent-side create remains blocked on multi-user messenger agents.
+CLI create is an operator action. On Telegram/MAX the **bot admin** can do the same via `manage_agent_extensions`; regular users cannot.
 
 ## Slash / skill
 
 - Skill: `/holix-extensions` (this file)
 - Extension-defined slashes: after create/reload, e.g. `/my-helper` from scaffold
 
-## Workflow for “extend yourself” (local only)
+## Workflow for “extend yourself”
 
-1. Confirm session is local (CLI/TUI), not a group Telegram/MAX bot.
+1. Confirm you are the **local operator** or the **Telegram/MAX bot admin**.
 2. `manage_agent_extensions(action=create, name=…, description=…)`.
 3. Edit `agent.py` if needed; then `action=reload`.
 4. Verify with `manage_agent_extensions(action=registered)` and a test call.
@@ -188,7 +189,7 @@ CLI create is an **operator** action (local machine). Agent-side create remains 
 ## Do NOT
 
 - Modify Holix `core/`, `cli/`, `integrations/` for product features.
-- Create self-extensions on multi-user messenger bots.
+- Let a regular Telegram/MAX user change system extensions or settings.
 - Install random packages system-wide without user approval.
 - Leave a crashing extension enabled — use disable/quarantine.
 
@@ -200,4 +201,6 @@ manage_agent_extensions action=create name=notes description=Save short notes
 manage_agent_extensions action=reload
 manage_agent_extensions action=disable name=notes reason=syntax error
 manage_agent_extensions action=show_control
+manage_agent_extensions action=settings_get name=media
+manage_agent_extensions action=settings_set name=media settings={"auto_send": true}
 ```

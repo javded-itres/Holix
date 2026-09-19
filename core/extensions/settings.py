@@ -60,6 +60,17 @@ def load_extension_settings(
     return merged
 
 
+def merge_extension_settings(base: dict[str, Any], patch: dict[str, Any]) -> dict[str, Any]:
+    """Deep-merge *patch* into *base* (dicts recurse; other values replace)."""
+    out = dict(base)
+    for key, value in (patch or {}).items():
+        if isinstance(value, dict) and isinstance(out.get(key), dict):
+            out[key] = merge_extension_settings(out[key], value)
+        else:
+            out[key] = value
+    return out
+
+
 def save_extension_settings(
     profile: str,
     extension_name: str,
