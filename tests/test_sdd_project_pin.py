@@ -60,6 +60,41 @@ def test_bind_active_project_overlays_workspace(tmp_path: Path) -> None:
         reset_workspace_scope(tokens)
 
 
+def test_locked_pin_not_stolen_by_sdd_bind(tmp_path: Path) -> None:
+    project = tmp_path / "apps" / "api"
+    project.mkdir(parents=True)
+    bind_active_project(
+        "default",
+        "c-lock",
+        project,
+        project="apps/api",
+        locked=True,
+        replace_worktree=True,
+        force=True,
+    )
+    other = tmp_path / "wt"
+    other.mkdir()
+    from core.sdd.change_workspace import ActiveChange, bind_active_change
+
+    bind_active_change(
+        "default",
+        "c-lock",
+        ActiveChange(
+            change_id="stolen",
+            branch="change/stolen",
+            worktree=str(other),
+            clone=str(project),
+            project="apps/api",
+            project_root=str(project),
+        ),
+    )
+    kept = get_active_change("default", "c-lock")
+    assert kept is not None
+    assert kept.change_id != "stolen"
+    assert kept.worktree == ""
+    assert overlay_workspace_root("default", "c-lock") == str(project.resolve())
+
+
 def test_drop_active_change_clears_project_pin(tmp_path: Path) -> None:
     project = tmp_path / "apps" / "api"
     project.mkdir(parents=True)

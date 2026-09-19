@@ -675,8 +675,11 @@ class TelegramInteractive:
                 lang = messenger_host_locale(self._host)
                 if not out.get("ok"):
                     return str(out.get("error") or t("tg.error", lang))
-                if out.get("kind") == "project":
+                if out.get("kind") in {"project", "worktree", "main"}:
                     name = str(out.get("project_name") or opts[idx].get("name") or "")
+                    extra = str(out.get("change_id") or out.get("cwd") or "")
+                    if extra:
+                        name = f"{name} · {extra}"
                     await self._host._send_html(
                         escape_html(t("tg.session_project", lang, name=name))
                     )

@@ -83,23 +83,45 @@ def list_workspace_picker_options(host: Any) -> list[dict[str, Any]]:
         if pid in seen:
             continue
         seen.add(pid)
+        pname = str(row.get("name") or row.get("slug") or pid)
+        rel = str(row.get("workspace_rel") or "")
         options.append(
             {
                 "id": pid,
-                "kind": "project",
-                "name": str(row.get("name") or row.get("slug") or pid),
-                "workspace_rel": str(row.get("workspace_rel") or ""),
+                "kind": "main",
+                "project_id": pid,
+                "change_id": "",
+                "name": f"{pname} · main",
+                "workspace_rel": rel,
                 "path": str(row.get("path") or ""),
             }
         )
+        for wt in row.get("worktrees") or []:
+            if not isinstance(wt, dict):
+                continue
+            wid = str(wt.get("id") or wt.get("change_id") or "").strip()
+            if not wid:
+                continue
+            options.append(
+                {
+                    "id": f"{pid}::{wid}",
+                    "kind": "worktree",
+                    "project_id": pid,
+                    "change_id": wid,
+                    "name": f"{pname} · {wid}",
+                    "workspace_rel": f"{rel}/.holix/worktrees/{wid}",
+                    "path": str(wt.get("path") or ""),
+                }
+            )
     return options
 
 
 def apply_workspace_picker_choice(host: Any, option: dict[str, Any]) -> dict[str, Any]:
     cid = str(getattr(host, "conversation_id", "") or "").strip()
     kind = str(option.get("kind") or "")
-    pid = str(option.get("id") or "").strip()
-    if kind != "project" or not pid:
+    pid = str(option.get("project_id") or option.get("id") or "").strip()
+    change = str(option.get("change_id") or "").strip()
+    if kind in {"", "workspace"} or not pid:
         return pin_conversation_to_workspace_root(host, cid)
     try:
         from holix_studio.application.session_project import pin_conversation_workspace
@@ -108,8 +130,22 @@ def apply_workspace_picker_choice(host: Any, option: dict[str, Any]) -> dict[str
         return pin_conversation_workspace(
             profile=str(getattr(host, "profile", None) or "default"),
             conversation_id=cid,
-            project_id=pid,
+            project_id=pid.split("::", 1)[0],
             workspace_root=root,
+            change_id=change,
         )
+    except TypeError:
+        try:
+            from holix_studio.application.session_project import pin_conversation_workspace
+
+            root = profile_workspace_root(host) or Path.cwd()
+            return pin_conversation_workspace(
+                profile=str(getattr(host, "profile", None) or "default"),
+                conversation_id=cid,
+                project_id=pid.split("::", 1)[0],
+                workspace_root=root,
+            )
+        except Exception as exc:
+            return {"ok": False, "error": str(exc)}
     except Exception as exc:
         return {"ok": False, "error": str(exc)}

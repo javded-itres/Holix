@@ -31,8 +31,10 @@ class ActiveChange:
     # Absolute directory that owns openspec/ (product clone or nested project).
     # Used as workspace overlay when no live git worktree is bound.
     project_root: str = ""
+    # User-picked session pin: sdd_create_change must not steal this conversation.
+    locked: bool = False
 
-    def as_dict(self) -> dict[str, str]:
+    def as_dict(self) -> dict[str, Any]:
         return asdict(self)
 
 
@@ -96,15 +98,26 @@ def _parse(raw: dict[str, Any] | None) -> ActiveChange | None:
         clone=str(raw.get("clone") or "").strip(),
         project=str(raw.get("project") or "").strip(),
         project_root=project_root,
+        locked=bool(raw.get("locked")),
     )
 
 
-def _write_bind(profile: str, conversation_id: str, active: ActiveChange) -> ActiveChange:
+def _write_bind(
+    profile: str,
+    conversation_id: str,
+    active: ActiveChange,
+    *,
+    force: bool = False,
+) -> ActiveChange:
     name = (profile or "default").strip() or "default"
     cid = _safe_cid(conversation_id)
     with _LOCK:
         _ensure_loaded(name)
-        _CACHE.setdefault(name, {})[cid] = active.as_dict()
+        sessions = _CACHE.setdefault(name, {})
+        prev = _parse(sessions.get(cid))
+        if prev is not None and prev.locked and not force and not active.locked:
+            return prev
+        sessions[cid] = active.as_dict()
         _save(name)
     return active
 
@@ -124,6 +137,8 @@ def bind_active_change(
     *,
     project: str = "",
     project_root: str = "",
+    locked: bool = False,
+    force: bool = False,
 ) -> ActiveChange:
     if isinstance(info, WorktreeInfo):
         pr = (project_root or "").strip() or str(info.clone)
@@ -134,9 +149,20 @@ def bind_active_change(
             clone=str(info.clone),
             project=(project or "").strip(),
             project_root=pr,
+            locked=bool(locked),
         )
     else:
         active = info
+        if locked and not active.locked:
+            active = ActiveChange(
+                change_id=active.change_id,
+                branch=active.branch,
+                worktree=active.worktree,
+                clone=active.clone,
+                project=active.project or (project or "").strip(),
+                project_root=active.project_root,
+                locked=True,
+            )
         extra = (project_root or "").strip()
         if extra and not active.project_root:
             active = ActiveChange(
@@ -146,8 +172,9 @@ def bind_active_change(
                 clone=active.clone,
                 project=active.project or (project or "").strip(),
                 project_root=extra,
+                locked=active.locked,
             )
-    return _write_bind(profile, conversation_id, active)
+    return _write_bind(profile, conversation_id, active, force=force or locked)
 
 
 def bind_active_project(
@@ -156,6 +183,9 @@ def bind_active_project(
     project_root: str | Path,
     *,
     project: str = "",
+    locked: bool = False,
+    replace_worktree: bool = False,
+    force: bool = False,
 ) -> ActiveChange | None:
     """Pin the conversation to the directory that owns ``openspec/``."""
     try:
@@ -166,7 +196,9 @@ def bind_active_project(
         return None
     existing = get_active_change(profile, conversation_id)
     rel = (project or "").strip()
-    if existing is not None and existing.worktree:
+    if existing is not None and existing.locked and not force and not locked:
+        return existing
+    if existing is not None and existing.worktree and not replace_worktree:
         active = ActiveChange(
             change_id=existing.change_id,
             branch=existing.branch,
@@ -174,6 +206,7 @@ def bind_active_project(
             clone=existing.clone,
             project=rel or existing.project,
             project_root=str(root),
+            locked=bool(locked or existing.locked),
         )
     else:
         active = ActiveChange(
@@ -183,8 +216,9 @@ def bind_active_project(
             clone="",
             project=rel,
             project_root=str(root),
+            locked=bool(locked),
         )
-    return _write_bind(profile, conversation_id, active)
+    return _write_bind(profile, conversation_id, active, force=force or locked)
 
 
 def _demote_to_project_pin(raw: dict[str, Any] | None) -> dict[str, str] | None:
@@ -201,6 +235,7 @@ def _demote_to_project_pin(raw: dict[str, Any] | None) -> dict[str, str] | None:
         clone="",
         project=parsed.project,
         project_root=root,
+        locked=parsed.locked,
     ).as_dict()
 
 
@@ -433,6 +468,7 @@ def format_active_change_prompt_block(active: ActiveChange | None) -> str:
             f"**Workspace is the git worktree:** `{active.worktree}`\n"
             "File tools, terminal, and SDD artifacts use this directory. "
             "Do not edit the main clone working tree. "
+            "Do **not** `cd` into sibling `.holix/worktrees/*` folders. "
             "Merge the default branch with `git merge main` (or `master`) "
             "**from this worktree**. Do not `cd` to the clone and do not set "
             "GIT_DIR. Local `main` is already in this repo — do not "
@@ -444,7 +480,9 @@ def format_active_change_prompt_block(active: ActiveChange | None) -> str:
             "## Active SDD project (workspace pin)\n\n"
             f"**Workspace is this SDD project directory:** `{active.project_root}`\n"
             "File tools, terminal, and SDD artifacts stay inside it. "
-            "Do not list or edit sibling projects or the profile workspace root."
+            "This session is on the **main clone**, not an SDD worktree. "
+            "Do **not** write into `.holix/worktrees/` unless the user asked "
+            "to switch worktree. Do not list or edit sibling projects."
         )
     return ""
 
