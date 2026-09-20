@@ -64,6 +64,19 @@ class Settings(BaseSettings):
         validation_alias=AliasChoices("HOLIX_MAX_STEPS_HARD_CAP", "MAX_STEPS_HARD_CAP"),
         description="Absolute max_steps after extensions (0 = base + extend_by * max_extensions)",
     )
+    subagent_max_steps_enabled: bool = Field(
+        default=True,
+        validation_alias=AliasChoices(
+            "HOLIX_SUBAGENT_MAX_STEPS_ENABLED",
+            "SUBAGENT_MAX_STEPS_ENABLED",
+        ),
+        description="When False, spawned sub-agents run with max_steps=0 (unlimited)",
+    )
+    subagent_max_steps: int = Field(
+        default=0,
+        validation_alias=AliasChoices("HOLIX_SUBAGENT_MAX_STEPS", "SUBAGENT_MAX_STEPS"),
+        description="Override type default max_steps for sub-agents when > 0 and limits are on",
+    )
     agent_max_tokens: int = Field(
         default=8192,
         validation_alias=AliasChoices("HOLIX_AGENT_MAX_TOKENS", "AGENT_MAX_TOKENS"),

@@ -554,13 +554,9 @@ class SubAgentManager:
             sub_cfg.fork = True
             sub_cfg.memory_access = MemoryAccess.ISOLATED
             sub_cfg.seed_messages = await snapshot_parent_history(self._parent)
-        if max_steps is not None:
-            try:
-                steps = int(max_steps)
-            except (TypeError, ValueError):
-                steps = 0
-            if steps > 0:
-                sub_cfg.max_steps = steps
+        from core.subagents.step_limits import apply_subagent_step_policy
+
+        apply_subagent_step_policy(parent_cfg, sub_cfg, requested=max_steps)
         handle = await self.spawn_sub_agent(sub_cfg, task, agent_type=agent_type)
         if not wait:
             return handle, None
