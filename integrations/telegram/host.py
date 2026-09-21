@@ -33,9 +33,28 @@ class TelegramHost:
         self._edit_interval_ms = edit_interval_ms
         self._commands = AgentCommands(self)
         self._interactive = TelegramInteractive(self)
-        self._run_tasks: set[asyncio.Task] = set()
         self._event_handler = None
         self._approvals = None
+
+    @property
+    def _run_tasks(self) -> set[asyncio.Task]:
+        tasks = getattr(self._session, "run_tasks", None)
+        if not isinstance(tasks, set):
+            tasks = set()
+            self._session.run_tasks = tasks
+        return tasks
+
+    @_run_tasks.setter
+    def _run_tasks(self, value: set[asyncio.Task]) -> None:
+        self._session.run_tasks = value if isinstance(value, set) else set()
+
+    @property
+    def _run_cancel(self) -> Any:
+        return getattr(self._session, "run_cancel", None)
+
+    @_run_cancel.setter
+    def _run_cancel(self, value: Any) -> None:
+        self._session.run_cancel = value
 
     @property
     def agent(self) -> Any:

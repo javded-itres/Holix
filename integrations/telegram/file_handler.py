@@ -225,9 +225,7 @@ def resolve_vision_config(*, profile: str) -> VisionConfig:
             main = {}
 
         provider_name = str(
-            main.get("provider")
-            or getattr(config, "default_provider", "")
-            or ""
+            main.get("provider") or getattr(config, "default_provider", "") or ""
         ).strip()
         model_candidates.extend(
             [
@@ -253,7 +251,9 @@ def resolve_vision_config(*, profile: str) -> VisionConfig:
             creds = _provider_credentials(pdata)
             if creds and not api_key:
                 api_key, base_url = creds
-                metadata = pdata.get("metadata") if isinstance(pdata.get("metadata"), dict) else None
+                metadata = (
+                    pdata.get("metadata") if isinstance(pdata.get("metadata"), dict) else None
+                )
             model_candidates.append(str(pdata.get("default_model") or ""))
 
         if not api_key:
@@ -411,8 +411,7 @@ def _extract_docx_text(path: Path, *, max_chars: int = 12000) -> str:
 
 
 _OVERVIEW_VISION_PROMPT = (
-    "Describe this image in detail. Transcribe visible text (OCR), "
-    "objects, tables, and diagrams."
+    "Describe this image in detail. Transcribe visible text (OCR), objects, tables, and diagrams."
 )
 
 
@@ -658,7 +657,9 @@ async def enrich_saved_file(saved: SavedTelegramFile, *, profile: str) -> SavedT
 
     if suffix == ".pdf":
         text = _extract_pdf_text(path)
-        saved.description = text or "(PDF сохранён; текст не извлечён — возможно скан без текстового слоя)"
+        saved.description = (
+            text or "(PDF сохранён; текст не извлечён — возможно скан без текстового слоя)"
+        )
         return saved
 
     if suffix == ".docx":
@@ -777,8 +778,7 @@ def build_agent_prompt(user_text: str, files: list[SavedTelegramFile]) -> str:
     lines.append("")
     lines.append("## Вложения из Telegram (уже загружены и сохранены)")
     lines.append(
-        "Файлы уже приняты из чата и лежат на диске. "
-        "НЕ проси пользователя загрузить их повторно."
+        "Файлы уже приняты из чата и лежат на диске. НЕ проси пользователя загрузить их повторно."
     )
     for item in files:
         is_image = item.kind == "image" or _is_image(item.mime_type, item.original_name)
@@ -806,7 +806,11 @@ def build_agent_prompt(user_text: str, files: list[SavedTelegramFile]) -> str:
     if images:
         lines.append(
             "Для изображений опирайся на vision-описание выше — это основной источник. "
-            "Не вызывай read_file для бинарных фото."
+            "Не вызывай read_file для бинарных фото. "
+            "Если пользователь просит изменить фото, собрать новое из нескольких, "
+            "оживить или сделать видео — вызови `generate_image` / `generate_video` "
+            "и передай эти пути в `references`. "
+            "Видео только из `generate_video`, не склеивай кадры через ffmpeg."
         )
         lines.append("")
     lines.append(

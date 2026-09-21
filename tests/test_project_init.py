@@ -133,3 +133,28 @@ async def test_telegram_stop_cancels_run_tasks() -> None:
     host._action_stop_all()
     await asyncio.sleep(0.05)
     assert task.cancelled() or task.done()
+
+
+@pytest.mark.asyncio
+async def test_telegram_stop_on_new_host_cancels_shared_session_run() -> None:
+    """Telegram creates a fresh Host per message; /stop must still cancel the live run."""
+    from integrations.telegram.host import TelegramHost
+
+    bot = MagicMock()
+    session = ChatSession(chat_id=1, user_id=1, profile="default", conversation_id="tg")
+    runner = TelegramHost(bot, session)
+    stopper = TelegramHost(bot, session)
+
+    async def sleeper() -> None:
+        await asyncio.sleep(60)
+
+    task = asyncio.create_task(sleeper())
+    ev = asyncio.Event()
+    runner._run_tasks.add(task)
+    runner._run_cancel = ev
+
+    stopper._action_stop_all()
+    await asyncio.sleep(0.05)
+    assert ev.is_set()
+    assert task.cancelled() or task.done()
+    assert runner._run_tasks is stopper._run_tasks is session.run_tasks

@@ -34,6 +34,12 @@
 
 ### Fixed
 
+- **Telegram inbound photos** — the agent prompt tells it to pass saved
+  attachment paths to `generate_image` / `generate_video` as `references`
+  when the user asks to edit, combine, or animate them.
+- **Telegram / MAX `/stop`** — «стоп» / `/stop` cancel the live agent run. Host
+  objects are created per message; cancel state now lives on the shared chat
+  session so a new Host can stop the in-flight turn (tools + asyncio task).
 - **MAX webhook** — gateway lifespan uses the host profile (`HOLIX_PROFILE` /
   `-p production`), not `HELIX_PROFILE`/`default`. Production no longer fails
   startup when MAX is in webhook mode. A webhook init error no longer takes

@@ -108,8 +108,7 @@ def test_profile_files_dir_under_data(tmp_path, monkeypatch: pytest.MonkeyPatch)
     pdir = tmp_path / "profiles" / profile
     pdir.mkdir(parents=True)
     (pdir / "config.yaml").write_text(
-        "profile_name: admin\n"
-        "data_dir: " + str(tmp_path / "profiles" / "default" / "data") + "\n",
+        "profile_name: admin\ndata_dir: " + str(tmp_path / "profiles" / "default" / "data") + "\n",
         encoding="utf-8",
     )
 
@@ -156,6 +155,9 @@ def test_build_agent_prompt_tells_agent_not_to_reupload_images() -> None:
     assert "НЕ проси пользователя загрузить" in prompt
     assert "read_file для JPEG/PNG не подходит" in prompt
     assert "vision-описание" in prompt
+    assert "generate_image" in prompt
+    assert "references" in prompt
+    assert "ffmpeg" in prompt
 
 
 def test_extract_pdf_text(tmp_path: Path) -> None:

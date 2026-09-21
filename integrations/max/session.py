@@ -38,6 +38,9 @@ class MaxChatSession:
     live_message_id: str | None = None
     live_buffer: LiveTranscriptBuffer | None = None
     run_lock: asyncio.Lock = field(default_factory=asyncio.Lock)
+    # Shared across ephemeral MaxHost instances so /stop cancels the live run.
+    run_tasks: set[asyncio.Task] = field(default_factory=set)
+    run_cancel: Any = None
     pending_plan_review_id: str | None = None
     pending_plan_phase: str = "approval"
     pending_confirmation_message_id: str | None = None

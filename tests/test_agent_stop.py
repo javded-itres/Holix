@@ -118,6 +118,29 @@ async def test_signal_run_cancel_sets_host_event() -> None:
     assert ev.is_set()
 
 
+@pytest.mark.asyncio
+async def test_max_stop_on_new_host_cancels_shared_session_run() -> None:
+    from integrations.max.host import MaxHost
+    from integrations.max.session import MaxChatSession
+
+    client = MagicMock()
+    session = MaxChatSession(user_id=1, profile="default", conversation_id="max")
+    runner = MaxHost(client, session)
+    stopper = MaxHost(client, session)
+
+    async def sleeper() -> None:
+        await asyncio.sleep(60)
+
+    task = asyncio.create_task(sleeper())
+    ev = asyncio.Event()
+    runner._run_tasks.add(task)
+    runner._run_cancel = ev
+    stop_agent_activity_sync(stopper)
+    await asyncio.sleep(0.05)
+    assert ev.is_set()
+    assert task.cancelled() or task.done()
+
+
 def test_stop_agent_activity_sync_cancels_textual_workers() -> None:
     worker = MagicMock()
     worker.name = "agent-run"
