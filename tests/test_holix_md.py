@@ -18,7 +18,7 @@ from core.project.holix_md import (
 from core.project.init_prompt import build_init_user_message
 
 
-def test_holix_md_path_under_dot_helix(tmp_path: Path) -> None:
+def test_holix_md_path_under_dot_holix(tmp_path: Path) -> None:
     p = get_holix_md_path(tmp_path)
     assert p == tmp_path / ".holix" / "HOLIX.md"
     assert HOLIX_MD_REL_PATH == ".holix/HOLIX.md"

@@ -114,7 +114,7 @@ class HolixRuntimeConfig:
     agent_pipeline: str = "classic"
     provider_metadata: dict[str, Any] = field(default_factory=dict)
 
-    # MCP servers (defs + assignments). Only additive from profile; local .helix may supplement at load time.
+    # MCP servers (defs + assignments). Only additive from profile; local .holix may supplement at load time.
     mcp_servers: dict[str, Any] = field(default_factory=dict)
     mcp_assignments: dict[str, list[str]] = field(default_factory=dict)
     mcp_enabled: bool = True

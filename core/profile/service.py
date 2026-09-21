@@ -210,7 +210,7 @@ def resolve_profile_storage_paths(
     *,
     profile_dir: Path | None = None,
 ) -> ProfileConfig:
-    """Bind profile storage paths to ~/.helix/profiles/<name>/ (not process CWD)."""
+    """Bind profile storage paths to ~/.holix/profiles/<name>/ (not process CWD)."""
     from core.profile.names import profile_dir_for_name, validate_profile_name
 
     safe_profile = validate_profile_name(profile)

@@ -20,7 +20,7 @@ def user_commands_dir() -> Path:
 def project_commands_dir(
     *, cwd: str | Path | None = None, agent: Any = None, host: Any = None
 ) -> Path:
-    """``<workspace>/.holix/commands`` (legacy ``.helix/commands``)."""
+    """``<workspace>/.holix/commands``."""
     root = resolve_project_root(cwd=cwd, agent=agent, host=host)
     return get_local_holix_dir(root) / COMMANDS_DIRNAME
 

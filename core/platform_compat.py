@@ -19,15 +19,6 @@ _CREATE_NEW_PROCESS_GROUP = getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0)
 _CREATE_NO_WINDOW = getattr(subprocess, "CREATE_NO_WINDOW", 0)
 
 
-def _legacy_helix_home() -> Path | None:
-    """Return ~/.helix when present and ~/.holix is not (pre-rebrand data dir)."""
-    holix = Path.home() / ".holix"
-    helix = Path.home() / ".helix"
-    if helix.is_dir() and not holix.is_dir():
-        return helix.resolve()
-    return None
-
-
 def resolve_holix_home() -> Path:
     """Holix data directory (HOLIX_HOME, HELIX_HOME legacy, XDG, or ~/.holix)."""
     if raw := os.environ.get("HOLIX_HOME", "").strip():
@@ -38,13 +29,9 @@ def resolve_holix_home() -> Path:
         base = os.environ.get("LOCALAPPDATA") or os.environ.get("APPDATA")
         if base:
             return (Path(base) / "Holix").resolve()
-        if legacy := _legacy_helix_home():
-            return legacy
         return (Path.home() / ".holix").resolve()
     if xdg := os.environ.get("XDG_DATA_HOME", "").strip():
         return (Path(xdg) / "holix").resolve()
-    if legacy := _legacy_helix_home():
-        return legacy
     return (Path.home() / ".holix").resolve()
 
 

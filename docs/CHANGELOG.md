@@ -985,7 +985,7 @@ Patch release focused on **tool isolation**, **gateway security**, and **coopera
 
 ### Changed
 - **Rebrand Helix → Holix** — CLI command `holix`, PyPI package `Holix`, repo `javded-itres/Holix`
-- Management API prefix `/api/holix/`; env vars `HOLIX_*`; data dir `~/.holix` (legacy `~/.helix` / `HELIX_HOME` supported)
+- Management API prefix `/api/holix/`; env vars `HOLIX_*`; data dir `~/.holix` (legacy `HELIX_HOME` supported)
 - Project context file `.holix/HOLIX.md` (legacy `HELIX.md` still read)
 
 ### Added

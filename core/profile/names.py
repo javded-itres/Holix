@@ -33,7 +33,7 @@ def _realpath_under(base: Path, *parts: str) -> Path:
 
 
 def profile_dir_for_name(profile: str | None, *, default: str = "default") -> Path:
-    """Resolved ``~/.helix/profiles/<validated-name>``."""
+    """Resolved ``~/.holix/profiles/<validated-name>``."""
     from core.profile_keys import profiles_root
 
     name = validate_profile_name(profile, default=default)
@@ -73,9 +73,7 @@ def trusted_profile_workspace(profile: str, workspace_root: Path) -> Path:
     root = assert_under_profiles_root(workspace_root)
     expected = (profile_dir(name) / "workspace").resolve()
     if root != expected and expected not in root.parents:
-        raise ProfileNameError(
-            f"Workspace path must be under profile workspace: {expected}"
-        )
+        raise ProfileNameError(f"Workspace path must be under profile workspace: {expected}")
     return root
 
 
