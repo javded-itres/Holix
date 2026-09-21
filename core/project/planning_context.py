@@ -38,7 +38,6 @@ _SKIP_DIRS = frozenset(
     {
         ".git",
         ".holix",
-        ".helix",
         "node_modules",
         ".venv",
         "venv",

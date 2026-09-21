@@ -327,7 +327,14 @@ def build_react_subagent(parent: Any, config: SubAgentConfig, task: str) -> Any:
 
     parent_cfg = getattr(parent, "config", None)
     model = (config.model or getattr(parent, "model", None) or "").strip()
-    max_steps = int(config.max_steps or getattr(parent_cfg, "max_steps", 150) or 150)
+    raw_steps = getattr(config, "max_steps", None)
+    if raw_steps is None:
+        max_steps = int(getattr(parent_cfg, "max_steps", 150) or 150)
+    else:
+        try:
+            max_steps = int(raw_steps)
+        except (TypeError, ValueError):
+            max_steps = int(getattr(parent_cfg, "max_steps", 150) or 150)
     window = resolve_subagent_context_window(parent, config)
 
     child_cfg = parent_cfg.with_overrides(

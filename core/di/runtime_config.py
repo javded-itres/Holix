@@ -114,7 +114,7 @@ class HolixRuntimeConfig:
     agent_pipeline: str = "classic"
     provider_metadata: dict[str, Any] = field(default_factory=dict)
 
-    # MCP servers (defs + assignments). Only additive from profile; local .helix may supplement at load time.
+    # MCP servers (defs + assignments). Only additive from profile; local .holix may supplement at load time.
     mcp_servers: dict[str, Any] = field(default_factory=dict)
     mcp_assignments: dict[str, list[str]] = field(default_factory=dict)
     mcp_enabled: bool = True
@@ -141,6 +141,11 @@ class HolixRuntimeConfig:
     # Self-authored drop-in agent extensions (local single-operator only)
     # False for Telegram/MAX multi-user agents.
     self_extensions_enabled: bool = True
+
+    # Sub-agent step budget (independent of the interactive main agent).
+    # False → max_steps=0 (unlimited). subagent_max_steps>0 overrides type default.
+    subagent_max_steps_enabled: bool = True
+    subagent_max_steps: int = 0
 
     # LangGraph checkpoint size guard (bytes; 0 = never auto-reset)
     checkpoint_auto_prune: bool = True
@@ -214,6 +219,8 @@ class HolixRuntimeConfig:
                 getattr(s, "max_steps_user_max_extensions", 10) or 10
             ),
             max_steps_hard_cap=int(getattr(s, "max_steps_hard_cap", 0) or 0),
+            subagent_max_steps_enabled=bool(getattr(s, "subagent_max_steps_enabled", True)),
+            subagent_max_steps=int(getattr(s, "subagent_max_steps", 0) or 0),
             auto_allow_threshold=s.auto_allow_threshold,
             non_interactive=s.non_interactive,
             confirmation_timeout=s.confirmation_timeout,
@@ -337,6 +344,10 @@ class HolixRuntimeConfig:
             overrides["max_steps_user_max_extensions"] = int(profile.max_steps_user_max_extensions)
         if getattr(profile, "max_steps_hard_cap", None) is not None:
             overrides["max_steps_hard_cap"] = int(profile.max_steps_hard_cap)
+        if getattr(profile, "subagent_max_steps_enabled", None) is not None:
+            overrides["subagent_max_steps_enabled"] = bool(profile.subagent_max_steps_enabled)
+        if getattr(profile, "subagent_max_steps", None) is not None:
+            overrides["subagent_max_steps"] = int(profile.subagent_max_steps)
         if getattr(profile, "search", None):
             overrides["search"] = profile.search
         overrides["workspace_jail_enabled"] = bool(

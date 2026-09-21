@@ -13,7 +13,6 @@ SKIP_SEARCH_DIR_NAMES = frozenset(
     {
         ".git",
         ".holix",
-        ".helix",
         ".hg",
         ".svn",
         "node_modules",

@@ -15,7 +15,6 @@ _SKIP_DIR_NAMES = frozenset(
     {
         ".git",
         ".holix",
-        ".helix",
         "node_modules",
         "__pycache__",
         ".venv",

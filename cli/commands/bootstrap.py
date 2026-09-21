@@ -8,7 +8,7 @@ from cli.installer.bootstrap import BootstrapOptions, run_bootstrap_setup_sync
 from cli.utils.rich_console import print_error
 
 app = typer.Typer(
-    help="Первичная настройка после установки (LLM, поиск, lsp, Telegram)",
+    help="Первичная настройка после установки (MikroLLM, LLM, поиск, lsp, Telegram)",
     invoke_without_command=True,
 )
 
@@ -27,6 +27,14 @@ def bootstrap_entry(
         help="Минимальная установка (без подсказки про extras)",
     ),
     skip_llm: bool = typer.Option(False, "--skip-llm", help="Не настраивать LLM"),
+    skip_mikrollm: bool = typer.Option(
+        False, "--skip-mikrollm", help="Не предлагать установку MikroLLM / сеть моделей"
+    ),
+    with_mikrollm: bool = typer.Option(
+        False,
+        "--with-mikrollm",
+        help="Установить MikroLLM без вопроса (в т.ч. с -y)",
+    ),
     skip_search: bool = typer.Option(False, "--skip-search", help="Не настраивать веб-поиск"),
     skip_telegram: bool = typer.Option(False, "--skip-telegram", help="Не настраивать Telegram"),
     skip_lsp: bool = typer.Option(
@@ -56,6 +64,8 @@ def bootstrap_entry(
         BootstrapOptions(
             full_install=full_install,
             skip_llm=skip_llm,
+            skip_mikrollm=skip_mikrollm,
+            install_mikrollm=True if with_mikrollm else None,
             skip_search=skip_search,
             skip_telegram=skip_telegram,
             skip_lsp=skip_lsp,

@@ -81,7 +81,6 @@ def _is_dir(path: Path) -> bool:
 def _is_dot_holix_handbook(path: Path) -> bool:
     return path.name in {HOLIX_MD_FILENAME, HOLIX_MD_LEGACY_FILENAME} and path.parent.name in {
         ".holix",
-        ".helix",
     }
 
 

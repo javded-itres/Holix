@@ -105,6 +105,10 @@ class ProfileConfig(BaseModel):
     max_steps_max_extensions: int | None = None
     max_steps_user_max_extensions: int | None = None
     max_steps_hard_cap: int | None = None
+    # Sub-agent ReAct cap: False = unlimited (max_steps=0). subagent_max_steps
+    # > 0 overrides the type default when limits are on.
+    subagent_max_steps_enabled: bool | None = None
+    subagent_max_steps: int | None = None
 
     # Hub: optional background ClawHub version updates
     hub_auto_update: bool = False
@@ -206,7 +210,7 @@ def resolve_profile_storage_paths(
     *,
     profile_dir: Path | None = None,
 ) -> ProfileConfig:
-    """Bind profile storage paths to ~/.helix/profiles/<name>/ (not process CWD)."""
+    """Bind profile storage paths to ~/.holix/profiles/<name>/ (not process CWD)."""
     from core.profile.names import profile_dir_for_name, validate_profile_name
 
     safe_profile = validate_profile_name(profile)

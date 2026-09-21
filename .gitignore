@@ -80,8 +80,7 @@ mcp_registry_tool.sh
 mcp_system_config.json
 MCP_REGISTRY_SYSTEM_REPORT.md
 
-# Helix / Holix local runtime
-.helix/
+# Holix local runtime
 .holix/
 .langgraph_api/
 .pid

@@ -65,9 +65,9 @@ def _is_allowed_system_path(path: Path) -> bool:
 
 
 def _looks_like_holix_profile_path(path: Path) -> bool:
-    """True when a resolved path sits under a Holix/Helix profile tree."""
+    """True when a resolved path sits under a Holix profile tree."""
     norm = str(path).replace("\\", "/").lower()
-    if "/.holix/" in norm or "/.helix/" in norm:
+    if "/.holix/" in norm:
         return True
     # HOLIX_HOME/profiles/<name>/... (workspace lives here too)
     return bool(re.search(r"/profiles/[a-z0-9][a-z0-9_.-]{0,63}(?:/|$)", norm))
@@ -89,11 +89,7 @@ def references_holix_profiles(
     if _SENSITIVE_HOME_RE.search(text):
         return True
 
-    has_marker = (
-        _HOLIX_PROFILE_RE.search(text) is not None
-        or ".holix/profiles" in text.lower()
-        or ".helix/profiles" in text.lower()
-    )
+    has_marker = _HOLIX_PROFILE_RE.search(text) is not None or ".holix/profiles" in text.lower()
     if not has_marker:
         return False
 

@@ -206,7 +206,7 @@ class AsyncSubAgentRunner:
             step_policy = StepBudgetPolicy.from_config(parent_cfg)
 
             while True:
-                while steps_taken < max_steps:
+                while max_steps <= 0 or steps_taken < max_steps:
                     wait_pause = getattr(handle, "wait_while_paused", None)
                     if inspect.iscoroutinefunction(wait_pause):
                         await wait_pause()
