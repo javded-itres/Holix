@@ -126,6 +126,10 @@ class PtyShell:
         self.master_fd = master_fd
         self.cwd = cwd
         self._io = asyncio.Lock()
+        # Guards fd lifetime: os.read/os.write/os.close are mutually exclusive,
+        # so a recycled fd number can never receive a stray PTY write.
+        self._fd_lock = threading.Lock()
+        self._closed = False
 
     @property
     def pid(self) -> int:
@@ -144,10 +148,14 @@ class PtyShell:
                     self.proc.terminate()
         except Exception:
             pass
-        try:
-            os.close(self.master_fd)
-        except OSError:
-            pass
+        with self._fd_lock:
+            if not self._closed:
+                self._closed = True
+                try:
+                    os.close(self.master_fd)
+                except OSError:
+                    pass
+                self.master_fd = -1
         try:
             self.proc.wait(timeout=1)
         except Exception:
@@ -158,20 +166,26 @@ class PtyShell:
                 pass
 
     def _write_once(self, view: memoryview) -> int:
-        try:
-            return os.write(self.master_fd, view)
-        except InterruptedError:
-            return 0
-        except BlockingIOError:
-            return 0
+        with self._fd_lock:
+            if self._closed:
+                raise EOFError("PTY session closed")
+            try:
+                return os.write(self.master_fd, view)
+            except InterruptedError:
+                return 0
+            except BlockingIOError:
+                return 0
 
     def _read_chunk(self) -> bytes:
-        try:
-            return os.read(self.master_fd, 8192)
-        except (BlockingIOError, InterruptedError):
-            return b""
-        except OSError:
-            return b""
+        with self._fd_lock:
+            if self._closed:
+                return b""
+            try:
+                return os.read(self.master_fd, 8192)
+            except (BlockingIOError, InterruptedError):
+                return b""
+            except OSError:
+                return b""
 
     def _drain(self, buf: bytearray) -> None:
         while len(buf) < _DRAIN_CAP:

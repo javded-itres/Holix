@@ -97,3 +97,67 @@ async def test_pty_large_command_and_output(tmp_path) -> None:
     assert "50000" in out.replace(" ", "")
     big = await _run("python3 -c \"print('x'*20000, end='')\"", tmp_path)
     assert big.count("x") >= 20_000
+
+
+@pytest.mark.asyncio
+async def test_pty_write_after_close_never_leaks_into_reused_fd(tmp_path) -> None:
+    """A write after close() must raise EOFError, not land in whatever file
+    recycled the descriptor (this corrupted a profile SQLite DB in the wild)."""
+    import os
+
+    from core.runtime import pty_session as mod
+
+    await _run("true", tmp_path)
+    with mod._lock:
+        shell = mod._sessions[mod._key("test", "s1")]
+    shell.close()
+    assert shell.master_fd == -1
+
+    probe = tmp_path / "probe.bin"
+    fd = os.open(probe, os.O_CREAT | os.O_RDWR)
+    try:
+        with pytest.raises(EOFError):
+            shell._write_once(memoryview(b"set +e\necho pwned\n"))
+        assert shell._read_chunk() == b""
+    finally:
+        os.close(fd)
+    assert probe.read_bytes() == b""
+
+
+@pytest.mark.asyncio
+async def test_pty_concurrent_close_during_writes_is_safe(tmp_path) -> None:
+    """close() racing in-flight writes: writers stop with EOFError, no EBADF escapes."""
+    import asyncio
+    import threading
+
+    from core.runtime import pty_session as mod
+
+    await _run("true", tmp_path)
+    with mod._lock:
+        shell = mod._sessions[mod._key("test", "s1")]
+
+    errors: list[BaseException] = []
+    stop = threading.Event()
+
+    def writer() -> None:
+        payload = memoryview(b"echo x\n")
+        while not stop.is_set():
+            try:
+                shell._write_once(payload)
+            except EOFError:
+                return
+            except BaseException as exc:
+                errors.append(exc)
+                return
+
+    thread = threading.Thread(target=writer)
+    thread.start()
+    await asyncio.sleep(0.05)
+    shell.close()
+    stop.set()
+    thread.join(timeout=5)
+
+    assert not thread.is_alive()
+    assert not errors
+    assert shell.master_fd == -1
+    shell.close()  # idempotent: no error
