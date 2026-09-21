@@ -7,7 +7,10 @@ from typing import Any
 _BOOTSTRAP_MESSAGES: dict[str, dict[str, str]] = {
     "en": {
         "welcome_title": "Holix — initial setup",
-        "welcome_body": "We will configure LLM, web search, language servers (lsp), and (optionally) Telegram.",
+        "welcome_body": (
+            "We will configure MikroLLM (model network), LLM, web search, "
+            "language servers (lsp), and (optionally) Telegram."
+        ),
         "llm_title": "LLM connection",
         "llm_body": "Holix uses an OpenAI-compatible API (Ollama, LiteLLM, OpenAI, Groq…).",
         "llm_reconfigure": 'Provider "{name}" is already configured. Reconfigure?',
@@ -17,6 +20,28 @@ _BOOTSTRAP_MESSAGES: dict[str, dict[str, str]] = {
         "llm_preset_mikrollm": "MikroLLM gateway (OpenAI-compatible)",
         "llm_preset_openai": "OpenAI API",
         "llm_preset_groq": "Groq",
+        "mikrollm_title": "MikroLLM — model network",
+        "mikrollm_body": (
+            "Install a local MikroLLM gateway to join the shared model network "
+            "(hub.mikrollm.ru): other members' models plus your local Ollama. "
+            "Admin UI at http://127.0.0.1:4000/admin. Later you can skip and use "
+            "Ollama/OpenAI only."
+        ),
+        "mikrollm_configure": "Install MikroLLM and join the model network?",
+        "mikrollm_skipped": "MikroLLM skipped. Later: holix models setup (preset mikrollm)",
+        "mikrollm_installing": "Installing MikroLLM (Ollama + local gateway)…",
+        "mikrollm_failed": "MikroLLM setup failed: {err}",
+        "mikrollm_admin_title": "MikroLLM admin",
+        "mikrollm_admin_url": "Open: {url}",
+        "mikrollm_admin_password": "Password: {password}",
+        "mikrollm_admin_pass_file": "Also saved in ~/.mikrollm/admin.pass",
+        "mikrollm_hub_on": "Hub network member: on (Status → Участник hub сети)",
+        "mikrollm_hub_failed": "Could not enable hub member automatically: {err}",
+        "mikrollm_provider_exists": "Holix provider 'mikrollm' already configured (set as default)",
+        "mikrollm_default_auto": "Agent default model: {model} (MikroLLM hub)",
+        "mikrollm_non_interactive": "Installing MikroLLM (--with-mikrollm)…",
+        "skip_mikrollm_non_tty": "MikroLLM skipped (non-interactive). Run: holix bootstrap",
+        "llm_skip_after_mikrollm": "LLM: using MikroLLM as the default provider",
         "llm_skip_hint": "Skip (later: holix models setup)",
         "llm_choose": "Choose provider",
         "llm_not_configured": "LLM not configured. Run: holix models setup",
@@ -102,7 +127,10 @@ _BOOTSTRAP_MESSAGES: dict[str, dict[str, str]] = {
     },
     "ru": {
         "welcome_title": "Holix — первичная настройка",
-        "welcome_body": "Настроим LLM, веб-поиск, language servers (lsp) и (опционально) Telegram-бота.",
+        "welcome_body": (
+            "Настроим MikroLLM (сеть моделей), LLM, веб-поиск, language servers (lsp) "
+            "и (опционально) Telegram-бота."
+        ),
         "llm_title": "Подключение LLM",
         "llm_body": "Holix использует OpenAI-compatible API (Ollama, LiteLLM, OpenAI, Groq…).",
         "llm_reconfigure": "Провайдер «{name}» уже настроен. Перенастроить?",
@@ -112,6 +140,28 @@ _BOOTSTRAP_MESSAGES: dict[str, dict[str, str]] = {
         "llm_preset_mikrollm": "Шлюз MikroLLM (OpenAI-compatible)",
         "llm_preset_openai": "OpenAI API",
         "llm_preset_groq": "Groq",
+        "mikrollm_title": "MikroLLM — сеть моделей",
+        "mikrollm_body": (
+            "Поставить локальный шлюз MikroLLM и подключить агент к общей сети моделей "
+            "(hub.mikrollm.ru): модели других участников и ваш локальный Ollama. "
+            "Админка: http://127.0.0.1:4000/admin. Можно пропустить и настроить только "
+            "Ollama/OpenAI."
+        ),
+        "mikrollm_configure": "Установить MikroLLM и подключить сеть моделей?",
+        "mikrollm_skipped": "MikroLLM пропущен. Позже: holix models setup (пресет mikrollm)",
+        "mikrollm_installing": "Установка MikroLLM (Ollama + локальный шлюз)…",
+        "mikrollm_failed": "Не удалось настроить MikroLLM: {err}",
+        "mikrollm_admin_title": "Админка MikroLLM",
+        "mikrollm_admin_url": "Вход: {url}",
+        "mikrollm_admin_password": "Пароль: {password}",
+        "mikrollm_admin_pass_file": "Также в ~/.mikrollm/admin.pass",
+        "mikrollm_hub_on": "Режим «Участник hub сети» включён",
+        "mikrollm_hub_failed": "Не удалось включить участника сети автоматически: {err}",
+        "mikrollm_provider_exists": "Провайдер Holix «mikrollm» уже есть (назначен по умолчанию)",
+        "mikrollm_default_auto": "Модель агента по умолчанию: {model} (сеть MikroLLM)",
+        "mikrollm_non_interactive": "Установка MikroLLM (--with-mikrollm)…",
+        "skip_mikrollm_non_tty": "MikroLLM пропущен (неинтерактивный режим). Запустите: holix bootstrap",
+        "llm_skip_after_mikrollm": "LLM: по умолчанию используется MikroLLM",
         "llm_skip_hint": "Пропустить (позже: holix models setup)",
         "llm_choose": "Выберите провайдер",
         "llm_not_configured": "LLM не настроен. Запустите: holix models setup",

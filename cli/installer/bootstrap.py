@@ -14,6 +14,7 @@ from core.models.setup_helpers import (
     add_preset_to_config,
     discover_and_select_default_model,
     print_discovered_models_table,
+    probe_provider,
     prompt_host_for_preset,
     resolve_api_key_for_preset,
     resolve_preset_api_key_interactive,
@@ -33,6 +34,8 @@ class BootstrapOptions:
     skip_search: bool = False
     skip_telegram: bool = False
     skip_lsp: bool = False
+    skip_mikrollm: bool = False
+    install_mikrollm: bool | None = None
     profile: str = "default"
     non_interactive: bool = False
     lang: str | None = None
@@ -104,6 +107,105 @@ def _apply_locales(lang: str, *, bot_profile: str, admin_profile: str | None = N
             profiles=", ".join({bot_profile, admin}),
         )
     )
+
+
+async def _configure_mikrollm(
+    profile: str,
+    lang: str,
+    *,
+    assume_yes: bool = False,
+) -> bool:
+    """Offer MikroLLM (model network). On yes: install, hub member, sk- key, Holix provider."""
+    from cli.installer.mikrollm import (
+        HUB_AUTO_MODEL,
+        apply_mikrollm_auto_model,
+        provision_mikrollm,
+        store_mikrollm_env,
+    )
+
+    console.print()
+    console.print(
+        Panel.fit(
+            f"[bold cyan]{bt('mikrollm_title', lang)}[/bold cyan]\n\n{bt('mikrollm_body', lang)}",
+            border_style="cyan",
+        )
+    )
+    if not assume_yes and not Confirm.ask(bt("mikrollm_configure", lang), default=True):
+        print_info(bt("mikrollm_skipped", lang))
+        return False
+
+    print_info(bt("mikrollm_installing", lang))
+    result = await asyncio.to_thread(provision_mikrollm, install=True, key_name="holix")
+    if result.admin_password:
+        console.print(
+            Panel.fit(
+                f"{bt('mikrollm_admin_url', lang, url=result.admin_url)}\n"
+                f"{bt('mikrollm_admin_password', lang, password=result.admin_password)}\n"
+                f"{bt('mikrollm_admin_pass_file', lang)}",
+                title=bt("mikrollm_admin_title", lang),
+                border_style="green",
+            )
+        )
+    if not result.ok:
+        print_warning(bt("mikrollm_failed", lang, err=result.message or "error"))
+        return False
+    if result.hub_enabled:
+        print_success(bt("mikrollm_hub_on", lang))
+    else:
+        print_warning(bt("mikrollm_hub_failed", lang, err=result.message or "hub"))
+
+    store_mikrollm_env(result.api_key, result.api_base)
+    init_profile(profile)
+    config = get_current_config()
+    manager = ProfileManager()
+    providers = config.providers or {}
+    if "mikrollm" in providers:
+        apply_mikrollm_auto_model(config)
+        manager.save_profile(profile, config)
+        print_success(bt("mikrollm_provider_exists", lang))
+        print_info(bt("mikrollm_default_auto", lang, model=HUB_AUTO_MODEL))
+        return True
+
+    preset = get_provider_preset("mikrollm")
+    if preset is None:
+        print_error(bt("llm_unknown_preset", lang, id="mikrollm"))
+        return False
+
+    print_info(bt("llm_probe", lang, name=preset.display_name))
+    probe_ok, models, err = await probe_provider(
+        result.api_base,
+        result.api_key,
+        preset.default_metadata(),
+    )
+    if probe_ok and models:
+        print_discovered_models_table(models, console=console, max_rows=15)
+    elif not probe_ok:
+        print_warning(bt("llm_probe_failed", lang, err=err or "error", url=result.api_base))
+        models = []
+    discovered = [{"id": HUB_AUTO_MODEL}]
+    for row in models:
+        mid = str((row or {}).get("id") or "").strip()
+        if mid and mid != HUB_AUTO_MODEL:
+            discovered.append(row)
+
+    ok, message = await add_preset_to_config(
+        config,
+        "mikrollm",
+        api_key="${MIKROLLM_API_KEY}",
+        host=result.api_base,
+        skip_probe=True,
+        default_model=HUB_AUTO_MODEL,
+        discovered_models=discovered,
+    )
+    if not ok:
+        print_error(message)
+        return False
+    apply_mikrollm_auto_model(config)
+    manager.save_profile(profile, config)
+    print_success(message)
+    print_info(bt("llm_url", lang, url=result.api_base))
+    print_info(bt("mikrollm_default_auto", lang, model=HUB_AUTO_MODEL))
+    return True
 
 
 async def _configure_llm(profile: str, lang: str) -> bool:
@@ -366,9 +468,26 @@ async def run_bootstrap_setup(options: BootstrapOptions | None = None) -> int:
     )
 
     llm_ok = True
+    mikrollm_ok = False
+    if not opts.skip_mikrollm and not opts.skip_llm:
+        if opts.non_interactive or not _is_tty():
+            if opts.install_mikrollm:
+                print_info(bt("mikrollm_non_interactive", lang))
+                mikrollm_ok = await _configure_mikrollm(profile, lang, assume_yes=True)
+            else:
+                print_info(bt("skip_mikrollm_non_tty", lang))
+        elif opts.install_mikrollm is False:
+            print_info(bt("mikrollm_skipped", lang))
+        else:
+            mikrollm_ok = await _configure_mikrollm(profile, lang)
+
     if not opts.skip_llm:
         if opts.non_interactive or not _is_tty():
-            print_info(bt("skip_llm_non_tty", lang))
+            if not mikrollm_ok:
+                print_info(bt("skip_llm_non_tty", lang))
+        elif mikrollm_ok:
+            print_info(bt("llm_skip_after_mikrollm", lang))
+            llm_ok = True
         else:
             llm_ok = await _configure_llm(profile, lang)
 

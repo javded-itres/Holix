@@ -4,6 +4,11 @@
 
 ### Added
 
+- **MikroLLM in `holix bootstrap`** — interactive question to install MikroLLM
+  via GitHub `scripts/install.sh`, print admin URL + password,
+  issue an `sk-` key, enable **Hub network member**, and add Holix provider
+  `mikrollm` as default (`MIKROLLM_API_KEY` / `MIKROLLM_API_BASE`) with agent
+  model **`auto`** (hub default node). Flags: `--skip-mikrollm`, `--with-mikrollm`.
 - **MikroLLM provider preset** — `mikrollm` in `holix models setup` / `models add`:
   OpenAI `/v1` gateway (default `127.0.0.1:4000`), key `${MIKROLLM_API_KEY}`,
   host `${MIKROLLM_API_BASE}`.
