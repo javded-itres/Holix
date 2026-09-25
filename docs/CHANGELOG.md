@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 1.1.12 — 2026-09-25
+
 ### Added
 
 - **Connected providers: refresh models and set the default** — `holix models refresh`
@@ -27,6 +29,8 @@
   admin(s) (`HOLIX_TELEGRAM_ADMIN_USER_ID` plus optional
   `HOLIX_TELEGRAM_ADMIN_EXTRA_USER_IDS`). The user **must confirm**; Deny
   sends nothing.
+- **Sub-agent step-limit toggle** — profile setting for ReAct step limits on
+  sub-agents, with the type manager in the TUI.
 
 ### Changed
 
@@ -52,6 +56,15 @@
   text/caption/file/photo) are folded into the agent prompt. Follow-up text
   waits until in-flight attachment downloads finish, so a file without a caption
   is not dropped when the next message arrives during save.
+- **PTY** — the master fd is guarded against reuse after close.
+
+### Tests
+
+- Provider model refresh/default, MikroLLM bootstrap and catalog preset.
+- Telegram inbound (reply, quote, file race, photo references) and `/stop` on the shared session.
+- MAX short command menu and webhook host profile.
+- Session doctor, admin support tickets, and admin-only extension settings.
+- TUI media links, sub-agent step-limit toggle, PTY fd close.
 
 ## 1.1.11 — 2026-09-18
 
