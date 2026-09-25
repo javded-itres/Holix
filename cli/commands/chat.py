@@ -74,6 +74,102 @@ class ChatSession:
             style=prompt_style,
         )
 
+    def _print_model_catalog(self) -> None:
+        providers = self.config.providers or {}
+        default_name = self.config.default_provider or "—"
+        print_info(f"Profile default provider: {default_name}")
+        print_info(f"Profile model field: {self.config.model or '—'}")
+        if not providers:
+            print_info("No connected providers. Run: holix models add <preset>")
+            return
+        for name, pdata in providers.items():
+            models = list(pdata.get("available_models") or [])
+            default_model = pdata.get("default_model") or "—"
+            mark = " (profile default)" if name == self.config.default_provider else ""
+            print_info(f"{name}{mark}: default {default_model}, {len(models)} cached model(s)")
+        print_info("Refresh list:  /model refresh [provider]")
+        print_info("Set default:   /model default <provider> <model>")
+        print_info("Shorthand:     /model <model>   on the profile default provider")
+
+    async def _handle_model_command(self, command: str) -> None:
+        from core.models.provider_models import refresh_provider_config, set_provider_default_model
+
+        parts = command.split()
+        head = parts[0].lower().split("@", 1)[0]
+        if head not in ("/model", "/models"):
+            return
+        rest = parts[1:]
+        if not rest:
+            self._print_model_catalog()
+            return
+
+        action = rest[0].lower()
+        if action == "refresh":
+            name = rest[1] if len(rest) > 1 else (self.config.default_provider or "")
+            if not name:
+                print_error("Pass a provider name: /model refresh <provider>")
+                return
+            before = (self.config.providers or {}).get(name, {}).get("default_model")
+            try:
+                stats = await refresh_provider_config(self.config, name)
+            except (RuntimeError, ValueError) as exc:
+                print_error(str(exc))
+                return
+            get_profile_manager().save_profile(self.profile, self.config)
+            print_success(
+                f"{name}: {len(stats.models)} models "
+                f"(+{len(stats.added)} / -{len(stats.removed)}). "
+                f"Default: {stats.default_model or '—'}"
+            )
+            if name == self.config.default_provider and stats.default_model != before:
+                print_info("Reinitializing agent...")
+                await self.initialize_agent()
+            return
+
+        if action == "default":
+            if len(rest) < 3:
+                print_error("Usage: /model default <provider> <model>")
+                return
+            provider, model = rest[1], " ".join(rest[2:])
+            try:
+                chosen = set_provider_default_model(self.config, provider, model)
+            except ValueError as exc:
+                print_error(str(exc))
+                return
+            get_profile_manager().save_profile(self.profile, self.config)
+            print_success(f"Default model for {provider}: {chosen}")
+            if provider == self.config.default_provider:
+                print_info("Reinitializing agent...")
+                await self.initialize_agent()
+            return
+
+        provider = self.config.default_provider or ""
+        model = " ".join(rest)
+        named_provider = len(rest) >= 2 and rest[0] in (self.config.providers or {})
+        if named_provider:
+            provider = rest[0]
+            model = " ".join(rest[1:])
+        pdata = (self.config.providers or {}).get(provider) or {}
+        available = list(pdata.get("available_models") or [])
+        if named_provider or (provider and model in available):
+            try:
+                chosen = set_provider_default_model(self.config, provider, model)
+            except ValueError as exc:
+                print_error(str(exc))
+                return
+            get_profile_manager().save_profile(self.profile, self.config)
+            print_success(f"Default model for {provider}: {chosen}")
+            if provider == self.config.default_provider:
+                print_info("Reinitializing agent...")
+                await self.initialize_agent()
+            return
+
+        self.config.model = model
+        get_profile_manager().save_profile(self.profile, self.config)
+        print_success(f"Switched profile model field to: {model}")
+        print_info("Reinitializing agent...")
+        await self.initialize_agent()
+
     async def initialize_agent(self):
         """Initialize the Holix agent."""
         with console.status("[bold cyan]Initializing Holix...", spinner="dots"):
@@ -242,16 +338,9 @@ class ChatSession:
             print_success("Conversation cleared")
             return True
 
-        # /model
+        # /model and /models
         elif cmd_lower.startswith("/model"):
-            parts = command.split(maxsplit=1)
-            if len(parts) == 2:
-                self.config.model = parts[1]
-                print_success(f"Switched to model: {parts[1]}")
-                print_info("Reinitializing agent...")
-                await self.initialize_agent()
-            else:
-                print_info(f"Current model: {self.config.model}")
+            await self._handle_model_command(command)
             return True
 
         # /profile

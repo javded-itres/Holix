@@ -43,6 +43,8 @@ from integrations.telegram.model_switch import (
     apply_provider_model_index,
     build_models_menu,
     current_model_label,
+    refresh_provider_at,
+    set_provider_default_at,
 )
 
 
@@ -441,9 +443,28 @@ class MaxInteractive:
             if len(parts) != 2:
                 return t("tg.error", messenger_host_locale(self._host))
             pi, mi = int(parts[0]), int(parts[1])
-            label = await apply_provider_model_index(self._host, pi, mi)
-            await self.show_provider_models(pi, page=self._session.ui_models_page)
+            if self._session.ui_models_pick_default:
+                label = await set_provider_default_at(self._host, pi, mi)
+            else:
+                label = await apply_provider_model_index(self._host, pi, mi)
+            page = self._session.ui_models_page
+            idx = self._session.ui_models_provider_idx
+            await self.show_provider_models(idx if idx is not None else pi, page=page)
             return t("tg.model", messenger_host_locale(self._host), label=label)
+
+        if action == "mr":
+            new_idx, msg = await refresh_provider_at(self._host, int(value))
+            if new_idx is None:
+                await self.show_models()
+            else:
+                await self.show_provider_models(new_idx, page=0)
+            return msg[:60]
+
+        if action == "mx":
+            self._session.ui_models_pick_default = not self._session.ui_models_pick_default
+            await self.show_provider_models(int(value), page=self._session.ui_models_page)
+            mode = "по умолчанию" if self._session.ui_models_pick_default else "чат"
+            return mode
 
         if action == "mb":
             await self.show_models()
@@ -1033,7 +1054,7 @@ class MaxInteractive:
             f"Сейчас: `{active}`",
             "",
             "**Пресеты** — main, agent_models",
-            "**Провайдеры** — список моделей без префикса",
+            "**Провайдеры** — список, обновление и модель по умолчанию",
         ]
         if not presets and not providers:
             lines.append("\n**Нет моделей** — `helix models setup`")
@@ -1067,15 +1088,20 @@ class MaxInteractive:
         total = len(prov.models)
         pages = max(1, (total + MODELS_PAGE_SIZE - 1) // MODELS_PAGE_SIZE)
 
+        default_model = prov.default_model or "—"
+        pick_default = bool(self._session.ui_models_pick_default)
+        mode = "модель по умолчанию (★)" if pick_default else "модель этого чата"
         lines = [
             f"**Провайдер** `{prov.name}`",
             f"Сейчас в чате: `{active}`",
+            f"По умолчанию: `{default_model}`",
             f"Моделей: {total}",
         ]
         if pages > 1:
             lines.append(f"Страница {page + 1} / {pages}")
         lines.append("")
-        lines.append("_Выберите модель (имя без префикса провайдера)_")
+        lines.append(f"_Нажатие выбирает {mode}. ★ — модель по умолчанию._")
+        lines.append("_↻ Список запрашивает модели у провайдера и сохраняет их._")
 
         await self._host._send_text_with_keyboard(
             "\n".join(lines),
@@ -1086,6 +1112,8 @@ class MaxInteractive:
                 provider_idx,
                 page=page,
                 page_size=MODELS_PAGE_SIZE,
+                default_model=prov.default_model,
+                pick_default=pick_default,
             ),
         )
 

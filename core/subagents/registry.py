@@ -48,7 +48,7 @@ PREDEFINED_SUBAGENTS = {
             "- If results conflict, present different viewpoints.\n"
             "- Do NOT delegate further — you are the final research node."
         ),
-        tools=["web_search", "web_fetch"],
+        tools=["web_search", "web_fetch", "read_file"],
         max_steps=150,
         mode="react",
         process_mode="async",
@@ -73,7 +73,7 @@ PREDEFINED_SUBAGENTS = {
             "- If the page was already fetched, use that result; do not retry.\n"
             "- Keep the briefing under ~400 words. Cite the URL."
         ),
-        tools=["fetch_url"],
+        tools=["fetch_url", "read_file"],
         max_steps=12,
         mode="react",
         process_mode="async",
@@ -134,7 +134,7 @@ PREDEFINED_SUBAGENTS = {
             "analyze data, perform calculations, and generate insights. You can "
             "execute SQL queries, run Python code, and use mathematical tools."
         ),
-        tools=["sql_query", "sql_schema", "code_executor", "math_calculator"],
+        tools=["sql_query", "sql_schema", "code_executor", "math_calculator", "read_file"],
         max_steps=150,
         mode="react",
         process_mode="async",
@@ -219,6 +219,7 @@ PREDEFINED_SUBAGENTS = {
             "session_search",
             "skill_view",
             "todo_write",
+            "read_file",
         ],
         max_steps=40,
         mode="react",

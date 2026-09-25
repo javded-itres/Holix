@@ -67,12 +67,14 @@ async def _setup_models_interactive(
     manager = get_profile_manager()
 
     console.print("\n")
-    console.print(Panel.fit(
-        "[bold cyan]🔧 Model Provider Setup[/bold cyan]\n\n"
-        "Configure OpenAI-compatible model providers (Ollama, LiteLLM, OpenAI, etc.)\n"
-        "and assign models to agents and sub-agents.",
-        border_style="cyan"
-    ))
+    console.print(
+        Panel.fit(
+            "[bold cyan]🔧 Model Provider Setup[/bold cyan]\n\n"
+            "Configure OpenAI-compatible model providers (Ollama, LiteLLM, OpenAI, etc.)\n"
+            "and assign models to agents and sub-agents.",
+            border_style="cyan",
+        )
+    )
     console.print("\n")
 
     if no_verify_ssl:
@@ -91,10 +93,15 @@ async def _setup_models_interactive(
         console.print("5. Configure agent models")
         console.print("6. View agent model assignments")
         console.print("7. Configure fallback providers")
-        console.print("8. Save and exit")
-        console.print("9. Exit without saving")
+        console.print("8. Refresh provider model list")
+        console.print("9. Set provider default model")
+        console.print("10. Save and exit")
+        console.print("11. Exit without saving")
 
-        choice = Prompt.ask("\nChoose an action", choices=["1", "2", "3", "4", "5", "6", "7", "8", "9"])
+        choice = Prompt.ask(
+            "\nChoose an action",
+            choices=["1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11"],
+        )
 
         if choice == "1":
             await _add_provider(config, no_verify_ssl=no_verify_ssl)
@@ -111,10 +118,14 @@ async def _setup_models_interactive(
         elif choice == "7":
             _configure_fallback_providers(config)
         elif choice == "8":
+            await _refresh_provider_interactive(config)
+        elif choice == "9":
+            _set_default_model_interactive(config)
+        elif choice == "10":
             manager.save_profile(profile, config)
             print_success("✓ Configuration saved successfully!")
             break
-        elif choice == "9":
+        elif choice == "11":
             if Confirm.ask("Exit without saving changes?"):
                 print_info("Configuration not saved")
                 break
@@ -131,11 +142,7 @@ def _print_preset_catalog() -> None:
     presets = list_provider_presets()
     for i, p in enumerate(presets, 1):
         auth = p.auth_type if p.auth_type != "bearer" else "API key"
-        host_col = (
-            f"{p.host_env} (:{p.default_port})"
-            if p.configurable_host
-            else "—"
-        )
+        host_col = f"{p.host_env} (:{p.default_port})" if p.configurable_host else "—"
         table.add_row(str(i), p.id, p.display_name, auth, p.api_key_env, host_col)
     console.print(table)
     console.print(
@@ -172,7 +179,11 @@ async def _add_provider(config, *, no_verify_ssl: bool = False):
         custom_name = Prompt.ask("Provider name in profile", default=preset.id)
         host_arg: str | None = None
         if preset.configurable_host:
-            if preset.host_env and preset.host_env in os.environ and os.environ[preset.host_env].strip():
+            if (
+                preset.host_env
+                and preset.host_env in os.environ
+                and os.environ[preset.host_env].strip()
+            ):
                 base = resolve_preset_base_url(preset)
                 print_info(f"Host from {preset.host_env}: {base}")
             else:
@@ -293,7 +304,7 @@ async def _add_provider_custom(config, *, no_verify_ssl: bool = False):
                 default_model = Prompt.ask(
                     "\nDefault model to use",
                     choices=model_ids if len(model_ids) < 20 else None,
-                    default=model_ids[0] if model_ids else None
+                    default=model_ids[0] if model_ids else None,
                 )
 
                 # Create provider config
@@ -347,6 +358,73 @@ def _parse_fallback_list(raw: str) -> list[str]:
     return [part.strip() for part in raw.split(",") if part.strip()]
 
 
+def _ask_provider_name(config) -> str | None:
+    if not config.providers:
+        print_info("No providers configured")
+        return None
+    names = list(config.providers.keys())
+    if len(names) == 1:
+        return names[0]
+    return Prompt.ask("Provider", choices=names, default=config.default_provider or names[0])
+
+
+async def _refresh_provider_interactive(config) -> None:
+    """Probe a connected provider and replace its cached model list."""
+    name = _ask_provider_name(config)
+    if not name:
+        return
+    from core.models.provider_models import refresh_provider_config
+
+    console.print(f"\n[yellow]Fetching models from {name}…[/yellow]")
+    try:
+        stats = await refresh_provider_config(config, name)
+    except (RuntimeError, ValueError) as exc:
+        print_error(str(exc))
+        return
+    print_success(
+        f"✓ {name}: {len(stats.models)} models "
+        f"(+{len(stats.added)} / -{len(stats.removed)}). "
+        f"Default: {stats.default_model or '—'}"
+    )
+    print_info("Save the profile to keep this list")
+
+
+def _set_default_model_interactive(config) -> None:
+    """Pick the persisted default model for a connected provider."""
+    name = _ask_provider_name(config)
+    if not name:
+        return
+    from core.models.provider_models import set_provider_default_model
+
+    provider_data = config.providers[name]
+    available = list(provider_data.get("available_models") or [])
+    current = provider_data.get("default_model") or ""
+    if available:
+        console.print(f"\n[bold]Models on {name}[/bold] (current default: {current or '—'})")
+        show = available[:30]
+        for i, model in enumerate(show, 1):
+            mark = " ★" if model == current else ""
+            console.print(f"{i}. {model}{mark}")
+        if len(available) > 30:
+            console.print(f"[dim]... and {len(available) - 30} more[/dim]")
+        if len(available) <= 30:
+            picked = Prompt.ask("Model", choices=available, default=current or available[0])
+        else:
+            picked = Prompt.ask("Model id", default=current or available[0])
+    else:
+        print_info("No cached models. Enter an id or refresh the list first.")
+        picked = Prompt.ask("Model id")
+    try:
+        model = set_provider_default_model(config, name, picked)
+    except ValueError as exc:
+        print_error(str(exc))
+        return
+    print_success(f"✓ Default model for {name}: {model}")
+    if config.default_provider == name:
+        print_info("This provider is the profile default — new chats use this model")
+    print_info("Save the profile to keep this default")
+
+
 def _configure_fallback_providers(config) -> None:
     """Interactive editor for profile-level fallback providers."""
     current = ", ".join(config.fallback_providers or []) or "(none)"
@@ -390,14 +468,13 @@ def _list_providers(config):
             provider_data.get("default_model", "None"),
             str(model_count),
             provider_fb,
-            is_default
+            is_default,
         )
 
     console.print(table)
     if config.fallback_providers:
         console.print(
-            f"[dim]Profile fallback (all agents): "
-            f"{' → '.join(config.fallback_providers)}[/dim]\n"
+            f"[dim]Profile fallback (all agents): {' → '.join(config.fallback_providers)}[/dim]\n"
         )
 
 
@@ -423,17 +500,13 @@ async def _test_provider(config, *, no_verify_ssl: bool = False):
     with create_spinner() as progress:
         task = progress.add_task("Connecting...", total=None)
         try:
-            is_accessible = await ModelDiscovery.test_endpoint(
-                base_url, api_key, metadata=metadata
-            )
+            is_accessible = await ModelDiscovery.test_endpoint(base_url, api_key, metadata=metadata)
 
             if is_accessible:
                 print_success(f"✓ Connection to '{name}' successful!")
 
                 progress.update(task, description="Fetching models...")
-                models = await ModelDiscovery.discover_models(
-                    base_url, api_key, metadata=metadata
-                )
+                models = await ModelDiscovery.discover_models(base_url, api_key, metadata=metadata)
 
                 if models:
                     print_success(f"✓ Found {len(models)} models")
@@ -512,7 +585,7 @@ async def _configure_agent_models(config):
         model = Prompt.ask(
             "\nModel to use",
             choices=available_models if len(available_models) < 20 else None,
-            default=provider_data.get("default_model")
+            default=provider_data.get("default_model"),
         )
 
     # Temperature
@@ -520,10 +593,7 @@ async def _configure_agent_models(config):
 
     # Create agent model config
     agent_config = AgentModelConfig(
-        agent_name=agent_name,
-        provider=provider_name,
-        model=model,
-        temperature=temperature
+        agent_name=agent_name, provider=provider_name, model=model, temperature=temperature
     )
 
     config.agent_models[agent_name] = agent_config.model_dump()
@@ -545,10 +615,7 @@ def _view_agent_models(config):
 
     for agent_name, agent_data in config.agent_models.items():
         table.add_row(
-            agent_name,
-            agent_data["provider"],
-            agent_data["model"],
-            str(agent_data["temperature"])
+            agent_name, agent_data["provider"], agent_data["model"], str(agent_data["temperature"])
         )
 
     console.print(table)
@@ -563,9 +630,13 @@ def list_presets():
 
 @app.command("add")
 def add_preset(
-    preset_id: str = typer.Argument(..., help="Preset id: openai, openrouter, ollama, litellm, vllm, …"),
+    preset_id: str = typer.Argument(
+        ..., help="Preset id: openai, openrouter, ollama, litellm, vllm, …"
+    ),
     profile: str | None = typer.Option(None, "--profile", "-p"),
-    name: str | None = typer.Option(None, "--name", help="Profile provider name (default: preset id)"),
+    name: str | None = typer.Option(
+        None, "--name", help="Profile provider name (default: preset id)"
+    ),
     host: str | None = typer.Option(
         None,
         "--host",
@@ -612,8 +683,10 @@ async def _add_preset_cli(
         print_info(f"Using ${preset.api_key_env} from environment (stored as placeholder)")
 
     host_arg = host
-    if preset.configurable_host and not host_arg and not (
-        preset.host_env and os.environ.get(preset.host_env, "").strip()
+    if (
+        preset.configurable_host
+        and not host_arg
+        and not (preset.host_env and os.environ.get(preset.host_env, "").strip())
     ):
         host_arg = prompt_host_for_preset(preset, console=console)
 
@@ -701,6 +774,71 @@ def remove_provider_cmd(
         print_info("No LLM configured. Run: holix models add <preset>")
 
 
+def _open_profile(profile: str | None):
+    if profile:
+        from cli.core import init_profile
+
+        init_profile(profile)
+        return get_current_config(), profile
+    return get_current_config(), get_current_profile()
+
+
+@app.command("refresh")
+def refresh_models(
+    provider: str | None = typer.Argument(None, help="Connected provider name"),
+    profile: str | None = typer.Option(None, "--profile", "-p", help="Profile to update"),
+):
+    """Fetch /v1/models for a connected provider and save the list."""
+    asyncio.run(_refresh_models_cli(provider, profile))
+
+
+async def _refresh_models_cli(provider: str | None, profile: str | None) -> None:
+    from core.models.provider_models import refresh_provider_config
+
+    config, prof = _open_profile(profile)
+    name = (provider or "").strip()
+    names = list((config.providers or {}).keys())
+    if not name:
+        if len(names) == 1:
+            name = names[0]
+        else:
+            print_error("Pass a provider name. Configured: " + (", ".join(names) or "(none)"))
+            raise typer.Exit(1)
+    console.print(f"\n[yellow]Fetching models from {name}…[/yellow]")
+    try:
+        stats = await refresh_provider_config(config, name)
+    except (RuntimeError, ValueError) as exc:
+        print_error(str(exc))
+        raise typer.Exit(1) from exc
+    get_profile_manager().save_profile(prof, config)
+    print_success(
+        f"✓ {name}: {len(stats.models)} models "
+        f"(+{len(stats.added)} / -{len(stats.removed)}). "
+        f"Default: {stats.default_model or '—'}"
+    )
+
+
+@app.command("default")
+def set_default_model(
+    provider: str = typer.Argument(..., help="Connected provider name"),
+    model: str = typer.Argument(..., help="Model id to store as default_model"),
+    profile: str | None = typer.Option(None, "--profile", "-p", help="Profile to update"),
+):
+    """Set the default model of an already connected provider."""
+    from core.models.provider_models import set_provider_default_model
+
+    config, prof = _open_profile(profile)
+    try:
+        chosen = set_provider_default_model(config, provider, model)
+    except ValueError as exc:
+        print_error(str(exc))
+        raise typer.Exit(1) from exc
+    get_profile_manager().save_profile(prof, config)
+    print_success(f"Default model for {provider}: {chosen}")
+    if config.default_provider == provider:
+        print_info(f"Profile '{prof}' default provider uses {chosen}")
+
+
 @app.command("list")
 def list_providers(
     profile: str | None = typer.Option(None, "--profile", "-p", help="Profile to use"),
@@ -743,9 +881,7 @@ def fallback_list(
 
     console.print(f"\n[bold]Primary:[/bold] {primary.provider} → {primary.model}")
     if config.fallback_providers:
-        console.print(
-            f"[dim]Profile fallbacks:[/dim] {', '.join(config.fallback_providers)}"
-        )
+        console.print(f"[dim]Profile fallbacks:[/dim] {', '.join(config.fallback_providers)}")
     if len(chain) > 1:
         console.print("[bold]Effective chain:[/bold]")
         for idx, cfg in enumerate(chain, 1):

@@ -82,7 +82,7 @@ def test_select_skips_already_fetched() -> None:
 
 def test_page_analyst_builtin_is_fetch_only() -> None:
     cfg = get_subagent_config("page_analyst")
-    assert cfg.tools == ["fetch_url"]
+    assert cfg.tools == ["fetch_url", "read_file"]
     assert cfg.max_steps <= 16
     assert cfg.mcp_inherit is False
     assert "web_search" not in cfg.tools

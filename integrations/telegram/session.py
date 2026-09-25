@@ -75,6 +75,7 @@ class ChatSession:
     ui_providers_page: int = 0
     ui_models_provider_idx: int | None = None
     ui_models_page: int = 0
+    ui_models_pick_default: bool = False
     ui_skills: list[str] = field(default_factory=list)
     ui_skills_page: int = 0
     active_model_slot: str = "main"

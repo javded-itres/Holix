@@ -39,7 +39,7 @@ On Russian macOS layout, `,help` and `.help` are normalized to `/help`. Type `/`
 
 | Command | Description |
 |---------|-------------|
-| `/models`, `/model` | Open model picker (TUI) or show current model (`chat-command`) |
+| `/models`, `/model` | Pick a model. TUI: provider list, `r` refresh, `d` set default. Telegram/MAX: ↻ Список and «Нажатие: по умолчанию». `holix chat`: `/model refresh`, `/model default <provider> <model>` |
 | `/mode` | Cycle execution mode, or `/mode <name>` if valid — see [EXECUTION_MODES.md](EXECUTION_MODES.md) |
 | `/stream` | Toggle streaming; `/stream on\|off` |
 | `/stop` | Cancel running agent, sub-agents, pending confirmations, and plan reviews (TUI, Telegram, MAX) |

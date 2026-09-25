@@ -1,4 +1,4 @@
-"""TUI modal: create and edit custom sub-agent types."""
+"""TUI modal: create custom sub-agent types and edit built-ins via overlays."""
 
 from __future__ import annotations
 
@@ -6,11 +6,16 @@ from typing import Any, Literal
 
 from core.external_cli.registry import list_cli_specs
 from core.i18n import host_locale, t
-from core.subagents.registry import is_builtin_subagent, list_available_subagents
+from core.subagents.registry import (
+    get_subagent_config,
+    is_builtin_subagent,
+    list_available_subagents,
+)
 from core.subagents.store import (
     DEFAULT_CUSTOM_TOOLS,
     SUBAGENT_TOOL_CHOICES,
     CustomSubAgentType,
+    SubAgentOverlayStore,
     SubAgentTypeStore,
     cleanup_custom_type_profile_bindings,
     sync_custom_type_profile_bindings,
@@ -103,7 +108,7 @@ def _encode_cli_id(value: str) -> str:
 
 
 class SubagentTypesManagerScreen(ModalScreen[None]):
-    """Manage custom sub-agent types for the active profile."""
+    """Manage custom sub-agent types and built-in overrides for the active profile."""
 
     DEFAULT_CSS = """
     SubagentTypesManagerScreen {
@@ -218,31 +223,21 @@ class SubagentTypesManagerScreen(ModalScreen[None]):
         self._show_view("list")
 
     def _apply_labels(self) -> None:
-        self.query_one("#btn-sat-create", Button).label = t(
-            "tui.subagent_types.create", self._lang
-        )
+        self.query_one("#btn-sat-create", Button).label = t("tui.subagent_types.create", self._lang)
         self.query_one("#btn-sat-edit", Button).label = t("tui.subagent_types.edit", self._lang)
-        self.query_one("#btn-sat-delete", Button).label = t(
-            "tui.subagent_types.delete", self._lang
-        )
+        self.query_one("#btn-sat-delete", Button).label = t("tui.subagent_types.delete", self._lang)
         self.query_one("#btn-sat-save", Button).label = t("tui.subagent_types.save", self._lang)
-        self.query_one("#btn-sat-cancel", Button).label = t(
-            "tui.subagent_types.cancel", self._lang
-        )
+        self.query_one("#btn-sat-cancel", Button).label = t("tui.subagent_types.cancel", self._lang)
         self.query_one("#btn-sat-refresh", Button).label = t(
             "tui.subagent_types.refresh", self._lang
         )
         self.query_one("#btn-sat-close", Button).label = t("tui.subagent_types.close", self._lang)
-        self.query_one("#sat-label-tools", Static).update(
-            t("tui.subagent_types.tools", self._lang)
-        )
+        self.query_one("#sat-label-tools", Static).update(t("tui.subagent_types.tools", self._lang))
         self.query_one("#sat-label-skills", Static).update(
             t("tui.subagent_types.skills", self._lang)
         )
         self.query_one("#sat-label-mcp", Static).update(t("tui.subagent_types.mcp", self._lang))
-        self.query_one("#sat-label-model", Static).update(
-            t("tui.subagent_types.model", self._lang)
-        )
+        self.query_one("#sat-label-model", Static).update(t("tui.subagent_types.model", self._lang))
         self.query_one("#sat-label-cli", Static).update(
             t("tui.subagent_types.external_cli", self._lang)
         )
@@ -266,8 +261,9 @@ class SubagentTypesManagerScreen(ModalScreen[None]):
 
     def _sync_action_buttons(self) -> None:
         listing = self._view == "list"
-        custom_selected = bool(
-            self._selected_name and not is_builtin_subagent(self._selected_name or "")
+        has_selection = bool(self._selected_name)
+        builtin_selected = bool(
+            self._selected_name and is_builtin_subagent(self._selected_name or "")
         )
         for bid, show in (
             ("#btn-sat-create", listing),
@@ -280,8 +276,14 @@ class SubagentTypesManagerScreen(ModalScreen[None]):
         ):
             self.query_one(bid, Button).display = show
 
-        self.query_one("#btn-sat-edit", Button).disabled = not custom_selected
-        self.query_one("#btn-sat-delete", Button).disabled = not custom_selected
+        self.query_one("#btn-sat-edit", Button).disabled = not has_selection
+        delete_btn = self.query_one("#btn-sat-delete", Button)
+        # Built-ins cannot be deleted (they live in code); Delete resets their overlay.
+        delete_btn.disabled = not has_selection
+        delete_btn.label = t(
+            "tui.subagent_types.reset" if builtin_selected else "tui.subagent_types.delete",
+            self._lang,
+        )
 
     def _apply_list_selection(self, item: ListItem | None) -> None:
         detail = self.query_one("#sat-detail", Static)
@@ -306,15 +308,12 @@ class SubagentTypesManagerScreen(ModalScreen[None]):
         lv = self.query_one("#sat-type-list", ListView)
         lv.clear()
         title.update(
-            f"[bold]{t('tui.subagent_types.title', self._lang)}[/bold]  "
-            f"[dim]{self._profile}[/dim]"
+            f"[bold]{t('tui.subagent_types.title', self._lang)}[/bold]  [dim]{self._profile}[/dim]"
         )
         hint.update(f"[dim]{t('tui.subagent_types.list_hint', self._lang)}[/dim]")
         items = list_available_subagents(profile=self._profile)
         if not items:
-            lv.mount(
-                ListItem(Static(f"[dim]{t('tui.subagent_types.empty', self._lang)}[/dim]"))
-            )
+            lv.mount(ListItem(Static(f"[dim]{t('tui.subagent_types.empty', self._lang)}[/dim]")))
             self._apply_list_selection(None)
             return
         for item in items:
@@ -436,26 +435,64 @@ class SubagentTypesManagerScreen(ModalScreen[None]):
         self._config = _load_profile_config(self._profile)
         self._show_view("form")
 
+    def _builtin_editing_view(self, name: str) -> CustomSubAgentType:
+        """Form model for a built-in: effective config + overlay + profile bindings."""
+        from core.external_cli.store import ExternalCliStore
+
+        cfg = get_subagent_config(name, profile=self._profile)
+        overlay = SubAgentOverlayStore(self._profile).get(name)
+        skill_assignments = getattr(self._config, "skill_assignments", None) or {}
+        mcp_assignments = getattr(self._config, "mcp_assignments", None) or {}
+        cli_id = ""
+        for binding in ExternalCliStore(self._profile).load_bindings().values():
+            if binding.agent_slot == name:
+                cli_id = binding.cli_id
+                break
+        return CustomSubAgentType(
+            name=name,
+            description=cfg.description,
+            system_prompt=cfg.system_prompt,
+            tools=list(cfg.tools),
+            skills=list(skill_assignments.get(name) or []),
+            mcp_servers=list(mcp_assignments.get(name) or []),
+            model_slot=(overlay.model_slot or "") if overlay else "",
+            external_cli_id=cli_id,
+        )
+
     @on(Button.Pressed, "#btn-sat-edit")
     def _on_edit(self) -> None:
-        if not self._selected_name or is_builtin_subagent(self._selected_name):
-            self.notify(t("tui.subagent_types.builtin_readonly", self._lang), severity="warning")
+        if not self._selected_name:
+            self.notify(t("tui.subagent_types.select_type", self._lang), severity="warning")
             return
-        custom = self._store.get(self._selected_name)
-        if custom is None:
-            self.notify(t("tui.subagent_types.not_found", self._lang), severity="error")
-            return
-        self._editing_name = custom.name
         self._config = _load_profile_config(self._profile)
+        if is_builtin_subagent(self._selected_name):
+            view = self._builtin_editing_view(self._selected_name)
+        else:
+            view = self._store.get(self._selected_name)
+            if view is None:
+                self.notify(t("tui.subagent_types.not_found", self._lang), severity="error")
+                return
+        self._editing_name = view.name
         self._show_view("form")
-        self._render_form(custom=custom)
+        self._render_form(custom=view)
 
     @on(Button.Pressed, "#btn-sat-delete")
     def _on_delete(self) -> None:
-        if not self._selected_name or is_builtin_subagent(self._selected_name):
-            self.notify(t("tui.subagent_types.builtin_readonly", self._lang), severity="warning")
+        if not self._selected_name:
+            self.notify(t("tui.subagent_types.select_type", self._lang), severity="warning")
             return
-        removed = self._store.remove(self._selected_name)
+        name = self._selected_name
+        if is_builtin_subagent(name):
+            # Built-ins cannot be deleted; Delete acts as "reset to defaults".
+            SubAgentOverlayStore(self._profile).remove(name)
+            cleanup_custom_type_profile_bindings(self._profile, name)
+            self._notify(
+                t("tui.subagent_types.reset_done", self._lang, name=name),
+                severity="warning",
+            )
+            self._render_type_list()
+            return
+        removed = self._store.remove(name)
         if removed is None:
             self.notify(t("tui.subagent_types.not_found", self._lang), severity="error")
             return
@@ -475,11 +512,14 @@ class SubagentTypesManagerScreen(ModalScreen[None]):
                 name = self._editing_name
             else:
                 name = validate_custom_type_name(name)
+            editing_builtin = bool(self._editing_name and is_builtin_subagent(self._editing_name))
+            tools_selected = self._selection_from_list("#sat-tools")
             custom = CustomSubAgentType(
                 name=name,
                 description=self.query_one("#sat-desc", Input).value.strip(),
                 system_prompt=self.query_one("#sat-prompt", TextArea).text.strip(),
-                tools=self._selection_from_list("#sat-tools") or list(DEFAULT_CUSTOM_TOOLS),
+                # Built-ins keep the exact selection; creation gets the default set.
+                tools=tools_selected or ([] if editing_builtin else list(DEFAULT_CUSTOM_TOOLS)),
                 skills=self._selection_from_list("#sat-skills"),
                 mcp_servers=self._selection_from_list("#sat-mcp"),
                 model_slot=_decode_model_slot(
@@ -491,15 +531,28 @@ class SubagentTypesManagerScreen(ModalScreen[None]):
             )
             if not custom.system_prompt:
                 raise ValueError(t("tui.subagent_types.prompt_required", self._lang))
-            previous = (
-                self._editing_name if self._editing_name and self._editing_name != name else None
-            )
-            self._store.upsert(custom)
-            sync_custom_type_profile_bindings(
-                self._profile,
-                custom,
-                previous_name=previous,
-            )
+            if editing_builtin:
+                # Built-ins live in code; overrides persist as a profile overlay.
+                SubAgentOverlayStore(self._profile).merge(
+                    name,
+                    description=custom.description or None,
+                    system_prompt=custom.system_prompt,
+                    tools=list(custom.tools),
+                    model_slot=custom.model_slot or None,
+                )
+                sync_custom_type_profile_bindings(self._profile, custom)
+            else:
+                previous = (
+                    self._editing_name
+                    if self._editing_name and self._editing_name != name
+                    else None
+                )
+                self._store.upsert(custom)
+                sync_custom_type_profile_bindings(
+                    self._profile,
+                    custom,
+                    previous_name=previous,
+                )
             self._notify(
                 t("tui.subagent_types.saved", self._lang, name=custom.name),
                 severity="information",

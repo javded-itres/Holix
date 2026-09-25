@@ -313,9 +313,16 @@ def tools_picker_keyboard(tools: list[dict]) -> dict[str, Any]:
     return inline_keyboard(rows)
 
 
-def _model_button_label(model_id: str, *, active: bool, max_len: int = 28) -> str:
+def _model_button_label(
+    model_id: str,
+    *,
+    active: bool,
+    is_default: bool = False,
+    max_len: int = 28,
+) -> str:
     short = model_id if len(model_id) <= max_len else model_id[: max_len - 1] + "…"
-    return f"{_mark(active)}{short}"
+    star = "★" if is_default else ""
+    return f"{star}{_mark(active)}{short}"
 
 
 def models_root_keyboard(
@@ -379,6 +386,8 @@ def models_provider_keyboard(
     *,
     page: int = 0,
     page_size: int = 10,
+    default_model: str | None = None,
+    pick_default: bool = False,
 ) -> dict[str, Any]:
     start = page * page_size
     chunk = models[start : start + page_size]
@@ -389,7 +398,11 @@ def models_provider_keyboard(
         slot = f"prov:{provider_name}:{model_id}"
         row.append(
             _callback_btn(
-                _model_button_label(model_id, active=slot == active_slot),
+                _model_button_label(
+                    model_id,
+                    active=slot == active_slot,
+                    is_default=bool(default_model) and model_id == default_model,
+                ),
                 _cb("mm", f"{provider_idx}:{global_idx}"),
             )
         )
@@ -407,12 +420,14 @@ def models_provider_keyboard(
     if nav:
         rows.append(nav)
 
+    mode = "Нажатие: по умолчанию" if pick_default else "Нажатие: чат"
     rows.append(
         [
             _callback_btn("← Провайдеры", _cb("mb", "0")),
-            _callback_btn("↻", _cb("mg", str(provider_idx))),
+            _callback_btn("↻ Список", _cb("mr", str(provider_idx))),
         ]
     )
+    rows.append([_callback_btn(mode, _cb("mx", str(provider_idx)))])
     return inline_keyboard(rows)
 
 

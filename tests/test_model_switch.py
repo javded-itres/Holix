@@ -48,10 +48,40 @@ def test_resolve_model_config_main():
 
 def test_provider_keyboard_callback_length():
     models = [f"model-{i}" for i in range(50)]
-    kb = models_provider_keyboard("ollama", models, "", 0, page=3, page_size=10)
-    for row in kb.inline_keyboard:
-        for btn in row:
-            assert len(btn.callback_data) <= 64
+    kb = models_provider_keyboard(
+        "ollama",
+        models,
+        "",
+        0,
+        page=3,
+        page_size=10,
+        default_model="model-30",
+        pick_default=True,
+    )
+    payloads = [btn.callback_data for row in kb.inline_keyboard for btn in row]
+    for data in payloads:
+        assert len(data) <= 64
+    assert "hx:mr:0" in payloads
+    assert "hx:mx:0" in payloads
+
+
+def test_max_provider_keyboard_refresh_and_default():
+    from integrations.max.keyboards import models_provider_keyboard as max_keyboard
+
+    kb = max_keyboard(
+        "ollama",
+        ["alpha", "beta"],
+        "",
+        1,
+        default_model="beta",
+        pick_default=False,
+    )
+    buttons = [btn for row in kb["payload"]["buttons"] for btn in row]
+    payloads = [btn["payload"] for btn in buttons]
+    assert "hx:mr:1" in payloads
+    assert "hx:mx:1" in payloads
+    starred = [btn["text"] for btn in buttons if btn["text"].startswith("★")]
+    assert starred and "beta" in starred[0]
 
 
 def test_agent_set_active_model_config():

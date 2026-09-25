@@ -447,9 +447,16 @@ def tools_picker_keyboard(tools: list[dict]) -> Any:
     return InlineKeyboardMarkup(inline_keyboard=rows)
 
 
-def _model_button_label(model_id: str, *, active: bool, max_len: int = 28) -> str:
+def _model_button_label(
+    model_id: str,
+    *,
+    active: bool,
+    is_default: bool = False,
+    max_len: int = 28,
+) -> str:
     short = model_id if len(model_id) <= max_len else model_id[: max_len - 1] + "…"
-    return f"{_mark(active)}{short}"
+    star = "★" if is_default else ""
+    return f"{star}{_mark(active)}{short}"
 
 
 def models_root_keyboard(
@@ -526,8 +533,14 @@ def models_provider_keyboard(
     *,
     page: int = 0,
     page_size: int = 10,
+    default_model: str | None = None,
+    pick_default: bool = False,
 ) -> Any:
-    """Models of one provider (no prefix in labels) + pagination."""
+    """Models of one provider (no prefix in labels) + pagination.
+
+    ``↻ Список`` probes the provider. The mode button switches a tap between
+    the current chat and the persisted provider default (★).
+    """
     from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 
     start = page * page_size
@@ -539,7 +552,11 @@ def models_provider_keyboard(
         slot = f"prov:{provider_name}:{model_id}"
         row.append(
             InlineKeyboardButton(
-                text=_model_button_label(model_id, active=slot == active_slot),
+                text=_model_button_label(
+                    model_id,
+                    active=slot == active_slot,
+                    is_default=bool(default_model) and model_id == default_model,
+                ),
                 callback_data=_cb("mm", f"{provider_idx}:{global_idx}"),
             )
         )
@@ -561,12 +578,14 @@ def models_provider_keyboard(
     if nav:
         rows.append(nav)
 
+    mode = "Нажатие: по умолчанию" if pick_default else "Нажатие: чат"
     rows.append(
         [
             InlineKeyboardButton(text="← Провайдеры", callback_data=_cb("mb", "0")),
-            InlineKeyboardButton(text="↻", callback_data=_cb("mg", str(provider_idx))),
+            InlineKeyboardButton(text="↻ Список", callback_data=_cb("mr", str(provider_idx))),
         ]
     )
+    rows.append([InlineKeyboardButton(text=mode, callback_data=_cb("mx", str(provider_idx)))])
     return InlineKeyboardMarkup(inline_keyboard=rows)
 
 

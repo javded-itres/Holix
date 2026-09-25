@@ -82,6 +82,7 @@ class MaxChatSession:
     ui_providers_page: int = 0
     ui_models_provider_idx: int | None = None
     ui_models_page: int = 0
+    ui_models_pick_default: bool = False
     pending_files: list[SavedTelegramFile] = field(default_factory=list)
     active_model_slot: str = "main"
     active_model_label: str = ""

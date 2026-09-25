@@ -4,6 +4,10 @@
 
 ### Added
 
+- **Connected providers: refresh models and set the default** — `holix models refresh`
+  and `holix models default`, the same actions in `holix models setup` and
+  `holix chat` (`/model refresh`, `/model default`), the TUI `/models` picker
+  (r / d), and Telegram/MAX provider screens (↻ Список, «Нажатие: по умолчанию»).
 - **MikroLLM in `holix bootstrap`** — interactive question to install MikroLLM
   via GitHub `scripts/install.sh`, print admin URL + password,
   issue an `sk-` key, enable **Hub network member**, and add Holix provider

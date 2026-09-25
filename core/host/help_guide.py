@@ -223,7 +223,8 @@ _BODIES: dict[str, dict[str, str]] = {
             "by hand; `sdd_archive` merges them."
         ),
         "model": (
-            "`/models` — provider → model (until you switch again).\n"
+            "`/models` — provider → model for this chat. Inside a provider: "
+            "refresh the live list (r) and set the saved default (d, ★).\n"
             "`/profile` — Holix profile (admin in isolated multi-tenant).\n"
             "`/mode` — ReAct / Plan / Hybrid / Auto.\n"
             "`/menu` → Pipeline — Classic vs Modern (anti-spam honesty).\n"
@@ -375,7 +376,8 @@ _BODIES: dict[str, dict[str, str]] = {
             "только `sdd_archive`."
         ),
         "model": (
-            "`/models` — провайдер → модель (пока не смените снова).\n"
+            "`/models` — провайдер → модель для этого чата. В провайдере: "
+            "обновить список (↻) и выбрать модель по умолчанию (★).\n"
             "`/profile` — профиль Holix (в multi-tenant — админ).\n"
             "`/mode` — ReAct / Plan / Hybrid / Auto.\n"
             "`/menu` → Pipeline — Classic vs Modern (anti-spam honesty).\n"

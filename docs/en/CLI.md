@@ -232,7 +232,9 @@ Project supplements: `./.holix/skills`, `./.holix/plans`, local `config.yaml` me
 
 | Subcommand | Description |
 |------------|-------------|
-| `setup` | Interactive wizard: providers, tests, `agent_models`, fallbacks |
+| `setup` | Interactive wizard: providers, tests, `agent_models`, fallbacks, refresh, default model |
+| `refresh [PROVIDER]` | Fetch `/v1/models` for an already connected provider and save the list |
+| `default PROVIDER MODEL` | Persist that provider's default model |
 | `list` | List configured providers |
 | `agents` | Show per-agent model assignments |
 | `fallback list` | Show effective fallback chain |
@@ -241,6 +243,8 @@ Project supplements: `./.holix/skills`, `./.holix/plans`, local `config.yaml` me
 
 ```bash
 holix models setup
+holix models refresh mikrollm
+holix models default mikrollm auto
 holix models fallback set litellm,ollama
 holix models fallback list
 holix models list

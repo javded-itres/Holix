@@ -142,7 +142,9 @@ holix bootstrap -y
 
 | Подкоманда | Описание |
 |------------|----------|
-| `setup` | Мастер провайдеров, `agent_models`, fallback |
+| `setup` | Мастер провайдеров, `agent_models`, fallback, обновление списка и модель по умолчанию |
+| `refresh [PROVIDER]` | Запросить `/v1/models` у уже подключённого провайдера и сохранить список |
+| `default PROVIDER MODEL` | Записать модель по умолчанию провайдера |
 | `list` | Список провайдеров |
 | `agents` | Назначения по агентам |
 | `fallback list` | Цепочка fallback-провайдеров |
@@ -151,6 +153,8 @@ holix bootstrap -y
 
 ```bash
 holix models setup
+holix models refresh mikrollm
+holix models default mikrollm auto
 holix models fallback set litellm,ollama
 holix models fallback list
 ```

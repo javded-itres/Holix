@@ -103,3 +103,10 @@ def test_overlay_tools_replace_builtin(holix_home: Path) -> None:
     cfg = get_subagent_config("coder", profile="alice")
     assert cfg.tools == ["read_file", "grep"]
     assert "write_file" not in cfg.tools
+
+
+def test_all_builtins_can_read_files() -> None:
+    from core.subagents.registry import PREDEFINED_SUBAGENTS
+
+    missing = [name for name, cfg in PREDEFINED_SUBAGENTS.items() if "read_file" not in cfg.tools]
+    assert not missing, f"built-in sub-agents without read_file: {missing}"
