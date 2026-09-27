@@ -744,6 +744,15 @@ async def react_node(state: HolixGraphState, config: RunnableConfig) -> dict:
         )
     model_manager = getattr(agent, "model_manager", None) if agent else None
     primary_override = getattr(agent, "active_model_config", None) if agent else None
+    # A model switch on an open chat updates the live agent without touching
+    # history. Use that client/model for this step so the same context goes out.
+    if agent is not None and primary_override is not None:
+        live_model = str(getattr(primary_override, "model", "") or "").strip()
+        if live_model:
+            model = live_model
+        live_client = getattr(agent, "client", None)
+        if live_client is not None:
+            client = live_client
     llm_timeout_s = _llm_step_timeout_s(agent)
     max_tokens = _llm_max_tokens(agent, model_manager, agent_slot, state)
 

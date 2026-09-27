@@ -165,6 +165,15 @@ async def run_agent_loop(
     while True:
         while not step_limit_hit(step_count, max_steps):
             step_count += 1
+            live = getattr(agent, "active_model_config", None)
+            if live is not None:
+                live_model = str(getattr(live, "model", "") or "").strip()
+                if live_model:
+                    model = live_model
+                    primary_override = live
+                live_client = getattr(agent, "client", None)
+                if live_client is not None:
+                    client = live_client
 
             # Build API messages: system prompt + recent messages
             # Use context_manager to determine how many messages fit, or fallback to last 20
