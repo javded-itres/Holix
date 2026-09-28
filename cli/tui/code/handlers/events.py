@@ -31,12 +31,8 @@ from core.subagents.interaction_events import SubAgentQuestionEvent
 from rich.markdown import Markdown
 
 from cli.tui.shared.formatters import (
-    format_tool_args,
-    format_tool_header,
-    format_tool_result_preview,
-    format_write_file_diff_display,
-    format_write_file_result_preview,
-    split_write_file_result,
+    format_tool_activity,
+    format_tool_outcome,
 )
 from cli.tui.shared.media_links import MEDIA_TOOL_NAMES, format_media_tool_result
 
@@ -91,7 +87,9 @@ class CodeEventHandler:
                 self.app._schedule_scroll_hint_update()
                 self.app._last_assistant_plain = content
                 self.app._is_streaming = False
-                self.app.set_status_line("ready")
+                self.app._work_detail = ""
+                self.app._work_started_at = None
+                self.app._refresh_status_bar()
                 self.app.run_worker(self.app._update_context_display_async())
                 self.app._restore_prompt_focus()
 
@@ -129,13 +127,8 @@ class CodeEventHandler:
                 self.app.run_worker(self.app._update_context_display_async())
 
             elif isinstance(event, BackgroundProcessStartedEvent):
-                label = f"{event.label} · pid {event.pid}"
                 self.app.sync_background_process_bar()
-                log_hint = f" · log: {event.log_path}" if event.log_path else ""
-                self.app.transcript_write(
-                    f"[green]▶ Background process:[/green] {label}{log_hint}\n"
-                    f"[dim]  click process bar for log · /process-stop — halt[/dim]"
-                )
+                self.app.transcript_write(f"[dim]▶ {event.label} · pid {event.pid}[/dim]")
 
             elif isinstance(event, BackgroundProcessStoppedEvent):
                 self.app.suppress_process_wake(event.process_id)
@@ -174,7 +167,9 @@ class CodeEventHandler:
                     store_kind="error",
                     store_plain=err,
                 )
-                self.app.set_status_line("error")
+                self.app._work_detail = ""
+                self.app._work_started_at = None
+                self.app._refresh_status_bar()
                 self.app._is_streaming = False
                 self.app._restore_prompt_focus()
 
@@ -186,9 +181,10 @@ class CodeEventHandler:
         self.app.sync_background_process_bar()
 
     def _thinking(self, message: str) -> None:
-        short = message[:60] + ("…" if len(message) > 60 else "")
-        self.app.set_thinking(short)
-        self.app.set_status_line(f"thinking — {short}")
+        short = (message or "thinking").strip().splitlines()[0]
+        if len(short) > 72:
+            short = short[:71] + "…"
+        self.app.note_work(short or "thinking")
 
     def _tool_start(self, event: ToolCallStartEvent) -> None:
         if self.app._is_streaming and self.app._stream_buffer:
@@ -208,13 +204,8 @@ class CodeEventHandler:
             "arguments": args if isinstance(args, dict) else {},
         }
 
-        self.app.transcript_write("")
-        self.app.transcript_write(
-            f"[bold]{format_tool_header(event.tool_name, running=True)}[/bold]"
-        )
-        args_text = format_tool_args(args)
-        if args_text:
-            self.app.transcript_write(f"[dim]{args_text}[/dim]")
+        activity = format_tool_activity(event.tool_name, args if isinstance(args, dict) else {})
+        self.app.note_work(activity)
         self.app.transcript_scroll_bottom()
 
     def _code_inner(self, event: ToolCodeDispatchStartEvent) -> None:
@@ -235,10 +226,10 @@ class CodeEventHandler:
 
         if error:
             body = getattr(event, "error", "") or ""
-            header = format_tool_header(name, duration_s=duration_s, error=True)
-            self.app.transcript_write(f"[red]{header}[/red]")
+            detail = _outcome_detail(name, body, error=True)
+            chip = format_tool_outcome(name, error=True, duration_s=duration_s, detail=detail)
             self.app.transcript_write(
-                body,
+                f"[red]{chip}[/red]",
                 store_kind="tool",
                 store_plain=body,
                 store_title=f"ERROR:{name}",
@@ -246,36 +237,39 @@ class CodeEventHandler:
             self.app._store_tool_result(f"ERROR:{name}", body, duration_s)
         else:
             body = getattr(event, "result", "") or ""
-            header = format_tool_header(name, duration_s=duration_s, error=False)
-            self.app.transcript_write(f"[dim]{header}[/dim]")
-
-            if name == "write_file" and body.strip():
-                summary, diff = split_write_file_result(body)
-                path = ""
-                last = getattr(self.app, "_last_tool_call", None) or {}
-                if last.get("tool_name") == "write_file":
-                    path = str((last.get("arguments") or {}).get("path") or "")
-                preview = format_write_file_result_preview(body, max_len=400)
-                if preview.strip():
-                    self.app.transcript_write(f"[dim]  {preview}[/dim]")
-                if diff:
-                    self.app.transcript_write(format_write_file_diff_display(diff, path=path))
-                elif not summary:
-                    self.app.transcript_write(f"[dim]  {body[:400]}[/dim]")
-            elif name in MEDIA_TOOL_NAMES and body.strip():
+            detail = _outcome_detail(name, body, error=False)
+            chip = format_tool_outcome(name, error=False, duration_s=duration_s, detail=detail)
+            if name in MEDIA_TOOL_NAMES and body.strip():
                 self.app.transcript_write(format_media_tool_result(body, tool_name=name))
             else:
-                preview = format_tool_result_preview(body, max_len=400)
-                if preview.strip():
-                    self.app.transcript_write(f"[dim]  {preview}[/dim]")
-                if len(body) > 400:
-                    self.app.transcript_write("[dim]  … truncated — /last[/dim]")
+                self.app.transcript_write(f"[dim]{chip}[/dim]")
 
             if body.strip():
                 self.app._transcript_store.append("tool", body, title=name)
             self.app._store_tool_result(name, body, duration_s)
-            if name in ("start_background_process", "run_project"):
+            if name in ("start_background_process", "run_project", "run_terminal_command"):
                 self._sync_process_bar_from_tool_result(body)
+
+        self.app.note_work("thinking")
 
         self.app._maybe_refresh_context_display()
         self.app.transcript_scroll_bottom()
+
+
+def _outcome_detail(name: str, body: str, *, error: bool) -> str:
+    """One clause for the chip. Full output stays available via /last."""
+    text = " ".join((body or "").split())
+    if not text:
+        return ""
+    low = text.lower()
+    if "background task started" in low:
+        return "in background"
+    if "timed out" in low:
+        return "timed out"
+    if error or text.startswith("Error"):
+        return text
+    if name in {"write_file", "patch_file", "apply_patch"}:
+        return text.split(".")[0]
+    if name == "todo_write":
+        return text.split(".")[0]
+    return ""

@@ -43,6 +43,14 @@ def attach_telegram_background_events(bot: Any, session: Any) -> None:
     session._bg_event_cb = on_event
     session._bg_event_agent = agent
 
+    from integrations.messenger.agent_task_wake import bind_messenger_agent_task_wake
+    from integrations.telegram.host import TelegramHost
+
+    def _start(text: str) -> None:
+        TelegramHost(bot, session)._start_agent_run(text)
+
+    bind_messenger_agent_task_wake(session, start_run=_start)
+
 
 async def deliver_telegram_subagent_question(bot: Any, session: Any, event: Any) -> None:
     """Post a dedicated chat message with job name, Russian chrome, and a Reply button."""

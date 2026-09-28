@@ -202,6 +202,10 @@ class ToolRegistry:
 
         register_background_process_tools(self)
 
+        from core.tools.agent_tasks import register_agent_task_tools
+
+        register_agent_task_tools(self)
+
         from core.tools.cron_schedule import register_cron_schedule_tool
 
         register_cron_schedule_tool(self)

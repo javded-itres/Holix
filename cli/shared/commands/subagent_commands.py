@@ -133,8 +133,33 @@ async def _deliver_subagent_result_when_ready(host: Any, job_id: str) -> None:
         _host_notify(host, f"[red]Sub-agent {job_id} delivery failed: {exc}[/red]")
 
 
+def _normalize_subagent_command(command: str) -> str:
+    """Map ``/subagents <verb>`` onto the older one-word forms."""
+    parts = command.strip().split()
+    if len(parts) < 2:
+        return command
+    head = parts[0].lower()
+    if head not in {"/subagents", "/subagent"}:
+        return command
+    verb = {
+        "spawn": "/subagent-spawn",
+        "stop": "/subagent-terminate",
+        "terminate": "/subagent-terminate",
+        "result": "/subagent-result",
+        "reply": "/subagent-reply",
+        "types": "/subagent-types",
+        "list": "/subagents",
+    }.get(parts[1].lower())
+    if not verb:
+        return command
+    if verb == "/subagents":
+        return "/subagents"
+    return " ".join([verb, *parts[2:]])
+
+
 async def run_subagents_command(host: Any, command: str) -> None:
     """List, spawn, terminate, or show sub-agent results."""
+    command = _normalize_subagent_command(command)
     cmd = command.strip().lower()
     parts = cmd.split()
     agent = _resolve_subagent_agent(host) or await _resolve_agent(host)
@@ -257,10 +282,9 @@ async def run_subagents_command(host: Any, command: str) -> None:
     host.transcript_write(
         "Sub-agents:\n"
         "  /subagents — list running\n"
-        "  /subagent-types — manage custom types (TUI)\n"
-        "  /subagent-types list — all types\n"
-        "  /subagent-spawn <type> <task>\n"
-        "  /subagent-result <job_id>\n"
-        "  /subagent-reply <job_id> <answer>\n"
-        "  /subagent-terminate <job_id>"
+        "  /subagents types — manage custom types (TUI)\n"
+        "  /subagents spawn [--fork] <type> <task>\n"
+        "  /subagents result <job_id>\n"
+        "  /subagents reply <job_id> <answer>\n"
+        "  /subagents stop <job_id>"
     )

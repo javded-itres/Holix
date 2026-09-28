@@ -1,0 +1,8 @@
+{
+  "id": "media",
+  "version": "0.1.4",
+  "requires": { "holix": ">=1.1.0", "holix_sdk": ">=0.1.0" },
+  "description": "Generate images and video via pluggable models; send files to Telegram/MAX with send_chat_files",
+  "capabilities": ["cli", "agent"],
+  "permissions": ["tools", "network", "filesystem"]
+}

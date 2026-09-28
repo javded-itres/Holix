@@ -42,6 +42,14 @@ def attach_max_background_events(client: Any, session: Any) -> None:
     session._bg_event_cb = on_event
     session._bg_event_agent = agent
 
+    from integrations.max.host import MaxHost
+    from integrations.messenger.agent_task_wake import bind_messenger_agent_task_wake
+
+    def _start(text: str) -> None:
+        MaxHost(client, session)._start_agent_run(text)
+
+    bind_messenger_agent_task_wake(session, start_run=_start)
+
 
 async def deliver_max_subagent_question(client: Any, session: Any, event: Any) -> None:
     from integrations.max.keyboards import subagent_reply_keyboard

@@ -393,6 +393,9 @@ class TerminalTool(BaseTool):
             "Shell operators (&&, |, >, etc.) are supported. "
             "Always use this for tests, builds, linters, installs, and git "
             "(`pytest`, `uv run pytest`, `npm test`, `cargo test`, `mvn test`). "
+            "Pass background=true for a long one-shot job so this chat stays free: "
+            "you get a task id now and are woken with the output when it exits. "
+            "That is the same agent, not a sub-agent and not start_background_process. "
             "Do NOT send those to start_background_process. "
             "Do NOT use this for long-running bots/servers "
             "(uvicorn, cargo run, go run, java -jar, npm run dev, …) unless the "
@@ -413,14 +416,33 @@ class TerminalTool(BaseTool):
                 },
                 "timeout": {
                     "type": "integer",
-                    "description": "Timeout in seconds (default: 30)",
+                    "description": "Timeout in seconds for a foreground command (default: 30). Ignored when background=true.",
                     "default": 30,
+                },
+                "background": {
+                    "type": "boolean",
+                    "description": (
+                        "Run a finite command in the background and return immediately. "
+                        "The same agent is notified with the output when it exits. "
+                        "Use for long tests, builds, and installs. Not for servers."
+                    ),
+                    "default": False,
+                },
+                "description": {
+                    "type": "string",
+                    "description": "Short label for a background task, shown while it runs and in the completion notice.",
                 },
             },
             "required": ["command"],
         }
 
-    async def execute(self, command: str, timeout: int = 30) -> str:
+    async def execute(
+        self,
+        command: str,
+        timeout: int = 30,
+        background: bool = False,
+        description: str = "",
+    ) -> str:
         """Execute a terminal command with timeout.
 
         Simple commands run via exec; compound shell syntax uses a real shell.
@@ -531,7 +553,9 @@ class TerminalTool(BaseTool):
 
             profile_name = get_profile_name()
             conversation_id = get_conversation_id()
-            if pty_enabled(profile=profile_name, conversation_id=conversation_id):
+            if not background and pty_enabled(
+                profile=profile_name, conversation_id=conversation_id
+            ):
                 try:
                     return await run_in_pty(
                         command,
@@ -595,6 +619,23 @@ class TerminalTool(BaseTool):
                     spawn_kw = {**spawn_kw, "env": env}
             except SandboxUnavailable as exc:
                 return f"Error: {exc}"
+
+            if background:
+                from core.runtime.agent_tasks import get_agent_task_registry, started_task_message
+
+                launched = await get_agent_task_registry().launch_shell(
+                    command=command,
+                    description=description,
+                    profile=profile_name or "default",
+                    conversation_id=conversation_id or "default",
+                    cwd=cwd,
+                    use_shell=use_shell,
+                    argv=argv,
+                    spawn_kw=spawn_kw,
+                )
+                if isinstance(launched, str):
+                    return launched
+                return started_task_message(launched)
 
             if use_shell:
                 process = await asyncio.create_subprocess_shell(

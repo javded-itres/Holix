@@ -32,6 +32,7 @@ from cli.shared.agent_stop import AGENT_WORKER_GROUP, stop_agent_activity_sync
 from cli.tui.code.handlers import CodeEventHandler, SlashCommandsCore
 from cli.tui.code.styles import CODE_TUI_CSS
 from cli.tui.code.widgets import (
+    CodeActivePrompt,
     CodeContextBar,
     CodeProcessBar,
     CodePrompt,
@@ -39,6 +40,7 @@ from cli.tui.code.widgets import (
     CodeStreamLine,
     CodeTodoList,
     CodeTranscript,
+    CodeWorkLine,
     CopySelectionBar,
     PromptHistorySuggestions,
     PromptQueue,
@@ -152,6 +154,7 @@ class HolixCodeApp(App):
         self._prompt_run_active = False
 
     def compose(self) -> ComposeResult:
+        yield CodeActivePrompt()
         process_bar = CodeProcessBar()
         yield process_bar
         yield CodeTodoList()
@@ -161,6 +164,7 @@ class HolixCodeApp(App):
         thinking = Static("", id="thinking-line")
         thinking.display = False
         yield thinking
+        yield CodeWorkLine()
         yield Static("", id="scroll-hint")
         yield PromptQueue()
         yield CodeStatusBar()
@@ -178,7 +182,7 @@ class HolixCodeApp(App):
             "[dim]Enter send · busy agent queues the prompt · Shift+Enter newline · "
             "↑ — recent prompts (↑↓ pick) · "
             "/ — command menu (↑↓ pick) · "
-            "/models — switch LLM · /hub — skill catalog · F2 /open — copy window · "
+            "/models — switch LLM · /hub — skill catalog · drag chat text to copy · "
             "click chat then select + Copy"
         )
         if is_macos():
@@ -190,6 +194,7 @@ class HolixCodeApp(App):
         self.transcript_write(hints)
         self._refresh_status_bar()
         self._set_prompt_enabled(False)
+        self._bind_agent_task_wake()
         self.run_worker(self._initialize_agent(), exclusive=True, group="agent_init")
         self.set_interval(2.0, self.sync_background_process_bar)
         self._restore_prompt_focus(delay=0.1, force=True)
@@ -204,6 +209,11 @@ class HolixCodeApp(App):
             event.stop()
 
     async def on_unmount(self) -> None:
+        listener = getattr(self, "_agent_task_listener", None)
+        if listener is not None:
+            from core.runtime.agent_tasks import unregister_agent_task_listener
+
+            unregister_agent_task_listener(listener)
         if getattr(self, "agent", None):
             try:
                 await self.agent.close()
@@ -443,6 +453,7 @@ class HolixCodeApp(App):
         self._background_process_os_pids = pids
         for process_id in labels:
             self._woken_process_ids.discard(process_id)
+        self._refresh_status_bar()
 
     def suppress_process_wake(self, process_id: str) -> None:
         pid = (process_id or "").strip()
@@ -491,6 +502,51 @@ class HolixCodeApp(App):
         self._prompt_run_active = True
         self.run_worker(self._send_message(text))
 
+    def _bind_agent_task_wake(self) -> None:
+        if getattr(self, "_agent_task_listener", None) is not None:
+            return
+        from core.runtime.agent_tasks import register_agent_task_listener
+
+        def _on_task(task: object) -> None:
+            self.call_from_thread(self.wake_on_agent_task, task)
+
+        self._agent_task_listener = _on_task
+        self._pending_task_reports: list[str] = []
+        register_agent_task_listener(_on_task)
+
+    def wake_on_agent_task(self, task: object) -> None:
+        """Queue a turn so this agent reports a finished background task."""
+        from core.runtime.agent_tasks import format_agent_task_wakeup
+
+        if getattr(task, "profile", "") != self.profile:
+            return
+        if getattr(task, "conversation_id", "") != self.conversation_id:
+            return
+        task_id = str(getattr(task, "task_id", "") or "")
+        seen = getattr(self, "_reported_agent_tasks", None)
+        if seen is None:
+            seen = set()
+            self._reported_agent_tasks = seen
+        if task_id and task_id in seen:
+            return
+        if task_id:
+            seen.add(task_id)
+        label = str(getattr(task, "description", "") or task_id)
+        status = str(getattr(task, "status", "") or "")
+        code = getattr(task, "exit_code", None)
+        self.transcript_write(f"[dim]✓ {label} · {status} · exit {code}[/dim]")
+        self._refresh_status_bar()
+        text = format_agent_task_wakeup(task)  # type: ignore[arg-type]
+        if self._prompt_run_active:
+            pending = getattr(self, "_pending_task_reports", None)
+            if pending is None:
+                pending = []
+                self._pending_task_reports = pending
+            pending.append(text)
+            return
+        self._prompt_run_active = True
+        self.run_worker(self._send_message(text))
+
     def sync_todo_list(self, items: object | None = None) -> None:
         """Sticky checklist from the session store (or an explicit payload).
 
@@ -530,6 +586,18 @@ class HolixCodeApp(App):
         from core.i18n import LocaleStore
 
         lang = LocaleStore(self.profile).get().upper()
+        task_n = ""
+        try:
+            from core.runtime.agent_tasks import get_agent_task_registry
+
+            n_tasks = get_agent_task_registry().running_count(
+                profile=self.profile,
+                conversation_id=self.conversation_id,
+            )
+            if n_tasks:
+                task_n = f" · {n_tasks} task" + ("" if n_tasks == 1 else "s")
+        except Exception:
+            task_n = ""
         pending_q = ""
         try:
             n = self._modals.subagent_question.pending_count
@@ -537,10 +605,100 @@ class HolixCodeApp(App):
                 pending_q = f" · ❓{n}"
         except Exception:
             pending_q = ""
-        line = (
-            f"{self.profile} · {lang} · {model}{stream} · {cwd} · {mode} · {sess}{ctx}{pending_q}"
-        )
+        live = ""
+        if self._prompt_run_active:
+            detail = (getattr(self, "_work_detail", "") or "thinking").strip()
+            live = f" · ● {detail[:56]}"
+        line = f"{self.profile} · {lang} · {model}{stream} · {cwd} · {mode} · {sess}{ctx}{task_n}{pending_q}{live}"
         self.set_status_line(line)
+        self.sync_work_line()
+
+    def sync_work_line(self) -> None:
+        """Show whether the agent is working and which tasks are still in flight."""
+        try:
+            line = self.query_one("#work-line", CodeWorkLine)
+        except Exception:
+            return
+        working = ""
+        if self._prompt_run_active:
+            detail = (getattr(self, "_work_detail", "") or "").strip() or "thinking"
+            started = getattr(self, "_work_started_at", None)
+            elapsed = int(time.time() - started) if started else 0
+            working = f"working {elapsed}s · {detail}"
+        tasks: list[str] = []
+        try:
+            from core.runtime.agent_tasks import get_agent_task_registry
+
+            for task in get_agent_task_registry().list_for(
+                profile=self.profile,
+                conversation_id=self.conversation_id,
+            ):
+                if task.is_running():
+                    tasks.append(f"{task.description} · {task.age_seconds()}s")
+        except Exception:
+            pass
+        try:
+            agent = getattr(self, "agent", None)
+            subagents = getattr(agent, "subagents", None) if agent else None
+            if subagents is not None and hasattr(subagents, "list_active"):
+                for handle in subagents.list_active():
+                    name = str(getattr(handle, "name", "") or "subagent")
+                    tasks.append(f"{name} · running")
+        except Exception:
+            pass
+        try:
+            from core.runtime.background_process import get_background_process_registry
+
+            for rec in get_background_process_registry(self.profile).list_running_for_profile(
+                profile=self.profile
+            )[:3]:
+                tasks.append(f"{rec.label} · pid {rec.pid}")
+        except Exception:
+            pass
+        line.set_work(working=working, tasks=tasks)
+
+    def note_work(self, detail: str) -> None:
+        """Remember the current action so the status line and /last can show it."""
+        text = (detail or "thinking").strip() or "thinking"
+        if text != getattr(self, "_work_detail", ""):
+            self._work_started_at = time.time()
+        self._work_detail = text
+        self.sync_work_line()
+
+    def live_work_text(self) -> str:
+        """Plain status of the turn in progress and background tasks."""
+        lines: list[str] = []
+        if self._prompt_run_active:
+            detail = (getattr(self, "_work_detail", "") or "thinking").strip()
+            started = getattr(self, "_work_started_at", None)
+            elapsed = int(time.time() - started) if started else 0
+            lines.append(f"● working {elapsed}s · {detail}")
+        else:
+            lines.append("● idle")
+        try:
+            from core.runtime.agent_tasks import get_agent_task_registry
+
+            running = [
+                task
+                for task in get_agent_task_registry().list_for(
+                    profile=self.profile,
+                    conversation_id=self.conversation_id,
+                )
+                if task.is_running()
+            ]
+            for task in running:
+                lines.append(f"◎ {task.description} · {task.age_seconds()}s · {task.task_id}")
+        except Exception:
+            pass
+        try:
+            agent = getattr(self, "agent", None)
+            subagents = getattr(agent, "subagents", None) if agent else None
+            if subagents is not None and hasattr(subagents, "list_active"):
+                for handle in subagents.list_active():
+                    lines.append(f"◎ subagent {getattr(handle, 'name', '') or 'task'} · running")
+        except Exception:
+            pass
+        return "\n".join(lines)
 
     # --- Persistence ---
 
@@ -637,7 +795,7 @@ class HolixCodeApp(App):
             defer_skill_index=True,
         )
         self.agent.events.subscribe(self._on_agent_event)
-        await self._load_conversation_history()
+        await self._offer_welcome_session()
         self.transcript_write("[dim]ready — type a message or /help[/dim]\n")
         self.transcript_write(f"[dim]workspace: {launch_root}[/dim]\n")
         thr = str(getattr(runtime_config, "auto_allow_threshold", "low") or "low").lower()
@@ -725,6 +883,35 @@ class HolixCodeApp(App):
         self._last_context_refresh = now
         self.run_worker(self._update_context_display_async())
 
+    async def _offer_welcome_session(self) -> None:
+        """Logo and continue-or-new before history is shown."""
+        from cli.tui.modals.welcome import WelcomeScreen, pick_last_tui_session
+
+        last = None
+        if self.agent:
+            try:
+                rows = await self.agent.list_conversations(limit=20)
+            except Exception:
+                rows = []
+            last = pick_last_tui_session(rows, self.conversation_id)
+        label = None
+        if last:
+            count = int(last.get("message_count") or 0)
+            when = str(last.get("last_timestamp") or "")[:16].replace("T", " ")
+            name = self._short_name(str(last["conversation_id"]))
+            label = f"{name} · {count} · {when}".strip(" ·")
+        choice = await self.push_screen_wait(WelcomeScreen(lang=self._ui_lang(), last_label=label))
+        if choice == "continue" and last:
+            self.conversation_id = str(last["conversation_id"])
+            self.session_display_name = self._short_name(self.conversation_id)
+            self._save_ui_state()
+            await self._load_conversation_history()
+            return
+        self.conversation_id = f"tui_{self.profile}_{int(time.time())}"
+        self.session_display_name = "new"
+        self._save_ui_state()
+        self.transcript_write("[dim]new session[/dim]\n")
+
     async def _load_conversation_history(self) -> None:
         if not self.agent:
             return
@@ -760,6 +947,7 @@ class HolixCodeApp(App):
             BackgroundProcessStartedEvent,
             BackgroundProcessStoppedEvent,
             StepBudgetChoiceEvent,
+            TodoListUpdatedEvent,
         )
         from core.security.confirmation_events import ConfirmationRequestEvent
         from core.subagents.interaction_events import SubAgentQuestionEvent
@@ -771,7 +959,8 @@ class HolixCodeApp(App):
             | StepBudgetChoiceEvent
             | BackgroundProcessStartedEvent
             | BackgroundProcessStoppedEvent
-            | BackgroundProcessErrorEvent,
+            | BackgroundProcessErrorEvent
+            | TodoListUpdatedEvent,
         ):
             # Textual: call_later(callback, *args) — delay is not the first arg.
             self.call_later(self._event_handler.handle, event)
@@ -978,11 +1167,30 @@ class HolixCodeApp(App):
         self._prompt_run_active = True
         self.run_worker(self._send_message(item.text))
 
+    def _show_active_prompt(self, text: str) -> None:
+        try:
+            self.query_one("#active-prompt", CodeActivePrompt).set_prompt(text)
+        except Exception:
+            pass
+
+    def _hide_active_prompt(self) -> None:
+        self._show_active_prompt("")
+
     def _on_agent_turn_finished(self, *, cancelled: bool = False) -> None:
         self._prompt_run_active = False
+        self._refresh_status_bar()
         if cancelled:
+            self._hide_active_prompt()
             self._refresh_prompt_queue()
             return
+        pending = getattr(self, "_pending_task_reports", None) or []
+        if pending:
+            text = pending.pop(0)
+            self._prompt_run_active = True
+            self.run_worker(self._send_message(text))
+            return
+        if not self._prompt_queue:
+            self._hide_active_prompt()
         self._pump_prompt_queue()
 
     def _edit_queued_prompt(self, item_id: str) -> None:
@@ -1085,11 +1293,13 @@ class HolixCodeApp(App):
             return
 
         self._last_user_message = message
-        self.transcript_write(
-            f"\n[bold]❯[/bold] {message}\n",
-            store_kind="user",
-            store_plain=message,
-        )
+        if not message.startswith("Background task `"):
+            self._show_active_prompt(message)
+            self.transcript_write(
+                f"\n[bold]❯[/bold] {message}\n",
+                store_kind="user",
+                store_plain=message,
+            )
         self._auto_scroll = True
         self.transcript_scroll_bottom()
 
@@ -1099,7 +1309,8 @@ class HolixCodeApp(App):
             self.transcript_write(f"[red]{MISSING_LLM_HINT}[/red]")
             return
 
-        self.set_status_line("thinking…")
+        self.note_work("thinking")
+        self._refresh_status_bar()
         self._first_delta_seen = False
         self._is_streaming = self.streaming_enabled
 
@@ -1382,6 +1593,16 @@ class HolixCodeApp(App):
             pass
         return False
 
+    @on(CodeTranscript.SelectionReleased)
+    def _on_transcript_selection_released(self, event: CodeTranscript.SelectionReleased) -> None:
+        """TextArea selection is real text; copy it when the mouse is released."""
+        text = (event.text or "").strip()
+        if not text or text == getattr(self, "_last_auto_copied", None):
+            return
+        if copy_text_best_effort(self, text):
+            self._last_auto_copied = text
+            self._clipboard_notify("copied")
+
     @on(TranscriptPanel.SelectionActive)
     def _on_transcript_selection_active(self) -> None:
         show_copy_bar(self)
@@ -1601,6 +1822,7 @@ class HolixCodeApp(App):
 
     def _action_stop_all(self) -> None:
         self._prompt_run_active = False
+        self._hide_active_prompt()
         stop_agent_activity_sync(self)
         self.clear_stream_display()
         self._is_streaming = False
@@ -1732,8 +1954,9 @@ class HolixCodeApp(App):
             self._recent_tool_results.pop(0)
 
     def _show_full_tool_result(self, index_from_end: int = 0) -> None:
+        self.transcript_write(f"[bold]{self.live_work_text()}[/bold]")
         if not self._recent_tool_results:
-            self.transcript_write("[yellow]no tool results yet[/yellow]")
+            self.transcript_write("[yellow]no finished tool results yet[/yellow]")
             return
         try:
             entry = self._recent_tool_results[-(index_from_end + 1)]

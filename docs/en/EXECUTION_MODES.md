@@ -133,7 +133,7 @@ The agent **writes a step-by-step plan first**, shows it for approval, then exec
 1. **Plan** — LLM produces a **development report** (8 sections: summary, stages, priorities, dependencies, risks, manual actions, estimates, stack) and numbered **execution steps**.
 2. **Clarification** (if the task is ambiguous) — the agent asks **clarifying questions** before showing the full plan for approval. Answer in chat, or reply `proceed with assumptions` to skip, or `no` to cancel. Up to 3 clarification rounds.
 3. **Review** — if `plan_review_enabled=true` (default), you approve, refine, or reject:
-   - `/plan-confirm` — run the current step
+   - `/plan confirm` — run the current step
    - `/plan-auto` — run the rest without asking per step
    - `/plan-refine` — ask to change the plan (you can add text)
    - `/plan-reject` — cancel
@@ -302,7 +302,7 @@ Plan a multi-profile deployment for three teams, then generate example .env snip
 
 | Command | Action |
 |---------|--------|
-| `/plan-confirm` | Approve and run the current step |
+| `/plan confirm` | Approve and run the current step |
 | `/plan-auto` | Run remaining steps automatically |
 | `/plan-refine` | Request plan changes (add details in the next message) |
 | `/plan-reject` | Cancel the plan |

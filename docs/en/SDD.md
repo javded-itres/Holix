@@ -122,7 +122,7 @@ repo is used.
 ```text
 /spec
 /spec init
-/spec propose <change-id>
+/spec create <change-id>
 /spec status [change-id]
 /spec mode <change-id> self|subagents|hybrid
 /spec apply <change-id>
@@ -348,4 +348,4 @@ sdd_check_task(change_id="feature-x", task_id="1.1", done=true)
 sdd_archive(change_id="feature-x")
 ```
 
-Tell the user: “Start with `/spec propose …` or skill `holix-sdd-propose`.”
+Tell the user: “Start with `/spec create …` or skill `holix-sdd-propose`.” `/spec propose` still works.

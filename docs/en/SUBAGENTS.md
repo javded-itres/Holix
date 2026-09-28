@@ -135,10 +135,10 @@ To ship a **built-in** type with Holix, add an entry to `PREDEFINED_SUBAGENTS` i
 | Command | Action |
 |---------|--------|
 | `/subagents` | List running and recent jobs |
-| `/subagent-spawn <type> <task>` | Start background worker |
-| `/subagent-result <job_id>` | Show completed response |
-| `/subagent-terminate <job_id>` | Cancel a running job |
-| `/subagent-reply <job_id> <text>` | Answer a sub-agent question (when it used `ask_user`) |
+| `/subagents spawn <type> <task>` | Start background worker. `/subagent-spawn` still works |
+| `/subagents result <job_id>` | Show completed response |
+| `/subagents stop <job_id>` | Cancel a running job |
+| `/subagents reply <job_id> <text>` | Answer a sub-agent question (when it used `ask_user`) |
 
 If `coder` is already running, Holix allocates `coder-2`, `coder-3`, …
 

@@ -4,8 +4,10 @@ from __future__ import annotations
 
 import pytest
 from cli.tui.shared.formatters import (
+    format_tool_activity,
     format_tool_args,
     format_tool_header,
+    format_tool_outcome,
     format_tool_result_preview,
     format_write_file_result_preview,
     split_write_file_result,
@@ -49,6 +51,24 @@ class TestFormatters:
         text = format_tool_args({"code": "print('secret-body')", "description": "list workspace"})
         assert "list workspace" in text
         assert "secret-body" not in text
+
+    def test_tool_activity_is_one_line(self):
+        text = format_tool_activity(
+            "run_terminal_command",
+            {"command": "ssh ai-server-local uname\nextra", "description": "SSH проверка"},
+        )
+        assert "SSH проверка" in text
+        assert "\n" not in text
+        assert "{" not in text
+
+    def test_tool_outcome_hides_dump(self):
+        chip = format_tool_outcome(
+            "run_terminal_command",
+            duration_s=40,
+            detail="timed out",
+        )
+        assert chip.startswith("✓ run_terminal_command 40s")
+        assert "timed out" in chip
 
     def test_result_preview(self):
         long = "a\n" * 200

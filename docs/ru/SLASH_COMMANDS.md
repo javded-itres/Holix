@@ -10,7 +10,7 @@
 |--------|-----|----------|--------------|
 | Сессии (`/new`, `/switch`) | Да | Да | Нет |
 | Копирование (`/copy`, `/open`) | Да | Частично | Нет |
-| План (`/plan-*`) | Да | Да | Нет |
+| План (`/plan confirm|auto|refine|reject`) | Да | Да | Нет |
 | Подтверждения (`/yes`, `/1`–`/4`) | Да | Да | Нет |
 | Hub / MCP | Да | Частично | Нет |
 | `/model`, `/skills`, `/memory` | Да | Да | Да (часть) |
@@ -39,12 +39,12 @@
 
 | Команда | Описание |
 |---------|----------|
-| `/models`, `/model` | Выбор модели. TUI: список провайдера, `r` обновить, `d` модель по умолчанию. Telegram/MAX: ↻ Список и «Нажатие: по умолчанию». `holix chat`: `/model refresh`, `/model default <провайдер> <модель>` |
+| `/models` | Выбор модели. `/model` по-прежнему работает. TUI: список провайдера, `r` обновить, `d` модель по умолчанию. Telegram/MAX: ↻ Список и «Нажатие: по умолчанию». `holix chat`: `/model refresh`, `/model default <провайдер> <модель>` |
 | `/mode` | Цикл режимов или `/mode <имя>` — см. [EXECUTION_MODES.md](EXECUTION_MODES.md) |
 | `/stream` | Стриминг; `/stream on\|off` |
 | `/stop` | Остановить агента, субагентов, ожидающие подтверждения и ревью плана (TUI, Telegram, MAX) |
 | `/process` | Список фоновых процессов (**TUI**; живые строки ещё и **сверху**) |
-| `/process-stop` | Остановить dev-сервер / долгий фоновый процесс (**TUI**) |
+| `/process stop` | Остановить dev-сервер / долгий фоновый процесс (**TUI**). `/process-stop` тоже работает |
 | `/todos` | Чеклист сессии из `todo_write` (TUI, Telegram, MAX) |
 | `/permission` | Показать или задать пресет OS-песочницы: `workspace-write`, `read-only`, `danger-full-access` |
 | `/pty` | Постоянный shell сессии: `/pty on\|off\|reset` (POSIX) |
@@ -71,7 +71,7 @@
 | Команда | Описание |
 |---------|----------|
 | `/memory <запрос>` | Семантический поиск в памяти |
-| `/memory-clear`, `/memory clear` | Сброс UI поиска |
+| `/memory clear` | Сброс UI поиска. `/memory-clear` тоже работает. Стереть память сессии — `/forget` |
 | `/last`, `/last N` | Полный вывод инструмента |
 | `/tools` | Недавние результаты tools |
 | `/trace` | Траектория сессии (tools / модель). `/trace 80` или `/trace search grep` |
@@ -104,10 +104,10 @@
 
 | Команда | Действие |
 |---------|----------|
-| `/plan-confirm` | Подтвердить шаг |
-| `/plan-auto` | Автовыполнение плана |
-| `/plan-refine` | Уточнить план |
-| `/plan-reject` | Отклонить |
+| `/plan confirm` | Подтвердить шаг. `/plan-confirm` тоже работает |
+| `/plan auto` | Автовыполнение плана |
+| `/plan refine` | Уточнить план |
+| `/plan reject` | Отклонить |
 
 ---
 
@@ -115,14 +115,7 @@
 
 | Команда | Описание |
 |---------|----------|
-| `/mcp` | Меню / список |
-| `/mcp list` | Серверы |
-| `/mcp install` | Установка |
-| `/mcp add` | Ручная настройка |
-| `/mcp assign` | Назначение агентам |
-| `/mcp test` | Проверка |
-| `/mcp tools` | Доступные tools |
-| `/mcp remove` | Удалить |
+| `/mcp` | Меню. Подкоманды: `list`, `install`, `add`, `assign`, `test`, `tools`, `remove` |
 
 CLI: `holix mcp …` — [CLI.md](CLI.md).
 
@@ -132,12 +125,9 @@ CLI: `holix mcp …` — [CLI.md](CLI.md).
 
 | Команда | Описание |
 |---------|----------|
-| `/hub` | Выбор каталога |
-| `/hub installed`, `/hub list` | Установленное |
-| `/hub browse` | Обзор и установка |
-| `/hub clawhub`, `/hub hermes`, `/hub claude` | Каталоги |
-| `/plugins`, `/marketplace` | Алиасы hub |
-| `/skills` | Подсказка: `holix skills list --agent …` |
+| `/hub` | Каталог. Подкоманды: `installed` (`list` тоже работает), `browse`, `clawhub`, `hermes`, `claude`, `skills-sh` |
+| `/plugins`, `/marketplace` | То же, что hub |
+| `/skills` | Подсказка: `holix skills list --agent …`. Ещё `pending`, `quality`, `curator` |
 
 CLI: [HUB.md](HUB.md).
 
@@ -166,13 +156,7 @@ CLI: [HUB.md](HUB.md).
 
 | Команда | Описание |
 |---------|----------|
-| `/cron` | Список задач (модал TUI / inline в Telegram) |
-| `/cron list` | То же, что `/cron` |
-| `/cron add <расписание> :: <задача>` | Добавить задачу |
-| `/cron enable <id>` | Включить |
-| `/cron disable <id>` | Выключить |
-| `/cron remove <id>` | Удалить |
-| `/cron bind <id>` | Привязать к текущей сессии чата |
+| `/cron` | Список задач (модал TUI / inline в Telegram). Подкоманды: `list`, `add <расписание> :: <задача>`, `enable`, `disable`, `remove`, `bind` |
 
 **Автосоздание (0.1.16+):** повторяющиеся запросы обычным языком (например «каждый день в 10 утра присылай новости») создают задачу без `/cron add`. CLI: `holix cron …` — [CLI.md](CLI.md#holix-cron).
 
@@ -184,13 +168,7 @@ CLI: [HUB.md](HUB.md).
 
 | Команда | Где | Описание |
 |---------|-----|----------|
-| `/subagent-types`, `/code-mode` | TUI, Telegram, MAX | Менеджер типов + Code mode (`native` / `code` / `both`) |
-| `/subagent-types list` | TUI | Список типов в чате |
-| `/subagent-spawn [--fork] <тип> <задача>` | TUI, CLI | Запустить воркер. `--fork` копирует завершённые ходы родителя |
-| `/subagents` | TUI, Telegram, MAX | Живые джобы |
-| `/subagent-result <job>` | TUI | Готовый ответ |
-| `/subagent-terminate <job>` | TUI | Отменить джоб |
-| `/subagent-reply <job> <текст>` | TUI, Telegram, MAX | Ответ на `ask_user` |
+| `/subagents` | TUI, Telegram, MAX | Живые джобы. Подкоманды: `types`, `spawn [--fork] <тип> <задача>`, `result <job>`, `stop <job>`, `reply <job> <текст>`. Старые `/subagent-spawn`, `/subagent-terminate`, `/subagent-types` тоже работают |
 
 В TUI, пока агент занят, обычная строка чата ставится в очередь (эти слэши — нет). См. [TUI.md](TUI.md#очередь-промптов).
 

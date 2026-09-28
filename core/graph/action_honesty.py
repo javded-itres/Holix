@@ -246,10 +246,10 @@ MONOLOGUE_TOOL_NUDGE = (
 # After tools already ran: the model still only announces the next file it will write.
 UNFINISHED_STEP_NUDGE = (
     "[Action honesty — unfinished] Your last message only announces the next work "
-    '("Let me start with…", «Начну с…», «сейчас создам все файлы») '
+    '("Let me start with…", «Начну с…», «Проверю лог…», «сейчас посмотрю») '
     "and is not a finished result. That must not close the step. "
-    "Continue with tools now: write or patch the remaining files, run tests, "
-    "then report what actually exists on disk. "
+    "Call the tool for that intention now (run_terminal_command, read_file, "
+    "write_file, or another real tool). Then answer from the tool result. "
     "Do not end the turn with a plan of what you will do next."
 )
 
@@ -1050,6 +1050,33 @@ _UNFINISHED_ANNOUNCE = re.compile(
 )
 
 
+# Last sentence only: a future-tense promise, not a finished report.
+_NEXT_STEP_PROMISE = re.compile(
+    r"(?is)^(?:сейчас\s+|я\s+|then\s+)?"
+    r"("
+    r"проверю|посмотрю|гляну|открою|перезапущу|зайду|почитаю|сниму|сверю"
+    r"|i(?:'ll|\s+will)\s+(?:check|look|inspect|read|restart|open)"
+    r"|let me\s+(?:check|look|inspect|read|restart|open)"
+    r")\b"
+)
+
+
+def ends_with_next_step_promise(text: str | None) -> bool:
+    """True when the reply ends by announcing work it has not done yet.
+
+    «Оба запроса вернули 401. Проверю лог.» must stay open. A report that
+    ends with the result («Проверю лог. Ключ не подошёл.») must not.
+    """
+    content = (text or "").strip()
+    if not content or len(content) > 1200:
+        return False
+    parts = re.split(r"(?<=[.!?…])\s+", content)
+    last = (parts[-1] if parts else content).strip()
+    if not last:
+        return False
+    return bool(_NEXT_STEP_PROMISE.match(last))
+
+
 def looks_like_unfinished_work_announcement(text: str | None) -> bool:
     """True when the reply only announces the next write, not a finished step.
 
@@ -1415,6 +1442,9 @@ def should_nudge_false_completion(
         return True
     if looks_like_unfinished_work_announcement(final_response):
         return True
+    # Tools may already have run; a trailing «Проверю…» is still not a result.
+    if ends_with_next_step_promise(final_response):
+        return True
     return ends_turn_on_unexecuted_intent(
         final_response,
         messages,
@@ -1560,7 +1590,9 @@ def honesty_retry_update(
         nudge = SDD_FILL_HONESTY_NUDGE
     elif denies_visible_workspace(final_response, updated):
         nudge = WORKSPACE_GROUNDING_NUDGE
-    elif looks_like_unfinished_work_announcement(final_response):
+    elif looks_like_unfinished_work_announcement(final_response) or ends_with_next_step_promise(
+        final_response
+    ):
         nudge = UNFINISHED_STEP_NUDGE
     elif (
         is_truncation_notice(final_response)

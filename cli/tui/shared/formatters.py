@@ -7,16 +7,20 @@ adds TUI-only helpers (diff render).
 from __future__ import annotations
 
 from core.presenters.tool_format import (
+    format_tool_activity,
     format_tool_args,
     format_tool_header,
+    format_tool_outcome,
     format_tool_result_preview,
     truncate_text,
 )
 from core.tools.file_diff import DIFF_SEPARATOR
 
 __all__ = [
+    "format_tool_activity",
     "format_tool_args",
     "format_tool_header",
+    "format_tool_outcome",
     "format_tool_result_preview",
     "format_write_file_diff_display",
     "format_write_file_result_preview",

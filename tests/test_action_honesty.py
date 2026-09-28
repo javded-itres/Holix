@@ -15,6 +15,7 @@ from core.graph.action_honesty import (
     claims_sdd_artifacts_filled,
     denies_visible_workspace,
     ends_turn_on_unexecuted_intent,
+    ends_with_next_step_promise,
     has_successful_workspace_listing,
     honesty_refusal_update,
     honesty_retry_update,
@@ -962,3 +963,52 @@ def test_empty_result_phrase_and_hard_refusal() -> None:
     text = workspace_grounding_refusal_text(messages)
     assert "it-resources-site" in text
     assert "openspec" in text
+
+
+def test_trailing_check_promise_stays_open_after_tools() -> None:
+    messages = [
+        {"role": "user", "content": "/Проверь что ключ работает"},
+        {
+            "role": "assistant",
+            "content": "",
+            "tool_calls": [
+                {
+                    "id": "c1",
+                    "type": "function",
+                    "function": {"name": "run_terminal_command", "arguments": "{}"},
+                }
+            ],
+        },
+        {
+            "role": "tool",
+            "tool_call_id": "c1",
+            "name": "run_terminal_command",
+            "content": "Success (exit code 0): 401",
+        },
+    ]
+    promise = (
+        "Оба запроса возвращают 401 — ключ не проходит. "
+        "Проверю лог сервиса и содержимое keys.yaml на сервере."
+    )
+    done = "Оба запроса возвращают 401. Ключ в keys.yaml не совпадает с запросом."
+    assert ends_with_next_step_promise(promise)
+    assert not ends_with_next_step_promise(done)
+    assert should_nudge_false_completion(
+        {"honesty_nudge_count": 0},
+        final_response=promise,
+        messages=messages,
+    )
+    assert not should_nudge_false_completion(
+        {"honesty_nudge_count": 0},
+        final_response=done,
+        messages=messages,
+    )
+    out = honesty_retry_update(
+        messages=messages,
+        step_count=2,
+        final_response=promise,
+        honesty_nudge_count=0,
+        user_input="/Проверь что ключ работает",
+    )
+    assert out["is_final"] is False
+    assert out["messages"][-1]["content"] == UNFINISHED_STEP_NUDGE

@@ -10,8 +10,8 @@ Source of truth for TUI/Telegram: `cli/shared/commands/registry.py` and `cli/sha
 |---------------|-----|----------|----------------|
 | Session (`/new`, `/sessions`, `/switch`) | Yes | Yes | No |
 | Copy / transcript (`/copy`, `/open`) | Yes | Limited | No |
-| Plan review (`/plan-*`) | Yes | Yes | No |
-| Confirm prompts (`/yes`, `/1`–`/4`) | Yes | Yes | No |
+| Plan review (`/plan confirm|auto|refine|reject`) | Yes | Yes | No |
+| Confirm prompts (`/yes`, `/no`; `/1`–`/4` still work) | Yes | Yes | No |
 | Hub / MCP menus | Yes | Partial | No |
 | `/model`, `/skills`, `/memory` | Yes | Yes | Yes (subset) |
 | `/compress` | Yes | Yes | Yes |
@@ -39,12 +39,11 @@ On Russian macOS layout, `,help` and `.help` are normalized to `/help`. Type `/`
 
 | Command | Description |
 |---------|-------------|
-| `/models`, `/model` | Pick a model. TUI: provider list, `r` refresh, `d` set default. Telegram/MAX: ↻ Список and «Нажатие: по умолчанию». `holix chat`: `/model refresh`, `/model default <provider> <model>` |
+| `/models` | Pick a model. `/model` still works. TUI: provider list, `r` refresh, `d` set default. Telegram/MAX: ↻ Список and «Нажатие: по умолчанию». `holix chat`: `/model refresh`, `/model default <provider> <model>` |
 | `/mode` | Cycle execution mode, or `/mode <name>` if valid — see [EXECUTION_MODES.md](EXECUTION_MODES.md) |
 | `/stream` | Toggle streaming; `/stream on\|off` |
 | `/stop` | Cancel running agent, sub-agents, pending confirmations, and plan reviews (TUI, Telegram, MAX) |
-| `/process` | List background processes (**TUI**; live rows are also on the **top** bar) |
-| `/process-stop` | Stop a background dev server / long-running process (**TUI**) |
+| `/process` | List background processes (**TUI**; live rows are also on the **top** bar). `/process stop` halts one. `/process-stop` still works |
 | `/todos` | Show the session checklist from `todo_write` (TUI, Telegram, MAX) |
 | `/permission` | Show or set the session OS-sandbox preset: `workspace-write`, `read-only`, `danger-full-access` |
 | `/pty` | Persistent shell for this session: `/pty on\|off\|reset` (POSIX) |
@@ -71,8 +70,7 @@ On Russian macOS layout, `,help` and `.help` are normalized to `/help`. Type `/`
 | Command | Description |
 |---------|-------------|
 | `/memory <query>` | Semantic search in agent memory |
-| `/memory-clear` | Clear memory search UI state |
-| `/memory clear` | Same as `/memory-clear` |
+| `/memory clear` | Clear memory search UI state. `/memory-clear` and `/memory wipe` still work; wiping stored memory is `/forget` |
 | `/last` | Full output of last tool |
 | `/last N` | Full output of tool *N* back in history |
 | `/tools` | List recent tool results |
@@ -97,10 +95,10 @@ When the agent asks to confirm a risky tool:
 
 | Command | Meaning |
 |---------|---------|
-| `/yes`, `/1` | Allow once |
-| `/2` | Allow for this session |
-| `/3` | Allow always |
-| `/no`, `/4` | Deny |
+| `/yes` | Allow once. `/1` still works |
+| `/2` | Allow for this session (not listed in the menu) |
+| `/3` | Allow always (not listed in the menu) |
+| `/no` | Deny. `/4` still works |
 
 ---
 
@@ -110,10 +108,10 @@ When a plan step requires approval:
 
 | Command | Action |
 |---------|--------|
-| `/plan-confirm` | Confirm current step |
-| `/plan-auto` | Auto-execute remaining plan |
-| `/plan-refine` | Ask to refine plan |
-| `/plan-reject` | Reject plan |
+| `/plan confirm` | Confirm current step. `/plan-confirm` still works |
+| `/plan auto` | Auto-execute remaining plan |
+| `/plan refine` | Ask to refine plan |
+| `/plan reject` | Reject plan |
 
 ---
 
@@ -121,14 +119,7 @@ When a plan step requires approval:
 
 | Command | Description |
 |---------|-------------|
-| `/mcp` | MCP menu / list |
-| `/mcp list` | List configured servers |
-| `/mcp install` | Install popular MCP or from git URL |
-| `/mcp add` | Manual server config |
-| `/mcp assign` | Assign servers to agents |
-| `/mcp test <name>` | Test connection |
-| `/mcp tools` | List available MCP tools now |
-| `/mcp remove <name>` | Remove server config |
+| `/mcp` | Menu. Subcommands: `list`, `install`, `add`, `assign`, `test <name>`, `tools`, `remove <name>` |
 
 CLI equivalent: `holix mcp …` — see [CLI.md](CLI.md#mcp).
 
@@ -138,15 +129,9 @@ CLI equivalent: `holix mcp …` — see [CLI.md](CLI.md#mcp).
 
 | Command | Description |
 |---------|-------------|
-| `/hub` | Pick catalog (ClawHub, Hermes, Claude, …) |
-| `/hub installed`, `/hub list` | Installed hub skills, plugins, MCP |
-| `/hub browse` | Browse and install |
-| `/hub clawhub` | Open ClawHub catalog |
-| `/hub hermes` | Open HermesHub |
-| `/hub claude` | Claude official plugins |
-| `/hub skills-sh` | skills.sh (query in browser) |
-| `/plugins`, `/marketplace` | Alias for hub flow |
-| `/skills` | Hint: `holix skills list --agent <role>` |
+| `/hub` | Catalog picker. Subcommands: `installed` (`list` still works), `browse`, `clawhub`, `hermes`, `claude`, `skills-sh` |
+| `/plugins`, `/marketplace` | Alias for the hub flow |
+| `/skills` | Hint: `holix skills list --agent <role>`. Also `pending`, `quality`, `curator` |
 
 CLI equivalent: `holix hub …` — see [HUB.md](HUB.md).
 
@@ -191,13 +176,7 @@ Gateway must be running. Full guide: [CRON.md](CRON.md).
 
 | Command | Description |
 |---------|-------------|
-| `/cron` | List jobs (TUI modal / Telegram inline menu) |
-| `/cron list` | Same as `/cron` |
-| `/cron add <schedule> :: <task>` | Add job |
-| `/cron enable <id>` | Enable job |
-| `/cron disable <id>` | Disable job |
-| `/cron remove <id>` | Delete job |
-| `/cron bind <id>` | Bind job to current chat session |
+| `/cron` | List jobs (TUI modal / Telegram inline menu). Subcommands: `list`, `add <schedule> :: <task>`, `enable <id>`, `disable <id>`, `remove <id>`, `bind <id>` |
 
 **Auto-create (0.1.16+):** recurring requests in natural language (e.g. «every day at 10 am send news») create a job without `/cron add`. CLI: `holix cron …` — [CLI.md](CLI.md#holix-cron).
 
@@ -209,13 +188,7 @@ Full guide: [SUBAGENTS.md](SUBAGENTS.md). Code mode: [CODE_MODE.md](CODE_MODE.md
 
 | Command | Where | Description |
 |---------|-------|-------------|
-| `/subagent-types`, `/code-mode` | TUI, Telegram, MAX | Type manager + Code mode (`native` / `code` / `both`) |
-| `/subagent-types list` | TUI | List types in chat |
-| `/subagent-spawn [--fork] <type> <task>` | TUI, CLI | Start a worker. `--fork` copies completed parent turns |
-| `/subagents` | TUI, Telegram, MAX | Live jobs |
-| `/subagent-result <job>` | TUI | Completed response |
-| `/subagent-terminate <job>` | TUI | Cancel a job |
-| `/subagent-reply <job> <text>` | TUI, Telegram, MAX | Answer `ask_user` |
+| `/subagents` | TUI, Telegram, MAX | Live jobs. Subcommands: `types`, `spawn [--fork] <type> <task>`, `result <job>`, `stop <job>`, `reply <job> <text>`. Older `/subagent-spawn`, `/subagent-terminate`, `/subagent-types` still work |
 
 In TUI, while the agent is busy, a **plain** chat line is queued (not these slash commands). See [TUI.md](TUI.md#prompt-queue).
 

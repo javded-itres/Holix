@@ -1,3 +1,4 @@
+from cli.tui.code.widgets.active_prompt import CodeActivePrompt
 from cli.tui.code.widgets.context_bar import CodeContextBar
 from cli.tui.code.widgets.copy_selection_bar import CopySelectionBar
 from cli.tui.code.widgets.process_bar import CodeProcessBar
@@ -10,6 +11,7 @@ from cli.tui.code.widgets.stream_line import CodeStreamLine
 from cli.tui.code.widgets.todo_list import CodeTodoList
 from cli.tui.code.widgets.transcript import CodeTranscript
 from cli.tui.code.widgets.transcript_panel import TranscriptPanel
+from cli.tui.code.widgets.work_line import CodeWorkLine
 
 __all__ = [
     "CodeTranscript",
@@ -21,7 +23,9 @@ __all__ = [
     "PromptHistorySuggestions",
     "PromptQueue",
     "QueuedPrompt",
+    "CodeActivePrompt",
     "CodeStreamLine",
+    "CodeWorkLine",
     "CopySelectionBar",
     "SlashCommandSuggestions",
     "TranscriptPanel",

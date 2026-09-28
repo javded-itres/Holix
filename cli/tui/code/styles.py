@@ -6,6 +6,20 @@ Screen {
     background: $surface;
 }
 
+#active-prompt {
+    display: none;
+    height: auto;
+    max-height: 3;
+    padding: 0 1;
+    background: $accent 16%;
+    color: $text;
+    text-style: bold;
+}
+
+#active-prompt.visible {
+    display: block;
+}
+
 #process-bar {
     display: none;
     height: auto;
@@ -58,6 +72,11 @@ Screen {
     border: none;
     padding: 0 1;
     scrollbar-gutter: stable;
+    background: $surface;
+}
+
+#transcript:focus {
+    border: none;
 }
 
 #thinking-line {
@@ -65,6 +84,19 @@ Screen {
     padding: 0 1;
     color: $text-muted;
     text-style: dim;
+}
+
+#work-line {
+    display: none;
+    height: auto;
+    max-height: 6;
+    padding: 0 1;
+    background: $warning 12%;
+    color: $text;
+}
+
+#work-line.visible {
+    display: block;
 }
 
 #stream-line {

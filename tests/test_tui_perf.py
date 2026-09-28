@@ -113,6 +113,15 @@ class FakeApp:
     def set_status_line(self, text: str) -> None:
         self.status_lines.append(text)
 
+    def _refresh_status_bar(self) -> None:
+        pass
+
+    def note_work(self, detail: str) -> None:
+        pass
+
+    def sync_work_line(self) -> None:
+        pass
+
     def _schedule_scroll_hint_update(self, **kwargs) -> None:
         self.scroll_hint_scheduled += 1
 
@@ -185,8 +194,8 @@ class TestBackgroundProcessEvents:
         )
         assert app.process_bar_syncs >= 1
         joined = " ".join(str(w) for w in app.writes)
-        assert "/process-stop" in joined
-        assert "/tmp/proc.log" in joined
+        assert "uvicorn" in joined
+        assert "8000" in joined
 
     def test_error_resyncs_bar_and_writes_hint(self):
         app = FakeApp()

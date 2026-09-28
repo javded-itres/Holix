@@ -62,6 +62,7 @@ Session starts with a **probe** (`PONG`). If unreachable → skip (or fail when 
 | Code / hybrid | 50–55 | explain, bugfix, hybrid, logs, math, Dockerfile |
 | Coding-agent tools | 60–68 | `tool_search`, `apply_patch`, `ask_user`, `plan_mode`, `job_monitor`, `subagent_control`, `session_search`, `notebook_edit`, `lsp` |
 | Lazy tools | 69–71 | core-only schema; `tool_search` enable_matches then `session_search` / `notebook_edit` |
+| Background tasks | 72 | `run_terminal_command` `background=true`; same agent reports the output |
 
 ## Notes
 

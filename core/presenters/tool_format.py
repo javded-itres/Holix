@@ -71,3 +71,40 @@ def format_tool_header(
 
 def format_tool_result_preview(result: str, *, max_len: int = 400) -> str:
     return truncate_text(result or "", max_len)
+
+
+def format_tool_activity(tool_name: str, arguments: Any) -> str:
+    """One functional phrase for the live status line. No JSON dumps."""
+    name = (tool_name or "tool").strip() or "tool"
+    if not isinstance(arguments, dict):
+        return name
+    if name in {"run_terminal_command", "terminal", "execute_terminal_command"}:
+        cmd = str(arguments.get("command") or "").strip().splitlines()
+        label = str(arguments.get("description") or "").strip()
+        shown = label or (cmd[0] if cmd else "terminal")
+        if arguments.get("background") in (True, "true", "True", 1):
+            return truncate_text(f"background · {shown}", 78)
+        return truncate_text(shown, 78)
+    for key in ("description", "path", "query", "url", "pattern", "task_id", "name"):
+        value = arguments.get(key)
+        if isinstance(value, str) and value.strip():
+            return truncate_text(f"{name} · {value.strip().splitlines()[0]}", 78)
+    return name
+
+
+def format_tool_outcome(
+    tool_name: str,
+    *,
+    error: bool = False,
+    duration_s: float | None = None,
+    detail: str = "",
+) -> str:
+    """Single transcript chip. Detail is one short clause, not a dump."""
+    name = (tool_name or "tool").strip() or "tool"
+    mark = "✗" if error else "✓"
+    dur = f" {duration_s:.0f}s" if duration_s else ""
+    extra = ""
+    clause = " ".join((detail or "").split())
+    if clause:
+        extra = " · " + truncate_text(clause, 72)
+    return f"{mark} {name}{dur}{extra}"

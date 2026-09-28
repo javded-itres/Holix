@@ -206,16 +206,16 @@ class AgentCommands:
             elif lower in ("/no", "/4"):
                 h._resolve_confirmation(ConfirmationChoice.DENY)
 
-            elif lower == "/plan-confirm":
+            elif lower in ("/plan-confirm", "/plan confirm"):
                 h._resolve_plan_review(PlanReviewChoice.CONFIRM_STEP)
 
-            elif lower == "/plan-auto":
+            elif lower in ("/plan-auto", "/plan auto"):
                 h._resolve_plan_review(PlanReviewChoice.AUTO_EXECUTE)
 
-            elif lower == "/plan-refine":
+            elif lower in ("/plan-refine", "/plan refine"):
                 h._resolve_plan_review(PlanReviewChoice.REFINE)
 
-            elif lower == "/plan-reject":
+            elif lower in ("/plan-reject", "/plan reject"):
                 h._resolve_plan_review(PlanReviewChoice.REJECT)
 
             elif lower.startswith("/mcp"):

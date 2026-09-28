@@ -47,6 +47,7 @@ RESERVED_SLASH_NAMES: frozenset[str] = frozenset(
         "2",
         "3",
         "4",
+        "plan",
         "plan-confirm",
         "plan-auto",
         "plan-refine",

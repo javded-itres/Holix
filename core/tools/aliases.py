@@ -116,6 +116,11 @@ TOOL_ALIASES: dict[str, str] = {
     "kill_process": "stop_background_process",
     "restart_process": "restart_background_process",
     "check_process": "check_background_process",
+    "list_tasks": "list_agent_tasks",
+    "list_agent_task": "list_agent_tasks",
+    "background_tasks": "list_agent_tasks",
+    "stop_task": "stop_agent_task",
+    "kill_task": "stop_agent_task",
     # Files
     "cat": "read_file",
     "open_file": "read_file",

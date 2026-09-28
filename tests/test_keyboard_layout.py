@@ -89,8 +89,8 @@ def test_apple_terminal_startup_hint(darwin, monkeypatch):
     monkeypatch.setenv("TERM_PROGRAM", "Apple_Terminal")
     hint = kl.terminal_copy_hint()
     assert hint is not None
-    assert "F2" in hint
-    assert "⌃C" in hint
+    assert "выделите" in hint
+    assert "F2" not in hint
 
 
 def test_macos_quit_uses_ctrl_q(darwin):

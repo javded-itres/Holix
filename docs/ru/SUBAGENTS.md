@@ -134,10 +134,10 @@ Skills, MCP и external CLI остаются в TUI — в клавиатуру 
 | Команда | Действие |
 |---------|----------|
 | `/subagents` | Список активных и недавних job |
-| `/subagent-spawn <тип> <задача>` | Запуск в фоне |
-| `/subagent-result <job_id>` | Ответ завершённого воркера |
-| `/subagent-terminate <job_id>` | Остановить |
-| `/subagent-reply <job_id> <текст>` | Ответ субагенту (после `ask_user`) |
+| `/subagents spawn <тип> <задача>` | Запуск в фоне. `/subagent-spawn` тоже работает |
+| `/subagents result <job_id>` | Ответ завершённого воркера |
+| `/subagents stop <job_id>` | Остановить |
+| `/subagents reply <job_id> <текст>` | Ответ субагенту (после `ask_user`) |
 
 Если `coder` уже занят — появятся `coder-2`, `coder-3`, …
 

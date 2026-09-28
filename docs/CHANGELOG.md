@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Changed
+
+- **Slash menu** — the TUI command list is one row per family (`/mcp`, `/hub`, `/spec`, `/cron`, `/launch`, `/skills`, `/subagents`, `/plan`, `/process`, `/copy`). Subcommands stay on the same command. Old names still run: `/model`, `/process-stop`, `/memory-clear`, `/plan-confirm`, `/subagent-spawn`, `/hub list`, `/spec propose`, `/1`–`/4`.
+
 ## 1.1.12 — 2026-09-25
 
 ### Added

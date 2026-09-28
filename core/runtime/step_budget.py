@@ -68,6 +68,14 @@ DEFAULT_HARD_CAP = 0  # 0 → derive from base max_steps + extend_by * max_exten
 DEFAULT_LOOKBACK = 6
 
 # Whole-token / line failures — not "TimeoutError:" inside a source dump.
+_SEARCH_FAILURE_RE = re.compile(
+    r"no results found|"
+    r"duckduckgo http|"
+    r"http\s*/?\s*(?:40[0138]|410|429|5\d\d)\b|"
+    r"status(?:\s+code)?\s*[:=]?\s*(?:40[0138]|410|429|5\d\d)\b|"
+    r"rate limit|captcha|search blocked"
+)
+
 _ERROR_TOKEN_RE = re.compile(
     r"(?i)(?:^|[\s])(?:error|exception|failed|failure)\s*:|"
     r"traceback \(most recent call last\)|"
@@ -218,6 +226,10 @@ def _looks_like_progress(text: str) -> bool:
     if len(low) < 8:
         return False
     if _looks_like_error(low):
+        return False
+    # Search/fetch failures must not extend the step budget. "No results found"
+    # contains the progress marker "found".
+    if _SEARCH_FAILURE_RE.search(low):
         return False
     # Identical rewrite is not progress even though the summary says "Updated".
     if "no content changes" in low:

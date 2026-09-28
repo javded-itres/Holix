@@ -64,10 +64,10 @@ Long-running work (dev server, bot, watch) belongs in `start_background_process`
 |--------|-----|
 | View log | Click the **top** process row |
 | List | `/process` or `/process list` |
-| Stop a server | `/process-stop` |
+| Stop a server | `/process stop` |
 | Stop the agent only | `/stop` — does **not** kill servers |
 
-If a listed process **dies on its own**, TUI injects a notice and runs (or queues) a turn so the agent can check the log. `/process-stop` does not auto-wake. At most three automatic wakes until you send a real prompt.
+If a listed process **dies on its own**, TUI injects a notice and runs (or queues) a turn so the agent can check the log. `/process stop` does not auto-wake. At most three automatic wakes until you send a real prompt.
 
 Cwd follows `working_directory` → workspace jail → profile workspace. Venv is on `PATH`; `PYTHONUNBUFFERED=1`.
 

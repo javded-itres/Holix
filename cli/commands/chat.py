@@ -63,6 +63,8 @@ class ChatSession:
 
         # Streaming mode toggle
         self.streaming_enabled: bool = False
+        self._run_lock = asyncio.Lock()
+        self._agent_task_listener = None
 
         # Create prompt session with history
         history_file = HOLIX_HOME / "logs" / f"history_{profile}.txt"
@@ -215,6 +217,73 @@ class ChatSession:
 
             # Attach event history recorder (for /debug events)
             self._attach_event_history_recorder()
+            self._bind_agent_task_wake()
+
+    def _bind_agent_task_wake(self) -> None:
+        if self._agent_task_listener is not None:
+            return
+        from core.runtime.agent_tasks import register_agent_task_listener
+
+        def _on_task(task: object) -> None:
+            if getattr(task, "conversation_id", "") != self.conversation_id:
+                return
+            if getattr(task, "profile", "") not in ("", self.profile):
+                return
+            try:
+                loop = asyncio.get_running_loop()
+            except RuntimeError:
+                return
+            loop.create_task(self._report_background_task(task))
+
+        self._agent_task_listener = _on_task
+        register_agent_task_listener(_on_task)
+
+    async def _report_background_task(self, task: object) -> None:
+        from core.runtime.agent_tasks import format_agent_task_wakeup
+
+        text = format_agent_task_wakeup(task)  # type: ignore[arg-type]
+        label = getattr(task, "description", "") or getattr(task, "task_id", "task")
+        code = getattr(task, "exit_code", None)
+        print_info(f"Background task finished: {label} (exit {code})")
+        async with self._run_lock:
+            await self._run_agent_turn(text)
+
+    async def _run_agent_turn(self, user_input: str) -> None:
+        if not self.agent:
+            return
+        with create_spinner() as progress:
+            self._progress = progress
+            self._spinner_task = progress.add_task("Holix is thinking...", total=None)
+            try:
+                if self.streaming_enabled:
+                    from core.agent_events import AssistantDeltaEvent, FinalResponseEvent
+                    from core.runtime.executor import run_holix
+
+                    full_response = ""
+                    async for event in run_holix(
+                        self.agent,
+                        user_input,
+                        self.conversation_id,
+                        stream=True,
+                    ):
+                        self.agent.emit(event)
+                        if isinstance(event, AssistantDeltaEvent):
+                            full_response += event.content
+                            console.print(event.content, end="", highlight=False)
+                        elif isinstance(event, FinalResponseEvent):
+                            console.print()
+                    response = full_response or "No response generated"
+                else:
+                    response = await self.agent.run(
+                        user_input=user_input,
+                        conversation_id=self.conversation_id,
+                    )
+            finally:
+                progress.remove_task(self._spinner_task)
+                self._spinner_task = None
+                self._progress = None
+        if not self.streaming_enabled:
+            print_assistant_message(response, markdown=True)
 
     def _attach_event_history_recorder(self):
         """Attach a handler that records all events for /debug events command."""
@@ -730,47 +799,8 @@ class ChatSession:
                 # Print user message
                 print_user_message(user_input)
 
-                # Run agent with spinner whose description is updated live by events
-                with create_spinner() as progress:
-                    self._progress = progress
-                    self._spinner_task = progress.add_task("Holix is thinking...", total=None)
-
-                    try:
-                        if self.streaming_enabled:
-                            # Streaming path - use unified generator directly
-                            from core.agent_events import AssistantDeltaEvent, FinalResponseEvent
-                            from core.runtime.executor import run_holix
-
-                            full_response = ""
-                            async for event in run_holix(
-                                self.agent,
-                                user_input,
-                                self.conversation_id,
-                                stream=True,
-                            ):
-                                self.agent.emit(event)  # still feed other handlers
-
-                                if isinstance(event, AssistantDeltaEvent):
-                                    full_response += event.content
-                                    # Print delta live (simple approach)
-                                    console.print(event.content, end="", highlight=False)
-                                elif isinstance(event, FinalResponseEvent):
-                                    console.print()  # newline after streaming
-
-                            response = full_response or "No response generated"
-                        else:
-                            # Classic non-streaming path
-                            response = await self.agent.run(
-                                user_input=user_input, conversation_id=self.conversation_id
-                            )
-                    finally:
-                        progress.remove_task(self._spinner_task)
-                        self._spinner_task = None
-                        self._progress = None
-
-                # Print assistant response (for non-streaming or if needed)
-                if not self.streaming_enabled:
-                    print_assistant_message(response, markdown=True)
+                async with self._run_lock:
+                    await self._run_agent_turn(user_input)
 
             except KeyboardInterrupt:
                 console.print("\n")

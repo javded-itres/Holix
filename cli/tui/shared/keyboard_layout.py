@@ -55,11 +55,10 @@ def primary_copy_shortcut_label() -> str:
 
 
 def terminal_copy_hint() -> str | None:
-    """One-line hint for copy workflow (F2 viewer vs selection in chat)."""
-    label = primary_copy_shortcut_label()
+    """One-line hint: drag-select in the chat copies immediately."""
     if is_macos():
-        return f"Копирование: F2 /open — в окне {label}; в чате — выделение + Copy"
-    return f"Copy: F2 /open — {label} works in the copy window only"
+        return "Копирование: выделите текст в чате мышью — он сразу в буфере"
+    return "Copy: drag-select text in the chat — it is copied when you release"
 
 
 def transcript_viewer_bindings() -> list[Binding]:
@@ -126,7 +125,9 @@ def code_tui_bindings() -> list[Binding]:
                 Binding("ctrl+up", "scroll_up", "Up", show=True, id="scroll_up"),
                 Binding("ctrl+down", "scroll_down", "Down", show=True, id="scroll_down"),
                 Binding("ctrl+pageup", "scroll_page_up", "PgUp", show=True, id="scroll_page_up"),
-                Binding("ctrl+pagedown", "scroll_page_down", "PgDn", show=True, id="scroll_page_down"),
+                Binding(
+                    "ctrl+pagedown", "scroll_page_down", "PgDn", show=True, id="scroll_page_down"
+                ),
                 Binding("ctrl+home", "scroll_top", "Top", show=True, id="scroll_top"),
                 Binding("ctrl+u", "scroll_half_up", show=False, id="scroll_half_up"),
                 Binding("ctrl+d", "scroll_half_down", show=False, id="scroll_half_down"),

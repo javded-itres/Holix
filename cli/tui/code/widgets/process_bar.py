@@ -14,7 +14,7 @@ def process_bar_row_markup(label: str) -> str:
     """Rich markup for one live process row (compound tags must close in order)."""
     safe = escape_for_markup(label)
     return (
-        f"[green]🟢[/green] {safe}  [dim][underline]· click log · /process-stop[/underline][/dim]"
+        f"[green]🟢[/green] {safe}  [dim][underline]· click log · /process stop[/underline][/dim]"
     )
 
 
