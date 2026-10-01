@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+## 1.1.14 — 2026-10-01
+
+### Fixed
+
+- **Background bots** — agreeing to start a bot no longer ends the turn after a background install. `/bin/sh` rewrites a command-word `source` to `.`. `python telegram_channel_publisher.py` and `--run-bot` are refused in `run_terminal_command` and must go through `start_background_process`. The turn stays open until that process has started.
+
+### Tests
+
+- POSIX `source` rewrite, publisher launch detection, and the honesty nudge after «да».
+
 ## 1.1.13 — 2026-10-01
 
 ### Added
