@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 1.1.13 — 2026-10-01
+
 ### Added
 
 - **How to work** — `/help` has a guide with examples: what the agent can do, how to write a task, what to do when the context fills up, and how to ask it to diagnose a failed run. Telegram and MAX buttons still edit the same message.
@@ -13,6 +15,20 @@
 - **Help menu** — Telegram and MAX `/help` buttons edit the same message instead of sending a new one. `/help` itself still opens a new message.
 - **Slash menu** — the TUI command list is one row per family (`/mcp`, `/hub`, `/spec`, `/cron`, `/launch`, `/skills`, `/subagents`, `/plan`, `/process`, `/copy`). Subcommands stay on the same command. Old names still run: `/model`, `/process-stop`, `/memory-clear`, `/plan-confirm`, `/subagent-spawn`, `/hub list`, `/spec propose`, `/1`–`/4`.
 - **Image and video models** — `generate_image` / `generate_video` pick a text-only or reference model from the prompt, each provider's `note`, and `accepts_reference`. Leave `provider` empty and pass `references` when the user attached a picture or asked to change one. See `docs/en/TOOLS.md` and `docs/ru/TOOLS.md`.
+- **TUI** — the live prompt and current work stay visible, Markdown renders while a selection still copies as plain text, and startup asks whether to resume the last session.
+- **Background tasks** — a background command stays with the same agent. A trailing “I'll check” no longer ends the turn without a tool call.
+- **holix-media** — ships with Holix and stays idle until a provider is configured.
+- **Studio** — the agent no longer writes Studio cron notifications. Studio owns that when it starts.
+
+### Fixed
+
+- **Model switch** — the open chat is sent to the newly selected model. The existing context stays.
+
+### Tests
+
+- Session document index, sub-agent document cards, and memory review (including `keep_days`).
+- Help guide, in-place Telegram/MAX help edits, TUI media links, and media model selection.
+- Background tasks, action honesty, and the default TUI entry.
 
 ## 1.1.12 — 2026-09-25
 

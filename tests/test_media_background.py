@@ -18,7 +18,9 @@ def _clear_tasks():
 
 
 @pytest.mark.asyncio
-async def test_generate_video_returns_while_the_job_is_still_running(monkeypatch) -> None:
+async def test_generate_video_returns_while_the_job_is_still_running(
+    monkeypatch, tmp_path: Path
+) -> None:
     gate = asyncio.Event()
 
     async def _slow(*_args, **_kwargs):
@@ -28,7 +30,7 @@ async def test_generate_video_returns_while_the_job_is_still_running(monkeypatch
     monkeypatch.setattr("holix_media.tools.generate_video", _slow)
     monkeypatch.setattr(
         "holix_media.tools.save_blob",
-        lambda blob, agent=None, subdir="media": Path("/tmp/clip.mp4"),
+        lambda blob, agent=None, subdir="media": tmp_path / "clip.mp4",
     )
     cfg = MediaConfig(
         enabled=True,
@@ -66,7 +68,7 @@ async def test_generate_video_returns_while_the_job_is_still_running(monkeypatch
 
 
 @pytest.mark.asyncio
-async def test_same_prompt_is_not_generated_twice(monkeypatch) -> None:
+async def test_same_prompt_is_not_generated_twice(monkeypatch, tmp_path: Path) -> None:
     gate = asyncio.Event()
 
     async def _slow(*_args, **_kwargs):
@@ -76,7 +78,7 @@ async def test_same_prompt_is_not_generated_twice(monkeypatch) -> None:
     monkeypatch.setattr("holix_media.tools.generate_image", _slow)
     monkeypatch.setattr(
         "holix_media.tools.save_blob",
-        lambda blob, agent=None, subdir="media": Path("/tmp/pic.png"),
+        lambda blob, agent=None, subdir="media": tmp_path / "pic.png",
     )
     cfg = MediaConfig(
         enabled=True,

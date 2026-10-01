@@ -16,7 +16,7 @@ def test_match_slash_commands_filters_by_prefix() -> None:
     matches = match_slash_commands("/mem")
     cmds = [c for c, _ in matches]
     assert cmds[0] == "/memory"
-    assert "/memory-clear" in cmds
+    assert "/memory-clear" not in cmds
     assert not any(c == "/help" for c in cmds)
 
 
