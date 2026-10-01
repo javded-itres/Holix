@@ -50,6 +50,63 @@ def test_media_wake_report_does_not_require_another_tool() -> None:
     assert lacks_evidence_for_claim(reply, [], user_input=user) is False
 
 
+def test_yes_after_start_offer_requires_background_process() -> None:
+    from core.graph.action_honesty import MISSING_SERVICE_NUDGE, should_nudge_missing_service
+
+    messages = [
+        {"role": "user", "content": "telegram_channel_publisher запущен?"},
+        {"role": "assistant", "content": "Не запущен. Хочешь, запущу?"},
+        {"role": "user", "content": "да"},
+        {
+            "role": "tool",
+            "name": "run_terminal_command",
+            "content": (
+                "Background task started: id=task_pip — install. "
+                "Do not poll. You will be woken with the output when it exits."
+            ),
+        },
+    ]
+    final = "Background task started: id=task_pip — install. Ждём."
+    state = {"messages": messages, "user_input": "да", "honesty_nudge_count": 0}
+    assert should_nudge_missing_service(final, messages)
+    assert should_nudge_false_completion(state, final_response=final, messages=messages)
+    update = honesty_retry_update(
+        messages=messages,
+        step_count=3,
+        final_response=final,
+        user_input="да",
+    )
+    assert MISSING_SERVICE_NUDGE in update["messages"][-1]["content"]
+
+    started = messages + [
+        {
+            "role": "tool",
+            "name": "start_background_process",
+            "content": "Background process started. pid=4242",
+        }
+    ]
+    assert not should_nudge_missing_service("Бот запущен, pid 4242.", started)
+    tests = [
+        {"role": "user", "content": "запусти тесты"},
+        {"role": "tool", "name": "run_terminal_command", "content": "8 passed"},
+    ]
+    assert not should_nudge_missing_service("8 passed.", tests)
+    media = [
+        {
+            "role": "user",
+            "content": (
+                "Background task `image: a cat` (id=task_3329ee70) finished successfully. "
+                "Show the user the result.\n\nOutput:\nSaved image: /tmp/cat.png\n"
+            ),
+        }
+    ]
+    assert not should_nudge_false_completion(
+        {"honesty_nudge_count": 0, "messages": media, "user_input": media[0]["content"]},
+        final_response="Изображение готово: /tmp/cat.png",
+        messages=media,
+    )
+
+
 def test_invented_background_task_id_is_not_accepted() -> None:
     messages = [
         {"role": "user", "content": "сделай видео"},

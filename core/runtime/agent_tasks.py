@@ -212,8 +212,15 @@ def format_agent_task_wakeup(task: AgentBackgroundTask) -> str:
     body = (task.output or "").strip() or "(no output)"
     return (
         f"Background task `{task.description}` (id={task.task_id}) {how}. "
-        "This is the same agent, not a sub-agent. Show the user the result. "
-        "Do not re-run the command unless it failed and a fix is obvious.\n\n"
+        "This is the same agent, not a sub-agent. Tell the user the result "
+        "in your own words. Do not paste this note. "
+        "Do not run this same command again if it succeeded. "
+        "If it failed, fix the obvious cause once (for example `source` is not "
+        "a command in /bin/sh — call `.venv/bin/pip` directly). "
+        "A finished install is not a running bot or server. If the user asked "
+        "to start or restart one, or agreed when you offered, call "
+        "start_background_process now with the project command. "
+        "Do not use nohup, `&`, or run_terminal_command for that process.\n\n"
         f"Command: {task.command}\n\n"
         f"Output:\n{body}"
     )
@@ -222,10 +229,11 @@ def format_agent_task_wakeup(task: AgentBackgroundTask) -> str:
 def started_task_message(task: AgentBackgroundTask) -> str:
     return (
         f"Background task started: id={task.task_id} — {task.description}. "
-        "You are free to keep helping the user; do not poll and do not wait. "
-        "The task stays visible in the chat until it finishes. "
-        "When the user asks what is running, call list_agent_tasks and quote only those ids. "
-        "When it finishes you will be woken with the output — report that result. "
+        "Do not paste this note to the user and do not end the turn with only it. "
+        "Do not poll. You will be woken with the output when it exits. "
+        "If the user asked to start or restart a bot or server, this job is not "
+        "that process: after it finishes, call start_background_process. "
+        "Do not launch it with nohup, `&`, source, or run_terminal_command. "
         "This is not a sub-agent."
     )
 

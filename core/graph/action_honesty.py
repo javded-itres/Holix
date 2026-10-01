@@ -244,6 +244,18 @@ MONOLOGUE_TOOL_NUDGE = (
 )
 
 # After tools already ran: the model still only announces the next file it will write.
+MISSING_SERVICE_NUDGE = (
+    "[Action honesty — background process] The user asked to start or restart "
+    "a bot or server, or agreed when you offered. "
+    "start_background_process has not succeeded since that request. "
+    'An install and the note "Background task started" are not the process. '
+    "Call start_background_process now with the project's start command "
+    "(list_background_processes shows the last one). "
+    "Do not use nohup, `&`, source, or run_terminal_command to launch it. "
+    "Then check_background_process once and report the pid. "
+    "Do not paste tool instructions into the chat."
+)
+
 UNFINISHED_STEP_NUDGE = (
     "[Action honesty — unfinished] Your last message only announces the next work "
     '("Let me start with…", «Начну с…», «Проверю лог…», «сейчас посмотрю») '
@@ -1431,6 +1443,102 @@ def unknown_background_task_ids(
     return cited - known
 
 
+# "запусти тесты" is a one-shot job, not a detached bot. Bare "в фоне" is the
+# same: tests go to run_terminal_command. A bot/server/process, or a message
+# that is only the verb, is the start request.
+_START_SERVICE_REQUEST = re.compile(
+    r"(?is)("
+    r"(?:пере)?запуст(?:ить|и)\b[^\n]{0,48}?\b(?:бот\w*|сервер\w*|служб\w*|процесс\w*|publisher)\b"
+    r"|(?:пере)?запуст(?:ить|и)\b[^\n]{0,24}?в\s+фоне"
+    r"|фонов(?:ый|ого|ом|ые|ым)\s+процесс"
+    r"|^\s*(?:пере)?запусти(?:ть)?\s*[.!]?\s*$"
+    r"|start(?:\s+the)?\s+(?:bot|server)\b"
+    r"|restart(?:\s+the)?\s+(?:bot|server)\b"
+    r"|keep\s+(?:it|the\s+bot|the\s+server)\s+running"
+    r")"
+)
+_SERVICE_START_TOOLS = frozenset(
+    {
+        "start_background_process",
+        "restart_background_process",
+        "run_project",
+        "start_process",
+        "start_server",
+        "run_server",
+        "restart_process",
+    }
+)
+_YES_START = re.compile(r"(?is)^\s*(?:да|yes|ок|ok|запускай|давай|угу|ага)\s*[.!]?\s*$")
+_OFFERED_START = re.compile(r"(?is)(запущу|запустить|хочешь,?\s+запущ)")
+
+
+def _message_text(msg: dict[str, Any] | None) -> str:
+    if not isinstance(msg, dict):
+        return ""
+    raw = msg.get("content")
+    return raw if isinstance(raw, str) else str(raw or "")
+
+
+def user_wants_background_service(messages: list[dict[str, Any]] | None) -> bool:
+    """True when the user asked to start a bot/server, or agreed to an offer."""
+    if not messages:
+        return False
+    users: list[tuple[int, str]] = []
+    for index, msg in enumerate(messages):
+        if msg.get("role") != "user" or _is_honesty_nudge_message(msg):
+            continue
+        text = _message_text(msg).strip()
+        if text.startswith("Background task `"):
+            continue
+        users.append((index, text))
+    if any(_START_SERVICE_REQUEST.search(text) for _, text in users[-6:]):
+        return True
+    if not users or not _YES_START.match(users[-1][1]):
+        return False
+    confirm_at = users[-1][0]
+    for msg in reversed(messages[:confirm_at]):
+        if msg.get("role") != "assistant":
+            continue
+        return bool(_OFFERED_START.search(_message_text(msg)))
+    return False
+
+
+def service_started_since_request(messages: list[dict[str, Any]] | None) -> bool:
+    """True when start_background_process succeeded after the start request."""
+    if not messages or not user_wants_background_service(messages):
+        return False
+    request_at = 0
+    for index, msg in enumerate(messages):
+        if msg.get("role") != "user" or _is_honesty_nudge_message(msg):
+            continue
+        text = _message_text(msg).strip()
+        if text.startswith("Background task `"):
+            continue
+        if _START_SERVICE_REQUEST.search(text) or _YES_START.match(text):
+            request_at = index
+    id_to_name = _tool_call_id_names(messages)
+    for msg in messages[request_at + 1 :]:
+        if msg.get("role") != "tool":
+            continue
+        name = _tool_name_from_message(msg, id_to_name)
+        if name not in _SERVICE_START_TOOLS:
+            continue
+        if not _tool_result_failed(_message_text(msg)):
+            return True
+    return False
+
+
+def should_nudge_missing_service(
+    final_response: str | None,
+    messages: list[dict[str, Any]] | None,
+) -> bool:
+    """Block a turn that stops before the requested bot/server is started."""
+    _ = final_response
+    if not user_wants_background_service(messages):
+        return False
+    return not service_started_since_request(messages)
+
+
 def should_nudge_false_completion(
     state: dict[str, Any],
     *,
@@ -1455,6 +1563,8 @@ def should_nudge_false_completion(
     if looks_like_clarifying_questions(final_response):
         return False
     if unknown_background_task_ids(final_response, messages):
+        return True
+    if should_nudge_missing_service(final_response, messages):
         return True
     if lacks_evidence_for_claim(
         final_response,
@@ -1621,6 +1731,8 @@ def honesty_retry_update(
 
     if is_self_diagnose_request(user) and not self_diagnose_called_since_last_user(updated):
         nudge = SELF_DIAGNOSE_NUDGE
+    elif should_nudge_missing_service(final_response, updated):
+        nudge = MISSING_SERVICE_NUDGE
     elif unknown_background_task_ids(final_response, updated):
         nudge = INVENTED_TASK_NUDGE
     elif should_nudge_introspect_final(final_response=final_response, messages=updated):

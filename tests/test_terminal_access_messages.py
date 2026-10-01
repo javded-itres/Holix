@@ -29,6 +29,8 @@ def test_pip_install_uvicorn_is_not_a_server_launch() -> None:
         ),
         "grep -R uvicorn projects/",
         "ps aux | grep uvicorn",
+        "ps aux | grep telegram_channel_publisher",
+        "cd telegram_channel_publisher && .venv/bin/pip install -r requirements.txt",
         "lsof -ti:8000 | xargs kill -9",
         "echo uvicorn app:app",
         "cat README.md | grep uvicorn",
@@ -80,6 +82,9 @@ def test_pip_install_uvicorn_is_not_a_server_launch() -> None:
         "docker compose up",
         "docker-compose up --build",
         "python manage.py runserver 0.0.0.0:8000",
+        "python telegram_channel_publisher.py --run-bot",
+        ".venv/bin/python telegram_channel_publisher.py --run-bot",
+        "nohup python3 telegram_channel_publisher.py &",
     ]
     for cmd in not_launch:
         assert _is_untracked_long_running_command(cmd) is False, cmd

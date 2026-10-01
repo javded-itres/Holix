@@ -8,6 +8,7 @@ import sys
 
 import pytest
 from core.runtime.agent_tasks import (
+    AgentBackgroundTask,
     format_agent_task_wakeup,
     get_agent_task_registry,
     register_agent_task_listener,
@@ -75,8 +76,29 @@ async def test_background_task_wakes_listener_with_output() -> None:
     assert seen == [finished.task_id]
     text = format_agent_task_wakeup(finished)
     assert "same agent, not a sub-agent" in text
+    assert "start_background_process" in text
     assert "done-marker" in text
     assert get_agent_task_registry().running_count(profile="alice", conversation_id="conv-1") == 0
+
+
+def test_install_wakeup_does_not_treat_the_note_as_the_bot() -> None:
+    task = AgentBackgroundTask(
+        task_id="task_pip",
+        description="install publisher deps",
+        command="cd telegram_channel_publisher && .venv/bin/pip install -r requirements.txt",
+        profile="admin",
+        conversation_id="tg",
+        status="completed",
+        exit_code=0,
+        output="Successfully installed",
+    )
+    text = format_agent_task_wakeup(task)
+    assert "same agent, not a sub-agent" in text
+    assert "start_background_process" in text
+    assert "finished install is not a running bot" in text
+    note = started_task_message(task)
+    assert "Do not paste this note" in note
+    assert "start_background_process" in note
 
 
 @pytest.mark.asyncio

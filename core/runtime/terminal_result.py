@@ -10,14 +10,70 @@ from core.runtime.test_run_signals import is_red_test_output, is_test_command, i
 _PIPEFAIL_PREFIX = '[ -n "${BASH_VERSION:-}" ] && set -o pipefail; '
 
 
+def rewrite_bash_source(command: str) -> str:
+    """Turn a command-word ``source`` into POSIX ``.``.
+
+    Holix runs shell tools with ``/bin/sh``. On Debian that is dash, which
+    has no ``source`` and exits 127. ``. file`` is the same operation.
+    """
+    text = str(command or "")
+    if "source" not in text:
+        return text
+    out: list[str] = []
+    i = 0
+    quote = ""
+    while i < len(text):
+        ch = text[i]
+        if quote:
+            out.append(ch)
+            if ch == quote and not (quote == '"' and i > 0 and text[i - 1] == "\\"):
+                quote = ""
+            i += 1
+            continue
+        if ch in {"'", '"'}:
+            quote = ch
+            out.append(ch)
+            i += 1
+            continue
+        if text.startswith("source", i) and _source_word(text, i) and _command_position(text, i):
+            out.append(".")
+            i += len("source")
+            continue
+        out.append(ch)
+        i += 1
+    return "".join(out)
+
+
+def _source_word(text: str, index: int) -> bool:
+    before = text[index - 1] if index else ""
+    after_at = index + len("source")
+    after = text[after_at] if after_at < len(text) else ""
+    if before and (before.isalnum() or before == "_"):
+        return False
+    if after and (after.isalnum() or after == "_"):
+        return False
+    return True
+
+
+def _command_position(text: str, index: int) -> bool:
+    """True when ``source`` is the command, not an argument (``grep source``)."""
+    j = index - 1
+    while j >= 0 and text[j] in " \t":
+        j -= 1
+    if j < 0:
+        return True
+    return text[j] in ";|&(\n{"
+
+
 def with_pipefail(command: str) -> str:
     """Prefix bash so ``pytest | tail`` keeps pytest's exit code.
 
     Debian/Ubuntu ``/bin/sh`` is dash and rejects ``pipefail``. Skip ``set``
     unless ``BASH_VERSION`` is set. Red pytest output is still reported as
     Error by ``format_process_result`` when a pipe hid the exit code.
+    A bash-only ``source`` is rewritten to ``.`` so the same shell can run it.
     """
-    text = str(command or "")
+    text = rewrite_bash_source(str(command or ""))
     if not text.strip() or IS_WINDOWS:
         return text
     stripped = text.lstrip()
