@@ -161,7 +161,7 @@ class GenerateImageTool(BaseTool):
                 size=blob.size or chosen_size,
                 references=refs,
             )
-            extra = await _maybe_send(str(path), text[:200], auto_send=auto)
+            extra = await _maybe_send(str(path), "", auto_send=auto)
             return _format_saved("image", path, spec, blob, extra)
 
         return await _start_media_task(f"image: {text[:80]}", text, _run)
@@ -278,7 +278,7 @@ class GenerateVideoTool(BaseTool):
                 size="",
                 references=refs,
             )
-            extra = await _maybe_send(str(path), text[:200], auto_send=auto)
+            extra = await _maybe_send(str(path), "", auto_send=auto)
             return _format_saved("video", path, spec, blob, extra)
 
         return await _start_media_task(f"video: {text[:80]}", text, _run)
@@ -364,6 +364,13 @@ def _live_config(fallback: MediaConfig) -> MediaConfig:
 
 
 def _format_saved(kind: str, path: Path, spec: Any, blob: Any, extra: str) -> str:
+    if "Sent " in (extra or "") and "Error" not in (extra or ""):
+        return (
+            f"Saved {kind}: {path}\n"
+            "Delivered to the chat. A details button under the file shows the "
+            "model, seed, size, and prompt. Do not mention provider, model, seed, "
+            "size, path, bytes, or the prompt. Do not call send_chat_files again."
+        )
     uri = Path(path).resolve().as_uri()
     label = "Open image" if kind == "image" else "Open video"
     lines = [
@@ -467,6 +474,7 @@ def _remember_generation(
     meta = {
         "kind": kind,
         "path": str(path),
+        "provider": getattr(spec, "id", ""),
         "model": getattr(spec, "model", ""),
         "prompt": prompt,
         "seed": seed,

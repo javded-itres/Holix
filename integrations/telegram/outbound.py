@@ -36,6 +36,7 @@ class OutboundFile:
     size_bytes: int
     mime_type: str
     cleanup: Any = None
+    source_path: Path | None = None
 
 
 def classify_outbound_file(path: Path) -> MediaKind:
@@ -130,6 +131,7 @@ def prepare_outbound_files(paths: list[str | Path]) -> tuple[list[OutboundFile],
                 size_bytes=size,
                 mime_type=(mime or "application/octet-stream"),
                 cleanup=cleanup,
+                source_path=path,
             )
         )
 
@@ -158,6 +160,21 @@ def _album_batches(files: list[OutboundFile]) -> list[list[OutboundFile]]:
     return batches
 
 
+def _generation_markup(item: OutboundFile, *, platform: str) -> tuple[str | None, Any]:
+    from integrations.messenger.generation_details import generation_reply_markup
+
+    return generation_reply_markup(item.source_path or item.path, platform=platform)
+
+
+def _batch_has_generation_meta(batch: list[OutboundFile]) -> bool:
+    from holix_media.params import load_generation_meta
+
+    for item in batch:
+        if load_generation_meta(item.source_path or item.path):
+            return True
+    return False
+
+
 def _input_file(path: Path) -> Any:
     from aiogram.types import FSInputFile
 
@@ -170,20 +187,22 @@ async def _send_single(
     item: OutboundFile,
     *,
     caption: str = "",
+    reply_markup: Any = None,
 ) -> None:
     file = _input_file(item.path)
     cap = caption.strip() or None
+    markup = reply_markup
 
     if item.kind == "photo":
-        await bot.send_photo(chat_id, file, caption=cap)
+        await bot.send_photo(chat_id, file, caption=cap, reply_markup=markup)
         return
     if item.kind == "video":
-        await bot.send_video(chat_id, file, caption=cap)
+        await bot.send_video(chat_id, file, caption=cap, reply_markup=markup)
         return
     if item.kind == "audio":
-        await bot.send_audio(chat_id, file, caption=cap)
+        await bot.send_audio(chat_id, file, caption=cap, reply_markup=markup)
         return
-    await bot.send_document(chat_id, file, caption=cap)
+    await bot.send_document(chat_id, file, caption=cap, reply_markup=markup)
 
 
 async def _send_album(
@@ -238,8 +257,19 @@ async def send_outbound_files(
     for batch_idx, batch in enumerate(batches):
         batch_caption = caption if batch_idx == 0 else ""
         try:
-            if len(batch) == 1:
-                await _send_single(bot, chat_id, batch[0], caption=batch_caption)
+            if len(batch) == 1 or _batch_has_generation_meta(batch):
+                for index, item in enumerate(batch):
+                    item_caption = batch_caption if index == 0 else ""
+                    caption_override, markup = _generation_markup(item, platform="telegram")
+                    if caption_override is not None:
+                        item_caption = caption_override
+                    await _send_single(
+                        bot,
+                        chat_id,
+                        item,
+                        caption=item_caption,
+                        reply_markup=markup,
+                    )
             else:
                 await _send_album(bot, chat_id, batch, caption=batch_caption)
             sent += len(batch)

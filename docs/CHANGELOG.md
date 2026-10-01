@@ -2,6 +2,18 @@
 
 ## Unreleased
 
+## 1.1.15 — 2026-10-01
+
+### Fixed
+
+- **Adult content flag** — saving a profile no longer drops `allow_adult_content` when the in-memory value was never set. Explicit `true` or `false` still wins. Anyone 17 or under stays forbidden.
+- **Generated files** — Telegram and MAX send the image or video without the prompt, model, seed, or path underneath. A button on that message opens the generation details. A follow-up that only repeats those lines is not posted.
+
+### Tests
+
+- Sparse and full profile saves keep an on-disk adult-content flag.
+- A generated photo is sent with an empty caption and a details button.
+
 ## 1.1.14 — 2026-10-01
 
 ### Fixed

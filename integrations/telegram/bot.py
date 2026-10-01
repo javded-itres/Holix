@@ -996,6 +996,23 @@ class HolixTelegramBot:
                 process_now=forwarded,
             )
 
+        @dp.callback_query(F.data.startswith("mg:"))
+        async def on_media_details(query: CallbackQuery) -> None:
+            if query.from_user is None or not query.data:
+                return
+            if not self._allowed(query.from_user.id):
+                await query.answer("Access pending approval.", show_alert=True)
+                return
+            from integrations.messenger.generation_details import lookup_generation_details
+
+            text = lookup_generation_details(query.data.split(":", 1)[1])
+            if not text:
+                await query.answer("Нет данных", show_alert=True)
+                return
+            await query.answer()
+            if query.message is not None:
+                await query.message.answer(text[:4000])
+
         @dp.callback_query(F.data.startswith("sk:"))
         async def on_skill_cb(query: CallbackQuery) -> None:
             if query.from_user is None or not query.data:

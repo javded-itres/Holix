@@ -27,7 +27,11 @@ def holix_home(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
 
 
 def test_global_config_merge_profile_overrides(holix_home: Path) -> None:
-    global_data = {"model": "global-model", "temperature": 0.5, "providers": {"litellm": {"default_model": "a"}}}
+    global_data = {
+        "model": "global-model",
+        "temperature": 0.5,
+        "providers": {"litellm": {"default_model": "a"}},
+    }
     profile_data = {"profile_name": "alice", "model": "alice-model"}
     merged = merge_global_with_profile(global_data, profile_data)
     assert merged["model"] == "alice-model"
@@ -69,6 +73,29 @@ def test_profile_override_beats_global(holix_home: Path) -> None:
     assert cfg.model == "bob-model"
 
 
+def test_sparse_save_keeps_allow_adult_content_when_unset(holix_home: Path) -> None:
+    """A stale profile object must not drop allow_adult_content already on disk."""
+    ensure_global_config()
+    manager = ProfileManager()
+    manager.create_profile("admin", inherit_global=True)
+    cfg = manager.load_profile("admin")
+    cfg.allow_adult_content = True
+    cfg.model = "admin-model"
+    manager.save_profile("admin", cfg, storage_mode="sparse")
+
+    stale = ProfileConfig(profile_name="admin", model="admin-model")
+    assert stale.allow_adult_content is None
+    manager.save_profile("admin", stale, storage_mode="sparse")
+    assert manager.load_profile("admin").allow_adult_content is True
+
+    manager.save_profile("admin", stale, storage_mode="full")
+    assert manager.load_profile("admin").allow_adult_content is True
+
+    stale.allow_adult_content = False
+    manager.save_profile("admin", stale, storage_mode="sparse")
+    assert manager.load_profile("admin").allow_adult_content is False
+
+
 def test_save_profile_stores_only_overrides(holix_home: Path) -> None:
     ensure_global_config()
     global_config_path().write_text(
@@ -81,7 +108,9 @@ def test_save_profile_stores_only_overrides(holix_home: Path) -> None:
     manager.create_profile("carol", config=cfg, inherit_global=False)
     manager.save_profile("carol", cfg, storage_mode="sparse")
 
-    stored = yaml.safe_load((manager.get_profile_dir("carol") / "config.yaml").read_text(encoding="utf-8"))
+    stored = yaml.safe_load(
+        (manager.get_profile_dir("carol") / "config.yaml").read_text(encoding="utf-8")
+    )
     assert stored["model"] == "carol-model"
     assert "temperature" not in stored
 

@@ -425,8 +425,13 @@ class TelegramLivePresenter:
     async def deliver_final_answer(self, content: str) -> None:
         if self._final_delivered:
             return
-        content = (content or "").strip()
+        original = (content or "").strip()
+        from integrations.messenger.generation_details import strip_generation_technical_reply
+
+        content = strip_generation_technical_reply(original)
         if not content:
+            if original:
+                self._final_delivered = True
             return
         try:
             sent = await self.send_final_answer_split(content)

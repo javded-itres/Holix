@@ -59,6 +59,32 @@ async def test_send_outbound_single_photo(tmp_path: Path) -> None:
     bot.send_photo.assert_awaited_once()
     assert bot.send_photo.await_args.args[0] == 42
     assert bot.send_photo.await_args.kwargs.get("caption") == "here"
+    assert bot.send_photo.await_args.kwargs.get("reply_markup") is None
+
+
+@pytest.mark.asyncio
+async def test_generated_photo_hides_caption_and_adds_details_button(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("HOLIX_HOME", str(tmp_path))
+    photo = tmp_path / "shot.png"
+    photo.write_bytes(b"\x89PNG\r\n\x1a\n")
+    (tmp_path / "shot.png.meta.json").write_text(
+        '{"kind":"image","model":"image-z-image-turbo","provider":"mikrollm","prompt":"a door","seed":3}',
+        encoding="utf-8",
+    )
+
+    bot = MagicMock()
+    bot.send_photo = AsyncMock()
+
+    result = await send_outbound_files(bot, 42, [str(photo)], caption="a door")
+    assert "Sent 1 file" in result
+    kwargs = bot.send_photo.await_args.kwargs
+    assert kwargs.get("caption") is None
+    markup = kwargs.get("reply_markup")
+    assert markup is not None
+    payload = markup.inline_keyboard[0][0].callback_data
+    assert payload.startswith("mg:")
 
 
 @pytest.mark.asyncio

@@ -79,10 +79,15 @@ async def send_file_message(
     caption: str = "",
     upload_type: str | None = None,
     retries: int = 4,
+    extra_attachments: list[dict[str, Any]] | None = None,
+    hide_filename: bool = False,
 ) -> dict[str, Any]:
     upload_type, token = await upload_local_file(client, path, upload_type=upload_type)
     attachment = media_attachment(upload_type, token)
-    text = caption.strip() or path.name
+    text = caption.strip()
+    if not text and not hide_filename:
+        text = path.name
+    attachments = [attachment, *(extra_attachments or [])]
 
     delay = 0.4
     last_exc: Exception | None = None
@@ -93,13 +98,13 @@ async def send_file_message(
         try:
             from integrations.max.markdown import plain_to_max_html
 
-            body = plain_to_max_html(text) if caption else text
+            body = plain_to_max_html(text) if caption.strip() else text
             return await client.send_message(
                 body,
                 user_id=user_id,
                 chat_id=chat_id,
-                fmt="html" if caption else None,
-                attachments=[attachment],
+                fmt="html" if caption.strip() else None,
+                attachments=attachments,
             )
         except MaxApiError as exc:
             last_exc = exc

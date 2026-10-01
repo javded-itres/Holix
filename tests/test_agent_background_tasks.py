@@ -81,6 +81,26 @@ async def test_background_task_wakes_listener_with_output() -> None:
     assert get_agent_task_registry().running_count(profile="alice", conversation_id="conv-1") == 0
 
 
+def test_delivered_media_wakeup_hides_generation_details() -> None:
+    task = AgentBackgroundTask(
+        task_id="task_img",
+        description="image: a door",
+        command="a very long prompt",
+        profile="admin",
+        conversation_id="tg",
+        status="completed",
+        exit_code=0,
+        output=(
+            "Saved image: /tmp/pic.png\n"
+            "Delivered to the chat. A details button under the file shows the model."
+        ),
+    )
+    text = format_agent_task_wakeup(task)
+    assert "details button" in text
+    assert "a very long prompt" not in text
+    assert "start_background_process" not in text
+
+
 def test_install_wakeup_does_not_treat_the_note_as_the_bot() -> None:
     task = AgentBackgroundTask(
         task_id="task_pip",
