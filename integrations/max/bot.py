@@ -740,6 +740,31 @@ class HelixMaxBot:
         if reply_user_id is None and reply_chat_id is None:
             reply_user_id = uid
 
+        if payload.startswith("mg:"):
+            if not self._allowed(uid):
+                await client.answer_callback(callback_id, notification="Access denied")
+                return
+            from integrations.messenger.generation_details import lookup_generation_details
+
+            text = lookup_generation_details(payload.split(":", 1)[1])
+            try:
+                await client.answer_callback(
+                    callback_id,
+                    notification=None if text else "Нет данных",
+                )
+            except Exception:
+                logger.exception("Failed to answer media details callback")
+            if text:
+                try:
+                    await client.send_message(
+                        text[:4000],
+                        user_id=reply_user_id,
+                        chat_id=reply_chat_id,
+                    )
+                except Exception:
+                    logger.exception("Failed to send media details")
+            return
+
         if payload.startswith("hx:ar"):
             from integrations.max.access_approval import handle_access_admin_callback
             from integrations.max.keyboards import parse_callback

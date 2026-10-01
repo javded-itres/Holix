@@ -302,6 +302,10 @@ def resolve_profile_storage_paths(
     return config
 
 
+# None on these fields means "this object did not set them", not "delete the file".
+_KEEP_DISK_WHEN_UNSET = frozenset({"allow_adult_content"})
+
+
 class ProfileManager:
     """Manage Holix profiles."""
 
@@ -508,6 +512,38 @@ class ProfileManager:
         with open(config_file, "w", encoding="utf-8") as handle:
             yaml.dump(data, handle, default_flow_style=False, allow_unicode=True)
 
+    def _retain_unset_disk_values(
+        self,
+        profile: str,
+        storage: dict[str, Any],
+        payload: dict[str, Any],
+    ) -> dict[str, Any]:
+        """Keep on-disk values this object left unset.
+
+        ``None`` means the in-memory profile never set the field. Replacing the
+        file from that object drops a key written earlier (or by another
+        process). Explicit ``True`` and ``False`` still overwrite.
+        """
+        config_file = self.get_profile_dir(profile) / "config.yaml"
+        if not config_file.is_file():
+            return storage
+        try:
+            existing = yaml.safe_load(config_file.read_text(encoding="utf-8")) or {}
+        except (OSError, yaml.YAMLError):
+            return storage
+        if not isinstance(existing, dict):
+            return storage
+        merged = dict(storage)
+        for key in _KEEP_DISK_WHEN_UNSET:
+            if payload.get(key) is not None:
+                continue
+            disk_value = existing.get(key)
+            if disk_value is None:
+                continue
+            if merged.get(key) is None:
+                merged[key] = disk_value
+        return merged
+
     def save_profile(
         self,
         profile: str,
@@ -529,6 +565,7 @@ class ProfileManager:
             storage = payload
         else:
             storage = extract_profile_overrides(payload, load_global_config_resolved())
+        storage = self._retain_unset_disk_values(profile, storage, payload)
         self._write_profile_yaml(profile, storage)
 
     def list_profiles(self) -> list[str]:

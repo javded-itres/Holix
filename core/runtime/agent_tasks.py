@@ -210,6 +210,15 @@ def format_agent_task_wakeup(task: AgentBackgroundTask) -> str:
     else:
         how = f"failed (exit {task.exit_code})"
     body = (task.output or "").strip() or "(no output)"
+    if task.exit_code == 0 and "details button" in body and body.startswith("Saved "):
+        return (
+            f"Background task `{task.description}` (id={task.task_id}) finished successfully. "
+            "The image or video is already in the chat with a details button. "
+            "Do not mention provider, model, seed, size, path, bytes, or the prompt. "
+            "Do not call send_chat_files or generate again. "
+            "Reply with one short sentence at most.\n\n"
+            f"Output:\n{body}"
+        )
     return (
         f"Background task `{task.description}` (id={task.task_id}) {how}. "
         "This is the same agent, not a sub-agent. Tell the user the result "

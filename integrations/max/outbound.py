@@ -28,6 +28,7 @@ class OutboundFile:
     size_bytes: int
     mime_type: str
     cleanup: Any = None
+    source_path: Path | None = None
 
 
 def classify_outbound_file(path: Path) -> MediaKind:
@@ -112,6 +113,7 @@ def prepare_outbound_files(paths: list[str | Path]) -> tuple[list[OutboundFile],
                 size_bytes=size,
                 mime_type=(mime or "application/octet-stream"),
                 cleanup=cleanup,
+                source_path=path,
             )
         )
 
@@ -146,6 +148,15 @@ async def send_outbound_files(
     try:
         for idx, item in enumerate(files):
             item_caption = cap if idx == 0 and cap else ""
+            from integrations.messenger.generation_details import generation_reply_markup
+
+            caption_override, keyboard = generation_reply_markup(
+                item.source_path or item.path,
+                platform="max",
+            )
+            extra = [keyboard] if keyboard else None
+            if caption_override is not None:
+                item_caption = caption_override
             try:
                 await send_file_message(
                     client,
@@ -154,6 +165,8 @@ async def send_outbound_files(
                     chat_id=chat_id,
                     caption=item_caption,
                     upload_type=item.kind,
+                    extra_attachments=extra,
+                    hide_filename=keyboard is not None,
                 )
                 sent += 1
                 await asyncio.sleep(0.08)
