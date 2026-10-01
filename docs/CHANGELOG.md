@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 1.1.16 — 2026-10-01
+
 ### Added
 
 - **Extended mode** — Telegram and MAX can show the configured image and video model list in chat only after that user turns the option on in the status menu. It is off by default.
@@ -9,6 +11,11 @@
 ### Fixed
 
 - **Generation task** — the visible task title follows the profile language (`Генерация изображения` / `Image generation`), not the model prompt. After the file arrives, the running-task note is removed and no technical follow-up is posted.
+
+### Tests
+
+- Extended mode hides and shows the media-model list.
+- A delivered image does not become the chat's fallback text.
 
 ## 1.1.15 — 2026-10-01
 
