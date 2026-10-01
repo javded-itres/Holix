@@ -132,6 +132,16 @@ MESSAGES: dict[str, dict[str, str]] = {
             "retry. Off by default (recommended). Enabling can improve quality but "
             "may add monologue or extra latency."
         ),
+        "tg.extended": "Extended: {state}",
+        "tg.extended_on": "On",
+        "tg.extended_off": "Off",
+        "tg.extended_picker_title": "Extended mode",
+        "tg.extended_picker_body": (
+            "When on, the chat includes the generation model list "
+            "(Configured image models / Configured video models). "
+            "Off by default. Only you can turn this on from the menu."
+        ),
+        "tg.menu.extended": "Extended",
         "tg.profile": "Profile: {name}",
         "tg.profile_same": "Already on profile {name}",
         "tg.profile_invalid": "Invalid profile",
@@ -197,7 +207,7 @@ MESSAGES: dict[str, dict[str, str]] = {
         "tg.help.chat_body": "Send text — the agent replies in one live message.",
         "tg.help.commands": "Commands (menu left of the input field):",
         "tg.help.buttons": "Buttons",
-        "tg.help.buttons_body": "/mode /profile /sessions /stream — pick with buttons\n/status /menu — Sub-agents, Reflexion, steps, models, tools\n/models — switch LLM until next message",
+        "tg.help.buttons_body": "/mode /profile /sessions /stream — pick with buttons\n/status /menu — Sub-agents, Reflexion, Extended, steps, models, tools\n/models — switch LLM until next message",
         "tg.help.extra": "More",
         "tg.help.extra_body": (
             "• /memory query — semantic search\n"
@@ -866,6 +876,16 @@ When finished, confirm the absolute path written and give a 5–10 line summary 
             "переписать. По умолчанию выкл (рекомендуется). Включение может "
             "улучшить качество, но иногда даёт монологи и лишнюю задержку."
         ),
+        "tg.extended": "Расширенный: {state}",
+        "tg.extended_on": "Вкл",
+        "tg.extended_off": "Выкл",
+        "tg.extended_picker_title": "Расширенный режим",
+        "tg.extended_picker_body": (
+            "Если включено, в чат пишется список моделей генерации "
+            "(Configured image models / Configured video models). "
+            "По умолчанию выключено. Включить может только сам пользователь в меню."
+        ),
+        "tg.menu.extended": "Расширенный",
         "tg.profile": "Профиль: {name}",
         "tg.profile_same": "Уже профиль {name}",
         "tg.profile_invalid": "Неверный профиль",
@@ -931,7 +951,7 @@ When finished, confirm the absolute path written and give a 5–10 line summary 
         "tg.help.chat_body": "Отправьте текст — агент ответит одним живым сообщением.",
         "tg.help.commands": "Команды (меню слева от поля ввода):",
         "tg.help.buttons": "Кнопки",
-        "tg.help.buttons_body": "/mode /profile /sessions /stream — выбор кнопками\n/status /menu — субагенты, Reflexion, шаги, модели, tools\n/models — смена LLM до следующего сообщения",
+        "tg.help.buttons_body": "/mode /profile /sessions /stream — выбор кнопками\n/status /menu — субагенты, Reflexion, расширенный режим, шаги, модели, tools\n/models — смена LLM до следующего сообщения",
         "tg.help.extra": "Дополнительно",
         "tg.help.extra_body": (
             "• /memory запрос — семантический поиск\n"

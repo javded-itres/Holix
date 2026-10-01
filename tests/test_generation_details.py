@@ -57,6 +57,25 @@ def test_register_and_lookup_roundtrip(tmp_path: Path, monkeypatch) -> None:
     assert lookup_generation_details("../etc") is None
 
 
+def test_media_task_label_uses_profile_language(monkeypatch, tmp_path: Path) -> None:
+    from core.i18n.locale import LocaleStore
+    from integrations.messenger.generation_details import media_task_label
+
+    monkeypatch.setenv("HOLIX_HOME", str(tmp_path))
+    assert media_task_label("image", "admin") == "Генерация изображения"
+    assert media_task_label("video", "admin") == "Генерация видео"
+    LocaleStore("admin").set("en")
+    assert media_task_label("image", "admin") == "Image generation"
+
+
+def test_strip_drops_the_delivery_note() -> None:
+    raw = (
+        "Saved image: /tmp/pic.png\n"
+        "Delivered to the chat. Do not send another message about the file."
+    )
+    assert strip_generation_technical_reply(raw) == ""
+
+
 def test_strip_generation_technical_reply_keeps_a_short_sentence() -> None:
     raw = (
         "Готово.\n"

@@ -59,8 +59,17 @@ def attach_max_background_events(client: Any, session: Any) -> None:
         )
 
     async def _unpin(task: Any) -> None:
+        from integrations.messenger.generation_details import media_file_was_delivered
+
+        task_id = str(getattr(task, "task_id", "") or "")
+        if (
+            media_file_was_delivered(getattr(task, "output", ""))
+            and getattr(task, "exit_code", None) == 0
+        ):
+            await presenter.dismiss_agent_task_notice(task_id)
+            return
         await presenter.unpin_agent_task_notice(
-            str(getattr(task, "task_id", "") or ""),
+            task_id,
             label=str(getattr(task, "description", "") or ""),
             status=str(getattr(task, "status", "") or "completed"),
         )

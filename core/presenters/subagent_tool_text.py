@@ -211,6 +211,8 @@ def pick_best_tool_final(recent_tools: list[dict[str, Any]]) -> str:
             continue
         if body.lstrip().startswith("Background task started:"):
             continue
+        if body.lstrip().startswith("Saved image:") or body.lstrip().startswith("Saved video:"):
+            continue
         formatted = format_tool_body_for_messenger(body, name=name)
         if not formatted:
             continue
