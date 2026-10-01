@@ -104,6 +104,27 @@ def test_test_commands_are_oneshots_not_services() -> None:
     assert is_test_or_build_command("sleep 30") is False
 
 
+def test_publisher_bot_is_a_launch_but_mentions_are_not() -> None:
+    launches = [
+        "python telegram_channel_publisher.py --run-bot",
+        ".venv/bin/python telegram_channel_publisher.py --run-bot",
+        "nohup python3 telegram_channel_publisher.py &",
+        "cd telegram_channel_publisher && .venv/bin/python telegram_channel_publisher.py --run-bot",
+    ]
+    mentions = [
+        "ps aux | grep telegram_channel_publisher",
+        "cd telegram_channel_publisher && .venv/bin/pip install -r requirements.txt",
+        "git diff telegram_channel_publisher.py",
+        "cd telegram_channel_publisher && ls",
+        "echo 'python telegram_channel_publisher.py --run-bot'",
+    ]
+    for cmd in launches:
+        assert is_untracked_long_running_command(cmd) is True, cmd
+        assert is_test_or_build_command(cmd) is False, cmd
+    for cmd in mentions:
+        assert is_untracked_long_running_command(cmd) is False, cmd
+
+
 def test_promote_label_uses_first_token() -> None:
     assert _promote_label("java -jar app.jar") == "java"
     assert _promote_label("") == "promoted-service"

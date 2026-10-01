@@ -215,12 +215,45 @@ def _is_compose_up_foreground(head: str) -> bool:
     return bool(_COMPOSE_UP.match(head) and not _COMPOSE_DETACH.search(head))
 
 
+# `python telegram_channel_publisher.py` does not match `*bot.py`, and the bare
+# name is not at column 0 when a venv interpreter launches it. `--run-bot` is
+# that publisher's long-poll flag. A mention in `cd`, `git diff`, or quotes is
+# not a launch.
+_PERSISTENT_BOT = re.compile(
+    r"(?i)(?:"
+    r"(?:^|[;&|(])\s*(?:nohup\s+)?(?:[\w./-]*python[\w.-]*)\s+\S*telegram_channel_publisher(?:\.py)?\b"
+    r"|^\s*(?:nohup\s+)?telegram_channel_publisher(?:\.py)?\b"
+    r"|--run-bot\b"
+    r")"
+)
+
+
+def _outside_quotes(text: str) -> str:
+    out: list[str] = []
+    quote = ""
+    for ch in text:
+        if quote:
+            if ch == quote:
+                quote = ""
+            continue
+        if ch in {"'", '"'}:
+            quote = ch
+            out.append(" ")
+            continue
+        out.append(ch)
+    return "".join(out)
+
+
 def _is_launch_head(head: str) -> bool:
     if not head:
         return False
     if _LAUNCH_HEAD.match(head):
         return True
-    return _is_compose_up_foreground(head)
+    if _is_compose_up_foreground(head):
+        return True
+    if _INSPECT_HEAD.match(head):
+        return False
+    return bool(_PERSISTENT_BOT.search(_outside_quotes(head)))
 
 
 def is_untracked_long_running_command(command: str) -> bool:

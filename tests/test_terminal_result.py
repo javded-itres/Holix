@@ -14,6 +14,37 @@ def test_with_pipefail_prefixes_once() -> None:
     assert with_pipefail(wrapped) == wrapped
 
 
+def test_source_is_rewritten_to_posix_dot() -> None:
+    import shutil
+    import subprocess
+
+    from core.platform_compat import IS_WINDOWS
+    from core.runtime.terminal_result import rewrite_bash_source
+
+    rewritten = rewrite_bash_source(
+        "cd app && source .venv/bin/activate && pip install -r requirements.txt"
+    )
+    assert "source" not in rewritten
+    assert ". .venv/bin/activate" in rewritten
+    assert rewrite_bash_source("grep source file.txt") == "grep source file.txt"
+    assert rewrite_bash_source("echo datasource") == "echo datasource"
+    assert rewrite_bash_source("echo 'source keep'") == "echo 'source keep'"
+    wrapped = with_pipefail("source /dev/null")
+    assert with_pipefail(wrapped) == wrapped
+    if IS_WINDOWS:
+        return
+    sh = shutil.which("sh")
+    if not sh:
+        return
+    result = subprocess.run(
+        [sh, "-c", wrapped],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert result.returncode == 0, result.stderr
+
+
 def test_pipefail_prefix_is_legal_on_posix_sh() -> None:
     import shutil
     import subprocess
