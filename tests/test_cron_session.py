@@ -68,22 +68,12 @@ async def test_persist_skips_duplicate_assistant():
 
 
 @pytest.mark.asyncio
-async def test_persist_cron_result_mirrors_to_studio_session(tmp_path, monkeypatch):
-    import json
-    from pathlib import Path
+async def test_persist_cron_result_does_not_write_studio_files(tmp_path, monkeypatch):
+    """Studio chat files are written by Studio, not by the agent."""
+    from core.plugins.hooks import studio_cron_hooks
 
+    monkeypatch.setattr(studio_cron_hooks, "open_session", None)
     profile = "studio_cron"
-
-    def fake_data_dir(name: str) -> Path:
-        d = tmp_path / name / "data"
-        d.mkdir(parents=True, exist_ok=True)
-        return d
-
-    monkeypatch.setattr(
-        "core.cron.studio_notify.resolve_holix_default_data_dir",
-        fake_data_dir,
-    )
-
     job = CronJob(
         id="j-studio",
         name="Studio ping",
@@ -102,9 +92,5 @@ async def test_persist_cron_result_mirrors_to_studio_session(tmp_path, monkeypat
         run_conversation_id="cron-j-studio",
     )
 
-    studio_dir = Path(tmp_path) / profile / "data" / "studio" / "cwd"
-    files = list(studio_dir.glob("studio_cron_*.json"))
-    assert len(files) == 1
-    data = json.loads(files[0].read_text(encoding="utf-8"))
-    assert "Studio cron hello" in data["messages"][-1]["text"]
-    assert data["messages"][-1]["cls"] == "assistant"
+    assert not (tmp_path / profile).exists()
+    assert studio_cron_hooks.open_session is None

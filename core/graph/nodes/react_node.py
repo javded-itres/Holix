@@ -631,6 +631,17 @@ async def react_node(state: HolixGraphState, config: RunnableConfig) -> dict:
     agent = get_agent_from_config(config)
     step_count = state.get("step_count", 0) + 1
     conversation_id = state.get("conversation_id", "default")
+    from core.runtime.agent_tasks import media_generation_already_started
+
+    if media_generation_already_started(state.get("messages")):
+        # The tool result already told the model the task started. Do not add
+        # another user-visible sentence, and do not call the model again.
+        return {
+            "step_count": step_count,
+            "is_final": True,
+            "final_response": "",
+            "tool_calls": [],
+        }
     try:
         from core.tools.execution_context import is_run_cancelled
 
@@ -1012,16 +1023,26 @@ async def _react_non_streaming(
             for tc in message.tool_calls
         ]
         msg_dict["tool_calls"] = tool_calls
+        tool_calls, media_stop = _collapse_media_calls(
+            state, tool_calls, step_count, conversation_id, agent
+        )
+        if media_stop is not None:
+            return media_stop
+        stopped = _stop_idle_task_lookup(state, tool_calls, step_count)
+        if stopped is not None:
+            return stopped
+        msg_dict["tool_calls"] = tool_calls
         messages.append(msg_dict)
 
         # Emit tool call start events
-        for tc in message.tool_calls:
+        for tc in tool_calls:
             if agent and hasattr(agent, "emit"):
+                fn = tc.get("function") or {}
                 agent.emit(
                     ToolCallStartEvent(
-                        tool_name=tc.function.name,
-                        tool_id=tc.id,
-                        arguments_raw=tc.function.arguments,
+                        tool_name=fn.get("name"),
+                        tool_id=tc.get("id"),
+                        arguments_raw=fn.get("arguments"),
                         conversation_id=conversation_id,
                     )
                 )
@@ -1230,6 +1251,58 @@ def _tool_limit_nudge_result(
     }
 
 
+def _collapse_media_calls(
+    state: dict[str, Any],
+    tool_calls: list[dict[str, Any]],
+    step_count: int,
+    conversation_id: str,
+    agent: Any,
+) -> tuple[list[dict[str, Any]], dict[str, Any] | None]:
+    """One image/video prompt per step. Do not call the tool again after it exists."""
+    from core.runtime.agent_tasks import collapse_repeat_media_calls
+    from core.tools.execution_context import get_profile_name
+
+    profile = str(getattr(agent, "profile_name", "") or get_profile_name() or "default")
+    kept, text = collapse_repeat_media_calls(
+        tool_calls,
+        profile=profile,
+        conversation_id=conversation_id or str(state.get("conversation_id") or ""),
+    )
+    if not text:
+        return kept, None
+    updated = list(state.get("messages") or [])
+    updated.append({"role": "assistant", "content": text})
+    return [], {
+        "messages": updated,
+        "tool_calls": [],
+        "step_count": step_count,
+        "is_final": True,
+        "final_response": text,
+    }
+
+
+def _stop_idle_task_lookup(
+    state: dict[str, Any],
+    tool_calls: list[dict[str, Any]],
+    step_count: int,
+) -> dict[str, Any] | None:
+    """End the turn instead of polling list_agent_tasks when nothing is running."""
+    from core.runtime.agent_tasks import stop_idle_task_lookup
+
+    text = stop_idle_task_lookup(state, tool_calls)
+    if not text:
+        return None
+    updated = list(state.get("messages") or [])
+    updated.append({"role": "assistant", "content": text})
+    return {
+        "messages": updated,
+        "tool_calls": [],
+        "step_count": step_count,
+        "is_final": True,
+        "final_response": text,
+    }
+
+
 def _streaming_tool_step_or_nudge(
     *,
     state,
@@ -1243,13 +1316,20 @@ def _streaming_tool_step_or_nudge(
     tool_err = _streaming_tool_calls_error(tool_calls_dict)
     if tool_err and finish_reason in ("length", "stop", "tool_calls", None):
         return _tool_limit_nudge_result(state, step_count=step_count, error=tool_err)
+    pending = list(tool_calls_dict.values())
+    pending, media_stop = _collapse_media_calls(state, pending, step_count, conversation_id, agent)
+    if media_stop is not None:
+        return media_stop
+    stopped = _stop_idle_task_lookup(state, pending, step_count)
+    if stopped is not None:
+        return stopped
     return _streaming_tool_calls_step_result(
         state=state,
         agent=agent,
         conversation_id=conversation_id,
         step_count=step_count,
         current_content=current_content,
-        tool_calls_dict=tool_calls_dict,
+        tool_calls_dict={index: call for index, call in enumerate(pending)},
     )
 
 
@@ -1963,6 +2043,7 @@ def _build_system_prompt_from_state(state: HolixGraphState, agent=None) -> str:
         workspace_jail_enabled=getattr(agent_config, "workspace_jail_enabled", None),
         persona_name=persona_name,
         persona_prompt=persona_prompt,
+        allow_adult_content=bool(getattr(agent_config, "allow_adult_content", False)),
     )
 
 

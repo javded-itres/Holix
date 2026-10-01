@@ -19,6 +19,8 @@ Data path: `~/.holix/profiles/<name>/data/memory/` (encrypted when [profile encr
 
 The agent retrieves relevant past context automatically during runs; you can also search explicitly.
 
+To correct what the agent remembers, ask it to review memory. `review_memory` lists keyed facts, episode summaries of past sessions, and whole conversations. It marks duplicates, contradictions, and temporary notes, and the agent adds its own judgment. The question quotes the stored text, the time, and what deletion removes — not only "episode" or "session". Rows you do not select stay. A rewrite of a keyed fact is applied only if you accept it. If you already name the cut, for example "keep only the last 7 days and delete the rest", the agent deletes that set itself and does not ask again. That age cut leaves the current session. Forgetting a session deletes that transcript in SQLite, its search vectors, and the episode summaries of that session. Forgetting one episode deletes that summary and its vector; the transcript stays. Individual messages are not listed. One page shows the newest rows; ask again for the rest. `/forget` still clears only the current session. Forgetting a profile mirror such as `user_display_name` does not edit `USER.md`; a later profile sync can restore that mirror.
+
 ### Reflexion and LTM
 
 When **self-refinement** is enabled (default), each evaluate/retry cycle may store:

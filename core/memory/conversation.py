@@ -339,3 +339,59 @@ class ConversationStore:
         except Exception as e:
             logger.warning("Error listing conversations: %s", e)
             return []
+
+    async def list_conversations_for_review(self, limit: int = 200) -> list[dict[str, Any]]:
+        """Sessions the user can forget as a whole, newest first.
+
+        Each row is one conversation: message count plus a short user or
+        assistant preview. Forgetting it removes every message and the
+        search vectors for that id.
+        """
+        cap = max(1, min(int(limit), 200))
+        try:
+            async with connect_aiosqlite(self.db_path) as db:
+                db.row_factory = aiosqlite.Row
+                cursor = await db.execute(
+                    """
+                    SELECT
+                        conversation_id,
+                        MAX(timestamp) AS last_timestamp,
+                        COUNT(*) AS message_count
+                    FROM conversations
+                    GROUP BY conversation_id
+                    ORDER BY last_timestamp DESC
+                    LIMIT ?
+                    """,
+                    (cap,),
+                )
+                rows = await cursor.fetchall()
+                listed: list[dict[str, Any]] = []
+                for row in rows:
+                    conversation_id = str(row["conversation_id"] or "")
+                    preview_cursor = await db.execute(
+                        """
+                        SELECT content FROM conversations
+                        WHERE conversation_id = ?
+                          AND role IN ('user', 'assistant')
+                          AND content != ''
+                        ORDER BY timestamp DESC, id DESC
+                        LIMIT 1
+                        """,
+                        (conversation_id,),
+                    )
+                    preview_row = await preview_cursor.fetchone()
+                    preview = ""
+                    if preview_row is not None:
+                        preview = str(preview_row["content"] or "")
+                    listed.append(
+                        {
+                            "conversation_id": conversation_id,
+                            "last_timestamp": row["last_timestamp"],
+                            "message_count": int(row["message_count"] or 0),
+                            "preview": preview,
+                        }
+                    )
+                return listed
+        except Exception as e:
+            logger.warning("Error listing conversations for review: %s", e)
+            return []

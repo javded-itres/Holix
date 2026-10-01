@@ -60,7 +60,11 @@ def _format_reflection_message(
     iteration: int,
     trajectory: str,
 ) -> str:
-    areas = ", ".join(assessment.improvement_areas[:5]) if assessment.improvement_areas else "general quality"
+    areas = (
+        ", ".join(assessment.improvement_areas[:5])
+        if assessment.improvement_areas
+        else "general quality"
+    )
     traj_block = ""
     if trajectory.strip():
         traj_block = f"\n### Recent trajectory (tools)\n{trajectory}\n"
@@ -150,20 +154,25 @@ async def reflect_node(state: HolixGraphState, config: RunnableConfig) -> dict[s
     if not is_self_refinement_enabled(cfg, default=True):
         return {"needs_refinement": False}
 
+    from core.runtime.agent_tasks import media_generation_already_started
+
+    if media_generation_already_started(state.get("messages")):
+        return {"needs_refinement": False}
+
     if str(state.get("plan_status") or "") == "rejected":
         return {"needs_refinement": False}
 
     final_response = str(state.get("final_response") or "").strip()
-    if not final_response or is_placeholder_final(final_response) or is_aborted_final_response(
-        final_response
+    if (
+        not final_response
+        or is_placeholder_final(final_response)
+        or is_aborted_final_response(final_response)
     ):
         return {"needs_refinement": False}
 
     reflection_count = int(state.get("reflection_count") or state.get("refinement_iterations") or 0)
     max_iter = int(
-        state.get("max_refinement_iterations")
-        or getattr(cfg, "max_refinement_iterations", 2)
-        or 2
+        state.get("max_refinement_iterations") or getattr(cfg, "max_refinement_iterations", 2) or 2
     )
     if reflection_count >= max_iter:
         logger.info("Reflexion: max iterations (%s) reached", max_iter)

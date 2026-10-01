@@ -97,6 +97,7 @@ class ToolRegistry:
         from core.tools.ask_user import AskUserTool
         from core.tools.code_executor import MathCalculatorTool, PythonExecutorTool
         from core.tools.database import SQLQueryTool, SQLSchemaTool
+        from core.tools.documents import ReadDocumentTool, SearchDocumentTool
         from core.tools.file_ops import (
             DeleteFileTool,
             GlobTool,
@@ -111,6 +112,7 @@ class ToolRegistry:
         from core.tools.notebook_edit import NotebookEditTool
         from core.tools.plan_mode import PlanModeTool
         from core.tools.request_admin_support import RequestAdminSupportTool
+        from core.tools.review_memory import ReviewMemoryTool
         from core.tools.self_diagnose import SelfDiagnoseTool
         from core.tools.send_chat_files import SendChatFilesTool
         from core.tools.session_memory import ReadSessionTool, SearchSessionsTool
@@ -189,6 +191,9 @@ class ToolRegistry:
         # Cross-session memory
         self.register(SearchSessionsTool())
         self.register(ReadSessionTool())
+        self.register(ReviewMemoryTool())
+        self.register(SearchDocumentTool())
+        self.register(ReadDocumentTool())
 
         # Skills (progressive disclosure + staged writes)
         self.register(SkillViewTool())
@@ -225,12 +230,13 @@ class ToolRegistry:
 
             register_browser_tools(self)
 
-        try:
-            from holix_studio.agent_tools.desktop import register_desktop_tools
+        from core.plugins.hooks import host_bridge_hooks
 
-            register_desktop_tools(self)
-        except ImportError:
-            pass
+        for register_extra in host_bridge_hooks.register_tools:
+            try:
+                register_extra(self)
+            except Exception:
+                pass
 
         from core.tools.code_mode.tool import RunCodeTool
 

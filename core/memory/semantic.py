@@ -108,21 +108,21 @@ class SemanticMemoryStore:
         Returns:
             List of matching facts with key, content, metadata, distance.
         """
-        results = self._vector_store.query(
-            "ltm_semantic", [query], n_results=top_k
-        )
+        results = self._vector_store.query("ltm_semantic", [query], n_results=top_k)
 
         facts = []
         if results["documents"] and results["documents"][0]:
             for i, doc in enumerate(results["documents"][0]):
                 meta = results["metadatas"][0][i] if results["metadatas"] else {}
                 distance = results["distances"][0][i] if results.get("distances") else None
-                facts.append({
-                    "key": meta.get("key", ""),
-                    "content": doc,
-                    "metadata": meta,
-                    "distance": distance,
-                })
+                facts.append(
+                    {
+                        "key": meta.get("key", ""),
+                        "content": doc,
+                        "metadata": meta,
+                        "distance": distance,
+                    }
+                )
 
         return facts
 
@@ -175,7 +175,7 @@ class SemanticMemoryStore:
         async with connect_aiosqlite(self._db_path) as db:
             db.row_factory = aiosqlite.Row
             cursor = await db.execute(
-                """SELECT key, content, source, metadata
+                """SELECT key, content, source, metadata, updated_at
                    FROM ltm_entries
                    WHERE memory_type = 'semantic'
                    ORDER BY updated_at DESC""",
@@ -188,12 +188,15 @@ class SemanticMemoryStore:
                         meta = json.loads(row["metadata"])
                     except json.JSONDecodeError:
                         pass
-                facts.append({
-                    "key": row["key"],
-                    "content": row["content"],
-                    "source": row["source"],
-                    "metadata": meta,
-                })
+                facts.append(
+                    {
+                        "key": row["key"],
+                        "content": row["content"],
+                        "source": row["source"],
+                        "metadata": meta,
+                        "updated_at": row["updated_at"],
+                    }
+                )
 
         return facts
 

@@ -52,7 +52,8 @@ class SendChatFilesTool(BaseTool):
         if bridge is None:
             return (
                 "Error: send_chat_files is only available in Telegram or MAX chat. "
-                "Tell the user the file paths instead."
+                "The file is already saved. Do not generate it again. "
+                "Tell the user the file path. In TUI the Open link is shown when the task finishes."
             )
 
         cleaned = [str(p).strip() for p in (paths or []) if str(p).strip()]

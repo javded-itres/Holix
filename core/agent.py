@@ -101,6 +101,12 @@ class HolixAgent:
         if event_listeners:
             for listener in event_listeners:
                 self.events.subscribe(listener)
+        try:
+            from core.runtime.agent_tasks import bind_agent_task_bus
+
+            bind_agent_task_bus(self.events)
+        except Exception:
+            pass
 
         if enable_monitoring:
             wire_default_monitoring(self.events)

@@ -4,11 +4,13 @@ from __future__ import annotations
 
 from rich.segment import Segment
 from rich.style import Style
-from textual.events import MouseUp
+from textual.events import Click, MouseUp
 from textual.message import Message
 from textual.selection import Selection
 from textual.strip import Strip
 from textual.widgets import RichLog
+
+from cli.tui.shared.media_links import href_from_line_text, href_from_segments, open_media_href
 
 
 class CodeTranscript(RichLog):
@@ -76,6 +78,30 @@ class CodeTranscript(RichLog):
             return self.screen.get_component_rich_style("screen--selection") + fallback
         except Exception:
             return fallback
+
+    def on_click(self, event: Click) -> None:
+        """Open a generated-media link. RichLog does not surface style.link on clicks."""
+        href = ""
+        style = getattr(event, "style", None)
+        if style is not None and getattr(style, "link", None):
+            href = str(style.link)
+        if not href:
+            href = self._href_at_click(event.y)
+        if href and open_media_href(href):
+            event.stop()
+
+    def _href_at_click(self, y: int) -> str:
+        content_y = int(y) - int(self.content_region.y)
+        if content_y < 0:
+            return ""
+        index = int(self.scroll_offset.y) + content_y
+        if index < 0 or index >= len(self.lines):
+            return ""
+        line = self.lines[index]
+        href = href_from_segments(line)
+        if href:
+            return href
+        return href_from_line_text(getattr(line, "text", "") or "")
 
     def on_mouse_up(self, event: MouseUp) -> None:
         del event

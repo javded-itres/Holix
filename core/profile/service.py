@@ -95,6 +95,8 @@ class ProfileConfig(BaseModel):
     # Meta-agent (pre-thinking) and Reflexion self-refinement
     enable_meta_agent: bool | None = None
     enable_self_refinement: bool | None = None
+    # Adult sexual content for this profile only. Minors stay forbidden.
+    allow_adult_content: bool | None = None
 
     # Response pipeline: classic (≈1.0.2) | modern (anti-monologue)
     agent_pipeline: str | None = None
@@ -441,12 +443,14 @@ class ProfileManager:
             self._last_created_access_key = store_profile_access_key(profile)
 
         try:
-            from holix_studio.credentials import ensure_studio_credentials
+            from core.plugins.hooks import host_bridge_hooks
 
-            studio_pwd, studio_created = ensure_studio_credentials(profile)
-            if studio_created:
-                self._last_created_studio_password = studio_pwd
-        except ImportError:
+            mint = host_bridge_hooks.ensure_profile_credentials
+            if mint is not None:
+                studio_pwd = mint(profile)
+                if studio_pwd:
+                    self._last_created_studio_password = studio_pwd
+        except Exception:
             pass
 
         return config

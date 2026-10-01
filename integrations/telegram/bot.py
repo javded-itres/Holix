@@ -557,6 +557,7 @@ class HolixTelegramBot:
                     file_size=item.file_size,
                     bot_profile=session.bot_profile,
                     telegram_user_id=session.user_id,
+                    conversation_id=session.conversation_id,
                 )
                 saved_files.append(saved)
             except Exception as exc:
@@ -650,6 +651,7 @@ class HolixTelegramBot:
                 file_size=attachment.file_size,
                 bot_profile=session.bot_profile,
                 telegram_user_id=session.user_id,
+                conversation_id=session.conversation_id,
             )
             return [saved]
         except Exception:
@@ -1120,6 +1122,7 @@ class HolixTelegramBot:
                 return
             session = await self._get_session(query.message.chat.id, query.from_user.id, bot=bot)
             host = TelegramHost(bot, session, edit_interval_ms=settings.edit_interval_ms)
+            host._ui_message_id = query.message.message_id
             try:
                 msg = await dispatch_callback(host, query.data)
                 await query.answer(msg[:200] if msg else "OK")

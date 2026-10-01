@@ -90,21 +90,50 @@ class MediaAgentExtension(AgentExtensionBase):
         cfg = self._cfg()
         if not cfg.ready:
             return None
-        imgs = ", ".join(f"{p.id} ({p.model or p.type})" for p in cfg.image_providers) or "none"
-        vids = ", ".join(f"{p.id} ({p.model or p.type})" for p in cfg.video_providers) or "none"
+        from holix_media.select import format_provider_menu
+
+        imgs = format_provider_menu(cfg.image_providers)
+        vids = format_provider_menu(cfg.video_providers)
+        try:
+            from core.tools.lazy_schema import messenger_delivery_available
+
+            messenger = messenger_delivery_available()
+        except Exception:
+            messenger = False
         return (
             "## Media generation\n"
-            "Tools `generate_image` and `generate_video` create files in workspace `media/`.\n"
-            f"Image providers: {imgs}. Video providers: {vids}.\n"
+            "Tools `generate_image` and `generate_video` start a background task and "
+            "return immediately. There is no timeout. HTTP 502/503/504 is retried "
+            "inside that task. Do not poll, do not switch models, and do not tell "
+            "the user the backend is down. Say that generation is running; the file "
+            "arrives when the task wakes you. Files land in workspace `media/`.\n"
+            "Image models:\n"
+            f"{imgs}\n"
+            "Video models:\n"
+            f"{vids}\n"
+            "Leave `provider` empty. The tool reads these notes and the prompt. "
+            "A plain «generate an image/video» uses the text-only model. "
+            "If the user attached a file or asks to change, add, or interact with an "
+            "existing picture or clip, pass that file in `references`; the tool then "
+            "uses the model marked as accepting a reference. Do not pick a text-only "
+            "model for that.\n"
+            "Before generating, call `describe_media_model` and use only parameters it lists. "
+            "To change an existing image, pass that file in `references` and put only the new "
+            "change in `prompt`. The tool appends it to the saved prompt and keeps the seed. "
+            "Do not rewrite the previous scene. Change `size` only when the user asks.\n"
             "Workflow: the user may **first send photos**, then say what to do "
             "(edit, combine, restyle, «оживи», make a video). Pass those disk paths "
             "in `references` (from «Вложения» / previous turns). Do not ask to re-upload.\n"
-            "In TUI, put the markdown Open link from the tool result in the reply "
-            "(`[Open image](file://…)`). In Telegram or MAX the file is sent when "
-            "auto_send is on; otherwise call `send_chat_files`. "
-            "Do not paste base64. Do not claim the user received the file unless "
-            "send_chat_files returned Sent N file(s).\n"
-            "Hard rule: never assemble video yourself (no ffmpeg, moviepy, "
+            + (
+                "In Telegram or MAX the file is sent when auto_send is on; otherwise call "
+                "`send_chat_files`. Do not claim the user received the file unless that "
+                "tool returned `Sent N file(s)`.\n"
+                if messenger
+                else "This run is not Telegram or MAX. Do not try to send the file to a "
+                "messenger. The Open link is written into the TUI transcript when the "
+                "file is saved.\n"
+            )
+            + "Hard rule: never assemble video yourself (no ffmpeg, moviepy, "
             "frame-stitching, or encoding scripts). Return only the file "
             "`generate_video` saved. If that tool fails, report the error."
         )

@@ -46,19 +46,15 @@ def _targets(holix_profile: str) -> list[tuple[str, int]]:
                     found.append((bot_name, int(uid)))
     except Exception:
         logger.debug("telegram skill targets failed", exc_info=True)
-    try:
-        from holix_studio.application.messenger_bindings import (
-            get_messenger_bindings,
-            resolve_bot_profile,
-        )
+    from core.plugins.hooks import host_bridge_hooks
 
-        bot = resolve_bot_profile(serve_profile=None, user_profile=holix_profile)
-        bindings = get_messenger_bindings(bot_profile=bot, holix_profile=holix_profile)
-        uid = (bindings.get("telegram") or {}).get("user_id")
-        if uid and (bot, int(uid)) not in found:
-            found.append((bot, int(uid)))
-    except Exception:
-        pass
+    for lookup in host_bridge_hooks.skill_notice_targets:
+        try:
+            for bot, uid in lookup(holix_profile, "telegram"):
+                if (bot, int(uid)) not in found:
+                    found.append((bot, int(uid)))
+        except Exception:
+            logger.debug("extra telegram skill targets failed", exc_info=True)
     return found
 
 

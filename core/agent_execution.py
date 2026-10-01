@@ -130,6 +130,7 @@ async def run_agent_loop(
         workspace_jail_enabled=getattr(agent_config, "workspace_jail_enabled", None),
         persona_name=persona_name,
         persona_prompt=persona_prompt,
+        allow_adult_content=bool(getattr(agent_config, "allow_adult_content", False)),
     )
 
     # ------------------------------------------------------------------

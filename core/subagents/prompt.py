@@ -21,10 +21,16 @@ def build_subagent_system_prompt(
     workspace_root: str | None = None,
     workspace_jail_enabled: bool | None = None,
     working_directory: str | None = None,
+    documents_block: str | None = None,
 ) -> str:
     """Build sub-agent system prompt with the same workspace as the main agent."""
     lang_block = language_instruction_block(profile_name=profile_name)
     base = config.system_prompt or f"You are {config.name}, a specialized AI assistant."
+
+    if documents_block is None:
+        from core.subagents.session_documents import attach_session_documents
+
+        documents_block = attach_session_documents(config, profile_name)
 
     prompt = f"""{lang_block}
 
@@ -44,6 +50,8 @@ def build_subagent_system_prompt(
 5. File paths and shell commands run in the shared working directory below — same as the main agent
 6. When automated tests already pass, stop calling tools and write the final answer so the parent process can continue. Do not re-run the same passing pytest.
 """
+    if documents_block:
+        prompt += f"\n{documents_block}\n"
     if getattr(config, "fork", False):
         prompt += (
             "\n## Forked parent context\n"

@@ -25,6 +25,7 @@ app = typer.Typer(
     help="Holix - Self-Improving AI Agent with Memory and Skills",
     add_completion=False,
     rich_markup_mode="rich",
+    no_args_is_help=False,
 )
 
 _BASE_COMMANDS_REGISTERED = False
@@ -135,7 +136,7 @@ def _package_version() -> str:
         return _CLI_VERSION
 
 
-@app.callback()
+@app.callback(invoke_without_command=True)
 def _app_callback(
     ctx: typer.Context,
     profile: str | None = typer.Option(
@@ -170,6 +171,8 @@ def _app_callback(
     """Holix AI Agent CLI.
 
     A powerful, self-improving AI agent with memory, skills, and tool-calling capabilities.
+
+    ``holix`` with no subcommand opens the terminal UI. ``holix tui`` does the same.
     """
     del version
     # ``holix version`` / ``holix --help`` must not require a profile.
@@ -211,6 +214,12 @@ def _app_callback(
     if verbose:
         print_info(f"Using profile: {resolved_profile}")
         print_info(f"Model: {config.model}")
+
+    if ctx.invoked_subcommand is None:
+        from cli.tui.app import run_tui
+
+        run_tui(profile=resolved_profile)
+        raise typer.Exit()
 
 
 @app.command()

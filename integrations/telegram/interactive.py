@@ -230,7 +230,24 @@ class TelegramInteractive:
             )
             command_lines = [(spec.command, spec.description) for spec in specs]
         html, rows = render_help_page(topic, loc, html=True, command_lines=command_lines)
-        await self._host._send_html_with_keyboard(html, help_guide_keyboard(rows))
+        keyboard = help_guide_keyboard(rows)
+        message_id = getattr(self._host, "_ui_message_id", None)
+        if message_id:
+            from integrations.telegram.live_presenter import _is_not_modified
+
+            try:
+                await self._host._bot.edit_message_text(
+                    html,
+                    chat_id=self._session.chat_id,
+                    message_id=message_id,
+                    parse_mode="HTML",
+                    reply_markup=keyboard,
+                )
+                return
+            except Exception as exc:
+                if _is_not_modified(exc):
+                    return
+        await self._host._send_html_with_keyboard(html, keyboard)
 
     async def show_cron_menu(self) -> None:
         """Cron jobs list with enable/disable/delete buttons."""

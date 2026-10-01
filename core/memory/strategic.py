@@ -118,22 +118,22 @@ class StrategicMemoryStore:
         Returns:
             List of matching strategies.
         """
-        results = self._vector_store.query(
-            "ltm_strategic", [query], n_results=top_k
-        )
+        results = self._vector_store.query("ltm_strategic", [query], n_results=top_k)
 
         strategies = []
         if results["documents"] and results["documents"][0]:
             for i, doc in enumerate(results["documents"][0]):
                 meta = results["metadatas"][0][i] if results["metadatas"] else {}
                 distance = results["distances"][0][i] if results.get("distances") else None
-                strategies.append({
-                    "key": meta.get("key", ""),
-                    "content": doc,
-                    "category": meta.get("category", "general"),
-                    "metadata": meta,
-                    "distance": distance,
-                })
+                strategies.append(
+                    {
+                        "key": meta.get("key", ""),
+                        "content": doc,
+                        "category": meta.get("category", "general"),
+                        "metadata": meta,
+                        "distance": distance,
+                    }
+                )
 
         return strategies
 
@@ -167,15 +167,17 @@ class StrategicMemoryStore:
                         meta = json.loads(row["metadata"])
                     except json.JSONDecodeError:
                         pass
-                strategies.append({
-                    "id": row["id"],
-                    "key": row["key"],
-                    "content": row["content"],
-                    "source": row["source"],
-                    "metadata": meta,
-                    "created_at": row["created_at"],
-                    "updated_at": row["updated_at"],
-                })
+                strategies.append(
+                    {
+                        "id": row["id"],
+                        "key": row["key"],
+                        "content": row["content"],
+                        "source": row["source"],
+                        "metadata": meta,
+                        "created_at": row["created_at"],
+                        "updated_at": row["updated_at"],
+                    }
+                )
 
         return strategies
 
@@ -192,7 +194,7 @@ class StrategicMemoryStore:
         async with connect_aiosqlite(self._db_path) as db:
             db.row_factory = aiosqlite.Row
             cursor = await db.execute(
-                """SELECT key, content, category, source, metadata
+                """SELECT key, content, category, source, metadata, updated_at
                    FROM ltm_entries
                    WHERE memory_type = 'strategic'
                    ORDER BY category, updated_at DESC""",
@@ -205,13 +207,16 @@ class StrategicMemoryStore:
                         meta = json.loads(row["metadata"])
                     except json.JSONDecodeError:
                         pass
-                strategies.append({
-                    "key": row["key"],
-                    "content": row["content"],
-                    "category": row["category"],
-                    "source": row["source"],
-                    "metadata": meta,
-                })
+                strategies.append(
+                    {
+                        "key": row["key"],
+                        "content": row["content"],
+                        "category": row["category"],
+                        "source": row["source"],
+                        "metadata": meta,
+                        "updated_at": row["updated_at"],
+                    }
+                )
 
         return strategies
 
@@ -280,7 +285,7 @@ class StrategicMemoryStore:
                 # Clean up the content (remove the "key: " prefix if present)
                 clean_content = content
                 if content.startswith(f"{key}: "):
-                    clean_content = content[len(key) + 2:]
+                    clean_content = content[len(key) + 2 :]
                 parts.append(f"- **{key}**: {clean_content}")
             parts.append("")
 

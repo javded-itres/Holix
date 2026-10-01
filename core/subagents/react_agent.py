@@ -353,6 +353,20 @@ def build_react_subagent(parent: Any, config: SubAgentConfig, task: str) -> Any:
         langgraph_checkpoint_db_path="",
     )
     slot = str(config.agent_type or config.name or "main")
+    profile_name = str(getattr(parent_cfg, "profile_name", None) or "default")
+    from core.sdd.change_workspace import overlay_workspace_root
+    from core.subagents.session_documents import attach_session_documents
+
+    parent_cid = str(getattr(config, "parent_conversation_id", None) or "").strip()
+    if not parent_cid or parent_cid == "default":
+        from core.subagents.fork import parent_conversation_id as _parent_cid
+
+        parent_cid = _parent_cid(parent)
+    documents_block = attach_session_documents(
+        config,
+        profile_name,
+        conversation_id=parent_cid,
+    )
     filtered = FilteredToolRegistry(
         parent.tools,
         allowed=allowed_tool_names(config),
@@ -385,14 +399,6 @@ def build_react_subagent(parent: Any, config: SubAgentConfig, task: str) -> Any:
     )
     child.model = model or child.model
     child.agent_slot = slot
-    profile_name = str(getattr(parent_cfg, "profile_name", None) or "default")
-    from core.sdd.change_workspace import overlay_workspace_root
-
-    parent_cid = str(getattr(config, "parent_conversation_id", None) or "").strip()
-    if not parent_cid or parent_cid == "default":
-        from core.subagents.fork import parent_conversation_id as _parent_cid
-
-        parent_cid = _parent_cid(parent)
     child_ws = overlay_workspace_root(profile_name, parent_cid) or getattr(
         parent_cfg, "workspace_root", None
     )
@@ -403,6 +409,7 @@ def build_react_subagent(parent: Any, config: SubAgentConfig, task: str) -> Any:
         profile_name=profile_name,
         workspace_root=child_ws,
         workspace_jail_enabled=getattr(parent_cfg, "workspace_jail_enabled", None),
+        documents_block=documents_block,
     )
     child._initialized = True
     child._use_langgraph = True

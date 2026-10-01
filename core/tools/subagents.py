@@ -38,7 +38,10 @@ class DelegateToSubAgentTool(BaseTool):
         )
         self.description = (
             "Delegate a task to a specialized sub-agent (background). Returns job_id — "
-            "use wait_subagent_result. fork=true seeds the child with completed parent "
+            "use wait_subagent_result. The child receives this session's indexed "
+            "document cards and can search_document / read_document them; name the "
+            "file and the question, do not paste the file. fork=true seeds the child "
+            "with completed parent "
             "turns (isolated tools/PTY/todos); default is a fresh conversation. "
             "For SDD apply prefer sdd_apply/sdd_dispatch so "
             "assignees from tasks.md are used (do not replace coder-python with coder). "

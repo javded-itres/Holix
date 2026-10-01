@@ -209,6 +209,8 @@ def pick_best_tool_final(recent_tools: list[dict[str, Any]]) -> str:
                 return text
         if name == "send_chat_files":
             continue
+        if body.lstrip().startswith("Background task started:"):
+            continue
         formatted = format_tool_body_for_messenger(body, name=name)
         if not formatted:
             continue

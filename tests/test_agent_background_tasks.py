@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import sys
 
 import pytest
@@ -76,6 +77,146 @@ async def test_background_task_wakes_listener_with_output() -> None:
     assert "same agent, not a sub-agent" in text
     assert "done-marker" in text
     assert get_agent_task_registry().running_count(profile="alice", conversation_id="conv-1") == 0
+
+
+@pytest.mark.asyncio
+async def test_duplicate_image_calls_in_one_step_collapse() -> None:
+    from core.runtime.agent_tasks import collapse_repeat_media_calls, get_agent_task_registry
+
+    call = {
+        "id": "1",
+        "function": {
+            "name": "generate_image",
+            "arguments": json.dumps({"prompt": "a pink elephant"}),
+        },
+    }
+    copies = [{**call, "id": str(i)} for i in range(5)]
+    kept, stop = collapse_repeat_media_calls(
+        copies, profile="default", conversation_id="conv-media"
+    )
+    assert stop is None
+    assert len(kept) == 1
+
+    registry = get_agent_task_registry()
+
+    async def _done() -> str:
+        return "Saved image: /tmp/a.png"
+
+    launched = await registry.launch_async(
+        description="image",
+        command="a pink elephant",
+        profile="default",
+        conversation_id="conv-media",
+        runner=_done,
+    )
+    assert not isinstance(launched, str)
+    assert launched._async_job is not None
+    await launched._async_job
+    _kept, stop = collapse_repeat_media_calls(
+        copies, profile="default", conversation_id="conv-media"
+    )
+    assert _kept == []
+    assert stop is not None
+    assert "task_" in stop
+    assert "Saved image: /tmp/a.png" in stop
+
+
+def test_one_media_start_blocks_a_later_revision_call() -> None:
+    from core.runtime.agent_tasks import media_generation_already_started
+
+    messages = [
+        {"role": "user", "content": "нарисуй слона"},
+        {
+            "role": "tool",
+            "content": "Background task started: id=task_abc — image: elephant",
+        },
+        {"role": "user", "content": "## Reflexion (iteration 1)\nImprove the image."},
+    ]
+    assert media_generation_already_started(messages) is True
+    fresh = [{"role": "user", "content": "поправь: добавь человека"}]
+    assert media_generation_already_started(fresh) is False
+
+
+def test_second_task_list_stops_when_nothing_is_running() -> None:
+    from core.runtime.agent_tasks import stop_idle_task_lookup
+
+    state = {
+        "tool_results": [
+            {
+                "tool_name": "list_agent_tasks",
+                "result": (
+                    "Background tasks (same agent, not sub-agents):\n"
+                    "- task_a9eba40f completed exit=0 (5s) — image: a cat"
+                ),
+            }
+        ]
+    }
+    calls = [{"function": {"name": "list_agent_tasks", "arguments": "{}"}}]
+    text = stop_idle_task_lookup(state, calls)
+    assert text is not None
+    assert "Повторно" in text
+    running = {
+        "tool_results": [
+            {
+                "tool_name": "list_agent_tasks",
+                "result": "- task_a9eba40f running 3s — image: a cat",
+            }
+        ]
+    }
+    assert stop_idle_task_lookup(running, calls) is None
+
+
+@pytest.mark.asyncio
+async def test_start_listener_sees_a_running_task() -> None:
+    from core.runtime.agent_tasks import (
+        register_agent_task_start_listener,
+        unregister_agent_task_start_listener,
+    )
+
+    seen: list[str] = []
+
+    def _on_start(task) -> None:
+        seen.append(task.task_id)
+
+    register_agent_task_start_listener(_on_start)
+    try:
+        launched = await get_agent_task_registry().launch_async(
+            description="video clip",
+            profile="alice",
+            conversation_id="conv-pin",
+            runner=_hang_once,
+        )
+    finally:
+        unregister_agent_task_start_listener(_on_start)
+    assert not isinstance(launched, str)
+    assert seen == [launched.task_id]
+    await get_agent_task_registry().stop(launched.task_id)
+    await _wait_done(launched.task_id)
+
+
+async def _hang_once() -> str:
+    await asyncio.Event().wait()
+    return "never"
+
+
+@pytest.mark.asyncio
+async def test_async_background_task_has_no_timeout_and_can_be_stopped() -> None:
+    async def _hang() -> str:
+        await asyncio.Event().wait()
+        return "never"
+
+    launched = await get_agent_task_registry().launch_async(
+        description="hang",
+        profile="alice",
+        conversation_id="conv-async",
+        runner=_hang,
+    )
+    assert not isinstance(launched, str)
+    assert launched.is_running()
+    message = await get_agent_task_registry().stop(launched.task_id)
+    assert launched.task_id in message
+    finished = await _wait_done(launched.task_id)
+    assert finished.status == "killed"
 
 
 @pytest.mark.asyncio

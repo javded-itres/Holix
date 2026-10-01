@@ -1253,7 +1253,19 @@ class MaxInteractive:
             )
             command_lines = [(spec.command, spec.description) for spec in specs]
         text, rows = render_help_page(topic, loc, html=False, command_lines=command_lines)
-        await self._host._send_text_with_keyboard(text, help_guide_keyboard(rows))
+        keyboard = help_guide_keyboard(rows)
+        message_id = getattr(self._host, "_ui_message_id", None)
+        if message_id:
+            try:
+                await self._host._client.edit_message(
+                    str(message_id),
+                    text,
+                    attachments=[keyboard],
+                )
+                return
+            except Exception:
+                pass
+        await self._host._send_text_with_keyboard(text, keyboard)
 
     async def show_cron_menu(self) -> None:
         from cli.shared.commands.cron_commands import format_jobs_message

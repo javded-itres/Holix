@@ -41,6 +41,8 @@ class MediaProvider:
     api_key_env: str
     model: str
     size: str = "1024x1024"
+    note: str = ""
+    accepts_reference: bool | None = None
     extra: dict[str, Any] = field(default_factory=dict)
 
     @property
@@ -111,16 +113,11 @@ def _norm_v1(base: str) -> str:
 
 def _profile_litellm_base() -> str:
     try:
-        from core.env_loader import active_profile_name
-        from core.profile import ProfileManager
+        from holix_media.profile_files import litellm_base_url
 
-        cfg = ProfileManager().load_profile(str(active_profile_name() or "default"))
-        pdata = (getattr(cfg, "providers", None) or {}).get("litellm")
-        if isinstance(pdata, dict):
-            return str(pdata.get("base_url") or "").strip()
+        return litellm_base_url()
     except Exception:
         return ""
-    return ""
 
 
 def _as_list(raw: Any) -> list[dict[str, Any]]:
@@ -146,8 +143,21 @@ def _parse_provider(raw: dict[str, Any], *, kind: str) -> MediaProvider | None:
         api_key_env=str(raw.get("api_key_env") or "").strip(),
         model=str(raw.get("model") or "").strip(),
         size=str(raw.get("size") or "1024x1024"),
+        note=str(raw.get("note") or raw.get("description") or "").strip(),
+        accepts_reference=_parse_accepts_reference(raw),
         extra=extra,
     )
+
+
+def _parse_accepts_reference(raw: dict[str, Any]) -> bool | None:
+    if "accepts_reference" not in raw:
+        return None
+    flag = raw.get("accepts_reference")
+    if flag is None or (isinstance(flag, str) and not flag.strip()):
+        return None
+    if isinstance(flag, str):
+        return flag.strip().lower() in {"1", "true", "yes", "on", "reference"}
+    return bool(flag)
 
 
 def _env_image_provider() -> MediaProvider | None:

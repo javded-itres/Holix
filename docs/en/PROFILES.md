@@ -129,6 +129,16 @@ Each approved user gets a protected profile, workspace jail, and the access key 
 
 Manual bindings (`holix telegram map`) are still supported. See [TELEGRAM.md § Multi-profile topologies](TELEGRAM.md#multi-profile-topologies).
 
+## Adult content
+
+By default the model may refuse explicit images and video. A single profile can allow adult sexual content:
+
+```yaml
+allow_adult_content: true
+```
+
+The flag applies only to that profile. Content involving anyone 17 or under stays forbidden even when the flag is on. Restart that profile's agent after changing it.
+
 ## Workspace jail (directory isolation)
 
 **Workspace jail** restricts file and terminal tools to a single directory tree. The agent cannot read, write, or run commands outside that folder — but works freely inside it.

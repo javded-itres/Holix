@@ -48,7 +48,24 @@ def attach_max_background_events(client: Any, session: Any) -> None:
     def _start(text: str) -> None:
         MaxHost(client, session)._start_agent_run(text)
 
-    bind_messenger_agent_task_wake(session, start_run=_start)
+    from integrations.max.live_presenter import MaxLivePresenter
+
+    presenter = MaxLivePresenter(client, session)
+
+    async def _pin(task: Any) -> None:
+        await presenter.pin_agent_task_notice(
+            str(getattr(task, "task_id", "") or ""),
+            str(getattr(task, "description", "") or ""),
+        )
+
+    async def _unpin(task: Any) -> None:
+        await presenter.unpin_agent_task_notice(
+            str(getattr(task, "task_id", "") or ""),
+            label=str(getattr(task, "description", "") or ""),
+            status=str(getattr(task, "status", "") or "completed"),
+        )
+
+    bind_messenger_agent_task_wake(session, start_run=_start, pin_task=_pin, unpin_task=_unpin)
 
 
 async def deliver_max_subagent_question(client: Any, session: Any, event: Any) -> None:

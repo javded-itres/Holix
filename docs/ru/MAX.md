@@ -440,7 +440,7 @@ Management API: `GET /api/holix/profiles/{id}/max/status`, `…/requests`, `…/
 - Одно live-сообщение на задачу (редактирование через `PUT /messages` при стриминге)
 - ID сессии: `max_{profile}_{user_id}`
 - Короткое слэш-меню (лимит MAX 32): `/help`, `/menu`, `/status`, `/models`, `/sessions`, `/new`, `/clear`, `/stop`, `/skills`, `/lang` плюс billing `/tariffs`, `/invite`, `/pay` (алиасы вроде `/billing` по-прежнему работают). См. [SLASH_COMMANDS.md](SLASH_COMMANDS.md)
-- **`/help`** — справка по сценариям с подменю (субагенты: настройка типов, запуск, Code mode). `/help субагенты` открывает раздел сразу. `/menu` — панель настроек (в том числе **Шаги** / `max_steps` профиля).
+- **`/help`** — справка по сценариям с подменю (субагенты: настройка типов, запуск, Code mode). Кнопка правит то же сообщение, а не создаёт новое. `/help как` — примеры работы. Длинный документ индексируется, а не вставляется целиком. `/help субагенты` открывает раздел сразу. `/menu` — панель настроек (в том числе **Шаги** / `max_steps` профиля).
 - **Субагенты** в статус-меню (`/code-mode`, `/subagent-types`): типы и Code mode. См. [SUBAGENTS.md](SUBAGENTS.md#telegram-и-max)
 
 ### Inline-подтверждения

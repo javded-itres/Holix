@@ -6,6 +6,7 @@ from typing import Any
 
 from core.cron.delivery import delivery_channel, resolve_delivery_conversation_id
 from core.cron.models import CronJob
+from core.plugins.hooks import studio_cron_hooks
 
 _SUMMARY_MAX = 2000
 _RESULT_MAX = 4000
@@ -80,9 +81,8 @@ async def persist_cron_result(
 
     if text and channel == "studio":
         try:
-            from core.cron.studio_notify import open_studio_cron_session
-
-            studio_cid = open_studio_cron_session(job, text)
+            opener = studio_cron_hooks.open_session
+            studio_cid = opener(job, text) if opener is not None else None
             if studio_cid:
                 await _save_assistant(
                     agent,

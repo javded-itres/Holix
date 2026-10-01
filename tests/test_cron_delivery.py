@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
@@ -15,7 +14,6 @@ from core.cron.delivery import (
 )
 from core.cron.models import CronJob
 from core.cron.session_sync import persist_cron_result
-from core.cron.studio_notify import open_studio_cron_session
 
 
 def _job(**kwargs) -> CronJob:
@@ -80,35 +78,6 @@ def test_without_internal_cron_sessions():
     ]
     out = without_internal_cron_sessions(rows)
     assert [r["conversation_id"] for r in out] == ["tg_default_1", "max_default_2"]
-
-
-def test_open_studio_cron_session_is_new_file(tmp_path: Path, monkeypatch) -> None:
-    profile = "cron_studio_new"
-
-    def fake_data_dir(name: str) -> Path:
-        d = tmp_path / name / "data"
-        d.mkdir(parents=True, exist_ok=True)
-        return d
-
-    monkeypatch.setattr(
-        "core.cron.studio_notify.resolve_holix_default_data_dir",
-        fake_data_dir,
-    )
-    job = _job(profile=profile, session_id="studio")
-    cid = open_studio_cron_session(job, "Пора работать!")
-    assert cid is not None
-    assert cid.startswith("studio_cron_")
-    path = tmp_path / profile / "data" / "studio" / "cwd" / f"{cid}.json"
-    assert path.is_file()
-    import json
-
-    data = json.loads(path.read_text(encoding="utf-8"))
-    classes = [m["cls"] for m in data["messages"]]
-    assert "user" in classes
-    assert "assistant" in classes
-    assert "Пора работать" in data["messages"][-1]["text"]
-    # Must not append into the default studio.json tab.
-    assert not (tmp_path / profile / "data" / "studio" / "cwd" / "studio.json").is_file()
 
 
 @pytest.mark.asyncio

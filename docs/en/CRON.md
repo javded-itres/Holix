@@ -112,7 +112,7 @@ Text after `::` is the **agent prompt** for each run. Be specific: what to check
 
 - Scheduler tick runs inside **gateway** (~30s); due jobs start in the background.
 - The agent run is logged under `cron-<job-id>` (internal). That id is **not** listed in Telegram / MAX `/sessions`.
-- **Delivery:** Telegram → active `tg_<profile>_<chat>` session + bot message in that chat. MAX → active `max_…` session + MAX message. Studio → a **new** Studio chat session (`studio_cron_<job>_<time>`). TUI keeps summaries on the bound `session_id`.
+- **Delivery:** Telegram → active `tg_<profile>_<chat>` session + bot message in that chat. MAX → active `max_…` session + MAX message. Studio, when it is running, opens a **new** Studio chat session (`studio_cron_<job>_<time>`). The agent does not write that file. TUI keeps summaries on the bound `session_id`.
 - The runner prepends context that this is an **automated** run; the model should complete the task and **summarize** results.
 - Status fields: `last_run_at`, `last_status` (`success` / `error` / `running`), `next_run_at`, `run_count`.
 - Optional **notify** targets (`notify_chat_id` for Telegram, `notify_max_user_id` / `notify_max_chat_id` for MAX) receive run summaries.

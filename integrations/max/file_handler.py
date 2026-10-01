@@ -72,9 +72,7 @@ def attachment_to_pending(attachment: dict[str, Any]) -> PendingMaxAttachment | 
         name = f"audio_{token[:12] or 'clip'}.m4a"
         if not url:
             return None
-        return PendingMaxAttachment(
-            kind, url, name, mime_type="audio/mp4", video_token=token
-        )
+        return PendingMaxAttachment(kind, url, name, mime_type="audio/mp4", video_token=token)
 
     if kind == "video":
         name = f"video_{token[:12] or 'clip'}.mp4"
@@ -145,6 +143,7 @@ async def save_max_attachment(
     *,
     profile: str,
     storage_id: int,
+    conversation_id: str = "",
 ) -> SavedTelegramFile:
     max_bytes = int(settings.max_max_file_mb or 20) * 1024 * 1024
     if item.file_size and item.file_size > max_bytes:
@@ -175,7 +174,7 @@ async def save_max_attachment(
         kind=kind if kind == "image" else "document",
         size_bytes=size,
     )
-    return await enrich_saved_file(saved, profile=profile)
+    return await enrich_saved_file(saved, profile=profile, conversation_id=conversation_id)
 
 
 def format_files_preview_markdown(

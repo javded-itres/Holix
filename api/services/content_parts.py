@@ -8,6 +8,8 @@ from dataclasses import dataclass, field
 from typing import Any
 from urllib.parse import urlparse
 
+from core.plugins.hooks import vision_hooks
+
 _UNSUPPORTED_PART_TYPES = frozenset({"file", "input_file", "file_id"})
 _IMAGE_URL_RE = re.compile(r"^data:(image/[^;]+);base64,", re.I)
 
@@ -129,23 +131,23 @@ async def enrich_with_vision_descriptions(
     if not parsed.image_urls:
         return parsed.text
 
-    from integrations.telegram.file_handler import describe_image_from_url
-
+    describe = vision_hooks.describe_image_from_url
     blocks = [parsed.text] if parsed.text else []
     for idx, url in enumerate(parsed.image_urls, start=1):
-        try:
-            description = await describe_image_from_url(url, profile=profile)
-        except Exception as exc:
-            description = f"(image {idx}: vision unavailable: {exc})"
+        if describe is None:
+            description = f"(image {idx}: vision unavailable)"
+        else:
+            try:
+                description = await describe(url, profile=profile)
+            except Exception as exc:
+                description = f"(image {idx}: vision unavailable: {exc})"
         blocks.append(f"[Image {idx}]\n{description}")
     return "\n\n".join(blocks).strip()
 
 
 def minimal_png_data_url() -> str:
     """1x1 PNG for tests."""
-    b64 = (
-        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=="
-    )
+    b64 = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=="
     return f"data:image/png;base64,{b64}"
 
 

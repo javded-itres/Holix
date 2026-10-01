@@ -89,22 +89,22 @@ class EpisodicMemoryStore:
         Returns:
             List of matching episodes with content, metadata, distance.
         """
-        results = self._vector_store.query(
-            "ltm_episodic", [query], n_results=top_k
-        )
+        results = self._vector_store.query("ltm_episodic", [query], n_results=top_k)
 
         episodes = []
         if results["documents"] and results["documents"][0]:
             for i, doc in enumerate(results["documents"][0]):
                 meta = results["metadatas"][0][i] if results["metadatas"] else {}
                 distance = results["distances"][0][i] if results.get("distances") else None
-                episodes.append({
-                    "content": doc,
-                    "metadata": meta,
-                    "distance": distance,
-                    "conversation_id": meta.get("conversation_id", ""),
-                    "outcome": meta.get("outcome", "unknown"),
-                })
+                episodes.append(
+                    {
+                        "content": doc,
+                        "metadata": meta,
+                        "distance": distance,
+                        "conversation_id": meta.get("conversation_id", ""),
+                        "outcome": meta.get("outcome", "unknown"),
+                    }
+                )
 
         return episodes
 
@@ -138,14 +138,78 @@ class EpisodicMemoryStore:
                         meta = json.loads(row["metadata"])
                     except json.JSONDecodeError:
                         pass
-                episodes.append({
-                    "id": row["id"],
-                    "content": row["content"],
-                    "metadata": meta,
-                    "created_at": row["created_at"],
-                })
+                episodes.append(
+                    {
+                        "id": row["id"],
+                        "content": row["content"],
+                        "metadata": meta,
+                        "created_at": row["created_at"],
+                    }
+                )
 
         return episodes
+
+    async def list_episodes(self) -> list[dict[str, Any]]:
+        """Return every episodic summary, newest first."""
+        episodes: list[dict[str, Any]] = []
+        async with connect_aiosqlite(self._db_path) as db:
+            db.row_factory = aiosqlite.Row
+            cursor = await db.execute(
+                """SELECT id, content, source, metadata, created_at
+                   FROM ltm_entries
+                   WHERE memory_type = 'episodic'
+                   ORDER BY created_at DESC, id DESC"""
+            )
+            rows = await cursor.fetchall()
+        for row in rows:
+            meta: dict[str, Any] = {}
+            if row["metadata"]:
+                try:
+                    meta = json.loads(row["metadata"])
+                except json.JSONDecodeError:
+                    pass
+            episodes.append(
+                {
+                    "id": row["id"],
+                    "content": row["content"],
+                    "source": row["source"] or "",
+                    "metadata": meta,
+                    "created_at": row["created_at"],
+                }
+            )
+        return episodes
+
+    async def delete_episode(self, entry_id: int) -> bool:
+        """Delete one episode row and its ``ltm_episodic`` vector."""
+        try:
+            episode_id = int(entry_id)
+        except (TypeError, ValueError):
+            return False
+        async with connect_aiosqlite(self._db_path) as db:
+            cursor = await db.execute(
+                "DELETE FROM ltm_entries WHERE memory_type = 'episodic' AND id = ?",
+                (episode_id,),
+            )
+            await db.commit()
+            deleted = cursor.rowcount > 0
+        if deleted:
+            self._vector_store.delete(
+                collection_name="ltm_episodic",
+                ids=[f"episodic_{episode_id}"],
+            )
+        return deleted
+
+    async def delete_episodes_for_conversation(self, conversation_id: str) -> int:
+        """Delete every episode summary stored for one conversation."""
+        key = str(conversation_id or "").strip()
+        if not key:
+            return 0
+        episodes = await self.get_episodes_for_conversation(key)
+        removed = 0
+        for episode in episodes:
+            if await self.delete_episode(int(episode["id"])):
+                removed += 1
+        return removed
 
     async def auto_summarize_conversation(
         self,
@@ -257,8 +321,7 @@ KEY_LEARNING: (one key takeaway, if any)"""
             user_msgs = [m for m in messages if m.get("role") == "user"]
             tool_msgs = [m for m in messages if m.get("role") == "tool"]
             simple_summary = (
-                f"Conversation with {len(user_msgs)} user messages and "
-                f"{len(tool_msgs)} tool calls."
+                f"Conversation with {len(user_msgs)} user messages and {len(tool_msgs)} tool calls."
             )
             try:
                 await self.store_episode(

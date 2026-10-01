@@ -34,8 +34,47 @@ from core.graph.action_honesty import (
     should_refuse_status_monologue,
     should_refuse_unproven_sdd_fill,
     successful_tools_since_last_user,
+    unknown_background_task_ids,
 )
 from core.graph.builder import prepare_initial_state
+
+
+def test_media_wake_report_does_not_require_another_tool() -> None:
+    from core.graph.action_honesty import lacks_evidence_for_claim
+
+    user = (
+        "Background task `image: a cat` (id=task_3329ee70) finished successfully. "
+        "Show the user the result.\n\nOutput:\nSaved image: /tmp/cat.png\n"
+    )
+    reply = "Изображение готово: /tmp/cat.png"
+    assert lacks_evidence_for_claim(reply, [], user_input=user) is False
+
+
+def test_invented_background_task_id_is_not_accepted() -> None:
+    messages = [
+        {"role": "user", "content": "сделай видео"},
+        {
+            "role": "tool",
+            "content": "Background task started: id=task_cc2283c8 — video",
+        },
+        {
+            "role": "tool",
+            "content": "Error: comfy error internal_error",
+        },
+    ]
+    state = {"messages": messages, "user_input": "сделай видео", "honesty_nudge_count": 0}
+    fake = "Фоновая задача активна: `task_1d2e6f6c`. Ждём результат."
+    assert unknown_background_task_ids(fake, messages) == {"task_1d2e6f6c"}
+    assert should_nudge_false_completion(state, final_response=fake, messages=messages)
+    real = "Задача `task_cc2283c8` завершилась с ошибкой comfy error internal_error."
+    assert unknown_background_task_ids(real, messages) == set()
+    update = honesty_retry_update(
+        messages=messages,
+        step_count=2,
+        final_response=fake,
+        user_input="сделай видео",
+    )
+    assert "Do not invent task ids" in update["messages"][-1]["content"]
 
 
 def test_claims_completion_ru_and_en() -> None:

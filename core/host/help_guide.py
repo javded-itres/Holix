@@ -11,6 +11,7 @@ HELP_CALLBACK_ACTION = "hp"
 # Home topics (two-column keyboard). Sub-agents has its own submenu.
 HOME_CHILDREN: tuple[str, ...] = (
     "start",
+    "how",
     "chat",
     "sub",
     "skill",
@@ -25,10 +26,12 @@ HOME_CHILDREN: tuple[str, ...] = (
 )
 
 SUB_CHILDREN: tuple[str, ...] = ("subw", "subc", "subr", "subm")
+HOW_CHILDREN: tuple[str, ...] = ("howa", "howp", "howc", "hows", "howd")
 
 _PARENT: dict[str, str | None] = {
     "home": None,
     "start": "home",
+    "how": "home",
     "chat": "home",
     "sub": "home",
     "skill": "home",
@@ -44,16 +47,28 @@ _PARENT: dict[str, str | None] = {
     "subc": "sub",
     "subr": "sub",
     "subm": "sub",
+    "howa": "how",
+    "howp": "how",
+    "howc": "how",
+    "hows": "how",
+    "howd": "how",
 }
 
 _CHILDREN: dict[str, tuple[str, ...]] = {
     "home": HOME_CHILDREN,
     "sub": SUB_CHILDREN,
+    "how": HOW_CHILDREN,
 }
 
 _ALIASES: dict[str, tuple[str, ...]] = {
     "home": ("home", "index", "меню", "справка"),
     "start": ("start", "start-here", "начало", "старт"),
+    "how": ("how", "guide", "работа", "как"),
+    "howa": ("howa", "abilities", "умеет", "функции"),
+    "howp": ("howp", "prompt", "prompts", "промпт", "промпты", "задача", "задачи"),
+    "howc": ("howc", "context", "контекст", "compress"),
+    "hows": ("hows", "doctor", "проблемы", "ошибка"),
+    "howd": ("howd", "document", "documents", "документ", "документы", "rag"),
     "chat": ("chat", "чат"),
     "sub": ("sub", "subagent", "subagents", "субагент", "субагенты"),
     "subw": ("subw", "what", "что"),
@@ -75,6 +90,12 @@ _LABELS: dict[str, dict[str, str]] = {
     "en": {
         "home": "Help",
         "start": "Getting started",
+        "how": "How to work",
+        "howa": "What it can do",
+        "howp": "Prompts and tasks",
+        "howc": "Context overflow",
+        "hows": "Fix it yourself",
+        "howd": "Large documents",
         "chat": "Chat",
         "sub": "Sub-agents",
         "subw": "What they are",
@@ -95,6 +116,12 @@ _LABELS: dict[str, dict[str, str]] = {
     "ru": {
         "home": "Справка",
         "start": "Начало работы",
+        "how": "Как работать",
+        "howa": "Что умеет",
+        "howp": "Промпты и задачи",
+        "howc": "Переполнение",
+        "hows": "Сам разбирается",
+        "howd": "Большие файлы",
         "chat": "Чат",
         "sub": "Субагенты",
         "subw": "Что это",
@@ -119,7 +146,74 @@ _BODIES: dict[str, dict[str, str]] = {
         "home": (
             "Write a task in plain language — Holix uses tools, memory, and skills.\n\n"
             "Pick a **scenario** below. Settings panel: `/menu`. Stop a run: `/stop`.\n"
-            "`/help sub` opens Sub-agents directly."
+            "`/help how` is the guide with examples. `/help sub` opens Sub-agents."
+        ),
+        "how": (
+            "Short guide: what Holix can do, how to write a task, what to do when "
+            "the context fills up, and how to make the agent debug itself.\n\n"
+            "Open a page below. `/help prompt` jumps to examples."
+        ),
+        "howa": (
+            "Holix is a tool-using agent, not a chat-only model.\n\n"
+            "• Read and edit the workspace (`read_file`, `patch_file`, `grep`).\n"
+            "• Run commands and long jobs, then report the result.\n"
+            "• Search the web and fetch pages.\n"
+            "• Remember facts and past sessions; you can review that memory.\n"
+            "• Spawn a specialist sub-agent (`coder`, `reviewer`, `researcher`).\n"
+            "• Generate an image or a video when media is configured.\n"
+            "• Schedule cron, call MCP tools, follow a spec (SDD).\n"
+            "• Ask you before a risky step. `/stop` cancels the run.\n\n"
+            "It does not invent task ids, and it should not claim a file or a "
+            "memory change until the tool result says so."
+        ),
+        "howp": (
+            "One message = one outcome. Name the result, the place, and the limit.\n\n"
+            "Weak: «fix the project».\n"
+            "Better: «In `api/routers`, the login test fails on a missing token. "
+            "Find the cause, patch it, run that test, stop.»\n\n"
+            "Weak: «make it nicer».\n"
+            "Better: «Rewrite the empty-state text on the billing page. "
+            "Do not change the layout. Show me the diff.»\n\n"
+            "Attach the file or name the path. Say what to keep. "
+            "If there are two valid choices, the agent should ask, not guess."
+        ),
+        "howc": (
+            "A long chat crowds out the task. Holix compresses history, but you "
+            "can do it earlier.\n\n"
+            "• `/compress` — shrink this chat and keep a summary.\n"
+            "• `/new` — fresh session when the topic changed.\n"
+            "• `/clear` — drop the transcript. `/forget` clears session memory.\n"
+            "• Do not paste a 30-page file into the message. Attach it; "
+            "large text is indexed and read in fragments (`/help documents`).\n"
+            "• Ask for a short status, not a retelling of every step.\n\n"
+            "If answers get vague or repeat old work, compress or start `/new` "
+            "and restate the goal in one message."
+        ),
+        "hows": (
+            "When a run fails, ask the agent to diagnose itself before you "
+            "retry the same sentence.\n\n"
+            "«Проверь себя» / «check yourself» starts `session_doctor`: it reads "
+            "the trace in a clean context and says what broke and how to ask next.\n\n"
+            "`/trace` — which tools ran. `/last` — the last tool output.\n"
+            "`/stop` — halt a stuck run, then send a narrower task.\n\n"
+            "Example: «The tests failed. Read `/trace`, name the one error, "
+            "fix only that, rerun the same test.»"
+        ),
+        "howd": (
+            "A long PDF, DOCX, Markdown, or text file is not pasted into the chat.\n\n"
+            "Holix extracts the text, splits it into fragments, and keeps them "
+            "on disk. The turn only sees a short card (id, size, opening lines).\n\n"
+            "The agent searches with `search_document` and reads a few fragments "
+            "with `read_document`. Ask a question, do not say «прочитай всё».\n\n"
+            "Example: attach `contract.pdf` and write «Найди срок оплаты и штраф. "
+            "Цитируй фрагмент, не пересказывай весь договор.»\n\n"
+            "Several files in one session stay together. `/new` starts another "
+            "task: its documents are not visible here, and these are not visible "
+            "there. Name the file if more than one is attached.\n\n"
+            "A sub-agent of this session receives those cards and can search "
+            "the same fragments. Say which file and what to find.\n\n"
+            "Short notes still go in full. Scanned PDFs without a text layer "
+            "cannot be indexed."
         ),
         "start": (
             "1. Send a task: «fix tests in holix-sas», «summarize the last spec».\n"
@@ -234,6 +328,8 @@ _BODIES: dict[str, dict[str, str]] = {
         "mem": (
             "`/memory query` — semantic search in long-term memory.\n"
             "`/forget` — clear this session's memory.\n"
+            "«Keep only the last 7 days» deletes the rest without a quiz. "
+            "«Show what you remember» quotes each row, not just its type.\n"
             "`/init` — project handbook `.holix/HOLIX.md` (loaded every turn).\n\n"
             "SOUL.md / USER.md — identity. See profile files under "
             "`~/.holix/profiles/<name>/`."
@@ -259,7 +355,8 @@ _BODIES: dict[str, dict[str, str]] = {
             "`HOLIX_PERMISSION_MODE` overrides the default. Not stored in config.yaml."
         ),
         "files": (
-            "Send a document / photo / voice in chat — Holix extracts text.\n"
+            "Send a document / photo / voice in chat — Holix extracts text. "
+            "Long documents are indexed; see **Large documents**.\n"
             "The agent prefers `patch_file` for edits, `write_file` for new files.\n\n"
             "`/pty on|off|reset` — persistent shell (`cd` / `export` stick) on POSIX.\n"
             "`/change` — SDD git worktree (`switch <id>` / `leave`). "
@@ -273,7 +370,73 @@ _BODIES: dict[str, dict[str, str]] = {
         "home": (
             "Пишите задачу обычным текстом — Holix берёт tools, память и навыки.\n\n"
             "Выберите **сценарий**. Панель настроек: `/menu`. Стоп: `/stop`.\n"
-            "`/help субагенты` открывает раздел сразу."
+            "`/help как` — как работать, с примерами. `/help субагенты` — субагенты."
+        ),
+        "how": (
+            "Коротко: что агент умеет, как ставить задачу, что делать при "
+            "переполнении контекста и как заставить его разобрать ошибку самому.\n\n"
+            "Страницы ниже. Сразу к примерам: `/help промпт`."
+        ),
+        "howa": (
+            "Holix — агент с инструментами, не просто чат.\n\n"
+            "• Читает и правит файлы workspace (`read_file`, `patch_file`, `grep`).\n"
+            "• Запускает команды и долгие задачи и сообщает результат.\n"
+            "• Ищет в сети и открывает страницы.\n"
+            "• Помнит факты и прошлые сессии; память можно пересмотреть.\n"
+            "• Запускает узкого субагента (`coder`, `reviewer`, `researcher`).\n"
+            "• Генерирует картинку или видео, если настроено медиа.\n"
+            "• Ставит cron, вызывает MCP, ведёт спеку (SDD).\n"
+            "• Спрашивает перед опасным шагом. `/stop` останавливает ход.\n\n"
+            "Не выдумывает id задач и не должен говорить, что файл или память "
+            "изменены, пока инструмент этого не вернул."
+        ),
+        "howp": (
+            "Одно сообщение — один результат. Назовите итог, место и границу.\n\n"
+            "Слабо: «почини проект».\n"
+            "Лучше: «В `api/routers` падает тест логина: нет токена. "
+            "Найди причину, поправь, запусти этот тест и остановись.»\n\n"
+            "Слабо: «сделай красивее».\n"
+            "Лучше: «Перепиши текст пустого состояния на странице оплаты. "
+            "Вёрстку не трогай. Покажи diff.»\n\n"
+            "Приложите файл или путь. Напишите, что оставить. "
+            "Если выбора два, агент должен спросить, а не угадать."
+        ),
+        "howc": (
+            "Длинный чат вытесняет задачу. Holix сжимает историю, но лучше раньше.\n\n"
+            "• `/compress` — сжать этот чат, оставив сводку.\n"
+            "• `/new` — новая сессия, если тема сменилась.\n"
+            "• `/clear` — стереть транскрипт. `/forget` — память сессии.\n"
+            "• Не вставляйте файл на 30 страниц в текст. Прикрепите его: "
+            "длинный текст индексируется и читается фрагментами (`/help документы`).\n"
+            "• Просите короткий статус, а не пересказ каждого шага.\n\n"
+            "Если ответы стали общими или агент повторяет старую работу — "
+            "`/compress` или `/new` и заново одна цель."
+        ),
+        "hows": (
+            "Если ход сломался, попросите агента разобрать себя, "
+            "а не повторяйте ту же фразу.\n\n"
+            "«Проверь себя» запускает `session_doctor`: он читает след в чистом "
+            "контексте и говорит, что сломалось и как спросить дальше.\n\n"
+            "`/trace` — какие tools вызывались. `/last` — последний вывод.\n"
+            "`/stop` — остановить зависший ход, затем более узкая задача.\n\n"
+            "Пример: «Тесты упали. Посмотри `/trace`, назови одну ошибку, "
+            "исправь только её и перезапусти тот же тест.»"
+        ),
+        "howd": (
+            "Длинный PDF, DOCX, Markdown или текст не вставляется в чат целиком.\n\n"
+            "Holix извлекает текст, режет на фрагменты и хранит их на диске. "
+            "В ход попадает короткая карточка: id, размер, начало.\n\n"
+            "Агент ищет через `search_document` и читает несколько фрагментов "
+            "через `read_document`. Спросите вопрос, не «прочитай всё».\n\n"
+            "Пример: приложите `contract.pdf` и напишите «Найди срок оплаты и штраф. "
+            "Процитируй фрагмент, не пересказывай весь договор.»\n\n"
+            "Несколько файлов в одной сессии остаются вместе. `/new` — другая "
+            "задача: её документы сюда не попадают, и эти там не видны. Если "
+            "файлов несколько, назовите нужный.\n\n"
+            "Субагент этой сессии получает те же карточки и может искать "
+            "по тем же фрагментам. Напишите, какой файл и что найти.\n\n"
+            "Короткие заметки по-прежнему попадают целиком. Скан PDF без текстового "
+            "слоя проиндексировать нельзя."
         ),
         "start": (
             "1. Напишите задачу: «почини тесты в holix-sas», «кратко по последней спеке».\n"
@@ -387,6 +550,8 @@ _BODIES: dict[str, dict[str, str]] = {
         "mem": (
             "`/memory запрос` — семантический поиск в долгой памяти.\n"
             "`/forget` — очистить память этой сессии.\n"
+            "«Оставь память за 7 дней, остальное удали» — агент удалит сам. "
+            "«Покажи, что помнишь» — в вопросе будет текст каждой записи, не только тип.\n"
             "`/init` — справочник проекта `.holix/HOLIX.md` (подмешивается каждый ход).\n\n"
             "SOUL.md / USER.md — идентичность. Файлы: `~/.holix/profiles/<имя>/`."
         ),
@@ -411,7 +576,8 @@ _BODIES: dict[str, dict[str, str]] = {
             "`HOLIX_PERMISSION_MODE` перекрывает default. В config.yaml не пишется."
         ),
         "files": (
-            "Документ / фото / голос в чат — Holix извлекает текст.\n"
+            "Документ / фото / голос в чат — Holix извлекает текст. "
+            "Длинные документы индексируются; см. **Большие файлы**.\n"
             "Правки существующих файлов — `patch_file`, новые — `write_file`.\n\n"
             "`/pty on|off|reset` — постоянный shell (`cd` / `export` живут) на POSIX.\n"
             "`/change` — git worktree SDD (`switch <id>` / `leave`). "

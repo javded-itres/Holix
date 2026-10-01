@@ -973,6 +973,11 @@ def lacks_evidence_for_claim(
 
     if not claims_action_completed(text):
         return False
+    # A finished media task already put "Saved image/video" in the wake text.
+    # Reporting that is not a new claim, and demanding another tool makes the
+    # model loop on `ls`/`file`.
+    if user.startswith("Background task `") and ("Saved image:" in user or "Saved video:" in user):
+        return False
     if not successes:
         return True
 
@@ -1394,6 +1399,38 @@ def should_nudge_self_diagnose(
     return bool((final_response or "").strip())
 
 
+_TASK_ID_RE = re.compile(r"\btask_[0-9a-f]{8}\b", re.IGNORECASE)
+
+INVENTED_TASK_NUDGE = (
+    "That background task id was not returned by a tool and is not in this chat. "
+    "Do not invent task ids. Call list_agent_tasks and mention only ids it returns. "
+    "If the last tool result is an error, report that error. "
+    "Do not say a task is still running unless list_agent_tasks shows it running."
+)
+
+
+def cited_task_ids(text: str | None) -> set[str]:
+    return {match.group(0).lower() for match in _TASK_ID_RE.finditer(text or "")}
+
+
+def unknown_background_task_ids(
+    final_response: str | None,
+    messages: list[dict[str, Any]] | None,
+) -> set[str]:
+    """Task ids in the reply that no tool result or user message in this turn named."""
+    cited = cited_task_ids(final_response)
+    if not cited:
+        return set()
+    known: set[str] = set()
+    for msg in messages or []:
+        if not isinstance(msg, dict):
+            continue
+        if str(msg.get("role") or "") == "assistant":
+            continue
+        known |= cited_task_ids(str(msg.get("content") or ""))
+    return cited - known
+
+
 def should_nudge_false_completion(
     state: dict[str, Any],
     *,
@@ -1417,6 +1454,8 @@ def should_nudge_false_completion(
         return False
     if looks_like_clarifying_questions(final_response):
         return False
+    if unknown_background_task_ids(final_response, messages):
+        return True
     if lacks_evidence_for_claim(
         final_response,
         messages,
@@ -1582,6 +1621,8 @@ def honesty_retry_update(
 
     if is_self_diagnose_request(user) and not self_diagnose_called_since_last_user(updated):
         nudge = SELF_DIAGNOSE_NUDGE
+    elif unknown_background_task_ids(final_response, updated):
+        nudge = INVENTED_TASK_NUDGE
     elif should_nudge_introspect_final(final_response=final_response, messages=updated):
         from core.runtime.introspect_signals import INTROSPECT_WRITE_NUDGE
 

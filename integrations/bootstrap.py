@@ -6,6 +6,7 @@ from core.plugins.hooks import (
     register_companion_hooks,
     register_notify_hooks,
     register_profile_lifecycle_hooks,
+    register_vision_hooks,
 )
 
 
@@ -14,6 +15,7 @@ def register_integration_hooks() -> None:
     _register_companions()
     _register_notify()
     _register_profile_lifecycle()
+    _register_vision()
     try:
         from integrations.telegram.skill_notice import register as _tg_skill
 
@@ -289,3 +291,11 @@ def _register_profile_lifecycle() -> None:
         format_deletion_message=format_deletion_message,
         default_admin_profile=DEFAULT_ADMIN_PROFILE,
     )
+
+
+def _register_vision() -> None:
+    try:
+        from integrations.telegram.file_handler import describe_image_from_url
+    except Exception:
+        return
+    register_vision_hooks(describe_image_from_url=describe_image_from_url)

@@ -508,7 +508,12 @@ class HolixCodeApp(App):
         from core.runtime.agent_tasks import register_agent_task_listener
 
         def _on_task(task: object) -> None:
-            self.call_from_thread(self.wake_on_agent_task, task)
+            # Media jobs finish on the Textual loop. call_from_thread raises on
+            # that thread, so the link never reached the transcript.
+            try:
+                self.call_from_thread(self.wake_on_agent_task, task)
+            except RuntimeError:
+                self.call_later(self.wake_on_agent_task, task)
 
         self._agent_task_listener = _on_task
         self._pending_task_reports: list[str] = []
@@ -535,7 +540,18 @@ class HolixCodeApp(App):
         status = str(getattr(task, "status", "") or "")
         code = getattr(task, "exit_code", None)
         self.transcript_write(f"[dim]✓ {label} · {status} · exit {code}[/dim]")
+        output = str(getattr(task, "output", "") or "")
+        from cli.tui.shared.media_links import (
+            media_link_renderable,
+            saved_media_needs_agent_report,
+        )
+
+        link = media_link_renderable(output, description=label)
+        if link is not None:
+            self.transcript_write(link)
         self._refresh_status_bar()
+        if not saved_media_needs_agent_report(output, status=status, description=label):
+            return
         text = format_agent_task_wakeup(task)  # type: ignore[arg-type]
         if self._prompt_run_active:
             pending = getattr(self, "_pending_task_reports", None)
@@ -634,7 +650,7 @@ class HolixCodeApp(App):
                 conversation_id=self.conversation_id,
             ):
                 if task.is_running():
-                    tasks.append(f"{task.description} · {task.age_seconds()}s")
+                    tasks.append(f"{task.task_id} · {task.description} · {task.age_seconds()}s")
         except Exception:
             pass
         try:

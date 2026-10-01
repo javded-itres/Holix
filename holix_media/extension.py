@@ -28,16 +28,7 @@ class MediaHostExtension:
 
         @cli.command("providers")
         def providers() -> None:
-            from core.extensions.settings import load_extension_settings
-
-            try:
-                from core.env_loader import active_profile_name
-
-                profile = active_profile_name() or "default"
-                settings = load_extension_settings(profile, "media")
-            except Exception:
-                settings = {}
-            cfg = load_media_config(settings)
+            cfg = _cfg()
             typer.echo(f"enabled={cfg.enabled} auto_send={cfg.auto_send}")
             typer.echo("images:")
             for p in cfg.image_providers:
@@ -100,12 +91,9 @@ class MediaHostExtension:
 
 def _cfg():
     try:
-        from core.env_loader import active_profile_name
-        from core.extensions.settings import load_extension_settings
+        from holix_media.profile_files import active_profile_name, load_media_settings
 
-        return load_media_config(
-            load_extension_settings(active_profile_name() or "default", "media")
-        )
+        return load_media_config(load_media_settings(active_profile_name()))
     except Exception:
         return load_media_config({})
 

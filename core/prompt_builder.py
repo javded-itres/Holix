@@ -392,6 +392,7 @@ def build_system_prompt(
     workspace_jail_enabled: bool | None = None,
     persona_name: str | None = None,
     persona_prompt: str | None = None,
+    allow_adult_content: bool | None = None,
 ) -> str:
     """Build the system prompt for the agent.
 
@@ -477,8 +478,7 @@ Examples:
 ## Tool Usage Guidelines
 
 - **This session first.** Before `web_search` / `fetch_url`, use the user task and tool results already in this conversation (`session_search` for older turns). «Продолжай» / continue means continue *that* task from this session — do not `git status` a different repo and do not start a new web crawl.
-- **Self-diagnose:** if the user says «проверь себя», «почему ты делаешь не так», «ты отвечаешь неправильно», «check yourself», or similar — spawn `session_doctor` with `fork=false` (clean context) and `wait_subagent_result`. Do not autopsy this polluted main chat yourself. The doctor must not change system settings; a Telegram admin ticket requires the user's confirmation (`request_admin_support`). Do not apologize without the doctor's result.
-- **Send files in Telegram/MAX:** call `send_chat_files(paths=[…])`. `read_file` / `cat` / splitting a file into chat text is **not** delivering an attachment. If the user says they cannot see the file, call `send_chat_files` again on the real path — do not claim it was sent unless the tool returned `Sent N file(s)`.
+{messenger_files}- **Self-diagnose:** if the user says «проверь себя», «почему ты делаешь не так», «ты отвечаешь неправильно», «check yourself», or similar — spawn `session_doctor` with `fork=false` (clean context) and `wait_subagent_result`. Do not autopsy this polluted main chat yourself. The doctor must not change system settings; a Telegram admin ticket requires the user's confirmation (`request_admin_support`). Do not apologize without the doctor's result.
 - **Site analysis via `fetch_url`:** fetch the URL the user gave. Next fetches must be URLs listed under `## Links on this page` (or a sitemap **if that list includes it**). Never invent paths (`/admin`, `/dashboard`, `/employee`, `/cabinet`, …). `web_search` only if the page graph from fetch has no relevant links.
 - **Many same-site links:** if the first fetch lists ~4+ relevant URLs and the task is analyzing that site/resource or finding information on it, call `research_site_pages(urls=[…from that list…], goal=<user task>)`. It fans out `page_analyst` sub-agents (waves of `subagent_max_concurrent`) and returns their briefings — then synthesize. Do **not** `fetch_url` those pages yourself on the main agent. Do **not** use `web_researcher` (it searches the public web). Do **not** `delegate_to_subagent` for this fan-out.
 - After a useful page fetch, **answer** when you have enough. HTTP 404/403 → stop that URL family. Never refetch the same URL in this conversation. A site briefing needs a handful of pages, not dozens.
@@ -537,6 +537,14 @@ State what you actually ran (commands, ports, test counts). If something failed,
 
 {skills}
 
+## Large documents
+
+When an attachment card says the document is indexed, do not paste or `read_file` the whole file. Call `search_document` with the question and that card's `doc_id`, then `read_document` for a few fragments around a hit. Quote the fragment. Several cards in this session are separate documents: always pass the `doc_id` from the card you mean. Indexed documents belong to this session only. A new session does not see them, and a `doc_id` from another session will not open. Short notes are already in the message in full. When you delegate, do not paste the document into the sub-agent task. The child receives this session's document cards and `search_document` / `read_document`. Name the file and the question in the task.
+
+## Long-term memory corrections
+
+When the user wants to review, correct, or forget what you remember, call `review_memory` with `action=review`. The list includes keyed facts, episode summaries of past sessions, and whole conversations. Each row has `content`, `updated_at`, and a suggestion (`keep`, `forget`, `revise`). If the user already said what to delete, including a rule such as "keep only the last 7 days", call `action=apply` with `forget` and/or `keep_days`. That deletes immediately and does not ask again. `keep_days` leaves the current session in place unless its key is also in `forget`. Do not use `apply` for a vague "clean up memory": call `action=confirm` instead, with `forget` set to the keys you recommend and `revisions` (`key`, `content`) only for keyed facts whose text should change. The question quotes what each row stores; the user selects what is forgotten. Forgetting a session removes that transcript, its search snippets, and its episode summaries. Forgetting one episode removes that summary only. Individual chat lines are not listed. Do not say a row was removed until `apply` or `confirm` lists it in `forgotten`. If the note says older rows were left off the page, review again after this pass. `keep_days` already scans every loaded row, not only the page.
+
 ## Relevant Memories
 
 {memories}
@@ -559,8 +567,22 @@ Remember: You are a helpful, capable agent that learns and improves with each ta
 """
 
     from core.env_loader import format_env_context_block
+    from core.tools.lazy_schema import messenger_delivery_available
 
     lang_block = language_instruction_block(locale=locale, profile_name=profile_name)
+    if messenger_delivery_available():
+        messenger_files = (
+            "- **Send files in Telegram/MAX:** call `send_chat_files(paths=[…])`. "
+            "`read_file` / `cat` / splitting a file into chat text is **not** delivering "
+            "an attachment. If the user says they cannot see the file, call "
+            "`send_chat_files` again on the real path — do not claim it was sent unless "
+            "the tool returned `Sent N file(s)`.\n"
+        )
+    else:
+        messenger_files = (
+            "- **This run is not Telegram or MAX.** Do not try to deliver files into those "
+            "chats. Show local paths and, in TUI, the Open link.\n"
+        )
 
     formatted_prompt = prompt.format(
         tools=tools_description if tools_description else "No tools available",
@@ -572,6 +594,7 @@ Remember: You are a helpful, capable agent that learns and improves with each ta
         else "No relevant memories from past conversations.",
         holix_path=HOLIX_MD_REL_PATH,
         project_note=task_context_note(),
+        messenger_files=messenger_files,
         env_paths=format_env_context_block(
             profile_name=profile_name,
             workspace_root=workspace_root,
@@ -634,6 +657,15 @@ Remember: You are a helpful, capable agent that learns and improves with each ta
     persona_block = format_studio_persona_block(persona_name, persona_prompt)
     if persona_block:
         blocks.append(persona_block)
+    if allow_adult_content:
+        blocks.append(
+            "## Adult content\n"
+            "This profile allows consensual adult sexual content: nudity and erotic "
+            "images or video of adults. When the user asks for that, call "
+            "`generate_image` or `generate_video`. Do not refuse it as prohibited.\n"
+            "Sexual, romantic, or nude content involving anyone 17 or under is still "
+            "forbidden. Refuse that and do not call a generation tool."
+        )
     try:
         from core.extensions.agent_registry import agent_prompt_fragment
 

@@ -2,9 +2,17 @@
 
 ## Unreleased
 
+### Added
+
+- **How to work** — `/help` has a guide with examples: what the agent can do, how to write a task, what to do when the context fills up, and how to ask it to diagnose a failed run. Telegram and MAX buttons still edit the same message.
+- **Long documents** — PDF, DOCX, ODT, Markdown, and other text files longer than a short note are split into fragments in the profile (`documents.db`). The turn sees a card, not the whole file. `search_document` and `read_document` pull the fragments the question needs. The index is per session: `/new` does not see the previous task's files, and forgetting that session removes them. A sub-agent spawned from that session receives the document cards and the same search tools.
+- **Memory review** — `review_memory` lists keyed facts, episode summaries, and whole sessions, suggests what looks stale, duplicated, or contradicted, and lets the user choose what to forget or rewrite. The question quotes what each row stores. `action=apply` deletes immediately when the user already said what to drop, including `keep_days` (keep the last 7 days and delete the rest). The current session is kept unless named. Forgetting a session also removes its transcript, search vectors, and episode summaries. See `docs/en/MEMORY.md` and `docs/ru/MEMORY.md`.
+
 ### Changed
 
+- **Help menu** — Telegram and MAX `/help` buttons edit the same message instead of sending a new one. `/help` itself still opens a new message.
 - **Slash menu** — the TUI command list is one row per family (`/mcp`, `/hub`, `/spec`, `/cron`, `/launch`, `/skills`, `/subagents`, `/plan`, `/process`, `/copy`). Subcommands stay on the same command. Old names still run: `/model`, `/process-stop`, `/memory-clear`, `/plan-confirm`, `/subagent-spawn`, `/hub list`, `/spec propose`, `/1`–`/4`.
+- **Image and video models** — `generate_image` / `generate_video` pick a text-only or reference model from the prompt, each provider's `note`, and `accepts_reference`. Leave `provider` empty and pass `references` when the user attached a picture or asked to change one. See `docs/en/TOOLS.md` and `docs/ru/TOOLS.md`.
 
 ## 1.1.12 — 2026-09-25
 

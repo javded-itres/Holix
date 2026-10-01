@@ -27,6 +27,14 @@ def test_placeholder_detection() -> None:
     assert not is_placeholder_final("Готово")
 
 
+def test_media_start_does_not_become_a_chat_message() -> None:
+    text = resolve_messenger_final_content(
+        "",
+        last_tool_result="Background task started: id=task_abc — image: a cat",
+    )
+    assert text == ""
+
+
 def test_resolve_prefers_streamed_over_placeholder() -> None:
     text = resolve_messenger_final_content(
         "No response generated",

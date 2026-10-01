@@ -20,10 +20,16 @@ class MediaBlob:
     mime: str
     filename: str
     source_url: str | None = None
+    seed: int | None = None
+    size: str = ""
 
 
 class MediaProviderError(RuntimeError):
     pass
+
+
+def _with_generation(blob: MediaBlob, *, seed: int | None, size: str = "") -> MediaBlob:
+    return MediaBlob(blob.data, blob.mime, blob.filename, blob.source_url, seed=seed, size=size)
 
 
 def _auth_headers(provider: MediaProvider) -> dict[str, str]:
@@ -34,10 +40,62 @@ def _auth_headers(provider: MediaProvider) -> dict[str, str]:
     return headers
 
 
+# Poll until the provider finishes. 502/503/504 are gateway blips, not a failed job.
+_POLL_INTERVAL_S = 5.0
+_RETRY_DELAY_S = 5.0
+_RETRY_DELAY_MAX_S = 30.0
+_RETRYABLE_HTTP = frozenset({502, 503, 504})
+
+
+def _http_status(exc: BaseException) -> int | None:
+    text = str(exc)
+    if not text.startswith("HTTP "):
+        return None
+    parts = text.split()
+    if len(parts) < 2 or not parts[1].isdigit():
+        return None
+    return int(parts[1])
+
+
+def _retryable_http(exc: BaseException) -> bool:
+    return _http_status(exc) in _RETRYABLE_HTTP
+
+
+async def _call_until_ready(action):
+    """Call ``action`` with no attempt limit. Retry only transient gateway errors."""
+    delay = _RETRY_DELAY_S
+    while True:
+        try:
+            return await action()
+        except asyncio.CancelledError:
+            raise
+        except Exception as exc:
+            if not _retryable_http(exc):
+                raise
+            await asyncio.sleep(delay)
+            delay = min(delay * 2, _RETRY_DELAY_MAX_S)
+
+
 def _join(base: str, path: str) -> str:
     root = (base or "").rstrip("/") + "/"
     rel = (path or "").lstrip("/")
     return urljoin(root, rel)
+
+
+def _join_api(base: str, path: str) -> str:
+    """Join an OpenAI-style base with an API path without doubling ``/v1``.
+
+    ``resolved_base_url`` already ends in ``/v1``. Hub polling URLs often
+    include that prefix in the path (``/v1/videos/{id}``). Joining both
+    yields ``/v1/v1/videos/...`` and a 404.
+    """
+    root = (base or "").rstrip("/")
+    rel = (path or "").strip() or "/"
+    if not rel.startswith("/"):
+        rel = "/" + rel
+    if root.endswith("/v1") and (rel == "/v1" or rel.startswith("/v1/")):
+        rel = rel[len("/v1") :] or "/"
+    return _join(root, rel)
 
 
 def _fill_template(value: Any, mapping: dict[str, str]) -> Any:
@@ -59,13 +117,16 @@ async def generate_image(
     *,
     http: HttpTransport | None = None,
     size: str | None = None,
+    seed: int | None = None,
     references: list[ReferenceImage] | None = None,
 ) -> MediaBlob:
     transport = http or HttpxTransport()
     kind = provider.type.strip().lower()
     refs = list(references or [])
     if kind in {"openai_images", "openai", "dalle", "litellm", "litellm_images"}:
-        return await _openai_images(provider, prompt, transport, size=size, references=refs)
+        return await _openai_images(
+            provider, prompt, transport, size=size, seed=seed, references=refs
+        )
     if kind in {"http_json", "http"}:
         return await _http_json(provider, prompt, transport, kind="image", references=refs)
     raise MediaProviderError(f"Unknown image provider type: {provider.type}")
@@ -77,6 +138,7 @@ async def generate_video(
     *,
     http: HttpTransport | None = None,
     duration_s: int | None = None,
+    seed: int | None = None,
     references: list[ReferenceImage] | None = None,
 ) -> MediaBlob:
     transport = http or HttpxTransport()
@@ -84,7 +146,12 @@ async def generate_video(
     refs = list(references or [])
     if kind in {"openai_videos", "openai", "sora", "litellm", "litellm_videos"}:
         return await _openai_videos(
-            provider, prompt, transport, duration_s=duration_s, references=refs
+            provider,
+            prompt,
+            transport,
+            duration_s=duration_s,
+            seed=seed,
+            references=refs,
         )
     if kind in {"http_json", "http"}:
         return await _http_json(provider, prompt, transport, kind="video", references=refs)
@@ -97,6 +164,7 @@ async def _openai_images(
     http: HttpTransport,
     *,
     size: str | None,
+    seed: int | None = None,
     references: list[ReferenceImage] | None = None,
 ) -> MediaBlob:
     if not provider.api_key:
@@ -114,6 +182,8 @@ async def _openai_images(
         "n": 1,
         "size": chosen_size,
     }
+    if seed is not None:
+        body["seed"] = int(seed)
     refs = list(references or [])
     if refs:
         _attach_image_refs(body, prompt, refs, size=chosen_size)
@@ -121,21 +191,44 @@ async def _openai_images(
     ptype = provider.type.strip().lower()
     if ptype not in {"litellm", "litellm_images"} and "dall-e" in (provider.model or "").lower():
         body["response_format"] = "b64_json"
-    data = await http.post_json(url, headers=_auth_headers(provider), json=body, timeout=180.0)
-    items = data.get("data")
-    if not isinstance(items, list) or not items:
+    headers = _auth_headers(provider)
+    data = await _call_until_ready(
+        lambda: http.post_json(url, headers=headers, json=body, timeout=None)
+    )
+    blob = await _blob_from_payload(data, http, headers=headers, kind="image")
+    if blob is not None:
+        return _with_generation(blob, seed=seed, size=chosen_size)
+    job_id = str(data.get("id") or "").strip()
+    state = str(data.get("status") or "").lower()
+    if not job_id or state in {"failed", "error", "cancelled"}:
         raise MediaProviderError(f"No image in response: {json.dumps(data)[:400]}")
-    item = items[0] if isinstance(items[0], dict) else {}
-    b64 = item.get("b64_json") or item.get("b64")
-    if b64:
-        raw = base64.b64decode(str(b64))
-        return MediaBlob(raw, "image/png", _filename("png"), source_url=None)
-    remote = item.get("url")
-    if not remote:
-        raise MediaProviderError("Image response has neither b64_json nor url")
-    raw, mime = await http.get_bytes(str(remote), timeout=180.0)
-    ext = "jpg" if "jpeg" in mime else "png" if "png" in mime else "webp"
-    return MediaBlob(raw, mime or "image/png", _filename(ext), source_url=str(remote))
+    status_url = _video_poll_url(
+        base,
+        job_id=job_id,
+        model=provider.model,
+        polling_url=str(data.get("polling_url") or ""),
+        poll_path=str(provider.extra.get("poll_path") or "/images/{id}"),
+    )
+    last: dict[str, Any] = data
+    while True:
+        await asyncio.sleep(_POLL_INTERVAL_S)
+        try:
+            status = await http.get_json(status_url, headers=headers, timeout=None)
+        except asyncio.CancelledError:
+            raise
+        except Exception as exc:
+            if not _retryable_http(exc):
+                raise
+            continue
+        last = status if isinstance(status, dict) else {"raw": status}
+        err_state = str(last.get("status") or "").lower()
+        if err_state in {"failed", "error", "cancelled"}:
+            raise MediaProviderError(f"Image job failed: {json.dumps(last)[:400]}")
+        blob = await _blob_from_payload(last, http, headers=headers, kind="image")
+        if blob is not None:
+            return _with_generation(blob, seed=seed, size=chosen_size)
+        if err_state in {"completed", "succeeded", "success"}:
+            raise MediaProviderError(f"Image job completed but no file: {json.dumps(last)[:400]}")
 
 
 async def _openai_videos(
@@ -144,6 +237,7 @@ async def _openai_videos(
     http: HttpTransport,
     *,
     duration_s: int | None,
+    seed: int | None = None,
     references: list[ReferenceImage] | None = None,
 ) -> MediaBlob:
     if not provider.api_key:
@@ -153,11 +247,13 @@ async def _openai_videos(
         raise MediaProviderError(
             "base_url is empty (set LITELLM_API_BASE or video provider base_url)"
         )
-    url = _join(base, str(provider.extra.get("path") or "/videos"))
+    url = _join_api(base, str(provider.extra.get("path") or "/videos"))
     body: dict[str, Any] = {
         "model": provider.model or "sora-2",
         "prompt": prompt,
     }
+    if seed is not None:
+        body["seed"] = int(seed)
     if duration_s:
         # OpenAI Videos and OpenComfy expect a string ("6"), not a JSON number.
         body["seconds"] = str(int(duration_s))
@@ -165,10 +261,12 @@ async def _openai_videos(
     if refs:
         _attach_video_refs(body, prompt, refs)
     headers = _auth_headers(provider)
-    data = await http.post_json(url, headers=headers, json=body, timeout=180.0)
+    data = await _call_until_ready(
+        lambda: http.post_json(url, headers=headers, json=body, timeout=None)
+    )
     blob = await _blob_from_payload(data, http, headers=headers, kind="video")
     if blob is not None:
-        return blob
+        return _with_generation(blob, seed=seed)
     job_id = str(data.get("id") or data.get("generation_id") or "").strip()
     if not job_id:
         raise MediaProviderError(f"Video job id missing: {json.dumps(data)[:400]}")
@@ -181,28 +279,38 @@ async def _openai_videos(
         poll_path=str(provider.extra.get("poll_path") or "/videos/{id}"),
     )
     last: dict[str, Any] = data
-    # OpenRouter / Seedance jobs often take 4–10 minutes.
-    for _ in range(120):
-        await asyncio.sleep(5.0)
-        status = await http.get_json(status_url, headers=headers, timeout=60.0)
+    # No attempt cap. Hailuo / Seedance often run many minutes; a 502 from the
+    # gateway is a blip, not a reason to give up. stop_agent_task cancels this.
+    while True:
+        await asyncio.sleep(_POLL_INTERVAL_S)
+        try:
+            status = await http.get_json(status_url, headers=headers, timeout=None)
+        except asyncio.CancelledError:
+            raise
+        except Exception as exc:
+            if not _retryable_http(exc):
+                raise
+            continue
         last = status if isinstance(status, dict) else {"raw": status}
         _raise_if_video_failed(last)
         blob = await _blob_from_payload(last, http, headers=headers, kind="video")
         if blob is not None:
-            return blob
+            return _with_generation(blob, seed=seed)
         state = str(last.get("status") or "").lower()
         if state in {"completed", "succeeded", "success"}:
-            content_url = _join(base, f"/videos/{job_id}/content")
+            content_url = _join_api(base, f"/videos/{job_id}/content")
             try:
-                raw, mime = await http.get_bytes(content_url, headers=headers, timeout=180.0)
+                raw, mime = await http.get_bytes(content_url, headers=headers, timeout=None)
             except Exception:
                 raw, mime = b"", ""
             if raw and "json" not in (mime or "") and len(raw) > 64:
-                return MediaBlob(raw, mime or "video/mp4", _filename("mp4"), source_url=content_url)
+                return _with_generation(
+                    MediaBlob(raw, mime or "video/mp4", _filename("mp4"), source_url=content_url),
+                    seed=seed,
+                )
             raise MediaProviderError(
                 f"Video job completed but no file URL: {json.dumps(last)[:400]}"
             )
-    raise MediaProviderError(f"Video generation timed out: {json.dumps(last)[:400]}")
 
 
 async def _http_json(
@@ -229,7 +337,9 @@ async def _http_json(
     body = _fill_template(provider.extra.get("json_body") or {"prompt": "{{prompt}}"}, mapping)
     if not isinstance(body, dict):
         raise MediaProviderError("http_json json_body must be an object")
-    data = await http.post_json(url, headers=_auth_headers(provider), json=body, timeout=180.0)
+    data = await _call_until_ready(
+        lambda: http.post_json(url, headers=_auth_headers(provider), json=body, timeout=None)
+    )
     b64_path = str(provider.extra.get("b64_json_path") or "")
     url_path = str(provider.extra.get("url_json_path") or "")
     if b64_path:
@@ -242,7 +352,7 @@ async def _http_json(
     if url_path:
         remote = json_path(data, url_path)
         if remote:
-            raw, mime = await http.get_bytes(str(remote), timeout=180.0)
+            raw, mime = await http.get_bytes(str(remote), timeout=None)
             ext = "mp4" if kind == "video" else "png"
             return MediaBlob(
                 raw,
@@ -280,7 +390,7 @@ async def _blob_from_payload(
         or json_path(data, "result.url")
     )
     if remote:
-        raw, mime = await http.get_bytes(str(remote), headers=headers, timeout=180.0)
+        raw, mime = await http.get_bytes(str(remote), headers=headers, timeout=None)
         ext = "mp4" if kind == "video" else "png"
         return MediaBlob(
             raw,
@@ -315,8 +425,8 @@ def _video_poll_url(
         if parsed.path:
             path = parsed.path
             if path.startswith("/api/v1/"):
-                path = path[len("/api") :]
-    url = _join(base, path)
+                path = "/" + path[len("/api/v1/") :]
+    url = _join_api(base, path)
     query = dict(parse_qsl(urlparse(url).query))
     if model and "model" not in query:
         query["model"] = model

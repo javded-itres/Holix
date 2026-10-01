@@ -301,6 +301,7 @@ class MaxHost:
         )
         self._session.conversation_id = f"{base}_{int(time.time())}"
         self._session.session_display_name = "new"
+        self._session.pending_files.clear()
         self._session._transcript_store.clear()
         from core.session_models import restore_session_model
 
@@ -337,6 +338,7 @@ class MaxHost:
             self.transcript_write("invalid session")
             return
         self._session.conversation_id = sessions[index - 1]["conversation_id"]
+        self._session.pending_files.clear()
         from core.session_models import restore_session_model
 
         restored = restore_session_model(self)

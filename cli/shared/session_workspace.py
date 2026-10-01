@@ -28,20 +28,22 @@ def pin_conversation_to_workspace_root(host: Any, conversation_id: str) -> dict[
     cid = (conversation_id or "").strip()
     root = profile_workspace_root(host)
     drop_active_change(profile, cid)
-    try:
-        from holix_studio.application.session_project import pin_conversation_workspace
+    from core.plugins.hooks import host_bridge_hooks
 
-        out = pin_conversation_workspace(
-            profile=profile,
-            conversation_id=cid,
-            project_id="",
-            workspace_root=root or Path.cwd(),
-            projects_svc=None,
-        )
-        if out.get("ok"):
-            return out
-    except Exception:
-        pass
+    pin = host_bridge_hooks.pin_conversation_workspace
+    if pin is not None:
+        try:
+            out = pin(
+                profile=profile,
+                conversation_id=cid,
+                project_id="",
+                workspace_root=root or Path.cwd(),
+                projects_svc=None,
+            )
+            if isinstance(out, dict) and out.get("ok"):
+                return out
+        except Exception:
+            pass
     if root is not None:
         bind_active_project(profile, cid, root, project=".")
     return {
@@ -65,13 +67,16 @@ def list_workspace_picker_options(host: Any) -> list[dict[str, Any]]:
             "path": str(root) if root else "",
         }
     ]
-    try:
-        from holix_studio.mcp_profile.session_ops import workspace_options
+    from core.plugins.hooks import host_bridge_hooks
 
-        payload = workspace_options()
-        raw = list(payload.get("options") or [])
-    except Exception:
-        raw = []
+    raw: list[Any] = []
+    options_fn = host_bridge_hooks.workspace_options
+    if options_fn is not None:
+        try:
+            payload = options_fn()
+            raw = list((payload or {}).get("options") or [])
+        except Exception:
+            raw = []
     seen = {""}
     for row in raw:
         if not isinstance(row, dict):
@@ -123,26 +128,28 @@ def apply_workspace_picker_choice(host: Any, option: dict[str, Any]) -> dict[str
     change = str(option.get("change_id") or "").strip()
     if kind in {"", "workspace"} or not pid:
         return pin_conversation_to_workspace_root(host, cid)
-    try:
-        from holix_studio.application.session_project import pin_conversation_workspace
+    from core.plugins.hooks import host_bridge_hooks
 
-        root = profile_workspace_root(host) or Path.cwd()
-        return pin_conversation_workspace(
-            profile=str(getattr(host, "profile", None) or "default"),
+    pin = host_bridge_hooks.pin_conversation_workspace
+    if pin is None:
+        return {"ok": False, "error": "project workspace is only available in Studio"}
+    root = profile_workspace_root(host) or Path.cwd()
+    profile = str(getattr(host, "profile", None) or "default")
+    project_id = pid.split("::", 1)[0]
+    try:
+        return pin(
+            profile=profile,
             conversation_id=cid,
-            project_id=pid.split("::", 1)[0],
+            project_id=project_id,
             workspace_root=root,
             change_id=change,
         )
     except TypeError:
         try:
-            from holix_studio.application.session_project import pin_conversation_workspace
-
-            root = profile_workspace_root(host) or Path.cwd()
-            return pin_conversation_workspace(
-                profile=str(getattr(host, "profile", None) or "default"),
+            return pin(
+                profile=profile,
                 conversation_id=cid,
-                project_id=pid.split("::", 1)[0],
+                project_id=project_id,
                 workspace_root=root,
             )
         except Exception as exc:

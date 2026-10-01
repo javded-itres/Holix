@@ -137,6 +137,7 @@ class HolixRuntimeConfig:
     code_mode_max_inner_calls: int = 40
     code_mode_parallel_readonly: bool = True
     encryption_enabled: bool = False
+    allow_adult_content: bool = False
 
     # Self-authored drop-in agent extensions (local single-operator only)
     # False for Telegram/MAX multi-user agents.
@@ -330,6 +331,8 @@ class HolixRuntimeConfig:
             overrides["enable_meta_agent"] = bool(profile.enable_meta_agent)
         if getattr(profile, "enable_self_refinement", None) is not None:
             overrides["enable_self_refinement"] = bool(profile.enable_self_refinement)
+        if getattr(profile, "allow_adult_content", None) is not None:
+            overrides["allow_adult_content"] = bool(profile.allow_adult_content)
         if getattr(profile, "agent_pipeline", None):
             from core.agent_pipeline import normalize_pipeline
 

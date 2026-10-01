@@ -119,6 +119,21 @@ class AsyncSubAgentRunner:
         model = config.model or self._parent.model
         client = self._parent.client
 
+        parent_cfg = getattr(self._parent, "config", None)
+        profile_name = str(getattr(parent_cfg, "profile_name", None) or "default")
+        from core.subagents.session_documents import attach_session_documents
+
+        parent_cid = str(
+            getattr(handle, "parent_conversation_id", None)
+            or getattr(config, "parent_conversation_id", None)
+            or ""
+        ).strip()
+        documents_block = attach_session_documents(
+            config,
+            profile_name,
+            conversation_id=parent_cid,
+        )
+
         # Build tool subset
         tools_schemas = self._get_tool_schemas(config)
 
@@ -133,16 +148,9 @@ class AsyncSubAgentRunner:
             except Exception as e:
                 logger.debug(f"Skill injection failed for sub-agent: {e}")
 
-        parent_cfg = getattr(self._parent, "config", None)
-        profile_name = str(getattr(parent_cfg, "profile_name", None) or "default")
         from core.sdd.change_workspace import overlay_workspace_root
         from core.subagents.prompt import build_subagent_system_prompt
 
-        parent_cid = str(
-            getattr(handle, "parent_conversation_id", None)
-            or getattr(config, "parent_conversation_id", None)
-            or ""
-        ).strip()
         child_ws = overlay_workspace_root(profile_name, parent_cid) or getattr(
             parent_cfg, "workspace_root", None
         )
@@ -153,6 +161,7 @@ class AsyncSubAgentRunner:
             profile_name=profile_name,
             workspace_root=child_ws,
             workspace_jail_enabled=getattr(parent_cfg, "workspace_jail_enabled", None),
+            documents_block=documents_block,
         )
 
         # Build messages

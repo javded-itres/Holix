@@ -4,7 +4,7 @@
 
 ## Usage guide (`/help`)
 
-`/help` (and `/start`) open a **scenario menu** with inline buttons: getting started, chat, sub-agents, skills, SDD, models, memory, cron, MCP, permissions, files, command list.
+`/help` (and `/start`) open a **scenario menu** with inline buttons: getting started, chat, sub-agents, skills, SDD, models, memory, cron, MCP, permissions, files, command list. A button updates that same message; it does not send a new one. **How to work** covers what the agent can do, example tasks, context overflow, and self-checks (`/help how`). A long document is indexed into fragments instead of filling the chat.
 
 Sub-agents has a submenu: what they are, **configure types** (`/subagent-types`, create from a description, overlays), spawn a job, Code mode. Shortcut: `/help sub`.
 

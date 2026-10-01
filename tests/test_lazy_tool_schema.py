@@ -22,15 +22,51 @@ def test_get_schemas_core_only_by_default() -> None:
     assert "tool_search" in names
     assert "read_file" in names
     assert "lsp" in names
-    assert "send_chat_files" in names
+    assert "send_chat_files" not in names
     assert "self_diagnose" in names
     for core in CORE_TOOL_NAMES:
+        if core == "send_chat_files":
+            continue
         if core in registry.tools:
             assert core in names, core
     assert "sql_query" not in names
     assert "notebook_edit" not in names
     assert "job_monitor" not in names
     assert "sdd_apply" not in names
+
+
+def test_send_chat_files_only_when_messenger_is_attached() -> None:
+    from core.tools.execution_context import chat_delivery_scope, reset_chat_delivery_scope
+
+    registry = ToolRegistry(profile_name="default")
+    registry.register_all()
+    token = chat_delivery_scope(object())
+    try:
+        names = {s["function"]["name"] for s in registry.get_schemas()}
+    finally:
+        reset_chat_delivery_scope(token)
+    assert "send_chat_files" in names
+
+
+def test_media_tools_are_offered_when_registered() -> None:
+    from core.tools.base import BaseTool
+
+    class _Image(BaseTool):
+        def __init__(self) -> None:
+            super().__init__()
+            self.name = "generate_image"
+            self.description = "Generate an image"
+            self.parameters = {"type": "object", "properties": {}}
+
+        async def execute(self, **kwargs: object) -> str:
+            return "ok"
+
+    registry = ToolRegistry(profile_name="default")
+    registry.register_all()
+    registry.register(_Image())
+    names = {s["function"]["name"] for s in registry.get_schemas()}
+    assert "generate_image" in names
+    assert "sql_query" not in names
 
 
 def test_deferred_tool_still_executes_when_not_in_schema() -> None:

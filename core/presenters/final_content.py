@@ -233,6 +233,9 @@ def resolve_messenger_final_content(
         picked = pick_best_tool_final(recent_tool_results)
         if picked:
             tool_text = picked
+    media_start = tool_text.startswith("Background task started:")
+    if media_start:
+        tool_text = ""
     if not text and tool_text:
         text = tool_text
 
@@ -240,5 +243,7 @@ def resolve_messenger_final_content(
         text = format_unusable_final(text)
 
     if not text:
+        if media_start:
+            return ""
         return empty_message
     return text

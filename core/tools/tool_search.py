@@ -119,6 +119,11 @@ class ToolSearchTool(BaseTool):
                 source = "mcp" if canonical.startswith("mcp_") else "builtin"
                 if source not in wanted:
                     continue
+                if canonical == "send_chat_files":
+                    from core.tools.lazy_schema import messenger_delivery_available
+
+                    if not messenger_delivery_available():
+                        continue
                 desc = str(getattr(tool, "description", "") or "")
                 catalog.append(
                     {

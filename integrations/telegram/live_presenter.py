@@ -169,6 +169,101 @@ class TelegramLivePresenter:
             parse_mode="HTML",
         )
 
+    async def pin_agent_task_notice(self, task_id: str, label: str) -> None:
+        """Pin a same-agent background task so it stays visible until it ends."""
+        from core.i18n.messages import t
+
+        tid = (task_id or "").strip()
+        if not tid:
+            return
+        try:
+            from core.i18n.locale import LocaleStore
+
+            loc = LocaleStore(self.session.profile).get() or "ru"
+        except Exception:
+            loc = "ru"
+        html = t(
+            "live.agent_task_running",
+            loc,
+            label=escape_html(label or tid),
+            task_id=escape_html(tid),
+        )
+        try:
+            msg = await self._bot.send_message(
+                self.session.chat_id,
+                html,
+                parse_mode="HTML",
+            )
+            mid = int(getattr(msg, "message_id", 0) or 0)
+            if not mid:
+                return
+            ids = getattr(self.session, "agent_task_message_ids", None)
+            if ids is not None:
+                ids[tid] = mid
+            try:
+                await self._bot.pin_chat_message(
+                    self.session.chat_id,
+                    mid,
+                    disable_notification=True,
+                )
+            except Exception as exc:
+                logger.info(
+                    "Telegram pin agent task failed (chat=%s): %s",
+                    self.session.chat_id,
+                    exc,
+                )
+        except Exception:
+            logger.exception("Telegram agent task notice failed")
+
+    async def unpin_agent_task_notice(
+        self,
+        task_id: str,
+        *,
+        label: str = "",
+        status: str = "completed",
+    ) -> None:
+        from core.i18n.messages import t
+
+        tid = (task_id or "").strip()
+        ids = getattr(self.session, "agent_task_message_ids", None)
+        mid = ids.pop(tid, None) if ids is not None else None
+        if not mid:
+            return
+        try:
+            from core.i18n.locale import LocaleStore
+
+            loc = LocaleStore(self.session.profile).get() or "ru"
+        except Exception:
+            loc = "ru"
+        html = t(
+            "live.agent_task_done",
+            loc,
+            label=escape_html(label or tid),
+            task_id=escape_html(tid),
+            status=escape_html(status or "done"),
+        )
+        try:
+            await self._bot.edit_message_text(
+                html,
+                chat_id=self.session.chat_id,
+                message_id=mid,
+                parse_mode="HTML",
+            )
+        except Exception as exc:
+            if not _is_not_modified(exc):
+                logger.debug("Telegram agent task notice edit failed: %s", exc)
+        try:
+            await self._bot.unpin_chat_message(
+                chat_id=self.session.chat_id,
+                message_id=mid,
+            )
+        except Exception as exc:
+            logger.info(
+                "Telegram unpin agent task failed (chat=%s): %s",
+                self.session.chat_id,
+                exc,
+            )
+
     async def pin_background_process_notice(
         self,
         process_id: str,

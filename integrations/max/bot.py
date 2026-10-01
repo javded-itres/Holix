@@ -667,6 +667,7 @@ class HelixMaxBot:
             attachments,
             profile=self.settings.profile,
             storage_id=reply_chat_id or user_id,
+            conversation_id=session.conversation_id,
         )
 
         if not saved and errors:
@@ -706,6 +707,7 @@ class HelixMaxBot:
         *,
         profile: str,
         storage_id: int,
+        conversation_id: str = "",
     ) -> tuple[list[SavedTelegramFile], list[str]]:
         saved: list[SavedTelegramFile] = []
         errors: list[str] = []
@@ -717,6 +719,7 @@ class HelixMaxBot:
                         item,
                         profile=profile,
                         storage_id=storage_id,
+                        conversation_id=conversation_id,
                     )
                 )
             except Exception as exc:
@@ -805,6 +808,9 @@ class HelixMaxBot:
             client=client,
         )
         host = MaxHost(client, session)
+        cb_msg = (callback_from_update(update) or {}).get("message")
+        if isinstance(cb_msg, dict):
+            host._ui_message_id = message_mid_from_message(cb_msg)
         approvals = MaxApprovals(client, session)
         notification = ""
 

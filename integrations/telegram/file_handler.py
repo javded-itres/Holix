@@ -7,11 +7,9 @@ import mimetypes
 import os
 import re
 import time
-import zipfile
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
-from xml.etree import ElementTree
 
 from core.config_utils import resolve_env_refs
 
@@ -362,52 +360,44 @@ async def download_telegram_file_to_path(bot: Any, file_id: str, dest: Path) -> 
     return int(dest.stat().st_size)
 
 
-def _read_text_file(path: Path, *, max_chars: int = 12000) -> str:
-    for encoding in ("utf-8", "utf-8-sig", "cp1251", "latin-1"):
-        try:
-            text = path.read_text(encoding=encoding)
-            if len(text) > max_chars:
-                return text[:max_chars] + f"\n\n... (обрезано, всего {len(text)} символов)"
-            return text
-        except UnicodeDecodeError:
-            continue
-    return ""
+def _read_text_file(path: Path, *, max_chars: int = 400_000) -> str:
+    from core.documents.extract import read_text_file
+
+    return read_text_file(path, max_chars=max_chars)
 
 
-def _extract_pdf_text(path: Path, *, max_chars: int = 12000) -> str:
-    try:
-        from pypdf import PdfReader
-    except ImportError:
+def _extract_pdf_text(path: Path, *, max_chars: int = 400_000) -> str:
+    from core.documents.extract import extract_pdf_text
+
+    return extract_pdf_text(path, max_chars=max_chars)
+
+
+def _extract_docx_text(path: Path, *, max_chars: int = 400_000) -> str:
+    from core.documents.extract import extract_docx_text
+
+    return extract_docx_text(path, max_chars=max_chars)
+
+
+def _describe_extracted_text(
+    saved: SavedTelegramFile,
+    text: str,
+    *,
+    profile: str,
+    conversation_id: str,
+) -> str:
+    from core.documents.index import maybe_index_document
+
+    body = (text or "").strip()
+    if not body:
         return ""
-
-    try:
-        reader = PdfReader(str(path))
-        parts: list[str] = []
-        for page in reader.pages[:40]:
-            parts.append(page.extract_text() or "")
-            if sum(len(p) for p in parts) >= max_chars:
-                break
-        text = "\n".join(parts).strip()
-        if len(text) > max_chars:
-            text = text[:max_chars] + f"\n\n... (обрезано, всего символов больше {max_chars})"
-        return text
-    except Exception:
-        return ""
-
-
-def _extract_docx_text(path: Path, *, max_chars: int = 12000) -> str:
-    try:
-        with zipfile.ZipFile(path) as zf:
-            xml_bytes = zf.read("word/document.xml")
-        root = ElementTree.fromstring(xml_bytes)
-        ns = {"w": "http://schemas.openxmlformats.org/wordprocessingml/2006/main"}
-        texts = [node.text for node in root.iterfind(".//w:t", ns) if node.text]
-        text = " ".join(texts).strip()
-        if len(text) > max_chars:
-            text = text[:max_chars] + "\n\n... (обрезано)"
-        return text
-    except Exception:
-        return ""
+    card = maybe_index_document(
+        profile=profile,
+        path=saved.path,
+        name=saved.original_name,
+        text=body,
+        conversation_id=conversation_id,
+    )
+    return card or body
 
 
 _OVERVIEW_VISION_PROMPT = (
@@ -630,7 +620,12 @@ async def describe_image(path: Path, *, profile: str) -> str:
     return description
 
 
-async def enrich_saved_file(saved: SavedTelegramFile, *, profile: str) -> SavedTelegramFile:
+async def enrich_saved_file(
+    saved: SavedTelegramFile,
+    *,
+    profile: str,
+    conversation_id: str = "",
+) -> SavedTelegramFile:
     path = saved.path
     suffix = path.suffix.lower()
 
@@ -651,20 +646,30 @@ async def enrich_saved_file(saved: SavedTelegramFile, *, profile: str) -> SavedT
             saved.description = f"(Не удалось распознать изображение: {exc})"
         return saved
 
-    if suffix in _TEXT_SUFFIXES:
-        saved.description = _read_text_file(path)
-        return saved
+    if suffix in _TEXT_SUFFIXES or suffix in {".pdf", ".docx", ".odt"}:
+        if suffix in _TEXT_SUFFIXES:
+            text = _read_text_file(path)
+            empty = ""
+        elif suffix == ".pdf":
+            text = _extract_pdf_text(path)
+            empty = "(PDF сохранён; текст не извлечён — возможно скан без текстового слоя)"
+        elif suffix == ".docx":
+            text = _extract_docx_text(path)
+            empty = "(DOCX сохранён; текст не извлечён)"
+        else:
+            from core.documents.extract import extract_odt_text
 
-    if suffix == ".pdf":
-        text = _extract_pdf_text(path)
+            text = extract_odt_text(path)
+            empty = "(ODT сохранён; текст не извлечён)"
         saved.description = (
-            text or "(PDF сохранён; текст не извлечён — возможно скан без текстового слоя)"
+            _describe_extracted_text(
+                saved,
+                text,
+                profile=profile,
+                conversation_id=conversation_id,
+            )
+            or empty
         )
-        return saved
-
-    if suffix == ".docx":
-        text = _extract_docx_text(path)
-        saved.description = text or "(DOCX сохранён; текст не извлечён)"
         return saved
 
     saved.description = f"(Файл сохранён: {saved.mime_type or 'unknown'})"
@@ -682,6 +687,7 @@ async def save_telegram_attachment(
     file_size: int = 0,
     bot_profile: str | None = None,
     telegram_user_id: int | None = None,
+    conversation_id: str = "",
 ) -> SavedTelegramFile:
     max_bytes = int(settings.telegram_max_file_mb or 20) * 1024 * 1024
     if file_size and file_size > max_bytes:
@@ -715,7 +721,7 @@ async def save_telegram_attachment(
         kind=kind,
         size_bytes=size,
     )
-    return await enrich_saved_file(saved, profile=profile)
+    return await enrich_saved_file(saved, profile=profile, conversation_id=conversation_id)
 
 
 def format_files_preview(

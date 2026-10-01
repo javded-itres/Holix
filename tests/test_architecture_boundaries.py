@@ -79,6 +79,62 @@ def test_no_unexpected_core_to_outer_imports() -> None:
         )
 
 
+# Host entry of holix-media. Agent tools (tools.py, agent.py, refs.py) may import core.
+_MEDIA_HOST_FILES = (
+    "holix_media/extension.py",
+    "holix_media/config.py",
+    "holix_media/profile_files.py",
+)
+
+
+def test_media_host_does_not_import_core() -> None:
+    violations: list[str] = []
+    for rel in _MEDIA_HOST_FILES:
+        path = ROOT / rel
+        for mod in _imported_modules(path):
+            if mod.split(".", 1)[0] == "core":
+                violations.append(f"{rel}:{mod}")
+    if violations:
+        pytest.fail("holix-media host imports core:\n" + "\n".join(violations))
+
+
+def test_gateway_vision_does_not_import_integrations() -> None:
+    mods = _imported_modules(ROOT / "api/services/content_parts.py")
+    leaked = [mod for mod in mods if mod == "integrations" or mod.startswith("integrations.")]
+    assert leaked == []
+
+
+_AGENT_TREES = ("core", "cli", "integrations", "api", "holix_media")
+
+
+def test_agent_tree_does_not_import_studio() -> None:
+    violations: list[str] = []
+    for folder in _AGENT_TREES:
+        base = ROOT / folder
+        if not base.is_dir():
+            continue
+        for path in sorted(p for p in base.rglob("*.py") if "__pycache__" not in p.parts):
+            rel = path.relative_to(ROOT).as_posix()
+            for mod in _imported_modules(path):
+                if mod == "holix_studio" or mod.startswith("holix_studio."):
+                    violations.append(f"{rel}:{mod}")
+    if violations:
+        pytest.fail(
+            "agent tree imports Studio:\n" + "\n".join(f"  - {item}" for item in violations)
+        )
+
+
+def test_cron_core_does_not_import_studio_writer() -> None:
+    assert not (CORE / "cron" / "studio_notify.py").exists()
+    assert not (ROOT / "integrations" / "studio").exists()
+    mods = _imported_modules(CORE / "cron" / "session_sync.py")
+    leaked = [mod for mod in mods if mod == "integrations" or mod.startswith("integrations.")]
+    assert leaked == []
+    bootstrap = (ROOT / "integrations" / "bootstrap.py").read_text(encoding="utf-8")
+    assert "integrations.studio" not in bootstrap
+    assert "holix_studio" not in bootstrap
+
+
 def test_core_does_not_import_api_package() -> None:
     hits: list[str] = []
     for path in _iter_core_py_files():

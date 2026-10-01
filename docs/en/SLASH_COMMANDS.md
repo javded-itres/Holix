@@ -27,7 +27,7 @@ On Russian macOS layout, `,help` and `.help` are normalized to `/help`. Type `/`
 
 | Command | Aliases | Description |
 |---------|---------|-------------|
-| `/help` | `/h`, `/?` | Usage guide (Telegram/MAX: scenario buttons; `/help sub` → sub-agents). TUI: command list |
+| `/help` | `/h`, `/?` | Usage guide (Telegram/MAX: buttons edit the same message; `/help how` examples, `/help sub` sub-agents). TUI: command list |
 | `/init` | — | Write/update `.holix/HOLIX.md` (project handbook). In chat, phrases like «инициализацию Holix» / `HOLIX.md` run the same path |
 | `/status` | — | Profile, execution mode, session id, context (where available) |
 | `/metrics` | — | Agent metrics summary |

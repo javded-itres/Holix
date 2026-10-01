@@ -12,7 +12,7 @@ class HttpTransport(Protocol):
         *,
         headers: dict[str, str],
         json: dict[str, Any],
-        timeout: float = 120.0,
+        timeout: float | None = 120.0,
     ) -> dict[str, Any]: ...
 
     async def get_json(
@@ -20,7 +20,7 @@ class HttpTransport(Protocol):
         url: str,
         *,
         headers: dict[str, str],
-        timeout: float = 60.0,
+        timeout: float | None = 60.0,
     ) -> dict[str, Any]: ...
 
     async def get_bytes(
@@ -28,7 +28,7 @@ class HttpTransport(Protocol):
         url: str,
         *,
         headers: dict[str, str] | None = None,
-        timeout: float = 120.0,
+        timeout: float | None = 120.0,
     ) -> tuple[bytes, str]: ...
 
 
@@ -39,7 +39,7 @@ class HttpxTransport:
         *,
         headers: dict[str, str],
         json: dict[str, Any],
-        timeout: float = 120.0,
+        timeout: float | None = 120.0,
     ) -> dict[str, Any]:
         import httpx
 
@@ -56,7 +56,7 @@ class HttpxTransport:
         url: str,
         *,
         headers: dict[str, str],
-        timeout: float = 60.0,
+        timeout: float | None = 60.0,
     ) -> dict[str, Any]:
         import httpx
 
@@ -73,7 +73,7 @@ class HttpxTransport:
         url: str,
         *,
         headers: dict[str, str] | None = None,
-        timeout: float = 120.0,
+        timeout: float | None = 120.0,
     ) -> tuple[bytes, str]:
         import httpx
 

@@ -10,9 +10,10 @@ class ListAgentTasksTool(BaseTool):
         super().__init__()
         self.name = "list_agent_tasks"
         self.description = (
-            "List background tasks started by this agent in the current chat "
-            "(running and recently finished). These are not sub-agents. "
-            "Do not poll; you are notified when a task finishes."
+            "List background tasks in this chat (running and recently finished): "
+            "shell jobs and image/video generation. Not sub-agents. "
+            "Call this when the user asks what is running. Quote only ids from "
+            "this result. Do not poll; you are notified when a task finishes."
         )
         self.risk_level = "low"
         self.parameters = {"type": "object", "properties": {}, "required": []}

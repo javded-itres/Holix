@@ -49,7 +49,24 @@ def attach_telegram_background_events(bot: Any, session: Any) -> None:
     def _start(text: str) -> None:
         TelegramHost(bot, session)._start_agent_run(text)
 
-    bind_messenger_agent_task_wake(session, start_run=_start)
+    from integrations.telegram.live_presenter import TelegramLivePresenter
+
+    presenter = TelegramLivePresenter(bot, session)
+
+    async def _pin(task: Any) -> None:
+        await presenter.pin_agent_task_notice(
+            str(getattr(task, "task_id", "") or ""),
+            str(getattr(task, "description", "") or ""),
+        )
+
+    async def _unpin(task: Any) -> None:
+        await presenter.unpin_agent_task_notice(
+            str(getattr(task, "task_id", "") or ""),
+            label=str(getattr(task, "description", "") or ""),
+            status=str(getattr(task, "status", "") or "completed"),
+        )
+
+    bind_messenger_agent_task_wake(session, start_run=_start, pin_task=_pin, unpin_task=_unpin)
 
 
 async def deliver_telegram_subagent_question(bot: Any, session: Any, event: Any) -> None:

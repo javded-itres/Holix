@@ -83,6 +83,10 @@ class EventType(StrEnum):
     BACKGROUND_PROCESS_STOPPED = "background_process_stopped"
     BACKGROUND_PROCESS_ERROR = "background_process_error"
 
+    # Same-agent background tasks (shell and media generation)
+    AGENT_TASK_STARTED = "agent_task_started"
+    AGENT_TASK_FINISHED = "agent_task_finished"
+
     # Session checklist
     TODO_LIST_UPDATED = "todo_list_updated"
 
@@ -858,6 +862,46 @@ class SubAgentFinishedEvent(AgentEvent):
             "llm_calls": self.llm_calls,
             "usage_accounted": self.usage_accounted,
             "model": self.model,
+        }
+
+
+@dataclass
+class AgentTaskStartedEvent(AgentEvent):
+    """A same-agent background task started and should stay visible."""
+
+    task_id: str = ""
+    description: str = ""
+    status: str = "running"
+
+    def __post_init__(self):
+        super().__post_init__()
+        object.__setattr__(self, "type", EventType.AGENT_TASK_STARTED)
+
+    def _extra_fields(self) -> dict[str, Any]:
+        return {
+            "task_id": self.task_id,
+            "description": self.description,
+            "status": self.status,
+        }
+
+
+@dataclass
+class AgentTaskFinishedEvent(AgentEvent):
+    """A same-agent background task finished, failed, or was stopped."""
+
+    task_id: str = ""
+    description: str = ""
+    status: str = ""
+
+    def __post_init__(self):
+        super().__post_init__()
+        object.__setattr__(self, "type", EventType.AGENT_TASK_FINISHED)
+
+    def _extra_fields(self) -> dict[str, Any]:
+        return {
+            "task_id": self.task_id,
+            "description": self.description,
+            "status": self.status,
         }
 
 

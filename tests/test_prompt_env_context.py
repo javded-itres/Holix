@@ -83,7 +83,8 @@ def test_build_system_prompt_requires_run_and_debug(
     assert "Navigate code with `lsp`" in prompt
     assert "research_site_pages" in prompt
     assert "page_analyst" in prompt
-    assert "send_chat_files" in prompt
+    assert "call `send_chat_files`" not in prompt
+    assert "not Telegram or MAX" in prompt
     assert "session_doctor" in prompt
     assert "## Review vs implement" in prompt
     assert "do not pytest-loop" in prompt.lower() or "pytest-loop" in prompt

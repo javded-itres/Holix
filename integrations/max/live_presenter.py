@@ -236,6 +236,96 @@ class MaxLivePresenter:
         except (TypeError, ValueError):
             return None
 
+    async def pin_agent_task_notice(self, task_id: str, label: str) -> None:
+        """Send and, in groups, pin a same-agent background task."""
+        from core.i18n.messages import t
+
+        from integrations.max.markdown import escape_html
+
+        tid = (task_id or "").strip()
+        if not tid:
+            return
+        try:
+            from core.i18n.locale import LocaleStore
+
+            loc = LocaleStore(self.session.profile).get() or "ru"
+        except Exception:
+            loc = "ru"
+        html = t(
+            "live.agent_task_running",
+            loc,
+            label=escape_html(label or tid),
+            task_id=escape_html(tid),
+        )
+        try:
+            payload = await self._client.send_message(
+                html,
+                fmt="html",
+                **self._reply_kwargs(),
+            )
+            mid = message_id_from_response(payload)
+            if not mid:
+                return
+            ids = getattr(self.session, "agent_task_message_ids", None)
+            if ids is not None:
+                ids[tid] = str(mid)
+            chat_id = self._pin_chat_id()
+            if chat_id is not None:
+                try:
+                    await self._client.pin_message(chat_id, str(mid), notify=False)
+                except Exception as exc:
+                    logger.info(
+                        "MAX pin agent task skipped (chat_id=%s): %s",
+                        chat_id,
+                        exc,
+                    )
+        except Exception:
+            logger.exception("MAX agent task notice failed")
+
+    async def unpin_agent_task_notice(
+        self,
+        task_id: str,
+        *,
+        label: str = "",
+        status: str = "completed",
+    ) -> None:
+        from core.i18n.messages import t
+
+        from integrations.max.markdown import escape_html
+
+        tid = (task_id or "").strip()
+        ids = getattr(self.session, "agent_task_message_ids", None)
+        mid = ids.pop(tid, None) if ids is not None else None
+        if not mid:
+            return
+        try:
+            from core.i18n.locale import LocaleStore
+
+            loc = LocaleStore(self.session.profile).get() or "ru"
+        except Exception:
+            loc = "ru"
+        html = t(
+            "live.agent_task_done",
+            loc,
+            label=escape_html(label or tid),
+            task_id=escape_html(tid),
+            status=escape_html(status or "done"),
+        )
+        try:
+            await self._client.edit_message(mid, html, fmt="html", attachments=None)
+        except Exception as exc:
+            logger.debug("MAX agent task notice edit failed: %s", exc)
+        chat_id = self._pin_chat_id()
+        if chat_id is not None:
+            try:
+                await self._client.unpin_message(chat_id, message_id=str(mid))
+            except Exception as exc:
+                logger.info(
+                    "MAX unpin agent task skipped (chat_id=%s): %s",
+                    chat_id,
+                    exc,
+                )
+
     async def pin_background_process_notice(
         self,
         process_id: str,

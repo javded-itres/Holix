@@ -62,9 +62,7 @@ class MemoryFacade:
         content: str,
         metadata: dict[str, Any] | None = None,
     ) -> int:
-        return await self.conversations.save_message(
-            conversation_id, role, content, metadata
-        )
+        return await self.conversations.save_message(conversation_id, role, content, metadata)
 
     async def get_conversation(
         self,
@@ -86,12 +84,18 @@ class MemoryFacade:
         conversation_id: str,
         new_messages: list[dict[str, Any]],
     ) -> int:
-        return await self.conversations.replace_conversation_messages(
-            conversation_id, new_messages
-        )
+        return await self.conversations.replace_conversation_messages(conversation_id, new_messages)
 
     async def delete_conversation(self, conversation_id: str) -> bool:
-        return await self.conversations.delete_conversation(conversation_id)
+        deleted = await self.conversations.delete_conversation(conversation_id)
+        if deleted:
+            try:
+                from core.documents.index import delete_conversation_documents
+
+                delete_conversation_documents(self.config.profile_name, conversation_id)
+            except Exception:
+                pass
+        return deleted
 
     async def list_recent_conversations(self, limit: int = 10) -> list[dict]:
         return await self.conversations.list_recent_conversations(limit)
@@ -130,9 +134,7 @@ class MemoryFacade:
         source: str = "",
         metadata: dict[str, Any] | None = None,
     ) -> int:
-        return await self._require_ltm().store_strategy(
-            key, content, category, source, metadata
-        )
+        return await self._require_ltm().store_strategy(key, content, category, source, metadata)
 
     async def search_strategies(self, query: str, top_k: int = 5) -> list[dict[str, Any]]:
         return await self._require_ltm().search_strategies(query, top_k)
