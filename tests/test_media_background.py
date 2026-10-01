@@ -58,6 +58,7 @@ async def test_generate_video_returns_while_the_job_is_still_running(
     task_id = result.split("id=", 1)[1].split(" ", 1)[0]
     running = get_agent_task_registry().get(task_id)
     assert running is not None and running.is_running()
+    assert running.description == "Генерация видео"
     gate.set()
     for _ in range(50):
         if not running.is_running():

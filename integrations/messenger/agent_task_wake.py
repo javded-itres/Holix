@@ -70,6 +70,10 @@ def bind_messenger_agent_task_wake(
                     logger.exception("failed to unpin task %s", getattr(task, "task_id", ""))
 
             _schedule(_unpin, task)
+        from integrations.messenger.generation_details import media_file_was_delivered
+
+        if media_file_was_delivered(getattr(task, "output", "")) and task.exit_code == 0:
+            return
         text = format_agent_task_wakeup(task)
 
         async def _go() -> None:

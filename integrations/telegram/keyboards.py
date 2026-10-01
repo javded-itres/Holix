@@ -263,6 +263,29 @@ def pipeline_picker_keyboard(current: str, locale: str | None = None) -> Any:
     )
 
 
+def extended_mode_picker_keyboard(enabled: bool, locale: str | None = None) -> Any:
+    from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
+    from core.i18n.messages import t
+
+    from integrations.messenger.locale import MESSENGER_DEFAULT_LOCALE
+
+    loc = locale or MESSENGER_DEFAULT_LOCALE
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(
+                    text=f"{_mark(enabled)}{t('tg.extended_on', loc)}",
+                    callback_data=_cb("xv", "1"),
+                ),
+                InlineKeyboardButton(
+                    text=f"{_mark(not enabled)}{t('tg.extended_off', loc)}",
+                    callback_data=_cb("xv", "0"),
+                ),
+            ],
+        ]
+    )
+
+
 def reflexion_picker_keyboard(enabled: bool, locale: str | None = None) -> Any:
     from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
     from core.i18n.messages import t
@@ -640,6 +663,11 @@ def status_menu_keyboard(locale: str | None = None, *, is_admin: bool = True) ->
             [
                 InlineKeyboardButton(text=t("tg.menu.steps", loc), callback_data=_cb("r", "steps")),
                 InlineKeyboardButton(text="Cron", callback_data=_cb("r", "cron")),
+            ],
+            [
+                InlineKeyboardButton(
+                    text=t("tg.menu.extended", loc), callback_data=_cb("r", "extended")
+                ),
             ],
         ]
     )

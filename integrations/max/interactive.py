@@ -17,6 +17,7 @@ from integrations.max.keyboards import (
     _callback_btn,
     _cb,
     callback_rows_keyboard,
+    extended_mode_picker_keyboard,
     help_guide_keyboard,
     inline_keyboard,
     max_steps_picker_keyboard,
@@ -307,6 +308,18 @@ class MaxInteractive:
                 await self._host._send_text(toast)
             return toast or "OK"
 
+        if action == "xv":
+            from integrations.messenger.media_models_chat import set_media_models_visible_for_host
+
+            lang = messenger_host_locale(self._host)
+            try:
+                enabled = set_media_models_visible_for_host(self._host, value == "1")
+            except Exception as exc:
+                return f"{t('tg.error', lang)}: {exc}"
+            await self.show_extended_mode_picker()
+            state = "on" if enabled else "off"
+            return t("tg.extended", lang, state=state)
+
         if action == "rf":
             from integrations.messenger.reflexion_settings import set_reflexion_enabled_for_host
 
@@ -512,6 +525,7 @@ class MaxInteractive:
             "stream": self.show_stream_picker,
             "subagents": self.show_subagents_picker,
             "reflexion": self.show_reflexion_picker,
+            "extended": self.show_extended_mode_picker,
             "pipeline": self.show_pipeline_picker,
             "steps": self.show_max_steps_picker,
             "models": self.show_models,
@@ -877,6 +891,22 @@ class MaxInteractive:
             text = _html_to_md(format_list_text(self._host))
             rows = list_keyboard_rows(self._host)
         await self._host._send_text_with_keyboard(text, callback_rows_keyboard(rows))
+
+    async def show_extended_mode_picker(self) -> None:
+        from integrations.messenger.media_models_chat import media_models_visible_for_profile
+
+        lang = messenger_host_locale(self._host)
+        on = media_models_visible_for_profile(self._host.profile)
+        state = "on" if on else "off"
+        text = (
+            f"**{t('tg.extended_picker_title', lang)}**\n"
+            f"{t('tg.extended', lang, state=state)}\n\n"
+            f"_{t('tg.extended_picker_body', lang)}_"
+        )
+        await self._host._send_text_with_keyboard(
+            text,
+            extended_mode_picker_keyboard(on, lang),
+        )
 
     async def show_reflexion_picker(self) -> None:
         from integrations.messenger.reflexion_settings import is_reflexion_enabled_for_host

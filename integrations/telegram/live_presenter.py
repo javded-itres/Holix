@@ -215,6 +215,30 @@ class TelegramLivePresenter:
         except Exception:
             logger.exception("Telegram agent task notice failed")
 
+    async def dismiss_agent_task_notice(self, task_id: str) -> None:
+        """Remove the running-task note once the file itself is the result."""
+        tid = (task_id or "").strip()
+        ids = getattr(self.session, "agent_task_message_ids", None)
+        mid = ids.pop(tid, None) if ids is not None else None
+        if not mid:
+            return
+        try:
+            await self._bot.unpin_chat_message(chat_id=self.session.chat_id, message_id=mid)
+        except Exception as exc:
+            logger.info(
+                "Telegram unpin agent task failed (chat=%s): %s",
+                self.session.chat_id,
+                exc,
+            )
+        try:
+            await self._bot.delete_message(self.session.chat_id, mid)
+        except Exception as exc:
+            logger.info(
+                "Telegram delete agent task notice failed (chat=%s): %s",
+                self.session.chat_id,
+                exc,
+            )
+
     async def unpin_agent_task_notice(
         self,
         task_id: str,
@@ -422,15 +446,31 @@ class TelegramLivePresenter:
         """Post the final agent/work result as one or more new chat messages."""
         await self.deliver_final_answer(content)
 
+    def _shape_final_answer(self, content: str) -> str:
+        from integrations.messenger.media_models_chat import (
+            media_models_visible_for_profile,
+            shape_media_models_chat,
+        )
+
+        visible = media_models_visible_for_profile(getattr(self.session, "profile", None))
+        recent = getattr(self.session, "_recent_tool_results", None)
+        return shape_media_models_chat(
+            content,
+            visible=visible,
+            recent_tool_results=list(recent) if recent else None,
+        )
+
     async def deliver_final_answer(self, content: str) -> None:
         if self._final_delivered:
             return
-        original = (content or "").strip()
+        original = content or ""
         from integrations.messenger.generation_details import strip_generation_technical_reply
 
-        content = strip_generation_technical_reply(original)
-        if not content:
-            if original:
+        raw = strip_generation_technical_reply(original)
+        content = self._shape_final_answer(raw)
+        if not content.strip():
+            if original.strip():
+                # The reply was only the hidden model list. Do not send an error.
                 self._final_delivered = True
             return
         try:

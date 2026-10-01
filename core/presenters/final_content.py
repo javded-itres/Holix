@@ -234,7 +234,8 @@ def resolve_messenger_final_content(
         if picked:
             tool_text = picked
     media_start = tool_text.startswith("Background task started:")
-    if media_start:
+    delivered_file = tool_text.startswith("Saved image:") or tool_text.startswith("Saved video:")
+    if media_start or delivered_file:
         tool_text = ""
     if not text and tool_text:
         text = tool_text
@@ -243,7 +244,7 @@ def resolve_messenger_final_content(
         text = format_unusable_final(text)
 
     if not text:
-        if media_start:
+        if media_start or delivered_file:
             return ""
         return empty_message
     return text

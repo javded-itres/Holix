@@ -26,9 +26,36 @@ _TECH_LINE = re.compile(
     r"|bytes=.*"
     r"|file://.*"
     r"|In TUI the link is already.*"
+    r"|Delivered to the chat\..*"
+    r"|The file is already in the chat\..*"
+    r"|Do not mention provider.*"
+    r"|Do not call send_chat_files.*"
+    r"|Do not send another message.*"
     r")$",
     re.IGNORECASE,
 )
+
+
+def media_file_was_delivered(output: str | None) -> bool:
+    """True when the file is already in the chat, so no follow-up note is needed."""
+    body = output or ""
+    return body.startswith("Saved ") and "Delivered to the chat" in body
+
+
+def media_task_label(kind: str, profile: str | None) -> str:
+    """Visible task title in the profile's default language. Not the model prompt."""
+    loc = "ru"
+    try:
+        from integrations.messenger.locale import messenger_locale
+
+        if profile:
+            loc = messenger_locale(profile)
+    except Exception:
+        loc = "ru"
+    english = loc.lower().startswith("en")
+    if kind == "video":
+        return "Video generation" if english else "Генерация видео"
+    return "Image generation" if english else "Генерация изображения"
 
 
 def details_dir() -> Path:

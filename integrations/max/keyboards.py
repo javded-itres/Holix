@@ -173,6 +173,28 @@ def callback_rows_keyboard(rows: list[list[tuple[str, str, str]]]) -> dict[str, 
     return inline_keyboard(kb_rows)
 
 
+def extended_mode_picker_keyboard(enabled: bool, locale: str | None = None) -> dict[str, Any]:
+    from core.i18n.messages import t
+
+    from integrations.messenger.locale import MESSENGER_DEFAULT_LOCALE
+
+    loc = locale or MESSENGER_DEFAULT_LOCALE
+    return inline_keyboard(
+        [
+            [
+                _callback_btn(
+                    f"{_mark(enabled)}{t('tg.extended_on', loc)}",
+                    _cb("xv", "1"),
+                ),
+                _callback_btn(
+                    f"{_mark(not enabled)}{t('tg.extended_off', loc)}",
+                    _cb("xv", "0"),
+                ),
+            ],
+        ]
+    )
+
+
 def reflexion_picker_keyboard(enabled: bool, locale: str | None = None) -> dict[str, Any]:
     from core.i18n.messages import t
 
@@ -463,6 +485,9 @@ def status_menu_keyboard(locale: str | None = None, *, is_admin: bool = True) ->
         [
             _callback_btn(t("tg.menu.steps", loc), _cb("r", "steps")),
             _callback_btn("Cron", _cb("r", "cron")),
+        ],
+        [
+            _callback_btn(t("tg.menu.extended", loc), _cb("r", "extended")),
         ],
     ]
     return inline_keyboard(rows)

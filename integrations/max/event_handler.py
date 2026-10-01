@@ -129,8 +129,21 @@ class MaxEventHandler:
                 self._presenter.schedule_edit()
                 name = (event.tool_name or "").strip()
                 if (body or "").strip():
-                    notice = _tool_result_notice_text(name, body)
-                    if name == "delegate_to_subagent" and "already_running" in body:
+                    from integrations.messenger.media_models_chat import (
+                        filter_media_model_tool_notice,
+                        media_models_visible_for_profile,
+                    )
+
+                    notice = filter_media_model_tool_notice(
+                        name,
+                        _tool_result_notice_text(name, body),
+                        visible=media_models_visible_for_profile(
+                            getattr(self._presenter.session, "profile", None)
+                        ),
+                    )
+                    if not notice.strip():
+                        logger.info("MAX tool result not posted to chat (%s)", name)
+                    elif name == "delegate_to_subagent" and "already_running" in body:
                         logger.info("MAX tool result skipped (%s): duplicate delegation", name)
                     else:
                         self._presenter.enqueue_outbound(

@@ -46,6 +46,21 @@ except ImportError:  # pragma: no cover
 _SKILL_SRC = Path(__file__).resolve().parent / "skill" / "media-gen"
 
 
+def _prompt_language(profile: str) -> str:
+    """Name of the profile default language, for the generation prompt."""
+    loc = "ru"
+    try:
+        from integrations.messenger.locale import messenger_locale
+
+        if profile:
+            loc = messenger_locale(profile)
+    except Exception:
+        loc = "ru"
+    if loc.lower().startswith("en"):
+        return "English"
+    return "Russian"
+
+
 class MediaAgentExtension(AgentExtensionBase):
     name = "media"
     version = "0.1.5"
@@ -100,13 +115,15 @@ class MediaAgentExtension(AgentExtensionBase):
             messenger = messenger_delivery_available()
         except Exception:
             messenger = False
+        language = _prompt_language(profile)
         return (
             "## Media generation\n"
             "Tools `generate_image` and `generate_video` start a background task and "
             "return immediately. There is no timeout. HTTP 502/503/504 is retried "
             "inside that task. Do not poll, do not switch models, and do not tell "
             "the user the backend is down. Say that generation is running; the file "
-            "arrives when the task wakes you. Files land in workspace `media/`.\n"
+            "arrives in the chat on its own. Do not send another message after it. "
+            "Files land in workspace `media/`.\n"
             "Image models:\n"
             f"{imgs}\n"
             "Video models:\n"
@@ -118,6 +135,11 @@ class MediaAgentExtension(AgentExtensionBase):
             "uses the model marked as accepting a reference. Do not pick a text-only "
             "model for that.\n"
             "Before generating, call `describe_media_model` and use only parameters it lists. "
+            "Do not paste `Configured image models:` or `Configured video models:` into the "
+            "user-visible reply. Telegram and MAX add that list only when the user turned "
+            "on extended mode in the menu.\n"
+            f"Write the generation prompt predominantly in {language}. "
+            "Keep a name or a word the user wrote in another language as they wrote it.\n"
             "To change an existing image, pass that file in `references` and put only the new "
             "change in `prompt`. The tool appends it to the saved prompt and keeps the seed. "
             "Do not rewrite the previous scene. Change `size` only when the user asks.\n"

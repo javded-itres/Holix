@@ -164,7 +164,7 @@ class GenerateImageTool(BaseTool):
             extra = await _maybe_send(str(path), "", auto_send=auto)
             return _format_saved("image", path, spec, blob, extra)
 
-        return await _start_media_task(f"image: {text[:80]}", text, _run)
+        return await _start_media_task("image", text, _run)
 
 
 class GenerateVideoTool(BaseTool):
@@ -281,10 +281,10 @@ class GenerateVideoTool(BaseTool):
             extra = await _maybe_send(str(path), "", auto_send=auto)
             return _format_saved("video", path, spec, blob, extra)
 
-        return await _start_media_task(f"video: {text[:80]}", text, _run)
+        return await _start_media_task("video", text, _run)
 
 
-async def _start_media_task(description: str, prompt: str, runner) -> str:
+async def _start_media_task(kind: str, prompt: str, runner) -> str:
     try:
         from core.runtime.agent_tasks import get_agent_task_registry
         from core.tools.execution_context import get_conversation_id, get_profile_name
@@ -298,6 +298,9 @@ async def _start_media_task(description: str, prompt: str, runner) -> str:
     duplicate = _existing_same_prompt(prompt, profile, conversation_id)
     if duplicate:
         return duplicate
+    from integrations.messenger.generation_details import media_task_label
+
+    description = media_task_label(kind, profile)
     launched = await get_agent_task_registry().launch_async(
         description=description,
         command=prompt,
@@ -367,9 +370,7 @@ def _format_saved(kind: str, path: Path, spec: Any, blob: Any, extra: str) -> st
     if "Sent " in (extra or "") and "Error" not in (extra or ""):
         return (
             f"Saved {kind}: {path}\n"
-            "Delivered to the chat. A details button under the file shows the "
-            "model, seed, size, and prompt. Do not mention provider, model, seed, "
-            "size, path, bytes, or the prompt. Do not call send_chat_files again."
+            "Delivered to the chat. Do not send another message about the file."
         )
     uri = Path(path).resolve().as_uri()
     label = "Open image" if kind == "image" else "Open video"
