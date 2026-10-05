@@ -230,6 +230,18 @@ class ToolRegistry:
 
             register_browser_tools(self)
 
+        from core.decision.runtime import optional_tools_enabled
+
+        decision_on, embeddings_on = optional_tools_enabled()
+        if decision_on:
+            from core.tools.systemone import SystemOneDecideTool
+
+            self.register(SystemOneDecideTool())
+        if embeddings_on:
+            from core.tools.text_similarity import TextSimilarityTool
+
+            self.register(TextSimilarityTool())
+
         from core.plugins.hooks import host_bridge_hooks
 
         for register_extra in host_bridge_hooks.register_tools:

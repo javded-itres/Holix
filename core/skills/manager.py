@@ -717,6 +717,24 @@ class SkillsManager:
             agent_slot=agent_slot,
         )
         suggested_names = [str(skill.get("name") or "") for skill in suggested if skill.get("name")]
+        descriptions = {
+            str(skill.get("name") or ""): str(skill.get("description") or "") for skill in suggested
+        }
+        try:
+            from types import SimpleNamespace
+
+            from core.decision.internal import promote_skill
+
+            picked = promote_skill(
+                SimpleNamespace(config=self._config),
+                query or "",
+                suggested_names,
+                descriptions,
+            )
+        except Exception:
+            picked = None
+        if picked:
+            suggested_names = [picked] + [name for name in suggested_names if name != picked]
         catalog_total = len(allowed)
         shown = allowed
         if catalog_total > limit:

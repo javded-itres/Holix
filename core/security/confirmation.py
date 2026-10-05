@@ -778,6 +778,17 @@ class ActionGuard:
                 self._log_audit("permission_granted", assessment, "stored")
                 return await execute_fn(**arguments)
 
+            if tool_name in {"run_terminal_command", "terminal", "execute_terminal_command"}:
+                command = str((arguments or {}).get("command") or "")
+                try:
+                    from core.decision.internal import shell_auto_allow
+
+                    if await shell_auto_allow(None, command):
+                        self._log_audit("auto_allowed", assessment, "systemone_noul")
+                        return await execute_fn(**arguments)
+                except Exception:
+                    pass
+
         # Step 4: Need confirmation
         if not self._interactive:
             # Non-interactive mode: auto-deny

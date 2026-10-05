@@ -44,6 +44,9 @@ CORE_TOOL_NAMES: frozenset[str] = frozenset(
         "describe_media_model",
         "generate_image",
         "generate_video",
+        # Registered only when the profile turns the matching block on.
+        "systemone_decide",
+        "text_similarity",
     }
 )
 

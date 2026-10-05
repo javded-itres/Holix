@@ -192,7 +192,10 @@ def run_sub_agent_in_process(
         workspace_jail_enabled=bool(workspace_jail_enabled),
         profile_name=profile_name,
     )
-    registry.register_all()
+    from core.decision.runtime import bind_optional_tools_for_profile
+
+    with bind_optional_tools_for_profile(profile_name):
+        registry.register_all()
 
     # MCP for this sub: assigned names + parent defs, filling popular catalogs
     # (Context7 may be assigned on python-coder but missing from parent mcp_servers).
@@ -1223,6 +1226,16 @@ def _execute_tool_guarded(
         permissions = PermissionManager(data_dir=data_dir or None)
         if permissions.is_allowed(resolved, assessment.risk_level, assessment.pattern_matched):
             return run_loop.run_until_complete(tool.execute(**args))
+
+        if resolved in {"run_terminal_command", "terminal", "execute_terminal_command"}:
+            command = str((args or {}).get("command") or "")
+            try:
+                from core.decision.internal import shell_auto_allow
+
+                if run_loop.run_until_complete(shell_auto_allow(None, command)):
+                    return run_loop.run_until_complete(tool.execute(**args))
+            except Exception:
+                pass
 
         if not interactive:
             return (

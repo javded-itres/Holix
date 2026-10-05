@@ -390,6 +390,17 @@ async def _plan_step_result(
     )
 
 
+async def _hold_if_incomplete(state, agent, messages, step_count, final_response):
+    """Ask System One whether a draft is done. Errors leave the turn final."""
+    try:
+        from core.decision.internal import hold_incomplete_draft
+
+        return await hold_incomplete_draft(state, agent, messages, step_count, final_response)
+    except Exception:
+        logger.warning("System One end-of-turn check failed")
+        return None
+
+
 def _maybe_honesty_retry(
     state: HolixGraphState,
     *,
@@ -1134,6 +1145,10 @@ async def _react_non_streaming(
         if honesty is not None:
             return honesty
 
+        held = await _hold_if_incomplete(state, agent, messages, step_count, final_response)
+        if held is not None:
+            return held
+
         if agent and hasattr(agent, "memory"):
             await agent.memory.save_message(conversation_id, "assistant", final_response)
 
@@ -1733,6 +1748,11 @@ async def _react_streaming(
                 _emit_stream_usage_once(completion_text=final_response)
                 return honesty
 
+            held = await _hold_if_incomplete(state, agent, messages, step_count, final_response)
+            if held is not None:
+                _emit_stream_usage_once(completion_text=final_response)
+                return held
+
             if agent and hasattr(agent, "memory"):
                 await agent.memory.save_message(conversation_id, "assistant", final_response)
 
@@ -1865,6 +1885,10 @@ async def _react_streaming(
     )
     if honesty is not None:
         return honesty
+
+    held = await _hold_if_incomplete(state, agent, messages, step_count, final_response)
+    if held is not None:
+        return held
 
     if agent and hasattr(agent, "memory"):
         await agent.memory.save_message(conversation_id, "assistant", final_response)

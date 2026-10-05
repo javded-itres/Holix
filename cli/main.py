@@ -62,7 +62,9 @@ def _register_base_commands() -> None:
     from cli.commands import config, doctor, gateway, models, profile
     from cli.commands.bootstrap import app as bootstrap_app
     from cli.commands.cron import app as cron_app
+    from cli.commands.decision import app as decision_app
     from cli.commands.docs import app as docs_app
+    from cli.commands.embeddings_cmd import app as embeddings_app
     from cli.commands.extensions import app as extensions_app
     from cli.commands.hub import app as hub_app
     from cli.commands.install_cmd import app as install_app
@@ -81,6 +83,8 @@ def _register_base_commands() -> None:
     app.add_typer(doctor.app, name="doctor")
     app.add_typer(mcp_app, name="mcp")
     app.add_typer(search_app, name="search")
+    app.add_typer(decision_app, name="decision")
+    app.add_typer(embeddings_app, name="embeddings")
     app.add_typer(cron_app, name="cron")
     app.add_typer(logs_app, name="logs")
     app.add_typer(hub_app, name="hub")

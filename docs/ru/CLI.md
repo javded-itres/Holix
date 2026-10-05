@@ -33,6 +33,8 @@ HOLIX_ENV=production holix -p shared gateway start
 | `config` | config.yaml |
 | `profile` | `.env` профиля и workspace jail |
 | `models` | Провайдеры и маршрутизация |
+| `decision` | Необязательная модель System One (Jev, nimble, tev1). Пока не включена, вызовов нет |
+| `embeddings` | Необязательное сравнение текстов. Память Holix не подменяет |
 | `telegram` | Telegram-бот |
 | `max` | Бот для мессенджера MAX |
 | `gateway` | API gateway |
@@ -160,6 +162,41 @@ holix models fallback list
 ```
 
 ---
+
+## `holix decision`
+
+Необязательный endpoint System One: закрытый выбор, оценка по заданной шкале или вероятность «да». Ответ пользователю по-прежнему пишет чат-модель. Пока настройка выключена, профиль никуда не обращается.
+
+Пресет `jev` берёт мультиязычную модель `jev-latest`. Текст и критерии уходят на языке пользователя. `nimble` и `tev1` — локальные модели Ollama на `http://127.0.0.1:11434` (Ollama 0.35 или новее). Для размещённого Jev ключ `DECISION_API_KEY` лежит в `.env` профиля и не записывается в `config.yaml`.
+
+Навык `typed-decision` не ставится вместе с остальными встроенными навыками. Сначала включите пресет и перезапустите агента, чтобы зарегистрировался `systemone_decide`, затем включите навык.
+
+```bash
+holix decision status
+holix decision use jev
+holix decision use nimble
+holix decision use tev1 --model tev1:0.8b
+holix decision probe
+holix decision skills on typed-decision
+holix decision internal on reflexion
+holix decision internal on is_final
+holix decision internal on skill_choice
+holix decision internal on shell_allow
+holix decision threshold noul 0.8
+holix decision use off
+```
+
+`internal` не включается вместе с пресетом. `reflexion` ставит черновику оценку по фиксированной шкале. `is_final` спрашивает, закончен ли ответ, прежде чем закрыть ход. `skill_choice` выбирает один навык из уже найденных имён. `shell_allow` пропускает подтверждение команды только если вероятность «да» не ниже порога `noul`. Сбой вызова не подставляет число: Reflexion возвращается к чат-модели, проверка конца хода оставляет черновик финальным, порядок навыков не меняется, а команда оболочки по-прежнему спрашивает человека.
+
+## `holix embeddings`
+
+Необязательное косинусное сходство текстов, которые уже есть у агента (`POST /v1/embeddings` или Ollama `POST /api/embed`). Память и документы Holix остаются на своём эмбеддере. Навык `text-similarity` копируется только командой `skills on`.
+
+```bash
+holix embeddings use ollama --model nomic-embed-text
+holix embeddings skills on text-similarity
+holix embeddings use off
+```
 
 ## `holix skills`
 

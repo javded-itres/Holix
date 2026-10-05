@@ -267,6 +267,14 @@ Context: {context_str}
 
         ctx = context or {}
         trajectory = str(ctx.get("trajectory") or "").strip()
+        try:
+            from core.decision.internal import reflexion_assessment
+
+            scored = await reflexion_assessment(self._agent, original_task, response, trajectory)
+            if scored is not None:
+                return scored
+        except Exception as exc:
+            logger.warning("System One reflexion score failed: %s", type(exc).__name__)
         traj_block = f"\nTool trajectory:\n{trajectory[:1500]}\n" if trajectory else ""
         prior = ctx.get("prior_reflections")
         prior_block = f"\nPrior reflection count this turn: {prior}\n" if prior else ""
@@ -283,9 +291,7 @@ Agent response: {response[:1000]}
             messages = [
                 {
                     "role": "system",
-                    "content": (
-                        "You are a Reflexion evaluator. Respond only with valid JSON."
-                    ),
+                    "content": ("You are a Reflexion evaluator. Respond only with valid JSON."),
                 },
                 {"role": "user", "content": prompt},
             ]
@@ -350,7 +356,7 @@ Agent response: {response[:1000]}
             start = text.find("{")
             end = text.rfind("}")
             if start >= 0 and end > start:
-                data = json.loads(text[start:end + 1])
+                data = json.loads(text[start : end + 1])
                 return MetaDecision(
                     suggested_mode=data.get("suggested_mode", ""),
                     context_hint=data.get("context_hint", ""),
@@ -375,7 +381,7 @@ Agent response: {response[:1000]}
             start = text.find("{")
             end = text.rfind("}")
             if start >= 0 and end > start:
-                data = json.loads(text[start:end + 1])
+                data = json.loads(text[start : end + 1])
                 return QualityAssessment(
                     quality_score=float(data.get("quality_score", 0.5)),
                     needs_refinement=bool(data.get("needs_refinement", False)),

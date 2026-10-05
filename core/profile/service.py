@@ -150,6 +150,11 @@ class ProfileConfig(BaseModel):
     # Agent2Agent (A2A) protocol: server exposure + remote agents client registry
     a2a: dict[str, Any] = Field(default_factory=dict)
 
+    # Optional System One decisions (Jev, nimble, tev1, custom). Off until set.
+    decision: dict[str, Any] = Field(default_factory=dict)
+    # Optional text-similarity embeddings. Does not replace memory embeddings.
+    embeddings: dict[str, Any] = Field(default_factory=dict)
+
 
 def _holix_env_name() -> str:
     return os.getenv("HOLIX_ENV", "development").strip().lower()

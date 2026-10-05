@@ -19,15 +19,31 @@ def bundled_skills_root() -> Path:
     return _BUNDLED_ROOT
 
 
+def _flag_true(value: object) -> bool:
+    return value is True or str(value).strip().lower() in {"1", "true", "yes"}
+
+
+def _skill_is_opt_in(parsed: dict | None, *, entry_name: str) -> bool:
+    """Optional skills stay out of the profile until a command copies them in."""
+    del entry_name
+    if not parsed:
+        return False
+    for key in ("opt_in", "opt-in"):
+        if _flag_true(parsed.get(key)):
+            return True
+    return False
+
+
 def _skill_is_required(parsed: dict | None, *, entry_name: str) -> bool:
     if not parsed:
         return entry_name in _REQUIRED_BUNDLED_FALLBACK
     name = str(parsed.get("name") or entry_name).strip()
     if name in _REQUIRED_BUNDLED_FALLBACK:
         return True
+    if _skill_is_opt_in(parsed, entry_name=entry_name):
+        return False
     for key in ("required", "platform"):
-        val = parsed.get(key)
-        if val is True or str(val).strip().lower() in {"1", "true", "yes"}:
+        if _flag_true(parsed.get(key)):
             return True
     tags = parsed.get("tags") or []
     if isinstance(tags, str):
@@ -77,6 +93,60 @@ def required_bundled_skill_names() -> list[str]:
     return names or sorted(_REQUIRED_BUNDLED_FALLBACK)
 
 
+def opt_in_bundled_skill_names() -> list[str]:
+    """Packaged skills that seed must not copy or assign."""
+    from core.hub.normalize import parse_skill_file
+
+    root = bundled_skills_root()
+    if not root.is_dir():
+        return []
+    names: list[str] = []
+    for entry in sorted(root.iterdir()):
+        if not entry.is_dir():
+            continue
+        skill_md = entry / "SKILL.md"
+        if not skill_md.is_file():
+            continue
+        parsed = parse_skill_file(skill_md)
+        name = (parsed.get("name") if parsed else None) or entry.name
+        if _skill_is_opt_in(parsed, entry_name=entry.name):
+            names.append(name)
+    return names
+
+
+def load_opt_in_skill(name: str) -> dict | None:
+    """Parsed packaged skill when ``name`` is marked ``opt_in``."""
+    from core.hub.normalize import parse_skill_file
+
+    wanted = str(name or "").strip()
+    if not wanted:
+        return None
+    root = bundled_skills_root()
+    if not root.is_dir():
+        return None
+    for entry in sorted(root.iterdir()):
+        skill_md = entry / "SKILL.md"
+        if not skill_md.is_file():
+            continue
+        parsed = parse_skill_file(skill_md)
+        if not parsed or parsed.get("name") != wanted:
+            continue
+        if _skill_is_opt_in(parsed, entry_name=entry.name):
+            return parsed
+    return None
+
+
+def remove_opt_in_skill(skills_dir: Path, name: str) -> bool:
+    """Delete a profile copy of an opt-in skill. Other skill files stay."""
+    if load_opt_in_skill(name) is None:
+        return False
+    flat = Path(skills_dir) / f"{name}.md"
+    if not flat.is_file():
+        return False
+    flat.unlink()
+    return True
+
+
 def ensure_bundled_assigned_to_main(
     assignments: dict[str, list[str]] | None,
     skill_names: list[str] | None = None,
@@ -88,6 +158,8 @@ def ensure_bundled_assigned_to_main(
     from core.skills.assignments import assign_skill_to_agents
 
     names = skill_names if skill_names is not None else bundled_skill_names()
+    opt_in = set(opt_in_bundled_skill_names())
+    names = [name for name in names if name not in opt_in]
     if not names:
         return dict(assignments or {}), []
 
@@ -132,6 +204,8 @@ def seed_bundled_skills(skills_dir: Path, *, overwrite: bool = False) -> list[st
             continue
         parsed = parse_skill_file(skill_md)
         if not parsed:
+            continue
+        if _skill_is_opt_in(parsed, entry_name=entry.name):
             continue
         name = parsed.get("name") or entry.name
         flat = dest_dir / f"{name}.md"

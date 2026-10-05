@@ -36,6 +36,8 @@ holix --help
 | `config` | View/edit profile YAML |
 | `profile` | Profile `.env` and workspace jail |
 | `models` | Providers and `agent_models` routing |
+| `decision` | Optional System One model (Jev, nimble, tev1). Off until enabled |
+| `embeddings` | Optional text similarity. Does not replace memory search |
 | `telegram` | Telegram bot setup and run |
 | `max` | MAX messenger bot setup and run |
 | `gateway` | API gateway supervisor |
@@ -273,6 +275,41 @@ agent_models:
 ```
 
 ---
+
+## `holix decision`
+
+Optional System One endpoint for closed-set choice, an ordinal score, or a yes/no probability. The chat model still writes the reply. Default is off, so existing profiles do not call it.
+
+The `jev` preset uses the multilingual model `jev-latest`. State and criteria are sent in the user's language. `nimble` and `tev1` are local Ollama models on `http://127.0.0.1:11434` (Ollama 0.35 or newer). Put `DECISION_API_KEY` in the profile `.env` for hosted Jev. The key is not written to `config.yaml`.
+
+The skill `typed-decision` is not installed with the other bundled skills. Turn the preset on, restart the agent so `systemone_decide` is registered, then enable the skill.
+
+```bash
+holix decision status
+holix decision use jev
+holix decision use nimble
+holix decision use tev1 --model tev1:0.8b
+holix decision probe
+holix decision skills on typed-decision
+holix decision internal on reflexion
+holix decision internal on is_final
+holix decision internal on skill_choice
+holix decision internal on shell_allow
+holix decision threshold noul 0.8
+holix decision use off
+```
+
+`internal` is separate from the preset. `reflexion` scores a draft on a fixed scale. `is_final` asks whether the draft is complete before the turn ends. `skill_choice` picks one skill from the names already retrieved. `shell_allow` can skip a confirmation for a shell command only when the yes-probability is at least the `noul` threshold. A failed call does not invent a score: Reflexion falls back to the chat model, an unfinished-turn check leaves the draft final, skill order stays as it was, and a shell command still asks the user.
+
+## `holix embeddings`
+
+Optional cosine similarity for texts the agent already has (`POST /v1/embeddings` or Ollama `POST /api/embed`). This does not replace memory or document embeddings. Default is off. The skill `text-similarity` is copied in only with `skills on`.
+
+```bash
+holix embeddings use ollama --model nomic-embed-text
+holix embeddings skills on text-similarity
+holix embeddings use off
+```
 
 ## `holix skills`
 

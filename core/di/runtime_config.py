@@ -158,6 +158,10 @@ class HolixRuntimeConfig:
     vector_dim: int = 384
     vector_table: str = "holix_vectors"
 
+    # Optional System One + text similarity. Empty means off.
+    decision: dict[str, Any] = field(default_factory=dict)
+    embeddings: dict[str, Any] = field(default_factory=dict)
+
     @classmethod
     def from_settings(cls, source: Settings | None = None) -> Self:
         """Build config from pydantic Settings (env / .env).
@@ -353,6 +357,8 @@ class HolixRuntimeConfig:
             overrides["subagent_max_steps"] = int(profile.subagent_max_steps)
         if getattr(profile, "search", None):
             overrides["search"] = profile.search
+        overrides["decision"] = dict(getattr(profile, "decision", None) or {})
+        overrides["embeddings"] = dict(getattr(profile, "embeddings", None) or {})
         overrides["workspace_jail_enabled"] = bool(
             getattr(profile, "workspace_jail_enabled", False)
         )
