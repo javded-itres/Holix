@@ -11,9 +11,11 @@ from core.sdd.change_workspace import (
     bind_active_project,
     clear_active_change,
     drop_active_change,
+    format_active_change_line,
     format_active_change_prompt_block,
     get_active_change,
     inherit_active_change,
+    is_workspace_root_pin,
     overlay_workspace_root,
     reset_active_change_store,
 )
@@ -34,6 +36,45 @@ def _reset_pins() -> None:
     reset_active_change_store()
     yield
     reset_active_change_store()
+
+
+def test_workspace_root_pin_is_not_a_project(tmp_path: Path) -> None:
+    workspace = tmp_path / "workspace"
+    workspace.mkdir()
+    bind_active_project("default", "root-tab", workspace, project=".")
+    active = get_active_change("default", "root-tab")
+    assert is_workspace_root_pin(active)
+    assert format_active_change_prompt_block(active) == ""
+    assert format_active_change_line(active) == ""
+
+
+def test_prompt_context_follows_product_pin(tmp_path: Path) -> None:
+    from core.prompt_builder import resolve_prompt_context_directory
+
+    workspace = tmp_path / "workspace"
+    bot = workspace / "projects" / "ai_bot_project"
+    shop = workspace / "projects" / "shop"
+    bot.mkdir(parents=True)
+    shop.mkdir(parents=True)
+    bind_active_project("default", "shop-tab", shop, project="projects/shop")
+    tokens = workspace_scope(workspace_root=str(workspace), workspace_jail_enabled=True)
+    ptok = profile_scope("default")
+    ctok = conversation_scope("shop-tab")
+    try:
+        cwd = resolve_prompt_context_directory(workspace_root=str(workspace))
+        assert cwd == str(shop.resolve())
+    finally:
+        reset_conversation_scope(ctok)
+        reset_profile_scope(ptok)
+        reset_workspace_scope(tokens)
+
+    bind_active_project("default", "root-tab", workspace, project=".", force=True)
+    ctok = conversation_scope("root-tab")
+    try:
+        cwd = resolve_prompt_context_directory(workspace_root=str(workspace))
+        assert cwd == str(workspace.resolve())
+    finally:
+        reset_conversation_scope(ctok)
 
 
 def test_bind_active_project_overlays_workspace(tmp_path: Path) -> None:

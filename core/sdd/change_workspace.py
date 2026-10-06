@@ -421,8 +421,21 @@ def overlay_workspace_root(
     return file_workspace_root(get_active_change(prof, cid))
 
 
-def format_active_change_line(active: ActiveChange | None) -> str:
+def is_workspace_root_pin(active: ActiveChange | None) -> bool:
+    """True when the session is pinned to the profile workspace, not a product.
+
+    ``project`` is ``.`` or empty and there is no SDD change worktree.
+    """
     if active is None:
+        return False
+    if (active.change_id or "").strip() or (active.worktree or "").strip():
+        return False
+    rel = (active.project or "").strip().replace("\\", "/").strip("/")
+    return rel in {"", "."}
+
+
+def format_active_change_line(active: ActiveChange | None) -> str:
+    if active is None or is_workspace_root_pin(active):
         return ""
     if active.worktree and active.change_id:
         branch = active.branch or f"change/{active.change_id}"
@@ -434,7 +447,7 @@ def format_active_change_line(active: ActiveChange | None) -> str:
 
 
 def format_active_change_prompt_block(active: ActiveChange | None) -> str:
-    if active is None:
+    if active is None or is_workspace_root_pin(active):
         return ""
     layout = _layout_for_active(active)
     if _is_multi_product(layout) and layout is not None:

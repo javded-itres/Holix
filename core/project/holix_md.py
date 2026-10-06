@@ -14,8 +14,10 @@ HOLIX_MD_FILENAME = "HOLIX.md"
 HOLIX_MD_LEGACY_FILENAME = "HELIX.md"
 HOLIX_MD_REL_PATH = f".holix/{HOLIX_MD_FILENAME}"
 DEFAULT_MAX_CHARS = 24_000
-# Studio product projects live at projects/<slug>/<repo> (3 levels from workspace).
+# Nested packages inside one repo (not Studio products). Studio products live at
+# projects/<slug>/ and are not adopted when the scan starts at the workspace root.
 HOLIX_MD_SEARCH_DEPTH = 4
+STUDIO_PRODUCTS_DIR = "projects"
 _SKIP_SEARCH_DIRS = SKIP_SEARCH_DIR_NAMES
 
 _MINIMAL_HOLIX_TEMPLATE = """# Project handbook
@@ -62,6 +64,21 @@ PLANNING_CONTEXT_NOTE = (
 
 def _workspace_root(cwd: str | Path | None = None) -> Path:
     return (Path(cwd) if cwd else Path.cwd()).expanduser().resolve()
+
+
+def is_studio_product_catalog(directory: Path, root: Path, name: str) -> bool:
+    """True when *name* is the Studio ``projects/`` catalog directly under *root*.
+
+    A session whose working directory is the workspace root must not inherit
+    ``projects/<slug>`` handbooks. A scan that already starts inside a product
+    still sees that product's files.
+    """
+    if name != STUDIO_PRODUCTS_DIR:
+        return False
+    try:
+        return directory.resolve() == root.resolve()
+    except OSError:
+        return directory == root
 
 
 def _is_file(path: Path) -> bool:
@@ -144,6 +161,8 @@ def discover_holix_md_paths(
             name = child.name
             if name in _SKIP_SEARCH_DIRS or name.startswith("."):
                 continue
+            if is_studio_product_catalog(current, root, name):
+                continue
             try:
                 if child.is_symlink():
                     continue
@@ -159,7 +178,10 @@ def discover_holix_md_paths(
 
 
 def resolve_holix_md_read_path(cwd: str | Path | None = None) -> Path | None:
-    """Best HOLIX.md for reading: cwd root first, then nested (up to two levels)."""
+    """Best HOLIX.md for reading: cwd itself, then nested packages.
+
+    Does not walk ``projects/<slug>`` when *cwd* is the Studio workspace root.
+    """
     hits = discover_holix_md_paths(cwd)
     return hits[0] if hits else None
 
@@ -289,6 +311,10 @@ def ensure_holix_md_exists(
     root = _workspace_root(cwd)
     if is_unsafe_project_scan_root(root):
         logger.warning("refusing to create HOLIX.md under %s", root)
+        return None
+    # Workspace root holds many products. Do not invent a handbook that would
+    # look like a project pin for every root session.
+    if _is_dir(root / STUDIO_PRODUCTS_DIR):
         return None
     written = _write_init_skeleton_at(root, locale=locale)
     if written is not None and _is_file(written):

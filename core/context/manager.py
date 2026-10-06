@@ -16,6 +16,18 @@ from core.context.token_counter import DEFAULT_CONTEXT_WINDOW, TokenCounter
 
 logger = logging.getLogger(__name__)
 
+
+def _message_window_fingerprint(messages: list[dict[str, Any]]) -> str:
+    """Identity of the message window so a same-length tail is not a cache hit."""
+    if not messages:
+        return "0"
+    last = messages[-1] if isinstance(messages[-1], dict) else {}
+    content = last.get("content")
+    if not isinstance(content, str):
+        content = str(content or "")
+    return f"{len(messages)}:{last.get('role')}:{len(content)}:{content[:48]}:{content[-48:]}"
+
+
 # System prompt + HOLIX.md + identity — not stored in message history.
 # 4096 under-counted Studio prompts and delayed compression.
 DEFAULT_SYSTEM_PROMPT_RESERVE = 8192
@@ -105,7 +117,10 @@ class ContextManager:
 
         cached = self._usage_cache.get(conversation_id)
         count = len(messages)
-        if cached and cached.get("count") == count:
+        fingerprint = _message_window_fingerprint(messages)
+        # Same length is not the same context: a long chat stays at the fetch
+        # cap while the tail slides. Only reuse the cache when the tail matches.
+        if cached and cached.get("count") == count and cached.get("fingerprint") == fingerprint:
             return int(cached["used"])
 
         if cached and cached.get("count", 0) < count:
@@ -142,6 +157,7 @@ class ContextManager:
                 "count": len(messages),
                 "used": used,
                 "prefix_used": used,
+                "fingerprint": _message_window_fingerprint(messages),
                 "usage": usage,
             }
         return usage

@@ -52,6 +52,42 @@ def resolve_agent_working_directory(
         return str(Path.cwd())
 
 
+def resolve_prompt_context_directory(
+    *,
+    workspace_root: str | None = None,
+    workspace_jail_enabled: bool | None = None,
+    working_directory: str | None = None,
+) -> str:
+    """Directory whose HOLIX.md / agent files belong in the system prompt.
+
+    A session pinned to a product uses that directory. A session at the
+    workspace root stays there, so ``projects/<slug>`` is not adopted.
+    """
+    base = resolve_agent_working_directory(
+        workspace_root=workspace_root,
+        workspace_jail_enabled=workspace_jail_enabled,
+        working_directory=working_directory,
+    )
+    try:
+        from core.sdd.change_workspace import (
+            get_active_change,
+            is_workspace_root_pin,
+            overlay_workspace_root,
+        )
+        from core.tools.execution_context import get_conversation_id, get_profile_name
+
+        active = get_active_change(get_profile_name(), get_conversation_id())
+        overlay = overlay_workspace_root()
+    except Exception:
+        return base
+    if active is None or not overlay or is_workspace_root_pin(active):
+        return base
+    try:
+        return str(Path(overlay).expanduser().resolve())
+    except OSError:
+        return overlay
+
+
 def format_working_directory_block(
     *,
     workspace_root: str | None = None,
@@ -674,7 +710,7 @@ Remember: You are a helpful, capable agent that learns and improves with each ta
             blocks.append(ext_fragment)
     except Exception:
         pass
-    project_cwd = resolve_agent_working_directory(
+    project_cwd = resolve_prompt_context_directory(
         workspace_root=workspace_root,
         workspace_jail_enabled=workspace_jail_enabled,
     )

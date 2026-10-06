@@ -149,7 +149,8 @@ class ConversationStore:
         limit: int = 30,
     ) -> list[dict[str, Any]]:
         # Over-fetch so dropping graph-only honesty injects still fills `limit`.
-        fetch_limit = min(max(int(limit), int(limit) * 2), 500)
+        # Long Studio runs keep well past 500 rows; the context meter must see them.
+        fetch_limit = min(max(int(limit), int(limit) * 2), 8_000)
         async with connect_aiosqlite(self.db_path) as db:
             db.row_factory = aiosqlite.Row
             cursor = await db.execute(

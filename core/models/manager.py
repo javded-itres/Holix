@@ -8,6 +8,36 @@ from pydantic import BaseModel, Field
 from core.models.client_factory import create_openai_client
 
 
+def resolve_model_context_window(
+    provider_data: dict[str, Any] | None,
+    model: str,
+    profile_config: Any | None = None,
+) -> int | None:
+    """Tokens for *model*, then the provider default model, then the profile window.
+
+    A pin such as ``smart`` with no ``model_contexts`` entry must not fall
+    through to the 128k global default while ``auto`` is known to be larger.
+    """
+    data = provider_data if isinstance(provider_data, dict) else {}
+    contexts = data.get("model_contexts") or {}
+    if not isinstance(contexts, dict):
+        contexts = {}
+    raw = contexts.get(model)
+    if not raw:
+        default_model = str(
+            data.get("default_model") or getattr(profile_config, "model", "") or ""
+        ).strip()
+        if default_model and default_model != (model or "").strip():
+            raw = contexts.get(default_model)
+    if not raw and profile_config is not None:
+        raw = getattr(profile_config, "context_window", None)
+    try:
+        value = int(raw or 0)
+    except (TypeError, ValueError):
+        return None
+    return value or None
+
+
 class ModelConfig(BaseModel):
     """Configuration for a specific model usage."""
 
@@ -51,11 +81,9 @@ class ModelManager:
         base_url = (provider_data.get("base_url") or "").strip()
         if not resolved_model or not base_url:
             return None
-        model_contexts = provider_data.get("model_contexts", {}) or {}
-        # Per-model context from settings / discovery wins; profile default is fallback.
-        context_window = model_contexts.get(resolved_model)
-        if not context_window and hasattr(self.profile_config, "context_window"):
-            context_window = self.profile_config.context_window
+        context_window = resolve_model_context_window(
+            provider_data, resolved_model, self.profile_config
+        )
         temp = temperature
         if temp is None and hasattr(self.profile_config, "temperature"):
             temp = self.profile_config.temperature
@@ -137,10 +165,9 @@ class ModelManager:
             if not provider_data:
                 return None
             model_id = provider_data.get("default_model", "") or ""
-            model_contexts = provider_data.get("model_contexts", {}) or {}
-            context_window = model_contexts.get(model_id)
-            if not context_window and getattr(self.profile_config, "context_window", None):
-                context_window = self.profile_config.context_window
+            context_window = resolve_model_context_window(
+                provider_data, model_id, self.profile_config
+            )
             base_url = (provider_data.get("base_url") or "").strip()
             if not base_url:
                 return None
@@ -203,13 +230,12 @@ class ModelManager:
             return None
 
         model_id = agent_data.get("model", "")
-        # Priority: agent override → provider model_contexts[model] → profile default
-        model_contexts = provider_data.get("model_contexts", {}) or {}
+        # Agent override wins; otherwise the provider map, then its default model.
         context_window = agent_data.get("context_window")
         if not context_window:
-            context_window = model_contexts.get(model_id)
-        if not context_window and getattr(self.profile_config, "context_window", None):
-            context_window = self.profile_config.context_window
+            context_window = resolve_model_context_window(
+                provider_data, model_id, self.profile_config
+            )
 
         return ModelConfig(
             provider=provider_name,

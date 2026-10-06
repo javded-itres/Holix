@@ -85,9 +85,9 @@ def test_prefers_root_holix_md_over_nested(tmp_path: Path) -> None:
 
 
 def test_discovers_holix_md_at_four_levels(tmp_path: Path) -> None:
-    """Studio layout: workspace / projects / slug / repo / .holix / HOLIX.md."""
+    """Nested packages inside one tree, four levels down."""
     project = tmp_path / "workspace"
-    repo = project / "projects" / "shop" / "api"
+    repo = project / "group" / "team" / "svc" / "pkg"
     repo.mkdir(parents=True)
     holix = repo / ".holix"
     holix.mkdir()
@@ -95,6 +95,27 @@ def test_discovers_holix_md_at_four_levels(tmp_path: Path) -> None:
 
     assert resolve_holix_md_read_path(project) == holix / "HOLIX.md"
     assert "Shop API" in load_holix_md(project)
+
+
+def test_workspace_root_does_not_adopt_studio_product(tmp_path: Path) -> None:
+    """projects/<slug> handbooks stay out of a workspace-root session."""
+    workspace = tmp_path / "workspace"
+    first = workspace / "projects" / "ai_bot_project"
+    second = workspace / "projects" / "shop" / "api"
+    for repo, title in ((first, "AI bot"), (second, "Shop")):
+        holix = repo / ".holix"
+        holix.mkdir(parents=True)
+        (holix / "HOLIX.md").write_text(f"# {title}\n", encoding="utf-8")
+
+    assert resolve_holix_md_read_path(workspace) is None
+    assert load_holix_md(workspace) is None
+    assert ensure_holix_md_exists(workspace) is None
+    assert not (workspace / ".holix" / "HOLIX.md").exists()
+    out = append_holix_project_context("BASE", workspace)
+    assert "AI bot" not in out
+    assert "Shop" not in out
+    assert resolve_holix_md_read_path(first) == first / ".holix" / "HOLIX.md"
+    assert "AI bot" in (load_holix_md(first) or "")
 
 
 def test_discover_skips_macos_library(tmp_path: Path) -> None:

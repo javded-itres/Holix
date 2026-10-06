@@ -46,8 +46,7 @@ def _step_system_prompt(
     agent: object | None = None,
 ) -> str:
     from core.project.holix_md import append_holix_project_context, task_context_note
-    from core.project.workspace_root import resolve_project_root
-    from core.prompt_builder import language_instruction_block
+    from core.prompt_builder import language_instruction_block, resolve_prompt_context_directory
 
     base = (
         "You are a helpful assistant executing a structured plan step by step. "
@@ -55,7 +54,13 @@ def _step_system_prompt(
         f"{task_context_note()}"
     )
     lang_block = language_instruction_block(profile_name=profile_name)
-    cwd = resolve_project_root(agent=agent)
+    cfg = getattr(agent, "config", None)
+    cwd = resolve_prompt_context_directory(
+        workspace_root=getattr(cfg, "workspace_root", None) if cfg is not None else None,
+        workspace_jail_enabled=(
+            getattr(cfg, "workspace_jail_enabled", None) if cfg is not None else None
+        ),
+    )
     return append_holix_project_context(f"{base}\n\n{lang_block}", cwd=cwd)
 
 

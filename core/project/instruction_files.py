@@ -12,7 +12,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from core.project.holix_md import HOLIX_MD_SEARCH_DEPTH
+from core.project.holix_md import HOLIX_MD_SEARCH_DEPTH, is_studio_product_catalog
 
 INSTRUCTION_FILE_NAMES = (
     "AGENTS.md",
@@ -129,6 +129,8 @@ def discover_instruction_files(
                 continue
             name = child.name
             if name in _SKIP_SEARCH_DIRS or name.startswith("."):
+                continue
+            if is_studio_product_catalog(current, root, name):
                 continue
             next_depth = depth + 1
             consider(child, next_depth)

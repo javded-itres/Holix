@@ -33,14 +33,24 @@ def test_rules_md_preferred_over_RULES_md_when_both_exist(tmp_path: Path) -> Non
 
 
 def test_nested_agents_md_within_depth(tmp_path: Path) -> None:
-    nested = tmp_path / "projects" / "shop" / "api"
+    nested = tmp_path / "apps" / "shop" / "api"
     nested.mkdir(parents=True)
     (nested / "AGENTS.md").write_text("nested agents\n", encoding="utf-8")
     paths = discover_instruction_files(tmp_path)
     assert any(p.name == "AGENTS.md" for p in paths)
     block = format_instruction_files_block(tmp_path)
     assert "nested agents" in block
-    assert "projects/shop/api/AGENTS.md" in block
+    assert "apps/shop/api/AGENTS.md" in block
+
+
+def test_workspace_root_skips_product_instruction_files(tmp_path: Path) -> None:
+    product = tmp_path / "projects" / "ai_bot_project"
+    product.mkdir(parents=True)
+    (product / "AGENTS.md").write_text("bot agents\n", encoding="utf-8")
+    (product / "rules.md").write_text("bot rules\n", encoding="utf-8")
+    assert discover_instruction_files(tmp_path) == []
+    assert format_instruction_files_block(tmp_path) == ""
+    assert any(p.name == "AGENTS.md" for p in discover_instruction_files(product))
 
 
 def test_empty_tree_returns_empty_block(tmp_path: Path) -> None:

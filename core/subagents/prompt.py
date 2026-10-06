@@ -7,7 +7,7 @@ from core.prompt_builder import (
     format_studio_workspace_block,
     format_working_directory_block,
     language_instruction_block,
-    resolve_agent_working_directory,
+    resolve_prompt_context_directory,
 )
 from core.subagents.base import SubAgentConfig
 
@@ -98,7 +98,7 @@ Remember: You are {config.name}. Stay focused on your specialized role.
     except Exception:
         pass
 
-    project_cwd = resolve_agent_working_directory(
+    project_cwd = resolve_prompt_context_directory(
         workspace_root=workspace_root,
         workspace_jail_enabled=workspace_jail_enabled,
         working_directory=working_directory,

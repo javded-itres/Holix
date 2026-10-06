@@ -14,6 +14,22 @@ from core.context.manager import ContextManager
 from core.context.token_counter import DEFAULT_CONTEXT_WINDOW, TokenCounter
 
 
+def test_usage_cache_recounts_when_tail_changes_at_same_length() -> None:
+    """A sliding window keeps the same message count but not the same tokens."""
+    cm = ContextManager(context_window=100_000, token_counter=TokenCounter())
+    first = [
+        {"role": "user", "content": "alpha " * 40},
+        {"role": "assistant", "content": "short"},
+    ]
+    second = [
+        {"role": "user", "content": "alpha " * 40},
+        {"role": "assistant", "content": "a much longer assistant reply " * 30},
+    ]
+    before = cm.get_usage(first, conversation_id="chat")
+    after = cm.get_usage(second, conversation_id="chat")
+    assert after["used"] > before["used"]
+
+
 class TestTokenCounter:
     """Tests for TokenCounter."""
 
