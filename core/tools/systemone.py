@@ -43,7 +43,7 @@ class SystemOneDecideTool(BaseTool):
 
     async def execute(self, state: Any = None, questions: Any = None, **_: Any) -> str:
         try:
-            from core.decision.config import resolve_decision
+            from core.decision.config import profile_env_secret, resolve_decision
             from core.decision.systemone import call_systemone
             from core.profile.service import ProfileManager
             from core.tools.execution_context import get_profile_name
@@ -52,6 +52,10 @@ class SystemOneDecideTool(BaseTool):
             name = str(get_profile_name() or "").strip()
             if name:
                 raw = getattr(ProfileManager().load_profile(name), "decision", None)
-            return await call_systemone(resolve_decision(raw), state, questions)
+            resolved = resolve_decision(
+                raw,
+                api_key=profile_env_secret(name, "DECISION_API_KEY"),
+            )
+            return await call_systemone(resolved, state, questions)
         except Exception:
             return "System One error: decision request failed."

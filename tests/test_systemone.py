@@ -10,6 +10,7 @@ import httpx
 from core.decision.config import (
     configure_decision,
     configure_embeddings,
+    profile_env_secret,
     resolve_decision,
     resolve_embeddings,
     systemone_url,
@@ -38,6 +39,16 @@ def test_jev_preset_is_multilingual_default():
     assert systemone_url(resolved.base_url) == "https://api.typesafe.ai/v1/systemone"
     assert resolve_decision({}).enabled is False
     assert resolve_decision(None).enabled is False
+
+
+def test_profile_env_secret_prefers_profile_file(monkeypatch):
+    monkeypatch.setattr(
+        "core.env_loader.read_profile_env_map",
+        lambda profile: {"DECISION_API_KEY": f"file-{profile}"},
+    )
+    monkeypatch.setenv("DECISION_API_KEY", "from-process")
+    assert profile_env_secret("pavel", "DECISION_API_KEY") == "file-pavel"
+    assert profile_env_secret("", "DECISION_API_KEY") == "from-process"
 
 
 def test_nimble_and_api_v1_paths():

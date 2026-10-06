@@ -25,6 +25,7 @@ uv run pytest -m user_case
 # Live LLM (real provider — NOT in CI; needs model endpoint)
 ./scripts/test_live_llm.sh
 # HOLIX_LIVE_MODEL=… HOLIX_LIVE_BASE_URL=… HOLIX_LIVE_API_KEY=… ./scripts/test_live_llm.sh -k live_01
+./scripts/test_live_decision.sh   # System One (nimble/jev); needs HOLIX_DECISION_LIVE=1
 ```
 
 **User cases** (`tests/user_cases/`): end-to-end agent journeys via `UserCaseHarness`

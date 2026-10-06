@@ -47,6 +47,27 @@ def _raw_from_agent(agent: Any) -> dict[str, Any]:
         return {}
 
 
+def _profile_of(agent: Any) -> str:
+    name = str(getattr(getattr(agent, "config", None), "profile_name", "") or "").strip()
+    if name:
+        return name
+    try:
+        from core.tools.execution_context import get_profile_name
+
+        return str(get_profile_name() or "").strip()
+    except Exception:
+        return ""
+
+
+def _resolved_decision(agent: Any, raw: dict[str, Any]):
+    from core.decision.config import profile_env_secret
+
+    return resolve_decision(
+        raw,
+        api_key=profile_env_secret(_profile_of(agent), "DECISION_API_KEY"),
+    )
+
+
 def _threshold(raw: dict[str, Any], name: str, default: float) -> float:
     block = raw.get("thresholds")
     if not isinstance(block, dict) or name not in block:
@@ -114,7 +135,7 @@ async def reflexion_assessment(
     if trajectory.strip():
         state += f"\n\nTool results:\n{trajectory[:800]}"
     text = await call_systemone(
-        resolve_decision(raw),
+        _resolved_decision(agent, raw),
         state,
         {
             "quality": {
@@ -147,7 +168,7 @@ async def draft_should_continue(agent: Any, task: str, draft: str) -> bool:
     if not flag_enabled(raw, "is_final"):
         return False
     text = await call_systemone(
-        resolve_decision(raw),
+        _resolved_decision(agent, raw),
         f"Task:\n{task[:800]}\n\nDraft:\n{draft[:1500]}",
         {
             "complete": {
@@ -207,7 +228,7 @@ def promote_skill(
         return None
     criteria = {name: (descriptions.get(name) or name)[:240] for name in unique[:8]}
     text = call_systemone_blocking(
-        resolve_decision(raw),
+        _resolved_decision(agent, raw),
         (query or "")[:800],
         {
             "skill": {
@@ -234,7 +255,7 @@ async def shell_auto_allow(agent: Any, command: str) -> bool:
     if not text:
         return False
     result = await call_systemone(
-        resolve_decision(raw),
+        _resolved_decision(agent, raw),
         text[:500],
         {
             "allow": {

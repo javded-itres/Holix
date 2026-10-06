@@ -98,6 +98,25 @@ class ResolvedEmbeddings:
     api_key: str
 
 
+def profile_env_secret(profile: str | None, key: str) -> str:
+    """Read one secret from the profile ``.env``, then the process environment.
+
+    Studio serves many profiles in one process. ``os.environ`` holds whichever
+    key was loaded last, so a call for a named profile must prefer that file.
+    """
+    name = str(profile or "").strip()
+    if name:
+        try:
+            from core.env_loader import read_profile_env_map
+
+            found = str(read_profile_env_map(name).get(key) or "").strip()
+            if found:
+                return found
+        except Exception:
+            pass
+    return str(os.environ.get(key) or "").strip()
+
+
 def resolve_decision(raw: Any, *, api_key: str | None = None) -> ResolvedDecision:
     data = _as_dict(raw)
     preset = str(data.get("preset") or "off").strip().lower()

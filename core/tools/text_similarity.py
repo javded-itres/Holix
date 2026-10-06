@@ -40,7 +40,7 @@ class TextSimilarityTool(BaseTool):
         **_: Any,
     ) -> str:
         try:
-            from core.decision.config import resolve_embeddings
+            from core.decision.config import profile_env_secret, resolve_embeddings
             from core.decision.embeddings import cosine, embed_texts
             from core.profile.service import ProfileManager
             from core.tools.execution_context import get_profile_name
@@ -55,7 +55,13 @@ class TextSimilarityTool(BaseTool):
             name = str(get_profile_name() or "").strip()
             if name:
                 raw = getattr(ProfileManager().load_profile(name), "embeddings", None)
-            embedded = await embed_texts(resolve_embeddings(raw), rows)
+            embedded = await embed_texts(
+                resolve_embeddings(
+                    raw,
+                    api_key=profile_env_secret(name, "EMBEDDINGS_API_KEY"),
+                ),
+                rows,
+            )
             if isinstance(embedded, str):
                 return embedded
             if len(embedded) == 2 and not texts:
