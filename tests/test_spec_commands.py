@@ -1,4 +1,4 @@
-""" /spec slash command handler. """
+"""/spec slash command handler."""
 
 from __future__ import annotations
 
@@ -112,15 +112,84 @@ async def test_spec_apply_dispatches_agent(tmp_path: Path):
     assert host.agent_messages
     assert "feat-a" in host.agent_messages[-1]
     assert "sdd_apply" in host.agent_messages[-1]
+    assert "self" in host.agent_messages[-1]
+
+
+@pytest.mark.asyncio
+async def test_spec_apply_subagents_does_not_start_main(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+):
+    """Subagents mode spawns jobs in the change worktree and does not run main."""
+    from types import SimpleNamespace
+
+    from core.sdd.change_workspace import get_active_change, reset_active_change_store
+    from core.sdd.store import SpecStore
+    from core.tools.execution_context import get_conversation_id
+
+    monkeypatch.setenv("HOLIX_HOME", str(tmp_path / "holix-home"))
+    reset_active_change_store()
+
+    clone = tmp_path / "projects" / "app"
+    worktree = clone / ".holix" / "worktrees" / "feat-a"
+    worktree.mkdir(parents=True)
+    host = _Host(tmp_path)
+    host.profile = "applypin"
+    host.conversation_id = "studio_tab"
+    host._slash_conversation_id = "studio_tab"
+    seen: list[str] = []
+
+    async def spawn_typed(*_args, **_kwargs):
+        seen.append(get_conversation_id())
+        return SimpleNamespace(name="coder-python", config=None), None
+
+    host.agent = SimpleNamespace(
+        config=SimpleNamespace(
+            profile_name="applypin",
+            workspace_root=str(tmp_path),
+            enable_subagents=True,
+        ),
+        subagents=SimpleNamespace(spawn_typed=spawn_typed),
+    )
+    proj = "projects/app/.holix/worktrees/feat-a"
+    await run_spec_command(host, f"/spec init {proj}")
+    store = SpecStore(worktree)
+    store.create_change("feat-a", domain="web")
+    store.write_artifact(
+        "feat-a",
+        "proposal",
+        "# Proposal\n\n## Why\nNeed feature for users in the app.\n\n## What\nUI toggle.\n\n## Impact\nNone.\n",
+    )
+    store.write_artifact(
+        "feat-a",
+        "specs",
+        "## ADDED Requirements\n\n### Requirement: Toggle\nThe system SHALL toggle.\n\n"
+        "#### Scenario: Ok\n- **GIVEN** a\n- **WHEN** b\n- **THEN** c\n",
+        domain="web",
+    )
+    store.write_artifact(
+        "feat-a",
+        "tasks",
+        "# T\n\n- [ ] 1.1 Widget\n  - **assignee:** `coder-python`\n  - **reason:** ui\n",
+    )
+    store.set_apply_mode("feat-a", "subagents")
+    host.lines.clear()
+    host.agent_messages.clear()
+    await run_spec_command(host, f"/spec apply feat-a {proj}")
+    joined = "\n".join(host.lines)
+    assert "main agent will not start" in joined
+    assert host.agent_messages == []
+    assert seen == ["studio_tab"]
+    active = get_active_change("applypin", "studio_tab")
+    assert active is not None
+    assert active.change_id == "feat-a"
+    assert Path(active.worktree).resolve() == worktree.resolve()
 
 
 @pytest.mark.asyncio
 async def test_spec_create_with_request_dispatches_fill(tmp_path: Path):
     host = _Host(tmp_path)
     await run_spec_command(host, "/spec init")
-    await run_spec_command(
-        host, "/spec create oauth -- add OAuth login for the mobile app"
-    )
+    await run_spec_command(host, "/spec create oauth -- add OAuth login for the mobile app")
     assert (tmp_path / "openspec" / "changes" / "oauth" / "tasks.md").is_file()
     assert (tmp_path / "openspec" / "changes" / "oauth" / "request.md").is_file()
     assert host.agent_messages
@@ -140,15 +209,11 @@ async def test_spec_create_with_request_keeps_clarifying_when_gate_on(
     monkeypatch.setattr(
         spec_cmd,
         "_sdd_prefs",
-        lambda _host: SddPrefs(
-            understanding_gate_enabled=True, understanding_threshold=80
-        ),
+        lambda _host: SddPrefs(understanding_gate_enabled=True, understanding_threshold=80),
     )
     host = _Host(tmp_path)
     await run_spec_command(host, "/spec init")
-    await run_spec_command(
-        host, '/spec create company "Добавить раздел Компания и группы"'
-    )
+    await run_spec_command(host, '/spec create company "Добавить раздел Компания и группы"')
     und = load_understanding(tmp_path, "company")
     assert und is not None
     assert und.enabled is True
@@ -174,15 +239,11 @@ async def test_spec_fill_unlocks_understanding_gate(
     monkeypatch.setattr(
         spec_cmd,
         "_sdd_prefs",
-        lambda _host: SddPrefs(
-            understanding_gate_enabled=True, understanding_threshold=80
-        ),
+        lambda _host: SddPrefs(understanding_gate_enabled=True, understanding_threshold=80),
     )
     host = _Host(tmp_path)
     await run_spec_command(host, "/spec init")
-    await run_spec_command(
-        host, '/spec create company "Добавить раздел Компания и группы"'
-    )
+    await run_spec_command(host, '/spec create company "Добавить раздел Компания и группы"')
     und = load_understanding(tmp_path, "company")
     assert und is not None and und.status == "clarifying"
     host.agent_messages.clear()
@@ -199,8 +260,7 @@ async def test_spec_fill_unlocks_understanding_gate(
 def test_parse_quoted_request_not_as_project():
     """Telegram: /spec create company \"long RU text…\" must not treat text as project."""
     rest = (
-        'company "Добавить раздел Компания, где требуется пользователей '
-        'распределять по компаниям"'
+        'company "Добавить раздел Компания, где требуется пользователей распределять по компаниям"'
     )
     tokens, project, request = _parse_spec_args(rest)
     assert project == ""
@@ -214,9 +274,7 @@ def test_parse_quoted_request_not_as_project():
 
 
 def test_parse_create_unquoted_request_words():
-    tokens, project, request = _parse_spec_args(
-        "company Добавить раздел Компания с группами"
-    )
+    tokens, project, request = _parse_spec_args("company Добавить раздел Компания с группами")
     change_id, proj, req = _resolve_create_fill_args(tokens, project, request)
     assert change_id == "company"
     assert proj == ""
@@ -224,9 +282,7 @@ def test_parse_create_unquoted_request_words():
 
 
 def test_parse_create_project_path_and_dash_request():
-    tokens, project, request = _parse_spec_args(
-        "oauth apps/web -- add OAuth login for mobile"
-    )
+    tokens, project, request = _parse_spec_args("oauth apps/web -- add OAuth login for mobile")
     change_id, proj, req = _resolve_create_fill_args(tokens, project, request)
     assert change_id == "oauth"
     assert proj == "apps/web"

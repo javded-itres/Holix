@@ -81,9 +81,19 @@ class MediaAgentExtension(AgentExtensionBase):
     def _cfg(self):
         return load_media_config(self.settings)
 
-    def register_tools(self, registry: Any, agent: Any) -> None:
+    def _active_cfg(self):
+        """Providers the agent can call. The API key is read again at execute time."""
         cfg = self._cfg()
-        if not cfg.ready:
+        if not cfg.enabled:
+            return None
+        providers = (*cfg.image_providers, *cfg.video_providers)
+        if not any((item.model or item.base_url) for item in providers):
+            return None
+        return cfg
+
+    def register_tools(self, registry: Any, agent: Any) -> None:
+        cfg = self._active_cfg()
+        if cfg is None:
             logger.info("holix-media idle: no configured image or video provider")
             return
         for tool in all_tools(config=cfg, agent=agent):
@@ -92,7 +102,7 @@ class MediaAgentExtension(AgentExtensionBase):
             self._install_skill(agent)
 
     def register_slash_commands(self, commands: list[SlashCommandSpec]) -> None:
-        if not self._cfg().ready:
+        if self._active_cfg() is None:
             return
         commands.append(
             SlashCommandSpec(command="/imagine", description="Generate an image from a prompt")
@@ -102,8 +112,8 @@ class MediaAgentExtension(AgentExtensionBase):
         )
 
     def augment_system_prompt(self, profile: str) -> str | None:
-        cfg = self._cfg()
-        if not cfg.ready:
+        cfg = self._active_cfg()
+        if cfg is None:
             return None
         from holix_media.select import format_provider_menu
 

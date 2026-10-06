@@ -207,7 +207,20 @@ async def dispatch_change_tasks(
         # Prefer size from plan/item; fall back to heuristic on text.
         size = item.get("size") or resolve_task_size(item)
         budget = int(item.get("max_steps") or max_steps_for_size(size))
+        scope_line = ""
+        try:
+            from core.sdd.change_workspace import overlay_workspace_root
+
+            if overlay_workspace_root():
+                scope_line = (
+                    "Workspace is the git worktree for this change. "
+                    "Paths are relative to that directory (`.`). "
+                    "Do not edit the main clone. Do not enter another worktree.\n"
+                )
+        except Exception:
+            scope_line = ""
         task_text = (
+            f"{scope_line}"
             f"[SDD change={change_id} task={task_id}{project_attr}]\n"
             f"Task graph: {wave_label}; depends_on={deps_label}; "
             f"unblocks={','.join(str(u) for u in unblocks) if unblocks else 'none'}\n"
@@ -379,6 +392,15 @@ def _task_done(tasks: list[Any], task_id: str) -> bool:
 
 def _project_rel(store: SpecStore, parent_agent: Any) -> str:
     """Relative project path under agent workspace ('' = workspace root)."""
+    try:
+        from core.sdd.change_workspace import overlay_workspace_root
+
+        overlay = overlay_workspace_root()
+        if overlay and Path(overlay).resolve() == Path(store.workspace).resolve():
+            # File tools are already jailed to this change worktree.
+            return ""
+    except Exception:
+        pass
     try:
         cfg = getattr(parent_agent, "config", None)
         parent_ws = getattr(cfg, "workspace_root", None)

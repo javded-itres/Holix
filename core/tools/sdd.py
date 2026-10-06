@@ -1090,10 +1090,19 @@ class SddApplyTool(BaseTool):
                     proc_n = sum(
                         1 for j in spawned if isinstance(j, dict) and j.get("followed_process")
                     )
-                    extra = (
-                        " Auto-dispatched subagents by tasks.md assignee "
-                        "(use wait_subagent_result on job_id; do not re-spawn with coder)."
-                    )
+                    if mode == "subagents":
+                        extra = (
+                            " Apply mode is subagents. Only the spawned subagents may "
+                            "edit files. Do not read or write product code in this turn "
+                            "and do not implement the tasks yourself. Stop after "
+                            "reporting the jobs."
+                        )
+                    else:
+                        extra = (
+                            " Auto-dispatched subagents for non-main assignees "
+                            "(use wait_subagent_result on job_id; do not re-spawn with coder). "
+                            "Implement only tasks whose executor is main."
+                        )
                     if proc_n:
                         extra += (
                             f" {proc_n} job(s) follow a Studio process — "

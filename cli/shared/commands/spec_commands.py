@@ -306,17 +306,178 @@ def _unlock_understanding_for_fill(store: SpecStore, change_id: str, *, request:
     accept_request_understanding(store.project_root, change_id, request=request, unlock=True)
 
 
-def _apply_agent_message(*, change_id: str, project: str, apply_mode: str) -> str:
+def _apply_conversation_id(host: Any) -> str:
+    """Tab that issued the slash command, not a later focused chat."""
+    slash = getattr(host, "_slash_conversation_id", None)
+    if isinstance(slash, str) and slash.strip() and slash.strip() != "default":
+        return slash.strip()
+    try:
+        from core.tools.execution_context import get_conversation_id
+
+        cid = str(get_conversation_id() or "").strip()
+    except Exception:
+        cid = ""
+    if cid and cid != "default" and not cid.startswith("subagent:"):
+        return cid
+    raw = str(getattr(host, "conversation_id", "") or "").strip()
+    if raw and raw != "default":
+        return raw
+    session = getattr(host, "_session", None)
+    raw = str(getattr(session, "conversation_id", "") or "").strip() if session else ""
+    if raw and raw != "default":
+        return raw
+    return ""
+
+
+def _apply_profile(host: Any) -> str:
+    """Profile that owns sdd_active.json — same name subagent inherit uses."""
+    agent = getattr(host, "agent", None)
+    if agent is None:
+        session = getattr(host, "_session", None)
+        agent = getattr(session, "agent", None) if session is not None else None
+    cfg = getattr(agent, "config", None)
+    name = str(getattr(cfg, "profile_name", "") or "").strip() if cfg is not None else ""
+    if name:
+        return name
+    profile = str(getattr(host, "profile", "") or "").strip()
+    if profile:
+        return profile
+    session = getattr(host, "_session", None)
+    return str(getattr(session, "profile", "") or "default").strip() or "default"
+
+
+def _as_worktree_dir(path: Path) -> tuple[Path, Path] | None:
+    """Return ``(worktree, clone)`` when *path* is ``<clone>/<dirname>/<change>``."""
+    from core.runtime.git_worktree import worktrees_dirname
+
+    dirname = worktrees_dirname().strip("/\\").replace("\\", "/")
+    rel_parts = [part for part in dirname.split("/") if part]
+    parts = path.parts
+    span = len(rel_parts) + 1
+    if len(parts) < span + 1:
+        return None
+    if list(parts[-span:-1]) != rel_parts:
+        return None
+    clone = Path(*parts[:-span])
+    if not clone.is_dir():
+        return None
+    return path, clone
+
+
+def _locate_apply_worktree(store: SpecStore, change_id: str):
+    """Worktree for this change: the project dir, an existing checkout, or a new one."""
+    from core.runtime.git_worktree import (
+        WorktreeInfo,
+        branch_for_change,
+        prepare_change_worktree,
+        sanitize_change_id,
+        worktree_path_for,
+    )
+
+    try:
+        cid = sanitize_change_id(change_id)
+    except Exception:
+        return None
+    root = Path(store.workspace).expanduser().resolve()
+    found = _as_worktree_dir(root)
+    if found is not None and found[0].name != cid:
+        found = None
+    if found is None:
+        candidate = worktree_path_for(root, cid)
+        if candidate.is_dir():
+            found = (candidate, root)
+    if found is not None:
+        worktree, clone = found
+        return WorktreeInfo(
+            change_id=cid,
+            branch=branch_for_change(cid),
+            worktree=worktree,
+            clone=clone,
+            git_common_dir=clone / ".git",
+        )
+    try:
+        return prepare_change_worktree(root, cid)
+    except Exception:
+        return None
+
+
+def _pin_apply_worktree(
+    host: Any,
+    store: SpecStore,
+    change_id: str,
+    project: str,
+) -> tuple[str, str]:
+    """Pin the UI conversation to the change worktree.
+
+    Returns ``(worktree_path, error)``. A locked pin for a different change
+    is an error so spawn does not inherit the wrong tree.
+    """
+    conversation_id = _apply_conversation_id(host)
+    if not conversation_id:
+        return "", ""
+    info = _locate_apply_worktree(store, change_id)
+    if info is None:
+        return "", ""
+    from core.sdd.change_workspace import bind_active_change, get_active_change
+
+    profile = _apply_profile(host)
+    existing = get_active_change(profile, conversation_id)
+    if (
+        existing is not None
+        and existing.locked
+        and (existing.change_id or "") not in {"", info.change_id}
+    ):
+        return "", (
+            f"This chat is locked to SDD change `{existing.change_id}`. "
+            f"Apply for `{info.change_id}` was not started in that worktree."
+        )
+    project_rel = ""
+    try:
+        project_rel = info.clone.resolve().relative_to(_workspace(host).resolve()).as_posix()
+    except (OSError, ValueError):
+        project_rel = (project or "").strip().strip("/")
+    bind_active_change(
+        profile,
+        conversation_id,
+        info,
+        project=project_rel,
+        project_root=str(info.clone),
+    )
+    return str(info.worktree), ""
+
+
+def _apply_agent_message(
+    *,
+    change_id: str,
+    project: str,
+    apply_mode: str,
+    worktree: str = "",
+) -> str:
     proj_label = project or "."
     proj_arg = f' project="{project}"' if project else ""
+    jail = ""
+    if worktree:
+        jail = (
+            f" File tools and the terminal are already rooted at the git worktree "
+            f"`{worktree}`. Stay in that directory. Do not edit the main clone and "
+            f"do not enter another worktree."
+        )
+    mode = (apply_mode or "").strip().lower()
+    if mode == "hybrid":
+        return (
+            f"Apply SDD change `{change_id}` (project `{proj_label}`). "
+            f"Mode is `hybrid`. Subagents are already running the non-main tasks. "
+            f"Implement only tasks whose executor is `main`. "
+            f"Do not edit files that belong to those subagents. "
+            f"Mark your own tasks with `sdd_check_task`."
+            f"{jail}"
+        )
     return (
         f"Apply SDD change `{change_id}` now (project `{proj_label}`). "
-        f"Mode is already set to `{apply_mode}`. "
-        f"Use tools with{proj_arg or ' project="" (workspace root)'}. "
-        f"Call sdd_apply{proj_arg} (auto-dispatches subagents by tasks.md assignee — "
-        f"e.g. coder-python, NOT built-in coder). "
-        "Wait for jobs with wait_subagent_result; do main tasks yourself; "
-        "sdd_check_task as you go."
+        f"Mode is `self`. You are the only executor. "
+        f"Call sdd_apply{proj_arg}. Implement every open task and "
+        f"`sdd_check_task` as you go."
+        f"{jail}"
     )
 
 
@@ -645,18 +806,32 @@ async def run_spec_command(host: Any, command: str) -> None:
                     f"- [{item.get('id')}] {item.get('text')} → executor=`{item.get('executor')}`"
                 )
             lines.append("")
-            lines.append(
-                "Implement remaining tasks. Use **exact executor** names above "
-                "(custom types like coder-python — never replace with built-in coder). "
-                "Call `sdd_apply` (auto-dispatches) or `sdd_dispatch`. "
-                "Mark done with `sdd_check_task`."
-            )
+            mode = (plan.get("apply_mode") or "").strip().lower()
+            if mode == "subagents":
+                lines.append(
+                    "Apply mode is subagents. Only those executors will edit files. "
+                    "The main agent will not start."
+                )
+            else:
+                lines.append(
+                    "Implement remaining tasks. Use **exact executor** names above "
+                    "(custom types like coder-python — never replace with built-in coder). "
+                    "Mark done with `sdd_check_task`."
+                )
             await _write(host, "\n".join(lines))
+            worktree, pin_error = _pin_apply_worktree(host, store, change_id, project)
+            if pin_error:
+                await _write(host, pin_error)
+                return
+            if worktree:
+                await _write(
+                    host,
+                    f"Workspace pinned to worktree `{worktree}`.",
+                )
             # Auto-dispatch when session agent is ready (subagents/hybrid)
             agent = getattr(host, "agent", None) or getattr(
                 getattr(host, "_session", None), "agent", None
             )
-            mode = (plan.get("apply_mode") or "").strip().lower()
             if agent is not None:
                 try:
                     from core.sdd.apply_mode import apply_presentation_to_agent
@@ -666,32 +841,71 @@ async def run_spec_command(host: Any, command: str) -> None:
                     )
                 except Exception:
                     pass
-            if agent is not None and mode in ("subagents", "hybrid"):
-                try:
-                    from core.sdd.dispatch import dispatch_change_tasks
+            conversation_id = _apply_conversation_id(host)
+            conv_token = None
+            prof_token = None
+            if conversation_id:
+                from core.tools.execution_context import conversation_scope, profile_scope
 
-                    disp = await dispatch_change_tasks(store, change_id, parent_agent=agent)
-                    spawned = disp.get("spawned") or []
-                    if spawned:
-                        await _write(
-                            host,
-                            "Auto-dispatched by tasks.md assignee:\n"
-                            + "\n".join(
-                                f"- task {j.get('task_id')} → job `{j.get('job_id')}` "
-                                f"(type={j.get('executor')})"
-                                for j in spawned
-                            ),
-                        )
-                    if disp.get("errors"):
-                        await _write(host, "Dispatch errors: " + "; ".join(disp["errors"]))
-                except Exception as exc:
-                    await _write(host, f"Auto-dispatch skipped: {exc}")
+                conv_token = conversation_scope(conversation_id)
+                prof_token = profile_scope(_apply_profile(host))
+            try:
+                if agent is not None and mode in ("subagents", "hybrid"):
+                    try:
+                        from core.sdd.dispatch import dispatch_change_tasks
+
+                        disp = await dispatch_change_tasks(store, change_id, parent_agent=agent)
+                        spawned = disp.get("spawned") or []
+                        if spawned:
+                            await _write(
+                                host,
+                                "Auto-dispatched by tasks.md assignee:\n"
+                                + "\n".join(
+                                    f"- task {j.get('task_id')} → job `{j.get('job_id')}` "
+                                    f"(type={j.get('executor')})"
+                                    for j in spawned
+                                ),
+                            )
+                        if disp.get("errors"):
+                            await _write(host, "Dispatch errors: " + "; ".join(disp["errors"]))
+                        main_left = [
+                            str(item.get("id"))
+                            for item in (disp.get("main_tasks") or [])
+                            if item.get("id") is not None
+                        ]
+                        if mode == "subagents" and main_left:
+                            await _write(
+                                host,
+                                "Tasks assigned to main were not started: "
+                                + ", ".join(main_left)
+                                + ". Reassign them or use hybrid/self.",
+                            )
+                    except Exception as exc:
+                        await _write(host, f"Auto-dispatch skipped: {exc}")
+                elif mode == "subagents":
+                    await _write(
+                        host,
+                        "Apply mode is subagents, but no session agent is available "
+                        "to spawn them. The main agent was not started.",
+                    )
+            finally:
+                if conv_token is not None:
+                    from core.tools.execution_context import (
+                        reset_conversation_scope,
+                        reset_profile_scope,
+                    )
+
+                    reset_profile_scope(prof_token)
+                    reset_conversation_scope(conv_token)
+            if mode == "subagents":
+                return
             await _dispatch_agent(
                 host,
                 _apply_agent_message(
                     change_id=change_id,
                     project=project,
-                    apply_mode=str(plan.get("apply_mode") or ""),
+                    apply_mode=mode,
+                    worktree=worktree,
                 ),
             )
         except FileNotFoundError as exc:
