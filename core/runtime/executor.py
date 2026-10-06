@@ -60,6 +60,13 @@ async def run_holix(
         begin(conversation_id)
     try:
         async with enter_run_scope(agent, run_ctx, container=container):
+            from core.decision.model_select import apply_model_auto_select
+
+            await apply_model_auto_select(
+                agent,
+                user_input,
+                resume=bool(state_overrides),
+            )
             if use_graph:
                 from core.graph.builder import run_graph_loop
 

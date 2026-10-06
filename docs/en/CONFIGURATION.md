@@ -310,6 +310,18 @@ holix models fallback clear
 
 Each fallback uses that provider's `default_model`. Inherited from `global/config.yaml` unless overridden in the profile.
 
+## Automatic model choice
+
+Only `~/.holix/global/config.yaml`. A copy in a profile file is ignored. The default is off: a missing block or `enabled: false` leaves the turn on the current model.
+
+```yaml
+model_auto_select:
+  enabled: false
+  models: []
+```
+
+An empty `models` list means every chat model in the current provider's `available_models`. A non-empty list is the only set that may be chosen, and only when those ids are available. Decision, embedding, and media models are left out. Before the main agent's turn, `systemone_decide` picks one label from the request's difficulty. An error, low confidence, or a decision preset that is off keeps the current model. The choice is not saved on the profile. The decision preset must already be on, and the agent must be restarted after the global file changes.
+
 ## Models
 
 Provider presets, `agent_models`, and fallbacks — canonical guide: **[MODELS.md](MODELS.md)** (not duplicated here).
