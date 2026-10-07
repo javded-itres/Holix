@@ -134,9 +134,18 @@ def spawn_model_slot(
         if raw:
             return raw
     agent_models = getattr(parent_config, "agent_models", None) or {}
-    if agent_type in agent_models:
+    if agent_type in agent_models and _agent_models_entry_pins_model(agent_models.get(agent_type)):
         return agent_type
     return ""
+
+
+def _agent_models_entry_pins_model(entry: Any) -> bool:
+    """Window-only entries set max_tokens and must not freeze the parent model."""
+    if isinstance(entry, dict):
+        provider = str(entry.get("provider") or "").strip()
+        model = str(entry.get("model") or "").strip()
+        return bool(provider or model)
+    return bool(entry)
 
 
 def prepare_subagent_config(

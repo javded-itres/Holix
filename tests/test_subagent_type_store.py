@@ -114,6 +114,42 @@ def test_prepare_subagent_custom_mcp_and_cli(holix_home, monkeypatch: pytest.Mon
     assert "external_cli" in cfg.tools
 
 
+def test_inherited_output_window_does_not_pin_model(holix_home) -> None:
+    from cli.core import ProfileManager
+    from core.llm.max_tokens import profile_agent_max_tokens
+    from core.models.manager import ModelManager
+    from core.subagents.spawn import spawn_model_slot
+
+    custom = CustomSubAgentType(
+        name="doc-writer",
+        description="Docs",
+        system_prompt="Write documentation for the project.",
+        model_slot="",
+        max_tokens=32768,
+    )
+    SubAgentTypeStore("default").upsert(custom)
+    sync_custom_type_profile_bindings("default", custom)
+
+    saved = ProfileManager().load_profile("default")
+    entry = (saved.agent_models or {})["doc-writer"]
+    assert entry.get("max_tokens") == 32768
+    assert not entry.get("provider")
+    assert not entry.get("model")
+
+    parent = SimpleNamespace(
+        profile_name="default",
+        agent_models=saved.agent_models,
+        providers={},
+    )
+    assert spawn_model_slot("doc-writer", parent, "default") == ""
+    assert profile_agent_max_tokens(ModelManager(saved), "doc-writer") == 32768
+
+    custom.max_tokens = None
+    sync_custom_type_profile_bindings("default", custom)
+    cleared = ProfileManager().load_profile("default")
+    assert "doc-writer" not in (cleared.agent_models or {})
+
+
 def test_prepare_subagent_applies_provider_model_slot(
     holix_home, monkeypatch: pytest.MonkeyPatch
 ) -> None:

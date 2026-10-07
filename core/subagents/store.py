@@ -67,6 +67,8 @@ class CustomSubAgentType:
     model_slot: str = ""
     external_cli_id: str = ""
     tools_presentation: str = ""  # native|code|both; empty = inherit profile
+    # Completion budget for one reply. None = Holix default (8192).
+    max_tokens: int | None = None
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> Self:
@@ -87,6 +89,7 @@ class CustomSubAgentType:
             model_slot=str(data.get("model_slot") or ""),
             external_cli_id=str(data.get("external_cli_id") or ""),
             tools_presentation=str(data.get("tools_presentation") or "").strip().lower(),
+            max_tokens=_stored_output_window(data.get("max_tokens")),
         )
 
     def to_dict(self) -> dict[str, Any]:
@@ -104,6 +107,19 @@ class CustomSubAgentType:
             mcp_servers=list(self.mcp_servers),
             tags=["custom"],
         )
+
+
+def _stored_output_window(raw: Any) -> int | None:
+    """Persist a positive completion budget. Missing / 0 means the Holix default."""
+    if raw is None or isinstance(raw, bool):
+        return None
+    if isinstance(raw, str) and not raw.strip():
+        return None
+    try:
+        value = int(raw)
+    except (TypeError, ValueError):
+        return None
+    return value if value > 0 else None
 
 
 def validate_custom_type_name(name: str) -> str:
@@ -248,23 +264,31 @@ def sync_custom_type_profile_bindings(
 
     model_slot = (custom.model_slot or "").strip()
     agent_models = dict(getattr(config, "agent_models", None) or {})
+    window = _stored_output_window(getattr(custom, "max_tokens", None))
     if model_slot and model_slot.lower() not in ("main", "default", "inherit", "parent"):
         resolved = resolve_model_slot_binding(profile, model_slot)
         if resolved:
-            entry = {
+            pin = {
                 "provider": resolved[0],
                 "model": resolved[1],
             }
-            # Slot id (prov:litellm:…) and type name both map to the same model
-            # so spawn can resolve via either path.
-            agent_models[model_slot] = entry
-            agent_models[agent_slot] = entry
+            # Slot id (prov:litellm:…) maps to the model. The type name is what
+            # the child uses as agent_slot, so the output window lives there
+            # and must not be shared by object identity with the menu slot.
+            agent_models[model_slot] = dict(pin)
+            type_entry = dict(pin)
+            if window:
+                type_entry["max_tokens"] = window
+            agent_models[agent_slot] = type_entry
+            config.agent_models = agent_models
+        else:
+            _apply_inherited_output_window(agent_models, agent_slot, window)
             config.agent_models = agent_models
     else:
-        # Inherit main: drop previous type-level override if present.
-        if agent_slot in agent_models and agent_slot != "main":
-            del agent_models[agent_slot]
-            config.agent_models = agent_models
+        # Inherit main: keep a window-only entry so the child budget applies
+        # without pinning a model. Drop the type slot when nothing remains.
+        _apply_inherited_output_window(agent_models, agent_slot, window)
+        config.agent_models = agent_models
 
     manager.save_profile(profile, config)
 
@@ -281,6 +305,21 @@ def sync_custom_type_profile_bindings(
         for cli_id, binding in bindings.items():
             if binding.agent_slot == agent_slot:
                 unassign_cli_subagent(profile, cli_id)
+
+
+def _apply_inherited_output_window(
+    agent_models: dict[str, Any],
+    agent_slot: str,
+    window: int | None,
+) -> None:
+    """Store a completion budget without pinning provider/model."""
+    if agent_slot == "main":
+        return
+    if window:
+        agent_models[agent_slot] = {"max_tokens": int(window)}
+        return
+    if agent_slot in agent_models:
+        del agent_models[agent_slot]
 
 
 def cleanup_custom_type_profile_bindings(profile: str, name: str) -> None:
@@ -300,6 +339,20 @@ def cleanup_custom_type_profile_bindings(profile: str, name: str) -> None:
     if slot in mcp_assigns:
         del mcp_assigns[slot]
         config.mcp_assignments = mcp_assigns
+
+    agent_models = dict(getattr(config, "agent_models", None) or {})
+    entry = agent_models.get(slot)
+    if isinstance(entry, dict) and slot != "main":
+        provider = str(entry.get("provider") or "").strip()
+        model = str(entry.get("model") or "").strip()
+        if not provider and not model:
+            del agent_models[slot]
+            config.agent_models = agent_models
+        elif "max_tokens" in entry:
+            kept = dict(entry)
+            kept.pop("max_tokens", None)
+            agent_models[slot] = kept
+            config.agent_models = agent_models
 
     manager.save_profile(profile, config)
 

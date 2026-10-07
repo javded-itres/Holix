@@ -28,9 +28,7 @@ def test_resolve_builtin_default() -> None:
 def test_resolve_chat_uses_lower_budget() -> None:
     assert resolve_agent_max_tokens(purpose="chat") == DEFAULT_CHAT_MAX_TOKENS
     assert (
-        resolve_agent_max_tokens(
-            purpose="chat", chat_max_tokens=1500, default_max_tokens=8192
-        )
+        resolve_agent_max_tokens(purpose="chat", chat_max_tokens=1500, default_max_tokens=8192)
         == 1500
     )
 
@@ -65,6 +63,16 @@ def test_profile_agent_max_tokens_reads_model_manager() -> None:
         get_agent_model_config=lambda _slot: SimpleNamespace(max_tokens=3000),
     )
     assert profile_agent_max_tokens(manager, "main") == 3000
+
+
+def test_profile_agent_max_tokens_reads_window_without_provider() -> None:
+    manager = SimpleNamespace(
+        get_agent_model_config=lambda _slot: None,
+        profile_config=SimpleNamespace(
+            agent_models={"researcher": {"max_tokens": 32768}},
+        ),
+    )
+    assert profile_agent_max_tokens(manager, "researcher") == 32768
 
 
 def test_profile_agent_max_tokens_ignores_invalid() -> None:

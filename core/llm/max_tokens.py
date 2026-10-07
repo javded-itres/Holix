@@ -58,21 +58,40 @@ def purpose_from_graph_state(state: object | None) -> str:
     return "chat"
 
 
-def profile_agent_max_tokens(model_manager: object | None, agent_slot: str) -> int | None:
-    """Read ``max_tokens`` from the active agent model config, if any."""
-    if model_manager is None:
-        return None
-    getter = getattr(model_manager, "get_agent_model_config", None)
-    if not callable(getter):
-        return None
-    cfg = getter(agent_slot)
-    if cfg is None:
-        return None
-    raw = getattr(cfg, "max_tokens", None)
-    if raw is None:
+def _positive_max_tokens(raw: object) -> int | None:
+    if raw is None or isinstance(raw, bool):
         return None
     try:
         value = int(raw)
     except (TypeError, ValueError):
         return None
     return value if value > 0 else None
+
+
+def profile_agent_max_tokens(model_manager: object | None, agent_slot: str) -> int | None:
+    """Read ``max_tokens`` for this agent slot.
+
+    A full ``agent_models`` entry (provider + model) wins through
+    ``ModelManager``. A window-only entry — output budget while the agent
+    still inherits the parent model — has no provider, so
+    ``get_agent_model_config`` returns nothing. That budget still lives on
+    ``agent_models.<slot>.max_tokens``.
+    """
+    if model_manager is None:
+        return None
+    getter = getattr(model_manager, "get_agent_model_config", None)
+    if callable(getter):
+        try:
+            cfg = getter(agent_slot)
+        except Exception:
+            cfg = None
+        found = _positive_max_tokens(getattr(cfg, "max_tokens", None) if cfg is not None else None)
+        if found:
+            return found
+    profile = getattr(model_manager, "profile_config", None)
+    agent_models = getattr(profile, "agent_models", None) or {}
+    if isinstance(agent_models, dict):
+        entry = agent_models.get(agent_slot)
+        if isinstance(entry, dict):
+            return _positive_max_tokens(entry.get("max_tokens"))
+    return None
