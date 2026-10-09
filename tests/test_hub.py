@@ -48,7 +48,9 @@ def test_parse_skills_sh():
 
 
 def test_discover_skill_md(tmp_path: Path):
-    (tmp_path / "flat.md").write_text("---\nname: flat\ndescription: x\n---\n\nbody\n", encoding="utf-8")
+    (tmp_path / "flat.md").write_text(
+        "---\nname: flat\ndescription: x\n---\n\nbody\n", encoding="utf-8"
+    )
     bundle = tmp_path / "bundle"
     bundle.mkdir()
     (bundle / "SKILL.md").write_text(
@@ -486,7 +488,7 @@ def test_importer_remove(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
 
 @pytest.mark.integration
 def test_clawhub_search_live():
-    from urllib.error import HTTPError
+    from urllib.error import HTTPError, URLError
 
     from core.hub.clawhub import ClawHubClient
 
@@ -496,5 +498,7 @@ def test_clawhub_search_live():
         if 500 <= exc.code < 600:
             pytest.skip(f"ClawHub temporarily unavailable: HTTP {exc.code}")
         raise
+    except (TimeoutError, URLError) as exc:
+        pytest.skip(f"ClawHub temporarily unavailable: {exc}")
     assert hits
     assert hits[0].slug

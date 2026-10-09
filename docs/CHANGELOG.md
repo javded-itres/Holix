@@ -32,6 +32,7 @@
 - Several TUI windows keep separate session files and do not attach to a conversation another live window holds.
 - A tool event already delivered on the bus is not emitted again.
 - Plan mode publishes its text even when approval is skipped.
+- A live ClawHub search that times out is skipped, the same way an HTTP 5xx response already is.
 
 ## 1.1.16 — 2026-10-01
 
