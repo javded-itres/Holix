@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import logging
 from typing import Any
 from urllib.parse import urljoin
@@ -14,9 +15,16 @@ logger = logging.getLogger(__name__)
 
 
 class A2AClientError(Exception):
-    def __init__(self, message: str, *, status_code: int | None = None) -> None:
+    def __init__(
+        self,
+        message: str,
+        *,
+        status_code: int | None = None,
+        rpc_code: int | None = None,
+    ) -> None:
         super().__init__(message)
         self.status_code = status_code
+        self.rpc_code = rpc_code
 
 
 class A2AClient:
@@ -84,50 +92,59 @@ class A2AClient:
         if configuration:
             params["configuration"] = configuration
 
+        try:
+            return await self._post_message("message/stream", params)
+        except A2AClientError as exc:
+            if exc.rpc_code != -32601 and exc.status_code not in {404, 405}:
+                raise
+        return await self._post_message("message/send", params)
+
+    async def _post_message(self, method: str, params: dict[str, Any]) -> dict[str, Any]:
+        """POST one JSON-RPC method. ``message/stream`` reads SSE as events arrive."""
         payload = {
             "jsonrpc": "2.0",
             "id": new_id("rpc_"),
-            "method": "message/send",
+            "method": method,
             "params": params,
         }
-        async with httpx.AsyncClient(timeout=self.timeout_s) as client:
-            try:
-                resp = await client.post(
+        accept = (
+            "text/event-stream, application/json"
+            if method == "message/stream"
+            else "application/json"
+        )
+        try:
+            async with httpx.AsyncClient(timeout=self.timeout_s) as client:
+                async with client.stream(
+                    "POST",
                     self._rpc_url(),
                     json=payload,
                     headers={
                         "Content-Type": "application/json",
-                        "Accept": "application/json",
+                        "Accept": accept,
                         **self.headers,
                     },
-                )
-            except httpx.TimeoutException as exc:
-                raise A2AClientError(f"Remote A2A timeout after {self.timeout_s}s") from exc
-            except httpx.HTTPError as exc:
-                raise A2AClientError(f"Remote A2A HTTP error: {exc}") from exc
-
-        if resp.status_code >= 400:
-            raise A2AClientError(
-                f"Remote A2A HTTP {resp.status_code}: {resp.text[:500]}",
-                status_code=resp.status_code,
-            )
+                ) as resp:
+                    if resp.status_code >= 400:
+                        raw = (await resp.aread())[:500]
+                        raise A2AClientError(
+                            f"Remote A2A HTTP {resp.status_code}: {raw.decode('utf-8', 'replace')}",
+                            status_code=resp.status_code,
+                        )
+                    ctype = (resp.headers.get("content-type") or "").lower()
+                    if "text/event-stream" in ctype:
+                        return await _task_from_stream(resp)
+                    raw = await resp.aread()
+        except A2AClientError:
+            raise
+        except httpx.TimeoutException as exc:
+            raise A2AClientError(f"Remote A2A timeout after {self.timeout_s}s") from exc
+        except httpx.HTTPError as exc:
+            raise A2AClientError(f"Remote A2A HTTP error: {exc}") from exc
         try:
-            data = resp.json()
+            data = json.loads(raw)
         except Exception as exc:
             raise A2AClientError(f"Invalid JSON from remote A2A: {exc}") from exc
-
-        if isinstance(data, dict) and data.get("error"):
-            err = data["error"]
-            if isinstance(err, dict):
-                raise A2AClientError(
-                    f"A2A RPC error {err.get('code')}: {err.get('message')}"
-                )
-            raise A2AClientError(f"A2A RPC error: {err}")
-
-        result = data.get("result") if isinstance(data, dict) else data
-        if not isinstance(result, dict):
-            raise A2AClientError("A2A message/send returned non-object result")
-        return result
+        return _rpc_result(data, method)
 
     async def get_task(self, task_id: str, *, history_length: int | None = None) -> dict[str, Any]:
         params: dict[str, Any] = {"id": task_id}
@@ -161,6 +178,80 @@ class A2AClient:
         return result
 
 
+def _rpc_result(data: Any, method: str) -> dict[str, Any]:
+    if isinstance(data, dict) and data.get("error"):
+        err = data["error"]
+        if isinstance(err, dict):
+            code = err.get("code")
+            rpc = code if isinstance(code, int) else None
+            raise A2AClientError(f"A2A RPC error {code}: {err.get('message')}", rpc_code=rpc)
+        raise A2AClientError(f"A2A RPC error: {err}")
+    result = data.get("result") if isinstance(data, dict) else data
+    if not isinstance(result, dict):
+        raise A2AClientError(f"A2A {method} returned non-object result")
+    if "task" in result and isinstance(result["task"], dict):
+        return result["task"]
+    return result
+
+
+def _event_text(result: dict[str, Any]) -> str:
+    update = result.get("artifactUpdate")
+    if not isinstance(update, dict):
+        return ""
+    artifact = update.get("artifact")
+    if not isinstance(artifact, dict):
+        return ""
+    parts = artifact.get("parts") or []
+    return "".join(
+        str(part.get("text") or "") for part in parts if isinstance(part, dict) and part.get("text")
+    )
+
+
+async def _task_from_stream(resp: httpx.Response) -> dict[str, Any]:
+    """Fold SSE JSON-RPC events into the latest task. Chunks fill a missing answer."""
+    task: dict[str, Any] | None = None
+    chunks: list[str] = []
+    async for line in resp.aiter_lines():
+        line = line.strip()
+        if not line.startswith("data:"):
+            continue
+        raw = line[5:].strip()
+        if not raw or raw == "[DONE]":
+            continue
+        try:
+            event = json.loads(raw)
+        except json.JSONDecodeError as exc:
+            raise A2AClientError(f"Invalid SSE from remote A2A: {exc}") from exc
+        if not isinstance(event, dict):
+            continue
+        if event.get("error"):
+            _rpc_result(event, "message/stream")
+        result = event.get("result") if "result" in event else event
+        if not isinstance(result, dict):
+            continue
+        if isinstance(result.get("task"), dict):
+            task = result["task"]
+        piece = _event_text(result)
+        update = result.get("artifactUpdate")
+        if piece and isinstance(update, dict):
+            if update.get("append") is False:
+                chunks = [piece]
+            else:
+                chunks.append(piece)
+        if (
+            isinstance(result.get("statusUpdate"), dict)
+            and result["statusUpdate"].get("final")
+            and task is not None
+        ):
+            break
+    if task is None:
+        task = {"status": {"state": "completed"}, "artifacts": []}
+    if chunks and not extract_task_text(task):
+        task = dict(task)
+        task["artifacts"] = [{"parts": [{"kind": "text", "text": "".join(chunks)}]}]
+    return task
+
+
 def extract_task_text(task: dict[str, Any]) -> str:
     """Best-effort plain text from an A2A Task response."""
     if not isinstance(task, dict):
@@ -171,11 +262,7 @@ def extract_task_text(task: dict[str, Any]) -> str:
         msg = status.get("message")
         if isinstance(msg, dict):
             parts = msg.get("parts") or []
-            texts = [
-                str(p.get("text"))
-                for p in parts
-                if isinstance(p, dict) and p.get("text")
-            ]
+            texts = [str(p.get("text")) for p in parts if isinstance(p, dict) and p.get("text")]
             if texts:
                 return "\n".join(texts)
     # artifacts
@@ -183,11 +270,7 @@ def extract_task_text(task: dict[str, Any]) -> str:
         if not isinstance(art, dict):
             continue
         parts = art.get("parts") or []
-        texts = [
-            str(p.get("text"))
-            for p in parts
-            if isinstance(p, dict) and p.get("text")
-        ]
+        texts = [str(p.get("text")) for p in parts if isinstance(p, dict) and p.get("text")]
         if texts:
             return "\n".join(texts)
     # history last agent message
@@ -197,11 +280,7 @@ def extract_task_text(task: dict[str, Any]) -> str:
         if str(msg.get("role") or "") != "agent":
             continue
         parts = msg.get("parts") or []
-        texts = [
-            str(p.get("text"))
-            for p in parts
-            if isinstance(p, dict) and p.get("text")
-        ]
+        texts = [str(p.get("text")) for p in parts if isinstance(p, dict) and p.get("text")]
         if texts:
             return "\n".join(texts)
     return ""

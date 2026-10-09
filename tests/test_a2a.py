@@ -251,6 +251,65 @@ async def test_send_to_directory_neighbor_posts_group(monkeypatch: pytest.Monkey
     assert called["n"] == 0
 
 
+@pytest.mark.asyncio
+async def test_send_message_folds_sse_and_falls_back(monkeypatch: pytest.MonkeyPatch) -> None:
+    import httpx
+    from core.a2a.client import A2AClient, extract_task_text
+
+    calls: list[bytes] = []
+    mode = {"stream": True}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls.append(request.content)
+        if b"message/stream" in request.content and not mode["stream"]:
+            return httpx.Response(
+                200,
+                json={
+                    "jsonrpc": "2.0",
+                    "id": "1",
+                    "error": {"code": -32601, "message": "Method not found"},
+                },
+            )
+        if b"message/stream" in request.content:
+            body = (
+                'data: {"jsonrpc":"2.0","id":"1","result":{"artifactUpdate":{"append":true,'
+                '"artifact":{"parts":[{"text":"hel"}]}}}}\n\n'
+                'data: {"jsonrpc":"2.0","id":"1","result":{"artifactUpdate":{"append":true,'
+                '"artifact":{"parts":[{"text":"lo"}]}}}}\n\n'
+                'data: {"jsonrpc":"2.0","id":"1","result":{"task":{"id":"t1","status":{"state":"completed"}},'
+                '"statusUpdate":{"final":true}}}\n\n'
+            )
+            return httpx.Response(200, headers={"content-type": "text/event-stream"}, text=body)
+        return httpx.Response(
+            200,
+            json={
+                "jsonrpc": "2.0",
+                "id": "2",
+                "result": {
+                    "id": "t2",
+                    "status": {"state": "completed", "message": {"parts": [{"text": "plain"}]}},
+                },
+            },
+        )
+
+    transport = httpx.MockTransport(handler)
+
+    class _Client(httpx.AsyncClient):
+        def __init__(self, *args: object, **kwargs: object) -> None:
+            kwargs["transport"] = transport
+            super().__init__(*args, **kwargs)
+
+    monkeypatch.setattr(httpx, "AsyncClient", _Client)
+    streamed = await A2AClient("http://agent.example/a2a").send_message("ping")
+    assert extract_task_text(streamed) == "hello"
+    assert len(calls) == 1
+
+    mode["stream"] = False
+    plain = await A2AClient("http://agent.example/a2a").send_message("ping")
+    assert extract_task_text(plain) == "plain"
+    assert b"message/send" in calls[-1]
+
+
 def test_build_agent_card_minimal() -> None:
     card = build_agent_card(
         "default",
