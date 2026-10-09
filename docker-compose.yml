@@ -84,6 +84,10 @@ x-holix-common: &holix-common
     HOLIX_CORS_ORIGINS: ${HOLIX_CORS_ORIGINS:-}
     # Unlock encrypted profiles (optional)
     HOLIX_UNLOCK_KEY: ${HOLIX_UNLOCK_KEY:-}
+    # Default personality (global/SOUL.md). Inline text or a file inside the container.
+    # Copied into the host profile and into each new profile. A custom profile SOUL.md stays.
+    HOLIX_DEFAULT_SOUL: ${HOLIX_DEFAULT_SOUL:-}
+    HOLIX_DEFAULT_SOUL_FILE: ${HOLIX_DEFAULT_SOUL_FILE:-}
     # Semantic memory (pgvector when DSN is set)
     HOLIX_VECTOR_BACKEND: ${HOLIX_VECTOR_BACKEND:-}
     HOLIX_VECTOR_DSN: ${HOLIX_VECTOR_DSN:-}

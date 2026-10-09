@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 import re
 from pathlib import Path
 from typing import Any
@@ -75,26 +76,110 @@ def _normalize_soul_text(text: str) -> str:
     return re.sub(r"\s+", " ", text.strip())
 
 
-def is_soul_empty_or_placeholder(profile: str | None = None) -> bool:
-    raw = _read_raw_soul(soul_path(profile))
-    if not raw:
+def global_default_soul_path() -> Path:
+    """Operator-edited default personality, shared by every new profile."""
+    from core.platform_compat import resolve_holix_home
+
+    return resolve_holix_home() / "global" / SOUL_MD_FILENAME
+
+
+def soul_document(text: str) -> str:
+    """Normalize a personality into the profile ``SOUL.md`` body."""
+    body = (text or "").strip()
+    if body and not body.startswith("#"):
+        body = f"# Agent Soul\n\n{body}"
+    return body
+
+
+def is_stock_soul_text(raw: str) -> bool:
+    """True for a missing, placeholder, or built-in soul (not an operator text)."""
+    if not (raw or "").strip():
         return True
     norm = _normalize_soul_text(raw)
     for template in (PLACEHOLDER_SOUL_MD, DEFAULT_SOUL_MD):
         if norm == _normalize_soul_text(template):
             return True
-    if norm in {
+    return norm in {
         _normalize_soul_text("# Agent Soul"),
-        _normalize_soul_text("# Agent Soul _Personality and values will be defined during your first conversation with the user._"),
-    }:
-        return True
-    return False
+        _normalize_soul_text(
+            "# Agent Soul _Personality and values will be defined "
+            "during your first conversation with the user._"
+        ),
+    }
+
+
+def _same_soul(left: str, right: str) -> bool:
+    if not (left or "").strip() or not (right or "").strip():
+        return False
+    return _normalize_soul_text(soul_document(left)) == _normalize_soul_text(soul_document(right))
+
+
+def _read_plain(path: Path) -> str:
+    if not path.is_file():
+        return ""
+    try:
+        return path.read_text(encoding="utf-8").strip()
+    except OSError:
+        return ""
+
+
+def sync_global_default_soul() -> tuple[str, str]:
+    """Persist ``HOLIX_DEFAULT_SOUL`` or ``HOLIX_DEFAULT_SOUL_FILE`` into ``global/SOUL.md``.
+
+    Returns ``(previous global text, current default text)``. Without those
+    variables the file already on disk is the default. An empty result means
+    Holix keeps the built-in soul.
+    """
+    path = global_default_soul_path()
+    previous = _read_plain(path)
+    inline = os.environ.get("HOLIX_DEFAULT_SOUL", "").strip()
+    file_env = os.environ.get("HOLIX_DEFAULT_SOUL_FILE", "").strip()
+    chosen = previous
+    if inline:
+        chosen = inline
+    elif file_env:
+        source = Path(file_env).expanduser()
+        try:
+            same_file = source.resolve() == path.resolve()
+        except OSError:
+            same_file = False
+        if not same_file:
+            chosen = _read_plain(source) or previous
+    if chosen and not _same_soul(chosen, previous):
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(chosen.strip() + "\n", encoding="utf-8")
+    return previous, chosen
+
+
+def apply_default_soul(profile: str | None = None) -> bool:
+    """Copy the default personality into a profile that still has the stock soul.
+
+    A profile whose ``SOUL.md`` was edited, and no longer matches the previous
+    default, is left unchanged. Returns True when the profile file is written.
+    """
+    previous, current = sync_global_default_soul()
+    if not current or is_stock_soul_text(current):
+        return False
+    path = soul_path(profile)
+    existing = _read_raw_soul(path) if path.is_file() else ""
+    if existing and not is_stock_soul_text(existing) and not _same_soul(existing, previous):
+        return False
+    if _same_soul(existing, current):
+        return False
+    path.parent.mkdir(parents=True, exist_ok=True)
+    _write_soul_text(path, soul_document(current).strip() + "\n")
+    return True
+
+
+def is_soul_empty_or_placeholder(profile: str | None = None) -> bool:
+    return is_stock_soul_text(_read_raw_soul(soul_path(profile)))
 
 
 def ensure_soul_file(profile: str | None = None, *, placeholder: bool = False) -> Path:
-    """Create ``SOUL.md`` when missing."""
+    """Create ``SOUL.md`` when missing, then apply a configured default personality."""
     path = soul_path(profile)
     path.parent.mkdir(parents=True, exist_ok=True)
+    apply_default_soul(profile)
     if not path.is_file():
         body = PLACEHOLDER_SOUL_MD if placeholder else DEFAULT_SOUL_MD
         _write_soul_text(path, body.strip() + "\n")

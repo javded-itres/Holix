@@ -70,8 +70,7 @@ def _enable_workspace_jail(manager: object, profile: str) -> None:
 
 def _bootstrap_max(profile: str) -> None:
     token = (
-        os.getenv("MAX_ACCESS_TOKEN", "").strip()
-        or os.getenv("HOLIX_MAX_ACCESS_TOKEN", "").strip()
+        os.getenv("MAX_ACCESS_TOKEN", "").strip() or os.getenv("HOLIX_MAX_ACCESS_TOKEN", "").strip()
     )
     if not token:
         return
@@ -102,6 +101,11 @@ def bootstrap() -> None:
     if not manager.profile_exists(profile):
         manager.create_profile(profile)
         print(f"[holix] Created profile '{profile}'", flush=True)
+
+    from core.profile.soul import apply_default_soul
+
+    if apply_default_soul(profile):
+        print(f"[holix] Default personality saved in profile '{profile}'", flush=True)
 
     bootstrap_profile_env(profile, force=True)
     _enable_workspace_jail(manager, profile)

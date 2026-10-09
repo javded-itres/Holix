@@ -75,6 +75,56 @@ def test_mcp_manager_mark_ready_harvests():
     assert mgr._discovered_tools["context7"][0]["name"] == "resolve-library-id"
 
 
+@pytest.mark.asyncio
+async def test_stdio_mcp_stderr_stays_off_the_terminal(tmp_path: Path, monkeypatch):
+    """A crashing stdio server must not write its stderr onto the TUI terminal."""
+    monkeypatch.setenv("HOLIX_HOME", str(tmp_path))
+    import os
+    import sys
+
+    from core.mcp.manager import MCPManager
+
+    read_fd, write_fd = os.pipe()
+    saved = os.dup(2)
+    os.dup2(write_fd, 2)
+    os.close(write_fd)
+    os.set_blocking(read_fd, False)
+    try:
+        mgr = MCPManager(
+            {
+                "boom": {
+                    "transport": "stdio",
+                    "command": sys.executable,
+                    "args": [
+                        "-c",
+                        "import sys; sys.stderr.write('MCP_STDERR_BOOM\\n'); sys.stderr.flush()",
+                    ],
+                }
+            }
+        )
+        await mgr.connect_all()
+        await mgr.wait_ready(["boom"], timeout=5)
+        await mgr.disconnect_all()
+    finally:
+        os.dup2(saved, 2)
+        os.close(saved)
+        leaked = b""
+        while True:
+            try:
+                chunk = os.read(read_fd, 4096)
+            except BlockingIOError:
+                break
+            if not chunk:
+                break
+            leaked += chunk
+        os.close(read_fd)
+
+    assert b"MCP_STDERR_BOOM" not in leaked
+    log = (tmp_path / "logs" / "mcp-stderr.log").read_text(encoding="utf-8")
+    assert "MCP_STDERR_BOOM" in log
+    assert " boom " in log
+
+
 def test_mcp_manager_status_includes_configured_servers():
     from core.mcp.manager import MCPManager
 

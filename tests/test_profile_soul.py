@@ -35,6 +35,49 @@ def holix_home(tmp_path, monkeypatch: pytest.MonkeyPatch):
     return root
 
 
+def test_default_soul_is_saved_into_new_and_stock_profiles(holix_home, monkeypatch) -> None:
+    from core.profile.soul import apply_default_soul, global_default_soul_path
+
+    monkeypatch.setenv("HOLIX_DEFAULT_SOUL", "You are a calm archivist.")
+    ProfileManager().create_profile("alice")
+    assert "calm archivist" in soul_path("alice").read_text(encoding="utf-8")
+    assert "calm archivist" in global_default_soul_path().read_text(encoding="utf-8")
+
+    soul_path("default").parent.mkdir(parents=True)
+    soul_path("default").write_text("# Agent Soul\n\nBe playful.\n", encoding="utf-8")
+    assert apply_default_soul("default") is False
+    assert "Be playful." in soul_path("default").read_text(encoding="utf-8")
+
+    monkeypatch.setenv("HOLIX_DEFAULT_SOUL", "You are a strict editor.")
+    assert apply_default_soul("alice") is True
+    assert "strict editor" in soul_path("alice").read_text(encoding="utf-8")
+    assert "Be playful." in soul_path("default").read_text(encoding="utf-8")
+
+
+def test_default_soul_file_and_global_file(holix_home, monkeypatch) -> None:
+    from core.profile.init import format_init_block
+    from core.profile.soul import apply_default_soul, global_default_soul_path
+
+    source = holix_home / "persona.md"
+    source.write_text("You answer from the archive.\n", encoding="utf-8")
+    monkeypatch.delenv("HOLIX_DEFAULT_SOUL", raising=False)
+    monkeypatch.setenv("HOLIX_DEFAULT_SOUL_FILE", str(source))
+    ProfileManager().create_profile("bob")
+    text = soul_path("bob").read_text(encoding="utf-8")
+    assert "answer from the archive" in text
+    assert global_default_soul_path().is_file()
+
+    from core.profile.init import init_pending
+
+    assert init_pending("bob")
+    assert "already has an agent personality" in format_init_block("bob")
+
+    monkeypatch.delenv("HOLIX_DEFAULT_SOUL_FILE", raising=False)
+    global_default_soul_path().write_text("You keep the global file.\n", encoding="utf-8")
+    assert apply_default_soul("fresh") is True
+    assert "global file" in soul_path("fresh").read_text(encoding="utf-8")
+
+
 def test_create_profile_writes_soul_md(holix_home) -> None:
     ProfileManager().create_profile("alice")
     path = soul_path("alice")

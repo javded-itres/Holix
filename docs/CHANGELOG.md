@@ -4,8 +4,14 @@
 
 ### Added
 
+- **Default personality** — `~/.holix/global/SOUL.md`, or `HOLIX_DEFAULT_SOUL` / `HOLIX_DEFAULT_SOUL_FILE`, is saved into the active profile when its soul is still the built-in text and is copied into every new profile. A profile `SOUL.md` you already changed is left as-is. Docker Compose passes the same variables.
 - **MikroLLM neighbors** — `a2a.mikrollm` (`url` plus `token` or `token_file`) loads `GET /a2a/directory` into `a2a_list_agents`. A name that exists only in that directory is sent with `POST /a2a/messages`. A configured `remote_agents` URL still waits for the remote reply.
 - **Auto-selected model** — when System One accepts a chat model, Telegram and MAX show that id on the live status line, including when it matches the current model.
+
+### Fixed
+
+- **TUI and MCP stderr** — a stdio MCP server that crashes writes its traceback to `~/.holix/logs/mcp-stderr.log` instead of the terminal, so the full-screen TUI stays up.
+- **TUI and the memory index** — Chroma's native library kills the process if the TUI opens the same on-disk index the gateway already holds. The second process keeps the chat in SQLite and uses an in-memory index instead of leaving the screen.
 
 ### Changed
 

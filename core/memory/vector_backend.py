@@ -165,9 +165,19 @@ def open_vector_backend(
             )
             return backend
 
+    from core.memory.chroma_client import ChromaDirectoryBusy
     from core.memory.chroma_vector import ChromaVectorBackend
+    from core.memory.memory_vector import InMemoryVectorBackend
 
     path = chroma_path if chroma_path is not None else getattr(config, "vector_db_path", None)
     if not path:
         path = "data/memory/vector_db"
-    return ChromaVectorBackend(path)
+    try:
+        return ChromaVectorBackend(path)
+    except ChromaDirectoryBusy:
+        logger.warning(
+            "Chroma at %s is already open in another Holix process; "
+            "using in-memory vectors so this process stays up",
+            path,
+        )
+        return InMemoryVectorBackend(fn)

@@ -706,6 +706,9 @@ def init_profile(
 
     switching = _current_profile is not None and _current_profile != profile
     bootstrap_profile_env(profile, force=switching or _current_profile is None)
+    from core.profile.soul import apply_default_soul
+
+    apply_default_soul(profile)
     _current_profile = profile
     _current_config = _profile_manager.load_profile(profile)
 

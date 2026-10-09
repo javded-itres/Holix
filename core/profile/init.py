@@ -29,6 +29,17 @@ Rules:
 - Match the user's language (Russian/English).
 """.strip()
 
+INIT_WITH_DEFAULT_SOUL = """
+## First-time initialization (INIT.md is active)
+
+This profile already has an agent personality in SOUL.md. Do not replace it unless the user asks.
+
+1. Introduce yourself in that personality.
+2. Learn the user's name and how they prefer to work.
+3. Persist user facts with `save_user_profile`.
+4. When you have the user's name and work preferences, call `complete_agent_initialization`.
+""".strip()
+
 DEFAULT_INIT_MD = """# Initialization in progress
 
 First-time setup for this Holix profile.
@@ -68,4 +79,8 @@ def complete_init(profile: str | None = None) -> bool:
 def format_init_block(profile: str | None = None) -> str:
     if not init_pending(profile):
         return ""
+    from core.profile.soul import is_soul_empty_or_placeholder
+
+    if not is_soul_empty_or_placeholder(profile):
+        return INIT_WITH_DEFAULT_SOUL
     return INIT_ONBOARDING_PROMPT

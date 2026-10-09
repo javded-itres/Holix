@@ -25,6 +25,55 @@ class _FakeClient:
         raise AssertionError("must reuse existing collection")
 
 
+def test_busy_directory_does_not_open_native_client(tmp_path, monkeypatch) -> None:
+    created: list[str] = []
+
+    def _factory(*, path, settings=None, **kwargs):
+        created.append(path)
+        return _FakeClient(path=path, settings=settings)
+
+    monkeypatch.setattr("chromadb.PersistentClient", _factory)
+    monkeypatch.setattr(
+        "core.memory.chroma_client._foreign_holder_pids",
+        lambda _directory: [4242],
+    )
+    reset_persistent_clients()
+    from core.memory.chroma_client import ChromaDirectoryBusy
+
+    try:
+        get_persistent_client(tmp_path / "vec")
+    except ChromaDirectoryBusy:
+        pass
+    else:
+        raise AssertionError("expected ChromaDirectoryBusy")
+    assert created == []
+    reset_persistent_clients()
+
+
+def test_open_vector_backend_falls_back_when_chroma_is_busy(tmp_path, monkeypatch) -> None:
+    monkeypatch.setattr(
+        "core.memory.chroma_client._foreign_holder_pids",
+        lambda _directory: [4242],
+    )
+    reset_persistent_clients()
+    from core.memory.memory_vector import InMemoryVectorBackend
+    from core.memory.vector_backend import hash_embedder, open_vector_backend
+
+    cfg = HolixRuntimeConfig.from_settings().with_overrides(
+        vector_backend="chroma",
+        vector_db_path=str(tmp_path / "vector_db"),
+    )
+    backend = open_vector_backend(cfg, embedder=hash_embedder(8))
+    assert isinstance(backend, InMemoryVectorBackend)
+    backend.get_collection("memory").add(
+        documents=["stay up"],
+        metadatas=[{"role": "user"}],
+        ids=["m1"],
+    )
+    assert backend.get_collection("memory").count() == 1
+    reset_persistent_clients()
+
+
 def test_get_persistent_client_reuses_same_path(tmp_path, monkeypatch) -> None:
     created: list[str] = []
 

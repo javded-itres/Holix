@@ -13,6 +13,26 @@ from core.mcp.uvx_compat import normalize_mcp_servers_uvx
 
 logger = logging.getLogger(__name__)
 
+
+def open_mcp_errlog(server_name: str):
+    """Append a stdio MCP server's stderr to a file, not the TUI terminal.
+
+    A crashing server (bad ``--repository``, missing binary) writes a traceback
+    to stderr. The MCP client inherits the terminal by default, which tears
+    down the full-screen TUI.
+    """
+    from datetime import datetime
+
+    from core.platform_compat import resolve_holix_home
+
+    path = resolve_holix_home() / "logs" / "mcp-stderr.log"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    handle = open(path, "a", encoding="utf-8", errors="replace")
+    handle.write(f"\n--- {datetime.now().isoformat(timespec='seconds')} {server_name} ---\n")
+    handle.flush()
+    return handle
+
+
 try:
     from mcp.client.sse import sse_client
     from mcp.client.stdio import stdio_client
@@ -151,6 +171,7 @@ class MCPManager:
     async def _keep_server(self, name: str, cfg: MCPServerConfig) -> None:
         """Dedicated task that owns the lifetime of one MCP connection."""
         session: ClientSession | None = None
+        errlog = None
         try:
             if cfg.transport == "stdio":
                 if not cfg.command:
@@ -161,7 +182,8 @@ class MCPManager:
                     env={**os.environ, **(cfg.env or {})},
                     cwd=cfg.cwd,
                 )
-                async with stdio_client(params) as (read, write):
+                errlog = open_mcp_errlog(name)
+                async with stdio_client(params, errlog=errlog) as (read, write):
                     async with ClientSession(read, write) as sess:
                         await sess.initialize()
                         session = sess
@@ -231,6 +253,11 @@ class MCPManager:
             logger.error("MCP keeper for %s failed: %s", name, msg)
             self._mark_ready(name, [], error=msg)
         finally:
+            if errlog is not None:
+                try:
+                    errlog.close()
+                except Exception:
+                    pass
             self._sessions.pop(name, None)
             self._discovered_tools.pop(name, None)
             # The async with blocks will handle proper __aexit__ for stdio_client / ClientSession

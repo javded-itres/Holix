@@ -63,7 +63,9 @@ Each profile can persist **who the agent is** and **who the user is** across ses
 | `USER.md` | Stable facts about the human (name, work style, language, notes) |
 | `INIT.md` | First-run marker — while present, Holix runs a short onboarding chat |
 
-When you run `holix profile create <name>`, Holix creates `INIT.md` and a placeholder `SOUL.md`.
+When you run `holix profile create <name>`, Holix creates `INIT.md` and `SOUL.md`. A configured default personality is copied into the new profile instead of the empty placeholder.
+
+The default personality for every profile is `~/.holix/global/SOUL.md`. Edit that file without changing code. `HOLIX_DEFAULT_SOUL` (inline text) and `HOLIX_DEFAULT_SOUL_FILE` (a path) write the same file on startup. Docker Compose passes both variables. Holix saves that text into the active profile and into each new profile while the profile soul is still the built-in template. A `profiles/<name>/SOUL.md` you already edited is kept. Changing the default updates only profiles that still match the previous copy.
 
 ### First conversation (onboarding)
 
