@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import fcntl
 import os
 from pathlib import Path
 
@@ -24,11 +23,17 @@ def window_state_path() -> Path:
     return sessions_dir() / f"{window_id()}.json"
 
 
-def _lock_path(conversation_id: str) -> Path:
+def _lock_file(conversation_id: str) -> str | None:
+    """Lock path under the sessions directory. Reject anything that escapes it."""
     safe = "".join(ch if ch.isalnum() or ch in "-_" else "_" for ch in conversation_id)[:120]
     if not safe:
         safe = "_"
-    return sessions_dir() / "locks" / f"{safe}.lock"
+    root = os.path.realpath(sessions_dir() / "locks")
+    os.makedirs(root, exist_ok=True)
+    candidate = os.path.realpath(os.path.join(root, f"{safe}.lock"))
+    if not candidate.startswith(root + os.sep):
+        return None
+    return candidate
 
 
 def pid_alive(pid: int) -> bool:
@@ -52,8 +57,20 @@ def conversation_busy(conversation_id: str) -> bool:
     """True when another live TUI window already holds this conversation."""
     if not (conversation_id or "").strip():
         return False
-    pid = _read_lock_pid(_lock_path(conversation_id))
+    path = _lock_file(conversation_id)
+    if path is None:
+        return False
+    pid = _read_lock_pid(Path(path))
     return pid_alive(pid)
+
+
+def _exclusive(fd: int) -> None:
+    """Block until this process holds the lock file. Windows has no fcntl."""
+    try:
+        import fcntl
+    except ModuleNotFoundError:
+        return
+    fcntl.flock(fd, fcntl.LOCK_EX)
 
 
 def _holder(fd: int) -> int:
@@ -73,11 +90,12 @@ def claim_conversation(conversation_id: str) -> bool:
     """
     if not (conversation_id or "").strip():
         return False
-    path = _lock_path(conversation_id)
-    path.parent.mkdir(parents=True, exist_ok=True)
+    path = _lock_file(conversation_id)
+    if path is None:
+        return False
     fd = os.open(path, os.O_CREAT | os.O_RDWR, 0o644)
     try:
-        fcntl.flock(fd, fcntl.LOCK_EX)
+        _exclusive(fd)
         if pid_alive(_holder(fd)):
             return False
         os.lseek(fd, 0, os.SEEK_SET)
@@ -92,13 +110,15 @@ def claim_conversation(conversation_id: str) -> bool:
 def release_conversation(conversation_id: str) -> None:
     if not (conversation_id or "").strip():
         return
-    path = _lock_path(conversation_id)
+    path = _lock_file(conversation_id)
+    if path is None:
+        return
     try:
         fd = os.open(path, os.O_RDWR)
     except OSError:
         return
     try:
-        fcntl.flock(fd, fcntl.LOCK_EX)
+        _exclusive(fd)
         if _holder(fd) == os.getpid():
             os.lseek(fd, 0, os.SEEK_SET)
             os.ftruncate(fd, 0)

@@ -20,6 +20,7 @@
 - **TUI and the memory index** — a TUI window does not open the on-disk Chroma index. That index stays with the gateway. Each window keeps its own state file under `~/.holix/tui-sessions/` and will not attach to a conversation another live window already holds.
 - **Repeated tool lines** — a tool event already on the agent bus is not emitted again. The graph runner was putting each yielded tool line back on that bus, so one call was drawn hundreds of times.
 - **Plan text in the TUI** — entering or leaving plan mode prints the plan in the chat, including when approval is skipped. Switching the chat to plan or hybrid mode prints the current plan again. The approval question includes the plan.
+- **Windows TUI session lock** — the conversation lock loads without `fcntl`, which Windows does not ship.
 
 ### Changed
 
