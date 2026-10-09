@@ -17,10 +17,12 @@ def _dead_pid() -> int:
     for pid in range(1_000_000, 1_000_400):
         try:
             os.kill(pid, 0)
-        except ProcessLookupError:
-            return pid
         except PermissionError:
             continue
+        except OSError:
+            # Unix: the pid is unused. Windows: signal 0 on a missing pid
+            # is WinError 87, not ProcessLookupError.
+            return pid
     raise AssertionError("no unused pid")
 
 
