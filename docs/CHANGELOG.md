@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 1.1.17 — 2026-10-10
+
 ### Added
 
 - **Default personality** — `~/.holix/global/SOUL.md`, or `HOLIX_DEFAULT_SOUL` / `HOLIX_DEFAULT_SOUL_FILE`, is saved into the active profile when its soul is still the built-in text and is copied into every new profile. A profile `SOUL.md` you already changed is left as-is. Docker Compose passes the same variables.
@@ -23,6 +25,12 @@
 
 - **Plan step budget** — `max_steps_per_plan_step: 0` means a plan step has no ReAct cap, the same as `max_steps: 0` for the whole run. The default stays 5.
 - **Sub-agent questions** — `ask_user` prompts and the final summary follow the profile interface language, not the language of the task brief.
+
+### Tests
+
+- Several TUI windows keep separate session files and do not attach to a conversation another live window holds.
+- A tool event already delivered on the bus is not emitted again.
+- Plan mode publishes its text even when approval is skipped.
 
 ## 1.1.16 — 2026-10-01
 
