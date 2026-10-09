@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import re
 from collections.abc import Iterable
+from pathlib import Path
 
 from core.sdd.models import SpecTask
 
@@ -30,11 +31,22 @@ _SIZE_RE = re.compile(
     re.IGNORECASE,
 )
 _ID_PREFIX_RE = re.compile(r"^(\d+(?:\.\d+)*)\s+")
+# OpenSpec CLI: `- [x] 1.1 [main, s] Do the thing. Зависит от 1.1.`
+_INLINE_META_RE = re.compile(
+    r"^(?P<id>\d+(?:\.\d+)*)\s+\[(?P<assignee>[A-Za-z][\w-]*)\s*,\s*(?P<size>[xXlLmMsS]{1,2})\]\s*(?P<body>.*)$"
+)
+_DEPENDS_SENTENCE_RE = re.compile(r"(?i)(?:Зависит от|Depends on)\s+(.+?)\s*\.?\s*$")
+# Bracket meta on a checkbox, or a dependency sentence that names task ids.
+# A prose "Depends on" inside an already-canonical title must not match.
+_CLI_TASK_HINT_RE = re.compile(
+    r"(?m)^[ \t]*- \[[ xX]\]\s+\d+(?:\.\d+)*\s+\[[A-Za-z][\w-]*\s*,\s*[xXlLmMsS]{1,2}\]"
+    r"|^[ \t]*(?:Зависит от|Depends on)\s+\d",
+    re.IGNORECASE,
+)
+_DEPENDS_LINE_RE = re.compile(r"(?i)^[ \t]*(?:Зависит от|Depends on)\s+\d")
 
 # Free-form section tasks (not OpenSpec checklist) — common LLM mistake
-_SECTION_HEADING_RE = re.compile(
-    r"^##\s+(\d+(?:\.\d+)*)\s*[.:)\-–—]?\s*(.+?)\s*$"
-)
+_SECTION_HEADING_RE = re.compile(r"^##\s+(\d+(?:\.\d+)*)\s*[.:)\-–—]?\s*(.+?)\s*$")
 _FIELD_BULLET_RE = re.compile(
     r"^\s*-\s*\*\*("
     r"Описание|Description|Desc|"
@@ -99,11 +111,17 @@ def parse_tasks_markdown(content: str) -> list[SpecTask]:
             continue
         done = m.group(2).lower() == "x"
         text = m.group(3).strip()
+        text, inline_assignee, inline_size = _apply_inline_openspec_meta(text)
+        cli_line = bool(inline_assignee)
+        sentence_deps: list[str] = []
+        if cli_line:
+            text, sentence_deps = _strip_depends_sentence(text)
         task_line = i
-        assignee = "unassigned"
+        assignee = inline_assignee or "unassigned"
         reason = ""
-        size = ""
-        depends_on: list[str] = []
+        size = inline_size
+        depends_on: list[str] = list(sentence_deps)
+        prose: list[str] = []
         j = i + 1
         while j < len(lines):
             if _TASK_LINE_RE.match(lines[j]):
@@ -136,14 +154,33 @@ def parse_tasks_markdown(content: str) -> list[SpecTask]:
                 continue
             dm = _DEPENDS_RE.match(lines[j])
             if dm:
-                depends_on = parse_depends_on_value(dm.group(1))
+                for dep in parse_depends_on_value(dm.group(1)):
+                    if dep not in depends_on:
+                        depends_on.append(dep)
                 j += 1
                 continue
+            if _DEPENDS_LINE_RE.match(lines[j]):
+                _stripped, extra_deps = _strip_depends_sentence(lines[j])
+                for dep in extra_deps:
+                    if dep not in depends_on:
+                        depends_on.append(dep)
+                prose_bit = _stripped.strip()
+                if prose_bit and not prose_bit.startswith("-"):
+                    prose.append(prose_bit)
+                j += 1
+                continue
+            # OpenSpec CLI wraps the title onto the next indented line.
+            indented = lines[j].startswith((" ", "\t"))
+            prose_bit = lines[j].strip()
+            if cli_line and prose_bit and indented and not prose_bit.startswith("-"):
+                prose.append(prose_bit)
             # blank or other nested bullets under this task
-            if lines[j].strip() == "" or lines[j].startswith(" ") or lines[j].startswith("\t"):
+            if lines[j].strip() == "" or indented:
                 j += 1
                 continue
             break
+        if prose:
+            text = f"{text} {' '.join(prose)}".strip()
         ordinal += 1
         id_m = _ID_PREFIX_RE.match(text)
         task_id = id_m.group(1) if id_m else str(ordinal)
@@ -163,8 +200,70 @@ def parse_tasks_markdown(content: str) -> list[SpecTask]:
     return tasks
 
 
+def _expand_id_range(start: str, end: str) -> list[str]:
+    """Expand ``1.1–1.3`` or ``2-4``. Unknown shapes stay as the two endpoints."""
+
+    def parts(token: str) -> tuple[int, int | None]:
+        bits = token.split(".")
+        if len(bits) == 1 and bits[0].isdigit():
+            return int(bits[0]), None
+        if len(bits) == 2 and bits[0].isdigit() and bits[1].isdigit():
+            return int(bits[0]), int(bits[1])
+        raise ValueError(token)
+
+    try:
+        major_a, minor_a = parts(start)
+        major_b, minor_b = parts(end)
+    except ValueError:
+        return [start, end]
+    if minor_a is not None and minor_b is not None and major_a == major_b and minor_b >= minor_a:
+        return [f"{major_a}.{i}" for i in range(minor_a, minor_b + 1)]
+    if minor_a is None and minor_b is None and major_b >= major_a:
+        return [str(i) for i in range(major_a, major_b + 1)]
+    return [start, end]
+
+
+def expand_depends_phrase(raw: str | None) -> list[str]:
+    """Parse ``1.1–1.3 и 2.1`` / ``1.1, 1.2`` into task ids."""
+    text = (raw or "").strip().strip("`").strip().rstrip(".")
+    if not text:
+        return []
+    text = re.sub(r"(?i)\s+(?:и|and)\s+", ", ", text)
+
+    def repl(match: re.Match[str]) -> str:
+        return ", ".join(_expand_id_range(match.group(1), match.group(2)))
+
+    text = re.sub(
+        r"(\d+(?:\.\d+)?)\s*[–—-]\s*(\d+(?:\.\d+)?)",
+        repl,
+        text,
+    )
+    return parse_depends_on_value(text)
+
+
+def _strip_depends_sentence(line: str) -> tuple[str, list[str]]:
+    match = _DEPENDS_SENTENCE_RE.search(line or "")
+    if not match:
+        return line, []
+    deps = expand_depends_phrase(match.group(1))
+    cleaned = (line[: match.start()] + line[match.end() :]).rstrip()
+    cleaned = re.sub(r"[ \t]{2,}", " ", cleaned).rstrip(" .")
+    return cleaned, deps
+
+
+def _apply_inline_openspec_meta(text: str) -> tuple[str, str, str]:
+    """Return ``(text, assignee, size)`` for an OpenSpec CLI checkbox body."""
+    match = _INLINE_META_RE.match((text or "").strip())
+    if not match:
+        return text, "", ""
+    body = match.group("body").strip()
+    task_id = match.group("id")
+    cleaned = f"{task_id} {body}".strip() if body else task_id
+    return cleaned, match.group("assignee").strip(), match.group("size").strip().lower()
+
+
 def parse_depends_on_value(raw: str | None) -> list[str]:
-    """Parse ``1.1, 1.2`` / ``1.1 1.2`` / empty into ordered unique task ids."""
+    """Parse ``1.1, 1.2`` / ``1.1 1.2`` / ``1.1–1.3`` into ordered unique task ids."""
     text = (raw or "").strip().strip("`").strip()
     if not text or text in {"—", "-", "–", "none", "None", "нет", "n/a", "N/A"}:
         return []
@@ -172,12 +271,52 @@ def parse_depends_on_value(raw: str | None) -> list[str]:
     out: list[str] = []
     seen: set[str] = set()
     for part in parts:
-        tid = part.strip().strip("`").strip()
-        if not tid or tid in seen:
+        tid = part.strip().strip("`").strip().rstrip(".")
+        if not tid:
             continue
-        seen.add(tid)
-        out.append(tid)
+        expanded = _expand_id_token(tid)
+        for item in expanded:
+            if item in seen:
+                continue
+            seen.add(item)
+            out.append(item)
     return out
+
+
+def _expand_id_token(token: str) -> list[str]:
+    match = re.fullmatch(r"(\d+(?:\.\d+)?)\s*[–—-]\s*(\d+(?:\.\d+)?)", token)
+    if not match:
+        return [token]
+    return _expand_id_range(match.group(1), match.group(2))
+
+
+def adopt_openspec_cli_tasks_markdown(content: str) -> tuple[str, bool]:
+    """Rewrite OpenSpec CLI checkbox meta into nested Holix fields.
+
+    Returns ``(markdown, changed)``. Already-canonical checklists are unchanged.
+    """
+    text = content or ""
+    if not text or not _CLI_TASK_HINT_RE.search(text):
+        return text, False
+    normalized, _notes = normalize_tasks_markdown(text)
+    if not normalized.endswith("\n"):
+        normalized += "\n"
+    if normalized == text:
+        return text, False
+    return normalized, True
+
+
+def adopt_openspec_cli_tasks_file(path: Path) -> bool:
+    """Persist :func:`adopt_openspec_cli_tasks_markdown` when the file still uses CLI lines."""
+    file_path = path
+    if not getattr(file_path, "is_file", lambda: False)():
+        return False
+    raw = file_path.read_text(encoding="utf-8")
+    converted, changed = adopt_openspec_cli_tasks_markdown(raw)
+    if not changed or converted == raw:
+        return False
+    file_path.write_text(converted, encoding="utf-8")
+    return True
 
 
 def render_tasks_markdown(tasks: Iterable[SpecTask], *, title: str = "Tasks") -> str:
@@ -296,8 +435,7 @@ def ensure_tasks_openspec_format(
         errors.extend(validate_task_sizes(parse_tasks_markdown(normalized)))
     if errors:
         raise ValueError(
-            "Invalid tasks.md (OpenSpec Holix format required):\n- "
-            + "\n- ".join(errors)
+            "Invalid tasks.md (OpenSpec Holix format required):\n- " + "\n- ".join(errors)
         )
     if not normalized.endswith("\n"):
         normalized += "\n"
@@ -333,9 +471,7 @@ def ensure_task_sizes(content: str) -> tuple[str, list[str]]:
                 break
             end += 1
         block = lines[li + 1 : end]
-        estimated = estimate_task_size(
-            t.text, reason=t.reason or "", declared=t.size or None
-        )
+        estimated = estimate_task_size(t.text, reason=t.reason or "", declared=t.size or None)
         size_label = normalize_size(t.size) or estimated
         new_block: list[str] = []
         wrote_size = False
@@ -364,7 +500,9 @@ def ensure_task_sizes(content: str) -> tuple[str, list[str]]:
     return out, notes
 
 
-def set_task_done(content: str, *, task_id: str | None = None, index: int | None = None, done: bool = True) -> str:
+def set_task_done(
+    content: str, *, task_id: str | None = None, index: int | None = None, done: bool = True
+) -> str:
     """Toggle checkbox for a task by id or 1-based index."""
     tasks = parse_tasks_markdown(content)
     target = _resolve_task(tasks, task_id=task_id, index=index)
@@ -396,9 +534,7 @@ def set_task_assignee(
     while end < len(lines):
         if _TASK_LINE_RE.match(lines[end]) or lines[end].startswith("#"):
             break
-        if lines[end].strip() and not (
-            lines[end].startswith(" ") or lines[end].startswith("\t")
-        ):
+        if lines[end].strip() and not (lines[end].startswith(" ") or lines[end].startswith("\t")):
             break
         end += 1
 
@@ -491,6 +627,8 @@ def _canonicalize_checklist(content: str) -> str:
                 break
             end += 1
         block = lines[li + 1 : end]
+        source_line = _TASK_LINE_RE.match(lines[li])
+        cli_task = bool(source_line and _INLINE_META_RE.match(source_line.group(3).strip()))
         new_block: list[str] = []
         wrote_assignee = False
         wrote_reason = False
@@ -536,6 +674,16 @@ def _canonicalize_checklist(content: str) -> str:
                     new_block.append(bl)
                     wrote_depends = True
                 continue
+            if _DEPENDS_LINE_RE.match(bl):
+                stripped, _deps = _strip_depends_sentence(bl)
+                body = stripped.strip()
+                if body and body not in (t.text or ""):
+                    new_block.append(stripped)
+                continue
+            body = bl.strip()
+            # Wrapped CLI title lines are folded into the checkbox body.
+            if cli_task and body and not body.startswith("-") and body in (t.text or ""):
+                continue
             new_block.append(bl)
         if not wrote_assignee:
             new_block.insert(
@@ -567,7 +715,7 @@ def _canonicalize_checklist(content: str) -> str:
         m = _TASK_LINE_RE.match(lines[li])
         if m:
             mark = m.group(2)
-            body = m.group(3).strip()
+            body = (t.text or "").strip()
             if not _ID_PREFIX_RE.match(body):
                 body = f"{t.id} {body}".strip()
             lines[li] = f"{m.group(1)}- [{mark}] {body}"

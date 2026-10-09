@@ -31,6 +31,7 @@ from core.sdd.paths import (
     validate_domain,
 )
 from core.sdd.tasks import (
+    adopt_openspec_cli_tasks_file,
     assignees_summary,
     parse_tasks_markdown,
     set_task_assignee,
@@ -395,6 +396,7 @@ class SpecStore:
         tasks: list = []
         tasks_path = cdir / "tasks.md"
         if tasks_path.is_file():
+            adopt_openspec_cli_tasks_file(tasks_path)
             tasks = parse_tasks_markdown(tasks_path.read_text(encoding="utf-8"))
         mode = load_apply_mode(self.workspace, cid)
         tools_presentation = load_apply_presentation(self.workspace, cid)
@@ -732,6 +734,7 @@ class SpecStore:
         path = change_dir(self.workspace, cid) / "tasks.md"
         if not path.is_file():
             raise FileNotFoundError("tasks.md not found")
+        adopt_openspec_cli_tasks_file(path)
         text = path.read_text(encoding="utf-8")
         updated = set_task_done(text, task_id=task_id, index=index, done=done)
         path.write_text(updated, encoding="utf-8")
@@ -755,6 +758,7 @@ class SpecStore:
         path = change_dir(self.workspace, cid) / "tasks.md"
         if not path.is_file():
             raise FileNotFoundError("tasks.md not found")
+        adopt_openspec_cli_tasks_file(path)
         text = path.read_text(encoding="utf-8")
         updated = set_task_assignee(
             text, assignee=assignee, task_id=task_id, index=index, reason=reason
@@ -775,6 +779,7 @@ class SpecStore:
         if not path.is_file():
             raise FileNotFoundError("tasks.md not found")
         who = (assignee or "main").strip() or "main"
+        adopt_openspec_cli_tasks_file(path)
         text = path.read_text(encoding="utf-8")
         tasks = parse_tasks_markdown(text)
         updated_ids: list[str] = []
@@ -796,6 +801,7 @@ class SpecStore:
         path = change_dir(self.workspace, cid) / "tasks.md"
         if not path.is_file():
             return []
+        adopt_openspec_cli_tasks_file(path)
         from core.sdd.dispatch import load_task_jobs
         from core.sdd.task_sizing import max_steps_for_size, resolve_task_size
 

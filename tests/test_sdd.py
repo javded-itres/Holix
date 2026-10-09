@@ -103,6 +103,80 @@ def test_write_artifact_tasks_auto_normalizes(tmp_path: Path):
     assert tasks[0]["id"] == "1.1"
 
 
+def test_openspec_cli_tasks_convert_to_holix_fields(tmp_path: Path):
+    """Official CLI lines ``[assignee, size]`` and ``Зависит от`` become nested fields."""
+    from core.sdd.tasks import adopt_openspec_cli_tasks_markdown, normalize_tasks_markdown
+
+    raw = """## 1. Контракт
+
+- [x] 1.1 [main, s] Добавить тесты прочтения ленты.
+- [x] 2.2 [main, S] Реализовать view с проверкой строк.
+  Зависит от 1.1–1.3 и 2.1.
+- [x] 3.1 [main, xs] Добавить синхронный помощник для определения
+  будних дней и подсчета рабочих дней.
+- [ ] 4.1 [test-specialist, m] Проверить контракт. Зависит от 2.2.
+  - **assignee:** `coder`
+
+## 5. Уже в формате Studio
+
+- [ ] 5.1 Оставить как есть
+  - **assignee:** `main`
+  - **size:** `s`
+  - **depends_on:** `1.1`
+"""
+    tasks = parse_tasks_markdown(raw)
+    by_id = {t.id: t for t in tasks}
+    assert by_id["1.1"].assignee == "main"
+    assert by_id["1.1"].size == "s"
+    assert by_id["1.1"].done is True
+    assert "[main, s]" not in by_id["1.1"].text
+    assert by_id["2.2"].depends_on == ["1.1", "1.2", "1.3", "2.1"]
+    assert by_id["2.2"].size == "s"
+    assert "Зависит от" not in by_id["2.2"].text
+    assert "будних дней" in by_id["3.1"].text
+    assert by_id["4.1"].assignee == "coder"
+    assert by_id["4.1"].size == "m"
+    assert by_id["4.1"].depends_on == ["2.2"]
+    assert by_id["5.1"].assignee == "main"
+    assert by_id["5.1"].depends_on == ["1.1"]
+
+    converted, changed = adopt_openspec_cli_tasks_markdown(raw)
+    assert changed is True
+    assert "[main, s]" not in converted
+    assert "**assignee:** `main`" in converted
+    assert "**depends_on:** `1.1, 1.2, 1.3, 2.1`" in converted
+    assert "**assignee:** `coder`" in converted
+    again, changed_again = adopt_openspec_cli_tasks_markdown(converted)
+    assert changed_again is False
+    assert again == converted
+    stable, _notes = normalize_tasks_markdown(converted)
+    assert stable == converted
+
+    native = """- [ ] 1.1 Document what the client Depends on today
+  - **assignee:** `main`
+  - **size:** `s`
+"""
+    kept, native_changed = adopt_openspec_cli_tasks_markdown(native)
+    assert native_changed is False
+    assert "Depends on today" in kept
+
+    store = SpecStore(tmp_path)
+    store.init(example_domain="backend")
+    store.create_change("bulk-read", domain="backend")
+    tasks_path = tmp_path / "openspec" / "changes" / "bulk-read" / "tasks.md"
+    tasks_path.write_text(raw, encoding="utf-8")
+    status = store.change_status("bulk-read")
+    assert status.tasks_total == 5
+    assert status.assignees.get("main", 0) >= 3
+    assert status.assignees.get("coder") == 1
+    saved = tasks_path.read_text(encoding="utf-8")
+    assert "[test-specialist, m]" not in saved
+    assert "**depends_on:**" in saved
+    second = store.change_status("bulk-read")
+    assert tasks_path.read_text(encoding="utf-8") == saved
+    assert second.tasks_total == 5
+
+
 def test_set_task_done_and_assignee():
     md = """# T
 

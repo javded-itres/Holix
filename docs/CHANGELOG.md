@@ -11,6 +11,7 @@
 
 ### Fixed
 
+- **OpenSpec CLI tasks** — checkbox lines `1.1 [main, s] … Зависит от 1.1–1.3` are read as Holix assignee, size, and depends_on. The first status or task read rewrites `tasks.md` into nested fields so Studio can move the change.
 - **TUI and MCP stderr** — a stdio MCP server that crashes writes its traceback to `~/.holix/logs/mcp-stderr.log` instead of the terminal, so the full-screen TUI stays up.
 - **TUI and the memory index** — Chroma's native library kills the process if the TUI opens the same on-disk index the gateway already holds. The second process keeps the chat in SQLite and uses an in-memory index instead of leaving the screen.
 
