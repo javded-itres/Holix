@@ -64,13 +64,15 @@ class SubagentQuestionModal(ModalScreen[str | None]):
         text-style: bold;
         padding: 0 1;
         margin-bottom: 1;
+        max-height: 20;
+        overflow-y: auto;
     }
 
     #subq-context {
         color: $text-muted;
         padding: 0 1;
         margin-bottom: 1;
-        max-height: 5;
+        max-height: 16;
         overflow-y: auto;
     }
 
@@ -153,9 +155,9 @@ class SubagentQuestionModal(ModalScreen[str | None]):
     def compose(self) -> ComposeResult:
         name = escape_for_markup(self.subagent_name or "sub-agent")
         rid = escape_for_markup(self.request_id or "—")
-        q = _clip(self.question, 800) or "(empty question)"
+        q = _clip(self.question, 12000) or "(empty question)"
         task = _clip(self.task_preview, 360)
-        ctx = _clip(self.context, 360)
+        ctx = _clip(self.context, 6000)
 
         with Container(id="subq-dialog"):
             yield Label("❓ Sub-agent needs your input", id="subq-title")

@@ -67,6 +67,7 @@ class EventType(StrEnum):
 
     # Plan management
     PLAN_GENERATED = "plan_generated"
+    PLAN_MODE_CHANGED = "plan_mode_changed"
     PLAN_STEP_COMPLETED = "plan_step_completed"
     PLAN_COMPLETED = "plan_completed"
 
@@ -619,6 +620,22 @@ class ContextWarningEvent(AgentEvent):
 
 
 @dataclass
+class PlanModeChangedEvent(AgentEvent):
+    """Plan mode turned on or off, with the plan text to show in the chat."""
+
+    action: str = ""
+    active: bool = False
+    plan: str = ""
+
+    def __post_init__(self):
+        super().__post_init__()
+        object.__setattr__(self, "type", EventType.PLAN_MODE_CHANGED)
+
+    def _extra_fields(self) -> dict[str, Any]:
+        return {"action": self.action, "active": self.active, "plan": self.plan}
+
+
+@dataclass
 class PlanGeneratedEvent(AgentEvent):
     """Emitted when plan_node generates a plan (before review)."""
 
@@ -1066,7 +1083,15 @@ class AgentEventBus:
 
         - Sync handlers are called immediately (with isolation).
         - Async handlers are scheduled via asyncio.create_task (fire-and-forget).
+
+        The same object is delivered once. Graph execution already puts tool
+        events on this bus, and the runner emits whatever the graph generator
+        yields. Without this guard those yields are the same objects, so each
+        one is queued and painted again until the graph step ends.
         """
+        if getattr(event, "_holix_bus_delivered", False):
+            return
+        object.__setattr__(event, "_holix_bus_delivered", True)
         # Sync handlers
         for handler in list(self._handlers):  # copy to allow unsubscribe during iteration
             try:

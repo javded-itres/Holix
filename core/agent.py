@@ -311,6 +311,10 @@ class HolixAgent:
         """Convenience method to emit an event through the agent's bus."""
         from core.workspace import sanitize_agent_event
 
+        # Drop a re-emit before path sanitizing can copy the event into a new
+        # object that the bus would treat as unseen.
+        if getattr(event, "_holix_bus_delivered", False):
+            return
         self.stamp_event(event)
         self.events.emit(sanitize_agent_event(event))
 

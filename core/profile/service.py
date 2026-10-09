@@ -47,6 +47,8 @@ class ProfileConfig(BaseModel):
     api_key: str = "ollama"
     temperature: float = 0.7
     max_steps: int = 90
+    # 0 = no cap on ReAct iterations inside one plan step.
+    max_steps_per_plan_step: int | None = None
 
     # Profile settings
     profile_name: str = "default"

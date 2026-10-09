@@ -25,6 +25,7 @@ from core.tools.registry import ToolRegistry
 def _isolate_vector_backend(monkeypatch: pytest.MonkeyPatch) -> None:
     """Tests default to Chroma/memory; pgvector tests override on the config."""
     monkeypatch.setenv("HOLIX_VECTOR_BACKEND", "chroma")
+    monkeypatch.delenv("HOLIX_TUI_PROCESS", raising=False)
     monkeypatch.delenv("HOLIX_VECTOR_DSN", raising=False)
     monkeypatch.delenv("HOLIX_VECTOR_DATABASE_URL", raising=False)
     monkeypatch.delenv("VECTOR_DSN", raising=False)

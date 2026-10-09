@@ -287,11 +287,18 @@ def _maybe_subagent_empty_retry(
     step_count: int,
     final_response: str,
 ) -> dict[str, Any] | None:
-    """Keep a child ReAct turn open when the model returned an empty final."""
-    if not _is_subagent_agent(agent) or not _is_empty_subagent_final(final_response):
+    """Keep the turn open when the model returned an empty final.
+
+    The main agent and sub-agents both retry. After the retry budget a
+    sub-agent closes with a tool summary; the main agent falls through so
+    the usual visible placeholder can still be shown.
+    """
+    if not _is_empty_subagent_final(final_response):
         return None
     retries = _empty_final_retry_count(messages) + 1
     if retries > _SUBAGENT_EMPTY_RETRIES:
+        if not _is_subagent_agent(agent):
+            return None
         summary = summarize_persist_tools(messages)
         if summary:
             updated = list(messages)

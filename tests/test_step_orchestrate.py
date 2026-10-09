@@ -17,6 +17,7 @@ from core.graph.state import HolixGraphState
 
 # ─── Step Orchestrate Node ──────────────────────────────────────────────────
 
+
 class TestStepOrchestrateNode:
     """Tests for step_orchestrate_node."""
 
@@ -59,8 +60,20 @@ class TestStepOrchestrateNode:
 
         state = HolixGraphState(
             plan_steps=[
-                {"step": 1, "description": "Step 1", "tools_needed": ["terminal"], "expected_output": "done", "success_criteria": "ok"},
-                {"step": 2, "description": "Step 2", "tools_needed": ["write_file"], "expected_output": "done2", "success_criteria": "ok2"},
+                {
+                    "step": 1,
+                    "description": "Step 1",
+                    "tools_needed": ["terminal"],
+                    "expected_output": "done",
+                    "success_criteria": "ok",
+                },
+                {
+                    "step": 2,
+                    "description": "Step 2",
+                    "tools_needed": ["write_file"],
+                    "expected_output": "done2",
+                    "success_criteria": "ok2",
+                },
             ],
             current_plan_step=0,  # Step 1 is complete
             is_step_complete=True,
@@ -81,7 +94,13 @@ class TestStepOrchestrateNode:
 
         state = HolixGraphState(
             plan_steps=[
-                {"step": 1, "description": "Create project", "tools_needed": ["terminal"], "expected_output": "project created", "success_criteria": "directory exists"},
+                {
+                    "step": 1,
+                    "description": "Create project",
+                    "tools_needed": ["terminal"],
+                    "expected_output": "project created",
+                    "success_criteria": "directory exists",
+                },
             ],
             plan_analysis={"complexity": "simple"},
             current_plan_step=0,
@@ -101,6 +120,7 @@ class TestStepOrchestrateNode:
 
 
 # ─── Route After React Plan ──────────────────────────────────────────────────
+
 
 class TestRouteAfterReactPlan:
     """Tests for route_after_react_plan router."""
@@ -170,6 +190,7 @@ class TestRouteAfterReactPlan:
 
 # ─── Route After Step Orchestrate ────────────────────────────────────────────
 
+
 class TestRouteAfterStepOrchestrate:
     """Tests for route_after_step_orchestrate router."""
 
@@ -206,13 +227,14 @@ class TestRouteAfterStepOrchestrate:
 
 # ─── Enriched Plan Node ──────────────────────────────────────────────────────
 
+
 class TestPlanNodeParsing:
     """Tests for _parse_detailed_plan and _extract_plan_data."""
 
     def test_parse_detailed_plan(self):
         from core.plan_review.parser import parse_detailed_plan as _parse_detailed_plan
 
-        json_text = '''{
+        json_text = """{
             "analysis": {
                 "task_summary": "Build a REST API",
                 "complexity": "complex",
@@ -238,7 +260,7 @@ class TestPlanNodeParsing:
                 }
             ],
             "reasoning": "Standard project setup"
-        }'''
+        }"""
 
         plan, analysis, architecture, report, reasoning = _parse_detailed_plan(json_text)
         assert len(plan) == 1
@@ -255,7 +277,7 @@ class TestPlanNodeParsing:
     def test_parse_development_report(self):
         from core.plan_review.parser import parse_detailed_plan as _parse_detailed_plan
 
-        json_text = '''{
+        json_text = """{
             "development_report": {
                 "title": "Development Plan: RAG service",
                 "summary": {
@@ -287,7 +309,7 @@ class TestPlanNodeParsing:
                        "expected_output": "done", "success_criteria": "ok",
                        "depends_on": [], "parallel_group": null, "subagent_type": null}],
             "reasoning": "infra first"
-        }'''
+        }"""
 
         plan, analysis, architecture, report, reasoning = _parse_detailed_plan(json_text)
         assert len(plan) == 1
@@ -320,6 +342,7 @@ class TestPlanNodeParsing:
 
 # ─── New State Fields ─────────────────────────────────────────────────────────
 
+
 class TestNewStateFields:
     """Tests for new plan orchestration state fields."""
 
@@ -342,11 +365,13 @@ class TestNewStateFields:
 
 # ─── Config ────────────────────────────────────────────────────────────────────
 
+
 class TestMaxStepsPerPlanStep:
     """Test max_steps_per_plan_step config."""
 
     def test_default_value(self):
         from config import Settings
+
         s = Settings()
         assert s.max_steps_per_plan_step == 5
 
@@ -356,16 +381,19 @@ class TestPlanGenerationConfig:
 
     def test_plan_generation_timeout_default(self):
         from config import Settings
+
         s = Settings()
         assert s.plan_generation_timeout == 600.0
 
     def test_plan_generation_retries_default(self):
         from config import Settings
+
         s = Settings()
         assert s.plan_generation_retries == 2
 
 
 # ─── Plan Node Retry & Timeout Logic ──────────────────────────────────────────
+
 
 class TestPlanNodeRetryLogic:
     """Tests for plan_node timeout and retry behavior (unit tests without LLM)."""
@@ -382,8 +410,7 @@ class TestPlanNodeRetryLogic:
         assert len(result["plan_steps"]) >= 3
         assert result["plan_status"] == "pending_review"
         assert any(
-            "test task" in str(s.get("description") or "").lower()
-            or s.get("description")
+            "test task" in str(s.get("description") or "").lower() or s.get("description")
             for s in result["plan_steps"]
         )
 
@@ -398,20 +425,35 @@ class TestPlanNodeRetryLogic:
         mock_agent = MagicMock()
         mock_response = MagicMock()
         mock_response.choices = [MagicMock()]
-        mock_response.choices[0].message.content = _json.dumps({
-            "analysis": {"task_summary": "Test task", "complexity": "simple",
-                         "clarifying_questions": ["What tech?"], "constraints": []},
-            "architecture": {"approach": "Direct", "tech_stack": ["Python"],
-                             "structure": "single file", "risks": []},
-            "plan": [
-                {"step": 1, "description": "Do the thing", "tools_needed": ["terminal"],
-                 "expected_output": "done", "success_criteria": "ok",
-                 "depends_on": [], "parallel_group": None, "subagent_type": None},
-            ],
-        })
-        mock_agent.client.chat.completions.create = AsyncMock(
-            return_value=mock_response
+        mock_response.choices[0].message.content = _json.dumps(
+            {
+                "analysis": {
+                    "task_summary": "Test task",
+                    "complexity": "simple",
+                    "clarifying_questions": ["What tech?"],
+                    "constraints": [],
+                },
+                "architecture": {
+                    "approach": "Direct",
+                    "tech_stack": ["Python"],
+                    "structure": "single file",
+                    "risks": [],
+                },
+                "plan": [
+                    {
+                        "step": 1,
+                        "description": "Do the thing",
+                        "tools_needed": ["terminal"],
+                        "expected_output": "done",
+                        "success_criteria": "ok",
+                        "depends_on": [],
+                        "parallel_group": None,
+                        "subagent_type": None,
+                    },
+                ],
+            }
         )
+        mock_agent.client.chat.completions.create = AsyncMock(return_value=mock_response)
         mock_agent.model = "test-model"
         mock_agent.emit = MagicMock()
         mock_agent.memory = MagicMock()
@@ -434,6 +476,7 @@ class TestPlanNodeRetryLogic:
 
 
 # ─── Enhanced Plan Parsing ────────────────────────────────────────────────────
+
 
 class TestEnhancedPlanParsing:
     """Tests for improved _parse_detailed_plan with multiple strategies."""
@@ -509,6 +552,7 @@ class TestEnhancedPlanParsing:
 
 # ─── Per-Step Limit Enforcement ────────────────────────────────────────────────
 
+
 class TestPerStepLimitEnforcement:
     """Tests for max_steps_per_plan_step enforcement in route_after_react_plan."""
 
@@ -533,6 +577,25 @@ class TestPerStepLimitEnforcement:
         # With default max_steps_per_plan_step=5, steps_in_current = 5 → should advance
         result = route_after_react_plan(state)
         assert result == "step_orchestrate"
+
+    def test_zero_per_step_limit_does_not_advance(self):
+        from core.graph.nodes.step_orchestrate_node import route_after_react_plan
+
+        state = HolixGraphState(
+            tool_calls=[],
+            is_step_complete=False,
+            is_final=False,
+            step_count=8,
+            max_steps=0,
+            max_steps_per_plan_step=0,
+            plan_steps=[
+                {"step": 1, "description": "Step 1"},
+                {"step": 2, "description": "Step 2"},
+            ],
+            current_plan_step=0,
+            current_step_start_count=3,
+        )
+        assert route_after_react_plan(state) == "react"
 
     def test_step_limit_not_yet_reached(self):
         """When within per-step limit, continue react loop."""

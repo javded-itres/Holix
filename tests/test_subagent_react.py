@@ -183,18 +183,18 @@ def test_subagent_empty_reply_keeps_react_open() -> None:
     assert any(m.get("content") == EMPTY_FINAL_CONTINUE for m in out["messages"])
 
 
-def test_main_agent_empty_reply_is_not_subagent_retry() -> None:
+def test_main_agent_empty_reply_retries_once() -> None:
     agent = SimpleNamespace(subagent_system_prompt="", emit=lambda *_a, **_k: None)
-    assert (
-        _maybe_subagent_empty_retry(
-            agent=agent,
-            conversation_id="default",
-            messages=[],
-            step_count=1,
-            final_response="",
-        )
-        is None
+    out = _maybe_subagent_empty_retry(
+        agent=agent,
+        conversation_id="default",
+        messages=[],
+        step_count=1,
+        final_response="",
     )
+    assert out is not None
+    assert out["is_final"] is False
+    assert any(m.get("content") == EMPTY_FINAL_CONTINUE for m in out["messages"])
 
 
 def test_subagent_empty_reply_completes_after_writes() -> None:

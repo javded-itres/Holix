@@ -85,6 +85,9 @@ class AgentCommands:
                 if len(parts) > 1 and parts[1] in h._execution_modes:
                     h._execution_mode_index = h._execution_modes.index(parts[1])
                     h.transcript_write(f"[dim]{t('mode_set', lang, mode=parts[1])}[/dim]")
+                    show_plan = getattr(h, "_show_plan_for_mode", None)
+                    if callable(show_plan):
+                        show_plan(parts[1])
                 else:
                     await h.action_cycle_execution_mode()
                 h._refresh_status_bar()

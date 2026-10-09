@@ -15,6 +15,7 @@ from core.agent_events import (
     ErrorEvent,
     FinalResponseEvent,
     PlanCompletedEvent,
+    PlanModeChangedEvent,
     PlanStepCompletedEvent,
     StepBudgetChoiceEvent,
     ThinkingEvent,
@@ -111,6 +112,9 @@ class CodeEventHandler:
                 self.app.set_thinking(None)
                 self.app._handle_plan_review_request(event)
 
+            elif isinstance(event, PlanModeChangedEvent):
+                self._show_plan(event.plan)
+
             elif isinstance(event, (PlanStepCompletedEvent, PlanCompletedEvent)):
                 self.app.transcript_write(
                     f"[dim]· plan: {getattr(event, 'message', '') or type(event).__name__}[/dim]"
@@ -179,6 +183,18 @@ class CodeEventHandler:
     def _sync_process_bar_from_tool_result(self, body: str) -> None:
         del body
         self.app.sync_background_process_bar()
+
+    def _show_plan(self, plan: str) -> None:
+        text = (plan or "").strip()
+        if not text:
+            return
+        if not text.lstrip().startswith("#"):
+            text = "# План\n\n" + text
+        try:
+            self.app.transcript_write(Markdown(text))
+        except Exception:
+            self.app.transcript_write(text)
+        self.app.transcript_scroll_bottom()
 
     def _thinking(self, message: str) -> None:
         short = (message or "thinking").strip().splitlines()[0]

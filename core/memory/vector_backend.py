@@ -64,6 +64,9 @@ def resolve_vector_dsn(cfg: Any | None = None) -> str:
     return ""
 
 
+_TUI_CHROMA_SKIP_LOGGED = False
+
+
 def resolve_vector_backend_name(cfg: Any | None = None) -> str:
     raw = ""
     if cfg is not None:
@@ -77,7 +80,16 @@ def resolve_vector_backend_name(cfg: Any | None = None) -> str:
             raw = str(getattr(Settings(_env_file=None), "vector_backend", "") or "")
         except Exception:
             raw = ""
-    return normalize_vector_backend(raw)
+    name = normalize_vector_backend(raw)
+    # A TUI window must not open the on-disk Chroma index. Several windows
+    # and the gateway share that directory, and the native library segfaults.
+    if name == "chroma" and os.environ.get("HOLIX_TUI_PROCESS") == "1":
+        global _TUI_CHROMA_SKIP_LOGGED
+        if not _TUI_CHROMA_SKIP_LOGGED:
+            logger.info("TUI process uses in-memory vectors; on-disk Chroma stays with the gateway")
+            _TUI_CHROMA_SKIP_LOGGED = True
+        return "memory"
+    return name
 
 
 def uses_on_disk_chroma(cfg: Any | None = None) -> bool:

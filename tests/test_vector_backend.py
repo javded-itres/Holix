@@ -10,6 +10,7 @@ from core.memory.vector_backend import (
     hash_embedder,
     normalize_vector_backend,
     open_vector_backend,
+    resolve_vector_backend_name,
     uses_on_disk_chroma,
 )
 
@@ -27,6 +28,15 @@ def test_uses_on_disk_chroma_from_config() -> None:
     assert uses_on_disk_chroma(cfg) is False
     cfg = HolixRuntimeConfig.from_settings().with_overrides(vector_backend="chroma")
     assert uses_on_disk_chroma(cfg) is True
+
+
+def test_tui_process_keeps_chroma_on_disk_closed(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("HOLIX_TUI_PROCESS", "1")
+    chroma = HolixRuntimeConfig.from_settings().with_overrides(vector_backend="chroma")
+    assert resolve_vector_backend_name(chroma) == "memory"
+    assert uses_on_disk_chroma(chroma) is False
+    pg = HolixRuntimeConfig.from_settings().with_overrides(vector_backend="pgvector")
+    assert resolve_vector_backend_name(pg) == "pgvector"
 
 
 def test_memory_backend_upsert_query_delete() -> None:

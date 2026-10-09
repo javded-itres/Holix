@@ -23,13 +23,20 @@ HOLIX_LOGO = """\
 def pick_last_tui_session(
     rows: list[dict[str, Any]],
     saved_id: str,
+    *,
+    busy: Any = None,
 ) -> dict[str, Any] | None:
-    """Prefer the saved TUI chat if it has messages, else the newest TUI chat."""
+    """Prefer the saved TUI chat if it has messages, else the newest free one.
+
+    ``busy`` skips a conversation another live window already holds.
+    """
+    is_busy = busy if callable(busy) else (lambda _cid: False)
     tui_rows = [
         row
         for row in rows
         if str(row.get("conversation_id") or "").startswith("tui_")
         and int(row.get("message_count") or 0) > 0
+        and not is_busy(str(row.get("conversation_id") or ""))
     ]
     for row in tui_rows:
         if row.get("conversation_id") == saved_id:
