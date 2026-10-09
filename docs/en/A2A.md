@@ -38,6 +38,21 @@ Environment overrides:
 | `HOLIX_A2A_PUBLIC_URL` | Public base URL for the Agent Card |
 | `HOLIX_A2A_TIMEOUT_S` | Client timeout seconds |
 
+MikroLLM group neighbors are separate from `remote_agents`. Holix reads `GET /a2a/directory` with its `agt-…` token and lists them in `a2a_list_agents`. A message to a neighbor that has no own URL is `POST /a2a/messages`.
+
+```yaml
+a2a:
+  mikrollm:
+    url: http://192.168.88.1:4000
+    token_file: ~/.holix/mikrollm-agent.token
+```
+
+| Variable | Meaning |
+|----------|---------|
+| `HOLIX_MIKROLLM_A2A_URL` | gateway base URL |
+| `HOLIX_MIKROLLM_A2A_TOKEN` | `agt-…` token |
+| `HOLIX_MIKROLLM_A2A_TOKEN_FILE` | file containing that token |
+
 ## Server endpoints (gateway)
 
 Requires a Holix gateway API key (`hx_…`) like other `/v1` routes.
@@ -173,5 +188,5 @@ Example skill-style usage:
 
 ## Spec
 
-- https://a2a-protocol.org  
+- https://a2a-protocol.org
 - Protocol versions referenced: **0.3** / **1.0** (JSON-RPC + REST + Agent Card + SSE)

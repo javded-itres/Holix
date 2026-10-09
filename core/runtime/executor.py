@@ -60,13 +60,22 @@ async def run_holix(
         begin(conversation_id)
     try:
         async with enter_run_scope(agent, run_ctx, container=container):
+            from core.agent_events import ModelAutoSelectEvent
             from core.decision.model_select import apply_model_auto_select
 
-            await apply_model_auto_select(
+            chosen_model = await apply_model_auto_select(
                 agent,
                 user_input,
                 resume=bool(state_overrides),
             )
+            if chosen_model:
+                picked = ModelAutoSelectEvent(
+                    conversation_id=conversation_id,
+                    model=chosen_model,
+                )
+                if stamp:
+                    stamp(picked)
+                yield picked
             if use_graph:
                 from core.graph.builder import run_graph_loop
 

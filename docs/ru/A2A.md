@@ -29,6 +29,21 @@ a2a:
 | `HOLIX_A2A_PUBLIC_URL` | публичный URL карточки |
 | `HOLIX_A2A_TIMEOUT_S` | таймаут клиента |
 
+Соседи группы MikroLLM подключаются отдельно от `remote_agents`. Holix читает `GET /a2a/directory` ключом `agt-…` и показывает их в `a2a_list_agents`. Сообщение соседу без своего URL уходит в `POST /a2a/messages`.
+
+```yaml
+a2a:
+  mikrollm:
+    url: http://192.168.88.1:4000
+    token_file: ~/.holix/mikrollm-agent.token
+```
+
+| Переменная | Смысл |
+|------------|--------|
+| `HOLIX_MIKROLLM_A2A_URL` | адрес шлюза |
+| `HOLIX_MIKROLLM_A2A_TOKEN` | ключ `agt-…` |
+| `HOLIX_MIKROLLM_A2A_TOKEN_FILE` | файл с этим ключом |
+
 ## Эндпоинты gateway
 
 Нужен API-ключ gateway (`hx_…`).
@@ -75,8 +90,8 @@ curl -sSN -X POST "http://127.0.0.1:8000/a2a" \
 
 ## Ограничения
 
-- Push notifications (webhook) пока нет  
-- Task store в памяти процесса gateway  
-- Live progress — через `message/stream`; `/tasks/{id}/subscribe` даёт снимок  
+- Push notifications (webhook) пока нет
+- Task store в памяти процесса gateway
+- Live progress — через `message/stream`; `/tasks/{id}/subscribe` даёт снимок
 
 Полная EN-версия: [en/A2A.md](../en/A2A.md).

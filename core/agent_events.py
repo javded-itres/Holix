@@ -32,6 +32,7 @@ class EventType(StrEnum):
     # Conversation lifecycle
     USER_MESSAGE = "user_message"
     THINKING = "thinking"
+    MODEL_AUTO_SELECT = "model_auto_select"
     ASSISTANT_DELTA = "assistant_delta"
     FINAL_RESPONSE = "final_response"
     MAX_STEPS_REACHED = "max_steps_reached"
@@ -151,6 +152,20 @@ class UserMessageEvent(AgentEvent):
 
     def _extra_fields(self) -> dict[str, Any]:
         return {"content": self.content}
+
+
+@dataclass
+class ModelAutoSelectEvent(AgentEvent):
+    """System One picked the chat model for this turn."""
+
+    model: str = ""
+
+    def __post_init__(self):
+        super().__post_init__()
+        object.__setattr__(self, "type", EventType.MODEL_AUTO_SELECT)
+
+    def _extra_fields(self) -> dict[str, Any]:
+        return {"model": self.model}
 
 
 @dataclass
@@ -1123,6 +1138,7 @@ def make_event(
         EventType.STEP_BUDGET_CHOICE: StepBudgetChoiceEvent,
         EventType.STEP_BUDGET_RESOLVED: StepBudgetResolvedEvent,
         EventType.THINKING: ThinkingEvent,
+        EventType.MODEL_AUTO_SELECT: ModelAutoSelectEvent,
         EventType.SKILL_CREATED: SkillCreatedEvent,
         EventType.SKILL_PROPOSED: SkillProposedEvent,
         EventType.SKILL_PROPOSAL_REJECTED: SkillProposalRejectedEvent,

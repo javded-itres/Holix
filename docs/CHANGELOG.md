@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+### Added
+
+- **MikroLLM neighbors** — `a2a.mikrollm` (`url` plus `token` or `token_file`) loads `GET /a2a/directory` into `a2a_list_agents`. A name that exists only in that directory is sent with `POST /a2a/messages`. A configured `remote_agents` URL still waits for the remote reply.
+- **Auto-selected model** — when System One accepts a chat model, Telegram and MAX show that id on the live status line, including when it matches the current model.
+
+### Changed
+
+- **Sub-agent questions** — `ask_user` prompts and the final summary follow the profile interface language, not the language of the task brief.
+
 ## 1.1.16 — 2026-10-01
 
 ### Added

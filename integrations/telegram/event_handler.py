@@ -17,6 +17,7 @@ from core.agent_events import (
     ContextWarningEvent,
     ErrorEvent,
     FinalResponseEvent,
+    ModelAutoSelectEvent,
     PlanCompletedEvent,
     PlanStepCompletedEvent,
     StepBudgetChoiceEvent,
@@ -82,7 +83,11 @@ class TelegramEventHandler:
             return
 
         try:
-            if isinstance(event, ThinkingEvent):
+            if isinstance(event, ModelAutoSelectEvent):
+                buf.auto_model = (event.model or "").strip()
+                self._presenter.schedule_edit(force=True)
+
+            elif isinstance(event, ThinkingEvent):
                 buf.set_thinking(
                     live_thinking_label(buf.profile, fallback=event.message or "thinking…")
                 )

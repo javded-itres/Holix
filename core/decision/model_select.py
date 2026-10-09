@@ -171,25 +171,31 @@ async def apply_model_auto_select(
     prompt: str,
     *,
     resume: bool = False,
-) -> None:
-    """Switch the live chat model for this turn. Never raises into the turn."""
+) -> str | None:
+    """Switch the live chat model for this turn. Return the accepted model id.
+
+    The id is returned even when it matches the current model, so the chat can
+    show which model System One chose. None means no choice was made. Never
+    raises into the turn.
+    """
     if resume or agent is None:
-        return
+        return None
     try:
         chosen = await choose_chat_model(agent, prompt)
         if not chosen:
-            return
+            return None
         current = str(getattr(agent, "model", "") or "").strip()
-        if chosen == current:
-            return
-        provider, _available = _provider_models(agent)
-        manager = getattr(agent, "model_manager", None)
-        if manager is None or not provider:
-            return
-        config = manager.get_provider_model_config(provider, model_id=chosen)
-        if config is None:
-            return
-        agent.set_active_model_config(config)
+        if chosen != current:
+            provider, _available = _provider_models(agent)
+            manager = getattr(agent, "model_manager", None)
+            if manager is None or not provider:
+                return None
+            config = manager.get_provider_model_config(provider, model_id=chosen)
+            if config is None:
+                return None
+            agent.set_active_model_config(config)
         logger.info("Model auto-select: %s", chosen)
+        return chosen
     except Exception:
         logger.debug("Model auto-select skipped", exc_info=True)
+        return None

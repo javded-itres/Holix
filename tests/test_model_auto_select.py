@@ -144,6 +144,27 @@ async def test_error_string_keeps_the_current_model(monkeypatch, no_profile_key)
     assert await choose_chat_model(agent, "ок", settings) is None
 
 
+async def test_same_model_is_still_reported(monkeypatch, no_profile_key) -> None:
+    async def answer(*_a, **_k):
+        return json.dumps({"model": {"choice": "auto", "confidence": 0.95}})
+
+    monkeypatch.setattr("core.decision.model_select.call_systemone", answer)
+    agent = _agent(["auto", "coder"])
+    settings = read_model_auto_select({"model_auto_select": {"enabled": True}})
+    assert await choose_chat_model(agent, "привет", settings) == "auto"
+
+
+def test_live_status_shows_the_chosen_model(monkeypatch) -> None:
+    monkeypatch.setattr(
+        "core.i18n.live_ui.live_auto_model_label",
+        lambda _profile, model: f"Модель: {model}",
+    )
+    from core.presenters.live_buffer import LiveTranscriptBuffer
+
+    text = LiveTranscriptBuffer(profile="admin", auto_model="ornith-1.5:35b").render_plain()
+    assert "Модель: ornith-1.5:35b" in text
+
+
 async def test_resume_does_not_switch(monkeypatch, no_profile_key) -> None:
     async def answer(*_a, **_k):
         return json.dumps({"model": {"choice": "coder"}})

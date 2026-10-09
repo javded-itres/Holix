@@ -53,6 +53,10 @@ def live_working_label(profile: str | None) -> str:
     return t("live.working", locale_for_profile(profile))
 
 
+def live_auto_model_label(profile: str | None, model: str) -> str:
+    return t("live.auto_model", locale_for_profile(profile), model=model)
+
+
 def live_reasoning_label(profile: str | None) -> str:
     return t("live.reasoning", locale_for_profile(profile))
 

@@ -24,6 +24,8 @@ def test_subagent_prompt_ru_when_profile_locale_ru(holix_home) -> None:
     prompt = build_subagent_system_prompt(cfg, "Напиши README", profile_name="default")
     assert "## Язык" in prompt
     assert "ТОЛЬКО на русском" in prompt
+    assert prompt.rstrip().endswith("сформулированы на английском.")
+    assert prompt.index("## Язык вопросов") > prompt.index("## Your Task")
 
 
 def test_subagent_prompt_en_when_profile_locale_en(holix_home) -> None:
@@ -32,3 +34,5 @@ def test_subagent_prompt_en_when_profile_locale_en(holix_home) -> None:
     prompt = build_subagent_system_prompt(cfg, "Add tests", profile_name="default")
     assert "## Language" in prompt
     assert "only in English" in prompt
+    assert "## Questions language" in prompt
+    assert prompt.index("## Questions language") > prompt.index("## Your Task")

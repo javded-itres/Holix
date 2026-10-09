@@ -45,6 +45,212 @@ def test_load_a2a_config_from_raw() -> None:
     assert cfg.remote_agents[0].name == "r1"
 
 
+def test_per_agent_remotes_do_not_inherit_profile_list() -> None:
+    cfg = load_a2a_config(
+        raw={
+            "a2a": {
+                "enabled": True,
+                "remote_agents": [{"name": "shared", "url": "https://shared.example/a2a"}],
+                "agents": {
+                    "coder": {
+                        "enabled": True,
+                        "remote_agents": [
+                            {"name": "docs", "url": "https://docs.example/a2a"},
+                        ],
+                    },
+                    "researcher": {"enabled": False, "remote_agents": []},
+                },
+            }
+        }
+    )
+    from core.a2a.config import remotes_for_slot
+
+    main_on, main_peers = remotes_for_slot(cfg, "main")
+    assert main_on is True
+    assert [peer.name for peer in main_peers] == ["shared"]
+    coder_on, coder_peers = remotes_for_slot(cfg, "coder")
+    assert coder_on is True
+    assert [peer.name for peer in coder_peers] == ["docs"]
+    research_on, research_peers = remotes_for_slot(cfg, "researcher")
+    assert research_on is False
+    assert research_peers == []
+
+
+def test_resolve_remote_uses_agent_slot(monkeypatch: pytest.MonkeyPatch) -> None:
+    from core.a2a.config import A2AConfig, RemoteA2AAgent
+    from core.tools.a2a import _resolve_remote
+
+    cfg = A2AConfig(
+        enabled=True,
+        remote_agents=[RemoteA2AAgent(name="shared", url="https://shared.example/a2a")],
+        agent_remotes={
+            "coder": [RemoteA2AAgent(name="docs", url="https://docs.example/a2a")],
+        },
+        agent_enabled={"coder": True, "researcher": False},
+    )
+    cfg.agent_remotes["researcher"] = []
+    monkeypatch.setattr("core.tools.a2a.load_a2a_config", lambda _profile: cfg)
+    coder = SimpleNamespace(agent_slot="coder", config=SimpleNamespace(profile_name="p"))
+    url, _headers, _timeout = _resolve_remote(coder, "docs")
+    assert url == "https://docs.example/a2a"
+    with pytest.raises(ValueError, match="docs"):
+        _resolve_remote(coder, "shared")
+    main = SimpleNamespace(agent_slot="main", config=SimpleNamespace(profile_name="p"))
+    shared, _, _ = _resolve_remote(main, "shared")
+    assert shared == "https://shared.example/a2a"
+    researcher = SimpleNamespace(
+        agent_slot="researcher",
+        config=SimpleNamespace(profile_name="p"),
+    )
+    with pytest.raises(RuntimeError, match="disabled"):
+        _resolve_remote(researcher, "https://other.example/a2a")
+
+
+def test_parse_mikrollm_from_profile_and_env(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("HOLIX_MIKROLLM_A2A_URL", raising=False)
+    monkeypatch.delenv("HOLIX_MIKROLLM_A2A_TOKEN", raising=False)
+    monkeypatch.delenv("HOLIX_MIKROLLM_A2A_TOKEN_FILE", raising=False)
+    cfg = load_a2a_config(
+        raw={
+            "a2a": {
+                "mikrollm": {
+                    "url": "http://gw.example:4000/",
+                    "token_file": "~/.holix/agent.token",
+                }
+            }
+        }
+    )
+    assert cfg.mikrollm is not None
+    assert cfg.mikrollm.url == "http://gw.example:4000"
+    assert cfg.mikrollm.token_file == "~/.holix/agent.token"
+    monkeypatch.setenv("HOLIX_MIKROLLM_A2A_URL", "http://env.example:4000")
+    overridden = load_a2a_config(raw={"a2a": {"mikrollm": {"url": "http://gw.example:4000"}}})
+    assert overridden.mikrollm is not None
+    assert overridden.mikrollm.url == "http://env.example:4000"
+    monkeypatch.delenv("HOLIX_MIKROLLM_A2A_URL")
+    assert load_a2a_config(raw={"a2a": {"enabled": True}}).mikrollm is None
+
+
+def test_neighbor_rows_skip_blank_names() -> None:
+    from core.a2a.mikrollm import neighbor_rows
+
+    rows = neighbor_rows(
+        {
+            "self": {"name": "holix"},
+            "agents": [
+                {"name": "holix-mac1", "groups": ["holix"], "display_name": "Mac"},
+                {"name": "  "},
+                "not-a-card",
+            ],
+        }
+    )
+    assert rows == [
+        {
+            "name": "holix-mac1",
+            "display_name": "Mac",
+            "company": "",
+            "description": "",
+            "skills": [],
+            "groups": ["holix"],
+            "source": "mikrollm",
+        }
+    ]
+
+
+@pytest.mark.asyncio
+async def test_list_agents_merges_directory(monkeypatch: pytest.MonkeyPatch) -> None:
+    from core.a2a.config import A2AConfig, RemoteA2AAgent
+    from core.a2a.mikrollm import MikroLLMLink
+    from core.tools.a2a import A2AListAgentsTool
+
+    cfg = A2AConfig(
+        enabled=True,
+        remote_agents=[
+            RemoteA2AAgent(name="holix-mac1", url="https://gw.example/a2a/u/holix-mac1")
+        ],
+        mikrollm=MikroLLMLink(url="http://gw.example:4000", token="agt-test"),
+    )
+    monkeypatch.setattr("core.tools.a2a.load_a2a_config", lambda _profile: cfg)
+
+    async def fake_directory(_link):
+        return {
+            "agents": [
+                {"name": "holix-mac1", "groups": ["holix"], "display_name": "Mac"},
+                {"name": "shop", "groups": ["orders"], "description": "Shop agent"},
+            ]
+        }
+
+    monkeypatch.setattr("core.tools.a2a.fetch_directory", fake_directory)
+    parent = SimpleNamespace(agent_slot="main", config=SimpleNamespace(profile_name="default"))
+    raw = await A2AListAgentsTool(parent).execute()
+    import json
+
+    body = json.loads(raw)
+    by_name = {item["name"]: item for item in body["agents"]}
+    assert by_name["holix-mac1"]["source"] == "both"
+    assert by_name["holix-mac1"]["groups"] == ["holix"]
+    assert by_name["shop"]["source"] == "mikrollm"
+    assert body["mikrollm_error"] is None
+
+
+@pytest.mark.asyncio
+async def test_send_to_directory_neighbor_posts_group(monkeypatch: pytest.MonkeyPatch) -> None:
+    from core.a2a.config import A2AConfig, RemoteA2AAgent
+    from core.a2a.mikrollm import MikroLLMLink
+    from core.tools.a2a import A2ASendMessageTool
+
+    cfg = A2AConfig(
+        enabled=True,
+        remote_agents=[RemoteA2AAgent(name="known", url="https://known.example/a2a")],
+        mikrollm=MikroLLMLink(url="http://gw.example:4000", token="agt-test"),
+    )
+    monkeypatch.setattr("core.tools.a2a.load_a2a_config", lambda _profile: cfg)
+
+    async def fake_directory(_link):
+        return {"agents": [{"name": "shop", "groups": ["orders", "holix"]}]}
+
+    posted: dict[str, str] = {}
+
+    async def fake_post(_link, *, group: str, to: str, text: str):
+        posted.update(group=group, to=to, text=text)
+        return {"message": {"id": 7}}
+
+    monkeypatch.setattr("core.tools.a2a.fetch_directory", fake_directory)
+    monkeypatch.setattr("core.tools.a2a.post_group_message", fake_post)
+    parent = SimpleNamespace(agent_slot="main", config=SimpleNamespace(profile_name="default"))
+    tool = A2ASendMessageTool(parent)
+    import json
+
+    body = json.loads(await tool.execute(agent="shop", message="ping"))
+    assert body["ok"] is True
+    assert body["via"] == "mikrollm"
+    assert posted == {"group": "orders", "to": "shop", "text": "ping"}
+    chosen = json.loads(await tool.execute(agent="shop", message="ping", group="holix"))
+    assert chosen["group"] == "holix"
+    # A configured URL still uses the blocking client, not the group post.
+    called = {"n": 0}
+
+    async def refuse_post(*_args, **_kwargs):
+        called["n"] += 1
+        raise AssertionError("configured remote must not post to the group")
+
+    monkeypatch.setattr("core.tools.a2a.post_group_message", refuse_post)
+
+    class FakeClient:
+        def __init__(self, *_args, **_kwargs):
+            pass
+
+        async def send_message(self, text, **_kwargs):
+            return {"id": "t1", "contextId": "c1", "status": {"state": "completed"}, "text": text}
+
+    monkeypatch.setattr("core.tools.a2a.A2AClient", FakeClient)
+    monkeypatch.setattr("core.tools.a2a.extract_task_text", lambda task: "reply")
+    direct = json.loads(await tool.execute(agent="known", message="hello"))
+    assert direct["ok"] is True
+    assert direct["text"] == "reply"
+    assert called["n"] == 0
+
+
 def test_build_agent_card_minimal() -> None:
     card = build_agent_card(
         "default",
@@ -136,7 +342,9 @@ async def test_handle_message_stream_events() -> None:
 
     store = A2ATaskStore()
 
-    async def _fake_run_holix(agent, user_input, conversation_id, *, stream=False, execution_mode=None):
+    async def _fake_run_holix(
+        agent, user_input, conversation_id, *, stream=False, execution_mode=None
+    ):
         yield ThinkingEvent(message="planning")
         yield FinalResponseEvent(content="streamed answer")
 
@@ -145,7 +353,6 @@ async def test_handle_message_stream_events() -> None:
         emit=lambda e: None,
         run=AsyncMock(return_value="fallback"),
     )
-
 
     # Patch run_holix import path used inside handle_message_stream
     import core.runtime.executor as executor_mod
@@ -176,10 +383,7 @@ async def test_handle_message_stream_events() -> None:
         e
         for e in events
         if e.get("statusUpdate", {}).get("final")
-        or (
-            e.get("task", {}).get("status", {}).get("state")
-            in {"completed", "failed"}
-        )
+        or (e.get("task", {}).get("status", {}).get("state") in {"completed", "failed"})
     ]
     assert finals
     # completed answer stored

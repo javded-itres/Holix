@@ -12,6 +12,34 @@ from core.prompt_builder import (
 from core.subagents.base import SubAgentConfig
 
 
+def subagent_language_lock(*, profile_name: str | None) -> str:
+    """Repeat the UI language after the task so questions do not follow English briefs."""
+    from core.i18n.locale import LocaleStore, normalize_locale
+
+    locale = "ru"
+    if profile_name:
+        try:
+            locale = normalize_locale(LocaleStore(profile_name).get())
+        except Exception:
+            locale = "ru"
+    if locale == "en":
+        return (
+            "## Questions language\n"
+            "The selected interface language is English. "
+            "Write every question to the user and to the parent, including "
+            "`ask_user` prompts, option labels, and headers, in English. "
+            "Do this even when the task text or this system prompt is in another language."
+        )
+    return (
+        "## Язык вопросов\n"
+        "Выбранный язык интерфейса — русский. "
+        "Все вопросы человеку и родителю, тексты `ask_user`, подписи вариантов "
+        "и заголовки пиши по-русски. "
+        "Не переключайся на английский из-за того, что задача или этот промпт "
+        "сформулированы на английском."
+    )
+
+
 def build_subagent_system_prompt(
     config: SubAgentConfig,
     task: str,
@@ -103,4 +131,5 @@ Remember: You are {config.name}. Stay focused on your specialized role.
         workspace_jail_enabled=workspace_jail_enabled,
         working_directory=working_directory,
     )
-    return append_holix_project_context(prompt, cwd=project_cwd)
+    prompt = append_holix_project_context(prompt, cwd=project_cwd)
+    return f"{prompt.rstrip()}\n\n{subagent_language_lock(profile_name=profile_name)}\n"

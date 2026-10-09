@@ -35,6 +35,7 @@ class LiveTranscriptBuffer:
     compact_tools: bool = False
     todos: list[dict[str, str]] = field(default_factory=list)
     sdd_change_line: str = ""
+    auto_model: str = ""
     _code_runs: dict[str, dict] = field(default_factory=dict)
 
     def set_header(
@@ -188,6 +189,10 @@ class LiveTranscriptBuffer:
             f"🤖 Holix · {self.profile} · {self.mode} · {self.session_label}",
             "─" * 32,
         ]
+        if self.auto_model:
+            from core.i18n.live_ui import live_auto_model_label
+
+            parts.append(live_auto_model_label(self.profile, self.auto_model))
         if self.background_process:
             icon = "🟢" if self.background_process_healthy else "🔴"
             parts.append(f"{icon} Process: {self.background_process}")

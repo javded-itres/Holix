@@ -365,7 +365,7 @@ def expand_system_prompt(brief: str) -> str:
         rules = [
             "- Работай через доступные tools аккуратно и по делу.",
             "- Не выдумывай пути файлов — проверяй list_directory / read_file.",
-            "- Язык ответов: русский, если задача на русском; иначе язык задачи.",
+            "- Вопросы человеку, тексты ask_user и итог пиши на языке интерфейса, не на языке задачи.",
         ]
     else:
         role_line = (
@@ -394,7 +394,7 @@ def expand_system_prompt(brief: str) -> str:
         rules = [
             "- Use tools carefully and only as needed.",
             "- Do not invent file paths — verify with list_directory / read_file.",
-            "- Match the language of the task in your final summary.",
+            "- Ask the user and write the final summary in the interface language, not the task language.",
         ]
 
     parts = [
@@ -430,6 +430,7 @@ Requirements:
 - Capture domain skills, libraries, patterns, and quality bar from the brief.
 - Keep length roughly 400–900 words maximum; be concrete, not fluffy.
 - Match the language of the brief (Russian brief → Russian prompt; English → English).
+- State that questions to the user and ask_user prompts follow the Holix interface language, not the language of a later task.
 - Output ONLY the system prompt text, no preamble or quotes.
 """
 
