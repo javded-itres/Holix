@@ -117,6 +117,89 @@ def prepare_initial_state(
     return state
 
 
+async def _stream_graph_with_bus_bridge(
+    compiled_graph,
+    initial_state: dict,
+    config: dict,
+    *,
+    agent,
+    bus_queue: asyncio.Queue | None,
+    conversation_id: str,
+    result_holder: dict,
+):
+    """Async generator: run graph ``ainvoke`` in a task, yield bus events live.
+
+    LangGraph's ``ainvoke`` blocks the calling generator, so deltas emitted to
+    the agent's event bus would never reach SSE consumers. This helper races
+    the ainvoke task against bus-queue reads and yields bridged events
+    (assistant deltas, tool call start/result) while the graph runs. When
+    ainvoke completes it fills ``result_holder["final_state"]``.
+
+    Only a real ``asyncio.Queue`` from a real ``AgentEventBus`` is bridged;
+    otherwise (MagicMock agents in tests, missing bus) the graph runs exactly
+    as before.
+    """
+    from core.agent_events import (
+        AssistantDeltaEvent,
+        ToolCallResultEvent,
+        ToolCallStartEvent,
+    )
+
+    forwardable = (AssistantDeltaEvent, ToolCallStartEvent, ToolCallResultEvent)
+
+    ainvoke_task = asyncio.create_task(compiled_graph.ainvoke(initial_state, config))
+    if not isinstance(bus_queue, asyncio.Queue):
+        result_holder["final_state"] = await ainvoke_task
+        return
+
+    bus_get_task: asyncio.Task = asyncio.ensure_future(bus_queue.get())
+    try:
+        while True:
+            done, _ = await asyncio.wait(
+                {ainvoke_task, bus_get_task},
+                return_when=asyncio.FIRST_COMPLETED,
+            )
+            if bus_get_task in done:
+                event = bus_get_task.result()
+                bus_get_task = asyncio.ensure_future(bus_queue.get())
+                if (
+                    event is not None
+                    and isinstance(event, forwardable)
+                    and getattr(event, "conversation_id", conversation_id) == conversation_id
+                ):
+                    yield event
+            if ainvoke_task in done:
+                break
+        # Drain leftovers: events emitted in the same tick ainvoke finished
+        # sit in the queue while bus_get_task still holds one pending get().
+        while True:
+            try:
+                event = bus_queue.get_nowait()
+            except asyncio.QueueEmpty:
+                break
+            if (
+                isinstance(event, forwardable)
+                and getattr(event, "conversation_id", conversation_id) == conversation_id
+            ):
+                yield event
+        result_holder["final_state"] = await ainvoke_task
+    except asyncio.CancelledError:
+        ainvoke_task.cancel()
+        bus_get_task.cancel()
+        raise
+    finally:
+        if not ainvoke_task.done():
+            ainvoke_task.cancel()
+        if not bus_get_task.done():
+            bus_get_task.cancel()
+        try:
+            bus = getattr(agent, "events", None)
+            if bus is not None and hasattr(bus, "unsubscribe_queue"):
+                bus.unsubscribe_queue(bus_queue)
+        except Exception:
+            pass
+
+
 async def run_graph_loop(
     agent,
     user_input: str,
@@ -218,6 +301,17 @@ async def run_graph_loop(
         },
     }
 
+    # --- Delta bridge: forward bus events (deltas / tool calls) into this
+    # generator so SSE consumers see live streaming during graph execution.
+    # The bus queue is drained by the wait-loop below while ainvoke runs.
+    bus = getattr(agent, "events", None)
+    bus_queue: asyncio.Queue | None = None
+    if bus is not None and hasattr(bus, "subscribe_queue"):
+        try:
+            bus_queue = bus.subscribe_queue(maxsize=256)
+        except Exception:
+            bus_queue = None
+
     try:
         async with async_checkpointer(
             use_persistent=use_persistent,
@@ -231,7 +325,18 @@ async def run_graph_loop(
                 checkpointer=checkpointer,
                 stream=stream,
             )
-            final_state = await compiled_graph.ainvoke(initial_state, config)
+            result_holder: dict = {}
+            async for bridge_event in _stream_graph_with_bus_bridge(
+                compiled_graph,
+                initial_state,
+                config,
+                agent=agent,
+                bus_queue=bus_queue,
+                conversation_id=conversation_id,
+                result_holder=result_holder,
+            ):
+                yield bridge_event
+            final_state = result_holder["final_state"]
 
         from core.llm.response_text import sanitize_assistant_visible_text
         from core.presenters.final_content import (

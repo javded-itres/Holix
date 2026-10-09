@@ -11,12 +11,16 @@
 
 ### Fixed
 
+- **Shell results** — `grep` with no matches is reported as "No matches", and a usage-only exit 2 as "Unrecognized command". A traceback stays an error.
+- **Empty model reply** — the main agent continues the turn after an empty answer, the same way a sub-agent already does, instead of closing on the placeholder.
 - **OpenSpec CLI tasks** — checkbox lines `1.1 [main, s] … Зависит от 1.1–1.3` are read as Holix assignee, size, and depends_on. The first status or task read rewrites `tasks.md` into nested fields so Studio can move the change.
 - **TUI and MCP stderr** — a stdio MCP server that crashes writes its traceback to `~/.holix/logs/mcp-stderr.log` instead of the terminal, so the full-screen TUI stays up.
-- **TUI and the memory index** — Chroma's native library kills the process if the TUI opens the same on-disk index the gateway already holds. The second process keeps the chat in SQLite and uses an in-memory index instead of leaving the screen.
+- **TUI and the memory index** — a TUI window does not open the on-disk Chroma index. That index stays with the gateway. Each window keeps its own state file under `~/.holix/tui-sessions/` and will not attach to a conversation another live window already holds.
+- **Repeated tool lines** — a tool event already on the agent bus is not emitted again. The graph runner was putting each yielded tool line back on that bus, so one call was drawn hundreds of times.
 
 ### Changed
 
+- **Plan step budget** — `max_steps_per_plan_step: 0` means a plan step has no ReAct cap, the same as `max_steps: 0` for the whole run. The default stays 5.
 - **Sub-agent questions** — `ask_user` prompts and the final summary follow the profile interface language, not the language of the task brief.
 
 ## 1.1.16 — 2026-10-01

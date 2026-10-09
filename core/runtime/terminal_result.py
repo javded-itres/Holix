@@ -2,8 +2,19 @@
 
 from __future__ import annotations
 
+import re
+
 from core.platform_compat import IS_WINDOWS
 from core.runtime.test_run_signals import is_red_test_output, is_test_command, is_test_log_dump
+
+# grep/rg exit 1 means "no selected lines", not a crashed command.
+_SEARCH_MISS_RE = re.compile(
+    r"(?:^|[;&|(\n]|&&|\|\|)\s*(?:grep|egrep|fgrep|rg|ag|ack|git\s+grep)\b"
+)
+# CLI usage, not a Python traceback. Those stay Error so the agent can fix them.
+_USAGE_RE = re.compile(
+    r"(?i)(no such command|unknown command|unrecognized arguments|invalid choice|^usage:)"
+)
 
 # dash (Debian/Ubuntu /bin/sh) treats a failed `set` as fatal (special builtin),
 # so we must not invoke `set -o pipefail` unless this is actually bash.
@@ -109,4 +120,23 @@ def format_process_result(
         return f"Error (exit code 0, tests failed in output):\n{body}"
     if rc == 0:
         return f"Success (exit code 0):\n{out}" if out else "Success (no output)"
+    if _search_miss(command, rc):
+        body = out.strip() or err.strip()
+        return f"No matches:\n{body}" if body else "No matches."
+    if _usage_only(rc, out, err):
+        body = (err or out).strip()
+        return f"Unrecognized command:\n{body}" if body else "Unrecognized command."
     return f"Error (exit code {rc}):\nSTDOUT:\n{out}\nSTDERR:\n{err}"
+
+
+def _search_miss(command: str, returncode: int) -> bool:
+    return returncode == 1 and bool(_SEARCH_MISS_RE.search(command or ""))
+
+
+def _usage_only(returncode: int, output: str, error: str) -> bool:
+    if returncode != 2:
+        return False
+    blob = f"{output}\n{error}"
+    if "Traceback" in blob:
+        return False
+    return bool(_USAGE_RE.search(blob))

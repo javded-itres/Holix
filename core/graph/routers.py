@@ -98,9 +98,10 @@ def route_after_react_plan(state: HolixGraphState) -> str:
 
     has_active_plan = bool(plan_steps) and current_step_idx < len(plan_steps)
     if has_active_plan:
-        max_per_step = state.get("max_steps_per_plan_step", 5)
+        max_per_step = int(state.get("max_steps_per_plan_step", 5) or 0)
         steps_in_current = step_count - current_step_start_count
-        if steps_in_current >= max_per_step:
+        # 0 matches max_steps: no per-step cap.
+        if max_per_step > 0 and steps_in_current >= max_per_step:
             logger.info(
                 "Step limit reached for plan step %s: %s/%s. Advancing.",
                 current_step_idx + 1,

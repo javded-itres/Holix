@@ -209,6 +209,12 @@ class HolixCodeApp(App):
             event.stop()
 
     async def on_unmount(self) -> None:
+        locked = getattr(self, "_locked_conversation_id", "") or ""
+        if locked:
+            from cli.tui.session_lock import release_conversation
+
+            release_conversation(locked)
+            self._locked_conversation_id = ""
         listener = getattr(self, "_agent_task_listener", None)
         if listener is not None:
             from core.runtime.agent_tasks import unregister_agent_task_listener
@@ -719,35 +725,63 @@ class HolixCodeApp(App):
     # --- Persistence ---
 
     def _state_path(self) -> Path:
-        return HOLIX_HOME / "tui-state.json"
+        from cli.tui.session_lock import window_state_path
+
+        return window_state_path()
+
+    def _apply_ui_prefs(self, data: dict, *, restore_conversation: bool) -> None:
+        if restore_conversation and (cid := data.get("conversation_id")):
+            self.conversation_id = str(cid)
+        if data.get("streaming_enabled"):
+            self.streaming_enabled = True
+        modes = self._execution_modes
+        if (m := data.get("execution_mode")) in modes:
+            self._execution_mode_index = modes.index(m)
+        if isinstance(data.get("prompt_history"), list):
+            self._prompt_history_store.load(data["prompt_history"])
 
     def _load_ui_state(self) -> None:
         try:
-            data = json.loads(self._state_path().read_text(encoding="utf-8"))
-            if cid := data.get("conversation_id"):
-                self.conversation_id = cid
-            if data.get("streaming_enabled"):
-                self.streaming_enabled = True
-            modes = self._execution_modes
-            if (m := data.get("execution_mode")) in modes:
-                self._execution_mode_index = modes.index(m)
-            if isinstance(data.get("prompt_history"), list):
-                self._prompt_history_store.load(data["prompt_history"])
+            path = self._state_path()
+            if path.is_file():
+                data = json.loads(path.read_text(encoding="utf-8"))
+                self._apply_ui_prefs(data, restore_conversation=True)
+                return
+            legacy = HOLIX_HOME / "tui-state.json"
+            if not legacy.is_file():
+                return
+            # Shared file: keep prompt history and mode, never the other window's chat.
+            data = json.loads(legacy.read_text(encoding="utf-8"))
+            data.pop("conversation_id", None)
+            self._apply_ui_prefs(data, restore_conversation=False)
         except Exception:
             pass
 
     def _save_ui_state(self) -> None:
         try:
-            self._state_path().parent.mkdir(parents=True, exist_ok=True)
+            path = self._state_path()
+            path.parent.mkdir(parents=True, exist_ok=True)
             payload = {
                 "conversation_id": self.conversation_id,
                 "streaming_enabled": self.streaming_enabled,
                 "execution_mode": self._execution_modes[self._execution_mode_index],
                 "prompt_history": self._prompt_history_store.dump(),
             }
-            self._state_path().write_text(json.dumps(payload, indent=2), encoding="utf-8")
+            path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
         except Exception:
             pass
+
+    def _bind_conversation(self, conversation_id: str) -> bool:
+        """Own this conversation so another window cannot open it too."""
+        from cli.tui.session_lock import claim_conversation, release_conversation
+
+        previous = getattr(self, "_locked_conversation_id", "") or ""
+        if not claim_conversation(conversation_id):
+            return False
+        if previous and previous != conversation_id:
+            release_conversation(previous)
+        self._locked_conversation_id = conversation_id
+        return True
 
     # --- Agent ---
 
@@ -902,6 +936,7 @@ class HolixCodeApp(App):
     async def _offer_welcome_session(self) -> None:
         """Logo and continue-or-new before history is shown."""
         from cli.tui.modals.welcome import WelcomeScreen, pick_last_tui_session
+        from cli.tui.session_lock import conversation_busy
 
         last = None
         if self.agent:
@@ -909,7 +944,11 @@ class HolixCodeApp(App):
                 rows = await self.agent.list_conversations(limit=20)
             except Exception:
                 rows = []
-            last = pick_last_tui_session(rows, self.conversation_id)
+            last = pick_last_tui_session(
+                rows,
+                str(self.conversation_id or ""),
+                busy=conversation_busy,
+            )
         label = None
         if last:
             count = int(last.get("message_count") or 0)
@@ -918,12 +957,16 @@ class HolixCodeApp(App):
             label = f"{name} · {count} · {when}".strip(" ·")
         choice = await self.push_screen_wait(WelcomeScreen(lang=self._ui_lang(), last_label=label))
         if choice == "continue" and last:
-            self.conversation_id = str(last["conversation_id"])
-            self.session_display_name = self._short_name(self.conversation_id)
-            self._save_ui_state()
-            await self._load_conversation_history()
-            return
+            cid = str(last["conversation_id"])
+            if self._bind_conversation(cid):
+                self.conversation_id = cid
+                self.session_display_name = self._short_name(self.conversation_id)
+                self._save_ui_state()
+                await self._load_conversation_history()
+                return
+            self.transcript_write("[dim]that session is open in another window[/dim]\n")
         self.conversation_id = f"tui_{self.profile}_{int(time.time())}"
+        self._bind_conversation(self.conversation_id)
         self.session_display_name = "new"
         self._save_ui_state()
         self.transcript_write("[dim]new session[/dim]\n")
@@ -2287,6 +2330,9 @@ class HolixCodeApp(App):
 
         self._action_stop_all()
         new_id = f"tui_{self.profile}_{int(time.time())}"
+        if not self._bind_conversation(new_id):
+            self.transcript_write("[yellow]could not open a new session[/yellow]")
+            return
         self.conversation_id = new_id
         self.session_display_name = self._short_name(new_id)
         self._recent_tool_results.clear()
@@ -2313,6 +2359,11 @@ class HolixCodeApp(App):
             return
         new_id = self.known_sessions[index - 1]["conversation_id"]
         if new_id == self.conversation_id:
+            return
+        from cli.tui.session_lock import conversation_busy
+
+        if conversation_busy(new_id) or not self._bind_conversation(new_id):
+            self.transcript_write("[yellow]that session is open in another window[/yellow]")
             return
         self.conversation_id = new_id
         self.session_display_name = self._short_name(new_id)
@@ -2492,6 +2543,8 @@ def run_tui(profile: str = "default") -> None:
 
     from cli.tui.workspace import ENV_LAUNCH_CWD, capture_tui_launch_cwd
 
+    # Before profile init, so this process never opens the shared Chroma index.
+    os.environ["HOLIX_TUI_PROCESS"] = "1"
     if not (os.environ.get(ENV_LAUNCH_CWD) or "").strip():
         capture_tui_launch_cwd()
     ensure_multiprocessing_support()

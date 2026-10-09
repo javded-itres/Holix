@@ -104,6 +104,38 @@ def test_green_pytest_still_success() -> None:
     assert text.startswith("Success (exit code 0)")
 
 
+def test_grep_exit_1_is_no_matches_not_error() -> None:
+    text = format_process_result(
+        returncode=1,
+        output="",
+        error="",
+        command="grep -n soul core/profile/soul.py",
+    )
+    assert text == "No matches."
+    assert not text.startswith("Error")
+
+
+def test_python_traceback_stays_error() -> None:
+    text = format_process_result(
+        returncode=2,
+        output="",
+        error="Traceback (most recent call last):\nModuleNotFoundError: core.platform_compat",
+        command="python -m cli.services.gateway_worker",
+    )
+    assert text.startswith("Error (exit code 2)")
+
+
+def test_unknown_command_exit_2_is_not_labeled_error() -> None:
+    text = format_process_result(
+        returncode=2,
+        output="",
+        error="Error: No such command 'gateway logs'.",
+        command="holix gateway logs",
+    )
+    assert text.startswith("Unrecognized command:")
+    assert not text.startswith("Error")
+
+
 def test_non_test_failed_word_not_flipped() -> None:
     raw = "failed to bind port 8000"
     text = format_process_result(

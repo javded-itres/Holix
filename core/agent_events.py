@@ -1066,7 +1066,15 @@ class AgentEventBus:
 
         - Sync handlers are called immediately (with isolation).
         - Async handlers are scheduled via asyncio.create_task (fire-and-forget).
+
+        The same object is delivered once. Graph execution already puts tool
+        events on this bus, and the runner emits whatever the graph generator
+        yields. Without this guard those yields are the same objects, so each
+        one is queued and painted again until the graph step ends.
         """
+        if getattr(event, "_holix_bus_delivered", False):
+            return
+        object.__setattr__(event, "_holix_bus_delivered", True)
         # Sync handlers
         for handler in list(self._handlers):  # copy to allow unsubscribe during iteration
             try:

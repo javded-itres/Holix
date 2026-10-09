@@ -289,6 +289,8 @@ class HolixRuntimeConfig:
             overrides["temperature"] = profile.temperature
         if profile.max_steps is not None:
             overrides["max_steps"] = profile.max_steps
+        if getattr(profile, "max_steps_per_plan_step", None) is not None:
+            overrides["max_steps_per_plan_step"] = int(profile.max_steps_per_plan_step)
         from core.profile import ProfileManager, resolve_profile_storage_paths
 
         profile = resolve_profile_storage_paths(
