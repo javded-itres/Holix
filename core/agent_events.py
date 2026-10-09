@@ -67,6 +67,7 @@ class EventType(StrEnum):
 
     # Plan management
     PLAN_GENERATED = "plan_generated"
+    PLAN_MODE_CHANGED = "plan_mode_changed"
     PLAN_STEP_COMPLETED = "plan_step_completed"
     PLAN_COMPLETED = "plan_completed"
 
@@ -616,6 +617,22 @@ class ContextWarningEvent(AgentEvent):
             "tokens_total": self.tokens_total,
             "level": self.level,
         }
+
+
+@dataclass
+class PlanModeChangedEvent(AgentEvent):
+    """Plan mode turned on or off, with the plan text to show in the chat."""
+
+    action: str = ""
+    active: bool = False
+    plan: str = ""
+
+    def __post_init__(self):
+        super().__post_init__()
+        object.__setattr__(self, "type", EventType.PLAN_MODE_CHANGED)
+
+    def _extra_fields(self) -> dict[str, Any]:
+        return {"action": self.action, "active": self.active, "plan": self.plan}
 
 
 @dataclass

@@ -1872,8 +1872,20 @@ class HolixCodeApp(App):
 
         settings.execution_mode = mode
         self.transcript_write(f"[dim]mode → {mode}[/dim]")
+        self._show_plan_for_mode(mode)
         self._save_ui_state()
         self._refresh_status_bar()
+
+    def _show_plan_for_mode(self, mode: str) -> None:
+        """Print the current plan when the chat switches into a plan mode."""
+        if mode not in {"plan_and_execute", "hybrid"}:
+            return
+        from core.tools.plan_mode import current_plan_text
+
+        text = current_plan_text(getattr(self, "config", None))
+        if not text:
+            return
+        self._event_handler._show_plan(text)
 
     def action_stop_all(self) -> None:
         """Bound to Ctrl+S and shared with /stop."""

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Any
 
 from core.tools.base import BaseTool
@@ -61,6 +62,7 @@ class PlanModeTool(BaseTool):
         if act == "enter":
             state = enter_plan_mode(plan)
             path = _persist_plan(plan)
+            _publish_plan(action="enter", active=True, plan=str(plan or ""))
             extra: dict[str, Any] = {}
             if path:
                 extra["saved"] = path
@@ -68,6 +70,9 @@ class PlanModeTool(BaseTool):
 
         state = get_plan_state()
         body = (plan or state.get("plan") or "").strip()
+        if body:
+            _publish_plan(action="exit", active=True, plan=body)
+            _persist_plan(body)
         if require_approval and body:
             approved = await _ask_approve(body)
             if approved is None:
@@ -80,9 +85,32 @@ class PlanModeTool(BaseTool):
                     approved=False,
                     message="Plan kept in plan_mode — revise, then exit again.",
                 )
-            _persist_plan(body)
         exit_plan_mode()
         return tool_ok(active=False, plan=body, approved=True)
+
+
+def _publish_plan(*, action: str, active: bool, plan: str) -> None:
+    """Tell the open UI to print the plan. Skipping approval must not hide it."""
+    text = (plan or "").strip()
+    if not text:
+        return
+    try:
+        from core.agent_events import PlanModeChangedEvent
+        from core.tools.execution_context import get_agent_emit, get_conversation_id
+
+        emit = get_agent_emit()
+        if emit is None:
+            return
+        emit(
+            PlanModeChangedEvent(
+                conversation_id=get_conversation_id() or "default",
+                action=action,
+                active=active,
+                plan=text,
+            )
+        )
+    except Exception:
+        return
 
 
 async def _ask_approve(plan: str) -> bool | None:
@@ -93,7 +121,7 @@ async def _ask_approve(plan: str) -> bool | None:
         questions=[
             {
                 "id": "plan",
-                "prompt": "Approve this plan and exit plan mode?",
+                "prompt": "Approve this plan and exit plan mode?\n\n" + plan.strip(),
                 "header": "Plan mode",
                 "allow_free_text": False,
                 "multi_select": False,
@@ -121,6 +149,30 @@ async def _ask_approve(plan: str) -> bool | None:
         picked = [picked]
     value = str(picked[0] if picked else "").strip().lower()
     return value in {"approve", "approved", "yes"}
+
+
+def current_plan_text(config: Any | None = None) -> str:
+    """Plan text for the open conversation, else the newest saved plan."""
+    live = str(get_plan_state().get("plan") or "").strip()
+    if live:
+        return live
+    try:
+        from core.plan_review.plan_storage import load_latest_plan
+
+        loaded = load_latest_plan(config)
+    except Exception:
+        return ""
+    if not isinstance(loaded, dict):
+        return ""
+    raw_json = str(loaded.get("json_path") or "").strip()
+    if raw_json:
+        md_path = Path(raw_json).with_suffix(".md")
+        try:
+            if md_path.is_file():
+                return md_path.read_text(encoding="utf-8").strip()
+        except OSError:
+            return ""
+    return ""
 
 
 def _persist_plan(plan: str) -> str | None:
