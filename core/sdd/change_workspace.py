@@ -500,6 +500,40 @@ def format_active_change_prompt_block(active: ActiveChange | None) -> str:
     return ""
 
 
+def pin_subagent_directory(
+    profile: str,
+    conversation_id: str,
+    directory: str,
+    *,
+    change_id: str = "",
+) -> str | None:
+    """Pin a sub-agent conversation to an explicit directory (task git worktree)."""
+    raw = (directory or "").strip()
+    if not raw:
+        return None
+    try:
+        path = Path(raw).expanduser().resolve()
+    except (OSError, RuntimeError, ValueError):
+        return None
+    if not path.is_dir():
+        return None
+    cid = (change_id or "").strip() or path.name
+    clone = path
+    if path.parent.name == "worktrees" and path.parent.parent.name == ".holix":
+        clone = path.parent.parent.parent
+    active = ActiveChange(
+        change_id=cid,
+        branch="",
+        worktree=str(path),
+        clone=str(clone),
+        project="",
+        project_root=str(path),
+        locked=True,
+    )
+    bind_active_change(profile, conversation_id, active, force=True, locked=True)
+    return str(path)
+
+
 def resolve_subagent_workspace(
     *,
     profile: str,

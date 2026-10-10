@@ -523,6 +523,7 @@ class SubAgentManager:
         instance_name: str | None = None,
         max_steps: int | None = None,
         fork: bool = False,
+        working_directory: str | None = None,
     ) -> tuple[SubAgentHandle, SubAgentResult | None]:
         """Spawn a registry sub-agent in a separate process when supported.
 
@@ -547,6 +548,11 @@ class SubAgentManager:
         else:
             instance = self.allocate_name(agent_type)
         sub_cfg = prepare_subagent_config(agent_type, parent_cfg, instance_name=instance)
+        wd = (working_directory or "").strip()
+        if wd:
+            # Dynamic: SubAgentConfig has no field. The process runner pins this
+            # directory so analysis jobs stay in the task git worktree.
+            sub_cfg.working_directory = wd  # type: ignore[attr-defined]
         if fork:
             from core.subagents.base import MemoryAccess
             from core.subagents.fork import snapshot_parent_history

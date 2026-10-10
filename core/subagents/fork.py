@@ -178,6 +178,11 @@ def bind_subagent_session(
             child_conversation_id=child_cid,
             fallback=str(fallback) if fallback else None,
         )
+        explicit = str(getattr(config, "working_directory", "") or "").strip()
+        if explicit:
+            from core.sdd.change_workspace import pin_subagent_directory
+
+            pin_subagent_directory(profile, child_cid, explicit)
     except Exception:
         logger.debug("inherit subagent workspace failed", exc_info=True)
     return parent_cid, child_cid

@@ -1558,10 +1558,23 @@ class SubAgentProcessManager:
         except Exception:
             pass
 
+        explicit_wd = str(getattr(config, "working_directory", "") or "").strip()
+        if explicit_wd:
+            from core.sdd.change_workspace import pin_subagent_directory
+
+            pinned = pin_subagent_directory(
+                str(getattr(parent_cfg, "profile_name", None) or "default"),
+                child_cid,
+                explicit_wd,
+            )
+            if pinned:
+                parent_ws = pinned
         parent_cwd = resolve_agent_working_directory(
             workspace_root=parent_ws,
             workspace_jail_enabled=getattr(parent_cfg, "workspace_jail_enabled", None),
         )
+        if explicit_wd:
+            parent_cwd = explicit_wd
 
         process_args = (
             config_dict,
