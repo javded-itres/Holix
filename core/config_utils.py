@@ -93,6 +93,7 @@ _LOCAL_SYSTEM_KEYS: frozenset[str] = frozenset(
         "max_steps_user_max_extensions",
         "max_steps_hard_cap",
         "subagent_supervisor_enabled",
+        "git_worktrees_enabled",
         "subagent_supervisor_poll_s",
         "subagent_supervisor_idle_s",
         "subagent_supervisor_max_interventions",

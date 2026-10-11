@@ -101,3 +101,160 @@ def test_command_needs_shell() -> None:
     assert command_needs_shell("source .venv/bin/activate && uvicorn app:app")
     assert command_needs_shell("export FOO=1 && npm run dev")
     assert not command_needs_shell("uvicorn app.main:app --port 8000")
+
+
+def _change_worktree(tmp_path: Path) -> tuple[Path, Path, Path]:
+    workspace = tmp_path / "workspace"
+    clone = workspace / "projects" / "ai_bot_project"
+    worktree = clone / ".holix" / "worktrees" / "aibotproject-8"
+    (worktree / "backend").mkdir(parents=True)
+    (worktree / "widget" / "src").mkdir(parents=True)
+    (clone / ".git").mkdir(parents=True)
+    return workspace, clone, worktree
+
+
+def test_worktree_launch_rewrites_workspace_cd(tmp_path: Path) -> None:
+    from core.runtime.background_paths import prepare_worktree_project_launch
+
+    _workspace, clone, worktree = _change_worktree(tmp_path)
+    command, wd = prepare_worktree_project_launch(
+        "cd projects/ai_bot_project && uv run uvicorn app:app --port 9000",
+        "",
+        worktree,
+    )
+    assert command == "cd . && uv run uvicorn app:app --port 9000"
+    assert wd == ""
+    assert "projects/ai_bot_project" not in command
+
+    nested, _wd = prepare_worktree_project_launch(
+        "cd projects/ai_bot_project/backend && uv run uvicorn app:app",
+        "",
+        worktree,
+    )
+    assert nested == "cd backend && uv run uvicorn app:app"
+
+    widget, _wd = prepare_worktree_project_launch(
+        "cd projects/widget && npm run dev",
+        "",
+        worktree,
+    )
+    assert widget == "cd widget && npm run dev"
+
+    nested_widget, _wd = prepare_worktree_project_launch(
+        "cd projects/widget/src && npm run dev",
+        "",
+        worktree,
+    )
+    assert nested_widget == "cd widget/src && npm run dev"
+
+    absolute, _wd = prepare_worktree_project_launch(
+        f"cd {clone} && uv run uvicorn app:app",
+        "",
+        worktree,
+    )
+    assert absolute.startswith("cd . &&")
+    assert str(clone) not in absolute
+
+
+def test_worktree_launch_maps_working_directory(tmp_path: Path) -> None:
+    from core.runtime.background_paths import prepare_worktree_project_launch
+
+    _workspace, _clone, worktree = _change_worktree(tmp_path)
+    command, wd = prepare_worktree_project_launch(
+        "uv run uvicorn app:app --port 9000",
+        "projects/ai_bot_project/backend",
+        worktree,
+    )
+    assert command == "uv run uvicorn app:app --port 9000"
+    assert Path(wd) == (worktree / "backend").resolve()
+
+
+def test_worktree_launch_rejects_unknown_directory(tmp_path: Path) -> None:
+    from core.runtime.background_paths import prepare_worktree_project_launch
+
+    _workspace, _clone, worktree = _change_worktree(tmp_path)
+    with pytest.raises(ValueError, match="backend") as exc:
+        prepare_worktree_project_launch(
+            "cd projects/missing && npm run dev",
+            "",
+            worktree,
+        )
+    assert "widget" in str(exc.value)
+    assert "main clone" in str(exc.value)
+
+
+def test_project_root_launch_uses_change_worktree(tmp_path: Path) -> None:
+    from core.runtime.background_paths import prepare_worktree_project_launch
+
+    product = tmp_path / "app"
+    api = product / "api"
+    worktree = api / ".holix" / "worktrees" / "chg-1"
+    (worktree / "src").mkdir(parents=True)
+    (api / "src").mkdir(parents=True)
+    (product / "frontend" / ".holix" / "worktrees" / "chg-1").mkdir(parents=True)
+
+    command, wd = prepare_worktree_project_launch(
+        "cd api && npm run dev",
+        "",
+        product,
+        change_id="chg-1",
+    )
+    assert "api/.holix/worktrees/chg-1" in command.replace("\\", "/")
+    assert wd == ""
+
+    nested, _wd = prepare_worktree_project_launch(
+        "cd api/src && npm run dev",
+        "",
+        product,
+        change_id="chg-1",
+    )
+    assert nested.replace("\\", "/").endswith("api/.holix/worktrees/chg-1/src && npm run dev")
+
+    _same, pointed = prepare_worktree_project_launch(
+        "npm run dev",
+        "api",
+        product,
+        change_id="chg-1",
+    )
+    assert Path(pointed) == worktree.resolve()
+
+
+def test_single_change_worktree_becomes_default_cwd(tmp_path: Path) -> None:
+    from core.runtime.background_paths import prepare_worktree_project_launch
+
+    product = tmp_path / "app"
+    worktree = product / "api" / ".holix" / "worktrees" / "chg-1"
+    worktree.mkdir(parents=True)
+    command, wd = prepare_worktree_project_launch(
+        "npm run dev",
+        "",
+        product,
+        change_id="chg-1",
+    )
+    assert command == "npm run dev"
+    assert Path(wd) == worktree.resolve()
+
+
+def test_worktree_launch_skipped_when_disabled(tmp_path: Path, monkeypatch) -> None:
+    from core.runtime.background_paths import prepare_worktree_project_launch
+
+    _workspace, _clone, worktree = _change_worktree(tmp_path)
+    monkeypatch.setattr(
+        "core.runtime.git_worktree.worktrees_enabled",
+        lambda profile=None: False,
+    )
+    command = "cd projects/ai_bot_project && uv run uvicorn app:app"
+    rewritten, wd = prepare_worktree_project_launch(command, "backend", worktree)
+    assert rewritten == command
+    assert wd == "backend"
+
+
+def test_launch_outside_a_worktree_is_unchanged(tmp_path: Path) -> None:
+    from core.runtime.background_paths import prepare_worktree_project_launch
+
+    workspace = tmp_path / "workspace"
+    (workspace / "projects" / "app").mkdir(parents=True)
+    command = "cd projects/app && npm run dev"
+    rewritten, wd = prepare_worktree_project_launch(command, "projects/app", workspace)
+    assert rewritten == command
+    assert wd == "projects/app"

@@ -169,6 +169,26 @@ async def _run_start_or_restart(
 
     jail = is_workspace_jail_enabled()
     ws = get_effective_workspace_root()
+    change_id = ""
+    try:
+        from core.sdd.change_workspace import get_active_change
+
+        active = get_active_change(profile, conversation_id)
+        if active is not None:
+            change_id = str(active.change_id or "")
+    except Exception:
+        change_id = ""
+    try:
+        from core.runtime.background_paths import prepare_worktree_project_launch
+
+        command, working_directory = prepare_worktree_project_launch(
+            command,
+            working_directory,
+            ws,
+            change_id=change_id,
+        )
+    except ValueError as exc:
+        return f"Error: {exc}"
     allowed, jail_reason = validate_workspace_command(
         command,
         str(ws) if ws is not None else None,
@@ -312,7 +332,12 @@ class StartBackgroundProcessTool(BaseTool):
                 },
                 "working_directory": {
                     "type": "string",
-                    "description": "Optional working directory (defaults to workspace root)",
+                    "description": (
+                        "Directory inside the session workspace. When the session is pinned "
+                        "to a git worktree, omit this or pass a subdirectory that exists "
+                        "there (`backend`, `frontend`). Do not pass `projects/<name>` — "
+                        "that path is the main clone, and the server must start in the worktree."
+                    ),
                 },
                 "startup_wait_seconds": {
                     "type": "number",
@@ -383,7 +408,10 @@ class RestartBackgroundProcessTool(BaseTool):
                 },
                 "working_directory": {
                     "type": "string",
-                    "description": "Optional working directory",
+                    "description": (
+                        "Directory inside the session workspace. In a git worktree, "
+                        "omit this or pass a subdirectory of that worktree."
+                    ),
                 },
                 "startup_wait_seconds": {
                     "type": "number",

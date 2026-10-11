@@ -17,6 +17,7 @@ _workspace_jail_enabled: ContextVar[bool] = ContextVar(
 )
 _full_paths_visible: ContextVar[bool] = ContextVar("holix_full_paths_visible", default=True)
 _profile_name: ContextVar[str] = ContextVar("holix_profile_name", default="default")
+_profile_scope_depth: ContextVar[int] = ContextVar("holix_profile_scope_depth", default=0)
 _agent_emit: ContextVar[Any] = ContextVar("holix_agent_emit", default=None)
 # Cooperative cancel: asyncio.Event set when the run should stop between tools.
 _cancel_event: ContextVar[Any] = ContextVar("holix_cancel_event", default=None)
@@ -115,13 +116,20 @@ def get_profile_name() -> str:
     return _profile_name.get()
 
 
+def profile_scope_depth() -> int:
+    """How many nested ``profile_scope`` frames are active on this task."""
+    return _profile_scope_depth.get()
+
+
 def profile_scope(profile_name: str):
     """Return token from ContextVar.set for use with reset_profile_scope."""
+    _profile_scope_depth.set(_profile_scope_depth.get() + 1)
     return _profile_name.set(profile_name)
 
 
 def reset_profile_scope(token) -> None:
     _profile_name.reset(token)
+    _profile_scope_depth.set(max(0, _profile_scope_depth.get() - 1))
 
 
 def paths_visibility_scope(*, full_paths_visible: bool):

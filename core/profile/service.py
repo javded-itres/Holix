@@ -49,6 +49,8 @@ class ProfileConfig(BaseModel):
     max_steps: int = 90
     # 0 = no cap on ReAct iterations inside one plan step.
     max_steps_per_plan_step: int | None = None
+    # Seconds to wait for one model step before aborting. None uses the runtime default.
+    llm_step_timeout: float | None = None
 
     # Profile settings
     profile_name: str = "default"
@@ -115,6 +117,8 @@ class ProfileConfig(BaseModel):
     # > 0 overrides the type default when limits are on.
     subagent_max_steps_enabled: bool | None = None
     subagent_max_steps: int | None = None
+    # None inherits global git_worktrees_enabled. False keeps the agent on the main clone.
+    git_worktrees_enabled: bool | None = None
 
     # Hub: optional background ClawHub version updates
     hub_auto_update: bool = False

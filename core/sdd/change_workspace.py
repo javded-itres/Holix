@@ -467,12 +467,31 @@ def format_active_change_prompt_block(active: ActiveChange | None) -> str:
             lines.append(
                 "Do not create `openspec/` inside code clones. Implement in repos with `role=code`."
             )
-        if active.worktree and active.change_id:
+        if active.worktree and active.change_id and worktrees_enabled():
             lines.append(
                 f"SDD change `{active.change_id}` uses spec worktree `{active.worktree}` "
                 "(artifacts only, not the file-tool jail)."
             )
+            lines.append(
+                "Start a member repo with `start_background_process` from that repo's "
+                f"change worktree `<repo>/.holix/worktrees/{active.change_id}` "
+                "(pass `working_directory` as the repo directory, such as `api` or "
+                "`frontend`). Do not start the server from the main checkout."
+            )
+        elif active.change_id and not worktrees_enabled():
+            lines.append(
+                "Git worktrees are off for this profile. Implement and start servers "
+                "in the main checkouts. Do not create or `cd` into `.holix/worktrees/`."
+            )
         return "\n".join(lines)
+    if active.worktree and active.change_id and not worktrees_enabled():
+        root = active.project_root or active.clone or ""
+        return (
+            "## SDD change (main clone)\n\n"
+            "Git worktrees are off for this profile. "
+            f"File tools, terminal, and servers stay in the main clone `{root}`. "
+            "Do not create or `cd` into `.holix/worktrees/`."
+        )
     if active.worktree and active.change_id:
         return (
             "## Active SDD change (git worktree)\n\n"
@@ -481,6 +500,10 @@ def format_active_change_prompt_block(active: ActiveChange | None) -> str:
             f"**Workspace is the git worktree:** `{active.worktree}`\n"
             "File tools, terminal, and SDD artifacts use this directory. "
             "Do not edit the main clone working tree. "
+            "`start_background_process` already runs in this worktree. "
+            "Start `uvicorn`, `npm run dev`, or the app command from `.` or a "
+            "subdirectory that exists here (`backend`, `frontend`). "
+            "Do not `cd projects/<name>` and do not start the server from the main clone. "
             "Do **not** `cd` into sibling `.holix/worktrees/*` folders. "
             "Merge the default branch with `git merge main` (or `master`) "
             "**from this worktree**. Do not `cd` to the clone and do not set "

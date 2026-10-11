@@ -52,18 +52,65 @@ def git_available() -> bool:
     return shutil.which("git") is not None
 
 
-def worktrees_enabled() -> bool:
+_PROFILE_FLAG_CACHE: dict[str, tuple[int, bool | None]] = {}
+
+
+def worktrees_enabled(profile: str | None = None) -> bool:
+    """Whether this process should create and use SDD git worktrees.
+
+    ``HOLIX_WORKTREE`` wins. Otherwise an explicit profile value
+    (``git_worktrees_enabled`` in that profile's config) wins when *profile*
+    is passed or the call runs inside ``profile_scope``. Unset inherits the
+    global setting, which defaults to on.
+    """
     raw = os.environ.get("HOLIX_WORKTREE", "").strip().lower()
     if raw in {"0", "off", "false", "no"}:
         return False
     if raw in {"1", "on", "true", "yes"}:
         return True
+    name = (profile or "").strip()
+    if not name:
+        try:
+            from core.tools.execution_context import get_profile_name, profile_scope_depth
+
+            if profile_scope_depth() > 0:
+                name = (get_profile_name() or "").strip()
+        except Exception:
+            name = ""
+    if name:
+        flag = _profile_worktrees_flag(name)
+        if flag is not None:
+            return flag
     try:
         from config import settings
 
         return bool(getattr(settings, "git_worktrees_enabled", True))
     except Exception:
         return True
+
+
+def _profile_worktrees_flag(profile: str) -> bool | None:
+    """Profile override, or None when the profile inherits the global default."""
+    try:
+        from core.profile import ProfileManager
+
+        path = ProfileManager().get_profile_dir(profile) / "config.yaml"
+        mtime = path.stat().st_mtime_ns
+    except OSError:
+        return None
+    cached = _PROFILE_FLAG_CACHE.get(profile)
+    if cached is not None and cached[0] == mtime:
+        return cached[1]
+    try:
+        from core.profile import ProfileManager
+
+        cfg = ProfileManager().load_profile(profile)
+    except Exception:
+        return None
+    raw = getattr(cfg, "git_worktrees_enabled", None)
+    value = None if raw is None else bool(raw)
+    _PROFILE_FLAG_CACHE[profile] = (mtime, value)
+    return value
 
 
 def worktrees_dirname() -> str:

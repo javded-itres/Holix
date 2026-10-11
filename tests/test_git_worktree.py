@@ -66,6 +66,32 @@ def test_worktrees_enabled_env(monkeypatch: pytest.MonkeyPatch) -> None:
     assert worktrees_enabled() is True
 
 
+def test_worktrees_enabled_follows_profile(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("HOLIX_WORKTREE", raising=False)
+    home = tmp_path / "holix"
+    monkeypatch.setenv("HOLIX_HOME", str(home))
+    from core.env_loader import init_holix_home
+    from core.profile import ProfileManager
+    from core.tools.execution_context import profile_scope, reset_profile_scope
+
+    init_holix_home()
+    name = "wt_off"
+    mgr = ProfileManager()
+    mgr.create_profile(name)
+    cfg = mgr.load_profile(name)
+    cfg.git_worktrees_enabled = False
+    mgr.save_profile(name, cfg)
+
+    assert worktrees_enabled() is True
+    token = profile_scope(name)
+    try:
+        assert worktrees_enabled() is False
+        assert worktrees_enabled(name) is False
+    finally:
+        reset_profile_scope(token)
+    assert worktrees_enabled() is True
+
+
 def test_add_two_changes_leaves_main(tmp_path: Path) -> None:
     repo = _repo(tmp_path)
     before = subprocess.check_output(

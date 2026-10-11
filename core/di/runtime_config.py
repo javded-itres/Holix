@@ -128,6 +128,9 @@ class HolixRuntimeConfig:
     local_project_dir: str = ".holix"
     local_skills_dir: str | None = None  # resolved at use site if None
 
+    # SDD git worktrees. Profile ``None`` inherits the global default (on).
+    git_worktrees_enabled: bool = True
+
     # Workspace jail (optional per-profile directory isolation)
     workspace_jail_enabled: bool = False
     workspace_root: str | None = None
@@ -226,6 +229,7 @@ class HolixRuntimeConfig:
             max_steps_hard_cap=int(getattr(s, "max_steps_hard_cap", 0) or 0),
             subagent_max_steps_enabled=bool(getattr(s, "subagent_max_steps_enabled", True)),
             subagent_max_steps=int(getattr(s, "subagent_max_steps", 0) or 0),
+            git_worktrees_enabled=bool(getattr(s, "git_worktrees_enabled", True)),
             auto_allow_threshold=s.auto_allow_threshold,
             non_interactive=s.non_interactive,
             confirmation_timeout=s.confirmation_timeout,
@@ -289,6 +293,9 @@ class HolixRuntimeConfig:
             overrides["temperature"] = profile.temperature
         if profile.max_steps is not None:
             overrides["max_steps"] = profile.max_steps
+        step_timeout = getattr(profile, "llm_step_timeout", None)
+        if step_timeout is not None and float(step_timeout) > 0:
+            overrides["llm_step_timeout"] = float(step_timeout)
         if getattr(profile, "max_steps_per_plan_step", None) is not None:
             overrides["max_steps_per_plan_step"] = int(profile.max_steps_per_plan_step)
         from core.profile import ProfileManager, resolve_profile_storage_paths
@@ -357,6 +364,8 @@ class HolixRuntimeConfig:
             overrides["subagent_max_steps_enabled"] = bool(profile.subagent_max_steps_enabled)
         if getattr(profile, "subagent_max_steps", None) is not None:
             overrides["subagent_max_steps"] = int(profile.subagent_max_steps)
+        if getattr(profile, "git_worktrees_enabled", None) is not None:
+            overrides["git_worktrees_enabled"] = bool(profile.git_worktrees_enabled)
         if getattr(profile, "search", None):
             overrides["search"] = profile.search
         overrides["decision"] = dict(getattr(profile, "decision", None) or {})
