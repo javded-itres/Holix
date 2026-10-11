@@ -117,7 +117,7 @@ class ProfileConfig(BaseModel):
     # > 0 overrides the type default when limits are on.
     subagent_max_steps_enabled: bool | None = None
     subagent_max_steps: int | None = None
-    # None inherits global git_worktrees_enabled. False keeps the agent on the main clone.
+    # None inherits global git_worktrees_enabled (off). True uses a change worktree.
     git_worktrees_enabled: bool | None = None
 
     # Hub: optional background ClawHub version updates

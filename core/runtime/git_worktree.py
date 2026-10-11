@@ -61,7 +61,7 @@ def worktrees_enabled(profile: str | None = None) -> bool:
     ``HOLIX_WORKTREE`` wins. Otherwise an explicit profile value
     (``git_worktrees_enabled`` in that profile's config) wins when *profile*
     is passed or the call runs inside ``profile_scope``. Unset inherits the
-    global setting, which defaults to on.
+    global setting, which defaults to off.
     """
     raw = os.environ.get("HOLIX_WORKTREE", "").strip().lower()
     if raw in {"0", "off", "false", "no"}:
@@ -84,9 +84,9 @@ def worktrees_enabled(profile: str | None = None) -> bool:
     try:
         from config import settings
 
-        return bool(getattr(settings, "git_worktrees_enabled", True))
+        return bool(getattr(settings, "git_worktrees_enabled", False))
     except Exception:
-        return True
+        return False
 
 
 def _profile_worktrees_flag(profile: str) -> bool | None:
@@ -314,8 +314,9 @@ def add_change_worktree(
     change_id: str,
     *,
     start_point: str = "",
+    profile: str | None = None,
 ) -> WorktreeInfo:
-    if not worktrees_enabled():
+    if not worktrees_enabled(profile):
         raise WorktreeUnavailable("HOLIX_WORKTREE=0")
     if not git_available():
         raise WorktreeUnavailable("git is not installed")
@@ -505,7 +506,7 @@ def release_change_worktree(
     Extra uncommitted files (implementation WIP) keep the tree and return
     ``reason=dirty`` plus porcelain status. Not a worktree → no-op.
     """
-    if not worktrees_enabled():
+    if not worktrees_enabled(profile):
         return {"ok": True, "removed": False, "reason": "disabled"}
     cid = sanitize_change_id(change_id)
     root = Path(start).expanduser().resolve()
@@ -662,9 +663,10 @@ def prepare_change_worktree(
     change_id: str,
     *,
     project_rel: str = "",
+    profile: str | None = None,
 ) -> WorktreeInfo | None:
     """Add a worktree when git+flag allow; otherwise ``None`` (caller scaffolds in place)."""
-    if not worktrees_enabled() or not git_available():
+    if not worktrees_enabled(profile) or not git_available():
         return None
     root = Path(start).expanduser().resolve()
     main = clone_root(root)
@@ -684,4 +686,4 @@ def prepare_change_worktree(
             clone=main,
             git_common_dir=common,
         )
-    return add_change_worktree(main, cid)
+    return add_change_worktree(main, cid, profile=profile)

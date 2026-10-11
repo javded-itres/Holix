@@ -164,9 +164,9 @@ class Settings(BaseSettings):
         description="Minimum seconds between loop-break guidance for the same job",
     )
     git_worktrees_enabled: bool = Field(
-        default=True,
+        default=False,
         validation_alias=AliasChoices("HOLIX_GIT_WORKTREES_ENABLED"),
-        description="Create a git worktree when sdd_create_change runs (HOLIX_WORKTREE=0 disables)",
+        description="Create a git worktree when sdd_create_change runs (off unless HOLIX_WORKTREE=1 or the profile enables it)",
     )
     git_worktrees_dirname: str = Field(
         default=".holix/worktrees",

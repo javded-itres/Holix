@@ -42,6 +42,12 @@ from core.tools.execution_context import (
 pytestmark = pytest.mark.skipif(shutil.which("git") is None, reason="git required")
 
 
+@pytest.fixture(autouse=True)
+def _enable_worktrees_for_git_ops(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Product default is off. These tests exercise the worktree operations."""
+    monkeypatch.setenv("HOLIX_WORKTREE", "1")
+
+
 def _git(cwd: Path, *args: str) -> None:
     subprocess.run(["git", "-C", str(cwd), *args], check=True, capture_output=True)
 
@@ -82,14 +88,43 @@ def test_worktrees_enabled_follows_profile(tmp_path: Path, monkeypatch: pytest.M
     cfg.git_worktrees_enabled = False
     mgr.save_profile(name, cfg)
 
-    assert worktrees_enabled() is True
+    assert worktrees_enabled() is False
     token = profile_scope(name)
     try:
         assert worktrees_enabled() is False
         assert worktrees_enabled(name) is False
     finally:
         reset_profile_scope(token)
-    assert worktrees_enabled() is True
+    assert worktrees_enabled() is False
+
+
+def test_named_profiles_disagree_on_prepare_and_release(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.delenv("HOLIX_WORKTREE", raising=False)
+    home = tmp_path / "holix"
+    monkeypatch.setenv("HOLIX_HOME", str(home))
+    from core.env_loader import init_holix_home
+    from core.profile import ProfileManager
+
+    init_holix_home()
+    mgr = ProfileManager()
+    for name, enabled in (("wt_on", True), ("wt_off", False)):
+        mgr.create_profile(name)
+        cfg = mgr.load_profile(name)
+        cfg.git_worktrees_enabled = enabled
+        mgr.save_profile(name, cfg)
+
+    repo = _repo(tmp_path)
+    assert prepare_change_worktree(repo, "itres-9", profile="wt_off") is None
+    assert not (repo / ".holix" / "worktrees" / "itres-9").exists()
+    info = prepare_change_worktree(repo, "itres-9", profile="wt_on")
+    assert info is not None and info.worktree.is_dir()
+    blocked = release_change_worktree(repo, "itres-9", profile="wt_off")
+    assert blocked["reason"] == "disabled"
+    assert info.worktree.is_dir()
+    assert worktrees_enabled("wt_on") is True
+    assert worktrees_enabled("wt_off") is False
 
 
 def test_add_two_changes_leaves_main(tmp_path: Path) -> None:

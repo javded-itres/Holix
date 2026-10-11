@@ -61,7 +61,10 @@ def _reset_pins() -> None:
     reset_active_change_store()
 
 
-def test_multi_repo_worktree_pin_keeps_product_file_root(tmp_path: Path) -> None:
+def test_multi_repo_worktree_pin_keeps_product_file_root(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("HOLIX_WORKTREE", "1")
     root = _write_product(tmp_path)
     wt = root / "spec" / ".holix" / "worktrees" / "acme-3"
     wt.mkdir(parents=True)

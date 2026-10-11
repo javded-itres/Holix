@@ -146,7 +146,10 @@ def test_drop_active_change_clears_project_pin(tmp_path: Path) -> None:
     assert get_active_change("default", "c1") is None
 
 
-def test_worktree_overlay_wins_over_project_pin(tmp_path: Path) -> None:
+def test_worktree_overlay_wins_over_project_pin(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("HOLIX_WORKTREE", "1")
     clone = tmp_path / "clone"
     wt = tmp_path / "worktree"
     clone.mkdir()

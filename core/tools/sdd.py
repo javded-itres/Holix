@@ -45,7 +45,15 @@ def _sdd_workspace(project: str = "") -> Path:
         active = get_active_change(get_profile_name(), get_conversation_id())
     except Exception:
         active = None
-    if layout is not None and layout.has_dedicated_spec and active is not None and active.worktree:
+    from core.runtime.git_worktree import worktrees_enabled
+
+    if (
+        worktrees_enabled()
+        and layout is not None
+        and layout.has_dedicated_spec
+        and active is not None
+        and active.worktree
+    ):
         wt = Path(active.worktree).expanduser()
         if wt.is_dir():
             return wt.resolve()

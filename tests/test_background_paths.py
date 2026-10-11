@@ -17,6 +17,12 @@ from core.runtime.background_paths import (
 )
 
 
+@pytest.fixture(autouse=True)
+def _enable_worktrees(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Launch remapping runs only when worktrees are on. Product default is off."""
+    monkeypatch.setenv("HOLIX_WORKTREE", "1")
+
+
 def test_resolve_background_process_root_prefers_working_directory(tmp_path) -> None:
     explicit = tmp_path / "explicit"
     explicit.mkdir()

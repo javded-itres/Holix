@@ -128,8 +128,8 @@ class HolixRuntimeConfig:
     local_project_dir: str = ".holix"
     local_skills_dir: str | None = None  # resolved at use site if None
 
-    # SDD git worktrees. Profile ``None`` inherits the global default (on).
-    git_worktrees_enabled: bool = True
+    # SDD git worktrees. Profile ``None`` inherits the global default (off).
+    git_worktrees_enabled: bool = False
 
     # Workspace jail (optional per-profile directory isolation)
     workspace_jail_enabled: bool = False
@@ -229,7 +229,7 @@ class HolixRuntimeConfig:
             max_steps_hard_cap=int(getattr(s, "max_steps_hard_cap", 0) or 0),
             subagent_max_steps_enabled=bool(getattr(s, "subagent_max_steps_enabled", True)),
             subagent_max_steps=int(getattr(s, "subagent_max_steps", 0) or 0),
-            git_worktrees_enabled=bool(getattr(s, "git_worktrees_enabled", True)),
+            git_worktrees_enabled=bool(getattr(s, "git_worktrees_enabled", False)),
             auto_allow_threshold=s.auto_allow_threshold,
             non_interactive=s.non_interactive,
             confirmation_timeout=s.confirmation_timeout,

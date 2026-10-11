@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
 from core.prompt_builder import (
     format_working_directory_block,
     resolve_agent_working_directory,
@@ -44,7 +45,10 @@ def test_resolve_working_directory_uses_explicit_cwd(tmp_path: Path) -> None:
     ) == str(cwd.resolve())
 
 
-def test_subagent_prompt_includes_sdd_worktree_pin(tmp_path: Path) -> None:
+def test_subagent_prompt_includes_sdd_worktree_pin(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("HOLIX_WORKTREE", "1")
     from core.sdd.change_workspace import (
         bind_active_change,
         compose_active_change,
