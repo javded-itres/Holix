@@ -14,6 +14,20 @@ from core.graph.state import HolixGraphState, get_agent_from_config
 logger = logging.getLogger(__name__)
 
 
+def _append_todo_reminder(messages: list, agent: object, conversation_id: str) -> None:
+    """Ask the model to refresh an open checklist it has stopped updating."""
+    try:
+        from core.profile.soul import profile_name_from_agent
+        from core.runtime.todo_list import get_todos, todo_reminder_text
+
+        profile = profile_name_from_agent(agent) if agent else "default"
+        text = todo_reminder_text(messages, get_todos(profile, str(conversation_id or "default")))
+        if text:
+            messages.append({"role": "user", "content": text})
+    except Exception:
+        logger.debug("todo reminder skipped", exc_info=True)
+
+
 async def tool_execution_node(state: HolixGraphState, config: RunnableConfig) -> dict:
     """Execute pending tool calls and store results.
 
@@ -173,6 +187,9 @@ async def tool_execution_node(state: HolixGraphState, config: RunnableConfig) ->
                 truncate_tool_content_for_memory(result),
                 metadata={"tool_name": tool_name},
             )
+
+    if not cancelled_run:
+        _append_todo_reminder(messages, agent, conversation_id)
 
     if agent and hasattr(agent, "context_manager") and agent.context_manager:
         from core.runtime.context_session import compress_session_if_needed

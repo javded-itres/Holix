@@ -30,6 +30,7 @@ CORE_TOOL_NAMES: frozenset[str] = frozenset(
         "grep",
         "glob",
         "run_terminal_command",
+        "ssh_exec",
         "web_search",
         "fetch_url",
         "send_chat_files",

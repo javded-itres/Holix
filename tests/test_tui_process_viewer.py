@@ -91,6 +91,26 @@ def test_list_running_for_profile_skips_dead(monkeypatch: pytest.MonkeyPatch) ->
     assert [r.process_id for r in running] == ["proc_live"]
 
 
+def test_list_running_for_scope_skips_other_sessions(monkeypatch: pytest.MonkeyPatch) -> None:
+    from core.runtime.background_process import BackgroundProcessRegistry
+
+    registry = BackgroundProcessRegistry()
+    mine = _record(process_id="proc_mine")
+    mine.conversation_id = "tui_a"
+    mine.pid = 111
+    other = _record(process_id="proc_other")
+    other.conversation_id = "tui_b"
+    other.pid = 222
+    registry._records = {"proc_mine": mine, "proc_other": other}
+    monkeypatch.setattr(BackgroundProcessRegistry, "hydrate_from_disk", lambda *_a, **_k: 0)
+    monkeypatch.setattr(
+        "core.runtime.background_process.is_process_alive",
+        lambda _pid: True,
+    )
+    running = registry.list_running_for_scope(profile="default", conversation_id="tui_a")
+    assert [r.process_id for r in running] == ["proc_mine"]
+
+
 def test_format_process_log_text_empty_when_stopped(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

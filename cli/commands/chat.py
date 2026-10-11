@@ -504,11 +504,15 @@ class ChatSession:
             # Show context usage
             if self.agent and hasattr(self.agent, "context_manager"):
                 messages = await self.agent.memory.get_conversation(self.conversation_id, limit=200)
-                usage = self.agent.context_manager.get_usage(messages)
-                level = self.agent.context_manager.get_usage_level(messages)
+                usage = self.agent.context_manager.display_usage(
+                    messages, conversation_id=self.conversation_id
+                )
+                level = self.agent.context_manager.get_usage_level(messages, usage=usage)
                 color_map = {"green": "green", "yellow": "yellow", "red": "red"}
                 color = color_map.get(level, "white")
-                ctx_display = self.agent.context_manager.format_usage_display(messages)
+                ctx_display = self.agent.context_manager.format_usage_display(
+                    messages, conversation_id=self.conversation_id
+                )
                 console.print(f"  Context: [{color}]{ctx_display}[/{color}]")
                 console.print(f"  Context Window: {usage['total']:,} tokens")
             console.print()

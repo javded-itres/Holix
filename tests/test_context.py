@@ -213,6 +213,22 @@ class TestContextManagerWithBus:
         manager.note_system_prompt_tokens(12345)
         assert manager.system_prompt_reserve == 12345
 
+    def test_display_usage_prefers_provider_prompt(self):
+        manager = ContextManager(context_window=100_000, token_counter=TokenCounter())
+        messages = [{"role": "user", "content": "hi"}]
+        local = manager.display_usage(messages, conversation_id="chat")
+        assert local["source"] == "estimate"
+        assert local["used"] < 1000
+        manager.note_api_context("chat", 31126)
+        shown = manager.display_usage(messages, conversation_id="chat")
+        assert shown["source"] == "api"
+        assert shown["used"] == 31126
+        assert shown["total"] == 100_000
+        assert shown["percent"] == 31.1
+        manager.invalidate_usage_cache("chat")
+        again = manager.display_usage(messages, conversation_id="chat")
+        assert again["source"] == "estimate"
+
 
 class TestContextManagerCompression:
     @pytest.mark.asyncio

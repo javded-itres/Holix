@@ -87,6 +87,7 @@ class EventType(StrEnum):
 
     # Same-agent background tasks (shell and media generation)
     AGENT_TASK_STARTED = "agent_task_started"
+    AGENT_TASK_PROGRESS = "agent_task_progress"
     AGENT_TASK_FINISHED = "agent_task_finished"
 
     # Session checklist
@@ -904,6 +905,7 @@ class AgentTaskStartedEvent(AgentEvent):
     task_id: str = ""
     description: str = ""
     status: str = "running"
+    command: str = ""
 
     def __post_init__(self):
         super().__post_init__()
@@ -914,6 +916,31 @@ class AgentTaskStartedEvent(AgentEvent):
             "task_id": self.task_id,
             "description": self.description,
             "status": self.status,
+            "command": self.command,
+        }
+
+
+@dataclass
+class AgentTaskProgressEvent(AgentEvent):
+    """Live output from a same-agent background task."""
+
+    task_id: str = ""
+    description: str = ""
+    status: str = "running"
+    command: str = ""
+    output_tail: str = ""
+
+    def __post_init__(self):
+        super().__post_init__()
+        object.__setattr__(self, "type", EventType.AGENT_TASK_PROGRESS)
+
+    def _extra_fields(self) -> dict[str, Any]:
+        return {
+            "task_id": self.task_id,
+            "description": self.description,
+            "status": self.status,
+            "command": self.command,
+            "output_tail": self.output_tail,
         }
 
 
@@ -924,6 +951,9 @@ class AgentTaskFinishedEvent(AgentEvent):
     task_id: str = ""
     description: str = ""
     status: str = ""
+    command: str = ""
+    exit_code: int | None = None
+    output_tail: str = ""
 
     def __post_init__(self):
         super().__post_init__()
@@ -934,6 +964,9 @@ class AgentTaskFinishedEvent(AgentEvent):
             "task_id": self.task_id,
             "description": self.description,
             "status": self.status,
+            "command": self.command,
+            "exit_code": self.exit_code,
+            "output_tail": self.output_tail,
         }
 
 

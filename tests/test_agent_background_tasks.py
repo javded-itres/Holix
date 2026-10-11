@@ -75,8 +75,8 @@ async def test_background_task_wakes_listener_with_output() -> None:
     assert "done-marker" in finished.output
     assert seen == [finished.task_id]
     text = format_agent_task_wakeup(finished)
-    assert "same agent, not a sub-agent" in text
-    assert "start_background_process" in text
+    assert "Tell the user the result" in text
+    assert "Do not paste this note" not in text
     assert "done-marker" in text
     assert get_agent_task_registry().running_count(profile="alice", conversation_id="conv-1") == 0
 
@@ -113,12 +113,14 @@ def test_install_wakeup_does_not_treat_the_note_as_the_bot() -> None:
         output="Successfully installed",
     )
     text = format_agent_task_wakeup(task)
-    assert "same agent, not a sub-agent" in text
-    assert "start_background_process" in text
-    assert "finished install is not a running bot" in text
+    assert "Tell the user the result" in text
+    assert "Successfully installed" in text
+    assert "Do not paste this note" not in text
+    assert "start_background_process" not in text
     note = started_task_message(task)
-    assert "Do not paste this note" in note
-    assert "start_background_process" in note
+    assert note.startswith("Background task started:")
+    assert "Do not paste this note" not in note
+    assert "not a sub-agent" not in note
 
 
 @pytest.mark.asyncio
@@ -161,6 +163,37 @@ async def test_duplicate_image_calls_in_one_step_collapse() -> None:
     assert stop is not None
     assert "task_" in stop
     assert "Saved image: /tmp/a.png" in stop
+
+
+@pytest.mark.asyncio
+async def test_background_task_streams_output_before_exit() -> None:
+    launched = await get_agent_task_registry().launch_shell(
+        command="stream marker",
+        description="stream marker",
+        profile="alice",
+        conversation_id="conv-stream",
+        cwd=None,
+        use_shell=False,
+        argv=[
+            sys.executable,
+            "-c",
+            "import time; print('line-one', flush=True); time.sleep(0.6); print('line-two', flush=True)",
+        ],
+        spawn_kw=_spawn_kw(),
+    )
+    assert not isinstance(launched, str)
+    deadline = asyncio.get_event_loop().time() + 3
+    while asyncio.get_event_loop().time() < deadline:
+        if "line-one" in (launched.output or "") and launched.is_running():
+            break
+        await asyncio.sleep(0.02)
+    else:
+        raise AssertionError(f"no live output, status={launched.status!r} out={launched.output!r}")
+    finished = await _wait_done(launched.task_id)
+    assert "line-two" in finished.output
+    rows = get_agent_task_registry().snapshot(profile="alice", conversation_id="conv-stream")
+    assert rows and rows[0]["task_id"] == finished.task_id
+    assert "line-two" in rows[0]["output"]
 
 
 def test_one_media_start_blocks_a_later_revision_call() -> None:

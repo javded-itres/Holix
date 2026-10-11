@@ -48,5 +48,4 @@ logs/
 .gitignore
 
 # Documentation
-README.md
 docs/

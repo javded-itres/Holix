@@ -23,6 +23,14 @@ def test_llm_step_timeout_reads_dedicated_setting() -> None:
     assert _llm_step_timeout_s(agent) == 45.0
 
 
+def test_profile_llm_step_timeout_overrides_default() -> None:
+    from core.di.runtime_config import HolixRuntimeConfig
+    from core.profile import ProfileConfig
+
+    cfg = HolixRuntimeConfig.from_profile(ProfileConfig(profile_name="t", llm_step_timeout=600))
+    assert cfg.llm_step_timeout == 600.0
+
+
 def test_reasoning_only_message_mentions_smart() -> None:
     msg = llm_step_timeout_message(90, model="coder", reasoning_only=True)
     assert "smart" in msg

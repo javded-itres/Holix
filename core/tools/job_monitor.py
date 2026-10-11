@@ -8,7 +8,7 @@ import time
 from typing import Any
 
 from core.tools.base import BaseTool
-from core.tools.execution_context import get_profile_name
+from core.tools.execution_context import get_conversation_id, get_profile_name
 from core.tools.result import tool_err, tool_ok
 
 
@@ -95,7 +95,10 @@ class JobMonitorTool(BaseTool):
         timeout_s = max(1, min(int(timeout_s or 15), 300))
 
         if act == "list":
-            recs = registry.list_for_profile(profile=profile)
+            recs = registry.list_for_scope(
+                profile=profile,
+                conversation_id=get_conversation_id(),
+            )
             return tool_ok(jobs=[_record_payload(r) for r in recs])
 
         target = (job_id or "").strip()

@@ -419,7 +419,7 @@ class HolixCodeApp(App):
         self.open_background_process_viewer(process_id=event.process_id)
 
     def sync_background_process_bar(self) -> None:
-        """Top bar shows OS-alive background processes only (this profile)."""
+        """Top bar shows OS-alive background processes for this chat only."""
         from core.runtime.background_process import (
             get_background_process_registry,
             vanished_process_ids,
@@ -427,7 +427,10 @@ class HolixCodeApp(App):
         from core.runtime.port_utils import parse_listen_ports
 
         registry = get_background_process_registry(self.profile)
-        records = registry.list_running_for_profile(profile=self.profile)
+        records = registry.list_running_for_scope(
+            profile=self.profile,
+            conversation_id=self.conversation_id,
+        )
         items: list[tuple[str, str]] = []
         labels: dict[str, str] = {}
         pids: dict[str, int] = {}
@@ -671,8 +674,9 @@ class HolixCodeApp(App):
         try:
             from core.runtime.background_process import get_background_process_registry
 
-            for rec in get_background_process_registry(self.profile).list_running_for_profile(
-                profile=self.profile
+            for rec in get_background_process_registry(self.profile).list_running_for_scope(
+                profile=self.profile,
+                conversation_id=self.conversation_id,
             )[:3]:
                 tasks.append(f"{rec.label} · pid {rec.pid}")
         except Exception:
@@ -1005,6 +1009,7 @@ class HolixCodeApp(App):
             BackgroundProcessErrorEvent,
             BackgroundProcessStartedEvent,
             BackgroundProcessStoppedEvent,
+            LLMCallCompletedEvent,
             StepBudgetChoiceEvent,
             TodoListUpdatedEvent,
         )
@@ -1019,7 +1024,8 @@ class HolixCodeApp(App):
             | BackgroundProcessStartedEvent
             | BackgroundProcessStoppedEvent
             | BackgroundProcessErrorEvent
-            | TodoListUpdatedEvent,
+            | TodoListUpdatedEvent
+            | LLMCallCompletedEvent,
         ):
             # Textual: call_later(callback, *args) — delay is not the first arg.
             self.call_later(self._event_handler.handle, event)
@@ -1912,6 +1918,7 @@ class HolixCodeApp(App):
         if target:
             self.suppress_process_wake(target)
         record = None
+        record = None
         if target:
             record = await registry.stop(target)
         if record is None:
@@ -1919,7 +1926,6 @@ class HolixCodeApp(App):
                 profile=self.profile,
                 conversation_id=self.conversation_id,
             )
-        record = await registry.stop_for_profile(profile=self.profile) or record
         if record is None:
             self.transcript_write("[dim]no background process for this session[/dim]")
             return
@@ -1998,7 +2004,7 @@ class HolixCodeApp(App):
                 )
             else:
                 conv_id = self.conversation_id
-                usage = agent.context_manager.get_usage(messages, conversation_id=conv_id)
+                usage = agent.context_manager.display_usage(messages, conversation_id=conv_id)
                 level = agent.context_manager.get_usage_level(
                     messages, conversation_id=conv_id, usage=usage
                 )

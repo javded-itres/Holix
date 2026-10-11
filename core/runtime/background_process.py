@@ -550,6 +550,16 @@ class BackgroundProcessRegistry:
         """OS-alive processes only — dead/crashed records are omitted."""
         return [rec for rec in self.list_for_profile(profile=profile) if rec.is_running()]
 
+    def list_running_for_scope(
+        self, *, profile: str, conversation_id: str
+    ) -> list[BackgroundProcessRecord]:
+        """OS-alive processes for one chat. Other sessions stay out of this view."""
+        return [
+            rec
+            for rec in self.list_for_scope(profile=profile, conversation_id=conversation_id)
+            if rec.is_running()
+        ]
+
     def list_for_scope(
         self, *, profile: str, conversation_id: str
     ) -> list[BackgroundProcessRecord]:

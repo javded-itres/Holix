@@ -25,6 +25,26 @@ def _int_field(obj: Any, *names: str) -> int:
     return 0
 
 
+def context_occupancy_tokens(usage: dict[str, Any] | None) -> int:
+    """Tokens occupying the window, matching Claude Code's status line.
+
+    That figure is input only: ``prompt_tokens`` (or ``input_tokens``) plus
+    cache writes and cache reads when those are reported separately. OpenAI
+    ``prompt_tokens`` already includes cached tokens, so a cache count that
+    fits inside the prompt is not added again. Completion tokens are not part
+    of the occupancy.
+    """
+    if not usage:
+        return 0
+    prompt = _int_field(usage, "prompt_tokens", "input_tokens")
+    cache_read = _int_field(usage, "cache_read_input_tokens")
+    cache_write = _int_field(usage, "cache_creation_input_tokens")
+    extra = cache_read + cache_write
+    if extra and prompt < extra:
+        return prompt + extra
+    return prompt
+
+
 def usage_dict_from_response(response: Any) -> dict[str, int] | None:
     """Return prompt/completion/total from a chat completion response, if present."""
     usage = getattr(response, "usage", None)
@@ -39,7 +59,17 @@ def usage_dict_from_response(response: Any) -> dict[str, int] | None:
         total = prompt + completion
     if total <= 0 and prompt <= 0 and completion <= 0:
         return None
-    return {"prompt_tokens": prompt, "completion_tokens": completion, "total_tokens": total}
+    cache_read = _int_field(usage, "cache_read_input_tokens")
+    cache_write = _int_field(usage, "cache_creation_input_tokens")
+    reported = {
+        "prompt_tokens": prompt,
+        "completion_tokens": completion,
+        "total_tokens": total,
+        "cache_read_input_tokens": cache_read,
+        "cache_creation_input_tokens": cache_write,
+    }
+    reported["context_tokens"] = context_occupancy_tokens(reported)
+    return reported
 
 
 def usage_dict_from_stream_chunk(chunk: Any) -> dict[str, int] | None:
@@ -54,8 +84,10 @@ def _count_text(text: str, *, model: str = "") -> int:
         import tiktoken
 
         try:
-            enc = tiktoken.encoding_for_model(model) if model else tiktoken.get_encoding(
-                "cl100k_base"
+            enc = (
+                tiktoken.encoding_for_model(model)
+                if model
+                else tiktoken.get_encoding("cl100k_base")
             )
         except Exception:
             enc = tiktoken.get_encoding("cl100k_base")
@@ -92,9 +124,7 @@ def estimate_chat_tokens(
                     func = item.get("function") or {}
                     if isinstance(func, dict):
                         prompt += _count_text(str(func.get("name") or ""), model=model)
-                        prompt += _count_text(
-                            str(func.get("arguments") or ""), model=model
-                        )
+                        prompt += _count_text(str(func.get("arguments") or ""), model=model)
     completion = _count_text(completion_text or "", model=model)
     total = max(1, prompt + completion) if (prompt or completion) else 0
     return {
@@ -115,16 +145,28 @@ def resolve_usage(
     """Prefer provider usage, then stream usage, then local estimate."""
     for candidate in (usage_dict_from_response(response), stream_usage):
         if candidate and int(candidate.get("total_tokens") or 0) > 0:
+            context_tokens = int(candidate.get("context_tokens") or 0)
+            if context_tokens <= 0:
+                context_tokens = context_occupancy_tokens(candidate)
             return {
                 "prompt_tokens": int(candidate.get("prompt_tokens") or 0),
                 "completion_tokens": int(candidate.get("completion_tokens") or 0),
                 "total_tokens": int(candidate.get("total_tokens") or 0),
+                "cache_read_input_tokens": int(candidate.get("cache_read_input_tokens") or 0),
+                "cache_creation_input_tokens": int(
+                    candidate.get("cache_creation_input_tokens") or 0
+                ),
+                "context_tokens": context_tokens,
+                "provider": True,
             }
-    return estimate_chat_tokens(
+    estimated = estimate_chat_tokens(
         messages,
         completion_text=completion_text,
         model=model,
     )
+    estimated["context_tokens"] = int(estimated.get("prompt_tokens") or 0)
+    estimated["provider"] = False
+    return estimated
 
 
 def completion_text_from_message(message: Any) -> str:
@@ -178,6 +220,12 @@ def emit_llm_call_usage(
     total = int(usage.get("total_tokens") or 0)
     prompt = int(usage.get("prompt_tokens") or 0)
     completion = int(usage.get("completion_tokens") or 0)
+    if usage.get("provider") and not estimated:
+        context_tokens = int(usage.get("context_tokens") or 0) or context_occupancy_tokens(usage)
+        manager = getattr(agent, "context_manager", None) if agent is not None else None
+        note = getattr(manager, "note_api_context", None)
+        if context_tokens > 0 and callable(note):
+            note(conversation_id or "", context_tokens)
 
     # OpenTelemetry GenAI (no-op when SDK not installed / disabled)
     try:

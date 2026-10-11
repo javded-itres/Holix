@@ -146,6 +146,9 @@ class ToolRegistry:
         self.register(terminal_tool)
         self.register_alias("terminal", terminal_tool)
         self.register_alias("execute_terminal_command", terminal_tool)
+        from core.tools.ssh_exec import SshExecTool
+
+        self.register(SshExecTool())
         from core.external_cli.platform import launch_supported
 
         if launch_supported():

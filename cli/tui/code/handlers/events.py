@@ -14,6 +14,7 @@ from core.agent_events import (
     ContextWarningEvent,
     ErrorEvent,
     FinalResponseEvent,
+    LLMCallCompletedEvent,
     PlanCompletedEvent,
     PlanModeChangedEvent,
     PlanStepCompletedEvent,
@@ -157,6 +158,12 @@ class CodeEventHandler:
 
             elif isinstance(event, TodoListUpdatedEvent):
                 self.app.sync_todo_list(event.todos)
+
+            elif isinstance(event, LLMCallCompletedEvent):
+                if getattr(event, "conversation_id", "") == getattr(
+                    self.app, "conversation_id", ""
+                ):
+                    self.app.run_worker(self.app._update_context_display_async())
 
             elif isinstance(event, ErrorEvent):
                 if self.app._is_streaming and self.app._stream_buffer:

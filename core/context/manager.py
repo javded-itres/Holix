@@ -72,6 +72,9 @@ class ContextManager:
         self.compression_threshold = compression_threshold
         self.warning_threshold = warning_threshold
         self.system_prompt_reserve = max(0, int(system_prompt_reserve))
+        self._system_prompt_measured = False
+        # Last provider prompt size per conversation (Claude Code status line).
+        self._api_context_tokens: dict[str, int] = {}
 
         # Track last compression result
         self.last_summary: str = ""
@@ -84,6 +87,19 @@ class ContextManager:
     def note_system_prompt_tokens(self, tokens: int) -> None:
         """Record measured system-prompt size (replaces the conservative default)."""
         self.system_prompt_reserve = max(0, int(tokens))
+        self._system_prompt_measured = True
+
+    def note_api_context(self, conversation_id: str, prompt_tokens: int) -> None:
+        """Remember the last provider prompt size for this chat.
+
+        Claude Code's status percentage is that input total (including cache
+        reads and writes) divided by the model window. Output tokens are not
+        included. A local recount of stored messages is only the fallback.
+        """
+        cid = (conversation_id or "").strip()
+        tokens = max(0, int(prompt_tokens or 0))
+        if cid and tokens > 0:
+            self._api_context_tokens[cid] = tokens
 
     def update_context_window(self, context_window: int) -> None:
         """Update the context window size (e.g., when switching models).
@@ -97,8 +113,10 @@ class ContextManager:
         """Drop cached token counts (e.g. after compression or session switch)."""
         if conversation_id is None:
             self._usage_cache.clear()
+            self._api_context_tokens.clear()
         else:
             self._usage_cache.pop(conversation_id, None)
+            self._api_context_tokens.pop(conversation_id, None)
 
     def _resolve_used_tokens(
         self,
@@ -193,6 +211,37 @@ class ContextManager:
             "system_reserve": self.system_prompt_reserve,
         }
 
+    def display_usage(
+        self,
+        messages: list[dict[str, Any]],
+        *,
+        conversation_id: str | None = None,
+    ) -> dict[str, Any]:
+        """Usage for the status line.
+
+        Prefer the last provider prompt size. Before that exists, count stored
+        messages and add the system prompt only after it has been measured.
+        """
+        cid = (conversation_id or "").strip()
+        noted = self._api_context_tokens.get(cid) if cid else None
+        if noted:
+            total = int(self.context_window) or 0
+            percent = (noted / total * 100) if total > 0 else 0.0
+            return {
+                "used": noted,
+                "total": total,
+                "percent": round(percent, 1),
+                "messages_count": len(messages),
+                "context_window": total,
+                "source": "api",
+            }
+        usage = self.get_usage(
+            messages,
+            conversation_id=conversation_id,
+            include_system_reserve=self._system_prompt_measured,
+        )
+        return {**usage, "source": "estimate"}
+
     def is_near_limit(
         self,
         messages: list[dict[str, Any]],
@@ -238,16 +287,22 @@ class ContextManager:
         else:
             return "green"
 
-    def format_usage_display(self, messages: list[dict[str, Any]]) -> str:
+    def format_usage_display(
+        self,
+        messages: list[dict[str, Any]],
+        *,
+        conversation_id: str | None = None,
+    ) -> str:
         """Format usage for display in UI (e.g., '12k/128k (9%)').
 
         Args:
             messages: Current conversation messages.
+            conversation_id: When set, prefer the last provider prompt size.
 
         Returns:
             Human-readable usage string.
         """
-        usage = self.get_usage(messages)
+        usage = self.display_usage(messages, conversation_id=conversation_id)
         used_str = TokenCounter.format_token_count(usage["used"])
         total_str = TokenCounter.format_token_count(usage["total"])
         return f"{used_str}/{total_str} ({usage['percent']:.0f}%)"

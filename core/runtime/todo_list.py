@@ -328,6 +328,75 @@ def replace_todos(profile: str, conversation_id: str, raw: Any) -> list[TodoItem
     return _store.replace(profile, conversation_id, raw)
 
 
+TODO_STALE_ROUNDS = 3
+TODO_REMINDER_PREFIX = "[Todo reminder]"
+_TODO_WRITE_NAMES = frozenset({"todo_write", "todowrite", "todo", "update_plan"})
+
+TODO_REMINDER = (
+    "[Todo reminder] todo_write has not run for 3 tool rounds and the checklist "
+    "is still open. Call todo_write with the full list: exactly one in_progress "
+    "item for the task you are doing now, and completed only for work already "
+    "finished in this turn. If the list is stale, replace it. Ignore this if "
+    "the current step does not change the plan."
+)
+
+
+def is_todo_reminder(role: str | None, content: Any) -> bool:
+    """True for the graph-only nudge that must not become a user turn."""
+    if (role or "") != "user":
+        return False
+    text = content if isinstance(content, str) else str(content or "")
+    return text.strip().startswith(TODO_REMINDER_PREFIX)
+
+
+def _assistant_tool_names(msg: dict[str, Any]) -> list[str]:
+    calls = msg.get("tool_calls") or []
+    if not isinstance(calls, list):
+        return []
+    names: list[str] = []
+    for call in calls:
+        if not isinstance(call, dict):
+            continue
+        fn = call.get("function") if isinstance(call.get("function"), dict) else {}
+        raw = (fn or {}).get("name") or call.get("name") or ""
+        name = str(raw).strip().lower()
+        if name:
+            names.append(name)
+    return names
+
+
+def tool_rounds_since_todo_write(messages: list[dict[str, Any]] | None) -> int:
+    """Assistant tool rounds after the newest todo_write call."""
+    rounds = 0
+    for msg in reversed(messages or []):
+        if not isinstance(msg, dict) or msg.get("role") != "assistant":
+            continue
+        names = _assistant_tool_names(msg)
+        if not names:
+            continue
+        if any(name in _TODO_WRITE_NAMES for name in names):
+            break
+        rounds += 1
+    return rounds
+
+
+def todo_reminder_text(
+    messages: list[dict[str, Any]] | None,
+    items: Iterable[TodoItem | dict[str, Any]] | None,
+) -> str | None:
+    """Nudge when an open checklist has gone three tool rounds without an update."""
+    if not todo_list_is_open(items or []):
+        return None
+    rounds = tool_rounds_since_todo_write(messages)
+    if rounds < TODO_STALE_ROUNDS or rounds % TODO_STALE_ROUNDS != 0:
+        return None
+    if messages:
+        last = messages[-1]
+        if isinstance(last, dict) and is_todo_reminder(last.get("role"), last.get("content")):
+            return None
+    return TODO_REMINDER
+
+
 def drop_closed_todos(profile: str, conversation_id: str) -> list[TodoItem]:
     """Persist-clear a finished checklist (all completed/cancelled).
 

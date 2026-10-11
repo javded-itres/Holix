@@ -51,6 +51,7 @@ PLAN_MODE_BLOCKED: frozenset[str] = frozenset(
         "delete_file",
         "notebook_edit",
         "run_terminal_command",
+        "ssh_exec",
         "terminal",
         "delegate_to_subagent",
         "start_background_process",

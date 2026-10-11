@@ -800,7 +800,11 @@ def _is_honesty_nudge_message(msg: dict[str, Any] | None) -> bool:
     raw = msg.get("content")
     text = raw if isinstance(raw, str) else str(raw or "")
     stripped = text.strip()
-    return stripped.startswith("[Action honesty") or stripped.startswith("[Self-diagnose]")
+    return (
+        stripped.startswith("[Action honesty")
+        or stripped.startswith("[Self-diagnose]")
+        or stripped.startswith("[Todo reminder]")
+    )
 
 
 def _last_real_user_index(messages: list[dict[str, Any]] | None) -> int:

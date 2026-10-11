@@ -44,6 +44,7 @@ class AgentBackgroundTask:
     _process: asyncio.subprocess.Process | None = field(default=None, repr=False)
     _async_job: asyncio.Task[None] | None = field(default=None, repr=False)
     _notified: bool = False
+    _last_progress_at: float = 0.0
 
     def is_running(self) -> bool:
         return self.status == "running"
@@ -221,30 +222,15 @@ def format_agent_task_wakeup(task: AgentBackgroundTask) -> str:
         )
     return (
         f"Background task `{task.description}` (id={task.task_id}) {how}. "
-        "This is the same agent, not a sub-agent. Tell the user the result "
-        "in your own words. Do not paste this note. "
-        "Do not run this same command again if it succeeded. "
-        "If it failed, fix the obvious cause once (for example `source` is not "
-        "a command in /bin/sh — call `.venv/bin/pip` directly). "
-        "A finished install is not a running bot or server. If the user asked "
-        "to start or restart one, or agreed when you offered, call "
-        "start_background_process now with the project command. "
-        "Do not use nohup, `&`, or run_terminal_command for that process.\n\n"
+        "Tell the user the result in your own words. "
+        "Do not run this same command again if it succeeded.\n\n"
         f"Command: {task.command}\n\n"
         f"Output:\n{body}"
     )
 
 
 def started_task_message(task: AgentBackgroundTask) -> str:
-    return (
-        f"Background task started: id={task.task_id} — {task.description}. "
-        "Do not paste this note to the user and do not end the turn with only it. "
-        "Do not poll. You will be woken with the output when it exits. "
-        "If the user asked to start or restart a bot or server, this job is not "
-        "that process: after it finishes, call start_background_process. "
-        "Do not launch it with nohup, `&`, source, or run_terminal_command. "
-        "This is not a sub-agent."
-    )
+    return f"Background task started: id={task.task_id} — {task.description}. Running in this chat."
 
 
 class AgentTaskRegistry:
@@ -432,17 +418,50 @@ class AgentTaskRegistry:
                 )
         return "\n".join(lines)
 
+    def snapshot(self, *, profile: str, conversation_id: str) -> list[dict[str, Any]]:
+        """Rows for the Studio task strip. Running tasks, plus ones just finished."""
+        now = time.time()
+        rows: list[dict[str, Any]] = []
+        for task in self.list_for(profile=profile, conversation_id=conversation_id):
+            if (
+                not task.is_running()
+                and task.finished_at is not None
+                and now - task.finished_at > 180
+            ):
+                continue
+            rows.append(task_public_row(task))
+        return rows
+
+    async def _drain(
+        self,
+        task: AgentBackgroundTask,
+        stream: asyncio.StreamReader | None,
+    ) -> None:
+        if stream is None:
+            return
+        while True:
+            chunk = await stream.readline()
+            if not chunk:
+                return
+            task.output = _clip_output(task.output + chunk.decode("utf-8", errors="replace"))
+            self._maybe_progress(task)
+
     async def _watch(self, task: AgentBackgroundTask, process: asyncio.subprocess.Process) -> None:
         try:
-            stdout_b, stderr_b = await process.communicate()
+            await asyncio.gather(
+                self._drain(task, process.stdout),
+                self._drain(task, process.stderr),
+            )
+            if process.returncode is None:
+                await process.wait()
+            task.exit_code = int(process.returncode if process.returncode is not None else -1)
         except Exception as exc:
             logger.warning("background task %s watcher failed: %s", task.task_id, exc)
-            stdout_b, stderr_b = b"", str(exc).encode()
             task.exit_code = -1
-        else:
-            task.exit_code = int(process.returncode if process.returncode is not None else -1)
+            if not (task.output or "").strip():
+                task.output = str(exc)
         task.finished_at = time.time()
-        task.output = _format_output(stdout_b, stderr_b)
+        task.output = _finalize_live_output(task.output)
         if task.stop_requested:
             task.status = "killed"
         elif task.exit_code == 0:
@@ -497,22 +516,46 @@ class AgentTaskRegistry:
             except Exception:
                 logger.debug("agent task start listener failed", exc_info=True)
 
+    def _maybe_progress(self, task: AgentBackgroundTask, *, force: bool = False) -> None:
+        now = time.monotonic()
+        if not force and now - task._last_progress_at < 0.4:
+            return
+        task._last_progress_at = now
+        self._emit_task(task, "progress")
+
     def _emit_task(self, task: AgentBackgroundTask, phase: str) -> None:
         try:
-            from core.agent_events import AgentTaskFinishedEvent, AgentTaskStartedEvent
+            from core.agent_events import (
+                AgentTaskFinishedEvent,
+                AgentTaskProgressEvent,
+                AgentTaskStartedEvent,
+            )
         except Exception:
             return
+        tail = _public_output_tail(task.output)
         if phase == "started":
             event = AgentTaskStartedEvent(
                 task_id=task.task_id,
                 description=task.description,
                 status="running",
+                command=task.command,
+            )
+        elif phase == "progress":
+            event = AgentTaskProgressEvent(
+                task_id=task.task_id,
+                description=task.description,
+                status=task.status or "running",
+                command=task.command,
+                output_tail=tail,
             )
         else:
             event = AgentTaskFinishedEvent(
                 task_id=task.task_id,
                 description=task.description,
                 status=task.status,
+                command=task.command,
+                exit_code=task.exit_code,
+                output_tail=tail,
             )
         event.conversation_id = task.conversation_id
         for bus in list(_buses):
@@ -544,18 +587,52 @@ def _short_command(command: str) -> str:
     return text[:80] or "command"
 
 
-def _format_output(stdout_b: bytes, stderr_b: bytes) -> str:
-    from core.memory.tool_content import truncate_terminal_output
-    from core.workspace import sanitize_paths_in_text
+_OUTPUT_CAP = 120_000
+_OUTPUT_TAIL = 12_000
 
-    stdout = sanitize_paths_in_text(stdout_b.decode("utf-8", errors="replace")).strip()
-    stderr = sanitize_paths_in_text(stderr_b.decode("utf-8", errors="replace")).strip()
-    parts: list[str] = []
-    if stdout:
-        parts.append(stdout)
-    if stderr:
-        parts.append("stderr:\n" + stderr)
-    return truncate_terminal_output("\n".join(parts))
+
+def task_public_row(task: AgentBackgroundTask) -> dict[str, Any]:
+    return {
+        "task_id": task.task_id,
+        "description": task.description,
+        "command": task.command,
+        "status": task.status,
+        "exit_code": task.exit_code,
+        "output": _public_output_tail(task.output),
+        "age_seconds": task.age_seconds(),
+    }
+
+
+def _clip_output(text: str) -> str:
+    if len(text) <= _OUTPUT_CAP:
+        return text
+    return text[-_OUTPUT_CAP:]
+
+
+def _public_output_tail(text: str) -> str:
+    raw = text or ""
+    tail = raw[-_OUTPUT_TAIL:]
+    try:
+        from core.workspace import sanitize_paths_in_text
+
+        return sanitize_paths_in_text(tail)
+    except Exception:
+        return tail
+
+
+def _finalize_live_output(text: str) -> str:
+    from core.memory.tool_content import truncate_terminal_output
+
+    return truncate_terminal_output(_sanitize_all(text))
+
+
+def _sanitize_all(text: str) -> str:
+    try:
+        from core.workspace import sanitize_paths_in_text
+
+        return sanitize_paths_in_text(text or "")
+    except Exception:
+        return text or ""
 
 
 async def _kill_process(process: asyncio.subprocess.Process) -> None:

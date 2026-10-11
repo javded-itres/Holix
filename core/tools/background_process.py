@@ -546,8 +546,6 @@ class StopBackgroundProcessTool(BaseTool):
                 profile=profile,
                 conversation_id=conversation_id,
             )
-        if record is None:
-            record = await registry.stop_for_profile(profile=profile)
 
         if record is None:
             return "No matching background process found."
@@ -583,10 +581,11 @@ class ListBackgroundProcessesTool(BaseTool):
         super().__init__()
         self.name = "list_background_processes"
         self.description = (
-            "List background processes for this profile (running + recently stopped). "
-            "Survives reboot: stopped rows still show command so you can restart. "
-            "Always use start_background_process for bots/servers the user asked to "
-            "keep running — not run_terminal_command. Tests/builds stay in the terminal."
+            "List background processes for this chat (running + recently stopped). "
+            "Other sessions are not included. Stopped rows still show the command "
+            "so you can restart. Always use start_background_process for bots/servers "
+            "the user asked to keep running — not run_terminal_command. "
+            "Tests/builds stay in the terminal."
         )
         self.risk_level = "low"
         self.parameters = {
@@ -617,7 +616,7 @@ class ListBackgroundProcessesTool(BaseTool):
         # Full profile disk index (running + stopped after reboot)
         disk_rows = list_index_with_status(profile, is_alive=is_process_alive)
 
-        lines: list[str] = [f"Profile `{profile}` background processes:"]
+        lines: list[str] = ["Background processes for this chat:"]
         seen: set[str] = set()
         for rec in session_recs:
             seen.add(rec.process_id)
@@ -630,6 +629,8 @@ class ListBackgroundProcessesTool(BaseTool):
         for row in disk_rows:
             pid_key = str(row.get("process_id") or "")
             if not pid_key or pid_key in seen:
+                continue
+            if str(row.get("conversation_id") or "") != conversation_id:
                 continue
             status = str(row.get("status") or "unknown")
             if status == "stopped" and not include_stopped:
@@ -655,7 +656,7 @@ class ListBackgroundProcessesTool(BaseTool):
 
         if len(lines) == 1:
             return (
-                "No background processes recorded for this profile.\n"
+                "No background processes recorded for this chat.\n"
                 "Start long-running work with start_background_process so it is "
                 "tracked after reboot."
             )

@@ -21,15 +21,15 @@ _SEARCHABLE_ROLES = frozenset({"user", "assistant", "system"})
 _MIN_INDEX_CHARS = 10
 _SEARCH_OVERFETCH_FACTOR = 5
 _SEARCH_OVERFETCH_MAX = 60
-_HONESTY_NUDGE_PREFIX = "[Action honesty"
+_GRAPH_ONLY_USER_PREFIXES = ("[Action honesty", "[Todo reminder]")
 
 
 def is_stored_honesty_nudge(role: str | None, content: Any) -> bool:
-    """True for graph-only honesty injects that must not poison session history."""
+    """True for graph-only harness injects that must not poison session history."""
     if (role or "") != "user":
         return False
     text = content if isinstance(content, str) else str(content or "")
-    return text.strip().startswith(_HONESTY_NUDGE_PREFIX)
+    return text.strip().startswith(_GRAPH_ONLY_USER_PREFIXES)
 
 
 def _should_index_for_search(role: str) -> bool:

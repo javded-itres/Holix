@@ -385,6 +385,45 @@ async def test_stop_tool_by_scope(scope_tokens, tmp_path) -> None:
 
 
 @pytest.mark.asyncio
+async def test_stop_tool_leaves_other_conversation(scope_tokens, tmp_path) -> None:
+    registry = BackgroundProcessRegistry()
+    popens = iter([_mock_popen(8888), _mock_popen(7777)])
+
+    def _popen(*_args, **_kwargs):
+        return next(popens)
+
+    with (
+        patch("core.runtime.background_process.popen_background", side_effect=_popen),
+        patch("core.runtime.background_process.terminate_process") as terminate,
+        patch("core.runtime.background_process.is_process_alive", return_value=True),
+        patch("core.runtime.port_utils.find_busy_ports", return_value=[]),
+        patch("core.runtime.port_utils.force_free_ports", return_value=[]),
+        patch("core.workspace.get_effective_workspace_root", return_value=tmp_path),
+        patch(
+            "core.runtime.background_process.get_background_process_registry",
+            return_value=registry,
+        ),
+    ):
+        other = await registry.start(
+            command="sleep 9",
+            label="other",
+            conversation_id="other-conv",
+            profile="test-profile",
+        )
+        await registry.start(
+            command="sleep 1",
+            label="mine",
+            conversation_id="test-conv",
+            profile="test-profile",
+        )
+        result = await StopBackgroundProcessTool().execute()
+
+    assert "7777" in result
+    assert other.process_id in registry._records
+    assert terminate.call_count == 1
+
+
+@pytest.mark.asyncio
 async def test_list_tool_empty(scope_tokens) -> None:
     registry = BackgroundProcessRegistry()
     with patch(
@@ -392,7 +431,7 @@ async def test_list_tool_empty(scope_tokens) -> None:
         return_value=registry,
     ):
         result = await ListBackgroundProcessesTool().execute()
-    assert "No background processes recorded for this profile" in result
+    assert "No background processes recorded for this chat" in result
     assert "start_background_process" in result
 
 
@@ -404,7 +443,7 @@ async def test_list_tool_ignores_unknown_kwargs(scope_tokens) -> None:
         return_value=registry,
     ):
         result = await ListBackgroundProcessesTool().execute(project_key="catalog")
-    assert "No background processes recorded for this profile" in result
+    assert "No background processes recorded for this chat" in result
 
 
 @pytest.mark.asyncio

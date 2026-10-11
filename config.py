@@ -93,7 +93,7 @@ class Settings(BaseSettings):
             "(aligned with agent_max_tokens; monologue blocked by honesty/tool_choice)"
         ),
     )
-    llm_step_timeout: float = 300.0
+    llm_step_timeout: float = 600.0
     data_dir: str = "data"
     context_window: int = 131072
 

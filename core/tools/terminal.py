@@ -35,6 +35,27 @@ class PromoteForegroundService(Exception):
         super().__init__(f"foreground service on ports {self.ports}")
 
 
+def raw_ssh_redirect(command: str) -> str | None:
+    """Point raw ssh/scp/sftp at ssh_exec instead of the local shell."""
+    try:
+        argv = shlex.split(command or "", posix=not IS_WINDOWS)
+    except ValueError:
+        return None
+    if not argv:
+        return None
+    token = argv[0].replace("\\", "/").rsplit("/", 1)[-1].lower()
+    if token.endswith(".exe"):
+        token = token[:-4]
+    if token not in {"ssh", "scp", "sftp"}:
+        return None
+    return (
+        "Error: Do not run ssh, scp, or sftp in the local shell. "
+        "Use ssh_exec(host=..., command=..., stdin=...) so the host and the "
+        "remote command stay separate arguments. On the first remote step, "
+        "load the skill holix-ssh with skill_view. Do not retry with ssh -v."
+    )
+
+
 def _env_bool(raw: str | None, *, default: bool) -> bool:
     if raw is None or not str(raw).strip():
         return default
@@ -249,6 +270,7 @@ async def _communicate_with_cancel(
     *,
     timeout: float,
     command: str = "",
+    stdin: bytes | None = None,
 ) -> tuple[bytes, bytes]:
     """Wait for process output, honouring cooperative cancel and hard timeout.
 
@@ -259,7 +281,7 @@ async def _communicate_with_cancel(
     """
     from core.tools.execution_context import is_run_cancelled
 
-    comm = asyncio.create_task(process.communicate())
+    comm = asyncio.create_task(process.communicate(input=stdin))
     loop = asyncio.get_running_loop()
     started = loop.time()
     deadline = started + max(0.1, float(timeout))
@@ -404,7 +426,8 @@ class TerminalTool(BaseTool):
             "in the background or to start/keep a server. "
             "If a missed server stays in the foreground for over a minute and "
             "opens a listen port, this tool stops it and restarts it in the background. "
-            "Permission errors (sudo/root) are returned as clear access-denied messages."
+            "Permission errors (sudo/root) are returned as clear access-denied messages. "
+            "Do not use this for another machine: call ssh_exec instead of ssh, scp, or sftp."
         )
         self.risk_level = "high"
         self.parameters = {
@@ -467,6 +490,10 @@ class TerminalTool(BaseTool):
 
         if is_introspect_command(command):
             return INTROSPECT_REFUSAL
+
+        redirected = raw_ssh_redirect(command)
+        if redirected:
+            return redirected
 
         # Nudge away from untracked long-running bots/servers.
         # Do not treat `pip install uvicorn` as launching uvicorn.

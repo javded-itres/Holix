@@ -3,7 +3,10 @@
 from __future__ import annotations
 
 import pytest
+from core.graph.action_honesty import last_user_text
+from core.memory.conversation import is_stored_honesty_nudge
 from core.runtime.todo_list import (
+    TODO_REMINDER,
     drop_closed_todos,
     format_todo_checklist,
     format_todo_prompt_block,
@@ -13,6 +16,7 @@ from core.runtime.todo_list import (
     replace_todos,
     reset_todo_store,
     todo_list_is_open,
+    todo_reminder_text,
 )
 from core.tools.execution_context import conversation_scope, profile_scope, reset_conversation_scope
 from core.tools.todo import TodoWriteTool
@@ -115,6 +119,49 @@ def test_closed_list_is_not_open() -> None:
     prompt = format_todo_prompt_block(mixed)
     assert "[pending]" in prompt
     assert "[completed]" in prompt
+
+
+def _round(name: str, n: int) -> dict:
+    return {
+        "role": "assistant",
+        "content": "",
+        "tool_calls": [{"id": f"c{n}", "function": {"name": name, "arguments": "{}"}}],
+    }
+
+
+def test_todo_reminder_after_three_tool_rounds() -> None:
+    open_items = [{"content": "Fix the bar", "status": "in_progress"}]
+    messages = [_round("read_file", 1), _round("grep", 2)]
+    assert todo_reminder_text(messages, open_items) is None
+    messages.append(_round("patch_file", 3))
+    assert todo_reminder_text(messages, open_items) == TODO_REMINDER
+    messages.append({"role": "user", "content": TODO_REMINDER})
+    assert todo_reminder_text(messages, open_items) is None
+
+
+def test_todo_reminder_resets_when_list_is_written() -> None:
+    open_items = [{"content": "Fix the bar", "status": "pending"}]
+    messages = [_round("read_file", 1), _round("grep", 2), _round("patch_file", 3)]
+    assert todo_reminder_text(messages, open_items) == TODO_REMINDER
+    messages.append(_round("TodoWrite", 4))
+    messages.append(_round("read_file", 5))
+    messages.append(_round("grep", 6))
+    assert todo_reminder_text(messages, open_items) is None
+
+
+def test_todo_reminder_skips_a_finished_list() -> None:
+    done = [{"content": "Fix the bar", "status": "completed"}]
+    messages = [_round("read_file", i) for i in range(3)]
+    assert todo_reminder_text(messages, done) is None
+
+
+def test_todo_reminder_is_not_a_user_turn() -> None:
+    messages = [
+        {"role": "user", "content": "почини полосу"},
+        {"role": "user", "content": TODO_REMINDER},
+    ]
+    assert last_user_text(messages) == "почини полосу"
+    assert is_stored_honesty_nudge("user", TODO_REMINDER) is True
 
 
 def test_drop_closed_todos_clears_finished_plan() -> None:

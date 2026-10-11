@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+### Changed
+
+- **Context meter** — the TUI and `/status` show the last model prompt size (input plus cache reads and writes, without the reply) over the model window, the same way Claude Code's status line does. A recount of stored chat messages is only the fallback before that figure exists.
+- **Todo reminder** — after three tool rounds with an open checklist and no `todo_write`, the next step gets a short reminder to refresh the list. That reminder stays in the agent loop and is not saved as a user message.
+- **TUI background processes** — the process bar, the work line, and process list/stop stay in the chat that started them. Another open window no longer shows or stops those processes.
+- **LLM step timeout** — a model step that sends no reply waits 600s before Holix aborts it. The previous default was 300s. A profile can set `llm_step_timeout`.
+- **Remote shell** — `ssh_exec` runs one command on another machine. The host and the remote command are separate arguments, BatchMode is forced, and a script goes in `stdin`. `run_terminal_command` refuses raw `ssh`, `scp`, and `sftp`. The skill `holix-ssh` is the procedure.
+
 ## 1.1.17 — 2026-10-10
 
 ### Added

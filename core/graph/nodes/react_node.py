@@ -83,7 +83,7 @@ from core.prompt_builder import build_system_prompt, tools_prompt_policy
 
 logger = logging.getLogger(__name__)
 
-_DEFAULT_LLM_STEP_TIMEOUT_S = 300.0
+_DEFAULT_LLM_STEP_TIMEOUT_S = 600.0
 
 
 async def _compress_messages_if_needed(
