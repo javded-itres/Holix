@@ -70,6 +70,16 @@ def project_label(rel: str) -> str:
     return rel
 
 
+def _root_pin_hides_product_catalog() -> bool:
+    """Skip ``projects/`` when this conversation is pinned to the workspace root."""
+    try:
+        from core.sdd.change_workspace import session_is_workspace_root_pin
+
+        return session_is_workspace_root_pin()
+    except Exception:
+        return False
+
+
 def is_sdd_initialized(project_root: Path | str) -> bool:
     root = Path(project_root)
     cfg = openspec_root(root) / CONFIG_FILE
@@ -155,6 +165,8 @@ def discover_sdd_projects(
         found.sort(key=lambda x: (x["path"] != "", x["path"]))
         return found
 
+    hide_products = _root_pin_hides_product_catalog()
+
     def _walk(current: Path, depth: int) -> None:
         if depth > max_depth:
             return
@@ -166,6 +178,9 @@ def discover_sdd_projects(
             if not child.is_dir() or child.is_symlink():
                 continue
             if child.name in _SKIP_DIR_NAMES or child.name.startswith("."):
+                continue
+            # A workspace-root session must not adopt projects/<first-name>.
+            if hide_products and child.name == "projects" and current == ws:
                 continue
             if is_sdd_initialized(child):
                 _add(child)

@@ -178,16 +178,34 @@ def format_studio_workspace_block(
             pass
 
     if jail and root:
+        try:
+            from core.sdd.change_workspace import session_is_workspace_root_pin
+
+            at_root = session_is_workspace_root_pin()
+        except Exception:
+            at_root = False
+        if at_root:
+            scope = (
+                "CWD is the workspace root. Work in `.` and in folders next to "
+                "`projects/`. Do not `cd projects` or open `projects/<name>`, "
+                "including whichever folder is first alphabetically. "
+                "A product project needs its own session. "
+            )
+        else:
+            scope = (
+                "CWD is already the workspace. Prefer `list_directory` on `.` and relative "
+                "`ls` / project names — never leave this directory. "
+                "Stay here: do not `cd` into sibling `.holix/worktrees/*` "
+                "or other product clones unless the user explicitly switched worktree. "
+            )
         return (
             "## Holix Studio working directory\n\n"
             "Create and edit **all** project files only under this workspace:\n"
             f"`{root}`\n\n"
             "Use paths relative to that directory (or absolute paths under it). "
             "Do **not** write into the Holix install/deploy tree or another user's workspace.\n\n"
-            "CWD is already the workspace. Prefer `list_directory` on `.` and relative "
-            "`ls` / project names — never `~`, `/root`, or `$HOLIX_HOME`. "
-            "Stay in this directory: do not `cd` into sibling `.holix/worktrees/*` "
-            "or other product clones unless the user explicitly switched worktree. "
+            f"{scope}"
+            "Never use `~`, `/root`, or `$HOLIX_HOME`. "
             "Successful tool listings are authoritative: do not claim the workspace is "
             "empty or that tools returned nothing when they already listed files."
         )

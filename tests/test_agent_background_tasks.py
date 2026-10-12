@@ -210,6 +210,18 @@ def test_one_media_start_blocks_a_later_revision_call() -> None:
     assert media_generation_already_started(messages) is True
     fresh = [{"role": "user", "content": "поправь: добавь человека"}]
     assert media_generation_already_started(fresh) is False
+    delivered = [
+        {"role": "user", "content": "нарисуй слона"},
+        {
+            "role": "tool",
+            "content": "Background task started: id=task_abc — image: elephant",
+        },
+        {
+            "role": "user",
+            "content": "Background task `image` (id=task_abc) finished successfully.",
+        },
+    ]
+    assert media_generation_already_started(delivered) is False
 
 
 def test_wakeup_turn_is_not_replaced_by_the_idle_list_stop() -> None:

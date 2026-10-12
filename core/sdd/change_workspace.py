@@ -421,6 +421,10 @@ def overlay_workspace_root(
     return file_workspace_root(get_active_change(prof, cid))
 
 
+# Studio org products live in this folder. A workspace-root pin must not enter it.
+STUDIO_PRODUCTS_DIR = "projects"
+
+
 def is_workspace_root_pin(active: ActiveChange | None) -> bool:
     """True when the session is pinned to the profile workspace, not a product.
 
@@ -432,6 +436,33 @@ def is_workspace_root_pin(active: ActiveChange | None) -> bool:
         return False
     rel = (active.project or "").strip().replace("\\", "/").strip("/")
     return rel in {"", "."}
+
+
+def session_is_workspace_root_pin() -> bool:
+    """True when the current conversation is pinned to the profile workspace root."""
+    try:
+        from core.tools.execution_context import get_conversation_id, get_profile_name
+
+        active = get_active_change(get_profile_name(), get_conversation_id())
+    except Exception:
+        return False
+    return is_workspace_root_pin(active)
+
+
+def path_is_studio_product_catalog(path: Path, workspace_root: Path) -> bool:
+    """True when *path* is ``projects`` or a child of it under *workspace_root*."""
+    try:
+        rel = Path(path).resolve().relative_to(Path(workspace_root).resolve())
+    except (OSError, RuntimeError, ValueError):
+        return False
+    return bool(rel.parts) and rel.parts[0] == STUDIO_PRODUCTS_DIR
+
+
+def root_pin_blocks_path(path: Path, workspace_root: Path) -> bool:
+    """Root-pinned sessions stay at the workspace root, not in ``projects/``."""
+    if not session_is_workspace_root_pin():
+        return False
+    return path_is_studio_product_catalog(path, workspace_root)
 
 
 def format_active_change_line(active: ActiveChange | None) -> str:
@@ -447,8 +478,20 @@ def format_active_change_line(active: ActiveChange | None) -> str:
 
 
 def format_active_change_prompt_block(active: ActiveChange | None) -> str:
-    if active is None or is_workspace_root_pin(active):
+    if active is None:
         return ""
+    if is_workspace_root_pin(active):
+        root = (active.project_root or "").strip() or "."
+        return (
+            "## Workspace root\n\n"
+            f"**Workspace is the profile root:** `{root}`\n"
+            "Work only here: files and folders that sit next to `projects/`, not inside it.\n"
+            "Do not `cd projects`, do not open `projects/<name>`, and do not pick "
+            "the first folder under `projects/` (alphabetical or otherwise).\n"
+            "Product work belongs in a session pinned to that product. "
+            "`sdd_*` with an empty project stays at this root. "
+            "`list_directory` on `.` may name `projects`, but that catalog is out of scope."
+        )
     layout = _layout_for_active(active)
     if _is_multi_product(layout) and layout is not None:
         product = str(Path(layout.project_root).expanduser().resolve())

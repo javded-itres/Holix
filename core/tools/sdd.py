@@ -6,7 +6,7 @@ import shutil
 from pathlib import Path
 from typing import Any
 
-from core.sdd.projects import discover_sdd_projects, resolve_project_root
+from core.sdd.projects import discover_sdd_projects, normalize_project_rel, resolve_project_root
 from core.sdd.store import SpecStore, result_json, workspace_from_context
 from core.tools.base import BaseTool
 
@@ -46,6 +46,16 @@ def _sdd_workspace(project: str = "") -> Path:
     except Exception:
         active = None
     from core.runtime.git_worktree import worktrees_enabled
+    from core.sdd.change_workspace import is_workspace_root_pin as _is_root_pin
+
+    if _is_root_pin(active):
+        rel = normalize_project_rel(project)
+        if rel == "projects" or rel.startswith("projects/"):
+            raise ValueError(
+                "This session is pinned to the workspace root. "
+                "Do not target projects/<name>. Pin a new session to that product."
+            )
+        return resolve_project_root(ctx, project)
 
     if (
         worktrees_enabled()

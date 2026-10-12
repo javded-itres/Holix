@@ -245,4 +245,16 @@ def resolve_tool_path(raw: str, *, default_relative_to: Path | None = None) -> P
                 f"Path '{path_label}' is outside the allowed workspace '{workspace_label}'. "
                 "Workspace jail is enabled for this profile."
             )
+    if root is not None:
+        try:
+            from core.sdd.change_workspace import root_pin_blocks_path
+
+            blocked = root_pin_blocks_path(p, root)
+        except Exception:
+            blocked = False
+        if blocked:
+            raise WorkspaceJailError(
+                "This session is pinned to the workspace root. "
+                "Do not enter projects/. Start a session pinned to that product instead."
+            )
     return p

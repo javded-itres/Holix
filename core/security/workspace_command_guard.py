@@ -272,6 +272,18 @@ def command_escapes_workspace(
         if not _is_inside_jail(resolved, root, extras):
             label = token[:80] + ("…" if len(token) > 80 else "")
             return True, f"Path '{label}' is outside your profile workspace."
+        try:
+            from core.sdd.change_workspace import root_pin_blocks_path
+
+            if root_pin_blocks_path(resolved, root):
+                label = token[:80] + ("…" if len(token) > 80 else "")
+                return (
+                    True,
+                    f"Path '{label}' is under projects/. This session stays at the "
+                    "workspace root. Pin a product session to work there.",
+                )
+        except Exception:
+            pass
 
     return False, ""
 

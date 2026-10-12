@@ -8,7 +8,12 @@ from core.project.holix_md import HOLIX_MD_FILENAME, HOLIX_MD_LEGACY_FILENAME
 from core.tools.base import BaseTool
 from core.tools.execution_context import get_profile_name
 from core.tools.file_diff import format_write_file_result, read_file_text
-from core.workspace import WorkspaceJailError, display_path_for_user, resolve_tool_path
+from core.workspace import (
+    WorkspaceJailError,
+    display_path_for_user,
+    get_effective_workspace_root,
+    resolve_tool_path,
+)
 from core.workspace.quota import WorkspaceQuotaExceeded
 from core.workspace.storage import (
     format_quota_error,
@@ -26,6 +31,15 @@ _PATCH_MAX_NEW_CHARS = 12000
 _IMAGE_SUFFIXES = frozenset(
     {".jpg", ".jpeg", ".png", ".gif", ".webp", ".bmp", ".heic", ".heif", ".tif", ".tiff"}
 )
+
+
+def _root_pin_hides_catalog(path: Path, workspace_root: Path) -> bool:
+    try:
+        from core.sdd.change_workspace import root_pin_blocks_path
+
+        return root_pin_blocks_path(path, workspace_root)
+    except Exception:
+        return False
 
 
 def _is_binary_image_path(path: Path) -> bool:
@@ -415,7 +429,19 @@ class ListDirectoryTool(BaseTool):
 
             display_path = display_path_for_user(dir_path, input_path=path)
             output_lines = [f"Contents of {display_path}:"]
+            jail = get_effective_workspace_root()
             for item in items:
+                if (
+                    jail is not None
+                    and item.is_dir()
+                    and item.name == "projects"
+                    and _root_pin_hides_catalog(item, jail)
+                ):
+                    output_lines.append(
+                        "[DIR] projects — outside this session (workspace root). "
+                        "Do not open it or pick a product inside it."
+                    )
+                    continue
                 prefix = "[DIR] " if item.is_dir() else "[FILE]"
                 output_lines.append(f"{prefix} {item.name}")
 

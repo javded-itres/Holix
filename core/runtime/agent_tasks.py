@@ -58,8 +58,10 @@ class AgentBackgroundTask:
 def media_generation_already_started(messages: list[dict[str, Any]] | None) -> bool:
     """True after this user turn already started one image or video task.
 
-    Reflection notes are skipped, so a quality retry cannot launch a second
-    generation to "fix" the picture.
+    A wake-up (``Background task `…``) is a new turn, so the model may continue
+    an open checklist, including another generation. Reflexion notes are still
+    skipped: a quality retry must not launch a second generation of a picture
+    that has not been delivered yet.
     """
     for msg in reversed(messages or []):
         if not isinstance(msg, dict):
@@ -69,8 +71,7 @@ def media_generation_already_started(messages: list[dict[str, Any]] | None) -> b
         if role == "user":
             if content.startswith("## Reflexion"):
                 continue
-            if content.startswith("Background task `"):
-                continue
+            # A real user message or a finished-task wake-up starts a fresh turn.
             return False
         if role == "tool" and content.startswith("Background task started:"):
             return True

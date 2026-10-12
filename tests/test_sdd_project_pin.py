@@ -44,7 +44,10 @@ def test_workspace_root_pin_is_not_a_project(tmp_path: Path) -> None:
     bind_active_project("default", "root-tab", workspace, project=".")
     active = get_active_change("default", "root-tab")
     assert is_workspace_root_pin(active)
-    assert format_active_change_prompt_block(active) == ""
+    block = format_active_change_prompt_block(active)
+    assert "Workspace root" in block
+    assert "projects/" in block
+    assert "alphabetical" in block
     assert format_active_change_line(active) == ""
 
 
@@ -75,6 +78,48 @@ def test_prompt_context_follows_product_pin(tmp_path: Path) -> None:
         assert cwd == str(workspace.resolve())
     finally:
         reset_conversation_scope(ctok)
+
+
+def test_root_pin_skips_alphabetical_product(tmp_path: Path) -> None:
+    from core.sdd.projects import discover_sdd_projects
+    from core.security.workspace_command_guard import command_escapes_workspace
+    from core.workspace import WorkspaceJailError, resolve_tool_path
+
+    workspace = tmp_path / "workspace"
+    first = workspace / "projects" / "aaa"
+    second = workspace / "projects" / "zzz"
+    sibling = workspace / "notes"
+    for folder in (first, second, sibling):
+        (folder / "openspec").mkdir(parents=True)
+        (folder / "openspec" / "config.yaml").write_text("schema: holix-spec\n", encoding="utf-8")
+    (workspace / "readme.txt").write_text("root\n", encoding="utf-8")
+
+    tokens = workspace_scope(workspace_root=str(workspace), workspace_jail_enabled=True)
+    ptok = profile_scope("default")
+    bind_active_project("default", "root-tab", workspace, project=".", force=True)
+    ctok = conversation_scope("root-tab")
+    try:
+        found = [row["path"] for row in discover_sdd_projects(workspace)]
+        assert "notes" in found
+        assert "projects/aaa" not in found
+        assert "projects/zzz" not in found
+        with pytest.raises(WorkspaceJailError):
+            resolve_tool_path("projects/aaa")
+        assert resolve_tool_path("notes").name == "notes"
+        assert resolve_tool_path("readme.txt").name == "readme.txt"
+        blocked, reason = command_escapes_workspace("ls projects/aaa", workspace)
+        assert blocked is True
+        assert "projects" in reason
+        allowed, _ = command_escapes_workspace("ls notes", workspace)
+        assert allowed is False
+    finally:
+        reset_conversation_scope(ctok)
+        reset_profile_scope(ptok)
+        reset_workspace_scope(tokens)
+
+    plain = [row["path"] for row in discover_sdd_projects(workspace)]
+    assert "projects/aaa" in plain
+    assert plain.index("projects/aaa") < plain.index("projects/zzz")
 
 
 def test_bind_active_project_overlays_workspace(tmp_path: Path) -> None:
