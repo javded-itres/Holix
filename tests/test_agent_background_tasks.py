@@ -212,6 +212,45 @@ def test_one_media_start_blocks_a_later_revision_call() -> None:
     assert media_generation_already_started(fresh) is False
 
 
+def test_wakeup_turn_is_not_replaced_by_the_idle_list_stop() -> None:
+    from core.runtime.agent_tasks import stop_idle_task_lookup, visible_background_final
+
+    state = {
+        "messages": [
+            {
+                "role": "user",
+                "content": (
+                    "Background task `pytest` (id=task_new) finished successfully. "
+                    "Tell the user the result in your own words.\n\n"
+                    "Command: uv run pytest -q\n\n"
+                    "Output:\n2 passed"
+                ),
+            }
+        ],
+        "tool_results": [
+            {
+                "tool_name": "list_agent_tasks",
+                "result": (
+                    "Background tasks (same agent, not sub-agents):\n"
+                    "- task_old completed exit=0 (4s) — older run"
+                ),
+            }
+        ],
+    }
+    calls = [{"function": {"name": "list_agent_tasks", "arguments": "{}"}}]
+    assert stop_idle_task_lookup(state, calls) is None
+    assert visible_background_final("", state["messages"]) == (
+        "Background task `pytest` (id=task_new) finished successfully.\n\n2 passed"
+    )
+    hidden = visible_background_final(
+        "Background task started: id=task_new — pytest. Running in this chat.",
+        [{"role": "user", "content": "прогони тесты"}],
+    )
+    assert hidden == ""
+    idle = "Фоновых задач нет. Повторно их искать не нужно."
+    assert visible_background_final(idle, state["messages"]).startswith("Background task `pytest`")
+
+
 def test_second_task_list_stops_when_nothing_is_running() -> None:
     from core.runtime.agent_tasks import stop_idle_task_lookup
 
@@ -336,3 +375,7 @@ async def test_terminal_tool_background_returns_immediately(monkeypatch) -> None
     finished = await _wait_done(task_id)
     assert "later" in finished.output
     assert finished.status == "completed"
+    get_agent_task_registry().clear()
+    listing = get_agent_task_registry().format_list(profile="default", conversation_id="default")
+    assert task_id in listing
+    assert "completed" in listing

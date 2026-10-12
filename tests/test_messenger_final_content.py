@@ -33,6 +33,10 @@ def test_media_start_does_not_become_a_chat_message() -> None:
         last_tool_result="Background task started: id=task_abc — image: a cat",
     )
     assert text == ""
+    echoed = resolve_messenger_final_content(
+        "Background task started: id=task_abc — pytest. Running in this chat.",
+    )
+    assert echoed == ""
 
 
 def test_resolve_prefers_streamed_over_placeholder() -> None:

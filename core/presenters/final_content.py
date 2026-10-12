@@ -220,11 +220,17 @@ def resolve_messenger_final_content(
     empty_message: str = MESSENGER_EMPTY_FINAL_RU,
 ) -> str:
     """Pick the best user-visible answer for Telegram/MAX delivery."""
+    from core.runtime.agent_tasks import is_background_start_note
+
     text = sanitize_assistant_visible_text(content or "")
-    if is_placeholder_final(text):
+    cleared_start = is_background_start_note(text)
+    if is_placeholder_final(text) or cleared_start:
         text = ""
 
     streamed = sanitize_assistant_visible_text(streamed_answer or "")
+    if is_background_start_note(streamed):
+        streamed = ""
+        cleared_start = True
     if not text and streamed and not is_placeholder_final(streamed):
         text = streamed
 
@@ -244,7 +250,7 @@ def resolve_messenger_final_content(
         text = format_unusable_final(text)
 
     if not text:
-        if media_start or delivered_file:
+        if media_start or delivered_file or cleared_start:
             return ""
         return empty_message
     return text
