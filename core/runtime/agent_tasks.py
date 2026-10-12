@@ -233,8 +233,8 @@ def format_agent_task_block() -> str:
     """Always-on reminder: one-shot jobs are not persistent processes."""
     return (
         "## Background tasks\n"
-        "A finite shell or media job is `run_terminal_command` with `background=true` "
-        "(or `generate_image` / `generate_video`). You receive `task_…` at once and a "
+        "A finite shell or media job is `run_terminal_command` with `background=true`. "
+        "You receive `task_…` at once and a "
         "later wake-up that already contains the output. Do not poll `list_agent_tasks` "
         'while it runs, and do not paste the "Background task started" note into the '
         "chat. When the wake-up arrives, tell the user the result in your own words.\n"
