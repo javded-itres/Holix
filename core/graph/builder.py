@@ -368,6 +368,9 @@ async def run_graph_loop(
             final_text,
             max_steps=max_steps if at_cap else None,
         )
+        from core.runtime.agent_tasks import visible_background_final
+
+        final_text = visible_background_final(final_text, final_state.get("messages"))
         if at_cap and is_code_or_diff_dump(final_text):
             final_text = step_limit_reached_message(max_steps, step_count=step_count)
         if not getattr(agent, "_final_response_emitted", False):

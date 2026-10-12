@@ -683,9 +683,11 @@ Remember: You are a helpful, capable agent that learns and improves with each ta
     )
     if runtime_block:
         blocks.append(runtime_block)
+    from core.runtime.agent_tasks import format_agent_task_block
     from core.tools.ssh_exec import format_ssh_exec_block
 
     blocks.append(format_ssh_exec_block())
+    blocks.append(format_agent_task_block())
     identity = format_identity_instructions(profile_name)
     if identity:
         blocks.append(identity)
