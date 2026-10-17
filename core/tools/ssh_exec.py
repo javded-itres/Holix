@@ -10,7 +10,6 @@ from core.memory.tool_content import truncate_terminal_output
 from core.security.safety import command_whitelist
 from core.tools.base import BaseTool
 from core.tools.terminal import (
-    _blocked_sensitive_path_access,
     _communicate_with_cancel,
     _format_process_result,
     _spawn_kwargs,
@@ -239,11 +238,8 @@ class SshExecTool(BaseTool):
         blocked, reason = command_whitelist.blocks_dangerous_patterns(remote)
         if blocked:
             return f"Error: Command blocked by safety policy. {reason}"
-        secret, secret_reason = _blocked_sensitive_path_access(
-            remote, jail_enabled=False, workspace_root=None
-        )
-        if secret:
-            return f"Error: Command blocked. {secret_reason}"
+        # Remote profile paths are the other machine's files. The local
+        # terminal guard still blocks ~/.holix on this host.
         if stdin and len(stdin) > _MAX_STDIN_CHARS:
             return f"Error: stdin is longer than {_MAX_STDIN_CHARS} characters."
         ssh_bin = shutil.which("ssh")

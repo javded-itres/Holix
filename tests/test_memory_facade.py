@@ -89,6 +89,13 @@ async def test_conversation_store_contract(temp_dir):
     assert messages[0]["content"] == "first"
     assert messages[1]["content"] == "second"
 
+    for i in range(4):
+        await store.save_message("long", "user", f"m{i}")
+    tail = await store.get_conversation("long", limit=2)
+    assert [m["content"] for m in tail] == ["m2", "m3"]
+    whole = await store.get_conversation("long", limit=None)
+    assert [m["content"] for m in whole] == ["m0", "m1", "m2", "m3"]
+
 
 @pytest.mark.asyncio
 async def test_conversation_skips_honesty_nudges(temp_dir):

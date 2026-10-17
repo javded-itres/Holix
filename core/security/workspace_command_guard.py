@@ -263,6 +263,12 @@ def command_escapes_workspace(
     if _normalize(text).strip() in {"/", "~", "~/.", "~"}:
         return True, "Listing the filesystem root or home directory is not allowed."
 
+    from core.security.project_org_guard import project_org_command_blocked
+
+    blocked, org_reason = project_org_command_blocked(text)
+    if blocked:
+        return True, org_reason
+
     for token in _path_tokens(text):
         resolved = _resolve_path_token(token, workspace_root=root, cwd=cwd)
         if resolved is None:

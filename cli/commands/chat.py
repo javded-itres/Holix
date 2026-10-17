@@ -503,7 +503,9 @@ class ChatSession:
             console.print(f"  Conversation ID: {self.conversation_id}")
             # Show context usage
             if self.agent and hasattr(self.agent, "context_manager"):
-                messages = await self.agent.memory.get_conversation(self.conversation_id, limit=200)
+                messages = await self.agent.memory.get_conversation(
+                    self.conversation_id, limit=None
+                )
                 usage = self.agent.context_manager.display_usage(
                     messages, conversation_id=self.conversation_id
                 )

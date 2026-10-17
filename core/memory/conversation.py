@@ -146,25 +146,33 @@ class ConversationStore:
     async def get_conversation(
         self,
         conversation_id: str,
-        limit: int = 30,
+        limit: int | None = 30,
     ) -> list[dict[str, Any]]:
-        # Over-fetch so dropping graph-only honesty injects still fills `limit`.
-        # Long Studio runs keep well past 500 rows; the context meter must see them.
-        fetch_limit = min(max(int(limit), int(limit) * 2), 8_000)
-        async with connect_aiosqlite(self.db_path) as db:
-            db.row_factory = aiosqlite.Row
-            cursor = await db.execute(
-                """SELECT role, content, timestamp, metadata
-                   FROM (
-                       SELECT role, content, timestamp, metadata, id
+        # ``limit is None`` is the whole session, first row to last.
+        # A positive limit is the recent tail. Over-fetch so dropping
+        # graph-only honesty injects still fills that tail.
+        whole_session = limit is None
+        if whole_session:
+            query = """SELECT role, content, timestamp, metadata
                        FROM conversations
                        WHERE conversation_id = ?
-                       ORDER BY id DESC
-                       LIMIT ?
-                   ) AS recent
-                   ORDER BY recent.id ASC""",
-                (conversation_id, fetch_limit),
-            )
+                       ORDER BY id ASC"""
+            params: tuple[Any, ...] = (conversation_id,)
+        else:
+            fetch_limit = min(max(int(limit), int(limit) * 2), 8_000)
+            query = """SELECT role, content, timestamp, metadata
+                       FROM (
+                           SELECT role, content, timestamp, metadata, id
+                           FROM conversations
+                           WHERE conversation_id = ?
+                           ORDER BY id DESC
+                           LIMIT ?
+                       ) AS recent
+                       ORDER BY recent.id ASC"""
+            params = (conversation_id, fetch_limit)
+        async with connect_aiosqlite(self.db_path) as db:
+            db.row_factory = aiosqlite.Row
+            cursor = await db.execute(query, params)
             rows = await cursor.fetchall()
 
             messages = []
@@ -181,7 +189,7 @@ class ConversationStore:
                         pass
                 messages.append(msg)
 
-            if len(messages) > limit:
+            if not whole_session and limit is not None and len(messages) > limit:
                 messages = messages[-limit:]
 
             # Cap legacy oversized tool rows so reloads do not blow the context window.

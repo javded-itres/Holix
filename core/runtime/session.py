@@ -7,20 +7,23 @@ from typing import Any
 
 logger = logging.getLogger(__name__)
 
-# Recent DB rows loaded into the agent (not the old 200 — tool dumps dominate).
-DEFAULT_CONVERSATION_HISTORY_LIMIT = 80
 
+def conversation_history_limit(agent: Any | None = None) -> int | None:
+    """How many DB messages to load. None is the whole session, start to end.
 
-def conversation_history_limit(agent: Any | None = None) -> int:
-    """How many recent DB messages to load into the agent context."""
+    A profile may still set ``conversation_history_limit`` to a positive tail.
+    """
     cfg = getattr(agent, "config", None) if agent is not None else None
     raw = getattr(cfg, "conversation_history_limit", None) if cfg is not None else None
-    if raw is not None:
-        try:
-            return max(1, min(int(raw), 500))
-        except (TypeError, ValueError):
-            pass
-    return DEFAULT_CONVERSATION_HISTORY_LIMIT
+    if raw is None:
+        return None
+    try:
+        value = int(raw)
+    except (TypeError, ValueError):
+        return None
+    if value <= 0:
+        return None
+    return value
 
 
 async def prepare_session(

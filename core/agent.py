@@ -626,7 +626,7 @@ class HolixAgent:
     async def get_conversation_history(
         self,
         conversation_id: str = "default",
-        limit: int = 30,
+        limit: int | None = 30,
     ) -> list:
         return await self.memory.get_conversation(conversation_id, limit)
 

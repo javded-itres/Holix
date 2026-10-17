@@ -123,6 +123,63 @@ def test_blocks_listing_root(workspace: Path) -> None:
     assert blocked
 
 
+def test_blocks_rewriting_project_org_from_shell(workspace: Path) -> None:
+    cmd = (
+        "python3 -c \"import json; p='projects/emis/.holix/project.json'; "
+        "d=json.load(open(p)); d['org_id'] = 'org-default'; "
+        "json.dump(d, open(p, 'w'))\""
+    )
+    blocked, reason = command_escapes_workspace(cmd, workspace)
+    assert blocked
+    assert "org_id" in reason
+
+    sed = (
+        'sed -i \'s/"org_id": "org-team"/"org_id": "org-default"/\' '
+        "projects/emis/.holix/project.json"
+    )
+    blocked, reason = command_escapes_workspace(sed, workspace)
+    assert blocked
+    assert "org_id" in reason
+
+
+def test_allows_printing_project_org(workspace: Path) -> None:
+    cmd = (
+        "python3 -c \"import json; d=json.load(open('.holix/project.json')); "
+        "print('org_id:', d.get('org_id'))\""
+    )
+    blocked, reason = command_escapes_workspace(cmd, workspace)
+    assert not blocked, reason
+
+
+def test_write_refuses_project_org_change(tmp_path: Path) -> None:
+    import json
+
+    from core.workspace import WorkspaceJailError
+    from core.workspace.storage import write_profile_file_text
+
+    meta = tmp_path / "ws" / ".holix" / "project.json"
+    meta.parent.mkdir(parents=True)
+    meta.write_text(
+        json.dumps({"org_id": "org-team", "name": "Emis"}) + "\n",
+        encoding="utf-8",
+    )
+    with pytest.raises(WorkspaceJailError, match="org_id"):
+        write_profile_file_text(
+            meta,
+            json.dumps({"org_id": "org-default", "name": "Emis"}) + "\n",
+            profile="t",
+        )
+    assert json.loads(meta.read_text(encoding="utf-8"))["org_id"] == "org-team"
+    write_profile_file_text(
+        meta,
+        json.dumps({"org_id": "org-team", "name": "Emis product"}) + "\n",
+        profile="t",
+    )
+    kept = json.loads(meta.read_text(encoding="utf-8"))
+    assert kept["org_id"] == "org-team"
+    assert kept["name"] == "Emis product"
+
+
 def _fake_linked_worktree(tmp_path: Path) -> tuple[Path, Path, Path]:
     """Clone + linked worktree under a Holix profiles tree (no real git needed)."""
     profile = tmp_path / "profiles" / "pavel_it-rs.ru"

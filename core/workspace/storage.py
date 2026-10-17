@@ -82,6 +82,13 @@ def write_profile_file_text(
     created = not file_path.exists()
     root = _workspace_root_or_none()
 
+    from core.security.project_org_guard import project_json_org_change_reason
+    from core.workspace import WorkspaceJailError
+
+    org_reason = project_json_org_change_reason(file_path, content)
+    if org_reason:
+        raise WorkspaceJailError(org_reason)
+
     payload = content.encode(encoding)
     if root is not None and path_is_in_workspace(file_path):
         check_workspace_write(

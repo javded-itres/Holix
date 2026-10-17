@@ -119,3 +119,29 @@ async def test_ssh_exec_blocks_a_dangerous_remote_command() -> None:
     result = await SshExecTool().execute(host="ai-server-local", command="rm -rf /")
     assert result.startswith("Error:")
     assert "blocked" in result.lower()
+
+
+@pytest.mark.asyncio
+async def test_ssh_exec_allows_a_remote_profile_path(monkeypatch: pytest.MonkeyPatch) -> None:
+    seen: dict[str, object] = {}
+
+    class Proc:
+        returncode = 0
+
+        async def communicate(self, input=None):  # noqa: A002
+            seen["stdin"] = input
+            return b"remote-env\n", b""
+
+        def kill(self) -> None:
+            return None
+
+    async def fake_exec(*argv, **kwargs):
+        seen["argv"] = argv
+        return Proc()
+
+    monkeypatch.setattr(asyncio, "create_subprocess_exec", fake_exec)
+    monkeypatch.setattr("core.tools.ssh_exec.shutil.which", lambda name: "/usr/bin/ssh")
+    remote = "cat /data/.holix/profiles/default/.env"
+    result = await SshExecTool().execute(host="plukyanov@192.168.124.15", command=remote)
+    assert "Command blocked" not in result
+    assert seen["argv"][-1] == remote

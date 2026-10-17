@@ -123,11 +123,16 @@ def test_sanitize_messages_tool_content_stale_tools_tighter() -> None:
     assert len(stale) < len(recent)
 
 
-def test_conversation_history_limit_default() -> None:
-    from core.runtime.session import DEFAULT_CONVERSATION_HISTORY_LIMIT, conversation_history_limit
+def test_conversation_history_limit_is_the_whole_session() -> None:
+    from types import SimpleNamespace
 
-    assert DEFAULT_CONVERSATION_HISTORY_LIMIT == 80
-    assert conversation_history_limit(None) == 80
+    from core.runtime.session import conversation_history_limit
+
+    assert conversation_history_limit(None) is None
+    capped = SimpleNamespace(config=SimpleNamespace(conversation_history_limit=40))
+    assert conversation_history_limit(capped) == 40
+    unlimited = SimpleNamespace(config=SimpleNamespace(conversation_history_limit=0))
+    assert conversation_history_limit(unlimited) is None
 
 
 def test_sanitize_messages_tool_content_caps_runaway_terminal() -> None:

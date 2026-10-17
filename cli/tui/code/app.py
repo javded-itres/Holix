@@ -1987,7 +1987,7 @@ class HolixCodeApp(App):
                 return
 
             try:
-                messages = await agent.memory.get_conversation(self.conversation_id, limit=200)
+                messages = await agent.memory.get_conversation(self.conversation_id, limit=None)
             except Exception:
                 messages = []
 

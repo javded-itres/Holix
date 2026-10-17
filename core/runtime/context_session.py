@@ -66,9 +66,9 @@ async def ensure_conversation_context(
     agent: Any,
     conversation_id: str,
     *,
-    limit: int = 500,
+    limit: int | None = None,
 ) -> bool:
-    """Load conversation from DB and compress if usage exceeds threshold."""
+    """Load the whole session from DB and compress if usage exceeds threshold."""
     try:
         messages = await agent.memory.get_conversation(conversation_id, limit=limit)
     except Exception:

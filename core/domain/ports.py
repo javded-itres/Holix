@@ -20,7 +20,7 @@ class MemoryPort(Protocol):
     async def get_conversation(
         self,
         conversation_id: str,
-        limit: int = 30,
+        limit: int | None = 30,
     ) -> list[dict[str, Any]]: ...
 
 

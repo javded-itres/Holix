@@ -26,7 +26,7 @@ async def run_context_compress(host: Any) -> None:
     write("[dim]Compressing context…[/dim]")
 
     try:
-        messages = await agent.memory.get_conversation(conversation_id, limit=200)
+        messages = await agent.memory.get_conversation(conversation_id, limit=None)
         compressed, was_compressed = await ctx_mgr.compress_context(messages)
     except Exception as e:
         write(f"[red]Compression error: {e}[/red]")
