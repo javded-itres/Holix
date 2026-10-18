@@ -571,6 +571,10 @@ class TerminalTool(BaseTool):
             if jail and root is None:
                 return "Error: Workspace jail is enabled but no workspace root is configured."
 
+            from core.git.attribution import attribute_agent_commit
+
+            command = attribute_agent_commit(command)
+
             # Match file tools: relative commands start in the profile workspace
             # even when jail is off (process CWD is often $HOME / the TUI launch dir).
             configured = get_configured_workspace_root()

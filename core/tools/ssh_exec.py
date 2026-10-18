@@ -240,6 +240,9 @@ class SshExecTool(BaseTool):
             return f"Error: Command blocked by safety policy. {reason}"
         # Remote profile paths are the other machine's files. The local
         # terminal guard still blocks ~/.holix on this host.
+        from core.git.attribution import attribute_agent_commit
+
+        remote = attribute_agent_commit(remote)
         if stdin and len(stdin) > _MAX_STDIN_CHARS:
             return f"Error: stdin is longer than {_MAX_STDIN_CHARS} characters."
         ssh_bin = shutil.which("ssh")
