@@ -55,7 +55,8 @@ def _sdd_workspace(project: str = "") -> Path:
                 "This session is pinned to the workspace root. "
                 "Do not target projects/<name>. Pin a new session to that product."
             )
-        return resolve_project_root(ctx, project)
+        # A product root is also a workspace-root pin. Keep routing SDD to its
+        # spec repo instead of stopping at the product directory.
 
     if (
         worktrees_enabled()

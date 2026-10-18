@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+## 1.1.19 — 2026-10-18
+
+### Fixed
+
+- **Session history** — a new turn loads the chat from the first stored message to the last, unless the profile sets `conversation_history_limit`. The context meter, `/status`, and `/compress` use that same span.
+- **Workspace root** — a session pinned at the profile root does not enter `projects/` or pick the first product folder there.
+- **Project org id** — shell and file writes cannot change `org_id` in `.holix/project.json`.
+- **Remote shell** — `ssh_exec` no longer applies the local profile-secret path block. A remote `.holix` path is the other machine's files. `run_terminal_command` still blocks those paths on this host.
+- **Background generation** — a wake-up after a finished background task may start another generation. A reflexion retry of the same picture still cannot.
+
 ## 1.1.18 — 2026-10-12
 
 ### Added
