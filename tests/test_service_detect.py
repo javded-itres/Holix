@@ -39,6 +39,34 @@ def test_oneshot_jobs_are_not_launches() -> None:
         assert is_untracked_long_running_command(cmd) is False, cmd
 
 
+def test_venv_python_and_uv_run_flags_are_servers() -> None:
+    launches = [
+        ".venv/bin/python -m uvicorn app:app --port 8000",
+        "uv run --python 3.12 uvicorn app:app",
+        "uv run --python=3.12 --directory api uvicorn main:app",
+        "streamlit run app.py",
+        ".venv/bin/python -m streamlit run app.py",
+        "node server.js",
+        "node --watch index.ts",
+    ]
+    for cmd in launches:
+        assert is_untracked_long_running_command(cmd) is True, cmd
+        assert is_test_or_build_command(cmd) is False, cmd
+    assert is_untracked_long_running_command("uv run pytest -q") is False
+    assert is_untracked_long_running_command(".venv/bin/python -m pytest") is False
+    assert is_test_or_build_command(".venv/bin/python -m pytest") is True
+
+
+def test_background_task_promotes_only_when_listening() -> None:
+    from core.runtime.service_detect import should_promote_background_task
+
+    cmd = "python server.py"
+    assert should_promote_background_task(cmd, elapsed_s=0.2, listen_ports=[8000]) is False
+    assert should_promote_background_task(cmd, elapsed_s=2, listen_ports=[8000]) is True
+    assert should_promote_background_task(cmd, elapsed_s=10, listen_ports=[]) is False
+    assert should_promote_background_task("pytest -q", elapsed_s=30, listen_ports=[8000]) is False
+
+
 def test_unknown_binary_is_not_a_static_launch() -> None:
     """C++/custom binaries cannot be classified by regex — runtime decides."""
     for cmd in ("./target/release/api", "./build/server --port 8080", "bin/holix-api"):

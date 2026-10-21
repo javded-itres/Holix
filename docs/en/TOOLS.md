@@ -33,7 +33,7 @@ The local profile-secret guard does **not** apply to `ssh_exec`: a path such as 
 
 `run_terminal_command` with `background=true` starts a finite job in **this chat** (`task_…`). The agent gets the id immediately and a later wake-up that already contains the output. Do not poll `list_agent_tasks` while it runs. Stop it with `stop_agent_task`, not `pkill`. Finished jobs stay in `list_agent_tasks` after the window restarts (`profiles/<name>/data/agent_tasks.json`, last 12 per chat).
 
-A server that must stay up is `start_background_process` and `list_background_processes`, not `list_agent_tasks`.
+A server that must stay up is `start_background_process` and `list_background_processes`, not `list_agent_tasks`. `background=true` on a server command (including `.venv/bin/python -m uvicorn` and `uv run --python … uvicorn`) starts that tracked process instead of a task. If a task later opens a listen port, Holix stops it and restarts it as a background process.
 
 ## One model step
 

@@ -38,7 +38,7 @@ _LAUNCH_PREFIX = re.compile(
     r"|time\s+"
     r"|nice\s+"
     r"|env\s+(?:-[\w]+\s+|[\w.]+=\S+\s+)*"
-    r"|uv\s+run\s+(?:--\S+\s+)*"
+    r"|uv\s+run\s+(?:--[\w.-]+(?:=\S+)?(?:\s+[^\s-][^\s]*)?\s+)*"
     r"|poetry\s+run\s+"
     r"|pipenv\s+run\s+"
     r"|hatch\s+run\s+"
@@ -83,25 +83,32 @@ _INSPECT_HEAD = re.compile(
     re.I,
 )
 
+# Interpreter may be `python`, `python3.14`, or `.venv/bin/python`.
+_PY = r"(?:[\w./-]+/)?python[\w.-]*"
+
 # Launch verb at the start of a segment (after prefixes).
 _LAUNCH_HEAD = re.compile(
     r"^(?:"
-    r"(?:[\w./-]+/)?(?:uvicorn|gunicorn|hypercorn|daphne)\b|"
-    r"python\d*\s+-m\s+uvicorn\b|"
-    r"python\d*\s+-m\s+http\.server\b|"
-    r"python\d*\s+-m\s+(?!pip\b|pytest\b|ruff\b|venv\b|compileall\b|http\.server\b)"
+    r"(?:[\w./-]+/)?(?:uvicorn|gunicorn|hypercorn|daphne|granian)\b|"
+    rf"{_PY}\s+-m\s+uvicorn\b|"
+    rf"{_PY}\s+-m\s+http\.server\b|"
+    rf"{_PY}\s+-m\s+streamlit\s+run\b|"
+    rf"{_PY}\s+-m\s+(?!pip\b|pytest\b|ruff\b|venv\b|compileall\b|http\.server\b)"
     r"[\w.]+\.main\b|"
-    r"python\d*(?:\s+-\w+(?:=\S+)?)*\s+(?!-m\b)(?:\./|\S+/)?main\.py\b|"
-    r"python\d*\s+\S*manage\.py\s+runserver\b|"
+    rf"{_PY}(?:\s+-\w+(?:=\S+)?)*\s+(?!-m\b)(?:\./|\S+/)?main\.py\b|"
+    rf"{_PY}\s+\S*manage\.py\s+runserver\b|"
     r"fastapi\s+run\b|"
     r"flask\s+run\b|"
+    r"streamlit\s+run\b|"
+    r"reflex\s+run\b|"
     r"(?:npm|pnpm|yarn)\s+(?:run\s+)?(?:dev|start|serve)\b|"
     r"next\s+dev\b|"
     r"nuxt\s+dev\b|"
     r"vite\b(?!\s+build\b)|"
     r"nodemon\b|"
-    r"python\d*\s+\S*bot\.py\b|"
-    r"python\d*\s+-m\s+integrations\.telegram\b|"
+    r"node\s+(?:--[\w.-]+\s+)*(?:server|index|app)\.(?:js|mjs|cjs|ts)\b|"
+    rf"{_PY}\s+\S*bot\.py\b|"
+    rf"{_PY}\s+-m\s+integrations\.telegram\b|"
     r"telegram_channel_publisher\b|"
     # Rust / Go / Java / C# / JVM build tools / PHP / Ruby / Elixir
     r"cargo\s+run\b|"
@@ -423,6 +430,25 @@ def listen_ports_for_pid_tree(root_pid: int) -> list[int]:
                 seen.add(port)
                 ports.append(port)
     return ports
+
+
+def should_promote_background_task(
+    command: str,
+    *,
+    elapsed_s: float,
+    listen_ports: list[int] | None = None,
+) -> bool:
+    """True when a ``background=true`` shell job is actually a service.
+
+    A listening socket is enough. Tests and builds stay tasks even if a
+    fixture binds a port. The check waits a second so a process that prints
+    and exits is not inspected.
+    """
+    if elapsed_s < 1.0:
+        return False
+    if is_long_oneshot_job(command) or is_test_or_build_command(command):
+        return False
+    return bool(listen_ports)
 
 
 def should_promote_foreground_service(

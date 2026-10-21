@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Fixed
+
+- **Background services** — a server started with `run_terminal_command` `background=true` is a tracked process, not a `task_…`. That includes `.venv/bin/python -m uvicorn` and `uv run --python …`. A task that opens a listen port is moved the same way. Tests and builds stay tasks.
+
 ### Added
 
 - **SDD review before archive** — `sdd_status` shows the real spec delta (`delta_review`) and one `next` step. Archive warns when a change drops a scenario or leaves text behind, and refuses requirement titles that differ only by case. `skip_specs` lets a refactor or docs change through without invented requirements. Each task can say `done_when`. Checked boxes are not an archive.

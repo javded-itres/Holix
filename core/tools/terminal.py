@@ -356,6 +356,9 @@ async def _promote_to_background(
     *,
     cwd: str | None,
     ports: list[int],
+    profile: str = "",
+    conversation_id: str = "",
+    because: str = "foreground",
 ) -> str:
     """Kill already happened; start the same command via the bg registry."""
     from core.runtime.port_utils import force_free_ports
@@ -369,14 +372,16 @@ async def _promote_to_background(
 
     registry = get_background_process_registry()
     port_txt = ", ".join(str(p) for p in ports) if ports else "unknown"
+    prof = (profile or "").strip() or get_profile_name()
+    conv = (conversation_id or "").strip() or get_conversation_id()
     try:
         body = await _run_start_or_restart(
             registry,
             command=command,
             label=_promote_label(command),
             working_directory=cwd or "",
-            conversation_id=get_conversation_id(),
-            profile=get_profile_name(),
+            conversation_id=conv,
+            profile=prof,
             chat_id=_chat_id_from_bridge(),
             startup_wait_seconds=3.0,
             restart=False,
@@ -389,17 +394,28 @@ async def _promote_to_background(
             f"start_background_process using the same command.\n"
             f"Auto-restart failed: {exc}"
         )
-    if body.startswith("Error:"):
-        return (
-            f"The foreground command was a service (listen on {port_txt} "
-            f"after ~1 min) and was stopped. Restart it with "
-            f"start_background_process.\n{body}"
+    if because == "task":
+        lead = (
+            f"This was started as a background task, but it is a service "
+            f"(listening on {port_txt}). The task was stopped and the same "
+            f"command was restarted with start_background_process."
         )
+    elif because == "requested":
+        lead = (
+            "This command is a long-running service, so it was started with "
+            "start_background_process instead of a background task."
+        )
+    else:
+        lead = (
+            f"The command kept running for over a minute and opened TCP listen "
+            f"port(s) {port_txt} — this is a service, not a long one-shot "
+            f"(compile/test). It was stopped in the foreground and restarted "
+            f"via start_background_process."
+        )
+    if body.startswith("Error:"):
+        return f"{lead} Restart it with start_background_process if it is not running.\n{body}"
     return (
-        f"The command kept running for over a minute and opened TCP listen "
-        f"port(s) {port_txt} — this is a service, not a long one-shot "
-        f"(compile/test). It was stopped in the foreground and restarted "
-        f"via start_background_process.\n\n"
+        f"{lead}\n\n"
         f"{body}\n\n"
         "Use check_background_process / stop_background_process from now on. "
         "Do not launch this command via run_terminal_command again."
@@ -424,10 +440,10 @@ class TerminalTool(BaseTool):
             "That is the same agent, not a sub-agent and not start_background_process. "
             "Do NOT send those to start_background_process. "
             "Do NOT use this for long-running bots/servers "
-            "(uvicorn, cargo run, go run, java -jar, npm run dev, …) unless the "
-            "user asked you to run them in the foreground — persistent servers "
-            "go to start_background_process only when the user asked to run "
-            "in the background or to start/keep a server. "
+            "(uvicorn, cargo run, go run, java -jar, npm run dev, …). "
+            "background=true on a server starts start_background_process "
+            "instead of a task. A task that later opens a listen port is moved "
+            "the same way. "
             "If a missed server stays in the foreground for over a minute and "
             "opens a listen port, this tool stops it and restarts it in the background. "
             "Permission errors (sudo/root) are returned as clear access-denied messages. "
@@ -451,7 +467,8 @@ class TerminalTool(BaseTool):
                     "description": (
                         "Run a finite command in the background and return immediately. "
                         "The same agent is notified with the output when it exits. "
-                        "Use for long tests, builds, and installs. Not for servers."
+                        "Use for long tests, builds, and installs. "
+                        "A server command is started as a tracked process instead."
                     ),
                     "default": False,
                 },
@@ -504,7 +521,9 @@ class TerminalTool(BaseTool):
 
         # Nudge away from untracked long-running bots/servers.
         # Do not treat `pip install uvicorn` as launching uvicorn.
-        if _is_untracked_long_running_command(command):
+        # background=true still goes through the safety checks, then starts a
+        # tracked service instead of an agent task.
+        if _is_untracked_long_running_command(command) and not background:
             from core.tools.execution_context import is_from_code_mode
 
             if is_from_code_mode():
@@ -657,6 +676,18 @@ class TerminalTool(BaseTool):
                     spawn_kw = {**spawn_kw, "env": env}
             except SandboxUnavailable as exc:
                 return f"Error: {exc}"
+
+            if background and _is_untracked_long_running_command(command):
+                from core.runtime.port_utils import parse_listen_ports
+
+                return await _promote_to_background(
+                    command,
+                    cwd=cwd,
+                    ports=parse_listen_ports(command),
+                    profile=profile_name or "",
+                    conversation_id=conversation_id or "",
+                    because="requested",
+                )
 
             if background:
                 from core.runtime.agent_tasks import get_agent_task_registry, started_task_message

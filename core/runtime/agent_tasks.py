@@ -28,6 +28,21 @@ _KEEP_FINISHED = 12
 TaskListener = Callable[["AgentBackgroundTask"], None]
 
 
+def _should_watch_task_for_service(command: str) -> bool:
+    """Ambiguous background commands may still be servers if they listen."""
+    from core.runtime.service_detect import (
+        is_long_oneshot_job,
+        is_test_or_build_command,
+        is_untracked_long_running_command,
+    )
+
+    if is_untracked_long_running_command(command):
+        return False
+    if is_long_oneshot_job(command) or is_test_or_build_command(command):
+        return False
+    return True
+
+
 @dataclass(slots=True)
 class AgentBackgroundTask:
     task_id: str
@@ -41,7 +56,10 @@ class AgentBackgroundTask:
     started_at: float = field(default_factory=time.time)
     finished_at: float | None = None
     pid: int | None = None
+    cwd: str = ""
     stop_requested: bool = False
+    # Set before the process is killed so the watcher does not report a failure.
+    handoff_to_service: bool = False
     _process: asyncio.subprocess.Process | None = field(default=None, repr=False)
     _async_job: asyncio.Task[None] | None = field(default=None, repr=False)
     _notified: bool = False
@@ -415,11 +433,14 @@ class AgentTaskRegistry:
         except Exception as exc:
             return f"Error starting background task: {exc}"
         task.pid = process.pid
+        task.cwd = cwd or ""
         task._process = process
         self._tasks[task.task_id] = task
         self._trim(prof, conv)
         self._announce_start(task)
         asyncio.create_task(self._watch(task, process))
+        if _should_watch_task_for_service(command):
+            asyncio.create_task(self._promote_if_service(task, process))
         return task
 
     async def launch_async(
@@ -542,12 +563,18 @@ class AgentTaskRegistry:
             )
             if process.returncode is None:
                 await process.wait()
+            if task.handoff_to_service:
+                return
             task.exit_code = int(process.returncode if process.returncode is not None else -1)
         except Exception as exc:
+            if task.handoff_to_service:
+                return
             logger.warning("background task %s watcher failed: %s", task.task_id, exc)
             task.exit_code = -1
             if not (task.output or "").strip():
                 task.output = str(exc)
+        if task.handoff_to_service:
+            return
         task.finished_at = time.time()
         task.output = _finalize_live_output(task.output)
         if task.stop_requested:
@@ -556,6 +583,71 @@ class AgentTaskRegistry:
             task.status = "completed"
         else:
             task.status = "failed"
+        task._process = None
+        self._notify(task)
+
+    async def _promote_if_service(
+        self,
+        task: AgentBackgroundTask,
+        process: asyncio.subprocess.Process,
+    ) -> None:
+        """Move a background task that binds a port onto the service registry."""
+        from core.runtime.service_detect import (
+            listen_ports_for_pid_tree,
+            should_promote_background_task,
+        )
+
+        started = time.monotonic()
+        deadline = started + 20.0
+        while time.monotonic() < deadline:
+            if task.handoff_to_service or not task.is_running():
+                return
+            if process.returncode is not None:
+                return
+            elapsed = time.monotonic() - started
+            ports: list[int] = []
+            if elapsed >= 1.0:
+                ports = await asyncio.to_thread(
+                    listen_ports_for_pid_tree,
+                    int(process.pid or 0),
+                )
+            if should_promote_background_task(
+                task.command,
+                elapsed_s=elapsed,
+                listen_ports=ports,
+            ):
+                await self._handoff_task_to_service(task, process, ports)
+                return
+            await asyncio.sleep(2.0)
+
+    async def _handoff_task_to_service(
+        self,
+        task: AgentBackgroundTask,
+        process: asyncio.subprocess.Process,
+        ports: list[int],
+    ) -> None:
+        from core.tools.terminal import _promote_to_background
+
+        task.handoff_to_service = True
+        await _kill_process(process)
+        try:
+            note = await _promote_to_background(
+                task.command,
+                cwd=task.cwd or None,
+                ports=ports,
+                profile=task.profile,
+                conversation_id=task.conversation_id,
+                because="task",
+            )
+        except Exception as exc:
+            note = (
+                "Error: this background task was a service and was stopped. "
+                f"Restart it with start_background_process. {exc}"
+            )
+        task.output = note
+        task.exit_code = 1 if note.startswith("Error:") else 0
+        task.status = "failed" if task.exit_code else "completed"
+        task.finished_at = time.time()
         task._process = None
         self._notify(task)
 

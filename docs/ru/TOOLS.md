@@ -33,7 +33,7 @@ TUI: модалка с кнопками и полем ввода. Telegram / MAX
 
 `run_terminal_command` с `background=true` запускает конечную задачу **в этом чате** (`task_…`). Агент сразу получает id, а позже — пробуждение, в котором уже есть вывод. Пока задача идёт, не опрашивайте `list_agent_tasks`. Останавливайте её через `stop_agent_task`, не через `pkill`. Завершённые задачи остаются в `list_agent_tasks` после перезапуска окна (`profiles/<name>/data/agent_tasks.json`, последние 12 на чат).
 
-Сервер, который должен продолжать работать, — это `start_background_process` и `list_background_processes`, а не `list_agent_tasks`.
+Сервер, который должен продолжать работать, — это `start_background_process` и `list_background_processes`, а не `list_agent_tasks`. `background=true` на команде сервера (в том числе `.venv/bin/python -m uvicorn` и `uv run --python … uvicorn`) запускает этот процесс, а не задачу. Если задача потом открывает слушающий порт, Holix останавливает её и поднимает заново как фоновый процесс.
 
 ## Один шаг модели
 
