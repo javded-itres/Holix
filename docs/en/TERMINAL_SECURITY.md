@@ -190,6 +190,10 @@ mv /tmp/out.pdf /var/lib/holix/profiles/admin/workspace/
 → allowed (own workspace root)
 ```
 
+`ssh_exec` does **not** use this guard. The remote command runs on another machine, so a `.holix` path there is that machine’s file. Dangerous-command checks still apply. Local `run_terminal_command` keeps the block above.
+
+Shell and file writes also cannot change `org_id` in `.holix/project.json`.
+
 ---
 
 ## 6. Workspace jail (working directory)

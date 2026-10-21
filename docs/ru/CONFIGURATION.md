@@ -248,6 +248,15 @@ model_auto_select:
 | `HOLIX_MAX_STEPS_MAX_EXTENSIONS` | `10` | Сколько раз |
 | `HOLIX_MAX_STEPS_HARD_CAP` | `0` | Жёсткий потолок (`0` = вычисляется) |
 
+## Сессия, worktree, таймаут шага
+
+| Переменная | По умолчанию | Эффект |
+|------------|--------------|--------|
+| `conversation_history_limit` | не задан (вся сессия) | Положительное число берёт только столько последних сообщений. `0` или пусто — весь чат |
+| `git_worktrees_enabled` | `false` | Создавать git worktree на каждый change. `HOLIX_WORKTREE=1` включает, `HOLIX_WORKTREE=0` выключает |
+| `llm_step_timeout` | `600` | Секунд тишины шага модели, после которых ход завершается ошибкой |
+| `auto_session_doctor` | `true` | Запускать `session_doctor`, когда ход противоречит результатам инструментов. `false` или `HOLIX_AUTO_SESSION_DOCTOR=0` оставляет это фразе «проверь себя» |
+
 ## Субагенты и supervisor
 
 | Переменная | Default | Эффект |

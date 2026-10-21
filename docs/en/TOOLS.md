@@ -21,6 +21,34 @@ Legacy `question` + `context` still works (wrapped as `questions[0]`). The agent
 
 TUI: modal with option buttons and a text field. Telegram / MAX: inline buttons (`callback_data` is a short token). Free text = reply to the question message.
 
+## Remote shell: `ssh_exec`
+
+One non-interactive command on another machine. `host` and `command` are separate arguments. `host` is an SSH config alias or `user@host`. A script goes in `stdin`. BatchMode is forced, so a password prompt fails at once. The default timeout is 120 seconds (maximum 600).
+
+`run_terminal_command` refuses raw `ssh`, `scp`, and `sftp`. Load the skill `holix-ssh` with `skill_view` before the first remote call of a task. On failure, show stderr and stop. Do not retry with `ssh -v`.
+
+The local profile-secret guard does **not** apply to `ssh_exec`: a path such as `/data/.holix/profiles/default/.env` is a file on the other machine. The same path in `run_terminal_command` stays blocked on this host.
+
+## One-shot background tasks
+
+`run_terminal_command` with `background=true` starts a finite job in **this chat** (`task_…`). The agent gets the id immediately and a later wake-up that already contains the output. Do not poll `list_agent_tasks` while it runs. Stop it with `stop_agent_task`, not `pkill`. Finished jobs stay in `list_agent_tasks` after the window restarts (`profiles/<name>/data/agent_tasks.json`, last 12 per chat).
+
+A server that must stay up is `start_background_process` and `list_background_processes`, not `list_agent_tasks`.
+
+## One model step
+
+Several read-only tools in the same step (`risk_level: no`, except `ask_user` and plan-mode switches) run together. Writes and anything that asks for confirmation stay one at a time. A new TUI message during the step stops the current command (`run_terminal_command` or `ssh_exec`) and skips the calls that have not started.
+
+## Git attribution
+
+Commits the agent creates keep the human as author and add:
+
+```text
+Co-Authored-By: Holix agent <noreply@holix-agent.ru>
+```
+
+GitHub lists that name in Contributors when the address is on a GitHub account. The harness appends the trailer to `git commit -m` (local shell and `ssh_exec`) when it is missing.
+
 ## Jobs and sub-agents
 
 - `job_monitor` — `list` / `tail` / `wait` / `kill` on `start_background_process` jobs. `job_id` required except for `list`.

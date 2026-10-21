@@ -2,6 +2,18 @@
 
 ## Unreleased
 
+### Added
+
+- **Steer the current turn** — while the agent is running, Enter stops the current command, skips the remaining tool calls of that step, and continues with the new text. A message the turn did not read stays queued. Ctrl+S still cancels the turn.
+- **Parallel reads** — consecutive no-risk tools in one model step run together. Writes, `ask_user`, and plan-mode switches stay one at a time.
+- **Automatic session check** — `session_doctor` starts on its own when a turn contradicts tool results (invented task id, a repeated identical call, three failures of one tool, or an unproven “done” after honesty retries). `auto_session_doctor` defaults to on. Set it `false` or `HOLIX_AUTO_SESSION_DOCTOR=0` to leave the check to «проверь себя».
+
+### Fixed
+
+- **Session rewrite** — compressing or sanitizing a loaded tail no longer deletes earlier rows the turn never loaded. `/compress` still rewrites the whole session.
+- **Context meter** — a fill warning keeps the last provider prompt size. The meter no longer flashes a smaller recount of stored messages.
+- **Idle summary** — a chat that has been quiet for about 30 minutes and is already in the warning band is summarized before the next reply.
+
 ## 1.1.19 — 2026-10-18
 
 ### Fixed

@@ -56,39 +56,10 @@ async def tool_execution_node(state: HolixGraphState, config: RunnableConfig) ->
     messages = list(state.get("messages", []))
     tool_results = []
 
-    cancelled_run = False
-    for tc_data in tool_calls:
-        # Cooperative cancel between tool calls (audit #3).
-        try:
-            from core.tools.execution_context import is_run_cancelled
-
-            if is_run_cancelled():
-                cancelled_run = True
-                messages.append(
-                    {
-                        "role": "tool",
-                        "tool_call_id": tc_data.get("id", ""),
-                        "content": "Error: Run cancelled — tool not executed.",
-                    }
-                )
-                tool_results.append(
-                    {
-                        "tool_name": tc_data.get("function", {}).get("name", ""),
-                        "tool_id": tc_data.get("id", ""),
-                        "result": "Error: Run cancelled — tool not executed.",
-                        "duration_ms": 0,
-                        "cancelled": True,
-                    }
-                )
-                break
-        except Exception:
-            pass
-
+    async def _execute_one(tc_data: dict) -> dict:
         tool_name = tc_data.get("function", {}).get("name", "")
         tool_id = tc_data.get("id", "")
-        tc_data.get("function", {}).get("arguments", "")
 
-        # Create a minimal tool call object compatible with ToolRegistry.execute()
         class _ToolCall:
             def __init__(self, data):
                 self.id = data.get("id", "")
@@ -102,21 +73,21 @@ async def tool_execution_node(state: HolixGraphState, config: RunnableConfig) ->
                     },
                 )()
 
-        tool_call_obj = _ToolCall(tc_data)
+        from core.runtime.turn_steer import SteerInterrupt
+        from core.tools.execution_context import agent_slot_scope, reset_agent_slot_scope
 
         start = time.time()
         slot_token = None
+        cancelled = False
+        steered = False
         try:
-            from core.tools.execution_context import agent_slot_scope, reset_agent_slot_scope
-
             slot_token = agent_slot_scope(getattr(agent, "agent_slot", "main") or "main")
             result = await agent.tools.execute(
-                tool_call_obj,
+                _ToolCall(tc_data),
                 conversation_id=conversation_id,
                 memory=getattr(agent, "memory", None),
             )
             duration = (time.time() - start) * 1000
-
             if agent and hasattr(agent, "emit"):
                 agent.emit(
                     ToolCallResultEvent(
@@ -128,11 +99,10 @@ async def tool_execution_node(state: HolixGraphState, config: RunnableConfig) ->
                         truncated=len(result) > 200,
                     )
                 )
-
         except asyncio.CancelledError:
             duration = (time.time() - start) * 1000
             result = "Error: Run cancelled — tool not executed."
-            cancelled_run = True
+            cancelled = True
             if agent and hasattr(agent, "emit"):
                 agent.emit(
                     ToolCallErrorEvent(
@@ -144,49 +114,146 @@ async def tool_execution_node(state: HolixGraphState, config: RunnableConfig) ->
                 )
         except Exception as tool_err:
             duration = (time.time() - start) * 1000
-            result = f"Error: {tool_err}"
-
-            if agent and hasattr(agent, "emit"):
-                agent.emit(
-                    ToolCallErrorEvent(
-                        tool_name=tool_name,
-                        tool_id=tool_id,
-                        error=str(tool_err),
-                        conversation_id=conversation_id,
+            if isinstance(tool_err, SteerInterrupt):
+                result = "Interrupted: a new instruction arrived before this tool finished."
+                steered = True
+                if agent and hasattr(agent, "emit"):
+                    agent.emit(
+                        ToolCallErrorEvent(
+                            tool_name=tool_name,
+                            tool_id=tool_id,
+                            error="interrupted",
+                            conversation_id=conversation_id,
+                        )
                     )
-                )
+            else:
+                result = f"Error: {tool_err}"
+                if agent and hasattr(agent, "emit"):
+                    agent.emit(
+                        ToolCallErrorEvent(
+                            tool_name=tool_name,
+                            tool_id=tool_id,
+                            error=str(tool_err),
+                            conversation_id=conversation_id,
+                        )
+                    )
         finally:
             if slot_token is not None:
                 reset_agent_slot_scope(slot_token)
-
-        graph_result = truncate_tool_content_for_graph(result)
-
-        # Append tool result message (graph uses a smaller cap than SQLite memory)
-        tool_msg = {
-            "role": "tool",
-            "tool_call_id": tool_id,
-            "content": graph_result,
+        return {
+            "tool_name": tool_name,
+            "tool_id": tool_id,
+            "result": result,
+            "graph_result": truncate_tool_content_for_graph(result),
+            "duration_ms": duration,
+            "cancelled": cancelled,
+            "steered": steered,
         }
-        messages.append(tool_msg)
-        tool_results.append(
-            {
-                "tool_name": tool_name,
-                "tool_id": tool_id,
-                "result": result,
-                "duration_ms": duration,
-            }
-        )
-        if cancelled_run:
-            break
 
-        # Save to memory (truncate huge outputs)
-        if agent and hasattr(agent, "memory"):
+    def _skipped(tc_data: dict, text: str, *, cancelled: bool = False) -> dict:
+        return {
+            "tool_name": tc_data.get("function", {}).get("name", ""),
+            "tool_id": tc_data.get("id", ""),
+            "result": text,
+            "graph_result": text,
+            "duration_ms": 0,
+            "cancelled": cancelled,
+            "steered": not cancelled,
+        }
+
+    async def _drop_remaining(start: int, text: str, *, cancelled: bool) -> None:
+        for pending in tool_calls[start:]:
+            skipped = _skipped(pending, text, cancelled=cancelled)
+            messages.append(
+                {
+                    "role": "tool",
+                    "tool_call_id": skipped["tool_id"],
+                    "content": skipped["graph_result"],
+                }
+            )
+            tool_results.append(skipped)
+            if cancelled or not agent or not hasattr(agent, "memory"):
+                continue
             await agent.memory.save_message(
                 conversation_id,
                 "tool",
-                truncate_tool_content_for_memory(result),
-                metadata={"tool_name": tool_name},
+                truncate_tool_content_for_memory(skipped["result"]),
+                metadata={"tool_name": skipped["tool_name"]},
             )
+
+    cancelled_run = False
+    guard = getattr(getattr(agent, "tools", None), "_action_guard", None)
+    if guard is None:
+        from core.graph.nodes.tool_batches import group_tool_calls
+
+        groups = group_tool_calls(agent, tool_calls)
+    else:
+        groups = [[tc] for tc in tool_calls]
+
+    flat_index = 0
+    for group in groups:
+        from core.runtime.turn_steer import absorb_steer, steer_requested
+        from core.tools.execution_context import is_run_cancelled
+
+        if is_run_cancelled():
+            cancelled_run = True
+            await _drop_remaining(
+                flat_index,
+                "Error: Run cancelled — tool not executed.",
+                cancelled=True,
+            )
+            break
+        if steer_requested():
+            await _drop_remaining(
+                flat_index,
+                "Interrupted: a new instruction arrived — tool not executed.",
+                cancelled=False,
+            )
+            await absorb_steer(messages, agent, conversation_id)
+            break
+
+        if len(group) > 1:
+            outcomes = await asyncio.gather(*[_execute_one(tc) for tc in group])
+        else:
+            outcomes = [await _execute_one(group[0])]
+
+        stop_after = False
+        for outcome in outcomes:
+            messages.append(
+                {
+                    "role": "tool",
+                    "tool_call_id": outcome["tool_id"],
+                    "content": outcome["graph_result"],
+                }
+            )
+            tool_results.append(outcome)
+            if outcome["cancelled"]:
+                cancelled_run = True
+                stop_after = True
+            if not outcome["cancelled"] and agent and hasattr(agent, "memory"):
+                await agent.memory.save_message(
+                    conversation_id,
+                    "tool",
+                    truncate_tool_content_for_memory(outcome["result"]),
+                    metadata={"tool_name": outcome["tool_name"]},
+                )
+            if outcome["steered"]:
+                stop_after = True
+        flat_index += len(group)
+        if not (cancelled_run or stop_after or steer_requested()):
+            continue
+        await _drop_remaining(
+            flat_index,
+            (
+                "Error: Run cancelled — tool not executed."
+                if cancelled_run
+                else "Interrupted: a new instruction arrived — tool not executed."
+            ),
+            cancelled=cancelled_run,
+        )
+        if not cancelled_run:
+            await absorb_steer(messages, agent, conversation_id)
+        break
 
     if not cancelled_run:
         _append_todo_reminder(messages, agent, conversation_id)

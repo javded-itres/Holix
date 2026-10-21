@@ -34,8 +34,8 @@ export HOLIX_TUI_WEB_TOKEN="..."
 | **Todos** | Session checklist from `todo_write`. Hidden when empty. |
 | **Transcript** | Chat, tools, confirmations |
 | **Prompt queue** | Yellow strip **between** transcript and input — prompts waiting while the agent is busy |
-| **Status / context** | Mode, model, tokens |
-| **Input** | Multiline prompt. Enter sends; Shift+Enter newline |
+| **Status / context** | Mode, model, and the last model prompt size over that model’s window |
+| **Input** | Multiline prompt. Enter sends, or steers the current turn; Shift+Enter newline |
 
 The bar at the top is **not** a history of crashed jobs. When a process stops or dies, its row disappears (polled about every 2 seconds).
 
@@ -45,13 +45,14 @@ On multi-step work the agent should call `todo_write` with the **entire** list e
 
 ## Prompt queue
 
-If the agent is still running, Enter **queues** the next message instead of dropping it.
+If the agent is still running, Enter **steers the current turn**: Holix stops the tool that is running, skips the rest of that step, and continues with your text. It does not wait until the turn ends, and it is not the same as Ctrl+S (`/stop`), which cancels the turn.
+
+A message that arrives after the turn has already finished, or that the turn never read, stays in the queue and runs next. `/help`, plan-review answers, and sub-agent replies are still immediate.
 
 - Queued rows sit between the transcript and the input field.
 - Click a row (or **edit**) to load it back into the input.
 - **×** deletes that item without running it.
 - After the current turn finishes, Holix runs the queue **in order**.
-- `/help`, plan-review answers, and sub-agent replies are **not** queued.
 - Ctrl+S (`/stop`) stops the current turn; the queue stays so you can edit or drop items.
 
 Limit: 50 pending prompts.
@@ -71,6 +72,16 @@ If a listed process **dies on its own**, TUI injects a notice and runs (or queue
 
 Cwd follows `working_directory` → workspace jail → profile workspace. Venv is on `PATH`; `PYTHONUNBUFFERED=1`.
 
+These rows are **profile-wide servers**. A finite shell or media job in this chat is a one-shot background task (`run_terminal_command` with `background=true`). Its result arrives as a wake-up; the “Background task started” note is not the chat reply. See [TOOLS.md](TOOLS.md#one-shot-background-tasks).
+
+## Context meter
+
+The status line shows the **last provider prompt** (input plus cache reads and writes, without the reply) divided by the model window. A warning that the window is filling does not replace that figure with a fresh count of stored messages. A real compression does: the next model call measures the shorter prompt.
+
+A new turn loads the stored chat from the first message to the last, unless the profile sets `conversation_history_limit` to a positive tail. `/status` and `/compress` use that same span. Writing a summary back replaces only the rows this turn loaded, so an older prefix that was not in memory stays in the database. `/compress` still rewrites the whole session.
+
+If the chat has been quiet for about 30 minutes and usage is already in the warning band, the next message summarizes it before the model answers. A short or quiet session under that band is left as-is. While the prompt is still growing inside one turn, the number climbs; the next user message starts from the stored history again.
+
 ## Trajectory
 
 `/trace` prints an append-only timeline of this session (tools, finals, background processes, todos). `/trace 80` shows more rows; `/trace search grep` filters. Files live in `~/.holix/profiles/<name>/data/trajectory/`. Token-stream deltas are not stored.
@@ -85,7 +96,7 @@ Cwd follows `working_directory` → workspace jail → profile workspace. Venv i
 
 | Key | Action |
 |-----|--------|
-| Enter | Send (or enqueue if the agent is busy) |
+| Enter | Send (steer the current turn if the agent is busy) |
 | Shift+Enter | Newline |
 | ↑ | Recent prompts |
 | `/` | Command menu |

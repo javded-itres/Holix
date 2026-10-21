@@ -184,7 +184,7 @@ def _latest_user_text(messages: list[Any] | None) -> str:
         if not isinstance(msg, dict) or msg.get("role") != "user":
             continue
         content = str(msg.get("content") or "")
-        if content.startswith("[Action honesty") or content.startswith("[Todo reminder]"):
+        if content.startswith(("[Action honesty", "[Todo reminder]", "[Self-diagnose]")):
             continue
         return content
     return ""

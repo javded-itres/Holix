@@ -36,8 +36,8 @@ openspec/
     .apply-mode                   # self | subagents | hybrid
   changes/archive/YYYY-MM-DD-<id>/
 
-# git repo (optional): linked worktree, not the main clone
-.holix/worktrees/<change-id>/     # gitignored; sdd_create_change
+# git repo (optional): linked worktree, off unless the profile enables it
+.holix/worktrees/<change-id>/     # gitignored; sdd_create_change when worktrees are on
 ```
 
 **Rules:**
@@ -58,9 +58,14 @@ repo/
 2. Pass `project=<path>` on every `sdd_*` call
 
 After `sdd_init` / `sdd_create_change` the conversation is **pinned** to that
-project directory: file tools and terminal use it as `workspace_root` (git
-worktree still wins while the change is bound). `/change leave` drops the
-worktree overlay but keeps the project pin.
+project directory: file tools and terminal use it as `workspace_root` (a git
+worktree still wins while the change is bound, and only when worktrees are
+on). `/change leave` drops the worktree overlay but keeps the project pin.
+
+A session pinned at the **profile workspace root** (`project` is `.`) does not
+enter `projects/<name>` and does not pick the first folder there. Pin a new
+session to that product. SDD for a product that has `role=spec` still writes
+the spec repo, even when the session pin is the product root.
 
 ### Multi-repo Studio product (shared spec repo)
 
@@ -102,7 +107,7 @@ repo is used.
 | `sdd_init` | Scaffold layout |
 | `sdd_list_specs` / `sdd_read_spec` | Main specs (`openspec/specs/`) |
 | `sdd_list_changes` | Active / archived changes |
-| `sdd_create_change` | Scaffold change (**stubs only**). In a git repo this also adds a worktree (`.holix/worktrees/<id>`, branch `change/<id>`) and binds the session to it. Disable with `HOLIX_WORKTREE=0`. In a **Studio product** project (`.holix/project.json`) the id is always `{task_prefix}-{n}` (e.g. `litellmkeybot-4`); free-form slugs are rewritten and a board task is added. Prefer Studio `project_create_task_tool` when that MCP tool exists. |
+| `sdd_create_change` | Scaffold change (**stubs only**). Worktrees are **off** unless the profile sets `git_worktrees_enabled` or `HOLIX_WORKTREE=1`. When they are on, a git repo also gets a worktree (`.holix/worktrees/<id>`, branch `change/<id>`) and the session binds to it. In a **Studio product** project (`.holix/project.json`) the id is always `{task_prefix}-{n}` (e.g. `litellmkeybot-4`); free-form slugs are rewritten and a board task is added. Prefer Studio `project_create_task_tool` when that MCP tool exists. |
 | `sdd_read_artifact` | Read change proposal / design / tasks / delta specs |
 | `sdd_update_spec` | Add / modify / remove a requirement in the change delta spec |
 | `sdd_write_artifact` | proposal \| design \| tasks \| specs |

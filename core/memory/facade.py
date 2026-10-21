@@ -83,8 +83,14 @@ class MemoryFacade:
         self,
         conversation_id: str,
         new_messages: list[dict[str, Any]],
+        *,
+        from_row_id: int | None = None,
     ) -> int:
-        return await self.conversations.replace_conversation_messages(conversation_id, new_messages)
+        return await self.conversations.replace_conversation_messages(
+            conversation_id,
+            new_messages,
+            from_row_id=from_row_id,
+        )
 
     async def delete_conversation(self, conversation_id: str) -> bool:
         deleted = await self.conversations.delete_conversation(conversation_id)

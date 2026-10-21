@@ -41,6 +41,7 @@
 | Справочник CLI | [CLI.md](CLI.md) |
 | Hub | [HUB.md](HUB.md) |
 | MCP | [MCP.md](MCP.md) |
+| Инструменты агента (SSH, фоновые задачи, подпись коммита) | [TOOLS.md](TOOLS.md) |
 
 ---
 

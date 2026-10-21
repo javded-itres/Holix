@@ -109,13 +109,25 @@ class ContextManager:
         """
         self.context_window = context_window
 
-    def invalidate_usage_cache(self, conversation_id: str | None = None) -> None:
-        """Drop cached token counts (e.g. after compression or session switch)."""
+    def invalidate_usage_cache(
+        self,
+        conversation_id: str | None = None,
+        *,
+        keep_provider_prompt: bool = False,
+    ) -> None:
+        """Drop cached token counts (e.g. after compression or session switch).
+
+        A warning recount must not drop the last provider prompt size. That
+        figure is the status line; replacing it with a stored-message estimate
+        makes the meter jump until the next model call.
+        """
         if conversation_id is None:
             self._usage_cache.clear()
-            self._api_context_tokens.clear()
-        else:
-            self._usage_cache.pop(conversation_id, None)
+            if not keep_provider_prompt:
+                self._api_context_tokens.clear()
+            return
+        self._usage_cache.pop(conversation_id, None)
+        if not keep_provider_prompt:
             self._api_context_tokens.pop(conversation_id, None)
 
     def _resolve_used_tokens(

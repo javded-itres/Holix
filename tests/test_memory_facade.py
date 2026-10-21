@@ -123,3 +123,31 @@ async def test_conversation_skips_honesty_nudges(temp_dir):
     )
     loaded2 = await store.get_conversation("s1", limit=10)
     assert [m["content"] for m in loaded2] == ["продолжи", "Ищу новости…"]
+
+
+@pytest.mark.asyncio
+async def test_replace_from_row_id_keeps_unloaded_prefix(temp_dir):
+    cfg = HolixRuntimeConfig.from_settings().with_overrides(
+        memory_db_path=f"{temp_dir}/conv-suffix.db",
+        vector_db_path=f"{temp_dir}/vec-suffix",
+    )
+    store = ConversationStore(cfg)
+    await store.initialize_db()
+    await store.save_message("c", "user", "deploy host stays")
+    await store.save_message("c", "assistant", "noted")
+    await store.save_message("c", "user", "tail only")
+    loaded = await store.get_conversation("c", limit=1)
+    anchor = loaded[0]["_row_id"]
+    assert loaded[0]["content"] == "tail only"
+
+    await store.replace_conversation_messages(
+        "c",
+        [{"role": "system", "content": "Context compressed. tail summarized"}],
+        from_row_id=anchor,
+    )
+    whole = await store.get_conversation("c", limit=None)
+    assert [m["content"] for m in whole] == [
+        "deploy host stays",
+        "noted",
+        "Context compressed. tail summarized",
+    ]

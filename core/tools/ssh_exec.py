@@ -288,6 +288,12 @@ class SshExecTool(BaseTool):
             )
         except asyncio.CancelledError:
             return "Error: Run cancelled — ssh_exec stopped."
+        except Exception as exc:
+            from core.runtime.turn_steer import SteerInterrupt
+
+            if isinstance(exc, SteerInterrupt):
+                return "Interrupted: a new instruction arrived — ssh_exec stopped."
+            raise
 
         output = truncate_terminal_output(
             sanitize_paths_in_text(stdout.decode("utf-8", errors="replace"))

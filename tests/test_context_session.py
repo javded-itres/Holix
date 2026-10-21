@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from datetime import UTC
+
 import pytest
 from core.context.manager import ContextManager
 from core.context.token_counter import TokenCounter
@@ -75,6 +77,70 @@ async def test_compress_session_at_95_percent() -> None:
     assert is_soul_message(out[0])
     assert out[1:] == messages
     assert out == inject_soul_into_messages(messages, "default")
+
+
+@pytest.mark.asyncio
+async def test_idle_compress_runs_once_per_quiet_gap() -> None:
+    from types import SimpleNamespace
+
+    from core.runtime.context_session import _idle_compress
+
+    calls = {"n": 0}
+
+    class _CM:
+        warning_threshold = 0.55
+
+        def get_usage(self, messages, conversation_id=None, include_system_reserve=False):
+            return {"percent": 60.0}
+
+        async def compress_context(self, messages):
+            calls["n"] += 1
+            return [{"role": "system", "content": "Context compressed"}, *messages[-1:]], True
+
+    agent = SimpleNamespace(
+        context_manager=_CM(),
+        _session_last_activity={"c1": "2020-01-01 00:00:00"},
+    )
+    messages = [
+        {"role": "user", "content": "a"},
+        {"role": "assistant", "content": "b"},
+        {"role": "user", "content": "c"},
+        {"role": "assistant", "content": "d"},
+    ]
+    out, was = await _idle_compress(agent, "c1", messages)
+    assert was is True
+    assert out[0]["content"] == "Context compressed"
+    _, again = await _idle_compress(agent, "c1", messages)
+    assert again is False
+    assert calls["n"] == 1
+
+
+@pytest.mark.asyncio
+async def test_idle_compress_skips_a_fresh_session() -> None:
+    from datetime import datetime
+    from types import SimpleNamespace
+
+    from core.runtime.context_session import _idle_compress
+
+    class _CM:
+        warning_threshold = 0.55
+
+        def get_usage(self, messages, conversation_id=None, include_system_reserve=False):
+            raise AssertionError("fresh session must not be measured for idle compress")
+
+        async def compress_context(self, messages):
+            raise AssertionError("fresh session must not be compressed")
+
+    agent = SimpleNamespace(
+        context_manager=_CM(),
+        _session_last_activity={
+            "c1": datetime.now(UTC).strftime("%Y-%m-%d %H:%M:%S"),
+        },
+    )
+    messages = [{"role": "user", "content": str(i)} for i in range(4)]
+    out, was = await _idle_compress(agent, "c1", messages)
+    assert was is False
+    assert out == messages
 
 
 def test_route_after_react_respects_max_steps_with_tools() -> None:

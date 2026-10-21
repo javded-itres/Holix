@@ -21,7 +21,7 @@ _SEARCHABLE_ROLES = frozenset({"user", "assistant", "system"})
 _MIN_INDEX_CHARS = 10
 _SEARCH_OVERFETCH_FACTOR = 5
 _SEARCH_OVERFETCH_MAX = 60
-_GRAPH_ONLY_USER_PREFIXES = ("[Action honesty", "[Todo reminder]")
+_GRAPH_ONLY_USER_PREFIXES = ("[Action honesty", "[Todo reminder]", "[Self-diagnose]")
 
 
 def is_stored_honesty_nudge(role: str | None, content: Any) -> bool:
@@ -153,16 +153,16 @@ class ConversationStore:
         # graph-only honesty injects still fills that tail.
         whole_session = limit is None
         if whole_session:
-            query = """SELECT role, content, timestamp, metadata
+            query = """SELECT id, role, content, timestamp, metadata
                        FROM conversations
                        WHERE conversation_id = ?
                        ORDER BY id ASC"""
             params: tuple[Any, ...] = (conversation_id,)
         else:
             fetch_limit = min(max(int(limit), int(limit) * 2), 8_000)
-            query = """SELECT role, content, timestamp, metadata
+            query = """SELECT id, role, content, timestamp, metadata
                        FROM (
-                           SELECT role, content, timestamp, metadata, id
+                           SELECT id, role, content, timestamp, metadata
                            FROM conversations
                            WHERE conversation_id = ?
                            ORDER BY id DESC
@@ -179,7 +179,12 @@ class ConversationStore:
             for row in rows:
                 if is_stored_honesty_nudge(row["role"], row["content"]):
                     continue
-                msg: dict[str, Any] = {"role": row["role"], "content": row["content"]}
+                msg: dict[str, Any] = {
+                    "role": row["role"],
+                    "content": row["content"],
+                    "_row_id": row["id"],
+                    "_row_ts": row["timestamp"],
+                }
                 if row["metadata"]:
                     try:
                         parsed = json.loads(row["metadata"])
@@ -237,12 +242,38 @@ class ConversationStore:
         self,
         conversation_id: str,
         new_messages: list[dict[str, Any]],
+        *,
+        from_row_id: int | None = None,
     ) -> int:
+        """Replace stored rows with ``new_messages``.
+
+        ``from_row_id`` keeps every row before that id. A turn that loaded only
+        a tail must not delete the prefix it never read.
+        """
+        removed_ids: list[int] = []
+        has_prefix = False
+        inserted: list[tuple[int, str, str, dict[str, Any] | None]] = []
         async with connect_aiosqlite(self.db_path) as db:
-            await db.execute(
-                "DELETE FROM conversations WHERE conversation_id = ?",
-                (conversation_id,),
-            )
+            if from_row_id is None:
+                await db.execute(
+                    "DELETE FROM conversations WHERE conversation_id = ?",
+                    (conversation_id,),
+                )
+            else:
+                cursor = await db.execute(
+                    "SELECT 1 FROM conversations WHERE conversation_id = ? AND id < ? LIMIT 1",
+                    (conversation_id, int(from_row_id)),
+                )
+                has_prefix = await cursor.fetchone() is not None
+                cursor = await db.execute(
+                    "SELECT id FROM conversations WHERE conversation_id = ? AND id >= ?",
+                    (conversation_id, int(from_row_id)),
+                )
+                removed_ids = [int(row[0]) for row in await cursor.fetchall()]
+                await db.execute(
+                    "DELETE FROM conversations WHERE conversation_id = ? AND id >= ?",
+                    (conversation_id, int(from_row_id)),
+                )
             from core.memory.tool_content import truncate_tool_content_for_memory
 
             for msg in new_messages:
@@ -253,47 +284,55 @@ class ConversationStore:
                 if role == "tool" and isinstance(content, str):
                     content = truncate_tool_content_for_memory(content)
                 metadata = msg.get("metadata")
+                if isinstance(metadata, dict):
+                    metadata = {
+                        key: value
+                        for key, value in metadata.items()
+                        if key not in {"_row_id", "_row_ts"}
+                    }
                 metadata_json = json.dumps(metadata) if metadata else None
-                await db.execute(
+                cursor = await db.execute(
                     """INSERT INTO conversations (conversation_id, role, content, metadata)
                        VALUES (?, ?, ?, ?)""",
                     (conversation_id, role, content, metadata_json),
                 )
+                inserted.append((int(cursor.lastrowid or 0), role, content, metadata))
             await db.commit()
 
         try:
             try:
-                self.collection.delete(where={"conversation_id": conversation_id})
+                if from_row_id is None or not has_prefix:
+                    self.collection.delete(where={"conversation_id": conversation_id})
+                elif removed_ids:
+                    self.collection.delete(
+                        ids=[f"{conversation_id}_{row_id}" for row_id in removed_ids]
+                    )
             except Exception:
                 pass
 
-            msg_id = 0
-            for msg in new_messages:
-                role = msg.get("role", "")
-                content = msg.get("content", "")
-                if is_stored_honesty_nudge(role, content):
-                    continue
-                meta = msg.get("metadata", {})
+            # A full rewrite can reuse 0..n. A suffix rewrite must use the new
+            # sqlite ids so prefix vectors (cid_<row id>) are not overwritten.
+            for index, (row_id, role, content, metadata) in enumerate(inserted):
+                vector_id = row_id if from_row_id is not None and has_prefix else index
                 if content and len(content) > _MIN_INDEX_CHARS and _should_index_for_search(role):
                     try:
                         m = {
                             "conversation_id": conversation_id,
                             "role": role,
                             "timestamp": datetime.now().isoformat(),
-                            "message_id": str(msg_id),
+                            "message_id": str(vector_id),
                         }
-                        if isinstance(meta, dict):
-                            m["type"] = meta.get("type", "")
-                            if meta.get("tool_name"):
-                                m["tool_name"] = str(meta["tool_name"])
+                        if isinstance(metadata, dict):
+                            m["type"] = metadata.get("type", "")
+                            if metadata.get("tool_name"):
+                                m["tool_name"] = str(metadata["tool_name"])
                         self.collection.add(
                             documents=[content],
                             metadatas=[m],
-                            ids=[f"{conversation_id}_{msg_id}"],
+                            ids=[f"{conversation_id}_{vector_id}"],
                         )
                     except Exception:
                         pass
-                msg_id += 1
         except Exception:
             pass
 

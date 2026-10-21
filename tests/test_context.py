@@ -229,6 +229,15 @@ class TestContextManagerWithBus:
         again = manager.display_usage(messages, conversation_id="chat")
         assert again["source"] == "estimate"
 
+    def test_warning_invalidation_keeps_provider_prompt(self):
+        manager = ContextManager(context_window=100_000, token_counter=TokenCounter())
+        messages = [{"role": "user", "content": "hi"}]
+        manager.note_api_context("chat", 31126)
+        manager.invalidate_usage_cache("chat", keep_provider_prompt=True)
+        shown = manager.display_usage(messages, conversation_id="chat")
+        assert shown["source"] == "api"
+        assert shown["used"] == 31126
+
 
 class TestContextManagerCompression:
     @pytest.mark.asyncio

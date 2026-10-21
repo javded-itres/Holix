@@ -207,6 +207,14 @@ class Settings(BaseSettings):
         ),
         description="After a draft final answer, evaluate quality and retry with reflection",
     )
+    auto_session_doctor: bool = Field(
+        default=True,
+        validation_alias=AliasChoices("HOLIX_AUTO_SESSION_DOCTOR"),
+        description=(
+            "Spawn session_doctor when a turn contradicts tool results. "
+            "Set false or HOLIX_AUTO_SESSION_DOCTOR=0 to leave that to «проверь себя»."
+        ),
+    )
     max_refinement_iterations: int = Field(
         default=2,
         validation_alias=AliasChoices("HOLIX_MAX_REFINEMENT_ITERATIONS"),

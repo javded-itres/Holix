@@ -1037,9 +1037,13 @@ class HolixCodeApp(App):
             self.call_later(self._on_agent_turn_finished)
             return
         mode = self._execution_modes[self._execution_mode_index]
+        from core.runtime.turn_steer import SteerBox, reset_steer_scope, steer_scope
         from core.tools.execution_context import agent_emit_scope, reset_agent_emit_scope
 
         emit_token = agent_emit_scope(self.agent.emit)
+        if getattr(self, "_steer_box", None) is None:
+            self._steer_box = SteerBox()
+        steer_token = steer_scope(self._steer_box)
         cancelled = False
         try:
             await self.agent.run(
@@ -1058,6 +1062,7 @@ class HolixCodeApp(App):
             self.set_status_line("error")
             self._restore_prompt_focus()
         finally:
+            reset_steer_scope(steer_token)
             reset_agent_emit_scope(emit_token)
             self.call_later(self._on_agent_turn_finished, cancelled=cancelled)
 
@@ -1066,9 +1071,13 @@ class HolixCodeApp(App):
             self.call_later(self._on_agent_turn_finished)
             return
         mode = self._execution_modes[self._execution_mode_index]
+        from core.runtime.turn_steer import SteerBox, reset_steer_scope, steer_scope
         from core.tools.execution_context import agent_emit_scope, reset_agent_emit_scope
 
         emit_token = agent_emit_scope(self.agent.emit)
+        if getattr(self, "_steer_box", None) is None:
+            self._steer_box = SteerBox()
+        steer_token = steer_scope(self._steer_box)
         cancelled = False
         try:
             from core.runtime.executor import run_holix
@@ -1092,6 +1101,7 @@ class HolixCodeApp(App):
             self.set_status_line("error")
             self._restore_prompt_focus()
         finally:
+            reset_steer_scope(steer_token)
             reset_agent_emit_scope(emit_token)
             self.call_later(self._on_agent_turn_finished, cancelled=cancelled)
 
@@ -1122,6 +1132,9 @@ class HolixCodeApp(App):
             self._hide_slash_suggestions()
             self._hide_prompt_history()
             if self._should_enqueue_prompt(message):
+                if self._prompt_run_active and self._steer_current_turn(message):
+                    self._restore_prompt_focus(delay=0.05)
+                    return
                 self._enqueue_prompt(message)
                 if not self._prompt_run_active:
                     self._pump_prompt_queue()
@@ -1196,6 +1209,15 @@ class HolixCodeApp(App):
             return False
         return bool(self._prompt_run_active or self._prompt_queue)
 
+    def _steer_current_turn(self, message: str) -> bool:
+        """Hand the text to the running turn. False when that turn has no box yet."""
+        box = getattr(self, "_steer_box", None)
+        if box is None:
+            return False
+        box.push(message)
+        self.transcript_write(f"\n[bold]❯[/bold] {message}\n[dim]steering the current turn[/dim]")
+        return True
+
     def _enqueue_prompt(self, message: str) -> None:
         from core.i18n import t
 
@@ -1242,8 +1264,19 @@ class HolixCodeApp(App):
         self._show_active_prompt("")
 
     def _on_agent_turn_finished(self, *, cancelled: bool = False) -> None:
+        box = getattr(self, "_steer_box", None)
+        self._steer_box = None
+        leftover = box.drain() if box is not None else []
         self._prompt_run_active = False
         self._refresh_status_bar()
+        if leftover and not cancelled:
+            from cli.tui.code.widgets.prompt_queue import QueuedPrompt
+
+            for text in reversed(leftover):
+                self._prompt_queue.insert(
+                    0,
+                    QueuedPrompt(item_id=uuid.uuid4().hex[:8], text=text),
+                )
         if cancelled:
             self._hide_active_prompt()
             self._refresh_prompt_queue()
@@ -1374,6 +1407,9 @@ class HolixCodeApp(App):
             self.transcript_write(f"[red]{MISSING_LLM_HINT}[/red]")
             return
 
+        from core.runtime.turn_steer import SteerBox
+
+        self._steer_box = SteerBox()
         self.note_work("thinking")
         self._refresh_status_bar()
         self._first_delta_seen = False

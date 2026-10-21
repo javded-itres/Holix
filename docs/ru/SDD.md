@@ -43,8 +43,8 @@ openspec/
     archive/
       YYYY-MM-DD-<change-id>/ # после sdd_archive
 
-# git-репозиторий (опционально): linked worktree, не main clone
-.holix/worktrees/<change-id>/     # в .gitignore; sdd_create_change
+# git-репозиторий (опционально): worktree выключен, пока профиль его не включит
+.holix/worktrees/<change-id>/     # в .gitignore; sdd_create_change, если worktree включены
 ```
 
 **Важно:**
@@ -68,9 +68,14 @@ repo/
 2. Во все `sdd_*` передавать `project=<path>`
 
 После `sdd_init` / `sdd_create_change` разговор **пинится** на каталог этого
-проекта: file tools и terminal работают от него (git worktree, пока change
-привязан, перекрывает пин). `/change leave` снимает worktree, пин проекта
+проекта: file tools и terminal работают от него (git worktree перекрывает пин,
+пока change привязан и worktree включены). `/change leave` снимает worktree, пин проекта
 остаётся.
+
+Сессия, закреплённая на **корне workspace профиля** (`project` равен `.`), не
+заходит в `projects/<name>` и не выбирает там первую папку. Для продукта
+нужна отдельная сессия с пином на него. Если у продукта есть `role=spec`,
+SDD всё равно пишет в spec-репозиторий, даже когда пин — корень продукта.
 
 ### Мультирепа Studio (общая spec-репа)
 
@@ -102,7 +107,7 @@ spec-клон. Без `role=spec` SDD идёт только в клонах, г�
 | `sdd_init` | Scaffold `openspec/` (+ example domain) |
 | `sdd_list_specs` / `sdd_read_spec` | Main specs (`openspec/specs/`) |
 | `sdd_list_changes` | Активные (и archive) changes |
-| `sdd_create_change` | Scaffold change (stubs only!). В git-репозитории ещё создаёт worktree (`.holix/worktrees/<id>`, ветка `change/<id>`) и привязывает сессию. Выключить: `HOLIX_WORKTREE=0`. В **продуктовом проекте Studio** (`.holix/project.json`) id всегда `{task_prefix}-{n}` (например `litellmkeybot-4`); свободные slug переписываются, на доску добавляется карточка. Если доступен MCP `project_create_task_tool` — лучше он. |
+| `sdd_create_change` | Scaffold change (stubs only!). Worktree **выключены**, пока профиль не задаст `git_worktrees_enabled` или `HOLIX_WORKTREE=1`. Когда они включены, в git-репозитории создаётся worktree (`.holix/worktrees/<id>`, ветка `change/<id>`) и сессия к нему привязывается. В **продуктовом проекте Studio** (`.holix/project.json`) id всегда `{task_prefix}-{n}` (например `litellmkeybot-4`); свободные slug переписываются, на доску добавляется карточка. Если доступен MCP `project_create_task_tool` — лучше он. |
 | `sdd_read_artifact` | Читать proposal / design / tasks / delta specs change |
 | `sdd_update_spec` | Дополнить / изменить / удалить требование в delta-спеке change |
 | `sdd_write_artifact` | proposal / design / tasks / specs |

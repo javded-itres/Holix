@@ -279,6 +279,7 @@ async def _communicate_with_cancel(
     can restart it as a tracked background process. Long one-shots
     (``cargo test``, ``mvn package``, ``pytest``) are never promoted.
     """
+    from core.runtime.turn_steer import SteerInterrupt, steer_requested
     from core.tools.execution_context import is_run_cancelled
 
     comm = asyncio.create_task(process.communicate(input=stdin))
@@ -298,6 +299,9 @@ async def _communicate_with_cancel(
             if is_run_cancelled():
                 await _kill_process_tree(process)
                 raise asyncio.CancelledError("run cancelled")
+            if steer_requested():
+                await _kill_process_tree(process)
+                raise SteerInterrupt()
 
             now = loop.time()
             remaining = deadline - now
@@ -473,10 +477,13 @@ class TerminalTool(BaseTool):
         if not settings.enable_terminal_tool:
             return "Error: Terminal tool is disabled (HOLIX_ENABLE_TERMINAL_TOOL=false)"
 
+        from core.runtime.turn_steer import SteerInterrupt, steer_requested
         from core.tools.execution_context import is_run_cancelled
 
         if is_run_cancelled():
             return "Error: Run cancelled — terminal command not started."
+        if steer_requested():
+            return "Interrupted: a new instruction arrived — command not started."
 
         from core.tools.apply_patch import ApplyPatchTool, extract_apply_patch_document
 
@@ -721,6 +728,11 @@ class TerminalTool(BaseTool):
             except asyncio.CancelledError:
                 await _kill_process_tree(process)
                 raise
+            except SteerInterrupt:
+                await _kill_process_tree(process)
+                raise
 
+        except SteerInterrupt:
+            raise
         except Exception as e:
             return f"Error executing command: {str(e)}"

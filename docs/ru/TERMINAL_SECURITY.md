@@ -167,12 +167,15 @@ Git (только «читающие» подкоманды):
 
 ---
 
-## 5. Пути профилей Holix (всегда запрещены)
+## 5. Пути профилей Holix (секреты закрыты; свой workspace разрешён)
 
-Независимо от whitelist и workspace jail блокируются команды, обращающиеся к **каталогам профилей и секретам Holix**:
+Независимо от whitelist и workspace jail блокируются команды к **секретам профиля и чужим профилям**:
 
-- `~/.holix/profiles/…`, `.holix/profiles/…`, `$HOLIX_HOME`, `$HOME/.holix`
+- `~/.holix/profiles/…/.env`, `config.yaml` профиля, деревья других профилей
+- маркеры `$HOLIX_HOME` / `$HOME/.holix`, если нельзя доказать, что путь внутри workspace
 - `.holix/memory-cache`, `.runtime-cache` (расшифрованный кэш памяти)
+
+**Workspace текущего профиля** (`…/profiles/<name>/workspace`) разрешён, в том числе когда workspace jail **выключен**.
 
 Пример:
 
@@ -181,7 +184,9 @@ cat ~/.holix/profiles/default/.env
 → Access to Holix profile directories and secrets is not allowed.
 ```
 
-Действует даже при **выключенном** workspace jail — агент не может читать `.env`, `telegram.env` или cron-файлы через терминал.
+`ssh_exec` эту проверку не использует: команда идёт на другую машину, и путь `.holix` там — файл той машины. Запрет опасных команд остаётся. Локальный `run_terminal_command` по-прежнему блокирует пути выше.
+
+Оболочка и запись файлов также не могут менять `org_id` в `.holix/project.json`.
 
 ---
 

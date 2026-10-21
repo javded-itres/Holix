@@ -368,6 +368,15 @@ When `max_steps` is hit, Holix may grant more steps if the agent is still making
 | `HOLIX_MAX_STEPS_MAX_EXTENSIONS` | `10` | Max extensions per run |
 | `HOLIX_MAX_STEPS_HARD_CAP` | `0` | Absolute cap (`0` = derived) |
 
+## Session, worktrees, step timeout
+
+| Variable | Default | Effect |
+|----------|---------|--------|
+| `conversation_history_limit` | unset (whole session) | Positive number loads only that many recent messages. `0` or empty keeps the whole chat |
+| `git_worktrees_enabled` | `false` | Create an SDD git worktree per change. `HOLIX_WORKTREE=1` forces on, `HOLIX_WORKTREE=0` forces off |
+| `llm_step_timeout` | `600` | Seconds a model step may stay silent before the turn fails |
+| `auto_session_doctor` | `true` | Spawn `session_doctor` when a turn contradicts tool results. `false` or `HOLIX_AUTO_SESSION_DOCTOR=0` leaves that to «проверь себя» |
+
 ## Subagents & supervisor
 
 | Variable | Default | Effect |

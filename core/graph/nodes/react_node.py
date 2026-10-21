@@ -464,6 +464,17 @@ def _maybe_honesty_retry(
             user_input=state.get("user_input"),
             tools_presentation=presentation,
         )
+    doctor = _auto_doctor_retry(
+        state,
+        messages=messages,
+        step_count=step_count,
+        final_response=final_response,
+        assistant_already_appended=assistant_already_appended,
+        agent=agent,
+        exhausted_claims=False,
+    )
+    if doctor is not None:
+        return doctor
     if should_nudge_false_completion(
         state,
         final_response=final_response,
@@ -540,7 +551,60 @@ def _maybe_honesty_retry(
             final_response=final_response,
             refusal=MONOLOGUE_HONESTY_REFUSAL,
         )
+    doctor = _auto_doctor_retry(
+        state,
+        messages=messages,
+        step_count=step_count,
+        final_response=final_response,
+        assistant_already_appended=assistant_already_appended,
+        agent=agent,
+    )
+    if doctor is not None:
+        return doctor
     return None
+
+
+def _auto_doctor_retry(
+    state: HolixGraphState,
+    *,
+    messages: list[dict[str, Any]],
+    step_count: int,
+    final_response: str,
+    assistant_already_appended: bool,
+    agent=None,
+    exhausted_claims: bool = True,
+) -> dict[str, Any] | None:
+    """One clean-context doctor when honesty can no longer correct a false claim."""
+    from core.runtime.auto_session_doctor import claim_auto_session_doctor, nudge_text
+    from core.tools.code_mode.policy import normalize_presentation
+
+    reason = claim_auto_session_doctor(
+        agent,
+        state,
+        messages,
+        final_response=final_response,
+        exhausted_claims=exhausted_claims,
+    )
+    if not reason:
+        return None
+    logger.warning(
+        "Auto session_doctor: %s (conversation_id=%s)",
+        reason,
+        state.get("conversation_id", ""),
+    )
+    presentation = normalize_presentation(
+        getattr(getattr(agent, "tools", None), "_tools_presentation", None)
+    )
+    return honesty_retry_update(
+        messages=messages,
+        step_count=step_count,
+        final_response=final_response,
+        honesty_nudge_count=int(state.get("honesty_nudge_count") or 0),
+        include_assistant=not assistant_already_appended,
+        user_input=state.get("user_input"),
+        tools_presentation=presentation,
+        nudge_override=nudge_text(reason, messages, final_response),
+    )
 
 
 def _llm_max_tokens(
@@ -696,6 +760,10 @@ async def react_node(state: HolixGraphState, config: RunnableConfig) -> dict:
 
     # Auto-compress before each LLM step (tool-heavy runs can skip compress between react hops)
     messages = list(state.get("messages", []))
+    from core.runtime.turn_steer import absorb_steer
+
+    if await absorb_steer(messages, agent, conversation_id):
+        state = {**state, "messages": messages}
     messages, messages_patch = await _compress_messages_if_needed(agent, conversation_id, messages)
     messages, guidance_patch, cancelled = await _apply_supervisor_guidance(
         agent,
@@ -713,6 +781,23 @@ async def react_node(state: HolixGraphState, config: RunnableConfig) -> dict:
                 "messages": messages,
             },
             messages_patch,
+        )
+
+    from core.runtime.auto_session_doctor import claim_auto_session_doctor, nudge_text
+
+    doctor_reason = claim_auto_session_doctor(
+        agent,
+        state,
+        messages,
+        final_response="",
+    )
+    if doctor_reason:
+        messages.append({"role": "user", "content": nudge_text(doctor_reason, messages, "")})
+        messages_patch = {**messages_patch, "messages": messages}
+        logger.warning(
+            "Auto session_doctor: %s (conversation_id=%s)",
+            doctor_reason,
+            conversation_id,
         )
 
     # Build API messages
@@ -751,6 +836,12 @@ async def react_node(state: HolixGraphState, config: RunnableConfig) -> dict:
         else []
     )
     tool_choice = resolve_tool_choice(state, messages, tools=tools)
+    if doctor_reason:
+        from core.runtime.auto_session_doctor import delegate_tool_choice
+
+        forced = delegate_tool_choice(tools)
+        if forced is not None:
+            tool_choice = forced
     temperature = 0.7
     if agent and hasattr(agent, "config"):
         temperature = getattr(agent.config, "temperature", 0.7)
@@ -1155,6 +1246,17 @@ async def _react_non_streaming(
         held = await _hold_if_incomplete(state, agent, messages, step_count, final_response)
         if held is not None:
             return held
+
+        from core.runtime.turn_steer import absorb_steer
+
+        if await absorb_steer(messages, agent, conversation_id):
+            return {
+                "messages": messages,
+                "step_count": step_count,
+                "is_final": False,
+                "final_response": "",
+                "tool_calls": [],
+            }
 
         if agent and hasattr(agent, "memory"):
             await agent.memory.save_message(conversation_id, "assistant", final_response)

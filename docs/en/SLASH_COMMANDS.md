@@ -190,7 +190,7 @@ Full guide: [SUBAGENTS.md](SUBAGENTS.md). Code mode: [CODE_MODE.md](CODE_MODE.md
 |---------|-------|-------------|
 | `/subagents` | TUI, Telegram, MAX | Live jobs. Subcommands: `types`, `spawn [--fork] <type> <task>`, `result <job>`, `stop <job>`, `reply <job> <text>`. Older `/subagent-spawn`, `/subagent-terminate`, `/subagent-types` still work |
 
-In TUI, while the agent is busy, a **plain** chat line is queued (not these slash commands). See [TUI.md](TUI.md#prompt-queue).
+In TUI, while the agent is busy, a **plain** chat line steers the current turn (not these slash commands). A line the turn does not read stays queued. See [TUI.md](TUI.md#prompt-queue).
 
 ## Telegram
 

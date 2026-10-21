@@ -41,6 +41,7 @@ Curated route through the documentation. Each topic has **one canonical page** â
 | Full CLI reference | [CLI.md](CLI.md) |
 | Skill Hub | [HUB.md](HUB.md) |
 | MCP servers | [MCP.md](MCP.md) |
+| Agent tools (SSH, background tasks, commit trailer) | [TOOLS.md](TOOLS.md) |
 
 ---
 

@@ -99,6 +99,8 @@ class ProfileConfig(BaseModel):
     # Meta-agent (pre-thinking) and Reflexion self-refinement
     enable_meta_agent: bool | None = None
     enable_self_refinement: bool | None = None
+    # None inherits global auto_session_doctor (on). False leaves diagnosis to «проверь себя».
+    auto_session_doctor: bool | None = None
     # Messenger chat: write "Configured image/video models" only after the user opts in.
     show_media_models_in_chat: bool | None = None
     # Adult sexual content for this profile only. Minors stay forbidden.

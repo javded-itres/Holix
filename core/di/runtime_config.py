@@ -161,6 +161,9 @@ class HolixRuntimeConfig:
     vector_dim: int = 384
     vector_table: str = "holix_vectors"
 
+    # Spawn session_doctor when a turn contradicts tool results. Profile None inherits this.
+    auto_session_doctor: bool = True
+
     # Optional System One + text similarity. Empty means off.
     decision: dict[str, Any] = field(default_factory=dict)
     embeddings: dict[str, Any] = field(default_factory=dict)
@@ -270,6 +273,7 @@ class HolixRuntimeConfig:
             vector_dsn=str(getattr(s, "vector_dsn", "") or ""),
             vector_dim=int(getattr(s, "vector_dim", 384) or 384),
             vector_table=str(getattr(s, "vector_table", "") or "holix_vectors"),
+            auto_session_doctor=bool(getattr(s, "auto_session_doctor", True)),
         )
 
     @classmethod
@@ -344,6 +348,8 @@ class HolixRuntimeConfig:
             overrides["enable_meta_agent"] = bool(profile.enable_meta_agent)
         if getattr(profile, "enable_self_refinement", None) is not None:
             overrides["enable_self_refinement"] = bool(profile.enable_self_refinement)
+        if getattr(profile, "auto_session_doctor", None) is not None:
+            overrides["auto_session_doctor"] = bool(profile.auto_session_doctor)
         if getattr(profile, "allow_adult_content", None) is not None:
             overrides["allow_adult_content"] = bool(profile.allow_adult_content)
         if getattr(profile, "agent_pipeline", None):

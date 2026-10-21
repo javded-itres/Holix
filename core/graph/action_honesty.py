@@ -1717,6 +1717,7 @@ def honesty_retry_update(
     include_assistant: bool = True,
     user_input: str | None = None,
     tools_presentation: str | None = None,
+    nudge_override: str | None = None,
 ) -> dict[str, Any]:
     """Keep the turn open and instruct the model to execute tools."""
     updated = list(messages)
@@ -1733,7 +1734,9 @@ def honesty_retry_update(
     user = (user_input or "").strip() or last_user_text(updated)
     from core.direct_dispatch.intent import is_self_diagnose_request
 
-    if is_self_diagnose_request(user) and not self_diagnose_called_since_last_user(updated):
+    if nudge_override:
+        nudge = nudge_override
+    elif is_self_diagnose_request(user) and not self_diagnose_called_since_last_user(updated):
         nudge = SELF_DIAGNOSE_NUDGE
     elif should_nudge_missing_service(final_response, updated):
         nudge = MISSING_SERVICE_NUDGE

@@ -51,7 +51,7 @@ Built-in definitions live in `core/subagents/registry.py` (`PREDEFINED_SUBAGENTS
 
 Site/resource analysis with many real links: the main agent calls `research_site_pages` (not `web_researcher`). That tool spawns `page_analyst` jobs in waves of `subagent_max_concurrent` and collects the briefings.
 
-When the user asks Holix to check itself («проверь себя»), the main agent spawns `session_doctor` with `fork=false`. The doctor must not change system settings. A Telegram admin ticket (`request_admin_support`) is sent only after the user confirms.
+When the user asks Holix to check itself («проверь себя»), the main agent spawns `session_doctor` with `fork=false`. The same spawn starts on its own when a turn contradicts tool results: the same invented task id after a correction, four identical tool calls, three failures of one tool in a row, or a “done” claim that is still unproven after the honesty retries. Status chatter such as «Проверяю…» does not start it. `auto_session_doctor` defaults to on (`HOLIX_AUTO_SESSION_DOCTOR=0` or the profile flag turns it off). The doctor must not change system settings. A Telegram admin ticket (`request_admin_support`) is sent only after the user confirms.
 
 ---
 

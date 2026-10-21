@@ -128,7 +128,12 @@ class CodeEventHandler:
                 agent = getattr(self.app, "agent", None)
                 cm = getattr(agent, "context_manager", None) if agent else None
                 if cm:
-                    cm.invalidate_usage_cache(getattr(self.app, "conversation_id", None))
+                    # Compression changed the prompt. A warning did not: keep the
+                    # provider size so the bar does not flash a smaller recount.
+                    cm.invalidate_usage_cache(
+                        getattr(self.app, "conversation_id", None),
+                        keep_provider_prompt=isinstance(event, ContextWarningEvent),
+                    )
                 self.app.run_worker(self.app._update_context_display_async())
 
             elif isinstance(event, BackgroundProcessStartedEvent):
