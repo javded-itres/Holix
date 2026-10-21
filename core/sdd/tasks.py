@@ -30,6 +30,10 @@ _SIZE_RE = re.compile(
     r"^\s*-\s*\*\*(?:size|volume|estimate|объ[её]м|размер):\*\*\s*`?([^`\n]+?)`?\s*$",
     re.IGNORECASE,
 )
+_DONE_WHEN_RE = re.compile(
+    r"^\s*-\s*\*\*(?:done_when|done when|готово|критерий):\*\*\s*(.*)$",
+    re.IGNORECASE,
+)
 _ID_PREFIX_RE = re.compile(r"^(\d+(?:\.\d+)*)\s+")
 # OpenSpec CLI: `- [x] 1.1 [main, s] Do the thing. Зависит от 1.1.`
 _INLINE_META_RE = re.compile(
@@ -71,6 +75,7 @@ TASKS_FORMAT_EXAMPLE = """\
   - **assignee:** `coder`
   - **size:** `s`
   - **reason:** why this agent
+  - **done_when:** test, command, or observable result
   - **depends_on:**
 
 - [ ] 1.2 Another small task (runs after 1.1)
@@ -120,6 +125,7 @@ def parse_tasks_markdown(content: str) -> list[SpecTask]:
         assignee = inline_assignee or "unassigned"
         reason = ""
         size = inline_size
+        done_when = ""
         depends_on: list[str] = list(sentence_deps)
         prose: list[str] = []
         j = i + 1
@@ -150,6 +156,11 @@ def parse_tasks_markdown(content: str) -> list[SpecTask]:
             sm = _SIZE_RE.match(lines[j])
             if sm:
                 size = sm.group(1).strip().strip("`").strip()
+                j += 1
+                continue
+            dw = _DONE_WHEN_RE.match(lines[j])
+            if dw:
+                done_when = dw.group(1).strip().strip("`").strip()
                 j += 1
                 continue
             dm = _DEPENDS_RE.match(lines[j])
@@ -193,6 +204,7 @@ def parse_tasks_markdown(content: str) -> list[SpecTask]:
                 reason=reason,
                 depends_on=depends_on,
                 size=size,
+                done_when=done_when,
                 line_index=task_line,
             )
         )
@@ -335,6 +347,8 @@ def render_tasks_markdown(tasks: Iterable[SpecTask], *, title: str = "Tasks") ->
             lines.append(f"  - **size:** `{size}`")
         if t.reason:
             lines.append(f"  - **reason:** {t.reason}")
+        if (t.done_when or "").strip():
+            lines.append(f"  - **done_when:** {t.done_when.strip()}")
         deps = [d for d in (t.depends_on or []) if str(d).strip()]
         if deps:
             lines.append(f"  - **depends_on:** `{', '.join(deps)}`")
@@ -634,7 +648,9 @@ def _canonicalize_checklist(content: str) -> str:
         wrote_reason = False
         wrote_depends = False
         wrote_size = False
+        wrote_done = False
         size_val = (t.size or "").strip()
+        done_val = (t.done_when or "").strip()
         for bl in block:
             if _ASSIGNEE_RE.match(bl) or _ASSIGNEE_LOOSE_RE.match(bl):
                 if not wrote_assignee:
@@ -662,6 +678,16 @@ def _canonicalize_checklist(content: str) -> str:
                 else:
                     new_block.append(bl)
                     wrote_reason = True
+                continue
+            if _DONE_WHEN_RE.match(bl):
+                if done_val and not wrote_done:
+                    new_block.append(f"  - **done_when:** {done_val}")
+                    wrote_done = True
+                elif not done_val:
+                    continue
+                else:
+                    new_block.append(bl)
+                    wrote_done = True
                 continue
             if _DEPENDS_RE.match(bl):
                 deps = [d for d in (t.depends_on or []) if str(d).strip()]
@@ -704,6 +730,12 @@ def _canonicalize_checklist(content: str) -> str:
                     insert_at = i + 1
                     break
             new_block.insert(insert_at, f"  - **reason:** {t.reason}")
+        if done_val and not wrote_done:
+            insert_at = 0
+            for i, bl in enumerate(new_block):
+                if _ASSIGNEE_RE.match(bl) or _SIZE_RE.match(bl) or _REASON_RE.match(bl):
+                    insert_at = i + 1
+            new_block.insert(insert_at, f"  - **done_when:** {done_val}")
         deps = [d for d in (t.depends_on or []) if str(d).strip()]
         if deps and not wrote_depends:
             insert_at = 0

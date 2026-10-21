@@ -149,6 +149,14 @@ def count_delta_requirements(delta_content: str) -> int:
     return sum(len(reqs) for _, reqs in _parse_delta_sections(delta_content or ""))
 
 
+def count_real_delta_requirements(delta_content: str) -> int:
+    """Requirement blocks that are not create_change placeholders."""
+    total = 0
+    for _kind, reqs in _parse_delta_sections(delta_content or ""):
+        total += sum(1 for req in reqs if not _is_stub_requirement(req))
+    return total
+
+
 def merge_delta_into_main(main_content: str, delta_content: str) -> str:
     """Apply delta requirement sections onto main spec markdown.
 

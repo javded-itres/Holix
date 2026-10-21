@@ -4,9 +4,14 @@
 
 ### Added
 
+- **SDD review before archive** — `sdd_status` shows the real spec delta (`delta_review`) and one `next` step. Archive warns when a change drops a scenario or leaves text behind, and refuses requirement titles that differ only by case. `skip_specs` lets a refactor or docs change through without invented requirements. Each task can say `done_when`. Checked boxes are not an archive.
 - **Steer the current turn** — while the agent is running, Enter stops the current command, skips the remaining tool calls of that step, and continues with the new text. A message the turn did not read stays queued. Ctrl+S still cancels the turn.
 - **Parallel reads** — consecutive no-risk tools in one model step run together. Writes, `ask_user`, and plan-mode switches stay one at a time.
 - **Automatic session check** — `session_doctor` starts on its own when a turn contradicts tool results (invented task id, a repeated identical call, three failures of one tool, or an unproven “done” after honesty retries). `auto_session_doctor` defaults to on. Set it `false` or `HOLIX_AUTO_SESSION_DOCTOR=0` to leave the check to «проверь себя».
+
+### Fixed
+
+- **A2A Agent Card** — installed skills assigned to the main agent are listed on the card. The old lookup called a method that does not exist, so callers only saw the generic assistant. When the gateway requires an API key, the card says a bearer is required and does not include the key.
 
 ### Fixed
 

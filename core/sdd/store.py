@@ -15,7 +15,11 @@ from core.sdd.apply_mode import (
     save_apply_mode,
     save_apply_presentation,
 )
-from core.sdd.merge import count_delta_requirements, merge_delta_into_main
+from core.sdd.merge import (
+    count_delta_requirements,
+    count_real_delta_requirements,
+    merge_delta_into_main,
+)
 from core.sdd.models import ChangeStatus
 from core.sdd.paths import (
     SPEC_FILENAME,
@@ -290,6 +294,8 @@ class SpecStore:
             if not d.is_dir() or d.name == "archive":
                 continue
             st = self.change_status(d.name)
+            from core.sdd.next_step import next_action
+
             active.append(
                 {
                     "change_id": st.change_id,
@@ -297,8 +303,11 @@ class SpecStore:
                     "apply_ready": st.apply_ready,
                     "tasks_done": st.tasks_done,
                     "tasks_total": st.tasks_total,
+                    "tasks_complete": st.tasks_complete,
                     "apply_mode": st.apply_mode,
                     "tools_presentation": st.tools_presentation,
+                    "skip_specs": st.skip_specs,
+                    "next": next_action(st),
                     "archived": False,
                 }
             )
@@ -326,6 +335,7 @@ class SpecStore:
         request: str = "",
         understanding_gate_enabled: bool = False,
         understanding_threshold: int = 80,
+        skip_specs: bool = False,
     ) -> dict:
         if not self.is_initialized():
             raise RuntimeError("SDD not initialized — call sdd_init first")
@@ -368,6 +378,10 @@ class SpecStore:
             threshold=int(understanding_threshold),
             request=req,
         )
+        if skip_specs:
+            from core.sdd.change_flags import save_skip_specs
+
+            save_skip_specs(self.workspace, cid, True)
         artifacts = ["proposal.md", "design.md", "tasks.md", f"specs/{domain}/spec.md"]
         if req:
             artifacts.insert(0, "request.md")
@@ -401,8 +415,19 @@ class SpecStore:
         mode = load_apply_mode(self.workspace, cid)
         tools_presentation = load_apply_presentation(self.workspace, cid)
         tasks_ok = self._tasks_ready_for_apply(tasks, apply_mode=mode)
+        from core.sdd.change_flags import load_skip_specs
+        from core.sdd.merge import count_real_delta_requirements
+
+        skip_specs = load_skip_specs(self.workspace, cid)
         delta_specs = (
             list((cdir / "specs").rglob(SPEC_FILENAME)) if (cdir / "specs").is_dir() else []
+        )
+        filled_specs = [p for p in delta_specs if self._artifact_filled(p)]
+        real_reqs = 0
+        for spec_path in filled_specs:
+            real_reqs += count_real_delta_requirements(spec_path.read_text(encoding="utf-8"))
+        specs_ok = skip_specs or (
+            bool(delta_specs) and len(filled_specs) == len(delta_specs) and real_reqs > 0
         )
         artifacts = {
             "proposal": (cdir / "proposal.md").is_file()
@@ -410,7 +435,8 @@ class SpecStore:
             "design": (cdir / "design.md").is_file() and self._artifact_filled(cdir / "design.md"),
             "tasks": tasks_path.is_file() and tasks_ok,
             # File existence alone is not enough — create_change writes stubs.
-            "specs": bool(delta_specs) and all(self._artifact_filled(p) for p in delta_specs),
+            # skip_specs satisfies a refactor/docs change that has no behavior delta.
+            "specs": specs_ok,
         }
         missing: list[str] = []
         if not artifacts["proposal"]:
@@ -418,9 +444,17 @@ class SpecStore:
         if not artifacts["design"]:
             missing.append("design (fill approach + assignees, not stubs)")
         if not artifacts["specs"]:
-            missing.append("delta specs (fill ADDED/MODIFIED requirements, not stubs)")
+            missing.append(
+                "delta specs (fill ADDED/MODIFIED requirements, not stubs). "
+                "A change with no behavior delta sets skip_specs=true"
+            )
         if not artifacts["tasks"]:
             missing.append(self._tasks_missing_reason(tasks, apply_mode=mode))
+        task_warnings = [
+            f"{t.id} has no done_when"
+            for t in tasks
+            if not (getattr(t, "done_when", "") or "").strip()
+        ]
         # design is reported for honesty/UI but not required to start apply
         apply_ready = (
             artifacts["proposal"] and artifacts["specs"] and artifacts["tasks"] and len(tasks) > 0
@@ -436,6 +470,8 @@ class SpecStore:
             tools_presentation=tools_presentation,
             apply_ready=apply_ready,
             missing=missing,
+            skip_specs=skip_specs,
+            task_warnings=task_warnings,
         )
 
     def write_artifact(
@@ -445,6 +481,7 @@ class SpecStore:
         content: str,
         *,
         domain: str | None = None,
+        skip_specs: bool | None = None,
     ) -> dict:
         from core.tools.file_diff import build_file_diff_payload
 
@@ -452,6 +489,10 @@ class SpecStore:
         cdir = change_dir(self.workspace, cid)
         if not cdir.is_dir():
             raise FileNotFoundError(f"change not found: {cid}")
+        if skip_specs is not None:
+            from core.sdd.change_flags import as_bool, save_skip_specs
+
+            save_skip_specs(self.workspace, cid, as_bool(skip_specs))
         art = artifact.strip().lower()
         extra: dict = {}
         if art in ("proposal", "proposal.md"):
@@ -816,6 +857,7 @@ class SpecStore:
                     "done": t.done,
                     "assignee": t.assignee,
                     "reason": t.reason,
+                    "done_when": t.done_when,
                     "size": size,
                     "max_steps": max_steps_for_size(size),
                     "job_id": jobs.get(t.id),
@@ -924,7 +966,9 @@ class SpecStore:
                 f"(depends_on + same-section order); mark done with sdd_check_task. "
                 "Only ready tasks (deps satisfied) may run; "
                 "for executor!=main use sdd_dispatch / subagent tools when mode is "
-                "subagents/hybrid.\n"
+                "subagents/hybrid. "
+                "When every task is checked, show delta_review and ask the user "
+                "before sdd_archive.\n"
                 f"{summary}"
             ),
         }
@@ -952,6 +996,63 @@ class SpecStore:
         except ValueError:
             return None
         return domain
+
+    def review_change(self, change_id: str) -> dict:
+        """Diff each delta spec against the main spec it would update."""
+        from core.sdd.delta_review import review_delta
+
+        cid = validate_change_id(change_id)
+        cdir = change_dir(self.workspace, cid)
+        warnings: list[str] = []
+        errors: list[str] = []
+        requirements: list[dict] = []
+        dropped: list[str] = []
+        specs_delta = cdir / "specs"
+        if not specs_delta.is_dir():
+            return {
+                "warnings": warnings,
+                "errors": errors,
+                "requirements": requirements,
+                "dropped": dropped,
+            }
+        domain_deltas: dict[str, list[Path]] = {}
+        for delta_spec in sorted(specs_delta.rglob(SPEC_FILENAME)):
+            domain = self._delta_domain_for_spec(specs_delta, delta_spec)
+            if domain:
+                domain_deltas.setdefault(domain, []).append(delta_spec)
+        for domain, paths in sorted(domain_deltas.items()):
+            main_path = domain_spec_path(self.workspace, domain)
+            running = main_path.read_text(encoding="utf-8") if main_path.is_file() else ""
+            for delta_spec in paths:
+                delta_text = delta_spec.read_text(encoding="utf-8")
+                piece = review_delta(running, delta_text, domain=domain)
+                warnings.extend(piece["warnings"])
+                errors.extend(piece["errors"])
+                requirements.extend(piece["requirements"])
+                dropped.extend(piece["dropped"])
+                if not piece["errors"]:
+                    running = merge_delta_into_main(running, delta_text)
+        return {
+            "warnings": warnings,
+            "errors": errors,
+            "requirements": requirements,
+            "dropped": dropped,
+        }
+
+    def change_view(self, change_id: str, *, understanding: dict | None = None) -> dict:
+        """Status plus the spec diff and the single next step."""
+        from core.sdd.next_step import next_action
+
+        status = self.change_status(change_id)
+        review = self.review_change(change_id)
+        data = status.to_dict()
+        data["delta_review"] = review
+        data["next"] = next_action(
+            status,
+            understanding=understanding,
+            review_errors=review.get("errors") or [],
+        )
+        return data
 
     def archive(self, change_id: str, *, force: bool = False) -> dict:
         """Merge delta specs into main library, then move change to archive.
@@ -983,6 +1084,25 @@ class SpecStore:
             warnings.append(
                 f"{len(open_tasks)} open task(s) remain; archive will still merge deltas."
             )
+        elif st.tasks_complete:
+            warnings.append(
+                "Tracked tasks are complete. Archive only after the user reviews the spec delta."
+            )
+
+        review = self.review_change(cid)
+        warnings.extend(review.get("warnings") or [])
+        if review.get("errors") and not force:
+            return {
+                "ok": False,
+                "change_id": cid,
+                "error": review["errors"][0],
+                "delta_review": review,
+                "merge_errors": list(review["errors"]),
+                "warnings": warnings,
+                "merged_specs": [],
+            }
+        if review.get("errors"):
+            warnings.extend(review["errors"])
 
         merged: list[str] = []
         merge_errors: list[str] = []
@@ -999,8 +1119,9 @@ class SpecStore:
                     continue
                 domain_deltas.setdefault(domain, []).append(delta_spec)
 
-        # Hard gate: never delete the change if there is nothing to merge (unless force).
-        if not domain_deltas and not force:
+        # Hard gate: never delete the change if there is nothing to merge (unless force
+        # or the change declared skip_specs).
+        if not domain_deltas and not force and not st.skip_specs:
             return {
                 "ok": False,
                 "change_id": cid,
@@ -1016,6 +1137,7 @@ class SpecStore:
                 ],
                 "warnings": warnings,
                 "merged_specs": [],
+                "delta_review": review,
             }
 
         requirements_merged = 0
@@ -1031,12 +1153,14 @@ class SpecStore:
                 try:
                     delta_text = delta_spec.read_text(encoding="utf-8")
                     n_reqs = count_delta_requirements(delta_text)
-                    if n_reqs <= 0:
-                        merge_errors.append(
-                            f"{self.tool_relpath(delta_spec)}: "
-                            "no ### Requirement blocks under "
-                            "## ADDED|MODIFIED|REMOVED Requirements"
-                        )
+                    n_real = count_real_delta_requirements(delta_text)
+                    if n_reqs <= 0 or (n_real <= 0 and st.skip_specs):
+                        if not st.skip_specs:
+                            merge_errors.append(
+                                f"{self.tool_relpath(delta_spec)}: "
+                                "no ### Requirement blocks under "
+                                "## ADDED|MODIFIED|REMOVED Requirements"
+                            )
                         continue
                     main_text = merge_delta_into_main(main_text, delta_text)
                     requirements_merged += n_reqs
@@ -1047,7 +1171,7 @@ class SpecStore:
                 main_path.write_text(main_text, encoding="utf-8")
                 merged.append(self.tool_relpath(main_path))
 
-        if not force:
+        if not force and not st.skip_specs:
             if not merged or requirements_merged <= 0:
                 return {
                     "ok": False,
@@ -1061,6 +1185,7 @@ class SpecStore:
                     "warnings": warnings,
                     "merged_specs": merged,
                     "requirements_merged": requirements_merged,
+                    "delta_review": review,
                 }
 
         arch = archive_root(self.workspace)
@@ -1077,6 +1202,7 @@ class SpecStore:
             "archived_to": self.tool_relpath(dest),
             "merged_specs": merged,
             "requirements_merged": requirements_merged,
+            "delta_review": review,
         }
         if warnings:
             result["warnings"] = warnings

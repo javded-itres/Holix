@@ -69,7 +69,7 @@ Requires a Holix gateway API key (`hx_…`) like other `/v1` routes.
 
 Optional headers: `X-Holix-Profile` (multi-profile gateway).
 
-Agent Card advertises:
+The card's `skills` list is how another agent decides whether to call this one. It always includes a general assistant, plus up to 12 skills assigned to the main agent (name and a short description, not the skill body). Tools and MCP servers are not listed. When the gateway requires an API key, the card says a bearer is required and does not contain the key.
 
 ```json
 "capabilities": {

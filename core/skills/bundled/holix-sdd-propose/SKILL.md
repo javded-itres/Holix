@@ -36,7 +36,7 @@ A workspace may contain several projects, each with its own `openspec/`.
 ## Workflow (propose)
 
 1. `sdd_status` with `project=` — if not initialized → `sdd_init` with the same `project=`
-2. `sdd_list_specs` + `sdd_read_spec` for relevant domains
+2. `sdd_list_specs` + `sdd_read_spec` for relevant domains. Also read the code, tests, and docs that change would touch — do not ask the user for facts already in the repo
 3. `sdd_list_changes` — avoid duplicate open changes
 4. `sdd_create_change` with slug id **and** `request=` (user request text)
 5. **Understanding gate** (if enabled in user prefs — see create_change response).
@@ -76,9 +76,10 @@ A workspace may contain several projects, each with its own `openspec/`.
    - There is **no** `openspec/changes/<id>/specs.md` — do not `read_file` that path
    - Prefer `sdd_status(change_id=…)` → `artifact_paths` before reading anything
    - **proposal** content — Why / What / Impact
-   - **specs** content — delta with `## ADDED|MODIFIED|REMOVED Requirements` and GIVEN/WHEN/THEN
+   - **specs** content — delta with `## ADDED|MODIFIED|REMOVED Requirements` and GIVEN/WHEN/THEN. Write each domain with `sdd_write_artifact` as soon as that domain is drafted. Do not plan every spec file before writing the first one
    - **design** content — approach + task→assignee table
-   - **tasks** content — checklist with assignees (see below)
+   - **tasks** content — checklist with assignees and `done_when` (see below)
+   - **No behavior change** (refactor, docs, rename): `sdd_create_change(..., skip_specs=true)` or `sdd_write_artifact(..., skip_specs=true)`. Do not invent requirements. Apply and archive do not demand a delta then
 
 ### Assignees (you choose who does the work)
 
@@ -125,6 +126,7 @@ Rules for volume:
   - **assignee:** `coder`
   - **size:** `s`
   - **reason:** isolated API surface
+  - **done_when:** `pytest tests/test_oauth.py` passes
   - **depends_on:**
 
 - [ ] 1.2 Persist session store
@@ -164,6 +166,7 @@ Rules:
 - Nested `  - **assignee:** \`type\`` is mandatory structure (`main`, subagent type, or `unassigned`)
 - Nested `  - **size:** \`xs|s|m\`` — required for good dispatch budgets
 - Optional `  - **reason:** …`
+- `  - **done_when:** …` — a test, command, or observable result. A title alone ("implement the endpoint") is not a plan
 - Optional `  - **depends_on:** \`1.1, 1.2\`` — execution graph (empty = no explicit deps)
 - Same-section order (1.1 before 1.2) is **inferred** when `depends_on` is empty
 - Parallel work: independent sections (1.x vs 2.x) or shared `depends_on` only
@@ -172,8 +175,8 @@ Rules:
 
 Assignees: `main` or a type name from `list_subagent_types` (custom or built-in).
 
-7. `sdd_status` with `change_id` until `apply_ready: true`
-8. Stop and let the user review. **Do not implement** until apply skill / user asks.
+7. `sdd_status` with `change_id` until `apply_ready: true`. Follow the `next` line. Read `delta_review` before you tell the user the change is ready: it is the per-requirement diff, not the whole restated requirement
+8. Stop and let the user review. **Do not implement** until apply skill / user asks. Answering your own clarifying questions is not a yes to write files
 
 ## Do NOT
 

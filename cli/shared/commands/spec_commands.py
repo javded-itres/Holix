@@ -579,6 +579,8 @@ async def run_spec_command(host: Any, command: str) -> None:
                 f"  • `{c['change_id']}` {ready} · "
                 f"{c.get('tasks_done', 0)}/{c.get('tasks_total', 0)} tasks · mode={mode}"
             )
+            if c.get("next"):
+                lines.append(f"    {c['next']}")
         lines.append("")
         lines.append(_usage())
         await _write(host, "\n".join(lines))

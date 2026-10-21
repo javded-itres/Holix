@@ -2,9 +2,81 @@
 
 from __future__ import annotations
 
+import logging
 from typing import Any
 
 from core.a2a.config import A2AConfig, load_a2a_config
+
+logger = logging.getLogger(__name__)
+
+# Enough for a caller to choose this agent. The full skill text stays local.
+_SKILL_LIMIT = 12
+
+
+def a2a_skill_from_holix(skill: dict[str, Any]) -> dict[str, Any] | None:
+    """One installed Holix skill as an A2A AgentSkill. None when it has no name."""
+    sid = str(skill.get("name") or skill.get("id") or "").strip()
+    if not sid:
+        return None
+    desc = str(skill.get("description") or "").strip()
+    return {
+        "id": f"skill-{sid}"[:64],
+        "name": sid,
+        "description": (desc or f"Holix skill: {sid}")[:240],
+        "tags": ["skill"],
+        "inputModes": ["text/plain"],
+        "outputModes": ["text/plain"],
+    }
+
+
+def _installed_a2a_skills(profile: str) -> list[dict[str, Any]]:
+    """Skills assigned to the main agent. Empty when the profile cannot be read."""
+    try:
+        from core.di import resolve_runtime_config
+        from core.profile import ProfileManager
+        from core.skills.manager import SkillsManager
+
+        runtime = resolve_runtime_config(ProfileManager().load_profile(profile))
+        manager = SkillsManager(runtime)
+        # Card reads are frequent. Do not embed every skill into the vector store.
+        manager.load_all_skills(defer_index=True)
+        chosen = manager.filter_skills_for_agent(list(manager.all_skills.values()), "main")
+        chosen.sort(key=lambda item: str(item.get("name") or ""))
+        entries: list[dict[str, Any]] = []
+        for item in chosen:
+            if not isinstance(item, dict):
+                continue
+            entry = a2a_skill_from_holix(item)
+            if entry is None:
+                continue
+            entries.append(entry)
+            if len(entries) >= _SKILL_LIMIT:
+                break
+        return entries
+    except Exception:
+        logger.debug("A2A card skipped installed skills for %s", profile, exc_info=True)
+        return []
+
+
+def _auth_declaration() -> dict[str, Any]:
+    """Tell a caller that a bearer is required. The key itself stays off the card."""
+    try:
+        from config import settings
+
+        if not settings.effective_require_auth:
+            return {}
+    except Exception:
+        return {}
+    return {
+        "securitySchemes": {
+            "bearer": {
+                "type": "http",
+                "scheme": "bearer",
+                "description": "Holix gateway API key, issued out of band.",
+            }
+        },
+        "security": [{"bearer": []}],
+    }
 
 
 def build_agent_card(
@@ -41,41 +113,7 @@ def build_agent_card(
         }
     ]
 
-    # Optional: surface installed skills as A2A skills (bounded)
-    try:
-        from core.di import resolve_runtime_config
-        from core.profile import ProfileManager
-        from core.skills.manager import SkillsManager
-
-        prof = ProfileManager().load_profile(profile)
-        runtime = resolve_runtime_config(prof)
-        mgr = SkillsManager(runtime)
-        listed = []
-        try:
-            listed = list(mgr.list_skills() or [])[:12]
-        except Exception:
-            listed = []
-        for item in listed:
-            if isinstance(item, dict):
-                sid = str(item.get("name") or item.get("id") or "").strip()
-                desc = str(item.get("description") or "")[:240]
-            else:
-                sid = str(getattr(item, "name", "") or "").strip()
-                desc = str(getattr(item, "description", "") or "")[:240]
-            if not sid:
-                continue
-            skills.append(
-                {
-                    "id": f"skill-{sid}"[:64],
-                    "name": sid,
-                    "description": desc or f"Holix skill: {sid}",
-                    "tags": ["skill"],
-                    "inputModes": ["text/plain"],
-                    "outputModes": ["text/plain"],
-                }
-            )
-    except Exception:
-        pass
+    skills.extend(_installed_a2a_skills(profile))
 
     return {
         "name": name,
@@ -108,4 +146,5 @@ def build_agent_card(
             "holix_profile": profile,
             "framework": "Holix",
         },
+        **_auth_declaration(),
     }

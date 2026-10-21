@@ -310,6 +310,40 @@ async def test_send_message_folds_sse_and_falls_back(monkeypatch: pytest.MonkeyP
     assert b"message/send" in calls[-1]
 
 
+def test_agent_card_lists_skills_assigned_to_main(monkeypatch) -> None:
+    class _Manager:
+        def __init__(self, _runtime: object) -> None:
+            self.all_skills: dict = {}
+
+        def load_all_skills(self, *, defer_index: bool = False) -> None:
+            assert defer_index is True
+            self.all_skills = {
+                "b-skill": {"name": "b-skill", "description": "second"},
+                "a-skill": {"name": "a-skill", "description": "first"},
+                "": {"name": "", "description": "skip"},
+            }
+
+        def filter_skills_for_agent(self, skills: list, agent_slot: str = "main") -> list:
+            assert agent_slot == "main"
+            return [item for item in skills if item.get("name") != "b-skill"]
+
+    monkeypatch.setattr("core.skills.manager.SkillsManager", _Manager)
+    monkeypatch.setattr(
+        "core.profile.ProfileManager.load_profile",
+        lambda self, name: object(),
+    )
+    monkeypatch.setattr("core.di.resolve_runtime_config", lambda _profile: object())
+    card = build_agent_card(
+        "default",
+        public_url="https://gw.example/a2a",
+        config=load_a2a_config(raw={"enabled": True, "name": "TestAgent"}),
+    )
+    names = [item["name"] for item in card["skills"]]
+    assert names[0] == "General assistant"
+    assert "a-skill" in names
+    assert "b-skill" not in names
+
+
 def test_build_agent_card_minimal() -> None:
     card = build_agent_card(
         "default",

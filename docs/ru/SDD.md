@@ -111,14 +111,14 @@ spec-клон. Без `role=spec` SDD идёт только в клонах, г�
 | `sdd_read_artifact` | Читать proposal / design / tasks / delta specs change |
 | `sdd_update_spec` | Дополнить / изменить / удалить требование в delta-спеке change |
 | `sdd_write_artifact` | proposal / design / tasks / specs |
-| `sdd_status` | Overview или один change + paths |
+| `sdd_status` | Overview или один change + paths. У одного change есть `next` (один следующий шаг) и `delta_review` (diff по каждому requirement, потерянные сценарии, текст, который архив не перенесёт) |
 | `sdd_update_understanding` / `sdd_confirm_understanding` | Understanding gate |
 | `sdd_set_task_assignee` | Назначить `main` / type субагента |
 | `sdd_check_task` | Отметить задачу done |
 | `sdd_request_apply_mode` / `sdd_set_apply_mode` | self \| subagents \| hybrid |
 | `sdd_apply` | Старт apply (план → исполнитель) |
 | `sdd_dispatch` | Запуск субагентов по ready-задачам |
-| `sdd_archive` | Merge delta → main specs + archive. Если change в git worktree и грязные файлы только в `openspec/`, коммитит их и делает `git worktree remove`. Другая грязь — дерево остаётся (`worktree.reason=dirty`). |
+| `sdd_archive` | Merge delta → main specs + archive. Предупреждает, если MODIFIED теряет сценарий или в дельте есть текст, который не копируется. Отказывает, если заголовки отличаются только регистром. `skip_specs=true` архивирует рефакторинг или правку документации без дельты поведения. Отмеченные задачи — ещё не архив: сначала ревью `delta_review`. Если change в git worktree и грязные файлы только в `openspec/`, коммитит их и делает `git worktree remove`. Другая грязь — дерево остаётся (`worktree.reason=dirty`). |
 
 ---
 
@@ -173,6 +173,7 @@ Skills (явный запуск или подсказки агенту):
   - **assignee:** `coder`
   - **size:** `s`
   - **reason:** изолированный API
+  - **done_when:** проходит `pytest tests/test_oauth.py`
   - **depends_on:**
 
 - [ ] 1.2 Shared auth config
@@ -193,7 +194,10 @@ Skills (явный запуск или подсказки агенту):
 Правила:
 
 - строка задачи: `- [ ] 1.1 Заголовок`
-- вложенно: `**assignee:**`, `**size:**` (`xs`/`s`/`m`), опционально `**reason:**`, `**depends_on:**`
+- вложенно: `**assignee:**`, `**size:**` (`xs`/`s`/`m`), `**done_when:**` (тест, команда или наблюдаемый результат), опционально `**reason:**`, `**depends_on:**`
+- нет `done_when` — предупреждение в `sdd_status` (`task_warnings`), apply не блокируется
+- рефакторинг или документация без смены поведения: `skip_specs=true` на `sdd_create_change` или `sdd_write_artifact`. Заглушки требований в main не сливаются
+- `next` в `sdd_status` — один следующий шаг. Когда все галочки стоят, архив только после того, как пользователь посмотрел `delta_review`
 - parallel: одинаковый `depends_on` (или пустой) у независимых задач
 - assignee: `main` | type из `list_subagent_types` | custom agent
 - **объём:** оценивайте и **дробите** крупные задачи; L/XL для субагентов **отклоняются**

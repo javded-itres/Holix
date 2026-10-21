@@ -15,10 +15,10 @@ Change is implemented (tasks checked) and user wants to close it / merge require
 
 ## Workflow
 
-1. `sdd_status` with `change_id` — review remaining open tasks
-2. Confirm with user if any tasks incomplete
+1. `sdd_status` with `change_id` — read `next`, `delta_review`, and remaining open tasks
+2. Show the user the per-requirement diff. Confirm before archive. Checked tasks are not enough
 3. `sdd_archive` with `change_id`
-4. Report `merged_specs`, any `warnings` (open tasks / not apply_ready), and archive path under `openspec/changes/archive/`
+4. Report `merged_specs`, `delta_review`, any `warnings` (open tasks, dropped scenarios, text archive did not copy), and the archive path under `openspec/changes/archive/`
 
 ## Effects
 
@@ -28,6 +28,9 @@ Change is implemented (tasks checked) and user wants to close it / merge require
 - Duplicate requirement titles in main collapse to one block
 - Change directory moved to `openspec/changes/archive/YYYY-MM-DD-<change-id>/`
 - Open tasks do **not** block archive; tool returns `warnings` — surface them to the user
+- A `MODIFIED` block that drops a `#### Scenario` warns. Extra `##` sections and prose outside ADDED/MODIFIED/REMOVED warn because archive does not copy them
+- Requirement titles that differ only by case (`Login` vs `login`) **refuse** the archive unless `force=true`
+- `skip_specs: true` (refactor or docs, no behavior change) archives without inventing requirements. Placeholder stubs are not merged
 
 ## Merge gotchas
 

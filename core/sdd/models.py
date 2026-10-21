@@ -20,6 +20,8 @@ class SpecTask:
     depends_on: list[str] = field(default_factory=list)
     # Optional volume label: xs | s | m | l | xl (see core.sdd.task_sizing).
     size: str = ""
+    # How a reader can tell the task is done (test, command, or observable).
+    done_when: str = ""
     line_index: int = -1  # index of the ``- [ ]`` line in the source (0-based)
 
 
@@ -35,6 +37,12 @@ class ChangeStatus:
     tools_presentation: str | None = None
     apply_ready: bool = False
     missing: list[str] = field(default_factory=list)
+    skip_specs: bool = False
+    task_warnings: list[str] = field(default_factory=list)
+
+    @property
+    def tasks_complete(self) -> bool:
+        return self.tasks_total > 0 and self.tasks_done == self.tasks_total
 
     def to_dict(self) -> dict:
         return {
@@ -43,9 +51,12 @@ class ChangeStatus:
             "artifacts": dict(self.artifacts),
             "tasks_total": self.tasks_total,
             "tasks_done": self.tasks_done,
+            "tasks_complete": self.tasks_complete,
             "assignees": dict(self.assignees),
             "apply_mode": self.apply_mode,
             "tools_presentation": self.tools_presentation,
             "apply_ready": self.apply_ready,
             "missing": list(self.missing),
+            "skip_specs": self.skip_specs,
+            "task_warnings": list(self.task_warnings),
         }

@@ -426,6 +426,14 @@ class SddCreateChangeTool(BaseTool):
                     "description": "User request / feature description text",
                     "default": "",
                 },
+                "skip_specs": {
+                    "type": "boolean",
+                    "description": (
+                        "True for a refactor or docs change with no behavior delta. "
+                        "Apply and archive then do not require openspec requirement blocks."
+                    ),
+                    "default": False,
+                },
             },
             "required": ["change_id"],
         }
@@ -436,9 +444,11 @@ class SddCreateChangeTool(BaseTool):
         project: str = "",
         domain: str = "",
         request: str = "",
+        skip_specs: bool = False,
         **_: Any,
     ) -> str:
         try:
+            from core.sdd.change_flags import as_bool
             from core.sdd.prefs import SddPrefsStore
             from core.tools.execution_context import get_profile_name
 
@@ -468,6 +478,7 @@ class SddCreateChangeTool(BaseTool):
                 request=request or "",
                 understanding_gate_enabled=prefs.understanding_gate_enabled,
                 understanding_threshold=prefs.understanding_threshold,
+                skip_specs=as_bool(skip_specs),
             )
             _pin_sdd_project(
                 pin_root,
@@ -557,7 +568,10 @@ class SddStatusTool(BaseTool):
         self.name = "sdd_status"
         self.description = (
             "SDD status for a project: overview, or one change "
-            "(artifacts, tasks, apply_mode, understanding gate)."
+            "(artifacts, tasks, apply_mode, understanding gate). "
+            "One change also returns next (the single following step) and "
+            "delta_review (what archive would change, drop, or refuse). "
+            "Checked tasks are not an archive."
         )
         self.risk_level = "no"
         self.parameters = {
@@ -578,15 +592,15 @@ class SddStatusTool(BaseTool):
                 from core.sdd.paths import change_dir
                 from core.sdd.understanding import load_understanding
 
-                status = store.change_status(change_id)
+                und = load_understanding(store.project_root, change_id)
+                und_dict = und.to_dict() if und is not None else None
                 data = {
                     "ok": True,
                     "project": project or "",
-                    **status.to_dict(),
+                    **store.change_view(change_id, understanding=und_dict),
                 }
-                und = load_understanding(store.project_root, change_id)
-                if und is not None:
-                    data["understanding"] = und.to_dict()
+                if und_dict is not None:
+                    data["understanding"] = und_dict
                 cdir = change_dir(store.workspace, change_id)
                 rel = store.tool_relpath(cdir)
                 delta_specs = (
@@ -773,6 +787,7 @@ class SddWriteArtifactTool(BaseTool):
             "  - **assignee:** `coder`\n"
             "  - **size:** `s`   # xs|s|m required for subagents; l/xl rejected\n"
             "  - **reason:** …\n"
+            "  - **done_when:** test, command, or observable result\n"
             "  - **depends_on:** `1.0`   # optional; empty or omit if no deps\n"
             "Estimate volume and DECOMPOSE large work: prefer 5–15 XS/S tasks over "
             "1–3 mega-tasks so each sub-agent uses fewer steps. "
@@ -804,13 +819,20 @@ class SddWriteArtifactTool(BaseTool):
                         "(ru or en — same language for the whole artifact). "
                         "For artifact=tasks: OpenSpec checklist only "
                         "(`- [ ] 1.1 …` + nested `**assignee:**`, `**size:**` "
-                        "xs|s|m, and optional `**depends_on:**`). "
+                        "xs|s|m, `**done_when:**`, and optional `**depends_on:**`). "
                         "Decompose large work — L/XL subagent tasks are rejected."
                     ),
                 },
                 "domain": {
                     "type": "string",
                     "description": "Required when artifact=specs (delta domain)",
+                },
+                "skip_specs": {
+                    "type": "boolean",
+                    "description": (
+                        "Set true on an existing change that has no behavior delta. "
+                        "Omit to leave the flag unchanged."
+                    ),
                 },
             },
             "required": ["change_id", "artifact", "content"],
@@ -823,6 +845,7 @@ class SddWriteArtifactTool(BaseTool):
         content: str,
         domain: str = "",
         project: str = "",
+        skip_specs: bool | None = None,
         **_: Any,
     ) -> str:
         try:
@@ -848,6 +871,7 @@ class SddWriteArtifactTool(BaseTool):
                     artifact,
                     content,
                     domain=domain or None,
+                    skip_specs=skip_specs,
                 )
             )
         except Exception as exc:
@@ -1142,8 +1166,13 @@ class SddArchiveTool(BaseTool):
             "Merge change delta specs (ADDED/MODIFIED/REMOVED Requirements) into "
             "main openspec/specs/<domain>/spec.md, then move the change folder to "
             "changes/archive/YYYY-MM-DD-<id>/. Nested delta files under "
-            "specs/<domain>/… still merge into that domain. Returns warnings if "
-            "tasks are still open (merge still proceeds). If the change lives in a "
+            "specs/<domain>/… still merge into that domain. Returns delta_review: "
+            "a per-requirement diff, scenario losses, and text archive will not "
+            "copy. Titles that differ only by case are refused unless force=true. "
+            "skip_specs archives a change that has no behavior delta. "
+            "Checked tasks are not enough — the user reviews the delta first. "
+            "Returns warnings if tasks are still open (merge still proceeds). "
+            "If the change lives in a "
             "git worktree and the only uncommitted files are under openspec/, "
             "commits them and removes the worktree; extra dirty files keep the tree."
         )
@@ -1155,7 +1184,10 @@ class SddArchiveTool(BaseTool):
                 "change_id": {"type": "string"},
                 "force": {
                     "type": "boolean",
-                    "description": "Reserved for stricter gates; archive currently always merges when change exists.",
+                    "description": (
+                        "Archive even when requirement titles collide by case "
+                        "or there is nothing to merge."
+                    ),
                     "default": False,
                 },
             },

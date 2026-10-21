@@ -111,14 +111,14 @@ repo is used.
 | `sdd_read_artifact` | Read change proposal / design / tasks / delta specs |
 | `sdd_update_spec` | Add / modify / remove a requirement in the change delta spec |
 | `sdd_write_artifact` | proposal \| design \| tasks \| specs |
-| `sdd_status` | Overview or one change + paths |
+| `sdd_status` | Overview or one change + paths. One change includes `next` (the single following step) and `delta_review` (per-requirement diff, dropped scenarios, text archive will not copy) |
 | `sdd_update_understanding` / `sdd_confirm_understanding` | Understanding gate |
 | `sdd_set_task_assignee` | `main` or subagent type |
 | `sdd_check_task` | Mark task done |
 | `sdd_request_apply_mode` / `sdd_set_apply_mode` | self \| subagents \| hybrid |
 | `sdd_apply` | Start apply |
 | `sdd_dispatch` | Spawn subagents for ready tasks |
-| `sdd_archive` | Merge delta → main + archive. If the change is in a git worktree and the only uncommitted files are under `openspec/`, commits them and removes the worktree. Other dirty files keep the tree (`worktree.reason=dirty`). |
+| `sdd_archive` | Merge delta → main + archive. Warns when a MODIFIED requirement drops a scenario or the delta has text that is not copied. Refuses titles that differ only by case. `skip_specs=true` archives a refactor or docs change with no behavior delta. Checked tasks are not an archive — the user reviews `delta_review` first. If the change is in a git worktree and the only uncommitted files are under `openspec/`, commits them and removes the worktree. Other dirty files keep the tree (`worktree.reason=dirty`). |
 
 ---
 
@@ -171,6 +171,7 @@ OpenSpec Holix checklist only. Free-form `## 1. …` + Description/Assignee sect
   - **assignee:** `coder`
   - **size:** `s`
   - **reason:** isolated API
+  - **done_when:** `pytest tests/test_oauth.py` passes
   - **depends_on:**
 
 - [ ] 1.2 Shared auth config
@@ -197,6 +198,12 @@ OpenSpec Holix checklist only. Free-form `## 1. …` + Description/Assignee sect
 | `l` / `xl` | **Rejected** for subagent assignees — split first | — |
 
 Prefer 5–15 small checklist items. One sub-agent job = one deliverable so runs finish in fewer steps.
+
+`done_when` says how to tell the task is done: a test, a command, or something a person can observe. A title alone is not a plan. Missing `done_when` is a warning on `sdd_status` (`task_warnings`). It does not block apply.
+
+A change with no behavior delta (refactor, docs) sets `skip_specs=true` on `sdd_create_change` or `sdd_write_artifact`. Apply does not wait for requirement blocks, and archive does not merge placeholder stubs.
+
+`sdd_status` on one change ends with `next`. Follow that line. When every task is checked, `next` says to show `delta_review` and archive only after the user agrees.
 
 ### Spec delta sample
 
