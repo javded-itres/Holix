@@ -4,6 +4,8 @@
 
 ### Fixed
 
+- **Agent process environment** — shell commands, the persistent shell, `execute_python`, `run_code`, git, LSP, and ACP no longer inherit variables whose names hold a key, token, or password. The gateway process keeps them.
+- **Telegram photos** — an empty `HOLIX_TELEGRAM_VISION_MODEL` (or `default`) describes the image with the model pinned to that chat. `search_model` looks through provider catalogs for a recognizer and skips image generators such as Flux. A concrete name still uses only that model.
 - **Background services** — a server started with `run_terminal_command` `background=true` is a tracked process, not a `task_…`. That includes `.venv/bin/python -m uvicorn` and `uv run --python …`. A task that opens a listen port is moved the same way. Tests and builds stay tasks.
 
 ### Added

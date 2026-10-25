@@ -100,12 +100,15 @@ class _LspClient:
         self._reader: asyncio.Task[None] | None = None
 
     async def start(self) -> None:
+        from core.security.process_env import agent_process_env
+
         self._proc = await asyncio.create_subprocess_exec(
             *self._argv,
             stdin=asyncio.subprocess.PIPE,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.DEVNULL,
             cwd=str(self._cwd),
+            env=agent_process_env(),
             limit=8 * 1024 * 1024,
         )
         self._reader = asyncio.create_task(self._read_loop())

@@ -78,6 +78,45 @@ _TEXT_ONLY_MODEL_MARKERS: tuple[str, ...] = (
     "free",
     "fast",
 )
+# Image and video generators. They accept prompts, not a photo to describe.
+_GENERATION_MODEL_MARKERS: tuple[str, ...] = (
+    "flux",
+    "hailuo",
+    "seedance",
+    "t2i",
+    "i2v",
+    "text-to-image",
+    "image-z",
+    "z-image",
+    "flash-image",
+    "-image",
+    "/image",
+    "video",
+)
+# Decision, embedding, and speech aliases are not picture recognizers.
+_UTILITY_MODEL_MARKERS: tuple[str, ...] = (
+    "nimble",
+    "tev1",
+    "jev",
+    "embed",
+    "whisper",
+    "laya",
+)
+# Name fragments of models that can describe an image.
+_RECOGNITION_HINTS: tuple[str, ...] = (
+    "vision",
+    "-vl",
+    "vl-",
+    "llava",
+    "medgemma",
+    "gemini",
+    "claude",
+    "gpt-4o",
+    "gpt-4.1",
+    "glm",
+)
+_SESSION_VISION_VALUES = frozenset({"", "default"})
+_SEARCH_VISION_VALUE = "search_model"
 
 
 @dataclass(slots=True)
@@ -98,6 +137,7 @@ class VisionConfig:
     api_key: str
     base_url: str
     provider_metadata: dict[str, Any] | None = None
+    models_to_try: tuple[str, ...] = ()
 
 
 def _openai_base_url(url: str) -> str:
@@ -152,6 +192,78 @@ def _is_text_only_model(name: str) -> bool:
     return any(marker in lowered for marker in _TEXT_ONLY_MODEL_MARKERS)
 
 
+def _marked(name: str, markers: tuple[str, ...]) -> bool:
+    lowered = str(name or "").strip().lower()
+    return bool(lowered) and any(marker in lowered for marker in markers)
+
+
+def _is_generation_model(name: str) -> bool:
+    return _marked(name, _GENERATION_MODEL_MARKERS)
+
+
+def _is_utility_model(name: str) -> bool:
+    return _marked(name, _UTILITY_MODEL_MARKERS)
+
+
+def _vision_setting_mode(explicit: str) -> str:
+    """``session`` (empty or default), ``search``, or a concrete model name."""
+    value = str(explicit or "").strip().lower()
+    if value in _SESSION_VISION_VALUES:
+        return "session"
+    if value == _SEARCH_VISION_VALUE:
+        return "search"
+    return "explicit"
+
+
+def _can_describe_image(name: str) -> bool:
+    """A catalog id that is not a text, generator, or utility alias."""
+    cleaned = str(name or "").strip()
+    if not cleaned or cleaned.lower() in _SESSION_VISION_VALUES | {_SEARCH_VISION_VALUE}:
+        return False
+    return not (
+        _is_text_only_model(cleaned) or _is_generation_model(cleaned) or _is_utility_model(cleaned)
+    )
+
+
+def _looks_like_recognizer(name: str) -> bool:
+    if name in _VISION_MODEL_PREFERENCES:
+        return True
+    return _marked(name, _RECOGNITION_HINTS)
+
+
+def _session_pinned_model(profile: str, conversation_id: str) -> tuple[str, str]:
+    """Model and provider saved for this conversation. Empty when unset."""
+    conversation_id = str(conversation_id or "").strip()
+    if not conversation_id:
+        return "", ""
+    try:
+        from core.session_models import SessionModelStore
+
+        record = SessionModelStore(profile).get(conversation_id)
+    except Exception:
+        return "", ""
+    if record is None:
+        return "", ""
+    return str(record.model or "").strip(), str(record.provider or "").strip()
+
+
+def _profile_fallback_model(candidates: list[str]) -> str:
+    """Profile chat model when the conversation has no saved pin."""
+    usable = [
+        str(name or "").strip() for name in candidates if _can_describe_image(str(name or ""))
+    ]
+    if usable:
+        return usable[0]
+    return _pick_model(
+        *[
+            str(name or "").strip()
+            for name in candidates
+            if str(name or "").strip().lower()
+            not in _SESSION_VISION_VALUES | {_SEARCH_VISION_VALUE}
+        ]
+    )
+
+
 def _collect_available_models(providers: dict[str, Any]) -> list[str]:
     models: list[str] = []
     for raw in providers.values():
@@ -164,6 +276,21 @@ def _collect_available_models(providers: dict[str, Any]) -> list[str]:
     return models
 
 
+def _search_recognition_models(available: list[str]) -> list[str]:
+    """Provider models that can describe an image. Generators stay out."""
+    pool = [
+        name for name in available if _can_describe_image(name) and _looks_like_recognizer(name)
+    ]
+    ordered: list[str] = []
+    for preferred in _VISION_MODEL_PREFERENCES:
+        if preferred in pool and preferred not in ordered:
+            ordered.append(preferred)
+    for name in pool:
+        if name not in ordered:
+            ordered.append(name)
+    return ordered
+
+
 def _pick_vision_model(
     *,
     explicit: str,
@@ -172,36 +299,45 @@ def _pick_vision_model(
 ) -> str:
     """Choose a vision-capable model; ignore text-only aliases like ``coder``."""
     explicit = str(explicit or "").strip()
-    if explicit and not _is_text_only_model(explicit):
+    if explicit and not _is_text_only_model(explicit) and not _is_generation_model(explicit):
         return explicit
 
-    pool = available or [m for m in agent_fallbacks if m and not _is_text_only_model(m)]
+    found = _search_recognition_models(available)
+    if found:
+        return found[0]
+    pool = [m for m in agent_fallbacks if _can_describe_image(m)]
     for preferred in _VISION_MODEL_PREFERENCES:
         if preferred in pool:
             return preferred
-    for name in pool:
-        if not _is_text_only_model(name):
-            return name
+    if pool:
+        return pool[0]
     return explicit or _pick_model(*agent_fallbacks) or "auto"
 
 
-def _vision_models_to_try(*, profile: str) -> list[str]:
+def _vision_models_to_try(*, profile: str, conversation_id: str = "") -> list[str]:
     """Ordered vision model list for describe retries."""
-    base = resolve_vision_config(profile=profile)
+    base = resolve_vision_config(profile=profile, conversation_id=conversation_id)
     tried: list[str] = []
-    for name in [base.model, *_VISION_MODEL_PREFERENCES]:
+    for name in base.models_to_try or (base.model,):
         model = str(name or "").strip()
-        if not model or model in tried or _is_text_only_model(model):
+        if not model or model in tried:
             continue
         tried.append(model)
-    if not tried:
+    if not tried and base.model:
         tried.append(base.model)
     return tried
 
 
-def resolve_vision_config(*, profile: str) -> VisionConfig:
-    """Resolve vision model + API credentials (profile, env, OpenAI fallbacks)."""
+def resolve_vision_config(*, profile: str, conversation_id: str = "") -> VisionConfig:
+    """Resolve vision model + API credentials (profile, env, OpenAI fallbacks).
+
+    ``HOLIX_TELEGRAM_VISION_MODEL`` empty or ``default`` uses the model pinned
+    to ``conversation_id``. ``search_model`` picks a recognizer from provider
+    catalogs and skips image generators. Any other value is that model name.
+    """
     explicit_model = (settings.telegram_vision_model or "").strip()
+    mode = _vision_setting_mode(explicit_model)
+    pinned_model, pinned_provider = _session_pinned_model(profile, conversation_id)
 
     try:
         from cli.core import get_profile_manager
@@ -213,7 +349,9 @@ def resolve_vision_config(*, profile: str) -> VisionConfig:
     api_key = ""
     base_url = ""
     metadata: dict[str, Any] | None = None
-    model_candidates: list[str] = [explicit_model]
+    model_candidates: list[str] = []
+    if mode == "explicit":
+        model_candidates.append(explicit_model)
 
     if config is not None:
         providers = getattr(config, "providers", None) or {}
@@ -244,6 +382,12 @@ def resolve_vision_config(*, profile: str) -> VisionConfig:
             for name, raw in providers.items():
                 if isinstance(raw, dict) and (name, raw) not in provider_blocks:
                     provider_blocks.append((name, raw))
+        if mode == "session" and pinned_provider and isinstance(providers, dict):
+            pinned_raw = providers.get(pinned_provider)
+            if isinstance(pinned_raw, dict):
+                provider_blocks = [(pinned_provider, pinned_raw)] + [
+                    item for item in provider_blocks if item[0] != pinned_provider
+                ]
 
         for _name, pdata in provider_blocks:
             creds = _provider_credentials(pdata)
@@ -274,15 +418,34 @@ def resolve_vision_config(*, profile: str) -> VisionConfig:
     if config is not None and isinstance(getattr(config, "providers", None), dict):
         available_models = _collect_available_models(config.providers)
 
-    model = _pick_vision_model(
-        explicit=explicit_model,
-        available=available_models,
-        agent_fallbacks=[m for m in model_candidates if m],
-    )
+    fallbacks = [name for name in model_candidates if name]
+    if mode == "session":
+        model = pinned_model or _profile_fallback_model(fallbacks)
+        models_to_try = (model,) if model else ()
+    elif mode == "search":
+        found = _search_recognition_models(available_models)
+        if not found:
+            fallback = pinned_model or _profile_fallback_model(fallbacks)
+            found = [fallback] if fallback else []
+        model = found[0] if found else ""
+        models_to_try = tuple(found)
+    elif explicit_model and not _is_text_only_model(explicit_model):
+        model = explicit_model
+        models_to_try = (explicit_model,)
+    else:
+        model = _pick_vision_model(
+            explicit=explicit_model,
+            available=available_models,
+            agent_fallbacks=fallbacks,
+        )
+        found = _search_recognition_models(available_models)
+        if model and model not in found:
+            found = [model, *found]
+        models_to_try = tuple(found) if found else ((model,) if model else ())
     if not model:
         raise RuntimeError(
-            "Vision: не задана модель. Укажите HOLIX_TELEGRAM_VISION_MODEL "
-            "(например gemini-flash или auto) или настройте holix models setup."
+            "Vision: не задана модель. Пустой HOLIX_TELEGRAM_VISION_MODEL "
+            "берёт модель сессии; search_model ищет распознавание среди провайдеров."
         )
     if not api_key or not base_url:
         raise RuntimeError(
@@ -296,6 +459,7 @@ def resolve_vision_config(*, profile: str) -> VisionConfig:
         api_key=api_key,
         base_url=base_url,
         provider_metadata=metadata,
+        models_to_try=models_to_try,
     )
 
 
@@ -411,10 +575,11 @@ async def _chat_completion_text(
     model: str,
     messages: list[dict[str, Any]],
     max_tokens: int = 2000,
+    conversation_id: str = "",
 ) -> str:
     from core.models.client_factory import create_openai_client
 
-    vision = resolve_vision_config(profile=profile)
+    vision = resolve_vision_config(profile=profile, conversation_id=conversation_id)
     client = create_openai_client(
         base_url=vision.base_url,
         api_key=vision.api_key,
@@ -449,6 +614,7 @@ async def _text_analyze(
     model: str,
     system_prompt: str,
     user_text: str,
+    conversation_id: str = "",
 ) -> str:
     return await _chat_completion_text(
         profile=profile,
@@ -457,6 +623,7 @@ async def _text_analyze(
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": user_text},
         ],
+        conversation_id=conversation_id,
     )
 
 
@@ -467,13 +634,15 @@ async def _vision_describe_bytes(
     mime: str = "image/jpeg",
     model: str | None = None,
     prompt: str | None = None,
+    conversation_id: str = "",
 ) -> str:
     image_b64 = base64.standard_b64encode(image_bytes).decode("ascii")
-    vision = resolve_vision_config(profile=profile)
+    vision = resolve_vision_config(profile=profile, conversation_id=conversation_id)
     use_model = str(model or vision.model).strip() or vision.model
     return await _chat_completion_text(
         profile=profile,
         model=use_model,
+        conversation_id=conversation_id,
         messages=[
             {
                 "role": "user",
@@ -513,6 +682,7 @@ async def _describe_image_routed(
     *,
     profile: str,
     mime: str = "image/jpeg",
+    conversation_id: str = "",
 ) -> tuple[str, str, str]:
     """Return (description, image_category, specialist_model)."""
     from integrations.telegram.image_router import (
@@ -520,7 +690,7 @@ async def _describe_image_routed(
         classify_image_overview,
     )
 
-    vision_cfg = resolve_vision_config(profile=profile)
+    vision_cfg = resolve_vision_config(profile=profile, conversation_id=conversation_id)
     if vision_cfg.model == "vision-auto":
         errors: list[str] = []
         for model in ["vision-auto"]:
@@ -530,6 +700,7 @@ async def _describe_image_routed(
                     profile=profile,
                     mime=mime,
                     model=model,
+                    conversation_id=conversation_id,
                 )
                 category, specialist = _parse_vision_auto_metadata(description)
                 return description, category, specialist
@@ -540,7 +711,7 @@ async def _describe_image_routed(
     errors: list[str] = []
     overview = ""
     overview_model = ""
-    for model in _vision_models_to_try(profile=profile):
+    for model in vision_cfg.models_to_try or (vision_cfg.model,):
         try:
             overview = await _vision_describe_bytes(
                 image_bytes,
@@ -548,6 +719,7 @@ async def _describe_image_routed(
                 mime=mime,
                 model=model,
                 prompt=_OVERVIEW_VISION_PROMPT,
+                conversation_id=conversation_id,
             )
             overview_model = model
             break
@@ -564,6 +736,8 @@ async def _describe_image_routed(
     if route.category == "general":
         return overview, route.category, ""
 
+    from functools import partial
+
     description = await analyze_with_specialist(
         overview=overview,
         overview_model=overview_model,
@@ -571,8 +745,8 @@ async def _describe_image_routed(
         mime=mime,
         profile=profile,
         route=route,
-        vision_describe_fn=_vision_describe_bytes,
-        text_analyze_fn=_text_analyze,
+        vision_describe_fn=partial(_vision_describe_bytes, conversation_id=conversation_id),
+        text_analyze_fn=partial(_text_analyze, conversation_id=conversation_id),
     )
     return description, route.category, route.specialist_model
 
@@ -598,24 +772,31 @@ async def _load_image_bytes_from_url(url: str) -> tuple[bytes, str]:
     raise ValueError(f"Unsupported image URL: {raw[:80]}")
 
 
-async def describe_image_from_url(url: str, *, profile: str) -> str:
+async def describe_image_from_url(
+    url: str,
+    *,
+    profile: str,
+    conversation_id: str = "",
+) -> str:
     """Describe an inline or remote image URL (Hermes multimodal gateway path)."""
     image_bytes, mime = await _load_image_bytes_from_url(url)
     description, _, _ = await _describe_image_routed(
         image_bytes,
         profile=profile,
         mime=mime,
+        conversation_id=conversation_id,
     )
     return description
 
 
-async def describe_image(path: Path, *, profile: str) -> str:
+async def describe_image(path: Path, *, profile: str, conversation_id: str = "") -> str:
     mime, _ = mimetypes.guess_type(str(path))
     mime = mime or "image/jpeg"
     description, _, _ = await _describe_image_routed(
         path.read_bytes(),
         profile=profile,
         mime=mime,
+        conversation_id=conversation_id,
     )
     return description
 
@@ -637,6 +818,7 @@ async def enrich_saved_file(
                 path.read_bytes(),
                 profile=profile,
                 mime=mime,
+                conversation_id=conversation_id,
             )
             saved.description = description
             saved.image_category = category

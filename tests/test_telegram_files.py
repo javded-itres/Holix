@@ -7,11 +7,13 @@ from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
+from integrations.telegram import file_handler
 from integrations.telegram.file_handler import (
     SavedTelegramFile,
     _extract_docx_text,
     _extract_pdf_text,
     _safe_filename,
+    _vision_models_to_try,
     build_agent_prompt,
     enrich_saved_file,
     profile_files_dir,
@@ -79,6 +81,156 @@ def test_resolve_vision_config_skips_text_only_explicit_model(
 
     cfg = resolve_vision_config(profile="admin")
     assert cfg.model == "gemini-flash"
+
+
+class _CatalogCfg:
+    providers = {
+        "mikrollm": {
+            "api_key": "sk-test-key",
+            "base_url": "http://192.168.88.1:4000/v1",
+            "available_models": [
+                "black-forest-labs/flux.2-klein-4b",
+                "coder-ornith",
+                "flux2-klein-t2i",
+                "glm-5.3-flash",
+                "google/gemini-2.5-flash-image",
+                "nimble",
+            ],
+            "default_model": "ornith-1.5:35b",
+        }
+    }
+    agent_models = {"main": {"provider": "mikrollm", "model": "ornith-1.5:35b"}}
+    default_provider = "mikrollm"
+    model = "ornith-1.5:35b"
+    api_key = ""
+    base_url = ""
+
+
+def _patch_catalog(monkeypatch: pytest.MonkeyPatch, *, pinned: tuple[str, str] = ("", "")) -> None:
+    monkeypatch.setenv("LITELLM_API_KEY", "sk-test-key")
+    monkeypatch.setenv("LITELLM_API_BASE", "http://localhost:4000/v1")
+
+    class _Mgr:
+        def load_profile(self, _profile: str):
+            return _CatalogCfg()
+
+    monkeypatch.setattr("cli.core.get_profile_manager", lambda: _Mgr())
+    monkeypatch.setattr(
+        file_handler,
+        "_session_pinned_model",
+        lambda _profile, conversation_id: pinned if conversation_id else ("", ""),
+    )
+
+
+def test_empty_vision_setting_uses_session_model(monkeypatch: pytest.MonkeyPatch) -> None:
+    _patch_vision_settings(monkeypatch, telegram_vision_model="")
+    _patch_catalog(monkeypatch, pinned=("glm-5.3-flash", "mikrollm"))
+
+    cfg = resolve_vision_config(profile="admin", conversation_id="tg_admin_1")
+
+    assert cfg.model == "glm-5.3-flash"
+    assert cfg.models_to_try == ("glm-5.3-flash",)
+    assert _vision_models_to_try(profile="admin", conversation_id="tg_admin_1") == ["glm-5.3-flash"]
+
+
+def test_default_vision_setting_uses_session_model(monkeypatch: pytest.MonkeyPatch) -> None:
+    _patch_vision_settings(monkeypatch, telegram_vision_model="default")
+    _patch_catalog(monkeypatch, pinned=("glm-5.3-flash", "mikrollm"))
+
+    cfg = resolve_vision_config(profile="admin", conversation_id="tg_admin_1")
+
+    assert cfg.model == "glm-5.3-flash"
+    assert "flux" not in " ".join(cfg.models_to_try)
+
+
+def test_empty_vision_setting_without_pin_uses_profile_model(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _patch_vision_settings(monkeypatch, telegram_vision_model="")
+    _patch_catalog(monkeypatch)
+
+    cfg = resolve_vision_config(profile="admin", conversation_id="tg_admin_new")
+
+    assert cfg.model == "ornith-1.5:35b"
+    assert cfg.models_to_try == ("ornith-1.5:35b",)
+
+
+def test_search_model_skips_generators_and_prefers_recognizer(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _patch_vision_settings(monkeypatch, telegram_vision_model="search_model")
+    _patch_catalog(monkeypatch, pinned=("ornith-1.5:35b", "mikrollm"))
+
+    cfg = resolve_vision_config(profile="admin", conversation_id="tg_admin_1")
+
+    assert cfg.model == "glm-5.3-flash"
+    assert all("flux" not in name and "image" not in name for name in cfg.models_to_try)
+
+
+def test_search_model_prefers_named_vision_alias(monkeypatch: pytest.MonkeyPatch) -> None:
+    _patch_vision_settings(monkeypatch, telegram_vision_model="search_model")
+    _patch_catalog(monkeypatch)
+
+    class _Cfg(_CatalogCfg):
+        providers = {
+            "mikrollm": {
+                **_CatalogCfg.providers["mikrollm"],
+                "available_models": [
+                    "black-forest-labs/flux.2-klein-4b",
+                    "glm-5.3-flash",
+                    "gemini-flash",
+                ],
+            }
+        }
+
+    class _Mgr:
+        def load_profile(self, _profile: str):
+            return _Cfg()
+
+    monkeypatch.setattr("cli.core.get_profile_manager", lambda: _Mgr())
+
+    cfg = resolve_vision_config(profile="admin")
+
+    assert cfg.model == "gemini-flash"
+    assert cfg.models_to_try[0] == "gemini-flash"
+    assert "glm-5.3-flash" in cfg.models_to_try
+    assert all("flux" not in name for name in cfg.models_to_try)
+
+
+def test_search_model_falls_back_to_session_when_catalog_has_no_recognizer(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _patch_vision_settings(monkeypatch, telegram_vision_model="search_model")
+    _patch_catalog(monkeypatch, pinned=("glm-5.3-flash", "mikrollm"))
+
+    class _Cfg:
+        providers = {
+            "mikrollm": {
+                "api_key": "sk-test-key",
+                "base_url": "http://192.168.88.1:4000/v1",
+                "available_models": [
+                    "black-forest-labs/flux.2-klein-4b",
+                    "minimax-hailuo-02",
+                ],
+                "default_model": "ornith-1.5:35b",
+            }
+        }
+        agent_models = {"main": {"provider": "mikrollm", "model": "ornith-1.5:35b"}}
+        default_provider = "mikrollm"
+        model = "ornith-1.5:35b"
+        api_key = ""
+        base_url = ""
+
+    class _Mgr:
+        def load_profile(self, _profile: str):
+            return _Cfg()
+
+    monkeypatch.setattr("cli.core.get_profile_manager", lambda: _Mgr())
+
+    cfg = resolve_vision_config(profile="admin", conversation_id="tg_admin_1")
+
+    assert cfg.model == "glm-5.3-flash"
+    assert cfg.models_to_try == ("glm-5.3-flash",)
 
 
 def test_resolve_vision_config_requires_api_when_only_model_set(

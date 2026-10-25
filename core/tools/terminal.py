@@ -239,10 +239,13 @@ def _format_process_result(
 
 def _spawn_kwargs() -> dict:
     """Kwargs so children can be killed as a process group on POSIX."""
+    from core.security.process_env import agent_process_env
+
     kwargs = dict(subprocess_shell_kwargs())
     if not IS_WINDOWS:
         # New session → killpg works for shell pipelines.
         kwargs["start_new_session"] = True
+    kwargs["env"] = agent_process_env()
     return kwargs
 
 
@@ -671,7 +674,7 @@ class TerminalTool(BaseTool):
                             cwd=cwd,
                         )
                     use_shell = False
-                    env = os.environ.copy()
+                    env = dict(spawn_kw.get("env") or {})
                     env["HOLIX_SANDBOX"] = mode
                     spawn_kw = {**spawn_kw, "env": env}
             except SandboxUnavailable as exc:

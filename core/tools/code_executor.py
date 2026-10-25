@@ -327,16 +327,9 @@ class PythonExecutorTool(BaseTool):
 
     async def _run_in_subprocess(self, code: str, timeout_s: int) -> str:
         """Primary path: separate process, hard-killed on timeout."""
-        env = os.environ.copy()
-        # Avoid inheriting agent secrets into the worker when possible.
-        for key in list(env):
-            if key.startswith("HOLIX_") and key not in {
-                "HOLIX_HOME",
-                "HOLIX_PROFILE",
-            }:
-                # Keep home/profile for path resolution if needed; drop API keys etc.
-                if any(s in key.upper() for s in ("KEY", "TOKEN", "SECRET", "PASSWORD", "PEPPER")):
-                    env.pop(key, None)
+        from core.security.process_env import agent_process_env
+
+        env = agent_process_env()
 
         # Own process group so killpg reaps nested children.
         kwargs: dict = {

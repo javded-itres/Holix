@@ -163,11 +163,9 @@ async def run_code_program(
     wall_s, max_inner, parallel_ok = _registry_caps(registry)
     timeout_s = clamp_wall_timeout_s(timeout_s if timeout_s is not None else wall_s, wall_s)
 
-    env = os.environ.copy()
-    for key in list(env):
-        if key.startswith("HOLIX_") and key not in {"HOLIX_HOME", "HOLIX_PROFILE"}:
-            if any(s in key.upper() for s in ("KEY", "TOKEN", "SECRET", "PASSWORD", "PEPPER")):
-                env.pop(key, None)
+    from core.security.process_env import agent_process_env
+
+    env = agent_process_env()
 
     kwargs: dict[str, Any] = {
         "stdin": asyncio.subprocess.PIPE,

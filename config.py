@@ -439,7 +439,11 @@ class Settings(BaseSettings):
     telegram_vision_model: str = Field(
         default="",
         validation_alias="HOLIX_TELEGRAM_VISION_MODEL",
-        description="Vision model for Telegram images; empty = main agent model",
+        description=(
+            "Vision model for Telegram images. Empty or default = the model "
+            "pinned to the session. search_model = look through provider "
+            "catalogs for a recognizer, skipping image generators."
+        ),
     )
     telegram_image_router_enabled: bool = Field(
         default=False,

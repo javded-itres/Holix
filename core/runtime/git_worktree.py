@@ -152,7 +152,9 @@ def branch_for_change(change_id: str) -> str:
 def run_git(cwd: Path, *args: str, check: bool = True) -> subprocess.CompletedProcess[str]:
     if not git_available():
         raise WorktreeUnavailable("git is not installed")
-    env = os.environ.copy()
+    from core.security.process_env import agent_process_env
+
+    env = agent_process_env()
     env.setdefault("GIT_TERMINAL_PROMPT", "0")
     env.setdefault("GIT_OPTIONAL_LOCKS", "0")
     try:

@@ -206,12 +206,15 @@ async def run_acp_prompt(
     work = (cwd or os.getcwd()).strip() or os.getcwd()
     policy = acp_permission_policy()
     try:
+        from core.security.process_env import agent_process_env
+
         proc = await asyncio.create_subprocess_exec(
             *argv,
             stdin=asyncio.subprocess.PIPE,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
             cwd=work,
+            env=agent_process_env(),
         )
     except FileNotFoundError as exc:
         raise AcpError(f"ACP command not found: {argv[0]}") from exc

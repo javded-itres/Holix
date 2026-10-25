@@ -183,6 +183,16 @@ If the bot says it sent a file but you see no document, reply **«проверь
 
 Incoming photos, documents, and voice notes are handled below; this section is **outbound** only.
 
+## Photos
+
+A Telegram photo is described before the agent sees the turn. `HOLIX_TELEGRAM_VISION_MODEL` chooses that call:
+
+| Value | What describes the photo |
+|-------|--------------------------|
+| empty or `default` | The model pinned to this chat. A new chat with no pin uses the profile model. |
+| `search_model` | A recognizer from the provider catalogs (`gemini-flash`, `glm-…`, and the other vision aliases). Image and video generators such as Flux are skipped. If none is listed, the session model is used. |
+| any other name | That model only. |
+
 ## Voice messages
 
 Holix transcribes Telegram **voice notes** and **audio** attachments via the OpenAI Whisper API, then processes the text like a normal message.

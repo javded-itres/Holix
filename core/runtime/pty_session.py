@@ -322,9 +322,11 @@ def _spawn_shell(
         raise PtyUnavailable("PTY requires POSIX fcntl")
     import pty as py_pty
 
+    from core.security.process_env import agent_process_env
+
     bash = shutil.which("bash") or "/bin/bash"
     argv = [bash, "--noprofile", "--norc"]
-    env = os.environ.copy()
+    env = agent_process_env()
     env["PS1"] = ""
     env["PS2"] = ""
     env["TERM"] = "dumb"
