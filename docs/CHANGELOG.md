@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 1.1.20 — 2026-10-26
+
 ### Fixed
 
 - **Agent process environment** — shell commands, the persistent shell, `execute_python`, `run_code`, git, LSP, and ACP no longer inherit variables whose names hold a key, token, or password. The gateway process keeps them.
