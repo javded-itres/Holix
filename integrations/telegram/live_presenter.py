@@ -21,6 +21,7 @@ from integrations.telegram.markdown import (
     truncate_telegram_html,
 )
 from integrations.telegram.render import buffer_to_telegram_html
+from integrations.telegram.send_once import SendMaybeDelivered, send_message_once
 
 if TYPE_CHECKING:
     from integrations.telegram.session import ChatSession
@@ -477,6 +478,8 @@ class TelegramLivePresenter:
             sent = await self.send_final_answer_split(content)
             if sent > 0:
                 self._final_delivered = True
+        except SendMaybeDelivered:
+            self._final_delivered = True
         except Exception:
             logger.exception("Telegram final answer delivery failed")
 
@@ -493,7 +496,8 @@ class TelegramLivePresenter:
             chunks = split_telegram_html(html)
             sent = 0
             for chunk in chunks:
-                await self._bot.send_message(
+                await send_message_once(
+                    self._bot,
                     self.session.chat_id,
                     chunk,
                     parse_mode="HTML",
@@ -501,23 +505,35 @@ class TelegramLivePresenter:
                 sent += 1
                 await asyncio.sleep(0.08)
             return sent
+        except SendMaybeDelivered:
+            if sent:
+                return sent
+            raise
         except Exception:
+            if sent:
+                return sent
             try:
                 fallback = truncate_telegram_html(plain_to_telegram_html(content[:3800]))
-                await self._bot.send_message(
+                await send_message_once(
+                    self._bot,
                     self.session.chat_id,
                     fallback,
                     parse_mode="HTML",
                 )
                 return 1
+            except SendMaybeDelivered:
+                return 0
             except Exception:
                 logger.exception("Telegram final answer HTML fallback failed")
                 try:
-                    await self._bot.send_message(
+                    await send_message_once(
+                        self._bot,
                         self.session.chat_id,
                         content.strip()[:3800],
                     )
                     return 1
+                except SendMaybeDelivered:
+                    return 0
                 except Exception:
                     logger.exception("Telegram final answer plain fallback failed")
                     return 0

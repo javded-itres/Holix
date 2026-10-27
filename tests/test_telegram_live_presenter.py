@@ -34,9 +34,7 @@ async def test_do_edit_fallback_keeps_html_working_indicator() -> None:
 @pytest.mark.asyncio
 async def test_do_edit_ignores_not_modified() -> None:
     bot = MagicMock()
-    bot.edit_message_text = AsyncMock(
-        side_effect=Exception("Bad Request: message is not modified")
-    )
+    bot.edit_message_text = AsyncMock(side_effect=Exception("Bad Request: message is not modified"))
     session = ChatSession(chat_id=1, user_id=2, profile="default", conversation_id="tg_default_1")
     session.bump_live_buffer()
     session.live_message_id = 42
@@ -81,3 +79,47 @@ async def test_deliver_final_answer_only_once() -> None:
     assert bot.send_message.await_count == 1
     sent = bot.send_message.await_args_list[0].args[1]
     assert "<b>hello</b>" in sent
+
+
+@pytest.mark.asyncio
+async def test_final_answer_retries_a_connect_failure_once(monkeypatch) -> None:
+    import aiohttp
+    from aiogram.exceptions import TelegramNetworkError
+    from aiogram.methods import SendMessage
+
+    bot = MagicMock()
+    cause = aiohttp.ConnectionTimeoutError("connect")
+    network = TelegramNetworkError(method=SendMessage(chat_id=1, text="x"), message="timeout")
+    network.__cause__ = cause
+    bot.send_message = AsyncMock(side_effect=[network, MagicMock(message_id=99)])
+    session = ChatSession(chat_id=1, user_id=2, profile="default", conversation_id="tg_default_1")
+    presenter = TelegramLivePresenter(bot, session)
+    monkeypatch.setattr("integrations.telegram.send_once.asyncio.sleep", AsyncMock())
+
+    await presenter.deliver_final_answer("один ответ")
+
+    assert bot.send_message.await_count == 2
+    assert (
+        bot.send_message.await_args_list[0].args[1] == bot.send_message.await_args_list[1].args[1]
+    )
+    assert presenter.final_delivered is True
+
+
+@pytest.mark.asyncio
+async def test_final_answer_does_not_resend_after_a_read_timeout() -> None:
+    from aiogram.exceptions import TelegramNetworkError
+    from aiogram.methods import SendMessage
+
+    bot = MagicMock()
+    network = TelegramNetworkError(
+        method=SendMessage(chat_id=1, text="x"),
+        message="Request timeout error",
+    )
+    bot.send_message = AsyncMock(side_effect=network)
+    session = ChatSession(chat_id=1, user_id=2, profile="default", conversation_id="tg_default_1")
+    presenter = TelegramLivePresenter(bot, session)
+
+    await presenter.deliver_final_answer("один ответ")
+
+    assert bot.send_message.await_count == 1
+    assert presenter.final_delivered is True
