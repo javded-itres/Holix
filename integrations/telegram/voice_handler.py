@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import os
+import sys
 import tempfile
 from dataclasses import dataclass
 from pathlib import Path
@@ -52,13 +53,35 @@ def local_whisper_download_root() -> str:
     return str(root)
 
 
+def _cpu_can_run_local_whisper() -> bool:
+    """ctranslate2 wheels illegal-instruction on CPUs without AVX2.
+
+    The lab builder is one of those machines. Skip the import there.
+    """
+    if sys.platform != "linux":
+        return True
+    try:
+        flags = Path("/proc/cpuinfo").read_text(encoding="utf-8", errors="replace")
+    except OSError:
+        return True
+    return "avx2" in flags
+
+
 def faster_whisper_available() -> bool:
+    if not _cpu_can_run_local_whisper():
+        return False
     try:
         import faster_whisper  # noqa: F401
 
         return True
     except ImportError:
         return False
+
+
+def _http_transcription_unsupported(exc: BaseException) -> bool:
+    """Hub MikroLLM has no ``/v1/audio/transcriptions`` route and answers 405."""
+    text = str(exc)
+    return any(f"Whisper API error {code}" in text for code in (404, 405, 501))
 
 
 def _local_whisper_config(language: str | None, model: str) -> WhisperConfig:
@@ -285,7 +308,18 @@ class VoiceTranscriber:
     async def transcribe(self, audio_path: str, *, suffix: str = ".ogg") -> str:
         if self._config.backend == "local":
             return await asyncio.to_thread(_transcribe_local_sync, audio_path, self._config)
+        try:
+            return await self._transcribe_http(audio_path, suffix=suffix)
+        except RuntimeError as exc:
+            if not _http_transcription_unsupported(exc) or not faster_whisper_available():
+                raise
+            from config import settings
 
+            local_model = (settings.whisper_local_model or "base").strip()
+            local = _local_whisper_config(self._config.language, local_model)
+            return await asyncio.to_thread(_transcribe_local_sync, audio_path, local)
+
+    async def _transcribe_http(self, audio_path: str, *, suffix: str) -> str:
         audio_bytes = Path(audio_path).read_bytes()
         content_type = "audio/ogg" if suffix in {".ogg", ".oga"} else "application/octet-stream"
         filename = f"voice{suffix}"
@@ -327,7 +361,9 @@ async def download_telegram_file(bot: Any, file_id: str, *, suffix: str) -> str:
     if not file_info.file_path:
         raise RuntimeError("Could not get file path from Telegram")
 
-    resolved_suffix = suffix_for_audio(file_path=file_info.file_path) if suffix == ".ogg" else suffix
+    resolved_suffix = (
+        suffix_for_audio(file_path=file_info.file_path) if suffix == ".ogg" else suffix
+    )
     fd, tmp_path = tempfile.mkstemp(suffix=resolved_suffix)
     os.close(fd)
     await bot.download_file(file_info.file_path, destination=tmp_path)

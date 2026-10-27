@@ -124,6 +124,7 @@ def test_warm_local_whisper_model_skips_api_backend(monkeypatch: pytest.MonkeyPa
         "integrations.telegram.voice_handler.faster_whisper_available",
         lambda: True,
     )
+
     def _fail(_config: WhisperConfig) -> object:
         raise AssertionError("should not load local model")
 
@@ -251,6 +252,121 @@ async def test_voice_transcriber_success(
     transcriber = VoiceTranscriber(cfg)
     result = await transcriber.transcribe(str(audio), suffix=".ogg")
     assert result == "Привет мир"
+
+
+def _session_with_status(status: int, body: str):
+    class FakeResponse:
+        def __init__(self) -> None:
+            self.status = status
+
+        async def text(self) -> str:
+            return body
+
+    response = FakeResponse()
+
+    class PostCtx:
+        async def __aenter__(self):
+            return response
+
+        async def __aexit__(self, *args):
+            return None
+
+    session = MagicMock()
+    session.post.return_value = PostCtx()
+
+    class SessionCtx:
+        async def __aenter__(self):
+            return session
+
+        async def __aexit__(self, *args):
+            return None
+
+    return SessionCtx
+
+
+@pytest.mark.asyncio
+async def test_voice_transcriber_falls_back_when_hub_rejects_audio(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path,
+) -> None:
+    audio = tmp_path / "voice.ogg"
+    audio.write_bytes(b"fake-audio")
+    monkeypatch.setattr(
+        "integrations.telegram.voice_handler.aiohttp.ClientSession",
+        lambda *a, **k: _session_with_status(405, "Method Not Allowed")(),
+    )
+    monkeypatch.setattr(
+        "integrations.telegram.voice_handler.faster_whisper_available",
+        lambda: True,
+    )
+
+    def fake_local(path: str, config: WhisperConfig) -> str:
+        assert path == str(audio)
+        assert config.backend == "local"
+        assert config.model
+        return "локально"
+
+    monkeypatch.setattr(
+        "integrations.telegram.voice_handler._transcribe_local_sync",
+        fake_local,
+    )
+    cfg = WhisperConfig(
+        api_key="sk-test",
+        base_url="https://hub.example",
+        model="whisper-1",
+        backend="litellm",
+    )
+    text = await VoiceTranscriber(cfg).transcribe(str(audio), suffix=".ogg")
+    assert text == "локально"
+
+
+@pytest.mark.asyncio
+async def test_voice_transcriber_keeps_api_errors(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path,
+) -> None:
+    audio = tmp_path / "voice.ogg"
+    audio.write_bytes(b"fake-audio")
+    monkeypatch.setattr(
+        "integrations.telegram.voice_handler.aiohttp.ClientSession",
+        lambda *a, **k: _session_with_status(500, "upstream failed")(),
+    )
+    monkeypatch.setattr(
+        "integrations.telegram.voice_handler.faster_whisper_available",
+        lambda: True,
+    )
+    monkeypatch.setattr(
+        "integrations.telegram.voice_handler._transcribe_local_sync",
+        lambda *_a, **_k: (_ for _ in ()).throw(AssertionError("no local fallback")),
+    )
+    cfg = WhisperConfig(
+        api_key="sk-test",
+        base_url="https://hub.example",
+        model="whisper-1",
+        backend="litellm",
+    )
+    with pytest.raises(RuntimeError, match="Whisper API error 500"):
+        await VoiceTranscriber(cfg).transcribe(str(audio), suffix=".ogg")
+
+
+def test_local_whisper_skips_cpus_without_avx2(monkeypatch: pytest.MonkeyPatch) -> None:
+    import builtins
+
+    from integrations.telegram.voice_handler import faster_whisper_available
+
+    monkeypatch.setattr(
+        "integrations.telegram.voice_handler._cpu_can_run_local_whisper",
+        lambda: False,
+    )
+    real_import = builtins.__import__
+
+    def guard(name: str, *args, **kwargs):
+        if name == "faster_whisper":
+            raise AssertionError("faster-whisper must not be imported")
+        return real_import(name, *args, **kwargs)
+
+    monkeypatch.setattr(builtins, "__import__", guard)
+    assert faster_whisper_available() is False
 
 
 @pytest.mark.asyncio
