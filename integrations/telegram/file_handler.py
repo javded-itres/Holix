@@ -576,6 +576,7 @@ async def _chat_completion_text(
     messages: list[dict[str, Any]],
     max_tokens: int = 2000,
     conversation_id: str = "",
+    timeout: float | None = None,
 ) -> str:
     from core.models.client_factory import create_openai_client
 
@@ -584,6 +585,7 @@ async def _chat_completion_text(
         base_url=vision.base_url,
         api_key=vision.api_key,
         metadata=vision.provider_metadata,
+        timeout=timeout,
     )
     from core.llm.response_text import assistant_message_parts, resolve_assistant_text
 
@@ -643,6 +645,7 @@ async def _vision_describe_bytes(
         profile=profile,
         model=use_model,
         conversation_id=conversation_id,
+        timeout=60,
         messages=[
             {
                 "role": "user",

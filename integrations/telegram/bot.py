@@ -711,9 +711,10 @@ class HolixTelegramBot:
         except ImportError as e:
             raise ImportError("Telegram support requires aiogram: uv sync --extra telegram") from e
 
+        from integrations.telegram.api_session import telegram_bot_session
         from integrations.telegram.voice_handler import suffix_for_audio
 
-        bot = Bot(token=self.settings.bot_token)
+        bot = Bot(token=self.settings.bot_token, session=telegram_bot_session())
         dp = Dispatcher()
         settings = self.settings
 

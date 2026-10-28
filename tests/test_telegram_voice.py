@@ -145,6 +145,44 @@ def test_resolve_whisper_config_local_requires_package(monkeypatch: pytest.Monke
         resolve_whisper_config()
 
 
+def test_resolve_prefers_local_whisper_over_the_chat_hub(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from config import settings
+
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    monkeypatch.delenv("LITELLM_API_KEY", raising=False)
+    monkeypatch.setattr(settings, "whisper_backend", "api")
+    monkeypatch.setattr(settings, "openai_api_key", "")
+    monkeypatch.setattr(settings, "whisper_api_key", "")
+    monkeypatch.setattr(settings, "whisper_base_url", "")
+    monkeypatch.setattr(settings, "whisper_use_profile_litellm", True)
+    monkeypatch.setattr(settings, "whisper_local_model", "base")
+    monkeypatch.setattr(
+        "integrations.telegram.voice_handler.faster_whisper_available",
+        lambda: True,
+    )
+    monkeypatch.setattr(
+        "integrations.telegram.voice_handler._profile_litellm_credentials",
+        lambda profile: ("sk-hub", "https://hub.example"),
+    )
+
+    cfg = resolve_whisper_config(profile="p")
+    assert cfg.backend == "local"
+    assert cfg.model == "base"
+    assert cfg.api_key == ""
+
+
+def test_local_snapshot_ready_sees_a_real_weight(tmp_path) -> None:
+    from integrations.telegram.voice_handler import _local_snapshot_ready
+
+    snap = tmp_path / "models--Systran--faster-whisper-base" / "snapshots" / "rev"
+    snap.mkdir(parents=True)
+    (snap / "model.bin").write_bytes(b"x" * 1_000_001)
+    assert _local_snapshot_ready(str(tmp_path), "base") is True
+    assert _local_snapshot_ready(str(tmp_path), "small") is False
+
+
 def test_resolve_whisper_config_litellm_explicit(monkeypatch: pytest.MonkeyPatch) -> None:
     from config import settings
 

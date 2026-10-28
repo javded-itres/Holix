@@ -76,6 +76,7 @@ def create_openai_client(
     base_url: str,
     api_key: str,
     metadata: dict[str, Any] | None = None,
+    timeout: float | None = None,
 ) -> AsyncOpenAI:
     """Build AsyncOpenAI client with resolved key and provider headers.
 
@@ -96,7 +97,7 @@ def create_openai_client(
         "http_client": httpx.AsyncClient(
             verify=resolve_verify_ssl(metadata),
             follow_redirects=True,
-            timeout=httpx.Timeout(600.0, connect=30.0),
+            timeout=httpx.Timeout(600.0 if timeout is None else timeout, connect=30.0),
         ),
     }
     if headers:

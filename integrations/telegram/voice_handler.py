@@ -165,8 +165,28 @@ def resolve_whisper_config(*, profile: str | None = None) -> WhisperConfig:
             backend="litellm",
         )
 
-    # 2. OpenAI (direct or LiteLLM via OPENAI_BASE_URL)
+    # 2. OpenAI only when this process was given its own key.
+    #    A profile LiteLLM key is the chat hub. That hub has no audio route,
+    #    so it must not outrank the local whisper weights.
     api_key = (settings.openai_api_key or os.environ.get("OPENAI_API_KEY", "")).strip()
+    if api_key and backend_mode == "api":
+        base_url = (
+            settings.openai_base_url
+            or os.environ.get("OPENAI_BASE_URL", "https://api.openai.com/v1")
+        ).strip()
+        backend = "litellm" if "litellm" in base_url.lower() or ":4000" in base_url else "openai"
+        return WhisperConfig(
+            api_key=api_key,
+            base_url=_normalize_base_url(base_url),
+            model=model,
+            language=language,
+            backend=backend,
+        )
+
+    if faster_whisper_available() and backend_mode in {"", "api", "auto"}:
+        local_model = (settings.whisper_local_model or "base").strip()
+        return _local_whisper_config(language, local_model)
+
     if api_key:
         base_url = (
             settings.openai_base_url
@@ -207,10 +227,6 @@ def resolve_whisper_config(*, profile: str | None = None) -> WhisperConfig:
                 backend="litellm",
             )
 
-    if backend_mode == "auto" and faster_whisper_available():
-        local_model = (settings.whisper_local_model or "base").strip()
-        return _local_whisper_config(language, local_model)
-
     raise RuntimeError(
         "Whisper not configured. Options:\n"
         "• Local: HOLIX_WHISPER_BACKEND=local + uv sync --extra voice\n"
@@ -239,6 +255,25 @@ def format_transcription_preview(text: str, *, max_len: int = 300) -> str:
     return escape_html(preview)
 
 
+def _local_snapshot_ready(root: str, model: str) -> bool:
+    """True when the CTranslate2 weights are already on disk.
+
+    ``local_files_only=False`` still calls Hugging Face. On the production
+    host that check never finishes, so a complete snapshot must stay offline.
+    """
+    snap_root = Path(root) / f"models--Systran--faster-whisper-{model}" / "snapshots"
+    if not snap_root.is_dir():
+        return False
+    for snap in snap_root.iterdir():
+        weight = snap / "model.bin"
+        try:
+            if weight.is_file() and weight.stat().st_size > 1_000_000:
+                return True
+        except OSError:
+            continue
+    return False
+
+
 def _get_local_model(config: WhisperConfig) -> Any:
     download_root = local_whisper_download_root()
     key = (config.model, config.local_device, config.local_compute_type, download_root)
@@ -250,7 +285,7 @@ def _get_local_model(config: WhisperConfig) -> Any:
             device=config.local_device,
             compute_type=config.local_compute_type,
             download_root=download_root,
-            local_files_only=False,
+            local_files_only=_local_snapshot_ready(download_root, config.model),
         )
     return _LOCAL_MODEL_CACHE[key]
 
