@@ -184,6 +184,7 @@ def test_tilde_holix_inside_workspace_is_allowed(
     config.parent.mkdir(parents=True)
     config.write_text("mcp_servers: {}\n", encoding="utf-8")
     monkeypatch.setenv("HOME", str(home))
+    monkeypatch.setenv("USERPROFILE", str(home))
     inside = "cat ~/.holix/profiles/default/workspace/.holix/config.yaml"
     assert not references_holix_profiles(inside, allow_under=workspace)
     outside = "cat ~/.holix/profiles/default/config.yaml"
