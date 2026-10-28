@@ -16,6 +16,7 @@ CORE_TOOL_NAMES: frozenset[str] = frozenset(
         "list_agent_tasks",
         "skill_view",
         "skill_manage",
+        "workspace_holix",
         "ask_user",
         "review_memory",
         "search_document",

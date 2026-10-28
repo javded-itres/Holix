@@ -15,7 +15,9 @@ from rich.table import Table
 from cli.core import get_profile_manager
 from cli.utils.rich_console import print_error, print_info, print_success
 
-app = typer.Typer(help="Manage MCP servers: install popular ones or from git, configure, assign to agents/subs")
+app = typer.Typer(
+    help="Manage MCP servers: install popular ones or from git, configure, assign to agents/subs"
+)
 
 
 def _get_config_and_manager(ctx: typer.Context):
@@ -82,7 +84,9 @@ def _interactive_popular_install(profile: str, manager, config) -> None:
         env = dict(pop.env)
         for k in list(env.keys()):
             if not env[k]:
-                val = Prompt.ask(f"Value for env {k} (required for this server)", password=True, default="")
+                val = Prompt.ask(
+                    f"Value for env {k} (required for this server)", password=True, default=""
+                )
                 if val:
                     env[k] = val
         data["env"] = env
@@ -102,7 +106,9 @@ def _interactive_popular_install(profile: str, manager, config) -> None:
 
     name = pop.key
     _save_mcp_server(profile, manager, config, name, data)
-    print_success(f"Added '{name}' to profile {profile}. Use `holix mcp assign` to enable it for agents/subs.")
+    print_success(
+        f"Added '{name}' to profile {profile}. Use `holix mcp assign` to enable it for agents/subs."
+    )
 
 
 def _interactive_git_install(profile: str, manager, config) -> None:
@@ -156,7 +162,9 @@ def _interactive_git_install(profile: str, manager, config) -> None:
 
     _save_mcp_server(profile, manager, config, name, data)
     print_success(f"Saved git-based MCP '{name}' (cloned into ~/.holix/mcp-servers/{name}).")
-    print_info("You may need to run additional setup steps inside the cloned directory (see _notes if present).")
+    print_info(
+        "You may need to run additional setup steps inside the cloned directory (see _notes if present)."
+    )
 
 
 @app.command("list")
@@ -181,9 +189,7 @@ def mcp_list(ctx: typer.Context):
         transport = data.get("transport", "stdio")
         target = data.get("command") or data.get("url") or "?"
         risk = data.get("default_risk_level", "medium")
-        assigned = ", ".join(
-            a for a, lst in assignments.items() if name in (lst or [])
-        ) or "—"
+        assigned = ", ".join(a for a, lst in assignments.items() if name in (lst or [])) or "—"
         source = data.get("_source", "")
         if source:
             name_display = f"{name} [{source}]"
@@ -195,63 +201,179 @@ def mcp_list(ctx: typer.Context):
     console.print(table)
 
 
-@app.command("add")
-def mcp_add(ctx: typer.Context, name: str | None = typer.Argument(None, help="Server name (e.g. filesystem)")):
-    """Advanced: manually configure an MCP server (stdio/sse).
+def _parse_header(raw: str) -> tuple[str, str]:
+    text = (raw or "").strip()
+    if ":" not in text:
+        raise ValueError(f"Header must look like 'Name: value' (got {raw!r})")
+    name, value = text.split(":", 1)
+    name = name.strip()
+    value = value.strip()
+    if not name or not value:
+        raise ValueError(f"Header must look like 'Name: value' (got {raw!r})")
+    return name, value
 
-    For popular ready-made servers (context7, filesystem, github, etc.) or git repos,
-    prefer the much easier `holix mcp install` command.
+
+def _headers_from_flags(header: list[str] | None) -> dict[str, str]:
+    out: dict[str, str] = {}
+    for item in header or []:
+        key, value = _parse_header(item)
+        out[key] = value
+    return out
+
+
+@app.command("add")
+def mcp_add(
+    ctx: typer.Context,
+    name: str | None = typer.Argument(None, help="Server name (e.g. filesystem)"),
+    transport: str | None = typer.Option(
+        None,
+        "--transport",
+        "-t",
+        help="stdio, sse, or http. http runs npx mcp-remote (stdio↔HTTP).",
+    ),
+    url: str | None = typer.Option(None, "--url", help="Remote MCP URL for sse or http"),
+    command: str | None = typer.Option(None, "--command", help="stdio executable"),
+    args: str | None = typer.Option(None, "--args", help="Space-separated stdio arguments"),
+    header: list[str] | None = typer.Option(
+        None,
+        "--header",
+        help="Repeatable 'Name: value' header for http or sse",
+    ),
+    risk: str | None = typer.Option(None, "--risk", help="no, low, medium, or high"),
+    test: bool | None = typer.Option(
+        None, "--test/--no-test", help="Connect and list tools before saving"
+    ),
+    force: bool = typer.Option(False, "--force", help="Overwrite an existing server name"),
+):
+    """Add an MCP server: local stdio, SSE, or remote HTTP via mcp-remote.
+
+    Remote HTTP (Streamable HTTP, with SSE fallback)::
+
+        holix mcp add docs --transport http --url https://example.com/mcp
+
+    A header value is stored on the server entry and passed to mcp-remote as
+    ``--header Name:${ENV}``, so it is not placed on the process command line.
+
+    For popular servers or a git repo, prefer ``holix mcp install``.
     """
+    from core.mcp.remote_bridge import build_remote_http_config, is_remote_http
+
     profile, config, manager = _get_config_and_manager(ctx)
     servers = dict(getattr(config, "mcp_servers", {}) or {})
+    scripted = any(
+        value is not None for value in (transport, url, command, args, header, risk, test)
+    )
 
     if not name:
+        if scripted:
+            print_error(
+                "Server name is required. "
+                "Example: holix mcp add docs --transport http --url https://example.com/mcp"
+            )
+            raise typer.Exit(1)
         name = Prompt.ask("MCP server name (slug)", default="filesystem")
 
-    if name in servers:
+    if name in servers and not force:
+        if scripted:
+            print_error(f"'{name}' already exists. Pass --force to overwrite.")
+            raise typer.Exit(1)
         if not Confirm.ask(f"'{name}' already exists. Overwrite?", default=False):
             return
 
-    transport = Prompt.ask("Transport", choices=["stdio", "sse"], default="stdio")
+    if transport is None and not scripted:
+        transport = Prompt.ask("Transport", choices=["stdio", "sse", "http"], default="stdio")
+    elif transport is None and url:
+        transport = "http"
+    elif transport is None and command:
+        transport = "stdio"
+    transport = (transport or "").strip().lower()
+    if transport not in {"stdio", "sse", "http"}:
+        print_error("Transport must be stdio, sse, or http.")
+        raise typer.Exit(1)
 
-    data: dict[str, Any] = {"transport": transport}
-
-    if transport == "stdio":
-        cmd = Prompt.ask("Command (e.g. npx or python)")
-        data["command"] = cmd
-        args_str = Prompt.ask("Args (space separated, or leave empty)", default="")
-        if args_str.strip():
-            data["args"] = args_str.strip().split()
-        # simple env
-        if Confirm.ask("Add environment variables?", default=False):
-            env = {}
+    data: dict[str, Any]
+    if is_remote_http(transport) or transport == "http":
+        if not url:
+            if scripted:
+                print_error("--url is required for transport http.")
+                raise typer.Exit(1)
+            url = Prompt.ask("HTTP MCP URL (e.g. https://example.com/mcp)")
+        headers = _headers_from_flags(header)
+        if not scripted and Confirm.ask("Add HTTP headers?", default=False):
             while True:
-                k = Prompt.ask("ENV KEY (empty to finish)", default="")
-                if not k:
+                raw = Prompt.ask("Header Name: value (empty to stop)", default="")
+                if not raw:
                     break
-                v = Prompt.ask(f"Value for {k}")
-                env[k] = v
+                key, value = _parse_header(raw)
+                headers[key] = value
+        chosen_risk = risk or (
+            "medium"
+            if scripted
+            else Prompt.ask(
+                "Default risk (for confirmation)",
+                choices=["no", "low", "medium", "high"],
+                default="medium",
+            )
+        )
+        data = build_remote_http_config(url or "", headers, risk=chosen_risk)
+        print_info("HTTP MCP is started as stdio through npx mcp-remote (HTTP first, then SSE).")
+    elif transport == "stdio":
+        cmd = command
+        if not cmd:
+            if scripted:
+                print_error("--command is required for transport stdio.")
+                raise typer.Exit(1)
+            cmd = Prompt.ask("Command (e.g. npx or python)")
+        data = {"transport": "stdio", "command": cmd}
+        args_str = args if args is not None else ""
+        if args is None and not scripted:
+            args_str = Prompt.ask("Args (space separated, or leave empty)", default="")
+        if str(args_str).strip():
+            data["args"] = str(args_str).strip().split()
+        if not scripted and Confirm.ask("Add environment variables?", default=False):
+            env: dict[str, str] = {}
+            while True:
+                key = Prompt.ask("ENV KEY (empty to finish)", default="")
+                if not key:
+                    break
+                env[key] = Prompt.ask(f"Value for {key}")
             if env:
                 data["env"] = env
-        cwd = Prompt.ask("Working dir (optional)", default="")
-        if cwd:
-            data["cwd"] = cwd
+        if not scripted:
+            cwd = Prompt.ask("Working dir (optional)", default="")
+            if cwd:
+                data["cwd"] = cwd
+        data["default_risk_level"] = risk or "medium"
+        if not scripted and risk is None:
+            data["default_risk_level"] = Prompt.ask(
+                "Default risk (for confirmation)",
+                choices=["no", "low", "medium", "high"],
+                default="medium",
+            )
     else:
-        url = Prompt.ask("SSE URL (e.g. http://localhost:3000/sse)")
-        data["url"] = url
+        if not url:
+            if scripted:
+                print_error("--url is required for transport sse.")
+                raise typer.Exit(1)
+            url = Prompt.ask("SSE URL (e.g. http://localhost:3000/sse)")
+        data = {"transport": "sse", "url": url, "default_risk_level": risk or "medium"}
+        headers = _headers_from_flags(header)
+        if headers:
+            data["env"] = {f"MCP_HEADER_{key}": value for key, value in headers.items()}
 
-    risk = Prompt.ask("Default risk (for confirmation)", choices=["no", "low", "medium", "high"], default="medium")
-    data["default_risk_level"] = risk
-
-    # test?
-    if Confirm.ask("Test connection now (list tools)?", default=True):
+    should_test = (
+        test
+        if test is not None
+        else (not scripted and Confirm.ask("Test connection now (list tools)?", default=True))
+    )
+    if should_test:
         try:
             asyncio.run(_test_mcp_server(name, data))
             print_success("Connection + tool discovery OK")
-        except Exception as e:
-            print_error(f"Test failed: {e}")
-            if not Confirm.ask("Save anyway?", default=True):
-                return
+        except Exception as exc:
+            print_error(f"Test failed: {exc}")
+            if scripted or not Confirm.ask("Save anyway?", default=True):
+                raise typer.Exit(1) from exc
 
     servers[name] = data
     config.mcp_servers = servers  # type: ignore[attr-defined]
@@ -287,7 +409,9 @@ async def _test_mcp_server(name: str, data: dict) -> None:
 
 
 @app.command("remove")
-def mcp_remove(ctx: typer.Context, name: str = typer.Argument(None, help="Server name to remove (optional)")):
+def mcp_remove(
+    ctx: typer.Context, name: str = typer.Argument(None, help="Server name to remove (optional)")
+):
     """Remove a configured MCP server."""
     profile, config, manager = _get_config_and_manager(ctx)
     servers = dict(getattr(config, "mcp_servers", {}) or {})
@@ -354,13 +478,16 @@ def mcp_assign(ctx: typer.Context):
     known = ["main"] + list((getattr(config, "agent_models", {}) or {}).keys())
     # also common sub names
     from core.subagents.registry import list_available_subagents
+
     try:
         known += [s["name"] for s in list_available_subagents()]
     except Exception:
         pass
     known = sorted(set(known))
 
-    print_info("Assign servers (comma list or empty for none). Known roles: " + ", ".join(known[:10]))
+    print_info(
+        "Assign servers (comma list or empty for none). Known roles: " + ", ".join(known[:10])
+    )
 
     for role in known:
         current = ", ".join(assigns.get(role, []))
@@ -418,8 +545,8 @@ def mcp_install(
     ctx: typer.Context,
     what: str | None = typer.Argument(
         None,
-        help="Popular key (e.g. filesystem, context7, github) OR a git URL. If omitted, shows interactive menu."
-    )
+        help="Popular key (e.g. filesystem, context7, github) OR a git URL. If omitted, shows interactive menu.",
+    ),
 ):
     """Install a ready-made MCP server from the popular list or from a git repository.
 
@@ -467,7 +594,9 @@ def mcp_install(
     # Popular key
     pop = get_popular_by_key(what)
     if not pop:
-        print_error(f"Unknown popular server '{what}'. See `holix mcp list-popular` or use a git URL.")
+        print_error(
+            f"Unknown popular server '{what}'. See `holix mcp list-popular` or use a git URL."
+        )
         return
 
     # Reuse the interactive param logic but non-interactive as much as possible

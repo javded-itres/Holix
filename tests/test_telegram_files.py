@@ -13,7 +13,6 @@ from integrations.telegram.file_handler import (
     _extract_docx_text,
     _extract_pdf_text,
     _safe_filename,
-    _vision_models_to_try,
     build_agent_prompt,
     enrich_saved_file,
     profile_files_dir,
@@ -124,22 +123,21 @@ def _patch_catalog(monkeypatch: pytest.MonkeyPatch, *, pinned: tuple[str, str] =
 
 def test_empty_vision_setting_uses_session_model(monkeypatch: pytest.MonkeyPatch) -> None:
     _patch_vision_settings(monkeypatch, telegram_vision_model="")
-    _patch_catalog(monkeypatch, pinned=("glm-5.3-flash", "mikrollm"))
+    _patch_catalog(monkeypatch, pinned=("auto", "litellm"))
 
     cfg = resolve_vision_config(profile="admin", conversation_id="tg_admin_1")
 
-    assert cfg.model == "glm-5.3-flash"
-    assert cfg.models_to_try == ("glm-5.3-flash",)
-    assert _vision_models_to_try(profile="admin", conversation_id="tg_admin_1") == ["glm-5.3-flash"]
+    assert cfg.model == "auto"
+    assert cfg.models_to_try == ("auto",)
 
 
 def test_default_vision_setting_uses_session_model(monkeypatch: pytest.MonkeyPatch) -> None:
     _patch_vision_settings(monkeypatch, telegram_vision_model="default")
-    _patch_catalog(monkeypatch, pinned=("glm-5.3-flash", "mikrollm"))
+    _patch_catalog(monkeypatch, pinned=("ornith-1.5:35b", "mikrollm"))
 
     cfg = resolve_vision_config(profile="admin", conversation_id="tg_admin_1")
 
-    assert cfg.model == "glm-5.3-flash"
+    assert cfg.model == "ornith-1.5:35b"
     assert "flux" not in " ".join(cfg.models_to_try)
 
 
@@ -153,6 +151,22 @@ def test_empty_vision_setting_without_pin_uses_profile_model(
 
     assert cfg.model == "ornith-1.5:35b"
     assert cfg.models_to_try == ("ornith-1.5:35b",)
+
+
+def test_saved_recognition_model_beats_the_session_pin(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("HOLIX_HOME", str(tmp_path))
+    from integrations.telegram.recognition_settings import save_recognition
+
+    save_recognition(image_model="gemini-flash", audio_model="local")
+    _patch_vision_settings(monkeypatch, telegram_vision_model="")
+    _patch_catalog(monkeypatch, pinned=("auto", "litellm"))
+
+    cfg = resolve_vision_config(profile="admin", conversation_id="tg_admin_1")
+
+    assert cfg.model == "gemini-flash"
 
 
 def test_search_model_skips_generators_and_prefers_recognizer(

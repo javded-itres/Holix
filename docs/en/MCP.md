@@ -72,15 +72,48 @@ Or `holix config edit` / `holix profile global edit` for shared defaults.
 | `coder`, `researcher`, … | Sub-agent types — see [SUBAGENTS.md](SUBAGENTS.md) |
 | Custom types | From `/subagent-types` — assign MCP per type |
 
-Only servers listed in `mcp_assignments` for the active agent are loaded.
+Only servers listed in `mcp_assignments` for the active agent are loaded when that allow-list exists. With no list, every configured server is available.
+
+## Workspace overlay
+
+Ask the agent to connect a server and it writes `<workspace>/.holix/config.yaml` (`workspace_holix`). The agent cannot read `~/.holix/profiles`.
+
+Paste a link in the chat and the agent installs it there. A GitHub or GitLab repository with `SKILL.md` (or a `skills.sh` / ClawHub / raw `SKILL.md` link) becomes a workspace skill. A repository whose name contains `mcp`, or any repo with an MCP entrypoint and no `SKILL.md`, becomes a stdio server. An `https://…/mcp` URL is bridged with `mcp-remote`. An `https://…/sse` URL stays on the SSE client.
+
+```yaml
+mcp_servers:
+  context7:
+    transport: stdio
+    command: npx
+    args: ["-y", "@upstash/context7-mcp"]
+```
+
+A server name already in the profile is replaced by this file. A new name is added, and if `main` has an allow-list the new name is appended there. A `mcp_assignments` block in the same file replaces that slot's list. Model, providers, and auth in this file are ignored. A changed command for a server that is already connected applies after a gateway restart.
 
 ---
+
+## Remote HTTP (`mcp-remote`)
+
+Holix's client speaks stdio and the older SSE transport. A Streamable HTTP server is added as `transport: http`. At start Holix runs `npx -y mcp-remote <url>`, which is a stdio process that speaks HTTP first and falls back to SSE.
+
+```yaml
+mcp_servers:
+  docs:
+    transport: http
+    url: https://example.com/mcp
+    headers:
+      Authorization: "Bearer ${DOCS_TOKEN}"
+```
+
+An `http://` URL also passes `--allow-http` (private network or loopback). Header values are given to `mcp-remote` as `--header Name:${ENV}` so the secret is not put on the command line. `holix mcp list` still shows the URL, not the bridge command.
 
 ## Install from git or custom command
 
 ```bash
 holix mcp install https://github.com/org/my-mcp-server
 holix mcp add my-custom   # manual stdio/SSE wizard
+holix mcp add docs --transport http --url https://example.com/mcp
+holix mcp add docs --transport http --url http://127.0.0.1:4000/mcp --header "Authorization: Bearer $TOKEN"
 ```
 
 After install, run `holix mcp test <name>` before relying on tools in chat.

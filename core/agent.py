@@ -337,6 +337,9 @@ class HolixAgent:
         with bind_optional_tools(self.config):
             self.tools.register_all()
         self.tools._host_agent = self
+        holix_tool = self.tools.tools.get("workspace_holix")
+        if holix_tool is not None and hasattr(holix_tool, "bind_agent"):
+            holix_tool.bind_agent(self)
         from core.extensions.agent_registry import register_agent_extensions
         from core.tools.agent_extensions import register_agent_extension_manager_tool
 

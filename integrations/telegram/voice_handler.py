@@ -105,6 +105,41 @@ def _normalize_base_url(url: str) -> str:
     return base
 
 
+def _saved_audio_model(profile: str | None) -> str:
+    """Catalog model chosen in Studio. Empty means local faster-whisper."""
+    if not profile:
+        return ""
+    try:
+        from integrations.telegram.recognition_settings import audio_is_local, load_recognition
+
+        audio = str(load_recognition(profile).get("audio_model") or "").strip()
+    except Exception:
+        return ""
+    if not audio or audio_is_local(audio):
+        return ""
+    return audio
+
+
+def _audio_model_config(profile: str, model: str, language: str | None) -> WhisperConfig | None:
+    """Send transcription to the chat hub with the admin-selected model id."""
+    creds = _profile_litellm_credentials(profile)
+    if creds is None:
+        key = os.environ.get("LITELLM_API_KEY", "").strip()
+        base = os.environ.get("LITELLM_API_BASE", "").strip()
+        if key and key not in _PLACEHOLDER_KEYS and base:
+            creds = (key, _normalize_base_url(base))
+    if creds is None:
+        return None
+    api_key, base_url = creds
+    return WhisperConfig(
+        api_key=api_key,
+        base_url=base_url,
+        model=model,
+        language=language,
+        backend="litellm",
+    )
+
+
 def _profile_litellm_credentials(profile: str) -> tuple[str, str] | None:
     try:
         from cli.core import get_profile_manager
@@ -182,6 +217,14 @@ def resolve_whisper_config(*, profile: str | None = None) -> WhisperConfig:
             language=language,
             backend=backend,
         )
+
+    # Studio admin picked a catalog model. Explicit whisper env above still wins.
+    # An empty choice keeps the local faster-whisper weights.
+    saved_audio = _saved_audio_model(profile)
+    if saved_audio:
+        chosen = _audio_model_config(profile, saved_audio, language)
+        if chosen is not None:
+            return chosen
 
     if faster_whisper_available() and backend_mode in {"", "api", "auto"}:
         local_model = (settings.whisper_local_model or "base").strip()

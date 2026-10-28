@@ -201,6 +201,9 @@ class ToolRegistry:
         # Skills (progressive disclosure + staged writes)
         self.register(SkillViewTool())
         self.register(SkillManageTool())
+        from core.tools.workspace_holix import WorkspaceHolixTool
+
+        self.register(WorkspaceHolixTool())
 
         from core.tools.profile_identity import register_profile_identity_tools
 
@@ -311,6 +314,39 @@ class ToolRegistry:
             # do not break agent if MCP misconfigured
             print(f"Warning: MCP registration skipped: {exc}")
             return 0
+
+    async def connect_workspace_mcp(self, name: str, data: dict[str, Any]) -> str:
+        """Connect one workspace MCP server on this live registry."""
+        from core.mcp.manager import MCPManager
+
+        mgr = getattr(self, "_mcp_manager", None)
+        if mgr is None:
+            mgr = MCPManager({})
+            self._mcp_manager = mgr  # type: ignore[attr-defined]
+
+        def _harvest(server_name: str | None = None) -> None:
+            names = [server_name] if server_name else None
+            for tool in mgr.get_tool_adapters(names):
+                if tool.name not in self.tools:
+                    self.register(tool)
+
+        mgr.on_tools_ready = _harvest
+        state = await mgr.ensure_server(name, data)
+        enabled = list(getattr(self, "_mcp_enabled_servers", None) or [])
+        if name not in enabled:
+            enabled.append(name)
+        self._mcp_enabled_servers = enabled  # type: ignore[attr-defined]
+        assigns = dict(getattr(self, "_mcp_assignments", None) or {})
+        if "main" in assigns and name not in list(assigns.get("main") or []):
+            assigns["main"] = [*(assigns.get("main") or []), name]
+            self._mcp_assignments = assigns  # type: ignore[attr-defined]
+        if state == "started":
+            try:
+                await mgr.wait_ready([name], timeout=12.0)
+            except Exception:
+                pass
+            _harvest(name)
+        return state
 
     async def finish_mcp_registration(self, *, timeout: float = 30.0) -> int:
         """Wait for slow MCP servers and register any tools not yet available."""

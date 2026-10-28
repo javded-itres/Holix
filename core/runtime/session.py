@@ -112,6 +112,12 @@ async def prepare_session(
     except Exception:
         logger.warning("holix init expand failed", exc_info=True)
         loop_input = user_input
+    try:
+        from core.hub.link_install import expand_user_message_for_share_link
+
+        loop_input = expand_user_message_for_share_link(loop_input)
+    except Exception:
+        logger.warning("share-link expand failed", exc_info=True)
     messages.append({"role": "user", "content": loop_input})
     await agent.memory.save_message(conversation_id, "user", user_input)
 

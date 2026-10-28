@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any, Literal
 
-Transport = Literal["stdio", "sse"]
+Transport = Literal["stdio", "sse", "http", "streamable-http", "mcp-remote"]
 
 
 @dataclass
@@ -23,6 +23,7 @@ class MCPServerConfig:
 
     # sse / http
     url: str | None = None
+    headers: dict[str, str] = field(default_factory=dict)
 
     # common
     timeout: float = 30.0
@@ -45,6 +46,8 @@ class MCPServerConfig:
         else:
             if self.url:
                 d["url"] = self.url
+        if self.headers:
+            d["headers"] = dict(self.headers)
         # env holds secrets + MCP_HEADER_* for both transports
         if self.env:
             d["env"] = self.env
@@ -61,6 +64,9 @@ class MCPServerConfig:
         env = resolved.get("env", {})
         if not isinstance(env, dict):
             env = {}
+        headers = resolved.get("headers", {})
+        if not isinstance(headers, dict):
+            headers = {}
         return cls(
             name=name,
             transport=resolved.get("transport", "stdio"),
@@ -69,6 +75,7 @@ class MCPServerConfig:
             env={str(k): str(v) for k, v in env.items()},
             cwd=resolved.get("cwd"),
             url=resolved.get("url"),
+            headers={str(k): str(v) for k, v in headers.items()},
             timeout=float(resolved.get("timeout", 30.0)),
             default_risk_level=resolved.get("default_risk_level", "medium"),
         )
@@ -77,12 +84,14 @@ class MCPServerConfig:
 def validate_server_config(cfg: MCPServerConfig) -> list[str]:
     """Return list of validation error strings (empty = ok)."""
     errs: list[str] = []
+    from core.mcp.remote_bridge import is_remote_http
+
     if cfg.transport == "stdio":
         if not cfg.command:
             errs.append("stdio requires 'command'")
-    elif cfg.transport == "sse":
+    elif cfg.transport == "sse" or is_remote_http(cfg.transport):
         if not cfg.url:
-            errs.append("sse requires 'url'")
+            errs.append(f"{cfg.transport} requires 'url'")
     if cfg.timeout <= 0:
         errs.append("timeout must be > 0")
     if cfg.default_risk_level not in ("no", "low", "medium", "high"):

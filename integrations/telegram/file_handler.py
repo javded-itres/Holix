@@ -215,6 +215,17 @@ def _vision_setting_mode(explicit: str) -> str:
     return "explicit"
 
 
+def _studio_image_model(profile: str) -> str:
+    """Photo model saved by Studio admin. Empty means the session pin."""
+    from integrations.telegram.recognition_settings import load_recognition
+
+    try:
+        model = str(load_recognition(profile).get("image_model") or "").strip()
+    except Exception:
+        model = ""
+    return model
+
+
 def _can_describe_image(name: str) -> bool:
     """A catalog id that is not a text, generator, or utility alias."""
     cleaned = str(name or "").strip()
@@ -331,9 +342,10 @@ def _vision_models_to_try(*, profile: str, conversation_id: str = "") -> list[st
 def resolve_vision_config(*, profile: str, conversation_id: str = "") -> VisionConfig:
     """Resolve vision model + API credentials (profile, env, OpenAI fallbacks).
 
-    ``HOLIX_TELEGRAM_VISION_MODEL`` empty or ``default`` uses the model pinned
-    to ``conversation_id``. ``search_model`` picks a recognizer from provider
-    catalogs and skips image generators. Any other value is that model name.
+    ``HOLIX_TELEGRAM_VISION_MODEL`` empty or ``default`` uses the Studio
+    recognition setting when it names a model, otherwise the session pin.
+    ``search_model`` picks a recognizer from provider catalogs and skips image
+    generators. Any other value is that model name.
     """
     explicit_model = (settings.telegram_vision_model or "").strip()
     mode = _vision_setting_mode(explicit_model)
@@ -420,7 +432,7 @@ def resolve_vision_config(*, profile: str, conversation_id: str = "") -> VisionC
 
     fallbacks = [name for name in model_candidates if name]
     if mode == "session":
-        model = pinned_model or _profile_fallback_model(fallbacks)
+        model = _studio_image_model(profile) or pinned_model or _profile_fallback_model(fallbacks)
         models_to_try = (model,) if model else ()
     elif mode == "search":
         found = _search_recognition_models(available_models)

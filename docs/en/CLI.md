@@ -226,7 +226,7 @@ holix config edit
 holix config set max_steps 25
 ```
 
-Project supplements: `./.holix/skills`, `./.holix/plans`, local `config.yaml` merge (system keys ignored). See [CONFIGURATION.md](CONFIGURATION.md).
+Workspace supplements: `<workspace>/.holix/skills`, `.holix/plans`, `.holix/config.yaml` (skills and MCP add or override the same name; system keys ignored). See [CONFIGURATION.md](CONFIGURATION.md).
 
 ---
 

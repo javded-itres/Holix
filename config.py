@@ -440,9 +440,10 @@ class Settings(BaseSettings):
         default="",
         validation_alias="HOLIX_TELEGRAM_VISION_MODEL",
         description=(
-            "Vision model for Telegram images. Empty or default = the model "
-            "pinned to the session. search_model = look through provider "
-            "catalogs for a recognizer, skipping image generators."
+            "Vision model for Telegram images. Empty or default = the Studio "
+            "recognition setting, or the session pin when that setting is empty. "
+            "search_model = look through provider catalogs for a recognizer, "
+            "skipping image generators."
         ),
     )
     telegram_image_router_enabled: bool = Field(

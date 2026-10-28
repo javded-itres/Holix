@@ -79,6 +79,7 @@ Full guide (what is encrypted, OS policy, gateway/systemd, migration): **[PROFIL
 
 - **OS sandbox (`/permission`)** — session presets `workspace-write` (Seatbelt/bwrap, writes only in workspace/tmp), `read-only` (mutating tools blocked), `danger-full-access` (unconfined). Restricted modes fail closed if no backend. Default: workspace-write when jail is on, otherwise danger-full-access. Not written to `config.yaml`.
 - **Shell environment** — commands, the persistent shell, `execute_python`, and `run_code` start without variables whose names contain `KEY`, `TOKEN`, `SECRET`, `PASSWORD`, `PEPPER`, or `CREDENTIAL`. `PATH`, `HOME`, and `SSH_AUTH_SOCK` stay. The gateway process itself keeps its keys.
+- **Workspace `.holix`** — the agent may read and write `<workspace>/.holix` (skills and MCP). `~/.holix/profiles`, profile `.env`, and other profiles stay blocked. Tokens placed in the workspace MCP file are visible to the agent.
 - **Terminal**: whitelist, dangerous-pattern blocks, and confirmations — full guide: [TERMINAL_SECURITY.md](TERMINAL_SECURITY.md). Quick setup:
   ```bash
   holix -p dev profile whitelist enable

@@ -65,7 +65,9 @@ def ensure_mcp_servers_root() -> Path:
     return MCP_SERVERS_ROOT
 
 
-def _run(cmd: list[str], cwd: Path | None = None, check: bool = True, capture: bool = False) -> subprocess.CompletedProcess:
+def _run(
+    cmd: list[str], cwd: Path | None = None, check: bool = True, capture: bool = False
+) -> subprocess.CompletedProcess:
     """Run a command, optionally capturing output."""
     argv = _validate_subprocess_argv(cmd)
     executable = _resolve_executable(argv[0])
@@ -132,7 +134,11 @@ def _detect_js_entry(cloned: Path) -> tuple[str, list[str]] | None:
 
 
 def _detect_python_entry(cloned: Path) -> tuple[str, list[str]] | None:
-    if (cloned / "pyproject.toml").exists() or (cloned / "setup.py").exists() or (cloned / "setup.cfg").exists():
+    if (
+        (cloned / "pyproject.toml").exists()
+        or (cloned / "setup.py").exists()
+        or (cloned / "setup.cfg").exists()
+    ):
         # Try common patterns
         # Many python MCP use "mcp" or "server" module
         for mod in ["mcp_server", "server", "main", "app"]:
@@ -158,50 +164,65 @@ def _try_readme_hints(cloned: Path) -> tuple[str, list[str]] | None:
                     parts = line.strip().split()
                     if parts[0] == "npx" or parts[0].startswith("npx"):
                         idx = parts.index("npx") if "npx" in parts else 0
-                        return parts[idx], parts[idx+1:idx+6]  # rough
+                        return parts[idx], parts[idx + 1 : idx + 6]  # rough
         if "node " in text and ".js" in text:
             for line in text.splitlines():
                 if "node " in line and ".js" in line:
                     parts = line.strip().split()
                     try:
                         i = parts.index("node")
-                        return "node", parts[i+1:i+3]
+                        return "node", parts[i + 1 : i + 3]
                     except ValueError:
                         pass
     return None
 
 
-def detect_command(cloned: Path) -> tuple[str, list[str], str]:
-    """Return (command, args, notes). Best effort detection."""
-    notes = ""
+def detected_mcp_command(cloned: Path) -> tuple[str, list[str], str] | None:
+    """Return a launch command when the clone looks like an MCP server.
 
-    # 1. JS / TS
+    The generic ``node dist/index.js`` fallback is not a detection.
+    """
     js = _detect_js_entry(cloned)
     if js:
         cmd, args = js
-        # Check if dist exists, otherwise suggest build
+        notes = ""
         if not any((cloned / d / "index.js").exists() for d in ("dist", "build")):
-            notes = "Run `npm install && npm run build` (or `bun install && bun run build`) inside the cloned dir first."
+            notes = (
+                "Run `npm install && npm run build` "
+                "(or `bun install && bun run build`) inside the cloned dir first."
+            )
         return cmd, args, notes
 
-    # 2. Python
     py = _detect_python_entry(cloned)
     if py:
-        return py[0], py[1], "Make sure uv is installed (`curl -LsSf https://astral.sh/uv/install.sh | sh`)."
+        return (
+            py[0],
+            py[1],
+            "Make sure uv is installed (`curl -LsSf https://astral.sh/uv/install.sh | sh`).",
+        )
 
-    # 3. README hints
     hints = _try_readme_hints(cloned)
     if hints:
         return hints[0], hints[1], ""
 
-    # 4. Last resort generic
     if (cloned / "index.js").exists():
         return "node", [str(cloned / "index.js")], "You may need to run `npm install` first."
 
     if (cloned / "main.py").exists():
         return "python", [str(cloned / "main.py")], ""
+    return None
 
-    return "node", [str(cloned / "dist" / "index.js")], "Please inspect the README and adjust command/args manually after clone."
+
+def detect_command(cloned: Path) -> tuple[str, list[str], str]:
+    """Return (command, args, notes). Best effort detection."""
+    found = detected_mcp_command(cloned)
+    if found:
+        return found
+    return (
+        "node",
+        [str(cloned / "dist" / "index.js")],
+        "Please inspect the README and adjust command/args manually after clone.",
+    )
 
 
 def auto_prepare(cloned: Path, cmd: str) -> None:
@@ -246,7 +267,8 @@ def build_config_from_popular(
         valid, errs = normalize_allowed_paths(raw_paths)
         if errs:
             raise ValueError(
-                "Filesystem MCP path error:\n  - " + "\n  - ".join(errs)
+                "Filesystem MCP path error:\n  - "
+                + "\n  - ".join(errs)
                 + "\nUse existing directories (e.g. current project path)."
             )
         params["allowed_paths"] = " ".join(valid)
@@ -279,14 +301,19 @@ def build_config_from_popular(
     return data
 
 
-def install_from_git(git_url: str, suggested_name: str | None = None, auto_prepare_steps: bool = True) -> dict[str, Any]:
+def install_from_git(
+    git_url: str, suggested_name: str | None = None, auto_prepare_steps: bool = True
+) -> dict[str, Any]:
     """Clone a git-based MCP server and return a suggested config dict.
 
     The caller (CLI) is responsible for letting user review/edit the returned command/args/env
     before saving to profile.
     """
     name = suggested_name or git_url.rstrip("/").split("/")[-1].removesuffix(".git")
-    name = "".join(c if c.isalnum() or c in "-_" else "-" for c in name).strip("-")[:40] or "custom-mcp"
+    name = (
+        "".join(c if c.isalnum() or c in "-_" else "-" for c in name).strip("-")[:40]
+        or "custom-mcp"
+    )
 
     cloned = clone_or_update_git(git_url, name)
 
