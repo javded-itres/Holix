@@ -393,13 +393,15 @@ When `max_steps` is hit, Holix may grant more steps if the agent is still making
 
 See [SUBAGENTS.md](SUBAGENTS.md).
 
-## Local project supplements
+## Workspace `.holix` supplements
 
-In a project directory, Holix may merge (without overwriting profile system keys):
+Inside the profile workspace (the directory the agent is allowed to read), Holix merges `<workspace>/.holix/` on top of the profile:
 
-- `./.holix/skills/` — extra skills
-- `./.holix/plans/` — approved execution plans (`.md` human-readable, `.json` machine-readable); legacy `./.holix/plan/` is still read if present
-- `./config.yaml` — supplemental MCP/skills (not full profile replacement)
+- `.holix/skills/` — extra skills. The same name overrides the profile skill.
+- `.holix/config.yaml` — `mcp_servers` (same server name overrides the profile entry; a new name is also added to `main` when that allow-list exists) and optional `mcp_assignments` / `skill_assignments` for a slot (the local list replaces that slot).
+- `.holix/plans/` — approved execution plans (`.md` human-readable, `.json` machine-readable); legacy `./.holix/plan/` is still read if present.
+
+The agent uses `workspace_holix` for this. A link pasted in chat (`install_link`) installs a skill or an MCP server into this directory. It does not read `~/.holix/profiles`. Model, providers, and auth in the workspace file are ignored.
 
 ## Related
 

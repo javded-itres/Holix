@@ -20,10 +20,10 @@ HolixAgent (core/agent.py)
 | `hybrid` | `memory → meta → plan → review → react ⇄ tools → reflect → finalize` |
 | `plan_and_execute` | plan/review + `step_orchestrate` + optional `delegate → collect → supervisor → rework/react` + `reflect` |
 
-- **Meta-agent** — short pre-thinking hint (`core/graph/nodes/meta_agent_node.py`).  
-- **Reflexion** — post-draft quality critique + verbal retry (`reflect_node.py`).  
-- **Step budget** — at `max_steps`, health-check and optional extension (`core/runtime/step_budget.py`).  
-- **Subagents** — async/process workers; **runtime supervisor** (mid-job guidance) + **graph supervisor** (wave rework).  
+- **Meta-agent** — short pre-thinking hint (`core/graph/nodes/meta_agent_node.py`).
+- **Reflexion** — post-draft quality critique + verbal retry (`reflect_node.py`).
+- **Step budget** — at `max_steps`, health-check and optional extension (`core/runtime/step_budget.py`).
+- **Subagents** — async/process workers; **runtime supervisor** (mid-job guidance) + **graph supervisor** (wave rework).
 
 Product docs: [EXECUTION_MODES.md](EXECUTION_MODES.md), [SUBAGENTS.md](SUBAGENTS.md).
 
@@ -64,7 +64,7 @@ Product docs: [EXECUTION_MODES.md](EXECUTION_MODES.md), [SUBAGENTS.md](SUBAGENTS
 2. **Profile** — `~/.holix/profiles/<name>/config.yaml`
 3. **CLI flags** — per-command overrides
 
-Project dir may supplement `./.holix/skills`, `.holix/plans`, local MCP — merged, not replacing profile system keys.
+The workspace directory may supplement `<workspace>/.holix/skills`, `.holix/plans`, and `.holix/config.yaml` MCP. Same skill and server names override the profile. Model, providers, and auth stay on the profile.
 
 ### Profile identity
 

@@ -468,7 +468,6 @@ _SKIP_DIR_NAMES = frozenset(
         ".tox",
         "dist",
         "build",
-        ".holix",
         ".next",
         ".turbo",
         "coverage",
@@ -483,6 +482,26 @@ _MAX_GLOB_HITS = 200
 
 def _is_skipped_dir(name: str) -> bool:
     return name in _SKIP_DIR_NAMES or name.endswith(".egg-info")
+
+
+def _prune_walk_dirs(root: Path, dirpath: Path, dirnames: list[str]) -> None:
+    """Skip heavy or secret caches. Keep workspace `.holix` skills and MCP config."""
+    base = root.resolve()
+    kept: list[str] = []
+    for name in dirnames:
+        if _is_skipped_dir(name):
+            continue
+        candidate = dirpath / name
+        try:
+            rel = candidate.resolve().relative_to(base).as_posix()
+        except (OSError, ValueError):
+            rel = name
+        if rel == ".holix/worktrees" or rel.endswith("/.holix/worktrees"):
+            continue
+        if rel == ".holix/memory-cache" or rel.endswith("/.holix/memory-cache"):
+            continue
+        kept.append(name)
+    dirnames[:] = kept
 
 
 def _is_probably_binary(path: Path) -> bool:
@@ -522,7 +541,7 @@ def _iter_workspace_files(root: Path, *, glob_pat: str | None = None):
         return
     scanned = 0
     for dirpath, dirnames, filenames in root.walk() if hasattr(root, "walk") else _os_walk(root):
-        dirnames[:] = [name for name in dirnames if not _is_skipped_dir(name)]
+        _prune_walk_dirs(root, Path(dirpath), dirnames)
         for name in filenames:
             scanned += 1
             if scanned > _MAX_GREP_SCAN_FILES:

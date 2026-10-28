@@ -70,12 +70,9 @@ class SkillsManager:
         self.active_skills: list[dict[str, Any]] = []
         self.all_skills: dict[str, dict[str, Any]] = {}
 
-        # Local project supplement (./.holix/skills) — loaded in addition to profile skills_dir
-        from core.config_utils import get_local_skills_dir
-
-        self._local_skills_dir: Path | None = get_local_skills_dir()
-        if self._local_skills_dir:
-            self._local_skills_dir.mkdir(parents=True, exist_ok=True)
+        # Workspace <workspace>/.holix/skills — added on top of the profile, same name wins.
+        self._local_skills_dir: Path | None = None
+        self._refresh_local_skills_dir()
 
         chroma_path = None
         if uses_on_disk_chroma(cfg):
@@ -84,6 +81,13 @@ class SkillsManager:
         self.chroma_client = getattr(self._backend, "chroma_client", None)
         self.skills_collection = self._backend.get_collection("skills")
         self._index_hashes: dict[str, str] = {}
+
+    def _refresh_local_skills_dir(self) -> None:
+        from core.config_utils import project_holix_dir
+
+        ws = getattr(self._config, "workspace_root", None)
+        local = project_holix_dir(workspace_root=ws) / "skills"
+        self._local_skills_dir = local if local.is_dir() else None
 
     def _skill_roots(self) -> list[Path]:
         roots = [self.skills_dir]
@@ -129,6 +133,7 @@ class SkillsManager:
         """Load skills from profile dir, hub bundles (SKILL.md), and local .holix/skills."""
         from core.hub.normalize import discover_skill_files, parse_skill_file
 
+        self._refresh_local_skills_dir()
         self.all_skills = {}
         self._defer_index = defer_index
 

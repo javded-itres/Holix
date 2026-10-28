@@ -70,15 +70,48 @@ holix profile global edit
 | `coder`, `researcher`, … | Субагенты — [SUBAGENTS.md](SUBAGENTS.md) |
 | Свои типы | `/subagent-types` |
 
-Загружаются только серверы из `mcp_assignments` для активного агента.
+Если для агента задан список `mcp_assignments`, загружаются только эти серверы. Без списка доступны все настроенные.
+
+## Наложение workspace
+
+Попросите агента подключить сервер: он запишет `<workspace>/.holix/config.yaml` (`workspace_holix`). Каталог `~/.holix/profiles` агент не читает.
+
+Ссылку можно отправить прямо в чат. Репозиторий GitHub или GitLab со `SKILL.md`, а также ссылка skills.sh, ClawHub или на сам `SKILL.md`, ставится как скилл workspace. Репозиторий с `mcp` в имени или с точкой входа MCP и без `SKILL.md` ставится как stdio-сервер. Адрес `https://…/mcp` подключается через `mcp-remote`. Адрес `https://…/sse` остаётся на SSE-клиенте.
+
+```yaml
+mcp_servers:
+  context7:
+    transport: stdio
+    command: npx
+    args: ["-y", "@upstash/context7-mcp"]
+```
+
+Имя, которое уже есть в профиле, заменяется этим файлом. Новое имя добавляется; если у `main` есть список допуска, имя дописывается туда. Блок `mcp_assignments` в том же файле заменяет список этого слота. Модель, провайдеры и auth из файла игнорируются. Изменённая команда уже подключённого сервера применяется после перезапуска gateway.
 
 ---
+
+## Удалённый HTTP (`mcp-remote`)
+
+Клиент Holix говорит на stdio и на старом SSE. Сервер Streamable HTTP добавляется как `transport: http`. При старте Holix запускает `npx -y mcp-remote <url>`: это процесс stdio, который сначала говорит по HTTP и при необходимости переходит на SSE.
+
+```yaml
+mcp_servers:
+  docs:
+    transport: http
+    url: https://example.com/mcp
+    headers:
+      Authorization: "Bearer ${DOCS_TOKEN}"
+```
+
+Для адреса `http://` добавляется `--allow-http` (своя сеть или loopback). Значение заголовка уходит в `mcp-remote` как `--header Name:${ENV}`, без секрета в командной строке. `holix mcp list` показывает URL, а не команду моста.
 
 ## Установка из git
 
 ```bash
 holix mcp install https://github.com/org/my-mcp-server
 holix mcp add my-custom
+holix mcp add docs --transport http --url https://example.com/mcp
+holix mcp add docs --transport http --url http://127.0.0.1:4000/mcp --header "Authorization: Bearer $TOKEN"
 ```
 
 Перед работой в чате: `holix mcp test <имя>`.

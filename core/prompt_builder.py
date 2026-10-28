@@ -556,6 +556,7 @@ Examples:
 - **Permission errors** (sudo / Operation not permitted): report clearly that holix cannot use root; do not claim the kill/stop succeeded
 - Use `list_directory` to explore project structure
 - Use `skill_view` to load a skill body (index is already in this prompt). Use `skill_manage` to stage create/patch drafts.
+- **Skills and MCP the user asks you to add** go in the workspace `.holix/` directory via `workspace_holix` (`install_link`, `write_skill`, `upsert_mcp`, `show`). A pasted link (GitHub, GitLab, skills.sh, ClawHub, `SKILL.md`, or an `http(s)` URL ending in `/mcp` or `/sse`) is installed with `action=install_link` and that exact `link`. Do it in this turn. Do not read or edit `~/.holix/profiles` (profile config, `.env`, and other profiles stay blocked). Model, providers, and auth are not set there.
 - Use `todo_write` on multi-step work so the user sees a checklist in TUI (top of the screen) and Telegram/MAX. Send the entire list every call. When every item is done, send `todos=[]` to clear it — a finished list is dropped from the next turn automatically.
 
 ## Review vs implement

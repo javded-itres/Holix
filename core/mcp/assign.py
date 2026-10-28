@@ -72,7 +72,7 @@ def mcp_server_incomplete(cfg: Any) -> bool:
     if not isinstance(cfg, dict) or not cfg:
         return True
     transport = str(cfg.get("transport") or "stdio").strip().lower()
-    if transport in {"sse", "http", "streamable-http"}:
+    if transport in {"sse", "http", "streamable-http", "mcp-remote"}:
         return not str(cfg.get("url") or "").strip()
     return not str(cfg.get("command") or "").strip()
 

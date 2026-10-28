@@ -126,9 +126,42 @@ def get_local_holix_dir(cwd: str | None = None) -> Path:
     return base / ".holix"
 
 
-def load_local_overlay(cwd: str | None = None) -> dict[str, Any]:
-    """Load .holix/config.yaml if present (for supplements only). Returns {} if absent."""
-    local_dir = get_local_holix_dir(cwd)
+def project_holix_dir(*, workspace_root: str | Path | None = None) -> Path:
+    """`.holix` inside the agent workspace.
+
+    A live session workspace wins. Otherwise use the profile workspace root.
+    The process working directory is only the fallback when neither is set.
+    Skills and MCP in this directory add to the profile and override the same name.
+    """
+    try:
+        from core.workspace import get_configured_workspace_root
+
+        session_root = get_configured_workspace_root()
+    except Exception:
+        session_root = None
+    if session_root is not None:
+        return session_root / ".holix"
+    raw = str(workspace_root or "").strip()
+    if raw:
+        return Path(raw).expanduser() / ".holix"
+    return Path.cwd() / ".holix"
+
+
+def load_local_overlay(
+    cwd: str | None = None,
+    *,
+    workspace_root: str | Path | None = None,
+) -> dict[str, Any]:
+    """Load workspace `.holix/config.yaml` (skills/MCP supplement). {} if absent.
+
+    ``cwd`` is the legacy explicit directory (tests and callers that already
+    know the project root). Otherwise the file is read from
+    :func:`project_holix_dir`.
+    """
+    if cwd is not None:
+        local_dir = get_local_holix_dir(cwd)
+    else:
+        local_dir = project_holix_dir(workspace_root=workspace_root)
     cfg_file = local_dir / "config.yaml"
     if not cfg_file.exists():
         return {}
@@ -152,15 +185,26 @@ def merge_profile_with_local(profile_data: dict[str, Any], local: dict[str, Any]
         return profile_data
 
     merged = dict(profile_data)  # shallow ok for our use
-    # mcp_servers: additive merge (local can add/override specific servers)
-    if "mcp_servers" in local and isinstance(local["mcp_servers"], dict):
-        base_mcp = merged.get("mcp_servers") or {}
-        merged["mcp_servers"] = {**base_mcp, **local["mcp_servers"]}
+    # mcp_servers: local names are added and replace the profile entry of the same name
+    local_servers = local.get("mcp_servers") if isinstance(local.get("mcp_servers"), dict) else {}
+    if local_servers:
+        base_mcp = dict(merged.get("mcp_servers") or {})
+        base_mcp.update(local_servers)
+        merged["mcp_servers"] = base_mcp
+        assigns = dict(merged.get("mcp_assignments") or {})
+        if "main" in assigns:
+            names = [str(item) for item in (assigns.get("main") or []) if str(item).strip()]
+            for key in local_servers:
+                if str(key) not in names:
+                    names.append(str(key))
+            assigns["main"] = names
+            merged["mcp_assignments"] = assigns
 
-    # mcp_assignments: additive per-agent
+    # mcp_assignments: a slot listed locally replaces that slot's profile list
     if "mcp_assignments" in local and isinstance(local["mcp_assignments"], dict):
-        base_assign = merged.get("mcp_assignments") or {}
-        merged["mcp_assignments"] = {**base_assign, **local["mcp_assignments"]}
+        base_assign = dict(merged.get("mcp_assignments") or {})
+        base_assign.update(local["mcp_assignments"])
+        merged["mcp_assignments"] = base_assign
 
     if "skill_assignments" in local and isinstance(local["skill_assignments"], dict):
         base_sk = merged.get("skill_assignments") or {}
@@ -180,9 +224,17 @@ def merge_profile_with_local(profile_data: dict[str, Any], local: dict[str, Any]
     return merged
 
 
-def get_local_skills_dir(cwd: str | None = None) -> Path | None:
-    d = get_local_holix_dir(cwd) / "skills"
-    return d if d.exists() else None
+def get_local_skills_dir(
+    cwd: str | None = None,
+    *,
+    workspace_root: str | Path | None = None,
+) -> Path | None:
+    """Workspace `.holix/skills` when that directory exists."""
+    if cwd is not None:
+        d = get_local_holix_dir(cwd) / "skills"
+    else:
+        d = project_holix_dir(workspace_root=workspace_root) / "skills"
+    return d if d.is_dir() else None
 
 
 def get_local_plan_dir(cwd: str | None = None) -> Path:

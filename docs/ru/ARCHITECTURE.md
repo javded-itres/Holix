@@ -20,10 +20,10 @@ HolixAgent (core/agent.py)
 | `hybrid` | `memory → meta → plan → review → react ⇄ tools → reflect → finalize` |
 | `plan_and_execute` | plan/review + steps + `delegate → collect → supervisor → rework/react` + `reflect` |
 
-- **Meta-agent** — pre-thinking.  
-- **Reflexion** — оценка черновика + verbal retry.  
-- **Step budget** — расширение `max_steps` при прогрессе.  
-- **Субагенты** — runtime supervisor + graph rework.  
+- **Meta-agent** — pre-thinking.
+- **Reflexion** — оценка черновика + verbal retry.
+- **Step budget** — расширение `max_steps` при прогрессе.
+- **Субагенты** — runtime supervisor + graph rework.
 
 Документация: [EXECUTION_MODES.md](EXECUTION_MODES.md), [SUBAGENTS.md](SUBAGENTS.md).
 
@@ -64,7 +64,7 @@ HolixAgent (core/agent.py)
 2. **Профиль** — `~/.holix/profiles/<имя>/config.yaml`
 3. **Флаги CLI** — переопределения на команду
 
-Каталог проекта может дополнять `./.holix/skills`, `.holix/plans`, локальный MCP — не заменяет ключи профиля.
+Каталог workspace может дополнять `<workspace>/.holix/skills`, `.holix/plans` и MCP в `.holix/config.yaml`. Одинаковые имена навыков и серверов заменяют профиль. Модель, провайдеры и auth остаются в профиле.
 
 ### Идентичность профиля
 

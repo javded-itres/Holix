@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
@@ -147,9 +148,11 @@ def test_resolve_whisper_config_local_requires_package(monkeypatch: pytest.Monke
 
 def test_resolve_prefers_local_whisper_over_the_chat_hub(
     monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
 ) -> None:
     from config import settings
 
+    monkeypatch.setenv("HOLIX_HOME", str(tmp_path))
     monkeypatch.delenv("OPENAI_API_KEY", raising=False)
     monkeypatch.delenv("LITELLM_API_KEY", raising=False)
     monkeypatch.setattr(settings, "whisper_backend", "api")
@@ -171,6 +174,59 @@ def test_resolve_prefers_local_whisper_over_the_chat_hub(
     assert cfg.backend == "local"
     assert cfg.model == "base"
     assert cfg.api_key == ""
+
+
+def test_saved_audio_model_uses_the_chat_hub(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    from integrations.telegram.recognition_settings import save_recognition
+
+    from config import settings
+
+    monkeypatch.setenv("HOLIX_HOME", str(tmp_path))
+    save_recognition(image_model="glm-5.3-flash", audio_model="whisper-lab")
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    monkeypatch.delenv("LITELLM_API_KEY", raising=False)
+    monkeypatch.setattr(settings, "whisper_backend", "api")
+    monkeypatch.setattr(settings, "openai_api_key", "")
+    monkeypatch.setattr(settings, "whisper_api_key", "")
+    monkeypatch.setattr(settings, "whisper_base_url", "")
+    monkeypatch.setattr(
+        "integrations.telegram.voice_handler.faster_whisper_available",
+        lambda: True,
+    )
+    monkeypatch.setattr(
+        "integrations.telegram.voice_handler._profile_litellm_credentials",
+        lambda profile: ("sk-hub", "https://hub.example"),
+    )
+
+    cfg = resolve_whisper_config(profile="p")
+    assert cfg.backend == "litellm"
+    assert cfg.model == "whisper-lab"
+    assert cfg.api_key == "sk-hub"
+    assert cfg.base_url == "https://hub.example"
+
+
+def test_explicit_whisper_env_beats_the_saved_audio_model(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    from integrations.telegram.recognition_settings import save_recognition
+
+    from config import settings
+
+    monkeypatch.setenv("HOLIX_HOME", str(tmp_path))
+    save_recognition(image_model="glm-5.3-flash", audio_model="whisper-lab")
+    monkeypatch.setattr(settings, "whisper_backend", "api")
+    monkeypatch.setattr(settings, "whisper_api_key", "sk-litellm")
+    monkeypatch.setattr(settings, "whisper_base_url", "http://192.168.1.1:4000/v1")
+    monkeypatch.setattr(settings, "whisper_model", "whisper")
+    monkeypatch.setattr(settings, "telegram_voice_language", "")
+
+    cfg = resolve_whisper_config(profile="p")
+    assert cfg.model == "whisper"
+    assert cfg.api_key == "sk-litellm"
 
 
 def test_local_snapshot_ready_sees_a_real_weight(tmp_path) -> None:

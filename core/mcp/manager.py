@@ -124,6 +124,31 @@ class MCPManager:
             except Exception:
                 logger.debug("on_tools_ready failed for %s", name, exc_info=True)
 
+    async def ensure_server(self, name: str, data: dict[str, Any]) -> str:
+        """Start one server, or keep the connection that is already up.
+
+        Returns ``started``, ``already_running``, or ``unavailable``.
+        A running server is not restarted: its process still has the old command.
+        """
+        cfg = MCPServerConfig.from_dict(name, data)
+        errs = validate_server_config(cfg)
+        if errs:
+            raise ValueError("; ".join(errs))
+        async with self._lock:
+            self._raw[name] = dict(data)
+            self._configs[name] = cfg
+            existing = self._keeper_tasks.get(name)
+            if existing is not None and not existing.done():
+                return "already_running"
+            if not MCP_AVAILABLE:
+                return "unavailable"
+            self._ready_events[name] = asyncio.Event()
+            self._last_errors.pop(name, None)
+            task = asyncio.create_task(self._keep_server(name, cfg), name=f"mcp-keeper-{name}")
+            self._keeper_tasks[name] = task
+            self._connected = True
+            return "started"
+
     async def connect_all(self) -> None:
         if not MCP_AVAILABLE:
             logger.warning("mcp package not available; MCP support disabled")
@@ -173,6 +198,9 @@ class MCPManager:
         session: ClientSession | None = None
         errlog = None
         try:
+            from core.mcp.remote_bridge import bridge_http_to_stdio
+
+            cfg = bridge_http_to_stdio(cfg)
             if cfg.transport == "stdio":
                 if not cfg.command:
                     return

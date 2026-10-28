@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+## 1.1.21 — 2026-10-28
+
+### Added
+
+- **Workspace skills and MCP** — when you ask the agent to add a skill or connect an MCP server, it writes `<workspace>/.holix/` (`workspace_holix`). That directory is readable inside the workspace. Skills and MCP servers there are added to the profile and override the same name. Profile config, `.env`, and other profiles stay blocked. Model, providers, and auth are not taken from this directory.
+- **Remote MCP** — `holix mcp add --transport http --url …` stores an HTTP server. Holix starts `npx -y mcp-remote`, a stdio bridge that speaks HTTP and falls back to SSE. An `http://` URL gets `--allow-http`. Headers are passed as `--header Name:${ENV}`.
+- **Paste a skill or MCP link** — a link dropped in chat is installed into `<workspace>/.holix/` (`workspace_holix` `install_link`). Skills come from GitHub, GitLab, skills.sh, ClawHub, or a raw `SKILL.md`. An `…/mcp` URL uses `mcp-remote`; an `…/sse` URL stays on SSE. A git MCP server is cloned only when the repo has a real entrypoint.
+- **Telegram recognition** — an empty vision model uses the Studio recognition image model when one is saved, and otherwise the session pin. A saved audio model is sent to the chat hub. `local` keeps faster-whisper. An explicit whisper environment still wins.
+
 ## 1.1.20 — 2026-10-26
 
 ### Fixed

@@ -514,13 +514,31 @@ class ProfileManager:
         from core.models.profile_cleanup import sanitize_model_routing_data
 
         data = sanitize_model_routing_data(data)
-        # Supplement with project-local .holix/config.yaml (additive only: mcp, not models/system)
-        local = load_local_overlay()
-        data = merge_profile_with_local(data, local)
         config = ProfileConfig(**data)
-        return resolve_profile_storage_paths(
+        config = resolve_profile_storage_paths(
             profile, config, profile_dir=self.get_profile_dir(profile)
         )
+        # <workspace>/.holix/config.yaml adds or overrides MCP and skill
+        # assignments. Model, providers, and auth stay on the profile.
+        # Resolve the workspace first: an empty profile field becomes
+        # profiles/<name>/workspace only inside resolve_profile_storage_paths.
+        local = load_local_overlay(workspace_root=config.workspace_root)
+        if local:
+            merged = merge_profile_with_local(
+                {
+                    "mcp_servers": dict(config.mcp_servers or {}),
+                    "mcp_assignments": dict(config.mcp_assignments or {}),
+                    "skill_assignments": dict(config.skill_assignments or {}),
+                    "mcp_enabled": config.mcp_enabled,
+                },
+                local,
+            )
+            config.mcp_servers = dict(merged.get("mcp_servers") or {})
+            config.mcp_assignments = dict(merged.get("mcp_assignments") or {})
+            config.skill_assignments = dict(merged.get("skill_assignments") or {})
+            if "mcp_enabled" in local:
+                config.mcp_enabled = bool(merged.get("mcp_enabled"))
+        return config
 
     def _write_profile_yaml(self, profile: str, data: dict[str, Any]) -> None:
         config_file = self.get_profile_dir(profile) / "config.yaml"

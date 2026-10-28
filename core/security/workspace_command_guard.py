@@ -19,6 +19,11 @@ _SENSITIVE_HOME_RE = re.compile(
     r"(?:~/?\.(?:holix|helix)(?:/|$)|\$HOME/\.(?:holix|helix)|\$HOLIX_HOME|\$HELIX_HOME)",
     re.I,
 )
+# $HOME / $HOLIX_HOME cannot be proved to stay inside the workspace.
+_UNRESOLVED_HOLIX_HOME_RE = re.compile(
+    r"\$HOME/\.(?:holix|helix)|\$HOLIX_HOME|\$HELIX_HOME",
+    re.I,
+)
 _PARENT_TRAVERSAL_RE = re.compile(r"(?:^|[\s/\\])\.\.(?:$|[\s/\\])|(?:^|[\s/\\])\.\./")
 _ABSOLUTE_PATH_RE = re.compile(
     r"(?:~(?:/[\w.\-]+)+)"
@@ -85,18 +90,42 @@ def references_holix_profiles(
     ``allow_under`` is that workspace root. Secrets and other profiles stay blocked.
     """
     text = _normalize(command)
-    # Unexpanded env / home markers — cannot prove they stay inside the workspace.
-    if _SENSITIVE_HOME_RE.search(text):
+    if _UNRESOLVED_HOLIX_HOME_RE.search(text):
         return True
+
+    root: Path | None = None
+    extras: list[Path] = []
+    if allow_under is not None:
+        root = Path(allow_under).expanduser().resolve()
+        extras = linked_git_common_dirs(root)
+
+    # ~/.holix is the profile home. Allow it only when every such path stays
+    # inside this workspace (workspace/.holix skills and MCP). Profile config,
+    # .env, and other profiles stay blocked.
+    if _SENSITIVE_HOME_RE.search(text):
+        if root is None:
+            return True
+        holix_home_paths: list[Path] = []
+        saw = False
+        for token in _path_tokens(text):
+            lowered = token.lower()
+            if ".holix" not in lowered and ".helix" not in lowered:
+                continue
+            saw = True
+            resolved = _resolve_path_token(token, workspace_root=root, cwd=root)
+            if resolved is None or not _is_inside_jail(resolved, root, extras):
+                return True
+            holix_home_paths.append(resolved)
+        if not saw or not holix_home_paths:
+            return True
 
     has_marker = _HOLIX_PROFILE_RE.search(text) is not None or ".holix/profiles" in text.lower()
     if not has_marker:
         return False
 
-    if allow_under is None:
+    if root is None:
         return True
 
-    root = Path(allow_under).expanduser().resolve()
     holix_paths: list[Path] = []
     for token in _path_tokens(text):
         resolved = _resolve_path_token(token, workspace_root=root, cwd=root)
