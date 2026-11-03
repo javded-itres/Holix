@@ -365,6 +365,22 @@ def _in_workspace(runtime: Any, cwd: str) -> Any:
         return runtime
 
 
+def _keep_protocol_clean(protocol_out: Any) -> None:
+    """Agent logs must not share the JSON-RPC stdout."""
+    import logging
+
+    names = ["", *list(logging.Logger.manager.loggerDict)]
+    for name in names:
+        record = logging.Logger.manager.loggerDict.get(name) if name else logging.getLogger()
+        logger_obj = record if isinstance(record, logging.Logger) else logging.getLogger(name)
+        for handler in list(getattr(logger_obj, "handlers", ())):
+            stream = getattr(handler, "stream", None)
+            if stream is None or not hasattr(handler, "setStream"):
+                continue
+            if stream is protocol_out or getattr(stream, "buffer", None) is protocol_out:
+                handler.setStream(sys.stderr)
+
+
 async def serve(
     profile: str,
     config: Any,
@@ -373,6 +389,7 @@ async def serve(
     stdin: Any | None = None,
 ) -> int:
     """Read ACP from stdin until the client disconnects."""
+    _keep_protocol_clean(out)
     loop = asyncio.get_running_loop()
     agent = AcpAgent(profile, config, model, out)
     agent.bind(loop)
