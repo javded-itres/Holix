@@ -32,7 +32,9 @@ _BASE_COMMANDS_REGISTERED = False
 _HEAVY_COMMANDS_REGISTERED = False
 
 # Commands that pull chromadb/numpy via HolixAgent or SkillsManager.
-_HEAVY_ROOT_COMMANDS = frozenset({"chat", "run", "tui", "skills", "memory", "subagent", "studio"})
+_HEAVY_ROOT_COMMANDS = frozenset(
+    {"chat", "run", "acp", "tui", "skills", "memory", "subagent", "studio"}
+)
 
 
 def _needs_heavy_commands(argv: list[str]) -> bool:
@@ -316,6 +318,29 @@ def run_command(
     from cli.commands import run
 
     asyncio.run(run.run_single_query(query, conversation_id, config))
+
+
+@app.command("acp")
+def acp_command(
+    ctx: typer.Context,
+    model: str | None = typer.Option(None, "--model", "-m", help="Model slot for this session"),
+):
+    """Speak Agent Client Protocol on stdio and edit the current directory.
+
+    The client sends initialize, session/new and session/prompt. File changes
+    happen in the process working directory. stdout carries only JSON-RPC.
+    """
+    import asyncio
+
+    saved = sys.stdout
+    sys.stdout = sys.stderr
+    try:
+        from cli.commands.acp_server import serve
+
+        code = asyncio.run(serve(ctx.obj["profile"], ctx.obj["config"], model or "", saved.buffer))
+    finally:
+        sys.stdout = saved
+    raise typer.Exit(code)
 
 
 @app.command()
