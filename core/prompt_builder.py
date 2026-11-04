@@ -736,6 +736,31 @@ Remember: You are a helpful, capable agent that learns and improves with each ta
             blocks.append(ext_fragment)
     except Exception:
         pass
+    try:
+        from core.runtime.session_goal import goal_prompt_block
+        from core.tools.execution_context import get_conversation_id, get_profile_name
+
+        goal_block = goal_prompt_block(
+            profile_name or get_profile_name(),
+            get_conversation_id(),
+        )
+        if goal_block:
+            blocks.append(goal_block)
+    except Exception:
+        pass
+    try:
+        from core.runtime.session_worktree import get_binding
+        from core.tools.execution_context import get_conversation_id, get_profile_name
+
+        binding = get_binding(profile_name or get_profile_name(), get_conversation_id())
+        if binding and binding.get("worktree"):
+            blocks.append(
+                "## Session worktree\n"
+                f"File tools run in `{binding.get('worktree')}` "
+                f"on branch `{binding.get('branch')}`."
+            )
+    except Exception:
+        pass
     project_cwd = resolve_prompt_context_directory(
         workspace_root=workspace_root,
         workspace_jail_enabled=workspace_jail_enabled,

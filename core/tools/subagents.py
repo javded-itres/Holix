@@ -71,11 +71,32 @@ class DelegateToSubAgentTool(BaseTool):
                     ),
                     "default": False,
                 },
+                "background": {
+                    "type": "boolean",
+                    "description": (
+                        "If true, do not wait or poll. The result is injected into "
+                        "this conversation when the child finishes. Pass paths the "
+                        "child will edit so the parent does not write them."
+                    ),
+                    "default": False,
+                },
+                "paths": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": "Files the background child owns until it finishes.",
+                },
             },
             "required": ["agent_type", "task"],
         }
 
-    async def execute(self, agent_type: str, task: str, fork: bool = False) -> str:
+    async def execute(
+        self,
+        agent_type: str,
+        task: str,
+        fork: bool = False,
+        background: bool = False,
+        paths: list[str] | None = None,
+    ) -> str:
         agent = _agent(self._parent)
         cfg = getattr(agent, "config", None)
         if not is_subagents_enabled(cfg):
@@ -108,6 +129,20 @@ class DelegateToSubAgentTool(BaseTool):
                 )
             handle = await agent.subagents.spawn_typed(agent_type, task, fork=bool(fork))
             h, _ = handle
+            if background:
+                from core.subagents.background_claims import claim, watch
+                from core.tools.execution_context import get_conversation_id
+
+                conversation = get_conversation_id()
+                profile = _profile_name(agent) or "default"
+                claim(profile, conversation, h.name, paths)
+                watch(
+                    agent,
+                    job_id=h.name,
+                    profile=profile,
+                    conversation_id=conversation,
+                    timeout=getattr(h.config, "timeout", None),
+                )
             fallback = (h.spawn_fallback_reason or "").strip()
             payload: dict[str, Any] = {
                 "status": "spawned",
@@ -116,9 +151,16 @@ class DelegateToSubAgentTool(BaseTool):
                 "process_mode": h.config.process_mode.value,
                 "process_id": h.process_id,
                 "message": (
-                    f"Sub-agent '{h.name}' started in {h.config.process_mode.value} mode. "
-                    f"Call wait_subagent_result(job_id='{h.name}') when you need the answer."
+                    f"Sub-agent '{h.name}' started in the background. "
+                    "Do not poll and do not edit its paths. "
+                    "Its result is inserted into this conversation when it finishes."
+                    if background
+                    else (
+                        f"Sub-agent '{h.name}' started in {h.config.process_mode.value} mode. "
+                        f"Call wait_subagent_result(job_id='{h.name}') when you need the answer."
+                    )
                 ),
+                "background": bool(background),
             }
             if bool(getattr(h.config, "fork", False)):
                 payload["fork"] = True
@@ -156,6 +198,12 @@ class DelegateToSubAgentTool(BaseTool):
                     f"Call wait_subagent_result(job_id='{h.name}') and do **not** "
                     "mark the SDD task done until that wait returns "
                     "(followed_process finished)."
+                )
+            if background and not payload.get("followed_process"):
+                payload["message"] = (
+                    f"Sub-agent '{h.name}' started in the background. "
+                    "Do not poll and do not edit its paths. "
+                    "Its result is inserted into this conversation when it finishes."
                 )
             return json.dumps(payload, ensure_ascii=False)
         except Exception as e:

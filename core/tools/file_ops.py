@@ -177,7 +177,24 @@ class ReadFileTool(BaseTool):
             content = read_profile_file_text(file_path, profile=profile)
 
             display_path = display_path_for_user(file_path, input_path=path)
-            return f"Content of {display_path}:\n{content}"
+            note = ""
+            try:
+                from core.project.nested_instructions import note_for_read
+                from core.tools.execution_context import (
+                    get_conversation_id,
+                    get_workspace_root,
+                )
+
+                workspace = get_workspace_root()
+                if workspace:
+                    note = note_for_read(
+                        file_path,
+                        Path(workspace),
+                        conversation_id=get_conversation_id(),
+                    )
+            except Exception:
+                note = ""
+            return f"Content of {display_path}:\n{content}{note}"
 
         except WorkspaceJailError as e:
             return f"Error: {e}"

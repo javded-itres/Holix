@@ -58,8 +58,7 @@ class ConversationSummarizer:
             user_msgs = [m for m in messages if m.get("role") == "user"]
             tool_msgs = [m for m in messages if m.get("role") == "tool"]
             summary = (
-                f"Conversation with {len(user_msgs)} user messages and "
-                f"{len(tool_msgs)} tool calls."
+                f"Conversation with {len(user_msgs)} user messages and {len(tool_msgs)} tool calls."
             )
             await ltm.episodic.store_episode(
                 conversation_id=conversation_id,
@@ -69,9 +68,11 @@ class ConversationSummarizer:
             )
             return summary
 
+        from core.llm.side_model import resolve_small_model
+
         return await ltm.episodic.auto_summarize_conversation(
             conversation_id=conversation_id,
             messages=messages,
             llm_client=llm_client,
-            model=model,
+            model=resolve_small_model(model),
         )

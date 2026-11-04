@@ -225,6 +225,10 @@ class ToolRegistry:
 
         register_sdd_tools(self)
 
+        from core.tools.kilo_parity import register_kilo_parity_tools
+
+        register_kilo_parity_tools(self)
+
         from core.tools.acp import RunAcpAgentTool
 
         self.register(RunAcpAgentTool())
@@ -551,13 +555,54 @@ class ToolRegistry:
         unlock_tokens = (
             profile_unlock_scope(profile=self._profile_name, dek=dek) if dek is not None else []
         )
+        rule_token = None
         try:
-            from core.tools.execution_context import is_run_cancelled
+            from core.tools.execution_context import get_workspace_root, is_run_cancelled
 
             if is_run_cancelled():
                 return sanitize_paths_in_text(
                     f"Error: Run cancelled — tool '{tool_name}' not executed."
                 )
+            from core.runtime.file_snapshots import capture_before_mutation
+            from core.security.permission_rules import (
+                evaluate_for_call,
+                reset_rule_decision,
+                rule_decision_scope,
+            )
+            from core.subagents.background_claims import conflicting_job
+
+            claim_path = ""
+            if isinstance(args, dict):
+                for key in ("path", "file", "file_path"):
+                    raw_path = args.get(key)
+                    if isinstance(raw_path, str) and raw_path.strip():
+                        claim_path = raw_path.strip()
+                        break
+            if claim_path:
+                owner = conflicting_job(self._profile_name, conversation_id, claim_path)
+                if owner:
+                    return sanitize_paths_in_text(
+                        f"Error: '{claim_path}' is owned by background sub-agent "
+                        f"{owner}. Wait for its result; do not edit the same files."
+                    )
+            effective_workspace = get_workspace_root() or self._workspace_root
+            capture_before_mutation(
+                resolved,
+                workspace=effective_workspace,
+                profile=self._profile_name,
+                conversation_id=conversation_id,
+            )
+            rule = evaluate_for_call(
+                resolved,
+                args if isinstance(args, dict) else {},
+                workspace=effective_workspace,
+                profile=self._profile_name,
+            )
+            if rule == "deny":
+                return sanitize_paths_in_text(
+                    f"Error: Tool '{resolved}' denied by permission rules."
+                )
+            rule_token = rule_decision_scope(rule)
             # Gate with ActionGuard if installed
             try:
                 if self._action_guard:
@@ -586,6 +631,8 @@ class ToolRegistry:
             reset_workspace_scope(ws_tokens)
             if unlock_tokens:
                 reset_profile_unlock_scope(unlock_tokens)
+            if rule_token is not None:
+                reset_rule_decision(rule_token)
 
     def get_tool_names(self) -> list[str]:
         """Get names of all registered tools.

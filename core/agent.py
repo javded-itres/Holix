@@ -141,12 +141,15 @@ class HolixAgent:
         self.token_counter = _req(
             "token_counter", token_counter, lambda: TokenCounter(model=self.model)
         )
+        from core.llm.side_model import resolve_small_model
+
+        side_model = resolve_small_model(self.model)
         self.compressor = _req(
             "compressor",
             compressor,
             lambda: ContextCompressor(
                 client=self.client,
-                model=self.model,
+                model=side_model,
                 token_counter=self.token_counter,
             ),
         )
@@ -589,11 +592,18 @@ class HolixAgent:
         execution_mode: str = "react",
     ) -> str:
         """Run the agent using the LangGraph execution graph."""
-        from core.agent_events import ErrorEvent, FinalResponseEvent
+        from core.agent_events import ErrorEvent, FinalResponseEvent, ThinkingEvent
+        from core.llm.side_model import maybe_store_session_title
         from core.runtime.executor import run_holix
+        from core.runtime.file_snapshots import mark_turn_open
+        from core.runtime.session_goal import continuation_message, pause_goal
+        from core.tools.execution_context import is_run_cancelled
 
+        mark_turn_open(getattr(self.config, "profile_name", None), conversation_id)
         final_response = ""
         bus_final = ""
+        pending = user_input
+        profile = str(getattr(self.config, "profile_name", None) or "default")
 
         def _capture_bus_final(event: AgentEvent) -> None:
             nonlocal bus_final
@@ -602,23 +612,46 @@ class HolixAgent:
 
         self.events.subscribe(_capture_bus_final)
         try:
-            async for event in run_holix(
-                self,
-                user_input,
-                conversation_id,
-                stream=False,
-                execution_mode=execution_mode,
-            ):
-                self.emit(event)
-                if isinstance(event, FinalResponseEvent):
-                    final_response = event.content
-                elif isinstance(event, ErrorEvent):
-                    final_response = event.error
+            while True:
+                final_response = ""
+                bus_final = ""
+                async for event in run_holix(
+                    self,
+                    pending,
+                    conversation_id,
+                    stream=False,
+                    execution_mode=execution_mode,
+                ):
+                    self.emit(event)
+                    if isinstance(event, FinalResponseEvent):
+                        final_response = event.content
+                    elif isinstance(event, ErrorEvent):
+                        final_response = event.error
+                if is_run_cancelled():
+                    pause_goal(profile, conversation_id, "stopped")
+                    break
+                nxt = continuation_message(profile, conversation_id)
+                if not nxt:
+                    break
+                pending = nxt
         finally:
             self.events.unsubscribe(_capture_bus_final)
 
         if not (final_response or "").strip() and (bus_final or "").strip():
             final_response = bus_final
+
+        try:
+            title = await maybe_store_session_title(
+                self.client,
+                self.model,
+                profile=profile,
+                conversation_id=conversation_id,
+                user_text=user_input,
+            )
+            if title:
+                self.emit(ThinkingEvent(message=f"session title: {title}"))
+        except Exception:
+            pass
 
         from core.workspace import sanitize_paths_in_text
 

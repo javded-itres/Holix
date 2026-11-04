@@ -711,6 +711,14 @@ class ActionGuard:
         # Step 1: Classify risk
         assessment = self._risk_classifier.classify(tool_name, tool_instance, arguments)
         must_confirm = bool(getattr(tool_instance, "require_user_confirmation", False))
+        try:
+            from core.security.permission_rules import current_rule_decision
+
+            rule_decision = current_rule_decision()
+        except Exception:
+            rule_decision = None
+        if rule_decision == "ask":
+            must_confirm = True
 
         # Step 1.25: Unattended policy — block universal interpreters (audit #6).
         # In cron/background, python/node/uv can escape text-based jail filters.
@@ -733,6 +741,12 @@ class ActionGuard:
                     f"Error: Tool '{tool_name}' was not sent. It requires an explicit "
                     "user confirmation and cannot run unattended."
                 )
+
+        if rule_decision == "allow" and not getattr(
+            tool_instance, "require_user_confirmation", False
+        ):
+            self._log_audit("auto_allowed", assessment, "permission_rule")
+            return await execute_fn(**arguments)
 
         # Step 1.5: Headless / plan execution shortcuts
         if self._auto_approve_background and not must_confirm:
@@ -804,6 +818,13 @@ class ActionGuard:
 
         if choice == ConfirmationChoice.DENY:
             self._log_audit("denied", assessment, "user_deny")
+            try:
+                from core.runtime.session_goal import pause_goal
+                from core.tools.execution_context import get_conversation_id, get_profile_name
+
+                pause_goal(get_profile_name(), get_conversation_id(), "permission denied")
+            except Exception:
+                pass
             if must_confirm:
                 return (
                     f"Error: Tool call '{tool_name}' denied by user. "

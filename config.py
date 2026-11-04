@@ -178,6 +178,26 @@ class Settings(BaseSettings):
         validation_alias=AliasChoices("HOLIX_GIT_WORKTREES_MAX"),
         description="Max Holix-managed worktrees per clone",
     )
+    file_snapshots_enabled: bool = Field(
+        default=False,
+        validation_alias=AliasChoices("HOLIX_FILE_SNAPSHOTS"),
+        description="Auto snapshot the workspace before the first mutating tool of a turn",
+    )
+    code_index_enabled: bool = Field(
+        default=False,
+        validation_alias=AliasChoices("HOLIX_CODE_INDEX"),
+        description="Allow semantic_search without a per-session enable",
+    )
+    small_model: str = Field(
+        default="",
+        validation_alias=AliasChoices("HOLIX_SMALL_MODEL"),
+        description="Model for titles, context compression, memory summaries, commit subjects",
+    )
+    goal_max_continuations: int = Field(
+        default=1,
+        validation_alias=AliasChoices("HOLIX_GOAL_CONTINUATIONS"),
+        description="Extra turns while a session goal stays active",
+    )
 
     # Agent response pipeline: classic ≈1.0.2 (default) | modern anti-monologue
     agent_pipeline: str = Field(
