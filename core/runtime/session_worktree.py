@@ -79,6 +79,41 @@ def _session_id(conversation_id: str) -> str:
     return cleaned
 
 
+def _bash_candidates() -> list[str]:
+    """Shells that can run ``worktree-setup.sh``.
+
+    On Windows, ``System32\\bash.exe`` is the WSL launcher and often exits
+    before the script runs. Git Bash is tried after that stub.
+    """
+    found: list[str] = []
+    which = shutil.which("bash")
+    if which:
+        found.append(which)
+    if os.name == "nt":
+        roots = (
+            os.environ.get("ProgramFiles"),
+            os.environ.get("ProgramFiles(x86)"),
+            os.environ.get("LocalAppData"),
+        )
+        for root in roots:
+            if not root:
+                continue
+            base = Path(root)
+            for rel in ("Git/bin/bash.exe", "Git/usr/bin/bash.exe"):
+                candidate = base / rel
+                if candidate.is_file():
+                    found.append(str(candidate))
+    unique: list[str] = []
+    for path in found:
+        if path not in unique:
+            unique.append(path)
+
+    def _rank(path: str) -> tuple[int, str]:
+        return (1 if "system32" in path.lower() else 0, path.lower())
+
+    return sorted(unique, key=_rank)
+
+
 def _bootstrap(clone: Path, worktree: Path) -> list[str]:
     notes: list[str] = []
     env_src = clone / ".env"
@@ -90,20 +125,37 @@ def _bootstrap(clone: Path, worktree: Path) -> list[str]:
         except OSError:
             notes.append("env copy failed")
     script = clone / ".holix" / "worktree-setup.sh"
-    if script.is_file():
+    if not script.is_file():
+        return notes
+    shells = _bash_candidates()
+    if not shells:
+        notes.append("setup script skipped: bash not found")
+        return notes
+    last_error = "setup script failed"
+    for shell in shells:
         try:
-            subprocess.run(
-                ["bash", str(script)],
+            completed = subprocess.run(
+                [shell, str(script)],
                 cwd=str(worktree),
                 capture_output=True,
                 text=True,
+                encoding="utf-8",
+                errors="replace",
                 timeout=120,
                 check=False,
                 env={**os.environ, "HOLIX_WORKTREE": str(worktree)},
             )
+        except (OSError, subprocess.TimeoutExpired) as exc:
+            last_error = f"setup script failed: {exc}"
+            continue
+        if completed.returncode == 0:
             notes.append("ran worktree-setup.sh")
-        except (OSError, subprocess.TimeoutExpired):
-            notes.append("setup script failed")
+            return notes
+        detail = (completed.stderr or completed.stdout or "").strip()
+        last_error = f"setup script failed ({completed.returncode})"
+        if detail:
+            last_error = f"{last_error}: {detail[:180]}"
+    notes.append(last_error)
     return notes
 
 

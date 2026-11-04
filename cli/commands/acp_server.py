@@ -394,9 +394,9 @@ async def serve(
     agent = AcpAgent(profile, config, model, out)
     agent.bind(loop)
     stream = asyncio.StreamReader()
-    protocol = asyncio.StreamReaderProtocol(stream)
     source = sys.stdin.buffer if stdin is None else stdin
-    await loop.connect_read_pipe(lambda: protocol, source)
+    # connect_read_pipe is unsupported on the Windows event loop.
+    pump = asyncio.create_task(_pump_stdin(stream, source))
     prompt_task: asyncio.Task[Any] | None = None
     try:
         while True:
@@ -456,10 +456,32 @@ async def serve(
             if req_id is not None:
                 agent.fail(req_id, f"Method not found: {method}", -32601)
     finally:
+        pump.cancel()
         if prompt_task is not None:
             prompt_task.cancel()
         await agent.close()
     return 0
+
+
+async def _pump_stdin(stream: asyncio.StreamReader, source: Any) -> None:
+    """Copy a blocking binary stream onto an asyncio reader."""
+    loop = asyncio.get_running_loop()
+
+    def _read() -> bytes:
+        try:
+            return source.read(65536)
+        except (OSError, ValueError):
+            return b""
+
+    try:
+        while True:
+            chunk = await loop.run_in_executor(None, _read)
+            if not chunk:
+                break
+            stream.feed_data(chunk)
+    finally:
+        if not stream.at_eof():
+            stream.feed_eof()
 
 
 async def _finish_prompt(agent: AcpAgent, req_id: Any, params: dict[str, Any]) -> None:

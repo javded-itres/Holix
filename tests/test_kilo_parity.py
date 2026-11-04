@@ -136,7 +136,7 @@ def test_session_worktree_bind_copies_env(tmp_path: Path, monkeypatch: pytest.Mo
     assert result["ok"] is True, result
     worktree = Path(result["worktree"])
     assert (worktree / ".env").read_text(encoding="utf-8") == "TOKEN=secret\n"
-    assert (worktree / "setup.ok").read_text(encoding="utf-8").strip() == "ready"
+    assert (worktree / "setup.ok").read_text(encoding="utf-8").strip() == "ready", result
     assert get_binding("default", "chat-1")["branch"].startswith("session/")
     assert "README.md" in diff_session("default", "chat-1").get("stat", "") or True
 
