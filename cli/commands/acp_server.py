@@ -164,6 +164,37 @@ class AcpAgent:
             return
         if kind == "step_budget_choice":
             self._schedule(self._ask_budget(payload))
+            return
+        if kind == "todo_list_updated":
+            todos = payload.get("todos") if isinstance(payload.get("todos"), list) else []
+            self.notify(
+                "session/update",
+                {
+                    "sessionId": session_id,
+                    "update": {"sessionUpdate": "holix_todos", "todos": todos[:24]},
+                },
+            )
+            return
+        if kind in {"context_usage", "context_warning", "context_compressed"}:
+            self.notify(
+                "session/update",
+                {
+                    "sessionId": session_id,
+                    "update": {
+                        "sessionUpdate": "holix_context",
+                        "used": payload.get(
+                            "used", payload.get("tokens_used", payload.get("compressed_tokens", 0))
+                        ),
+                        "total": payload.get(
+                            "total", payload.get("tokens_total", payload.get("context_window", 0))
+                        ),
+                        "percent": payload.get("percent", payload.get("usage_percent", 0)),
+                        "level": payload.get("level", ""),
+                        "used_display": payload.get("used_display", ""),
+                        "total_display": payload.get("total_display", ""),
+                    },
+                },
+            )
 
     def _schedule(self, coro: Any) -> None:
         if self._loop is None:

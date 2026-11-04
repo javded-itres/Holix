@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+## 1.1.22 — 2026-11-04
+
+### Fixed
+
+- **TUI typing** — a normal prompt no longer rebuilds slash suggestions. Nested skills are indexed once, so `/` autocomplete does not reread the skills tree on every character.
+
 ### Added
 
 - **Workspace snapshots** — `workspace_snapshot` and `/snapshot` keep a shadow git outside the project `.git`. Revert and redo restore files. Set `file_snapshots_enabled` or `HOLIX_FILE_SNAPSHOTS=1` to capture automatically before the first write of a turn.
@@ -12,6 +18,7 @@
 - **Small model** — `small_model` / `HOLIX_SMALL_MODEL` runs context compression, episodic summaries, and session titles. `suggest_commit_message` builds a subject line from a diff. Titles show in the TUI.
 - **Background sub-agents** — `delegate_to_subagent(..., background=true, paths=[...])` injects the result into the conversation. The parent must not edit those paths or poll.
 - **Session worktree** — `/worktree bind` and `session_worktree` check out `session/<id>` under `.holix/worktrees/`, copy `.env`, and run `.holix/worktree-setup.sh`. File tools follow that checkout. This is separate from SDD.
+- **ACP todos and context** — `holix acp` forwards the session checklist and context occupancy to the client as `holix_todos` and `holix_context`.
 
 ## 1.1.21 — 2026-10-28
 

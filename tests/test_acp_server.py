@@ -18,6 +18,38 @@ def test_prompt_text_reads_acp_blocks() -> None:
     assert prompt_text({"prompt": "одна строка"}) == "одна строка"
 
 
+def test_on_event_forwards_todos_and_context() -> None:
+    agent = AcpAgent("default", SimpleNamespace(), "", None)
+    agent.sessions["ses"] = "conv"
+    notes: list[tuple[str, dict]] = []
+    agent.notify = lambda method, params: notes.append((method, params))  # type: ignore[method-assign]
+    agent._on_event(
+        SimpleNamespace(
+            to_dict=lambda: {
+                "type": "todo_list_updated",
+                "todos": [{"id": "1", "content": "Dockerfile", "status": "pending"}],
+            }
+        )
+    )
+    agent._on_event(
+        SimpleNamespace(
+            to_dict=lambda: {
+                "type": "context_usage",
+                "used": 3,
+                "total": 9,
+                "percent": 33,
+                "level": "ok",
+                "used_display": "3",
+                "total_display": "9",
+            }
+        )
+    )
+    assert notes[0][1]["update"]["sessionUpdate"] == "holix_todos"
+    assert notes[0][1]["update"]["todos"][0]["content"] == "Dockerfile"
+    assert notes[1][1]["update"]["sessionUpdate"] == "holix_context"
+    assert notes[1][1]["update"]["percent"] == 33
+
+
 def test_selected_option_reads_the_client_choice() -> None:
     result = {"outcome": {"outcome": "selected", "optionId": "allow_once"}}
     assert _selected_option(result) == "allow_once"

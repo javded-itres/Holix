@@ -290,6 +290,37 @@ def test_slash_registry(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
     assert any(c == "/demo" for c, _ in cmds)
 
 
+def test_slash_registry_scans_nested_skills_once(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+    monkeypatch.setenv("HOLIX_HOME", str(tmp_path))
+    skills = tmp_path / "profiles" / "default" / "data" / "skills"
+    for name in ("alpha", "beta", "gamma"):
+        bundle = skills / name
+        bundle.mkdir(parents=True)
+        (bundle / "SKILL.md").write_text(
+            f"---\nname: {name}\ndescription: {name} skill\n---\n\nbody\n",
+            encoding="utf-8",
+        )
+    from core.hub import normalize
+    from core.hub.slash_registry import load_skill_slash_commands, rebuild_slash_registry
+
+    calls = {"n": 0}
+    real_discover = normalize.discover_skill_files
+
+    def _counting(root: Path) -> list[Path]:
+        calls["n"] += 1
+        return real_discover(root)
+
+    monkeypatch.setattr("core.hub.slash_registry.discover_skill_files", _counting)
+    rebuild_slash_registry(skills)
+    first = load_skill_slash_commands(skills)
+    second = load_skill_slash_commands(skills)
+    assert [cmd for cmd, _ in first] == ["/alpha", "/beta", "/gamma"]
+    assert second == first
+    # One walk while rebuilding, then one walk per load to check the cache.
+    # Not one walk per nested skill.
+    assert calls["n"] == 3
+
+
 def test_hermes_skill_subpath():
     from core.hub.hermes_hub import hermes_skill_subpath
 
