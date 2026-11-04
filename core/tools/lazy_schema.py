@@ -41,6 +41,10 @@ CORE_TOOL_NAMES: frozenset[str] = frozenset(
         "research_site_pages",
         "plan_mode",
         "lsp",
+        "workspace_snapshot",
+        "semantic_search",
+        "session_goal",
+        "session_worktree",
         # Media tools are registered only when holix-media is configured.
         # They must be on the LLM list; tool_search does not surface them.
         "describe_media_model",

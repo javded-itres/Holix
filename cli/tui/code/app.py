@@ -2444,6 +2444,14 @@ class HolixCodeApp(App):
     def _short_name(self, conv_id: str) -> str:
         if conv_id in self.session_names:
             return self.session_names[conv_id]
+        try:
+            from core.llm.side_model import get_session_title
+
+            stored = get_session_title(str(getattr(self, "profile", None) or "default"), conv_id)
+            if stored:
+                return stored
+        except Exception:
+            pass
         if "_" in conv_id:
             return conv_id.split("_")[-1][:8]
         return conv_id[:10]
@@ -2451,6 +2459,16 @@ class HolixCodeApp(App):
     def _rename_current_session(self, name: str) -> None:
         self.session_names[self.conversation_id] = name.strip()
         self.session_display_name = name.strip()
+        try:
+            from core.llm.side_model import set_session_title
+
+            set_session_title(
+                str(getattr(self, "profile", None) or "default"),
+                self.conversation_id,
+                name.strip(),
+            )
+        except Exception:
+            pass
         self.transcript_write(f"[dim]session name: {name.strip()}[/dim]")
         self._refresh_status_bar()
 

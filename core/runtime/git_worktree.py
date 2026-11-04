@@ -145,8 +145,9 @@ def sanitize_change_id(change_id: str) -> str:
     return cid
 
 
-def branch_for_change(change_id: str) -> str:
-    return f"change/{sanitize_change_id(change_id)}"
+def branch_for_change(change_id: str, prefix: str = "change") -> str:
+    safe = (prefix or "change").strip().strip("/") or "change"
+    return f"{safe}/{sanitize_change_id(change_id)}"
 
 
 def run_git(cwd: Path, *args: str, check: bool = True) -> subprocess.CompletedProcess[str]:
@@ -317,8 +318,10 @@ def add_change_worktree(
     *,
     start_point: str = "",
     profile: str | None = None,
+    force: bool = False,
+    branch_prefix: str = "change",
 ) -> WorktreeInfo:
-    if not worktrees_enabled(profile):
+    if not force and not worktrees_enabled(profile):
         raise WorktreeUnavailable("HOLIX_WORKTREE=0")
     if not git_available():
         raise WorktreeUnavailable("git is not installed")
@@ -327,7 +330,7 @@ def add_change_worktree(
     if git_common_dir(main) is None:
         raise WorktreeUnavailable(f"not a git repository: {main}")
     dest = worktree_path_for(main, cid)
-    branch = branch_for_change(cid)
+    branch = branch_for_change(cid, branch_prefix)
     lock = _clone_lock(main)
     with lock:
         existing = [w for w in list_holix_worktrees(main) if w.change_id == cid]

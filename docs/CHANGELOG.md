@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+### Added
+
+- **Workspace snapshots** — `workspace_snapshot` and `/snapshot` keep a shadow git outside the project `.git`. Revert and redo restore files. Set `file_snapshots_enabled` or `HOLIX_FILE_SNAPSHOTS=1` to capture automatically before the first write of a turn.
+- **Permission rules** — `.holix/permissions.yaml` and `<profile>/permissions.yaml` use `allow` / `ask` / `deny`. The last matching rule wins. `sandbox.network: deny` blocks networked shell commands.
+- **Semantic code index** — `semantic_search` and `/index enable` search functions and classes with a local token index. Off until enabled (`HOLIX_CODE_INDEX=1` or `code_index_enabled`).
+- **Nested instructions** — `read_file` appends the nearest subdirectory `AGENTS.md` / `CLAUDE.md` / `rules.md` once per session.
+- **Session goal** — `/goal` and `session_goal` keep one objective across turns. `ask_user` is refused while it is active. A denied confirmation or Stop pauses it.
+- **Small model** — `small_model` / `HOLIX_SMALL_MODEL` runs context compression, episodic summaries, and session titles. `suggest_commit_message` builds a subject line from a diff. Titles show in the TUI.
+- **Background sub-agents** — `delegate_to_subagent(..., background=true, paths=[...])` injects the result into the conversation. The parent must not edit those paths or poll.
+- **Session worktree** — `/worktree bind` and `session_worktree` check out `session/<id>` under `.holix/worktrees/`, copy `.env`, and run `.holix/worktree-setup.sh`. File tools follow that checkout. This is separate from SDD.
+
 ## 1.1.21 — 2026-10-28
 
 ### Added

@@ -191,6 +191,19 @@ class AskUserTool(BaseTool):
         if not items:
             return tool_err("missing_question", "questions is required")
 
+        try:
+            from core.runtime.session_goal import questions_blocked
+            from core.tools.execution_context import get_conversation_id, get_profile_name
+
+            if questions_blocked(get_profile_name(), get_conversation_id()):
+                return tool_err(
+                    "goal_active",
+                    "A session goal is active. Decide a safe reversible choice and continue. "
+                    "Do not ask the user. Report session_goal status=blocked if you cannot proceed.",
+                )
+        except Exception:
+            pass
+
         bridge = _resolve_bridge()
         if bridge is None:
             return tool_err(

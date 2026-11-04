@@ -51,9 +51,11 @@ class AgentServicesProvider(Provider):
         llm_client: AsyncOpenAI,
         token_counter: TokenCounter,
     ) -> ContextCompressor:
+        from core.llm.side_model import resolve_small_model
+
         return ContextCompressor(
             client=llm_client,
-            model=config.model,
+            model=resolve_small_model(config.model),
             token_counter=token_counter,
         )
 

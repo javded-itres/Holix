@@ -101,6 +101,14 @@ def get_workspace_root() -> str | None:
         overlay = None
     if overlay:
         return overlay
+    try:
+        from core.runtime.session_worktree import overlay_workspace
+
+        session = overlay_workspace(get_profile_name(), get_conversation_id())
+    except Exception:
+        session = None
+    if session:
+        return session
     return _workspace_root.get()
 
 

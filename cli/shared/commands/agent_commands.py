@@ -121,6 +121,18 @@ class AgentCommands:
             elif lower.startswith("/permission"):
                 await self._permission(h, cmd)
 
+            elif lower.startswith("/goal"):
+                await self._goal(h, cmd)
+
+            elif lower.startswith("/snapshot"):
+                await self._snapshot(h, cmd)
+
+            elif lower.startswith("/worktree"):
+                await self._worktree(h, cmd)
+
+            elif lower.startswith("/index"):
+                await self._code_index(h, cmd)
+
             elif lower.startswith("/pty"):
                 await self._pty(h, cmd)
 
@@ -329,6 +341,120 @@ class AgentCommands:
                 backend=sandbox_backend(),
                 pinned=True,
             )
+        )
+
+    def _profile_cid(self, h: Any) -> tuple[str, str]:
+        profile = str(getattr(h, "profile", None) or "default")
+        cid = str(getattr(h, "conversation_id", None) or "default")
+        return profile, cid
+
+    def _workspace_of(self, h: Any) -> str:
+        agent = getattr(h, "agent", None)
+        tools = getattr(agent, "tools", None)
+        root = getattr(tools, "_workspace_root", None) or getattr(
+            getattr(agent, "config", None), "workspace_root", None
+        )
+        return str(root or "")
+
+    async def _goal(self, h: Any, cmd: str) -> None:
+        from core.runtime.session_goal import (
+            clear_goal,
+            get_goal,
+            pause_goal,
+            resume_goal,
+            start_goal,
+        )
+
+        profile, cid = self._profile_cid(h)
+        parts = cmd.split(maxsplit=2)
+        action = parts[1].lower() if len(parts) > 1 else "status"
+        if action in {"status", ""}:
+            goal = get_goal(profile, cid)
+            h.transcript_write(str(goal.as_dict()) if goal else "no session goal")
+            return
+        if action == "pause":
+            pause_goal(profile, cid, "paused")
+            h.transcript_write("goal paused")
+            return
+        if action == "resume":
+            resume_goal(profile, cid)
+            h.transcript_write("goal resumed")
+            return
+        if action == "clear":
+            clear_goal(profile, cid)
+            h.transcript_write("goal cleared")
+            return
+        objective = parts[2] if len(parts) > 2 else ""
+        if action == "start" and not objective:
+            h.transcript_write("[yellow]/goal start <objective>[/yellow]")
+            return
+        if action != "start":
+            objective = cmd.split(maxsplit=1)[1]
+        start_goal(profile, cid, objective)
+        h.transcript_write(f"goal: {objective}")
+
+    async def _snapshot(self, h: Any, cmd: str) -> None:
+        from core.runtime.file_snapshots import list_snapshots, redo, revert
+
+        profile, _cid = self._profile_cid(h)
+        workspace = self._workspace_of(h)
+        parts = cmd.split()
+        action = parts[1].lower() if len(parts) > 1 else "list"
+        if not workspace:
+            h.transcript_write("[yellow]no workspace[/yellow]")
+            return
+        if action == "revert":
+            h.transcript_write(str(revert(workspace, profile=profile)))
+            return
+        if action == "redo":
+            h.transcript_write(str(redo(workspace, profile=profile)))
+            return
+        h.transcript_write(str(list_snapshots(workspace, profile=profile)))
+
+    async def _worktree(self, h: Any, cmd: str) -> None:
+        from core.runtime.session_worktree import (
+            bind_session,
+            diff_session,
+            get_binding,
+            leave_session,
+        )
+
+        profile, cid = self._profile_cid(h)
+        parts = cmd.split()
+        action = parts[1].lower() if len(parts) > 1 else "status"
+        if action == "bind":
+            base = parts[2] if len(parts) > 2 else ""
+            h.transcript_write(
+                str(
+                    bind_session(
+                        self._workspace_of(h) or ".",
+                        profile=profile,
+                        conversation_id=cid,
+                        base=base,
+                    )
+                )
+            )
+            return
+        if action == "diff":
+            h.transcript_write(str(diff_session(profile, cid)))
+            return
+        if action == "leave":
+            h.transcript_write(str(leave_session(profile, cid)))
+            return
+        h.transcript_write(str(get_binding(profile, cid) or "no session worktree"))
+
+    async def _code_index(self, h: Any, cmd: str) -> None:
+        from core.search.code_index import code_index_enabled, set_session_enabled
+
+        profile, cid = self._profile_cid(h)
+        parts = cmd.split()
+        action = parts[1].lower() if len(parts) > 1 else "status"
+        if action == "enable":
+            set_session_enabled(profile, cid, True)
+            h.transcript_write("code index enabled for this session")
+            return
+        h.transcript_write(
+            "enabled" if code_index_enabled(profile=profile, conversation_id=cid) else "disabled"
         )
 
     async def _pty(self, h: Any, cmd: str) -> None:
