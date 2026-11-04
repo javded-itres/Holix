@@ -71,6 +71,7 @@ from cli.tui.shared.slash_suggestions import (
     is_skill_invoke_line,
     match_skill_invoke_commands,
     match_slash_commands,
+    slash_line_query,
 )
 from cli.tui.shared.transcript_store import TranscriptStore, plain_from_rich_write
 
@@ -1551,9 +1552,13 @@ class HolixCodeApp(App):
 
     def _update_slash_suggestions(self, text: str) -> None:
         try:
-            suggestions = self.query_one("#command-suggestions", SlashCommandSuggestions)
             lines = text.splitlines()
             current_line = lines[-1] if lines else ""
+            # Ordinary text must not scan skills. That scan was on the UI thread.
+            if slash_line_query(current_line) is None:
+                self._hide_slash_suggestions()
+                return
+            suggestions = self.query_one("#command-suggestions", SlashCommandSuggestions)
             matches = self._slash_matches_for_line(current_line)
             if not matches:
                 self._hide_slash_suggestions()
@@ -1566,7 +1571,10 @@ class HolixCodeApp(App):
 
     def _hide_slash_suggestions(self) -> None:
         try:
-            self.query_one("#command-suggestions", SlashCommandSuggestions).hide_dropdown()
+            suggestions = self.query_one("#command-suggestions", SlashCommandSuggestions)
+            if not suggestions.is_open:
+                return
+            suggestions.hide_dropdown()
             self._slash_suggestion_navigated = False
         except Exception:
             pass
@@ -1593,7 +1601,10 @@ class HolixCodeApp(App):
 
     def _hide_prompt_history(self) -> None:
         try:
-            self.query_one("#prompt-history", PromptHistorySuggestions).hide_dropdown()
+            history = self.query_one("#prompt-history", PromptHistorySuggestions)
+            if not history.is_open:
+                return
+            history.hide_dropdown()
             self._history_navigated = False
         except Exception:
             pass
